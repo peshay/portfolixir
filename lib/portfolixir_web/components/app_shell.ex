@@ -103,8 +103,13 @@ defmodule PortfolixirWeb.AppShell do
         }
 
         #app-shell .app-shell-brand .app-shell-logo {
-          height: 2.25rem;
-          width: 2.25rem;
+          width: 2rem;
+          height: 2rem;
+          max-width: 2rem;
+          max-height: 2rem;
+          min-width: 2rem;
+          min-height: 2rem;
+          object-fit: contain;
           display: inline-block;
           flex: none;
         }
@@ -262,6 +267,10 @@ defmodule PortfolixirWeb.AppShell do
 
         #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-label {
           display: none;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand {
+          justify-content: center;
         }
 
         #app-shell .app-shell-main {
@@ -440,15 +449,15 @@ defmodule PortfolixirWeb.AppShell do
       <div class="app-shell-layout">
         <aside class="app-shell-sidebar" aria-label="Primary navigation">
           <div class="app-shell-sidebar-top">
-            <a href="/securities" class="app-shell-brand">
-              <img
-                id="app-shell-brand-mark"
-                class="app-shell-logo"
-                src="/images/logo-mark.svg"
-                alt="Portfolixir"
-              />
-              <span class="app-shell-brand-label">Portfolixir</span>
-            </a>
+          <a href="/securities" class="app-shell-brand" aria-label="Portfolixir">
+            <img
+              id="app-shell-brand-mark"
+              class="app-shell-logo"
+              src="/images/logo-mark.svg"
+              alt="Portfolixir"
+            />
+            <span class="app-shell-brand-label">Portfolixir</span>
+          </a>
             <button
               id="sidebar-toggle"
               class="app-shell-icon-button"
