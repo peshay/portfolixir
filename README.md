@@ -56,6 +56,16 @@ Do not implement these yet:
 - Real-money bank or broker actions
 - External market-data calls inside tests
 
+## Support Portfolixir
+
+Portfolixir is an independent open-source project.
+
+If you find it useful, you can support development and maintenance with a voluntary payment via bunq.me:
+
+[Support Portfolixir via bunq.me](https://bunq.me/ahuservices?description=portfolixir)
+
+Support payments are voluntary contributions. They do not create any entitlement to support, features, consulting, commercial services, invoices, or a charitable donation receipt.
+
 ## Suggested first Codex Spark run
 
 Use:
