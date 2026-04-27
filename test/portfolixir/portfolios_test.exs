@@ -23,7 +23,10 @@ defmodule Portfolixir.PortfoliosTest do
 
   test "create portfolio without name fails" do
     assert {:error, changeset} =
-             Portfolios.create_portfolio(%{description: "Missing name", base_currency_code: "EUR"})
+             Portfolios.create_portfolio(%{
+               description: "Missing name",
+               base_currency_code: "EUR"
+             })
 
     assert %{name: ["can't be blank"]} = errors_on(changeset)
   end

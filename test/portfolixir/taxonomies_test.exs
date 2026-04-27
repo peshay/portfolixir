@@ -60,6 +60,28 @@ defmodule Portfolixir.TaxonomiesTest do
     assert %{name: ["can't be blank"]} = errors_on(changeset)
   end
 
+  test "duplicate category names are allowed across taxonomies" do
+    {:ok, taxonomy_one} = Taxonomies.create_taxonomy(%{name: "Allocation"})
+    {:ok, taxonomy_two} = Taxonomies.create_taxonomy(%{name: "Regions"})
+
+    assert {:ok, _} =
+             Taxonomies.create_category(%{taxonomy_id: taxonomy_one.id, name: "Global"})
+
+    assert {:ok, _} =
+             Taxonomies.create_category(%{taxonomy_id: taxonomy_two.id, name: "Global"})
+  end
+
+  test "category names are unique within a taxonomy" do
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
+
+    assert {:ok, _} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core ETF"})
+
+    assert {:error, changeset} =
+             Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core ETF"})
+
+    assert %{name: ["has already been taken"]} = errors_on(changeset)
+  end
+
   test "list categories by taxonomy" do
     {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
     {:ok, _} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core ETF"})

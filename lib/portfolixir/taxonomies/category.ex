@@ -23,6 +23,7 @@ defmodule Portfolixir.Taxonomies.Category do
     |> cast(attrs, [:taxonomy_id, :parent_id, :name, :description, :color, :sort_order])
     |> validate_required([:taxonomy_id, :name])
     |> validate_number(:sort_order, greater_than_or_equal_to: 0)
+    |> unique_constraint(:name, name: :categories_taxonomy_id_name_index)
     |> assoc_constraint(:taxonomy)
     |> foreign_key_constraint(:parent_id)
   end

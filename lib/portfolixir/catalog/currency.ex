@@ -5,8 +5,8 @@ defmodule Portfolixir.Catalog.Currency do
   @derive {Phoenix.Param, key: :code}
   @primary_key {:code, :string, autogenerate: false}
   schema "currencies" do
-    field :name, :string
-    field :minor_units, :integer
+    field(:name, :string)
+    field(:minor_units, :integer)
 
     timestamps()
   end
