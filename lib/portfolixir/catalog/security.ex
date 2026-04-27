@@ -10,6 +10,7 @@ defmodule Portfolixir.Catalog.Security do
     field(:exchange_code, :string)
     field(:provider_symbol, :string)
     field(:isin, :string)
+    field(:wkn, :string)
     field(:notes, :string)
 
     belongs_to(:currency, Currency,
@@ -31,6 +32,7 @@ defmodule Portfolixir.Catalog.Security do
       :exchange_code,
       :provider_symbol,
       :isin,
+      :wkn,
       :currency_code,
       :notes
     ])
