@@ -27,6 +27,20 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert response.resp_body =~ "Portfolixir logo mark"
   end
 
+  test "static logo assets are served", %{conn: conn} do
+    mark = get(conn, "/images/logo-mark.svg")
+    light = get(conn, "/images/logo-light.svg")
+    dark = get(conn, "/images/logo-dark.svg")
+    favicon_svg = get(conn, "/favicon.svg")
+    favicon_ico = get(conn, "/favicon.ico")
+
+    assert mark.status == 200
+    assert light.status == 200
+    assert dark.status == 200
+    assert favicon_svg.status == 200
+    assert favicon_ico.status == 200
+  end
+
   test "navigation is usable in compact sidebar mode markup", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
