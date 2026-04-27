@@ -11,23 +11,24 @@ defmodule PortfolixirWeb.AppShell do
     <div id="app-shell" data-theme="light" data-sidebar-collapsed="false">
       <style id="app-shell-styles">
         :root {
-          --pfx-bg: #f8fafc;
+          --pfx-bg: #f4f7fc;
           --pfx-surface: #ffffff;
-          --pfx-surface-secondary: #f8fafc;
+          --pfx-surface-muted: #f8fbff;
           --pfx-text: #0f172a;
-          --pfx-muted: #475569;
-          --pfx-border: #e2e8f0;
+          --pfx-muted: #506280;
+          --pfx-border: #dae2f0;
           --pfx-input: #ffffff;
-          --pfx-input-border: #cbd5e1;
-          --pfx-link: #2563eb;
+          --pfx-input-border: #cbd8ed;
+          --pfx-link: #3b82f6;
           --pfx-accent: #6d28d9;
           --pfx-accent-soft: #ede9fe;
+          --pfx-accent-faint: rgba(109, 40, 217, 0.14);
         }
 
         [data-theme="dark"] {
-          --pfx-bg: #020617;
+          --pfx-bg: #080e1b;
           --pfx-surface: #0f172a;
-          --pfx-surface-secondary: #1e293b;
+          --pfx-surface-muted: #1e293b;
           --pfx-text: #f8fafc;
           --pfx-muted: #cbd5e1;
           --pfx-border: #334155;
@@ -36,6 +37,7 @@ defmodule PortfolixirWeb.AppShell do
           --pfx-link: #93c5fd;
           --pfx-accent: #a78bfa;
           --pfx-accent-soft: #312e81;
+          --pfx-accent-faint: rgba(167, 139, 250, 0.22);
         }
 
         #app-shell {
@@ -43,7 +45,14 @@ defmodule PortfolixirWeb.AppShell do
           margin: 0;
           background: var(--pfx-bg);
           color: var(--pfx-text);
-          font-family: "Verdana", "Geneva", "Trebuchet MS", sans-serif;
+          font-family:
+            Inter,
+            ui-sans-serif,
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
         }
 
         #app-shell a {
@@ -68,6 +77,7 @@ defmodule PortfolixirWeb.AppShell do
           flex-direction: column;
           gap: 0.75rem;
           transition: width 0.2s ease;
+          min-height: 100vh;
         }
 
         #app-shell[data-sidebar-collapsed="true"] .app-shell-sidebar {
@@ -79,28 +89,75 @@ defmodule PortfolixirWeb.AppShell do
           align-items: center;
           justify-content: space-between;
           gap: 0.5rem;
+          padding-bottom: 0.2rem;
+        }
+
+        #app-shell .app-shell-brand {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0.25rem 0.2rem;
+          min-width: 0;
+          flex: 1;
+          color: var(--pfx-text);
+        }
+
+        #app-shell .app-shell-brand .app-shell-logo {
+          height: 2.25rem;
+          width: 2.25rem;
+          display: inline-block;
+          flex: none;
+        }
+
+        #app-shell .app-shell-brand-label {
+          display: block;
+          font-size: 1rem;
+          line-height: 1.05;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-label {
+          display: none;
         }
 
         #app-shell .app-shell-icon-button {
           border: 1px solid var(--pfx-border);
-          border-radius: 0.65rem;
-          background: var(--pfx-input);
+          border-radius: 0.75rem;
+          background: var(--pfx-surface-muted);
           color: var(--pfx-text);
-          padding: 0.45rem 0.55rem;
-          cursor: pointer;
-          width: 2.2rem;
-          height: 2.2rem;
+          width: 2.35rem;
+          height: 2.35rem;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          cursor: pointer;
+          transition:
+            border-color 0.15s ease,
+            background-color 0.15s ease;
+        }
+
+        #app-shell .app-shell-icon-button:hover {
+          border-color: color-mix(in srgb, var(--pfx-accent) 30%, var(--pfx-border));
+          background: var(--pfx-accent-faint);
+        }
+
+        #app-shell .app-shell-icon-button:focus-visible,
+        #app-shell .app-shell-theme-toggle:focus-visible,
+        #app-shell button.app-shell-primary:focus-visible {
+          outline: 2px solid color-mix(in srgb, var(--pfx-accent) 45%, transparent);
+          outline-offset: 2px;
         }
 
         #app-shell .app-shell-theme-toggle {
           border: 1px solid var(--pfx-input-border);
-          border-radius: 0.45rem;
-          background: var(--pfx-input);
+          border-radius: 0.65rem;
+          background: var(--pfx-surface-muted);
           color: var(--pfx-text);
-          padding: 0.45rem 0.7rem;
+          padding: 0.5rem 0.7rem;
           cursor: pointer;
           min-height: 2.2rem;
           display: inline-flex;
@@ -110,124 +167,15 @@ defmodule PortfolixirWeb.AppShell do
           width: 100%;
           box-sizing: border-box;
           white-space: nowrap;
-        }
-
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-theme-toggle {
-          width: 2.2rem;
-          padding: 0.45rem 0.55rem;
-          justify-content: center;
-        }
-
-        #app-shell .app-shell-brand {
-          display: flex;
-          align-items: center;
-          gap: 0.65rem;
-          padding: 0.25rem 0;
-          min-width: 0;
-          flex: 1;
-        }
-
-        #app-shell .app-shell-logo {
-          height: 2rem;
-          width: auto;
-          display: inline-block;
-          flex: none;
-        }
-
-        #app-shell .app-shell-logo-wordmark {
-          max-width: 100%;
-          width: auto;
-          height: 1.75rem;
-        }
-
-        #app-shell .app-shell-brand-wordmark {
-          display: block;
-        }
-
-        #app-shell .app-shell-brand-mark {
-          display: none;
-        }
-
-        #app-shell .app-shell-brand-label {
-          display: block;
-          font-weight: 700;
-          letter-spacing: 0.03em;
-          color: var(--pfx-text);
-          white-space: nowrap;
-        }
-
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-wordmark,
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-label {
-          display: none;
-        }
-
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-mark {
-          display: block;
-        }
-
-        #app-shell .app-shell-brand-label.sr-only {
-          width: 1px;
-          height: 1px;
-          padding: 0;
-          overflow: hidden;
-          position: absolute;
-          clip-path: inset(50%);
-          clip: rect(0, 0, 0, 0);
-          border: 0;
-          white-space: nowrap;
-        }
-
-        #app-shell .app-shell-sidebar-nav {
-          margin-top: 0.5rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-
-        #app-shell .app-shell-nav-link {
-          display: flex;
-          align-items: center;
-          gap: 0.7rem;
-          border: 1px solid transparent;
-          border-radius: 0.65rem;
-          padding: 0.55rem 0.7rem;
-          min-height: 2.5rem;
-          color: var(--pfx-text);
-        }
-
-        #app-shell .app-shell-nav-link:hover {
-          background: var(--pfx-accent-soft);
-        }
-
-        #app-shell .app-shell-nav-link.is-active {
-          background: color-mix(in srgb, var(--pfx-accent-soft) 60%, transparent);
-          border-color: color-mix(in srgb, var(--pfx-accent) 45%, transparent);
-          color: var(--pfx-text);
-          font-weight: 600;
-        }
-
-        #app-shell .app-shell-nav-icon {
-          display: none;
-          width: 1.5rem;
-          font-weight: 700;
-          line-height: 1;
-          text-align: center;
-        }
-
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-icon {
-          display: inline-flex;
-        }
-
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-link {
-          justify-content: center;
-        }
-
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-link .app-shell-nav-label {
-          display: none;
+          transition:
+            border-color 0.15s ease,
+            background-color 0.15s ease;
         }
 
         #app-shell .app-shell-theme-label {
           display: inline-block;
+          font-size: 0.92rem;
+          line-height: 1;
         }
 
         #app-shell .app-shell-theme-icon {
@@ -238,11 +186,81 @@ defmodule PortfolixirWeb.AppShell do
           line-height: 1;
         }
 
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-theme-toggle {
+          width: 2.35rem;
+          padding: 0.5rem 0.55rem;
+          justify-content: center;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-theme-label {
+          display: none;
+        }
+
         #app-shell[data-sidebar-collapsed="true"] .app-shell-theme-icon {
           display: inline-block;
         }
 
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-theme-label {
+        #app-shell .app-shell-sidebar-nav {
+          margin-top: 0.35rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.45rem;
+        }
+
+        #app-shell .app-shell-nav-link {
+          display: flex;
+          align-items: center;
+          gap: 0.7rem;
+          border: 1px solid transparent;
+          border-radius: 0.7rem;
+          padding: 0.58rem 0.75rem;
+          min-height: 2.5rem;
+          color: var(--pfx-text);
+          transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease;
+          font-weight: 500;
+        }
+
+        #app-shell .app-shell-nav-link:hover {
+          background: color-mix(in srgb, var(--pfx-accent-faint) 100%, transparent);
+          border-color: color-mix(in srgb, var(--pfx-accent) 18%, transparent);
+        }
+
+        #app-shell .app-shell-nav-link.is-active {
+          background: var(--pfx-accent-faint);
+          border-color: color-mix(in srgb, var(--pfx-accent) 40%, transparent);
+          color: color-mix(in srgb, var(--pfx-accent) 92%, black);
+          font-weight: 600;
+        }
+
+        #app-shell .app-shell-nav-icon {
+          display: none;
+          width: 1.65rem;
+          min-width: 1.65rem;
+          height: 1.65rem;
+          border-radius: 0.45rem;
+          font-weight: 700;
+          line-height: 1;
+          text-align: center;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          background: color-mix(in srgb, var(--pfx-surface) 45%, transparent);
+          border: 1px solid color-mix(in srgb, var(--pfx-border) 85%, transparent);
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-icon {
+          display: inline-flex;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-link {
+          justify-content: center;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-label {
           display: none;
         }
 
@@ -250,24 +268,76 @@ defmodule PortfolixirWeb.AppShell do
           flex: 1;
           padding: 1.25rem;
           min-width: 0;
+          background:
+            radial-gradient(circle at 28% -8%, var(--pfx-accent-soft), transparent 44%),
+            var(--pfx-bg);
+        }
+
+        #app-shell .app-shell-main-inner {
+          max-width: 1080px;
+          margin: 0 auto;
         }
 
         #app-shell .app-shell-content-card {
-          background: var(--pfx-surface);
-          border: 1px solid var(--pfx-border);
-          border-radius: 0.75rem;
-          padding: 1.1rem;
+          background: transparent;
+          border: 0;
+          padding: 0;
           box-sizing: border-box;
-          min-height: calc(100vh - 2.5rem);
         }
 
-        #app-shell section {
+        #app-shell .app-shell-section-card {
+          background: var(--pfx-surface);
+          border: 1px solid var(--pfx-border);
+          border-radius: 0.8rem;
+          padding: 1rem;
+          box-sizing: border-box;
+          box-shadow: 0 18px 45px -33px rgba(15, 23, 42, 0.35);
+        }
+
+        #app-shell .app-shell-section-card + .app-shell-section-card {
           margin-top: 1rem;
+        }
+
+        #app-shell .app-shell-section-title {
+          margin: 0 0 0.55rem;
+          color: var(--pfx-text);
+          font-size: 1rem;
+          letter-spacing: 0.01em;
+        }
+
+        #app-shell .app-shell-page-header {
+          margin-bottom: 1rem;
+        }
+
+        #app-shell .app-shell-page-header p {
+          margin: 0.35rem 0 0;
+          max-width: 60ch;
+          color: var(--pfx-muted);
+        }
+
+        #app-shell .app-shell-empty-state {
+          background: var(--pfx-surface-muted);
+          border: 1px dashed var(--pfx-border);
+          border-radius: 0.7rem;
+          padding: 1rem;
+        }
+
+        #app-shell .app-shell-empty-state h3 {
+          margin: 0 0 0.3rem;
+          font-size: 1rem;
+          color: var(--pfx-text);
+        }
+
+        #app-shell .app-shell-empty-state p {
+          margin: 0;
+          color: var(--pfx-muted);
         }
 
         #app-shell h1,
         #app-shell h2 {
           margin: 0;
+          color: var(--pfx-text);
+          font-weight: 600;
         }
 
         #app-shell label {
@@ -281,7 +351,6 @@ defmodule PortfolixirWeb.AppShell do
         #app-shell input,
         #app-shell textarea,
         #app-shell select,
-        #app-shell button,
         #app-shell table {
           background: var(--pfx-input);
           color: var(--pfx-text);
@@ -292,18 +361,38 @@ defmodule PortfolixirWeb.AppShell do
         #app-shell select {
           width: 100%;
           border: 1px solid var(--pfx-input-border);
-          border-radius: 0.45rem;
-          padding: 0.45rem 0.5rem;
+          border-radius: 0.55rem;
+          padding: 0.48rem 0.6rem;
           box-sizing: border-box;
+          font-family: inherit;
         }
 
         #app-shell button {
           border: 1px solid var(--pfx-input-border);
-          border-radius: 0.45rem;
-          padding: 0.45rem 0.7rem;
+          border-radius: 0.6rem;
+          padding: 0.5rem 0.8rem;
           margin-top: 0.75rem;
           margin-bottom: 0.35rem;
           cursor: pointer;
+          background: var(--pfx-surface);
+          color: var(--pfx-text);
+          transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease;
+          font-family: inherit;
+        }
+
+        #app-shell button.app-shell-primary {
+          border-color: color-mix(in srgb, var(--pfx-accent) 70%, var(--pfx-input-border));
+          background: var(--pfx-accent);
+          color: #ffffff;
+          font-weight: 600;
+          padding: 0.6rem 0.95rem;
+        }
+
+        #app-shell button.app-shell-primary:hover {
+          filter: brightness(0.97);
         }
 
         #app-shell table {
@@ -331,10 +420,19 @@ defmodule PortfolixirWeb.AppShell do
             width: 100%;
             border-right: none;
             border-bottom: 1px solid var(--pfx-border);
+            min-height: auto;
           }
 
           #app-shell[data-sidebar-collapsed="true"] .app-shell-sidebar {
             width: 100%;
+          }
+
+          #app-shell .app-shell-theme-label {
+            display: inline-block;
+          }
+
+          #app-shell .app-shell-theme-icon {
+            display: none;
           }
         }
       </style>
@@ -344,24 +442,19 @@ defmodule PortfolixirWeb.AppShell do
           <div class="app-shell-sidebar-top">
             <a href="/securities" class="app-shell-brand">
               <img
-                id="app-shell-brand-wordmark"
-                class="app-shell-logo app-shell-logo-wordmark app-shell-brand-wordmark"
-                src="/images/logo-light.svg"
+                id="app-shell-brand-mark"
+                class="app-shell-logo"
+                src="/images/logo-mark.svg"
                 alt="Portfolixir"
               />
-              <img
-                id="app-shell-brand-mark"
-                class="app-shell-logo app-shell-brand-mark"
-                src="/images/logo-mark.svg"
-                alt="Portfolixir mark"
-              />
-              <span class="app-shell-brand-label sr-only">Portfolixir</span>
+              <span class="app-shell-brand-label">Portfolixir</span>
             </a>
             <button
               id="sidebar-toggle"
               class="app-shell-icon-button"
               type="button"
-              aria-label="Toggle sidebar"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
             >
               ☰
             </button>
@@ -400,6 +493,8 @@ defmodule PortfolixirWeb.AppShell do
             id="theme-toggle"
             class="app-shell-theme-toggle app-shell-bottom-spacer"
             type="button"
+            title="Switch to dark mode"
+            aria-label="Switch to dark mode"
           >
             <span class="app-shell-theme-label">Dark mode</span>
             <span class="app-shell-theme-icon" aria-hidden="true">◐</span>
@@ -407,9 +502,11 @@ defmodule PortfolixirWeb.AppShell do
         </aside>
 
         <main class="app-shell-main">
-          <section class="app-shell-content-card">
-            <%= render_slot(@inner_block) %>
-          </section>
+          <div class="app-shell-main-inner">
+            <section class="app-shell-content-card">
+              <%= render_slot(@inner_block) %>
+            </section>
+          </div>
         </main>
       </div>
     </div>
@@ -423,7 +520,6 @@ defmodule PortfolixirWeb.AppShell do
         var themeLabel = document.querySelector("#theme-toggle .app-shell-theme-label");
         var themeIcon = document.querySelector("#theme-toggle .app-shell-theme-icon");
         var sidebarToggle = document.getElementById("sidebar-toggle");
-        var brandWordmark = document.getElementById("app-shell-brand-wordmark");
 
         function normalizeTheme(value) {
           return value === "dark" ? "dark" : "light";
@@ -433,21 +529,19 @@ defmodule PortfolixirWeb.AppShell do
           var resolvedTheme = normalizeTheme(theme);
           shell.setAttribute("data-theme", resolvedTheme);
           document.documentElement.setAttribute("data-theme", resolvedTheme);
-          if (toggle) {
-            var isDark = resolvedTheme === "dark";
-            if (themeLabel) {
-              themeLabel.textContent = isDark ? "Light mode" : "Dark mode";
-            }
-            if (themeIcon) {
-              themeIcon.textContent = isDark ? "☀" : "◑";
-            }
-            toggle.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
-            toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+          var isDark = resolvedTheme === "dark";
+
+          if (themeLabel) {
+            themeLabel.textContent = isDark ? "Light mode" : "Dark mode";
           }
 
-          if (brandWordmark) {
-            brandWordmark.src =
-              resolvedTheme === "dark" ? "/images/logo-dark.svg" : "/images/logo-light.svg";
+          if (themeIcon) {
+            themeIcon.textContent = isDark ? "☀" : "◑";
+          }
+
+          if (toggle) {
+            toggle.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
+            toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
           }
 
           try {
@@ -459,14 +553,8 @@ defmodule PortfolixirWeb.AppShell do
           shell.setAttribute("data-sidebar-collapsed", isCollapsed ? "true" : "false");
           if (sidebarToggle) {
             sidebarToggle.setAttribute("aria-pressed", isCollapsed ? "true" : "false");
-            sidebarToggle.setAttribute(
-              "title",
-              isCollapsed ? "Expand sidebar" : "Collapse sidebar"
-            );
-            sidebarToggle.setAttribute(
-              "aria-label",
-              isCollapsed ? "Expand sidebar" : "Collapse sidebar"
-            );
+            sidebarToggle.setAttribute("title", isCollapsed ? "Expand sidebar" : "Collapse sidebar");
+            sidebarToggle.setAttribute("aria-label", isCollapsed ? "Expand sidebar" : "Collapse sidebar");
           }
 
           try {
