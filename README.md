@@ -43,6 +43,24 @@ User Story -> Acceptance Criteria -> Failing Test -> Minimal Code -> Green Tests
 
 Agents must read `AGENTS.md` before making changes.
 
+## Local development with Docker Compose
+
+Run the full local development stack with:
+
+```sh
+docker compose up --build
+```
+
+Then open:
+
+- http://localhost:4000
+
+Useful cleanup:
+
+```sh
+docker compose down -v
+```
+
 ## Non-goals for the first milestone
 
 Do not implement these yet:
