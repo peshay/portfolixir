@@ -31,8 +31,6 @@ services:
       PORT: 4000
     ports:
       - "4000:4000"
-    volumes:
-      - .:/app
     command: ["mix", "phx.server"]
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:4000/health | grep -q '\"status\":\"ok\"' || exit 1"]
@@ -40,6 +38,12 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+    volumes:
+      - .:/app
+      - app-deps:/app/deps
+      - app-build:/app/_build
 
 volumes:
   portfolixir-postgres-data:
+  app-deps:
+  app-build:
