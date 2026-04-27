@@ -1,8 +1,20 @@
 defmodule PortfolixirWeb.Router do
   use PortfolixirWeb, :router
 
+  pipeline :browser do
+    plug(:accepts, ["html"])
+    plug(:fetch_session)
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
+  end
+
   pipeline :api do
     plug(:accepts, ["json"])
+  end
+
+  scope "/", PortfolixirWeb do
+    pipe_through(:browser)
+    live("/taxonomies", CategoryManagementLive)
   end
 
   scope "/", PortfolixirWeb do
