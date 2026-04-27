@@ -1,8 +1,9 @@
 defmodule Portfolixir.Catalog do
-  @moduledoc "Currency catalogue context."
+  @moduledoc "Currency and security catalogue context."
 
   import Ecto.Query
   alias Portfolixir.Catalog.Currency
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Repo
 
   @mvp_currencies [
@@ -33,6 +34,29 @@ defmodule Portfolixir.Catalog do
     %Currency{}
     |> Currency.changeset(attrs)
     |> Repo.insert()
+  end
+
+  def list_securities do
+    from(s in Security, order_by: [asc: s.name, asc: s.symbol])
+    |> Repo.all()
+  end
+
+  def get_security!(id), do: Repo.get!(Security, id)
+
+  def create_security(attrs) when is_map(attrs) do
+    %Security{}
+    |> Security.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_security(%Security{} = security, attrs) when is_map(attrs) do
+    security
+    |> Security.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_security(%Security{} = security) do
+    Repo.delete(security)
   end
 
   def seed_mvp_currencies! do
