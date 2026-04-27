@@ -81,17 +81,40 @@ defmodule PortfolixirWeb.AppShell do
           gap: 0.5rem;
         }
 
-        #app-shell .app-shell-toggle {
+        #app-shell .app-shell-icon-button {
           border: 1px solid var(--pfx-border);
           border-radius: 0.65rem;
           background: var(--pfx-input);
           color: var(--pfx-text);
-          padding: 0.45rem 0.7rem;
+          padding: 0.45rem 0.55rem;
           cursor: pointer;
           width: 2.2rem;
           height: 2.2rem;
           display: inline-flex;
           align-items: center;
+          justify-content: center;
+        }
+
+        #app-shell .app-shell-theme-toggle {
+          border: 1px solid var(--pfx-input-border);
+          border-radius: 0.45rem;
+          background: var(--pfx-input);
+          color: var(--pfx-text);
+          padding: 0.45rem 0.7rem;
+          cursor: pointer;
+          min-height: 2.2rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 0.45rem;
+          width: 100%;
+          box-sizing: border-box;
+          white-space: nowrap;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-theme-toggle {
+          width: 2.2rem;
+          padding: 0.45rem 0.55rem;
           justify-content: center;
         }
 
@@ -126,22 +149,32 @@ defmodule PortfolixirWeb.AppShell do
         }
 
         #app-shell .app-shell-brand-label {
+          display: block;
           font-weight: 700;
           letter-spacing: 0.03em;
           color: var(--pfx-text);
           white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
         }
 
         #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-wordmark,
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-label,
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-label {
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-label {
           display: none;
         }
 
         #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-mark {
           display: block;
+        }
+
+        #app-shell .app-shell-brand-label.sr-only {
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          overflow: hidden;
+          position: absolute;
+          clip-path: inset(50%);
+          clip: rect(0, 0, 0, 0);
+          border: 0;
+          white-space: nowrap;
         }
 
         #app-shell .app-shell-sidebar-nav {
@@ -171,6 +204,46 @@ defmodule PortfolixirWeb.AppShell do
           border-color: color-mix(in srgb, var(--pfx-accent) 45%, transparent);
           color: var(--pfx-text);
           font-weight: 600;
+        }
+
+        #app-shell .app-shell-nav-icon {
+          display: none;
+          width: 1.5rem;
+          font-weight: 700;
+          line-height: 1;
+          text-align: center;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-icon {
+          display: inline-flex;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-link {
+          justify-content: center;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-link .app-shell-nav-label {
+          display: none;
+        }
+
+        #app-shell .app-shell-theme-label {
+          display: inline-block;
+        }
+
+        #app-shell .app-shell-theme-icon {
+          display: none;
+          width: 1.1rem;
+          text-align: center;
+          font-size: 1rem;
+          line-height: 1;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-theme-icon {
+          display: inline-block;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-theme-label {
+          display: none;
         }
 
         #app-shell .app-shell-main {
@@ -282,11 +355,11 @@ defmodule PortfolixirWeb.AppShell do
                 src="/images/logo-mark.svg"
                 alt="Portfolixir mark"
               />
-              <span class="app-shell-brand-label">Portfolixir</span>
+              <span class="app-shell-brand-label sr-only">Portfolixir</span>
             </a>
             <button
               id="sidebar-toggle"
-              class="app-shell-toggle"
+              class="app-shell-icon-button"
               type="button"
               aria-label="Toggle sidebar"
             >
@@ -297,28 +370,39 @@ defmodule PortfolixirWeb.AppShell do
           <nav class="app-shell-sidebar-nav" aria-label="Main navigation">
             <a
               href="/securities"
+              aria-label="Securities"
+              title="Securities"
               class={if @current_path == "/securities" || @current_path == "/" do
                 "app-shell-nav-link is-active"
               else
                 "app-shell-nav-link"
               end}
             >
+              <span class="app-shell-nav-icon" aria-hidden="true">S</span>
               <span class="app-shell-nav-label">Securities</span>
             </a>
             <a
               href="/taxonomies"
+              aria-label="Categories"
+              title="Categories"
               class={if @current_path == "/taxonomies" do
                 "app-shell-nav-link is-active"
               else
                 "app-shell-nav-link"
               end}
             >
+              <span class="app-shell-nav-icon" aria-hidden="true">C</span>
               <span class="app-shell-nav-label">Categories</span>
             </a>
           </nav>
 
-          <button id="theme-toggle" class="app-shell-toggle app-shell-bottom-spacer" type="button">
-            Dark mode
+          <button
+            id="theme-toggle"
+            class="app-shell-theme-toggle app-shell-bottom-spacer"
+            type="button"
+          >
+            <span class="app-shell-theme-label">Dark mode</span>
+            <span class="app-shell-theme-icon" aria-hidden="true">◐</span>
           </button>
         </aside>
 
@@ -336,6 +420,8 @@ defmodule PortfolixirWeb.AppShell do
         var sidebarKey = "portfolixir-sidebar-collapsed";
         var shell = document.getElementById("app-shell");
         var toggle = document.getElementById("theme-toggle");
+        var themeLabel = document.querySelector("#theme-toggle .app-shell-theme-label");
+        var themeIcon = document.querySelector("#theme-toggle .app-shell-theme-icon");
         var sidebarToggle = document.getElementById("sidebar-toggle");
         var brandWordmark = document.getElementById("app-shell-brand-wordmark");
 
@@ -348,7 +434,15 @@ defmodule PortfolixirWeb.AppShell do
           shell.setAttribute("data-theme", resolvedTheme);
           document.documentElement.setAttribute("data-theme", resolvedTheme);
           if (toggle) {
-            toggle.textContent = resolvedTheme === "dark" ? "Light mode" : "Dark mode";
+            var isDark = resolvedTheme === "dark";
+            if (themeLabel) {
+              themeLabel.textContent = isDark ? "Light mode" : "Dark mode";
+            }
+            if (themeIcon) {
+              themeIcon.textContent = isDark ? "☀" : "◑";
+            }
+            toggle.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
+            toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
           }
 
           if (brandWordmark) {
@@ -365,6 +459,14 @@ defmodule PortfolixirWeb.AppShell do
           shell.setAttribute("data-sidebar-collapsed", isCollapsed ? "true" : "false");
           if (sidebarToggle) {
             sidebarToggle.setAttribute("aria-pressed", isCollapsed ? "true" : "false");
+            sidebarToggle.setAttribute(
+              "title",
+              isCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            );
+            sidebarToggle.setAttribute(
+              "aria-label",
+              isCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            );
           }
 
           try {
