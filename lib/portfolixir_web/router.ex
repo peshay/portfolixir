@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.Router do
   scope "/", PortfolixirWeb do
     pipe_through(:browser)
     live("/taxonomies", CategoryManagementLive)
+    live("/securities", SecurityManagementLive)
   end
 
   scope "/", PortfolixirWeb do
