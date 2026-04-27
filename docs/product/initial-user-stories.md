@@ -323,116 +323,6 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ---
 
-## Roadmap placeholders (post PFX-011)
-
-### PFX-012 — Yahoo Finance quote provider adapter
-
-**As an investor**, I want to use Yahoo Finance as a first market-data provider so that I can fetch simple current and historical quotes.
-
-### Acceptance criteria
-
-- Yahoo Finance is implemented behind the existing MarketData provider behaviour.
-- Tests use a fake HTTP adapter or fixtures.
-- No real HTTP calls in tests.
-- Provider instability and terms-of-service caveat are documented.
-- Provider can be disabled/configured.
-
----
-
-### PFX-013 — Manual quote sync for one security
-
-**As an investor**, I want a button to sync the latest quote for one security so that I can refresh a single asset on demand.
-
-### Acceptance criteria
-
-- Security detail or list has a sync action.
-- Sync uses provider behaviour.
-- Latest quote is stored.
-- Errors are displayed without crashing the UI.
-- Tests use fake provider only.
-
----
-
-### PFX-014 — Historical quote storage
-
-**As an investor**, I want historical quotes stored so that charts and performance calculations can use price history.
-
-### Acceptance criteria
-
-- Historical quote schema exists.
-- Stores security_id, provider, quoted_at/date, price, currency_code, raw payload.
-- Duplicate quote for same security/provider/date is idempotent.
-- Uses Decimal for prices.
-
----
-
-### PFX-015 — Historical quote backfill for one security
-
-**As an investor**, I want to backfill historical quotes for one security so that charts can be populated.
-
-### Acceptance criteria
-
-- Backfill action exists at context/service level.
-- Uses provider behaviour.
-- Stores historical quotes idempotently.
-- No real HTTP calls in tests.
-
----
-
-### PFX-016 — Watchlists
-
-**As an investor**, I want watchlists so that I can group assets I track without necessarily owning them.
-
-### Acceptance criteria
-
-- Watchlist schema exists.
-- Securities can be added to and removed from watchlists.
-- Duplicate watchlist entries are rejected or idempotent.
-- Context tests exist.
-
----
-
-### PFX-017 — Asset logo metadata
-
-**As an investor**, I want assets to have optional logos so that the UI is easier to scan.
-
-### Acceptance criteria
-
-- Security can store optional logo metadata.
-- Logo source, URL/path and attribution/license fields are modeled.
-- No external logo fetching is implemented yet.
-- Legal/licensing caveat is documented.
-
----
-
-### PFX-018 — Themeable app shell
-
-**As a user**, I want a themeable app shell so that Portfolixir has a polished UI and supports different visual themes.
-
-### Acceptance criteria
-
-- Shared app layout/navigation exists.
-- User can switch between at least light and dark theme.
-- Theme choice is persisted in local storage or a simple setting.
-- Existing `/taxonomies` and `/securities` pages use the shared shell.
-- UI remains simple and testable.
-
----
-
-### PFX-019 — Minimal portfolio dashboard
-
-**As an investor**, I want a minimal dashboard so that I can see my portfolio overview.
-
-### Acceptance criteria
-
-- Dashboard LiveView exists.
-- Shows portfolio name/base currency.
-- Shows securities/positions once position calculation exists.
-- Shows empty states before transactions exist.
-- Does not fake valuation data.
-
----
-
 ## PFX-012 — Record buy transactions
 
 **As an investor**, I want to record buy transactions so that my purchase history can drive positions.
@@ -532,9 +422,104 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 - Shows position list with quantity and latest value.
 - Shows total portfolio value.
 - Shows assigned categories for securities.
+- Shows empty states before any transaction exists.
 
 ### Tests first
 
 - LiveView renders a portfolio with one AAPL position.
 - LiveView shows total value.
 - LiveView shows category description or category name.
+
+## Roadmap placeholders (post PFX-016)
+
+### PFX-017 — Yahoo Finance quote provider adapter
+
+**As an investor**, I want to use Yahoo Finance as a first market-data provider so that I can fetch simple current and historical quotes.
+
+### Acceptance criteria
+
+- Yahoo Finance is implemented behind the existing MarketData provider behaviour.
+- Tests use a fake HTTP adapter or fixtures.
+- No real HTTP calls in tests.
+- Provider instability and terms-of-service caveat are documented.
+- Provider can be disabled/configured.
+
+---
+
+### PFX-018 — Manual quote sync for one security
+
+**As an investor**, I want a button to sync the latest quote for one security so that I can refresh a single asset on demand.
+
+### Acceptance criteria
+
+- Security detail or list has a sync action.
+- Sync uses provider behaviour.
+- Latest quote is stored.
+- Errors are displayed without crashing the UI.
+- Tests use fake provider only.
+
+---
+
+### PFX-019 — Historical quote storage
+
+**As an investor**, I want historical quotes stored so that charts and performance calculations can use price history.
+
+### Acceptance criteria
+
+- Historical quote schema exists.
+- Stores security_id, provider, quoted_at/date, price, currency_code, raw payload.
+- Duplicate quote for same security/provider/date is idempotent.
+- Uses Decimal for prices.
+
+---
+
+### PFX-020 — Historical quote backfill for one security
+
+**As an investor**, I want to backfill historical quotes for one security so that charts can be populated.
+
+### Acceptance criteria
+
+- Backfill action exists at context/service level.
+- Uses provider behaviour.
+- Stores historical quotes idempotently.
+- No real HTTP calls in tests.
+
+---
+
+### PFX-021 — Watchlists
+
+**As an investor**, I want watchlists so that I can group assets I track without necessarily owning them.
+
+### Acceptance criteria
+
+- Watchlist schema exists.
+- Securities can be added to and removed from watchlists.
+- Duplicate watchlist entries are rejected or idempotent.
+- Context tests exist.
+
+---
+
+### PFX-022 — Asset logo metadata
+
+**As an investor**, I want assets to have optional logos so that the UI is easier to scan.
+
+### Acceptance criteria
+
+- Security can store optional logo metadata.
+- Logo source, URL/path and attribution/license fields are modeled.
+- No external logo fetching is implemented yet.
+- Legal/licensing caveat is documented.
+
+---
+
+### PFX-023 — Themeable app shell
+
+**As a user**, I want a themeable app shell so that Portfolixir has a polished UI and supports different visual themes.
+
+### Acceptance criteria
+
+- Shared app layout/navigation exists.
+- User can switch between at least light and dark theme.
+- Theme choice is persisted in local storage or a simple setting.
+- Existing `/taxonomies` and `/securities` pages use the shared shell.
+- UI remains simple and testable.
