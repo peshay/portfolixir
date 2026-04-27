@@ -7,6 +7,8 @@ defmodule PortfolixirWeb.Endpoint do
     signing_salt: "change_me"
   ]
 
+  socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
+
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
 
