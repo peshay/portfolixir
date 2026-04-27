@@ -28,13 +28,53 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   def render(assigns) do
     ~H"""
     <AppShell.shell current_path="/securities">
-      <h1>Securities</h1>
-      <p>
-        Manage securities and inspect existing entries.
-      </p>
+      <header class="app-shell-page-header">
+        <h1>All Securities</h1>
+        <p>Track and manage the securities in your portfolio.</p>
+      </header>
 
-      <section id="security-create">
-        <h2>Create security</h2>
+      <section id="security-listing" class="app-shell-section-card">
+        <h2 class="app-shell-section-title">Existing securities</h2>
+
+        <%= if Enum.empty?(@securities) do %>
+          <div id="no-securities" class="app-shell-empty-state">
+            <h3>No securities yet</h3>
+            <p>Add your first security to start building your portfolio.</p>
+          </div>
+        <% else %>
+          <div id="security-list">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Symbol</th>
+                  <th>Currency</th>
+                  <th>ISIN</th>
+                  <th>WKN</th>
+                  <th>Provider symbol</th>
+                  <th>Exchange</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for security <- @securities do %>
+                  <tr>
+                    <td><%= security.name %></td>
+                    <td><%= security.symbol %></td>
+                    <td><%= security.currency_code %></td>
+                    <td><%= security.isin || "—" %></td>
+                    <td><%= security.wkn || "—" %></td>
+                    <td><%= security.provider_symbol || "—" %></td>
+                    <td><%= security.exchange_code || "—" %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+      </section>
+
+      <section id="security-create" class="app-shell-section-card">
+        <h2 class="app-shell-section-title">Add security</h2>
 
         <%= if @security_error do %>
           <p id="security-form-error">
@@ -89,45 +129,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             <%= @security_form["notes"] %>
           </textarea>
 
-          <button type="submit">
+          <button type="submit" class="app-shell-primary">
             Add security
           </button>
         </form>
-      </section>
-
-      <section id="security-listing">
-        <h2>Existing securities</h2>
-
-        <%= if Enum.empty?(@securities) do %>
-          <p id="no-securities">No securities yet.</p>
-        <% else %>
-          <table id="security-list">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Symbol</th>
-                <th>Currency</th>
-                <th>ISIN</th>
-                <th>WKN</th>
-                <th>Provider symbol</th>
-                <th>Exchange</th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for security <- @securities do %>
-                <tr>
-                  <td><%= security.name %></td>
-                  <td><%= security.symbol %></td>
-                  <td><%= security.currency_code %></td>
-                  <td><%= security.isin || "—" %></td>
-                  <td><%= security.wkn || "—" %></td>
-                  <td><%= security.provider_symbol || "—" %></td>
-                  <td><%= security.exchange_code || "—" %></td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        <% end %>
       </section>
     </AppShell.shell>
     """
