@@ -172,6 +172,22 @@ defmodule Portfolixir.CatalogTest do
              })
   end
 
+  test "creating a security with WKN persists" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Apple Inc.",
+               symbol: "AAPL",
+               currency_code: "USD",
+               isin: "US0378331005",
+               wkn: "865985"
+             })
+
+    assert security.isin == "US0378331005"
+    assert security.wkn == "865985"
+  end
+
   test "list_securities returns securities in deterministic order" do
     {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
 
