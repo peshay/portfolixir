@@ -219,6 +219,7 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 - MVP supports assigning categories to securities.
 - Assignment is unique per security/category.
 - Optional weight field may exist but defaults to `1.0` or nil; choose and document.
+- For MVP, assignment weight defaults to `Decimal.new("1.0")` and duplicates are rejected by unique constraint.
 - Context functions exist:
   - `assign_category_to_security/2`
   - `list_security_categories/1`

@@ -2,6 +2,7 @@ defmodule Portfolixir.CatalogTest do
   use Portfolixir.DataCase, async: true
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Taxonomies
 
   test "creating EUR succeeds" do
     assert {:ok, currency} =
@@ -237,5 +238,120 @@ defmodule Portfolixir.CatalogTest do
 
     assert {:ok, _deleted_security} = Catalog.delete_security(security)
     assert_raise Ecto.NoResultsError, fn -> Catalog.get_security!(security.id) end
+  end
+
+  test "assigns a category to a security" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
+
+    {:ok, taxonomy} =
+      Taxonomies.create_taxonomy(%{name: "Allocation", description: "Portfolio structure"})
+
+    assert {:ok, category} =
+             Taxonomies.create_category(%{
+               taxonomy_id: taxonomy.id,
+               name: "Core ETF",
+               description: "Core ETF holdings with broad market exposure"
+             })
+
+    assert {:ok, assignment} = Catalog.assign_category_to_security(security.id, category.id)
+    assert assignment.security_id == security.id
+    assert assignment.category_id == category.id
+    assert assignment.weight == Decimal.new("1.0")
+  end
+
+  test "duplicate security/category assignment is rejected" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
+
+    {:ok, taxonomy} =
+      Taxonomies.create_taxonomy(%{name: "Allocation", description: "Portfolio structure"})
+
+    assert {:ok, category} =
+             Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core ETF"})
+
+    assert {:ok, _} = Catalog.assign_category_to_security(security.id, category.id)
+
+    assert {:error, changeset} = Catalog.assign_category_to_security(security.id, category.id)
+    assert %{security_id: ["has already been taken"]} = errors_on(changeset)
+  end
+
+  test "list_security_categories returns assigned categories with description" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
+
+    {:ok, taxonomy} =
+      Taxonomies.create_taxonomy(%{name: "Allocation", description: "Portfolio structure"})
+
+    {:ok, category} =
+      Taxonomies.create_category(%{
+        taxonomy_id: taxonomy.id,
+        name: "Core ETF",
+        description: "Core ETF holdings with broad market exposure"
+      })
+
+    assert {:ok, _} = Catalog.assign_category_to_security(security.id, category.id)
+
+    assert [listed_category] = Catalog.list_security_categories(security.id)
+    assert listed_category.id == category.id
+    assert listed_category.name == "Core ETF"
+    assert listed_category.description == "Core ETF holdings with broad market exposure"
+  end
+
+  test "remove_category_assignment/2 removes a category assignment from security" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
+
+    {:ok, taxonomy} =
+      Taxonomies.create_taxonomy(%{name: "Allocation", description: "Portfolio structure"})
+
+    {:ok, category} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core ETF"})
+
+    assert {:ok, _} = Catalog.assign_category_to_security(security.id, category.id)
+    assert {:ok, _} = Catalog.remove_category_assignment(security.id, category.id)
+    assert Catalog.list_security_categories(security.id) == []
+  end
+
+  test "remove_category_assignment/2 is no-op and returns clear error when missing" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
+
+    {:ok, taxonomy} =
+      Taxonomies.create_taxonomy(%{name: "Allocation", description: "Portfolio structure"})
+
+    {:ok, category} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core ETF"})
+
+    assert {:error, :not_found} = Catalog.remove_category_assignment(security.id, category.id)
+  end
+
+  test "assigning category to unknown security fails" do
+    {:ok, taxonomy} =
+      Taxonomies.create_taxonomy(%{name: "Allocation", description: "Portfolio structure"})
+
+    assert {:ok, category} =
+             Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core ETF"})
+
+    assert {:error, changeset} = Catalog.assign_category_to_security(999_999, category.id)
+    assert %{security: ["does not exist"]} = errors_on(changeset)
+  end
+
+  test "assigning unknown category to security fails" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
+
+    assert {:error, changeset} = Catalog.assign_category_to_security(security.id, 999_999)
+    assert %{category: ["does not exist"]} = errors_on(changeset)
   end
 end

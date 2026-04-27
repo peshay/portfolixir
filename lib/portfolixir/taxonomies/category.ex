@@ -2,6 +2,7 @@ defmodule Portfolixir.Taxonomies.Category do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Catalog.SecurityCategoryAssignment
   alias Portfolixir.Taxonomies.Taxonomy
 
   schema "categories" do
@@ -13,6 +14,8 @@ defmodule Portfolixir.Taxonomies.Category do
     belongs_to(:taxonomy, Taxonomy)
     belongs_to(:parent, __MODULE__, foreign_key: :parent_id)
     has_many(:children, __MODULE__, foreign_key: :parent_id)
+    has_many(:security_category_assignments, SecurityCategoryAssignment)
+    has_many(:securities, through: [:security_category_assignments, :security])
 
     timestamps()
   end
