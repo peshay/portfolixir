@@ -54,6 +54,10 @@ docker compose up --build
 Then open:
 
 - http://localhost:4000
+- http://localhost:4000/health
+- http://localhost:4000/taxonomies (current simple taxonomy UI)
+
+The full portfolio dashboard/homepage is not implemented yet; this is the currently available route.
 
 Useful cleanup:
 
