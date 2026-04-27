@@ -132,6 +132,46 @@ defmodule Portfolixir.CatalogTest do
     assert %{provider_symbol: ["has already been taken"]} = errors_on(changeset)
   end
 
+  test "same provider symbol is allowed when exchange_code is nil" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Apple US",
+               symbol: "AAPL",
+               provider_symbol: "AAPL",
+               currency_code: "USD"
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Apple US Class C",
+               symbol: "AAPL.CL",
+               provider_symbol: "AAPL",
+               currency_code: "USD"
+             })
+  end
+
+  test "same exchange code is allowed when provider_symbol is nil" do
+    {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Apple DE",
+               symbol: "AAPL.DE",
+               exchange_code: "Frankfurt",
+               currency_code: "EUR"
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Apple Alternate",
+               symbol: "AAPL.H",
+               exchange_code: "Frankfurt",
+               currency_code: "EUR"
+             })
+  end
+
   test "list_securities returns securities in deterministic order" do
     {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
 
