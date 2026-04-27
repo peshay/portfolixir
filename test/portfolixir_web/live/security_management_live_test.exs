@@ -10,19 +10,20 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
+    assert has_element?(view, "img[src='/images/logo-mark.svg']")
     assert has_element?(view, "img[alt='Portfolixir']")
-    assert has_element?(view, "img[alt='Portfolixir mark']")
     assert has_element?(view, "#sidebar-toggle")
     assert has_element?(view, "#theme-toggle")
     assert html =~ "id=\"theme-toggle-script\""
-    assert html =~ "Securities"
+    assert html =~ "All Securities"
   end
 
   test "renders an empty state when there are no securities", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/securities")
 
-    assert html =~ "Securities"
-    assert html =~ "No securities yet."
+    assert html =~ "All Securities"
+    assert html =~ "No securities yet"
+    assert html =~ "Add your first security to start building your portfolio."
   end
 
   test "creates a security with name, symbol, currency_code, isin and wkn", %{conn: conn} do
