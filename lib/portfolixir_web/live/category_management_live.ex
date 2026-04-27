@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Taxonomies
+  alias PortfolixirWeb.AppShell
 
   @taxonomy_form_defaults %{
     "name" => "",
@@ -30,7 +31,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
 
   def render(assigns) do
     ~H"""
-    <main class="p-4">
+    <AppShell.shell>
       <h1>Category Management</h1>
 
       <section id="taxonomy-management">
@@ -146,7 +147,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
           <p id="no-taxonomy-selected">Create or select a taxonomy first.</p>
         <% end %>
       </section>
-    </main>
+    </AppShell.shell>
     """
   end
 
