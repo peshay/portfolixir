@@ -4,7 +4,9 @@ defmodule Portfolixir.Catalog do
   import Ecto.Query
   alias Portfolixir.Catalog.Currency
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Catalog.SecurityCategoryAssignment
   alias Portfolixir.Repo
+  alias Portfolixir.Taxonomies.Category
 
   @mvp_currencies [
     %{code: "EUR", name: "Euro", minor_units: 2},
@@ -47,6 +49,42 @@ defmodule Portfolixir.Catalog do
     %Security{}
     |> Security.changeset(attrs)
     |> Repo.insert()
+  end
+
+  def assign_category_to_security(security_id, category_id)
+      when is_integer(security_id) and is_integer(category_id) do
+    %SecurityCategoryAssignment{}
+    |> SecurityCategoryAssignment.changeset(%{security_id: security_id, category_id: category_id})
+    |> Repo.insert()
+  end
+
+  def list_security_categories(security_id) when is_integer(security_id) do
+    Repo.all(
+      from(c in Category,
+        join: assignment in SecurityCategoryAssignment,
+        on: assignment.category_id == c.id,
+        where: assignment.security_id == ^security_id,
+        order_by: [asc: c.name]
+      )
+    )
+  end
+
+  def remove_category_assignment(security_id, category_id)
+      when is_integer(security_id) and is_integer(category_id) do
+    security_category_assignment =
+      Repo.one(
+        from(a in SecurityCategoryAssignment,
+          where: a.security_id == ^security_id and a.category_id == ^category_id
+        )
+      )
+
+    case security_category_assignment do
+      nil ->
+        {:error, :not_found}
+
+      %SecurityCategoryAssignment{} = assignment ->
+        Repo.delete(assignment)
+    end
   end
 
   def update_security(%Security{} = security, attrs) when is_map(attrs) do
