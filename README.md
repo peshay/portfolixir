@@ -68,13 +68,3 @@ voluntary payment via bunq.me:
 Support payments are voluntary contributions. They do not create any entitlement
 to support, features, consulting, commercial services, invoices, or a charitable
 donation receipt.
-
-## Suggested first Codex Spark run
-
-Use:
-
-```text
-prompts/spark-first-batch.md
-```
-
-This asks Spark to bootstrap the app and implement only the first small stories. It should not build the entire product.
