@@ -31,7 +31,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
 
   def render(assigns) do
     ~H"""
-    <AppShell.shell>
+    <AppShell.shell current_path="/taxonomies">
       <h1>Category Management</h1>
 
       <section id="taxonomy-management">
