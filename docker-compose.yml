@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: portfolixir_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - portfolixir-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d portfolixir_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MIX_ENV: dev
+      DATABASE_HOST: db
+      DATABASE_NAME: portfolixir_dev
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      PHX_BIND_ALL: true
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/app
+    command: ["mix", "phx.server"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4000/health | grep -q '\"status\":\"ok\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  portfolixir-postgres-data:

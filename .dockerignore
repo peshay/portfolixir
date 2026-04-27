@@ -1,0 +1,49 @@
+# Git metadata and history
+.git
+.gitignore
+.gitattributes
+.github
+
+# Elixir / Erlang build artifacts
+/_build/
+/cover/
+/deps/
+/doc/
+.fetch
+*.ez
+*.beam
+erl_crash.dump
+
+# Phoenix assets
+/assets/node_modules/
+/priv/static/assets/
+/priv/static/cache_manifest.json
+
+# Test and local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs and temp files
+/log
+/tmp
+/tmp/*
+*.log
+
+# Sensitive finance data
+*.portfolio
+*.ppxml
+*.broker.pdf
+*.statement.pdf
+real-data/
+private-data/
+
+# OS/editor detritus
+.DS_Store
+.idea/
+.vscode/
