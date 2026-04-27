@@ -13,6 +13,6 @@ config :portfolixir, PortfolixirWeb.Endpoint,
   secret_key_base: "test_secret_key_base_which_should_be_changed_in_production",
   server: false
 
-config :logger, level: :warn
+config :logger, level: :warning
 
 config :phoenix, :plug_init_mode, :runtime
