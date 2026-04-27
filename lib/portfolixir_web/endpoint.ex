@@ -1,6 +1,8 @@
 defmodule PortfolixirWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :portfolixir
 
+  socket("/live", Phoenix.LiveView.Socket)
+
   @session_options [
     store: :cookie,
     key: "_portfolixir_key",

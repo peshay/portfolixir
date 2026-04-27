@@ -30,6 +30,8 @@ defmodule Portfolixir.MixProject do
       {:gettext, "~> 0.24"},
       {:ecto_sql, "~> 3.12"},
       {:postgrex, ">= 0.0.0"},
+      {:phoenix_html, "~> 4.1"},
+      {:phoenix_live_view, "~> 0.20.17"},
       {:jason, "~> 1.4"},
       {:plug_cowboy, "~> 2.7"},
       {:telemetry_metrics, "~> 1.0"},
