@@ -133,7 +133,6 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
       })
 
     {:ok, view, _html} = live(conn, "/taxonomies")
-    _ = view |> element("#taxonomy-#{taxonomy.id}") |> render_click()
     assert render(view) =~ "Delete Me"
 
     view

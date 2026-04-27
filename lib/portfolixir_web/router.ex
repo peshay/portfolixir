@@ -14,9 +14,10 @@ defmodule PortfolixirWeb.Router do
 
   scope "/", PortfolixirWeb do
     pipe_through(:browser)
-
     live("/taxonomies", CategoryManagementLive)
+  end
 
+  scope "/", PortfolixirWeb do
     pipe_through(:api)
 
     get("/health", HealthController, :show)

@@ -32,6 +32,7 @@ defmodule Portfolixir.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_view, "~> 0.20.17"},
+      {:floki, ">= 0.36.0", only: :test},
       {:jason, "~> 1.4"},
       {:plug_cowboy, "~> 2.7"},
       {:telemetry_metrics, "~> 1.0"},
