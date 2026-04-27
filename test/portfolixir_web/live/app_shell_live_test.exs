@@ -16,6 +16,28 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert html =~ "Securities"
   end
 
+  test "navigation is usable in compact sidebar mode markup", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert html =~ "app-shell-nav-icon"
+    assert html =~ ">S<"
+    assert html =~ ">C<"
+    assert html =~ "aria-label=\"Securities\""
+    assert html =~ "aria-label=\"Categories\""
+    assert html =~ "title=\"Securities\""
+    assert html =~ "title=\"Categories\""
+    assert html =~ "app-shell-theme-toggle"
+    assert html =~ "app-shell-theme-label"
+  end
+
+  test "theme toggle uses the dedicated theme toggle class", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(view, "#theme-toggle.app-shell-theme-toggle")
+    assert has_element?(view, "#theme-toggle")
+    refute has_element?(view, "#theme-toggle.app-shell-toggle")
+  end
+
   test "securities route is usable", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/securities")
 
