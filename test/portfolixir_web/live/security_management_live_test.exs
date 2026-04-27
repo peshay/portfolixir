@@ -5,6 +5,17 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
   alias Portfolixir.Catalog
 
+  test "visiting /securities renders shared app shell", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/securities")
+
+    assert html =~ "Portfolixir"
+    assert has_element?(view, "a[href=\"/securities\"]")
+    assert has_element?(view, "a[href=\"/taxonomies\"]")
+    assert has_element?(view, "#theme-toggle")
+    assert html =~ "id=\"theme-toggle-script\""
+    assert html =~ "Securities"
+  end
+
   test "renders an empty state when there are no securities", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/securities")
 

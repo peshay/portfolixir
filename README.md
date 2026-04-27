@@ -57,6 +57,7 @@ Then open:
 - http://localhost:4000/health
 - http://localhost:4000/taxonomies (current simple taxonomy UI)
 - http://localhost:4000/securities (security management UI)
+- /taxonomies and /securities now share the same app shell with top navigation and theme toggle
 
 The full portfolio dashboard/homepage is not implemented yet; this is the currently available route.
 
