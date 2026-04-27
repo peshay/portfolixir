@@ -1,32 +1,41 @@
 defmodule PortfolixirWeb.AppShell do
   use Phoenix.Component
 
+  attr(:current_path, :string, default: "/")
   slot(:inner_block, required: true)
 
   def shell(assigns) do
+    assigns = assign_new(assigns, :current_path, fn -> "/" end)
+
     ~H"""
-    <div id="app-shell" data-theme="light">
+    <div id="app-shell" data-theme="light" data-sidebar-collapsed="false">
       <style id="app-shell-styles">
         :root {
           --pfx-bg: #f8fafc;
           --pfx-surface: #ffffff;
+          --pfx-surface-secondary: #f8fafc;
           --pfx-text: #0f172a;
           --pfx-muted: #475569;
           --pfx-border: #e2e8f0;
-          --pfx-input: #f8fafc;
+          --pfx-input: #ffffff;
           --pfx-input-border: #cbd5e1;
           --pfx-link: #2563eb;
+          --pfx-accent: #6d28d9;
+          --pfx-accent-soft: #ede9fe;
         }
 
         [data-theme="dark"] {
-          --pfx-bg: #0f172a;
-          --pfx-surface: #1e293b;
+          --pfx-bg: #020617;
+          --pfx-surface: #0f172a;
+          --pfx-surface-secondary: #1e293b;
           --pfx-text: #f8fafc;
           --pfx-muted: #cbd5e1;
           --pfx-border: #334155;
           --pfx-input: #1e293b;
           --pfx-input-border: #475569;
           --pfx-link: #93c5fd;
+          --pfx-accent: #a78bfa;
+          --pfx-accent-soft: #312e81;
         }
 
         #app-shell {
@@ -34,7 +43,7 @@ defmodule PortfolixirWeb.AppShell do
           margin: 0;
           background: var(--pfx-bg);
           color: var(--pfx-text);
-          font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+          font-family: "Verdana", "Geneva", "Trebuchet MS", sans-serif;
         }
 
         #app-shell a {
@@ -42,51 +51,141 @@ defmodule PortfolixirWeb.AppShell do
           text-decoration: none;
         }
 
-        #app-shell .app-shell-header {
+        #app-shell .app-shell-layout {
+          min-height: 100vh;
+          display: flex;
+          align-items: stretch;
+          gap: 0;
+        }
+
+        #app-shell .app-shell-sidebar {
+          width: 18rem;
+          padding: 1rem;
+          box-sizing: border-box;
+          background: var(--pfx-surface);
+          border-right: 1px solid var(--pfx-border);
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          transition: width 0.2s ease;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-sidebar {
+          width: 5rem;
+        }
+
+        #app-shell .app-shell-sidebar-top {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 1rem;
-          flex-wrap: wrap;
-          background: var(--pfx-surface);
-          border-bottom: 1px solid var(--pfx-border);
-          padding: 1rem 1.25rem;
+          gap: 0.5rem;
+        }
+
+        #app-shell .app-shell-toggle {
+          border: 1px solid var(--pfx-border);
+          border-radius: 0.65rem;
+          background: var(--pfx-input);
+          color: var(--pfx-text);
+          padding: 0.45rem 0.7rem;
+          cursor: pointer;
+          width: 2.2rem;
+          height: 2.2rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
 
         #app-shell .app-shell-brand {
+          display: flex;
+          align-items: center;
+          gap: 0.65rem;
+          padding: 0.25rem 0;
+          min-width: 0;
+          flex: 1;
+        }
+
+        #app-shell .app-shell-logo {
+          height: 2rem;
+          width: auto;
+          display: inline-block;
+          flex: none;
+        }
+
+        #app-shell .app-shell-logo-wordmark {
+          max-width: 100%;
+          width: auto;
+          height: 1.75rem;
+        }
+
+        #app-shell .app-shell-brand-wordmark {
+          display: block;
+        }
+
+        #app-shell .app-shell-brand-mark {
+          display: none;
+        }
+
+        #app-shell .app-shell-brand-label {
           font-weight: 700;
           letter-spacing: 0.03em;
-        }
-
-        #app-shell .app-shell-nav {
-          display: flex;
-          gap: 1rem;
-          flex-wrap: wrap;
-        }
-
-        #app-shell .app-shell-theme-toggle {
-          border: 1px solid var(--pfx-border);
-          border-radius: 0.5rem;
-          background: var(--pfx-bg);
           color: var(--pfx-text);
-          padding: 0.45rem 0.8rem;
-          cursor: pointer;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-wordmark,
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-label,
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-label {
+          display: none;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-brand-mark {
+          display: block;
+        }
+
+        #app-shell .app-shell-sidebar-nav {
+          margin-top: 0.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        #app-shell .app-shell-nav-link {
+          display: flex;
+          align-items: center;
+          gap: 0.7rem;
+          border: 1px solid transparent;
+          border-radius: 0.65rem;
+          padding: 0.55rem 0.7rem;
+          min-height: 2.5rem;
+          color: var(--pfx-text);
+        }
+
+        #app-shell .app-shell-nav-link:hover {
+          background: var(--pfx-accent-soft);
+        }
+
+        #app-shell .app-shell-nav-link.is-active {
+          background: color-mix(in srgb, var(--pfx-accent-soft) 60%, transparent);
+          border-color: color-mix(in srgb, var(--pfx-accent) 45%, transparent);
+          color: var(--pfx-text);
+          font-weight: 600;
         }
 
         #app-shell .app-shell-main {
-          max-width: 72rem;
-          margin: 0 auto;
-          width: 100%;
+          flex: 1;
           padding: 1.25rem;
-          box-sizing: border-box;
+          min-width: 0;
         }
 
         #app-shell .app-shell-content-card {
           background: var(--pfx-surface);
           border: 1px solid var(--pfx-border);
           border-radius: 0.75rem;
-          padding: 1rem;
+          padding: 1.1rem;
           box-sizing: border-box;
+          min-height: calc(100vh - 2.5rem);
         }
 
         #app-shell section {
@@ -145,29 +244,100 @@ defmodule PortfolixirWeb.AppShell do
           border: 1px solid var(--pfx-border);
           padding: 0.55rem 0.65rem;
         }
+
+        #app-shell .app-shell-bottom-spacer {
+          margin-top: auto;
+        }
+
+        @media (max-width: 860px) {
+          #app-shell .app-shell-layout {
+            flex-direction: column;
+          }
+
+          #app-shell .app-shell-sidebar {
+            width: 100%;
+            border-right: none;
+            border-bottom: 1px solid var(--pfx-border);
+          }
+
+          #app-shell[data-sidebar-collapsed="true"] .app-shell-sidebar {
+            width: 100%;
+          }
+        }
       </style>
 
-      <header class="app-shell-header">
-        <div class="app-shell-brand">Portfolixir</div>
-        <nav class="app-shell-nav" aria-label="Main navigation">
-          <a href="/securities">Securities</a>
-          <a href="/taxonomies">Categories</a>
-          <a href="/health">Health</a>
-        </nav>
-        <button id="theme-toggle" class="app-shell-theme-toggle" type="button">Dark mode</button>
-      </header>
+      <div class="app-shell-layout">
+        <aside class="app-shell-sidebar" aria-label="Primary navigation">
+          <div class="app-shell-sidebar-top">
+            <a href="/securities" class="app-shell-brand">
+              <img
+                id="app-shell-brand-wordmark"
+                class="app-shell-logo app-shell-logo-wordmark app-shell-brand-wordmark"
+                src="/images/logo-light.svg"
+                alt="Portfolixir"
+              />
+              <img
+                id="app-shell-brand-mark"
+                class="app-shell-logo app-shell-brand-mark"
+                src="/images/logo-mark.svg"
+                alt="Portfolixir mark"
+              />
+              <span class="app-shell-brand-label">Portfolixir</span>
+            </a>
+            <button
+              id="sidebar-toggle"
+              class="app-shell-toggle"
+              type="button"
+              aria-label="Toggle sidebar"
+            >
+              ☰
+            </button>
+          </div>
 
-      <main class="app-shell-main">
-        <section class="app-shell-content-card">
-          <%= render_slot(@inner_block) %>
-        </section>
-      </main>
+          <nav class="app-shell-sidebar-nav" aria-label="Main navigation">
+            <a
+              href="/securities"
+              class={if @current_path == "/securities" || @current_path == "/" do
+                "app-shell-nav-link is-active"
+              else
+                "app-shell-nav-link"
+              end}
+            >
+              <span class="app-shell-nav-label">Securities</span>
+            </a>
+            <a
+              href="/taxonomies"
+              class={if @current_path == "/taxonomies" do
+                "app-shell-nav-link is-active"
+              else
+                "app-shell-nav-link"
+              end}
+            >
+              <span class="app-shell-nav-label">Categories</span>
+            </a>
+          </nav>
+
+          <button id="theme-toggle" class="app-shell-toggle app-shell-bottom-spacer" type="button">
+            Dark mode
+          </button>
+        </aside>
+
+        <main class="app-shell-main">
+          <section class="app-shell-content-card">
+            <%= render_slot(@inner_block) %>
+          </section>
+        </main>
+      </div>
     </div>
+
     <script id="theme-toggle-script">
       (function () {
-        var key = "portfolixir-theme";
+        var themeKey = "portfolixir-theme";
+        var sidebarKey = "portfolixir-sidebar-collapsed";
         var shell = document.getElementById("app-shell");
         var toggle = document.getElementById("theme-toggle");
+        var sidebarToggle = document.getElementById("sidebar-toggle");
+        var brandWordmark = document.getElementById("app-shell-brand-wordmark");
 
         function normalizeTheme(value) {
           return value === "dark" ? "dark" : "light";
@@ -177,24 +347,90 @@ defmodule PortfolixirWeb.AppShell do
           var resolvedTheme = normalizeTheme(theme);
           shell.setAttribute("data-theme", resolvedTheme);
           document.documentElement.setAttribute("data-theme", resolvedTheme);
-          toggle.textContent = resolvedTheme === "dark" ? "Light mode" : "Dark mode";
+          if (toggle) {
+            toggle.textContent = resolvedTheme === "dark" ? "Light mode" : "Dark mode";
+          }
+
+          if (brandWordmark) {
+            brandWordmark.src =
+              resolvedTheme === "dark" ? "/images/logo-dark.svg" : "/images/logo-light.svg";
+          }
+
           try {
-            localStorage.setItem(key, resolvedTheme);
+            localStorage.setItem(themeKey, resolvedTheme);
+          } catch (_error) {}
+        }
+
+        function applySidebarState(isCollapsed) {
+          shell.setAttribute("data-sidebar-collapsed", isCollapsed ? "true" : "false");
+          if (sidebarToggle) {
+            sidebarToggle.setAttribute("aria-pressed", isCollapsed ? "true" : "false");
+          }
+
+          try {
+            localStorage.setItem(sidebarKey, isCollapsed ? "true" : "false");
           } catch (_error) {}
         }
 
         function currentTheme() {
           try {
-            return normalizeTheme(localStorage.getItem(key) || "light");
+            return normalizeTheme(localStorage.getItem(themeKey));
           } catch (_error) {}
           return "light";
         }
 
-        if (shell && toggle) {
+        function currentSidebarCollapsed() {
+          try {
+            return localStorage.getItem(sidebarKey) === "true";
+          } catch (_error) {}
+          return false;
+        }
+
+        function ensureFavicons() {
+          var head = document.head;
+          if (!head) {
+            return;
+          }
+
+          var svgFavicon = document.querySelector("link[data-pfx-favicon='svg']");
+          if (!svgFavicon) {
+            svgFavicon = document.createElement("link");
+            svgFavicon.setAttribute("rel", "icon");
+            svgFavicon.setAttribute("type", "image/svg+xml");
+            svgFavicon.setAttribute("data-pfx-favicon", "svg");
+            head.appendChild(svgFavicon);
+          }
+
+          var icoFavicon = document.querySelector("link[data-pfx-favicon='ico']");
+          if (!icoFavicon) {
+            icoFavicon = document.createElement("link");
+            icoFavicon.setAttribute("rel", "alternate icon");
+            icoFavicon.setAttribute("type", "image/x-icon");
+            icoFavicon.setAttribute("data-pfx-favicon", "ico");
+            head.appendChild(icoFavicon);
+          }
+
+          svgFavicon.href = "/favicon.svg";
+          icoFavicon.href = "/favicon.ico";
+        }
+
+        if (shell) {
           applyTheme(currentTheme());
+          applySidebarState(currentSidebarCollapsed());
+          ensureFavicons();
+        }
+
+        if (toggle) {
           toggle.addEventListener("click", function () {
             var nextTheme = shell.getAttribute("data-theme") === "dark" ? "light" : "dark";
             applyTheme(nextTheme);
+          });
+        }
+
+        if (sidebarToggle) {
+          sidebarToggle.addEventListener("click", function () {
+            var isCollapsed = shell.getAttribute("data-sidebar-collapsed") === "true";
+            applySidebarState(!isCollapsed);
           });
         }
       })();

@@ -27,7 +27,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   def render(assigns) do
     ~H"""
-    <AppShell.shell>
+    <AppShell.shell current_path="/securities">
       <h1>Securities</h1>
       <p>
         Manage securities and inspect existing entries.
