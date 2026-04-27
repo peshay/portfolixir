@@ -5,9 +5,14 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
 
   alias Portfolixir.Taxonomies
 
-  test "visiting /taxonomies renders category management", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/taxonomies")
+  test "visiting /taxonomies renders shared app shell", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/taxonomies")
 
+    assert html =~ "Portfolixir"
+    assert has_element?(view, "a[href=\"/securities\"]")
+    assert has_element?(view, "a[href=\"/taxonomies\"]")
+    assert has_element?(view, "#theme-toggle")
+    assert html =~ "id=\"theme-toggle-script\""
     assert html =~ "Category Management"
     assert html =~ "Taxonomies"
     assert html =~ "Categories"
