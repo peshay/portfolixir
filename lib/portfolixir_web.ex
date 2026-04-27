@@ -10,6 +10,13 @@ defmodule PortfolixirWeb do
     quote do
       use Phoenix.Router
       import Phoenix.Controller
+      import Phoenix.LiveView.Router
+    end
+  end
+
+  def live_view do
+    quote do
+      use Phoenix.LiveView
     end
   end
 
