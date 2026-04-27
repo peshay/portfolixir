@@ -75,6 +75,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
       <section id="security-create" class="app-shell-section-card">
         <h2 class="app-shell-section-title">Add security</h2>
+        <p>Use the form below to add one security at a time.</p>
 
         <%= if @security_error do %>
           <p id="security-form-error">
