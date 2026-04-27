@@ -10,12 +10,21 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "#sidebar-toggle")
     assert has_element?(view, "img[src='/images/logo-mark.svg']")
     assert has_element?(view, "img[alt='Portfolixir']")
+    refute has_element?(view, "img[src='/images/logo-wordmark.svg']")
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
     assert has_element?(view, "a[title='Securities']")
     assert has_element?(view, "a[title='Categories']")
     assert has_element?(view, "#theme-toggle")
     assert html =~ "Portfolixir"
+  end
+
+  test "official sidebar logo asset is served", %{conn: conn} do
+    response = get(conn, "/images/logo-mark.svg")
+
+    assert response.status == 200
+    assert get_resp_header(response, "content-type") == ["image/svg+xml"]
+    assert response.resp_body =~ "Portfolixir logo mark"
   end
 
   test "navigation is usable in compact sidebar mode markup", %{conn: conn} do
