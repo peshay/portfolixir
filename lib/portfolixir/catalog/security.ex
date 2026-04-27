@@ -1,0 +1,43 @@
+defmodule Portfolixir.Catalog.Security do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias Portfolixir.Catalog.Currency
+
+  schema "securities" do
+    field(:name, :string)
+    field(:symbol, :string)
+    field(:exchange_code, :string)
+    field(:provider_symbol, :string)
+    field(:isin, :string)
+    field(:notes, :string)
+
+    belongs_to(:currency, Currency,
+      foreign_key: :currency_code,
+      references: :code,
+      type: :string,
+      define_field: true
+    )
+
+    timestamps()
+  end
+
+  @doc false
+  def changeset(security, attrs) do
+    security
+    |> cast(attrs, [
+      :name,
+      :symbol,
+      :exchange_code,
+      :provider_symbol,
+      :isin,
+      :currency_code,
+      :notes
+    ])
+    |> validate_required([:name, :symbol, :currency_code])
+    |> assoc_constraint(:currency)
+    |> unique_constraint(:provider_symbol,
+      name: :securities_provider_symbol_exchange_code_unique_index
+    )
+  end
+end
