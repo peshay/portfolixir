@@ -43,6 +43,36 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       </header>
 
       <%= if @current_portfolio do %>
+        <section id="positions" class="app-shell-section-card">
+          <h2 class="app-shell-section-title">Positions</h2>
+
+          <%= if Enum.empty?(@position_rows) do %>
+            <div id="no-positions" class="app-shell-empty-state">
+              <h3>No positions yet</h3>
+              <p>Positions are derived from buy and sell transactions.</p>
+            </div>
+          <% else %>
+            <table id="position-list">
+              <thead>
+                <tr>
+                  <th>Securities account</th>
+                  <th>Security</th>
+                  <th>Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for row <- @position_rows do %>
+                  <tr>
+                    <td><%= row.securities_account_name %></td>
+                    <td><%= row.security_name %></td>
+                    <td><%= format_quantity(row.quantity) %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% end %>
+        </section>
+
         <section id="transaction-listing" class="app-shell-section-card">
           <h2 class="app-shell-section-title">Transaction history</h2>
 
@@ -261,17 +291,30 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         []
       end
 
+    positions =
+      if current_portfolio do
+        Ledger.positions_for_portfolio(current_portfolio.id)
+      else
+        %{}
+      end
+
+    securities = Catalog.list_securities()
+    deposit_account_names = name_lookup(deposit_accounts)
+    securities_account_names = name_lookup(securities_accounts)
+    security_names = name_lookup(securities)
+
     socket
     |> assign(:current_portfolio, current_portfolio)
     |> assign(:currencies, Catalog.list_currencies())
     |> assign(:deposit_accounts, deposit_accounts)
     |> assign(:securities_accounts, securities_accounts)
-    |> assign(:securities, Catalog.list_securities())
+    |> assign(:securities, securities)
     |> assign(:transactions, transactions)
+    |> assign(:position_rows, position_rows(positions, securities_account_names, security_names))
     |> assign(:transaction_types, @transaction_types)
-    |> assign(:deposit_account_names, name_lookup(deposit_accounts))
-    |> assign(:securities_account_names, name_lookup(securities_accounts))
-    |> assign(:security_names, name_lookup(Catalog.list_securities()))
+    |> assign(:deposit_account_names, deposit_account_names)
+    |> assign(:securities_account_names, securities_account_names)
+    |> assign(:security_names, security_names)
   end
 
   defp sanitize_transaction_params(params) when is_map(params) do
@@ -287,6 +330,18 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp name_lookup(records) do
     Map.new(records, &{&1.id, &1.name})
+  end
+
+  defp position_rows(positions, securities_account_names, security_names) do
+    positions
+    |> Enum.map(fn {{securities_account_id, security_id}, quantity} ->
+      %{
+        securities_account_name: Map.get(securities_account_names, securities_account_id, "—"),
+        security_name: Map.get(security_names, security_id, "—"),
+        quantity: quantity
+      }
+    end)
+    |> Enum.sort_by(&{&1.securities_account_name, &1.security_name})
   end
 
   defp account_name(transaction, deposit_account_names, securities_account_names) do
