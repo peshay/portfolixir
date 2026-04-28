@@ -15,9 +15,11 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "img#app-shell-brand-dark-wordmark[src='/images/logo-dark.svg']")
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/accounts\"]")
+    assert has_element?(view, "a[href=\"/transactions\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
     assert has_element?(view, "p.app-shell-nav-group-title", "Securities")
     assert has_element?(view, "p.app-shell-nav-group-title", "Master data")
+    assert has_element?(view, "p.app-shell-nav-group-title", "Ledger")
     assert has_element?(view, "p.app-shell-nav-group-title", "Classifications")
     assert has_element?(view, "p.app-shell-nav-group-title", "Reports")
     assert has_element?(view, "#theme-toggle")
@@ -86,6 +88,11 @@ defmodule PortfolixirWeb.AppShellLiveTest do
            )
 
     assert has_element?(view, "a[aria-label='Accounts'][href='/accounts'][title='Accounts']")
+
+    assert has_element?(
+             view,
+             "a[aria-label='Transactions'][href='/transactions'][title='Transactions']"
+           )
 
     assert has_element?(
              view,
