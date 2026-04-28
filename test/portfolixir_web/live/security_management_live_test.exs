@@ -24,6 +24,26 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "All Securities"
   end
 
+  test "securities workspace uses primary list and secondary form layout", %{conn: conn} do
+    assert {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Synthetic ETF",
+               symbol: "SYN",
+               currency_code: "USD"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-workspace.app-shell-workspace-grid")
+    assert has_element?(view, "#security-listing[data-priority='primary']")
+    assert has_element?(view, "#security-create[data-priority='secondary']")
+    assert has_element?(view, "#security-listing .app-shell-table-wrapper")
+    assert has_element?(view, "#security-form.app-shell-form-grid")
+    assert has_element?(view, "#security-create .app-shell-panel-intro")
+  end
+
   test "renders an empty state when there are no securities", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/securities")
 
@@ -94,6 +114,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
       |> render_submit()
 
     assert html =~ "id=\"security-form-error\""
+    assert has_element?(view, "#security-form-error[role='alert']")
     assert html =~ "name"
   end
 
