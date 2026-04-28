@@ -6,20 +6,24 @@ defmodule PortfolixirWeb.AppShellLiveTest do
   test "root route renders the product app shell", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
-    assert has_element?(view, "#app-shell")
+    assert has_element?(view, "#app-shell[data-sidebar-collapsed='false']")
     assert has_element?(view, "#sidebar-toggle")
-    assert has_element?(view, "img[src='/images/logo-mark.svg']")
+    assert has_element?(view, "img#app-shell-brand-light-wordmark[src='/images/logo-light.svg']")
+    assert has_element?(view, "img#app-shell-brand-mark[src='/images/logo-mark.svg']")
     assert has_element?(view, "img[alt='Portfolixir']")
     refute has_element?(view, "img[src='/images/logo-wordmark.svg']")
+    assert has_element?(view, "img#app-shell-brand-dark-wordmark[src='/images/logo-dark.svg']")
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
-    assert has_element?(view, "a[title='Securities']")
-    assert has_element?(view, "a[title='Categories']")
+    assert has_element?(view, "p.app-shell-nav-group-title", "Securities")
+    assert has_element?(view, "p.app-shell-nav-group-title", "Master data")
+    assert has_element?(view, "p.app-shell-nav-group-title", "Classifications")
+    assert has_element?(view, "p.app-shell-nav-group-title", "Reports")
     assert has_element?(view, "#theme-toggle")
     assert html =~ "Portfolixir"
   end
 
-  test "official sidebar logo asset is served", %{conn: conn} do
+  test "official logo assets are served", %{conn: conn} do
     response = get(conn, "/images/logo-mark.svg")
 
     assert response.status == 200
@@ -41,21 +45,46 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert favicon_ico.status == 200
   end
 
-  test "navigation is usable in compact sidebar mode markup", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/")
+  test "navigation shows grouped labels and disabled placeholders", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             "span[aria-label='Watchlist'][aria-disabled='true'][title='Coming soon']"
+           )
+
+    assert has_element?(
+             view,
+             "span[aria-label='Accounts'][aria-disabled='true'][title='Coming soon']"
+           )
+
+    assert has_element?(
+             view,
+             "span[aria-label='Securities accounts'][aria-disabled='true'][title='Coming soon']"
+           )
+
+    assert has_element?(
+             view,
+             "span[aria-label='Deposit accounts'][aria-disabled='true'][title='Coming soon']"
+           )
+
+    assert has_element?(
+             view,
+             "span[aria-label='Holdings'][aria-disabled='true'][title='Coming soon']"
+           )
+
+    assert has_element?(
+             view,
+             "span[aria-label='Performance'][aria-disabled='true'][title='Coming soon']"
+           )
 
     assert html =~ "app-shell-nav-icon"
-    assert html =~ ">S<"
-    assert html =~ ">C<"
-    assert html =~ "aria-label=\"Securities\""
-    assert html =~ "aria-label=\"Categories\""
-    assert html =~ "title=\"Securities\""
-    assert html =~ "title=\"Categories\""
-    assert html =~ "app-shell-theme-toggle"
-    assert html =~ "app-shell-theme-label"
+    assert html =~ ">W<"
+    assert html =~ "aria-label=\"All Securities\""
+    assert html =~ "aria-label=\"Classifications\""
   end
 
-  test "theme toggle uses the dedicated theme toggle class", %{conn: conn} do
+  test "theme toggle uses dedicated theme toggle class", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
     assert has_element?(view, "#theme-toggle.app-shell-theme-toggle")
@@ -70,11 +99,11 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert html =~ "Add your first security to start building your portfolio."
   end
 
-  test "taxonomies route is reachable", %{conn: conn} do
-    {:ok, view, html} = live(conn, "/taxonomies")
+  test "taxonomies route is reachable and titled as classifications", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/taxonomies")
 
-    assert html =~ "Category Management"
+    assert html =~ "Classifications"
     assert html =~ "Create Taxonomy"
-    assert has_element?(view, "a[href=\"/taxonomies\"]")
+    assert has_element?(live(conn, "/taxonomies") |> elem(1), "a[href=\"/taxonomies\"]")
   end
 end

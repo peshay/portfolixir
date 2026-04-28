@@ -20,6 +20,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       socket
       |> assign(:security_form, @security_form_defaults)
       |> assign(:security_error, nil)
+      |> assign(:security_success, nil)
       |> load_securities()
 
     {:ok, socket}
@@ -35,8 +36,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
       <section
         id="security-listing"
-        class="app-shell-section-card"
-        style="order: 1;"
+        class="app-shell-section-card app-shell-section-card--primary"
       >
         <h2 class="app-shell-section-title">Securities</h2>
 
@@ -77,12 +77,18 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         <% end %>
       </section>
 
-      <section id="security-create" class="app-shell-section-card" style="order: 2; opacity: 0.96;">
+      <section id="security-create" class="app-shell-section-card app-shell-section-card--compact">
         <h2 class="app-shell-section-title">Add security</h2>
-        <p>Use the form below to add one security at a time.</p>
+        <p class="app-shell-help-text">Currency must use an ISO 4217 code (for example USD or EUR).</p>
+
+        <%= if @security_success do %>
+          <p id="security-form-success" class="app-shell-alert app-shell-alert--success" role="status" aria-live="polite">
+            <%= @security_success %>
+          </p>
+        <% end %>
 
         <%= if @security_error do %>
-          <p id="security-form-error">
+          <p id="security-form-error" class="app-shell-alert app-shell-alert--error" role="status" aria-live="polite">
             <%= @security_error %>
           </p>
         <% end %>
@@ -150,6 +156,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
          socket
          |> assign(:security_form, @security_form_defaults)
          |> assign(:security_error, nil)
+         |> assign(:security_success, "Security added.")
          |> load_securities()}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -160,6 +167,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
            @security_form_defaults |> Map.merge(sanitize_security_params(params))
          )
          |> assign(:security_error, format_errors(changeset))
+         |> assign(:security_success, nil)
          |> load_securities()}
     end
   end
@@ -191,7 +199,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp format_errors(%Ecto.Changeset{} = changeset) do
     changeset.errors
     |> Enum.map_join(", ", fn {field, {message, _opts}} ->
-      "#{field} #{message}"
+      "#{Phoenix.Naming.humanize(field)} #{message}"
     end)
   end
 end
