@@ -133,6 +133,63 @@ defmodule Portfolixir.PortfoliosTest do
     assert account.notes == nil
   end
 
+  test "create securities account with reference deposit account" do
+    portfolio = create_portfolio("Linked account portfolio")
+
+    {:ok, deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: portfolio.id,
+        name: "Reference Cash",
+        currency_code: "EUR"
+      })
+
+    assert {:ok, account} =
+             Portfolios.create_securities_account(%{
+               portfolio_id: portfolio.id,
+               name: "Linked Depot",
+               currency_code: "EUR",
+               reference_deposit_account_id: deposit_account.id
+             })
+
+    assert account.reference_deposit_account_id == deposit_account.id
+  end
+
+  test "create securities account rejects unknown reference deposit account" do
+    portfolio = create_portfolio("Unknown reference portfolio")
+
+    assert {:error, changeset} =
+             Portfolios.create_securities_account(%{
+               portfolio_id: portfolio.id,
+               name: "Broken Depot",
+               currency_code: "EUR",
+               reference_deposit_account_id: 9_999_999
+             })
+
+    assert %{reference_deposit_account_id: ["does not exist"]} = errors_on(changeset)
+  end
+
+  test "create securities account rejects reference deposit account from another portfolio" do
+    portfolio = create_portfolio("Securities portfolio")
+    other_portfolio = create_portfolio("Other cash portfolio")
+
+    {:ok, other_deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: other_portfolio.id,
+        name: "Other Cash",
+        currency_code: "EUR"
+      })
+
+    assert {:error, changeset} =
+             Portfolios.create_securities_account(%{
+               portfolio_id: portfolio.id,
+               name: "Cross Portfolio Depot",
+               currency_code: "EUR",
+               reference_deposit_account_id: other_deposit_account.id
+             })
+
+    assert %{reference_deposit_account_id: ["does not exist"]} = errors_on(changeset)
+  end
+
   test "create securities account defaults active to true" do
     portfolio = create_portfolio("Default active securities")
 
@@ -212,8 +269,15 @@ defmodule Portfolixir.PortfoliosTest do
     assert zeta.name == "Zeta"
   end
 
-  test "update securities account name, notes, and active" do
+  test "update securities account name, notes, active, and reference deposit account" do
     portfolio = create_portfolio("Securities Update portfolio")
+
+    {:ok, deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: portfolio.id,
+        name: "Updated Reference Cash",
+        currency_code: "EUR"
+      })
 
     {:ok, account} =
       Portfolios.create_securities_account(%{
@@ -227,12 +291,14 @@ defmodule Portfolixir.PortfoliosTest do
              Portfolios.update_securities_account(account, %{
                name: "Updated Depot",
                notes: "updated",
-               active: false
+               active: false,
+               reference_deposit_account_id: deposit_account.id
              })
 
     assert updated_account.name == "Updated Depot"
     assert updated_account.notes == "updated"
     assert updated_account.active == false
+    assert updated_account.reference_deposit_account_id == deposit_account.id
   end
 
   test "delete securities account works" do
