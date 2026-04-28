@@ -14,7 +14,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
     assert has_element?(view, "a[title='Securities']")
-    assert has_element?(view, "a[title='Categories']")
+    assert has_element?(view, "a[title='Classifications']")
     assert has_element?(view, "#theme-toggle")
     assert html =~ "Portfolixir"
   end
@@ -48,9 +48,9 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert html =~ ">S<"
     assert html =~ ">C<"
     assert html =~ "aria-label=\"Securities\""
-    assert html =~ "aria-label=\"Categories\""
+    assert html =~ "aria-label=\"Classifications\""
     assert html =~ "title=\"Securities\""
-    assert html =~ "title=\"Categories\""
+    assert html =~ "title=\"Classifications\""
     assert html =~ "app-shell-theme-toggle"
     assert html =~ "app-shell-theme-label"
   end
@@ -73,8 +73,16 @@ defmodule PortfolixirWeb.AppShellLiveTest do
   test "taxonomies route is reachable", %{conn: conn} do
     {:ok, view, html} = live(conn, "/taxonomies")
 
-    assert html =~ "Category Management"
+    assert html =~ "Classifications"
     assert html =~ "Create Taxonomy"
     assert has_element?(view, "a[href=\"/taxonomies\"]")
+  end
+
+  test "theme toggle script references a dark-safe logo asset", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert has_element?(view, "#app-shell-brand-mark")
+    assert html =~ "/images/logo-dark.svg"
+    assert html =~ "/images/logo-mark.svg"
   end
 end

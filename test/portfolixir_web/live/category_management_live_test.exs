@@ -15,9 +15,9 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert has_element?(view, "#sidebar-toggle")
     assert has_element?(view, "#theme-toggle")
     assert html =~ "id=\"theme-toggle-script\""
-    assert html =~ "Category Management"
+    assert html =~ "Classifications"
     assert html =~ "Taxonomies"
-    assert html =~ "Categories"
+    assert html =~ "Classifications"
     assert html =~ "Create Taxonomy"
   end
 

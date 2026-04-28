@@ -191,6 +191,54 @@ defmodule PortfolixirWeb.AppShell do
           line-height: 1;
         }
 
+        #app-shell .app-shell-alert {
+          margin: 0 0 0.8rem;
+          padding: 0.65rem 0.8rem;
+          border-radius: 0.7rem;
+          border: 1px solid transparent;
+          background: var(--pfx-surface-muted);
+          color: var(--pfx-text);
+          font-size: 0.93rem;
+        }
+
+        #app-shell .app-shell-alert.app-shell-alert-error {
+          border-color: rgba(239, 68, 68, 0.5);
+          background: color-mix(in srgb, #fef2f2 82%, var(--pfx-surface-muted));
+          color: #991b1b;
+        }
+
+        #app-shell .app-shell-alert.app-shell-alert-success {
+          border-color: rgba(34, 197, 94, 0.4);
+          background: color-mix(in srgb, #ecfdf5 82%, var(--pfx-surface-muted));
+          color: #065f46;
+        }
+
+        #app-shell .app-shell-field-help {
+          margin: 0.2rem 0 0;
+          font-size: 0.8rem;
+          line-height: 1.2;
+          color: var(--pfx-muted);
+        }
+
+        #app-shell .app-shell-form-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          column-gap: 0.85rem;
+          row-gap: 0.45rem;
+        }
+
+        #app-shell .app-shell-form-field {
+          min-width: 0;
+        }
+
+        #app-shell .app-shell-form-field.app-shell-form-field-full {
+          grid-column: 1 / -1;
+        }
+
+        #app-shell .app-shell-section-card.app-shell-section-card--compact {
+          max-width: 980px;
+        }
+
         #app-shell[data-sidebar-collapsed="true"] .app-shell-theme-toggle {
           width: 2.35rem;
           padding: 0.5rem 0.55rem;
@@ -444,6 +492,12 @@ defmodule PortfolixirWeb.AppShell do
             display: none;
           }
         }
+
+        @media (min-width: 900px) {
+          #app-shell .app-shell-form-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
       </style>
 
       <div class="app-shell-layout">
@@ -485,8 +539,8 @@ defmodule PortfolixirWeb.AppShell do
             </a>
             <a
               href="/taxonomies"
-              aria-label="Categories"
-              title="Categories"
+              aria-label="Classifications"
+              title="Classifications"
               class={if @current_path == "/taxonomies" do
                 "app-shell-nav-link is-active"
               else
@@ -494,7 +548,7 @@ defmodule PortfolixirWeb.AppShell do
               end}
             >
               <span class="app-shell-nav-icon" aria-hidden="true">C</span>
-              <span class="app-shell-nav-label">Categories</span>
+              <span class="app-shell-nav-label">Classifications</span>
             </a>
           </nav>
 
@@ -526,6 +580,7 @@ defmodule PortfolixirWeb.AppShell do
         var sidebarKey = "portfolixir-sidebar-collapsed";
         var shell = document.getElementById("app-shell");
         var toggle = document.getElementById("theme-toggle");
+        var brandMark = document.getElementById("app-shell-brand-mark");
         var themeLabel = document.querySelector("#theme-toggle .app-shell-theme-label");
         var themeIcon = document.querySelector("#theme-toggle .app-shell-theme-icon");
         var sidebarToggle = document.getElementById("sidebar-toggle");
@@ -551,6 +606,10 @@ defmodule PortfolixirWeb.AppShell do
           if (toggle) {
             toggle.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
             toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+          }
+
+          if (brandMark) {
+            brandMark.src = isDark ? "/images/logo-dark.svg" : "/images/logo-mark.svg";
           }
 
           try {
