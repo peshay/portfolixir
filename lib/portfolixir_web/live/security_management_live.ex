@@ -35,84 +35,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     <AppShell.shell current_path="/securities">
       <header class="app-shell-page-header">
         <div>
-          <p class="app-shell-page-kicker"><%= gettext("Securities") %></p>
           <h1><%= gettext("All Securities") %></h1>
           <p><%= gettext("Manage your securities master data for portfolio positions, transactions and future quotes.") %></p>
         </div>
       </header>
-
-      <div id="security-actions" class="app-shell-action-row">
-        <div class="app-shell-action-row-left">
-          <label class="app-shell-visually-hidden" for="security-search"><%= gettext("Search securities") %></label>
-          <input
-            id="security-search"
-            class="app-shell-search"
-            type="search"
-            placeholder={gettext("Search securities...")}
-            disabled
-            aria-label={gettext("Search coming soon")}
-            title={gettext("Search coming soon")}
-          />
-          <button
-            id="security-filter"
-            type="button"
-            class="app-shell-secondary"
-            disabled
-            aria-disabled="true"
-            aria-label={gettext("Filter coming soon")}
-            title={gettext("Filter coming soon")}
-          >
-            <%= gettext("Filter") %>
-          </button>
-        </div>
-        <div class="app-shell-action-row-right">
-          <button
-            id="security-add-toggle"
-            type="button"
-            class="app-shell-primary"
-            phx-click="toggle_security_form"
-            aria-expanded={if @show_security_form, do: "true", else: "false"}
-            aria-controls="security-create"
-          >
-            <%= if @show_security_form, do: gettext("Close"), else: gettext("Add Security") %>
-          </button>
-        </div>
-      </div>
-
-      <section id="security-kpis" class="app-shell-stat-grid" aria-label={gettext("Security summary")}>
-        <div class="app-shell-stat-card">
-          <span class="app-shell-stat-icon" aria-hidden="true">SEC</span>
-          <div>
-            <span class="app-shell-stat-label"><%= gettext("Total Securities") %></span>
-            <span class="app-shell-stat-value"><%= Enum.count(@securities) %></span>
-            <span class="app-shell-stat-hint"><%= gettext("All time") %></span>
-          </div>
-        </div>
-        <div class="app-shell-stat-card">
-          <span class="app-shell-stat-icon" aria-hidden="true">CCY</span>
-          <div>
-            <span class="app-shell-stat-label"><%= gettext("Currencies") %></span>
-            <span class="app-shell-stat-value"><%= unique_currency_count(@securities) %></span>
-            <span class="app-shell-stat-hint"><%= gettext("In use") %></span>
-          </div>
-        </div>
-        <div class="app-shell-stat-card">
-          <span class="app-shell-stat-icon" aria-hidden="true">CL</span>
-          <div>
-            <span class="app-shell-stat-label"><%= gettext("Classifications") %></span>
-            <span class="app-shell-stat-value">—</span>
-            <span class="app-shell-stat-hint"><%= gettext("Assignments later") %></span>
-          </div>
-        </div>
-        <div class="app-shell-stat-card">
-          <span class="app-shell-stat-icon" aria-hidden="true">UPD</span>
-          <div>
-            <span class="app-shell-stat-label"><%= gettext("Last Updated") %></span>
-            <span class="app-shell-stat-value"><%= last_updated_label(@securities) %></span>
-            <span class="app-shell-stat-hint"><%= last_updated_hint(@securities) %></span>
-          </div>
-        </div>
-      </section>
 
       <div id="security-workspace" class="app-shell-workspace-stack">
         <section
@@ -122,14 +48,19 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         >
           <div class="app-shell-section-header">
             <div>
-              <h2 class="app-shell-section-title"><%= gettext("Security master") %></h2>
+              <h2 class="app-shell-section-title"><%= gettext("Securities") %></h2>
               <p><%= gettext("Core identifiers used by the ledger and valuation workspaces.") %></p>
             </div>
-            <span class="app-shell-badge app-shell-badge--accent">
-              <%= ngettext("%{count} total", "%{count} total", Enum.count(@securities),
-                count: Enum.count(@securities)
-              ) %>
-            </span>
+            <button
+              id="security-add-toggle"
+              type="button"
+              class="app-shell-secondary"
+              phx-click="toggle_security_form"
+              aria-expanded={if @show_security_form, do: "true", else: "false"}
+              aria-controls="security-create"
+            >
+              <%= if @show_security_form, do: gettext("Close form"), else: gettext("Add security") %>
+            </button>
           </div>
 
           <%= if Enum.empty?(@securities) do %>
@@ -179,7 +110,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <div>
                 <h2 class="app-shell-section-title"><%= gettext("Add security") %></h2>
                 <p class="app-shell-panel-intro">
-                  <%= gettext("Create one instrument at a time. Currency is selected from first-run reference data.") %>
+                  <%= gettext("Create one instrument at a time.") %>
                 </p>
               </div>
             </div>
@@ -351,39 +282,6 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     case Map.get(params, key) do
       "" -> Map.put(params, key, nil)
       _ -> params
-    end
-  end
-
-  defp unique_currency_count(securities) do
-    securities
-    |> Enum.map(& &1.currency_code)
-    |> Enum.uniq()
-    |> Enum.count()
-  end
-
-  defp last_updated_label([]), do: "—"
-
-  defp last_updated_label(securities) do
-    if last_security_date(securities) == Date.utc_today(), do: gettext("Today"), else: "—"
-  end
-
-  defp last_updated_hint([]), do: gettext("Not tracked yet")
-
-  defp last_updated_hint(securities),
-    do:
-      if(last_security_date(securities) == Date.utc_today(),
-        do: gettext("Just now"),
-        else: gettext("Not today")
-      )
-
-  defp last_security_date(securities) do
-    securities
-    |> Enum.map(& &1.updated_at)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.max_by(&NaiveDateTime.to_erl/1, fn -> nil end)
-    |> case do
-      nil -> nil
-      updated_at -> NaiveDateTime.to_date(updated_at)
     end
   end
 
