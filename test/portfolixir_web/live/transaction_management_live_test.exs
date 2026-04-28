@@ -171,4 +171,44 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert html =~ "Newest transaction"
     assert html =~ ~r/Newest transaction.*Oldest transaction/s
   end
+
+  test "shows derived positions after buy and sell", %{
+    conn: conn,
+    portfolio: portfolio,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, _buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-04-01],
+        currency_code: "EUR",
+        quantity: Decimal.new("10.00"),
+        price: Decimal.new("50.00"),
+        amount: Decimal.new("500.00")
+      })
+
+    {:ok, _sell} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "sell",
+        date: ~D[2026-04-02],
+        currency_code: "EUR",
+        quantity: Decimal.new("4.25"),
+        price: Decimal.new("55.00"),
+        amount: Decimal.new("233.75")
+      })
+
+    {:ok, view, html} = live(conn, "/transactions")
+
+    assert has_element?(view, "#positions")
+    assert html =~ "Main Depot"
+    assert html =~ "Synthetic ETF"
+    assert html =~ "5.75"
+  end
 end
