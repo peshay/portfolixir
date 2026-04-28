@@ -5,10 +5,56 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
   alias Portfolixir.Catalog
 
+  setup do
+    Catalog.ensure_mvp_currencies!()
+    :ok
+  end
+
   test "visiting / renders All Securities", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     assert html =~ "All Securities"
+  end
+
+  test "security form uses a seeded currency select with EUR selected by default", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#security-add-toggle") |> render_click()
+
+    assert has_element?(
+             view,
+             "select#security-currency-code[name='security[currency_code]'] option[value='EUR'][selected]"
+           )
+
+    assert has_element?(view, "select#security-currency-code option[value='USD']", "USD")
+    refute has_element?(view, "input#security-currency-code")
+
+    html =
+      view
+      |> form("#security-form", %{
+        "security" => %{
+          "name" => "Synthetic EUR ETF",
+          "symbol" => "SEUR",
+          "currency_code" => "EUR"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Security added."
+    assert html =~ "Synthetic EUR ETF"
+    assert html =~ "EUR"
+  end
+
+  test "German security terminology renders for the create flow", %{conn: conn} do
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
+
+    {:ok, view, html} = live(conn, "/securities")
+
+    assert html =~ "Alle Wertpapiere"
+
+    view |> element("#security-add-toggle") |> render_click()
+
+    assert render(view) =~ "Währung"
+    assert has_element?(view, "#security-currency-code")
   end
 
   test "visiting /securities renders shared app shell", %{conn: conn} do
@@ -25,8 +71,6 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   end
 
   test "securities workspace uses primary list and secondary form layout", %{conn: conn} do
-    assert {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
-
     assert {:ok, _} =
              Catalog.create_security(%{
                name: "Synthetic ETF",
@@ -74,8 +118,6 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   end
 
   test "creates a security with success feedback", %{conn: conn} do
-    assert {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
-
     {:ok, view, _html} = live(conn, "/securities")
     view |> element("#security-add-toggle") |> render_click()
 
@@ -101,8 +143,6 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   end
 
   test "renders optional fields as em dashes when omitted", %{conn: conn} do
-    assert {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
-
     assert {:ok, _} =
              Catalog.create_security(%{
                name: "No IDs Security",
@@ -120,8 +160,6 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   end
 
   test "shows validation error when name is missing", %{conn: conn} do
-    assert {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
-
     {:ok, view, _html} = live(conn, "/securities")
     view |> element("#security-add-toggle") |> render_click()
 
@@ -142,8 +180,6 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   end
 
   test "shows understandable currency validation error and keeps field values", %{conn: conn} do
-    assert {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
-
     {:ok, view, _html} = live(conn, "/securities")
     view |> element("#security-add-toggle") |> render_click()
 
@@ -165,8 +201,6 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   end
 
   test "lists existing securities", %{conn: conn} do
-    assert {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
-
     assert {:ok, _} =
              Catalog.create_security(%{
                name: "Zebra Holdings",
