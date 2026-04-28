@@ -5,6 +5,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
   alias Portfolixir.Catalog
 
+  test "visiting / renders All Securities", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert html =~ "All Securities"
+  end
+
   test "visiting /securities renders shared app shell", %{conn: conn} do
     {:ok, view, html} = live(conn, "/securities")
 
@@ -49,6 +55,25 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "USD"
     assert html =~ "US0378331005"
     assert html =~ "865985"
+  end
+
+  test "renders optional fields as em dashes when omitted", %{conn: conn} do
+    assert {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "No IDs Security",
+               symbol: "NIS",
+               currency_code: "USD"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-list tbody tr")
+    assert has_element?(view, "#security-list tbody tr td:nth-child(4)", "—")
+    assert has_element?(view, "#security-list tbody tr td:nth-child(5)", "—")
+    assert has_element?(view, "#security-list tbody tr td:nth-child(6)", "—")
+    assert has_element?(view, "#security-list tbody tr td:nth-child(7)", "—")
   end
 
   test "shows validation error when name is missing", %{conn: conn} do
