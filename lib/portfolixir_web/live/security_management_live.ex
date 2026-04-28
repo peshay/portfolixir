@@ -22,7 +22,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       socket
       |> assign(:currencies, currencies)
       |> assign(:security_form, default_security_form(currencies))
-      |> assign(:show_security_form, false)
+      |> assign(:security_form_visible, false)
+      |> assign(:security_form_mode, :create)
+      |> assign(:editing_security_id, nil)
       |> assign(:security_error, nil)
       |> assign(:security_success, nil)
       |> load_securities()
@@ -56,10 +58,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               type="button"
               class="app-shell-secondary"
               phx-click="toggle_security_form"
-              aria-expanded={if @show_security_form, do: "true", else: "false"}
+              aria-expanded={if @security_form_visible, do: "true", else: "false"}
               aria-controls="security-create"
             >
-              <%= if @show_security_form, do: gettext("Close form"), else: gettext("Add security") %>
+              <%= if @security_form_visible, do: gettext("Close form"), else: gettext("Add security") %>
             </button>
           </div>
 
@@ -80,6 +82,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                     <th>WKN</th>
                     <th><%= gettext("Provider symbol") %></th>
                     <th><%= gettext("Exchange") %></th>
+                    <th><%= gettext("Actions") %></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -92,6 +95,17 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       <td><%= security.wkn || "—" %></td>
                       <td><%= security.provider_symbol || "—" %></td>
                       <td><%= security.exchange_code || "—" %></td>
+                      <td>
+                        <button
+                          id={"security-edit-#{security.id}"}
+                          type="button"
+                          class="app-shell-secondary"
+                          phx-click="start_edit_security"
+                          phx-value-id={security.id}
+                        >
+                          <%= gettext("Edit") %>
+                        </button>
+                      </td>
                     </tr>
                   <% end %>
                 </tbody>
@@ -100,7 +114,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           <% end %>
         </section>
 
-        <%= if @show_security_form || @security_success || @security_error do %>
+        <%= if @security_form_visible || @security_success || @security_error do %>
           <section
             id="security-create"
             class="app-shell-section-card"
@@ -108,7 +122,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           >
             <div class="app-shell-section-header">
               <div>
-                <h2 class="app-shell-section-title"><%= gettext("Add security") %></h2>
+                <h2 class="app-shell-section-title">
+                  <%= if @security_form_mode == :edit, do: gettext("Edit security"), else: gettext("Add security") %>
+                </h2>
                 <p class="app-shell-panel-intro">
                   <%= gettext("Create one instrument at a time.") %>
                 </p>
@@ -132,81 +148,91 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               </p>
             <% end %>
 
-            <form id="security-form" class="app-shell-form-grid" phx-submit="create_security">
-            <div class="app-shell-field app-shell-field--full">
-              <label for="security-name"><%= gettext("Name") %></label>
-              <input
-                id="security-name"
-                name="security[name]"
-                value={@security_form["name"]}
-              />
-            </div>
+            <form id="security-form" class="app-shell-form-grid" phx-submit="save_security">
+              <div class="app-shell-field app-shell-field--full">
+                <label for="security-name"><%= gettext("Name") %></label>
+                <input
+                  id="security-name"
+                  name="security[name]"
+                  value={@security_form["name"]}
+                />
+              </div>
 
-            <div class="app-shell-field">
-              <label for="security-symbol"><%= gettext("Symbol") %></label>
-              <input
-                id="security-symbol"
-                name="security[symbol]"
-                value={@security_form["symbol"]}
-              />
-            </div>
+              <div class="app-shell-field">
+                <label for="security-symbol"><%= gettext("Symbol") %></label>
+                <input
+                  id="security-symbol"
+                  name="security[symbol]"
+                  value={@security_form["symbol"]}
+                />
+              </div>
 
-            <div class="app-shell-field">
-              <label for="security-currency-code"><%= gettext("Currency") %></label>
-              <select
-                id="security-currency-code"
-                name="security[currency_code]"
-              >
-                <option value=""><%= gettext("Select currency") %></option>
-                <%= for currency <- @currencies do %>
-                  <option
-                    value={currency.code}
-                    selected={currency.code == @security_form["currency_code"]}
+              <div class="app-shell-field">
+                <label for="security-currency-code"><%= gettext("Currency") %></label>
+                <select
+                  id="security-currency-code"
+                  name="security[currency_code]"
+                >
+                  <option value=""><%= gettext("Select currency") %></option>
+                  <%= for currency <- @currencies do %>
+                    <option
+                      value={currency.code}
+                      selected={currency.code == @security_form["currency_code"]}
+                    >
+                      <%= currency_option_label(currency) %>
+                    </option>
+                  <% end %>
+                </select>
+              </div>
+
+              <div class="app-shell-field">
+                <label for="security-isin"><%= gettext("ISIN (optional)") %></label>
+                <input id="security-isin" name="security[isin]" value={@security_form["isin"]} />
+              </div>
+
+              <div class="app-shell-field">
+                <label for="security-wkn"><%= gettext("WKN (optional)") %></label>
+                <input id="security-wkn" name="security[wkn]" value={@security_form["wkn"]} />
+              </div>
+
+              <div class="app-shell-field">
+                <label for="security-exchange-code"><%= gettext("Exchange code (optional)") %></label>
+                <input
+                  id="security-exchange-code"
+                  name="security[exchange_code]"
+                  value={@security_form["exchange_code"]}
+                />
+              </div>
+
+              <div class="app-shell-field">
+                <label for="security-provider-symbol"><%= gettext("Provider symbol (optional)") %></label>
+                <input
+                  id="security-provider-symbol"
+                  name="security[provider_symbol]"
+                  value={@security_form["provider_symbol"]}
+                />
+              </div>
+
+              <div class="app-shell-field app-shell-field--full">
+                <label for="security-notes"><%= gettext("Notes (optional)") %></label>
+                <textarea id="security-notes" rows="2" name="security[notes]"><%= @security_form["notes"] %></textarea>
+              </div>
+
+              <div class="app-shell-form-actions">
+                <%= if @security_form_mode == :edit do %>
+                  <button
+                    id="security-cancel-edit"
+                    type="button"
+                    class="app-shell-secondary"
+                    phx-click="cancel_edit_security"
                   >
-                    <%= currency_option_label(currency) %>
-                  </option>
+                    <%= gettext("Cancel") %>
+                  </button>
                 <% end %>
-              </select>
-            </div>
-
-            <div class="app-shell-field">
-              <label for="security-isin"><%= gettext("ISIN (optional)") %></label>
-              <input id="security-isin" name="security[isin]" value={@security_form["isin"]} />
-            </div>
-
-            <div class="app-shell-field">
-              <label for="security-wkn"><%= gettext("WKN (optional)") %></label>
-              <input id="security-wkn" name="security[wkn]" value={@security_form["wkn"]} />
-            </div>
-
-            <div class="app-shell-field">
-              <label for="security-exchange-code"><%= gettext("Exchange code (optional)") %></label>
-              <input
-                id="security-exchange-code"
-                name="security[exchange_code]"
-                value={@security_form["exchange_code"]}
-              />
-            </div>
-
-            <div class="app-shell-field">
-              <label for="security-provider-symbol"><%= gettext("Provider symbol (optional)") %></label>
-              <input
-                id="security-provider-symbol"
-                name="security[provider_symbol]"
-                value={@security_form["provider_symbol"]}
-              />
-            </div>
-
-            <div class="app-shell-field app-shell-field--full">
-              <label for="security-notes"><%= gettext("Notes (optional)") %></label>
-              <textarea id="security-notes" rows="2" name="security[notes]"><%= @security_form["notes"] %></textarea>
-            </div>
-
-            <div class="app-shell-form-actions">
-              <button type="submit" class="app-shell-primary">
-                <%= gettext("Add security") %>
-              </button>
-            </div>
+                <button type="submit" class="app-shell-primary">
+                  <%= if @security_form_mode == :edit, do: gettext("Save security"), else: gettext("Add security") %>
+                </button>
+              </div>
             </form>
           </section>
         <% end %>
@@ -216,16 +242,49 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   end
 
   def handle_event("toggle_security_form", _params, socket) do
-    {:noreply, assign(socket, :show_security_form, not socket.assigns.show_security_form)}
+    case socket.assigns.security_form_mode do
+      :edit ->
+        {:noreply, exit_edit_mode(socket)}
+
+      :create ->
+        {:noreply,
+         assign(socket, :security_form_visible, not socket.assigns.security_form_visible)}
+    end
   end
 
-  def handle_event("create_security", %{"security" => params}, socket) do
+  def handle_event("start_edit_security", %{"id" => id_string}, socket) do
+    {id, ""} = Integer.parse(id_string)
+
+    security = Catalog.get_security!(id)
+
+    {:noreply,
+     socket
+     |> assign(:security_form_mode, :edit)
+     |> assign(:editing_security_id, security.id)
+     |> assign(:security_form_visible, true)
+     |> assign(:security_form, security_form_values(security))
+     |> assign(:security_success, nil)
+     |> assign(:security_error, nil)}
+  end
+
+  def handle_event("cancel_edit_security", _params, socket) do
+    {:noreply, exit_edit_mode(socket)}
+  end
+
+  def handle_event("save_security", %{"security" => params}, socket) do
+    case socket.assigns.security_form_mode do
+      :edit -> save_security_edit(socket, params)
+      _ -> save_security_create(socket, params)
+    end
+  end
+
+  defp save_security_create(socket, params) do
     case Catalog.create_security(sanitize_security_params(params)) do
       {:ok, _security} ->
         {:noreply,
          socket
          |> assign(:security_form, default_security_form(socket.assigns.currencies))
-         |> assign(:show_security_form, true)
+         |> assign(:security_form_visible, true)
          |> assign(:security_error, nil)
          |> assign(:security_success, gettext("Security added."))
          |> load_securities()}
@@ -233,15 +292,68 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply,
          socket
-         |> assign(
-           :security_form,
-           @security_form_defaults |> Map.merge(sanitize_security_params(params))
-         )
-         |> assign(:show_security_form, true)
+         |> assign(:security_form, security_form_input_values(params))
+         |> assign(:security_form_visible, true)
          |> assign(:security_error, format_errors(changeset))
          |> assign(:security_success, nil)
          |> load_securities()}
     end
+  end
+
+  defp save_security_edit(%{assigns: %{editing_security_id: nil}} = socket, params) do
+    save_security_create(socket, params)
+  end
+
+  defp save_security_edit(socket, params) do
+    security = Catalog.get_security!(socket.assigns.editing_security_id)
+
+    case Catalog.update_security(security, sanitize_security_params(params)) do
+      {:ok, _security} ->
+        {:noreply,
+         exit_edit_mode(socket, security_form: default_security_form(socket.assigns.currencies))}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         socket
+         |> assign(:security_form, security_form_input_values(params))
+         |> assign(:security_error, format_errors(changeset))
+         |> assign(:security_success, nil)
+         |> assign(:security_form_visible, true)
+         |> load_securities()}
+    end
+  end
+
+  defp exit_edit_mode(socket, opts \\ []) do
+    currencies = opts[:currencies] || socket.assigns.currencies
+    security_form = opts[:security_form] || default_security_form(currencies)
+
+    socket
+    |> assign(:security_form_mode, :create)
+    |> assign(:editing_security_id, nil)
+    |> assign(:security_form_visible, false)
+    |> assign(:security_form, security_form)
+    |> assign(:security_error, nil)
+    |> assign(:security_success, nil)
+    |> load_securities()
+  end
+
+  defp security_form_input_values(params) do
+    @security_form_defaults
+    |> Map.merge(sanitize_security_params(params))
+    |> Enum.into(%{}, fn {key, value} -> {key, value || ""} end)
+  end
+
+  defp security_form_values(security) do
+    %{
+      "name" => security.name || "",
+      "symbol" => security.symbol || "",
+      "currency_code" => security.currency_code || "",
+      "isin" => security.isin || "",
+      "wkn" => security.wkn || "",
+      "exchange_code" => security.exchange_code || "",
+      "provider_symbol" => security.provider_symbol || "",
+      "notes" => security.notes || ""
+    }
   end
 
   defp load_securities(socket) do
