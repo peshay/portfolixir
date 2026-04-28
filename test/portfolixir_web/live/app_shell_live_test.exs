@@ -7,7 +7,12 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(view, "#app-shell[data-sidebar-collapsed='false']")
+    assert has_element?(view, "#app-shell[data-layout='portfolio-workspace']")
     assert has_element?(view, "#sidebar-toggle")
+    assert has_element?(view, "header.app-shell-mobile-header")
+    assert has_element?(view, "aside.app-shell-sidebar")
+    assert has_element?(view, "nav.app-shell-sidebar-nav[aria-label='Main navigation']")
+    assert has_element?(view, "main.app-shell-main")
     assert has_element?(view, "img#app-shell-brand-light-wordmark[src='/images/logo-light.svg']")
     assert has_element?(view, "img#app-shell-brand-mark[src='/images/logo-mark.svg']")
     assert has_element?(view, "img[alt='Portfolixir']")
@@ -22,6 +27,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "p.app-shell-nav-group-title", "Ledger")
     assert has_element?(view, "p.app-shell-nav-group-title", "Classifications")
     assert has_element?(view, "p.app-shell-nav-group-title", "Reports")
+    assert has_element?(view, "p.app-shell-nav-group-title", "Imports")
     assert has_element?(view, "#theme-toggle")
     assert has_element?(view, "span.app-shell-visually-hidden", "Portfolixir")
     refute has_element?(view, ".app-shell-brand-label")
@@ -55,6 +61,39 @@ defmodule PortfolixirWeb.AppShellLiveTest do
            )
 
     assert html =~ "Portfolixir"
+  end
+
+  test "browser response includes mobile viewport metadata", %{conn: conn} do
+    html = conn |> get("/securities") |> html_response(200)
+
+    assert html =~ ~s(<meta name="viewport" content="width=device-width, initial-scale=1")
+  end
+
+  test "shell exposes design tokens and responsive workspace primitives", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    [style_block] =
+      Regex.run(~r/<style id="app-shell-styles">(.*?)<\/style>/s, html, capture: :all_but_first)
+
+    assert style_block =~ "--pfx-bg:"
+    assert style_block =~ "--pfx-surface:"
+    assert style_block =~ "--pfx-elevated:"
+    assert style_block =~ "--pfx-text:"
+    assert style_block =~ "--pfx-muted:"
+    assert style_block =~ "--pfx-border:"
+    assert style_block =~ "--pfx-accent:"
+    assert style_block =~ "--pfx-success:"
+    assert style_block =~ "--pfx-warning:"
+    assert style_block =~ "--pfx-error:"
+    assert style_block =~ "--pfx-focus-ring:"
+    assert style_block =~ "body {"
+    assert style_block =~ "#app-shell .app-shell-logo-wordmark {"
+    assert style_block =~ ".app-shell-workspace-grid"
+    assert style_block =~ ".app-shell-form-grid"
+    assert style_block =~ ".app-shell-table-wrapper"
+    assert style_block =~ ".app-shell-empty-state"
+    assert style_block =~ "@media (max-width: 760px)"
+    assert style_block =~ "max-width: 1440px"
   end
 
   test "official logo assets are served", %{conn: conn} do
@@ -114,6 +153,11 @@ defmodule PortfolixirWeb.AppShellLiveTest do
              "span[aria-label='Performance'][aria-disabled='true'][title='Coming soon']"
            )
 
+    assert has_element?(
+             view,
+             "span[aria-label='Imports'][aria-disabled='true'][title='Coming soon']"
+           )
+
     assert html =~ "app-shell-nav-icon"
     assert html =~ ">W<"
     assert html =~ "aria-label=\"All Securities\""
@@ -126,6 +170,17 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "#theme-toggle.app-shell-theme-toggle")
     assert has_element?(view, "#theme-toggle")
     refute has_element?(view, "#theme-toggle.app-shell-toggle")
+  end
+
+  test "all primary workspace routes render shell and mobile navigation hooks", %{conn: conn} do
+    for route <- ["/securities", "/taxonomies", "/accounts", "/transactions"] do
+      {:ok, view, _html} = live(conn, route)
+
+      assert has_element?(view, "#app-shell[data-layout='portfolio-workspace']")
+      assert has_element?(view, ".app-shell-mobile-header")
+      assert has_element?(view, ".app-shell-main-inner")
+      assert has_element?(view, "nav.app-shell-sidebar-nav")
+    end
   end
 
   test "securities route is usable", %{conn: conn} do
