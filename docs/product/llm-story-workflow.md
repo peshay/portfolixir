@@ -44,6 +44,14 @@ Keep temporary prompts outside the repository (chat, issue comments, local notes
    - Docker smoke checks if applicable
    - follow-up tasks
 
+## Foundation slices
+
+Foundation work may use architecture-slice IDs such as `PFX-FND-001` when the work is broader than a single UI user story.
+
+Agents must still keep the scope coherent and avoid unrelated work. A foundation slice can touch multiple layers only when those changes belong to the same foundation purpose.
+
+Agents must create a branch before editing and must not work directly on `main`.
+
 ## Scope control
 
 Agents must not implement later stories opportunistically.
