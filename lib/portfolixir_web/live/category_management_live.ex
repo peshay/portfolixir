@@ -32,7 +32,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
   def render(assigns) do
     ~H"""
     <AppShell.shell current_path="/taxonomies">
-      <h1>Category Management</h1>
+      <h1>Classifications</h1>
 
       <section id="taxonomy-management">
         <h2>Taxonomies</h2>
@@ -45,7 +45,9 @@ defmodule PortfolixirWeb.CategoryManagementLive do
           <label for="taxonomy-name">Name</label>
           <input id="taxonomy-name" name="taxonomy[name]" value={@taxonomy_form["name"]} />
           <label for="taxonomy-description">Description</label>
-          <textarea id="taxonomy-description" name="taxonomy[description]"><%= @taxonomy_form["description"] %></textarea>
+          <textarea id="taxonomy-description" name="taxonomy[description]">
+            <%= @taxonomy_form["description"] %>
+          </textarea>
           <button type="submit">Create Taxonomy</button>
         </form>
 
@@ -84,7 +86,9 @@ defmodule PortfolixirWeb.CategoryManagementLive do
             <input id="category-name" name="category[name]" value={@category_form["name"]} />
 
             <label for="category-description">Description</label>
-            <textarea id="category-description" name="category[description]"><%= @category_form["description"] %></textarea>
+            <textarea id="category-description" name="category[description]">
+              <%= @category_form["description"] %>
+            </textarea>
 
             <label for="category-parent-id">Parent (optional)</label>
             <select id="category-parent-id" name="category[parent_id]">
@@ -127,7 +131,9 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                     <input name="category[name]" value={category.name} />
 
                     <label>Description</label>
-                    <textarea name="category[description]"><%= category.description %></textarea>
+                    <textarea name="category[description]">
+                      <%= category.description %>
+                    </textarea>
 
                     <button type="submit">Save</button>
                   </form>
@@ -258,32 +264,9 @@ defmodule PortfolixirWeb.CategoryManagementLive do
     |> maybe_remove_empty_string("description")
     |> maybe_remove_empty_string("parent_id")
     |> maybe_remove_empty_string("sort_order")
-    |> maybe_remove_empty_string("color")
-    |> normalize_parent_id()
-    |> normalize_sort_order()
   end
 
-  defp sanitize_params(_params), do: %{}
-
-  defp preserve_category_form_values(params, selected_taxonomy_id) do
-    %{
-      "taxonomy_id" => selected_taxonomy_id || "",
-      "parent_id" => Map.get(params, "parent_id", ""),
-      "name" => Map.get(params, "name", ""),
-      "description" => Map.get(params, "description", ""),
-      "color" => Map.get(params, "color", ""),
-      "sort_order" => Map.get(params, "sort_order", "")
-    }
-  end
-
-  defp prepare_category_params(params, selected_taxonomy_id) do
-    params =
-      params
-      |> sanitize_params()
-      |> Map.put("taxonomy_id", selected_taxonomy_id)
-
-    params
-  end
+  defp sanitize_params(_), do: %{}
 
   defp maybe_remove_empty_string(params, key) do
     case Map.get(params, key) do
@@ -292,40 +275,32 @@ defmodule PortfolixirWeb.CategoryManagementLive do
     end
   end
 
-  defp normalize_parent_id(params) do
-    Map.put(params, "parent_id", normalize_optional_integer(Map.get(params, "parent_id")))
+  defp prepare_category_params(params, taxonomy_id) do
+    params
+    |> sanitize_params()
+    |> Map.put("taxonomy_id", taxonomy_id || params["taxonomy_id"])
   end
-
-  defp normalize_sort_order(params) do
-    Map.put(params, "sort_order", normalize_optional_integer(Map.get(params, "sort_order")))
-  end
-
-  defp normalize_optional_integer(value) when value in ["", nil], do: nil
-
-  defp normalize_optional_integer(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {parsed, ""} -> parsed
-      _ -> nil
-    end
-  end
-
-  defp normalize_optional_integer(value) when is_integer(value), do: value
-  defp normalize_optional_integer(value), do: value
 
   defp parsed_id(nil), do: nil
-  defp parsed_id(value) when is_integer(value), do: value
 
-  defp parsed_id(value) when is_binary(value) do
+  defp parsed_id(value) do
     case Integer.parse(value) do
       {parsed, ""} -> parsed
       _ -> nil
     end
+  end
+
+  defp preserve_category_form_values(params, selected_taxonomy_id) do
+    params
+    |> sanitize_params()
+    |> Map.put("taxonomy_id", selected_taxonomy_id || "")
+    |> Map.put("parent_id", params["parent_id"] || "")
   end
 
   defp format_errors(%Ecto.Changeset{} = changeset) do
     changeset.errors
-    |> Enum.map_join(", ", fn {field, {message, _opts}} ->
-      "#{field} #{message}"
+    |> Enum.map_join(", ", fn {field, {message, _}} ->
+      "#{Phoenix.Naming.humanize(field)} #{message}"
     end)
   end
 end
