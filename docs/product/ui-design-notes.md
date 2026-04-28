@@ -24,6 +24,13 @@ The UI foundation uses a persistent desktop sidebar, clear page headers, primary
 - The official logo assets in `priv/static/images` remain the source of truth. Do not create new logo files for theme variants.
 - The theme toggle must continue to work without requiring server-side state.
 
+## Localization and Terminology
+
+- User-facing labels should go through Gettext when they are part of the app shell or core workflows.
+- German terminology should stay close to Portfolio Performance concepts, especially `Wertpapiere`, `Stammdaten`, `Konten`, `Depots`, `Verrechnungskonten`, `Buchungen` and `Klassifizierungen`.
+- English labels should remain polished and usable; do not replace route, module or table names to achieve localization.
+- Language selection must remain visible on desktop and mobile, and must not interfere with the theme toggle.
+
 ## Accessibility Baseline
 
 - Use semantic landmarks such as `header`, `nav`, `main` and `section`.
