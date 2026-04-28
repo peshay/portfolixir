@@ -46,46 +46,43 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       </header>
 
       <%= if @current_portfolio do %>
+        <section id="ledger-kpis" class="app-shell-stat-grid" aria-label="Ledger summary">
+          <div class="app-shell-stat-card">
+            <span class="app-shell-stat-icon" aria-hidden="true">TX</span>
+            <div>
+              <span class="app-shell-stat-label">Transactions</span>
+              <span class="app-shell-stat-value"><%= Enum.count(@transactions) %></span>
+              <span class="app-shell-stat-hint">Ledger entries</span>
+            </div>
+          </div>
+          <div class="app-shell-stat-card">
+            <span class="app-shell-stat-icon" aria-hidden="true">POS</span>
+            <div>
+              <span class="app-shell-stat-label">Positions</span>
+              <span class="app-shell-stat-value"><%= Enum.count(@position_rows) %></span>
+              <span class="app-shell-stat-hint">Derived from trades</span>
+            </div>
+          </div>
+          <div class="app-shell-stat-card">
+            <span class="app-shell-stat-icon" aria-hidden="true">DA</span>
+            <div>
+              <span class="app-shell-stat-label">Deposit accounts</span>
+              <span class="app-shell-stat-value"><%= Enum.count(@deposit_accounts) %></span>
+              <span class="app-shell-stat-hint">Available for cash</span>
+            </div>
+          </div>
+          <div class="app-shell-stat-card">
+            <span class="app-shell-stat-icon" aria-hidden="true">SA</span>
+            <div>
+              <span class="app-shell-stat-label">Securities accounts</span>
+              <span class="app-shell-stat-value"><%= Enum.count(@securities_accounts) %></span>
+              <span class="app-shell-stat-hint">Available for trades</span>
+            </div>
+          </div>
+        </section>
+
         <div id="ledger-workspace" class="app-shell-workspace-grid">
           <div class="app-shell-workspace-stack" data-priority="primary">
-            <section id="positions" class="app-shell-section-card">
-              <div class="app-shell-section-header">
-                <div>
-                  <h2 class="app-shell-section-title">Positions</h2>
-                  <p>Quantity summary derived from buy and sell transactions.</p>
-                </div>
-                <span class="app-shell-badge"><%= Enum.count(@position_rows) %> positions</span>
-              </div>
-
-              <%= if Enum.empty?(@position_rows) do %>
-                <div id="no-positions" class="app-shell-empty-state">
-                  <h3>No positions yet</h3>
-                  <p>Positions are derived from buy and sell transactions.</p>
-                </div>
-              <% else %>
-                <div class="app-shell-table-wrapper">
-                  <table id="position-list">
-                    <thead>
-                      <tr>
-                        <th>Securities account</th>
-                        <th>Security</th>
-                        <th>Quantity</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <%= for row <- @position_rows do %>
-                        <tr>
-                          <td><%= row.securities_account_name %></td>
-                          <td><%= row.security_name %></td>
-                          <td><%= format_quantity(row.quantity) %></td>
-                        </tr>
-                      <% end %>
-                    </tbody>
-                  </table>
-                </div>
-              <% end %>
-            </section>
-
             <section
               id="transaction-history-panel"
               class="app-shell-section-card"
@@ -143,11 +140,50 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             </section>
           </div>
 
-          <section
-            id="transaction-form-panel"
-            class="app-shell-section-card"
-            data-priority="secondary"
-          >
+          <div class="app-shell-workspace-stack" data-priority="secondary">
+            <section id="positions" class="app-shell-section-card" data-priority="secondary">
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title">Positions overview</h2>
+                  <p>Quantity summary derived from buy and sell transactions.</p>
+                </div>
+                <span class="app-shell-badge"><%= Enum.count(@position_rows) %> positions</span>
+              </div>
+
+              <%= if Enum.empty?(@position_rows) do %>
+                <div id="no-positions" class="app-shell-empty-state">
+                  <h3>No positions yet</h3>
+                  <p>Positions are derived from buy and sell transactions.</p>
+                </div>
+              <% else %>
+                <div class="app-shell-table-wrapper">
+                  <table id="position-list">
+                    <thead>
+                      <tr>
+                        <th>Securities account</th>
+                        <th>Security</th>
+                        <th>Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for row <- @position_rows do %>
+                        <tr>
+                          <td><%= row.securities_account_name %></td>
+                          <td><%= row.security_name %></td>
+                          <td><%= format_quantity(row.quantity) %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% end %>
+            </section>
+
+            <section
+              id="transaction-form-panel"
+              class="app-shell-section-card"
+              data-priority="secondary"
+            >
             <div class="app-shell-section-header">
               <div>
                 <h2 class="app-shell-section-title">Add transaction</h2>
@@ -317,7 +353,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 <button type="submit" class="app-shell-primary">Create transaction</button>
               </div>
             </form>
-          </section>
+            </section>
+          </div>
         </div>
       <% else %>
         <section id="transaction-empty-portfolio" class="app-shell-section-card app-shell-section-card--compact">

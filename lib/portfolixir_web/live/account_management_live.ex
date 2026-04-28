@@ -48,7 +48,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
       <header class="app-shell-page-header">
         <div>
           <p class="app-shell-page-kicker">Master data</p>
-          <h1>Accounts</h1>
+          <h1>Accounts Overview</h1>
           <p>Organize the portfolio, cash accounts and securities accounts that ledger activity posts to.</p>
         </div>
       </header>
@@ -88,6 +88,41 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 <p>Create a portfolio first.</p>
               </div>
             <% end %>
+          </section>
+
+          <section id="account-kpis" class="app-shell-stat-grid" aria-label="Account summary">
+            <div class="app-shell-stat-card">
+              <span class="app-shell-stat-icon" aria-hidden="true">DA</span>
+              <div>
+                <span class="app-shell-stat-label">Deposit accounts</span>
+                <span class="app-shell-stat-value"><%= Enum.count(@deposit_accounts) %></span>
+                <span class="app-shell-stat-hint">Cash and settlement</span>
+              </div>
+            </div>
+            <div class="app-shell-stat-card">
+              <span class="app-shell-stat-icon" aria-hidden="true">SA</span>
+              <div>
+                <span class="app-shell-stat-label">Securities accounts</span>
+                <span class="app-shell-stat-value"><%= Enum.count(@securities_accounts) %></span>
+                <span class="app-shell-stat-hint">Brokerage and custody</span>
+              </div>
+            </div>
+            <div class="app-shell-stat-card">
+              <span class="app-shell-stat-icon" aria-hidden="true">CB</span>
+              <div>
+                <span class="app-shell-stat-label">Cash balances</span>
+                <span class="app-shell-stat-value"><%= Enum.count(@cash_balance_rows) %></span>
+                <span class="app-shell-stat-hint">Calculated rows</span>
+              </div>
+            </div>
+            <div class="app-shell-stat-card">
+              <span class="app-shell-stat-icon" aria-hidden="true">!</span>
+              <div>
+                <span class="app-shell-stat-label">Cash impact warnings</span>
+                <span class="app-shell-stat-value"><%= Enum.count(@missing_cash_impact_rows) %></span>
+                <span class="app-shell-stat-hint">Needs attention</span>
+              </div>
+            </div>
           </section>
 
           <%= if @current_portfolio do %>
@@ -242,7 +277,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
           <% end %>
         </div>
 
-        <div class="app-shell-workspace-stack" data-priority="secondary">
+        <div id="account-forms" class="app-shell-workspace-stack" data-priority="secondary">
           <section id="portfolio-management" class="app-shell-section-card">
             <div class="app-shell-section-header">
               <div>
