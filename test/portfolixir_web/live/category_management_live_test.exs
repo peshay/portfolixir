@@ -46,6 +46,36 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert html =~ "Top level allocation groups"
   end
 
+  test "German UI can create Portfolio Performance classification presets idempotently", %{
+    conn: conn
+  } do
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
+
+    {:ok, view, html} = live(conn, "/taxonomies")
+
+    assert html =~ "Klassifizierungen"
+
+    assert has_element?(
+             view,
+             "#portfolio-performance-presets",
+             "Portfolio-Performance-Vorlagen anlegen"
+           )
+
+    html = view |> element("#portfolio-performance-presets") |> render_click()
+
+    assert html =~ "Strategien"
+    assert html =~ "Regionen"
+    assert html =~ "Branchen"
+    assert html =~ "Wertpapierarten"
+
+    html = view |> element("#portfolio-performance-presets") |> render_click()
+
+    assert html =~ "Portfolio-Performance-Vorlagen sind vorhanden."
+
+    assert Taxonomies.list_taxonomies() |> Enum.filter(&(&1.name == "Strategien")) |> length() ==
+             1
+  end
+
   test "creating and updating a category with description", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/taxonomies")
 
