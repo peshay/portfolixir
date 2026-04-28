@@ -19,8 +19,35 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
 
     assert html =~ "Accounts"
     assert has_element?(view, "a[href=\"/accounts\"]")
+    assert has_element?(view, "#account-workspace.app-shell-workspace-grid")
+    assert has_element?(view, "#account-overview")
     assert has_element?(view, "#deposit-accounts")
     assert has_element?(view, "#securities-accounts")
+  end
+
+  test "accounts workspace provides responsive sections and secondary forms", %{conn: conn} do
+    portfolio = create_portfolio("Primary portfolio")
+    deposit_account = create_deposit_account(portfolio, "Settlement Cash")
+
+    {:ok, _deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        type: "deposit",
+        date: ~D[2026-04-01],
+        currency_code: "EUR",
+        amount: Decimal.new("1000.00")
+      })
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(view, "#current-portfolio.app-shell-summary-strip")
+    assert has_element?(view, "#deposit-accounts .app-shell-table-wrapper")
+    assert has_element?(view, "#cash-balances .app-shell-table-wrapper")
+    assert has_element?(view, "#securities-accounts[data-priority='primary']")
+    assert has_element?(view, "#deposit-account-form.app-shell-form-grid")
+    assert has_element?(view, "#securities-account-form.app-shell-form-grid")
+    assert has_element?(view, ".app-shell-warning-note")
   end
 
   test "renders an empty state when there is no portfolio", %{conn: conn} do
@@ -51,6 +78,24 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert html =~ "Long Term"
     assert html =~ "Deposit accounts"
     assert html =~ "Securities accounts"
+  end
+
+  test "portfolio validation errors render as alerts", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    html =
+      view
+      |> form("#portfolio-form", %{
+        "portfolio" => %{
+          "name" => "",
+          "base_currency_code" => "",
+          "description" => "Missing required fields"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "id=\"portfolio-form-error\""
+    assert has_element?(view, "#portfolio-form-error[role='alert']")
   end
 
   test "creates a deposit account for the current portfolio", %{conn: conn} do

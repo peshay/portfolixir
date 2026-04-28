@@ -46,7 +46,49 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert html =~ "Transactions"
     assert has_element?(view, "a[href=\"/transactions\"]")
+    assert has_element?(view, "#ledger-workspace.app-shell-workspace-grid")
+    assert has_element?(view, "#transaction-history-panel[data-priority='primary']")
+    assert has_element?(view, "#transaction-form-panel[data-priority='secondary']")
     assert has_element?(view, "#transaction-form")
+  end
+
+  test "transactions workspace keeps history primary and form scannable", %{
+    conn: conn,
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, _deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        type: "deposit",
+        date: ~D[2026-04-01],
+        currency_code: "EUR",
+        amount: Decimal.new("1000.00")
+      })
+
+    {:ok, _buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-04-02],
+        currency_code: "EUR",
+        quantity: Decimal.new("5.00"),
+        price: Decimal.new("50.00"),
+        amount: Decimal.new("250.00")
+      })
+
+    {:ok, view, html} = live(conn, "/transactions")
+
+    assert html =~ "Use deposit transactions for cash movements"
+    assert has_element?(view, "#position-list")
+    assert has_element?(view, "#transaction-history-panel .app-shell-table-wrapper")
+    assert has_element?(view, "#transaction-form.app-shell-form-grid")
+    assert has_element?(view, "#transaction-form .app-shell-fieldset")
   end
 
   test "renders an empty state when there are no transactions", %{conn: conn} do
@@ -133,6 +175,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       |> render_submit()
 
     assert html =~ "id=\"transaction-form-error\""
+    assert has_element?(view, "#transaction-form-error[role='alert']")
     assert html =~ "Amount must be greater than 0"
     assert html =~ "value=\"0.00\""
     assert html =~ "Keep this value"
