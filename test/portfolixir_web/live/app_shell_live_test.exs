@@ -20,6 +20,37 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "p.app-shell-nav-group-title", "Classifications")
     assert has_element?(view, "p.app-shell-nav-group-title", "Reports")
     assert has_element?(view, "#theme-toggle")
+    assert has_element?(view, "span.app-shell-visually-hidden", "Portfolixir")
+    refute has_element?(view, ".app-shell-brand-label")
+
+    [style_block] =
+      Regex.run(~r/<style id="app-shell-styles">(.*?)<\/style>/s, html, capture: :all_but_first)
+
+    assert Regex.match?(
+             ~r/#app-shell:not\(\[data-sidebar-collapsed="true"\]\)\[data-theme="light"\]\s+\.app-shell-logo-wordmark-light\s*\{\s*display:\s*block;/s,
+             style_block
+           )
+
+    assert Regex.match?(
+             ~r/#app-shell:not\(\[data-sidebar-collapsed="true"\]\)\[data-theme="dark"\]\s+\.app-shell-logo-wordmark-dark\s*\{\s*display:\s*block;/s,
+             style_block
+           )
+
+    assert Regex.match?(
+             ~r/#app-shell\[data-sidebar-collapsed="true"\]\s+\.app-shell-logo-mark\s*\{\s*display:\s*block;/s,
+             style_block
+           )
+
+    assert Regex.match?(
+             ~r/#app-shell\s+\.app-shell-logo-wordmark-light,\s*#app-shell\s+\.app-shell-logo-wordmark-dark,\s*#app-shell\s+\.app-shell-logo-mark\s*\{\s*display:\s*none;/s,
+             style_block
+           )
+
+    refute Regex.match?(
+             ~r/#app-shell:not\(\[data-sidebar-collapsed="true"\]\)\.?\s*\.app-shell-logo-wordmark-light,\s*#app-shell:not\(\[data-sidebar-collapsed="true"\]\)\.?\s*\.app-shell-logo-wordmark-dark/s,
+             style_block
+           )
+
     assert html =~ "Portfolixir"
   end
 
