@@ -7,38 +7,44 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
-  setup do
+  setup context do
     {:ok, _currency} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Primary", base_currency_code: "EUR"})
 
-    {:ok, deposit_account} =
-      Portfolios.create_deposit_account(%{
-        portfolio_id: portfolio.id,
-        name: "Settlement Cash",
-        currency_code: "EUR"
-      })
+    if context[:no_portfolio] do
+      %{}
+    else
+      {:ok, portfolio} =
+        Portfolios.create_portfolio(%{name: "Primary", base_currency_code: "EUR"})
 
-    {:ok, securities_account} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        reference_deposit_account_id: deposit_account.id,
-        name: "Main Depot",
-        currency_code: "EUR"
-      })
+      {:ok, deposit_account} =
+        Portfolios.create_deposit_account(%{
+          portfolio_id: portfolio.id,
+          name: "Settlement Cash",
+          currency_code: "EUR"
+        })
 
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "Synthetic ETF",
-        symbol: "SYN",
-        currency_code: "EUR"
-      })
+      {:ok, securities_account} =
+        Portfolios.create_securities_account(%{
+          portfolio_id: portfolio.id,
+          reference_deposit_account_id: deposit_account.id,
+          name: "Main Depot",
+          currency_code: "EUR"
+        })
 
-    %{
-      portfolio: portfolio,
-      deposit_account: deposit_account,
-      securities_account: securities_account,
-      security: security
-    }
+      {:ok, security} =
+        Catalog.create_security(%{
+          name: "Synthetic ETF",
+          symbol: "SYN",
+          currency_code: "EUR"
+        })
+
+      %{
+        portfolio: portfolio,
+        deposit_account: deposit_account,
+        securities_account: securities_account,
+        security: security
+      }
+    end
   end
 
   test "visiting /transactions renders the transactions workspace", %{conn: conn} do
@@ -101,6 +107,21 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert html =~ "No transactions yet"
     assert html =~ "Record the first ledger transaction."
+  end
+
+  @tag :no_portfolio
+  test "renders a focused first-run state when no portfolio exists", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/transactions")
+
+    assert has_element?(view, "#transaction-first-run.app-shell-onboarding")
+    assert has_element?(view, "#transaction-first-run h2", "Create a portfolio first")
+
+    assert html =~
+             "Transactions need a portfolio, accounts and securities before they can be recorded."
+
+    assert has_element?(view, "#transaction-first-run a[href='/accounts']", "Go to Accounts")
+    refute has_element?(view, "#ledger-kpis")
+    refute has_element?(view, "#transaction-form")
   end
 
   test "creates a deposit transaction", %{conn: conn, deposit_account: deposit_account} do
