@@ -52,6 +52,52 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert html =~ ~s(<meta name="viewport" content="width=device-width, initial-scale=1")
   end
 
+  test "browser response boots the LiveView client", %{conn: conn} do
+    html = conn |> get("/securities") |> html_response(200)
+
+    assert html =~ ~s(src="/vendor/phoenix.min.js")
+    assert html =~ ~s(src="/vendor/phoenix_live_view.min.js")
+    assert html =~ ~s(id="live-view-client-script")
+    assert html =~ ~s(new LiveView.LiveSocket("/live", Phoenix.Socket)
+  end
+
+  test "German browser language renders German Portfolio Performance terminology", %{conn: conn} do
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
+
+    {:ok, view, html} = live(conn, "/securities")
+
+    assert has_element?(view, "#language-toggle")
+    assert has_element?(view, "#locale-de", "DE")
+    assert has_element?(view, "#locale-en", "EN")
+    assert html =~ "Wertpapiere"
+    assert html =~ "Alle Wertpapiere"
+    assert html =~ "Stammdaten"
+    assert html =~ "Konten"
+    assert html =~ "Buchungen"
+    assert html =~ "Klassifizierungen"
+    assert html =~ "Berichte"
+    assert html =~ "Bestand"
+    assert html =~ "Einstellungen"
+  end
+
+  test "unsupported browser languages fall back to English", %{conn: conn} do
+    conn = put_req_header(conn, "accept-language", "fr-FR,fr;q=0.9")
+
+    {:ok, _view, html} = live(conn, "/securities")
+
+    assert html =~ "All Securities"
+    assert html =~ "Master data"
+    assert html =~ "Transactions"
+    refute html =~ "Alle Wertpapiere"
+  end
+
+  test "locale query parameter switches rendered language", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/taxonomies?locale=de")
+
+    assert html =~ "Klassifizierungen"
+    assert html =~ "Portfolio-Performance-Vorlagen anlegen"
+  end
+
   test "shell exposes design tokens and responsive workspace primitives", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 

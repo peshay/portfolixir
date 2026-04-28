@@ -8,7 +8,7 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
   alias Portfolixir.Portfolios
 
   setup do
-    {:ok, _currency} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+    Catalog.ensure_mvp_currencies!()
     :ok
   end
 
@@ -71,6 +71,55 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     refute has_element?(view, "#account-kpis")
     refute has_element?(view, "#deposit-account-form")
     refute has_element?(view, "#securities-account-form")
+  end
+
+  test "fresh seeded setup offers EUR defaults for portfolio and account currency selects", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(
+             view,
+             "select#portfolio-base-currency[name='portfolio[base_currency_code]'] option[value='EUR'][selected]"
+           )
+
+    html =
+      view
+      |> form("#portfolio-form", %{
+        "portfolio" => %{
+          "name" => "First Run Portfolio",
+          "base_currency_code" => "EUR"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Portfolio created."
+    assert html =~ "First Run Portfolio"
+
+    assert has_element?(
+             view,
+             "select#deposit-account-currency[name='deposit_account[currency_code]'] option[value='EUR'][selected]"
+           )
+
+    assert has_element?(
+             view,
+             "select#securities-account-currency[name='securities_account[currency_code]'] option[value='EUR'][selected]"
+           )
+  end
+
+  test "German account terminology renders for currency and account forms", %{conn: conn} do
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
+    create_portfolio("Primäres Portfolio")
+
+    {:ok, view, html} = live(conn, "/accounts")
+
+    assert html =~ "Kontenübersicht"
+    assert html =~ "Währung"
+    assert html =~ "Verrechnungskonten"
+    assert html =~ "Depots"
+    assert html =~ "Referenzkonto"
+    assert has_element?(view, "#deposit-account-form")
+    assert has_element?(view, "#securities-account-form")
   end
 
   test "creates a minimal portfolio", %{conn: conn} do
