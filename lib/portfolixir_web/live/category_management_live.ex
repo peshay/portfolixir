@@ -32,127 +32,195 @@ defmodule PortfolixirWeb.CategoryManagementLive do
   def render(assigns) do
     ~H"""
     <AppShell.shell current_path="/taxonomies">
-      <h1>Classifications</h1>
+      <header class="app-shell-page-header">
+        <div>
+          <p class="app-shell-page-kicker">Classifications</p>
+          <h1>Classifications</h1>
+          <p>
+            Build user-defined grouping systems for asset allocation, regions, sectors and other portfolio views.
+          </p>
+        </div>
+      </header>
 
-      <section id="taxonomy-management">
-        <h2>Taxonomies</h2>
+      <div id="classification-workspace" class="app-shell-workspace-grid">
+        <section
+          id="taxonomy-management"
+          class="app-shell-section-card"
+          data-priority="primary"
+        >
+          <div class="app-shell-section-header">
+            <div>
+              <h2 class="app-shell-section-title">Taxonomies</h2>
+              <p>Each taxonomy is a classification system with its own category tree.</p>
+            </div>
+            <span class="app-shell-badge app-shell-badge--accent">
+              <%= Enum.count(@taxonomies) %> total
+            </span>
+          </div>
 
-        <%= if @taxonomy_error do %>
-          <p id="taxonomy-form-error"><%= @taxonomy_error %></p>
-        <% end %>
-
-        <form id="taxonomy-form" phx-submit="create_taxonomy">
-          <label for="taxonomy-name">Name</label>
-          <input id="taxonomy-name" name="taxonomy[name]" value={@taxonomy_form["name"]} />
-          <label for="taxonomy-description">Description</label>
-          <textarea id="taxonomy-description" name="taxonomy[description]">
-            <%= @taxonomy_form["description"] %>
-          </textarea>
-          <button type="submit">Create Taxonomy</button>
-        </form>
-
-        <%= if Enum.empty?(@taxonomies) do %>
-          <p id="no-taxonomies">No taxonomies yet.</p>
-        <% else %>
-          <ul id="taxonomy-list">
-            <%= for taxonomy <- @taxonomies do %>
-              <li>
-                <button
-                  id={"taxonomy-#{taxonomy.id}"}
-                  phx-click="select_taxonomy"
-                  phx-value-id={taxonomy.id}
-                  disabled={taxonomy.id == @selected_taxonomy_id}
-                >
-                  <%= taxonomy.name %> - <%= taxonomy.description || "No description" %>
-                </button>
-              </li>
-            <% end %>
-          </ul>
-        <% end %>
-      </section>
-
-      <section id="category-management">
-        <h2>Categories</h2>
-
-        <%= if @selected_taxonomy_id do %>
-          <%= if @category_error do %>
-            <p id="category-form-error"><%= @category_error %></p>
+          <%= if @taxonomy_error do %>
+            <p id="taxonomy-form-error" class="app-shell-alert app-shell-alert--error" role="alert">
+              <%= @taxonomy_error %>
+            </p>
           <% end %>
 
-          <form id="category-form" phx-submit="create_category">
-            <input type="hidden" name="category[taxonomy_id]" value={@selected_taxonomy_id} />
+          <form id="taxonomy-form" class="app-shell-form-grid" phx-submit="create_taxonomy">
+            <div class="app-shell-field app-shell-field--full">
+              <label for="taxonomy-name">Name</label>
+              <input id="taxonomy-name" name="taxonomy[name]" value={@taxonomy_form["name"]} />
+            </div>
 
-            <label for="category-name">Name</label>
-            <input id="category-name" name="category[name]" value={@category_form["name"]} />
+            <div class="app-shell-field app-shell-field--full">
+              <label for="taxonomy-description">Description</label>
+              <textarea id="taxonomy-description" name="taxonomy[description]"><%= @taxonomy_form["description"] %></textarea>
+            </div>
 
-            <label for="category-description">Description</label>
-            <textarea id="category-description" name="category[description]">
-              <%= @category_form["description"] %>
-            </textarea>
-
-            <label for="category-parent-id">Parent (optional)</label>
-            <select id="category-parent-id" name="category[parent_id]">
-              <option value="">None</option>
-              <%= for category <- @selected_categories do %>
-                <option value={category.id}><%= category.name %></option>
-              <% end %>
-            </select>
-
-            <label for="category-color">Color (optional)</label>
-            <input id="category-color" name="category[color]" value={@category_form["color"]} />
-
-            <label for="category-sort-order">Sort order (optional)</label>
-            <input
-              id="category-sort-order"
-              name="category[sort_order]"
-              type="number"
-              min="0"
-              value={@category_form["sort_order"]}
-            />
-
-            <button type="submit">Add Category</button>
+            <div class="app-shell-form-actions">
+              <button type="submit" class="app-shell-primary">Create Taxonomy</button>
+            </div>
           </form>
 
-          <%= if Enum.empty?(@selected_categories) do %>
-            <p id="no-categories">No categories yet.</p>
+          <%= if Enum.empty?(@taxonomies) do %>
+            <div id="no-taxonomies" class="app-shell-empty-state">
+              <h3>No taxonomies yet</h3>
+              <p>Create a taxonomy before adding categories.</p>
+            </div>
           <% else %>
-            <ul id="category-list">
-              <%= for category <- @selected_categories do %>
-                <li id={"category-#{category.id}"}>
-                  <strong><%= category.name %></strong>
-                  <p><%= category.description || "No description" %></p>
-
-                  <form
-                    id={"edit-category-form-#{category.id}"}
-                    phx-submit="update_category"
-                    phx-value-id={category.id}
-                  >
-                    <label>Name</label>
-                    <input name="category[name]" value={category.name} />
-
-                    <label>Description</label>
-                    <textarea name="category[description]">
-                      <%= category.description %>
-                    </textarea>
-
-                    <button type="submit">Save</button>
-                  </form>
-
+            <ul id="taxonomy-list" class="app-shell-list">
+              <%= for taxonomy <- @taxonomies do %>
+                <li class="app-shell-list-item">
                   <button
-                    id={"delete-category-#{category.id}"}
-                    phx-click="delete_category"
-                    phx-value-id={category.id}
+                    id={"taxonomy-#{taxonomy.id}"}
+                    class="app-shell-secondary"
+                    phx-click="select_taxonomy"
+                    phx-value-id={taxonomy.id}
+                    disabled={taxonomy.id == @selected_taxonomy_id}
                   >
-                    Delete
+                    <%= taxonomy.name %>
                   </button>
+                  <p class="app-shell-muted"><%= taxonomy.description || "No description" %></p>
                 </li>
               <% end %>
             </ul>
           <% end %>
-        <% else %>
-          <p id="no-taxonomy-selected">Create or select a taxonomy first.</p>
-        <% end %>
-      </section>
+        </section>
+
+        <section
+          id="category-management"
+          class="app-shell-section-card"
+          data-priority="secondary"
+        >
+          <div class="app-shell-section-header">
+            <div>
+              <h2 class="app-shell-section-title">Categories</h2>
+              <p>Add and maintain the groups inside the selected taxonomy.</p>
+            </div>
+          </div>
+
+          <%= if @selected_taxonomy_id do %>
+            <%= if @category_error do %>
+              <p id="category-form-error" class="app-shell-alert app-shell-alert--error" role="alert">
+                <%= @category_error %>
+              </p>
+            <% end %>
+
+            <form id="category-form" class="app-shell-form-grid" phx-submit="create_category">
+              <input type="hidden" name="category[taxonomy_id]" value={@selected_taxonomy_id} />
+
+              <div class="app-shell-field app-shell-field--full">
+                <label for="category-name">Name</label>
+                <input id="category-name" name="category[name]" value={@category_form["name"]} />
+              </div>
+
+              <div class="app-shell-field app-shell-field--full">
+                <label for="category-description">Description</label>
+                <textarea id="category-description" name="category[description]"><%= @category_form["description"] %></textarea>
+              </div>
+
+              <div class="app-shell-field">
+                <label for="category-parent-id">Parent (optional)</label>
+                <select id="category-parent-id" name="category[parent_id]">
+                  <option value="">None</option>
+                  <%= for category <- @selected_categories do %>
+                    <option value={category.id}><%= category.name %></option>
+                  <% end %>
+                </select>
+              </div>
+
+              <div class="app-shell-field">
+                <label for="category-color">Color (optional)</label>
+                <input id="category-color" name="category[color]" value={@category_form["color"]} />
+              </div>
+
+              <div class="app-shell-field">
+                <label for="category-sort-order">Sort order (optional)</label>
+                <input
+                  id="category-sort-order"
+                  name="category[sort_order]"
+                  type="number"
+                  min="0"
+                  value={@category_form["sort_order"]}
+                />
+              </div>
+
+              <div class="app-shell-form-actions">
+                <button type="submit" class="app-shell-primary">Add Category</button>
+              </div>
+            </form>
+
+            <%= if Enum.empty?(@selected_categories) do %>
+              <div id="no-categories" class="app-shell-empty-state">
+                <h3>No categories yet</h3>
+                <p>Add the first category for this taxonomy.</p>
+              </div>
+            <% else %>
+              <ul id="category-list" class="app-shell-list">
+                <%= for category <- @selected_categories do %>
+                  <li id={"category-#{category.id}"} class="app-shell-list-item">
+                    <strong><%= category.name %></strong>
+                    <p class="app-shell-muted"><%= category.description || "No description" %></p>
+
+                    <form
+                      id={"edit-category-form-#{category.id}"}
+                      class="app-shell-form-grid"
+                      phx-submit="update_category"
+                      phx-value-id={category.id}
+                    >
+                      <div class="app-shell-field">
+                        <label>Name</label>
+                        <input name="category[name]" value={category.name} />
+                      </div>
+
+                      <div class="app-shell-field">
+                        <label>Description</label>
+                        <textarea name="category[description]"><%= category.description %></textarea>
+                      </div>
+
+                      <div class="app-shell-form-actions">
+                        <button type="submit" class="app-shell-secondary">Save</button>
+                        <button
+                          id={"delete-category-#{category.id}"}
+                          class="app-shell-secondary"
+                          type="button"
+                          phx-click="delete_category"
+                          phx-value-id={category.id}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </form>
+                  </li>
+                <% end %>
+              </ul>
+            <% end %>
+          <% else %>
+            <div id="no-taxonomy-selected" class="app-shell-empty-state">
+              <h3>Create or select a taxonomy first</h3>
+              <p>Categories belong to one taxonomy, so choose the grouping system before adding them.</p>
+            </div>
+          <% end %>
+        </section>
+      </div>
     </AppShell.shell>
     """
   end
