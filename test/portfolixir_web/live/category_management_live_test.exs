@@ -21,6 +21,17 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert html =~ "Create Taxonomy"
   end
 
+  test "classifications workspace explains taxonomy/category relationship", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/taxonomies")
+
+    assert html =~ "user-defined grouping systems"
+    assert has_element?(view, "#classification-workspace.app-shell-workspace-grid")
+    assert has_element?(view, "#taxonomy-management[data-priority='primary']")
+    assert has_element?(view, "#category-management[data-priority='secondary']")
+    assert has_element?(view, "#taxonomy-form.app-shell-form-grid")
+    assert has_element?(view, "#category-management .app-shell-empty-state")
+  end
+
   test "creating a taxonomy appears in the list", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/taxonomies")
 
@@ -97,6 +108,7 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
       |> render_submit()
 
     assert html =~ "has already been taken"
+    assert has_element?(view, "#category-form-error[role='alert']")
   end
 
   test "same category name in different taxonomies is allowed", %{conn: conn} do
