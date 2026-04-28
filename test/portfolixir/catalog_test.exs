@@ -2,6 +2,7 @@ defmodule Portfolixir.CatalogTest do
   use Portfolixir.DataCase, async: true
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Currency
   alias Portfolixir.Taxonomies
 
   test "creating EUR succeeds" do
@@ -11,6 +12,23 @@ defmodule Portfolixir.CatalogTest do
     assert currency.code == "EUR"
     assert currency.name == "Euro"
     assert currency.minor_units == 2
+  end
+
+  test "ensure_mvp_currencies!/0 creates first-run reference currencies idempotently" do
+    assert :ok = Catalog.ensure_mvp_currencies!()
+
+    currency_codes = Catalog.list_currencies() |> Enum.map(& &1.code)
+
+    assert "EUR" in currency_codes
+    assert "USD" in currency_codes
+    assert "GBP" in currency_codes
+    assert "CHF" in currency_codes
+    assert "SEK" in currency_codes
+
+    count_after_first_run = Repo.aggregate(Currency, :count)
+
+    assert :ok = Catalog.ensure_mvp_currencies!()
+    assert Repo.aggregate(Currency, :count) == count_after_first_run
   end
 
   test "creating duplicate EUR fails" do
