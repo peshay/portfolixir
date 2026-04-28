@@ -21,6 +21,10 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert has_element?(view, "a[href=\"/accounts\"]")
     assert has_element?(view, "#account-workspace.app-shell-workspace-grid")
     assert has_element?(view, "#account-overview")
+    assert has_element?(view, "#account-kpis .app-shell-stat-card", "Deposit accounts")
+    assert has_element?(view, "#account-kpis .app-shell-stat-card", "Securities accounts")
+    assert has_element?(view, "#account-kpis .app-shell-stat-card", "Cash balances")
+    assert has_element?(view, "#account-kpis .app-shell-stat-card", "Cash impact warnings")
     assert has_element?(view, "#deposit-accounts")
     assert has_element?(view, "#securities-accounts")
   end
@@ -42,9 +46,11 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     {:ok, view, _html} = live(conn, "/accounts")
 
     assert has_element?(view, "#current-portfolio.app-shell-summary-strip")
+    assert has_element?(view, "#account-kpis.app-shell-stat-grid")
     assert has_element?(view, "#deposit-accounts .app-shell-table-wrapper")
     assert has_element?(view, "#cash-balances .app-shell-table-wrapper")
     assert has_element?(view, "#securities-accounts[data-priority='primary']")
+    assert has_element?(view, "#account-forms[data-priority='secondary']")
     assert has_element?(view, "#deposit-account-form.app-shell-form-grid")
     assert has_element?(view, "#securities-account-form.app-shell-form-grid")
     assert has_element?(view, ".app-shell-warning-note")

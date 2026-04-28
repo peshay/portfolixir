@@ -48,6 +48,9 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert has_element?(view, "a[href=\"/transactions\"]")
     assert has_element?(view, "#ledger-workspace.app-shell-workspace-grid")
     assert has_element?(view, "#transaction-history-panel[data-priority='primary']")
+    assert has_element?(view, "#ledger-kpis .app-shell-stat-card", "Transactions")
+    assert has_element?(view, "#ledger-kpis .app-shell-stat-card", "Positions")
+    assert has_element?(view, "#positions[data-priority='secondary']")
     assert has_element?(view, "#transaction-form-panel[data-priority='secondary']")
     assert has_element?(view, "#transaction-form")
   end
@@ -89,6 +92,8 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert has_element?(view, "#transaction-history-panel .app-shell-table-wrapper")
     assert has_element?(view, "#transaction-form.app-shell-form-grid")
     assert has_element?(view, "#transaction-form .app-shell-fieldset")
+
+    assert html =~ ~r/id="transaction-history-panel".*id="positions"/s
   end
 
   test "renders an empty state when there are no transactions", %{conn: conn} do

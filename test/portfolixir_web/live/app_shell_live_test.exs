@@ -10,14 +10,16 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "#app-shell[data-layout='portfolio-workspace']")
     assert has_element?(view, "#sidebar-toggle")
     assert has_element?(view, "header.app-shell-mobile-header")
+    assert has_element?(view, "header.app-shell-topbar")
+    assert has_element?(view, "nav.app-shell-breadcrumb[aria-label='Breadcrumb']")
+    assert has_element?(view, "nav.app-shell-bottom-nav[aria-label='Mobile primary navigation']")
     assert has_element?(view, "aside.app-shell-sidebar")
     assert has_element?(view, "nav.app-shell-sidebar-nav[aria-label='Main navigation']")
     assert has_element?(view, "main.app-shell-main")
-    assert has_element?(view, "img#app-shell-brand-light-wordmark[src='/images/logo-light.svg']")
     assert has_element?(view, "img#app-shell-brand-mark[src='/images/logo-mark.svg']")
+    assert has_element?(view, ".app-shell-brand-text", "Portfolixir")
+    assert has_element?(view, ".app-shell-mobile-brand-text", "Portfolixir")
     assert has_element?(view, "img[alt='Portfolixir']")
-    refute has_element?(view, "img[src='/images/logo-wordmark.svg']")
-    assert has_element?(view, "img#app-shell-brand-dark-wordmark[src='/images/logo-dark.svg']")
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/accounts\"]")
     assert has_element?(view, "a[href=\"/transactions\"]")
@@ -36,27 +38,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
       Regex.run(~r/<style id="app-shell-styles">(.*?)<\/style>/s, html, capture: :all_but_first)
 
     assert Regex.match?(
-             ~r/#app-shell:not\(\[data-sidebar-collapsed="true"\]\)\[data-theme="light"\]\s+\.app-shell-logo-wordmark-light\s*\{\s*display:\s*block;/s,
-             style_block
-           )
-
-    assert Regex.match?(
-             ~r/#app-shell:not\(\[data-sidebar-collapsed="true"\]\)\[data-theme="dark"\]\s+\.app-shell-logo-wordmark-dark\s*\{\s*display:\s*block;/s,
-             style_block
-           )
-
-    assert Regex.match?(
              ~r/#app-shell\[data-sidebar-collapsed="true"\]\s+\.app-shell-logo-mark\s*\{\s*display:\s*block;/s,
-             style_block
-           )
-
-    assert Regex.match?(
-             ~r/#app-shell\s+\.app-shell-logo-wordmark-light,\s*#app-shell\s+\.app-shell-logo-wordmark-dark,\s*#app-shell\s+\.app-shell-logo-mark\s*\{\s*display:\s*none;/s,
-             style_block
-           )
-
-    refute Regex.match?(
-             ~r/#app-shell:not\(\[data-sidebar-collapsed="true"\]\)\.?\s*\.app-shell-logo-wordmark-light,\s*#app-shell:not\(\[data-sidebar-collapsed="true"\]\)\.?\s*\.app-shell-logo-wordmark-dark/s,
              style_block
            )
 
@@ -86,8 +68,12 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert style_block =~ "--pfx-warning:"
     assert style_block =~ "--pfx-error:"
     assert style_block =~ "--pfx-focus-ring:"
+    assert style_block =~ "--pfx-sidebar-bg:"
     assert style_block =~ "body {"
-    assert style_block =~ "#app-shell .app-shell-logo-wordmark {"
+    assert style_block =~ "#app-shell .app-shell-topbar"
+    assert style_block =~ "#app-shell .app-shell-bottom-nav"
+    assert style_block =~ "#app-shell .app-shell-stat-card"
+    assert style_block =~ "#app-shell .app-shell-action-row"
     assert style_block =~ ".app-shell-workspace-grid"
     assert style_block =~ ".app-shell-form-grid"
     assert style_block =~ ".app-shell-table-wrapper"
@@ -177,7 +163,9 @@ defmodule PortfolixirWeb.AppShellLiveTest do
       {:ok, view, _html} = live(conn, route)
 
       assert has_element?(view, "#app-shell[data-layout='portfolio-workspace']")
+      assert has_element?(view, ".app-shell-topbar")
       assert has_element?(view, ".app-shell-mobile-header")
+      assert has_element?(view, ".app-shell-bottom-nav")
       assert has_element?(view, ".app-shell-main-inner")
       assert has_element?(view, "nav.app-shell-sidebar-nav")
     end

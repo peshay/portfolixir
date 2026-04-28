@@ -16,8 +16,8 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
-    assert has_element?(view, "img#app-shell-brand-light-wordmark[src='/images/logo-light.svg']")
     assert has_element?(view, "img#app-shell-brand-mark[src='/images/logo-mark.svg']")
+    assert has_element?(view, ".app-shell-brand-text", "Portfolixir")
     assert has_element?(view, "#sidebar-toggle")
     assert has_element?(view, "#theme-toggle")
     assert html =~ "id=\"theme-toggle-script\""
@@ -36,10 +36,22 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities")
 
-    assert has_element?(view, "#security-workspace.app-shell-workspace-grid")
+    assert has_element?(view, "#security-workspace.app-shell-workspace-stack")
     assert has_element?(view, "#security-listing[data-priority='primary']")
-    assert has_element?(view, "#security-create[data-priority='secondary']")
     assert has_element?(view, "#security-listing .app-shell-table-wrapper")
+    assert has_element?(view, "#security-kpis .app-shell-stat-card", "Total Securities")
+    assert has_element?(view, "#security-kpis .app-shell-stat-card", "Currencies")
+    assert has_element?(view, "#security-kpis .app-shell-stat-card", "Classifications")
+    assert has_element?(view, "#security-kpis .app-shell-stat-card", "Last Updated")
+    assert has_element?(view, "#security-actions.app-shell-action-row")
+    assert has_element?(view, "#security-search[disabled][placeholder='Search securities...']")
+    assert has_element?(view, "#security-filter[disabled][aria-disabled='true']")
+    assert has_element?(view, "#security-add-toggle")
+    refute has_element?(view, "#security-create")
+
+    view |> element("#security-add-toggle") |> render_click()
+
+    assert has_element?(view, "#security-create[data-priority='secondary']")
     assert has_element?(view, "#security-form.app-shell-form-grid")
     assert has_element?(view, "#security-create .app-shell-panel-intro")
   end
@@ -56,6 +68,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
 
     {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#security-add-toggle") |> render_click()
 
     html =
       view
@@ -101,6 +114,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
 
     {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#security-add-toggle") |> render_click()
 
     html =
       view
@@ -122,6 +136,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
 
     {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#security-add-toggle") |> render_click()
 
     html =
       view
