@@ -18,8 +18,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   def mount(_params, _session, socket) do
     socket =
       socket
-      |> assign(:security_form, @security_form_defaults)
+      |> assign(:security_form, security_form_defaults())
       |> assign(:security_error, nil)
+      |> assign(:security_success, nil)
       |> load_securities()
 
     {:ok, socket}
@@ -33,10 +34,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         <p>Track and manage the securities in your portfolio.</p>
       </header>
 
-      <section
-        id="security-listing"
-        class="app-shell-section-card"
-        style="order: 1;"
+        <section
+          id="security-listing"
+          class="app-shell-section-card"
+          style="order: 1;"
       >
         <h2 class="app-shell-section-title">Securities</h2>
 
@@ -81,62 +82,82 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         <h2 class="app-shell-section-title">Add security</h2>
         <p>Use the form below to add one security at a time.</p>
 
-        <%= if @security_error do %>
-          <p id="security-form-error">
-            <%= @security_error %>
-          </p>
+        <%= if @security_success do %>
+          <div id="security-form-success" class="app-shell-alert app-shell-alert-success" role="status">
+            <%= @security_success %>
+          </div>
         <% end %>
 
-        <form id="security-form" phx-submit="create_security">
-          <label for="security-name">Name</label>
-          <input
-            id="security-name"
-            name="security[name]"
-            value={@security_form["name"]}
-          />
+        <%= if @security_error do %>
+          <div id="security-form-error" class="app-shell-alert app-shell-alert-error" role="alert">
+            <%= @security_error %>
+          </div>
+        <% end %>
 
-          <label for="security-symbol">Symbol</label>
-          <input
-            id="security-symbol"
-            name="security[symbol]"
-            value={@security_form["symbol"]}
-          />
+        <form id="security-form" phx-submit="create_security" class="app-shell-form app-shell-form-grid">
+          <div class="app-shell-form-field">
+            <label for="security-name">Name</label>
+            <input id="security-name" name="security[name]" value={@security_form["name"]} />
+          </div>
 
-          <label for="security-currency-code">Currency code</label>
-          <input
-            id="security-currency-code"
-            name="security[currency_code]"
-            value={@security_form["currency_code"]}
-          />
+          <div class="app-shell-form-field">
+            <label for="security-symbol">Symbol</label>
+            <input id="security-symbol" name="security[symbol]" value={@security_form["symbol"]} />
+          </div>
 
-          <label for="security-isin">ISIN (optional)</label>
-          <input id="security-isin" name="security[isin]" value={@security_form["isin"]} />
+          <div class="app-shell-form-field">
+            <label for="security-currency-code">Currency code</label>
+            <input
+              id="security-currency-code"
+              name="security[currency_code]"
+              value={@security_form["currency_code"]}
+              placeholder="EUR"
+            />
+            <p id="security-currency-code-help" class="app-shell-field-help">
+              Use an existing ISO currency code, for example EUR or USD.
+            </p>
+          </div>
 
-          <label for="security-wkn">WKN (optional)</label>
-          <input id="security-wkn" name="security[wkn]" value={@security_form["wkn"]} />
+          <div class="app-shell-form-field">
+            <label for="security-isin">ISIN (optional)</label>
+            <input id="security-isin" name="security[isin]" value={@security_form["isin"]} />
+          </div>
 
-          <label for="security-exchange-code">Exchange code (optional)</label>
-          <input
-            id="security-exchange-code"
-            name="security[exchange_code]"
-            value={@security_form["exchange_code"]}
-          />
+          <div class="app-shell-form-field">
+            <label for="security-wkn">WKN (optional)</label>
+            <input id="security-wkn" name="security[wkn]" value={@security_form["wkn"]} />
+          </div>
 
-          <label for="security-provider-symbol">Provider symbol (optional)</label>
-          <input
-            id="security-provider-symbol"
-            name="security[provider_symbol]"
-            value={@security_form["provider_symbol"]}
-          />
+          <div class="app-shell-form-field">
+            <label for="security-exchange-code">Exchange code (optional)</label>
+            <input
+              id="security-exchange-code"
+              name="security[exchange_code]"
+              value={@security_form["exchange_code"]}
+            />
+          </div>
 
-          <label for="security-notes">Notes (optional)</label>
-          <textarea id="security-notes" rows="2" name="security[notes]">
-            <%= @security_form["notes"] %>
-          </textarea>
+          <div class="app-shell-form-field app-shell-form-field-full">
+            <label for="security-provider-symbol">Provider symbol (optional)</label>
+            <input
+              id="security-provider-symbol"
+              name="security[provider_symbol]"
+              value={@security_form["provider_symbol"]}
+            />
+          </div>
 
-          <button type="submit" class="app-shell-primary">
-            Add security
-          </button>
+          <div class="app-shell-form-field app-shell-form-field-full">
+            <label for="security-notes">Notes (optional)</label>
+            <textarea id="security-notes" rows="2" name="security[notes]">
+              <%= @security_form["notes"] %>
+            </textarea>
+          </div>
+
+          <div class="app-shell-form-field app-shell-form-field-full">
+            <button type="submit" class="app-shell-primary">
+              Add security
+            </button>
+          </div>
         </form>
       </section>
     </AppShell.shell>
@@ -148,7 +169,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       {:ok, _security} ->
         {:noreply,
          socket
-         |> assign(:security_form, @security_form_defaults)
+         |> assign(:security_form, security_form_defaults())
+         |> assign(:security_success, "Security added.")
          |> assign(:security_error, nil)
          |> load_securities()}
 
@@ -157,8 +179,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
          socket
          |> assign(
            :security_form,
-           @security_form_defaults |> Map.merge(sanitize_security_params(params))
+           security_form_defaults() |> Map.merge(sanitize_security_params(params))
          )
+         |> assign(:security_success, nil)
          |> assign(:security_error, format_errors(changeset))
          |> load_securities()}
     end
@@ -193,5 +216,17 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     |> Enum.map_join(", ", fn {field, {message, _opts}} ->
       "#{field} #{message}"
     end)
+  end
+
+  defp security_form_defaults do
+    @security_form_defaults
+    |> Map.put("currency_code", default_currency_code())
+  end
+
+  defp default_currency_code do
+    case Catalog.get_currency_by_code("EUR") do
+      nil -> ""
+      _ -> "EUR"
+    end
   end
 end

@@ -32,7 +32,8 @@ defmodule PortfolixirWeb.CategoryManagementLive do
   def render(assigns) do
     ~H"""
     <AppShell.shell current_path="/taxonomies">
-      <h1>Category Management</h1>
+      <h1>Classifications</h1>
+      <p>Classifications are user-defined grouping systems, such as strategy, region, sector, or asset type.</p>
 
       <section id="taxonomy-management">
         <h2>Taxonomies</h2>
@@ -70,7 +71,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
       </section>
 
       <section id="category-management">
-        <h2>Categories</h2>
+        <h2>Classifications</h2>
 
         <%= if @selected_taxonomy_id do %>
           <%= if @category_error do %>
@@ -106,7 +107,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
               value={@category_form["sort_order"]}
             />
 
-            <button type="submit">Add Category</button>
+            <button type="submit">Add Classification</button>
           </form>
 
           <%= if Enum.empty?(@selected_categories) do %>

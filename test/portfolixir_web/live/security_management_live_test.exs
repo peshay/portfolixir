@@ -55,6 +55,8 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "USD"
     assert html =~ "US0378331005"
     assert html =~ "865985"
+    assert html =~ "Security added."
+    assert has_element?(view, "#security-form")
   end
 
   test "renders optional fields as em dashes when omitted", %{conn: conn} do
@@ -92,8 +94,42 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
       })
       |> render_submit()
 
+    assert has_element?(view, "#security-form-error")
     assert html =~ "name can"
     assert html =~ "blank"
+  end
+
+  test "keeps submitted values when validation fails", %{conn: conn} do
+    assert {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    html =
+      view
+      |> form("#security-form", %{
+        "security" => %{
+          "name" => "",
+          "symbol" => "AAPL",
+          "currency_code" => "EUR",
+          "isin" => "US0378331005",
+          "wkn" => "865985"
+        }
+      })
+      |> render_submit()
+
+    assert has_element?(view, "#security-symbol[value='AAPL']")
+    assert has_element?(view, "#security-currency-code[value='EUR']")
+    assert has_element?(view, "#security-isin[value='US0378331005']")
+    assert has_element?(view, "#security-wkn[value='865985']")
+    assert html =~ "name can"
+  end
+
+  test "form helper copy is visible for currency code", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-currency-code-help")
+    assert render(view) =~ "Use an existing ISO currency code"
+    assert has_element?(view, "#security-currency-code[placeholder='EUR']")
   end
 
   test "lists existing securities", %{conn: conn} do
