@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
 
@@ -172,6 +173,60 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
             <button type="submit" class="app-shell-primary">Create deposit account</button>
           </form>
+        </section>
+
+        <section id="cash-balances" class="app-shell-section-card">
+          <h2 class="app-shell-section-title">Cash balances</h2>
+
+          <%= if Enum.empty?(@cash_balance_rows) do %>
+            <div id="no-cash-balances" class="app-shell-empty-state">
+              <h3>No cash balances yet</h3>
+              <p>Balances are derived from ledger transactions.</p>
+            </div>
+          <% else %>
+            <table id="cash-balance-list">
+              <thead>
+                <tr>
+                  <th>Deposit account</th>
+                  <th>Currency</th>
+                  <th>Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for row <- @cash_balance_rows do %>
+                  <tr>
+                    <td><%= row.account_name %></td>
+                    <td><%= row.currency_code %></td>
+                    <td><%= format_money(row.balance) %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% end %>
+
+          <%= if not Enum.empty?(@missing_cash_impact_rows) do %>
+            <div id="missing-cash-impacts" class="app-shell-alert app-shell-alert--error">
+              <strong>Missing cash impact</strong>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Transaction</th>
+                    <th>Type</th>
+                    <th>Securities account</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for row <- @missing_cash_impact_rows do %>
+                    <tr>
+                      <td><%= row.transaction_id %></td>
+                      <td><%= row.type %></td>
+                      <td><%= row.securities_account_name %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
         </section>
 
         <section id="securities-accounts" class="app-shell-section-card">
@@ -365,11 +420,37 @@ defmodule PortfolixirWeb.AccountManagementLive do
         []
       end
 
+    transactions =
+      if current_portfolio do
+        Ledger.list_transactions_for_portfolio(current_portfolio.id)
+      else
+        []
+      end
+
+    cash_result =
+      if current_portfolio do
+        Ledger.cash_balances_for_portfolio(current_portfolio.id)
+      else
+        %{balances: %{}, missing_cash_impacts: []}
+      end
+
+    deposit_account_names = name_lookup(deposit_accounts)
+    securities_account_names = name_lookup(securities_accounts)
+
     socket
     |> assign(:currencies, Catalog.list_currencies())
     |> assign(:current_portfolio, current_portfolio)
     |> assign(:deposit_accounts, deposit_accounts)
     |> assign(:securities_accounts, securities_accounts)
+    |> assign(:cash_balance_rows, cash_balance_rows(cash_result.balances, deposit_account_names))
+    |> assign(
+      :missing_cash_impact_rows,
+      missing_cash_impact_rows(
+        cash_result.missing_cash_impacts,
+        transactions,
+        securities_account_names
+      )
+    )
   end
 
   defp sanitize_optional_fields(params, optional_fields) when is_map(params) do
@@ -385,6 +466,45 @@ defmodule PortfolixirWeb.AccountManagementLive do
       nil -> "—"
       deposit_account -> deposit_account.name
     end
+  end
+
+  defp cash_balance_rows(balances, deposit_account_names) do
+    balances
+    |> Enum.map(fn {{deposit_account_id, currency_code}, balance} ->
+      %{
+        account_name: Map.get(deposit_account_names, deposit_account_id, "—"),
+        currency_code: currency_code,
+        balance: balance
+      }
+    end)
+    |> Enum.sort_by(&{&1.account_name, &1.currency_code})
+  end
+
+  defp missing_cash_impact_rows(missing_cash_impacts, transactions, securities_account_names) do
+    transaction_lookup = Map.new(transactions, &{&1.id, &1})
+
+    Enum.map(missing_cash_impacts, fn impact ->
+      transaction = Map.get(transaction_lookup, impact.transaction_id)
+      securities_account_id = transaction && transaction.securities_account_id
+
+      %{
+        transaction_id: impact.transaction_id,
+        type: impact.type,
+        securities_account_name: Map.get(securities_account_names, securities_account_id, "—")
+      }
+    end)
+  end
+
+  defp name_lookup(records) do
+    Map.new(records, &{&1.id, &1.name})
+  end
+
+  defp format_money(nil), do: "—"
+
+  defp format_money(decimal) do
+    decimal
+    |> Decimal.round(2)
+    |> Decimal.to_string(:normal)
   end
 
   defp maybe_remove_empty_string(params, key) do

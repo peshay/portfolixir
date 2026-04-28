@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
   setup do
@@ -154,6 +155,68 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     refute html =~ "Other Depot"
   end
 
+  test "shows derived cash balances after deposit and buy", %{conn: conn} do
+    portfolio = create_portfolio("Primary portfolio")
+    deposit_account = create_deposit_account(portfolio, "Settlement Cash")
+    securities_account = create_securities_account(portfolio, deposit_account, "Main Depot")
+    security = create_security("Synthetic ETF", "SYN")
+
+    {:ok, _deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        type: "deposit",
+        date: ~D[2026-04-01],
+        currency_code: "EUR",
+        amount: Decimal.new("1000.00")
+      })
+
+    {:ok, _buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-04-02],
+        currency_code: "EUR",
+        quantity: Decimal.new("5.00"),
+        price: Decimal.new("50.00"),
+        amount: Decimal.new("250.00")
+      })
+
+    {:ok, view, html} = live(conn, "/accounts")
+
+    assert has_element?(view, "#cash-balances")
+    assert html =~ "Settlement Cash"
+    assert html =~ "750.00"
+    assert html =~ "EUR"
+  end
+
+  test "shows a warning for missing cash impact", %{conn: conn} do
+    portfolio = create_portfolio("Primary portfolio")
+    securities_account = create_unlinked_securities_account(portfolio, "Unlinked Depot")
+    security = create_security("Synthetic ETF", "SYN")
+
+    {:ok, _buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-04-02],
+        currency_code: "EUR",
+        quantity: Decimal.new("5.00"),
+        price: Decimal.new("50.00"),
+        amount: Decimal.new("250.00")
+      })
+
+    {:ok, view, html} = live(conn, "/accounts")
+
+    assert has_element?(view, "#missing-cash-impacts")
+    assert html =~ "Missing cash impact"
+    assert html =~ "Unlinked Depot"
+  end
+
   defp create_portfolio(name) do
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{
@@ -173,5 +236,39 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
       })
 
     deposit_account
+  end
+
+  defp create_securities_account(portfolio, deposit_account, name) do
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        reference_deposit_account_id: deposit_account.id,
+        name: name,
+        currency_code: "EUR"
+      })
+
+    securities_account
+  end
+
+  defp create_unlinked_securities_account(portfolio, name) do
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: name,
+        currency_code: "EUR"
+      })
+
+    securities_account
+  end
+
+  defp create_security(name, symbol) do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: name,
+        symbol: symbol,
+        currency_code: "EUR"
+      })
+
+    security
   end
 end
