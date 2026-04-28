@@ -8,7 +8,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
   alias Portfolixir.Portfolios
 
   setup context do
-    {:ok, _currency} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+    Catalog.ensure_mvp_currencies!()
 
     if context[:no_portfolio] do
       %{}
@@ -146,6 +146,39 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert html =~ "1000.00"
     assert html =~ "Settlement Cash"
     refute html =~ "Synthetic opening deposit\""
+  end
+
+  test "German transaction type labels render while stored values remain English", %{
+    conn: conn,
+    deposit_account: deposit_account
+  } do
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert has_element?(view, "#transaction-type option[value='deposit']", "Einzahlung")
+    assert has_element?(view, "#transaction-type option[value='withdrawal']", "Auszahlung")
+    assert has_element?(view, "#transaction-type option[value='buy']", "Kauf")
+    assert has_element?(view, "#transaction-type option[value='sell']", "Verkauf")
+    assert has_element?(view, "#transaction-type option[value='dividend']", "Dividende")
+
+    html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "deposit",
+          "date" => "2026-04-01",
+          "currency_code" => "EUR",
+          "amount" => "1000.00",
+          "deposit_account_id" => "#{deposit_account.id}"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Einzahlung"
+
+    [transaction] = Ledger.list_transactions()
+    assert transaction.type == "deposit"
   end
 
   test "creates a buy transaction using linked securities account and security", %{

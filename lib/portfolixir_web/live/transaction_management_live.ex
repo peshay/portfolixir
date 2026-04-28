@@ -26,10 +26,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   def mount(_params, _session, socket) do
     socket =
       socket
-      |> assign(:transaction_form, @transaction_form_defaults)
       |> assign(:transaction_error, nil)
       |> assign(:transaction_success, nil)
       |> load_transaction_state()
+      |> assign_default_transaction_form()
 
     {:ok, socket}
   end
@@ -39,44 +39,44 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     <AppShell.shell current_path="/transactions">
       <header class="app-shell-page-header">
         <div>
-          <p class="app-shell-page-kicker">Ledger</p>
-          <h1>Transactions</h1>
-          <p>Record cash movements, trades and income while keeping transaction history easy to scan.</p>
+          <p class="app-shell-page-kicker"><%= gettext("Ledger") %></p>
+          <h1><%= gettext("Transactions") %></h1>
+          <p><%= gettext("Record cash movements, trades and income while keeping transaction history easy to scan.") %></p>
         </div>
       </header>
 
       <%= if @current_portfolio do %>
-        <section id="ledger-kpis" class="app-shell-stat-grid" aria-label="Ledger summary">
+        <section id="ledger-kpis" class="app-shell-stat-grid" aria-label={gettext("Ledger summary")}>
           <div class="app-shell-stat-card">
             <span class="app-shell-stat-icon" aria-hidden="true">TX</span>
             <div>
-              <span class="app-shell-stat-label">Transactions</span>
+              <span class="app-shell-stat-label"><%= gettext("Transactions") %></span>
               <span class="app-shell-stat-value"><%= Enum.count(@transactions) %></span>
-              <span class="app-shell-stat-hint">Ledger entries</span>
+              <span class="app-shell-stat-hint"><%= gettext("Ledger entries") %></span>
             </div>
           </div>
           <div class="app-shell-stat-card">
             <span class="app-shell-stat-icon" aria-hidden="true">POS</span>
             <div>
-              <span class="app-shell-stat-label">Positions</span>
+              <span class="app-shell-stat-label"><%= gettext("Positions") %></span>
               <span class="app-shell-stat-value"><%= Enum.count(@position_rows) %></span>
-              <span class="app-shell-stat-hint">Derived from trades</span>
+              <span class="app-shell-stat-hint"><%= gettext("Derived from trades") %></span>
             </div>
           </div>
           <div class="app-shell-stat-card">
             <span class="app-shell-stat-icon" aria-hidden="true">DA</span>
             <div>
-              <span class="app-shell-stat-label">Deposit accounts</span>
+              <span class="app-shell-stat-label"><%= gettext("Deposit accounts") %></span>
               <span class="app-shell-stat-value"><%= Enum.count(@deposit_accounts) %></span>
-              <span class="app-shell-stat-hint">Available for cash</span>
+              <span class="app-shell-stat-hint"><%= gettext("Available for cash") %></span>
             </div>
           </div>
           <div class="app-shell-stat-card">
             <span class="app-shell-stat-icon" aria-hidden="true">SA</span>
             <div>
-              <span class="app-shell-stat-label">Securities accounts</span>
+              <span class="app-shell-stat-label"><%= gettext("Securities accounts") %></span>
               <span class="app-shell-stat-value"><%= Enum.count(@securities_accounts) %></span>
-              <span class="app-shell-stat-hint">Available for trades</span>
+              <span class="app-shell-stat-hint"><%= gettext("Available for trades") %></span>
             </div>
           </div>
         </section>
@@ -90,40 +90,40 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             >
               <div class="app-shell-section-header">
                 <div>
-                  <h2 class="app-shell-section-title">Transaction history</h2>
-                  <p>Newest ledger entries appear first.</p>
+                  <h2 class="app-shell-section-title"><%= gettext("Transaction history") %></h2>
+                  <p><%= gettext("Newest ledger entries appear first.") %></p>
                 </div>
                 <span class="app-shell-badge app-shell-badge--accent">
-                  <%= Enum.count(@transactions) %> entries
+                  <%= ngettext("%{count} entry", "%{count} entries", Enum.count(@transactions), count: Enum.count(@transactions)) %>
                 </span>
               </div>
 
               <%= if Enum.empty?(@transactions) do %>
                 <div id="no-transactions" class="app-shell-empty-state">
-                  <h3>No transactions yet</h3>
-                  <p>Record the first ledger transaction.</p>
+                  <h3><%= gettext("No transactions yet") %></h3>
+                  <p><%= gettext("Record the first ledger transaction.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="transaction-list">
                     <thead>
                       <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th>Account</th>
-                        <th>Security</th>
-                        <th>Quantity</th>
-                        <th>Price</th>
-                        <th>Amount</th>
-                        <th>Currency</th>
-                        <th>Notes</th>
+                        <th><%= gettext("Date") %></th>
+                        <th><%= gettext("Type") %></th>
+                        <th><%= gettext("Account") %></th>
+                        <th><%= gettext("Security") %></th>
+                        <th><%= gettext("Quantity") %></th>
+                        <th><%= gettext("Price") %></th>
+                        <th><%= gettext("Amount") %></th>
+                        <th><%= gettext("Currency") %></th>
+                        <th><%= gettext("Notes") %></th>
                       </tr>
                     </thead>
                     <tbody>
                       <%= for transaction <- @transactions do %>
                         <tr>
                           <td><%= transaction.date %></td>
-                          <td><span class="app-shell-badge"><%= transaction.type %></span></td>
+                          <td><span class="app-shell-badge"><%= transaction_type_label(transaction.type) %></span></td>
                           <td><%= account_name(transaction, @deposit_account_names, @securities_account_names) %></td>
                           <td><%= security_name(transaction.security_id, @security_names) %></td>
                           <td><%= format_quantity(transaction.quantity) %></td>
@@ -144,25 +144,25 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             <section id="positions" class="app-shell-section-card" data-priority="secondary">
               <div class="app-shell-section-header">
                 <div>
-                  <h2 class="app-shell-section-title">Positions overview</h2>
-                  <p>Quantity summary derived from buy and sell transactions.</p>
+                  <h2 class="app-shell-section-title"><%= gettext("Positions overview") %></h2>
+                  <p><%= gettext("Quantity summary derived from buy and sell transactions.") %></p>
                 </div>
-                <span class="app-shell-badge"><%= Enum.count(@position_rows) %> positions</span>
+                <span class="app-shell-badge"><%= ngettext("%{count} position", "%{count} positions", Enum.count(@position_rows), count: Enum.count(@position_rows)) %></span>
               </div>
 
               <%= if Enum.empty?(@position_rows) do %>
                 <div id="no-positions" class="app-shell-empty-state">
-                  <h3>No positions yet</h3>
-                  <p>Positions are derived from buy and sell transactions.</p>
+                  <h3><%= gettext("No positions yet") %></h3>
+                  <p><%= gettext("Positions are derived from buy and sell transactions.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="position-list">
                     <thead>
                       <tr>
-                        <th>Securities account</th>
-                        <th>Security</th>
-                        <th>Quantity</th>
+                        <th><%= gettext("Securities account") %></th>
+                        <th><%= gettext("Security") %></th>
+                        <th><%= gettext("Quantity") %></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -186,9 +186,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             >
             <div class="app-shell-section-header">
               <div>
-                <h2 class="app-shell-section-title">Add transaction</h2>
+                <h2 class="app-shell-section-title"><%= gettext("Add transaction") %></h2>
                 <p class="app-shell-panel-intro">
-                  Use deposit transactions for cash movements. Use buy, sell and dividend for security-related ledger activity.
+                  <%= gettext("Use deposit transactions for cash movements. Use buy, sell and dividend for security-related ledger activity.") %>
                 </p>
               </div>
             </div>
@@ -212,21 +212,21 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
             <form id="transaction-form" class="app-shell-form-grid" phx-submit="create_transaction">
               <fieldset class="app-shell-fieldset">
-                <legend>Transaction</legend>
+                <legend><%= gettext("Transaction") %></legend>
                 <div class="app-shell-fieldset-grid">
                   <div class="app-shell-field">
-                    <label for="transaction-type">Type</label>
+                    <label for="transaction-type"><%= gettext("Type") %></label>
                     <select id="transaction-type" name="transaction[type]">
                       <%= for type <- @transaction_types do %>
                         <option value={type} selected={type == @transaction_form["type"]}>
-                          <%= type %>
+                          <%= transaction_type_label(type) %>
                         </option>
                       <% end %>
                     </select>
                   </div>
 
                   <div class="app-shell-field">
-                    <label for="transaction-date">Date</label>
+                    <label for="transaction-date"><%= gettext("Date") %></label>
                     <input
                       id="transaction-date"
                       type="date"
@@ -236,22 +236,22 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   </div>
 
                   <div class="app-shell-field">
-                    <label for="transaction-currency">Currency</label>
+                    <label for="transaction-currency"><%= gettext("Currency") %></label>
                     <select id="transaction-currency" name="transaction[currency_code]">
-                      <option value="">Select currency</option>
+                      <option value=""><%= gettext("Select currency") %></option>
                       <%= for currency <- @currencies do %>
                         <option
                           value={currency.code}
                           selected={currency.code == @transaction_form["currency_code"]}
                         >
-                          <%= currency.code %>
+                          <%= currency_option_label(currency) %>
                         </option>
                       <% end %>
                     </select>
                   </div>
 
                   <div class="app-shell-field">
-                    <label for="transaction-amount">Amount</label>
+                    <label for="transaction-amount"><%= gettext("Amount") %></label>
                     <input
                       id="transaction-amount"
                       name="transaction[amount]"
@@ -262,12 +262,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               </fieldset>
 
               <fieldset class="app-shell-fieldset">
-                <legend>Accounts</legend>
+                <legend><%= gettext("Accounts") %></legend>
                 <div class="app-shell-fieldset-grid">
                   <div class="app-shell-field">
-                    <label for="transaction-deposit-account">Deposit account</label>
+                    <label for="transaction-deposit-account"><%= gettext("Deposit account") %></label>
                     <select id="transaction-deposit-account" name="transaction[deposit_account_id]">
-                      <option value="">None</option>
+                      <option value=""><%= gettext("None") %></option>
                       <%= for account <- @deposit_accounts do %>
                         <option
                           value={account.id}
@@ -280,9 +280,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   </div>
 
                   <div class="app-shell-field">
-                    <label for="transaction-securities-account">Securities account</label>
+                    <label for="transaction-securities-account"><%= gettext("Securities account") %></label>
                     <select id="transaction-securities-account" name="transaction[securities_account_id]">
-                      <option value="">None</option>
+                      <option value=""><%= gettext("None") %></option>
                       <%= for account <- @securities_accounts do %>
                         <option
                           value={account.id}
@@ -297,12 +297,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               </fieldset>
 
               <fieldset class="app-shell-fieldset">
-                <legend>Security details</legend>
+                <legend><%= gettext("Security details") %></legend>
                 <div class="app-shell-fieldset-grid">
                   <div class="app-shell-field app-shell-field--full">
-                    <label for="transaction-security">Security</label>
+                    <label for="transaction-security"><%= gettext("Security") %></label>
                     <select id="transaction-security" name="transaction[security_id]">
-                      <option value="">None</option>
+                      <option value=""><%= gettext("None") %></option>
                       <%= for security <- @securities do %>
                         <option
                           value={security.id}
@@ -315,7 +315,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   </div>
 
                   <div class="app-shell-field">
-                    <label for="transaction-quantity">Quantity</label>
+                    <label for="transaction-quantity"><%= gettext("Quantity") %></label>
                     <input
                       id="transaction-quantity"
                       name="transaction[quantity]"
@@ -324,7 +324,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   </div>
 
                   <div class="app-shell-field">
-                    <label for="transaction-price">Price</label>
+                    <label for="transaction-price"><%= gettext("Price") %></label>
                     <input
                       id="transaction-price"
                       name="transaction[price]"
@@ -333,24 +333,24 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   </div>
 
                   <div class="app-shell-field">
-                    <label for="transaction-fees">Fees (optional)</label>
+                    <label for="transaction-fees"><%= gettext("Fees (optional)") %></label>
                     <input id="transaction-fees" name="transaction[fees]" value={@transaction_form["fees"]} />
                   </div>
 
                   <div class="app-shell-field">
-                    <label for="transaction-taxes">Taxes (optional)</label>
+                    <label for="transaction-taxes"><%= gettext("Taxes (optional)") %></label>
                     <input id="transaction-taxes" name="transaction[taxes]" value={@transaction_form["taxes"]} />
                   </div>
                 </div>
               </fieldset>
 
               <div class="app-shell-field app-shell-field--full">
-                <label for="transaction-notes">Notes (optional)</label>
+                <label for="transaction-notes"><%= gettext("Notes (optional)") %></label>
                 <textarea id="transaction-notes" rows="2" name="transaction[notes]"><%= @transaction_form["notes"] %></textarea>
               </div>
 
               <div class="app-shell-form-actions">
-                <button type="submit" class="app-shell-primary">Create transaction</button>
+                <button type="submit" class="app-shell-primary"><%= gettext("Create transaction") %></button>
               </div>
             </form>
             </section>
@@ -361,13 +361,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           id="transaction-first-run"
           class="app-shell-section-card app-shell-onboarding app-shell-onboarding--compact"
         >
-          <p class="app-shell-page-kicker">First run</p>
-          <h2>Create a portfolio first</h2>
+          <p class="app-shell-page-kicker"><%= gettext("First run") %></p>
+          <h2><%= gettext("Create a portfolio first") %></h2>
           <p>
-            Transactions need a portfolio, accounts and securities before they can be recorded.
+            <%= gettext("Transactions need a portfolio, accounts and securities before they can be recorded.") %>
           </p>
           <div class="app-shell-onboarding-actions">
-            <a href="/accounts" class="app-shell-button app-shell-primary">Go to Accounts</a>
+            <a href="/accounts" class="app-shell-button app-shell-primary"><%= gettext("Go to Accounts") %></a>
           </div>
         </section>
       <% end %>
@@ -385,12 +385,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
     case Ledger.create_transaction(transaction_params) do
       {:ok, _transaction} ->
-        {:noreply,
-         socket
-         |> assign(:transaction_form, @transaction_form_defaults)
-         |> assign(:transaction_error, nil)
-         |> assign(:transaction_success, "Transaction created.")
-         |> load_transaction_state()}
+        socket =
+          socket
+          |> assign(:transaction_error, nil)
+          |> assign(:transaction_success, gettext("Transaction created."))
+          |> load_transaction_state()
+          |> assign_default_transaction_form()
+
+        {:noreply, socket}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply,
@@ -452,6 +454,30 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> assign(:security_names, security_names)
   end
 
+  defp assign_default_transaction_form(socket) do
+    assign(
+      socket,
+      :transaction_form,
+      default_transaction_form(socket.assigns.current_portfolio, socket.assigns.currencies)
+    )
+  end
+
+  defp default_transaction_form(current_portfolio, currencies) do
+    currency_code =
+      cond do
+        current_portfolio -> current_portfolio.base_currency_code
+        Enum.any?(currencies, &(&1.code == "EUR")) -> "EUR"
+        currency = List.first(currencies) -> currency.code
+        true -> ""
+      end
+
+    Map.put(@transaction_form_defaults, "currency_code", currency_code)
+  end
+
+  defp currency_option_label(currency) do
+    "#{currency.code} - #{currency.name}"
+  end
+
   defp sanitize_transaction_params(params) when is_map(params) do
     params
     |> Map.new(fn {key, value} -> {key, value} end)
@@ -491,6 +517,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         "—"
     end
   end
+
+  defp transaction_type_label("deposit"), do: gettext("Deposit")
+  defp transaction_type_label("withdrawal"), do: gettext("Withdrawal")
+  defp transaction_type_label("buy"), do: gettext("Buy")
+  defp transaction_type_label("sell"), do: gettext("Sell")
+  defp transaction_type_label("dividend"), do: gettext("Dividend")
+  defp transaction_type_label(type), do: type
 
   defp security_name(nil, _security_names), do: "—"
 

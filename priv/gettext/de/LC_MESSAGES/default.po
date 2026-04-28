@@ -1,0 +1,1031 @@
+msgid ""
+msgstr ""
+"Language: de\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: lib/portfolixir_web/live/account_management_live.ex:130
+#: lib/portfolixir_web/live/account_management_live.ex:239
+#, elixir-autogen, elixir-format
+msgid "%{count} account"
+msgid_plural "%{count} accounts"
+msgstr[0] "%{count} Konto"
+msgstr[1] "%{count} Konten"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:97
+#, elixir-autogen, elixir-format
+msgid "%{count} entry"
+msgid_plural "%{count} entries"
+msgstr[0] "%{count} Eintrag"
+msgstr[1] "%{count} Einträge"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:150
+#, elixir-autogen, elixir-format
+msgid "%{count} position"
+msgid_plural "%{count} positions"
+msgstr[0] "%{count} Position"
+msgstr[1] "%{count} Positionen"
+
+#: lib/portfolixir_web/live/category_management_live.ex:58
+#: lib/portfolixir_web/live/security_management_live.ex:129
+#, elixir-autogen, elixir-format
+msgid "%{count} total"
+msgid_plural "%{count} total"
+msgstr[0] "%{count} gesamt"
+msgstr[1] "%{count} gesamt"
+
+#: lib/portfolixir_web/live/account_management_live.ex:277
+#, elixir-autogen, elixir-format
+msgid "A portfolio is the container for accounts, transactions and derived reports."
+msgstr "Ein Portfolio ist der Rahmen für Konten, Buchungen und abgeleitete Berichte."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:113
+#, elixir-autogen, elixir-format
+msgid "Account"
+msgstr "Konto"
+
+#: lib/portfolixir_web/live/account_management_live.ex:89
+#, elixir-autogen, elixir-format
+msgid "Account summary"
+msgstr "Kontenübersicht"
+
+#: lib/portfolixir_web/components/app_shell.ex:1424
+#: lib/portfolixir_web/components/app_shell.ex:1425
+#: lib/portfolixir_web/components/app_shell.ex:1429
+#: lib/portfolixir_web/components/app_shell.ex:1590
+#: lib/portfolixir_web/live/transaction_management_live.ex:265
+#, elixir-autogen, elixir-format
+msgid "Accounts"
+msgstr "Konten"
+
+#: lib/portfolixir_web/components/app_shell.ex:1798
+#: lib/portfolixir_web/live/account_management_live.ex:53
+#, elixir-autogen, elixir-format
+msgid "Accounts Overview"
+msgstr "Kontenübersicht"
+
+#: lib/portfolixir_web/live/category_management_live.ex:190
+#, elixir-autogen, elixir-format
+msgid "Add Category"
+msgstr "Kategorie anlegen"
+
+#: lib/portfolixir_web/live/security_management_live.ex:77
+#, elixir-autogen, elixir-format
+msgid "Add Security"
+msgstr "Wertpapier anlegen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:245
+#, elixir-autogen, elixir-format
+msgid "Add a brokerage or custody account."
+msgstr "Depot oder Verwahrkonto anlegen."
+
+#: lib/portfolixir_web/live/account_management_live.ex:136
+#, elixir-autogen, elixir-format
+msgid "Add a cash or settlement account."
+msgstr "Verrechnungs- oder Zahlungskonto anlegen."
+
+#: lib/portfolixir_web/live/category_management_live.ex:139
+#, elixir-autogen, elixir-format
+msgid "Add and maintain the groups inside the selected taxonomy."
+msgstr "Gruppen innerhalb der ausgewählten Klassifizierung anlegen und pflegen."
+
+#: lib/portfolixir_web/live/account_management_live.ex:349
+#, elixir-autogen, elixir-format
+msgid "Add deposit account"
+msgstr "Verrechnungskonto anlegen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:414
+#, elixir-autogen, elixir-format
+msgid "Add securities account"
+msgstr "Depot anlegen"
+
+#: lib/portfolixir_web/live/security_management_live.ex:180
+#: lib/portfolixir_web/live/security_management_live.ex:276
+#, elixir-autogen, elixir-format
+msgid "Add security"
+msgstr "Wertpapier anlegen"
+
+#: lib/portfolixir_web/live/category_management_live.ex:197
+#, elixir-autogen, elixir-format
+msgid "Add the first category for this taxonomy."
+msgstr "Lege die erste Kategorie für diese Klassifizierung an."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:189
+#, elixir-autogen, elixir-format
+msgid "Add transaction"
+msgstr "Buchung anlegen"
+
+#: lib/portfolixir_web/live/security_management_live.ex:138
+#, elixir-autogen, elixir-format
+msgid "Add your first security to start building your portfolio."
+msgstr "Lege dein erstes Wertpapier an, um dein Portfolio aufzubauen."
+
+#: lib/portfolixir_web/components/app_shell.ex:1402
+#: lib/portfolixir_web/components/app_shell.ex:1403
+#: lib/portfolixir_web/components/app_shell.ex:1407
+#: lib/portfolixir_web/components/app_shell.ex:1801
+#: lib/portfolixir_web/live/security_management_live.ex:39
+#, elixir-autogen, elixir-format
+msgid "All Securities"
+msgstr "Alle Wertpapiere"
+
+#: lib/portfolixir_web/live/security_management_live.ex:88
+#, elixir-autogen, elixir-format
+msgid "All time"
+msgstr "Gesamt"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:117
+#: lib/portfolixir_web/live/transaction_management_live.ex:254
+#, elixir-autogen, elixir-format
+msgid "Amount"
+msgstr "Betrag"
+
+#: lib/portfolixir_web/live/security_management_live.ex:104
+#, elixir-autogen, elixir-format
+msgid "Assignments later"
+msgstr "Zuordnungen später"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:71
+#, elixir-autogen, elixir-format
+msgid "Available for cash"
+msgstr "Für Geldbewegungen verfügbar"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:79
+#, elixir-autogen, elixir-format
+msgid "Available for trades"
+msgstr "Für Wertpapiergeschäfte verfügbar"
+
+#: lib/portfolixir_web/live/account_management_live.ex:182
+#, elixir-autogen, elixir-format
+msgid "Balance"
+msgstr "Saldo"
+
+#: lib/portfolixir_web/live/account_management_live.ex:173
+#, elixir-autogen, elixir-format
+msgid "Balances appear after deposit, withdrawal and trade transactions."
+msgstr "Salden erscheinen nach Einzahlungen, Auszahlungen und Wertpapierbuchungen."
+
+#: lib/portfolixir_web/live/account_management_live.ex:166
+#, elixir-autogen, elixir-format
+msgid "Balances are calculated from ledger transactions."
+msgstr "Salden werden aus Buchungen berechnet."
+
+#: lib/portfolixir_web/live/account_management_live.ex:75
+#: lib/portfolixir_web/live/account_management_live.ex:320
+#, elixir-autogen, elixir-format
+msgid "Base currency"
+msgstr "Basiswährung"
+
+#: lib/portfolixir_web/components/app_shell.ex:1541
+#, elixir-autogen, elixir-format
+msgid "Breadcrumb"
+msgstr "Breadcrumb"
+
+#: lib/portfolixir_web/live/account_management_live.ex:103
+#, elixir-autogen, elixir-format
+msgid "Brokerage and custody"
+msgstr "Depot und Verwahrung"
+
+#: lib/portfolixir_web/live/account_management_live.ex:237
+#, elixir-autogen, elixir-format
+msgid "Brokerage or custody accounts where security transactions are recorded."
+msgstr "Depots, in denen Wertpapierbuchungen erfasst werden."
+
+#: lib/portfolixir_web/live/category_management_live.ex:41
+#, elixir-autogen, elixir-format
+msgid "Build user-defined grouping systems for asset allocation, regions, sectors and other portfolio views."
+msgstr "Erstelle eigene Klassifizierungen für Asset Allocation, Regionen, Branchen und weitere Portfolioansichten."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:523
+#, elixir-autogen, elixir-format
+msgid "Buy"
+msgstr "Kauf"
+
+#: lib/portfolixir_web/live/account_management_live.ex:199
+#, elixir-autogen, elixir-format
+msgid "Buy and sell cash impact is only reflected when a securities account has a reference deposit account."
+msgstr "Kauf- und Verkaufsauswirkungen auf Geldkonten werden nur berücksichtigt, wenn ein Depot ein Referenzkonto hat."
+
+#: lib/portfolixir_web/live/account_management_live.ex:111
+#, elixir-autogen, elixir-format
+msgid "Calculated rows"
+msgstr "Berechnete Zeilen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:95
+#, elixir-autogen, elixir-format
+msgid "Cash and settlement"
+msgstr "Geld und Verrechnung"
+
+#: lib/portfolixir_web/live/account_management_live.ex:128
+#, elixir-autogen, elixir-format
+msgid "Cash and settlement accounts used for deposits, withdrawals, fees and trade cash impact."
+msgstr "Geld- und Verrechnungskonten für Einzahlungen, Auszahlungen, Gebühren und Wertpapiergeschäfte."
+
+#: lib/portfolixir_web/live/account_management_live.ex:109
+#: lib/portfolixir_web/live/account_management_live.ex:165
+#, elixir-autogen, elixir-format
+msgid "Cash balances"
+msgstr "Kontosalden"
+
+#: lib/portfolixir_web/live/account_management_live.ex:117
+#, elixir-autogen, elixir-format
+msgid "Cash impact warnings"
+msgstr "Hinweise zu Geldbuchungen"
+
+#: lib/portfolixir_web/live/category_management_live.ex:138
+#, elixir-autogen, elixir-format
+msgid "Categories"
+msgstr "Kategorien"
+
+#: lib/portfolixir_web/live/category_management_live.ex:242
+#, elixir-autogen, elixir-format
+msgid "Categories belong to one taxonomy, so choose the grouping system before adding them."
+msgstr "Kategorien gehören zu einer Klassifizierung. Wähle zuerst das Gruppierungssystem aus."
+
+#: lib/portfolixir_web/components/app_shell.ex:1465
+#: lib/portfolixir_web/components/app_shell.ex:1468
+#: lib/portfolixir_web/components/app_shell.ex:1469
+#: lib/portfolixir_web/components/app_shell.ex:1473
+#: lib/portfolixir_web/components/app_shell.ex:1795
+#: lib/portfolixir_web/components/app_shell.ex:1800
+#: lib/portfolixir_web/live/category_management_live.ex:38
+#: lib/portfolixir_web/live/category_management_live.ex:39
+#: lib/portfolixir_web/live/security_management_live.ex:102
+#, elixir-autogen, elixir-format
+msgid "Classifications"
+msgstr "Klassifizierungen"
+
+#: lib/portfolixir_web/live/security_management_live.ex:77
+#, elixir-autogen, elixir-format
+msgid "Close"
+msgstr "Schließen"
+
+#: lib/portfolixir_web/components/app_shell.ex:1658
+#: lib/portfolixir_web/components/app_shell.ex:1659
+#, elixir-autogen, elixir-format
+msgid "Close navigation"
+msgstr "Navigation schließen"
+
+#: lib/portfolixir_web/components/app_shell.ex:1536
+#: lib/portfolixir_web/components/app_shell.ex:1537
+#: lib/portfolixir_web/components/app_shell.ex:1645
+#: lib/portfolixir_web/components/app_shell.ex:1646
+#, elixir-autogen, elixir-format
+msgid "Collapse sidebar"
+msgstr "Seitenleiste einklappen"
+
+#: lib/portfolixir_web/live/category_management_live.ex:174
+#, elixir-autogen, elixir-format
+msgid "Color (optional)"
+msgstr "Farbe (optional)"
+
+#: lib/portfolixir_web/components/app_shell.ex:1413
+#: lib/portfolixir_web/components/app_shell.ex:1435
+#: lib/portfolixir_web/components/app_shell.ex:1444
+#: lib/portfolixir_web/components/app_shell.ex:1483
+#: lib/portfolixir_web/components/app_shell.ex:1492
+#: lib/portfolixir_web/components/app_shell.ex:1505
+#: lib/portfolixir_web/components/app_shell.ex:1518
+#, elixir-autogen, elixir-format
+msgid "Coming soon"
+msgstr "Kommt später"
+
+#: lib/portfolixir_web/live/security_management_live.ex:126
+#, elixir-autogen, elixir-format
+msgid "Core identifiers used by the ledger and valuation workspaces."
+msgstr "Stammdatenkennzeichen für Buchungen und Bewertung."
+
+#: lib/portfolixir_web/live/category_management_live.ex:69
+#, elixir-autogen, elixir-format
+msgid "Create Portfolio Performance presets"
+msgstr "Portfolio-Performance-Vorlagen anlegen"
+
+#: lib/portfolixir_web/live/category_management_live.ex:102
+#, elixir-autogen, elixir-format
+msgid "Create Taxonomy"
+msgstr "Klassifizierung anlegen"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:365
+#, elixir-autogen, elixir-format
+msgid "Create a portfolio first"
+msgstr "Zuerst ein Portfolio anlegen"
+
+#: lib/portfolixir_web/live/category_management_live.ex:109
+#, elixir-autogen, elixir-format
+msgid "Create a taxonomy before adding categories."
+msgstr "Lege eine Klassifizierung an, bevor du Kategorien hinzufügst."
+
+#: lib/portfolixir_web/live/account_management_live.ex:406
+#, elixir-autogen, elixir-format
+msgid "Create deposit account"
+msgstr "Verrechnungskonto anlegen"
+
+#: lib/portfolixir_web/live/security_management_live.ex:182
+#, elixir-autogen, elixir-format
+msgid "Create one instrument at a time. Currency is selected from first-run reference data."
+msgstr "Lege ein Wertpapier nach dem anderen an. Die Währung kommt aus den Referenzdaten."
+
+#: lib/portfolixir_web/live/category_management_live.ex:241
+#, elixir-autogen, elixir-format
+msgid "Create or select a taxonomy first"
+msgstr "Zuerst eine Klassifizierung anlegen oder auswählen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:340
+#, elixir-autogen, elixir-format
+msgid "Create portfolio"
+msgstr "Portfolio anlegen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:494
+#, elixir-autogen, elixir-format
+msgid "Create securities account"
+msgstr "Depot anlegen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:292
+#, elixir-autogen, elixir-format
+msgid "Create the initial portfolio before adding accounts."
+msgstr "Lege zuerst das Portfolio an, bevor du Konten hinzufügst."
+
+#: lib/portfolixir_web/live/account_management_live.ex:281
+#, elixir-autogen, elixir-format
+msgid "Create this portfolio to unlock account setup, cash balances and ledger workflows."
+msgstr "Lege dieses Portfolio an, um Konten, Salden und Buchungen zu nutzen."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:353
+#, elixir-autogen, elixir-format
+msgid "Create transaction"
+msgstr "Buchung anlegen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:275
+#, elixir-autogen, elixir-format
+msgid "Create your first portfolio"
+msgstr "Erstes Portfolio anlegen"
+
+#: lib/portfolixir_web/live/security_management_live.ex:94
+#, elixir-autogen, elixir-format
+msgid "Currencies"
+msgstr "Währungen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:144
+#: lib/portfolixir_web/live/account_management_live.ex:181
+#: lib/portfolixir_web/live/account_management_live.ex:253
+#: lib/portfolixir_web/live/account_management_live.ex:386
+#: lib/portfolixir_web/live/account_management_live.ex:451
+#: lib/portfolixir_web/live/security_management_live.ex:147
+#: lib/portfolixir_web/live/security_management_live.ex:224
+#: lib/portfolixir_web/live/transaction_management_live.ex:118
+#: lib/portfolixir_web/live/transaction_management_live.ex:239
+#, elixir-autogen, elixir-format
+msgid "Currency"
+msgstr "Währung"
+
+#: lib/portfolixir_web/live/account_management_live.ex:64
+#, elixir-autogen, elixir-format
+msgid "Current portfolio"
+msgstr "Aktuelles Portfolio"
+
+#: lib/portfolixir_web/components/app_shell.ex:1562
+#: lib/portfolixir_web/components/app_shell.ex:1568
+#, elixir-autogen, elixir-format
+msgid "Dark mode"
+msgstr "Dunkler Modus"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:111
+#: lib/portfolixir_web/live/transaction_management_live.ex:229
+#, elixir-autogen, elixir-format
+msgid "Date"
+msgstr "Datum"
+
+#: lib/portfolixir_web/live/category_management_live.ex:231
+#, elixir-autogen, elixir-format
+msgid "Delete"
+msgstr "Löschen"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:521
+#, elixir-autogen, elixir-format
+msgid "Deposit"
+msgstr "Einzahlung"
+
+#: lib/portfolixir_web/live/account_management_live.ex:180
+#: lib/portfolixir_web/live/transaction_management_live.ex:268
+#, elixir-autogen, elixir-format
+msgid "Deposit account"
+msgstr "Verrechnungskonto"
+
+#: lib/portfolixir_web/live/account_management_live.ex:539
+#, elixir-autogen, elixir-format
+msgid "Deposit account created."
+msgstr "Verrechnungskonto angelegt."
+
+#: lib/portfolixir_web/components/app_shell.ex:1442
+#: lib/portfolixir_web/components/app_shell.ex:1447
+#: lib/portfolixir_web/live/account_management_live.ex:79
+#: lib/portfolixir_web/live/account_management_live.ex:93
+#: lib/portfolixir_web/live/account_management_live.ex:127
+#: lib/portfolixir_web/live/transaction_management_live.ex:69
+#, elixir-autogen, elixir-format
+msgid "Deposit accounts"
+msgstr "Verrechnungskonten"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:63
+#, elixir-autogen, elixir-format
+msgid "Derived from trades"
+msgstr "Aus Wertpapiergeschäften berechnet"
+
+#: lib/portfolixir_web/live/category_management_live.ex:97
+#: lib/portfolixir_web/live/category_management_live.ex:159
+#: lib/portfolixir_web/live/category_management_live.ex:218
+#, elixir-autogen, elixir-format
+msgid "Description"
+msgstr "Beschreibung"
+
+#: lib/portfolixir_web/live/account_management_live.ex:335
+#, elixir-autogen, elixir-format
+msgid "Description (optional)"
+msgstr "Beschreibung (optional)"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:525
+#, elixir-autogen, elixir-format
+msgid "Dividend"
+msgstr "Dividende"
+
+#: lib/portfolixir_web/live/category_management_live.ex:55
+#, elixir-autogen, elixir-format
+msgid "Each taxonomy is a classification system with its own category tree."
+msgstr "Jede Klassifizierung ist ein eigenes System mit Kategorien."
+
+#: lib/portfolixir_web/live/security_management_live.ex:151
+#, elixir-autogen, elixir-format
+msgid "Exchange"
+msgstr "Börse"
+
+#: lib/portfolixir_web/live/security_management_live.ex:252
+#, elixir-autogen, elixir-format
+msgid "Exchange code (optional)"
+msgstr "Börsenplatz (optional)"
+
+#: lib/portfolixir_web/components/app_shell.ex:1645
+#: lib/portfolixir_web/components/app_shell.ex:1646
+#, elixir-autogen, elixir-format
+msgid "Expand sidebar"
+msgstr "Seitenleiste ausklappen"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:336
+#, elixir-autogen, elixir-format
+msgid "Fees (optional)"
+msgstr "Gebühren (optional)"
+
+#: lib/portfolixir_web/live/security_management_live.ex:65
+#, elixir-autogen, elixir-format
+msgid "Filter"
+msgstr "Filter"
+
+#: lib/portfolixir_web/live/security_management_live.ex:62
+#: lib/portfolixir_web/live/security_management_live.ex:63
+#, elixir-autogen, elixir-format
+msgid "Filter coming soon"
+msgstr "Filter kommt später"
+
+#: lib/portfolixir_web/live/account_management_live.ex:274
+#: lib/portfolixir_web/live/transaction_management_live.ex:364
+#, elixir-autogen, elixir-format
+msgid "First run"
+msgstr "Ersteinrichtung"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:370
+#, elixir-autogen, elixir-format
+msgid "Go to Accounts"
+msgstr "Zu Konten"
+
+#: lib/portfolixir_web/components/app_shell.ex:1481
+#: lib/portfolixir_web/components/app_shell.ex:1486
+#, elixir-autogen, elixir-format
+msgid "Holdings"
+msgstr "Bestand"
+
+#: lib/portfolixir_web/live/security_management_live.ex:242
+#, elixir-autogen, elixir-format
+msgid "ISIN (optional)"
+msgstr "ISIN (optional)"
+
+#: lib/portfolixir_web/components/app_shell.ex:1500
+#: lib/portfolixir_web/components/app_shell.ex:1503
+#: lib/portfolixir_web/components/app_shell.ex:1508
+#, elixir-autogen, elixir-format
+msgid "Imports"
+msgstr "Import"
+
+#: lib/portfolixir_web/live/security_management_live.ex:96
+#, elixir-autogen, elixir-format
+msgid "In use"
+msgstr "In Verwendung"
+
+#: lib/portfolixir_web/live/security_management_live.ex:375
+#, elixir-autogen, elixir-format
+msgid "Just now"
+msgstr "Gerade eben"
+
+#: lib/portfolixir_web/components/app_shell.ex:1746
+#, elixir-autogen, elixir-format
+msgid "Language"
+msgstr "Sprache"
+
+#: lib/portfolixir_web/live/security_management_live.ex:110
+#, elixir-autogen, elixir-format
+msgid "Last Updated"
+msgstr "Zuletzt aktualisiert"
+
+#: lib/portfolixir_web/components/app_shell.ex:1452
+#: lib/portfolixir_web/components/app_shell.ex:1794
+#: lib/portfolixir_web/live/transaction_management_live.ex:42
+#, elixir-autogen, elixir-format
+msgid "Ledger"
+msgstr "Buchungen"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:55
+#, elixir-autogen, elixir-format
+msgid "Ledger entries"
+msgstr "Buchungssätze"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:49
+#, elixir-autogen, elixir-format
+msgid "Ledger summary"
+msgstr "Buchungsübersicht"
+
+#: lib/portfolixir_web/components/app_shell.ex:1563
+#, elixir-autogen, elixir-format
+msgid "Light mode"
+msgstr "Heller Modus"
+
+#: lib/portfolixir_web/live/account_management_live.ex:415
+#, elixir-autogen, elixir-format
+msgid "Link a reference deposit account when trades should affect cash balances."
+msgstr "Verknüpfe ein Referenzkonto, wenn Wertpapiergeschäfte den Kontosaldo beeinflussen sollen."
+
+#: lib/portfolixir_web/components/app_shell.ex:1397
+#, elixir-autogen, elixir-format
+msgid "Main navigation"
+msgstr "Hauptnavigation"
+
+#: lib/portfolixir_web/live/security_management_live.ex:40
+#, elixir-autogen, elixir-format
+msgid "Manage your securities master data for portfolio positions, transactions and future quotes."
+msgstr "Verwalte Wertpapierstammdaten für Bestand, Buchungen und spätere Kurse."
+
+#: lib/portfolixir_web/components/app_shell.ex:1421
+#: lib/portfolixir_web/components/app_shell.ex:1793
+#: lib/portfolixir_web/live/account_management_live.ex:52
+#, elixir-autogen, elixir-format
+msgid "Master data"
+msgstr "Stammdaten"
+
+#: lib/portfolixir_web/live/account_management_live.ex:204
+#, elixir-autogen, elixir-format
+msgid "Missing cash impact"
+msgstr "Fehlende Geldbuchung"
+
+#: lib/portfolixir_web/components/app_shell.ex:1598
+#, elixir-autogen, elixir-format
+msgid "More"
+msgstr "Mehr"
+
+#: lib/portfolixir_web/live/account_management_live.ex:143
+#: lib/portfolixir_web/live/account_management_live.ex:252
+#: lib/portfolixir_web/live/account_management_live.ex:315
+#: lib/portfolixir_web/live/account_management_live.ex:377
+#: lib/portfolixir_web/live/account_management_live.ex:442
+#: lib/portfolixir_web/live/category_management_live.ex:92
+#: lib/portfolixir_web/live/category_management_live.ex:154
+#: lib/portfolixir_web/live/category_management_live.ex:213
+#: lib/portfolixir_web/live/security_management_live.ex:145
+#: lib/portfolixir_web/live/security_management_live.ex:206
+#, elixir-autogen, elixir-format
+msgid "Name"
+msgstr "Name"
+
+#: lib/portfolixir_web/live/account_management_live.ex:119
+#, elixir-autogen, elixir-format
+msgid "Needs attention"
+msgstr "Zu prüfen"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:94
+#, elixir-autogen, elixir-format
+msgid "Newest ledger entries appear first."
+msgstr "Neueste Buchungen stehen zuerst."
+
+#: lib/portfolixir_web/live/account_management_live.ex:172
+#, elixir-autogen, elixir-format
+msgid "No cash balances yet"
+msgstr "Noch keine Kontosalden"
+
+#: lib/portfolixir_web/live/category_management_live.ex:196
+#, elixir-autogen, elixir-format
+msgid "No categories yet"
+msgstr "Noch keine Kategorien"
+
+#: lib/portfolixir_web/live/account_management_live.ex:135
+#, elixir-autogen, elixir-format
+msgid "No deposit accounts yet"
+msgstr "Noch keine Verrechnungskonten"
+
+#: lib/portfolixir_web/live/category_management_live.ex:124
+#: lib/portfolixir_web/live/category_management_live.ex:204
+#, elixir-autogen, elixir-format
+msgid "No description"
+msgstr "Keine Beschreibung"
+
+#: lib/portfolixir_web/live/account_management_live.ex:280
+#, elixir-autogen, elixir-format
+msgid "No portfolio yet"
+msgstr "Noch kein Portfolio"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:155
+#, elixir-autogen, elixir-format
+msgid "No positions yet"
+msgstr "Noch kein Bestand"
+
+#: lib/portfolixir_web/live/account_management_live.ex:244
+#, elixir-autogen, elixir-format
+msgid "No securities accounts yet"
+msgstr "Noch keine Depots"
+
+#: lib/portfolixir_web/live/security_management_live.ex:137
+#, elixir-autogen, elixir-format
+msgid "No securities yet"
+msgstr "Noch keine Wertpapiere"
+
+#: lib/portfolixir_web/live/category_management_live.ex:108
+#, elixir-autogen, elixir-format
+msgid "No taxonomies yet"
+msgstr "Noch keine Klassifizierungen"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:103
+#, elixir-autogen, elixir-format
+msgid "No transactions yet"
+msgstr "Noch keine Buchungen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:473
+#: lib/portfolixir_web/live/category_management_live.ex:166
+#: lib/portfolixir_web/live/transaction_management_live.ex:270
+#: lib/portfolixir_web/live/transaction_management_live.ex:285
+#: lib/portfolixir_web/live/transaction_management_live.ex:305
+#, elixir-autogen, elixir-format
+msgid "None"
+msgstr "Keine"
+
+#: lib/portfolixir_web/live/security_management_live.ex:376
+#, elixir-autogen, elixir-format
+msgid "Not today"
+msgstr "Nicht heute"
+
+#: lib/portfolixir_web/live/security_management_live.ex:370
+#, elixir-autogen, elixir-format
+msgid "Not tracked yet"
+msgstr "Noch nicht erfasst"
+
+#: lib/portfolixir_web/live/account_management_live.ex:145
+#: lib/portfolixir_web/live/account_management_live.ex:255
+#: lib/portfolixir_web/live/transaction_management_live.ex:119
+#, elixir-autogen, elixir-format
+msgid "Notes"
+msgstr "Notizen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:401
+#: lib/portfolixir_web/live/account_management_live.ex:489
+#: lib/portfolixir_web/live/security_management_live.ex:270
+#: lib/portfolixir_web/live/transaction_management_live.ex:348
+#, elixir-autogen, elixir-format
+msgid "Notes (optional)"
+msgstr "Notizen (optional)"
+
+#: lib/portfolixir_web/components/app_shell.ex:1372
+#: lib/portfolixir_web/components/app_shell.ex:1375
+#: lib/portfolixir_web/components/app_shell.ex:1658
+#: lib/portfolixir_web/components/app_shell.ex:1659
+#, elixir-autogen, elixir-format
+msgid "Open navigation"
+msgstr "Navigation öffnen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:54
+#, elixir-autogen, elixir-format
+msgid "Organize the portfolio, cash accounts and securities accounts that ledger activity posts to."
+msgstr "Organisiere Portfolio, Verrechnungskonten und Depots für deine Buchungen."
+
+#: lib/portfolixir_web/live/category_management_live.ex:164
+#, elixir-autogen, elixir-format
+msgid "Parent (optional)"
+msgstr "Uebergeordnete Kategorie (optional)"
+
+#: lib/portfolixir_web/components/app_shell.ex:1490
+#: lib/portfolixir_web/components/app_shell.ex:1495
+#, elixir-autogen, elixir-format
+msgid "Performance"
+msgstr "Performance"
+
+#: lib/portfolixir_web/live/account_management_live.ex:71
+#, elixir-autogen, elixir-format
+msgid "Portfolio"
+msgstr "Portfolio"
+
+#: lib/portfolixir_web/live/category_management_live.ex:283
+#, elixir-autogen, elixir-format
+msgid "Portfolio Performance presets are available."
+msgstr "Portfolio-Performance-Vorlagen sind vorhanden."
+
+#: lib/portfolixir_web/live/account_management_live.ex:512
+#, elixir-autogen, elixir-format
+msgid "Portfolio created."
+msgstr "Portfolio angelegt."
+
+#: lib/portfolixir_web/live/account_management_live.ex:291
+#, elixir-autogen, elixir-format
+msgid "Portfolio setup"
+msgstr "Portfolio einrichten"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:61
+#, elixir-autogen, elixir-format
+msgid "Positions"
+msgstr "Bestand"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:156
+#, elixir-autogen, elixir-format
+msgid "Positions are derived from buy and sell transactions."
+msgstr "Bestand wird aus Käufen und Verkäufen berechnet."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:147
+#, elixir-autogen, elixir-format
+msgid "Positions overview"
+msgstr "Bestandsübersicht"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:116
+#: lib/portfolixir_web/live/transaction_management_live.ex:327
+#, elixir-autogen, elixir-format
+msgid "Price"
+msgstr "Preis"
+
+#: lib/portfolixir_web/components/app_shell.ex:1383
+#, elixir-autogen, elixir-format
+msgid "Primary navigation"
+msgstr "Primäre Navigation"
+
+#: lib/portfolixir_web/live/security_management_live.ex:150
+#, elixir-autogen, elixir-format
+msgid "Provider symbol"
+msgstr "Provider-Symbol"
+
+#: lib/portfolixir_web/live/security_management_live.ex:261
+#, elixir-autogen, elixir-format
+msgid "Provider symbol (optional)"
+msgstr "Provider-Symbol (optional)"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:115
+#: lib/portfolixir_web/live/transaction_management_live.ex:165
+#: lib/portfolixir_web/live/transaction_management_live.ex:318
+#, elixir-autogen, elixir-format
+msgid "Quantity"
+msgstr "Stück"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:148
+#, elixir-autogen, elixir-format
+msgid "Quantity summary derived from buy and sell transactions."
+msgstr "Stückzahlübersicht aus Kauf- und Verkaufsbuchungen."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:44
+#, elixir-autogen, elixir-format
+msgid "Record cash movements, trades and income while keeping transaction history easy to scan."
+msgstr "Erfasse Geldbewegungen, Wertpapiergeschäfte und Erträge übersichtlich."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:104
+#, elixir-autogen, elixir-format
+msgid "Record the first ledger transaction."
+msgstr "Erfasse die erste Buchung."
+
+#: lib/portfolixir_web/live/account_management_live.ex:254
+#, elixir-autogen, elixir-format
+msgid "Reference deposit account"
+msgstr "Referenzkonto"
+
+#: lib/portfolixir_web/live/account_management_live.ex:467
+#, elixir-autogen, elixir-format
+msgid "Reference deposit account (optional)"
+msgstr "Referenzkonto (optional)"
+
+#: lib/portfolixir_web/components/app_shell.ex:1478
+#, elixir-autogen, elixir-format
+msgid "Reports"
+msgstr "Berichte"
+
+#: lib/portfolixir_web/live/category_management_live.ex:223
+#, elixir-autogen, elixir-format
+msgid "Save"
+msgstr "Speichern"
+
+#: lib/portfolixir_web/live/security_management_live.ex:53
+#: lib/portfolixir_web/live/security_management_live.ex:54
+#, elixir-autogen, elixir-format
+msgid "Search coming soon"
+msgstr "Suche kommt später"
+
+#: lib/portfolixir_web/live/security_management_live.ex:46
+#, elixir-autogen, elixir-format
+msgid "Search securities"
+msgstr "Wertpapiere suchen"
+
+#: lib/portfolixir_web/live/security_management_live.ex:51
+#, elixir-autogen, elixir-format
+msgid "Search securities..."
+msgstr "Wertpapiere suchen..."
+
+#: lib/portfolixir_web/components/app_shell.ex:1399
+#: lib/portfolixir_web/components/app_shell.ex:1586
+#: lib/portfolixir_web/components/app_shell.ex:1796
+#: lib/portfolixir_web/live/security_management_live.ex:38
+#, elixir-autogen, elixir-format
+msgid "Securities"
+msgstr "Wertpapiere"
+
+#: lib/portfolixir_web/live/account_management_live.ex:211
+#: lib/portfolixir_web/live/transaction_management_live.ex:163
+#: lib/portfolixir_web/live/transaction_management_live.ex:283
+#, elixir-autogen, elixir-format
+msgid "Securities account"
+msgstr "Depot"
+
+#: lib/portfolixir_web/live/account_management_live.ex:570
+#, elixir-autogen, elixir-format
+msgid "Securities account created."
+msgstr "Depot angelegt."
+
+#: lib/portfolixir_web/components/app_shell.ex:1433
+#: lib/portfolixir_web/components/app_shell.ex:1438
+#: lib/portfolixir_web/live/account_management_live.ex:83
+#: lib/portfolixir_web/live/account_management_live.ex:101
+#: lib/portfolixir_web/live/account_management_live.ex:236
+#: lib/portfolixir_web/live/transaction_management_live.ex:77
+#, elixir-autogen, elixir-format
+msgid "Securities accounts"
+msgstr "Depots"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:114
+#: lib/portfolixir_web/live/transaction_management_live.ex:164
+#: lib/portfolixir_web/live/transaction_management_live.ex:303
+#, elixir-autogen, elixir-format
+msgid "Security"
+msgstr "Wertpapier"
+
+#: lib/portfolixir_web/live/security_management_live.ex:299
+#, elixir-autogen, elixir-format
+msgid "Security added."
+msgstr "Wertpapier angelegt."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:300
+#, elixir-autogen, elixir-format
+msgid "Security details"
+msgstr "Wertpapierdetails"
+
+#: lib/portfolixir_web/live/security_management_live.ex:125
+#, elixir-autogen, elixir-format
+msgid "Security master"
+msgstr "Wertpapierstammdaten"
+
+#: lib/portfolixir_web/live/security_management_live.ex:82
+#, elixir-autogen, elixir-format
+msgid "Security summary"
+msgstr "Wertpapierübersicht"
+
+#: lib/portfolixir_web/live/account_management_live.ex:322
+#: lib/portfolixir_web/live/account_management_live.ex:388
+#: lib/portfolixir_web/live/account_management_live.ex:453
+#: lib/portfolixir_web/live/security_management_live.ex:229
+#: lib/portfolixir_web/live/transaction_management_live.ex:241
+#, elixir-autogen, elixir-format
+msgid "Select currency"
+msgstr "Währung auswählen"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:524
+#, elixir-autogen, elixir-format
+msgid "Sell"
+msgstr "Verkauf"
+
+#: lib/portfolixir_web/components/app_shell.ex:1513
+#: lib/portfolixir_web/components/app_shell.ex:1516
+#: lib/portfolixir_web/components/app_shell.ex:1521
+#, elixir-autogen, elixir-format
+msgid "Settings"
+msgstr "Einstellungen"
+
+#: lib/portfolixir_web/live/category_management_live.ex:179
+#, elixir-autogen, elixir-format
+msgid "Sort order (optional)"
+msgstr "Sortierung (optional)"
+
+#: lib/portfolixir_web/components/app_shell.ex:1560
+#: lib/portfolixir_web/components/app_shell.ex:1561
+#: lib/portfolixir_web/components/app_shell.ex:1564
+#, elixir-autogen, elixir-format
+msgid "Switch to dark mode"
+msgstr "Zu dunklem Modus wechseln"
+
+#: lib/portfolixir_web/components/app_shell.ex:1565
+#, elixir-autogen, elixir-format
+msgid "Switch to light mode"
+msgstr "Zu hellem Modus wechseln"
+
+#: lib/portfolixir_web/live/security_management_live.ex:146
+#: lib/portfolixir_web/live/security_management_live.ex:215
+#, elixir-autogen, elixir-format
+msgid "Symbol"
+msgstr "Symbol"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:341
+#, elixir-autogen, elixir-format
+msgid "Taxes (optional)"
+msgstr "Steuern (optional)"
+
+#: lib/portfolixir_web/live/category_management_live.ex:54
+#, elixir-autogen, elixir-format
+msgid "Taxonomies"
+msgstr "Klassifizierungen"
+
+#: lib/portfolixir_web/live/account_management_live.ex:65
+#, elixir-autogen, elixir-format
+msgid "The active portfolio sets the base currency for account and ledger workflows."
+msgstr "Das aktive Portfolio legt die Basiswährung für Konten und Buchungen fest."
+
+#: lib/portfolixir_web/live/security_management_live.ex:367
+#, elixir-autogen, elixir-format
+msgid "Today"
+msgstr "Heute"
+
+#: lib/portfolixir_web/live/security_management_live.ex:86
+#, elixir-autogen, elixir-format
+msgid "Total Securities"
+msgstr "Wertpapiere gesamt"
+
+#: lib/portfolixir_web/live/account_management_live.ex:209
+#: lib/portfolixir_web/live/transaction_management_live.ex:215
+#, elixir-autogen, elixir-format
+msgid "Transaction"
+msgstr "Buchung"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:391
+#, elixir-autogen, elixir-format
+msgid "Transaction created."
+msgstr "Buchung angelegt."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:93
+#, elixir-autogen, elixir-format
+msgid "Transaction history"
+msgstr "Buchungshistorie"
+
+#: lib/portfolixir_web/components/app_shell.ex:1455
+#: lib/portfolixir_web/components/app_shell.ex:1456
+#: lib/portfolixir_web/components/app_shell.ex:1460
+#: lib/portfolixir_web/components/app_shell.ex:1594
+#: lib/portfolixir_web/components/app_shell.ex:1799
+#: lib/portfolixir_web/live/transaction_management_live.ex:43
+#: lib/portfolixir_web/live/transaction_management_live.ex:53
+#, elixir-autogen, elixir-format
+msgid "Transactions"
+msgstr "Buchungen"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:367
+#, elixir-autogen, elixir-format
+msgid "Transactions need a portfolio, accounts and securities before they can be recorded."
+msgstr "Buchungen benötigen zuerst ein Portfolio, Konten und Wertpapiere."
+
+#: lib/portfolixir_web/live/account_management_live.ex:210
+#: lib/portfolixir_web/live/transaction_management_live.ex:112
+#: lib/portfolixir_web/live/transaction_management_live.ex:218
+#, elixir-autogen, elixir-format
+msgid "Type"
+msgstr "Typ"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:191
+#, elixir-autogen, elixir-format
+msgid "Use deposit transactions for cash movements. Use buy, sell and dividend for security-related ledger activity."
+msgstr "Nutze Einzahlungen für Geldbewegungen. Nutze Kauf, Verkauf und Dividende für Wertpapierbuchungen."
+
+#: lib/portfolixir_web/live/account_management_live.ex:350
+#, elixir-autogen, elixir-format
+msgid "Use for cash, settlement and savings accounts."
+msgstr "Für Geld-, Verrechnungs- und Sparkonten."
+
+#: lib/portfolixir_web/live/security_management_live.ex:247
+#, elixir-autogen, elixir-format
+msgid "WKN (optional)"
+msgstr "WKN (optional)"
+
+#: lib/portfolixir_web/components/app_shell.ex:1411
+#: lib/portfolixir_web/components/app_shell.ex:1416
+#, elixir-autogen, elixir-format
+msgid "Watchlist"
+msgstr "Watchlist"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:522
+#, elixir-autogen, elixir-format
+msgid "Withdrawal"
+msgstr "Auszahlung"
+
+#: lib/portfolixir_web/components/app_shell.ex:1530
+#, elixir-autogen, elixir-format
+msgid "Workspace header"
+msgstr "Arbeitsbereich"
