@@ -51,6 +51,17 @@ defmodule Portfolixir.PortfoliosTest do
     assert %{base_currency: ["does not exist"]} = errors_on(changeset)
   end
 
+  test "first portfolio returns the oldest portfolio by id" do
+    first_portfolio = create_portfolio("First portfolio")
+    _second_portfolio = create_portfolio("Second portfolio")
+
+    assert Portfolios.first_portfolio().id == first_portfolio.id
+  end
+
+  test "first portfolio returns nil when no portfolio exists" do
+    assert Portfolios.first_portfolio() == nil
+  end
+
   test "create deposit account with valid attributes" do
     portfolio = create_portfolio("Primary portfolio")
 
