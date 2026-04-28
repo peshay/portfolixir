@@ -637,4 +637,73 @@ defmodule Portfolixir.LedgerTest do
              Decimal.new("7.00")
            )
   end
+
+  test "integration flow derives transactions, position, and cash balance", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        type: "deposit",
+        date: ~D[2026-03-01],
+        currency_code: "EUR",
+        amount: Decimal.new("1000.00")
+      })
+
+    {:ok, buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-03-02],
+        currency_code: "EUR",
+        quantity: Decimal.new("5.00"),
+        price: Decimal.new("50.00"),
+        amount: Decimal.new("250.00"),
+        fees: Decimal.new("2.00"),
+        taxes: Decimal.new("1.00")
+      })
+
+    {:ok, sell} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "sell",
+        date: ~D[2026-03-03],
+        currency_code: "EUR",
+        quantity: Decimal.new("2.00"),
+        price: Decimal.new("60.00"),
+        amount: Decimal.new("120.00"),
+        fees: Decimal.new("1.00"),
+        taxes: Decimal.new("0.50")
+      })
+
+    assert [listed_sell, listed_buy, listed_deposit] =
+             Ledger.list_transactions_for_portfolio(portfolio.id)
+
+    assert listed_sell.id == sell.id
+    assert listed_buy.id == buy.id
+    assert listed_deposit.id == deposit.id
+
+    positions = Ledger.positions_for_portfolio(portfolio.id)
+    cash_result = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             positions[{securities_account.id, security.id}],
+             Decimal.new("3.00")
+           )
+
+    assert cash_result.missing_cash_impacts == []
+
+    assert Decimal.equal?(
+             cash_result.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("865.50")
+           )
+  end
 end
