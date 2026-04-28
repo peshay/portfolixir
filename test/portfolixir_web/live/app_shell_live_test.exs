@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     refute has_element?(view, "img[src='/images/logo-wordmark.svg']")
     assert has_element?(view, "img#app-shell-brand-dark-wordmark[src='/images/logo-dark.svg']")
     assert has_element?(view, "a[href=\"/securities\"]")
+    assert has_element?(view, "a[href=\"/accounts\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
     assert has_element?(view, "p.app-shell-nav-group-title", "Securities")
     assert has_element?(view, "p.app-shell-nav-group-title", "Master data")
@@ -84,10 +85,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
              "span[aria-label='Watchlist'][aria-disabled='true'][title='Coming soon']"
            )
 
-    assert has_element?(
-             view,
-             "span[aria-label='Accounts'][aria-disabled='true'][title='Coming soon']"
-           )
+    assert has_element?(view, "a[aria-label='Accounts'][href='/accounts'][title='Accounts']")
 
     assert has_element?(
              view,

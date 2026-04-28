@@ -616,15 +616,19 @@ defmodule PortfolixirWeb.AppShell do
 
             <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title">Master data</p>
-              <span
-                class="app-shell-nav-link is-disabled"
+              <a
+                href="/accounts"
                 aria-label="Accounts"
-                aria-disabled="true"
-                title="Coming soon"
+                title="Accounts"
+                class={if @current_path == "/accounts" do
+                  "app-shell-nav-link is-active"
+                else
+                  "app-shell-nav-link"
+                end}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">A</span>
                 <span class="app-shell-nav-label">Accounts</span>
-              </span>
+              </a>
               <span
                 class="app-shell-nav-link is-disabled"
                 aria-label="Securities accounts"
