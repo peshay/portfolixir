@@ -59,5 +59,5 @@ gh issue create \
   --repo peshay/portfolixir \
   --title "PFX-009: Clean up All Securities page and table" \
   --label "type:story,area:ui,priority:high,llm:good-first-spark" \
-  --body-file docs/product/pfx-009-issue-body.md
+  --body "See docs/product/pp-inspired-product-backlog.md for PFX-009 acceptance criteria."
 ```
