@@ -56,6 +56,7 @@ defmodule Portfolixir.Ledger.Transaction do
     |> validate_required([:portfolio_id, :type, :date, :currency_code])
     |> validate_inclusion(:type, @types)
     |> validate_required_for_type()
+    |> validate_numeric_values()
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:currency)
     |> assoc_constraint(:security)
@@ -89,6 +90,36 @@ defmodule Portfolixir.Ledger.Transaction do
           :price,
           :amount
         ])
+
+      _type ->
+        changeset
+    end
+  end
+
+  defp validate_numeric_values(changeset) do
+    changeset
+    |> validate_amount_for_type()
+    |> validate_quantity_and_price_for_type()
+    |> validate_number(:fees, greater_than_or_equal_to: 0)
+    |> validate_number(:taxes, greater_than_or_equal_to: 0)
+  end
+
+  defp validate_amount_for_type(changeset) do
+    case get_field(changeset, :type) do
+      type when type in @types ->
+        validate_number(changeset, :amount, greater_than: 0)
+
+      _type ->
+        changeset
+    end
+  end
+
+  defp validate_quantity_and_price_for_type(changeset) do
+    case get_field(changeset, :type) do
+      type when type in ["buy", "sell"] ->
+        changeset
+        |> validate_number(:quantity, greater_than: 0)
+        |> validate_number(:price, greater_than: 0)
 
       _type ->
         changeset
