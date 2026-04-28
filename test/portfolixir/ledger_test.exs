@@ -206,6 +206,136 @@ defmodule Portfolixir.LedgerTest do
            } = errors_on(buy_changeset)
   end
 
+  test "deposit and withdrawal reject non-positive amounts", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account
+  } do
+    deposit_attrs = %{
+      portfolio_id: portfolio.id,
+      deposit_account_id: deposit_account.id,
+      type: "deposit",
+      date: ~D[2026-01-10],
+      currency_code: "EUR"
+    }
+
+    assert {:error, zero_deposit_changeset} =
+             Ledger.create_transaction(Map.put(deposit_attrs, :amount, Decimal.new("0.00")))
+
+    assert %{amount: ["must be greater than 0"]} = errors_on(zero_deposit_changeset)
+
+    assert {:error, negative_deposit_changeset} =
+             Ledger.create_transaction(Map.put(deposit_attrs, :amount, Decimal.new("-1.00")))
+
+    assert %{amount: ["must be greater than 0"]} = errors_on(negative_deposit_changeset)
+
+    withdrawal_attrs = %{deposit_attrs | type: "withdrawal"}
+
+    assert {:error, negative_withdrawal_changeset} =
+             Ledger.create_transaction(Map.put(withdrawal_attrs, :amount, Decimal.new("-1.00")))
+
+    assert %{amount: ["must be greater than 0"]} = errors_on(negative_withdrawal_changeset)
+  end
+
+  test "buy rejects non-positive quantity, price, and amount", %{
+    portfolio: portfolio,
+    securities_account: securities_account,
+    security: security
+  } do
+    attrs = %{
+      portfolio_id: portfolio.id,
+      securities_account_id: securities_account.id,
+      security_id: security.id,
+      type: "buy",
+      date: ~D[2026-01-11],
+      currency_code: "EUR",
+      quantity: Decimal.new("1.00"),
+      price: Decimal.new("100.00"),
+      amount: Decimal.new("100.00")
+    }
+
+    assert {:error, zero_quantity_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :quantity, Decimal.new("0.00")))
+
+    assert %{quantity: ["must be greater than 0"]} = errors_on(zero_quantity_changeset)
+
+    assert {:error, negative_quantity_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :quantity, Decimal.new("-1.00")))
+
+    assert %{quantity: ["must be greater than 0"]} = errors_on(negative_quantity_changeset)
+
+    assert {:error, zero_price_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :price, Decimal.new("0.00")))
+
+    assert %{price: ["must be greater than 0"]} = errors_on(zero_price_changeset)
+
+    assert {:error, negative_price_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :price, Decimal.new("-1.00")))
+
+    assert %{price: ["must be greater than 0"]} = errors_on(negative_price_changeset)
+
+    assert {:error, negative_amount_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :amount, Decimal.new("-1.00")))
+
+    assert %{amount: ["must be greater than 0"]} = errors_on(negative_amount_changeset)
+  end
+
+  test "sell rejects negative fees and taxes", %{
+    portfolio: portfolio,
+    securities_account: securities_account,
+    security: security
+  } do
+    attrs = %{
+      portfolio_id: portfolio.id,
+      securities_account_id: securities_account.id,
+      security_id: security.id,
+      type: "sell",
+      date: ~D[2026-01-12],
+      currency_code: "EUR",
+      quantity: Decimal.new("1.00"),
+      price: Decimal.new("100.00"),
+      amount: Decimal.new("100.00"),
+      fees: Decimal.new("0.00"),
+      taxes: Decimal.new("0.00")
+    }
+
+    assert {:error, negative_fees_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :fees, Decimal.new("-1.00")))
+
+    assert %{fees: ["must be greater than or equal to 0"]} = errors_on(negative_fees_changeset)
+
+    assert {:error, negative_taxes_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :taxes, Decimal.new("-1.00")))
+
+    assert %{taxes: ["must be greater than or equal to 0"]} = errors_on(negative_taxes_changeset)
+  end
+
+  test "dividend rejects zero amount and negative taxes", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    security: security
+  } do
+    attrs = %{
+      portfolio_id: portfolio.id,
+      deposit_account_id: deposit_account.id,
+      security_id: security.id,
+      type: "dividend",
+      date: ~D[2026-01-13],
+      currency_code: "EUR",
+      amount: Decimal.new("10.00"),
+      taxes: Decimal.new("0.00")
+    }
+
+    assert {:error, zero_amount_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :amount, Decimal.new("0.00")))
+
+    assert %{amount: ["must be greater than 0"]} = errors_on(zero_amount_changeset)
+
+    assert {:error, negative_taxes_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :taxes, Decimal.new("-1.00")))
+
+    assert %{taxes: ["must be greater than or equal to 0"]} = errors_on(negative_taxes_changeset)
+  end
+
   test "reject unknown foreign keys", %{portfolio: portfolio, deposit_account: deposit_account} do
     assert {:error, portfolio_changeset} =
              Ledger.create_transaction(%{
