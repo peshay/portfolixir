@@ -3,6 +3,8 @@ defmodule Portfolixir.LedgerTest do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.CashBalances
+  alias Portfolixir.Ledger.Positions
   alias Portfolixir.Portfolios
 
   setup do
@@ -300,5 +302,339 @@ defmodule Portfolixir.LedgerTest do
     assert [listed_newest, listed_oldest] = Ledger.list_transactions_for_portfolio(portfolio.id)
     assert listed_newest.id == newest.id
     assert listed_oldest.id == oldest.id
+  end
+
+  test "cash balance from deposit and withdrawal", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account
+  } do
+    {:ok, deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        type: "deposit",
+        date: ~D[2026-02-01],
+        currency_code: "EUR",
+        amount: Decimal.new("1000.00")
+      })
+
+    {:ok, withdrawal} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        type: "withdrawal",
+        date: ~D[2026-02-02],
+        currency_code: "EUR",
+        amount: Decimal.new("125.25")
+      })
+
+    result = CashBalances.calculate([deposit, withdrawal])
+
+    assert result.missing_cash_impacts == []
+
+    assert Decimal.equal?(
+             result.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("874.75")
+           )
+  end
+
+  test "position from buy", %{
+    portfolio: portfolio,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-03],
+        currency_code: "EUR",
+        quantity: Decimal.new("3.50"),
+        price: Decimal.new("100.00"),
+        amount: Decimal.new("350.00")
+      })
+
+    positions = Positions.calculate([buy])
+
+    assert Decimal.equal?(
+             positions[{securities_account.id, security.id}],
+             Decimal.new("3.50")
+           )
+  end
+
+  test "position from buy and sell", %{
+    portfolio: portfolio,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-04],
+        currency_code: "EUR",
+        quantity: Decimal.new("10.00"),
+        price: Decimal.new("100.00"),
+        amount: Decimal.new("1000.00")
+      })
+
+    {:ok, sell} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "sell",
+        date: ~D[2026-02-05],
+        currency_code: "EUR",
+        quantity: Decimal.new("4.25"),
+        price: Decimal.new("110.00"),
+        amount: Decimal.new("467.50")
+      })
+
+    positions = Positions.calculate([buy, sell])
+
+    assert Decimal.equal?(
+             positions[{securities_account.id, security.id}],
+             Decimal.new("5.75")
+           )
+  end
+
+  test "buy impacts linked reference deposit account", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-06],
+        currency_code: "EUR",
+        quantity: Decimal.new("2.00"),
+        price: Decimal.new("100.00"),
+        amount: Decimal.new("200.00"),
+        fees: Decimal.new("1.50"),
+        taxes: Decimal.new("0.50")
+      })
+
+    result = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert result.missing_cash_impacts == []
+
+    assert Decimal.equal?(
+             result.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("-202.00")
+           )
+
+    direct_result = CashBalances.calculate([Repo.preload(buy, :securities_account)])
+
+    assert Decimal.equal?(
+             result.balances[{deposit_account.id, "EUR"}],
+             direct_result.balances[{deposit_account.id, "EUR"}]
+           )
+  end
+
+  test "sell impacts linked reference deposit account", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, _sell} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "sell",
+        date: ~D[2026-02-07],
+        currency_code: "EUR",
+        quantity: Decimal.new("2.00"),
+        price: Decimal.new("110.00"),
+        amount: Decimal.new("220.00"),
+        fees: Decimal.new("1.00"),
+        taxes: Decimal.new("0.50")
+      })
+
+    result = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert result.missing_cash_impacts == []
+
+    assert Decimal.equal?(
+             result.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("218.50")
+           )
+  end
+
+  test "buy without linked reference deposit account records missing cash impact", %{
+    portfolio: portfolio,
+    security: security
+  } do
+    {:ok, unlinked_securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Unlinked Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: unlinked_securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-08],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("100.00"),
+        amount: Decimal.new("100.00")
+      })
+
+    result = Ledger.cash_balances_for_portfolio(portfolio.id)
+    buy_id = buy.id
+
+    assert result.balances == %{}
+
+    assert [
+             %{
+               transaction_id: ^buy_id,
+               type: "buy",
+               reason: :missing_reference_deposit_account
+             }
+           ] = result.missing_cash_impacts
+  end
+
+  test "multiple portfolios do not mix in derived balances and positions", %{
+    portfolio: portfolio,
+    other_portfolio: other_portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, _deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        type: "deposit",
+        date: ~D[2026-02-09],
+        currency_code: "EUR",
+        amount: Decimal.new("100.00")
+      })
+
+    {:ok, _buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-09],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("25.00"),
+        amount: Decimal.new("25.00")
+      })
+
+    {:ok, other_deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: other_portfolio.id,
+        name: "Other Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, other_securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: other_portfolio.id,
+        reference_deposit_account_id: other_deposit_account.id,
+        name: "Other Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, _other_deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: other_portfolio.id,
+        deposit_account_id: other_deposit_account.id,
+        type: "deposit",
+        date: ~D[2026-02-09],
+        currency_code: "EUR",
+        amount: Decimal.new("500.00")
+      })
+
+    {:ok, _other_buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: other_portfolio.id,
+        securities_account_id: other_securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-09],
+        currency_code: "EUR",
+        quantity: Decimal.new("3.00"),
+        price: Decimal.new("25.00"),
+        amount: Decimal.new("75.00")
+      })
+
+    cash_result = Ledger.cash_balances_for_portfolio(portfolio.id)
+    positions = Ledger.positions_for_portfolio(portfolio.id)
+
+    assert Map.keys(cash_result.balances) == [{deposit_account.id, "EUR"}]
+    assert Decimal.equal?(cash_result.balances[{deposit_account.id, "EUR"}], Decimal.new("75.00"))
+    assert Map.keys(positions) == [{securities_account.id, security.id}]
+    assert Decimal.equal?(positions[{securities_account.id, security.id}], Decimal.new("1.00"))
+  end
+
+  test "multiple securities do not mix in derived positions", %{
+    portfolio: portfolio,
+    securities_account: securities_account,
+    security: first_security
+  } do
+    {:ok, second_security} =
+      Catalog.create_security(%{
+        name: "Synthetic Bond",
+        symbol: "BND",
+        currency_code: "EUR"
+      })
+
+    {:ok, _first_buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: first_security.id,
+        type: "buy",
+        date: ~D[2026-02-10],
+        currency_code: "EUR",
+        quantity: Decimal.new("2.00"),
+        price: Decimal.new("50.00"),
+        amount: Decimal.new("100.00")
+      })
+
+    {:ok, _second_buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: second_security.id,
+        type: "buy",
+        date: ~D[2026-02-10],
+        currency_code: "EUR",
+        quantity: Decimal.new("7.00"),
+        price: Decimal.new("20.00"),
+        amount: Decimal.new("140.00")
+      })
+
+    positions = Ledger.positions_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             positions[{securities_account.id, first_security.id}],
+             Decimal.new("2.00")
+           )
+
+    assert Decimal.equal?(
+             positions[{securities_account.id, second_security.id}],
+             Decimal.new("7.00")
+           )
   end
 end
