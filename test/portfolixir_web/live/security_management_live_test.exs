@@ -44,8 +44,17 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-kpis .app-shell-stat-card", "Classifications")
     assert has_element?(view, "#security-kpis .app-shell-stat-card", "Last Updated")
     assert has_element?(view, "#security-actions.app-shell-action-row")
-    assert has_element?(view, "#security-search[disabled][placeholder='Search securities...']")
-    assert has_element?(view, "#security-filter[disabled][aria-disabled='true']")
+
+    assert has_element?(
+             view,
+             "#security-search[disabled][placeholder='Search securities...'][title='Search coming soon']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-filter[disabled][aria-disabled='true'][title='Filter coming soon']"
+           )
+
     assert has_element?(view, "#security-add-toggle")
     refute has_element?(view, "#security-create")
 

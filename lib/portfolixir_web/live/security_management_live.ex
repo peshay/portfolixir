@@ -47,6 +47,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             type="search"
             placeholder="Search securities..."
             disabled
+            aria-label="Search coming soon"
+            title="Search coming soon"
           />
           <button
             id="security-filter"
@@ -54,7 +56,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             class="app-shell-secondary"
             disabled
             aria-disabled="true"
-            title="Filtering is coming soon"
+            aria-label="Filter coming soon"
+            title="Filter coming soon"
           >
             Filter
           </button>

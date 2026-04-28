@@ -357,10 +357,17 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </div>
         </div>
       <% else %>
-        <section id="transaction-empty-portfolio" class="app-shell-section-card app-shell-section-card--compact">
-          <div id="no-portfolio" class="app-shell-empty-state">
-            <h3>No portfolio yet</h3>
-            <p>Create a portfolio first.</p>
+        <section
+          id="transaction-first-run"
+          class="app-shell-section-card app-shell-onboarding app-shell-onboarding--compact"
+        >
+          <p class="app-shell-page-kicker">First run</p>
+          <h2>Create a portfolio first</h2>
+          <p>
+            Transactions need a portfolio, accounts and securities before they can be recorded.
+          </p>
+          <div class="app-shell-onboarding-actions">
+            <a href="/accounts" class="app-shell-button app-shell-primary">Go to Accounts</a>
           </div>
         </section>
       <% end %>
