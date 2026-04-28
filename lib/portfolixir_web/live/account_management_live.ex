@@ -55,15 +55,15 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
       <div id="account-workspace" class="app-shell-workspace-grid">
         <div class="app-shell-workspace-stack" data-priority="primary">
-          <section id="account-overview" class="app-shell-section-card">
-            <div class="app-shell-section-header">
-              <div>
-                <h2 class="app-shell-section-title">Current portfolio</h2>
-                <p>The active portfolio sets the base currency for account and ledger workflows.</p>
+          <%= if @current_portfolio do %>
+            <section id="account-overview" class="app-shell-section-card">
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title">Current portfolio</h2>
+                  <p>The active portfolio sets the base currency for account and ledger workflows.</p>
+                </div>
               </div>
-            </div>
 
-            <%= if @current_portfolio do %>
               <div id="current-portfolio" class="app-shell-summary-strip">
                 <div class="app-shell-summary-item">
                   <span class="app-shell-summary-label">Portfolio</span>
@@ -82,50 +82,43 @@ defmodule PortfolixirWeb.AccountManagementLive do
                   <span class="app-shell-summary-value"><%= Enum.count(@securities_accounts) %></span>
                 </div>
               </div>
-            <% else %>
-              <div id="no-portfolio" class="app-shell-empty-state">
-                <h3>No portfolio yet</h3>
-                <p>Create a portfolio first.</p>
-              </div>
-            <% end %>
-          </section>
+            </section>
 
-          <section id="account-kpis" class="app-shell-stat-grid" aria-label="Account summary">
-            <div class="app-shell-stat-card">
-              <span class="app-shell-stat-icon" aria-hidden="true">DA</span>
-              <div>
-                <span class="app-shell-stat-label">Deposit accounts</span>
-                <span class="app-shell-stat-value"><%= Enum.count(@deposit_accounts) %></span>
-                <span class="app-shell-stat-hint">Cash and settlement</span>
+            <section id="account-kpis" class="app-shell-stat-grid" aria-label="Account summary">
+              <div class="app-shell-stat-card">
+                <span class="app-shell-stat-icon" aria-hidden="true">DA</span>
+                <div>
+                  <span class="app-shell-stat-label">Deposit accounts</span>
+                  <span class="app-shell-stat-value"><%= Enum.count(@deposit_accounts) %></span>
+                  <span class="app-shell-stat-hint">Cash and settlement</span>
+                </div>
               </div>
-            </div>
-            <div class="app-shell-stat-card">
-              <span class="app-shell-stat-icon" aria-hidden="true">SA</span>
-              <div>
-                <span class="app-shell-stat-label">Securities accounts</span>
-                <span class="app-shell-stat-value"><%= Enum.count(@securities_accounts) %></span>
-                <span class="app-shell-stat-hint">Brokerage and custody</span>
+              <div class="app-shell-stat-card">
+                <span class="app-shell-stat-icon" aria-hidden="true">SA</span>
+                <div>
+                  <span class="app-shell-stat-label">Securities accounts</span>
+                  <span class="app-shell-stat-value"><%= Enum.count(@securities_accounts) %></span>
+                  <span class="app-shell-stat-hint">Brokerage and custody</span>
+                </div>
               </div>
-            </div>
-            <div class="app-shell-stat-card">
-              <span class="app-shell-stat-icon" aria-hidden="true">CB</span>
-              <div>
-                <span class="app-shell-stat-label">Cash balances</span>
-                <span class="app-shell-stat-value"><%= Enum.count(@cash_balance_rows) %></span>
-                <span class="app-shell-stat-hint">Calculated rows</span>
+              <div class="app-shell-stat-card">
+                <span class="app-shell-stat-icon" aria-hidden="true">CB</span>
+                <div>
+                  <span class="app-shell-stat-label">Cash balances</span>
+                  <span class="app-shell-stat-value"><%= Enum.count(@cash_balance_rows) %></span>
+                  <span class="app-shell-stat-hint">Calculated rows</span>
+                </div>
               </div>
-            </div>
-            <div class="app-shell-stat-card">
-              <span class="app-shell-stat-icon" aria-hidden="true">!</span>
-              <div>
-                <span class="app-shell-stat-label">Cash impact warnings</span>
-                <span class="app-shell-stat-value"><%= Enum.count(@missing_cash_impact_rows) %></span>
-                <span class="app-shell-stat-hint">Needs attention</span>
+              <div class="app-shell-stat-card">
+                <span class="app-shell-stat-icon" aria-hidden="true">!</span>
+                <div>
+                  <span class="app-shell-stat-label">Cash impact warnings</span>
+                  <span class="app-shell-stat-value"><%= Enum.count(@missing_cash_impact_rows) %></span>
+                  <span class="app-shell-stat-hint">Needs attention</span>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <%= if @current_portfolio do %>
             <section id="deposit-accounts" class="app-shell-section-card">
               <div class="app-shell-section-header">
                 <div>
@@ -273,6 +266,18 @@ defmodule PortfolixirWeb.AccountManagementLive do
                   </table>
                 </div>
               <% end %>
+            </section>
+          <% else %>
+            <section id="portfolio-onboarding" class="app-shell-section-card app-shell-onboarding">
+              <p class="app-shell-page-kicker">First run</p>
+              <h2>Create your first portfolio</h2>
+              <p>
+                A portfolio is the container for accounts, transactions and derived reports.
+              </p>
+              <div id="no-portfolio" class="app-shell-empty-state app-shell-empty-state--inline" role="status">
+                <h3>No portfolio yet</h3>
+                <p>Create this portfolio to unlock account setup, cash balances and ledger workflows.</p>
+              </div>
             </section>
           <% end %>
         </div>

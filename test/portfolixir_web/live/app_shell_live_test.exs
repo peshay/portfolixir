@@ -9,11 +9,12 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "#app-shell[data-sidebar-collapsed='false']")
     assert has_element?(view, "#app-shell[data-layout='portfolio-workspace']")
     assert has_element?(view, "#sidebar-toggle")
+    assert has_element?(view, "#mobile-nav-toggle[aria-controls='app-shell-mobile-drawer']")
     assert has_element?(view, "header.app-shell-mobile-header")
     assert has_element?(view, "header.app-shell-topbar")
     assert has_element?(view, "nav.app-shell-breadcrumb[aria-label='Breadcrumb']")
     assert has_element?(view, "nav.app-shell-bottom-nav[aria-label='Mobile primary navigation']")
-    assert has_element?(view, "aside.app-shell-sidebar")
+    assert has_element?(view, "aside#app-shell-mobile-drawer.app-shell-sidebar")
     assert has_element?(view, "nav.app-shell-sidebar-nav[aria-label='Main navigation']")
     assert has_element?(view, "main.app-shell-main")
     assert has_element?(view, "img#app-shell-brand-mark[src='/images/logo-mark.svg']")
@@ -73,6 +74,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert style_block =~ "#app-shell .app-shell-topbar"
     assert style_block =~ "#app-shell .app-shell-bottom-nav"
     assert style_block =~ "#app-shell .app-shell-stat-card"
+    assert style_block =~ "#app-shell .app-shell-onboarding"
     assert style_block =~ "#app-shell .app-shell-action-row"
     assert style_block =~ ".app-shell-workspace-grid"
     assert style_block =~ ".app-shell-form-grid"
@@ -165,6 +167,8 @@ defmodule PortfolixirWeb.AppShellLiveTest do
       assert has_element?(view, "#app-shell[data-layout='portfolio-workspace']")
       assert has_element?(view, ".app-shell-topbar")
       assert has_element?(view, ".app-shell-mobile-header")
+      assert has_element?(view, "#mobile-nav-toggle[aria-controls='app-shell-mobile-drawer']")
+      assert has_element?(view, "aside#app-shell-mobile-drawer.app-shell-sidebar")
       assert has_element?(view, ".app-shell-bottom-nav")
       assert has_element?(view, ".app-shell-main-inner")
       assert has_element?(view, "nav.app-shell-sidebar-nav")

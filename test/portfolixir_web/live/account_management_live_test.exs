@@ -59,9 +59,16 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
   test "renders an empty state when there is no portfolio", %{conn: conn} do
     {:ok, view, html} = live(conn, "/accounts")
 
+    assert has_element?(view, "#portfolio-onboarding.app-shell-onboarding")
+    assert has_element?(view, "#portfolio-onboarding h2", "Create your first portfolio")
+    assert html =~ "A portfolio is the container for accounts, transactions and derived reports."
     assert html =~ "No portfolio yet"
-    assert html =~ "Create a portfolio first."
+
+    assert html =~
+             "Create this portfolio to unlock account setup, cash balances and ledger workflows."
+
     assert has_element?(view, "#portfolio-form")
+    refute has_element?(view, "#account-kpis")
     refute has_element?(view, "#deposit-account-form")
     refute has_element?(view, "#securities-account-form")
   end
