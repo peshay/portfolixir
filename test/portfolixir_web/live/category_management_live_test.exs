@@ -10,8 +10,8 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
 
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
-    assert has_element?(view, "img#app-shell-brand-light-wordmark[src='/images/logo-light.svg']")
     assert has_element?(view, "img#app-shell-brand-mark[src='/images/logo-mark.svg']")
+    assert has_element?(view, ".app-shell-brand-text", "Portfolixir")
     assert has_element?(view, "#sidebar-toggle")
     assert has_element?(view, "#theme-toggle")
     assert html =~ "id=\"theme-toggle-script\""
