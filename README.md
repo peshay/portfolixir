@@ -1,51 +1,52 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="priv/static/images/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="priv/static/images/logo-light.svg">
+    <img alt="Portfolixir logo" src="priv/static/images/logo-wordmark.svg" width="580" />
+  </picture>
+</p>
+
 # Portfolixir
 
-Portfolixir is a self-hosted portfolio analytics and wealth graph platform.
+Portfolixir is a self-hosted portfolio analytics and wealth graph platform built with Elixir, Phoenix and LiveView; it is currently early-stage.
 
-It is designed to import and model portfolio data, keep a canonical transaction history, calculate positions and portfolio value, and expose the data through a web UI, REST API, and later MCP for AI-assisted analysis.
+[![CI](https://github.com/peshay/portfolixir/actions/workflows/ci.yml/badge.svg)](https://github.com/peshay/portfolixir/actions/workflows/ci.yml)
+[![Elixir](https://img.shields.io/badge/Elixir-Phoenix-4B275F?logo=elixir&logoColor=white)](https://elixir-lang.org/)
+[![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 
-## Initial product focus
+## What it can do today
 
-The first functional milestone is intentionally small:
+- Run locally with Docker Compose.
+- Manage securities and edit their metadata.
+- Manage taxonomies/categories with descriptions.
+- Assign taxonomies/categories to securities.
+- Access a health endpoint for runtime checks.
+- Use the early branded Phoenix LiveView product shell at:
+  - `http://localhost:4000`
+  - `http://localhost:4000/securities`
+  - `http://localhost:4000/taxonomies`
 
-1. Manage portfolio categories/taxonomies with rich descriptions.
-2. Create securities with symbol, currency, optional exchange and optional ISIN.
-3. Record buy transactions.
-4. Calculate positions from the buy history.
-5. Resolve market-data candidates by symbol, for example `AAPL` -> `AAPL`, `AAPL.F`, `AAPL.SG`.
-6. Fetch/store simple quotes by symbol.
-7. Calculate portfolio value in the portfolio base currency.
+## Product direction
 
-## Chosen stack
+Portfolixir is moving toward a full ledger-driven portfolio platform:
 
-- **Backend:** Elixir + Phoenix
-- **UI:** Phoenix LiveView
-- **Database:** PostgreSQL
-- **Jobs:** Oban
-- **Market data:** Provider behaviour first, concrete providers later
-- **Charts:** Apache ECharts via LiveView hooks
-- **Styling:** Tailwind CSS + daisyUI
-- **Testing:** ExUnit, Phoenix.ConnTest, LiveViewTest, Mox, StreamData, ExCoveralls
-- **Quality:** Credo, Dialyxir, Sobelow, mix_audit
-- **Container:** Docker multi-arch, `linux/amd64` and `linux/arm64`
+- Ledger-like portfolio model with immutable history.
+- Securities and cash accounts as first-class objects.
+- Transaction capture (buy/sell/dividends/cash flows) for reproducible state.
+- Calculated security holdings and cash balances from transactions.
+- Manual quotes first, and provider-based quotes afterwards.
+- Valuation and allocation reporting driven by positions and quotes.
+- Import/export-friendly data handling.
+- A future read-only API and MCP path for AI-assisted analysis.
 
-## Why PostgreSQL first
+## Quick start
 
-The core data is relational and ledger-like: portfolios, currencies, securities, categories, transactions, prices, FX rates, imports and audit logs. PostgreSQL should be the canonical database. TimescaleDB may be added later for heavy time-series workloads, but should not be required for the MVP.
+### Prerequisites
 
-## Development style
+- Docker Engine
+- Docker Compose plugin (`docker compose`)
 
-Portfolixir is developed story-by-story using TDD:
-
-```text
-User Story -> Acceptance Criteria -> Failing Test -> Minimal Code -> Green Tests -> Refactor
-```
-
-Agents must read `AGENTS.md` before making changes.
-
-## Local development with Docker Compose
-
-Run the full local development stack with:
+### Run locally
 
 ```sh
 docker compose up --build
@@ -55,40 +56,42 @@ Then open:
 
 - http://localhost:4000
 - http://localhost:4000/health
-- http://localhost:4000/securities (main app product shell, also available at `/`)
-- http://localhost:4000/taxonomies (categories)
-- /taxonomies and /securities share the same branded product shell.
+- http://localhost:4000/securities
+- http://localhost:4000/taxonomies
 
-The full portfolio dashboard/homepage is not implemented yet; this is the currently available route.
-
-Useful cleanup:
+When done:
 
 ```sh
 docker compose down -v
 ```
 
-## Non-goals for the first milestone
+## Project status
 
-Do not implement these yet:
+- Early MVP / active development.
+- Not production-ready.
+- No real-money actions.
+- No broker execution.
+- No financial advice.
 
-- Portfolio Performance XML import beyond raw import storage
-- Full TTWROR/IRR calculations
-- LLM/MCP tools
-- Bitcoin wallet integrations
-- InfluxDB/TimescaleDB
-- Broker PDF parsing
-- Real-money bank or broker actions
-- External market-data calls inside tests
+## Technical stack
 
-## Support Portfolixir
+- Elixir
+- Phoenix
+- LiveView
+- PostgreSQL
+- Docker Compose
+- ExUnit / Phoenix.ConnTest / Phoenix.LiveViewTest
 
-Portfolixir is an independent open-source project.
+## Support
 
-If you find it useful, you can support development and maintenance with a
-voluntary payment via bunq.me:
+<a href="https://bunq.me/ahuservices?description=portfolixir">
+  <img src="https://img.shields.io/badge/Support%20Portfolixir-Voluntary%20Contribution-4CAF50?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support Portfolixir">
+</a>
 
-[Support Portfolixir via bunq.me](https://bunq.me/ahuservices?description=portfolixir)
+Support payments are voluntary contributions and do not create entitlement to support, features, consulting, invoices, or donation receipts.
 
-Support payments are voluntary contributions. They do not create any entitlement
-to support, features, consulting, commercial services, invoices, or a charitable
-donation receipt.
+## Contribution notes
+
+- Human contributors and AI coding agents should read [`AGENTS.md`](AGENTS.md) before making changes.
+- Story workflow lives in [`docs/product/llm-story-workflow.md`](docs/product/llm-story-workflow.md).
+- Product backlog lives in [`docs/product/pp-inspired-product-backlog.md`](docs/product/pp-inspired-product-backlog.md).
