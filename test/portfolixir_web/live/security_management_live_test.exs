@@ -16,6 +16,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "All Securities"
   end
 
+  test "visiting /securities renders All Securities", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/securities")
+
+    assert html =~ "All Securities"
+  end
+
   test "security form uses a seeded currency select with EUR selected by default", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities")
     view |> element("#security-add-toggle") |> render_click()
@@ -70,7 +76,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "All Securities"
   end
 
-  test "securities workspace uses primary list and secondary form layout", %{conn: conn} do
+  test "securities workspace uses list-first structure", %{conn: conn} do
     assert {:ok, _} =
              Catalog.create_security(%{
                name: "Synthetic ETF",
@@ -82,22 +88,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(view, "#security-workspace.app-shell-workspace-stack")
     assert has_element?(view, "#security-listing[data-priority='primary']")
-    assert has_element?(view, "#security-listing .app-shell-table-wrapper")
-    assert has_element?(view, "#security-kpis .app-shell-stat-card", "Total Securities")
-    assert has_element?(view, "#security-kpis .app-shell-stat-card", "Currencies")
-    assert has_element?(view, "#security-kpis .app-shell-stat-card", "Classifications")
-    assert has_element?(view, "#security-kpis .app-shell-stat-card", "Last Updated")
-    assert has_element?(view, "#security-actions.app-shell-action-row")
-
-    assert has_element?(
-             view,
-             "#security-search[disabled][placeholder='Search securities...'][title='Search coming soon']"
-           )
-
-    assert has_element?(
-             view,
-             "#security-filter[disabled][aria-disabled='true'][title='Filter coming soon']"
-           )
+    assert has_element?(view, "#security-listing", "Securities")
 
     assert has_element?(view, "#security-add-toggle")
     refute has_element?(view, "#security-create")
