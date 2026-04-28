@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Router do
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
+    plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
   end
