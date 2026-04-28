@@ -16,7 +16,8 @@ config :portfolixir, PortfolixirWeb.Endpoint,
     ip: if(bind_all_http in ["1", "true", "yes"], do: {0, 0, 0, 0}, else: {127, 0, 0, 1}),
     port: 4002
   ],
-  secret_key_base: "test_secret_key_base_which_should_be_changed_in_production",
+  secret_key_base:
+    "test_secret_key_base_which_should_be_changed_in_production_and_is_long_enough_for_sessions",
   server: false
 
 config :logger, level: :warning
