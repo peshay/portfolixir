@@ -38,5 +38,8 @@ fi
 echo "Running database migrations..."
 mix ecto.migrate
 
+echo "Ensuring first-run reference data..."
+mix run priv/repo/seeds.exs
+
 echo "Starting Phoenix..."
 exec "$@"
