@@ -5,6 +5,26 @@ defmodule Portfolixir.Taxonomies do
   alias Portfolixir.Repo
   alias Portfolixir.Taxonomies.{Category, Taxonomy}
 
+  @portfolio_performance_presets [
+    %{
+      name: "Strategien",
+      description: "Klassifizierungssystem im Stil von Portfolio Performance fuer Strategien."
+    },
+    %{
+      name: "Regionen",
+      description: "Klassifizierungssystem im Stil von Portfolio Performance fuer Regionen."
+    },
+    %{
+      name: "Branchen",
+      description: "Klassifizierungssystem im Stil von Portfolio Performance fuer Branchen."
+    },
+    %{
+      name: "Wertpapierarten",
+      description:
+        "Klassifizierungssystem im Stil von Portfolio Performance fuer Wertpapierarten."
+    }
+  ]
+
   def create_taxonomy(attrs) when is_map(attrs) do
     %Taxonomy{}
     |> Taxonomy.changeset(attrs)
@@ -12,7 +32,23 @@ defmodule Portfolixir.Taxonomies do
   end
 
   def list_taxonomies do
-    Repo.all(Taxonomy)
+    Repo.all(from(t in Taxonomy, order_by: [asc: t.id]))
+  end
+
+  def get_taxonomy_by_name(name) when is_binary(name) do
+    Repo.get_by(Taxonomy, name: name)
+  end
+
+  def ensure_portfolio_performance_presets! do
+    Enum.each(@portfolio_performance_presets, fn attrs ->
+      case get_taxonomy_by_name(attrs.name) do
+        nil ->
+          {:ok, _taxonomy} = create_taxonomy(attrs)
+
+        _taxonomy ->
+          {:ok, :already_exists}
+      end
+    end)
   end
 
   def create_category(attrs) when is_map(attrs) do
