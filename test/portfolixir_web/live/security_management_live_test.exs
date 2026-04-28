@@ -16,8 +16,8 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
-    assert has_element?(view, "img[src='/images/logo-mark.svg']")
-    assert has_element?(view, "img[alt='Portfolixir']")
+    assert has_element?(view, "img#app-shell-brand-light-wordmark[src='/images/logo-light.svg']")
+    assert has_element?(view, "img#app-shell-brand-mark[src='/images/logo-mark.svg']")
     assert has_element?(view, "#sidebar-toggle")
     assert has_element?(view, "#theme-toggle")
     assert html =~ "id=\"theme-toggle-script\""
@@ -32,7 +32,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "Add your first security to start building your portfolio."
   end
 
-  test "creates a security with name, symbol, currency_code, isin and wkn", %{conn: conn} do
+  test "creates a security with success feedback", %{conn: conn} do
     assert {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
 
     {:ok, view, _html} = live(conn, "/securities")
@@ -50,6 +50,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
       })
       |> render_submit()
 
+    assert html =~ "Security added."
     assert html =~ "Apple Inc."
     assert html =~ "AAPL"
     assert html =~ "USD"
@@ -92,8 +93,30 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
       })
       |> render_submit()
 
-    assert html =~ "name can"
-    assert html =~ "blank"
+    assert html =~ "id=\"security-form-error\""
+    assert html =~ "name"
+  end
+
+  test "shows understandable currency validation error and keeps field values", %{conn: conn} do
+    assert {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    html =
+      view
+      |> form("#security-form", %{
+        "security" => %{
+          "name" => "Bad Currency",
+          "symbol" => "BCY",
+          "currency_code" => ""
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "id=\"security-form-error\""
+    assert html =~ "currency"
+    assert html =~ "value=\"Bad Currency\""
+    assert html =~ "value=\"BCY\""
   end
 
   test "lists existing securities", %{conn: conn} do
