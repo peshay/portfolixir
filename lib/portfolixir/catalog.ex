@@ -97,15 +97,17 @@ defmodule Portfolixir.Catalog do
     Repo.delete(security)
   end
 
-  def seed_mvp_currencies! do
+  def ensure_mvp_currencies! do
     Enum.each(@mvp_currencies, fn attrs ->
       case get_currency_by_code(attrs.code) do
         nil ->
-          create_currency(attrs)
+          {:ok, _currency} = create_currency(attrs)
 
         _currency ->
           {:ok, :already_exists}
       end
     end)
   end
+
+  def seed_mvp_currencies!, do: ensure_mvp_currencies!()
 end
