@@ -12,6 +12,10 @@ defmodule Portfolixir.Portfolios do
     Repo.all(Portfolio)
   end
 
+  def first_portfolio do
+    Repo.one(from(portfolio in Portfolio, order_by: [asc: portfolio.id], limit: 1))
+  end
+
   def get_portfolio!(id) do
     Repo.get!(Portfolio, id)
   end
