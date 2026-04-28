@@ -46,283 +46,416 @@ defmodule PortfolixirWeb.AccountManagementLive do
     ~H"""
     <AppShell.shell current_path="/accounts">
       <header class="app-shell-page-header">
-        <h1>Accounts</h1>
-        <p>Manage portfolios, deposit accounts and securities accounts.</p>
+        <div>
+          <p class="app-shell-page-kicker">Master data</p>
+          <h1>Accounts</h1>
+          <p>Organize the portfolio, cash accounts and securities accounts that ledger activity posts to.</p>
+        </div>
       </header>
 
-      <section id="portfolio-management" class="app-shell-section-card app-shell-section-card--compact">
-        <h2 class="app-shell-section-title">Portfolio</h2>
+      <div id="account-workspace" class="app-shell-workspace-grid">
+        <div class="app-shell-workspace-stack" data-priority="primary">
+          <section id="account-overview" class="app-shell-section-card">
+            <div class="app-shell-section-header">
+              <div>
+                <h2 class="app-shell-section-title">Current portfolio</h2>
+                <p>The active portfolio sets the base currency for account and ledger workflows.</p>
+              </div>
+            </div>
 
-        <%= if @current_portfolio do %>
-          <p id="current-portfolio">
-            <strong><%= @current_portfolio.name %></strong>
-            <span><%= @current_portfolio.base_currency_code %></span>
-          </p>
-        <% else %>
-          <div id="no-portfolio" class="app-shell-empty-state">
-            <h3>No portfolio yet</h3>
-            <p>Create a portfolio first.</p>
-          </div>
-        <% end %>
-
-        <%= if @portfolio_success do %>
-          <p id="portfolio-form-success" class="app-shell-alert app-shell-alert--success" role="status" aria-live="polite">
-            <%= @portfolio_success %>
-          </p>
-        <% end %>
-
-        <%= if @portfolio_error do %>
-          <p id="portfolio-form-error" class="app-shell-alert app-shell-alert--error" role="status" aria-live="polite">
-            <%= @portfolio_error %>
-          </p>
-        <% end %>
-
-        <form id="portfolio-form" phx-submit="create_portfolio">
-          <label for="portfolio-name">Name</label>
-          <input id="portfolio-name" name="portfolio[name]" value={@portfolio_form["name"]} />
-
-          <label for="portfolio-base-currency">Base currency</label>
-          <select id="portfolio-base-currency" name="portfolio[base_currency_code]">
-            <option value="">Select currency</option>
-            <%= for currency <- @currencies do %>
-              <option
-                value={currency.code}
-                selected={currency.code == @portfolio_form["base_currency_code"]}
-              >
-                <%= currency.code %>
-              </option>
+            <%= if @current_portfolio do %>
+              <div id="current-portfolio" class="app-shell-summary-strip">
+                <div class="app-shell-summary-item">
+                  <span class="app-shell-summary-label">Portfolio</span>
+                  <span class="app-shell-summary-value"><%= @current_portfolio.name %></span>
+                </div>
+                <div class="app-shell-summary-item">
+                  <span class="app-shell-summary-label">Base currency</span>
+                  <span class="app-shell-summary-value"><%= @current_portfolio.base_currency_code %></span>
+                </div>
+                <div class="app-shell-summary-item">
+                  <span class="app-shell-summary-label">Deposit accounts</span>
+                  <span class="app-shell-summary-value"><%= Enum.count(@deposit_accounts) %></span>
+                </div>
+                <div class="app-shell-summary-item">
+                  <span class="app-shell-summary-label">Securities accounts</span>
+                  <span class="app-shell-summary-value"><%= Enum.count(@securities_accounts) %></span>
+                </div>
+              </div>
+            <% else %>
+              <div id="no-portfolio" class="app-shell-empty-state">
+                <h3>No portfolio yet</h3>
+                <p>Create a portfolio first.</p>
+              </div>
             <% end %>
-          </select>
+          </section>
 
-          <label for="portfolio-description">Description (optional)</label>
-          <textarea id="portfolio-description" rows="2" name="portfolio[description]">
-            <%= @portfolio_form["description"] %>
-          </textarea>
+          <%= if @current_portfolio do %>
+            <section id="deposit-accounts" class="app-shell-section-card">
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title">Deposit accounts</h2>
+                  <p>Cash and settlement accounts used for deposits, withdrawals, fees and trade cash impact.</p>
+                </div>
+                <span class="app-shell-badge"><%= Enum.count(@deposit_accounts) %> accounts</span>
+              </div>
 
-          <button type="submit" class="app-shell-primary">Create portfolio</button>
-        </form>
-      </section>
-
-      <%= if @current_portfolio do %>
-        <section id="deposit-accounts" class="app-shell-section-card">
-          <h2 class="app-shell-section-title">Deposit accounts</h2>
-
-          <%= if Enum.empty?(@deposit_accounts) do %>
-            <div id="no-deposit-accounts" class="app-shell-empty-state">
-              <h3>No deposit accounts yet</h3>
-              <p>Add a cash or settlement account.</p>
-            </div>
-          <% else %>
-            <table id="deposit-account-list">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Currency</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for account <- @deposit_accounts do %>
-                  <tr>
-                    <td><%= account.name %></td>
-                    <td><%= account.currency_code %></td>
-                    <td><%= account.notes || "—" %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          <% end %>
-
-          <%= if @deposit_account_success do %>
-            <p id="deposit-account-form-success" class="app-shell-alert app-shell-alert--success" role="status" aria-live="polite">
-              <%= @deposit_account_success %>
-            </p>
-          <% end %>
-
-          <%= if @deposit_account_error do %>
-            <p id="deposit-account-form-error" class="app-shell-alert app-shell-alert--error" role="status" aria-live="polite">
-              <%= @deposit_account_error %>
-            </p>
-          <% end %>
-
-          <form id="deposit-account-form" phx-submit="create_deposit_account">
-            <label for="deposit-account-name">Name</label>
-            <input
-              id="deposit-account-name"
-              name="deposit_account[name]"
-              value={@deposit_account_form["name"]}
-            />
-
-            <label for="deposit-account-currency">Currency</label>
-            <select id="deposit-account-currency" name="deposit_account[currency_code]">
-              <option value="">Select currency</option>
-              <%= for currency <- @currencies do %>
-                <option
-                  value={currency.code}
-                  selected={currency.code == @deposit_account_form["currency_code"]}
-                >
-                  <%= currency.code %>
-                </option>
+              <%= if Enum.empty?(@deposit_accounts) do %>
+                <div id="no-deposit-accounts" class="app-shell-empty-state">
+                  <h3>No deposit accounts yet</h3>
+                  <p>Add a cash or settlement account.</p>
+                </div>
+              <% else %>
+                <div class="app-shell-table-wrapper">
+                  <table id="deposit-account-list">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Currency</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for account <- @deposit_accounts do %>
+                        <tr>
+                          <td><strong><%= account.name %></strong></td>
+                          <td><%= account.currency_code %></td>
+                          <td><%= account.notes || "—" %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
               <% end %>
-            </select>
+            </section>
 
-            <label for="deposit-account-notes">Notes (optional)</label>
-            <textarea id="deposit-account-notes" rows="2" name="deposit_account[notes]">
-              <%= @deposit_account_form["notes"] %>
-            </textarea>
+            <section id="cash-balances" class="app-shell-section-card">
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title">Cash balances</h2>
+                  <p>Balances are calculated from ledger transactions.</p>
+                </div>
+              </div>
 
-            <button type="submit" class="app-shell-primary">Create deposit account</button>
-          </form>
-        </section>
-
-        <section id="cash-balances" class="app-shell-section-card">
-          <h2 class="app-shell-section-title">Cash balances</h2>
-
-          <%= if Enum.empty?(@cash_balance_rows) do %>
-            <div id="no-cash-balances" class="app-shell-empty-state">
-              <h3>No cash balances yet</h3>
-              <p>Balances are derived from ledger transactions.</p>
-            </div>
-          <% else %>
-            <table id="cash-balance-list">
-              <thead>
-                <tr>
-                  <th>Deposit account</th>
-                  <th>Currency</th>
-                  <th>Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for row <- @cash_balance_rows do %>
-                  <tr>
-                    <td><%= row.account_name %></td>
-                    <td><%= row.currency_code %></td>
-                    <td><%= format_money(row.balance) %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          <% end %>
-
-          <%= if not Enum.empty?(@missing_cash_impact_rows) do %>
-            <div id="missing-cash-impacts" class="app-shell-alert app-shell-alert--error">
-              <strong>Missing cash impact</strong>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Transaction</th>
-                    <th>Type</th>
-                    <th>Securities account</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <%= for row <- @missing_cash_impact_rows do %>
-                    <tr>
-                      <td><%= row.transaction_id %></td>
-                      <td><%= row.type %></td>
-                      <td><%= row.securities_account_name %></td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
-          <% end %>
-        </section>
-
-        <section id="securities-accounts" class="app-shell-section-card">
-          <h2 class="app-shell-section-title">Securities accounts</h2>
-
-          <%= if Enum.empty?(@securities_accounts) do %>
-            <div id="no-securities-accounts" class="app-shell-empty-state">
-              <h3>No securities accounts yet</h3>
-              <p>Add a brokerage or custody account.</p>
-            </div>
-          <% else %>
-            <table id="securities-account-list">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Currency</th>
-                  <th>Reference deposit account</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for account <- @securities_accounts do %>
-                  <tr>
-                    <td><%= account.name %></td>
-                    <td><%= account.currency_code %></td>
-                    <td><%= reference_deposit_account_name(account, @deposit_accounts) %></td>
-                    <td><%= account.notes || "—" %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          <% end %>
-
-          <%= if @securities_account_success do %>
-            <p id="securities-account-form-success" class="app-shell-alert app-shell-alert--success" role="status" aria-live="polite">
-              <%= @securities_account_success %>
-            </p>
-          <% end %>
-
-          <%= if @securities_account_error do %>
-            <p id="securities-account-form-error" class="app-shell-alert app-shell-alert--error" role="status" aria-live="polite">
-              <%= @securities_account_error %>
-            </p>
-          <% end %>
-
-          <form id="securities-account-form" phx-submit="create_securities_account">
-            <label for="securities-account-name">Name</label>
-            <input
-              id="securities-account-name"
-              name="securities_account[name]"
-              value={@securities_account_form["name"]}
-            />
-
-            <label for="securities-account-currency">Currency</label>
-            <select id="securities-account-currency" name="securities_account[currency_code]">
-              <option value="">Select currency</option>
-              <%= for currency <- @currencies do %>
-                <option
-                  value={currency.code}
-                  selected={currency.code == @securities_account_form["currency_code"]}
-                >
-                  <%= currency.code %>
-                </option>
+              <%= if Enum.empty?(@cash_balance_rows) do %>
+                <div id="no-cash-balances" class="app-shell-empty-state">
+                  <h3>No cash balances yet</h3>
+                  <p>Balances appear after deposit, withdrawal and trade transactions.</p>
+                </div>
+              <% else %>
+                <div class="app-shell-table-wrapper">
+                  <table id="cash-balance-list">
+                    <thead>
+                      <tr>
+                        <th>Deposit account</th>
+                        <th>Currency</th>
+                        <th>Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for row <- @cash_balance_rows do %>
+                        <tr>
+                          <td><%= row.account_name %></td>
+                          <td><%= row.currency_code %></td>
+                          <td><%= format_money(row.balance) %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
               <% end %>
-            </select>
 
-            <label for="securities-account-reference-deposit-account">
-              Reference deposit account (optional)
-            </label>
-            <select
-              id="securities-account-reference-deposit-account"
-              name="securities_account[reference_deposit_account_id]"
+              <p class="app-shell-warning-note">
+                Buy and sell cash impact is only reflected when a securities account has a reference deposit account.
+              </p>
+
+              <%= if not Enum.empty?(@missing_cash_impact_rows) do %>
+                <div id="missing-cash-impacts" class="app-shell-alert app-shell-alert--warning" role="alert">
+                  <strong>Missing cash impact</strong>
+                  <div class="app-shell-table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Transaction</th>
+                          <th>Type</th>
+                          <th>Securities account</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <%= for row <- @missing_cash_impact_rows do %>
+                          <tr>
+                            <td><%= row.transaction_id %></td>
+                            <td><%= row.type %></td>
+                            <td><%= row.securities_account_name %></td>
+                          </tr>
+                        <% end %>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              <% end %>
+            </section>
+
+            <section
+              id="securities-accounts"
+              class="app-shell-section-card"
+              data-priority="primary"
             >
-              <option value="">None</option>
-              <%= for account <- @deposit_accounts do %>
-                <option
-                  value={account.id}
-                  selected={
-                    "#{account.id}" ==
-                      @securities_account_form["reference_deposit_account_id"]
-                  }
-                >
-                  <%= account.name %>
-                </option>
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title">Securities accounts</h2>
+                  <p>Brokerage or custody accounts where security transactions are recorded.</p>
+                </div>
+                <span class="app-shell-badge"><%= Enum.count(@securities_accounts) %> accounts</span>
+              </div>
+
+              <%= if Enum.empty?(@securities_accounts) do %>
+                <div id="no-securities-accounts" class="app-shell-empty-state">
+                  <h3>No securities accounts yet</h3>
+                  <p>Add a brokerage or custody account.</p>
+                </div>
+              <% else %>
+                <div class="app-shell-table-wrapper">
+                  <table id="securities-account-list">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Currency</th>
+                        <th>Reference deposit account</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for account <- @securities_accounts do %>
+                        <tr>
+                          <td><strong><%= account.name %></strong></td>
+                          <td><%= account.currency_code %></td>
+                          <td><%= reference_deposit_account_name(account, @deposit_accounts) %></td>
+                          <td><%= account.notes || "—" %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
               <% end %>
-            </select>
+            </section>
+          <% end %>
+        </div>
 
-            <label for="securities-account-notes">Notes (optional)</label>
-            <textarea id="securities-account-notes" rows="2" name="securities_account[notes]">
-              <%= @securities_account_form["notes"] %>
-            </textarea>
+        <div class="app-shell-workspace-stack" data-priority="secondary">
+          <section id="portfolio-management" class="app-shell-section-card">
+            <div class="app-shell-section-header">
+              <div>
+                <h2 class="app-shell-section-title">Portfolio setup</h2>
+                <p class="app-shell-panel-intro">Create the initial portfolio before adding accounts.</p>
+              </div>
+            </div>
 
-            <button type="submit" class="app-shell-primary">Create securities account</button>
-          </form>
-        </section>
-      <% end %>
+            <%= if @portfolio_success do %>
+              <p
+                id="portfolio-form-success"
+                class="app-shell-alert app-shell-alert--success"
+                role="status"
+                aria-live="polite"
+              >
+                <%= @portfolio_success %>
+              </p>
+            <% end %>
+
+            <%= if @portfolio_error do %>
+              <p id="portfolio-form-error" class="app-shell-alert app-shell-alert--error" role="alert">
+                <%= @portfolio_error %>
+              </p>
+            <% end %>
+
+            <form id="portfolio-form" class="app-shell-form-grid" phx-submit="create_portfolio">
+              <div class="app-shell-field app-shell-field--full">
+                <label for="portfolio-name">Name</label>
+                <input id="portfolio-name" name="portfolio[name]" value={@portfolio_form["name"]} />
+              </div>
+
+              <div class="app-shell-field">
+                <label for="portfolio-base-currency">Base currency</label>
+                <select id="portfolio-base-currency" name="portfolio[base_currency_code]">
+                  <option value="">Select currency</option>
+                  <%= for currency <- @currencies do %>
+                    <option
+                      value={currency.code}
+                      selected={currency.code == @portfolio_form["base_currency_code"]}
+                    >
+                      <%= currency.code %>
+                    </option>
+                  <% end %>
+                </select>
+              </div>
+
+              <div class="app-shell-field app-shell-field--full">
+                <label for="portfolio-description">Description (optional)</label>
+                <textarea id="portfolio-description" rows="2" name="portfolio[description]"><%= @portfolio_form["description"] %></textarea>
+              </div>
+
+              <div class="app-shell-form-actions">
+                <button type="submit" class="app-shell-primary">Create portfolio</button>
+              </div>
+            </form>
+          </section>
+
+          <%= if @current_portfolio do %>
+            <section id="deposit-account-create" class="app-shell-section-card">
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title">Add deposit account</h2>
+                  <p class="app-shell-panel-intro">Use for cash, settlement and savings accounts.</p>
+                </div>
+              </div>
+
+              <%= if @deposit_account_success do %>
+                <p
+                  id="deposit-account-form-success"
+                  class="app-shell-alert app-shell-alert--success"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <%= @deposit_account_success %>
+                </p>
+              <% end %>
+
+              <%= if @deposit_account_error do %>
+                <p id="deposit-account-form-error" class="app-shell-alert app-shell-alert--error" role="alert">
+                  <%= @deposit_account_error %>
+                </p>
+              <% end %>
+
+              <form
+                id="deposit-account-form"
+                class="app-shell-form-grid"
+                phx-submit="create_deposit_account"
+              >
+                <div class="app-shell-field app-shell-field--full">
+                  <label for="deposit-account-name">Name</label>
+                  <input
+                    id="deposit-account-name"
+                    name="deposit_account[name]"
+                    value={@deposit_account_form["name"]}
+                  />
+                </div>
+
+                <div class="app-shell-field">
+                  <label for="deposit-account-currency">Currency</label>
+                  <select id="deposit-account-currency" name="deposit_account[currency_code]">
+                    <option value="">Select currency</option>
+                    <%= for currency <- @currencies do %>
+                      <option
+                        value={currency.code}
+                        selected={currency.code == @deposit_account_form["currency_code"]}
+                      >
+                        <%= currency.code %>
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+
+                <div class="app-shell-field app-shell-field--full">
+                  <label for="deposit-account-notes">Notes (optional)</label>
+                  <textarea id="deposit-account-notes" rows="2" name="deposit_account[notes]"><%= @deposit_account_form["notes"] %></textarea>
+                </div>
+
+                <div class="app-shell-form-actions">
+                  <button type="submit" class="app-shell-primary">Create deposit account</button>
+                </div>
+              </form>
+            </section>
+
+            <section id="securities-account-create" class="app-shell-section-card">
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title">Add securities account</h2>
+                  <p class="app-shell-panel-intro">Link a reference deposit account when trades should affect cash balances.</p>
+                </div>
+              </div>
+
+              <%= if @securities_account_success do %>
+                <p
+                  id="securities-account-form-success"
+                  class="app-shell-alert app-shell-alert--success"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <%= @securities_account_success %>
+                </p>
+              <% end %>
+
+              <%= if @securities_account_error do %>
+                <p id="securities-account-form-error" class="app-shell-alert app-shell-alert--error" role="alert">
+                  <%= @securities_account_error %>
+                </p>
+              <% end %>
+
+              <form
+                id="securities-account-form"
+                class="app-shell-form-grid"
+                phx-submit="create_securities_account"
+              >
+                <div class="app-shell-field app-shell-field--full">
+                  <label for="securities-account-name">Name</label>
+                  <input
+                    id="securities-account-name"
+                    name="securities_account[name]"
+                    value={@securities_account_form["name"]}
+                  />
+                </div>
+
+                <div class="app-shell-field">
+                  <label for="securities-account-currency">Currency</label>
+                  <select id="securities-account-currency" name="securities_account[currency_code]">
+                    <option value="">Select currency</option>
+                    <%= for currency <- @currencies do %>
+                      <option
+                        value={currency.code}
+                        selected={currency.code == @securities_account_form["currency_code"]}
+                      >
+                        <%= currency.code %>
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+
+                <div class="app-shell-field app-shell-field--full">
+                  <label for="securities-account-reference-deposit-account">
+                    Reference deposit account (optional)
+                  </label>
+                  <select
+                    id="securities-account-reference-deposit-account"
+                    name="securities_account[reference_deposit_account_id]"
+                  >
+                    <option value="">None</option>
+                    <%= for account <- @deposit_accounts do %>
+                      <option
+                        value={account.id}
+                        selected={
+                          "#{account.id}" ==
+                            @securities_account_form["reference_deposit_account_id"]
+                        }
+                      >
+                        <%= account.name %>
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+
+                <div class="app-shell-field app-shell-field--full">
+                  <label for="securities-account-notes">Notes (optional)</label>
+                  <textarea id="securities-account-notes" rows="2" name="securities_account[notes]"><%= @securities_account_form["notes"] %></textarea>
+                </div>
+
+                <div class="app-shell-form-actions">
+                  <button type="submit" class="app-shell-primary">Create securities account</button>
+                </div>
+              </form>
+            </section>
+          <% end %>
+        </div>
+      </div>
     </AppShell.shell>
     """
   end
