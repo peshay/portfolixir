@@ -33,8 +33,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         <p>Track and manage the securities in your portfolio.</p>
       </header>
 
-      <section id="security-listing" class="app-shell-section-card">
-        <h2 class="app-shell-section-title">Existing securities</h2>
+      <section
+        id="security-listing"
+        class="app-shell-section-card"
+        style="order: 1;"
+      >
+        <h2 class="app-shell-section-title">Securities</h2>
 
         <%= if Enum.empty?(@securities) do %>
           <div id="no-securities" class="app-shell-empty-state">
@@ -73,7 +77,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         <% end %>
       </section>
 
-      <section id="security-create" class="app-shell-section-card">
+      <section id="security-create" class="app-shell-section-card" style="order: 2; opacity: 0.96;">
         <h2 class="app-shell-section-title">Add security</h2>
         <p>Use the form below to add one security at a time.</p>
 
