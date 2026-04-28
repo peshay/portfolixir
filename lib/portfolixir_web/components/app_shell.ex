@@ -650,6 +650,23 @@ defmodule PortfolixirWeb.AppShell do
             </div>
 
             <div class="app-shell-nav-group">
+              <p class="app-shell-nav-group-title">Ledger</p>
+              <a
+                href="/transactions"
+                aria-label="Transactions"
+                title="Transactions"
+                class={if @current_path == "/transactions" do
+                  "app-shell-nav-link is-active"
+                else
+                  "app-shell-nav-link"
+                end}
+              >
+                <span class="app-shell-nav-icon" aria-hidden="true">T</span>
+                <span class="app-shell-nav-label">Transactions</span>
+              </a>
+            </div>
+
+            <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title">Classifications</p>
               <a
                 href="/taxonomies"
