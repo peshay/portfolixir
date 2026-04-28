@@ -26,11 +26,13 @@ defmodule PortfolixirWeb.AccountManagementLive do
   }
 
   def mount(_params, _session, socket) do
+    currencies = Catalog.list_currencies()
+
     socket =
       socket
-      |> assign(:portfolio_form, @portfolio_form_defaults)
-      |> assign(:deposit_account_form, @deposit_account_form_defaults)
-      |> assign(:securities_account_form, @securities_account_form_defaults)
+      |> assign(:portfolio_form, default_portfolio_form(currencies))
+      |> assign(:deposit_account_form, default_deposit_account_form(currencies))
+      |> assign(:securities_account_form, default_securities_account_form(currencies))
       |> assign(:portfolio_error, nil)
       |> assign(:portfolio_success, nil)
       |> assign(:deposit_account_error, nil)
@@ -47,9 +49,9 @@ defmodule PortfolixirWeb.AccountManagementLive do
     <AppShell.shell current_path="/accounts">
       <header class="app-shell-page-header">
         <div>
-          <p class="app-shell-page-kicker">Master data</p>
-          <h1>Accounts Overview</h1>
-          <p>Organize the portfolio, cash accounts and securities accounts that ledger activity posts to.</p>
+          <p class="app-shell-page-kicker"><%= gettext("Master data") %></p>
+          <h1><%= gettext("Accounts Overview") %></h1>
+          <p><%= gettext("Organize the portfolio, cash accounts and securities accounts that ledger activity posts to.") %></p>
         </div>
       </header>
 
@@ -59,62 +61,62 @@ defmodule PortfolixirWeb.AccountManagementLive do
             <section id="account-overview" class="app-shell-section-card">
               <div class="app-shell-section-header">
                 <div>
-                  <h2 class="app-shell-section-title">Current portfolio</h2>
-                  <p>The active portfolio sets the base currency for account and ledger workflows.</p>
+                  <h2 class="app-shell-section-title"><%= gettext("Current portfolio") %></h2>
+                  <p><%= gettext("The active portfolio sets the base currency for account and ledger workflows.") %></p>
                 </div>
               </div>
 
               <div id="current-portfolio" class="app-shell-summary-strip">
                 <div class="app-shell-summary-item">
-                  <span class="app-shell-summary-label">Portfolio</span>
+                  <span class="app-shell-summary-label"><%= gettext("Portfolio") %></span>
                   <span class="app-shell-summary-value"><%= @current_portfolio.name %></span>
                 </div>
                 <div class="app-shell-summary-item">
-                  <span class="app-shell-summary-label">Base currency</span>
+                  <span class="app-shell-summary-label"><%= gettext("Base currency") %></span>
                   <span class="app-shell-summary-value"><%= @current_portfolio.base_currency_code %></span>
                 </div>
                 <div class="app-shell-summary-item">
-                  <span class="app-shell-summary-label">Deposit accounts</span>
+                  <span class="app-shell-summary-label"><%= gettext("Deposit accounts") %></span>
                   <span class="app-shell-summary-value"><%= Enum.count(@deposit_accounts) %></span>
                 </div>
                 <div class="app-shell-summary-item">
-                  <span class="app-shell-summary-label">Securities accounts</span>
+                  <span class="app-shell-summary-label"><%= gettext("Securities accounts") %></span>
                   <span class="app-shell-summary-value"><%= Enum.count(@securities_accounts) %></span>
                 </div>
               </div>
             </section>
 
-            <section id="account-kpis" class="app-shell-stat-grid" aria-label="Account summary">
+            <section id="account-kpis" class="app-shell-stat-grid" aria-label={gettext("Account summary")}>
               <div class="app-shell-stat-card">
                 <span class="app-shell-stat-icon" aria-hidden="true">DA</span>
                 <div>
-                  <span class="app-shell-stat-label">Deposit accounts</span>
+                  <span class="app-shell-stat-label"><%= gettext("Deposit accounts") %></span>
                   <span class="app-shell-stat-value"><%= Enum.count(@deposit_accounts) %></span>
-                  <span class="app-shell-stat-hint">Cash and settlement</span>
+                  <span class="app-shell-stat-hint"><%= gettext("Cash and settlement") %></span>
                 </div>
               </div>
               <div class="app-shell-stat-card">
                 <span class="app-shell-stat-icon" aria-hidden="true">SA</span>
                 <div>
-                  <span class="app-shell-stat-label">Securities accounts</span>
+                  <span class="app-shell-stat-label"><%= gettext("Securities accounts") %></span>
                   <span class="app-shell-stat-value"><%= Enum.count(@securities_accounts) %></span>
-                  <span class="app-shell-stat-hint">Brokerage and custody</span>
+                  <span class="app-shell-stat-hint"><%= gettext("Brokerage and custody") %></span>
                 </div>
               </div>
               <div class="app-shell-stat-card">
                 <span class="app-shell-stat-icon" aria-hidden="true">CB</span>
                 <div>
-                  <span class="app-shell-stat-label">Cash balances</span>
+                  <span class="app-shell-stat-label"><%= gettext("Cash balances") %></span>
                   <span class="app-shell-stat-value"><%= Enum.count(@cash_balance_rows) %></span>
-                  <span class="app-shell-stat-hint">Calculated rows</span>
+                  <span class="app-shell-stat-hint"><%= gettext("Calculated rows") %></span>
                 </div>
               </div>
               <div class="app-shell-stat-card">
                 <span class="app-shell-stat-icon" aria-hidden="true">!</span>
                 <div>
-                  <span class="app-shell-stat-label">Cash impact warnings</span>
+                  <span class="app-shell-stat-label"><%= gettext("Cash impact warnings") %></span>
                   <span class="app-shell-stat-value"><%= Enum.count(@missing_cash_impact_rows) %></span>
-                  <span class="app-shell-stat-hint">Needs attention</span>
+                  <span class="app-shell-stat-hint"><%= gettext("Needs attention") %></span>
                 </div>
               </div>
             </section>
@@ -122,25 +124,25 @@ defmodule PortfolixirWeb.AccountManagementLive do
             <section id="deposit-accounts" class="app-shell-section-card">
               <div class="app-shell-section-header">
                 <div>
-                  <h2 class="app-shell-section-title">Deposit accounts</h2>
-                  <p>Cash and settlement accounts used for deposits, withdrawals, fees and trade cash impact.</p>
+                  <h2 class="app-shell-section-title"><%= gettext("Deposit accounts") %></h2>
+                  <p><%= gettext("Cash and settlement accounts used for deposits, withdrawals, fees and trade cash impact.") %></p>
                 </div>
-                <span class="app-shell-badge"><%= Enum.count(@deposit_accounts) %> accounts</span>
+                <span class="app-shell-badge"><%= ngettext("%{count} account", "%{count} accounts", Enum.count(@deposit_accounts), count: Enum.count(@deposit_accounts)) %></span>
               </div>
 
               <%= if Enum.empty?(@deposit_accounts) do %>
                 <div id="no-deposit-accounts" class="app-shell-empty-state">
-                  <h3>No deposit accounts yet</h3>
-                  <p>Add a cash or settlement account.</p>
+                  <h3><%= gettext("No deposit accounts yet") %></h3>
+                  <p><%= gettext("Add a cash or settlement account.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="deposit-account-list">
                     <thead>
                       <tr>
-                        <th>Name</th>
-                        <th>Currency</th>
-                        <th>Notes</th>
+                        <th><%= gettext("Name") %></th>
+                        <th><%= gettext("Currency") %></th>
+                        <th><%= gettext("Notes") %></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -160,24 +162,24 @@ defmodule PortfolixirWeb.AccountManagementLive do
             <section id="cash-balances" class="app-shell-section-card">
               <div class="app-shell-section-header">
                 <div>
-                  <h2 class="app-shell-section-title">Cash balances</h2>
-                  <p>Balances are calculated from ledger transactions.</p>
+                  <h2 class="app-shell-section-title"><%= gettext("Cash balances") %></h2>
+                  <p><%= gettext("Balances are calculated from ledger transactions.") %></p>
                 </div>
               </div>
 
               <%= if Enum.empty?(@cash_balance_rows) do %>
                 <div id="no-cash-balances" class="app-shell-empty-state">
-                  <h3>No cash balances yet</h3>
-                  <p>Balances appear after deposit, withdrawal and trade transactions.</p>
+                  <h3><%= gettext("No cash balances yet") %></h3>
+                  <p><%= gettext("Balances appear after deposit, withdrawal and trade transactions.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="cash-balance-list">
                     <thead>
                       <tr>
-                        <th>Deposit account</th>
-                        <th>Currency</th>
-                        <th>Balance</th>
+                        <th><%= gettext("Deposit account") %></th>
+                        <th><%= gettext("Currency") %></th>
+                        <th><%= gettext("Balance") %></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -194,19 +196,19 @@ defmodule PortfolixirWeb.AccountManagementLive do
               <% end %>
 
               <p class="app-shell-warning-note">
-                Buy and sell cash impact is only reflected when a securities account has a reference deposit account.
+                <%= gettext("Buy and sell cash impact is only reflected when a securities account has a reference deposit account.") %>
               </p>
 
               <%= if not Enum.empty?(@missing_cash_impact_rows) do %>
                 <div id="missing-cash-impacts" class="app-shell-alert app-shell-alert--warning" role="alert">
-                  <strong>Missing cash impact</strong>
+                  <strong><%= gettext("Missing cash impact") %></strong>
                   <div class="app-shell-table-wrapper">
                     <table>
                       <thead>
                         <tr>
-                          <th>Transaction</th>
-                          <th>Type</th>
-                          <th>Securities account</th>
+                          <th><%= gettext("Transaction") %></th>
+                          <th><%= gettext("Type") %></th>
+                          <th><%= gettext("Securities account") %></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -231,26 +233,26 @@ defmodule PortfolixirWeb.AccountManagementLive do
             >
               <div class="app-shell-section-header">
                 <div>
-                  <h2 class="app-shell-section-title">Securities accounts</h2>
-                  <p>Brokerage or custody accounts where security transactions are recorded.</p>
+                  <h2 class="app-shell-section-title"><%= gettext("Securities accounts") %></h2>
+                  <p><%= gettext("Brokerage or custody accounts where security transactions are recorded.") %></p>
                 </div>
-                <span class="app-shell-badge"><%= Enum.count(@securities_accounts) %> accounts</span>
+                <span class="app-shell-badge"><%= ngettext("%{count} account", "%{count} accounts", Enum.count(@securities_accounts), count: Enum.count(@securities_accounts)) %></span>
               </div>
 
               <%= if Enum.empty?(@securities_accounts) do %>
                 <div id="no-securities-accounts" class="app-shell-empty-state">
-                  <h3>No securities accounts yet</h3>
-                  <p>Add a brokerage or custody account.</p>
+                  <h3><%= gettext("No securities accounts yet") %></h3>
+                  <p><%= gettext("Add a brokerage or custody account.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="securities-account-list">
                     <thead>
                       <tr>
-                        <th>Name</th>
-                        <th>Currency</th>
-                        <th>Reference deposit account</th>
-                        <th>Notes</th>
+                        <th><%= gettext("Name") %></th>
+                        <th><%= gettext("Currency") %></th>
+                        <th><%= gettext("Reference deposit account") %></th>
+                        <th><%= gettext("Notes") %></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -269,14 +271,14 @@ defmodule PortfolixirWeb.AccountManagementLive do
             </section>
           <% else %>
             <section id="portfolio-onboarding" class="app-shell-section-card app-shell-onboarding">
-              <p class="app-shell-page-kicker">First run</p>
-              <h2>Create your first portfolio</h2>
+              <p class="app-shell-page-kicker"><%= gettext("First run") %></p>
+              <h2><%= gettext("Create your first portfolio") %></h2>
               <p>
-                A portfolio is the container for accounts, transactions and derived reports.
+                <%= gettext("A portfolio is the container for accounts, transactions and derived reports.") %>
               </p>
               <div id="no-portfolio" class="app-shell-empty-state app-shell-empty-state--inline" role="status">
-                <h3>No portfolio yet</h3>
-                <p>Create this portfolio to unlock account setup, cash balances and ledger workflows.</p>
+                <h3><%= gettext("No portfolio yet") %></h3>
+                <p><%= gettext("Create this portfolio to unlock account setup, cash balances and ledger workflows.") %></p>
               </div>
             </section>
           <% end %>
@@ -286,8 +288,8 @@ defmodule PortfolixirWeb.AccountManagementLive do
           <section id="portfolio-management" class="app-shell-section-card">
             <div class="app-shell-section-header">
               <div>
-                <h2 class="app-shell-section-title">Portfolio setup</h2>
-                <p class="app-shell-panel-intro">Create the initial portfolio before adding accounts.</p>
+                <h2 class="app-shell-section-title"><%= gettext("Portfolio setup") %></h2>
+                <p class="app-shell-panel-intro"><%= gettext("Create the initial portfolio before adding accounts.") %></p>
               </div>
             </div>
 
@@ -310,32 +312,32 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
             <form id="portfolio-form" class="app-shell-form-grid" phx-submit="create_portfolio">
               <div class="app-shell-field app-shell-field--full">
-                <label for="portfolio-name">Name</label>
+                <label for="portfolio-name"><%= gettext("Name") %></label>
                 <input id="portfolio-name" name="portfolio[name]" value={@portfolio_form["name"]} />
               </div>
 
               <div class="app-shell-field">
-                <label for="portfolio-base-currency">Base currency</label>
+                <label for="portfolio-base-currency"><%= gettext("Base currency") %></label>
                 <select id="portfolio-base-currency" name="portfolio[base_currency_code]">
-                  <option value="">Select currency</option>
+                  <option value=""><%= gettext("Select currency") %></option>
                   <%= for currency <- @currencies do %>
                     <option
                       value={currency.code}
                       selected={currency.code == @portfolio_form["base_currency_code"]}
                     >
-                      <%= currency.code %>
+                      <%= currency_option_label(currency) %>
                     </option>
                   <% end %>
                 </select>
               </div>
 
               <div class="app-shell-field app-shell-field--full">
-                <label for="portfolio-description">Description (optional)</label>
+                <label for="portfolio-description"><%= gettext("Description (optional)") %></label>
                 <textarea id="portfolio-description" rows="2" name="portfolio[description]"><%= @portfolio_form["description"] %></textarea>
               </div>
 
               <div class="app-shell-form-actions">
-                <button type="submit" class="app-shell-primary">Create portfolio</button>
+                <button type="submit" class="app-shell-primary"><%= gettext("Create portfolio") %></button>
               </div>
             </form>
           </section>
@@ -344,8 +346,8 @@ defmodule PortfolixirWeb.AccountManagementLive do
             <section id="deposit-account-create" class="app-shell-section-card">
               <div class="app-shell-section-header">
                 <div>
-                  <h2 class="app-shell-section-title">Add deposit account</h2>
-                  <p class="app-shell-panel-intro">Use for cash, settlement and savings accounts.</p>
+                  <h2 class="app-shell-section-title"><%= gettext("Add deposit account") %></h2>
+                  <p class="app-shell-panel-intro"><%= gettext("Use for cash, settlement and savings accounts.") %></p>
                 </div>
               </div>
 
@@ -372,7 +374,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 phx-submit="create_deposit_account"
               >
                 <div class="app-shell-field app-shell-field--full">
-                  <label for="deposit-account-name">Name</label>
+                  <label for="deposit-account-name"><%= gettext("Name") %></label>
                   <input
                     id="deposit-account-name"
                     name="deposit_account[name]"
@@ -381,27 +383,27 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 </div>
 
                 <div class="app-shell-field">
-                  <label for="deposit-account-currency">Currency</label>
+                  <label for="deposit-account-currency"><%= gettext("Currency") %></label>
                   <select id="deposit-account-currency" name="deposit_account[currency_code]">
-                    <option value="">Select currency</option>
+                    <option value=""><%= gettext("Select currency") %></option>
                     <%= for currency <- @currencies do %>
                       <option
                         value={currency.code}
                         selected={currency.code == @deposit_account_form["currency_code"]}
                       >
-                        <%= currency.code %>
+                        <%= currency_option_label(currency) %>
                       </option>
                     <% end %>
                   </select>
                 </div>
 
                 <div class="app-shell-field app-shell-field--full">
-                  <label for="deposit-account-notes">Notes (optional)</label>
+                  <label for="deposit-account-notes"><%= gettext("Notes (optional)") %></label>
                   <textarea id="deposit-account-notes" rows="2" name="deposit_account[notes]"><%= @deposit_account_form["notes"] %></textarea>
                 </div>
 
                 <div class="app-shell-form-actions">
-                  <button type="submit" class="app-shell-primary">Create deposit account</button>
+                  <button type="submit" class="app-shell-primary"><%= gettext("Create deposit account") %></button>
                 </div>
               </form>
             </section>
@@ -409,8 +411,8 @@ defmodule PortfolixirWeb.AccountManagementLive do
             <section id="securities-account-create" class="app-shell-section-card">
               <div class="app-shell-section-header">
                 <div>
-                  <h2 class="app-shell-section-title">Add securities account</h2>
-                  <p class="app-shell-panel-intro">Link a reference deposit account when trades should affect cash balances.</p>
+                  <h2 class="app-shell-section-title"><%= gettext("Add securities account") %></h2>
+                  <p class="app-shell-panel-intro"><%= gettext("Link a reference deposit account when trades should affect cash balances.") %></p>
                 </div>
               </div>
 
@@ -437,7 +439,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 phx-submit="create_securities_account"
               >
                 <div class="app-shell-field app-shell-field--full">
-                  <label for="securities-account-name">Name</label>
+                  <label for="securities-account-name"><%= gettext("Name") %></label>
                   <input
                     id="securities-account-name"
                     name="securities_account[name]"
@@ -446,15 +448,15 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 </div>
 
                 <div class="app-shell-field">
-                  <label for="securities-account-currency">Currency</label>
+                  <label for="securities-account-currency"><%= gettext("Currency") %></label>
                   <select id="securities-account-currency" name="securities_account[currency_code]">
-                    <option value="">Select currency</option>
+                    <option value=""><%= gettext("Select currency") %></option>
                     <%= for currency <- @currencies do %>
                       <option
                         value={currency.code}
                         selected={currency.code == @securities_account_form["currency_code"]}
                       >
-                        <%= currency.code %>
+                        <%= currency_option_label(currency) %>
                       </option>
                     <% end %>
                   </select>
@@ -462,13 +464,13 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
                 <div class="app-shell-field app-shell-field--full">
                   <label for="securities-account-reference-deposit-account">
-                    Reference deposit account (optional)
+                    <%= gettext("Reference deposit account (optional)") %>
                   </label>
                   <select
                     id="securities-account-reference-deposit-account"
                     name="securities_account[reference_deposit_account_id]"
                   >
-                    <option value="">None</option>
+                    <option value=""><%= gettext("None") %></option>
                     <%= for account <- @deposit_accounts do %>
                       <option
                         value={account.id}
@@ -484,12 +486,12 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 </div>
 
                 <div class="app-shell-field app-shell-field--full">
-                  <label for="securities-account-notes">Notes (optional)</label>
+                  <label for="securities-account-notes"><%= gettext("Notes (optional)") %></label>
                   <textarea id="securities-account-notes" rows="2" name="securities_account[notes]"><%= @securities_account_form["notes"] %></textarea>
                 </div>
 
                 <div class="app-shell-form-actions">
-                  <button type="submit" class="app-shell-primary">Create securities account</button>
+                  <button type="submit" class="app-shell-primary"><%= gettext("Create securities account") %></button>
                 </div>
               </form>
             </section>
@@ -505,9 +507,9 @@ defmodule PortfolixirWeb.AccountManagementLive do
       {:ok, _portfolio} ->
         {:noreply,
          socket
-         |> assign(:portfolio_form, @portfolio_form_defaults)
+         |> assign(:portfolio_form, default_portfolio_form(socket.assigns.currencies))
          |> assign(:portfolio_error, nil)
-         |> assign(:portfolio_success, "Portfolio created.")
+         |> assign(:portfolio_success, gettext("Portfolio created."))
          |> load_account_state()}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -532,9 +534,9 @@ defmodule PortfolixirWeb.AccountManagementLive do
       {:ok, _account} ->
         {:noreply,
          socket
-         |> assign(:deposit_account_form, @deposit_account_form_defaults)
+         |> assign(:deposit_account_form, default_deposit_account_form(socket.assigns.currencies))
          |> assign(:deposit_account_error, nil)
-         |> assign(:deposit_account_success, "Deposit account created.")
+         |> assign(:deposit_account_success, gettext("Deposit account created."))
          |> assign(:securities_account_success, nil)
          |> load_account_state()}
 
@@ -560,9 +562,12 @@ defmodule PortfolixirWeb.AccountManagementLive do
       {:ok, _account} ->
         {:noreply,
          socket
-         |> assign(:securities_account_form, @securities_account_form_defaults)
+         |> assign(
+           :securities_account_form,
+           default_securities_account_form(socket.assigns.currencies)
+         )
          |> assign(:securities_account_error, nil)
-         |> assign(:securities_account_success, "Securities account created.")
+         |> assign(:securities_account_success, gettext("Securities account created."))
          |> assign(:deposit_account_success, nil)
          |> load_account_state()}
 
@@ -670,6 +675,34 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
   defp name_lookup(records) do
     Map.new(records, &{&1.id, &1.name})
+  end
+
+  defp default_portfolio_form(currencies) do
+    Map.put(@portfolio_form_defaults, "base_currency_code", preferred_currency_code(currencies))
+  end
+
+  defp default_deposit_account_form(currencies) do
+    Map.put(@deposit_account_form_defaults, "currency_code", preferred_currency_code(currencies))
+  end
+
+  defp default_securities_account_form(currencies) do
+    Map.put(
+      @securities_account_form_defaults,
+      "currency_code",
+      preferred_currency_code(currencies)
+    )
+  end
+
+  defp preferred_currency_code(currencies) do
+    cond do
+      Enum.any?(currencies, &(&1.code == "EUR")) -> "EUR"
+      currency = List.first(currencies) -> currency.code
+      true -> ""
+    end
+  end
+
+  defp currency_option_label(currency) do
+    "#{currency.code} - #{currency.name}"
   end
 
   defp format_money(nil), do: "—"
