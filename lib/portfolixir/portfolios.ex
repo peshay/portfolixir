@@ -5,6 +5,7 @@ defmodule Portfolixir.Portfolios do
 
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.DepositAccount
+  alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
   def list_portfolios do
@@ -59,6 +60,39 @@ defmodule Portfolixir.Portfolios do
   end
 
   def delete_deposit_account(%DepositAccount{} = account) do
+    Repo.delete(account)
+  end
+
+  def list_securities_accounts do
+    Repo.all(from(account in SecuritiesAccount, order_by: [asc: account.name]))
+  end
+
+  def list_securities_accounts_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
+    Repo.all(
+      from(account in SecuritiesAccount,
+        where: account.portfolio_id == ^portfolio_id,
+        order_by: [asc: account.name]
+      )
+    )
+  end
+
+  def get_securities_account!(id) do
+    Repo.get!(SecuritiesAccount, id)
+  end
+
+  def create_securities_account(attrs) when is_map(attrs) do
+    %SecuritiesAccount{}
+    |> SecuritiesAccount.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_securities_account(%SecuritiesAccount{} = account, attrs) when is_map(attrs) do
+    account
+    |> SecuritiesAccount.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_securities_account(%SecuritiesAccount{} = account) do
     Repo.delete(account)
   end
 end
