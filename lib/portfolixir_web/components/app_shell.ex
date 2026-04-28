@@ -23,6 +23,7 @@ defmodule PortfolixirWeb.AppShell do
           --pfx-accent: #6d28d9;
           --pfx-accent-soft: #ede9fe;
           --pfx-accent-faint: rgba(109, 40, 217, 0.14);
+          --pfx-logo-bg: #f8fbff;
         }
 
         [data-theme="dark"] {
@@ -38,6 +39,7 @@ defmodule PortfolixirWeb.AppShell do
           --pfx-accent: #a78bfa;
           --pfx-accent-soft: #312e81;
           --pfx-accent-faint: rgba(167, 139, 250, 0.22);
+          --pfx-logo-bg: #f8fbff;
         }
 
         #app-shell {
@@ -102,13 +104,30 @@ defmodule PortfolixirWeb.AppShell do
           color: var(--pfx-text);
         }
 
-        #app-shell .app-shell-brand .app-shell-logo {
+        #app-shell .app-shell-logo-frame {
           width: 2rem;
           height: 2rem;
           max-width: 2rem;
           max-height: 2rem;
           min-width: 2rem;
           min-height: 2rem;
+          border-radius: 0.6rem;
+          background: var(--pfx-logo-bg);
+          border: 1px solid color-mix(in srgb, var(--pfx-border) 75%, transparent);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex: none;
+          box-sizing: border-box;
+        }
+
+        #app-shell .app-shell-logo {
+          width: 1.52rem;
+          height: 1.52rem;
+          max-width: 1.52rem;
+          max-height: 1.52rem;
+          min-width: 1.52rem;
+          min-height: 1.52rem;
           object-fit: contain;
           display: inline-block;
           flex: none;
@@ -504,12 +523,14 @@ defmodule PortfolixirWeb.AppShell do
         <aside class="app-shell-sidebar" aria-label="Primary navigation">
           <div class="app-shell-sidebar-top">
           <a href="/securities" class="app-shell-brand" aria-label="Portfolixir">
-            <img
-              id="app-shell-brand-mark"
-              class="app-shell-logo"
-              src="/images/logo-mark.svg"
-              alt="Portfolixir"
-            />
+            <span class="app-shell-logo-frame">
+              <img
+                id="app-shell-brand-mark"
+                class="app-shell-logo"
+                src="/images/logo-mark.svg"
+                alt="Portfolixir"
+              />
+            </span>
             <span class="app-shell-brand-label">Portfolixir</span>
           </a>
             <button
@@ -580,7 +601,6 @@ defmodule PortfolixirWeb.AppShell do
         var sidebarKey = "portfolixir-sidebar-collapsed";
         var shell = document.getElementById("app-shell");
         var toggle = document.getElementById("theme-toggle");
-        var brandMark = document.getElementById("app-shell-brand-mark");
         var themeLabel = document.querySelector("#theme-toggle .app-shell-theme-label");
         var themeIcon = document.querySelector("#theme-toggle .app-shell-theme-icon");
         var sidebarToggle = document.getElementById("sidebar-toggle");
@@ -606,10 +626,6 @@ defmodule PortfolixirWeb.AppShell do
           if (toggle) {
             toggle.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
             toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
-          }
-
-          if (brandMark) {
-            brandMark.src = isDark ? "/images/logo-dark.svg" : "/images/logo-mark.svg";
           }
 
           try {
