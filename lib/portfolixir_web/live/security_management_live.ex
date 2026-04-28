@@ -16,9 +16,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   }
 
   def mount(_params, _session, socket) do
+    currencies = Catalog.list_currencies()
+
     socket =
       socket
-      |> assign(:security_form, @security_form_defaults)
+      |> assign(:currencies, currencies)
+      |> assign(:security_form, default_security_form(currencies))
       |> assign(:show_security_form, false)
       |> assign(:security_error, nil)
       |> assign(:security_success, nil)
@@ -32,23 +35,23 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     <AppShell.shell current_path="/securities">
       <header class="app-shell-page-header">
         <div>
-          <p class="app-shell-page-kicker">Securities</p>
-          <h1>All Securities</h1>
-          <p>Manage your securities master data for portfolio positions, transactions and future quotes.</p>
+          <p class="app-shell-page-kicker"><%= gettext("Securities") %></p>
+          <h1><%= gettext("All Securities") %></h1>
+          <p><%= gettext("Manage your securities master data for portfolio positions, transactions and future quotes.") %></p>
         </div>
       </header>
 
       <div id="security-actions" class="app-shell-action-row">
         <div class="app-shell-action-row-left">
-          <label class="app-shell-visually-hidden" for="security-search">Search securities</label>
+          <label class="app-shell-visually-hidden" for="security-search"><%= gettext("Search securities") %></label>
           <input
             id="security-search"
             class="app-shell-search"
             type="search"
-            placeholder="Search securities..."
+            placeholder={gettext("Search securities...")}
             disabled
-            aria-label="Search coming soon"
-            title="Search coming soon"
+            aria-label={gettext("Search coming soon")}
+            title={gettext("Search coming soon")}
           />
           <button
             id="security-filter"
@@ -56,10 +59,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             class="app-shell-secondary"
             disabled
             aria-disabled="true"
-            aria-label="Filter coming soon"
-            title="Filter coming soon"
+            aria-label={gettext("Filter coming soon")}
+            title={gettext("Filter coming soon")}
           >
-            Filter
+            <%= gettext("Filter") %>
           </button>
         </div>
         <div class="app-shell-action-row-right">
@@ -71,40 +74,40 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             aria-expanded={if @show_security_form, do: "true", else: "false"}
             aria-controls="security-create"
           >
-            <%= if @show_security_form, do: "Close", else: "Add Security" %>
+            <%= if @show_security_form, do: gettext("Close"), else: gettext("Add Security") %>
           </button>
         </div>
       </div>
 
-      <section id="security-kpis" class="app-shell-stat-grid" aria-label="Security summary">
+      <section id="security-kpis" class="app-shell-stat-grid" aria-label={gettext("Security summary")}>
         <div class="app-shell-stat-card">
           <span class="app-shell-stat-icon" aria-hidden="true">SEC</span>
           <div>
-            <span class="app-shell-stat-label">Total Securities</span>
+            <span class="app-shell-stat-label"><%= gettext("Total Securities") %></span>
             <span class="app-shell-stat-value"><%= Enum.count(@securities) %></span>
-            <span class="app-shell-stat-hint">All time</span>
+            <span class="app-shell-stat-hint"><%= gettext("All time") %></span>
           </div>
         </div>
         <div class="app-shell-stat-card">
           <span class="app-shell-stat-icon" aria-hidden="true">CCY</span>
           <div>
-            <span class="app-shell-stat-label">Currencies</span>
+            <span class="app-shell-stat-label"><%= gettext("Currencies") %></span>
             <span class="app-shell-stat-value"><%= unique_currency_count(@securities) %></span>
-            <span class="app-shell-stat-hint">In use</span>
+            <span class="app-shell-stat-hint"><%= gettext("In use") %></span>
           </div>
         </div>
         <div class="app-shell-stat-card">
           <span class="app-shell-stat-icon" aria-hidden="true">CL</span>
           <div>
-            <span class="app-shell-stat-label">Classifications</span>
+            <span class="app-shell-stat-label"><%= gettext("Classifications") %></span>
             <span class="app-shell-stat-value">—</span>
-            <span class="app-shell-stat-hint">Assignments later</span>
+            <span class="app-shell-stat-hint"><%= gettext("Assignments later") %></span>
           </div>
         </div>
         <div class="app-shell-stat-card">
           <span class="app-shell-stat-icon" aria-hidden="true">UPD</span>
           <div>
-            <span class="app-shell-stat-label">Last Updated</span>
+            <span class="app-shell-stat-label"><%= gettext("Last Updated") %></span>
             <span class="app-shell-stat-value"><%= last_updated_label(@securities) %></span>
             <span class="app-shell-stat-hint"><%= last_updated_hint(@securities) %></span>
           </div>
@@ -119,31 +122,33 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         >
           <div class="app-shell-section-header">
             <div>
-              <h2 class="app-shell-section-title">Security master</h2>
-              <p>Core identifiers used by the ledger and valuation workspaces.</p>
+              <h2 class="app-shell-section-title"><%= gettext("Security master") %></h2>
+              <p><%= gettext("Core identifiers used by the ledger and valuation workspaces.") %></p>
             </div>
             <span class="app-shell-badge app-shell-badge--accent">
-              <%= Enum.count(@securities) %> total
+              <%= ngettext("%{count} total", "%{count} total", Enum.count(@securities),
+                count: Enum.count(@securities)
+              ) %>
             </span>
           </div>
 
           <%= if Enum.empty?(@securities) do %>
             <div id="no-securities" class="app-shell-empty-state">
-              <h3>No securities yet</h3>
-              <p>Add your first security to start building your portfolio.</p>
+              <h3><%= gettext("No securities yet") %></h3>
+              <p><%= gettext("Add your first security to start building your portfolio.") %></p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
               <table id="security-list">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Symbol</th>
-                    <th>Currency</th>
+                    <th><%= gettext("Name") %></th>
+                    <th><%= gettext("Symbol") %></th>
+                    <th><%= gettext("Currency") %></th>
                     <th>ISIN</th>
                     <th>WKN</th>
-                    <th>Provider symbol</th>
-                    <th>Exchange</th>
+                    <th><%= gettext("Provider symbol") %></th>
+                    <th><%= gettext("Exchange") %></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -172,9 +177,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           >
             <div class="app-shell-section-header">
               <div>
-                <h2 class="app-shell-section-title">Add security</h2>
+                <h2 class="app-shell-section-title"><%= gettext("Add security") %></h2>
                 <p class="app-shell-panel-intro">
-                  Create one instrument at a time. Currency must use an ISO 4217 code such as USD or EUR.
+                  <%= gettext("Create one instrument at a time. Currency is selected from first-run reference data.") %>
                 </p>
               </div>
             </div>
@@ -198,7 +203,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
             <form id="security-form" class="app-shell-form-grid" phx-submit="create_security">
             <div class="app-shell-field app-shell-field--full">
-              <label for="security-name">Name</label>
+              <label for="security-name"><%= gettext("Name") %></label>
               <input
                 id="security-name"
                 name="security[name]"
@@ -207,7 +212,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </div>
 
             <div class="app-shell-field">
-              <label for="security-symbol">Symbol</label>
+              <label for="security-symbol"><%= gettext("Symbol") %></label>
               <input
                 id="security-symbol"
                 name="security[symbol]"
@@ -216,26 +221,35 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </div>
 
             <div class="app-shell-field">
-              <label for="security-currency-code">Currency code</label>
-              <input
+              <label for="security-currency-code"><%= gettext("Currency") %></label>
+              <select
                 id="security-currency-code"
                 name="security[currency_code]"
-                value={@security_form["currency_code"]}
-              />
+              >
+                <option value=""><%= gettext("Select currency") %></option>
+                <%= for currency <- @currencies do %>
+                  <option
+                    value={currency.code}
+                    selected={currency.code == @security_form["currency_code"]}
+                  >
+                    <%= currency_option_label(currency) %>
+                  </option>
+                <% end %>
+              </select>
             </div>
 
             <div class="app-shell-field">
-              <label for="security-isin">ISIN (optional)</label>
+              <label for="security-isin"><%= gettext("ISIN (optional)") %></label>
               <input id="security-isin" name="security[isin]" value={@security_form["isin"]} />
             </div>
 
             <div class="app-shell-field">
-              <label for="security-wkn">WKN (optional)</label>
+              <label for="security-wkn"><%= gettext("WKN (optional)") %></label>
               <input id="security-wkn" name="security[wkn]" value={@security_form["wkn"]} />
             </div>
 
             <div class="app-shell-field">
-              <label for="security-exchange-code">Exchange code (optional)</label>
+              <label for="security-exchange-code"><%= gettext("Exchange code (optional)") %></label>
               <input
                 id="security-exchange-code"
                 name="security[exchange_code]"
@@ -244,7 +258,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </div>
 
             <div class="app-shell-field">
-              <label for="security-provider-symbol">Provider symbol (optional)</label>
+              <label for="security-provider-symbol"><%= gettext("Provider symbol (optional)") %></label>
               <input
                 id="security-provider-symbol"
                 name="security[provider_symbol]"
@@ -253,13 +267,13 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </div>
 
             <div class="app-shell-field app-shell-field--full">
-              <label for="security-notes">Notes (optional)</label>
+              <label for="security-notes"><%= gettext("Notes (optional)") %></label>
               <textarea id="security-notes" rows="2" name="security[notes]"><%= @security_form["notes"] %></textarea>
             </div>
 
             <div class="app-shell-form-actions">
               <button type="submit" class="app-shell-primary">
-                Add security
+                <%= gettext("Add security") %>
               </button>
             </div>
             </form>
@@ -279,10 +293,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       {:ok, _security} ->
         {:noreply,
          socket
-         |> assign(:security_form, @security_form_defaults)
+         |> assign(:security_form, default_security_form(socket.assigns.currencies))
          |> assign(:show_security_form, true)
          |> assign(:security_error, nil)
-         |> assign(:security_success, "Security added.")
+         |> assign(:security_success, gettext("Security added."))
          |> load_securities()}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -302,6 +316,23 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp load_securities(socket) do
     socket
     |> assign(:securities, Catalog.list_securities())
+    |> assign(:currencies, Catalog.list_currencies())
+  end
+
+  defp default_security_form(currencies) do
+    Map.put(@security_form_defaults, "currency_code", preferred_currency_code(currencies))
+  end
+
+  defp preferred_currency_code(currencies) do
+    cond do
+      Enum.any?(currencies, &(&1.code == "EUR")) -> "EUR"
+      currency = List.first(currencies) -> currency.code
+      true -> ""
+    end
+  end
+
+  defp currency_option_label(currency) do
+    "#{currency.code} - #{currency.name}"
   end
 
   defp sanitize_security_params(params) when is_map(params) do
@@ -333,13 +364,17 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp last_updated_label([]), do: "—"
 
   defp last_updated_label(securities) do
-    if last_security_date(securities) == Date.utc_today(), do: "Today", else: "—"
+    if last_security_date(securities) == Date.utc_today(), do: gettext("Today"), else: "—"
   end
 
-  defp last_updated_hint([]), do: "Not tracked yet"
+  defp last_updated_hint([]), do: gettext("Not tracked yet")
 
   defp last_updated_hint(securities),
-    do: if(last_updated_label(securities) == "Today", do: "Just now", else: "Not today")
+    do:
+      if(last_security_date(securities) == Date.utc_today(),
+        do: gettext("Just now"),
+        else: gettext("Not today")
+      )
 
   defp last_security_date(securities) do
     securities

@@ -16,6 +16,20 @@ defmodule PortfolixirWeb.Endpoint do
     only: ~w(favicon.ico favicon.svg images)
   )
 
+  plug(Plug.Static,
+    at: "/vendor",
+    from: {:phoenix, "priv/static"},
+    gzip: false,
+    only: ~w(phoenix.min.js)
+  )
+
+  plug(Plug.Static,
+    at: "/vendor",
+    from: {:phoenix_live_view, "priv/static"},
+    gzip: false,
+    only: ~w(phoenix_live_view.min.js)
+  )
+
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
 

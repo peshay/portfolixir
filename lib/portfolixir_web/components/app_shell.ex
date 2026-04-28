@@ -1,11 +1,15 @@
 defmodule PortfolixirWeb.AppShell do
   use Phoenix.Component
+  use Gettext, backend: PortfolixirWeb.Gettext
 
   attr(:current_path, :string, default: "/")
   slot(:inner_block, required: true)
 
   def shell(assigns) do
     assigns = assign_new(assigns, :current_path, fn -> "/" end)
+
+    assigns =
+      assign_new(assigns, :locale, fn -> Gettext.get_locale(PortfolixirWeb.Gettext) end)
 
     ~H"""
     <div
@@ -480,6 +484,48 @@ defmodule PortfolixirWeb.AppShell do
         #app-shell .app-shell-topbar-actions {
           gap: 0.55rem;
           flex-shrink: 0;
+        }
+
+        #app-shell .app-shell-mobile-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex-shrink: 0;
+        }
+
+        #app-shell .app-shell-language-toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.15rem;
+          padding: 0.2rem;
+          border: 1px solid var(--pfx-border);
+          border-radius: var(--pfx-radius);
+          background: var(--pfx-elevated);
+        }
+
+        #app-shell .app-shell-language-link {
+          min-width: 2.25rem;
+          min-height: 1.9rem;
+          padding: 0.32rem 0.5rem;
+          border-radius: 6px;
+          color: var(--pfx-muted);
+          font-size: 0.78rem;
+          font-weight: 850;
+          line-height: 1;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        #app-shell .app-shell-language-link:hover {
+          text-decoration: none;
+          background: var(--pfx-accent-faint);
+          color: var(--pfx-accent);
+        }
+
+        #app-shell .app-shell-language-link.is-active {
+          background: var(--pfx-accent);
+          color: var(--pfx-accent-contrast);
         }
 
         #app-shell .app-shell-breadcrumb {
@@ -1311,21 +1357,30 @@ defmodule PortfolixirWeb.AppShell do
           <span class="app-shell-mobile-brand-text">Portfolixir</span>
           <span class="app-shell-visually-hidden">Portfolixir</span>
         </a>
-        <button
-          id="mobile-nav-toggle"
-          class="app-shell-icon-button"
-          type="button"
-          aria-label="Open navigation"
-          aria-expanded="false"
-          aria-controls="app-shell-mobile-drawer"
-          title="Open navigation"
-        >
-          ☰
-        </button>
+        <div class="app-shell-mobile-actions">
+          <.language_toggle
+            id="mobile-language-toggle"
+            current_path={@current_path}
+            locale={@locale}
+            de_id="mobile-locale-de"
+            en_id="mobile-locale-en"
+          />
+          <button
+            id="mobile-nav-toggle"
+            class="app-shell-icon-button"
+            type="button"
+            aria-label={gettext("Open navigation")}
+            aria-expanded="false"
+            aria-controls="app-shell-mobile-drawer"
+            title={gettext("Open navigation")}
+          >
+            ☰
+          </button>
+        </div>
       </header>
 
       <div class="app-shell-layout">
-        <aside id="app-shell-mobile-drawer" class="app-shell-sidebar" aria-label="Primary navigation">
+        <aside id="app-shell-mobile-drawer" class="app-shell-sidebar" aria-label={gettext("Primary navigation")}>
           <div class="app-shell-sidebar-top">
             <a href="/securities" class="app-shell-brand" aria-label="Portfolixir">
               <img
@@ -1339,118 +1394,131 @@ defmodule PortfolixirWeb.AppShell do
             </a>
           </div>
 
-          <nav class="app-shell-sidebar-nav" aria-label="Main navigation">
+          <nav class="app-shell-sidebar-nav" aria-label={gettext("Main navigation")}>
             <div class="app-shell-nav-group">
-              <p class="app-shell-nav-group-title">Securities</p>
+              <p class="app-shell-nav-group-title"><%= gettext("Securities") %></p>
               <a
                 href="/securities"
-                aria-label="All Securities"
-                title="All Securities"
+                aria-label={gettext("All Securities")}
+                title={gettext("All Securities")}
                 class={nav_link_class(@current_path, "/securities", true)}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">SEC</span>
-                <span class="app-shell-nav-label">All Securities</span>
+                <span class="app-shell-nav-label"><%= gettext("All Securities") %></span>
               </a>
               <span
                 class="app-shell-nav-link is-disabled"
-                aria-label="Watchlist"
+                aria-label={gettext("Watchlist")}
                 aria-disabled="true"
-                title="Coming soon"
+                title={gettext("Coming soon")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">W</span>
-                <span class="app-shell-nav-label">Watchlist</span>
+                <span class="app-shell-nav-label"><%= gettext("Watchlist") %></span>
               </span>
             </div>
 
             <div class="app-shell-nav-group">
-              <p class="app-shell-nav-group-title">Master data</p>
+              <p class="app-shell-nav-group-title"><%= gettext("Master data") %></p>
               <a
                 href="/accounts"
-                aria-label="Accounts"
-                title="Accounts"
+                aria-label={gettext("Accounts")}
+                title={gettext("Accounts")}
                 class={nav_link_class(@current_path, "/accounts")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">ACC</span>
-                <span class="app-shell-nav-label">Accounts</span>
+                <span class="app-shell-nav-label"><%= gettext("Accounts") %></span>
               </a>
               <span
                 class="app-shell-nav-link is-disabled"
-                aria-label="Securities accounts"
+                aria-label={gettext("Securities accounts")}
                 aria-disabled="true"
-                title="Coming soon"
+                title={gettext("Coming soon")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">SA</span>
-                <span class="app-shell-nav-label">Securities accounts</span>
+                <span class="app-shell-nav-label"><%= gettext("Securities accounts") %></span>
               </span>
               <span
                 class="app-shell-nav-link is-disabled"
-                aria-label="Deposit accounts"
+                aria-label={gettext("Deposit accounts")}
                 aria-disabled="true"
-                title="Coming soon"
+                title={gettext("Coming soon")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">DA</span>
-                <span class="app-shell-nav-label">Deposit accounts</span>
+                <span class="app-shell-nav-label"><%= gettext("Deposit accounts") %></span>
               </span>
             </div>
 
             <div class="app-shell-nav-group">
-              <p class="app-shell-nav-group-title">Ledger</p>
+              <p class="app-shell-nav-group-title"><%= gettext("Ledger") %></p>
               <a
                 href="/transactions"
-                aria-label="Transactions"
-                title="Transactions"
+                aria-label={gettext("Transactions")}
+                title={gettext("Transactions")}
                 class={nav_link_class(@current_path, "/transactions")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">TX</span>
-                <span class="app-shell-nav-label">Transactions</span>
+                <span class="app-shell-nav-label"><%= gettext("Transactions") %></span>
               </a>
             </div>
 
             <div class="app-shell-nav-group">
-              <p class="app-shell-nav-group-title">Classifications</p>
+              <p class="app-shell-nav-group-title"><%= gettext("Classifications") %></p>
               <a
                 href="/taxonomies"
-                aria-label="Classifications"
-                title="Classifications"
+                aria-label={gettext("Classifications")}
+                title={gettext("Classifications")}
                 class={nav_link_class(@current_path, "/taxonomies")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">CL</span>
-                <span class="app-shell-nav-label">Classifications</span>
+                <span class="app-shell-nav-label"><%= gettext("Classifications") %></span>
               </a>
             </div>
 
             <div class="app-shell-nav-group">
-              <p class="app-shell-nav-group-title">Reports</p>
+              <p class="app-shell-nav-group-title"><%= gettext("Reports") %></p>
               <span
                 class="app-shell-nav-link is-disabled"
-                aria-label="Holdings"
+                aria-label={gettext("Holdings")}
                 aria-disabled="true"
-                title="Coming soon"
+                title={gettext("Coming soon")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">HD</span>
-                <span class="app-shell-nav-label">Holdings</span>
+                <span class="app-shell-nav-label"><%= gettext("Holdings") %></span>
               </span>
               <span
                 class="app-shell-nav-link is-disabled"
-                aria-label="Performance"
+                aria-label={gettext("Performance")}
                 aria-disabled="true"
-                title="Coming soon"
+                title={gettext("Coming soon")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">PF</span>
-                <span class="app-shell-nav-label">Performance</span>
+                <span class="app-shell-nav-label"><%= gettext("Performance") %></span>
               </span>
             </div>
 
             <div class="app-shell-nav-group">
-              <p class="app-shell-nav-group-title">Imports</p>
+              <p class="app-shell-nav-group-title"><%= gettext("Imports") %></p>
               <span
                 class="app-shell-nav-link is-disabled"
-                aria-label="Imports"
+                aria-label={gettext("Imports")}
                 aria-disabled="true"
-                title="Coming soon"
+                title={gettext("Coming soon")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">IM</span>
-                <span class="app-shell-nav-label">Imports</span>
+                <span class="app-shell-nav-label"><%= gettext("Imports") %></span>
+              </span>
+            </div>
+
+            <div class="app-shell-nav-group">
+              <p class="app-shell-nav-group-title"><%= gettext("Settings") %></p>
+              <span
+                class="app-shell-nav-link is-disabled"
+                aria-label={gettext("Settings")}
+                aria-disabled="true"
+                title={gettext("Coming soon")}
+              >
+                <span class="app-shell-nav-icon" aria-hidden="true">SET</span>
+                <span class="app-shell-nav-label"><%= gettext("Settings") %></span>
               </span>
             </div>
           </nav>
@@ -1459,18 +1527,18 @@ defmodule PortfolixirWeb.AppShell do
         </aside>
 
         <div class="app-shell-main-column">
-          <header class="app-shell-topbar" aria-label="Workspace header">
+          <header class="app-shell-topbar" aria-label={gettext("Workspace header")}>
             <div class="app-shell-topbar-left">
               <button
                 id="sidebar-toggle"
                 class="app-shell-icon-button"
                 type="button"
-                aria-label="Collapse sidebar"
-                title="Collapse sidebar"
+                aria-label={gettext("Collapse sidebar")}
+                title={gettext("Collapse sidebar")}
               >
                 ☰
               </button>
-              <nav class="app-shell-breadcrumb" aria-label="Breadcrumb">
+              <nav class="app-shell-breadcrumb" aria-label={gettext("Breadcrumb")}>
                 <span><%= section_label(@current_path) %></span>
                 <span class="app-shell-breadcrumb-separator" aria-hidden="true">›</span>
                 <span class="app-shell-breadcrumb-current"><%= page_label(@current_path) %></span>
@@ -1478,15 +1546,26 @@ defmodule PortfolixirWeb.AppShell do
             </div>
 
             <div class="app-shell-topbar-actions">
+              <.language_toggle
+                id="language-toggle"
+                current_path={@current_path}
+                locale={@locale}
+                de_id="locale-de"
+                en_id="locale-en"
+              />
               <button
                 id="theme-toggle"
                 class="app-shell-theme-toggle"
                 type="button"
-                title="Switch to dark mode"
-                aria-label="Switch to dark mode"
+                title={gettext("Switch to dark mode")}
+                aria-label={gettext("Switch to dark mode")}
+                data-dark-label={gettext("Dark mode")}
+                data-light-label={gettext("Light mode")}
+                data-dark-title={gettext("Switch to dark mode")}
+                data-light-title={gettext("Switch to light mode")}
               >
                 <span class="app-shell-theme-icon" aria-hidden="true">D</span>
-                <span class="app-shell-theme-label">Dark mode</span>
+                <span class="app-shell-theme-label"><%= gettext("Dark mode") %></span>
               </button>
             </div>
           </header>
@@ -1504,19 +1583,19 @@ defmodule PortfolixirWeb.AppShell do
       <nav class="app-shell-bottom-nav" aria-label="Mobile primary navigation">
         <a href="/securities" class={mobile_nav_link_class(@current_path, "/securities", true)}>
           <span class="app-shell-bottom-icon" aria-hidden="true">SEC</span>
-          <span>Securities</span>
+          <span><%= gettext("Securities") %></span>
         </a>
         <a href="/accounts" class={mobile_nav_link_class(@current_path, "/accounts")}>
           <span class="app-shell-bottom-icon" aria-hidden="true">ACC</span>
-          <span>Accounts</span>
+          <span><%= gettext("Accounts") %></span>
         </a>
         <a href="/transactions" class={mobile_nav_link_class(@current_path, "/transactions")}>
           <span class="app-shell-bottom-icon" aria-hidden="true">TX</span>
-          <span>Transactions</span>
+          <span><%= gettext("Transactions") %></span>
         </a>
         <a href="/taxonomies" class={mobile_nav_link_class(@current_path, "/taxonomies")}>
           <span class="app-shell-bottom-icon" aria-hidden="true">CL</span>
-          <span>More</span>
+          <span><%= gettext("More") %></span>
         </a>
       </nav>
 
@@ -1542,7 +1621,7 @@ defmodule PortfolixirWeb.AppShell do
             var isDark = resolvedTheme === "dark";
 
             if (themeLabel) {
-              themeLabel.textContent = isDark ? "Light mode" : "Dark mode";
+              themeLabel.textContent = isDark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
             }
 
             if (themeIcon) {
@@ -1550,8 +1629,8 @@ defmodule PortfolixirWeb.AppShell do
             }
 
             if (toggle) {
-              toggle.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
-              toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+              toggle.setAttribute("title", isDark ? toggle.dataset.lightTitle : toggle.dataset.darkTitle);
+              toggle.setAttribute("aria-label", isDark ? toggle.dataset.lightTitle : toggle.dataset.darkTitle);
             }
 
             try {
@@ -1563,8 +1642,8 @@ defmodule PortfolixirWeb.AppShell do
             shell.setAttribute("data-sidebar-collapsed", isCollapsed ? "true" : "false");
             if (sidebarToggle) {
               sidebarToggle.setAttribute("aria-pressed", isCollapsed ? "true" : "false");
-              sidebarToggle.setAttribute("title", isCollapsed ? "Expand sidebar" : "Collapse sidebar");
-              sidebarToggle.setAttribute("aria-label", isCollapsed ? "Expand sidebar" : "Collapse sidebar");
+              sidebarToggle.setAttribute("title", isCollapsed ? "<%= gettext("Expand sidebar") %>" : "<%= gettext("Collapse sidebar") %>");
+              sidebarToggle.setAttribute("aria-label", isCollapsed ? "<%= gettext("Expand sidebar") %>" : "<%= gettext("Collapse sidebar") %>");
             }
 
             try {
@@ -1576,8 +1655,8 @@ defmodule PortfolixirWeb.AppShell do
             shell.setAttribute("data-mobile-nav-open", isOpen ? "true" : "false");
             if (mobileNavToggle) {
               mobileNavToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
-              mobileNavToggle.setAttribute("title", isOpen ? "Close navigation" : "Open navigation");
-              mobileNavToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+              mobileNavToggle.setAttribute("title", isOpen ? "<%= gettext("Close navigation") %>" : "<%= gettext("Open navigation") %>");
+              mobileNavToggle.setAttribute("aria-label", isOpen ? "<%= gettext("Close navigation") %>" : "<%= gettext("Open navigation") %>");
             }
           }
 
@@ -1656,6 +1735,35 @@ defmodule PortfolixirWeb.AppShell do
     """
   end
 
+  attr(:id, :string, required: true)
+  attr(:current_path, :string, required: true)
+  attr(:locale, :string, required: true)
+  attr(:de_id, :string, required: true)
+  attr(:en_id, :string, required: true)
+
+  defp language_toggle(assigns) do
+    ~H"""
+    <div id={@id} class="app-shell-language-toggle" aria-label={gettext("Language")}>
+      <a
+        id={@de_id}
+        href={locale_path(@current_path, "de")}
+        class={language_link_class(@locale, "de")}
+        aria-current={if @locale == "de", do: "true", else: "false"}
+      >
+        DE
+      </a>
+      <a
+        id={@en_id}
+        href={locale_path(@current_path, "en")}
+        class={language_link_class(@locale, "en")}
+        aria-current={if @locale == "en", do: "true", else: "false"}
+      >
+        EN
+      </a>
+    </div>
+    """
+  end
+
   defp nav_link_class(current_path, path, root_active? \\ false) do
     if current_path == path || (root_active? && current_path == "/") do
       "app-shell-nav-link is-active"
@@ -1672,13 +1780,23 @@ defmodule PortfolixirWeb.AppShell do
     end
   end
 
-  defp section_label("/accounts"), do: "Master data"
-  defp section_label("/transactions"), do: "Ledger"
-  defp section_label("/taxonomies"), do: "Classifications"
-  defp section_label(_path), do: "Securities"
+  defp language_link_class(current_locale, locale) do
+    if current_locale == locale do
+      "app-shell-language-link is-active"
+    else
+      "app-shell-language-link"
+    end
+  end
 
-  defp page_label("/accounts"), do: "Accounts"
-  defp page_label("/transactions"), do: "Transactions"
-  defp page_label("/taxonomies"), do: "Classifications"
-  defp page_label(_path), do: "All Securities"
+  defp locale_path(path, locale), do: "#{path}?locale=#{locale}"
+
+  defp section_label("/accounts"), do: gettext("Master data")
+  defp section_label("/transactions"), do: gettext("Ledger")
+  defp section_label("/taxonomies"), do: gettext("Classifications")
+  defp section_label(_path), do: gettext("Securities")
+
+  defp page_label("/accounts"), do: gettext("Accounts Overview")
+  defp page_label("/transactions"), do: gettext("Transactions")
+  defp page_label("/taxonomies"), do: gettext("Classifications")
+  defp page_label(_path), do: gettext("All Securities")
 end

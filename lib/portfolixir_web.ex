@@ -17,6 +17,7 @@ defmodule PortfolixirWeb do
   def live_view do
     quote do
       use Phoenix.LiveView
+      use Gettext, backend: PortfolixirWeb.Gettext
     end
   end
 
