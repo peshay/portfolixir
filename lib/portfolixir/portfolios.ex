@@ -1,7 +1,10 @@
 defmodule Portfolixir.Portfolios do
   @moduledoc "Portfolio context."
 
+  import Ecto.Query
+
   alias Portfolixir.Portfolios.Portfolio
+  alias Portfolixir.Portfolios.DepositAccount
   alias Portfolixir.Repo
 
   def list_portfolios do
@@ -26,5 +29,36 @@ defmodule Portfolixir.Portfolios do
 
   def delete_portfolio(%Portfolio{} = portfolio) do
     Repo.delete(portfolio)
+  end
+
+  def list_deposit_accounts do
+    Repo.all(from(account in DepositAccount, order_by: [asc: account.name]))
+  end
+
+  def list_deposit_accounts_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
+    Repo.all(
+      from(account in DepositAccount,
+        where: account.portfolio_id == ^portfolio_id,
+        order_by: [asc: account.name]
+      )
+    )
+  end
+
+  def get_deposit_account!(id), do: Repo.get!(DepositAccount, id)
+
+  def create_deposit_account(attrs) when is_map(attrs) do
+    %DepositAccount{}
+    |> DepositAccount.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_deposit_account(%DepositAccount{} = account, attrs) when is_map(attrs) do
+    account
+    |> DepositAccount.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_deposit_account(%DepositAccount{} = account) do
+    Repo.delete(account)
   end
 end
