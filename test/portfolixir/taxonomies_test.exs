@@ -14,6 +14,22 @@ defmodule Portfolixir.TaxonomiesTest do
     assert taxonomy.name == "Custom Depot Categories"
   end
 
+  test "ensure_portfolio_performance_presets!/0 creates German PP-style taxonomies idempotently" do
+    assert :ok = Taxonomies.ensure_portfolio_performance_presets!()
+
+    taxonomy_names = Taxonomies.list_taxonomies() |> Enum.map(& &1.name)
+
+    assert "Strategien" in taxonomy_names
+    assert "Regionen" in taxonomy_names
+    assert "Branchen" in taxonomy_names
+    assert "Wertpapierarten" in taxonomy_names
+
+    count_after_first_run = Repo.aggregate(Portfolixir.Taxonomies.Taxonomy, :count)
+
+    assert :ok = Taxonomies.ensure_portfolio_performance_presets!()
+    assert Repo.aggregate(Portfolixir.Taxonomies.Taxonomy, :count) == count_after_first_run
+  end
+
   test "create category with description and persist description" do
     {:ok, taxonomy} =
       Taxonomies.create_taxonomy(%{name: "Custom Depot Categories", description: "Top level"})
