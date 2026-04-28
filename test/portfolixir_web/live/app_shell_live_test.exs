@@ -78,11 +78,12 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "a[href=\"/taxonomies\"]")
   end
 
-  test "theme toggle script references a dark-safe logo asset", %{conn: conn} do
+  test "theme toggle keeps a compact sidebar mark source", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
     assert has_element?(view, "#app-shell-brand-mark")
-    assert html =~ "/images/logo-dark.svg"
+    assert has_element?(view, ".app-shell-logo-frame")
     assert html =~ "/images/logo-mark.svg"
+    refute html =~ "/images/logo-dark.svg"
   end
 end
