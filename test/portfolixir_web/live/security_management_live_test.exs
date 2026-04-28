@@ -133,6 +133,34 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "865985"
   end
 
+  test "existing create flow still works with existing records", %{conn: conn} do
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Existing security",
+               symbol: "EXS",
+               currency_code: "USD"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#security-add-toggle") |> render_click()
+
+    html =
+      view
+      |> form("#security-form", %{
+        "security" => %{
+          "name" => "Created after existing",
+          "symbol" => "CAE",
+          "currency_code" => "EUR"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Security added."
+    assert html =~ "Created after existing"
+    assert html =~ "CAE"
+    assert has_element?(view, "#security-create > .app-shell-section-header h2", "Add security")
+  end
+
   test "renders optional fields as em dashes when omitted", %{conn: conn} do
     assert {:ok, _} =
              Catalog.create_security(%{
@@ -189,6 +217,127 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "currency"
     assert html =~ "value=\"Bad Currency\""
     assert html =~ "value=\"BCY\""
+  end
+
+  test "shows an Edit action for existing securities", %{conn: conn} do
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Apple Inc.",
+               symbol: "AAPL",
+               currency_code: "USD"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-edit-#{security.id}", "Edit")
+  end
+
+  test "prefills the edit form with selected security values", %{conn: conn} do
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Apple Inc.",
+               symbol: "AAPL",
+               currency_code: "USD",
+               isin: "US0378331005",
+               wkn: "865985",
+               exchange_code: "NASDAQ",
+               provider_symbol: "APPL",
+               notes: "Existing note"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert view |> element("#security-edit-#{security.id}") |> render_click()
+
+    assert has_element?(view, "#security-create > .app-shell-section-header h2", "Edit security")
+    assert has_element?(view, "#security-name[value='Apple Inc.']")
+    assert has_element?(view, "#security-symbol[value='AAPL']")
+    assert has_element?(view, "#security-currency-code option[value='USD'][selected='selected']")
+    assert has_element?(view, "#security-isin[value='US0378331005']")
+    assert has_element?(view, "#security-wkn[value='865985']")
+    assert has_element?(view, "#security-exchange-code[value='NASDAQ']")
+    assert has_element?(view, "#security-provider-symbol[value='APPL']")
+    assert has_element?(view, "#security-notes", "Existing note")
+  end
+
+  test "updates a security from the edit form", %{conn: conn} do
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Apple Inc.",
+               symbol: "AAPL",
+               currency_code: "USD"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    assert view |> element("#security-edit-#{security.id}") |> render_click()
+
+    html =
+      view
+      |> form("#security-form", %{
+        "security" => %{
+          "name" => "Apple Corporation",
+          "symbol" => "APC",
+          "currency_code" => "EUR",
+          "isin" => "US0000000000",
+          "wkn" => "999111"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Apple Corporation"
+    assert html =~ "APC"
+    assert html =~ "EUR"
+    assert html =~ "US0000000000"
+    assert html =~ "999111"
+    refute has_element?(view, "#security-form")
+  end
+
+  test "cancels edit without saving changes", %{conn: conn} do
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Apple Inc.",
+               symbol: "AAPL",
+               currency_code: "USD"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    assert view |> element("#security-edit-#{security.id}") |> render_click()
+
+    assert has_element?(view, "#security-cancel-edit")
+
+    view |> element("#security-cancel-edit") |> render_click()
+
+    refute has_element?(view, "#security-form")
+    assert has_element?(view, "#security-edit-#{security.id}", "Edit")
+    refute has_element?(view, "#security-create > .app-shell-section-header h2", "Edit security")
+  end
+
+  test "keeps edit mode open with validation errors", %{conn: conn} do
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Apple Inc.",
+               symbol: "AAPL",
+               currency_code: "USD"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    assert view |> element("#security-edit-#{security.id}") |> render_click()
+
+    html =
+      view
+      |> form("#security-form", %{
+        "security" => %{
+          "name" => "",
+          "symbol" => "AAPL",
+          "currency_code" => "USD"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "id=\"security-form-error\""
+    assert has_element?(view, "#security-create > .app-shell-section-header h2", "Edit security")
+    assert has_element?(view, "#security-cancel-edit")
+    assert html =~ "value=\"AAPL\""
   end
 
   test "lists existing securities", %{conn: conn} do
