@@ -38,196 +38,287 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     ~H"""
     <AppShell.shell current_path="/transactions">
       <header class="app-shell-page-header">
-        <h1>Transactions</h1>
-        <p>Record ledger activity for the current portfolio.</p>
+        <div>
+          <p class="app-shell-page-kicker">Ledger</p>
+          <h1>Transactions</h1>
+          <p>Record cash movements, trades and income while keeping transaction history easy to scan.</p>
+        </div>
       </header>
 
       <%= if @current_portfolio do %>
-        <section id="positions" class="app-shell-section-card">
-          <h2 class="app-shell-section-title">Positions</h2>
+        <div id="ledger-workspace" class="app-shell-workspace-grid">
+          <div class="app-shell-workspace-stack" data-priority="primary">
+            <section id="positions" class="app-shell-section-card">
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title">Positions</h2>
+                  <p>Quantity summary derived from buy and sell transactions.</p>
+                </div>
+                <span class="app-shell-badge"><%= Enum.count(@position_rows) %> positions</span>
+              </div>
 
-          <%= if Enum.empty?(@position_rows) do %>
-            <div id="no-positions" class="app-shell-empty-state">
-              <h3>No positions yet</h3>
-              <p>Positions are derived from buy and sell transactions.</p>
+              <%= if Enum.empty?(@position_rows) do %>
+                <div id="no-positions" class="app-shell-empty-state">
+                  <h3>No positions yet</h3>
+                  <p>Positions are derived from buy and sell transactions.</p>
+                </div>
+              <% else %>
+                <div class="app-shell-table-wrapper">
+                  <table id="position-list">
+                    <thead>
+                      <tr>
+                        <th>Securities account</th>
+                        <th>Security</th>
+                        <th>Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for row <- @position_rows do %>
+                        <tr>
+                          <td><%= row.securities_account_name %></td>
+                          <td><%= row.security_name %></td>
+                          <td><%= format_quantity(row.quantity) %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% end %>
+            </section>
+
+            <section
+              id="transaction-history-panel"
+              class="app-shell-section-card"
+              data-priority="primary"
+            >
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title">Transaction history</h2>
+                  <p>Newest ledger entries appear first.</p>
+                </div>
+                <span class="app-shell-badge app-shell-badge--accent">
+                  <%= Enum.count(@transactions) %> entries
+                </span>
+              </div>
+
+              <%= if Enum.empty?(@transactions) do %>
+                <div id="no-transactions" class="app-shell-empty-state">
+                  <h3>No transactions yet</h3>
+                  <p>Record the first ledger transaction.</p>
+                </div>
+              <% else %>
+                <div class="app-shell-table-wrapper">
+                  <table id="transaction-list">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Account</th>
+                        <th>Security</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Amount</th>
+                        <th>Currency</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for transaction <- @transactions do %>
+                        <tr>
+                          <td><%= transaction.date %></td>
+                          <td><span class="app-shell-badge"><%= transaction.type %></span></td>
+                          <td><%= account_name(transaction, @deposit_account_names, @securities_account_names) %></td>
+                          <td><%= security_name(transaction.security_id, @security_names) %></td>
+                          <td><%= format_quantity(transaction.quantity) %></td>
+                          <td><%= format_money(transaction.price) %></td>
+                          <td><%= format_money(transaction.amount) %></td>
+                          <td><%= transaction.currency_code %></td>
+                          <td><%= transaction.notes || "—" %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% end %>
+            </section>
+          </div>
+
+          <section
+            id="transaction-form-panel"
+            class="app-shell-section-card"
+            data-priority="secondary"
+          >
+            <div class="app-shell-section-header">
+              <div>
+                <h2 class="app-shell-section-title">Add transaction</h2>
+                <p class="app-shell-panel-intro">
+                  Use deposit transactions for cash movements. Use buy, sell and dividend for security-related ledger activity.
+                </p>
+              </div>
             </div>
-          <% else %>
-            <table id="position-list">
-              <thead>
-                <tr>
-                  <th>Securities account</th>
-                  <th>Security</th>
-                  <th>Quantity</th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for row <- @position_rows do %>
-                  <tr>
-                    <td><%= row.securities_account_name %></td>
-                    <td><%= row.security_name %></td>
-                    <td><%= format_quantity(row.quantity) %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          <% end %>
-        </section>
 
-        <section id="transaction-listing" class="app-shell-section-card">
-          <h2 class="app-shell-section-title">Transaction history</h2>
+            <%= if @transaction_success do %>
+              <p
+                id="transaction-form-success"
+                class="app-shell-alert app-shell-alert--success"
+                role="status"
+                aria-live="polite"
+              >
+                <%= @transaction_success %>
+              </p>
+            <% end %>
 
-          <%= if Enum.empty?(@transactions) do %>
-            <div id="no-transactions" class="app-shell-empty-state">
-              <h3>No transactions yet</h3>
-              <p>Record the first ledger transaction.</p>
-            </div>
-          <% else %>
-            <table id="transaction-list">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Account</th>
-                  <th>Security</th>
-                  <th>Quantity</th>
-                  <th>Price</th>
-                  <th>Amount</th>
-                  <th>Currency</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for transaction <- @transactions do %>
-                  <tr>
-                    <td><%= transaction.date %></td>
-                    <td><%= transaction.type %></td>
-                    <td><%= account_name(transaction, @deposit_account_names, @securities_account_names) %></td>
-                    <td><%= security_name(transaction.security_id, @security_names) %></td>
-                    <td><%= format_quantity(transaction.quantity) %></td>
-                    <td><%= format_money(transaction.price) %></td>
-                    <td><%= format_money(transaction.amount) %></td>
-                    <td><%= transaction.currency_code %></td>
-                    <td><%= transaction.notes || "—" %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          <% end %>
-        </section>
+            <%= if @transaction_error do %>
+              <p id="transaction-form-error" class="app-shell-alert app-shell-alert--error" role="alert">
+                <%= @transaction_error %>
+              </p>
+            <% end %>
 
-        <section id="transaction-create" class="app-shell-section-card app-shell-section-card--compact">
-          <h2 class="app-shell-section-title">Add transaction</h2>
+            <form id="transaction-form" class="app-shell-form-grid" phx-submit="create_transaction">
+              <fieldset class="app-shell-fieldset">
+                <legend>Transaction</legend>
+                <div class="app-shell-fieldset-grid">
+                  <div class="app-shell-field">
+                    <label for="transaction-type">Type</label>
+                    <select id="transaction-type" name="transaction[type]">
+                      <%= for type <- @transaction_types do %>
+                        <option value={type} selected={type == @transaction_form["type"]}>
+                          <%= type %>
+                        </option>
+                      <% end %>
+                    </select>
+                  </div>
 
-          <%= if @transaction_success do %>
-            <p id="transaction-form-success" class="app-shell-alert app-shell-alert--success" role="status" aria-live="polite">
-              <%= @transaction_success %>
-            </p>
-          <% end %>
+                  <div class="app-shell-field">
+                    <label for="transaction-date">Date</label>
+                    <input
+                      id="transaction-date"
+                      type="date"
+                      name="transaction[date]"
+                      value={@transaction_form["date"]}
+                    />
+                  </div>
 
-          <%= if @transaction_error do %>
-            <p id="transaction-form-error" class="app-shell-alert app-shell-alert--error" role="status" aria-live="polite">
-              <%= @transaction_error %>
-            </p>
-          <% end %>
+                  <div class="app-shell-field">
+                    <label for="transaction-currency">Currency</label>
+                    <select id="transaction-currency" name="transaction[currency_code]">
+                      <option value="">Select currency</option>
+                      <%= for currency <- @currencies do %>
+                        <option
+                          value={currency.code}
+                          selected={currency.code == @transaction_form["currency_code"]}
+                        >
+                          <%= currency.code %>
+                        </option>
+                      <% end %>
+                    </select>
+                  </div>
 
-          <form id="transaction-form" phx-submit="create_transaction">
-            <label for="transaction-type">Type</label>
-            <select id="transaction-type" name="transaction[type]">
-              <%= for type <- @transaction_types do %>
-                <option value={type} selected={type == @transaction_form["type"]}>
-                  <%= type %>
-                </option>
-              <% end %>
-            </select>
+                  <div class="app-shell-field">
+                    <label for="transaction-amount">Amount</label>
+                    <input
+                      id="transaction-amount"
+                      name="transaction[amount]"
+                      value={@transaction_form["amount"]}
+                    />
+                  </div>
+                </div>
+              </fieldset>
 
-            <label for="transaction-date">Date</label>
-            <input
-              id="transaction-date"
-              type="date"
-              name="transaction[date]"
-              value={@transaction_form["date"]}
-            />
+              <fieldset class="app-shell-fieldset">
+                <legend>Accounts</legend>
+                <div class="app-shell-fieldset-grid">
+                  <div class="app-shell-field">
+                    <label for="transaction-deposit-account">Deposit account</label>
+                    <select id="transaction-deposit-account" name="transaction[deposit_account_id]">
+                      <option value="">None</option>
+                      <%= for account <- @deposit_accounts do %>
+                        <option
+                          value={account.id}
+                          selected={"#{account.id}" == @transaction_form["deposit_account_id"]}
+                        >
+                          <%= account.name %>
+                        </option>
+                      <% end %>
+                    </select>
+                  </div>
 
-            <label for="transaction-currency">Currency</label>
-            <select id="transaction-currency" name="transaction[currency_code]">
-              <option value="">Select currency</option>
-              <%= for currency <- @currencies do %>
-                <option
-                  value={currency.code}
-                  selected={currency.code == @transaction_form["currency_code"]}
-                >
-                  <%= currency.code %>
-                </option>
-              <% end %>
-            </select>
+                  <div class="app-shell-field">
+                    <label for="transaction-securities-account">Securities account</label>
+                    <select id="transaction-securities-account" name="transaction[securities_account_id]">
+                      <option value="">None</option>
+                      <%= for account <- @securities_accounts do %>
+                        <option
+                          value={account.id}
+                          selected={"#{account.id}" == @transaction_form["securities_account_id"]}
+                        >
+                          <%= account.name %>
+                        </option>
+                      <% end %>
+                    </select>
+                  </div>
+                </div>
+              </fieldset>
 
-            <label for="transaction-amount">Amount</label>
-            <input
-              id="transaction-amount"
-              name="transaction[amount]"
-              value={@transaction_form["amount"]}
-            />
+              <fieldset class="app-shell-fieldset">
+                <legend>Security details</legend>
+                <div class="app-shell-fieldset-grid">
+                  <div class="app-shell-field app-shell-field--full">
+                    <label for="transaction-security">Security</label>
+                    <select id="transaction-security" name="transaction[security_id]">
+                      <option value="">None</option>
+                      <%= for security <- @securities do %>
+                        <option
+                          value={security.id}
+                          selected={"#{security.id}" == @transaction_form["security_id"]}
+                        >
+                          <%= security.name %>
+                        </option>
+                      <% end %>
+                    </select>
+                  </div>
 
-            <label for="transaction-deposit-account">Deposit account</label>
-            <select id="transaction-deposit-account" name="transaction[deposit_account_id]">
-              <option value="">None</option>
-              <%= for account <- @deposit_accounts do %>
-                <option
-                  value={account.id}
-                  selected={"#{account.id}" == @transaction_form["deposit_account_id"]}
-                >
-                  <%= account.name %>
-                </option>
-              <% end %>
-            </select>
+                  <div class="app-shell-field">
+                    <label for="transaction-quantity">Quantity</label>
+                    <input
+                      id="transaction-quantity"
+                      name="transaction[quantity]"
+                      value={@transaction_form["quantity"]}
+                    />
+                  </div>
 
-            <label for="transaction-securities-account">Securities account</label>
-            <select id="transaction-securities-account" name="transaction[securities_account_id]">
-              <option value="">None</option>
-              <%= for account <- @securities_accounts do %>
-                <option
-                  value={account.id}
-                  selected={"#{account.id}" == @transaction_form["securities_account_id"]}
-                >
-                  <%= account.name %>
-                </option>
-              <% end %>
-            </select>
+                  <div class="app-shell-field">
+                    <label for="transaction-price">Price</label>
+                    <input
+                      id="transaction-price"
+                      name="transaction[price]"
+                      value={@transaction_form["price"]}
+                    />
+                  </div>
 
-            <label for="transaction-security">Security</label>
-            <select id="transaction-security" name="transaction[security_id]">
-              <option value="">None</option>
-              <%= for security <- @securities do %>
-                <option value={security.id} selected={"#{security.id}" == @transaction_form["security_id"]}>
-                  <%= security.name %>
-                </option>
-              <% end %>
-            </select>
+                  <div class="app-shell-field">
+                    <label for="transaction-fees">Fees (optional)</label>
+                    <input id="transaction-fees" name="transaction[fees]" value={@transaction_form["fees"]} />
+                  </div>
 
-            <label for="transaction-quantity">Quantity</label>
-            <input
-              id="transaction-quantity"
-              name="transaction[quantity]"
-              value={@transaction_form["quantity"]}
-            />
+                  <div class="app-shell-field">
+                    <label for="transaction-taxes">Taxes (optional)</label>
+                    <input id="transaction-taxes" name="transaction[taxes]" value={@transaction_form["taxes"]} />
+                  </div>
+                </div>
+              </fieldset>
 
-            <label for="transaction-price">Price</label>
-            <input id="transaction-price" name="transaction[price]" value={@transaction_form["price"]} />
+              <div class="app-shell-field app-shell-field--full">
+                <label for="transaction-notes">Notes (optional)</label>
+                <textarea id="transaction-notes" rows="2" name="transaction[notes]"><%= @transaction_form["notes"] %></textarea>
+              </div>
 
-            <label for="transaction-fees">Fees (optional)</label>
-            <input id="transaction-fees" name="transaction[fees]" value={@transaction_form["fees"]} />
-
-            <label for="transaction-taxes">Taxes (optional)</label>
-            <input id="transaction-taxes" name="transaction[taxes]" value={@transaction_form["taxes"]} />
-
-            <label for="transaction-notes">Notes (optional)</label>
-            <textarea id="transaction-notes" rows="2" name="transaction[notes]">
-              <%= @transaction_form["notes"] %>
-            </textarea>
-
-            <button type="submit" class="app-shell-primary">Create transaction</button>
-          </form>
-        </section>
+              <div class="app-shell-form-actions">
+                <button type="submit" class="app-shell-primary">Create transaction</button>
+              </div>
+            </form>
+          </section>
+        </div>
       <% else %>
         <section id="transaction-empty-portfolio" class="app-shell-section-card app-shell-section-card--compact">
           <div id="no-portfolio" class="app-shell-empty-state">
