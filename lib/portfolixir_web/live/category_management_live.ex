@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
       |> assign(:category_form, @category_form_defaults)
       |> assign(:taxonomy_error, nil)
       |> assign(:category_error, nil)
+      |> assign(:preset_success, nil)
 
     {:ok, load_taxonomy_state(socket)}
   end
@@ -34,10 +35,10 @@ defmodule PortfolixirWeb.CategoryManagementLive do
     <AppShell.shell current_path="/taxonomies">
       <header class="app-shell-page-header">
         <div>
-          <p class="app-shell-page-kicker">Classifications</p>
-          <h1>Classifications</h1>
+          <p class="app-shell-page-kicker"><%= gettext("Classifications") %></p>
+          <h1><%= gettext("Classifications") %></h1>
           <p>
-            Build user-defined grouping systems for asset allocation, regions, sectors and other portfolio views.
+            <%= gettext("Build user-defined grouping systems for asset allocation, regions, sectors and other portfolio views.") %>
           </p>
         </div>
       </header>
@@ -50,13 +51,35 @@ defmodule PortfolixirWeb.CategoryManagementLive do
         >
           <div class="app-shell-section-header">
             <div>
-              <h2 class="app-shell-section-title">Taxonomies</h2>
-              <p>Each taxonomy is a classification system with its own category tree.</p>
+              <h2 class="app-shell-section-title"><%= gettext("Taxonomies") %></h2>
+              <p><%= gettext("Each taxonomy is a classification system with its own category tree.") %></p>
             </div>
             <span class="app-shell-badge app-shell-badge--accent">
-              <%= Enum.count(@taxonomies) %> total
+              <%= ngettext("%{count} total", "%{count} total", Enum.count(@taxonomies), count: Enum.count(@taxonomies)) %>
             </span>
           </div>
+
+          <div class="app-shell-form-actions">
+            <button
+              id="portfolio-performance-presets"
+              type="button"
+              class="app-shell-secondary"
+              phx-click="create_portfolio_performance_presets"
+            >
+              <%= gettext("Create Portfolio Performance presets") %>
+            </button>
+          </div>
+
+          <%= if @preset_success do %>
+            <p
+              id="portfolio-performance-presets-success"
+              class="app-shell-alert app-shell-alert--success"
+              role="status"
+              aria-live="polite"
+            >
+              <%= @preset_success %>
+            </p>
+          <% end %>
 
           <%= if @taxonomy_error do %>
             <p id="taxonomy-form-error" class="app-shell-alert app-shell-alert--error" role="alert">
@@ -66,24 +89,24 @@ defmodule PortfolixirWeb.CategoryManagementLive do
 
           <form id="taxonomy-form" class="app-shell-form-grid" phx-submit="create_taxonomy">
             <div class="app-shell-field app-shell-field--full">
-              <label for="taxonomy-name">Name</label>
+              <label for="taxonomy-name"><%= gettext("Name") %></label>
               <input id="taxonomy-name" name="taxonomy[name]" value={@taxonomy_form["name"]} />
             </div>
 
             <div class="app-shell-field app-shell-field--full">
-              <label for="taxonomy-description">Description</label>
+              <label for="taxonomy-description"><%= gettext("Description") %></label>
               <textarea id="taxonomy-description" name="taxonomy[description]"><%= @taxonomy_form["description"] %></textarea>
             </div>
 
             <div class="app-shell-form-actions">
-              <button type="submit" class="app-shell-primary">Create Taxonomy</button>
+              <button type="submit" class="app-shell-primary"><%= gettext("Create Taxonomy") %></button>
             </div>
           </form>
 
           <%= if Enum.empty?(@taxonomies) do %>
             <div id="no-taxonomies" class="app-shell-empty-state">
-              <h3>No taxonomies yet</h3>
-              <p>Create a taxonomy before adding categories.</p>
+              <h3><%= gettext("No taxonomies yet") %></h3>
+              <p><%= gettext("Create a taxonomy before adding categories.") %></p>
             </div>
           <% else %>
             <ul id="taxonomy-list" class="app-shell-list">
@@ -98,7 +121,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                   >
                     <%= taxonomy.name %>
                   </button>
-                  <p class="app-shell-muted"><%= taxonomy.description || "No description" %></p>
+                  <p class="app-shell-muted"><%= taxonomy.description || gettext("No description") %></p>
                 </li>
               <% end %>
             </ul>
@@ -112,8 +135,8 @@ defmodule PortfolixirWeb.CategoryManagementLive do
         >
           <div class="app-shell-section-header">
             <div>
-              <h2 class="app-shell-section-title">Categories</h2>
-              <p>Add and maintain the groups inside the selected taxonomy.</p>
+              <h2 class="app-shell-section-title"><%= gettext("Categories") %></h2>
+              <p><%= gettext("Add and maintain the groups inside the selected taxonomy.") %></p>
             </div>
           </div>
 
@@ -128,19 +151,19 @@ defmodule PortfolixirWeb.CategoryManagementLive do
               <input type="hidden" name="category[taxonomy_id]" value={@selected_taxonomy_id} />
 
               <div class="app-shell-field app-shell-field--full">
-                <label for="category-name">Name</label>
+                <label for="category-name"><%= gettext("Name") %></label>
                 <input id="category-name" name="category[name]" value={@category_form["name"]} />
               </div>
 
               <div class="app-shell-field app-shell-field--full">
-                <label for="category-description">Description</label>
+                <label for="category-description"><%= gettext("Description") %></label>
                 <textarea id="category-description" name="category[description]"><%= @category_form["description"] %></textarea>
               </div>
 
               <div class="app-shell-field">
-                <label for="category-parent-id">Parent (optional)</label>
+                <label for="category-parent-id"><%= gettext("Parent (optional)") %></label>
                 <select id="category-parent-id" name="category[parent_id]">
-                  <option value="">None</option>
+                  <option value=""><%= gettext("None") %></option>
                   <%= for category <- @selected_categories do %>
                     <option value={category.id}><%= category.name %></option>
                   <% end %>
@@ -148,12 +171,12 @@ defmodule PortfolixirWeb.CategoryManagementLive do
               </div>
 
               <div class="app-shell-field">
-                <label for="category-color">Color (optional)</label>
+                <label for="category-color"><%= gettext("Color (optional)") %></label>
                 <input id="category-color" name="category[color]" value={@category_form["color"]} />
               </div>
 
               <div class="app-shell-field">
-                <label for="category-sort-order">Sort order (optional)</label>
+                <label for="category-sort-order"><%= gettext("Sort order (optional)") %></label>
                 <input
                   id="category-sort-order"
                   name="category[sort_order]"
@@ -164,21 +187,21 @@ defmodule PortfolixirWeb.CategoryManagementLive do
               </div>
 
               <div class="app-shell-form-actions">
-                <button type="submit" class="app-shell-primary">Add Category</button>
+                <button type="submit" class="app-shell-primary"><%= gettext("Add Category") %></button>
               </div>
             </form>
 
             <%= if Enum.empty?(@selected_categories) do %>
               <div id="no-categories" class="app-shell-empty-state">
-                <h3>No categories yet</h3>
-                <p>Add the first category for this taxonomy.</p>
+                <h3><%= gettext("No categories yet") %></h3>
+                <p><%= gettext("Add the first category for this taxonomy.") %></p>
               </div>
             <% else %>
               <ul id="category-list" class="app-shell-list">
                 <%= for category <- @selected_categories do %>
                   <li id={"category-#{category.id}"} class="app-shell-list-item">
                     <strong><%= category.name %></strong>
-                    <p class="app-shell-muted"><%= category.description || "No description" %></p>
+                    <p class="app-shell-muted"><%= category.description || gettext("No description") %></p>
 
                     <form
                       id={"edit-category-form-#{category.id}"}
@@ -187,17 +210,17 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                       phx-value-id={category.id}
                     >
                       <div class="app-shell-field">
-                        <label>Name</label>
+                        <label><%= gettext("Name") %></label>
                         <input name="category[name]" value={category.name} />
                       </div>
 
                       <div class="app-shell-field">
-                        <label>Description</label>
+                        <label><%= gettext("Description") %></label>
                         <textarea name="category[description]"><%= category.description %></textarea>
                       </div>
 
                       <div class="app-shell-form-actions">
-                        <button type="submit" class="app-shell-secondary">Save</button>
+                        <button type="submit" class="app-shell-secondary"><%= gettext("Save") %></button>
                         <button
                           id={"delete-category-#{category.id}"}
                           class="app-shell-secondary"
@@ -205,7 +228,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                           phx-click="delete_category"
                           phx-value-id={category.id}
                         >
-                          Delete
+                          <%= gettext("Delete") %>
                         </button>
                       </div>
                     </form>
@@ -215,8 +238,8 @@ defmodule PortfolixirWeb.CategoryManagementLive do
             <% end %>
           <% else %>
             <div id="no-taxonomy-selected" class="app-shell-empty-state">
-              <h3>Create or select a taxonomy first</h3>
-              <p>Categories belong to one taxonomy, so choose the grouping system before adding them.</p>
+              <h3><%= gettext("Create or select a taxonomy first") %></h3>
+              <p><%= gettext("Categories belong to one taxonomy, so choose the grouping system before adding them.") %></p>
             </div>
           <% end %>
         </section>
@@ -250,6 +273,15 @@ defmodule PortfolixirWeb.CategoryManagementLive do
          |> assign(:taxonomy_form, sanitize_params(params))
          |> assign(:taxonomy_error, format_errors(changeset))}
     end
+  end
+
+  def handle_event("create_portfolio_performance_presets", _params, socket) do
+    Taxonomies.ensure_portfolio_performance_presets!()
+
+    {:noreply,
+     socket
+     |> assign(:preset_success, gettext("Portfolio Performance presets are available."))
+     |> load_taxonomy_state(socket.assigns.selected_taxonomy_id)}
   end
 
   def handle_event("create_category", %{"category" => params}, socket) do
