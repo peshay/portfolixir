@@ -10,12 +10,12 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
 
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
-    assert has_element?(view, "img[src='/images/logo-mark.svg']")
-    assert has_element?(view, "img[alt='Portfolixir']")
+    assert has_element?(view, "img#app-shell-brand-light-wordmark[src='/images/logo-light.svg']")
+    assert has_element?(view, "img#app-shell-brand-mark[src='/images/logo-mark.svg']")
     assert has_element?(view, "#sidebar-toggle")
     assert has_element?(view, "#theme-toggle")
     assert html =~ "id=\"theme-toggle-script\""
-    assert html =~ "Category Management"
+    assert html =~ "Classifications"
     assert html =~ "Taxonomies"
     assert html =~ "Categories"
     assert html =~ "Create Taxonomy"
@@ -96,7 +96,7 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
       })
       |> render_submit()
 
-    assert html =~ "name has already been taken"
+    assert html =~ "has already been taken"
   end
 
   test "same category name in different taxonomies is allowed", %{conn: conn} do
