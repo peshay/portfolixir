@@ -129,22 +129,13 @@ defmodule PortfolixirWeb.AppShell do
           display: none;
         }
 
-        #app-shell[data-theme="light"] .app-shell-logo-wordmark-light {
+        #app-shell:not([data-sidebar-collapsed="true"])[data-theme="light"]
+          .app-shell-logo-wordmark-light {
           display: block;
         }
 
-        #app-shell[data-theme="dark"] .app-shell-logo-wordmark-dark {
-          display: block;
-        }
-
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-logo-wordmark-light,
-        #app-shell[data-sidebar-collapsed="true"] .app-shell-logo-wordmark-dark,
-        #app-shell:not([data-sidebar-collapsed="true"]) .app-shell-logo-mark {
-          display: none;
-        }
-
-        #app-shell:not([data-sidebar-collapsed="true"]) .app-shell-logo-wordmark-light,
-        #app-shell:not([data-sidebar-collapsed="true"]) .app-shell-logo-wordmark-dark {
+        #app-shell:not([data-sidebar-collapsed="true"])[data-theme="dark"]
+          .app-shell-logo-wordmark-dark {
           display: block;
         }
 
@@ -152,23 +143,10 @@ defmodule PortfolixirWeb.AppShell do
           display: block;
         }
 
-        #app-shell .app-shell-brand-label,
         #app-shell .app-shell-visually-hidden {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-        }
-
-        #app-shell .app-shell-brand-label {
-          font-size: 1rem;
-          line-height: 1.05;
-          font-weight: 700;
-          letter-spacing: 0.01em;
-          display: none;
-        }
-
-        #app-shell:not([data-sidebar-collapsed="true"]) .app-shell-brand-label {
-          display: block;
         }
 
         #app-shell .app-shell-visually-hidden {
@@ -596,7 +574,6 @@ defmodule PortfolixirWeb.AppShell do
                 src="/images/logo-mark.svg"
                 alt="Portfolixir mark"
               />
-              <span class="app-shell-brand-label">Portfolixir</span>
               <span class="app-shell-visually-hidden">Portfolixir</span>
             </a>
             <button
