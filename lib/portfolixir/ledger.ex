@@ -4,6 +4,8 @@ defmodule Portfolixir.Ledger do
   import Ecto.Query
 
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Ledger.CashBalances
+  alias Portfolixir.Ledger.Positions
   alias Portfolixir.Repo
 
   def list_transactions do
@@ -16,6 +18,19 @@ defmodule Portfolixir.Ledger do
         where: transaction.portfolio_id == ^portfolio_id
       )
     )
+  end
+
+  def cash_balances_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
+    portfolio_id
+    |> list_transactions_for_portfolio()
+    |> Repo.preload(:securities_account)
+    |> CashBalances.calculate()
+  end
+
+  def positions_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
+    portfolio_id
+    |> list_transactions_for_portfolio()
+    |> Positions.calculate()
   end
 
   def get_transaction!(id) do
