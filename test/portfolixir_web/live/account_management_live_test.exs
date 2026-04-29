@@ -82,18 +82,71 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert has_element?(view, "#portfolio-onboarding.app-shell-onboarding")
     assert has_element?(view, "#portfolio-onboarding h2", "Create your first portfolio")
 
-    assert html =~
-             "Create this portfolio first to unlock account setup and deposit/securities account creation."
+    assert html =~ "Create this portfolio first so account setup appears next."
 
     assert html =~ "No portfolio yet"
 
     assert html =~
-             "Create this portfolio to unlock account setup, cash balances and ledger workflows."
+             "After you create this portfolio, you can set up a Verrechnungskonto, then a Depot."
 
     assert has_element?(view, "#portfolio-form")
     refute has_element?(view, "#account-kpis")
     refute has_element?(view, "#deposit-account-form")
     refute has_element?(view, "#securities-account-form")
+  end
+
+  test "walks through the first-run account setup flow", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    refute has_element?(view, "#deposit-account-form")
+    refute has_element?(view, "#securities-account-form")
+
+    html =
+      render_submit(view, "create_portfolio", %{
+        "portfolio" => %{
+          "name" => "Starter Portfolio",
+          "base_currency_code" => "EUR",
+          "description" => "Bootstrap setup portfolio"
+        }
+      })
+
+    assert html =~ "Portfolio created."
+    assert has_element?(view, "#deposit-account-form")
+    assert has_element?(view, "#securities-account-form")
+
+    html =
+      view
+      |> form("#deposit-account-form", %{
+        "deposit_account" => %{
+          "name" => "Starter Verrechnung",
+          "currency_code" => "EUR",
+          "notes" => "Synthetic fixture"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Deposit account created."
+    assert html =~ "Starter Verrechnung"
+
+    portfolio = Portfolios.first_portfolio()
+    [reference_account] = Portfolios.list_deposit_accounts_for_portfolio(portfolio.id)
+
+    html =
+      view
+      |> form("#securities-account-form", %{
+        "securities_account" => %{
+          "name" => "Main Depot",
+          "currency_code" => "EUR",
+          "reference_deposit_account_id" => "#{reference_account.id}",
+          "notes" => "Synthetic fixture"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Securities account created."
+    assert has_element?(view, "#securities-account-list")
+    assert has_element?(view, "#securities-account-list", "Main Depot")
+    assert has_element?(view, "#securities-account-list", "Starter Verrechnung")
   end
 
   test "fresh seeded setup offers EUR defaults for portfolio and account currency selects", %{
@@ -138,9 +191,11 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
 
     assert html =~ "Kontenübersicht"
     assert html =~ "Portfolio anlegen"
+    assert html =~ "Konten einrichten"
     assert html =~ "Währung"
-    assert html =~ "Verrechnungskonten"
-    assert html =~ "Depots"
+    assert html =~ "Verrechnungskonto"
+    assert html =~ "Depot"
+    assert html =~ "Kontenübersicht"
     assert html =~ "Referenz-Verrechnungskonto"
     assert has_element?(view, "#deposit-account-form")
     assert has_element?(view, "#securities-account-form")
