@@ -32,6 +32,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
 
     assert has_element?(view, "select#security-currency-code option[value='USD']", "USD")
+    assert has_element?(view, "select#security-active option[value='true'][selected]")
     refute has_element?(view, "input#security-currency-code")
 
     html =
@@ -104,8 +105,86 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     {:ok, _view, html} = live(conn, "/securities")
 
     assert html =~ "All Securities"
-    assert html =~ "No securities yet"
-    assert html =~ "Add your first security to start building your portfolio."
+    assert html =~ "No active securities"
+    assert html =~ "Only active securities are shown"
+  end
+
+  test "shows active securities by default", %{conn: conn} do
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Active Security",
+               symbol: "AC",
+               currency_code: "USD",
+               active: true
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Inactive Security",
+               symbol: "IN",
+               currency_code: "USD",
+               active: false
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-filter-active.app-shell-primary", "Active")
+    assert has_element?(view, "#security-list tbody tr", "Active Security")
+    refute has_element?(view, "#security-list tbody tr", "Inactive Security")
+  end
+
+  test "shows inactive securities when inactive filter is selected", %{conn: conn} do
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Active Security",
+               symbol: "AC",
+               currency_code: "USD",
+               active: true
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Inactive Security",
+               symbol: "IN",
+               currency_code: "USD",
+               active: false
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    assert has_element?(view, "#security-filter-active.app-shell-primary", "Active")
+
+    view |> element("#security-filter-inactive") |> render_click()
+
+    assert has_element?(view, "#security-filter-inactive.app-shell-primary", "Inactive")
+    assert has_element?(view, "#security-list tbody tr", "Inactive Security")
+    refute has_element?(view, "#security-list tbody tr", "Active Security")
+  end
+
+  test "shows all securities and status indicator when all filter is selected", %{conn: conn} do
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Active Security",
+               symbol: "AC",
+               currency_code: "USD",
+               active: true
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Inactive Security",
+               symbol: "IN",
+               currency_code: "USD",
+               active: false
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#security-filter-all") |> render_click()
+
+    assert has_element?(view, "#security-filter-all.app-shell-primary", "All")
+    assert has_element?(view, "#security-list tbody tr", "Active Security")
+    assert has_element?(view, "#security-list tbody tr", "Inactive Security")
+    assert has_element?(view, "span.app-shell-badge", "Active")
+    assert has_element?(view, "span.app-shell-badge", "Inactive")
   end
 
   test "creates a security with success feedback", %{conn: conn} do
@@ -258,6 +337,36 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-exchange-code[value='NASDAQ']")
     assert has_element?(view, "#security-provider-symbol[value='APPL']")
     assert has_element?(view, "#security-notes", "Existing note")
+    assert has_element?(view, "#security-active option[value='true'][selected]", "Active")
+  end
+
+  test "updates a security to inactive in the edit form", %{conn: conn} do
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Active Security",
+               symbol: "AAPL",
+               currency_code: "USD"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    assert view |> element("#security-edit-#{security.id}") |> render_click()
+
+    _html =
+      view
+      |> form("#security-form", %{
+        "security" => %{
+          "name" => "Active Security",
+          "symbol" => "AAPL",
+          "currency_code" => "USD",
+          "active" => "false"
+        }
+      })
+      |> render_submit()
+
+    refute has_element?(view, "#security-list tbody tr", "Active Security")
+    view |> element("#security-filter-all") |> render_click()
+    assert has_element?(view, "#security-list tbody tr", "Active Security")
+    assert has_element?(view, "#security-list tbody tr span", "Inactive")
   end
 
   test "updates a security from the edit form", %{conn: conn} do
