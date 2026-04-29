@@ -191,6 +191,29 @@ defmodule Portfolixir.CatalogTest do
              })
   end
 
+  test "creating a security defaults to active" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert security.active == true
+  end
+
+  test "creating a security can be inactive" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Apple Inc.",
+               symbol: "AAPL",
+               currency_code: "USD",
+               active: false
+             })
+
+    assert security.active == false
+  end
+
   test "creating a security with WKN persists" do
     {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
 
@@ -225,6 +248,85 @@ defmodule Portfolixir.CatalogTest do
 
     securities = Catalog.list_securities()
     assert Enum.map(securities, & &1.name) == ["Apex Fund", "Apple Inc.", "Zebra Holdings"]
+  end
+
+  test "list_securities lists active-only by default" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    {:ok, active_security} =
+      Catalog.create_security(%{
+        name: "Apple Active",
+        symbol: "AAA",
+        currency_code: "USD",
+        active: true
+      })
+
+    {:ok, _inactive_security} =
+      Catalog.create_security(%{
+        name: "Apple Inactive",
+        symbol: "AII",
+        currency_code: "USD",
+        active: false
+      })
+
+    securities = Catalog.list_securities()
+    assert Enum.map(securities, & &1.id) == [active_security.id]
+  end
+
+  test "list_securities can include inactive securities" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    {:ok, active_security} =
+      Catalog.create_security(%{
+        name: "Apple Active",
+        symbol: "AAA",
+        currency_code: "USD",
+        active: true
+      })
+
+    {:ok, inactive_security} =
+      Catalog.create_security(%{
+        name: "Apple Inactive",
+        symbol: "AII",
+        currency_code: "USD",
+        active: false
+      })
+
+    securities = Catalog.list_securities(:inactive)
+    assert Enum.map(securities, & &1.id) == [inactive_security.id]
+
+    all_securities = Catalog.list_securities(:all)
+
+    assert Enum.map(all_securities, & &1.id) |> Enum.sort() ==
+             [active_security.id, inactive_security.id] |> Enum.sort()
+  end
+
+  test "migration-style insert defaults to active for existing rows" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    %{rows: [[_id, active]]} =
+      Repo.query!(
+        "INSERT INTO securities (name, symbol, currency_code, notes, inserted_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, active",
+        ["Legacy Security", "LEG", "USD", nil, now, now]
+      )
+
+    assert active == true
+  end
+
+  test "update_security can mark a security inactive" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Apple Inc.",
+               symbol: "AAPL",
+               currency_code: "USD"
+             })
+
+    assert {:ok, updated_security} = Catalog.update_security(security, %{active: false})
+    assert updated_security.active == false
   end
 
   test "update_security/2 can update notes or name" do

@@ -38,10 +38,20 @@ defmodule Portfolixir.Catalog do
     |> Repo.insert()
   end
 
-  def list_securities do
+  @doc """
+  List securities by status.
+  """
+  def list_securities(status \\ :active)
+
+  def list_securities(status) when status in [:active, :inactive, :all] do
     from(s in Security, order_by: [asc: s.name, asc: s.symbol])
+    |> filter_by_status(status)
     |> Repo.all()
   end
+
+  defp filter_by_status(query, :all), do: query
+  defp filter_by_status(query, :active), do: where(query, [s], s.active == true)
+  defp filter_by_status(query, :inactive), do: where(query, [s], s.active == false)
 
   def get_security!(id), do: Repo.get!(Security, id)
 

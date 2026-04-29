@@ -8,6 +8,7 @@ defmodule Portfolixir.Catalog.Security do
   schema "securities" do
     field(:name, :string)
     field(:symbol, :string)
+    field(:active, :boolean, default: true)
     field(:exchange_code, :string)
     field(:provider_symbol, :string)
     field(:isin, :string)
@@ -33,6 +34,7 @@ defmodule Portfolixir.Catalog.Security do
     |> cast(attrs, [
       :name,
       :symbol,
+      :active,
       :exchange_code,
       :provider_symbol,
       :isin,
