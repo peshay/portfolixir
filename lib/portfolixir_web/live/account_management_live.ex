@@ -51,9 +51,37 @@ defmodule PortfolixirWeb.AccountManagementLive do
         <div>
           <p class="app-shell-page-kicker"><%= gettext("Master data") %></p>
           <h1><%= gettext("Accounts Overview") %></h1>
-          <p><%= gettext("Organize the portfolio, cash accounts and securities accounts that ledger activity posts to.") %></p>
+          <p><%= gettext("Use this page to configure how cash and securities are grouped before ledger entries are added.") %></p>
         </div>
       </header>
+
+      <section id="account-setup-onboarding" class="app-shell-section-card app-shell-onboarding">
+        <div class="app-shell-section-header">
+          <div>
+            <p class="app-shell-page-kicker"><%= gettext("Account setup") %></p>
+            <h2 class="app-shell-section-title"><%= gettext("How account setup works") %></h2>
+            <p><%= gettext("Create accounts in this order:") %></p>
+          </div>
+        </div>
+        <ol>
+          <li>
+            <strong><%= gettext("Create portfolio") %>:</strong>
+            <%= gettext("A portfolio is the container for accounts, transactions and derived reports.") %>
+          </li>
+          <li>
+            <strong><%= gettext("Create deposit account") %>:</strong>
+            <%= gettext("Cash and settlement accounts used for deposits, withdrawals, fees and trade cash impact.") %>
+          </li>
+          <li>
+            <strong><%= gettext("Create securities account") %>:</strong>
+            <%= gettext("Brokerage or custody accounts where security transactions are recorded.") %>
+          </li>
+          <li>
+            <strong><%= gettext("Reference deposit account") %>:</strong>
+            <%= gettext("Buy and sell cash impact is only reflected when a securities account has a reference deposit account.") %>
+          </li>
+        </ol>
+      </section>
 
       <div id="account-workspace" class="app-shell-workspace-grid">
         <div class="app-shell-workspace-stack" data-priority="primary">
@@ -125,7 +153,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
               <div class="app-shell-section-header">
                 <div>
                   <h2 class="app-shell-section-title"><%= gettext("Deposit accounts") %></h2>
-                  <p><%= gettext("Cash and settlement accounts used for deposits, withdrawals, fees and trade cash impact.") %></p>
+                  <p><%= gettext("Use a deposit account for cash and settlement activity and future trade cash movements.") %></p>
                 </div>
                 <span class="app-shell-badge"><%= ngettext("%{count} account", "%{count} accounts", Enum.count(@deposit_accounts), count: Enum.count(@deposit_accounts)) %></span>
               </div>
@@ -273,9 +301,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
             <section id="portfolio-onboarding" class="app-shell-section-card app-shell-onboarding">
               <p class="app-shell-page-kicker"><%= gettext("First run") %></p>
               <h2><%= gettext("Create your first portfolio") %></h2>
-              <p>
-                <%= gettext("A portfolio is the container for accounts, transactions and derived reports.") %>
-              </p>
+              <p><%= gettext("Create this portfolio first to unlock account setup and deposit/securities account creation.") %></p>
               <div id="no-portfolio" class="app-shell-empty-state app-shell-empty-state--inline" role="status">
                 <h3><%= gettext("No portfolio yet") %></h3>
                 <p><%= gettext("Create this portfolio to unlock account setup, cash balances and ledger workflows.") %></p>
@@ -285,11 +311,11 @@ defmodule PortfolixirWeb.AccountManagementLive do
         </div>
 
         <div id="account-forms" class="app-shell-workspace-stack" data-priority="secondary">
-          <section id="portfolio-management" class="app-shell-section-card">
+            <section id="portfolio-management" class="app-shell-section-card">
             <div class="app-shell-section-header">
               <div>
                 <h2 class="app-shell-section-title"><%= gettext("Portfolio setup") %></h2>
-                <p class="app-shell-panel-intro"><%= gettext("Create the initial portfolio before adding accounts.") %></p>
+                <p class="app-shell-panel-intro"><%= gettext("Create your first portfolio, then add a deposit account and a securities account.") %></p>
               </div>
             </div>
 

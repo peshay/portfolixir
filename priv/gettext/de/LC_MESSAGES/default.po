@@ -81,7 +81,7 @@ msgstr "Depot oder Verwahrkonto anlegen."
 #: lib/portfolixir_web/live/account_management_live.ex:136
 #, elixir-autogen, elixir-format
 msgid "Add a cash or settlement account."
-msgstr "Verrechnungs- oder Zahlungskonto anlegen."
+msgstr "Verrechnungskonto anlegen."
 
 #: lib/portfolixir_web/live/category_management_live.ex:139
 #, elixir-autogen, elixir-format
@@ -183,12 +183,12 @@ msgstr "Breadcrumb"
 #: lib/portfolixir_web/live/account_management_live.ex:103
 #, elixir-autogen, elixir-format
 msgid "Brokerage and custody"
-msgstr "Depot und Verwahrung"
+msgstr "Depot oder Verwahrkonto"
 
 #: lib/portfolixir_web/live/account_management_live.ex:237
 #, elixir-autogen, elixir-format
 msgid "Brokerage or custody accounts where security transactions are recorded."
-msgstr "Depots, in denen Wertpapierbuchungen erfasst werden."
+msgstr "Depots oder Verwahrkonten, in denen Käufe und Verkäufe erfasst werden."
 
 #: lib/portfolixir_web/live/category_management_live.ex:41
 #, elixir-autogen, elixir-format
@@ -213,12 +213,12 @@ msgstr "Berechnete Zeilen"
 #: lib/portfolixir_web/live/account_management_live.ex:95
 #, elixir-autogen, elixir-format
 msgid "Cash and settlement"
-msgstr "Geld und Verrechnung"
+msgstr "Geld- und Verrechnungskonto"
 
 #: lib/portfolixir_web/live/account_management_live.ex:128
 #, elixir-autogen, elixir-format
 msgid "Cash and settlement accounts used for deposits, withdrawals, fees and trade cash impact."
-msgstr "Geld- und Verrechnungskonten für Einzahlungen, Auszahlungen, Gebühren und Wertpapiergeschäfte."
+msgstr "Verrechnungskonto für Bargeldbewegungen, Gebühren und spätere Trade-Auswirkungen."
 
 #: lib/portfolixir_web/live/account_management_live.ex:109
 #: lib/portfolixir_web/live/account_management_live.ex:165
@@ -341,13 +341,17 @@ msgstr "Depot anlegen"
 
 #: lib/portfolixir_web/live/account_management_live.ex:292
 #, elixir-autogen, elixir-format
-msgid "Create the initial portfolio before adding accounts."
-msgstr "Lege zuerst das Portfolio an, bevor du Konten hinzufügst."
+msgid "Create your first portfolio, then add a deposit account and a securities account."
+msgstr "Lege zuerst das Portfolio an, danach ein Verrechnungskonto und ein Depot."
 
 #: lib/portfolixir_web/live/account_management_live.ex:281
 #, elixir-autogen, elixir-format
 msgid "Create this portfolio to unlock account setup, cash balances and ledger workflows."
 msgstr "Lege dieses Portfolio an, um Konten, Salden und Buchungen zu nutzen."
+
+#, elixir-autogen, elixir-format
+msgid "Create this portfolio first to unlock account setup and deposit/securities account creation."
+msgstr "Lege dieses Portfolio zuerst an, um die Kontenerrichtung und die Anlage von Verrechnungs- und Depotkonten freizuschalten."
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:353
 #, elixir-autogen, elixir-format
@@ -706,8 +710,8 @@ msgstr "Navigation öffnen"
 
 #: lib/portfolixir_web/live/account_management_live.ex:54
 #, elixir-autogen, elixir-format
-msgid "Organize the portfolio, cash accounts and securities accounts that ledger activity posts to."
-msgstr "Organisiere Portfolio, Verrechnungskonten und Depots für deine Buchungen."
+msgid "Use this page to configure how cash and securities are grouped before ledger entries are added."
+msgstr "Nutze diese Seite, um festzulegen, wie Bargeld und Wertpapiere vor den Buchungen strukturiert sind."
 
 #: lib/portfolixir_web/live/category_management_live.ex:164
 #, elixir-autogen, elixir-format
@@ -738,7 +742,15 @@ msgstr "Portfolio angelegt."
 #: lib/portfolixir_web/live/account_management_live.ex:291
 #, elixir-autogen, elixir-format
 msgid "Portfolio setup"
-msgstr "Portfolio einrichten"
+msgstr "Konten einrichten"
+
+#, elixir-autogen, elixir-format
+msgid "How account setup works"
+msgstr "So funktioniert die Kontenerrichtung"
+
+#, elixir-autogen, elixir-format
+msgid "Create accounts in this order:"
+msgstr "Richte Konten in dieser Reihenfolge ein:"
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:61
 #, elixir-autogen, elixir-format
@@ -801,12 +813,12 @@ msgstr "Erfasse die erste Buchung."
 #: lib/portfolixir_web/live/account_management_live.ex:254
 #, elixir-autogen, elixir-format
 msgid "Reference deposit account"
-msgstr "Referenzkonto"
+msgstr "Referenz-Verrechnungskonto"
 
 #: lib/portfolixir_web/live/account_management_live.ex:467
 #, elixir-autogen, elixir-format
 msgid "Reference deposit account (optional)"
-msgstr "Referenzkonto (optional)"
+msgstr "Referenz-Verrechnungskonto (optional)"
 
 #: lib/portfolixir_web/components/app_shell.ex:1478
 #, elixir-autogen, elixir-format
@@ -1007,7 +1019,7 @@ msgstr "Nutze Einzahlungen für Geldbewegungen. Nutze Kauf, Verkauf und Dividend
 #: lib/portfolixir_web/live/account_management_live.ex:350
 #, elixir-autogen, elixir-format
 msgid "Use for cash, settlement and savings accounts."
-msgstr "Für Geld-, Verrechnungs- und Sparkonten."
+msgstr "Für Bargeldbewegungen und spätere Verrechnungskonten."
 
 #: lib/portfolixir_web/live/security_management_live.ex:247
 #, elixir-autogen, elixir-format
