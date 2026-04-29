@@ -207,6 +207,51 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert html =~ "Primary portfolio"
   end
 
+  test "invalid current portfolio selection does not expose data from other portfolio", %{
+    conn: conn
+  } do
+    first_portfolio = create_portfolio("Primary portfolio")
+    second_portfolio = create_portfolio("Secondary portfolio")
+
+    create_deposit_account(first_portfolio, "Primary Cash")
+    create_deposit_account(second_portfolio, "Secondary Cash")
+
+    {:ok, _} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: first_portfolio.id,
+        name: "Primary Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: second_portfolio.id,
+        name: "Secondary Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(view, "#deposit-account-list", "Primary Cash")
+    assert has_element?(view, "#securities-account-list", "Primary Depot")
+    refute has_element?(view, "#deposit-account-list", "Secondary Cash")
+    refute has_element?(view, "#securities-account-list", "Secondary Depot")
+
+    html =
+      render_change(view, "select_current_portfolio", %{"portfolio_id" => "invalid-portfolio-id"})
+
+    assert has_element?(
+             view,
+             "#current-portfolio-select option[value='#{first_portfolio.id}'][selected]"
+           )
+
+    assert has_element?(view, "#deposit-account-list", "Primary Cash")
+    assert has_element?(view, "#securities-account-list", "Primary Depot")
+    refute has_element?(view, "#deposit-account-list", "Secondary Cash")
+    refute has_element?(view, "#securities-account-list", "Secondary Depot")
+    assert html =~ "Primary portfolio"
+  end
+
   test "accounts page explains setup flow in English terms", %{conn: conn} do
     create_portfolio("Primary portfolio")
 
