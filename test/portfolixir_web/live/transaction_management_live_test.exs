@@ -431,7 +431,11 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     refute has_element?(view, "#transaction-form")
   end
 
-  test "creates a deposit transaction", %{conn: conn, deposit_account: deposit_account} do
+  test "creates a deposit transaction through /transactions", %{
+    conn: conn,
+    portfolio: portfolio,
+    deposit_account: deposit_account
+  } do
     {:ok, view, _html} = live(conn, "/transactions")
 
     html =
@@ -449,10 +453,51 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       |> render_submit()
 
     assert html =~ "Transaction created."
-    assert html =~ "deposit"
+    assert has_element?(view, "#transaction-list", "2026-04-01")
+    assert has_element?(view, "#transaction-list", "Deposit")
     assert html =~ "1000.00"
     assert html =~ "Settlement Cash"
-    refute html =~ "Synthetic opening deposit\""
+    assert has_element?(view, "#transaction-list", "Synthetic opening deposit")
+
+    selected_portfolio_transactions = Ledger.list_transactions_for_portfolio(portfolio.id)
+
+    assert Enum.any?(
+             selected_portfolio_transactions,
+             &(&1.notes == "Synthetic opening deposit")
+           )
+  end
+
+  test "creates a withdrawal transaction through /transactions", %{
+    conn: conn,
+    portfolio: portfolio,
+    deposit_account: deposit_account
+  } do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "withdrawal",
+          "date" => "2026-04-02",
+          "currency_code" => "EUR",
+          "amount" => "250.00",
+          "deposit_account_id" => "#{deposit_account.id}",
+          "notes" => "Funds out"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Transaction created."
+    assert has_element?(view, "#transaction-list", "2026-04-02")
+    assert has_element?(view, "#transaction-list", "Withdrawal")
+    assert has_element?(view, "#transaction-list", "Settlement Cash")
+    assert has_element?(view, "#transaction-list", "250.00")
+    assert has_element?(view, "#transaction-list", "Funds out")
+
+    selected_portfolio_transactions = Ledger.list_transactions_for_portfolio(portfolio.id)
+
+    assert Enum.any?(selected_portfolio_transactions, &(&1.notes == "Funds out"))
   end
 
   test "German transaction type labels render while stored values remain English", %{
@@ -834,6 +879,126 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       |> render_submit()
 
     assert invalid_amount =~ "Amount must be greater than 0"
+  end
+
+  test "shows validation errors for missing deposit transaction input", %{
+    conn: conn,
+    deposit_account: deposit_account
+  } do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    missing_deposit_account =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "deposit",
+          "date" => "2026-04-14",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "notes" => "Missing account"
+        }
+      })
+      |> render_submit()
+
+    assert missing_deposit_account =~ "id=\"transaction-form-error\""
+    assert missing_deposit_account =~ "Deposit account"
+
+    missing_amount =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "deposit",
+          "date" => "2026-04-14",
+          "currency_code" => "EUR",
+          "amount" => "",
+          "deposit_account_id" => "#{deposit_account.id}",
+          "notes" => "Missing amount"
+        }
+      })
+      |> render_submit()
+
+    assert missing_amount =~ "id=\"transaction-form-error\""
+    assert missing_amount =~ "Amount"
+    assert missing_amount =~ "value=\"\""
+    assert missing_amount =~ "Missing amount"
+
+    assert missing_amount =~ "deposit"
+  end
+
+  test "shows validation errors for invalid withdrawal transaction amounts", %{
+    conn: conn,
+    deposit_account: deposit_account
+  } do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    zero_amount =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "withdrawal",
+          "date" => "2026-04-15",
+          "currency_code" => "EUR",
+          "amount" => "0.00",
+          "deposit_account_id" => "#{deposit_account.id}"
+        }
+      })
+      |> render_submit()
+
+    assert zero_amount =~ "id=\"transaction-form-error\""
+    assert zero_amount =~ "Amount must be greater than 0"
+
+    negative_amount =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "withdrawal",
+          "date" => "2026-04-15",
+          "currency_code" => "EUR",
+          "amount" => "-1.00",
+          "deposit_account_id" => "#{deposit_account.id}"
+        }
+      })
+      |> render_submit()
+
+    assert negative_amount =~ "id=\"transaction-form-error\""
+    assert negative_amount =~ "Amount must be greater than 0"
+  end
+
+  test "creates a withdrawal transaction for the selected portfolio", %{
+    conn: conn,
+    portfolio: portfolio
+  } do
+    second_portfolio = create_portfolio("Secondary")
+    second_deposit = create_deposit_account(second_portfolio, "Secondary Cash")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert select_current_portfolio(view, second_portfolio.id) =~ "Secondary Cash"
+
+    html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "withdrawal",
+          "date" => "2026-04-16",
+          "currency_code" => "EUR",
+          "amount" => "300.00",
+          "deposit_account_id" => "#{second_deposit.id}",
+          "notes" => "Scoped withdrawal"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Transaction created."
+    assert has_element?(view, "#transaction-list", "Scoped withdrawal")
+    assert has_element?(view, "#transaction-list", "Withdrawal")
+    assert has_element?(view, "#transaction-list", "Secondary Cash")
+
+    second_transactions = Ledger.list_transactions_for_portfolio(second_portfolio.id)
+    first_transactions = Ledger.list_transactions_for_portfolio(portfolio.id)
+
+    assert Enum.any?(second_transactions, &(&1.notes == "Scoped withdrawal"))
+    refute Enum.any?(first_transactions, &(&1.notes == "Scoped withdrawal"))
   end
 
   test "shows validation error and keeps submitted values for invalid transaction", %{
