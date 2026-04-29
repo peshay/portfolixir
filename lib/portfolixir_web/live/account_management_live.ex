@@ -60,7 +60,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
           <div>
             <p class="app-shell-page-kicker"><%= gettext("Account setup") %></p>
             <h2 class="app-shell-section-title"><%= gettext("How account setup works") %></h2>
-            <p><%= gettext("Create accounts in this order:") %></p>
+          <p><%= gettext("Complete setup in this order to keep account and cash flow data consistent.") %></p>
           </div>
         </div>
         <ol>
@@ -301,10 +301,12 @@ defmodule PortfolixirWeb.AccountManagementLive do
             <section id="portfolio-onboarding" class="app-shell-section-card app-shell-onboarding">
               <p class="app-shell-page-kicker"><%= gettext("First run") %></p>
               <h2><%= gettext("Create your first portfolio") %></h2>
-              <p><%= gettext("Create this portfolio first to unlock account setup and deposit/securities account creation.") %></p>
+                <p><%= gettext("Create this portfolio first so account setup appears next.") %></p>
               <div id="no-portfolio" class="app-shell-empty-state app-shell-empty-state--inline" role="status">
                 <h3><%= gettext("No portfolio yet") %></h3>
-                <p><%= gettext("Create this portfolio to unlock account setup, cash balances and ledger workflows.") %></p>
+                  <p>
+                    <%= gettext("After you create this portfolio, you can set up a Verrechnungskonto, then a Depot.") %>
+                  </p>
               </div>
             </section>
           <% end %>
@@ -315,7 +317,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
             <div class="app-shell-section-header">
               <div>
                 <h2 class="app-shell-section-title"><%= gettext("Portfolio setup") %></h2>
-                <p class="app-shell-panel-intro"><%= gettext("Create your first portfolio, then add a deposit account and a securities account.") %></p>
+                <p class="app-shell-panel-intro"><%= gettext("Create your first portfolio, then add a Verrechnungskonto and then a Depot.") %></p>
               </div>
             </div>
 
