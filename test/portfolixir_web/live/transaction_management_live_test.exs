@@ -483,6 +483,8 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
   test "creates a buy transaction using linked securities account and security", %{
     conn: conn,
+    portfolio: portfolio,
+    deposit_account: deposit_account,
     securities_account: securities_account,
     security: security
   } do
@@ -507,10 +509,170 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       |> render_submit()
 
     assert html =~ "Transaction created."
-    assert html =~ "buy"
+    assert html =~ "Buy"
     assert html =~ "Synthetic ETF"
     assert html =~ "5.00"
     assert html =~ "50.00"
+    assert has_element?(view, "#position-list", "Main Depot")
+    assert has_element?(view, "#position-list", "5.00")
+    assert has_element?(view, "#transaction-list", "Main Depot")
+    assert has_element?(view, "#transaction-list", "Synthetic ETF")
+
+    cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+    assert cash_balances.missing_cash_impacts == []
+
+    assert Decimal.equal?(
+             cash_balances.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("-251.00")
+           )
+  end
+
+  test "creates a buy transaction for the selected portfolio", %{
+    conn: conn,
+    portfolio: portfolio,
+    security: security
+  } do
+    second_portfolio = create_portfolio("Secondary")
+    second_deposit = create_deposit_account(second_portfolio, "Secondary Cash")
+
+    second_securities_account =
+      create_securities_account(
+        second_portfolio,
+        second_deposit,
+        "Secondary Depot"
+      )
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert select_current_portfolio(view, second_portfolio.id) =~ "Secondary Cash"
+
+    html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "2026-04-06",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "securities_account_id" => "#{second_securities_account.id}",
+          "security_id" => "#{security.id}",
+          "quantity" => "1.00",
+          "price" => "100.00",
+          "notes" => "Secondary scoped buy"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Transaction created."
+    assert has_element?(view, "#transaction-list", "Secondary scoped buy")
+    assert has_element?(view, "#transaction-list", "Secondary Depot")
+    assert has_element?(view, "#position-list", "Secondary Depot")
+    refute has_element?(view, "#position-list", "Main Depot")
+
+    second_transactions = Ledger.list_transactions_for_portfolio(second_portfolio.id)
+    first_transactions = Ledger.list_transactions_for_portfolio(portfolio.id)
+
+    assert Enum.any?(second_transactions, &(&1.notes == "Secondary scoped buy"))
+    refute Enum.any?(first_transactions, &(&1.notes == "Secondary scoped buy"))
+  end
+
+  test "shows validation errors for buy input", %{
+    conn: conn,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert_missing_securities_account =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "2026-04-07",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "security_id" => "#{security.id}",
+          "quantity" => "1.00",
+          "price" => "100.00"
+        }
+      })
+      |> render_submit()
+
+    assert assert_missing_securities_account =~ "id=\"transaction-form-error\""
+    assert assert_missing_securities_account =~ "Securities"
+    assert assert_missing_securities_account =~ "blank"
+    assert has_element?(view, "#transaction-form-error[role='alert']")
+
+    assert_missing_security =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "2026-04-07",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "securities_account_id" => "#{securities_account.id}",
+          "quantity" => "1.00",
+          "price" => "100.00"
+        }
+      })
+      |> render_submit()
+
+    assert assert_missing_security =~ "Security"
+
+    assert_quantity_error =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "2026-04-07",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "securities_account_id" => "#{securities_account.id}",
+          "security_id" => "#{security.id}",
+          "quantity" => "0.00",
+          "price" => "100.00"
+        }
+      })
+      |> render_submit()
+
+    assert assert_quantity_error =~ "Quantity must be greater than 0"
+
+    assert_price_error =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "2026-04-07",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "securities_account_id" => "#{securities_account.id}",
+          "security_id" => "#{security.id}",
+          "quantity" => "1.00",
+          "price" => "0.00"
+        }
+      })
+      |> render_submit()
+
+    assert assert_price_error =~ "Price must be greater than 0"
+
+    assert_amount_error =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "2026-04-07",
+          "currency_code" => "EUR",
+          "amount" => "0.00",
+          "securities_account_id" => "#{securities_account.id}",
+          "security_id" => "#{security.id}",
+          "quantity" => "1.00",
+          "price" => "100.00"
+        }
+      })
+      |> render_submit()
+
+    assert assert_amount_error =~ "Amount must be greater than 0"
   end
 
   test "shows validation error and keeps submitted values for invalid transaction", %{
