@@ -90,6 +90,184 @@ defmodule Portfolixir.LedgerTest do
     assert Decimal.equal?(transaction.amount, Decimal.new("125.50"))
   end
 
+  test "deposit transaction increases derived cash balance", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account
+  } do
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               type: "deposit",
+               date: ~D[2026-01-09],
+               currency_code: "EUR",
+               amount: Decimal.new("1000.00")
+             })
+
+    cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             cash_balances.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("1000.00")
+           )
+
+    assert cash_balances.balances[{deposit_account.id, "USD"}] == nil
+  end
+
+  test "withdrawal transaction decreases derived cash balance", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account
+  } do
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               type: "withdrawal",
+               date: ~D[2026-01-09],
+               currency_code: "EUR",
+               amount: Decimal.new("75.00")
+             })
+
+    cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             cash_balances.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("-75.00")
+           )
+  end
+
+  test "deposit and withdrawal combine to the expected net cash balance", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account
+  } do
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               type: "deposit",
+               date: ~D[2026-01-09],
+               currency_code: "EUR",
+               amount: Decimal.new("300.00")
+             })
+
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               type: "withdrawal",
+               date: ~D[2026-01-09],
+               currency_code: "EUR",
+               amount: Decimal.new("125.00")
+             })
+
+    cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             cash_balances.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("175.00")
+           )
+  end
+
+  test "deposit and withdrawal from another portfolio do not affect current portfolio cash balance",
+       %{
+         portfolio: portfolio,
+         other_portfolio: other_portfolio,
+         deposit_account: deposit_account
+       } do
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               type: "deposit",
+               date: ~D[2026-01-09],
+               currency_code: "EUR",
+               amount: Decimal.new("100.00")
+             })
+
+    {:ok, other_deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: other_portfolio.id,
+        name: "Other Cash",
+        currency_code: "EUR"
+      })
+
+    base_cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: other_portfolio.id,
+               deposit_account_id: other_deposit_account.id,
+               type: "deposit",
+               date: ~D[2026-01-10],
+               currency_code: "EUR",
+               amount: Decimal.new("250.00")
+             })
+
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: other_portfolio.id,
+               deposit_account_id: other_deposit_account.id,
+               type: "withdrawal",
+               date: ~D[2026-01-10],
+               currency_code: "EUR",
+               amount: Decimal.new("50.00")
+             })
+
+    current_cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert current_cash_balances.balances == base_cash_balances.balances
+  end
+
+  test "deposit and withdrawal do not affect security positions", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-11],
+        currency_code: "EUR",
+        quantity: Decimal.new("12.00"),
+        price: Decimal.new("10.00"),
+        amount: Decimal.new("120.00")
+      })
+
+    positions_before = Ledger.positions_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             positions_before[{securities_account.id, security.id}],
+             Decimal.new("12.00")
+           )
+
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               type: "deposit",
+               date: ~D[2026-01-12],
+               currency_code: "EUR",
+               amount: Decimal.new("50.00")
+             })
+
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               type: "withdrawal",
+               date: ~D[2026-01-12],
+               currency_code: "EUR",
+               amount: Decimal.new("25.00")
+             })
+
+    positions_after = Ledger.positions_for_portfolio(portfolio.id)
+    assert positions_after == positions_before
+  end
+
   test "create buy transaction", %{
     portfolio: portfolio,
     securities_account: securities_account,
@@ -268,6 +446,11 @@ defmodule Portfolixir.LedgerTest do
     assert %{amount: ["must be greater than 0"]} = errors_on(negative_deposit_changeset)
 
     withdrawal_attrs = %{deposit_attrs | type: "withdrawal"}
+
+    assert {:error, zero_withdrawal_changeset} =
+             Ledger.create_transaction(Map.put(withdrawal_attrs, :amount, Decimal.new("0.00")))
+
+    assert %{amount: ["must be greater than 0"]} = errors_on(zero_withdrawal_changeset)
 
     assert {:error, negative_withdrawal_changeset} =
              Ledger.create_transaction(Map.put(withdrawal_attrs, :amount, Decimal.new("-1.00")))
