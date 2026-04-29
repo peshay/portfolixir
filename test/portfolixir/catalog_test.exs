@@ -329,6 +329,21 @@ defmodule Portfolixir.CatalogTest do
     assert updated_security.active == false
   end
 
+  test "archive_security marks an active security inactive" do
+    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Archive Security",
+               symbol: "ARS",
+               currency_code: "USD",
+               active: true
+             })
+
+    assert {:ok, archived_security} = Catalog.archive_security(security)
+    assert archived_security.active == false
+  end
+
   test "update_security/2 can update notes or name" do
     {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
 

@@ -139,6 +139,17 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                         <% end %>
                       </td>
                       <td>
+                        <%= if security.active do %>
+                          <button
+                            id={"security-archive-#{security.id}"}
+                            type="button"
+                            class="app-shell-secondary"
+                            phx-click="archive_security"
+                            phx-value-id={security.id}
+                          >
+                            <%= gettext("Archive") %>
+                          </button>
+                        <% end %>
                         <button
                           id={"security-edit-#{security.id}"}
                           type="button"
@@ -329,6 +340,27 @@ defmodule PortfolixirWeb.SecurityManagementLive do
      socket
      |> assign(:security_status_filter, new_status)
      |> load_securities()}
+  end
+
+  def handle_event("archive_security", %{"id" => id_string}, socket) do
+    {id, ""} = Integer.parse(id_string)
+    security = Catalog.get_security!(id)
+
+    case Catalog.archive_security(security) do
+      {:ok, _security} ->
+        {:noreply,
+         socket
+         |> assign(:security_success, gettext("Security archived."))
+         |> assign(:security_error, nil)
+         |> load_securities()}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         socket
+         |> assign(:security_error, "Failed to archive security: #{format_errors(changeset)}")
+         |> assign(:security_success, nil)
+         |> load_securities()}
+    end
   end
 
   def handle_event("save_security", %{"security" => params}, socket) do
