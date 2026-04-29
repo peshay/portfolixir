@@ -609,11 +609,17 @@ defmodule Portfolixir.LedgerTest do
 
     result = Ledger.cash_balances_for_portfolio(portfolio.id)
 
+    expected_cash_impact =
+      Decimal.add(
+        Decimal.add(Decimal.new("200.00"), Decimal.new("1.50")),
+        Decimal.new("0.50")
+      )
+
     assert result.missing_cash_impacts == []
 
     assert Decimal.equal?(
              result.balances[{deposit_account.id, "EUR"}],
-             Decimal.new("-202.00")
+             Decimal.negate(expected_cash_impact)
            )
 
     direct_result = CashBalances.calculate([Repo.preload(buy, :securities_account)])
@@ -819,6 +825,86 @@ defmodule Portfolixir.LedgerTest do
              positions[{securities_account.id, second_security.id}],
              Decimal.new("7.00")
            )
+  end
+
+  test "buy in another portfolio does not alter current portfolio derived state", %{
+    portfolio: portfolio,
+    other_portfolio: other_portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, other_deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: other_portfolio.id,
+        name: "Other Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, other_securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: other_portfolio.id,
+        reference_deposit_account_id: other_deposit_account.id,
+        name: "Other Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, _primary_buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-10],
+        currency_code: "EUR",
+        quantity: Decimal.new("4.00"),
+        price: Decimal.new("100.00"),
+        amount: Decimal.new("400.00"),
+        fees: Decimal.new("1.00"),
+        taxes: Decimal.new("0.00")
+      })
+
+    {:ok, _other_buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: other_portfolio.id,
+        securities_account_id: other_securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-11],
+        currency_code: "EUR",
+        quantity: Decimal.new("2.00"),
+        price: Decimal.new("200.00"),
+        amount: Decimal.new("400.00"),
+        fees: Decimal.new("2.00"),
+        taxes: Decimal.new("0.00")
+      })
+
+    primary_cash = Ledger.cash_balances_for_portfolio(portfolio.id)
+    other_cash = Ledger.cash_balances_for_portfolio(other_portfolio.id)
+    primary_positions = Ledger.positions_for_portfolio(portfolio.id)
+    other_positions = Ledger.positions_for_portfolio(other_portfolio.id)
+
+    assert Decimal.equal?(
+             primary_cash.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("-401.00")
+           )
+
+    assert Decimal.equal?(
+             other_cash.balances[{other_deposit_account.id, "EUR"}],
+             Decimal.new("-402.00")
+           )
+
+    assert Map.has_key?(primary_positions, {securities_account.id, security.id})
+    assert Map.has_key?(other_positions, {other_securities_account.id, security.id})
+
+    assert Map.get(other_positions, {securities_account.id, security.id}, Decimal.new("0")) ==
+             Decimal.new("0")
+
+    assert Map.get(
+             primary_positions,
+             {other_securities_account.id, security.id},
+             Decimal.new("0")
+           ) == Decimal.new("0")
   end
 
   test "integration flow derives transactions, position, and cash balance", %{
