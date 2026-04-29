@@ -4,6 +4,8 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Security
+  alias Portfolixir.Repo
 
   setup do
     Catalog.ensure_mvp_currencies!()
@@ -59,6 +61,79 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "a#security-export-csv[href='/securities/export.csv']",
              "Export CSV"
            )
+  end
+
+  test "shows CSV preview section on the securities page", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-csv-preview")
+    assert has_element?(view, "#security-csv-preview-form")
+    assert has_element?(view, "button", "Preview CSV")
+  end
+
+  test "previews a pasted securities CSV with row status", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    csv = """
+    name,symbol,currency_code,active,isin,wkn,provider_symbol,exchange_code,notes
+    Test Security,TEST,USD,true,US123,123,WTEST,XNYS,Example
+    """
+
+    html =
+      view
+      |> form("#security-csv-preview-form", %{
+        "security_csv_text" => csv
+      })
+      |> render_submit()
+
+    assert html =~ "security-preview-row-1"
+    assert has_element?(view, "#security-preview-status-1", "valid")
+    assert has_element?(view, "#security-preview-row-1", "Test Security")
+    assert has_element?(view, "#security-csv-preview-table")
+    refute has_element?(view, "button", "Confirm import")
+  end
+
+  test "can clear preview and clears preview-only feedback", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    csv = """
+    name,symbol,currency_code,active,isin,wkn,provider_symbol,exchange_code,notes
+    Test Security,TEST,USD,,ISIN,CODE,PS,X,Example
+    """
+
+    view
+    |> form("#security-csv-preview-form", %{
+      "security_csv_text" => csv
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#security-csv-preview-table")
+    assert has_element?(view, "#security-csv-clear-preview")
+
+    view |> element("#security-csv-clear-preview") |> render_click()
+
+    refute has_element?(view, "#security-csv-preview-table")
+    refute has_element?(view, "#security-csv-error")
+  end
+
+  test "previewing CSV does not create securities", %{conn: conn} do
+    assert Repo.aggregate(Security, :count, :id) == 0
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    csv = """
+    name,symbol,currency_code,active,isin,wkn,provider_symbol,exchange_code,notes
+    Test Security,TEST,USD,,ISIN,CODE,PS,X,Example
+    """
+
+    view
+    |> form("#security-csv-preview-form", %{
+      "security_csv_text" => csv
+    })
+    |> render_submit()
+
+    assert Repo.aggregate(Security, :count, :id) == 0
+    refute has_element?(view, "#security-list tbody tr", "Test Security")
   end
 
   test "German security terminology renders for the create flow", %{conn: conn} do
