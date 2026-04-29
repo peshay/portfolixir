@@ -1157,3 +1157,15 @@ msgstr "Nachdem du dieses Portfolio angelegt hast, kannst du ein Verrechnungskon
 #, elixir-autogen, elixir-format
 msgid "Create your first portfolio, then add a deposit account and then a securities account."
 msgstr "Lege zuerst dein erstes Portfolio an, danach ein Verrechnungskonto und anschließend ein Depot."
+
+#, elixir-autogen, elixir-format
+msgid "Select portfolio"
+msgstr "Portfolio auswählen"
+
+#, elixir-autogen, elixir-format
+msgid "The base currency for account and ledger workflows is set by the current portfolio."
+msgstr "Die Basiswährung für Konten und Buchungen wird durch das aktuelle Portfolio festgelegt."
+
+#, elixir-autogen, elixir-format
+msgid "The current portfolio controls which accounts and future transactions are shown."
+msgstr "Das aktuelle Portfolio steuert, welche Konten und späteren Buchungen angezeigt werden."
