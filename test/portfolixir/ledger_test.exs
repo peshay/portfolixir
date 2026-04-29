@@ -434,6 +434,59 @@ defmodule Portfolixir.LedgerTest do
     assert listed_oldest.id == oldest.id
   end
 
+  test "cash balance missing impact rows are scoped to the selected portfolio", %{
+    portfolio: portfolio,
+    other_portfolio: other_portfolio,
+    security: security
+  } do
+    {:ok, unlinked_primary_depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Primary Unlinked Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, primary_buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: unlinked_primary_depot.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-15],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("100.00"),
+        amount: Decimal.new("100.00")
+      })
+
+    {:ok, unlinked_other_depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: other_portfolio.id,
+        name: "Other Unlinked Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, other_buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: other_portfolio.id,
+        securities_account_id: unlinked_other_depot.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-16],
+        currency_code: "EUR",
+        quantity: Decimal.new("2.00"),
+        price: Decimal.new("50.00"),
+        amount: Decimal.new("100.00")
+      })
+
+    result = Ledger.cash_balances_for_portfolio(portfolio.id)
+    [only_row] = result.missing_cash_impacts
+
+    assert only_row.transaction_id == primary_buy.id
+    assert only_row.type == "buy"
+    refute Enum.any?(result.missing_cash_impacts, &(&1.transaction_id == other_buy.id))
+  end
+
   test "cash balance from deposit and withdrawal", %{
     portfolio: portfolio,
     deposit_account: deposit_account
