@@ -1151,9 +1151,9 @@ msgid "Create this portfolio first so account setup appears next."
 msgstr "Lege dieses Portfolio zuerst an, damit danach die Kontoeinrichtung folgt."
 
 #, elixir-autogen, elixir-format
-msgid "After you create this portfolio, you can set up a Verrechnungskonto, then a Depot."
+msgid "After you create this portfolio, you can set up a deposit account and then a securities account."
 msgstr "Nachdem du dieses Portfolio angelegt hast, kannst du ein Verrechnungskonto und anschließend ein Depot einrichten."
 
 #, elixir-autogen, elixir-format
-msgid "Create your first portfolio, then add a Verrechnungskonto and then a Depot."
+msgid "Create your first portfolio, then add a deposit account and then a securities account."
 msgstr "Lege zuerst dein erstes Portfolio an, danach ein Verrechnungskonto und anschließend ein Depot."
