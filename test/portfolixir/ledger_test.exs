@@ -140,6 +140,45 @@ defmodule Portfolixir.LedgerTest do
     assert Decimal.equal?(transaction.amount, Decimal.new("220.00"))
   end
 
+  test "sell transaction decreases positions for account and security", %{
+    portfolio: portfolio,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, _buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-14],
+        currency_code: "EUR",
+        quantity: Decimal.new("10.00"),
+        price: Decimal.new("100.00"),
+        amount: Decimal.new("1000.00")
+      })
+
+    {:ok, _sell} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "sell",
+        date: ~D[2026-01-15],
+        currency_code: "EUR",
+        quantity: Decimal.new("3.00"),
+        price: Decimal.new("110.00"),
+        amount: Decimal.new("330.00")
+      })
+
+    positions = Ledger.positions_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             positions[{securities_account.id, security.id}],
+             Decimal.new("7.00")
+           )
+  end
+
   test "create dividend transaction", %{
     portfolio: portfolio,
     deposit_account: deposit_account,
@@ -277,6 +316,49 @@ defmodule Portfolixir.LedgerTest do
              Ledger.create_transaction(Map.put(attrs, :amount, Decimal.new("-1.00")))
 
     assert %{amount: ["must be greater than 0"]} = errors_on(negative_amount_changeset)
+  end
+
+  test "sell rejects missing securities account, missing security, and non-positive values", %{
+    portfolio: portfolio,
+    securities_account: securities_account,
+    security: security
+  } do
+    attrs = %{
+      portfolio_id: portfolio.id,
+      securities_account_id: securities_account.id,
+      security_id: security.id,
+      type: "sell",
+      date: ~D[2026-01-16],
+      currency_code: "EUR",
+      quantity: Decimal.new("1.00"),
+      price: Decimal.new("100.00"),
+      amount: Decimal.new("100.00")
+    }
+
+    assert {:error, missing_sa_changeset} =
+             Ledger.create_transaction(Map.delete(attrs, :securities_account_id))
+
+    assert %{securities_account_id: ["can't be blank"]} = errors_on(missing_sa_changeset)
+
+    assert {:error, missing_security_changeset} =
+             Ledger.create_transaction(Map.delete(attrs, :security_id))
+
+    assert %{security_id: ["can't be blank"]} = errors_on(missing_security_changeset)
+
+    assert {:error, zero_quantity_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :quantity, Decimal.new("0.00")))
+
+    assert %{quantity: ["must be greater than 0"]} = errors_on(zero_quantity_changeset)
+
+    assert {:error, zero_price_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :price, Decimal.new("0.00")))
+
+    assert %{price: ["must be greater than 0"]} = errors_on(zero_price_changeset)
+
+    assert {:error, zero_amount_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :amount, Decimal.new("0.00")))
+
+    assert %{amount: ["must be greater than 0"]} = errors_on(zero_amount_changeset)
   end
 
   test "sell rejects negative fees and taxes", %{
@@ -661,6 +743,45 @@ defmodule Portfolixir.LedgerTest do
            )
   end
 
+  test "sell without linked reference deposit account reports missing cash impact", %{
+    portfolio: portfolio,
+    security: security
+  } do
+    {:ok, unlinked_securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Unlinked Sell Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, sell} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: unlinked_securities_account.id,
+        security_id: security.id,
+        type: "sell",
+        date: ~D[2026-02-14],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("120.00"),
+        amount: Decimal.new("120.00")
+      })
+
+    result = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert result.balances == %{}
+
+    assert [
+             %{
+               transaction_id: sell_transaction_id,
+               type: "sell",
+               reason: :missing_reference_deposit_account
+             }
+           ] = result.missing_cash_impacts
+
+    assert sell_transaction_id == sell.id
+  end
+
   test "buy without linked reference deposit account records missing cash impact", %{
     portfolio: portfolio,
     security: security
@@ -905,6 +1026,74 @@ defmodule Portfolixir.LedgerTest do
              {other_securities_account.id, security.id},
              Decimal.new("0")
            ) == Decimal.new("0")
+  end
+
+  test "sell in another portfolio does not alter current portfolio derived state", %{
+    portfolio: portfolio,
+    other_portfolio: other_portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, primary_buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-03-01],
+        currency_code: "EUR",
+        quantity: Decimal.new("5.00"),
+        price: Decimal.new("100.00"),
+        amount: Decimal.new("500.00")
+      })
+
+    {:ok, other_deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: other_portfolio.id,
+        name: "Other Sell Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, other_securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: other_portfolio.id,
+        reference_deposit_account_id: other_deposit_account.id,
+        name: "Other Sell Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, _other_sell} =
+      Ledger.create_transaction(%{
+        portfolio_id: other_portfolio.id,
+        securities_account_id: other_securities_account.id,
+        security_id: security.id,
+        type: "sell",
+        date: ~D[2026-03-02],
+        currency_code: "EUR",
+        quantity: Decimal.new("2.00"),
+        price: Decimal.new("110.00"),
+        amount: Decimal.new("220.00")
+      })
+
+    primary_positions = Ledger.positions_for_portfolio(portfolio.id)
+    primary_cash = Ledger.cash_balances_for_portfolio(portfolio.id)
+    primary_transactions = Ledger.list_transactions_for_portfolio(portfolio.id)
+    other_transactions = Ledger.list_transactions_for_portfolio(other_portfolio.id)
+
+    assert Decimal.equal?(
+             primary_positions[{securities_account.id, security.id}],
+             Decimal.new("5.00")
+           )
+
+    assert Decimal.equal?(
+             primary_cash.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("-500.00")
+           )
+
+    assert Enum.any?(primary_transactions, fn tx -> tx.id == primary_buy.id end)
+    assert Enum.any?(other_transactions, fn tx -> tx.type == "sell" end)
+    refute Enum.any?(primary_transactions, fn tx -> tx.type == "sell" end)
   end
 
   test "integration flow derives transactions, position, and cash balance", %{
