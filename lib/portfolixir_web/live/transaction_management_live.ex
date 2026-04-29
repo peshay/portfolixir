@@ -216,13 +216,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <div>
                 <h2 class="app-shell-section-title"><%= gettext("Add transaction") %></h2>
                 <p class="app-shell-panel-intro">
-                  <%= gettext("Use deposit transactions for cash movements. Use buy, sell and dividend for security-related ledger activity.") %>
+                  <%= gettext("Deposit and withdrawal use the deposit account. Dividend uses the deposit account and a security.") %>
                 </p>
                 <p class="app-shell-panel-intro">
-                  <%= gettext("Buy and sell use the selected securities account.") %>
+                  <%= gettext("Buy and sell use the securities account plus security, quantity, price and amount.") %>
                 </p>
                 <p class="app-shell-panel-intro">
-                  <%= gettext("Buy and sell cash impact is only reflected when a securities account has a reference deposit account.") %>
+                  <%= gettext("Buy and sell cash impact is only reflected when a securities account has a linked deposit account.") %>
+                </p>
+                <p class="app-shell-panel-intro">
+                  <%= gettext("Amount is the gross transaction amount. Fees and taxes are optional.") %>
                 </p>
               </div>
             </div>
