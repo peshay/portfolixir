@@ -164,99 +164,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                           phx-click="start_edit_security"
                           phx-value-id={security.id}
                         >
-                          <%= gettext("Edit") %>
+                          <%= gettext("Edit security") %>
                         </button>
                       </td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
-          <% end %>
-        </section>
-
-        <section id="security-csv-preview" class="app-shell-section-card" data-priority="secondary">
-          <div class="app-shell-section-header">
-            <div>
-              <h2 class="app-shell-section-title">
-                <%= gettext("Import CSV preview") %>
-              </h2>
-              <p class="app-shell-panel-intro">
-                <%= gettext("Paste security CSV data to validate rows before import.") %>
-              </p>
-            </div>
-          </div>
-
-          <%= if @security_csv_error do %>
-            <p
-              id="security-csv-error"
-              class="app-shell-alert app-shell-alert--error"
-              role="alert"
-            >
-              <%= @security_csv_error %>
-            </p>
-          <% end %>
-
-          <form id="security-csv-preview-form" class="app-shell-form-grid" phx-submit="preview_security_csv">
-            <div class="app-shell-field app-shell-field--full">
-              <label for="security-csv-text"><%= gettext("CSV content") %></label>
-              <textarea
-                id="security-csv-text"
-                name="security_csv_text"
-                rows="8"
-              ><%= @security_csv_input %></textarea>
-            </div>
-            <div class="app-shell-form-actions">
-              <button type="submit" class="app-shell-primary">
-                <%= gettext("Preview CSV") %>
-              </button>
-              <%= if @security_csv_preview_rows || @security_csv_error do %>
-                <button
-                  type="button"
-                  id="security-csv-clear-preview"
-                  class="app-shell-secondary"
-                  phx-click="clear_security_csv_preview"
-                >
-                  <%= gettext("Clear preview") %>
-                </button>
-              <% end %>
-            </div>
-          </form>
-
-          <%= if @security_csv_preview_rows do %>
-            <div class="app-shell-table-wrapper">
-              <table id="security-csv-preview-table">
-                <thead>
-                  <tr>
-                    <th><%= gettext("Row") %></th>
-                    <th><%= gettext("Status") %></th>
-                    <th><%= gettext("Name") %></th>
-                    <th><%= gettext("Symbol") %></th>
-                    <th><%= gettext("Currency") %></th>
-                    <th><%= gettext("Active") %></th>
-                    <th>ISIN</th>
-                    <th>WKN</th>
-                    <th><%= gettext("Provider symbol") %></th>
-                    <th><%= gettext("Exchange") %></th>
-                    <th>Notes</th>
-                    <th><%= gettext("Errors") %></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <%= for row <- @security_csv_preview_rows do %>
-                    <tr id={"security-preview-row-#{row.row_number}"} class={if row.status == :invalid, do: "app-shell-muted", else: ""}>
-                      <td><%= row.row_number %></td>
-                      <td id={"security-preview-status-#{row.row_number}"}><%= to_string(row.status) %></td>
-                      <td><%= row.name %></td>
-                      <td><%= row.symbol %></td>
-                      <td><%= row.currency_code %></td>
-                      <td><%= to_string(row.active) %></td>
-                      <td><%= row.isin || "—" %></td>
-                      <td><%= row.wkn || "—" %></td>
-                      <td><%= row.provider_symbol || "—" %></td>
-                      <td><%= row.exchange_code || "—" %></td>
-                      <td><%= row.notes || "" %></td>
-                      <td class="app-shell-help-text"><%= Enum.join(row.errors, ", ") %></td>
                     </tr>
                   <% end %>
                 </tbody>
@@ -395,6 +305,97 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </form>
           </section>
         <% end %>
+
+        <section id="security-csv-preview" class="app-shell-section-card" data-priority="secondary">
+          <div class="app-shell-section-header">
+            <div>
+              <h2 class="app-shell-section-title">
+                <%= gettext("Import CSV preview") %>
+              </h2>
+              <p class="app-shell-panel-intro">
+                <%= gettext("Paste security CSV data to validate rows before import.") %>
+              </p>
+            </div>
+          </div>
+
+          <%= if @security_csv_error do %>
+            <p
+              id="security-csv-error"
+              class="app-shell-alert app-shell-alert--error"
+              role="alert"
+            >
+              <%= @security_csv_error %>
+            </p>
+          <% end %>
+
+          <form id="security-csv-preview-form" class="app-shell-form-grid" phx-submit="preview_security_csv">
+            <div class="app-shell-field app-shell-field--full">
+              <label for="security-csv-text"><%= gettext("CSV content") %></label>
+              <textarea
+                id="security-csv-text"
+                name="security_csv_text"
+                rows="8"
+              ><%= @security_csv_input %></textarea>
+            </div>
+            <div class="app-shell-form-actions">
+              <button type="submit" class="app-shell-primary">
+                <%= gettext("Preview CSV") %>
+              </button>
+              <%= if @security_csv_preview_rows || @security_csv_error do %>
+                <button
+                  type="button"
+                  id="security-csv-clear-preview"
+                  class="app-shell-secondary"
+                  phx-click="clear_security_csv_preview"
+                >
+                  <%= gettext("Clear preview") %>
+                </button>
+              <% end %>
+            </div>
+          </form>
+
+          <%= if @security_csv_preview_rows do %>
+            <div class="app-shell-table-wrapper">
+              <table id="security-csv-preview-table">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Row") %></th>
+                    <th><%= gettext("Status") %></th>
+                    <th><%= gettext("Name") %></th>
+                    <th><%= gettext("Symbol") %></th>
+                    <th><%= gettext("Currency") %></th>
+                    <th><%= gettext("Active") %></th>
+                    <th>ISIN</th>
+                    <th>WKN</th>
+                    <th><%= gettext("Provider symbol") %></th>
+                    <th><%= gettext("Exchange") %></th>
+                    <th><%= gettext("Notes") %></th>
+                    <th><%= gettext("Errors") %></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for row <- @security_csv_preview_rows do %>
+                    <tr id={"security-preview-row-#{row.row_number}"} class={if row.status == :invalid, do: "app-shell-muted", else: ""}>
+                      <td><%= row.row_number %></td>
+                      <td id={"security-preview-status-#{row.row_number}"}><%= security_csv_preview_status(row.status) %></td>
+                      <td><%= row.name %></td>
+                      <td><%= row.symbol %></td>
+                      <td><%= row.currency_code %></td>
+                      <td><%= security_csv_preview_active(row.active) %></td>
+                      <td><%= row.isin || "—" %></td>
+                      <td><%= row.wkn || "—" %></td>
+                      <td><%= row.provider_symbol || "—" %></td>
+                      <td><%= row.exchange_code || "—" %></td>
+                      <td><%= row.notes || "" %></td>
+                      <td class="app-shell-help-text"><%= Enum.join(row.errors, ", ") %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
+        </section>
+
       </div>
     </AppShell.shell>
     """
@@ -616,6 +617,16 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp filter_button_class(:inactive, :inactive), do: "app-shell-primary"
   defp filter_button_class(:all, :all), do: "app-shell-primary"
   defp filter_button_class(_, _), do: "app-shell-secondary"
+
+  defp security_csv_preview_status(:valid), do: gettext("valid")
+  defp security_csv_preview_status(:invalid), do: gettext("invalid")
+  defp security_csv_preview_status(_), do: gettext("invalid")
+
+  defp security_csv_preview_active(true), do: gettext("Active")
+  defp security_csv_preview_active(false), do: gettext("Inactive")
+  defp security_csv_preview_active("true"), do: gettext("Active")
+  defp security_csv_preview_active("false"), do: gettext("Inactive")
+  defp security_csv_preview_active(_), do: gettext("Inactive")
 
   defp parse_security_status_filter("inactive"), do: :inactive
   defp parse_security_status_filter("all"), do: :all
