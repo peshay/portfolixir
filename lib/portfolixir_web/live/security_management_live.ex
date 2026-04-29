@@ -12,10 +12,13 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     "wkn" => "",
     "exchange_code" => "",
     "provider_symbol" => "",
+    "active" => "true",
     "notes" => ""
   }
 
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
+    security_status_filter = parse_security_status_filter(params["status"])
+
     currencies = Catalog.list_currencies()
 
     socket =
@@ -27,6 +30,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:editing_security_id, nil)
       |> assign(:security_error, nil)
       |> assign(:security_success, nil)
+      |> assign(:security_status_filter, security_status_filter)
       |> load_securities()
 
     {:ok, socket}
@@ -64,11 +68,40 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <%= if @security_form_visible, do: gettext("Close form"), else: gettext("Add security") %>
             </button>
           </div>
+          <div id="security-status-filter" class="app-shell-form-actions">
+            <button
+              id="security-filter-active"
+              type="button"
+              class={filter_button_class(@security_status_filter, :active)}
+              phx-click="set_security_status_filter"
+              phx-value-status="active"
+            >
+              <%= gettext("Active") %>
+            </button>
+            <button
+              id="security-filter-inactive"
+              type="button"
+              class={filter_button_class(@security_status_filter, :inactive)}
+              phx-click="set_security_status_filter"
+              phx-value-status="inactive"
+            >
+              <%= gettext("Inactive") %>
+            </button>
+            <button
+              id="security-filter-all"
+              type="button"
+              class={filter_button_class(@security_status_filter, :all)}
+              phx-click="set_security_status_filter"
+              phx-value-status="all"
+            >
+              <%= gettext("All") %>
+            </button>
+          </div>
 
           <%= if Enum.empty?(@securities) do %>
             <div id="no-securities" class="app-shell-empty-state">
-              <h3><%= gettext("No securities yet") %></h3>
-              <p><%= gettext("Add your first security to start building your portfolio.") %></p>
+              <h3><%= security_filter_empty_title(@security_status_filter) %></h3>
+              <p><%= security_filter_empty_description(@security_status_filter) %></p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
@@ -82,12 +115,13 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                     <th>WKN</th>
                     <th><%= gettext("Provider symbol") %></th>
                     <th><%= gettext("Exchange") %></th>
+                    <th><%= gettext("Status") %></th>
                     <th><%= gettext("Actions") %></th>
                   </tr>
                 </thead>
                 <tbody>
                   <%= for security <- @securities do %>
-                    <tr>
+                    <tr class={security_row_class(security)}>
                       <td><strong><%= security.name %></strong></td>
                       <td><%= security.symbol %></td>
                       <td><%= security.currency_code %></td>
@@ -95,6 +129,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       <td><%= security.wkn || "—" %></td>
                       <td><%= security.provider_symbol || "—" %></td>
                       <td><%= security.exchange_code || "—" %></td>
+                      <td>
+                        <%= if security.active do %>
+                          <span class="app-shell-badge"><%= gettext("Active") %></span>
+                        <% else %>
+                          <span class="app-shell-badge app-shell-muted">
+                            <%= gettext("Inactive") %>
+                          </span>
+                        <% end %>
+                      </td>
                       <td>
                         <button
                           id={"security-edit-#{security.id}"}
@@ -213,6 +256,14 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 />
               </div>
 
+              <div class="app-shell-field">
+                <label for="security-active"><%= gettext("Status") %></label>
+                <select id="security-active" name="security[active]">
+                  <option value="true" selected={@security_form["active"] == "true"}><%= gettext("Active") %></option>
+                  <option value="false" selected={@security_form["active"] == "false"}><%= gettext("Inactive") %></option>
+                </select>
+              </div>
+
               <div class="app-shell-field app-shell-field--full">
                 <label for="security-notes"><%= gettext("Notes (optional)") %></label>
                 <textarea id="security-notes" rows="2" name="security[notes]"><%= @security_form["notes"] %></textarea>
@@ -269,6 +320,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   def handle_event("cancel_edit_security", _params, socket) do
     {:noreply, exit_edit_mode(socket)}
+  end
+
+  def handle_event("set_security_status_filter", %{"status" => status}, socket) do
+    new_status = parse_security_status_filter(status)
+
+    {:noreply,
+     socket
+     |> assign(:security_status_filter, new_status)
+     |> load_securities()}
   end
 
   def handle_event("save_security", %{"security" => params}, socket) do
@@ -348,6 +408,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       "name" => security.name || "",
       "symbol" => security.symbol || "",
       "currency_code" => security.currency_code || "",
+      "active" => to_string(security.active),
       "isin" => security.isin || "",
       "wkn" => security.wkn || "",
       "exchange_code" => security.exchange_code || "",
@@ -358,9 +419,34 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp load_securities(socket) do
     socket
-    |> assign(:securities, Catalog.list_securities())
+    |> assign(:securities, Catalog.list_securities(socket.assigns.security_status_filter))
     |> assign(:currencies, Catalog.list_currencies())
   end
+
+  defp security_filter_empty_title(:all), do: gettext("No securities yet")
+  defp security_filter_empty_title(:active), do: gettext("No active securities")
+  defp security_filter_empty_title(:inactive), do: gettext("No inactive securities")
+
+  defp security_filter_empty_description(:all),
+    do: gettext("Add your first security to start building your portfolio.")
+
+  defp security_filter_empty_description(:active),
+    do: gettext("Only active securities are shown. Mark one active to appear here.")
+
+  defp security_filter_empty_description(:inactive),
+    do: gettext("No inactive securities match this filter.")
+
+  defp security_row_class(%Portfolixir.Catalog.Security{active: false}), do: "app-shell-muted"
+  defp security_row_class(_), do: ""
+
+  defp filter_button_class(:active, :active), do: "app-shell-primary"
+  defp filter_button_class(:inactive, :inactive), do: "app-shell-primary"
+  defp filter_button_class(:all, :all), do: "app-shell-primary"
+  defp filter_button_class(_, _), do: "app-shell-secondary"
+
+  defp parse_security_status_filter("inactive"), do: :inactive
+  defp parse_security_status_filter("all"), do: :all
+  defp parse_security_status_filter(_), do: :active
 
   defp default_security_form(currencies) do
     Map.put(@security_form_defaults, "currency_code", preferred_currency_code(currencies))
