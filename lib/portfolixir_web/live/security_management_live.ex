@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.SecurityCsv
   alias PortfolixirWeb.AppShell
 
   @security_form_defaults %{
@@ -30,6 +31,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:editing_security_id, nil)
       |> assign(:security_error, nil)
       |> assign(:security_success, nil)
+      |> assign(:security_csv_input, "")
+      |> assign(:security_csv_error, nil)
+      |> assign(:security_csv_preview_rows, nil)
       |> assign(:security_status_filter, security_status_filter)
       |> load_securities()
 
@@ -171,6 +175,96 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           <% end %>
         </section>
 
+        <section id="security-csv-preview" class="app-shell-section-card" data-priority="secondary">
+          <div class="app-shell-section-header">
+            <div>
+              <h2 class="app-shell-section-title">
+                <%= gettext("Import CSV preview") %>
+              </h2>
+              <p class="app-shell-panel-intro">
+                <%= gettext("Paste security CSV data to validate rows before import.") %>
+              </p>
+            </div>
+          </div>
+
+          <%= if @security_csv_error do %>
+            <p
+              id="security-csv-error"
+              class="app-shell-alert app-shell-alert--error"
+              role="alert"
+            >
+              <%= @security_csv_error %>
+            </p>
+          <% end %>
+
+          <form id="security-csv-preview-form" class="app-shell-form-grid" phx-submit="preview_security_csv">
+            <div class="app-shell-field app-shell-field--full">
+              <label for="security-csv-text"><%= gettext("CSV content") %></label>
+              <textarea
+                id="security-csv-text"
+                name="security_csv_text"
+                rows="8"
+              ><%= @security_csv_input %></textarea>
+            </div>
+            <div class="app-shell-form-actions">
+              <button type="submit" class="app-shell-primary">
+                <%= gettext("Preview CSV") %>
+              </button>
+              <%= if @security_csv_preview_rows || @security_csv_error do %>
+                <button
+                  type="button"
+                  id="security-csv-clear-preview"
+                  class="app-shell-secondary"
+                  phx-click="clear_security_csv_preview"
+                >
+                  <%= gettext("Clear preview") %>
+                </button>
+              <% end %>
+            </div>
+          </form>
+
+          <%= if @security_csv_preview_rows do %>
+            <div class="app-shell-table-wrapper">
+              <table id="security-csv-preview-table">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Row") %></th>
+                    <th><%= gettext("Status") %></th>
+                    <th><%= gettext("Name") %></th>
+                    <th><%= gettext("Symbol") %></th>
+                    <th><%= gettext("Currency") %></th>
+                    <th><%= gettext("Active") %></th>
+                    <th>ISIN</th>
+                    <th>WKN</th>
+                    <th><%= gettext("Provider symbol") %></th>
+                    <th><%= gettext("Exchange") %></th>
+                    <th>Notes</th>
+                    <th><%= gettext("Errors") %></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for row <- @security_csv_preview_rows do %>
+                    <tr id={"security-preview-row-#{row.row_number}"} class={if row.status == :invalid, do: "app-shell-muted", else: ""}>
+                      <td><%= row.row_number %></td>
+                      <td id={"security-preview-status-#{row.row_number}"}><%= to_string(row.status) %></td>
+                      <td><%= row.name %></td>
+                      <td><%= row.symbol %></td>
+                      <td><%= row.currency_code %></td>
+                      <td><%= to_string(row.active) %></td>
+                      <td><%= row.isin || "—" %></td>
+                      <td><%= row.wkn || "—" %></td>
+                      <td><%= row.provider_symbol || "—" %></td>
+                      <td><%= row.exchange_code || "—" %></td>
+                      <td><%= row.notes || "" %></td>
+                      <td class="app-shell-help-text"><%= Enum.join(row.errors, ", ") %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
+        </section>
+
         <%= if @security_form_visible || @security_success || @security_error do %>
           <section
             id="security-create"
@@ -304,6 +398,41 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       </div>
     </AppShell.shell>
     """
+  end
+
+  def handle_event("preview_security_csv", %{"security_csv_text" => csv_text}, socket) do
+    valid_currency_codes = Enum.map(socket.assigns.currencies, & &1.code)
+
+    case SecurityCsv.preview_csv_rows(csv_text, valid_currency_codes: valid_currency_codes) do
+      {:ok, %{rows: rows}} ->
+        {:noreply,
+         socket
+         |> assign(:security_csv_input, csv_text)
+         |> assign(:security_csv_preview_rows, rows)
+         |> assign(:security_csv_error, nil)}
+
+      {:error, message} ->
+        {:noreply,
+         socket
+         |> assign(:security_csv_input, csv_text)
+         |> assign(:security_csv_preview_rows, nil)
+         |> assign(:security_csv_error, message)}
+    end
+  end
+
+  def handle_event("preview_security_csv", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:security_csv_error, "CSV input is empty.")
+     |> assign(:security_csv_preview_rows, nil)}
+  end
+
+  def handle_event("clear_security_csv_preview", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:security_csv_input, "")
+     |> assign(:security_csv_preview_rows, nil)
+     |> assign(:security_csv_error, nil)}
   end
 
   def handle_event("toggle_security_form", _params, socket) do
