@@ -51,6 +51,16 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "EUR"
   end
 
+  test "All Securities page includes a working Export CSV action", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "a#security-export-csv[href='/securities/export.csv']",
+             "Export CSV"
+           )
+  end
+
   test "German security terminology renders for the create flow", %{conn: conn} do
     conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
 

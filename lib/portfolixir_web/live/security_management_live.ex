@@ -57,6 +57,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <h2 class="app-shell-section-title"><%= gettext("Securities") %></h2>
               <p><%= gettext("Core identifiers used by the ledger and valuation workspaces.") %></p>
             </div>
+            <a id="security-export-csv" href="/securities/export.csv" class="app-shell-secondary">
+              <%= gettext("Export CSV") %>
+            </a>
             <button
               id="security-add-toggle"
               type="button"
