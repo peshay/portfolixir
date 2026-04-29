@@ -1169,3 +1169,7 @@ msgstr "Die Basiswährung für Konten und Buchungen wird durch das aktuelle Port
 #, elixir-autogen, elixir-format
 msgid "The current portfolio controls which accounts and future transactions are shown."
 msgstr "Das aktuelle Portfolio steuert, welche Konten und späteren Buchungen angezeigt werden."
+
+#, elixir-autogen, elixir-format
+msgid "The current portfolio controls which transactions and positions are shown."
+msgstr "Das aktuelle Portfolio steuert, welche Buchungen und Bestände angezeigt werden."
