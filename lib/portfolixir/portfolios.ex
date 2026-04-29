@@ -9,7 +9,7 @@ defmodule Portfolixir.Portfolios do
   alias Portfolixir.Repo
 
   def list_portfolios do
-    Repo.all(Portfolio)
+    Repo.all(from(portfolio in Portfolio, order_by: [asc: portfolio.id]))
   end
 
   def first_portfolio do
@@ -19,6 +19,17 @@ defmodule Portfolixir.Portfolios do
   def get_portfolio!(id) do
     Repo.get!(Portfolio, id)
   end
+
+  def get_portfolio(id) when is_integer(id), do: Repo.get(Portfolio, id)
+
+  def get_portfolio(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {portfolio_id, ""} -> Repo.get(Portfolio, portfolio_id)
+      _ -> nil
+    end
+  end
+
+  def get_portfolio(_), do: nil
 
   def create_portfolio(attrs) when is_map(attrs) do
     %Portfolio{}
