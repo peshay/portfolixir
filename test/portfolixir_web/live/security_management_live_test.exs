@@ -136,17 +136,55 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     refute has_element?(view, "#security-list tbody tr", "Test Security")
   end
 
-  test "German security terminology renders for the create flow", %{conn: conn} do
+  test "German security terminology renders for the securities page", %{conn: conn} do
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Active Security",
+               symbol: "AS",
+               currency_code: "USD",
+               active: true
+             })
+
     conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
 
     {:ok, view, html} = live(conn, "/securities")
 
     assert html =~ "Alle Wertpapiere"
+    assert has_element?(view, "#security-filter-active", "Aktiv")
+    assert has_element?(view, "#security-filter-inactive", "Inaktiv")
+    assert has_element?(view, "#security-filter-all", "Alle")
+    assert has_element?(view, "#security-export-csv", "CSV exportieren")
+    assert has_element?(view, "#security-csv-preview h2", "CSV-Importvorschau")
+    assert has_element?(view, "button", "CSV prüfen")
+    assert has_element?(view, "#security-csv-preview", "CSV-Inhalt")
+    assert has_element?(view, "#security-archive-#{security.id}", "Archivieren")
 
     view |> element("#security-add-toggle") |> render_click()
 
     assert render(view) =~ "Währung"
+    assert render(view) =~ "Formular schließen"
+    assert has_element?(view, "#security-create .app-shell-section-title", "Wertpapier anlegen")
     assert has_element?(view, "#security-currency-code")
+  end
+
+  test "Add security form renders before CSV preview when opened", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-listing")
+    assert has_element?(view, "#security-csv-preview")
+    refute has_element?(view, "#security-create")
+
+    html = view |> element("#security-add-toggle") |> render_click()
+
+    assert {listing_index, _} = :binary.match(html, "id=\"security-listing\"")
+    assert {form_index, _} = :binary.match(html, "id=\"security-create\"")
+    assert {preview_index, _} = :binary.match(html, "id=\"security-csv-preview\"")
+
+    assert listing_index < form_index
+    assert form_index < preview_index
+
+    assert has_element?(view, "#security-create .app-shell-section-title", "Add security")
+    assert has_element?(view, "#security-add-toggle", "Close form")
   end
 
   test "visiting /securities renders shared app shell", %{conn: conn} do
@@ -504,7 +542,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities")
 
-    assert has_element?(view, "#security-edit-#{security.id}", "Edit")
+    assert has_element?(view, "#security-edit-#{security.id}", "Edit security")
   end
 
   test "prefills the edit form with selected security values", %{conn: conn} do
@@ -613,7 +651,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     view |> element("#security-cancel-edit") |> render_click()
 
     refute has_element?(view, "#security-form")
-    assert has_element?(view, "#security-edit-#{security.id}", "Edit")
+    assert has_element?(view, "#security-edit-#{security.id}", "Edit security")
     refute has_element?(view, "#security-create > .app-shell-section-header h2", "Edit security")
   end
 
