@@ -793,7 +793,7 @@ msgstr "Anbieter-Symbol (optional)"
 #: lib/portfolixir_web/live/transaction_management_live.ex:318
 #, elixir-autogen, elixir-format
 msgid "Quantity"
-msgstr "Stück"
+msgstr "Stückzahl"
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:148
 #, elixir-autogen, elixir-format
@@ -986,7 +986,7 @@ msgstr "Buchung angelegt."
 #: lib/portfolixir_web/live/transaction_management_live.ex:93
 #, elixir-autogen, elixir-format
 msgid "Transaction history"
-msgstr "Buchungshistorie"
+msgstr "Buchungsverlauf"
 
 #: lib/portfolixir_web/components/app_shell.ex:1455
 #: lib/portfolixir_web/components/app_shell.ex:1456
@@ -1013,13 +1013,21 @@ msgstr "Typ"
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:191
 #, elixir-autogen, elixir-format
-msgid "Use deposit transactions for cash movements. Use buy, sell and dividend for security-related ledger activity."
-msgstr "Nutze Einzahlungen für Geldbewegungen. Nutze Kauf, Verkauf und Dividende für Wertpapierbuchungen."
+msgid "Deposit and withdrawal use the deposit account. Dividend uses the deposit account and a security."
+msgstr "Einzahlung und Auszahlung nutzen das Verrechnungskonto. Dividende nutzt ebenfalls das Verrechnungskonto und ein Wertpapier."
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:220
 #, elixir-autogen, elixir-format
-msgid "Buy and sell use the selected securities account."
-msgstr "Kauf und Verkauf nutzen das ausgewählte Depot."
+msgid "Buy and sell use the securities account plus security, quantity, price and amount."
+msgstr "Kauf und Verkauf nutzen Depot, Wertpapier, Stückzahl, Preis und Betrag."
+
+#, elixir-autogen, elixir-format
+msgid "Buy and sell cash impact is only reflected when a securities account has a linked deposit account."
+msgstr "Kauf- und Verkaufsauswirkungen auf Geldkonten werden nur berücksichtigt, wenn ein Depot ein verknüpftes Verrechnungskonto hat."
+
+#, elixir-autogen, elixir-format
+msgid "Amount is the gross transaction amount. Fees and taxes are optional."
+msgstr "Betrag ist der Bruttobetrag. Gebühren und Steuern sind optional."
 
 #: lib/portfolixir_web/live/account_management_live.ex:350
 #, elixir-autogen, elixir-format
