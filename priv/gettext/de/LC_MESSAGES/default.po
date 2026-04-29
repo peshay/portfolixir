@@ -1029,3 +1029,127 @@ msgstr "Auszahlung"
 #, elixir-autogen, elixir-format
 msgid "Workspace header"
 msgstr "Arbeitsbereich"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Active"
+msgstr "Aktiv"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "All"
+msgstr "Alle"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Archive"
+msgstr "Archivieren"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Close form"
+msgstr "Formular schließen"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Edit security"
+msgstr "Wertpapier bearbeiten"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Errors"
+msgstr "Fehler"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Export CSV"
+msgstr "CSV exportieren"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Import CSV preview"
+msgstr "CSV-Importvorschau"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "CSV content"
+msgstr "CSV-Inhalt"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Preview CSV"
+msgstr "CSV prüfen"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Clear preview"
+msgstr "Vorschau löschen"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Row"
+msgstr "Zeile"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Security archived."
+msgstr "Wertpapier archiviert."
+
+#:
+#, elixir-autogen, elixir-format
+msgid "No active securities"
+msgstr "Keine aktiven Wertpapiere"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "No inactive securities"
+msgstr "Keine inaktiven Wertpapiere"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Only active securities are shown. Mark one active to appear here."
+msgstr "Nur aktive Wertpapiere werden angezeigt. Markiere mindestens ein Wertpapier als aktiv."
+
+#:
+#, elixir-autogen, elixir-format
+msgid "No inactive securities match this filter."
+msgstr "Keine inaktiven Wertpapiere entsprechen diesem Filter."
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Paste security CSV data to validate rows before import."
+msgstr "Füge Wertpapier-CSV-Daten ein, um Zeilen vor dem Import zu prüfen."
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Save security"
+msgstr "Wertpapier speichern"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Status"
+msgstr "Status"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Actions"
+msgstr "Aktionen"
+
+#, elixir-autogen, elixir-format
+msgid "Create one instrument at a time."
+msgstr "Erstelle jeweils ein Wertpapier auf einmal."
+
+#:
+#, elixir-autogen, elixir-format
+msgid "Inactive"
+msgstr "Inaktiv"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "valid"
+msgstr "gültig"
+
+#:
+#, elixir-autogen, elixir-format
+msgid "invalid"
+msgstr "ungültig"
