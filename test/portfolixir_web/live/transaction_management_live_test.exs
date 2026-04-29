@@ -51,6 +51,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     {:ok, view, html} = live(conn, "/transactions")
 
     assert html =~ "Transactions"
+    assert has_element?(view, "#current-portfolio-selector")
     assert has_element?(view, "a[href=\"/transactions\"]")
     assert has_element?(view, "#current-portfolio-select")
     assert has_element?(view, "#ledger-workspace.app-shell-workspace-grid")
@@ -94,7 +95,13 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     {:ok, view, html} = live(conn, "/transactions")
 
-    assert html =~ "Use deposit transactions for cash movements"
+    assert html =~ "Deposit and withdrawal use the deposit account"
+    assert html =~ "Dividend uses the deposit account and a security"
+
+    assert html =~
+             "Buy and sell use the securities account plus security, quantity, price and amount."
+
+    assert html =~ "Amount is the gross transaction amount."
     assert has_element?(view, "#position-list")
     assert has_element?(view, "#transaction-history-panel .app-shell-table-wrapper")
     assert has_element?(view, "#transaction-form.app-shell-form-grid")
@@ -947,14 +954,20 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert html =~ "Aktuelles Portfolio"
     assert html =~ "Portfolio auswählen"
+    assert html =~ "Buchungsverlauf"
+    assert html =~ "Buchung anlegen"
 
     assert html =~
              "Das aktuelle Portfolio steuert, welche Buchungen und Bestände angezeigt werden."
 
     assert html =~ "Buchungen"
-    assert html =~ "Bestand"
+    assert html =~ "Stückzahl"
+    assert html =~ "Betrag"
     assert html =~ "Verrechnungskonto"
     assert html =~ "Depot"
+    assert html =~ "Wertpapier"
+    assert html =~ "Gebühren"
+    assert html =~ "Steuern"
   end
 
   defp create_portfolio(name) do
