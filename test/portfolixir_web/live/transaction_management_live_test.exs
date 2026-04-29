@@ -527,6 +527,63 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
            )
   end
 
+  test "creates a sell transaction reducing position in the current portfolio", %{
+    conn: conn,
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, _buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-04-10],
+        currency_code: "EUR",
+        quantity: Decimal.new("5.00"),
+        price: Decimal.new("100.00"),
+        amount: Decimal.new("500.00")
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "sell",
+          "date" => "2026-04-11",
+          "currency_code" => "EUR",
+          "amount" => "250.00",
+          "securities_account_id" => "#{securities_account.id}",
+          "security_id" => "#{security.id}",
+          "quantity" => "2.00",
+          "price" => "125.00",
+          "fees" => "1.00",
+          "taxes" => "1.00",
+          "notes" => "Sell part"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Transaction created."
+    assert has_element?(view, "#transaction-list", "Sell")
+    assert has_element?(view, "#transaction-list", "Main Depot")
+    assert has_element?(view, "#transaction-list", "Sell part")
+    assert has_element?(view, "#position-list", "3.00")
+
+    cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert cash_balances.missing_cash_impacts == []
+
+    assert Decimal.equal?(
+             cash_balances.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("-252.00")
+           )
+  end
+
   test "creates a buy transaction for the selected portfolio", %{
     conn: conn,
     portfolio: portfolio,
@@ -673,6 +730,103 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       |> render_submit()
 
     assert assert_amount_error =~ "Amount must be greater than 0"
+  end
+
+  test "shows validation errors for sell input", %{
+    conn: conn,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    missing_securities_account =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "sell",
+          "date" => "2026-04-12",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "security_id" => "#{security.id}",
+          "quantity" => "1.00",
+          "price" => "100.00"
+        }
+      })
+      |> render_submit()
+
+    assert missing_securities_account =~ "id=\"transaction-form-error\""
+    assert missing_securities_account =~ "Securities"
+
+    missing_security =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "sell",
+          "date" => "2026-04-12",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "securities_account_id" => "#{securities_account.id}",
+          "quantity" => "1.00",
+          "price" => "100.00"
+        }
+      })
+      |> render_submit()
+
+    assert missing_security =~ "Security"
+
+    invalid_quantity =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "sell",
+          "date" => "2026-04-12",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "securities_account_id" => "#{securities_account.id}",
+          "security_id" => "#{security.id}",
+          "quantity" => "0.00",
+          "price" => "100.00"
+        }
+      })
+      |> render_submit()
+
+    assert invalid_quantity =~ "Quantity must be greater than 0"
+
+    invalid_price =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "sell",
+          "date" => "2026-04-12",
+          "currency_code" => "EUR",
+          "amount" => "100.00",
+          "securities_account_id" => "#{securities_account.id}",
+          "security_id" => "#{security.id}",
+          "quantity" => "1.00",
+          "price" => "0.00"
+        }
+      })
+      |> render_submit()
+
+    assert invalid_price =~ "Price must be greater than 0"
+
+    invalid_amount =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "sell",
+          "date" => "2026-04-12",
+          "currency_code" => "EUR",
+          "amount" => "0.00",
+          "securities_account_id" => "#{securities_account.id}",
+          "security_id" => "#{security.id}",
+          "quantity" => "1.00",
+          "price" => "100.00"
+        }
+      })
+      |> render_submit()
+
+    assert invalid_amount =~ "Amount must be greater than 0"
   end
 
   test "shows validation error and keeps submitted values for invalid transaction", %{
