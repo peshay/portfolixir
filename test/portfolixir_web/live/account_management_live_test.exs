@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
 
     {:ok, view, html} = live(conn, "/accounts")
 
+    assert has_element?(view, "#account-setup-onboarding")
     assert html =~ "Accounts"
     assert has_element?(view, "a[href=\"/accounts\"]")
     assert has_element?(view, "#account-workspace.app-shell-workspace-grid")
@@ -27,6 +28,25 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert has_element?(view, "#account-kpis .app-shell-stat-card", "Cash impact warnings")
     assert has_element?(view, "#deposit-accounts")
     assert has_element?(view, "#securities-accounts")
+
+    assert html =~ "Portfolio"
+    assert html =~ "Deposit account"
+    assert html =~ "Securities account"
+    assert html =~ "Reference deposit account"
+  end
+
+  test "accounts page explains setup flow in English terms", %{conn: conn} do
+    create_portfolio("Primary portfolio")
+
+    {:ok, view, html} = live(conn, "/accounts")
+
+    assert has_element?(view, "#account-setup-onboarding.app-shell-section-card")
+    assert has_element?(view, "#account-setup-onboarding h2", "How account setup works")
+
+    assert html =~ "Create portfolio"
+    assert html =~ "Create deposit account"
+    assert html =~ "Create securities account"
+    assert html =~ "Reference deposit account"
   end
 
   test "accounts workspace provides responsive sections and secondary forms", %{conn: conn} do
@@ -61,7 +81,10 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
 
     assert has_element?(view, "#portfolio-onboarding.app-shell-onboarding")
     assert has_element?(view, "#portfolio-onboarding h2", "Create your first portfolio")
-    assert html =~ "A portfolio is the container for accounts, transactions and derived reports."
+
+    assert html =~
+             "Create this portfolio first to unlock account setup and deposit/securities account creation."
+
     assert html =~ "No portfolio yet"
 
     assert html =~
@@ -114,10 +137,11 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     {:ok, view, html} = live(conn, "/accounts")
 
     assert html =~ "Kontenübersicht"
+    assert html =~ "Portfolio anlegen"
     assert html =~ "Währung"
     assert html =~ "Verrechnungskonten"
     assert html =~ "Depots"
-    assert html =~ "Referenzkonto"
+    assert html =~ "Referenz-Verrechnungskonto"
     assert has_element?(view, "#deposit-account-form")
     assert has_element?(view, "#securities-account-form")
   end
