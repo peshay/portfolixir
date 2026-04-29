@@ -351,7 +351,7 @@ msgstr "Lege dieses Portfolio an, um Konten, Salden und Buchungen zu nutzen."
 
 #, elixir-autogen, elixir-format
 msgid "Create this portfolio first to unlock account setup and deposit/securities account creation."
-msgstr "Lege dieses Portfolio zuerst an, um die Kontenerrichtung und die Anlage von Verrechnungs- und Depotkonten freizuschalten."
+msgstr "Lege dieses Portfolio zuerst an, damit du danach die Konten einrichtest."
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:353
 #, elixir-autogen, elixir-format
@@ -746,7 +746,7 @@ msgstr "Konten einrichten"
 
 #, elixir-autogen, elixir-format
 msgid "How account setup works"
-msgstr "So funktioniert die Kontenerrichtung"
+msgstr "So richtest du Konten ein"
 
 #, elixir-autogen, elixir-format
 msgid "Create accounts in this order:"
@@ -1141,3 +1141,19 @@ msgstr "gültig"
 #, elixir-autogen, elixir-format
 msgid "invalid"
 msgstr "ungültig"
+
+#, elixir-autogen, elixir-format
+msgid "Complete setup in this order to keep account and cash flow data consistent."
+msgstr "Richte diese Schritte in dieser Reihenfolge ein, damit Konten- und Geldflüsse konsistent bleiben."
+
+#, elixir-autogen, elixir-format
+msgid "Create this portfolio first so account setup appears next."
+msgstr "Lege dieses Portfolio zuerst an, damit danach die Kontoeinrichtung folgt."
+
+#, elixir-autogen, elixir-format
+msgid "After you create this portfolio, you can set up a Verrechnungskonto, then a Depot."
+msgstr "Nachdem du dieses Portfolio angelegt hast, kannst du ein Verrechnungskonto und anschließend ein Depot einrichten."
+
+#, elixir-autogen, elixir-format
+msgid "Create your first portfolio, then add a Verrechnungskonto and then a Depot."
+msgstr "Lege zuerst dein erstes Portfolio an, danach ein Verrechnungskonto und anschließend ein Depot."
