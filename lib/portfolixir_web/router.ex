@@ -10,6 +10,15 @@ defmodule PortfolixirWeb.Router do
     plug(:put_secure_browser_headers)
   end
 
+  pipeline :browser_csv do
+    plug(:accepts, ["html", "csv"])
+    plug(:fetch_session)
+    plug(PortfolixirWeb.Locale)
+    plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
+  end
+
   pipeline :api do
     plug(:accepts, ["json"])
   end
@@ -26,6 +35,12 @@ defmodule PortfolixirWeb.Router do
       live("/taxonomies", CategoryManagementLive)
       live("/securities", SecurityManagementLive)
     end
+  end
+
+  scope "/", PortfolixirWeb do
+    pipe_through(:browser_csv)
+
+    get("/securities/export.csv", SecurityController, :export)
   end
 
   scope "/", PortfolixirWeb do
