@@ -87,7 +87,7 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert html =~ "No portfolio yet"
 
     assert html =~
-             "After you create this portfolio, you can set up a Verrechnungskonto, then a Depot."
+             "After you create this portfolio, you can set up a deposit account and then a securities account."
 
     assert has_element?(view, "#portfolio-form")
     refute has_element?(view, "#account-kpis")
