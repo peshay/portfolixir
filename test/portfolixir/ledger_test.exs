@@ -379,6 +379,184 @@ defmodule Portfolixir.LedgerTest do
     assert Decimal.equal?(transaction.amount, Decimal.new("12.34"))
   end
 
+  test "dividend transaction increases derived cash balance", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    security: security
+  } do
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               security_id: security.id,
+               type: "dividend",
+               date: ~D[2026-01-17],
+               currency_code: "EUR",
+               amount: Decimal.new("12.34")
+             })
+
+    cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             cash_balances.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("12.34")
+           )
+
+    assert cash_balances.balances[{deposit_account.id, "USD"}] == nil
+  end
+
+  test "dividend transaction does not change security positions", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, _buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-18],
+        currency_code: "EUR",
+        quantity: Decimal.new("4.00"),
+        price: Decimal.new("25.00"),
+        amount: Decimal.new("100.00")
+      })
+
+    positions_before = Ledger.positions_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             positions_before[{securities_account.id, security.id}],
+             Decimal.new("4.00")
+           )
+
+    assert {:ok, _dividend} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               security_id: security.id,
+               type: "dividend",
+               date: ~D[2026-01-19],
+               currency_code: "EUR",
+               amount: Decimal.new("7.89")
+             })
+
+    positions_after = Ledger.positions_for_portfolio(portfolio.id)
+    assert positions_after == positions_before
+  end
+
+  test "dividend from another portfolio does not affect current portfolio cash or positions", %{
+    portfolio: portfolio,
+    other_portfolio: other_portfolio,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, _buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-20],
+        currency_code: "EUR",
+        quantity: Decimal.new("5.00"),
+        price: Decimal.new("20.00"),
+        amount: Decimal.new("100.00")
+      })
+
+    base_cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+    base_positions = Ledger.positions_for_portfolio(portfolio.id)
+
+    {:ok, other_deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: other_portfolio.id,
+        name: "Other Cash",
+        currency_code: "EUR"
+      })
+
+    assert {:ok, _dividend_other} =
+             Ledger.create_transaction(%{
+               portfolio_id: other_portfolio.id,
+               deposit_account_id: other_deposit_account.id,
+               security_id: security.id,
+               type: "dividend",
+               date: ~D[2026-01-21],
+               currency_code: "EUR",
+               amount: Decimal.new("42.00")
+             })
+
+    assert Ledger.cash_balances_for_portfolio(portfolio.id) == base_cash_balances
+    assert Ledger.positions_for_portfolio(portfolio.id) == base_positions
+  end
+
+  test "dividend ignores fees and taxes for cash impact", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    security: security
+  } do
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               deposit_account_id: deposit_account.id,
+               security_id: security.id,
+               type: "dividend",
+               date: ~D[2026-01-22],
+               currency_code: "EUR",
+               amount: Decimal.new("50.00"),
+               fees: Decimal.new("2.50"),
+               taxes: Decimal.new("5.00")
+             })
+
+    cash_balances = Ledger.cash_balances_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(
+             cash_balances.balances[{deposit_account.id, "EUR"}],
+             Decimal.new("50.00")
+           )
+  end
+
+  test "dividend requires deposit account, security and positive amount", %{
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    security: security
+  } do
+    attrs = %{
+      portfolio_id: portfolio.id,
+      deposit_account_id: deposit_account.id,
+      security_id: security.id,
+      type: "dividend",
+      date: ~D[2026-01-23],
+      currency_code: "EUR",
+      amount: Decimal.new("12.34")
+    }
+
+    assert {:error, missing_deposit_changeset} =
+             Ledger.create_transaction(Map.delete(attrs, :deposit_account_id))
+
+    assert %{deposit_account_id: ["can't be blank"]} = errors_on(missing_deposit_changeset)
+
+    assert {:error, missing_security_changeset} =
+             Ledger.create_transaction(Map.delete(attrs, :security_id))
+
+    assert %{security_id: ["can't be blank"]} = errors_on(missing_security_changeset)
+
+    assert {:error, missing_amount_changeset} =
+             Ledger.create_transaction(Map.delete(attrs, :amount))
+
+    assert %{amount: ["can't be blank"]} = errors_on(missing_amount_changeset)
+
+    assert {:error, zero_amount_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :amount, Decimal.new("0.00")))
+
+    assert %{amount: ["must be greater than 0"]} = errors_on(zero_amount_changeset)
+
+    assert {:error, negative_amount_changeset} =
+             Ledger.create_transaction(Map.put(attrs, :amount, Decimal.new("-10.00")))
+
+    assert %{amount: ["must be greater than 0"]} = errors_on(negative_amount_changeset)
+  end
+
   test "reject invalid transaction type", %{portfolio: portfolio} do
     assert {:error, changeset} =
              Ledger.create_transaction(%{
