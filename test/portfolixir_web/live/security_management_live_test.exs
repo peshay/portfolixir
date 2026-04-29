@@ -150,21 +150,64 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     {:ok, view, html} = live(conn, "/securities")
 
     assert html =~ "Alle Wertpapiere"
+    assert has_element?(view, "#security-export-csv", "CSV exportieren")
     assert has_element?(view, "#security-filter-active", "Aktiv")
     assert has_element?(view, "#security-filter-inactive", "Inaktiv")
     assert has_element?(view, "#security-filter-all", "Alle")
-    assert has_element?(view, "#security-export-csv", "CSV exportieren")
     assert has_element?(view, "#security-csv-preview h2", "CSV-Importvorschau")
-    assert has_element?(view, "button", "CSV prüfen")
-    assert has_element?(view, "#security-csv-preview", "CSV-Inhalt")
+    assert has_element?(view, "label[for='security-csv-text']", "CSV-Inhalt")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview .app-shell-form-actions button",
+             "CSV prüfen"
+           )
+
     assert has_element?(view, "#security-archive-#{security.id}", "Archivieren")
+    assert has_element?(view, "#security-edit-#{security.id}", "Wertpapier bearbeiten")
+    assert has_element?(view, "#security-list th", "Anbieter-Symbol")
+    assert has_element?(view, "#security-list th", "Börse")
+    assert has_element?(view, "#security-list th", "Aktionen")
+    assert has_element?(view, "#security-list th", "Status")
+
+    csv = """
+    name,symbol,currency_code,active,isin,wkn,provider_symbol,exchange_code,notes
+    Valid Security,VAL,USD,true,ISIN1,WKN1,PS1,XNYS,Example
+    ,BAD,USD,true,ISIN2,WKN2,PS2,XNYS,Invalid Name
+    """
 
     view |> element("#security-add-toggle") |> render_click()
-
-    assert render(view) =~ "Währung"
-    assert render(view) =~ "Formular schließen"
+    assert render(view) =~ "Wertpapier anlegen"
+    assert has_element?(view, "#security-add-toggle", "Formular schließen")
     assert has_element?(view, "#security-create .app-shell-section-title", "Wertpapier anlegen")
-    assert has_element?(view, "#security-currency-code")
+
+    html =
+      view
+      |> form("#security-csv-preview-form", %{"security_csv_text" => csv})
+      |> render_submit()
+
+    assert html =~ "Vorschau löschen"
+    assert has_element?(view, "#security-csv-preview-table th", "Zeile")
+    assert has_element?(view, "#security-csv-preview-table th", "Fehler")
+    assert has_element?(view, "#security-csv-preview-table th", "Notizen")
+    assert has_element?(view, "#security-preview-status-1", "gültig")
+    assert has_element?(view, "#security-preview-status-2", "ungültig")
+
+    view |> element("#security-edit-#{security.id}") |> render_click()
+
+    assert has_element?(
+             view,
+             "#security-create .app-shell-section-title",
+             "Wertpapier bearbeiten"
+           )
+
+    assert has_element?(
+             view,
+             "#security-create .app-shell-form-actions button",
+             "Wertpapier speichern"
+           )
+
+    assert has_element?(view, "#security-add-toggle", "Formular schließen")
   end
 
   test "Add security form renders before CSV preview when opened", %{conn: conn} do
