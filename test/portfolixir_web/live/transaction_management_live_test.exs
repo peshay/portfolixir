@@ -467,6 +467,83 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
            )
   end
 
+  test "creates a dividend transaction through /transactions", %{
+    conn: conn,
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    security: security
+  } do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "dividend",
+          "date" => "2026-05-01",
+          "currency_code" => "EUR",
+          "amount" => "42.00",
+          "deposit_account_id" => "#{deposit_account.id}",
+          "security_id" => "#{security.id}",
+          "notes" => "Quarterly distribution"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Transaction created."
+    assert has_element?(view, "#transaction-list", "2026-05-01")
+    assert has_element?(view, "#transaction-list", "Dividend")
+    assert has_element?(view, "#transaction-list", "Settlement Cash")
+    assert has_element?(view, "#transaction-list", "Synthetic ETF")
+    assert has_element?(view, "#transaction-list", "42.00")
+    assert has_element?(view, "#transaction-list", "Quarterly distribution")
+
+    selected_portfolio_transactions = Ledger.list_transactions_for_portfolio(portfolio.id)
+
+    assert Enum.any?(
+             selected_portfolio_transactions,
+             &(&1.notes == "Quarterly distribution")
+           )
+  end
+
+  test "creates a dividend transaction for the selected portfolio", %{
+    conn: conn,
+    portfolio: portfolio,
+    security: security
+  } do
+    second_portfolio = create_portfolio("Secondary")
+    second_deposit = create_deposit_account(second_portfolio, "Secondary Cash")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert select_current_portfolio(view, second_portfolio.id) =~ "Secondary Cash"
+
+    html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "dividend",
+          "date" => "2026-05-02",
+          "currency_code" => "EUR",
+          "amount" => "18.00",
+          "deposit_account_id" => "#{second_deposit.id}",
+          "security_id" => "#{security.id}",
+          "notes" => "Scoped dividend"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Transaction created."
+    assert has_element?(view, "#transaction-list", "Scoped dividend")
+    assert has_element?(view, "#transaction-list", "Dividend")
+
+    second_transactions = Ledger.list_transactions_for_portfolio(second_portfolio.id)
+    first_transactions = Ledger.list_transactions_for_portfolio(portfolio.id)
+
+    assert Enum.any?(second_transactions, &(&1.notes == "Scoped dividend"))
+    refute Enum.any?(first_transactions, &(&1.notes == "Scoped dividend"))
+  end
+
   test "creates a withdrawal transaction through /transactions", %{
     conn: conn,
     portfolio: portfolio,
@@ -1026,6 +1103,106 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert html =~ "Amount must be greater than 0"
     assert html =~ "value=\"0.00\""
     assert html =~ "Keep this value"
+  end
+
+  test "shows validation errors for invalid dividend input", %{
+    conn: conn,
+    deposit_account: deposit_account,
+    security: security
+  } do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    missing_deposit_html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "dividend",
+          "date" => "2026-05-03",
+          "currency_code" => "EUR",
+          "amount" => "42.00",
+          "security_id" => "#{security.id}",
+          "notes" => "Missing deposit account"
+        }
+      })
+      |> render_submit()
+
+    assert missing_deposit_html =~ "id=\"transaction-form-error\""
+    assert missing_deposit_html =~ "Deposit account"
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    missing_security_html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "dividend",
+          "date" => "2026-05-03",
+          "currency_code" => "EUR",
+          "amount" => "42.00",
+          "deposit_account_id" => "#{deposit_account.id}",
+          "security_id" => "",
+          "notes" => "Missing security"
+        }
+      })
+      |> render_submit()
+
+    assert missing_security_html =~ "Security"
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    missing_amount_html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "dividend",
+          "date" => "2026-05-03",
+          "currency_code" => "EUR",
+          "deposit_account_id" => "#{deposit_account.id}",
+          "security_id" => "#{security.id}",
+          "amount" => "",
+          "notes" => "Missing amount"
+        }
+      })
+      |> render_submit()
+
+    assert missing_amount_html =~ "Amount"
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    non_positive_amount_html =
+      view
+      |> form("#transaction-form", %{
+        "transaction" => %{
+          "type" => "dividend",
+          "date" => "2026-05-03",
+          "currency_code" => "EUR",
+          "deposit_account_id" => "#{deposit_account.id}",
+          "security_id" => "#{security.id}",
+          "amount" => "0.00",
+          "notes" => "Non-positive amount"
+        }
+      })
+      |> render_submit()
+
+    assert non_positive_amount_html =~ "Amount must be greater than 0"
+    assert non_positive_amount_html =~ "Non-positive amount"
+  end
+
+  test "security dropdown is portfolio-shared", %{
+    conn: conn,
+    security: security
+  } do
+    second_portfolio = create_portfolio("Secondary")
+    create_deposit_account(second_portfolio, "Secondary Cash")
+    secondary_security = create_security("Second synthetic ETF", "SYN2")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert has_element?(view, "#transaction-security option[value='#{security.id}']")
+    assert has_element?(view, "#transaction-security option[value='#{secondary_security.id}']")
+    assert select_current_portfolio(view, second_portfolio.id)
+    assert has_element?(view, "#transaction-security option[value='#{security.id}']")
+    assert has_element?(view, "#transaction-security option[value='#{secondary_security.id}']")
   end
 
   test "created transactions appear newest first", %{
