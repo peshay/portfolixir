@@ -62,6 +62,30 @@ defmodule Portfolixir.PortfoliosTest do
     assert Portfolios.first_portfolio() == nil
   end
 
+  test "get portfolio by integer id" do
+    portfolio = create_portfolio("By id")
+
+    assert %Portfolixir.Portfolios.Portfolio{} = Portfolios.get_portfolio(portfolio.id)
+    assert Portfolios.get_portfolio(portfolio.id).name == "By id"
+  end
+
+  test "get portfolio by binary id string" do
+    portfolio = create_portfolio("By binary id")
+
+    assert Portfolios.get_portfolio(Integer.to_string(portfolio.id)) ==
+             Portfolios.get_portfolio(portfolio.id)
+  end
+
+  test "get portfolio returns nil for invalid or unknown ids" do
+    create_portfolio("Portfolio guard")
+
+    assert Portfolios.get_portfolio("not-an-id") == nil
+    assert Portfolios.get_portfolio("-1") == nil
+    assert Portfolios.get_portfolio("999_999") == nil
+    assert Portfolios.get_portfolio(-1) == nil
+    assert Portfolios.get_portfolio(nil) == nil
+  end
+
   test "create deposit account with valid attributes" do
     portfolio = create_portfolio("Primary portfolio")
 
