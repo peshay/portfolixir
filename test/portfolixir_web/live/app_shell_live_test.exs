@@ -224,8 +224,8 @@ defmodule PortfolixirWeb.AppShellLiveTest do
   test "securities route is usable", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/securities")
 
-    assert html =~ "No active securities"
-    assert html =~ "Only active securities are shown"
+    assert html =~ "No securities yet"
+    assert html =~ "Add your first security to start building your portfolio."
   end
 
   test "taxonomies route is reachable and titled as classifications", %{conn: conn} do
