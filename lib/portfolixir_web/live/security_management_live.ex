@@ -100,8 +100,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
           <%= if Enum.empty?(@securities) do %>
             <div id="no-securities" class="app-shell-empty-state">
-              <h3><%= security_filter_empty_title(@security_status_filter) %></h3>
-              <p><%= security_filter_empty_description(@security_status_filter) %></p>
+              <h3><%= security_filter_empty_title(@security_status_filter, @security_total_count) %></h3>
+              <p><%= security_filter_empty_description(@security_status_filter, @security_total_count) %></p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
@@ -418,22 +418,31 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   end
 
   defp load_securities(socket) do
+    all_securities = Catalog.list_securities(:all)
+
     socket
+    |> assign(:security_total_count, Enum.count(all_securities))
     |> assign(:securities, Catalog.list_securities(socket.assigns.security_status_filter))
     |> assign(:currencies, Catalog.list_currencies())
   end
 
-  defp security_filter_empty_title(:all), do: gettext("No securities yet")
-  defp security_filter_empty_title(:active), do: gettext("No active securities")
-  defp security_filter_empty_title(:inactive), do: gettext("No inactive securities")
+  defp security_filter_empty_title(:all, _total_count), do: gettext("No securities yet")
 
-  defp security_filter_empty_description(:all),
+  defp security_filter_empty_title(:active, 0), do: gettext("No securities yet")
+
+  defp security_filter_empty_title(:active, _), do: gettext("No active securities")
+  defp security_filter_empty_title(:inactive, _), do: gettext("No inactive securities")
+
+  defp security_filter_empty_description(:all, _),
     do: gettext("Add your first security to start building your portfolio.")
 
-  defp security_filter_empty_description(:active),
+  defp security_filter_empty_description(:active, 0),
+    do: gettext("Add your first security to start building your portfolio.")
+
+  defp security_filter_empty_description(:active, _),
     do: gettext("Only active securities are shown. Mark one active to appear here.")
 
-  defp security_filter_empty_description(:inactive),
+  defp security_filter_empty_description(:inactive, _),
     do: gettext("No inactive securities match this filter.")
 
   defp security_row_class(%Portfolixir.Catalog.Security{active: false}), do: "app-shell-muted"
