@@ -46,6 +46,34 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       </header>
 
       <%= if @current_portfolio do %>
+        <section id="current-portfolio-selector" class="app-shell-section-card">
+          <div class="app-shell-section-header">
+            <div>
+              <h2 class="app-shell-section-title"><%= gettext("Current portfolio") %></h2>
+              <p><%= gettext("Select portfolio") %></p>
+              <p class="app-shell-warning-note">
+                <%= gettext("The current portfolio controls which transactions and positions are shown.") %>
+              </p>
+            </div>
+          </div>
+
+          <form
+            id="current-portfolio-form"
+            phx-change="select_current_portfolio"
+            class="app-shell-form-grid"
+          >
+            <div class="app-shell-field app-shell-field--full">
+              <label for="current-portfolio-select"><%= gettext("Current portfolio") %></label>
+              <select id="current-portfolio-select" name="portfolio_id">
+                <%= for portfolio <- @portfolios do %>
+                  <option value={portfolio.id} selected={portfolio.id == @current_portfolio.id}>
+                    <%= portfolio.name %>
+                  </option>
+                <% end %>
+              </select>
+            </div>
+          </form>
+        </section>
         <section id="ledger-kpis" class="app-shell-stat-grid" aria-label={gettext("Ledger summary")}>
           <div class="app-shell-stat-card">
             <span class="app-shell-stat-icon" aria-hidden="true">TX</span>
@@ -376,7 +404,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   def handle_event("create_transaction", %{"transaction" => params}, socket) do
-    portfolio_id = socket.assigns.current_portfolio.id
+    portfolio_id = Map.get(socket.assigns.current_portfolio || %{}, :id)
 
     transaction_params =
       params
@@ -404,8 +432,23 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
-  defp load_transaction_state(socket) do
-    current_portfolio = Portfolios.first_portfolio()
+  def handle_event("select_current_portfolio", %{"portfolio_id" => selected_portfolio_id}, socket) do
+    {:noreply, load_transaction_state(socket, selected_portfolio_id)}
+  end
+
+  def handle_event("select_current_portfolio", _params, socket) do
+    {:noreply, load_transaction_state(socket, Map.get(socket.assigns, :current_portfolio))}
+  end
+
+  defp load_transaction_state(socket, selected_portfolio_id \\ nil) do
+    portfolios = Portfolios.list_portfolios()
+
+    current_portfolio =
+      resolve_current_portfolio(
+        portfolios,
+        selected_portfolio_id,
+        Map.get(socket.assigns, :current_portfolio)
+      )
 
     deposit_accounts =
       if current_portfolio do
@@ -441,6 +484,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     security_names = name_lookup(securities)
 
     socket
+    |> assign(:portfolios, portfolios)
     |> assign(:current_portfolio, current_portfolio)
     |> assign(:currencies, Catalog.list_currencies())
     |> assign(:deposit_accounts, deposit_accounts)
@@ -452,6 +496,25 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> assign(:deposit_account_names, deposit_account_names)
     |> assign(:securities_account_names, securities_account_names)
     |> assign(:security_names, security_names)
+  end
+
+  defp resolve_current_portfolio(portfolios, nil, previous_portfolio) do
+    previous_portfolio || List.first(portfolios)
+  end
+
+  defp resolve_current_portfolio(portfolios, selected_portfolio_id, previous_portfolio) do
+    selected_portfolio = Portfolios.get_portfolio(selected_portfolio_id)
+
+    cond do
+      selected_portfolio ->
+        selected_portfolio
+
+      previous_portfolio && Enum.any?(portfolios, &(&1.id == previous_portfolio.id)) ->
+        previous_portfolio
+
+      true ->
+        List.first(portfolios)
+    end
   end
 
   defp assign_default_transaction_form(socket) do
