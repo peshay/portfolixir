@@ -22,8 +22,29 @@ Portfolixir should become a self-hosted portfolio analytics and wealth graph pla
 - **Modern web UI:** The product should feel like a clean, usable web app, not a desktop clone.
 - **No broker execution:** Portfolixir must not place trades or trigger real-money actions.
 - **No fake data in production flows:** Demo data may exist only behind explicit dev/test mechanisms.
+- **Portfolio boundaries:** A `Portfolio` is a tenant-like workspace, comparable to one Portfolio Performance `.portfolio` file.
+- **Portfolio scoping:** Accounts, transactions, and reports are portfolio-scoped.
+- **Shared market model:** quotes, FX rates, and market metadata are shared across portfolios where possible.
 
 ## Current foundation
+
+Current model notes:
+
+- Portfolio records already exist.
+- Deposit accounts and securities accounts include `portfolio_id` and are currently listable per portfolio.
+- Catalog securities are currently global.
+- The account workspace currently defaults to the first portfolio in the database (implicit current context).
+
+### PFX-015D: Add explicit current portfolio selection
+
+As a user with multiple portfolios, I want to explicitly choose the current portfolio, so account and future ledger workflows do not accidentally use a hidden fallback.
+
+- Add explicit current-portfolio selection state in the UI/application context.
+- Make account pages use the selected portfolio consistently.
+- Keep single-portfolio startup behavior stable.
+- Keep shared market/currency/security references reusable across portfolios.
+
+## Near-term strategy
 
 The repository currently has early support for:
 
