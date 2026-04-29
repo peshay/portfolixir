@@ -1016,6 +1016,11 @@ msgstr "Typ"
 msgid "Use deposit transactions for cash movements. Use buy, sell and dividend for security-related ledger activity."
 msgstr "Nutze Einzahlungen für Geldbewegungen. Nutze Kauf, Verkauf und Dividende für Wertpapierbuchungen."
 
+#: lib/portfolixir_web/live/transaction_management_live.ex:220
+#, elixir-autogen, elixir-format
+msgid "Buy and sell use the selected securities account."
+msgstr "Kauf und Verkauf nutzen das ausgewählte Depot."
+
 #: lib/portfolixir_web/live/account_management_live.ex:350
 #, elixir-autogen, elixir-format
 msgid "Use for cash, settlement and savings accounts."
