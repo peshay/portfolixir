@@ -35,6 +35,178 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert html =~ "Reference deposit account"
   end
 
+  test "shows a current portfolio selector and selects the first portfolio by default", %{
+    conn: conn
+  } do
+    first_portfolio = create_portfolio("Primary portfolio")
+    create_portfolio("Secondary portfolio")
+
+    {:ok, view, html} = live(conn, "/accounts")
+
+    assert has_element?(view, "#current-portfolio-selector")
+
+    assert has_element?(
+             view,
+             "#current-portfolio-select option[value='#{first_portfolio.id}'][selected]"
+           )
+
+    assert has_element?(
+             view,
+             "#current-portfolio-select option[value='#{first_portfolio.id}']",
+             "Primary portfolio"
+           )
+
+    assert html =~ "Select portfolio"
+  end
+
+  test "switching current portfolio updates portfolio-scoped account data", %{conn: conn} do
+    first_portfolio = create_portfolio("Primary portfolio")
+    second_portfolio = create_portfolio("Secondary portfolio")
+
+    first_cash = create_deposit_account(first_portfolio, "Primary Cash")
+    second_cash = create_deposit_account(second_portfolio, "Secondary Cash")
+
+    create_securities_account(first_portfolio, first_cash, "Primary Depot")
+    create_securities_account(second_portfolio, second_cash, "Secondary Depot")
+
+    {:ok, _deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: first_portfolio.id,
+        deposit_account_id: first_cash.id,
+        type: "deposit",
+        date: ~D[2026-04-01],
+        currency_code: "EUR",
+        amount: Decimal.new("1000.00")
+      })
+
+    {:ok, _deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: second_portfolio.id,
+        deposit_account_id: second_cash.id,
+        type: "deposit",
+        date: ~D[2026-04-02],
+        currency_code: "EUR",
+        amount: Decimal.new("1000.00")
+      })
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(view, "#deposit-account-list", "Primary Cash")
+    assert has_element?(view, "#securities-account-list", "Primary Depot")
+    assert has_element?(view, "#cash-balance-list", "Primary Cash")
+    refute has_element?(view, "#deposit-account-list", "Secondary Cash")
+    refute has_element?(view, "#securities-account-list", "Secondary Depot")
+
+    html = select_current_portfolio(view, second_portfolio.id)
+
+    assert has_element?(view, "#deposit-account-list", "Secondary Cash")
+    assert has_element?(view, "#securities-account-list", "Secondary Depot")
+    assert has_element?(view, "#cash-balance-list", "Secondary Cash")
+    refute has_element?(view, "#deposit-account-list", "Primary Cash")
+    refute has_element?(view, "#securities-account-list", "Primary Depot")
+    assert has_element?(view, "option[value='#{second_portfolio.id}'][selected]")
+    assert html =~ "Secondary portfolio"
+  end
+
+  test "creates a deposit account for the selected current portfolio", %{conn: conn} do
+    first_portfolio = create_portfolio("Primary portfolio")
+    second_portfolio = create_portfolio("Secondary portfolio")
+
+    create_deposit_account(first_portfolio, "Primary Cash")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert select_current_portfolio(view, second_portfolio.id) =~ "The current portfolio controls"
+
+    html =
+      view
+      |> form("#deposit-account-form", %{
+        "deposit_account" => %{
+          "name" => "Secondary Cash",
+          "currency_code" => "EUR",
+          "notes" => "Synthetic fixture account"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Deposit account created."
+    assert has_element?(view, "#deposit-account-list", "Secondary Cash")
+
+    refute Enum.any?(
+             Portfolios.list_deposit_accounts_for_portfolio(first_portfolio.id),
+             &(&1.name == "Secondary Cash")
+           )
+
+    assert Enum.any?(
+             Portfolios.list_deposit_accounts_for_portfolio(second_portfolio.id),
+             &(&1.name == "Secondary Cash")
+           )
+  end
+
+  test "creates a securities account for the selected current portfolio", %{conn: conn} do
+    first_portfolio = create_portfolio("Primary portfolio")
+    second_portfolio = create_portfolio("Secondary portfolio")
+
+    first_cash = create_deposit_account(first_portfolio, "Primary Cash")
+    second_cash = create_deposit_account(second_portfolio, "Secondary Cash")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert select_current_portfolio(view, second_portfolio.id) =~ "The current portfolio controls"
+
+    assert has_element?(
+             view,
+             "#securities-account-reference-deposit-account option[value='#{second_cash.id}']"
+           )
+
+    refute has_element?(
+             view,
+             "#securities-account-reference-deposit-account option[value='#{first_cash.id}']"
+           )
+
+    html =
+      view
+      |> form("#securities-account-form", %{
+        "securities_account" => %{
+          "name" => "Secondary Depot",
+          "currency_code" => "EUR",
+          "reference_deposit_account_id" => "#{second_cash.id}",
+          "notes" => "Synthetic fixture account"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Securities account created."
+    assert has_element?(view, "#securities-account-list", "Secondary Depot")
+
+    refute Enum.any?(
+             Portfolios.list_securities_accounts_for_portfolio(first_portfolio.id),
+             &(&1.name == "Secondary Depot")
+           )
+  end
+
+  test "invalid current portfolio selection keeps the previous current portfolio", %{conn: conn} do
+    first_portfolio = create_portfolio("Primary portfolio")
+    create_portfolio("Secondary portfolio")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(
+             view,
+             "#current-portfolio-select option[value='#{first_portfolio.id}'][selected]"
+           )
+
+    html =
+      render_change(view, "select_current_portfolio", %{"portfolio_id" => "123456"})
+
+    assert has_element?(
+             view,
+             "#current-portfolio-select option[value='#{first_portfolio.id}'][selected]"
+           )
+
+    assert html =~ "Primary portfolio"
+  end
+
   test "accounts page explains setup flow in English terms", %{conn: conn} do
     create_portfolio("Primary portfolio")
 
@@ -197,6 +369,11 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert html =~ "Depot"
     assert html =~ "Kontenübersicht"
     assert html =~ "Referenz-Verrechnungskonto"
+    assert html =~ "Aktuelles Portfolio"
+
+    assert html =~
+             "Das aktuelle Portfolio steuert, welche Konten und späteren Buchungen angezeigt werden."
+
     assert has_element?(view, "#deposit-account-form")
     assert has_element?(view, "#securities-account-form")
   end
@@ -456,5 +633,11 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
       })
 
     security
+  end
+
+  defp select_current_portfolio(view, portfolio_id) do
+    view
+    |> form("#current-portfolio-form", %{"portfolio_id" => "#{portfolio_id}"})
+    |> render_change()
   end
 end

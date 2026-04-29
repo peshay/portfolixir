@@ -86,11 +86,36 @@ defmodule PortfolixirWeb.AccountManagementLive do
       <div id="account-workspace" class="app-shell-workspace-grid">
         <div class="app-shell-workspace-stack" data-priority="primary">
           <%= if @current_portfolio do %>
+            <section id="current-portfolio-selector" class="app-shell-section-card">
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 class="app-shell-section-title"><%= gettext("Current portfolio") %></h2>
+                  <p><%= gettext("Select portfolio") %></p>
+                  <p class="app-shell-warning-note">
+                    <%= gettext("The current portfolio controls which accounts and future transactions are shown.") %>
+                  </p>
+                </div>
+              </div>
+
+              <form id="current-portfolio-form" phx-change="select_current_portfolio" class="app-shell-form-grid">
+                <div class="app-shell-field app-shell-field--full">
+                  <label for="current-portfolio-select"><%= gettext("Current portfolio") %></label>
+                  <select id="current-portfolio-select" name="portfolio_id">
+                    <%= for portfolio <- @portfolios do %>
+                      <option value={portfolio.id} selected={portfolio.id == @current_portfolio.id}>
+                        <%= portfolio.name %>
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+              </form>
+            </section>
+
             <section id="account-overview" class="app-shell-section-card">
               <div class="app-shell-section-header">
                 <div>
                   <h2 class="app-shell-section-title"><%= gettext("Current portfolio") %></h2>
-                  <p><%= gettext("The active portfolio sets the base currency for account and ledger workflows.") %></p>
+                  <p><%= gettext("The base currency for account and ledger workflows is set by the current portfolio.") %></p>
                 </div>
               </div>
 
@@ -538,7 +563,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
          |> assign(:portfolio_form, default_portfolio_form(socket.assigns.currencies))
          |> assign(:portfolio_error, nil)
          |> assign(:portfolio_success, gettext("Portfolio created."))
-         |> load_account_state()}
+         |> load_account_state(Map.get(socket.assigns, :current_portfolio))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply,
@@ -546,12 +571,21 @@ defmodule PortfolixirWeb.AccountManagementLive do
          |> assign(:portfolio_form, Map.merge(@portfolio_form_defaults, params))
          |> assign(:portfolio_error, format_errors(changeset))
          |> assign(:portfolio_success, nil)
-         |> load_account_state()}
+         |> load_account_state(Map.get(socket.assigns, :current_portfolio))}
     end
   end
 
+  def handle_event("select_current_portfolio", %{"portfolio_id" => selected_portfolio_id}, socket) do
+    {:noreply, load_account_state(socket, selected_portfolio_id)}
+  end
+
+  def handle_event("select_current_portfolio", _params, socket) do
+    {:noreply, load_account_state(socket, Map.get(socket.assigns, :current_portfolio))}
+  end
+
   def handle_event("create_deposit_account", %{"deposit_account" => params}, socket) do
-    portfolio_id = socket.assigns.current_portfolio.id
+    current_portfolio = Map.get(socket.assigns, :current_portfolio)
+    portfolio_id = current_portfolio && current_portfolio.id
 
     account_params =
       params
@@ -566,7 +600,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
          |> assign(:deposit_account_error, nil)
          |> assign(:deposit_account_success, gettext("Deposit account created."))
          |> assign(:securities_account_success, nil)
-         |> load_account_state()}
+         |> load_account_state(Map.get(socket.assigns, :current_portfolio))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply,
@@ -574,12 +608,13 @@ defmodule PortfolixirWeb.AccountManagementLive do
          |> assign(:deposit_account_form, Map.merge(@deposit_account_form_defaults, params))
          |> assign(:deposit_account_error, format_errors(changeset))
          |> assign(:deposit_account_success, nil)
-         |> load_account_state()}
+         |> load_account_state(Map.get(socket.assigns, :current_portfolio))}
     end
   end
 
   def handle_event("create_securities_account", %{"securities_account" => params}, socket) do
-    portfolio_id = socket.assigns.current_portfolio.id
+    current_portfolio = Map.get(socket.assigns, :current_portfolio)
+    portfolio_id = current_portfolio && current_portfolio.id
 
     account_params =
       params
@@ -597,7 +632,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
          |> assign(:securities_account_error, nil)
          |> assign(:securities_account_success, gettext("Securities account created."))
          |> assign(:deposit_account_success, nil)
-         |> load_account_state()}
+         |> load_account_state(Map.get(socket.assigns, :current_portfolio))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply,
@@ -605,12 +640,19 @@ defmodule PortfolixirWeb.AccountManagementLive do
          |> assign(:securities_account_form, Map.merge(@securities_account_form_defaults, params))
          |> assign(:securities_account_error, format_errors(changeset))
          |> assign(:securities_account_success, nil)
-         |> load_account_state()}
+         |> load_account_state(Map.get(socket.assigns, :current_portfolio))}
     end
   end
 
-  defp load_account_state(socket) do
-    current_portfolio = Portfolios.first_portfolio()
+  defp load_account_state(socket, selected_portfolio_id \\ nil) do
+    portfolios = Portfolios.list_portfolios()
+
+    current_portfolio =
+      resolve_current_portfolio(
+        portfolios,
+        selected_portfolio_id,
+        Map.get(socket.assigns, :current_portfolio)
+      )
 
     deposit_accounts =
       if current_portfolio do
@@ -645,6 +687,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
     socket
     |> assign(:currencies, Catalog.list_currencies())
+    |> assign(:portfolios, portfolios)
     |> assign(:current_portfolio, current_portfolio)
     |> assign(:deposit_accounts, deposit_accounts)
     |> assign(:securities_accounts, securities_accounts)
@@ -657,6 +700,25 @@ defmodule PortfolixirWeb.AccountManagementLive do
         securities_account_names
       )
     )
+  end
+
+  defp resolve_current_portfolio(portfolios, nil, previous_portfolio) do
+    previous_portfolio || List.first(portfolios)
+  end
+
+  defp resolve_current_portfolio(portfolios, selected_portfolio_id, previous_portfolio) do
+    selected_portfolio = Portfolios.get_portfolio(selected_portfolio_id)
+
+    cond do
+      selected_portfolio ->
+        selected_portfolio
+
+      previous_portfolio && Enum.any?(portfolios, &(&1.id == previous_portfolio.id)) ->
+        previous_portfolio
+
+      true ->
+        List.first(portfolios)
+    end
   end
 
   defp sanitize_optional_fields(params, optional_fields) when is_map(params) do
