@@ -103,6 +103,10 @@ defmodule Portfolixir.Catalog do
     |> Repo.update()
   end
 
+  def archive_security(%Security{} = security) do
+    update_security(security, %{active: false})
+  end
+
   def delete_security(%Security{} = security) do
     Repo.delete(security)
   end

@@ -133,6 +133,32 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     refute has_element?(view, "#security-list tbody tr", "Inactive Security")
   end
 
+  test "shows archive action for active securities and hides it for inactive securities", %{
+    conn: conn
+  } do
+    assert {:ok, active_security} =
+             Catalog.create_security(%{
+               name: "Active Security",
+               symbol: "AC",
+               currency_code: "USD",
+               active: true
+             })
+
+    assert {:ok, inactive_security} =
+             Catalog.create_security(%{
+               name: "Inactive Security",
+               symbol: "IN",
+               currency_code: "USD",
+               active: false
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#security-filter-all") |> render_click()
+
+    assert has_element?(view, "#security-archive-#{active_security.id}", "Archive")
+    refute has_element?(view, "#security-archive-#{inactive_security.id}")
+  end
+
   test "shows inactive securities when inactive filter is selected", %{conn: conn} do
     assert {:ok, _} =
              Catalog.create_security(%{
@@ -241,6 +267,35 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-list tbody tr", "Inactive Security")
     assert has_element?(view, "span.app-shell-badge", "Active")
     assert has_element?(view, "span.app-shell-badge", "Inactive")
+  end
+
+  test "archives an active security from the list and removes it from the active view", %{
+    conn: conn
+  } do
+    assert {:ok, security} =
+             Catalog.create_security(%{
+               name: "Apple Inc.",
+               symbol: "AAPL",
+               currency_code: "USD",
+               active: true
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-list tbody tr", "Apple Inc.")
+    assert has_element?(view, "#security-archive-#{security.id}", "Archive")
+
+    html = view |> element("#security-archive-#{security.id}") |> render_click()
+
+    assert html =~ "Security archived."
+    refute has_element?(view, "#security-list tbody tr", "Apple Inc.")
+
+    view |> element("#security-filter-all") |> render_click()
+    assert has_element?(view, "#security-list tbody tr", "Apple Inc.")
+    assert has_element?(view, "#security-list tbody tr span", "Inactive")
+
+    view |> element("#security-filter-inactive") |> render_click()
+    assert has_element?(view, "#security-list tbody tr", "Apple Inc.")
   end
 
   test "creates a security with success feedback", %{conn: conn} do
