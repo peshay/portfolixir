@@ -53,7 +53,17 @@ defmodule Portfolixir.Imports do
     timestamp = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
     attrs
-    |> Map.put_new(:status, "finished")
-    |> Map.put_new(:finished_at, timestamp)
+    |> normalize_key_types()
+    |> Map.put_new("status", "finished")
+    |> Map.put_new("finished_at", timestamp)
   end
+
+  defp normalize_key_types(attrs) when is_map(attrs) do
+    Map.new(attrs, fn
+      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
+      {key, value} -> {key, value}
+    end)
+  end
+
+  defp normalize_key_types(_attrs), do: %{}
 end
