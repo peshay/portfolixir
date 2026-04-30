@@ -339,19 +339,21 @@ Exit criteria:
 ## PFX-AUTO-001: Import Domain Foundation
 
 ### User story
-As a system, I want standardized import domain records (source, batch, staging, mapping state), so imports are auditable and replayable before they mutate the ledger.
+As a system, I want import entities and a canonical staging pipeline, so automated inputs are auditable and replayable before any ledger mutation.
 
 ### Acceptance criteria
-- Import domain entities (source, batch, staged payload, preview result) are represented in domain documentation.
-- Manual and automated ingestion share a single raw-to-staging path.
-- Reprocessing the same input can be detected and handled without duplicate writes.
-- Import previews never persist financial rows directly.
-- Tests include one valid and one malformed fixture path.
+- Add `Portfolixir.Imports` context with `import_sources`, `import_runs`, and `raw_import_items`.
+- Add `raw_import_items` status transitions that support preview and confirm.
+- Support idempotent intake with either `external_id` or `content_hash` deduplication.
+- Manual and connector-based intake both write to the same canonical raw intake model.
+- Ensure import preview and validation do not create ledger writes.
+- Explicitly exclude PDF parsing from this foundation.
+- Explicitly exclude external network calls from this story.
 
 ### Notes / non-goals
-- Not an end-user UI rewrite.
 - No connector execution or payment actions in this foundation story.
 - No broker order placement.
+- No direct banking or payment writes.
 
 ## PFX-AUTO-002: Read-only Portfolio API
 
@@ -359,14 +361,21 @@ As a system, I want standardized import domain records (source, batch, staging, 
 As a user, I want read-only access surfaces for portfolio data so AI tools can analyze safely without the ability to place actions.
 
 ### Acceptance criteria
-- API/MCP contract prioritizes read-only endpoints for portfolio, positions, and valuation snapshots.
-- Endpoints include explicit non-mutating guarantees.
-- Auth assumptions and trust boundaries are documented.
-- Tests include read-path shape checks and explicit write-path rejection/guard coverage.
+- Add `/api/read` scope with portfolio-wide GET routes only.
+- Expose read-only JSON endpoints for:
+  - `portfolio_snapshot`
+  - `positions`
+  - `transactions`
+  - `cash_balances`
+- Require `portfolio_id` scoping on all responses.
+- Guard endpoints for **dev/local only** until authentication is implemented.
+- Do not implement MCP runtime in this story.
+- Do not add write endpoints in this story.
 
 ### Notes / non-goals
 - No write-capable LLM/MCP actions.
 - No broker/banking/trading execution controls.
+- No API endpoints that mutate state.
 
 ## PFX-AUTO-003: Local Document Inbox
 
@@ -374,14 +383,19 @@ As a user, I want read-only access surfaces for portfolio data so AI tools can a
 As a user, I want local document uploads to land in a queue with processing state, so imports start from structured evidence.
 
 ### Acceptance criteria
-- Users can store local documents into a local inbox.
-- Stored document records include source, parser hint, status and timestamps.
-- Import queue can be previewed before processing.
-- Tests cover document ingestion and queue state transitions.
+- Add `Portfolixir.Imports.DocumentInbox` for local document intake.
+- Compute SHA256 for every accepted uploaded document.
+- Add a local `import_source` for Local Document Inbox records.
+- Create `raw_import_items` from Local Document Inbox intake.
+- Store PDF metadata only (filename, mime, size, hash, import_source), not full PDF bytes in item payloads.
+- Detect duplicates by `content_hash` before writing intake records.
+- Keep queue state transitions visible for queue/preview flow.
 
 ### Notes / non-goals
 - No external write callbacks.
+- No OCR.
 - No automatic funds movement.
+- No PDF parsing.
 
 ## PFX-PP-001: Portfolio Performance XML Preview
 
@@ -389,14 +403,17 @@ As a user, I want local document uploads to land in a queue with processing stat
 As a user, I want PP XML parsed into a reviewable preview, so I can validate what will be imported.
 
 ### Acceptance criteria
-- PP XML parsing can produce a preview report from a sample PP file.
+- Accept uploaded PP XML fixture files for preview.
+- Parse PP XML into preview data for securities, accounts, portfolio/base currency, transactions, and taxonomies/categories where available.
 - Preview includes row-level or section-level validation warnings.
 - No ledger writes happen in preview mode.
-- Deterministic fixture-based tests verify recognized and rejected XML patterns.
+- Use safe XML parser settings that prevent unsafe entity expansion.
+- Use synthetic PP XML fixtures in tests for deterministic preview paths.
 
 ### Notes / non-goals
 - No provider credentials or broker authentication required.
 - No write actions in preview mode.
+- No PDF parsing in PP XML preview.
 
 ## PFX-PP-002: Portfolio Performance XML Import Confirmation
 
@@ -404,14 +421,17 @@ As a user, I want PP XML parsed into a reviewable preview, so I can validate wha
 As a user, I want a confirm step for PP XML parsed data, so imported rows are only written after approval.
 
 ### Acceptance criteria
-- Confirm converts validated PP XML staging rows into transactions or normalized import artifacts.
-- Replays/double-submit are safe and idempotent.
-- Import summary shows inserted, skipped and invalid counts.
-- Tests cover confirmed and blocked import confirmation flows.
+- Confirm transitions a previously reviewed PP XML preview into persisted data.
+- Write only normalized Portfolixir data after explicit confirmation.
+- Map PP UUIDs and external IDs into `import_runs`/`raw_import_items` for idempotency.
+- Perform create/update/skip decisions with deterministic import summary output.
+- Map PP transactions into ledger transactions during confirmation.
+- Keep reimports/retries safe by honoring deduplication identifiers.
 
 ### Notes / non-goals
 - No auto-posting to external systems.
 - No real-money effects.
+- No banking, trading or payment writes.
 
 ## PFX-CONN-001: Connector Behaviour
 
@@ -419,14 +439,27 @@ As a user, I want a confirm step for PP XML parsed data, so imported rows are on
 As a developer, I want a connector behaviour contract, so additional sync sources can be added without rewriting the import core.
 
 ### Acceptance criteria
-- A clear connector contract defines pull/normalize/progress behavior.
+- Add `Portfolixir.Connectors.Provider` behaviour with read-only callbacks:
+  - accounts
+  - balances
+  - transactions
+  - documents
+  - permissions
+- Add `FakeProvider` for tests.
+- Enforce a read capability whitelist only.
 - Connector errors and partial failures are represented in import status.
-- Tests use test doubles and avoid live network calls.
-- Documentation includes required metadata for new connectors.
+- No OAuth flow and no real external API calls in this story.
 
 ### Notes / non-goals
 - Not a broker-execution integration layer.
 - No direct write APIs in connector scope for MVP.
+- Explicitly no methods for:
+  - `create_payment`
+  - `place_order`
+  - `cancel_order`
+  - `withdraw`
+  - `transfer`
+- No real-money actions.
 
 ## PFX-ETF-001: Fund Allocation Model
 
@@ -434,13 +467,20 @@ As a developer, I want a connector behaviour contract, so additional sync source
 As a user with ETF-heavy holdings, I want allocation model support for fund/ETF categories, so classification remains meaningful.
 
 ### Acceptance criteria
-- ETF/fund classification rules are representable in the taxonomy model.
-- Allocation report can reflect ETF-level grouping and edge cases.
-- Tests define deterministic mappings and coverage for missing mapping rules.
+- Add `fund_allocations` and `fund_allocation_items` domain artifacts.
+- Support allocation types:
+  - region
+  - country
+  - sector
+  - asset_class
+- Store `security_id`, `source`, `as_of_date`, `label`, `weight`, and `confidence` on allocation items.
+- Use `Decimal` for weights/confidence calculations.
+- Ensure allocation model can represent deterministic "create/update/skip" behavior for importer reuse.
 
 ### Notes / non-goals
 - No rebalance execution.
 - No automatic trading recommendations.
+- No trading/rebalance actions.
 
 ## PFX-009: Clean up All Securities page and table
 
