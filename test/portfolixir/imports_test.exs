@@ -121,6 +121,75 @@ defmodule Portfolixir.ImportsTest do
     assert finished_run.finished_at
   end
 
+  test "finish_import_run/2 works with atom-keyed attrs" do
+    source = create_import_source(name: "Atom attrs finish")
+
+    assert {:ok, run} = Imports.create_import_run(%{import_source_id: source.id})
+
+    assert {:ok, finished_run} =
+             Imports.finish_import_run(run.id, %{
+               status: "completed",
+               summary: %{"inserted_items" => 1}
+             })
+
+    assert finished_run.status == "completed"
+    assert finished_run.summary == %{"inserted_items" => 1}
+    assert finished_run.finished_at
+  end
+
+  test "finish_import_run/2 works with string-keyed attrs" do
+    source = create_import_source(name: "String attrs finish")
+
+    assert {:ok, run} = Imports.create_import_run(%{import_source_id: source.id})
+
+    assert {:ok, finished_run} =
+             Imports.finish_import_run(run.id, %{"summary" => %{"inserted_items" => 2}})
+
+    assert finished_run.status == "finished"
+    assert finished_run.summary == %{"inserted_items" => 2}
+    assert finished_run.finished_at
+  end
+
+  test "string-keyed attrs do not get mixed with atom defaults" do
+    source = create_import_source(name: "String attrs mix check")
+
+    assert {:ok, run} = Imports.create_import_run(%{import_source_id: source.id})
+
+    assert {:ok, finished_run} =
+             Imports.finish_import_run(run.id, %{"summary" => %{"inserted_items" => 3}})
+
+    assert finished_run.status == "finished"
+    assert finished_run.summary == %{"inserted_items" => 3}
+  end
+
+  test "provided string-keyed status is not overwritten by the default" do
+    source = create_import_source(name: "String status guard")
+
+    assert {:ok, run} = Imports.create_import_run(%{import_source_id: source.id})
+
+    assert {:ok, finished_run} =
+             Imports.finish_import_run(run.id, %{
+               "status" => "completed",
+               "summary" => %{"inserted_items" => 4}
+             })
+
+    assert finished_run.status == "completed"
+  end
+
+  test "provided atom-keyed status is not overwritten by the default" do
+    source = create_import_source(name: "Atom status guard")
+
+    assert {:ok, run} = Imports.create_import_run(%{import_source_id: source.id})
+
+    assert {:ok, finished_run} =
+             Imports.finish_import_run(run.id, %{
+               status: "completed",
+               summary: %{"inserted_items" => 5}
+             })
+
+    assert finished_run.status == "completed"
+  end
+
   test "raw items can be listed by source" do
     source_one = create_import_source(name: "List source one")
     source_two = create_import_source(name: "List source two")
