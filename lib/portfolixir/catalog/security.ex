@@ -3,6 +3,7 @@ defmodule Portfolixir.Catalog.Security do
   import Ecto.Changeset
 
   alias Portfolixir.Catalog.SecurityCategoryAssignment
+  alias Portfolixir.Catalog.FundAllocation
   alias Portfolixir.Catalog.Currency
 
   schema "securities" do
@@ -23,6 +24,7 @@ defmodule Portfolixir.Catalog.Security do
     )
 
     has_many(:security_category_assignments, SecurityCategoryAssignment)
+    has_many(:fund_allocations, FundAllocation)
     has_many(:categories, through: [:security_category_assignments, :category])
 
     timestamps()

@@ -3,6 +3,8 @@ defmodule Portfolixir.Catalog do
 
   import Ecto.Query
   alias Portfolixir.Catalog.Currency
+  alias Portfolixir.Catalog.FundAllocation
+  alias Portfolixir.Catalog.FundAllocationItem
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityCategoryAssignment
   alias Portfolixir.Repo
@@ -59,6 +61,36 @@ defmodule Portfolixir.Catalog do
     %Security{}
     |> Security.changeset(attrs)
     |> Repo.insert()
+  end
+
+  def create_fund_allocation(attrs) when is_map(attrs) do
+    %FundAllocation{}
+    |> FundAllocation.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def list_fund_allocations_for_security(security_id) when is_integer(security_id) do
+    from(fa in FundAllocation,
+      where: fa.security_id == ^security_id,
+      order_by: [asc: fa.allocation_type, asc: fa.source, asc: fa.inserted_at]
+    )
+    |> Repo.all()
+  end
+
+  def get_fund_allocation!(id), do: Repo.get!(FundAllocation, id)
+
+  def create_fund_allocation_item(attrs) when is_map(attrs) do
+    %FundAllocationItem{}
+    |> FundAllocationItem.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def list_fund_allocation_items(fund_allocation_id) when is_integer(fund_allocation_id) do
+    from(fai in FundAllocationItem,
+      where: fai.fund_allocation_id == ^fund_allocation_id,
+      order_by: [asc: fai.label, asc: fai.inserted_at]
+    )
+    |> Repo.all()
   end
 
   def assign_category_to_security(security_id, category_id)
