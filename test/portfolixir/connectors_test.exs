@@ -143,12 +143,15 @@ defmodule Portfolixir.ConnectorsTest do
     unknown_capability =
       "unsupported_capability_" <> Integer.to_string(System.unique_integer([:positive]))
 
-    atom_count_before = :erlang.system_info(:atom_count)
+    assert_raise ArgumentError, fn ->
+      String.to_existing_atom(unknown_capability)
+    end
 
     assert {:error, {:unsupported_capability, ^unknown_capability}} =
              Connectors.call(FakeProvider, unknown_capability, %{})
 
-    atom_count_after = :erlang.system_info(:atom_count)
-    assert atom_count_after == atom_count_before
+    assert_raise ArgumentError, fn ->
+      String.to_existing_atom(unknown_capability)
+    end
   end
 end
