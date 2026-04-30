@@ -17,14 +17,20 @@ Portfolixir should become a self-hosted portfolio analytics and wealth graph pla
 - **Data ownership:** User data should remain exportable and understandable.
 - **Transparent calculations:** Positions, cash balances, valuation and later performance metrics should be traceable back to transactions and prices.
 - **Ledger-like core:** Portfolio state should be derived from master data, accounts, transactions, prices and FX rates, not manually mutated reports.
-- **Import/export friendly:** CSV import/export should be available early. Broker/PDF/PP XML import can come later.
-- **AI/MCP-ready later:** The domain model and API boundaries should be clean enough for later AI-assisted analysis.
+- **Import/export friendly and automation-first:** Import and sync flows are primary; manual forms are fallback maintenance.
+- **AI/MCP-ready early:** The domain model and API boundaries support read-only AI access safely before late-stage polishing.
 - **Modern web UI:** The product should feel like a clean, usable web app, not a desktop clone.
 - **No broker execution:** Portfolixir must not place trades or trigger real-money actions.
 - **No fake data in production flows:** Demo data may exist only behind explicit dev/test mechanisms.
 - **Portfolio boundaries:** A `Portfolio` is a tenant-like workspace, comparable to one Portfolio Performance `.portfolio` file.
 - **Portfolio scoping:** Accounts, transactions, and reports are portfolio-scoped.
 - **Shared market model:** quotes, FX rates, and market metadata are shared across portfolios where possible.
+
+## Automation-first direction
+
+- Portfolixir is a self-hosted portfolio data hub with import/sync-first ingestion and a strict ledger source of truth.
+- Core workflows start with automated intake (connector, document inbox, PP XML preview/confirm), while manual forms remain fallback paths.
+- Read-only API/MCP analysis access is part of early architecture and remains non-mutating.
 
 ## Current foundation
 
@@ -179,10 +185,12 @@ Capabilities:
 Capabilities:
 - CSV export
 - CSV import preview
-- Import mapping
+- Import mapping (including connector and document source metadata)
+- Import hub and raw payload queue
+- Local document inbox
 - Raw import storage
-- Broker statement import later
-- Portfolio Performance XML import as long-term option
+- Broker statement intake via connector candidates
+- Portfolio Performance XML import
 - Repeatable import jobs with deduplication
 
 ## H. Reports and analytics
@@ -209,6 +217,7 @@ Capabilities:
 - Backup/export guidance
 - CI later
 - Domain documentation
+- Import contract documentation
 
 ---
 
@@ -249,9 +258,14 @@ Exit criteria:
 
 ## Phase 2: Accounts and transactions
 
-Goal: Start building the ledger model.
+Goal: Start building the ledger model with import-first ingestion.
 
 Stories:
+- PFX-AUTO-001 Import Domain Foundation
+- PFX-CONN-001 Connector Behaviour
+- PFX-AUTO-003 Local Document Inbox
+- PFX-PP-001 Portfolio Performance XML Preview
+- PFX-PP-002 Portfolio Performance XML Import Confirmation
 - PFX-015 Create deposit accounts
 - PFX-016 Create securities accounts
 - PFX-017 Link securities account to reference deposit account
@@ -263,6 +277,7 @@ Stories:
 - PFX-023 Record fees and taxes
 
 Exit criteria:
+- Users can begin with import/sync workflows before manual transaction entry.
 - A user can model a depot and reference cash account.
 - A user can record basic buy/sell/dividend/cash movements.
 - Transactions are listed and traceable.
@@ -275,6 +290,7 @@ Stories:
 - PFX-024 Calculate security positions from transactions
 - PFX-025 Calculate cash balances from transactions
 - PFX-026 Manual latest quote entry
+- PFX-AUTO-002 Read-only Portfolio API
 - PFX-027 Holdings report
 - PFX-028 Portfolio valuation snapshot
 
@@ -288,6 +304,7 @@ Exit criteria:
 Goal: Make the portfolio understandable by strategy/category.
 
 Stories:
+- PFX-ETF-001 Fund Allocation Model
 - PFX-029 Show assigned categories on securities
 - PFX-030 Manage security-category assignments in UI
 - PFX-031 Add target weights to category assignments
@@ -313,11 +330,117 @@ Stories:
 Exit criteria:
 - Imports have preview/confirm workflow.
 - Quote fetching is abstracted.
-- Read-only API path is prepared.
+- Read-only API path has hardening notes and auditability.
 
 ---
 
 # Implementation stories
+
+## PFX-AUTO-001: Import Domain Foundation
+
+### User story
+As a system, I want standardized import domain records (source, batch, staging, mapping state), so imports are auditable and replayable before they mutate the ledger.
+
+### Acceptance criteria
+- Import domain entities (source, batch, staged payload, preview result) are represented in domain documentation.
+- Manual and automated ingestion share a single raw-to-staging path.
+- Reprocessing the same input can be detected and handled without duplicate writes.
+- Import previews never persist financial rows directly.
+- Tests include one valid and one malformed fixture path.
+
+### Notes / non-goals
+- Not an end-user UI rewrite.
+- No connector execution or payment actions in this foundation story.
+- No broker order placement.
+
+## PFX-AUTO-002: Read-only Portfolio API
+
+### User story
+As a user, I want read-only access surfaces for portfolio data so AI tools can analyze safely without the ability to place actions.
+
+### Acceptance criteria
+- API/MCP contract prioritizes read-only endpoints for portfolio, positions, and valuation snapshots.
+- Endpoints include explicit non-mutating guarantees.
+- Auth assumptions and trust boundaries are documented.
+- Tests include read-path shape checks and explicit write-path rejection/guard coverage.
+
+### Notes / non-goals
+- No write-capable LLM/MCP actions.
+- No broker/banking/trading execution controls.
+
+## PFX-AUTO-003: Local Document Inbox
+
+### User story
+As a user, I want local document uploads to land in a queue with processing state, so imports start from structured evidence.
+
+### Acceptance criteria
+- Users can store local documents into a local inbox.
+- Stored document records include source, parser hint, status and timestamps.
+- Import queue can be previewed before processing.
+- Tests cover document ingestion and queue state transitions.
+
+### Notes / non-goals
+- No external write callbacks.
+- No automatic funds movement.
+
+## PFX-PP-001: Portfolio Performance XML Preview
+
+### User story
+As a user, I want PP XML parsed into a reviewable preview, so I can validate what will be imported.
+
+### Acceptance criteria
+- PP XML parsing can produce a preview report from a sample PP file.
+- Preview includes row-level or section-level validation warnings.
+- No ledger writes happen in preview mode.
+- Deterministic fixture-based tests verify recognized and rejected XML patterns.
+
+### Notes / non-goals
+- No provider credentials or broker authentication required.
+- No write actions in preview mode.
+
+## PFX-PP-002: Portfolio Performance XML Import Confirmation
+
+### User story
+As a user, I want a confirm step for PP XML parsed data, so imported rows are only written after approval.
+
+### Acceptance criteria
+- Confirm converts validated PP XML staging rows into transactions or normalized import artifacts.
+- Replays/double-submit are safe and idempotent.
+- Import summary shows inserted, skipped and invalid counts.
+- Tests cover confirmed and blocked import confirmation flows.
+
+### Notes / non-goals
+- No auto-posting to external systems.
+- No real-money effects.
+
+## PFX-CONN-001: Connector Behaviour
+
+### User story
+As a developer, I want a connector behaviour contract, so additional sync sources can be added without rewriting the import core.
+
+### Acceptance criteria
+- A clear connector contract defines pull/normalize/progress behavior.
+- Connector errors and partial failures are represented in import status.
+- Tests use test doubles and avoid live network calls.
+- Documentation includes required metadata for new connectors.
+
+### Notes / non-goals
+- Not a broker-execution integration layer.
+- No direct write APIs in connector scope for MVP.
+
+## PFX-ETF-001: Fund Allocation Model
+
+### User story
+As a user with ETF-heavy holdings, I want allocation model support for fund/ETF categories, so classification remains meaningful.
+
+### Acceptance criteria
+- ETF/fund classification rules are representable in the taxonomy model.
+- Allocation report can reflect ETF-level grouping and edge cases.
+- Tests define deterministic mappings and coverage for missing mapping rules.
+
+### Notes / non-goals
+- No rebalance execution.
+- No automatic trading recommendations.
 
 ## PFX-009: Clean up All Securities page and table
 
@@ -844,6 +967,8 @@ Market data should be behind behaviours/adapters so tests can run without live n
 - No broker order execution.
 - No real-money trading.
 - No direct banking write actions.
+- No write-capable LLM/MCP tools.
+- No direct payment execution or wallet-like action flows.
 - No automatic rebalance execution.
 - No complex IRR/TTWROR calculations before the transaction model is solid.
 - No Portfolio Performance XML import in early MVP unless explicitly reprioritized.
