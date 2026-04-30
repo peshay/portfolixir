@@ -48,4 +48,13 @@ defmodule PortfolixirWeb.Router do
 
     get("/health", HealthController, :show)
   end
+
+  scope "/api/read", PortfolixirWeb do
+    pipe_through(:api)
+
+    get("/portfolio_snapshot", ReadAPIController, :portfolio_snapshot)
+    get("/positions", ReadAPIController, :positions)
+    get("/transactions", ReadAPIController, :transactions)
+    get("/cash_balances", ReadAPIController, :cash_balances)
+  end
 end
