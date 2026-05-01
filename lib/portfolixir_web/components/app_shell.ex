@@ -1516,15 +1516,16 @@ defmodule PortfolixirWeb.AppShell do
 
             <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title"><%= gettext("Imports") %></p>
-              <span
-                class="app-shell-nav-link is-disabled"
+              <a
+                id="nav-imports"
+                href="/imports"
                 aria-label={gettext("Imports")}
-                aria-disabled="true"
-                title={gettext("Coming soon")}
+                title={gettext("Imports")}
+                class={nav_link_class(@current_path, "/imports")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">IM</span>
                 <span class="app-shell-nav-label"><%= gettext("Imports") %></span>
-              </span>
+              </a>
             </div>
 
             <div class="app-shell-nav-group">
@@ -1833,6 +1834,7 @@ defmodule PortfolixirWeb.AppShell do
   defp section_label("/dashboard"), do: gettext("Dashboard")
   defp section_label("/documents/new"), do: gettext("Imports")
   defp section_label("/fund-documents/" <> _), do: gettext("Imports")
+  defp section_label("/imports"), do: gettext("Imports")
   defp section_label("/reports/" <> _), do: gettext("Reports")
   defp section_label("/accounts"), do: gettext("Master data")
   defp section_label("/transactions"), do: gettext("Ledger")
@@ -1843,6 +1845,7 @@ defmodule PortfolixirWeb.AppShell do
   defp page_label("/dashboard"), do: gettext("Dashboard")
   defp page_label("/documents/new"), do: gettext("Factsheet document")
   defp page_label("/fund-documents/" <> _), do: gettext("Factsheet allocation review")
+  defp page_label("/imports"), do: gettext("Imports")
   defp page_label("/reports/" <> _), do: gettext("Fund allocation report")
   defp page_label("/accounts"), do: gettext("Accounts Overview")
   defp page_label("/transactions"), do: gettext("Transactions")
