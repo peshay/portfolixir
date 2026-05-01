@@ -1348,7 +1348,7 @@ defmodule PortfolixirWeb.AppShell do
       </style>
 
       <header class="app-shell-mobile-header" aria-label="Mobile application header">
-        <a href="/securities" class="app-shell-mobile-brand" aria-label="Portfolixir">
+        <a href="/" class="app-shell-mobile-brand" aria-label="Portfolixir">
           <img
             class="app-shell-mobile-logo"
             src="/images/logo-mark.svg"
@@ -1382,7 +1382,7 @@ defmodule PortfolixirWeb.AppShell do
       <div class="app-shell-layout">
         <aside id="app-shell-mobile-drawer" class="app-shell-sidebar" aria-label={gettext("Primary navigation")}>
           <div class="app-shell-sidebar-top">
-            <a href="/securities" class="app-shell-brand" aria-label="Portfolixir">
+            <a href="/" class="app-shell-brand" aria-label="Portfolixir">
               <img
                 id="app-shell-brand-mark"
                 class="app-shell-logo-mark"
@@ -1396,12 +1396,27 @@ defmodule PortfolixirWeb.AppShell do
 
           <nav class="app-shell-sidebar-nav" aria-label={gettext("Main navigation")}>
             <div class="app-shell-nav-group">
+              <p class="app-shell-nav-group-title"><%= gettext("Dashboard") %></p>
+              <a
+                id="nav-dashboard"
+                href="/"
+                aria-label={gettext("Dashboard")}
+                title={gettext("Dashboard")}
+                class={nav_link_class(@current_path, "/")}
+              >
+                <span class="app-shell-nav-icon" aria-hidden="true">DB</span>
+                <span class="app-shell-nav-label"><%= gettext("Dashboard") %></span>
+              </a>
+            </div>
+
+            <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title"><%= gettext("Securities") %></p>
               <a
+                id="nav-securities"
                 href="/securities"
                 aria-label={gettext("All Securities")}
                 title={gettext("All Securities")}
-                class={nav_link_class(@current_path, "/securities", true)}
+                class={nav_link_class(@current_path, "/securities")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">SEC</span>
                 <span class="app-shell-nav-label"><%= gettext("All Securities") %></span>
@@ -1451,6 +1466,7 @@ defmodule PortfolixirWeb.AppShell do
             <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title"><%= gettext("Ledger") %></p>
               <a
+                id="nav-transactions"
                 href="/transactions"
                 aria-label={gettext("Transactions")}
                 title={gettext("Transactions")}
@@ -1464,19 +1480,21 @@ defmodule PortfolixirWeb.AppShell do
             <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title"><%= gettext("Classifications") %></p>
               <a
+                id="nav-categories"
                 href="/taxonomies"
-                aria-label={gettext("Classifications")}
-                title={gettext("Classifications")}
+                aria-label={gettext("Categories")}
+                title={gettext("Categories")}
                 class={nav_link_class(@current_path, "/taxonomies")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">CL</span>
-                <span class="app-shell-nav-label"><%= gettext("Classifications") %></span>
+                <span class="app-shell-nav-label"><%= gettext("Categories") %></span>
               </a>
             </div>
 
             <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title"><%= gettext("Reports") %></p>
               <span
+                id="nav-reports"
                 class="app-shell-nav-link is-disabled"
                 aria-label={gettext("Holdings")}
                 aria-disabled="true"
@@ -1512,6 +1530,7 @@ defmodule PortfolixirWeb.AppShell do
             <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title"><%= gettext("Settings") %></p>
               <span
+                id="nav-settings"
                 class="app-shell-nav-link is-disabled"
                 aria-label={gettext("Settings")}
                 aria-disabled="true"
@@ -1581,21 +1600,37 @@ defmodule PortfolixirWeb.AppShell do
       </div>
 
       <nav class="app-shell-bottom-nav" aria-label="Mobile primary navigation">
-        <a href="/securities" class={mobile_nav_link_class(@current_path, "/securities", true)}>
+        <a
+          id="mobile-nav-dashboard"
+          href="/"
+          class={mobile_nav_link_class(@current_path, "/")}
+        >
+          <span class="app-shell-bottom-icon" aria-hidden="true">DB</span>
+          <span><%= gettext("Dashboard") %></span>
+        </a>
+        <a
+          id="mobile-nav-securities"
+          href="/securities"
+          class={mobile_nav_link_class(@current_path, "/securities")}
+        >
           <span class="app-shell-bottom-icon" aria-hidden="true">SEC</span>
           <span><%= gettext("Securities") %></span>
         </a>
-        <a href="/accounts" class={mobile_nav_link_class(@current_path, "/accounts")}>
-          <span class="app-shell-bottom-icon" aria-hidden="true">ACC</span>
-          <span><%= gettext("Accounts") %></span>
-        </a>
-        <a href="/transactions" class={mobile_nav_link_class(@current_path, "/transactions")}>
+        <a
+          id="mobile-nav-transactions"
+          href="/transactions"
+          class={mobile_nav_link_class(@current_path, "/transactions")}
+        >
           <span class="app-shell-bottom-icon" aria-hidden="true">TX</span>
           <span><%= gettext("Transactions") %></span>
         </a>
-        <a href="/taxonomies" class={mobile_nav_link_class(@current_path, "/taxonomies")}>
+        <a
+          id="mobile-nav-categories"
+          href="/taxonomies"
+          class={mobile_nav_link_class(@current_path, "/taxonomies")}
+        >
           <span class="app-shell-bottom-icon" aria-hidden="true">CL</span>
-          <span><%= gettext("More") %></span>
+          <span><%= gettext("Categories") %></span>
         </a>
       </nav>
 
@@ -1790,11 +1825,15 @@ defmodule PortfolixirWeb.AppShell do
 
   defp locale_path(path, locale), do: "#{path}?locale=#{locale}"
 
+  defp section_label("/"), do: gettext("Dashboard")
+  defp section_label("/dashboard"), do: gettext("Dashboard")
   defp section_label("/accounts"), do: gettext("Master data")
   defp section_label("/transactions"), do: gettext("Ledger")
   defp section_label("/taxonomies"), do: gettext("Classifications")
   defp section_label(_path), do: gettext("Securities")
 
+  defp page_label("/"), do: gettext("Dashboard")
+  defp page_label("/dashboard"), do: gettext("Dashboard")
   defp page_label("/accounts"), do: gettext("Accounts Overview")
   defp page_label("/transactions"), do: gettext("Transactions")
   defp page_label("/taxonomies"), do: gettext("Classifications")

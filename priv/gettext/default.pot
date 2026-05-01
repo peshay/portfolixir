@@ -1037,3 +1037,75 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Workspace header"
 msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen, elixir-format
+msgid "Dashboard"
+msgstr ""
+
+#: lib/portfolixir_web/components/app_shell.ex
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Categories"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Import portfolio data"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Your product entry point with quick access to imports, positions, and activity."
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Product status"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Real counts from your current workspace."
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Total securities"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Recorded ledger entries"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Add document"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Import sources"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Raw import items"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Portfolio value chart will appear here once valuations are available."
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Portfolio analytics"
+msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex
+#, elixir-autogen, elixir-format
+msgid "Portfolio value chart"
+msgstr ""
