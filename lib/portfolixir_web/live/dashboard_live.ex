@@ -22,7 +22,7 @@ defmodule PortfolixirWeb.DashboardLive do
   def render(assigns) do
     assigns =
       assign(assigns,
-        has_data: assigns.securities_count > 0 or assigns.transactions_count > 0
+        has_data: assigns.securities_count > 0
       )
 
     ~H"""
@@ -99,7 +99,7 @@ defmodule PortfolixirWeb.DashboardLive do
     <a
       id="dashboard-primary-action"
       class="app-shell-button app-shell-primary"
-      href="/securities"
+      href={if @has_data, do: "/documents/new", else: "/securities"}
     >
       <%= if @has_data, do: gettext("Add document"), else: gettext("Import portfolio data") %>
     </a>
