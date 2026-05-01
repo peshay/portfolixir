@@ -7,7 +7,7 @@ defmodule PortfolixirWeb.ReadAPIControllerTest do
   alias PortfolixirWeb.Router
 
   defp create_currency do
-    {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
     :ok
   end
 

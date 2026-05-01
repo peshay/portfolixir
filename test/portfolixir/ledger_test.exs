@@ -8,8 +8,9 @@ defmodule Portfolixir.LedgerTest do
   alias Portfolixir.Portfolios
 
   setup do
-    {:ok, eur} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
-    {:ok, usd} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
+    {:ok, eur} = Catalog.ensure_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+    {:ok, usd} = Catalog.ensure_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
 
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{
