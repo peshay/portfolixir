@@ -6,6 +6,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.FundAllocation
   alias Portfolixir.Catalog.FundAllocationItem
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Catalog.FundDocument
   alias Portfolixir.Catalog.SecurityCategoryAssignment
   alias Portfolixir.Repo
   alias Portfolixir.Taxonomies.Category
@@ -116,12 +117,30 @@ defmodule Portfolixir.Catalog do
     |> Repo.insert()
   end
 
+  def create_fund_document(attrs) when is_map(attrs) do
+    %FundDocument{}
+    |> FundDocument.changeset(attrs)
+    |> Repo.insert()
+  end
+
   def list_fund_allocation_items(fund_allocation_id) when is_integer(fund_allocation_id) do
     from(fai in FundAllocationItem,
       where: fai.fund_allocation_id == ^fund_allocation_id,
       order_by: [asc: fai.label, asc: fai.inserted_at]
     )
     |> Repo.all()
+  end
+
+  def list_fund_documents_for_security(security_id) when is_integer(security_id) do
+    from(fd in FundDocument, where: fd.security_id == ^security_id, order_by: [asc: fd.id])
+    |> Repo.all()
+  end
+
+  def get_fund_document!(id) when is_integer(id), do: Repo.get!(FundDocument, id)
+
+  def get_fund_document_for_security_and_hash(security_id, content_hash)
+      when is_integer(security_id) and is_binary(content_hash) do
+    Repo.get_by(FundDocument, security_id: security_id, content_hash: content_hash)
   end
 
   def assign_category_to_security(security_id, category_id)
