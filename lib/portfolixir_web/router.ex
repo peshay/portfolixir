@@ -24,6 +24,12 @@ defmodule PortfolixirWeb.Router do
   end
 
   scope "/", PortfolixirWeb do
+    pipe_through(:browser_csv)
+
+    get("/securities/export.csv", SecurityController, :export)
+  end
+
+  scope "/", PortfolixirWeb do
     pipe_through(:browser)
 
     live_session :localized,
@@ -34,13 +40,8 @@ defmodule PortfolixirWeb.Router do
       live("/transactions", TransactionManagementLive)
       live("/taxonomies", CategoryManagementLive)
       live("/securities", SecurityManagementLive)
+      live("/securities/:id", SecurityDetailLive)
     end
-  end
-
-  scope "/", PortfolixirWeb do
-    pipe_through(:browser_csv)
-
-    get("/securities/export.csv", SecurityController, :export)
   end
 
   scope "/", PortfolixirWeb do
