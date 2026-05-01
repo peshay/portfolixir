@@ -69,6 +69,7 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             end)
           )
           |> assign(:position_rows, positions)
+          |> assign(:fund_documents, Catalog.list_fund_documents_for_security(security.id))
 
         {:ok, socket}
     end
@@ -140,6 +141,55 @@ defmodule PortfolixirWeb.SecurityDetailLive do
                 </tbody>
               </table>
             </div>
+          </section>
+
+          <section id="security-fund-documents" class="app-shell-section-card app-shell-workspace-stack" data-priority="secondary">
+            <div class="app-shell-section-header">
+              <div>
+                <h2 class="app-shell-section-title"><%= gettext("Fund documents") %></h2>
+                <p><%= gettext("Read-only factsheet attachments for this security.") %></p>
+              </div>
+            </div>
+
+            <%= if Enum.empty?(@fund_documents) do %>
+              <div id="security-fund-documents-empty-state" class="app-shell-empty-state">
+                <h3><%= gettext("No factsheets attached yet.") %></h3>
+                <p><a href="/documents/new"><%= gettext("Attach a new factsheet") %></a></p>
+              </div>
+            <% else %>
+              <div class="app-shell-table-wrapper">
+                <table id="security-fund-document-list">
+                  <thead>
+                    <tr>
+                      <th><%= gettext("Original filename") %></th>
+                      <th><%= gettext("Document type") %></th>
+                      <th><%= gettext("Source") %></th>
+                      <th><%= gettext("Content type") %></th>
+                      <th><%= gettext("Extraction status") %></th>
+                      <th><%= gettext("Extraction error") %></th>
+                      <th><%= gettext("Created") %></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <%= for document <- @fund_documents do %>
+                      <tr>
+                        <td>
+                          <a href={"/fund-documents/#{document.id}/allocations/review"}>
+                            <%= document.original_filename %>
+                          </a>
+                        </td>
+                        <td><%= document.document_type %></td>
+                        <td><%= document.source %></td>
+                        <td><%= document.content_type %></td>
+                        <td><span class="app-shell-badge"><%= document.extraction_status %></span></td>
+                        <td><%= document.extraction_error || gettext("—") %></td>
+                        <td><%= format_datetime(document.inserted_at) %></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
           </section>
 
           <section class="app-shell-section-card app-shell-workspace-stack" data-priority="secondary">
@@ -280,4 +330,7 @@ defmodule PortfolixirWeb.SecurityDetailLive do
     |> Decimal.round(2)
     |> Decimal.to_string(:normal)
   end
+
+  defp format_datetime(%DateTime{} = datetime), do: DateTime.to_string(datetime)
+  defp format_datetime(_), do: gettext("—")
 end

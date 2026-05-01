@@ -151,7 +151,10 @@ defmodule Portfolixir.Catalog do
   end
 
   def list_fund_documents_for_security(security_id) when is_integer(security_id) do
-    from(fd in FundDocument, where: fd.security_id == ^security_id, order_by: [asc: fd.id])
+    from(fd in FundDocument,
+      where: fd.security_id == ^security_id,
+      order_by: [desc: fd.inserted_at, desc: fd.id]
+    )
     |> Repo.all()
   end
 
