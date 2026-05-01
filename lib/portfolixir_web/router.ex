@@ -35,7 +35,8 @@ defmodule PortfolixirWeb.Router do
     live_session :localized,
       session: {PortfolixirWeb.Locale, :live_session, []},
       on_mount: {PortfolixirWeb.Locale, :default} do
-      live("/", SecurityManagementLive)
+      live("/", DashboardLive)
+      live("/dashboard", DashboardLive)
       live("/accounts", AccountManagementLive)
       live("/transactions", TransactionManagementLive)
       live("/taxonomies", CategoryManagementLive)

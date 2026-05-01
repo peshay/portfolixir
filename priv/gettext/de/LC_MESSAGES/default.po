@@ -1186,3 +1186,55 @@ msgstr "Das aktuelle Portfolio steuert, welche Konten und späteren Buchungen an
 #, elixir-autogen, elixir-format
 msgid "The current portfolio controls which transactions and positions are shown."
 msgstr "Das aktuelle Portfolio steuert, welche Buchungen und Bestände angezeigt werden."
+
+#, elixir-autogen, elixir-format
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#, elixir-autogen, elixir-format
+msgid "Import portfolio data"
+msgstr "Portfoliodaten importieren"
+
+#, elixir-autogen, elixir-format
+msgid "Add document"
+msgstr "Dokument hinzufügen"
+
+#, elixir-autogen, elixir-format
+msgid "Import sources"
+msgstr "Importquellen"
+
+#, elixir-autogen, elixir-format
+msgid "Raw import items"
+msgstr "Rohimportdaten"
+
+#, elixir-autogen, elixir-format
+msgid "Portfolio value chart will appear here once valuations are available."
+msgstr "Der Portfolio-Wert-Chart erscheint hier, sobald Bewertungen verfügbar sind."
+
+#, elixir-autogen, elixir-format
+msgid "Your product entry point with quick access to imports, positions, and activity."
+msgstr "Der Einstiegspunkt für dein Produkt mit schnellem Zugriff auf Importe, Positionen und Aktivitäten."
+
+#, elixir-autogen, elixir-format
+msgid "Product status"
+msgstr "Produktstatus"
+
+#, elixir-autogen, elixir-format
+msgid "Real counts from your current workspace."
+msgstr "Echte Zählwerte aus deinem Workspace."
+
+#, elixir-autogen, elixir-format
+msgid "Total securities"
+msgstr "Wertpapiere gesamt"
+
+#, elixir-autogen, elixir-format
+msgid "Recorded ledger entries"
+msgstr "Erfasste Buchungseinträge"
+
+#, elixir-autogen, elixir-format
+msgid "Portfolio analytics"
+msgstr "Portfoliostatistiken"
+
+#, elixir-autogen, elixir-format
+msgid "Portfolio value chart"
+msgstr "Portfolio-Wert-Diagramm"
