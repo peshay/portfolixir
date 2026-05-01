@@ -217,6 +217,32 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImportTest do
     assert Repo.get_by!(Category, taxonomy_id: taxonomy.id, name: "Core ETF")
   end
 
+  test "category create failures preserve summary counters and warnings" do
+    preview = %{
+      "taxonomies" => [
+        %{
+          "external_id" => "taxonomy-invalid-category",
+          "name" => "Strategy"
+        }
+      ],
+      "categories" => [
+        %{
+          "external_id" => "category-invalid-name",
+          "name" => nil,
+          "taxonomy_external_id" => "taxonomy-invalid-category"
+        }
+      ]
+    }
+
+    assert {:ok, summary} = PortfolioPerformanceXmlImport.confirm_preview(preview)
+    assert summary["failed"]["categories"] == 1
+
+    assert Enum.any?(
+             summary["warnings"],
+             &String.contains?(&1, "Could not create category")
+           )
+  end
+
   test "confirm is idempotent for repeated confirmation calls" do
     assert {:ok, _summary} = do_import()
     first_portfolios = Repo.aggregate(Portfolio, :count, :id)
