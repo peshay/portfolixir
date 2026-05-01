@@ -39,6 +39,7 @@ defmodule PortfolixirWeb.Router do
       live("/dashboard", DashboardLive)
       live("/documents/new", DocumentUploadLive)
       live("/fund-documents/:id/allocations/review", FactsheetAllocationReviewLive)
+      live("/reports/fund-allocations", FundAllocationReportLive)
       live("/accounts", AccountManagementLive)
       live("/transactions", TransactionManagementLive)
       live("/taxonomies", CategoryManagementLive)

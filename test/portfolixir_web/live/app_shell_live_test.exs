@@ -233,7 +233,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
 
     assert has_element?(
              view,
-             "span[aria-label='Holdings'][aria-disabled='true'][title='Coming soon']"
+             "a[aria-label='Fund allocations'][href='/reports/fund-allocations'][title='Fund allocations']"
            )
 
     assert has_element?(
