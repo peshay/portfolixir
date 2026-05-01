@@ -129,7 +129,14 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 <tbody>
                   <%= for security <- @securities do %>
                     <tr class={security_row_class(security)}>
-                      <td><strong><%= security.name %></strong></td>
+                      <td>
+                        <a
+                          id={"security-detail-link-#{security.id}"}
+                          href={"/securities/#{security.id}"}
+                        >
+                          <strong><%= security.name %></strong>
+                        </a>
+                      </td>
                       <td><%= security.symbol %></td>
                       <td><%= security.currency_code %></td>
                       <td><%= security.isin || "—" %></td>
