@@ -20,6 +20,18 @@ defmodule Portfolixir.Ledger do
     )
   end
 
+  def list_transactions_for_security(portfolio_id, security_id)
+      when is_integer(portfolio_id) and is_integer(security_id) do
+    Repo.all(
+      from(transaction in ordered_transactions(),
+        where:
+          transaction.portfolio_id == ^portfolio_id and transaction.security_id == ^security_id
+      )
+    )
+  end
+
+  def list_transactions_for_security(_portfolio_id, _security_id), do: []
+
   def cash_balances_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
     portfolio_id
     |> list_transactions_for_portfolio()

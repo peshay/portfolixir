@@ -56,6 +56,16 @@ defmodule Portfolixir.Catalog do
   defp filter_by_status(query, :inactive), do: where(query, [s], s.active == false)
 
   def get_security!(id), do: Repo.get!(Security, id)
+  def get_security(id) when is_integer(id), do: Repo.get(Security, id)
+
+  def get_security(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {security_id, ""} -> Repo.get(Security, security_id)
+      _ -> nil
+    end
+  end
+
+  def get_security(_), do: nil
 
   def create_security(attrs) when is_map(attrs) do
     %Security{}
