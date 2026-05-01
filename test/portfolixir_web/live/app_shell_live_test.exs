@@ -21,10 +21,14 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, ".app-shell-brand-text", "Portfolixir")
     assert has_element?(view, ".app-shell-mobile-brand-text", "Portfolixir")
     assert has_element?(view, "img[alt='Portfolixir']")
+    assert has_element?(view, "a[href=\"/\"]")
+    assert has_element?(view, "#nav-dashboard.app-shell-nav-link")
+    assert has_element?(view, "#nav-securities.app-shell-nav-link")
     assert has_element?(view, "a[href=\"/securities\"]")
     assert has_element?(view, "a[href=\"/accounts\"]")
     assert has_element?(view, "a[href=\"/transactions\"]")
     assert has_element?(view, "a[href=\"/taxonomies\"]")
+    assert has_element?(view, "p.app-shell-nav-group-title", "Dashboard")
     assert has_element?(view, "p.app-shell-nav-group-title", "Securities")
     assert has_element?(view, "p.app-shell-nav-group-title", "Master data")
     assert has_element?(view, "p.app-shell-nav-group-title", "Ledger")
@@ -32,6 +36,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "p.app-shell-nav-group-title", "Reports")
     assert has_element?(view, "p.app-shell-nav-group-title", "Imports")
     assert has_element?(view, "#theme-toggle")
+    assert has_element?(view, "#mobile-nav-dashboard.app-shell-bottom-link")
     assert has_element?(view, "span.app-shell-visually-hidden", "Portfolixir")
     refute has_element?(view, ".app-shell-brand-label")
 
@@ -194,8 +199,9 @@ defmodule PortfolixirWeb.AppShellLiveTest do
 
     assert html =~ "app-shell-nav-icon"
     assert html =~ ">W<"
+    assert html =~ "aria-label=\"Dashboard\""
     assert html =~ "aria-label=\"All Securities\""
-    assert html =~ "aria-label=\"Classifications\""
+    assert html =~ "aria-label=\"Categories\""
   end
 
   test "theme toggle uses dedicated theme toggle class", %{conn: conn} do

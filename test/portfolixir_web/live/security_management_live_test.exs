@@ -12,10 +12,13 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     :ok
   end
 
-  test "visiting / renders All Securities", %{conn: conn} do
+  test "visiting / renders dashboard content", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    assert html =~ "All Securities"
+    assert html =~ "Dashboard"
+    assert html =~ "Securities"
+    assert html =~ "Transactions"
+    refute html =~ "No securities yet"
   end
 
   test "visiting /securities renders All Securities", %{conn: conn} do
