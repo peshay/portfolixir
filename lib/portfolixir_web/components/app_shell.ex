@@ -1553,7 +1553,7 @@ defmodule PortfolixirWeb.AppShell do
                 class="app-shell-icon-button"
                 type="button"
                 aria-label={gettext("Collapse sidebar")}
-                aria-expanded="false"
+                aria-expanded="true"
                 title={gettext("Collapse sidebar")}
               >
                 ☰
