@@ -1553,6 +1553,7 @@ defmodule PortfolixirWeb.AppShell do
                 class="app-shell-icon-button"
                 type="button"
                 aria-label={gettext("Collapse sidebar")}
+                aria-expanded="false"
                 title={gettext("Collapse sidebar")}
               >
                 ☰
@@ -1637,7 +1638,7 @@ defmodule PortfolixirWeb.AppShell do
       <script id="theme-toggle-script">
         (function () {
           var themeKey = "portfolixir-theme";
-          var sidebarKey = "portfolixir-sidebar-collapsed";
+          var sidebarStateKey = "portfolixir.sidebarCollapsed";
           var shell = document.getElementById("app-shell");
           var toggle = document.getElementById("theme-toggle");
           var themeLabel = document.querySelector("#theme-toggle .app-shell-theme-label");
@@ -1676,13 +1677,16 @@ defmodule PortfolixirWeb.AppShell do
           function applySidebarState(isCollapsed) {
             shell.setAttribute("data-sidebar-collapsed", isCollapsed ? "true" : "false");
             if (sidebarToggle) {
-              sidebarToggle.setAttribute("aria-pressed", isCollapsed ? "true" : "false");
+              sidebarToggle.setAttribute(
+                "aria-expanded",
+                isCollapsed ? "false" : "true"
+              );
               sidebarToggle.setAttribute("title", isCollapsed ? "<%= gettext("Expand sidebar") %>" : "<%= gettext("Collapse sidebar") %>");
               sidebarToggle.setAttribute("aria-label", isCollapsed ? "<%= gettext("Expand sidebar") %>" : "<%= gettext("Collapse sidebar") %>");
             }
 
             try {
-              localStorage.setItem(sidebarKey, isCollapsed ? "true" : "false");
+              localStorage.setItem(sidebarStateKey, isCollapsed ? "true" : "false");
             } catch (_error) {}
           }
 
@@ -1704,7 +1708,7 @@ defmodule PortfolixirWeb.AppShell do
 
           function currentSidebarCollapsed() {
             try {
-              return localStorage.getItem(sidebarKey) === "true";
+              return localStorage.getItem(sidebarStateKey) === "true";
             } catch (_error) {}
             return false;
           }
