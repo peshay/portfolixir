@@ -488,13 +488,19 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImport do
 
       taxonomy_id when is_integer(taxonomy_id) ->
         existing =
-          Repo.one(
-            from(c in Category,
-              where: c.taxonomy_id == ^taxonomy_id and c.name == ^name,
-              order_by: [asc: c.id],
-              limit: 1
-            )
-          )
+          case name do
+            binary when is_binary(binary) ->
+              Repo.one(
+                from(c in Category,
+                  where: c.taxonomy_id == ^taxonomy_id and c.name == ^binary,
+                  order_by: [asc: c.id],
+                  limit: 1
+                )
+              )
+
+            _ ->
+              nil
+          end
 
         state =
           case existing do
@@ -516,8 +522,6 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImport do
                   |> append_warning(
                     "Could not create category #{name}: #{inspect(changeset.errors)}"
                   )
-
-                  state
               end
           end
 
