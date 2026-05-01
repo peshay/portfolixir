@@ -54,6 +54,53 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
     {:ok, view, _html} = live(conn, "/documents/new")
 
     upload =
+      file_input(
+        view,
+        "#document-upload-form",
+        :factsheet_file,
+        [
+          %{
+            name: "factsheet.pdf",
+            content: pdf_content,
+            type: "application/pdf",
+            size: byte_size(pdf_content)
+          }
+        ]
+      )
+
+    assert render_upload(upload, "factsheet.pdf") =~ "100%"
+
+    _html =
+      view
+      |> form("#document-upload-form", %{"security_id" => "#{security.id}"})
+      |> render_submit()
+
+    assert has_element?(view, "#factsheet-review-link")
+
+    assert Repo.aggregate(
+             from(fd in FundDocument, where: fd.security_id == ^security.id),
+             :count,
+             :id
+           ) ==
+             before_security_doc_count + 1
+
+    assert Repo.aggregate(Transaction, :count, :id) == before_transaction_count
+    assert Repo.aggregate(FundAllocationItem, :count, :id) == before_allocation_count
+  end
+
+  test "successful upload includes a link to allocation review", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Target Security",
+        symbol: "TGT#{System.unique_integer([:positive])}",
+        currency_code: "USD"
+      })
+
+    pdf_content = "PDF-LIKE\nFACTSHEET_TEXT:#{security.id}:Synthetic extraction placeholder"
+
+    {:ok, view, _html} = live(conn, "/documents/new")
+
+    upload =
       file_input(view, "#document-upload-form", :factsheet_file, [
         %{
           name: "factsheet.pdf",
@@ -67,20 +114,20 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
 
     html =
       view
-      |> element("#document-upload-form")
-      |> render_submit(%{"security_id" => "#{security.id}"})
+      |> form("#document-upload-form", %{"security_id" => "#{security.id}"})
+      |> render_submit()
 
-    assert html =~ "app-shell-alert--success"
+    fund_document =
+      Repo.get_by!(FundDocument, security_id: security.id, original_filename: "factsheet.pdf")
 
-    assert Repo.aggregate(
-             from(fd in FundDocument, where: fd.security_id == ^security.id),
-             :count,
-             :id
-           ) ==
-             before_security_doc_count + 1
+    expected_path = "/fund-documents/#{fund_document.id}/allocations/review"
 
-    assert Repo.aggregate(Transaction, :count, :id) == before_transaction_count
-    assert Repo.aggregate(FundAllocationItem, :count, :id) == before_allocation_count
+    assert html =~ "Factsheet registered."
+    assert has_element?(view, "#factsheet-review-link")
+    assert has_element?(view, "#factsheet-review-link[href=\"#{expected_path}\"]")
+
+    rendered = render(view)
+    assert rendered =~ expected_path
   end
 
   test "uploading the same PDF twice for the same security is idempotent", %{conn: conn} do
@@ -111,9 +158,11 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
     assert render_upload(upload, "factsheet.pdf") =~ "100%"
 
     html =
-      view
-      |> element("#document-upload-form")
-      |> render_submit(%{"security_id" => "#{security.id}"})
+      render_submit(
+        view,
+        "register_factsheet",
+        %{"security_id" => "#{security.id}", "factsheet_file" => upload}
+      )
 
     assert html =~ "app-shell-alert--success"
 
@@ -141,12 +190,12 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
 
     assert render_upload(upload, "factsheet.pdf") =~ "100%"
 
-    html =
+    _second_html =
       second_view
-      |> element("#document-upload-form")
-      |> render_submit(%{"security_id" => "#{security.id}"})
+      |> form("#document-upload-form", %{"security_id" => "#{security.id}"})
+      |> render_submit()
 
-    assert html =~ "app-shell-alert--success"
+    assert has_element?(second_view, "#document-upload-success")
 
     assert Repo.aggregate(
              from(fd in FundDocument, where: fd.security_id == ^security.id),
