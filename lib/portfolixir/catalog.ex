@@ -101,6 +101,25 @@ defmodule Portfolixir.Catalog do
     |> Repo.insert()
   end
 
+  def list_fund_allocations_for_report do
+    from(fa in FundAllocation,
+      join: security in assoc(fa, :security),
+      where: fa.status == "active",
+      order_by: [
+        asc: security.name,
+        asc: fa.allocation_type,
+        asc: fragment("CASE WHEN ? IS NULL THEN 1 ELSE 0 END", fa.as_of_date),
+        desc: fa.as_of_date
+      ],
+      preload: [
+        :security,
+        fund_allocation_items:
+          ^from(i in FundAllocationItem, order_by: [desc: i.weight, asc: i.label])
+      ]
+    )
+    |> Repo.all()
+  end
+
   def list_fund_allocations_for_security(security_id) when is_integer(security_id) do
     from(fa in FundAllocation,
       where: fa.security_id == ^security_id,
