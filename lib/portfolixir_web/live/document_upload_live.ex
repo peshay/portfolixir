@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.DocumentUploadLive do
     socket =
       socket
       |> assign(:securities, Catalog.list_securities())
+      |> assign(:document_review_path, nil)
       |> assign(:document_upload_success, nil)
       |> assign(:document_upload_error, nil)
       |> assign(:selected_security_id, "")
@@ -63,6 +64,14 @@ defmodule PortfolixirWeb.DocumentUploadLive do
             >
               <%= @document_upload_success %>
             </p>
+
+            <%= if @document_review_path do %>
+              <p class="app-shell-panel-intro">
+                <a id="factsheet-review-link" href={@document_review_path}>
+                  <%= gettext("Review parsed allocations") %>
+                </a>
+              </p>
+            <% end %>
           <% end %>
 
           <%= for err <- upload_errors(@uploads.factsheet_file) do %>
@@ -136,10 +145,11 @@ defmodule PortfolixirWeb.DocumentUploadLive do
       socket
       |> assign(:document_upload_success, nil)
       |> assign(:document_upload_error, nil)
+      |> assign(:document_review_path, nil)
       |> assign(:selected_security_id, security_id)
 
     with {:ok, security_id} <- parse_security_id(security_id),
-         {:ok, status, _fund_document} <- register_uploaded_factsheet(socket, security_id) do
+         {:ok, status, fund_document} <- register_uploaded_factsheet(socket, security_id) do
       message =
         case status do
           :created ->
@@ -149,7 +159,10 @@ defmodule PortfolixirWeb.DocumentUploadLive do
             gettext("This factsheet has already been uploaded for the selected security.")
         end
 
-      {:noreply, assign(socket, :document_upload_success, message)}
+      {:noreply,
+       socket
+       |> assign(:document_upload_success, message)
+       |> assign(:document_review_path, review_path(fund_document.id))}
     else
       {:error, :missing_security} ->
         {:noreply, assign(socket, :document_upload_error, gettext("Please select a security."))}
@@ -193,15 +206,18 @@ defmodule PortfolixirWeb.DocumentUploadLive do
   end
 
   defp register_uploaded_factsheet(socket, security_id) do
-    case consume_uploaded_entries(
-           socket,
-           :factsheet_file,
-           &factsheet_upload_callback(&1, &2, security_id)
-         ) do
+    result =
+      consume_uploaded_entries(
+        socket,
+        :factsheet_file,
+        &factsheet_upload_callback(&1, &2, security_id)
+      )
+
+    case result do
       [] ->
         {:error, upload_error_from_entries(socket)}
 
-      [{:ok, {status, fund_document}}] ->
+      [{status, fund_document}] when status in [:created, :already_exists] ->
         {:ok, status, fund_document}
 
       [{:error, reason}] ->
@@ -296,6 +312,9 @@ defmodule PortfolixirWeb.DocumentUploadLive do
 
   defp upload_error_reason_to_string(_),
     do: gettext("Could not register the factsheet. Please retry.")
+
+  defp review_path(fund_document_id) when is_integer(fund_document_id),
+    do: "/fund-documents/#{fund_document_id}/allocations/review"
 
   defp format_bytes(bytes) when is_integer(bytes) do
     megabytes = bytes / 1_048_576
