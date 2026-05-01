@@ -1,6 +1,8 @@
 defmodule Portfolixir.Connectors do
   @moduledoc "Read-only connector abstraction and capability checks."
 
+  import Ecto.Query
+
   @read_capabilities [
     "read_accounts",
     "read_balances",
@@ -21,6 +23,40 @@ defmodule Portfolixir.Connectors do
   @spec capabilities() :: [String.t()]
   def capabilities do
     @read_capabilities
+  end
+
+  alias Portfolixir.Connectors.ExternalAccount
+  alias Portfolixir.Repo
+
+  def create_external_account(attrs) when is_map(attrs) do
+    %ExternalAccount{}
+    |> ExternalAccount.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def list_external_accounts do
+    from(account in ExternalAccount, order_by: [asc: account.id])
+    |> Repo.all()
+  end
+
+  def list_external_accounts_for_provider(provider) when is_binary(provider) do
+    from(account in ExternalAccount,
+      where: account.provider == ^provider,
+      order_by: [asc: account.id]
+    )
+    |> Repo.all()
+  end
+
+  def get_external_account_by_provider_id(provider, external_id)
+      when is_binary(provider) and is_binary(external_id) do
+    Repo.get_by(ExternalAccount, provider: provider, external_id: external_id)
+  end
+
+  def update_external_account_mapping(%ExternalAccount{} = external_account, attrs)
+      when is_map(attrs) do
+    external_account
+    |> ExternalAccount.changeset(attrs)
+    |> Repo.update()
   end
 
   @doc "Alias retained for story intent and readability."
