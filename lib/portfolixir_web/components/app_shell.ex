@@ -1827,6 +1827,7 @@ defmodule PortfolixirWeb.AppShell do
 
   defp section_label("/"), do: gettext("Dashboard")
   defp section_label("/dashboard"), do: gettext("Dashboard")
+  defp section_label("/documents/new"), do: gettext("Imports")
   defp section_label("/accounts"), do: gettext("Master data")
   defp section_label("/transactions"), do: gettext("Ledger")
   defp section_label("/taxonomies"), do: gettext("Classifications")
@@ -1834,6 +1835,7 @@ defmodule PortfolixirWeb.AppShell do
 
   defp page_label("/"), do: gettext("Dashboard")
   defp page_label("/dashboard"), do: gettext("Dashboard")
+  defp page_label("/documents/new"), do: gettext("Factsheet document")
   defp page_label("/accounts"), do: gettext("Accounts Overview")
   defp page_label("/transactions"), do: gettext("Transactions")
   defp page_label("/taxonomies"), do: gettext("Classifications")

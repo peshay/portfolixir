@@ -37,6 +37,7 @@ defmodule PortfolixirWeb.Router do
       on_mount: {PortfolixirWeb.Locale, :default} do
       live("/", DashboardLive)
       live("/dashboard", DashboardLive)
+      live("/documents/new", DocumentUploadLive)
       live("/accounts", AccountManagementLive)
       live("/transactions", TransactionManagementLive)
       live("/taxonomies", CategoryManagementLive)
