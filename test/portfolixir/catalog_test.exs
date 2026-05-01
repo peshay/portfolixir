@@ -5,12 +5,17 @@ defmodule Portfolixir.CatalogTest do
   alias Portfolixir.Catalog.Currency
   alias Portfolixir.Taxonomies
 
-  test "creating EUR succeeds" do
-    assert {:ok, currency} =
-             Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+  setup do
+    :ok = Catalog.ensure_mvp_currencies!()
+    :ok
+  end
 
-    assert currency.code == "EUR"
-    assert currency.name == "Euro"
+  test "creating a currency succeeds" do
+    assert {:ok, currency} =
+             Catalog.create_currency(%{code: "ABC", name: "Synthetic", minor_units: 2})
+
+    assert currency.code == "ABC"
+    assert currency.name == "Synthetic"
     assert currency.minor_units == 2
   end
 
@@ -32,7 +37,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "creating duplicate EUR fails" do
-    assert {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+    assert :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:error, changeset} =
              Catalog.create_currency(%{code: "EUR", name: "Euro duplicate", minor_units: 2})
@@ -56,7 +61,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "creating Apple security with USD" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{
@@ -71,7 +76,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "creating Apple Frankfurt security with EUR" do
-    {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{
@@ -90,7 +95,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "creating a security without currency fails" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:error, changeset} =
              Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL"})
@@ -110,7 +115,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "creating a security without name fails" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:error, changeset} =
              Catalog.create_security(%{symbol: "AAPL", currency_code: "USD"})
@@ -119,7 +124,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "creating a security without symbol fails" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:error, changeset} =
              Catalog.create_security(%{name: "Apple Inc.", currency_code: "USD"})
@@ -128,7 +133,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "duplicate provider symbol and exchange combination is rejected when both are present" do
-    {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, _} =
              Catalog.create_security(%{
@@ -152,7 +157,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "same provider symbol is allowed when exchange_code is nil" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, _} =
              Catalog.create_security(%{
@@ -172,7 +177,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "same exchange code is allowed when provider_symbol is nil" do
-    {:ok, _} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, _} =
              Catalog.create_security(%{
@@ -192,7 +197,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "creating a security defaults to active" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
@@ -201,7 +206,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "creating a security can be inactive" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{
@@ -215,7 +220,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "creating a security with WKN persists" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{
@@ -231,7 +236,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "list_securities returns securities in deterministic order" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, _} =
              Catalog.create_security(%{
@@ -251,7 +256,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "list_securities lists active-only by default" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     {:ok, active_security} =
       Catalog.create_security(%{
@@ -274,7 +279,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "list_securities can include inactive securities" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     {:ok, active_security} =
       Catalog.create_security(%{
@@ -302,7 +307,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "migration-style insert defaults to active for existing rows" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
@@ -316,7 +321,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "update_security can mark a security inactive" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{
@@ -330,7 +335,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "archive_security marks an active security inactive" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{
@@ -345,7 +350,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "update_security/2 can update notes or name" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{
@@ -366,7 +371,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "delete_security/1 removes the security" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
@@ -376,7 +381,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "assigns a category to a security" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
@@ -398,7 +403,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "duplicate security/category assignment is rejected" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
@@ -416,7 +421,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "list_security_categories returns assigned categories with description" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
@@ -440,7 +445,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "remove_category_assignment/2 removes a category assignment from security" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
@@ -456,7 +461,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "remove_category_assignment/2 is no-op and returns clear error when missing" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})
@@ -481,7 +486,7 @@ defmodule Portfolixir.CatalogTest do
   end
 
   test "assigning unknown category to security fails" do
-    {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
 
     assert {:ok, security} =
              Catalog.create_security(%{name: "Test ETF", symbol: "TETF", currency_code: "USD"})

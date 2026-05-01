@@ -7,7 +7,7 @@ defmodule Portfolixir.PortfoliosTest do
   alias Portfolixir.Portfolios.SecuritiesAccount
 
   setup do
-    {:ok, _currency} = Catalog.create_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+    :ok = Catalog.ensure_mvp_currencies!()
     :ok
   end
 
