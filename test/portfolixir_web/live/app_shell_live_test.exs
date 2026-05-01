@@ -243,7 +243,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
 
     assert has_element?(
              view,
-             "span[aria-label='Imports'][aria-disabled='true'][title='Coming soon']"
+             "a[aria-label='Imports'][href='/imports'][title='Imports']"
            )
 
     assert html =~ "app-shell-nav-icon"

@@ -304,4 +304,157 @@ defmodule Portfolixir.ImportsTest do
 
     assert source.type == "document_inbox"
   end
+
+  test "list_import_sources_with_stats aggregates run/item counts and latest run status" do
+    source_alpha = create_import_source(name: "Source Alpha")
+    source_beta = create_import_source(name: "Source Beta")
+
+    assert {:ok, _run_alpha_one} =
+             Imports.create_import_run(%{
+               import_source_id: source_alpha.id,
+               status: "finished",
+               started_at: ~U[2026-05-01 10:00:00Z],
+               finished_at: ~U[2026-05-01 10:00:05Z]
+             })
+
+    assert {:ok, _run_alpha_two} =
+             Imports.create_import_run(%{
+               import_source_id: source_alpha.id,
+               status: "completed",
+               started_at: ~U[2026-05-01 11:00:00Z],
+               finished_at: ~U[2026-05-01 11:00:05Z]
+             })
+
+    assert {:ok, _item_alpha_one} =
+             Imports.create_raw_import_item(%{
+               import_source_id: source_alpha.id,
+               external_id: "alpha-1",
+               content_hash: "sha256:alpha1",
+               original_filename: "alpha1.csv",
+               content_type: "text/csv",
+               status: "new"
+             })
+
+    assert {:ok, _item_alpha_two} =
+             Imports.create_raw_import_item(%{
+               import_source_id: source_alpha.id,
+               external_id: "alpha-2",
+               content_hash: "sha256:alpha2",
+               original_filename: "alpha2.csv",
+               content_type: "text/csv",
+               status: "new"
+             })
+
+    assert {:ok, _run_beta} =
+             Imports.create_import_run(%{
+               import_source_id: source_beta.id,
+               status: "pending"
+             })
+
+    assert {:ok, _item_beta} =
+             Imports.create_raw_import_item(%{
+               import_source_id: source_beta.id,
+               external_id: "beta-1",
+               content_hash: "sha256:beta1",
+               original_filename: "beta1.csv",
+               content_type: "text/csv",
+               status: "new"
+             })
+
+    [first_stat, second_stat] = Imports.list_import_sources_with_stats()
+
+    assert first_stat.id == source_beta.id
+    assert second_stat.id == source_alpha.id
+
+    alpha_stats = Enum.find([first_stat, second_stat], &(&1.id == source_alpha.id))
+    beta_stats = Enum.find([first_stat, second_stat], &(&1.id == source_beta.id))
+
+    assert alpha_stats.runs_count == 2
+    assert alpha_stats.raw_import_items_count == 2
+    assert alpha_stats.latest_import_run_status == "completed"
+
+    assert DateTime.truncate(alpha_stats.latest_import_run_started_at, :second) ==
+             ~U[2026-05-01 11:00:00Z]
+
+    assert DateTime.truncate(alpha_stats.latest_import_run_finished_at, :second) ==
+             ~U[2026-05-01 11:00:05Z]
+
+    assert beta_stats.runs_count == 1
+    assert beta_stats.raw_import_items_count == 1
+    assert beta_stats.latest_import_run_status == "pending"
+  end
+
+  test "list_recent_import_runs returns run list ordered by started/inserted time and source name" do
+    source = create_import_source(name: "Ordered runs source")
+
+    assert {:ok, run_old} =
+             Imports.create_import_run(%{
+               import_source_id: source.id,
+               status: "finished",
+               started_at: ~U[2026-05-01 09:00:00Z],
+               finished_at: ~U[2026-05-01 09:01:00Z]
+             })
+
+    assert {:ok, run_mid} =
+             Imports.create_import_run(%{
+               import_source_id: source.id,
+               status: "completed",
+               started_at: ~U[2026-05-01 10:00:00Z],
+               finished_at: ~U[2026-05-01 10:01:00Z]
+             })
+
+    assert {:ok, run_new} =
+             Imports.create_import_run(%{
+               import_source_id: source.id,
+               status: "started",
+               started_at: ~U[2026-05-01 11:00:00Z],
+               finished_at: ~U[2026-05-01 11:01:00Z]
+             })
+
+    runs = Imports.list_recent_import_runs(2)
+
+    assert Enum.map(runs, & &1.id) == [run_new.id, run_mid.id]
+    assert hd(runs).import_source.name == source.name
+    assert Enum.at(runs, 1).import_source.name == source.name
+  end
+
+  test "list_recent_raw_import_items returns recent items ordered by insertion and source name" do
+    source = create_import_source(name: "Ordered raw items source")
+
+    assert {:ok, first_item} =
+             Imports.create_raw_import_item(%{
+               import_source_id: source.id,
+               external_id: "raw-first",
+               content_hash: "sha256:raw-first",
+               original_filename: "first.csv",
+               content_type: "text/csv",
+               status: "new"
+             })
+
+    assert {:ok, second_item} =
+             Imports.create_raw_import_item(%{
+               import_source_id: source.id,
+               external_id: "raw-second",
+               content_hash: "sha256:raw-second",
+               original_filename: "second.csv",
+               content_type: "text/csv",
+               status: "new"
+             })
+
+    assert {:ok, _} =
+             Imports.create_raw_import_item(%{
+               import_source_id: source.id,
+               external_id: "raw-third",
+               content_hash: "sha256:raw-third",
+               original_filename: "third.csv",
+               content_type: "text/csv",
+               status: "new"
+             })
+
+    items = Imports.list_recent_raw_import_items(2)
+
+    assert length(items) == 2
+    assert Enum.map(items, & &1.external_id) == ["raw-third", "raw-second"]
+    assert Enum.all?(items, &(&1.import_source.id == source.id))
+  end
 end
