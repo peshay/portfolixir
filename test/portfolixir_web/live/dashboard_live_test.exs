@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.DashboardLiveTest do
 
     assert length(primary_action_matches) == 1
     assert has_element?(view, "#dashboard-primary-action", "Import portfolio data")
+    refute has_element?(view, "#dashboard-primary-action[href=\"/documents/new\"]")
   end
 
   test "dashboard shows product status cards with persisted counts", %{conn: conn} do
@@ -76,6 +77,7 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     assert has_element?(view, "#dashboard-transactions-card", "1")
     assert has_element?(view, "#dashboard-imports-card")
     assert has_element?(view, "#dashboard-primary-action", "Add document")
+    assert has_element?(view, "#dashboard-primary-action[href=\"/documents/new\"]")
   end
 
   test "dashboard shows the chart placeholder and no fake value cards", %{conn: conn} do
