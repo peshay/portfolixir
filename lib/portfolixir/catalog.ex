@@ -7,6 +7,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.FundAllocationItem
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.FundDocument
+  alias Portfolixir.Catalog.SecurityQuote
   alias Portfolixir.Catalog.SecurityCategoryAssignment
   alias Portfolixir.Repo
   alias Portfolixir.Taxonomies.Category
@@ -93,6 +94,50 @@ defmodule Portfolixir.Catalog do
     %Security{}
     |> Security.changeset(attrs)
     |> Repo.insert()
+  end
+
+  def create_security_quote(attrs) when is_map(attrs) do
+    %SecurityQuote{}
+    |> SecurityQuote.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def list_security_quotes(security_id) when is_integer(security_id),
+    do: list_security_quotes(security_id, [])
+
+  def list_security_quotes(security_id, opts) when is_integer(security_id) and is_list(opts) do
+    opts = Map.new(opts)
+
+    from(sq in SecurityQuote,
+      where: sq.security_id == ^security_id,
+      order_by: [asc: sq.date]
+    )
+    |> maybe_filter_from(Map.get(opts, :from))
+    |> maybe_filter_to(Map.get(opts, :to))
+    |> Repo.all()
+  end
+
+  def list_security_quotes(security_id, opts) when is_integer(security_id) and is_map(opts) do
+    list_security_quotes(security_id, Map.to_list(opts))
+  end
+
+  def get_latest_security_quote(security_id) when is_integer(security_id) do
+    Repo.one(
+      from(sq in SecurityQuote,
+        where: sq.security_id == ^security_id,
+        order_by: [desc: sq.date, desc: sq.id],
+        limit: 1
+      )
+    )
+  end
+
+  def upsert_security_quote(attrs) when is_map(attrs) do
+    %SecurityQuote{}
+    |> SecurityQuote.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: {:replace, [:open, :high, :low, :close, :volume, :metadata, :currency_code]},
+      conflict_target: [:security_id, :source, :date]
+    )
   end
 
   def create_fund_allocation(attrs) when is_map(attrs) do
@@ -244,4 +289,16 @@ defmodule Portfolixir.Catalog do
   end
 
   def seed_mvp_currencies!, do: ensure_mvp_currencies!()
+
+  defp maybe_filter_from(query, %Date{} = from_date) do
+    where(query, [sq], sq.date >= ^from_date)
+  end
+
+  defp maybe_filter_from(query, _), do: query
+
+  defp maybe_filter_to(query, %Date{} = to_date) do
+    where(query, [sq], sq.date <= ^to_date)
+  end
+
+  defp maybe_filter_to(query, _), do: query
 end
