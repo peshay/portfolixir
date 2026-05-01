@@ -130,6 +130,10 @@ defmodule Portfolixir.Catalog do
 
   def get_fund_allocation!(id), do: Repo.get!(FundAllocation, id)
 
+  def count_fund_allocations do
+    Repo.aggregate(FundAllocation, :count, :id)
+  end
+
   def create_fund_allocation_item(attrs) when is_map(attrs) do
     %FundAllocationItem{}
     |> FundAllocationItem.changeset(attrs)
@@ -148,6 +152,24 @@ defmodule Portfolixir.Catalog do
       order_by: [asc: fai.label, asc: fai.inserted_at]
     )
     |> Repo.all()
+  end
+
+  def list_recent_fund_documents(limit \\ 20)
+
+  def list_recent_fund_documents(limit) when is_integer(limit) do
+    Repo.all(
+      from(fd in FundDocument,
+        order_by: [desc: fd.inserted_at, desc: fd.id],
+        preload: [:security],
+        limit: ^limit
+      )
+    )
+  end
+
+  def list_recent_fund_documents(_invalid_limit), do: []
+
+  def count_fund_documents do
+    Repo.aggregate(FundDocument, :count, :id)
   end
 
   def list_fund_documents_for_security(security_id) when is_integer(security_id) do
