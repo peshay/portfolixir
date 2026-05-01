@@ -4,7 +4,11 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.{FundAllocation, FundAllocationItem}
+  alias Portfolixir.Imports
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Repo
   alias Portfolixir.Portfolios
 
   setup do
@@ -279,9 +283,193 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
              element(view, "#security-detail-link-#{security.id}") |> render_click()
   end
 
+  test "shows attached fund documents for selected security", %{conn: conn} do
+    security =
+      create_security(%{
+        name: "Fact Sheet Security",
+        symbol: "FUND",
+        currency_code: "EUR"
+      })
+
+    _other_security =
+      create_security(%{
+        name: "Other Security",
+        symbol: "OTHER",
+        currency_code: "EUR"
+      })
+
+    first_document =
+      create_fund_document(
+        security.id,
+        original_filename: "factsheet_current.pdf",
+        extraction_status: "extracted",
+        extraction_error: nil
+      )
+
+    failed_document =
+      create_fund_document(
+        security.id,
+        original_filename: "factsheet_failed.pdf",
+        extraction_status: "failed",
+        extraction_error: "Unable to read text"
+      )
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}")
+
+    assert has_element?(view, "#security-fund-documents")
+    assert has_element?(view, "#security-fund-documents", "factsheet_current.pdf")
+    assert has_element?(view, "#security-fund-documents", "factsheet_failed.pdf")
+    assert has_element?(view, "#security-fund-documents", "factsheet")
+    assert has_element?(view, "#security-fund-documents", "upload")
+    assert has_element?(view, "#security-fund-documents", "application/pdf")
+    assert has_element?(view, "#security-fund-documents", "extracted")
+    assert has_element?(view, "#security-fund-documents", "failed")
+    assert has_element?(view, "#security-fund-documents", "Unable to read text")
+
+    assert has_element?(
+             view,
+             "#security-fund-documents a[href=\"/fund-documents/#{first_document.id}/allocations/review\"]"
+           )
+
+    assert has_element?(
+             view,
+             "#security-fund-documents a[href=\"/fund-documents/#{failed_document.id}/allocations/review\"]"
+           )
+  end
+
+  test "does not show fund documents from other securities", %{conn: conn} do
+    target_security =
+      create_security(%{
+        name: "Target Security",
+        symbol: "TARGET",
+        currency_code: "EUR"
+      })
+
+    other_security =
+      create_security(%{
+        name: "Security Owner",
+        symbol: "OWNER",
+        currency_code: "EUR"
+      })
+
+    create_fund_document(target_security.id, original_filename: "target_factsheet.pdf")
+
+    other_document =
+      create_fund_document(other_security.id, original_filename: "other_factsheet.pdf")
+
+    {:ok, view, _html} = live(conn, "/securities/#{target_security.id}")
+
+    assert has_element?(view, "#security-fund-documents", "target_factsheet.pdf")
+    refute has_element?(view, "#security-fund-documents", other_document.original_filename)
+  end
+
+  test "shows empty state when security has no factsheets", %{conn: conn} do
+    security = create_security(%{name: "Empty Factsheets", symbol: "EMPTY", currency_code: "EUR"})
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}")
+
+    assert has_element?(view, "#security-fund-documents-empty-state")
+
+    assert has_element?(
+             view,
+             "#security-fund-documents-empty-state",
+             "No factsheets attached yet."
+           )
+
+    assert has_element?(view, "#security-fund-documents-empty-state a[href=\"/documents/new\"]")
+  end
+
+  test "does not create allocations, allocation items, or transactions when viewing security detail",
+       %{
+         conn: conn
+       } do
+    security = create_security(%{name: "Read-only Security", symbol: "RO", currency_code: "EUR"})
+
+    allocations_before = Repo.aggregate(FundAllocation, :count, :id)
+    items_before = Repo.aggregate(FundAllocationItem, :count, :id)
+    transactions_before = Repo.aggregate(Transaction, :count, :id)
+
+    {:ok, _view, _html} = live(conn, "/securities/#{security.id}")
+
+    assert Repo.aggregate(FundAllocation, :count, :id) == allocations_before
+    assert Repo.aggregate(FundAllocationItem, :count, :id) == items_before
+    assert Repo.aggregate(Transaction, :count, :id) == transactions_before
+  end
+
   defp create_security(attrs) do
     {:ok, security} = Catalog.create_security(attrs)
     security
+  end
+
+  defp create_import_source(attrs) do
+    unique_name = "Factsheet source #{System.unique_integer([:positive, :monotonic])}"
+
+    {:ok, source} =
+      Imports.create_import_source(
+        Map.merge(
+          %{
+            name: unique_name,
+            type: "document_inbox"
+          },
+          Map.new(attrs)
+        )
+      )
+
+    source
+  end
+
+  defp create_raw_import_item(attrs) do
+    import_source = create_import_source([])
+    content_hash = "sha256:#{System.unique_integer([:positive, :monotonic])}"
+    normalized_attrs = Map.new(attrs)
+
+    {:ok, item} =
+      Imports.create_raw_import_item(
+        Map.merge(
+          %{
+            import_source_id: import_source.id,
+            content_hash: content_hash,
+            content_type: "application/pdf",
+            original_filename: "factsheet.pdf"
+          },
+          normalized_attrs
+        )
+      )
+
+    item
+  end
+
+  defp create_fund_document(security_id, attrs) do
+    content_hash = "sha256:#{System.unique_integer([:positive, :monotonic])}"
+    normalized_attrs = Map.new(attrs)
+
+    raw_item =
+      create_raw_import_item(%{
+        content_hash: content_hash,
+        content_type: "application/pdf",
+        original_filename: Map.get(normalized_attrs, :original_filename, "factsheet.pdf")
+      })
+
+    {:ok, fund_document} =
+      Catalog.create_fund_document(
+        Map.merge(
+          %{
+            security_id: security_id,
+            raw_import_item_id: raw_item.id,
+            document_type: "factsheet",
+            source: "upload",
+            original_filename: raw_item.original_filename,
+            content_type: raw_item.content_type,
+            content_hash: content_hash,
+            extraction_status: "extracted",
+            extraction_error: nil,
+            metadata: %{}
+          },
+          normalized_attrs
+        )
+      )
+
+    fund_document
   end
 
   defp create_deposit_account(attrs) do
