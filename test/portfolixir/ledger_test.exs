@@ -1525,4 +1525,76 @@ defmodule Portfolixir.LedgerTest do
              Decimal.new("865.50")
            )
   end
+
+  test "list_transactions_for_security returns matching security transactions in newest-first order",
+       %{
+         portfolio: portfolio,
+         securities_account: securities_account,
+         security: security
+       } do
+    {:ok, first_tx} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-03-05],
+        currency_code: "EUR",
+        quantity: Decimal.new("2.00"),
+        price: Decimal.new("10.00"),
+        amount: Decimal.new("20.00")
+      })
+
+    {:ok, second_tx} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "sell",
+        date: ~D[2026-03-06],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("12.00"),
+        amount: Decimal.new("12.00")
+      })
+
+    assert [listed_first, listed_second] =
+             Ledger.list_transactions_for_security(portfolio.id, security.id)
+
+    assert listed_first.id == second_tx.id
+    assert listed_second.id == first_tx.id
+    assert listed_first.security_id == security.id
+    assert listed_second.security_id == security.id
+    assert listed_first.type == "sell"
+  end
+
+  test "list_transactions_for_security excludes transactions for other securities", %{
+    portfolio: portfolio,
+    securities_account: securities_account,
+    security: security
+  } do
+    {:ok, other_security} =
+      Catalog.create_security(%{
+        name: "Other Synthetic ETF",
+        symbol: "OTHER",
+        currency_code: "EUR"
+      })
+
+    {:ok, _other_tx} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: other_security.id,
+        type: "buy",
+        date: ~D[2026-03-10],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("5.00"),
+        amount: Decimal.new("5.00")
+      })
+
+    transactions = Ledger.list_transactions_for_security(portfolio.id, security.id)
+
+    assert Enum.all?(transactions, fn tx -> tx.security_id == security.id end)
+  end
 end
