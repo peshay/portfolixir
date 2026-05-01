@@ -1493,16 +1493,16 @@ defmodule PortfolixirWeb.AppShell do
 
             <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title"><%= gettext("Reports") %></p>
-              <span
+              <a
                 id="nav-reports"
-                class="app-shell-nav-link is-disabled"
-                aria-label={gettext("Holdings")}
-                aria-disabled="true"
-                title={gettext("Coming soon")}
+                href="/reports/fund-allocations"
+                aria-label={gettext("Fund allocations")}
+                title={gettext("Fund allocations")}
+                class={nav_link_class(@current_path, "/reports/fund-allocations")}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">HD</span>
-                <span class="app-shell-nav-label"><%= gettext("Holdings") %></span>
-              </span>
+                <span class="app-shell-nav-label"><%= gettext("Fund allocations") %></span>
+              </a>
               <span
                 class="app-shell-nav-link is-disabled"
                 aria-label={gettext("Performance")}
@@ -1833,6 +1833,7 @@ defmodule PortfolixirWeb.AppShell do
   defp section_label("/dashboard"), do: gettext("Dashboard")
   defp section_label("/documents/new"), do: gettext("Imports")
   defp section_label("/fund-documents/" <> _), do: gettext("Imports")
+  defp section_label("/reports/" <> _), do: gettext("Reports")
   defp section_label("/accounts"), do: gettext("Master data")
   defp section_label("/transactions"), do: gettext("Ledger")
   defp section_label("/taxonomies"), do: gettext("Classifications")
@@ -1842,6 +1843,7 @@ defmodule PortfolixirWeb.AppShell do
   defp page_label("/dashboard"), do: gettext("Dashboard")
   defp page_label("/documents/new"), do: gettext("Factsheet document")
   defp page_label("/fund-documents/" <> _), do: gettext("Factsheet allocation review")
+  defp page_label("/reports/" <> _), do: gettext("Fund allocation report")
   defp page_label("/accounts"), do: gettext("Accounts Overview")
   defp page_label("/transactions"), do: gettext("Transactions")
   defp page_label("/taxonomies"), do: gettext("Classifications")

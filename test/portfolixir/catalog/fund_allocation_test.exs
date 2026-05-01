@@ -322,6 +322,117 @@ defmodule Portfolixir.Catalog.FundAllocationTest do
     assert item.id != other_item.id
   end
 
+  test "lists confirmed allocations for report with deterministic ordering and preloaded associations" do
+    security_alpha = create_security(%{name: "Alpha Security", symbol: "ALP"})
+    security_beta = create_security(%{name: "Beta Security", symbol: "BET"})
+
+    {:ok, alpha_country} =
+      Catalog.create_fund_allocation(%{
+        security_id: security_alpha.id,
+        source: "manual",
+        allocation_type: "country"
+      })
+
+    {:ok, alpha_region_late} =
+      Catalog.create_fund_allocation(%{
+        security_id: security_alpha.id,
+        source: "factsheet",
+        allocation_type: "region",
+        as_of_date: ~D[2026-05-10]
+      })
+
+    {:ok, alpha_region_early} =
+      Catalog.create_fund_allocation(%{
+        security_id: security_alpha.id,
+        source: "factsheet",
+        allocation_type: "region",
+        as_of_date: ~D[2026-05-01]
+      })
+
+    {:ok, alpha_region_without_date} =
+      Catalog.create_fund_allocation(%{
+        security_id: security_alpha.id,
+        source: "factsheet",
+        allocation_type: "region"
+      })
+
+    {:ok, beta_sector} =
+      Catalog.create_fund_allocation(%{
+        security_id: security_beta.id,
+        source: "factsheet",
+        allocation_type: "sector"
+      })
+
+    {:ok, _alpha_country_high_weight_item} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: alpha_country.id,
+        label: "Germany",
+        weight: Decimal.new("35.0")
+      })
+
+    {:ok, _alpha_country_low_weight_item} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: alpha_country.id,
+        label: "France",
+        weight: Decimal.new("15.0")
+      })
+
+    {:ok, alpha_region_late_item} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: alpha_region_late.id,
+        label: "North America",
+        weight: Decimal.new("62.5")
+      })
+
+    {:ok, _} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: alpha_region_early.id,
+        label: "Europe",
+        weight: Decimal.new("20.0")
+      })
+
+    {:ok, _} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: alpha_region_without_date.id,
+        label: "Africa",
+        weight: Decimal.new("5.0")
+      })
+
+    {:ok, _} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: beta_sector.id,
+        label: "Healthcare",
+        weight: Decimal.new("55.0")
+      })
+
+    allocations = Catalog.list_fund_allocations_for_report()
+
+    assert Enum.map(allocations, & &1.id) == [
+             alpha_country.id,
+             alpha_region_late.id,
+             alpha_region_early.id,
+             alpha_region_without_date.id,
+             beta_sector.id
+           ]
+
+    alpha_country_alloc = Enum.find(allocations, &(&1.id == alpha_country.id))
+    assert alpha_country_alloc.security.id == security_alpha.id
+
+    assert [alpha_country_high_weight_item, alpha_country_low_weight_item] =
+             alpha_country_alloc.fund_allocation_items
+
+    assert Decimal.eq?(alpha_country_high_weight_item.weight, Decimal.new("35.0"))
+    assert Decimal.eq?(alpha_country_low_weight_item.weight, Decimal.new("15.0"))
+    assert alpha_country_high_weight_item.label == "Germany"
+    assert alpha_country_low_weight_item.label == "France"
+
+    assert [item_for_region] =
+             Enum.filter(allocations, &(&1.id == alpha_region_late.id))
+
+    assert item_for_region.fund_allocation_items |> hd() |> Map.fetch!(:id) ==
+             alpha_region_late_item.id
+  end
+
   test "creating allocations and items does not create ledger transactions" do
     security = create_security(%{symbol: "SEC-NOLG"})
     before_count = Repo.aggregate(Transaction, :count)
