@@ -98,6 +98,10 @@ defmodule Portfolixir.Connectors.SyncRunTest do
                item.payload["record_type"] == "account" and
                is_binary(item.payload["external_id"])
            end)
+
+    assert Enum.all?(account_items, fn item ->
+             is_binary(item.content_hash) and String.starts_with?(item.content_hash, "sha256:")
+           end)
   end
 
   test "sync creates raw import items for balances" do

@@ -232,8 +232,6 @@ defmodule Portfolixir.Connectors.SyncRun do
 
   defp find_by_content_hash(_import_source_id, _content_hash), do: nil
 
-  defp content_hash(external_id, _payload) when is_binary(external_id), do: nil
-
   defp content_hash(_external_id, payload) do
     payload
     |> Jason.encode!()
