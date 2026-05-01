@@ -40,6 +40,27 @@ defmodule Portfolixir.Catalog do
     |> Repo.insert()
   end
 
+  def ensure_currency(attrs) when is_map(attrs) do
+    code = Map.fetch!(attrs, :code)
+
+    case Repo.insert(
+           %Currency{}
+           |> Currency.changeset(attrs),
+           on_conflict: :nothing,
+           conflict_target: :code,
+           returning: true
+         ) do
+      {:ok, currency} ->
+        {:ok, currency}
+
+      {:error, changeset} ->
+        case get_currency_by_code(code) do
+          nil -> {:error, changeset}
+          currency -> {:ok, currency}
+        end
+    end
+  end
+
   @doc """
   List securities by status.
   """
@@ -155,13 +176,7 @@ defmodule Portfolixir.Catalog do
 
   def ensure_mvp_currencies! do
     Enum.each(@mvp_currencies, fn attrs ->
-      case get_currency_by_code(attrs.code) do
-        nil ->
-          {:ok, _currency} = create_currency(attrs)
-
-        _currency ->
-          {:ok, :already_exists}
-      end
+      {:ok, _currency} = ensure_currency(attrs)
     end)
   end
 

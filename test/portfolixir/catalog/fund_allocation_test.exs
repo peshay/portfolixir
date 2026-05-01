@@ -2,19 +2,12 @@ defmodule Portfolixir.Catalog.FundAllocationTest do
   use Portfolixir.DataCase, async: true
 
   alias Portfolixir.Catalog
-  alias Portfolixir.Catalog.Currency
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
   defp ensure_usd_currency! do
-    case Repo.get_by(Currency, code: "USD") do
-      nil ->
-        {:ok, _} = Catalog.create_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
-        :ok
-
-      %Currency{} ->
-        :ok
-    end
+    {:ok, _currency} = Catalog.ensure_currency(%{code: "USD", name: "US Dollar", minor_units: 2})
+    :ok
   end
 
   defp create_security(attrs \\ %{}) do
