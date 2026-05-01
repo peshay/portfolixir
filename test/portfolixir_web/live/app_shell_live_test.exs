@@ -36,6 +36,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "p.app-shell-nav-group-title", "Reports")
     assert has_element?(view, "p.app-shell-nav-group-title", "Imports")
     assert has_element?(view, "#theme-toggle")
+    assert has_element?(view, "#sidebar-toggle[aria-expanded='false']")
     assert has_element?(view, "#mobile-nav-dashboard.app-shell-bottom-link")
     assert has_element?(view, "span.app-shell-visually-hidden", "Portfolixir")
     refute has_element?(view, ".app-shell-brand-label")
@@ -49,6 +50,54 @@ defmodule PortfolixirWeb.AppShellLiveTest do
            )
 
     assert html =~ "Portfolixir"
+  end
+
+  test "sidebar toggle persists collapsed state in inline script and restores on load", %{
+    conn: conn
+  } do
+    {:ok, _view, html} = live(conn, "/")
+    response = get(conn, "/") |> html_response(200)
+
+    assert response =~ ~s(id="app-shell")
+    assert response =~ ~s(data-layout="portfolio-workspace")
+    assert html =~ ~s(var sidebarStateKey = "portfolixir.sidebarCollapsed")
+    assert html =~ "function currentSidebarCollapsed()"
+    assert html =~ "localStorage.getItem(sidebarStateKey)"
+    assert html =~ "localStorage.setItem(sidebarStateKey, isCollapsed ? \"true\" : \"false\")"
+    assert html =~ "applySidebarState(currentSidebarCollapsed())"
+  end
+
+  test "collapsed nav links retain aria labels and titles", %{conn: conn} do
+    response = get(conn, "/") |> html_response(200)
+
+    assert response =~ ~s(id="nav-dashboard")
+    assert response =~ ~s(href=\"/\")
+    assert response =~ ~s(aria-label=\"Dashboard\")
+    assert response =~ ~s(title=\"Dashboard\")
+    assert response =~ ~s(id="nav-securities")
+    assert response =~ ~s(href=\"/securities\")
+    assert response =~ ~s(aria-label=\"All Securities\")
+    assert response =~ ~s(title=\"All Securities\")
+    assert response =~ ~s(aria-label=\"Transactions\")
+    assert response =~ ~s(title=\"Transactions\")
+    assert response =~ ~s(href=\"/transactions\")
+    assert response =~ ~s(aria-label=\"Categories\")
+    assert response =~ ~s(title=\"Categories\")
+    assert response =~ ~s(href=\"/taxonomies\")
+    assert response =~ ~s(aria-label="Watchlist" aria-disabled="true" title="Coming soon")
+  end
+
+  test "dashboard and securities routes still render AppShell layout", %{conn: conn} do
+    for route <- ["/", "/securities"] do
+      {:ok, _view, _html} = live(conn, route)
+      response = get(conn, route) |> html_response(200)
+
+      assert response =~ ~s(id="app-shell")
+      assert response =~ ~s(data-layout="portfolio-workspace")
+      assert response =~ ~s(id="sidebar-toggle")
+      assert response =~ ~s(class="app-shell-bottom-nav")
+      assert response =~ ~s(id="app-shell-mobile-drawer")
+    end
   end
 
   test "browser response includes mobile viewport metadata", %{conn: conn} do
