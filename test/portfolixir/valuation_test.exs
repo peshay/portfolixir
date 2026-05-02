@@ -75,6 +75,100 @@ defmodule Portfolixir.ValuationTest do
     assert Decimal.equal?(snapshot.totals_by_currency["EUR"], Decimal.new("1234.50"))
   end
 
+  test "multiple positions aggregate into grouped currency totals", %{
+    portfolio: portfolio,
+    securities_account: account,
+    security: security
+  } do
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               type: "buy",
+               date: ~D[2026-05-01],
+               currency_code: "EUR",
+               amount: Decimal.new("200"),
+               quantity: Decimal.new("2"),
+               price: Decimal.new("100"),
+               deposit_account_id: nil,
+               securities_account_id: account.id,
+               security_id: security.id
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "EUR",
+               close: Decimal.new("120")
+             })
+
+    assert {:ok, security_eur_2} =
+             Catalog.create_security(%{
+               name: "Europe Quality ETF",
+               symbol: "EQE",
+               currency_code: "EUR"
+             })
+
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               type: "buy",
+               date: ~D[2026-05-01],
+               currency_code: "EUR",
+               amount: Decimal.new("100"),
+               quantity: Decimal.new("1"),
+               price: Decimal.new("100"),
+               deposit_account_id: nil,
+               securities_account_id: account.id,
+               security_id: security_eur_2.id
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security_quote(%{
+               security_id: security_eur_2.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "EUR",
+               close: Decimal.new("80")
+             })
+
+    assert {:ok, security_usd} =
+             Catalog.create_security(%{
+               name: "US Growth ETF",
+               symbol: "USG",
+               currency_code: "USD"
+             })
+
+    assert {:ok, _} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               type: "buy",
+               date: ~D[2026-05-01],
+               currency_code: "USD",
+               amount: Decimal.new("300"),
+               quantity: Decimal.new("3"),
+               price: Decimal.new("100"),
+               deposit_account_id: nil,
+               securities_account_id: account.id,
+               security_id: security_usd.id
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security_quote(%{
+               security_id: security_usd.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("50")
+             })
+
+    snapshot = Valuation.position_market_value_snapshot(portfolio.id)
+
+    assert Decimal.equal?(snapshot.totals_by_currency["EUR"], Decimal.new("320"))
+    assert Decimal.equal?(snapshot.totals_by_currency["USD"], Decimal.new("150"))
+  end
+
   test "latest quote uses newest quote by date", %{
     portfolio: portfolio,
     securities_account: account,
