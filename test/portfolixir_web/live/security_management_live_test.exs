@@ -777,4 +777,71 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "Zebra Holdings"
     assert html =~ "security-list"
   end
+
+  test "securities table shows latest quote, quote date, position quantity and search", %{
+    conn: conn
+  } do
+    alias Portfolixir.Ledger
+    alias Portfolixir.Portfolios
+
+    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Synthetic Growth ETF",
+        symbol: "SGE",
+        currency_code: "EUR",
+        provider_symbol: "SGE.DE"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        type: "buy",
+        date: ~D[2026-05-02],
+        currency_code: "EUR",
+        amount: Decimal.new("300"),
+        quantity: Decimal.new("3"),
+        price: Decimal.new("100"),
+        securities_account_id: securities_account.id,
+        security_id: security.id
+      })
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-02],
+        source: "manual",
+        currency_code: "EUR",
+        close: Decimal.new("111.11")
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-list th", "Latest quote")
+    assert has_element?(view, "#security-list th", "Latest quote date")
+    assert has_element?(view, "#security-list th", "Position quantity")
+    assert has_element?(view, "#security-list tbody", "111.11")
+    assert has_element?(view, "#security-list tbody", "2026-05-02")
+    assert has_element?(view, "#security-list tbody", "3")
+
+    view
+    |> element("#security-search-form")
+    |> render_change(%{"q" => "growth"})
+
+    assert has_element?(view, "#security-list tbody", "Synthetic Growth ETF")
+
+    view
+    |> element("#security-search-form")
+    |> render_change(%{"q" => "nomatch"})
+
+    refute has_element?(view, "#security-list tbody tr")
+  end
 end
