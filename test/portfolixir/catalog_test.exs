@@ -205,6 +205,361 @@ defmodule Portfolixir.CatalogTest do
     assert security.active == true
   end
 
+  test "create_security_quote/1 creates a quote for a security" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert {:ok, quote} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("152.34")
+             })
+
+    assert quote.security_id == security.id
+    assert quote.date == ~D[2026-05-01]
+    assert quote.source == "manual"
+    assert quote.currency_code == "USD"
+    assert quote.close == Decimal.new("152.34")
+  end
+
+  test "create_security_quote/1 accepts open, high, low, close, and volume" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert {:ok, quote} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "provider",
+               currency_code: "USD",
+               open: Decimal.new("150.00"),
+               high: Decimal.new("153.00"),
+               low: Decimal.new("149.00"),
+               close: Decimal.new("152.00"),
+               volume: Decimal.new("123456.00"),
+               metadata: %{"provider" => "test"}
+             })
+
+    assert quote.open == Decimal.new("150.00")
+    assert quote.high == Decimal.new("153.00")
+    assert quote.low == Decimal.new("149.00")
+    assert quote.close == Decimal.new("152.00")
+    assert quote.volume == Decimal.new("123456.00")
+    assert quote.metadata == %{"provider" => "test"}
+  end
+
+  test "create_security_quote/1 requires required fields" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert {:error, changeset} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               source: "manual",
+               currency_code: "USD"
+             })
+
+    assert %{date: ["can't be blank"], close: ["can't be blank"]} = errors_on(changeset)
+  end
+
+  test "create_security_quote/1 rejects negative close" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert {:error, changeset} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("-10.00")
+             })
+
+    assert %{close: ["must be greater than or equal to 0"]} = errors_on(changeset)
+  end
+
+  test "create_security_quote/1 rejects negative optional price fields" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert {:error, changeset} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               open: Decimal.new("-1.00"),
+               high: Decimal.new("10.00"),
+               low: Decimal.new("9.00"),
+               close: Decimal.new("10.00"),
+               volume: Decimal.new("-2.00")
+             })
+
+    assert %{
+             open: ["must be greater than or equal to 0"],
+             volume: ["must be greater than or equal to 0"]
+           } = errors_on(changeset)
+  end
+
+  test "create_security_quote/1 rejects duplicate security id, source, and date" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert {:ok, _} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("10.00")
+             })
+
+    assert {:error, changeset} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("11.00")
+             })
+
+    assert %{security_id: ["has already been taken"]} = errors_on(changeset)
+  end
+
+  test "create_security_quote/1 allows same security id and date with different source" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert {:ok, _} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("10.00")
+             })
+
+    assert {:ok, second_quote} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "provider",
+               currency_code: "USD",
+               close: Decimal.new("10.50")
+             })
+
+    assert second_quote.source == "provider"
+    assert second_quote.security_id == security.id
+    assert second_quote.id != nil
+  end
+
+  test "create_security_quote/1 allows same date and source for different securities" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, apple} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert {:ok, microsoft} =
+             Catalog.create_security(%{name: "Microsoft", symbol: "MSFT", currency_code: "USD"})
+
+    assert {:ok, _} =
+             Catalog.create_security_quote(%{
+               security_id: apple.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("10.00")
+             })
+
+    assert {:ok, second_quote} =
+             Catalog.create_security_quote(%{
+               security_id: microsoft.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("11.00")
+             })
+
+    assert second_quote.security_id == microsoft.id
+  end
+
+  test "list_security_quotes/1 returns quotes ordered by date ascending" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    {:ok, oldest_quote} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-01],
+        source: "manual",
+        currency_code: "USD",
+        close: Decimal.new("10.00")
+      })
+
+    {:ok, newest_quote} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-03],
+        source: "manual",
+        currency_code: "USD",
+        close: Decimal.new("12.00")
+      })
+
+    {:ok, middle_quote} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-02],
+        source: "manual",
+        currency_code: "USD",
+        close: Decimal.new("11.00")
+      })
+
+    assert [first, second, third] = Catalog.list_security_quotes(security.id)
+    assert first.id == oldest_quote.id
+    assert second.id == middle_quote.id
+    assert third.id == newest_quote.id
+  end
+
+  test "list_security_quotes/2 supports date range filters" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-01],
+        source: "manual",
+        currency_code: "USD",
+        close: Decimal.new("10.00")
+      })
+
+    {:ok, middle_quote} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-02],
+        source: "manual",
+        currency_code: "USD",
+        close: Decimal.new("11.00")
+      })
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-03],
+        source: "manual",
+        currency_code: "USD",
+        close: Decimal.new("12.00")
+      })
+
+    assert [result] =
+             Catalog.list_security_quotes(security.id, from: ~D[2026-05-02], to: ~D[2026-05-02])
+
+    assert result.id == middle_quote.id
+  end
+
+  test "get_latest_security_quote/1 returns newest quote for a security" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    {:ok, _older_quote} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-01],
+        source: "manual",
+        currency_code: "USD",
+        close: Decimal.new("10.00")
+      })
+
+    {:ok, newest_quote} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-02],
+        source: "manual",
+        currency_code: "USD",
+        close: Decimal.new("11.00")
+      })
+
+    assert Catalog.get_latest_security_quote(security.id).id == newest_quote.id
+  end
+
+  test "upsert_security_quote/1 updates quote for same security, source, and date" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    assert {:ok, original_quote} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("10.00")
+             })
+
+    assert {:ok, upserted_quote} =
+             Catalog.upsert_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("11.00")
+             })
+
+    assert upserted_quote.id == original_quote.id
+    assert upserted_quote.close == Decimal.new("11.00")
+  end
+
+  test "creating a quote does not create ledger transactions or fund allocations" do
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    assert {:ok, security} =
+             Catalog.create_security(%{name: "Apple Inc.", symbol: "AAPL", currency_code: "USD"})
+
+    initial_transaction_count = Repo.aggregate(Portfolixir.Ledger.Transaction, :count, :id)
+
+    initial_fund_allocation_count =
+      Repo.aggregate(Portfolixir.Catalog.FundAllocation, :count, :id)
+
+    assert {:ok, _} =
+             Catalog.create_security_quote(%{
+               security_id: security.id,
+               date: ~D[2026-05-01],
+               source: "manual",
+               currency_code: "USD",
+               close: Decimal.new("10.00")
+             })
+
+    assert Repo.aggregate(Portfolixir.Ledger.Transaction, :count, :id) ==
+             initial_transaction_count
+
+    assert Repo.aggregate(Portfolixir.Catalog.FundAllocation, :count, :id) ==
+             initial_fund_allocation_count
+  end
+
   test "creating a security can be inactive" do
     :ok = Catalog.ensure_mvp_currencies!()
 
