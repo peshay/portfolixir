@@ -1,8 +1,10 @@
 defmodule Portfolixir.QuotesTest do
-  use ExUnit.Case, async: true
+  use Portfolixir.DataCase, async: true
 
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Quotes
   alias Portfolixir.Quotes.FakeProvider
+  alias Portfolixir.Repo
 
   test "fake provider returns latest quote" do
     assert {:ok, quote} = FakeProvider.latest_quote(%{}, %{symbol: "MSCI"})
@@ -58,5 +60,14 @@ defmodule Portfolixir.QuotesTest do
     assert_raise ArgumentError, fn ->
       String.to_existing_atom(unknown_capability)
     end
+  end
+
+  test "no ledger transactions are created" do
+    initial_transaction_count = Repo.aggregate(Transaction, :count, :id)
+
+    assert {:ok, _quote} = Quotes.latest_quote(FakeProvider, %{}, %{symbol: "MSCI"})
+    assert {:ok, _quotes} = Quotes.historical_quotes(FakeProvider, %{}, %{symbol: "MSCI"})
+
+    assert Repo.aggregate(Transaction, :count, :id) == initial_transaction_count
   end
 end
