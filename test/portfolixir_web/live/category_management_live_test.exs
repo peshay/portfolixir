@@ -213,6 +213,37 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert tree_html =~ "1"
   end
 
+  test "selecting a security loads current assignments before any write action", %{conn: conn} do
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
+
+    {:ok, category} =
+      Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core"})
+
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "ETF One",
+        symbol: "ETF1",
+        isin: "US0000000002",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} = Catalog.assign_category_to_security(security.id, category.id)
+
+    {:ok, view, _html} = live(conn, "/taxonomies")
+
+    refute has_element?(view, "#security-assignment-#{security.id}-#{category.id}")
+
+    view
+    |> form("#category-assignment-form", %{
+      "assignment" => %{"security_id" => to_string(security.id), "category_id" => ""}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#security-assignment-#{security.id}-#{category.id}")
+  end
+
   test "assigns and removes category assignments through UI", %{conn: conn} do
     {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
 
