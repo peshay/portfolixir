@@ -421,7 +421,7 @@ defmodule Portfolixir.ImportsTest do
   test "list_recent_raw_import_items returns recent items ordered by insertion and source name" do
     source = create_import_source(name: "Ordered raw items source")
 
-    assert {:ok, first_item} =
+    assert {:ok, _first_item} =
              Imports.create_raw_import_item(%{
                import_source_id: source.id,
                external_id: "raw-first",
@@ -431,7 +431,7 @@ defmodule Portfolixir.ImportsTest do
                status: "new"
              })
 
-    assert {:ok, second_item} =
+    assert {:ok, _second_item} =
              Imports.create_raw_import_item(%{
                import_source_id: source.id,
                external_id: "raw-second",
@@ -456,5 +456,81 @@ defmodule Portfolixir.ImportsTest do
     assert length(items) == 2
     assert Enum.map(items, & &1.external_id) == ["raw-third", "raw-second"]
     assert Enum.all?(items, &(&1.import_source.id == source.id))
+  end
+
+  test "create/list/resolve import conflicts works through imports context" do
+    source = create_import_source(name: "Conflicts source")
+    {:ok, run} = Imports.create_import_run(%{import_source_id: source.id, status: "started"})
+
+    {:ok, raw_item} =
+      Imports.create_raw_import_item(%{
+        import_source_id: source.id,
+        import_run_id: run.id,
+        external_id: "conflict-raw-item"
+      })
+
+    {:ok, open_conflict} =
+      Imports.create_import_conflict(%{
+        import_source_id: source.id,
+        import_run_id: run.id,
+        raw_import_item_id: raw_item.id,
+        conflict_type: "duplicate_transaction",
+        summary: "Duplicate external transaction id",
+        details: %{"external_id" => "tx-123"}
+      })
+
+    {:ok, _resolved_conflict} =
+      Imports.create_import_conflict(%{
+        import_source_id: source.id,
+        import_run_id: run.id,
+        conflict_type: "stale_position",
+        status: "resolved",
+        summary: "Position already closed"
+      })
+
+    run_conflicts = Imports.list_import_conflicts_for_run(run.id)
+    assert Enum.map(run_conflicts, & &1.id) |> Enum.member?(open_conflict.id)
+
+    open_conflicts = Imports.list_open_import_conflicts()
+    assert Enum.any?(open_conflicts, &(&1.id == open_conflict.id))
+
+    assert {:ok, resolved} =
+             Imports.resolve_import_conflict(open_conflict.id, %{
+               details: %{"resolution" => "ignored"}
+             })
+
+    assert resolved.status == "resolved"
+    assert resolved.details == %{"resolution" => "ignored"}
+
+    assert {:ok, resolved_again} =
+             Imports.resolve_import_conflict(open_conflict.id, %{
+               import_source_id: source.id + 1,
+               import_run_id: run.id + 1,
+               raw_import_item_id: nil,
+               conflict_type: "tampered_type",
+               summary: "tampered summary",
+               details: %{"resolution" => "kept"}
+             })
+
+    assert resolved_again.import_source_id == source.id
+    assert resolved_again.import_run_id == run.id
+    assert resolved_again.raw_import_item_id == raw_item.id
+    assert resolved_again.conflict_type == "duplicate_transaction"
+    assert resolved_again.summary == "Duplicate external transaction id"
+    assert resolved_again.details == %{"resolution" => "kept"}
+
+    refute Enum.any?(Imports.list_open_import_conflicts(), &(&1.id == open_conflict.id))
+  end
+
+  test "import conflict validates required fields" do
+    assert {:error, changeset} = Imports.create_import_conflict(%{})
+
+    assert %{
+             import_source_id: ["can't be blank"],
+             import_run_id: ["can't be blank"],
+             conflict_type: ["can't be blank"],
+             summary: ["can't be blank"]
+           } =
+             errors_on(changeset)
   end
 end
