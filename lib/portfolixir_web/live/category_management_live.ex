@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Taxonomies
+  alias Portfolixir.Catalog
   alias PortfolixirWeb.AppShell
 
   @taxonomy_form_defaults %{
@@ -18,13 +19,20 @@ defmodule PortfolixirWeb.CategoryManagementLive do
     "sort_order" => ""
   }
 
+  @category_assignment_form_defaults %{
+    "security_id" => "",
+    "category_id" => ""
+  }
+
   def mount(_params, _session, socket) do
     socket =
       socket
       |> assign(:taxonomy_form, @taxonomy_form_defaults)
       |> assign(:category_form, @category_form_defaults)
+      |> assign(:category_assignment_form, @category_assignment_form_defaults)
       |> assign(:taxonomy_error, nil)
       |> assign(:category_error, nil)
+      |> assign(:category_assignment_error, nil)
       |> assign(:preset_success, nil)
 
     {:ok, load_taxonomy_state(socket)}
@@ -236,6 +244,73 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                 <p><%= gettext("Add the first category for this taxonomy.") %></p>
               </div>
             <% else %>
+              <section id="category-assignment-region" class="app-shell-section-card">
+                <div class="app-shell-section-header">
+                  <div>
+                    <h3 class="app-shell-section-title"><%= gettext("Security assignments") %></h3>
+                    <p><%= gettext("Assign a security to a classification category.") %></p>
+                  </div>
+                </div>
+
+                <%= if @category_assignment_error do %>
+                  <p id="category-assignment-error" class="app-shell-alert app-shell-alert--error" role="alert">
+                    <%= @category_assignment_error %>
+                  </p>
+                <% end %>
+
+                <form id="category-assignment-form" class="app-shell-form-grid" phx-submit="assign_category_to_security">
+                  <div class="app-shell-field app-shell-field--full">
+                    <label for="assignment-security-id"><%= gettext("Security") %></label>
+                    <select id="assignment-security-id" name="assignment[security_id]">
+                      <option value=""><%= gettext("Select security") %></option>
+                      <%= for security <- @securities do %>
+                        <option value={security.id} selected={to_string(security.id) == @category_assignment_form["security_id"]}>
+                          <%= security.name %>
+                        </option>
+                      <% end %>
+                    </select>
+                  </div>
+
+                  <div class="app-shell-field app-shell-field--full">
+                    <label for="assignment-category-id"><%= gettext("Category") %></label>
+                    <select id="assignment-category-id" name="assignment[category_id]">
+                      <option value=""><%= gettext("Select category") %></option>
+                      <%= for category <- @selected_categories do %>
+                        <option value={category.id} selected={to_string(category.id) == @category_assignment_form["category_id"]}>
+                          <%= category.name %>
+                        </option>
+                      <% end %>
+                    </select>
+                  </div>
+
+                  <div class="app-shell-form-actions">
+                    <button type="submit" class="app-shell-primary"><%= gettext("Assign category") %></button>
+                  </div>
+                </form>
+
+                <%= if is_nil(@selected_security_id) do %>
+                  <p id="security-assignments-empty" class="app-shell-muted"><%= gettext("Select a security to view assignments.") %></p>
+                <% else %>
+                  <ul id="security-assignment-list" class="app-shell-list">
+                    <%= for category <- @selected_security_categories do %>
+                      <li id={"security-assignment-#{@selected_security_id}-#{category.id}"} class="app-shell-list-item">
+                        <strong><%= category.name %></strong>
+                        <button
+                          id={"remove-security-assignment-#{@selected_security_id}-#{category.id}"}
+                          type="button"
+                          class="app-shell-secondary"
+                          phx-click="remove_category_assignment"
+                          phx-value-security-id={@selected_security_id}
+                          phx-value-category-id={category.id}
+                        >
+                          <%= gettext("Remove") %>
+                        </button>
+                      </li>
+                    <% end %>
+                  </ul>
+                <% end %>
+              </section>
+
               <ul id="category-list" class="app-shell-list">
                 <%= for category <- @selected_categories do %>
                   <li id={"category-#{category.id}"} class="app-shell-list-item">
@@ -370,9 +445,54 @@ defmodule PortfolixirWeb.CategoryManagementLive do
     end
   end
 
-  defp load_taxonomy_state(socket, selected_taxonomy_id \\ nil) do
+  def handle_event("assign_category_to_security", %{"assignment" => params}, socket) do
+    with {security_id, ""} <- Integer.parse(params["security_id"] || ""),
+         {category_id, ""} <- Integer.parse(params["category_id"] || ""),
+         {:ok, _} <- Catalog.assign_category_to_security(security_id, category_id) do
+      {:noreply,
+       socket
+       |> assign(:category_assignment_form, %{
+         "security_id" => to_string(security_id),
+         "category_id" => ""
+       })
+       |> assign(:category_assignment_error, nil)
+       |> load_taxonomy_state(socket.assigns.selected_taxonomy_id, security_id)}
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         socket
+         |> assign(:category_assignment_form, sanitize_assignment_form(params))
+         |> assign(:category_assignment_error, format_errors(changeset))}
+
+      _ ->
+        {:noreply,
+         socket
+         |> assign(:category_assignment_form, sanitize_assignment_form(params))
+         |> assign(:category_assignment_error, gettext("Select both security and category."))}
+    end
+  end
+
+  def handle_event(
+        "remove_category_assignment",
+        %{"security-id" => security_id, "category-id" => category_id},
+        socket
+      ) do
+    with {security_id, ""} <- Integer.parse(security_id),
+         {category_id, ""} <- Integer.parse(category_id),
+         {:ok, _} <- Catalog.remove_category_assignment(security_id, category_id) do
+      {:noreply,
+       socket
+       |> assign(:category_assignment_error, nil)
+       |> load_taxonomy_state(socket.assigns.selected_taxonomy_id, security_id)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  defp load_taxonomy_state(socket, selected_taxonomy_id \\ nil, selected_security_id \\ nil) do
     taxonomies = Taxonomies.list_taxonomies()
     selected_taxonomy_id = selected_taxonomy_id || fallback_selected_taxonomy_id(taxonomies)
+    securities = Catalog.list_securities(:active)
 
     categories =
       if selected_taxonomy_id do
@@ -381,9 +501,22 @@ defmodule PortfolixirWeb.CategoryManagementLive do
         []
       end
 
+    selected_security_id =
+      selected_security_id || parsed_id(socket.assigns[:category_assignment_form]["security_id"])
+
+    selected_security_categories =
+      if selected_security_id do
+        Catalog.list_security_categories(selected_security_id)
+      else
+        []
+      end
+
     socket
     |> assign(:taxonomies, taxonomies)
+    |> assign(:securities, securities)
     |> assign(:selected_taxonomy_id, selected_taxonomy_id)
+    |> assign(:selected_security_id, selected_security_id)
+    |> assign(:selected_security_categories, selected_security_categories)
     |> assign(:selected_categories, categories)
     |> assign(:selected_category_tree, build_category_tree(categories))
     |> assign(
@@ -480,6 +613,13 @@ defmodule PortfolixirWeb.CategoryManagementLive do
     |> sanitize_params()
     |> Map.put("taxonomy_id", selected_taxonomy_id || "")
     |> Map.put("parent_id", params["parent_id"] || "")
+  end
+
+  defp sanitize_assignment_form(params) do
+    %{
+      "security_id" => params["security_id"] || "",
+      "category_id" => params["category_id"] || ""
+    }
   end
 
   defp format_errors(%Ecto.Changeset{} = changeset) do
