@@ -134,7 +134,7 @@ defmodule Portfolixir.Imports do
           |> Map.put("status", "resolved")
 
         conflict
-        |> ImportConflict.changeset(resolve_attrs)
+        |> ImportConflict.resolve_changeset(resolve_attrs)
         |> Repo.update()
     end
   end

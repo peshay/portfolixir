@@ -37,4 +37,11 @@ defmodule Portfolixir.Imports.ImportConflict do
     |> assoc_constraint(:import_run)
     |> foreign_key_constraint(:raw_import_item_id)
   end
+
+  @doc false
+  def resolve_changeset(import_conflict, attrs) do
+    import_conflict
+    |> cast(attrs, [:status, :details])
+    |> validate_inclusion(:status, @statuses)
+  end
 end
