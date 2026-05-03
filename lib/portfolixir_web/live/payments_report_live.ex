@@ -89,6 +89,88 @@ defmodule PortfolixirWeb.PaymentsReportLive do
             <p><%= gettext("Record dividend transactions to populate this report.") %></p>
           </section>
         <% else %>
+          <section id="payments-accumulation-chart" class="app-shell-section-card">
+            <div class="app-shell-section-header">
+              <div>
+                <h2 class="app-shell-section-title"><%= gettext("Accumulated dividends") %></h2>
+                <p><%= gettext("Monthly cumulative progression based on recorded dividend transactions.") %></p>
+              </div>
+            </div>
+
+            <%= for {currency_code, points} <- accumulation_points_by_currency(@accumulation_points) do %>
+              <article id={"payments-accumulation-currency-#{String.downcase(currency_code)}"} class="app-shell-workspace-stack">
+                <h3><%= currency_code %></h3>
+                <ol id={"payments-accumulation-bars-#{String.downcase(currency_code)}"} class="app-shell-list-unstyled">
+                  <%= for point <- points do %>
+                    <li id={"payments-accumulation-point-#{String.downcase(currency_code)}-#{point.month_label}"}>
+                      <strong><%= point.month_label %></strong>
+                      <span><%= format_money(point.accumulated_amount) %></span>
+                      <div class="app-shell-progress" role="img" aria-label={"#{currency_code} #{point.month_label} #{format_money(point.accumulated_amount)}"}>
+                        <div class="app-shell-progress-fill" style={"width: #{bar_width_percent(point.accumulated_amount, points)}%"}></div>
+                      </div>
+                    </li>
+                  <% end %>
+                </ol>
+              </article>
+            <% end %>
+          </section>
+
+          <section id="payments-accumulation-table" class="app-shell-section-card">
+            <div class="app-shell-table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th><%= gettext("Month") %></th>
+                    <th><%= gettext("Currency") %></th>
+                    <th><%= gettext("Monthly dividends") %></th>
+                    <th><%= gettext("Accumulated dividends") %></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for point <- @accumulation_points do %>
+                    <tr id={"payments-accumulation-row-#{String.downcase(point.currency_code)}-#{point.month_label}"}>
+                      <td><%= point.month_label %></td>
+                      <td><%= point.currency_code %></td>
+                      <td><%= format_money(point.monthly_amount) %></td>
+                      <td><%= format_money(point.accumulated_amount) %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="payments-yearly-comparison" class="app-shell-section-card">
+            <div class="app-shell-section-header">
+              <div>
+                <h2 class="app-shell-section-title"><%= gettext("Yearly comparison") %></h2>
+                <p><%= gettext("Year-by-year cumulative dividend progression by month.") %></p>
+              </div>
+            </div>
+            <div class="app-shell-table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th><%= gettext("Year") %></th>
+                    <th><%= gettext("Month") %></th>
+                    <th><%= gettext("Currency") %></th>
+                    <th><%= gettext("Year-to-date accumulated") %></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for row <- @yearly_comparison_rows do %>
+                    <tr id={"payments-yearly-row-#{row.year}-#{row.month_number}-#{String.downcase(row.currency_code)}"}>
+                      <td><%= row.year %></td>
+                      <td><%= row.month_label %></td>
+                      <td><%= row.currency_code %></td>
+                      <td><%= format_money(row.accumulated_amount) %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
           <%= if @group_mode == "list" do %>
             <section id="payments-list" class="app-shell-section-card">
               <div class="app-shell-table-wrapper">
@@ -209,10 +291,15 @@ defmodule PortfolixirWeb.PaymentsReportLive do
         }
       end)
 
+    accumulation_points = monthly_accumulation_points(dividend_rows)
+    yearly_comparison_rows = yearly_comparison_rows(dividend_rows)
+
     socket
     |> assign(:portfolios, portfolios)
     |> assign(:current_portfolio, portfolio)
     |> assign(:dividend_rows, dividend_rows)
+    |> assign(:accumulation_points, accumulation_points)
+    |> assign(:yearly_comparison_rows, yearly_comparison_rows)
   end
 
   defp resolve_current_portfolio(portfolios, nil, previous_portfolio) do
@@ -272,6 +359,95 @@ defmodule PortfolixirWeb.PaymentsReportLive do
       |> Enum.sort()
 
     Enum.join(totals, " · ")
+  end
+
+  defp accumulation_points_by_currency(points) do
+    points
+    |> Enum.group_by(& &1.currency_code)
+    |> Enum.sort_by(fn {currency_code, _points} -> currency_code end)
+  end
+
+  defp monthly_accumulation_points(rows) do
+    rows
+    |> Enum.group_by(fn row -> {row.currency_code, row.date.year, row.date.month} end)
+    |> Enum.map(fn {{currency_code, year, month}, grouped_rows} ->
+      monthly_amount =
+        Enum.reduce(grouped_rows, Decimal.new("0"), fn row, acc ->
+          Decimal.add(acc, row.amount)
+        end)
+
+      %{
+        currency_code: currency_code,
+        year: year,
+        month_number: month,
+        month_label: :io_lib.format("~4..0B-~2..0B", [year, month]) |> List.to_string(),
+        monthly_amount: monthly_amount
+      }
+    end)
+    |> Enum.sort_by(&{&1.currency_code, &1.year, &1.month_number})
+    |> Enum.chunk_by(& &1.currency_code)
+    |> Enum.flat_map(fn currency_points ->
+      {points, _running_total} =
+        Enum.map_reduce(currency_points, Decimal.new("0"), fn point, running_total ->
+          accumulated_amount = Decimal.add(running_total, point.monthly_amount)
+          {Map.put(point, :accumulated_amount, accumulated_amount), accumulated_amount}
+        end)
+
+      points
+    end)
+  end
+
+  defp yearly_comparison_rows(rows) do
+    rows
+    |> Enum.group_by(fn row -> {row.currency_code, row.date.year, row.date.month} end)
+    |> Enum.map(fn {{currency_code, year, month}, grouped_rows} ->
+      monthly_amount =
+        Enum.reduce(grouped_rows, Decimal.new("0"), fn row, acc ->
+          Decimal.add(acc, row.amount)
+        end)
+
+      %{
+        currency_code: currency_code,
+        year: year,
+        month_number: month,
+        month_label: :io_lib.format("~2..0B", [month]) |> List.to_string(),
+        monthly_amount: monthly_amount
+      }
+    end)
+    |> Enum.sort_by(&{&1.currency_code, &1.year, &1.month_number})
+    |> Enum.chunk_by(&{&1.currency_code, &1.year})
+    |> Enum.flat_map(fn year_points ->
+      {points, _running_total} =
+        Enum.map_reduce(year_points, Decimal.new("0"), fn point, running_total ->
+          accumulated_amount = Decimal.add(running_total, point.monthly_amount)
+          {Map.put(point, :accumulated_amount, accumulated_amount), accumulated_amount}
+        end)
+
+      points
+    end)
+  end
+
+  defp bar_width_percent(_value, []), do: 0
+
+  defp bar_width_percent(value, points) do
+    max_value =
+      Enum.reduce(points, Decimal.new("0"), fn point, acc ->
+        if Decimal.compare(point.accumulated_amount, acc) == :gt do
+          point.accumulated_amount
+        else
+          acc
+        end
+      end)
+
+    if Decimal.equal?(max_value, Decimal.new("0")) do
+      0
+    else
+      value
+      |> Decimal.div(max_value)
+      |> Decimal.mult(Decimal.new("100"))
+      |> Decimal.round(2)
+      |> Decimal.to_float()
+    end
   end
 
   defp format_money(nil), do: "—"
