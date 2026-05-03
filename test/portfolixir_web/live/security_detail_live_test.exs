@@ -444,7 +444,52 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-fund-documents-empty-state a[href=\"/documents/new\"]")
   end
 
-  test "does not create allocations, allocation items, or transactions when viewing security detail",
+  test "renders stored quote chart and filters by range", %{conn: conn} do
+    security = create_security(%{name: "Chart Security", symbol: "CHRT", currency_code: "EUR"})
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2025-01-15],
+        source: "manual",
+        currency_code: "EUR",
+        close: Decimal.new("100")
+      })
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2025-12-10],
+        source: "manual",
+        currency_code: "EUR",
+        close: Decimal.new("120")
+      })
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}")
+
+    assert has_element?(view, "#security-price-chart")
+    assert has_element?(view, "#security-price-chart-svg")
+    assert has_element?(view, "#security-price-chart-series", "2025-01-15")
+    assert has_element?(view, "#security-price-chart-series", "2025-12-10")
+
+    view
+    |> element("#security-price-range-1m")
+    |> render_click()
+
+    refute has_element?(view, "#security-price-chart-series", "2025-01-15")
+    assert has_element?(view, "#security-price-chart-series", "2025-12-10")
+  end
+
+  test "shows empty chart state when no quotes exist", %{conn: conn} do
+    security = create_security(%{name: "No Quote Security", symbol: "NQ", currency_code: "EUR"})
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}")
+
+    assert has_element?(view, "#security-price-chart-empty")
+    assert has_element?(view, "#security-price-chart-empty", "No quotes yet")
+  end
+
+  test "does not create allocations, allocation items, transactions, or quotes when viewing security detail",
        %{
          conn: conn
        } do
@@ -453,12 +498,14 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     allocations_before = Repo.aggregate(FundAllocation, :count, :id)
     items_before = Repo.aggregate(FundAllocationItem, :count, :id)
     transactions_before = Repo.aggregate(Transaction, :count, :id)
+    quotes_before = Repo.aggregate(Portfolixir.Catalog.SecurityQuote, :count, :id)
 
     {:ok, _view, _html} = live(conn, "/securities/#{security.id}")
 
     assert Repo.aggregate(FundAllocation, :count, :id) == allocations_before
     assert Repo.aggregate(FundAllocationItem, :count, :id) == items_before
     assert Repo.aggregate(Transaction, :count, :id) == transactions_before
+    assert Repo.aggregate(Portfolixir.Catalog.SecurityQuote, :count, :id) == quotes_before
   end
 
   defp create_security(attrs) do
