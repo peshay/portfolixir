@@ -41,7 +41,6 @@ Current merged surface includes:
 
 - Portfolio, account, and transaction management basics.
 - Securities workbench and security detail views.
-- Stored-quote charting on security detail pages.
 - Classification and fund-allocation workbench pages.
 - Read-only report pages (for example fund allocations and payments).
 - Import overview and document/factsheet review flows.
