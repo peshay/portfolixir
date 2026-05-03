@@ -3,7 +3,7 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias Portfolixir.Taxonomies
+  alias Portfolixir.{Catalog, Taxonomies}
 
   test "visiting /taxonomies renders shared app shell", %{conn: conn} do
     {:ok, view, html} = live(conn, "/taxonomies")
@@ -34,6 +34,7 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert has_element?(view, "#classification-tree-region[data-priority='primary']")
     assert has_element?(view, "#classification-details-region[data-priority='secondary']")
     assert has_element?(view, "#taxonomy-form.app-shell-form-grid")
+    assert has_element?(view, "#no-taxonomies")
     assert has_element?(view, "#classification-details-region .app-shell-empty-state")
   end
 
@@ -174,6 +175,42 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
 
     assert html =~ "Core ETF"
     assert html =~ "Region ETF"
+  end
+
+  test "renders deterministic nested classification tree with assignment counts", %{conn: conn} do
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
+
+    {:ok, parent} =
+      Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Parent", sort_order: 1})
+
+    {:ok, child} =
+      Taxonomies.create_category(%{
+        taxonomy_id: taxonomy.id,
+        parent_id: parent.id,
+        name: "Child",
+        sort_order: 2
+      })
+
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "ETF",
+        symbol: "ETF",
+        isin: "US0000000001",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} = Catalog.assign_category_to_security(security.id, child.id)
+
+    {:ok, view, _html} = live(conn, "/taxonomies")
+
+    assert has_element?(view, "#tree-node-#{parent.id}", "Parent")
+    assert has_element?(view, "#tree-node-#{child.id}", "Child")
+
+    tree_html = render(view)
+    assert tree_html =~ "assigned"
+    assert tree_html =~ "1"
   end
 
   test "deleting a category removes it from the list", %{conn: conn} do
