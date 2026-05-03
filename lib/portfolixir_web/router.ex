@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Router do
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
+    plug(PortfolixirWeb.Plugs.BrowserApiKeyAuth)
     plug(PortfolixirWeb.Locale)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
@@ -13,6 +14,7 @@ defmodule PortfolixirWeb.Router do
   pipeline :browser_csv do
     plug(:accepts, ["html", "csv"])
     plug(:fetch_session)
+    plug(PortfolixirWeb.Plugs.BrowserApiKeyAuth)
     plug(PortfolixirWeb.Locale)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
