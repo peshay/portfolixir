@@ -258,7 +258,12 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                   </p>
                 <% end %>
 
-                <form id="category-assignment-form" class="app-shell-form-grid" phx-submit="assign_category_to_security">
+                <form
+                  id="category-assignment-form"
+                  class="app-shell-form-grid"
+                  phx-change="select_security_for_assignment"
+                  phx-submit="assign_category_to_security"
+                >
                   <div class="app-shell-field app-shell-field--full">
                     <label for="assignment-security-id"><%= gettext("Security") %></label>
                     <select id="assignment-security-id" name="assignment[security_id]">
@@ -443,6 +448,16 @@ defmodule PortfolixirWeb.CategoryManagementLive do
       _ ->
         {:noreply, socket}
     end
+  end
+
+  def handle_event("select_security_for_assignment", %{"assignment" => params}, socket) do
+    selected_security_id = parsed_id(params["security_id"])
+
+    {:noreply,
+     socket
+     |> assign(:category_assignment_form, sanitize_assignment_form(params))
+     |> assign(:category_assignment_error, nil)
+     |> load_taxonomy_state(socket.assigns.selected_taxonomy_id, selected_security_id)}
   end
 
   def handle_event("assign_category_to_security", %{"assignment" => params}, socket) do
