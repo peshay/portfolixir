@@ -414,9 +414,12 @@ defmodule PortfolixirWeb.SecurityDetailLive do
     from_date = parse_date(Map.get(params, "from"))
     to_date = parse_date(Map.get(params, "to"))
 
-    security_id
-    |> Catalog.list_security_quotes()
-    |> Enum.filter(fn quote -> in_date_range?(quote.date, from_date, to_date) end)
+    opts =
+      []
+      |> maybe_put_filter(:from, from_date)
+      |> maybe_put_filter(:to, to_date)
+
+    Catalog.list_security_quotes(security_id, opts)
   end
 
   defp chart_points([single]) do
@@ -472,6 +475,9 @@ defmodule PortfolixirWeb.SecurityDetailLive do
         Float.round(180.0 - (decimal_to_float(close) - min_close) / span * 140.0, 2)
     end
   end
+
+  defp maybe_put_filter(opts, _key, nil), do: opts
+  defp maybe_put_filter(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp parse_date(nil), do: nil
 
