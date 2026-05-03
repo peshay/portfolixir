@@ -3,7 +3,7 @@ defmodule Portfolixir.Imports do
 
   import Ecto.Query
 
-  alias Portfolixir.Imports.{ImportRun, ImportSource, RawImportItem}
+  alias Portfolixir.Imports.{ImportConflict, ImportRun, ImportSource, RawImportItem}
   alias Portfolixir.Repo
 
   def create_import_source(attrs) when is_map(attrs) do
@@ -94,6 +94,52 @@ defmodule Portfolixir.Imports do
   end
 
   def list_recent_raw_import_items(_invalid_limit), do: []
+
+  def create_import_conflict(attrs) when is_map(attrs) do
+    %ImportConflict{}
+    |> ImportConflict.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def list_import_conflicts_for_run(import_run_id) when is_integer(import_run_id) do
+    Repo.all(
+      from(conflict in ImportConflict,
+        where: conflict.import_run_id == ^import_run_id,
+        order_by: [desc: conflict.inserted_at, desc: conflict.id]
+      )
+    )
+  end
+
+  def list_import_conflicts_for_run(_invalid_import_run_id), do: []
+
+  def list_open_import_conflicts do
+    Repo.all(
+      from(conflict in ImportConflict,
+        where: conflict.status == "open",
+        order_by: [desc: conflict.inserted_at, desc: conflict.id]
+      )
+    )
+  end
+
+  def resolve_import_conflict(import_conflict_id, attrs)
+      when is_integer(import_conflict_id) and is_map(attrs) do
+    case Repo.get(ImportConflict, import_conflict_id) do
+      nil ->
+        {:error, :not_found}
+
+      %ImportConflict{} = conflict ->
+        resolve_attrs =
+          attrs
+          |> normalize_key_types()
+          |> Map.put("status", "resolved")
+
+        conflict
+        |> ImportConflict.resolve_changeset(resolve_attrs)
+        |> Repo.update()
+    end
+  end
+
+  def resolve_import_conflict(_import_conflict_id, _attrs), do: {:error, :not_found}
 
   def create_import_run(attrs) when is_map(attrs) do
     %ImportRun{}
