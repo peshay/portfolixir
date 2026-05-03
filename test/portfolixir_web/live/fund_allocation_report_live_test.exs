@@ -245,6 +245,11 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
     assert has_element?(view, "#fund-allocation-toolbar-filter[disabled]")
     assert has_element?(view, "#fund-allocation-toolbar-export[disabled]")
     assert has_element?(view, "#fund-allocation-toolbar-columns[disabled]")
+    assert has_element?(view, "#fund-allocation-toolbar-range-1m[disabled]")
+    assert has_element?(view, "#fund-allocation-toolbar-range-3m[disabled]")
+    assert has_element?(view, "#fund-allocation-toolbar-range-6m[disabled]")
+    assert has_element?(view, "#fund-allocation-toolbar-range-1y[disabled]")
+    assert has_element?(view, "#fund-allocation-toolbar-range-ytd[disabled]")
     assert has_element?(view, "#fund-allocation-toolbar-range-all[disabled]")
   end
 
