@@ -278,8 +278,8 @@ defmodule PortfolixirWeb.SecurityDetailLive do
           <section id="security-chart-markers" class="app-shell-section-card app-shell-workspace-stack" data-priority="secondary">
             <div class="app-shell-section-header">
               <div>
-                <h2 class="app-shell-section-title"><%= gettext("Chart markers") %></h2>
-                <p><%= gettext("Buy, sell and dividend markers derived from stored transactions.") %></p>
+                <h2 class="app-shell-section-title"><%= gettext("Price chart markers") %></h2>
+                <p><%= gettext("Buy, sell and dividend markers rendered on the security chart timeline.") %></p>
               </div>
             </div>
 
@@ -289,31 +289,24 @@ defmodule PortfolixirWeb.SecurityDetailLive do
                 <p><%= gettext("No buy, sell, or dividend markers are available for this selection.") %></p>
               </div>
             <% else %>
-              <div class="app-shell-table-wrapper">
-                <table id="security-chart-marker-list">
-                  <thead>
-                    <tr>
-                      <th><%= gettext("Date") %></th>
-                      <th><%= gettext("Type") %></th>
-                      <th><%= gettext("Quantity") %></th>
-                      <th><%= gettext("Price") %></th>
-                      <th><%= gettext("Amount") %></th>
-                      <th><%= gettext("Notes") %></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <%= for marker <- @chart_markers do %>
-                      <tr>
-                        <td><%= marker.date %></td>
-                        <td><span class="app-shell-badge"><%= transaction_type_label(marker.type) %></span></td>
-                        <td><%= format_quantity(marker.quantity) %></td>
-                        <td><%= format_money(marker.price) %></td>
-                        <td><%= format_money(marker.amount) %></td>
-                        <td><%= marker.notes || "—" %></td>
-                      </tr>
-                    <% end %>
-                  </tbody>
-                </table>
+              <div id="security-price-chart" class="app-shell-table-wrapper">
+                <svg id="security-chart-marker-svg" viewBox="0 0 1000 220" role="img" aria-label={gettext("Security chart markers")}>
+                  <line x1="60" y1="190" x2="960" y2="190" stroke="currentColor" stroke-width="2" />
+                  <%= for {marker, index} <- Enum.with_index(@chart_markers) do %>
+                    <circle
+                      id={"security-chart-marker-#{index}"}
+                      cx={marker_x(index, length(@chart_markers))}
+                      cy={marker_y(marker.type)}
+                      r="7"
+                      data-type={marker.type}
+                      data-date={Date.to_iso8601(marker.date)}
+                      data-quantity={decimal_data(marker.quantity)}
+                      data-price={decimal_data(marker.price)}
+                      data-amount={decimal_data(marker.amount)}
+                      data-notes={marker.notes || ""}
+                    />
+                  <% end %>
+                </svg>
               </div>
             <% end %>
           </section>
@@ -417,4 +410,18 @@ defmodule PortfolixirWeb.SecurityDetailLive do
   defp in_date_range?(date, from_date, to_date) do
     Date.compare(date, from_date) != :lt and Date.compare(date, to_date) != :gt
   end
+
+  defp marker_x(_index, count) when count <= 1, do: 510
+
+  defp marker_x(index, count) do
+    60 + round(index * 900 / (count - 1))
+  end
+
+  defp marker_y("buy"), do: 70
+  defp marker_y("sell"), do: 120
+  defp marker_y("dividend"), do: 170
+  defp marker_y(_), do: 100
+
+  defp decimal_data(nil), do: ""
+  defp decimal_data(value), do: Decimal.to_string(value, :normal)
 end

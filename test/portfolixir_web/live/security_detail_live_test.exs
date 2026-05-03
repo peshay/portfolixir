@@ -94,11 +94,9 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-transactions", "125")
     assert has_element?(view, "#security-transactions", "Initial buy")
 
-    assert has_element?(view, "#security-chart-marker-list", "Buy")
-    assert has_element?(view, "#security-chart-marker-list", "10")
-    assert has_element?(view, "#security-chart-marker-list", "12.5")
-    assert has_element?(view, "#security-chart-marker-list", "125")
-    assert has_element?(view, "#security-chart-marker-list", "Initial buy")
+    assert has_element?(view, "#security-chart-marker-svg")
+
+    assert has_element?(view, "#security-chart-marker-0[data-type='buy']")
   end
 
   test "shows sell transactions for the selected security", %{
@@ -128,9 +126,9 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-transactions", "Partial sale")
     assert has_element?(view, "#security-transactions", "45")
 
-    assert has_element?(view, "#security-chart-marker-list", "Sell")
-    assert has_element?(view, "#security-chart-marker-list", "Partial sale")
-    assert has_element?(view, "#security-chart-marker-list", "45")
+    assert has_element?(view, "#security-chart-marker-svg")
+
+    assert has_element?(view, "#security-chart-marker-0[data-type='sell']")
   end
 
   test "shows dividend transactions for the selected security", %{
@@ -158,9 +156,9 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-transactions", "Dividend payment")
     assert has_element?(view, "#security-transactions", "11")
 
-    assert has_element?(view, "#security-chart-marker-list", "Dividend")
-    assert has_element?(view, "#security-chart-marker-list", "Dividend payment")
-    assert has_element?(view, "#security-chart-marker-list", "11")
+    assert has_element?(view, "#security-chart-marker-svg")
+
+    assert has_element?(view, "#security-chart-marker-0[data-type='dividend']")
   end
 
   test "shows an empty state when no transactions exist", %{conn: conn} do
@@ -273,8 +271,8 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     assert has_element?(view, "#security-transactions", "Target note")
     refute has_element?(view, "#security-transactions", "Other note")
-    assert has_element?(view, "#security-chart-marker-list", "Target note")
-    refute has_element?(view, "#security-chart-marker-list", "Other note")
+    assert has_element?(view, "#security-chart-marker-0[data-notes='Target note']")
+    refute has_element?(view, "#security-chart-marker-0[data-notes='Other note']")
   end
 
   test "filters chart markers by selected time range", %{
@@ -315,8 +313,8 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     {:ok, view, _html} =
       live(conn, "/securities/#{security.id}?from=2026-04-05&to=2026-04-20")
 
-    assert has_element?(view, "#security-chart-marker-list", "inside range")
-    refute has_element?(view, "#security-chart-marker-list", "outside range")
+    assert has_element?(view, "#security-chart-marker-0[data-notes='inside range']")
+    refute has_element?(view, "#security-chart-marker-0[data-notes='outside range']")
   end
 
   test "returns a clear not found message for unknown security id", %{conn: conn} do
