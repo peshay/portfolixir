@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.SecurityDetailLive do
           socket
           |> assign(:security_not_found, true)
           |> assign(:security, nil)
+          |> assign(:quote_range, "ALL")
           |> assign(:quote_series, [])
           |> assign(:position_rows, [])
           |> assign(:transaction_rows, [])
@@ -49,13 +50,15 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             []
           end
 
-        quote_series = quote_series_for_security(security.id, params)
+        quote_range = "ALL"
+        quote_series = quote_series_for_security(security.id, quote_range)
         chart_markers = build_chart_markers(transactions, security.id, params)
 
         socket =
           socket
           |> assign(:security_not_found, false)
           |> assign(:security, security)
+          |> assign(:quote_range, quote_range)
           |> assign(:quote_series, quote_series)
           |> assign(
             :transaction_rows,
@@ -79,6 +82,14 @@ defmodule PortfolixirWeb.SecurityDetailLive do
 
         {:ok, socket}
     end
+  end
+
+  @impl true
+  def handle_event("set_quote_range", %{"range" => range}, socket) do
+    {:noreply,
+     socket
+     |> assign(:quote_range, range)
+     |> assign(:quote_series, quote_series_for_security(socket.assigns.security.id, range))}
   end
 
   @impl true
@@ -288,6 +299,15 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               </div>
             </div>
 
+            <div class="app-shell-toolbar" role="group" aria-label={gettext("Quote range") }>
+              <button id="security-price-range-1m" type="button" phx-click="set_quote_range" phx-value-range="1M">1M</button>
+              <button id="security-price-range-3m" type="button" phx-click="set_quote_range" phx-value-range="3M">3M</button>
+              <button id="security-price-range-6m" type="button" phx-click="set_quote_range" phx-value-range="6M">6M</button>
+              <button id="security-price-range-1y" type="button" phx-click="set_quote_range" phx-value-range="1Y">1Y</button>
+              <button id="security-price-range-ytd" type="button" phx-click="set_quote_range" phx-value-range="YTD">YTD</button>
+              <button id="security-price-range-all" type="button" phx-click="set_quote_range" phx-value-range="ALL">ALL</button>
+            </div>
+
             <%= if Enum.empty?(@quote_series) do %>
               <div id="security-price-chart-empty" class="app-shell-empty-state">
                 <h3><%= gettext("No quotes yet") %></h3>
@@ -295,6 +315,7 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
+                <div id="security-price-chart-series"><%= Enum.map_join(@quote_series, ",", &Date.to_iso8601(&1.date)) %></div>
                 <svg id="security-price-chart-svg" viewBox="0 0 600 220" role="img" aria-label={gettext("Security close price chart")}>
                   <polyline
                     fill="none"
@@ -410,14 +431,25 @@ defmodule PortfolixirWeb.SecurityDetailLive do
     |> Enum.sort_by(& &1.date, {:desc, Date})
   end
 
-  defp quote_series_for_security(security_id, params) do
-    from_date = parse_date(Map.get(params, "from"))
-    to_date = parse_date(Map.get(params, "to"))
+  defp quote_series_for_security(security_id, "ALL"),
+    do: Catalog.list_security_quotes(security_id)
 
-    security_id
-    |> Catalog.list_security_quotes()
-    |> Enum.filter(fn quote -> in_date_range?(quote.date, from_date, to_date) end)
+  defp quote_series_for_security(security_id, range) do
+    case Catalog.get_latest_security_quote(security_id) do
+      nil ->
+        []
+
+      %{date: latest_date} ->
+        Catalog.list_security_quotes(security_id, from: range_from_date(range, latest_date))
+    end
   end
+
+  defp range_from_date("1M", latest_date), do: Date.add(latest_date, -30)
+  defp range_from_date("3M", latest_date), do: Date.add(latest_date, -90)
+  defp range_from_date("6M", latest_date), do: Date.add(latest_date, -180)
+  defp range_from_date("1Y", latest_date), do: Date.add(latest_date, -365)
+  defp range_from_date("YTD", latest_date), do: Date.new!(latest_date.year, 1, 1)
+  defp range_from_date(_, _latest_date), do: ~D[0001-01-01]
 
   defp chart_points([single]) do
     close = decimal_to_float(single.close)
