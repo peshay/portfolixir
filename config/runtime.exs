@@ -1,11 +1,15 @@
 import Config
 
 read_api_auth_enabled =
-  System.get_env("READ_API_AUTH_ENABLED", "false")
+  System.get_env("READ_API_AUTH_ENABLED", if(config_env() == :prod, do: "true", else: "false"))
   |> String.downcase()
   |> Kernel.in(["1", "true", "yes", "on"])
 
 read_api_key = System.get_env("READ_API_KEY")
+
+if config_env() == :prod and not read_api_auth_enabled do
+  raise "READ_API_AUTH_ENABLED must be true in production to protect /api/read/*"
+end
 
 config :portfolixir, PortfolixirWeb.Plugs.ReadApiKeyAuth,
   enabled: read_api_auth_enabled,

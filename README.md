@@ -81,7 +81,7 @@ docker compose down -v
 - `READ_API_KEY=<your-key>` sets the expected key.
 - Clients send the key with header `x-api-key`.
 
-When auth is disabled (default), read endpoints remain available for local/dev usage.
+In production, read API auth is fail-closed by default (`READ_API_AUTH_ENABLED` defaults to `true`). Setting `READ_API_AUTH_ENABLED=false` in production raises at boot. In local dev/test, auth may be left disabled.
 
 ## Technical stack
 
