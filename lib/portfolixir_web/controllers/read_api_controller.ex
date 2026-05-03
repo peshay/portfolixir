@@ -2,8 +2,8 @@ defmodule PortfolixirWeb.ReadAPIController do
   @moduledoc """
   Read-only JSON API for portfolio snapshots and ledger projections.
 
-  NOTE: authentication is not implemented yet. These endpoints are intended for
-  local/development use until authentication and access controls are added.
+  API key authentication for these endpoints is enforced by
+  `PortfolixirWeb.Plugs.ReadApiKeyAuth` when enabled via runtime config.
   """
 
   use PortfolixirWeb, :controller

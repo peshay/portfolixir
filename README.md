@@ -73,6 +73,16 @@ docker compose down -v
 - No broker execution.
 - No financial advice.
 
+## Read API authentication
+
+`/api/read/*` can be protected with an API key.
+
+- `READ_API_AUTH_ENABLED=true` enables API key checks.
+- `READ_API_KEY=<your-key>` sets the expected key.
+- Clients send the key with header `x-api-key`.
+
+In production, read API auth is fail-closed by default (`READ_API_AUTH_ENABLED` defaults to `true`). Setting `READ_API_AUTH_ENABLED=false` in production raises at boot. In local dev/test, auth may be left disabled.
+
 ## Technical stack
 
 - Elixir
