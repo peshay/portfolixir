@@ -165,6 +165,26 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
            )
   end
 
+  test "renders accumulated dividend chart and deterministic monthly accumulation table", %{
+    conn: conn,
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    security: security
+  } do
+    create_dividend(portfolio, deposit_account, security, ~D[2026-01-05], "5.00", "Jan first")
+    create_dividend(portfolio, deposit_account, security, ~D[2026-01-20], "7.50", "Jan second")
+    create_dividend(portfolio, deposit_account, security, ~D[2026-02-01], "2.50", "Feb")
+
+    {:ok, view, _html} = live(conn, "/reports/payments")
+
+    assert has_element?(view, "#payments-accumulation-chart", "Accumulated dividends")
+    assert has_element?(view, "#payments-accumulation-row-eur-2026-01", "12.5")
+    assert has_element?(view, "#payments-accumulation-row-eur-2026-02", "15.0")
+    assert has_element?(view, "#payments-yearly-comparison", "Yearly comparison")
+    assert has_element?(view, "#payments-yearly-row-2026-1-eur", "12.5")
+    assert has_element?(view, "#payments-yearly-row-2026-2-eur", "15.0")
+  end
+
   test "viewing payments report does not create transactions", %{
     conn: conn,
     portfolio: portfolio,
