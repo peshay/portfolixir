@@ -61,7 +61,8 @@ defmodule Portfolixir.Taxonomies do
     Repo.all(
       from(c in Category,
         where: c.taxonomy_id == ^taxonomy_id,
-        order_by: [asc: c.sort_order, asc: c.name]
+        order_by: [asc: c.sort_order, asc: c.name],
+        preload: [:security_category_assignments]
       )
     )
   end
