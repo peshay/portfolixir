@@ -95,3 +95,8 @@ Support payments are voluntary contributions and do not create entitlement to su
 - Human contributors and AI coding agents should read [`AGENTS.md`](AGENTS.md) before making changes.
 - Story workflow lives in [`docs/product/llm-story-workflow.md`](docs/product/llm-story-workflow.md).
 - Product backlog lives in [`docs/product/pp-inspired-product-backlog.md`](docs/product/pp-inspired-product-backlog.md).
+
+## Repository metadata
+
+- Repository metadata/social-preview target state is documented in [`docs/product/repository-metadata-and-social-preview.md`](docs/product/repository-metadata-and-social-preview.md).
+- Manual GitHub settings (description/topics/social preview upload) are listed explicitly there.
