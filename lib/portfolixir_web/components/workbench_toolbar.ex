@@ -53,7 +53,8 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
               id={"#{@id}-range-#{String.downcase(range)}"}
               type="button"
               class="app-shell-secondary"
-              disabled={@active_time_range == range}
+              disabled
+              aria-disabled="true"
               aria-pressed={to_string(@active_time_range == range)}
             >
               <%= range %>
