@@ -626,9 +626,11 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     all_securities = Catalog.list_securities(:all)
     search = String.trim(socket.assigns.security_search || "")
 
+    position_quantity_by_security_id = position_quantity_by_security_id()
+
     quoted_and_positioned =
       Catalog.list_securities(socket.assigns.security_status_filter)
-      |> Enum.map(&enrich_security/1)
+      |> Enum.map(&enrich_security(&1, position_quantity_by_security_id))
       |> maybe_filter_by_search(search)
 
     socket
@@ -637,9 +639,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     |> assign(:currencies, Catalog.list_currencies())
   end
 
-  defp enrich_security(security) do
+  defp enrich_security(security, position_quantity_by_security_id) do
     latest_quote = Catalog.get_latest_security_quote(security.id)
-    position_quantity = position_quantity_by_security_id()[security.id] || Decimal.new("0")
+    position_quantity = Map.get(position_quantity_by_security_id, security.id, Decimal.new("0"))
 
     Map.merge(security, %{
       latest_quote_close: latest_quote && latest_quote.close,
