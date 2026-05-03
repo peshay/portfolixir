@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.SecurityCsv
+  alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Positions
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.WorkbenchToolbar
 
@@ -32,6 +34,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:editing_security_id, nil)
       |> assign(:security_error, nil)
       |> assign(:security_success, nil)
+      |> assign(:security_search, "")
       |> assign(:security_csv_input, "")
       |> assign(:security_csv_error, nil)
       |> assign(:security_csv_preview_rows, nil)
@@ -83,6 +86,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <%= if @security_form_visible, do: gettext("Close form"), else: gettext("Add security") %>
             </button>
           </div>
+          <form id="security-search-form" class="app-shell-form-actions" phx-change="search_securities">
+            <input
+              id="security-search"
+              name="q"
+              type="search"
+              value={@security_search}
+              placeholder={gettext("Search securities")}
+            />
+          </form>
           <div id="security-status-filter" class="app-shell-form-actions">
             <button
               id="security-filter-active"
@@ -128,6 +140,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                     <th><%= gettext("Currency") %></th>
                     <th>ISIN</th>
                     <th>WKN</th>
+                    <th><%= gettext("Latest quote") %></th>
+                    <th><%= gettext("Latest quote date") %></th>
+                    <th><%= gettext("Position quantity") %></th>
                     <th><%= gettext("Provider symbol") %></th>
                     <th><%= gettext("Exchange") %></th>
                     <th><%= gettext("Status") %></th>
@@ -149,6 +164,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       <td><%= security.currency_code %></td>
                       <td><%= security.isin || "—" %></td>
                       <td><%= security.wkn || "—" %></td>
+                      <td><%= decimal_to_string(security.latest_quote_close) %></td>
+                      <td><%= iso_date_or_dash(security.latest_quote_date) %></td>
+                      <td><%= decimal_to_string(security.position_quantity) %></td>
                       <td><%= security.provider_symbol || "—" %></td>
                       <td><%= security.exchange_code || "—" %></td>
                       <td>
@@ -490,6 +508,13 @@ defmodule PortfolixirWeb.SecurityManagementLive do
      |> load_securities()}
   end
 
+  def handle_event("search_securities", %{"q" => query}, socket) do
+    {:noreply,
+     socket
+     |> assign(:security_search, query)
+     |> load_securities()}
+  end
+
   def handle_event("archive_security", %{"id" => id_string}, socket) do
     {id, ""} = Integer.parse(id_string)
     security = Catalog.get_security!(id)
@@ -599,11 +624,50 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp load_securities(socket) do
     all_securities = Catalog.list_securities(:all)
+    search = String.trim(socket.assigns.security_search || "")
+
+    position_quantity_by_security_id = position_quantity_by_security_id()
+
+    quoted_and_positioned =
+      Catalog.list_securities(socket.assigns.security_status_filter)
+      |> Enum.map(&enrich_security(&1, position_quantity_by_security_id))
+      |> maybe_filter_by_search(search)
 
     socket
     |> assign(:security_total_count, Enum.count(all_securities))
-    |> assign(:securities, Catalog.list_securities(socket.assigns.security_status_filter))
+    |> assign(:securities, quoted_and_positioned)
     |> assign(:currencies, Catalog.list_currencies())
+  end
+
+  defp enrich_security(security, position_quantity_by_security_id) do
+    latest_quote = Catalog.get_latest_security_quote(security.id)
+    position_quantity = Map.get(position_quantity_by_security_id, security.id, Decimal.new("0"))
+
+    Map.merge(security, %{
+      latest_quote_close: latest_quote && latest_quote.close,
+      latest_quote_date: latest_quote && latest_quote.date,
+      position_quantity: position_quantity
+    })
+  end
+
+  defp position_quantity_by_security_id do
+    Ledger.list_transactions()
+    |> Positions.calculate()
+    |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
+      Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
+    end)
+  end
+
+  defp maybe_filter_by_search(securities, ""), do: securities
+
+  defp maybe_filter_by_search(securities, search) do
+    needle = String.downcase(search)
+
+    Enum.filter(securities, fn security ->
+      [security.name, security.symbol, security.isin, security.wkn, security.provider_symbol]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.any?(fn value -> String.contains?(String.downcase(value), needle) end)
+    end)
   end
 
   defp security_filter_empty_title(:all, _total_count), do: gettext("No securities yet")
@@ -627,6 +691,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp security_row_class(%Portfolixir.Catalog.Security{active: false}), do: "app-shell-muted"
   defp security_row_class(_), do: ""
+
+  defp iso_date_or_dash(nil), do: "—"
+  defp iso_date_or_dash(%Date{} = date), do: Date.to_iso8601(date)
+
+  defp decimal_to_string(nil), do: "—"
+  defp decimal_to_string(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
 
   defp filter_button_class(:active, :active), do: "app-shell-primary"
   defp filter_button_class(:inactive, :inactive), do: "app-shell-primary"
