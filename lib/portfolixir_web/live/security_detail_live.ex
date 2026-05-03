@@ -7,7 +7,7 @@ defmodule PortfolixirWeb.SecurityDetailLive do
   alias PortfolixirWeb.AppShell
 
   @impl true
-  def mount(%{"id" => id_param}, _session, socket) do
+  def mount(%{"id" => id_param} = params, _session, socket) do
     case Catalog.get_security(id_param) do
       nil ->
         socket =
@@ -68,6 +68,7 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               }
             end)
           )
+          |> assign(:chart_markers, build_chart_markers(transactions, security.id, params))
           |> assign(:position_rows, positions)
           |> assign(:fund_documents, Catalog.list_fund_documents_for_security(security.id))
 
@@ -273,6 +274,49 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               </div>
             <% end %>
           </section>
+
+          <section id="security-chart-markers" class="app-shell-section-card app-shell-workspace-stack" data-priority="secondary">
+            <div class="app-shell-section-header">
+              <div>
+                <h2 class="app-shell-section-title"><%= gettext("Chart markers") %></h2>
+                <p><%= gettext("Buy, sell and dividend markers derived from stored transactions.") %></p>
+              </div>
+            </div>
+
+            <%= if Enum.empty?(@chart_markers) do %>
+              <div id="security-chart-markers-empty-state" class="app-shell-empty-state">
+                <h3><%= gettext("No markers in selected range") %></h3>
+                <p><%= gettext("No buy, sell, or dividend markers are available for this selection.") %></p>
+              </div>
+            <% else %>
+              <div class="app-shell-table-wrapper">
+                <table id="security-chart-marker-list">
+                  <thead>
+                    <tr>
+                      <th><%= gettext("Date") %></th>
+                      <th><%= gettext("Type") %></th>
+                      <th><%= gettext("Quantity") %></th>
+                      <th><%= gettext("Price") %></th>
+                      <th><%= gettext("Amount") %></th>
+                      <th><%= gettext("Notes") %></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <%= for marker <- @chart_markers do %>
+                      <tr>
+                        <td><%= marker.date %></td>
+                        <td><span class="app-shell-badge"><%= transaction_type_label(marker.type) %></span></td>
+                        <td><%= format_quantity(marker.quantity) %></td>
+                        <td><%= format_money(marker.price) %></td>
+                        <td><%= format_money(marker.amount) %></td>
+                        <td><%= marker.notes || "—" %></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+          </section>
         </div>
       <% end %>
     </AppShell.shell>
@@ -333,4 +377,44 @@ defmodule PortfolixirWeb.SecurityDetailLive do
 
   defp format_datetime(%DateTime{} = datetime), do: DateTime.to_string(datetime)
   defp format_datetime(_), do: gettext("—")
+
+  defp build_chart_markers(transactions, security_id, params) do
+    from_date = parse_date(Map.get(params, "from"))
+    to_date = parse_date(Map.get(params, "to"))
+
+    transactions
+    |> Enum.filter(fn transaction ->
+      transaction.security_id == security_id and transaction.type in ["buy", "sell", "dividend"] and
+        in_date_range?(transaction.date, from_date, to_date)
+    end)
+    |> Enum.map(fn transaction ->
+      %{
+        date: transaction.date,
+        type: transaction.type,
+        quantity: transaction.quantity,
+        price: transaction.price,
+        amount: transaction.amount,
+        notes: transaction.notes
+      }
+    end)
+    |> Enum.sort_by(& &1.date, {:desc, Date})
+  end
+
+  defp parse_date(nil), do: nil
+
+  defp parse_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      _ -> nil
+    end
+  end
+
+  defp in_date_range?(date, nil, nil), do: not is_nil(date)
+  defp in_date_range?(nil, _from_date, _to_date), do: false
+  defp in_date_range?(date, from_date, nil), do: Date.compare(date, from_date) != :lt
+  defp in_date_range?(date, nil, to_date), do: Date.compare(date, to_date) != :gt
+
+  defp in_date_range?(date, from_date, to_date) do
+    Date.compare(date, from_date) != :lt and Date.compare(date, to_date) != :gt
+  end
 end
