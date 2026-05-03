@@ -228,6 +228,26 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
            )
   end
 
+  test "fund allocation report renders shared toolbar with planned controls", %{conn: conn} do
+    security = create_security("Toolbar Security", "TBR")
+
+    {:ok, _allocation} =
+      Catalog.create_fund_allocation(%{
+        security_id: security.id,
+        source: "manual",
+        allocation_type: "region"
+      })
+
+    {:ok, view, _html} = live(conn, "/reports/fund-allocations")
+
+    assert has_element?(view, "#fund-allocation-workbench-toolbar")
+    assert has_element?(view, "#fund-allocation-search")
+    assert has_element?(view, "#fund-allocation-toolbar-filter[disabled]")
+    assert has_element?(view, "#fund-allocation-toolbar-export[disabled]")
+    assert has_element?(view, "#fund-allocation-toolbar-columns[disabled]")
+    assert has_element?(view, "#fund-allocation-toolbar-range-all[disabled]")
+  end
+
   test "report route is read-only and does not create allocations, items, categories, or ledger rows",
        %{conn: conn} do
     security = create_security("Immutable Report", "IMM")

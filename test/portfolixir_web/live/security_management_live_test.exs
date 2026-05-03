@@ -66,6 +66,20 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
+  test "securities page renders shared toolbar controls and keeps status filters", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-workbench-toolbar")
+    assert has_element?(view, "#security-workbench-search")
+    assert has_element?(view, "#security-workbench-toolbar-filter[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-export[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-columns[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-range-all[disabled]")
+    assert has_element?(view, "#security-filter-active")
+    assert has_element?(view, "#security-filter-inactive")
+    assert has_element?(view, "#security-filter-all")
+  end
+
   test "shows CSV preview section on the securities page", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities")
 
