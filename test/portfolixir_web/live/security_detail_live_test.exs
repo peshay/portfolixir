@@ -93,6 +93,12 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-transactions", "12.5")
     assert has_element?(view, "#security-transactions", "125")
     assert has_element?(view, "#security-transactions", "Initial buy")
+
+    assert has_element?(view, "#security-chart-marker-list", "Buy")
+    assert has_element?(view, "#security-chart-marker-list", "10")
+    assert has_element?(view, "#security-chart-marker-list", "12.5")
+    assert has_element?(view, "#security-chart-marker-list", "125")
+    assert has_element?(view, "#security-chart-marker-list", "Initial buy")
   end
 
   test "shows sell transactions for the selected security", %{
@@ -121,6 +127,10 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-transactions", "Sell")
     assert has_element?(view, "#security-transactions", "Partial sale")
     assert has_element?(view, "#security-transactions", "45")
+
+    assert has_element?(view, "#security-chart-marker-list", "Sell")
+    assert has_element?(view, "#security-chart-marker-list", "Partial sale")
+    assert has_element?(view, "#security-chart-marker-list", "45")
   end
 
   test "shows dividend transactions for the selected security", %{
@@ -147,6 +157,10 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-transactions", "Dividend")
     assert has_element?(view, "#security-transactions", "Dividend payment")
     assert has_element?(view, "#security-transactions", "11")
+
+    assert has_element?(view, "#security-chart-marker-list", "Dividend")
+    assert has_element?(view, "#security-chart-marker-list", "Dividend payment")
+    assert has_element?(view, "#security-chart-marker-list", "11")
   end
 
   test "shows an empty state when no transactions exist", %{conn: conn} do
@@ -157,6 +171,7 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     assert has_element?(view, "#no-security-transactions")
     assert has_element?(view, "#no-security-transactions", "No transactions are recorded")
+    assert has_element?(view, "#security-chart-markers-empty-state")
   end
 
   test "shows current derived positions per securities account", %{
@@ -258,6 +273,50 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     assert has_element?(view, "#security-transactions", "Target note")
     refute has_element?(view, "#security-transactions", "Other note")
+    assert has_element?(view, "#security-chart-marker-list", "Target note")
+    refute has_element?(view, "#security-chart-marker-list", "Other note")
+  end
+
+  test "filters chart markers by selected time range", %{
+    conn: conn,
+    securities_account: securities_account,
+    portfolio: portfolio
+  } do
+    security = create_security(%{name: "Range Security", symbol: "RNG", currency_code: "EUR"})
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-04-01],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("10.00"),
+        amount: Decimal.new("10.00"),
+        notes: "outside range"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "sell",
+        date: ~D[2026-04-10],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("11.00"),
+        amount: Decimal.new("11.00"),
+        notes: "inside range"
+      })
+
+    {:ok, view, _html} =
+      live(conn, "/securities/#{security.id}?from=2026-04-05&to=2026-04-20")
+
+    assert has_element?(view, "#security-chart-marker-list", "inside range")
+    refute has_element?(view, "#security-chart-marker-list", "outside range")
   end
 
   test "returns a clear not found message for unknown security id", %{conn: conn} do
