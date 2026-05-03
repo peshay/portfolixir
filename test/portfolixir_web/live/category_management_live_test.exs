@@ -16,8 +16,8 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert has_element?(view, "#theme-toggle")
     assert html =~ "id=\"theme-toggle-script\""
     assert html =~ "Classifications"
-    assert html =~ "Taxonomies"
-    assert html =~ "Categories"
+    assert html =~ "Taxonomy tree"
+    assert html =~ "Selected classification details"
     assert html =~ "Create Taxonomy"
   end
 
@@ -25,11 +25,16 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     {:ok, view, html} = live(conn, "/taxonomies")
 
     assert html =~ "user-defined grouping systems"
+    assert has_element?(view, "#classification-workbench-toolbar")
+    assert has_element?(view, "#classification-view-list[disabled]", "List")
+    assert has_element?(view, "#classification-view-tree[disabled]", "Tree")
+    assert has_element?(view, "#classification-view-chart[disabled]", "Chart")
+    assert has_element?(view, "#classification-view-sunburst[disabled]", "Sunburst")
     assert has_element?(view, "#classification-workspace.app-shell-workspace-grid")
-    assert has_element?(view, "#taxonomy-management[data-priority='primary']")
-    assert has_element?(view, "#category-management[data-priority='secondary']")
+    assert has_element?(view, "#classification-tree-region[data-priority='primary']")
+    assert has_element?(view, "#classification-details-region[data-priority='secondary']")
     assert has_element?(view, "#taxonomy-form.app-shell-form-grid")
-    assert has_element?(view, "#category-management .app-shell-empty-state")
+    assert has_element?(view, "#classification-details-region .app-shell-empty-state")
   end
 
   test "creating a taxonomy appears in the list", %{conn: conn} do
