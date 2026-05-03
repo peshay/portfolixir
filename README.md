@@ -129,6 +129,8 @@ Roadmap execution is tracked through Planka story cards and PR handoffs. Product
 - Keep changes scoped to a single story.
 - Keep public artifacts concise and repo-facing.
 
+Additional workflow documentation is maintained in this repository as it is merged on `main`.
+
 ## Portfolio Performance inspiration note
 
 Portfolixir is inspired by Portfolio Performance workflow ideas. It is an independent project and is not affiliated with or endorsed by the Portfolio Performance project.
