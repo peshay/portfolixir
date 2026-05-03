@@ -85,6 +85,8 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
         notes: "Initial buy"
       })
 
+    create_quote(security.id, ~D[2026-04-01], "12.50")
+
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
 
     assert has_element?(view, "#security-transactions", "Buy")
@@ -94,8 +96,7 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-transactions", "125")
     assert has_element?(view, "#security-transactions", "Initial buy")
 
-    assert has_element?(view, "#security-chart-marker-svg")
-
+    assert has_element?(view, "#security-price-chart-svg")
     assert has_element?(view, "#security-chart-marker-0[data-type='buy']")
   end
 
@@ -120,14 +121,15 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
         notes: "Partial sale"
       })
 
+    create_quote(security.id, ~D[2026-04-02], "15.00")
+
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
 
     assert has_element?(view, "#security-transactions", "Sell")
     assert has_element?(view, "#security-transactions", "Partial sale")
     assert has_element?(view, "#security-transactions", "45")
 
-    assert has_element?(view, "#security-chart-marker-svg")
-
+    assert has_element?(view, "#security-price-chart-svg")
     assert has_element?(view, "#security-chart-marker-0[data-type='sell']")
   end
 
@@ -150,14 +152,15 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
         notes: "Dividend payment"
       })
 
+    create_quote(security.id, ~D[2026-04-03], "11.00")
+
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
 
     assert has_element?(view, "#security-transactions", "Dividend")
     assert has_element?(view, "#security-transactions", "Dividend payment")
     assert has_element?(view, "#security-transactions", "11")
 
-    assert has_element?(view, "#security-chart-marker-svg")
-
+    assert has_element?(view, "#security-price-chart-svg")
     assert has_element?(view, "#security-chart-marker-0[data-type='dividend']")
   end
 
@@ -169,7 +172,7 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     assert has_element?(view, "#no-security-transactions")
     assert has_element?(view, "#no-security-transactions", "No transactions are recorded")
-    assert has_element?(view, "#security-chart-markers-empty-state")
+    assert has_element?(view, "#security-price-chart-empty")
   end
 
   test "shows current derived positions per securities account", %{
@@ -267,6 +270,8 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
         notes: "Other note"
       })
 
+    create_quote(security.id, ~D[2026-04-06], "10.00")
+
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
 
     assert has_element?(view, "#security-transactions", "Target note")
@@ -309,6 +314,9 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
         amount: Decimal.new("11.00"),
         notes: "inside range"
       })
+
+    create_quote(security.id, ~D[2026-04-01], "10.00")
+    create_quote(security.id, ~D[2026-04-10], "11.00")
 
     {:ok, view, _html} =
       live(conn, "/securities/#{security.id}?from=2026-04-05&to=2026-04-20")
@@ -456,6 +464,17 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
   defp create_security(attrs) do
     {:ok, security} = Catalog.create_security(attrs)
     security
+  end
+
+  defp create_quote(security_id, date, close) do
+    {:ok, _quote} =
+      Catalog.create_security_quote(%{
+        security_id: security_id,
+        date: date,
+        source: "manual",
+        currency_code: "EUR",
+        close: Decimal.new(close)
+      })
   end
 
   defp create_import_source(attrs) do
