@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.Router do
       live("/documents/new", DocumentUploadLive)
       live("/fund-documents/:id/allocations/review", FactsheetAllocationReviewLive)
       live("/reports/fund-allocations", FundAllocationReportLive)
+      live("/reports/payments", PaymentsReportLive)
       live("/accounts", AccountManagementLive)
       live("/transactions", TransactionManagementLive)
       live("/taxonomies", CategoryManagementLive)
