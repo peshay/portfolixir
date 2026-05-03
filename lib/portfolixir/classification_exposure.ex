@@ -58,7 +58,7 @@ defmodule Portfolixir.ClassificationExposure do
         if quote do
           Decimal.mult(quantity, quote.close)
         else
-          quantity
+          @zero
         end
 
       %{
