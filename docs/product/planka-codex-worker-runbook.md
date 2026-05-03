@@ -5,7 +5,7 @@ This runbook describes how a builder executes one Portfolixir story card from Pl
 
 ## Scope
 - One implementation card at a time.
-- Use board lanes and labels as workflow state.
+- Use board lanes as workflow state.
 - Stop after the card is handed off in `PR Open`.
 
 ## Prerequisites
@@ -20,41 +20,28 @@ This runbook describes how a builder executes one Portfolixir story card from Pl
 - `Needs Fix`: reviewer requested changes on existing PR branch.
 - `Blocked`: progress requires external decision/input.
 
-## Label model
-- `Agent: <name>`: participation marker.
-- `Owner: <name>`: active lock while working.
-
-Only one `Owner:` label should be active per in-flight card.
-
 ## Builder flow (new implementation)
 1. Pick one card from `Ready for Codex`.
-2. Claim card:
-   - add `Agent: <name>`
-   - add `Owner: <name>`
-   - move card to `In Progress`
-3. Re-read card and verify acceptance criteria.
-4. Implement only in-card scope.
-5. Run project gates:
+2. Move it to `In Progress` and verify acceptance criteria.
+3. Implement only in-card scope.
+4. Run project gates:
    - `mix format`
    - `mix test`
-6. Commit and push story branch.
-7. Open/update PR with concise story summary and validation evidence.
-8. Add card comment with PR link and evidence.
-9. Remove `Owner:` label.
-10. Move card to `PR Open`.
-11. Re-check that card in `PR Open` has no `Owner:` label.
-12. Stop (one-card policy).
+5. Commit and push story branch.
+6. Open/update PR with concise story summary and validation evidence.
+7. Add card comment with PR link and evidence.
+8. Move card to `PR Open`.
+9. Stop (one-card policy).
 
 ## Fix flow (`Needs Fix`)
-1. Claim card (same lock steps).
+1. Move the card to `In Progress`.
 2. Work on the existing PR branch.
 3. Implement only requested fixes.
 4. Re-run gates (`mix format`, `mix test`).
 5. Push fix commits.
 6. Comment fix summary and evidence on card/PR.
-7. Remove `Owner:` label.
-8. Move card back to `PR Open`.
-9. Verify ownerless handoff.
+7. Move card back to `PR Open`.
+8. Stop.
 
 ## Blocker handling
 If the card cannot safely proceed:
@@ -74,4 +61,4 @@ Include:
 Do not include private runtime/workspace details.
 
 ## Stop condition
-Worker run is complete when exactly one card is handed off ownerless in `PR Open` or moved to a true `Blocked` state with evidence.
+Worker run is complete when exactly one card is handed off in `PR Open` or moved to a true `Blocked` state with evidence.
