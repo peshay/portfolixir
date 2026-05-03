@@ -148,6 +148,22 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                 </li>
               <% end %>
             </ul>
+
+            <div id="classification-tree" class="app-shell-section-card" data-role="tree">
+              <h3 class="app-shell-section-title"><%= gettext("Category tree") %></h3>
+
+              <%= if Enum.empty?(@selected_category_tree) do %>
+                <p id="classification-tree-empty" class="app-shell-muted">
+                  <%= gettext("No categories yet") %>
+                </p>
+              <% else %>
+                <ul id="classification-tree-root" class="app-shell-list">
+                  <%= for node <- @selected_category_tree do %>
+                    <.tree_node node={node} />
+                  <% end %>
+                </ul>
+              <% end %>
+            </div>
           <% end %>
         </section>
 
@@ -369,10 +385,56 @@ defmodule PortfolixirWeb.CategoryManagementLive do
     |> assign(:taxonomies, taxonomies)
     |> assign(:selected_taxonomy_id, selected_taxonomy_id)
     |> assign(:selected_categories, categories)
+    |> assign(:selected_category_tree, build_category_tree(categories))
     |> assign(
       :category_form,
       Map.put(@category_form_defaults, "taxonomy_id", selected_taxonomy_id || "")
     )
+  end
+
+  attr(:node, :map, required: true)
+
+  defp tree_node(assigns) do
+    ~H"""
+    <li id={"tree-node-#{@node.category.id}"} class="app-shell-list-item">
+      <div>
+        <strong><%= @node.category.name %></strong>
+        <span class="app-shell-muted">
+          (<%= gettext("assigned") %>: <%= @node.assigned_security_count %>)
+        </span>
+      </div>
+      <p class="app-shell-muted"><%= @node.category.description || gettext("No description") %></p>
+
+      <%= if @node.children != [] do %>
+        <ul class="app-shell-list" data-depth="child">
+          <%= for child <- @node.children do %>
+            <.tree_node node={child} />
+          <% end %>
+        </ul>
+      <% end %>
+    </li>
+    """
+  end
+
+  defp build_category_tree(categories) do
+    children_by_parent = Enum.group_by(categories, & &1.parent_id)
+
+    categories
+    |> Enum.filter(&is_nil(&1.parent_id))
+    |> Enum.map(&build_tree_node(&1, children_by_parent))
+  end
+
+  defp build_tree_node(category, children_by_parent) do
+    children =
+      children_by_parent
+      |> Map.get(category.id, [])
+      |> Enum.map(&build_tree_node(&1, children_by_parent))
+
+    %{
+      category: category,
+      assigned_security_count: Enum.count(category.security_category_assignments || []),
+      children: children
+    }
   end
 
   defp fallback_selected_taxonomy_id([]), do: nil
