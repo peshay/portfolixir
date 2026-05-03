@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.SecurityCsv
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.WorkbenchToolbar
 
   @security_form_defaults %{
     "name" => "",
@@ -56,11 +57,18 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           class="app-shell-section-card"
           data-priority="primary"
         >
-          <div class="app-shell-section-header">
-            <div>
-              <h2 class="app-shell-section-title"><%= gettext("Securities") %></h2>
-              <p><%= gettext("Core identifiers used by the ledger and valuation workspaces.") %></p>
-            </div>
+          <WorkbenchToolbar.toolbar
+            id="security-workbench-toolbar"
+            title={gettext("Securities")}
+            description={gettext("Core identifiers used by the ledger and valuation workspaces.")}
+            search_id="security-workbench-search"
+            search_placeholder={gettext("Search (planned)")}
+            search_label={gettext("Search securities")}
+            time_ranges={["1M", "3M", "6M", "1Y", "YTD", "ALL"]}
+            active_time_range="ALL"
+          />
+
+          <div class="app-shell-form-actions">
             <a id="security-export-csv" href="/securities/export.csv" class="app-shell-secondary">
               <%= gettext("Export CSV") %>
             </a>
