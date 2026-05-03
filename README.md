@@ -106,3 +106,7 @@ Support payments are voluntary contributions and do not create entitlement to su
 
 - Repository metadata/social-preview target state is documented in [`docs/product/repository-metadata-and-social-preview.md`](docs/product/repository-metadata-and-social-preview.md).
 - Manual GitHub settings (description/topics/social preview upload) are listed explicitly there.
+
+## License
+
+This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
