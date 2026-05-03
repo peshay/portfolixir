@@ -7,13 +7,14 @@ defmodule PortfolixirWeb.SecurityDetailLive do
   alias PortfolixirWeb.AppShell
 
   @impl true
-  def mount(%{"id" => id_param}, _session, socket) do
+  def mount(%{"id" => id_param} = params, _session, socket) do
     case Catalog.get_security(id_param) do
       nil ->
         socket =
           socket
           |> assign(:security_not_found, true)
           |> assign(:security, nil)
+          |> assign(:quote_series, [])
           |> assign(:position_rows, [])
           |> assign(:transaction_rows, [])
 
@@ -48,10 +49,14 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             []
           end
 
+        quote_series = quote_series_for_security(security.id, params)
+        chart_markers = build_chart_markers(transactions, security.id, params)
+
         socket =
           socket
           |> assign(:security_not_found, false)
           |> assign(:security, security)
+          |> assign(:quote_series, quote_series)
           |> assign(
             :transaction_rows,
             Enum.map(transactions, fn transaction ->
@@ -68,6 +73,7 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               }
             end)
           )
+          |> assign(:chart_markers, chart_markers)
           |> assign(:position_rows, positions)
           |> assign(:fund_documents, Catalog.list_fund_documents_for_security(security.id))
 
@@ -273,6 +279,54 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               </div>
             <% end %>
           </section>
+
+          <section id="security-price-chart" class="app-shell-section-card app-shell-workspace-stack" data-priority="secondary">
+            <div class="app-shell-section-header">
+              <div>
+                <h2 class="app-shell-section-title"><%= gettext("Price chart") %></h2>
+                <p><%= gettext("Stored close quotes with buy/sell/dividend markers.") %></p>
+              </div>
+            </div>
+
+            <%= if Enum.empty?(@quote_series) do %>
+              <div id="security-price-chart-empty" class="app-shell-empty-state">
+                <h3><%= gettext("No quotes yet") %></h3>
+                <p><%= gettext("No stored quotes are available for this security yet.") %></p>
+              </div>
+            <% else %>
+              <div class="app-shell-table-wrapper">
+                <svg id="security-price-chart-svg" viewBox="0 0 600 220" role="img" aria-label={gettext("Security close price chart")}>
+                  <polyline
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    points={chart_points(@quote_series)}
+                  />
+                  <%= for {marker, index} <- Enum.with_index(@chart_markers) do %>
+                    <circle
+                      id={"security-chart-marker-#{index}"}
+                      cx={marker_chart_x(marker, @quote_series)}
+                      cy={marker_chart_y(marker, @quote_series)}
+                      r="5"
+                      data-type={marker.type}
+                      data-date={Date.to_iso8601(marker.date)}
+                      data-quantity={decimal_data(marker.quantity)}
+                      data-price={decimal_data(marker.price)}
+                      data-amount={decimal_data(marker.amount)}
+                      data-notes={marker.notes || ""}
+                    />
+                  <% end %>
+                </svg>
+              </div>
+
+              <%= if Enum.empty?(@chart_markers) do %>
+                <div id="security-chart-markers-empty-state" class="app-shell-empty-state">
+                  <h3><%= gettext("No markers in selected range") %></h3>
+                  <p><%= gettext("No buy, sell, or dividend markers are available for this selection.") %></p>
+                </div>
+              <% end %>
+            <% end %>
+          </section>
         </div>
       <% end %>
     </AppShell.shell>
@@ -333,4 +387,112 @@ defmodule PortfolixirWeb.SecurityDetailLive do
 
   defp format_datetime(%DateTime{} = datetime), do: DateTime.to_string(datetime)
   defp format_datetime(_), do: gettext("—")
+
+  defp build_chart_markers(transactions, security_id, params) do
+    from_date = parse_date(Map.get(params, "from"))
+    to_date = parse_date(Map.get(params, "to"))
+
+    transactions
+    |> Enum.filter(fn transaction ->
+      transaction.security_id == security_id and transaction.type in ["buy", "sell", "dividend"] and
+        in_date_range?(transaction.date, from_date, to_date)
+    end)
+    |> Enum.map(fn transaction ->
+      %{
+        date: transaction.date,
+        type: transaction.type,
+        quantity: transaction.quantity,
+        price: transaction.price,
+        amount: transaction.amount,
+        notes: transaction.notes
+      }
+    end)
+    |> Enum.sort_by(& &1.date, {:desc, Date})
+  end
+
+  defp quote_series_for_security(security_id, params) do
+    from_date = parse_date(Map.get(params, "from"))
+    to_date = parse_date(Map.get(params, "to"))
+
+    security_id
+    |> Catalog.list_security_quotes()
+    |> Enum.filter(fn quote -> in_date_range?(quote.date, from_date, to_date) end)
+  end
+
+  defp chart_points([single]) do
+    close = decimal_to_float(single.close)
+
+    "40,180 560,180"
+    |> normalize_single_point(close)
+  end
+
+  defp chart_points(series) do
+    closes = Enum.map(series, &decimal_to_float(&1.close))
+    min_close = Enum.min(closes)
+    max_close = Enum.max(closes)
+    span = if max_close == min_close, do: 1.0, else: max_close - min_close
+    step = if length(series) == 1, do: 0.0, else: 520.0 / (length(series) - 1)
+
+    series
+    |> Enum.with_index()
+    |> Enum.map(fn {%{close: close}, index} ->
+      x = 40.0 + step * index
+      y = 180.0 - (decimal_to_float(close) - min_close) / span * 140.0
+      "#{Float.round(x, 2)},#{Float.round(y, 2)}"
+    end)
+    |> Enum.join(" ")
+  end
+
+  defp normalize_single_point(points, _close), do: points
+
+  defp marker_chart_x(marker, quote_series) do
+    all_dates = Enum.map(quote_series, & &1.date)
+
+    first_date = Enum.min([marker.date | all_dates])
+    last_date = Enum.max([marker.date | all_dates])
+    total_days = max(Date.diff(last_date, first_date), 1)
+    day_offset = Date.diff(marker.date, first_date)
+
+    Float.round(40.0 + day_offset / total_days * 520.0, 2)
+  end
+
+  defp marker_chart_y(marker, quote_series) do
+    quote_by_date = Map.new(quote_series, &{&1.date, &1.close})
+
+    closes = Enum.map(quote_series, &decimal_to_float(&1.close))
+    min_close = Enum.min(closes)
+    max_close = Enum.max(closes)
+    span = if max_close == min_close, do: 1.0, else: max_close - min_close
+
+    case Map.get(quote_by_date, marker.date) do
+      nil ->
+        180.0
+
+      close ->
+        Float.round(180.0 - (decimal_to_float(close) - min_close) / span * 140.0, 2)
+    end
+  end
+
+  defp parse_date(nil), do: nil
+
+  defp parse_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      _ -> nil
+    end
+  end
+
+  defp in_date_range?(date, nil, nil), do: not is_nil(date)
+  defp in_date_range?(nil, _from_date, _to_date), do: false
+  defp in_date_range?(date, from_date, nil), do: Date.compare(date, from_date) != :lt
+  defp in_date_range?(date, nil, to_date), do: Date.compare(date, to_date) != :gt
+
+  defp in_date_range?(date, from_date, to_date) do
+    Date.compare(date, from_date) != :lt and Date.compare(date, to_date) != :gt
+  end
+
+  defp decimal_data(nil), do: ""
+  defp decimal_data(value), do: Decimal.to_string(value, :normal)
+
+  defp decimal_to_float(%Decimal{} = decimal), do: Decimal.to_float(decimal)
 end
