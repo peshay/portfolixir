@@ -141,6 +141,72 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
     assert has_element?(view, "#classification-exposure-row-growth", "Fund B")
   end
 
+  test "missing quote fallback stays explicit and does not distort percentages", %{
+    conn: conn,
+    portfolio: portfolio,
+    securities_account: securities_account
+  } do
+    {:ok, valued} =
+      Catalog.create_security(%{name: "Valued", symbol: "VAL", currency_code: "EUR"})
+
+    {:ok, unquoted} =
+      Catalog.create_security(%{name: "Unquoted", symbol: "UNQ", currency_code: "EUR"})
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: valued.id,
+        type: "buy",
+        date: ~D[2026-01-10],
+        currency_code: "EUR",
+        quantity: Decimal.new("10"),
+        price: Decimal.new("10"),
+        amount: Decimal.new("100")
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: unquoted.id,
+        type: "buy",
+        date: ~D[2026-01-11],
+        currency_code: "EUR",
+        quantity: Decimal.new("5"),
+        price: Decimal.new("10"),
+        amount: Decimal.new("50")
+      })
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: valued.id,
+        source: "test",
+        date: ~D[2026-01-12],
+        close: Decimal.new("12"),
+        currency_code: "EUR"
+      })
+
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Fallback"})
+    {:ok, core} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core"})
+    {:ok, satellite} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Satellite"})
+
+    {:ok, _} = Catalog.assign_category_to_security(valued.id, core.id)
+    {:ok, _} = Catalog.assign_category_to_security(unquoted.id, satellite.id)
+
+    {:ok, view, _html} = live(conn, "/reports/classification-exposure")
+
+    assert has_element?(view, "#classification-exposure-row-core", "120")
+    assert has_element?(view, "#classification-exposure-row-core", "100%")
+    assert has_element?(view, "#classification-exposure-row-satellite", "0")
+
+    assert has_element?(
+             view,
+             "#classification-exposure-warnings",
+             "missing_quote_fallback_quantity"
+           )
+  end
+
   test "viewing report does not create security category assignments", %{conn: conn} do
     assignments_before = Repo.aggregate(SecurityCategoryAssignment, :count, :id)
 
