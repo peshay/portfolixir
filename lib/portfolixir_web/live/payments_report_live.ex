@@ -189,9 +189,9 @@ defmodule PortfolixirWeb.PaymentsReportLive do
         %{}
       end
 
-    security_names =
+    security_lookup =
       Catalog.list_securities()
-      |> Map.new(&{&1.id, &1.name})
+      |> Map.new(&{&1.id, &1})
 
     dividend_rows =
       transactions
@@ -200,7 +200,8 @@ defmodule PortfolixirWeb.PaymentsReportLive do
         %{
           id: transaction.id,
           date: transaction.date,
-          security_name: Map.get(security_names, transaction.security_id, "—"),
+          security_id: transaction.security_id,
+          security_name: security_display_name(Map.get(security_lookup, transaction.security_id)),
           account_name: Map.get(deposit_names, transaction.deposit_account_id, "—"),
           amount: transaction.amount,
           currency_code: transaction.currency_code,
@@ -235,9 +236,10 @@ defmodule PortfolixirWeb.PaymentsReportLive do
 
   defp grouped_rows(rows, "security") do
     rows
-    |> Enum.group_by(& &1.security_name)
-    |> Enum.map(fn {name, grouped_rows} ->
-      %{id: slug(name), label: name, rows: grouped_rows}
+    |> Enum.group_by(& &1.security_id)
+    |> Enum.map(fn {security_id, grouped_rows} ->
+      label = grouped_rows |> List.first() |> Map.get(:security_name, "—")
+      %{id: "security-#{security_id}", label: label, rows: grouped_rows}
     end)
     |> Enum.sort_by(& &1.label)
   end
@@ -278,6 +280,12 @@ defmodule PortfolixirWeb.PaymentsReportLive do
     do: Decimal.to_string(decimal, :normal)
 
   defp format_money(value), do: to_string(value)
+
+  defp security_display_name(nil), do: "—"
+
+  defp security_display_name(security) do
+    "#{security.name} (#{security.symbol})"
+  end
 
   defp group_mode_label("list"), do: gettext("List")
   defp group_mode_label("month"), do: gettext("Month")
