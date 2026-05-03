@@ -1,0 +1,151 @@
+defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
+  use PortfolixirWeb.ConnCase
+
+  import Phoenix.LiveViewTest
+
+  alias Portfolixir.Catalog
+  alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Repo
+  alias Portfolixir.Taxonomies
+  alias Portfolixir.Catalog.SecurityCategoryAssignment
+
+  setup do
+    Catalog.ensure_mvp_currencies!()
+    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: portfolio.id,
+        name: "Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Depot",
+        currency_code: "EUR",
+        reference_deposit_account_id: deposit_account.id
+      })
+
+    %{
+      portfolio: portfolio,
+      deposit_account: deposit_account,
+      securities_account: securities_account
+    }
+  end
+
+  test "renders empty state when no positions exist", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/reports/classification-exposure")
+
+    assert has_element?(view, "#classification-exposure-empty-state")
+  end
+
+  test "direct and weighted mappings contribute to exposure report", %{
+    conn: conn,
+    portfolio: portfolio,
+    securities_account: securities_account
+  } do
+    {:ok, stock} =
+      Catalog.create_security(%{name: "Stock A", symbol: "STA", currency_code: "EUR"})
+
+    {:ok, fund} = Catalog.create_security(%{name: "Fund B", symbol: "FDB", currency_code: "EUR"})
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: stock.id,
+        type: "buy",
+        date: ~D[2026-01-10],
+        currency_code: "EUR",
+        quantity: Decimal.new("10"),
+        price: Decimal.new("10"),
+        amount: Decimal.new("100")
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: fund.id,
+        type: "buy",
+        date: ~D[2026-01-11],
+        currency_code: "EUR",
+        quantity: Decimal.new("5"),
+        price: Decimal.new("20"),
+        amount: Decimal.new("100")
+      })
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: stock.id,
+        source: "test",
+        date: ~D[2026-01-12],
+        close: Decimal.new("12"),
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: fund.id,
+        source: "test",
+        date: ~D[2026-01-12],
+        close: Decimal.new("20"),
+        currency_code: "EUR"
+      })
+
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Exposure"})
+    {:ok, core} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core"})
+    {:ok, growth} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Growth"})
+
+    {:ok, _} = Catalog.assign_category_to_security(stock.id, core.id)
+
+    {:ok, allocation} =
+      Catalog.create_fund_allocation(%{
+        security_id: fund.id,
+        source: "factsheet",
+        allocation_type: "region",
+        status: "active"
+      })
+
+    {:ok, _} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: allocation.id,
+        label: "Europe",
+        weight: Decimal.new("60")
+      })
+
+    {:ok, _} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: allocation.id,
+        label: "Unmapped Region",
+        weight: Decimal.new("40")
+      })
+
+    {:ok, _} =
+      Taxonomies.upsert_fund_allocation_category_mapping(%{
+        allocation_type: "region",
+        source_label: "Europe",
+        taxonomy_id: taxonomy.id,
+        category_id: growth.id
+      })
+
+    {:ok, view, _html} = live(conn, "/reports/classification-exposure")
+
+    assert has_element?(view, "#classification-exposure-row-core", "Core")
+    assert has_element?(view, "#classification-exposure-row-growth", "Growth")
+    assert has_element?(view, "#classification-exposure-row-unmapped", "Unmapped")
+    assert has_element?(view, "#classification-exposure-row-core", "Stock A")
+    assert has_element?(view, "#classification-exposure-row-growth", "Fund B")
+  end
+
+  test "viewing report does not create security category assignments", %{conn: conn} do
+    assignments_before = Repo.aggregate(SecurityCategoryAssignment, :count, :id)
+
+    {:ok, _view, _html} = live(conn, "/reports/classification-exposure")
+
+    assert Repo.aggregate(SecurityCategoryAssignment, :count, :id) == assignments_before
+  end
+end
