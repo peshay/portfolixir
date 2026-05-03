@@ -35,9 +35,11 @@ defmodule PortfolixirWeb.RawImportItemReviewLiveTest do
     assert has_element?(view, "#raw-import-item-review", "application/json")
     assert has_element?(view, "#raw-import-item-review", "import.json")
     assert has_element?(view, "#raw-import-item-review", "2026")
-    assert has_element?(view, "#raw-import-item-payload-preview", "source: connector")
-    assert has_element?(view, "#raw-import-item-payload-preview", "record_type: transaction")
+    assert has_element?(view, "#raw-import-item-payload-preview", "field_count: 3")
+    assert has_element?(view, "#raw-import-item-payload-preview", "string_fields: 3")
     refute html =~ "must-not-render"
+    refute html =~ "source: connector"
+    refute html =~ "record_type: transaction"
   end
 
   test "review page shows explicit not found for unknown raw item", %{conn: conn} do

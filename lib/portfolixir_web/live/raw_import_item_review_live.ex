@@ -4,17 +4,6 @@ defmodule PortfolixirWeb.RawImportItemReviewLive do
   alias Portfolixir.Imports
   alias PortfolixirWeb.AppShell
 
-  @unsafe_payload_key_patterns [
-    ~r/raw/i,
-    ~r/byte/i,
-    ~r/base64/i,
-    ~r/pdf/i,
-    ~r/document/i,
-    ~r/content/i,
-    ~r/blob/i,
-    ~r/body/i
-  ]
-
   @impl true
   def mount(_params, _session, socket) do
     {:ok, assign(socket, :raw_item, nil)}
@@ -76,40 +65,38 @@ defmodule PortfolixirWeb.RawImportItemReviewLive do
   end
 
   defp safe_payload_preview(payload) when is_map(payload) do
-    payload
-    |> Enum.sort_by(fn {key, _} -> to_string(key) end)
-    |> Enum.filter(fn {key, _value} -> safe_payload_key?(key) end)
-    |> Enum.map(&format_payload_entry/1)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.take(8)
-    |> case do
-      [] -> nil
-      entries -> Enum.join(entries, "\n")
-    end
+    entries = Enum.sort_by(payload, fn {key, _} -> to_string(key) end)
+
+    field_count = length(entries)
+
+    type_counts =
+      entries
+      |> Enum.map(fn {_key, value} -> payload_value_type(value) end)
+      |> Enum.frequencies()
+
+    summary_lines = [
+      "field_count: #{field_count}",
+      "string_fields: #{Map.get(type_counts, :string, 0)}",
+      "number_fields: #{Map.get(type_counts, :number, 0)}",
+      "boolean_fields: #{Map.get(type_counts, :boolean, 0)}",
+      "null_fields: #{Map.get(type_counts, :null, 0)}",
+      "list_fields: #{Map.get(type_counts, :list, 0)}",
+      "map_fields: #{Map.get(type_counts, :map, 0)}",
+      "other_fields: #{Map.get(type_counts, :other, 0)}"
+    ]
+
+    Enum.join(summary_lines, "\n")
   end
 
   defp safe_payload_preview(_), do: nil
 
-  defp safe_payload_key?(key) do
-    key_string = to_string(key)
-
-    Enum.all?(@unsafe_payload_key_patterns, fn pattern ->
-      not String.match?(key_string, pattern)
-    end)
-  end
-
-  defp format_payload_entry({key, value}) when is_binary(value) do
-    if String.length(value) <= 80 do
-      "#{key}: #{value}"
-    else
-      nil
-    end
-  end
-
-  defp format_payload_entry({key, value}) when is_number(value) or is_boolean(value),
-    do: "#{key}: #{value}"
-
-  defp format_payload_entry({_key, _value}), do: nil
+  defp payload_value_type(value) when is_binary(value), do: :string
+  defp payload_value_type(value) when is_number(value), do: :number
+  defp payload_value_type(value) when is_boolean(value), do: :boolean
+  defp payload_value_type(nil), do: :null
+  defp payload_value_type(value) when is_list(value), do: :list
+  defp payload_value_type(value) when is_map(value), do: :map
+  defp payload_value_type(_value), do: :other
 
   defp format_datetime(nil), do: "—"
 
