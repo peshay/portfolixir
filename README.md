@@ -8,6 +8,12 @@
 
 # Portfolixir
 
+<p>
+  <a href="https://bunq.me/ahuservices?description=portfolixir-maintenance-support">
+    <img src="https://img.shields.io/badge/Support-Maintenance-4CAF50?style=flat-square&logo=ko-fi&logoColor=white" alt="Support Portfolixir maintenance" />
+  </a>
+</p>
+
 Portfolixir is a self-hosted portfolio analytics and wealth graph platform built with Elixir, Phoenix and LiveView; it is currently early-stage.
 
 [![CI](https://github.com/peshay/portfolixir/actions/workflows/ci.yml/badge.svg)](https://github.com/peshay/portfolixir/actions/workflows/ci.yml)
@@ -94,11 +100,11 @@ In production, read API auth is fail-closed by default (`READ_API_AUTH_ENABLED` 
 
 ## Support
 
-<a href="https://bunq.me/ahuservices?description=portfolixir">
-  <img src="https://img.shields.io/badge/Support%20Portfolixir-Voluntary%20Contribution-4CAF50?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support Portfolixir">
+<a href="https://bunq.me/ahuservices?description=portfolixir-maintenance-support">
+  <img src="https://img.shields.io/badge/Support-Portfolixir%20Maintenance-4CAF50?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support Portfolixir maintenance">
 </a>
 
-Support payments are voluntary contributions and do not create entitlement to support, features, consulting, invoices, or donation receipts.
+Support payments help fund ongoing maintenance work. They do not automatically create entitlement to support, features, consulting, SLA, or invoice-based engagement.
 
 ## Contribution notes
 
