@@ -1,5 +1,16 @@
 import Config
 
+read_api_auth_enabled =
+  System.get_env("READ_API_AUTH_ENABLED", "false")
+  |> String.downcase()
+  |> Kernel.in(["1", "true", "yes", "on"])
+
+read_api_key = System.get_env("READ_API_KEY")
+
+config :portfolixir, PortfolixirWeb.Plugs.ReadApiKeyAuth,
+  enabled: read_api_auth_enabled,
+  api_key: read_api_key
+
 if config_env() == :prod do
   config :portfolixir, PortfolixirWeb.Endpoint,
     server: true,

@@ -23,6 +23,11 @@ defmodule PortfolixirWeb.Router do
     plug(:accepts, ["json"])
   end
 
+  pipeline :read_api do
+    plug(:accepts, ["json"])
+    plug(PortfolixirWeb.Plugs.ReadApiKeyAuth)
+  end
+
   scope "/", PortfolixirWeb do
     pipe_through(:browser_csv)
 
@@ -57,7 +62,7 @@ defmodule PortfolixirWeb.Router do
   end
 
   scope "/api/read", PortfolixirWeb do
-    pipe_through(:api)
+    pipe_through(:read_api)
 
     get("/portfolio_snapshot", ReadAPIController, :portfolio_snapshot)
     get("/positions", ReadAPIController, :positions)
