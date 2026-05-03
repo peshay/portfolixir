@@ -501,6 +501,24 @@ defmodule Portfolixir.ImportsTest do
 
     assert resolved.status == "resolved"
     assert resolved.details == %{"resolution" => "ignored"}
+
+    assert {:ok, resolved_again} =
+             Imports.resolve_import_conflict(open_conflict.id, %{
+               import_source_id: source.id + 1,
+               import_run_id: run.id + 1,
+               raw_import_item_id: nil,
+               conflict_type: "tampered_type",
+               summary: "tampered summary",
+               details: %{"resolution" => "kept"}
+             })
+
+    assert resolved_again.import_source_id == source.id
+    assert resolved_again.import_run_id == run.id
+    assert resolved_again.raw_import_item_id == raw_item.id
+    assert resolved_again.conflict_type == "duplicate_transaction"
+    assert resolved_again.summary == "Duplicate external transaction id"
+    assert resolved_again.details == %{"resolution" => "kept"}
+
     refute Enum.any?(Imports.list_open_import_conflicts(), &(&1.id == open_conflict.id))
   end
 
