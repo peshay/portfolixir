@@ -1,6 +1,8 @@
 defmodule Portfolixir.TaxonomiesTest do
   use Portfolixir.DataCase, async: true
 
+  alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.SecurityCategoryAssignment
   alias Portfolixir.Taxonomies
   alias Portfolixir.Taxonomies.Category
 
@@ -116,5 +118,93 @@ defmodule Portfolixir.TaxonomiesTest do
 
     assert {:ok, %Category{}} = Taxonomies.delete_category(category)
     assert_raise Ecto.NoResultsError, fn -> Taxonomies.get_category!(category.id) end
+  end
+
+  test "upsert mapping creates and deterministically updates duplicate mapping" do
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Regions"})
+
+    {:ok, category_a} =
+      Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "North America"})
+
+    {:ok, category_b} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "USA"})
+
+    assert {:ok, mapping} =
+             Taxonomies.upsert_fund_allocation_category_mapping(%{
+               allocation_type: "region",
+               source_label: "North America",
+               taxonomy_id: taxonomy.id,
+               category_id: category_a.id
+             })
+
+    assert {:ok, mapping_updated} =
+             Taxonomies.upsert_fund_allocation_category_mapping(%{
+               allocation_type: "region",
+               source_label: "North America",
+               taxonomy_id: taxonomy.id,
+               category_id: category_b.id
+             })
+
+    assert mapping.id == mapping_updated.id
+    assert mapping_updated.category_id == category_b.id
+  end
+
+  test "resolve mapped allocation exposures returns mapped and unmapped entries without creating direct assignments" do
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Sectors"})
+    {:ok, category} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Technology"})
+
+    {:ok, _currency} = Catalog.ensure_currency(%{code: "EUR", name: "Euro", minor_units: 2})
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "ETF One",
+        symbol: "ETF1",
+        isin: "DE000ETF1000",
+        currency_code: "EUR"
+      })
+
+    {:ok, allocation} =
+      Catalog.create_fund_allocation(%{
+        security_id: security.id,
+        source: "factsheet",
+        allocation_type: "sector"
+      })
+
+    {:ok, _item_mapped} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: allocation.id,
+        label: "Technology",
+        weight: Decimal.new("40.0")
+      })
+
+    {:ok, _item_unmapped} =
+      Catalog.create_fund_allocation_item(%{
+        fund_allocation_id: allocation.id,
+        label: "Utilities",
+        weight: Decimal.new("10.0")
+      })
+
+    assert {:ok, _mapping} =
+             Taxonomies.upsert_fund_allocation_category_mapping(%{
+               allocation_type: "sector",
+               source_label: "Technology",
+               taxonomy_id: taxonomy.id,
+               category_id: category.id
+             })
+
+    assignments_before = Repo.aggregate(SecurityCategoryAssignment, :count, :id)
+
+    result = Taxonomies.resolve_mapped_fund_allocation_exposures(security.id)
+
+    assert Enum.any?(result.items, fn item ->
+             item.status == :mapped and item.source_label == "Technology" and
+               item.category_id == category.id
+           end)
+
+    assert Enum.any?(result.items, fn item ->
+             item.status == :unmapped and item.source_label == "Utilities"
+           end)
+
+    assert Enum.any?(result.warnings, &String.contains?(&1, "sector:Utilities"))
+    assert Repo.aggregate(SecurityCategoryAssignment, :count, :id) == assignments_before
   end
 end
