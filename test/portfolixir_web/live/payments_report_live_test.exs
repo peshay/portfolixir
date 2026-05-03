@@ -119,8 +119,50 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
     assert has_element?(view, "#payments-group-2026")
 
     render_change(element(view, "#payments-group-form"), %{group_mode: "security"})
-    assert has_element?(view, "#payments-group-synthetic-etf", "Synthetic ETF")
-    assert has_element?(view, "#payments-group-growth-fund", "Growth Fund")
+    assert has_element?(view, "#payments-group-security-#{security.id}", "Synthetic ETF (SYN)")
+
+    assert has_element?(
+             view,
+             "#payments-group-security-#{second_security.id}",
+             "Growth Fund (GRW)"
+           )
+  end
+
+  test "security grouping uses security identity when names collide", %{
+    conn: conn,
+    portfolio: portfolio,
+    deposit_account: deposit_account,
+    security: security
+  } do
+    {:ok, duplicate_name_security} =
+      Catalog.create_security(%{
+        name: "Synthetic ETF",
+        symbol: "SYNB",
+        currency_code: "EUR"
+      })
+
+    create_dividend(portfolio, deposit_account, security, ~D[2026-01-10], "5.00", "First")
+
+    create_dividend(
+      portfolio,
+      deposit_account,
+      duplicate_name_security,
+      ~D[2026-01-11],
+      "7.00",
+      "Second"
+    )
+
+    {:ok, view, _html} = live(conn, "/reports/payments")
+
+    render_change(element(view, "#payments-group-form"), %{group_mode: "security"})
+
+    assert has_element?(view, "#payments-group-security-#{security.id}", "Synthetic ETF (SYN)")
+
+    assert has_element?(
+             view,
+             "#payments-group-security-#{duplicate_name_security.id}",
+             "Synthetic ETF (SYNB)"
+           )
   end
 
   test "viewing payments report does not create transactions", %{
