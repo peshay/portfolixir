@@ -96,6 +96,12 @@ Support payments are voluntary contributions and do not create entitlement to su
 - Story workflow lives in [`docs/product/llm-story-workflow.md`](docs/product/llm-story-workflow.md).
 - Product backlog lives in [`docs/product/pp-inspired-product-backlog.md`](docs/product/pp-inspired-product-backlog.md).
 
+## GitHub Pages landing page
+
+- Static landing page files live in [`docs/`](docs/).
+- Setup instructions live in [`docs/product/github-pages.md`](docs/product/github-pages.md).
+- This setup is intentionally docs/static-only and does not change Phoenix runtime behavior.
+
 ## Repository metadata
 
 - Repository metadata/social-preview target state is documented in [`docs/product/repository-metadata-and-social-preview.md`](docs/product/repository-metadata-and-social-preview.md).
