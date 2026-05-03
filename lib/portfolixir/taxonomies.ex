@@ -2,8 +2,9 @@ defmodule Portfolixir.Taxonomies do
   @moduledoc "Taxonomy and category context."
 
   import Ecto.Query
+  alias Portfolixir.Catalog.{FundAllocation, FundAllocationItem}
   alias Portfolixir.Repo
-  alias Portfolixir.Taxonomies.{Category, Taxonomy}
+  alias Portfolixir.Taxonomies.{Category, FundAllocationCategoryMapping, Taxonomy}
 
   @portfolio_performance_presets [
     %{
@@ -78,4 +79,100 @@ defmodule Portfolixir.Taxonomies do
   end
 
   def get_category!(id), do: Repo.get!(Category, id)
+
+  def upsert_fund_allocation_category_mapping(attrs) when is_map(attrs) do
+    with {:ok, attrs} <- ensure_matching_taxonomy_and_category(attrs) do
+      %FundAllocationCategoryMapping{}
+      |> FundAllocationCategoryMapping.changeset(attrs)
+      |> Repo.insert(
+        on_conflict: {:replace, [:category_id, :metadata, :updated_at]},
+        conflict_target: [:allocation_type, :source_label, :taxonomy_id]
+      )
+    end
+  end
+
+  def resolve_mapped_fund_allocation_exposures(security_id) when is_integer(security_id) do
+    allocations =
+      Repo.all(
+        from(fa in FundAllocation,
+          where: fa.security_id == ^security_id and fa.status == "active",
+          preload: [
+            fund_allocation_items:
+              ^from(i in FundAllocationItem, order_by: [desc: i.weight, asc: i.label])
+          ]
+        )
+      )
+
+    mapping_index =
+      Repo.all(
+        from(m in FundAllocationCategoryMapping,
+          order_by: [asc: m.id],
+          preload: [:taxonomy, :category]
+        )
+      )
+      |> Enum.group_by(fn m -> {m.allocation_type, m.source_label} end)
+
+    results =
+      Enum.flat_map(allocations, fn allocation ->
+        Enum.flat_map(allocation.fund_allocation_items, fn item ->
+          mappings = Map.get(mapping_index, {allocation.allocation_type, item.label}, [])
+
+          if mappings == [] do
+            [
+              %{
+                allocation_type: allocation.allocation_type,
+                source_label: item.label,
+                weight: item.weight,
+                taxonomy_id: nil,
+                taxonomy_name: nil,
+                category_id: nil,
+                category_name: nil,
+                status: :unmapped
+              }
+            ]
+          else
+            Enum.map(mappings, fn mapping ->
+              %{
+                allocation_type: allocation.allocation_type,
+                source_label: item.label,
+                weight: item.weight,
+                taxonomy_id: mapping.taxonomy_id,
+                taxonomy_name: mapping.taxonomy.name,
+                category_id: mapping.category_id,
+                category_name: mapping.category.name,
+                status: :mapped
+              }
+            end)
+          end
+        end)
+      end)
+
+    warnings =
+      results
+      |> Enum.filter(&(&1.status == :unmapped))
+      |> Enum.map(fn result ->
+        "Unmapped allocation label #{result.allocation_type}:#{result.source_label}"
+      end)
+      |> Enum.uniq()
+
+    %{items: results, warnings: warnings}
+  end
+
+  defp ensure_matching_taxonomy_and_category(attrs) do
+    taxonomy_id = Map.get(attrs, :taxonomy_id) || Map.get(attrs, "taxonomy_id")
+    category_id = Map.get(attrs, :category_id) || Map.get(attrs, "category_id")
+
+    case Repo.get(Category, category_id) do
+      %Category{taxonomy_id: ^taxonomy_id} ->
+        {:ok, attrs}
+
+      %Category{} ->
+        {:error,
+         Ecto.Changeset.change(%FundAllocationCategoryMapping{})
+         |> Ecto.Changeset.add_error(:category_id, "must belong to taxonomy")}
+
+      nil ->
+        {:ok, attrs}
+    end
+  end
 end
