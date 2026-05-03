@@ -43,15 +43,38 @@ defmodule PortfolixirWeb.CategoryManagementLive do
         </div>
       </header>
 
+      <section id="classification-workbench-toolbar" class="app-shell-section-card">
+        <div class="app-shell-section-header">
+          <div>
+            <h2 class="app-shell-section-title"><%= gettext("Classification workbench") %></h2>
+            <p><%= gettext("Tree/details layout with explicit placeholder views.") %></p>
+          </div>
+          <div class="app-shell-form-actions" role="group" aria-label={gettext("View mode")}> 
+            <button id="classification-view-list" type="button" class="app-shell-secondary" disabled>
+              <%= gettext("List") %>
+            </button>
+            <button id="classification-view-tree" type="button" class="app-shell-secondary" disabled>
+              <%= gettext("Tree") %>
+            </button>
+            <button id="classification-view-chart" type="button" class="app-shell-secondary" disabled>
+              <%= gettext("Chart") %>
+            </button>
+            <button id="classification-view-sunburst" type="button" class="app-shell-secondary" disabled>
+              <%= gettext("Sunburst") %>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <div id="classification-workspace" class="app-shell-workspace-grid">
         <section
-          id="taxonomy-management"
+          id="classification-tree-region"
           class="app-shell-section-card"
           data-priority="primary"
         >
           <div class="app-shell-section-header">
             <div>
-              <h2 class="app-shell-section-title"><%= gettext("Taxonomies") %></h2>
+              <h2 class="app-shell-section-title"><%= gettext("Taxonomy tree") %></h2>
               <p><%= gettext("Each taxonomy is a classification system with its own category tree.") %></p>
             </div>
             <span class="app-shell-badge app-shell-badge--accent">
@@ -129,13 +152,13 @@ defmodule PortfolixirWeb.CategoryManagementLive do
         </section>
 
         <section
-          id="category-management"
+          id="classification-details-region"
           class="app-shell-section-card"
           data-priority="secondary"
         >
           <div class="app-shell-section-header">
             <div>
-              <h2 class="app-shell-section-title"><%= gettext("Categories") %></h2>
+              <h2 class="app-shell-section-title"><%= gettext("Selected classification details") %></h2>
               <p><%= gettext("Add and maintain the groups inside the selected taxonomy.") %></p>
             </div>
           </div>
