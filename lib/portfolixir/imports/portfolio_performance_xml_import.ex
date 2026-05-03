@@ -611,7 +611,11 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImport do
         )
 
       if existing do
-        increment(state, "skipped", "transactions")
+        state
+        |> increment("skipped", "transactions")
+        |> record_transaction_conflict(external_id, "duplicate_transaction", %{
+          "message" => "Duplicate transaction already exists for this import record"
+        })
       else
         attrs = %{
           portfolio_id: portfolio.id,
@@ -641,6 +645,9 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImport do
             state
             |> increment("skipped", "transactions")
             |> append_warning(warning)
+            |> record_transaction_conflict(external_id, "missing_security", %{
+              "message" => warning
+            })
         end
       end
     else
@@ -675,6 +682,42 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImport do
       _ ->
         {:skip,
          "Skipping transaction #{inspect(attrs[:notes])}: missing mapped security #{inspect(security_reference_id)}"}
+    end
+  end
+
+  defp record_transaction_conflict(state, external_id, conflict_type, details)
+       when is_map(details) do
+    raw_item_id =
+      case external_id do
+        nil ->
+          nil
+
+        _ ->
+          Repo.get_by(RawImportItem,
+            import_source_id: state.import_source.id,
+            external_id: external_id
+          )
+          |> case do
+            %RawImportItem{id: id} -> id
+            _ -> nil
+          end
+      end
+
+    conflict_attrs = %{
+      import_source_id: state.import_source.id,
+      import_run_id: state.import_run.id,
+      raw_import_item_id: raw_item_id,
+      conflict_type: conflict_type,
+      summary: "Transaction conflict for #{external_id}",
+      details: details
+    }
+
+    case Imports.create_import_conflict(conflict_attrs) do
+      {:ok, _conflict} ->
+        state
+
+      {:error, _changeset} ->
+        append_warning(state, "Could not persist import conflict for transaction #{external_id}")
     end
   end
 
