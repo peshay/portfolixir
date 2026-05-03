@@ -136,10 +136,6 @@ Portfolixir is inspired by Portfolio Performance workflow ideas. It is an indepe
 
 ## Support
 
-<a href="https://bunq.me/ahuservices?description=portfolixir-maintenance-support">
-  <img src="https://img.shields.io/badge/Support-Portfolixir%20Maintenance-4CAF50?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support Portfolixir maintenance">
-</a>
-
 Support payments help fund ongoing maintenance work. They do not automatically create entitlement to support, features, consulting, SLA, or invoice-based engagement.
 
 ## License
