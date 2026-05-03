@@ -213,6 +213,109 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert tree_html =~ "1"
   end
 
+  test "selecting a security loads current assignments before any write action", %{conn: conn} do
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
+
+    {:ok, category} =
+      Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core"})
+
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "ETF One",
+        symbol: "ETF1",
+        isin: "US0000000002",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} = Catalog.assign_category_to_security(security.id, category.id)
+
+    {:ok, view, _html} = live(conn, "/taxonomies")
+
+    refute has_element?(view, "#security-assignment-#{security.id}-#{category.id}")
+
+    view
+    |> form("#category-assignment-form", %{
+      "assignment" => %{"security_id" => to_string(security.id), "category_id" => ""}
+    })
+    |> render_change()
+
+    assert has_element?(view, "#security-assignment-#{security.id}-#{category.id}")
+  end
+
+  test "assigns and removes category assignments through UI", %{conn: conn} do
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
+
+    {:ok, category} =
+      Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core"})
+
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "ETF One",
+        symbol: "ETF1",
+        isin: "US0000000002",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/taxonomies")
+
+    html =
+      view
+      |> form("#category-assignment-form", %{
+        "assignment" => %{
+          "security_id" => to_string(security.id),
+          "category_id" => to_string(category.id)
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Core"
+    assert has_element?(view, "#security-assignment-#{security.id}-#{category.id}")
+
+    view
+    |> element("#remove-security-assignment-#{security.id}-#{category.id}")
+    |> render_click()
+
+    refute has_element?(view, "#security-assignment-#{security.id}-#{category.id}")
+  end
+
+  test "duplicate security/category assignment is shown as validation error", %{conn: conn} do
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
+
+    {:ok, category} =
+      Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core"})
+
+    :ok = Catalog.ensure_mvp_currencies!()
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "ETF Two",
+        symbol: "ETF2",
+        isin: "US0000000003",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} = Catalog.assign_category_to_security(security.id, category.id)
+
+    {:ok, view, _html} = live(conn, "/taxonomies")
+
+    html =
+      view
+      |> form("#category-assignment-form", %{
+        "assignment" => %{
+          "security_id" => to_string(security.id),
+          "category_id" => to_string(category.id)
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "has already been taken"
+    assert has_element?(view, "#category-assignment-error[role='alert']")
+  end
+
   test "deleting a category removes it from the list", %{conn: conn} do
     {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
 
