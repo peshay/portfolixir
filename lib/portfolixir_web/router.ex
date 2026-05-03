@@ -55,6 +55,7 @@ defmodule PortfolixirWeb.Router do
       live("/securities", SecurityManagementLive)
       live("/securities/:id", SecurityDetailLive)
       live("/imports", ImportOverviewLive)
+      live("/imports/raw-items/:id/review", RawImportItemReviewLive)
     end
   end
 

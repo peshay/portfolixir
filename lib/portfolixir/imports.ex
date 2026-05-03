@@ -141,6 +141,13 @@ defmodule Portfolixir.Imports do
 
   def resolve_import_conflict(_import_conflict_id, _attrs), do: {:error, :not_found}
 
+  def get_raw_import_item(id) when is_integer(id) do
+    Repo.get(RawImportItem, id)
+    |> Repo.preload(:import_source)
+  end
+
+  def get_raw_import_item(_), do: nil
+
   def create_import_run(attrs) when is_map(attrs) do
     %ImportRun{}
     |> ImportRun.changeset(attrs)
