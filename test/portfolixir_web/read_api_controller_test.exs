@@ -133,6 +133,17 @@ defmodule PortfolixirWeb.ReadAPIControllerTest do
     assert json_response(response, 401)["error"] == "unauthorized"
   end
 
+  test "returns 401 when read API auth is enabled but key is not configured", %{conn: conn} do
+    Application.put_env(:portfolixir, PortfolixirWeb.Plugs.ReadApiKeyAuth,
+      enabled: true,
+      api_key: nil
+    )
+
+    response = get(conn, "/api/read/positions")
+    assert response.status == 401
+    assert json_response(response, 401)["error"] == "unauthorized"
+  end
+
   test "returns 200 when read API auth is enabled and valid key is provided", %{
     conn: conn,
     first_portfolio: first_portfolio
