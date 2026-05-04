@@ -31,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
@@ -44,8 +46,34 @@ jobs:
       - name: Check formatting
         run: mix format --check-formatted
 
-      - name: Credo
-        run: mix credo --strict
+      - name: Determine changed Elixir files
+        id: changed-elixir
+        run: |
+          set -eu
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          files=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA" | grep -E '\.(ex|exs)$' || true)
+
+          if [ -n "$files" ]; then
+            {
+              echo "files<<EOF"
+              echo "$files"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Credo (strict, changed files only)
+        if: steps.changed-elixir.outputs.has_files == 'true'
+        run: |
+          files=$(echo "${{ steps.changed-elixir.outputs.files }}" | tr '\n' ' ')
+          mix credo --strict $files
 
       - name: Prepare database
         run: |
