@@ -115,6 +115,20 @@ mix test
 
 In production, read API auth is fail-closed by default (`READ_API_AUTH_ENABLED` defaults to `true`). Setting `READ_API_AUTH_ENABLED=false` in production raises at boot. In local dev/test, auth may be left disabled.
 
+## Read-only MCP wrapper boundary
+
+Portfolixir includes a read-only MCP tool-definition wrapper over authenticated read API endpoints.
+
+- Module: `Portfolixir.MCP.ReadOnlyTools`
+- Allowed tool paths:
+  - `/api/read/portfolio_snapshot`
+  - `/api/read/positions`
+  - `/api/read/transactions`
+  - `/api/read/cash_balances`
+- Allowed method: `GET` only
+
+No write-capable MCP tools exist. Portfolixir does not expose MCP tools for broker, banking, trading, payment, order, or rebalance actions.
+
 ## Roadmap and next milestones
 
 Roadmap execution is tracked through Planka story cards and PR handoffs. Product-level story sources:
