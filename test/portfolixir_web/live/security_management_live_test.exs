@@ -66,6 +66,71 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
+  test "security table column menu renders with stable column keys and local storage script", %{
+    conn: conn
+  } do
+    {:ok, view, html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-column-menu")
+    assert has_element?(view, "#security-column-menu-button[aria-label]")
+    assert has_element?(view, "#security-column-form[aria-label]")
+    assert has_element?(view, "#security-column-name[value='name'][disabled]")
+    assert has_element?(view, "#security-column-symbol[value='symbol']")
+    assert has_element?(view, "#security-column-provider_symbol[value='provider_symbol']")
+    assert has_element?(view, "#security-column-actions[value='actions'][disabled]")
+    assert html =~ "portfolixir.securities.visibleColumns"
+    assert html =~ "security-column-preferences-script"
+  end
+
+  test "security table renders sensible default columns with stable metadata", %{conn: conn} do
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Synthetic ETF",
+               symbol: "SYN",
+               currency_code: "USD",
+               isin: "US0000000001",
+               wkn: "WKN1",
+               provider_symbol: "SYN.US",
+               exchange_code: "XNYS"
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    for key <- ~w(name symbol currency isin wkn provider_symbol exchange status actions) do
+      assert has_element?(view, "#security-list th[data-column-key='#{key}']")
+      assert has_element?(view, "#security-list td[data-column-key='#{key}']")
+    end
+  end
+
+  test "hidden security columns do not render and no data writes occur", %{conn: conn} do
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Synthetic ETF",
+               symbol: "SYN",
+               currency_code: "USD",
+               isin: "US0000000001",
+               wkn: "WKN1",
+               provider_symbol: "SYN.US",
+               exchange_code: "XNYS"
+             })
+
+    initial_count = Repo.aggregate(Security, :count, :id)
+    {:ok, view, _html} = live(conn, "/securities")
+
+    view
+    |> form("#security-column-form", %{"columns" => ["name", "symbol", "actions"]})
+    |> render_change()
+
+    assert has_element?(view, "#security-list th[data-column-key='name']")
+    assert has_element?(view, "#security-list th[data-column-key='symbol']")
+    assert has_element?(view, "#security-list th[data-column-key='actions']")
+    refute has_element?(view, "#security-list th[data-column-key='currency']")
+    refute has_element?(view, "#security-list th[data-column-key='provider_symbol']")
+    refute has_element?(view, "#security-list td[data-column-key='currency']")
+    refute has_element?(view, "#security-list td[data-column-key='provider_symbol']")
+    assert Repo.aggregate(Security, :count, :id) == initial_count
+  end
+
   test "shows CSV preview section on the securities page", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities")
 
