@@ -1,23 +1,20 @@
+# Portfolixir
+
+Portfolixir is an early-stage, self-hosted portfolio analytics and wealth graph platform built with Elixir, Phoenix, and LiveView.
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="priv/static/images/logo-dark.svg">
     <source media="(prefers-color-scheme: light)" srcset="priv/static/images/logo-light.svg">
-    <img alt="Portfolixir logo" src="priv/static/images/logo-wordmark.svg" width="580" />
+    <img alt="Portfolixir logo" src="priv/static/images/logo-wordmark.svg" width="420" />
   </picture>
 </p>
 
-# Portfolixir
-
-<p>
-  <a href="https://bunq.me/ahuservices?description=portfolixir-maintenance-support">
-    <img src="https://img.shields.io/badge/Support-Maintenance-4CAF50?style=flat-square&logo=ko-fi&logoColor=white" alt="Support Portfolixir maintenance" />
-  </a>
-</p>
-
-Portfolixir is an early-stage, self-hosted portfolio analytics and wealth graph platform built with Elixir, Phoenix, and LiveView.
-
 [![CI](https://github.com/peshay/portfolixir/actions/workflows/ci.yml/badge.svg)](https://github.com/peshay/portfolixir/actions/workflows/ci.yml)
 [![Elixir](https://img.shields.io/badge/Elixir-Phoenix-4B275F?logo=elixir&logoColor=white)](https://elixir-lang.org/)
+[![License](https://img.shields.io/github/license/peshay/portfolixir)](LICENSE)
+
+[![Support maintenance via bunq](https://img.shields.io/badge/Support-Maintenance-4CAF50?style=flat-square&logo=ko-fi&logoColor=white)](https://bunq.me/ahuservices?description=portfolixir-maintenance-support)
 
 ## What is Portfolixir
 
