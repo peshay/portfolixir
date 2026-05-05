@@ -48,6 +48,62 @@ defmodule PortfolixirWeb.RawImportItemReviewLiveTest do
     assert has_element?(view, "#raw-import-item-not-found", "Raw import item not found")
   end
 
+  test "review page shows explicit not found for invalid raw item id", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports/raw-items/not-a-number/review")
+
+    assert has_element?(view, "#raw-import-item-not-found", "Raw import item not found")
+  end
+
+  test "review page summarizes mixed payload value types", %{conn: conn} do
+    source = create_import_source(name: "Mixed payload source", type: "manual", status: "active")
+
+    {:ok, raw_item} =
+      Imports.create_raw_import_item(%{
+        import_source_id: source.id,
+        external_id: "mixed-payload-item",
+        status: "new",
+        payload: %{
+          "symbol" => "ABC",
+          "weight" => 12.5,
+          "active" => true,
+          "nullable" => nil,
+          "regions" => ["eu"],
+          "meta" => %{"sector" => "tech"}
+        }
+      })
+
+    {:ok, view, _html} = live(conn, "/imports/raw-items/#{raw_item.id}/review")
+
+    assert has_element?(view, "#raw-import-item-payload-preview", "field_count: 6")
+    assert has_element?(view, "#raw-import-item-payload-preview", "string_fields: 1")
+    assert has_element?(view, "#raw-import-item-payload-preview", "number_fields: 1")
+    assert has_element?(view, "#raw-import-item-payload-preview", "boolean_fields: 1")
+    assert has_element?(view, "#raw-import-item-payload-preview", "null_fields: 1")
+    assert has_element?(view, "#raw-import-item-payload-preview", "list_fields: 1")
+    assert has_element?(view, "#raw-import-item-payload-preview", "map_fields: 1")
+    assert has_element?(view, "#raw-import-item-payload-preview", "other_fields: 0")
+  end
+
+  test "review page shows empty preview state when payload is not a map", %{conn: conn} do
+    source = create_import_source(name: "No preview source", type: "manual", status: "active")
+
+    {:ok, raw_item} =
+      Imports.create_raw_import_item(%{
+        import_source_id: source.id,
+        external_id: "string-payload-item",
+        status: "new",
+        payload: nil
+      })
+
+    {:ok, view, _html} = live(conn, "/imports/raw-items/#{raw_item.id}/review")
+
+    assert has_element?(
+             view,
+             "#raw-import-item-payload-preview",
+             "No safe compact payload preview is available for this item."
+           )
+  end
+
   test "imports overview links raw item rows to review page", %{conn: conn} do
     source = create_import_source(name: "Review source", type: "manual", status: "active")
 
