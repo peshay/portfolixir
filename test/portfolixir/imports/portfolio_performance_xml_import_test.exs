@@ -304,6 +304,17 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImportTest do
     assert is_map(summary)
   end
 
+  test "confirm rejects non xml/non preview inputs" do
+    assert {:error, {:invalid_input, _}} = PortfolioPerformanceXmlImport.confirm(123)
+  end
+
+  test "confirm accepts charlists the same as binaries" do
+    assert {:ok, summary} =
+             PortfolioPerformanceXmlImport.confirm(String.to_charlist(fixture_xml()))
+
+    assert is_integer(summary["import_run_id"])
+  end
+
   test "confirm persists transaction conflicts for missing mapped security references" do
     assert {:ok, preview} =
              Portfolixir.Imports.PortfolioPerformanceXmlPreview.preview(fixture_xml())
