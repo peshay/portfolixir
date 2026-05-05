@@ -844,4 +844,51 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     refute has_element?(view, "#security-list tbody tr")
   end
+
+  test "split view shows selected security and chart placeholder", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{name: "Alpha Corp", symbol: "ALP", currency_code: "EUR"})
+
+    {:ok, _} =
+      Catalog.create_security(%{name: "Beta Corp", symbol: "BET", currency_code: "EUR"})
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-selected-detail", "Selected security")
+    assert has_element?(view, "#security-selected-summary", "Alpha Corp")
+    assert has_element?(view, "#security-selected-chart-placeholder", "Chart preview")
+
+    assert has_element?(
+             view,
+             "#security-selected-open-detail[href='/securities/#{security.id}']"
+           )
+  end
+
+  test "clicking another row updates selected security detail area", %{conn: conn} do
+    {:ok, first_security} =
+      Catalog.create_security(%{name: "Alpha Corp", symbol: "ALP", currency_code: "EUR"})
+
+    {:ok, second_security} =
+      Catalog.create_security(%{name: "Beta Corp", symbol: "BET", currency_code: "EUR"})
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-selected-summary", "Alpha Corp")
+
+    view
+    |> element("#security-row-#{second_security.id}")
+    |> render_click()
+
+    assert has_element?(view, "#security-selected-summary", "Beta Corp")
+
+    refute has_element?(
+             view,
+             "#security-selected-open-detail[href='/securities/#{first_security.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-open-detail[href='/securities/#{second_security.id}']"
+           )
+  end
 end
