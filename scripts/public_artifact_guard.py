@@ -60,15 +60,15 @@ SECRET_PATTERNS = [
 ]
 
 COMMIT_METADATA_PATTERNS = [
-    (re.compile(r"(?im)^AI-Agent\s*:"), "internal agent metadata footer"),
-    (re.compile(r"(?im)^Worker-(?!Model\s*:|Thinking\s*:)[A-Za-z0-9-]*\s*:"), "unsupported worker metadata footer"),
+    (re.compile(r"(?im)^[ \t]*AI-Agent\s*:"), "internal agent metadata footer"),
+    (re.compile(r"(?im)^[ \t]*Worker-(?!Model\s*:|Thinking\s*:)[A-Za-z0-9-]*\s*:"), "unsupported worker metadata footer"),
     (
         re.compile(
-            r"(?im)^(?:Orchestrator|Review|Runtime|Host|Workspace|Prompt|Rule|Session)-(?:Model|Thinking|Id|Path|Name)?\s*:",
+            r"(?im)^[ \t]*(?:Orchestrator|Review|Runtime|Host|Workspace|Prompt|Rule|Session)-(?:Model|Thinking|Id|Path|Name)?\s*:",
         ),
         "private runtime metadata footer",
     ),
-    (re.compile(r"(?im)^(?:Runtime|Host|Workspace|Path)\s*:"), "private metadata key"),
+    (re.compile(r"(?im)^[ \t]*(?:Runtime|Host|Workspace|Path)\s*:"), "private metadata key"),
     (re.compile(r"(?i)OpenClaw Code Agent"), "private agent identity"),
     (re.compile(r"(?i)openclaw-code@[^>\s]+"), "private agent email address"),
     (re.compile(r"(?i)@[A-Za-z0-9._%+-]+\.local\b"), "local-only email domain"),
@@ -81,7 +81,7 @@ WORKER_THINKING_VALUES = {"low", "medium", "high"}
 DISALLOWED_WORKER_MODELS = {
     "openai-codex/gpt-5.4-mini",
 }
-WORKER_FOOTER_PATTERN = re.compile(r"(?im)^Worker-(Model|Thinking)\s*:\s*(.+?)\s*$")
+WORKER_FOOTER_PATTERN = re.compile(r"(?im)^[ \t]*Worker-(Model|Thinking)\s*:\s*(.+?)\s*$")
 
 
 def git_tracked_files() -> list[Path]:
@@ -184,21 +184,27 @@ def validate_worker_footer_values(commit: str, text: str) -> list[str]:
     return violations
 
 
+def check_commit_metadata_text(commit: str, text: str) -> list[str]:
+    violations: list[str] = []
+    short = commit[:12]
+
+    text_without_allowed_worker_footers = WORKER_FOOTER_PATTERN.sub("", text)
+    if MODEL_IDENTIFIER_PATTERN.search(text_without_allowed_worker_footers):
+        violations.append(f"commit {short}: internal model identifier outside allowed Worker-Model footer")
+
+    for regex, reason in [*LEAK_PATTERNS, *SECRET_PATTERNS, *COMMIT_METADATA_PATTERNS]:
+        if regex.search(text):
+            violations.append(f"commit {short}: {reason}")
+
+    violations.extend(validate_worker_footer_values(commit, text))
+    return violations
+
+
 def check_commit_metadata(commit_range: str) -> list[str]:
     violations: list[str] = []
 
     for commit, text in git_commit_metadata(commit_range):
-        short = commit[:12]
-
-        text_without_allowed_worker_footers = WORKER_FOOTER_PATTERN.sub("", text)
-        if MODEL_IDENTIFIER_PATTERN.search(text_without_allowed_worker_footers):
-            violations.append(f"commit {short}: internal model identifier outside allowed Worker-Model footer")
-
-        for regex, reason in [*LEAK_PATTERNS, *SECRET_PATTERNS, *COMMIT_METADATA_PATTERNS]:
-            if regex.search(text):
-                violations.append(f"commit {short}: {reason}")
-
-        violations.extend(validate_worker_footer_values(commit, text))
+        violations.extend(check_commit_metadata_text(commit, text))
 
     return violations
 
