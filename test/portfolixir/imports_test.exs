@@ -533,4 +533,23 @@ defmodule Portfolixir.ImportsTest do
            } =
              errors_on(changeset)
   end
+
+  test "list_recent_import_runs/1 and list_recent_raw_import_items/1 return [] for invalid limits" do
+    assert Imports.list_recent_import_runs("2") == []
+    assert Imports.list_recent_raw_import_items(:two) == []
+  end
+
+  test "list_import_conflicts_for_run/1 returns [] for invalid run id" do
+    assert Imports.list_import_conflicts_for_run("1") == []
+  end
+
+  test "resolve_import_conflict/2 returns :not_found for invalid ids and missing records" do
+    assert {:error, :not_found} = Imports.resolve_import_conflict("1", %{})
+    assert {:error, :not_found} = Imports.resolve_import_conflict(999_999_999, %{})
+  end
+
+  test "get_raw_import_item/1 returns nil for invalid id and missing record" do
+    assert Imports.get_raw_import_item("1") == nil
+    assert Imports.get_raw_import_item(-1) == nil
+  end
 end
