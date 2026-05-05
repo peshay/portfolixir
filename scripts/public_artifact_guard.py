@@ -59,6 +59,30 @@ SECRET_PATTERNS = [
     (re.compile(r"\bxox(?:b|p|a|r|s)-[A-Za-z0-9-]{10,}\b"), "Slack token"),
 ]
 
+COMMIT_METADATA_PATTERNS = [
+    (re.compile(r"(?im)^AI-Agent\s*:"), "internal agent metadata footer"),
+    (re.compile(r"(?im)^Worker-(?!Model\s*:|Thinking\s*:)[A-Za-z0-9-]*\s*:"), "unsupported worker metadata footer"),
+    (
+        re.compile(
+            r"(?im)^(?:Orchestrator|Review|Runtime|Host|Workspace|Prompt|Rule|Session)-(?:Model|Thinking|Id|Path|Name)?\s*:",
+        ),
+        "private runtime metadata footer",
+    ),
+    (re.compile(r"(?im)^(?:Runtime|Host|Workspace|Path)\s*:"), "private metadata key"),
+    (re.compile(r"(?i)OpenClaw Code Agent"), "private agent identity"),
+    (re.compile(r"(?i)openclaw-code@[^>\s]+"), "private agent email address"),
+    (re.compile(r"(?i)@[A-Za-z0-9._%+-]+\.local\b"), "local-only email domain"),
+    (re.compile(r"(?i)@localhost\b"), "local-only email domain"),
+]
+
+MODEL_IDENTIFIER_PATTERN = re.compile(r"(?i)(?:openai-codex|codex)/[A-Za-z0-9._-]+")
+WORKER_MODEL_PATTERN = re.compile(r"^(?:openai-codex|codex)/[A-Za-z0-9._-]+$")
+WORKER_THINKING_VALUES = {"low", "medium", "high"}
+DISALLOWED_WORKER_MODELS = {
+    "openai-codex/gpt-5.4-mini",
+}
+WORKER_FOOTER_PATTERN = re.compile(r"(?im)^Worker-(Model|Thinking)\s*:\s*(.+?)\s*$")
+
 
 def git_tracked_files() -> list[Path]:
     result = subprocess.run(
@@ -109,8 +133,79 @@ def normalize_files(candidate_files: list[str]) -> list[Path]:
     return files
 
 
+def git_commit_metadata(commit_range: str) -> list[tuple[str, str]]:
+    try:
+        rev_list = subprocess.run(
+            ["git", "rev-list", "--reverse", commit_range],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        detail = exc.stderr.strip() or exc.stdout.strip() or "unknown git rev-list failure"
+        raise SystemExit(f"cannot inspect commit range {commit_range!r}: {detail}") from exc
+    commits = [line.strip() for line in rev_list.stdout.splitlines() if line.strip()]
+
+    metadata: list[tuple[str, str]] = []
+    for commit in commits:
+        show = subprocess.run(
+            [
+                "git",
+                "show",
+                "-s",
+                "--format=commit %H%nAuthor: %an <%ae>%nCommitter: %cn <%ce>%nSubject: %s%nBody:%n%b",
+                commit,
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        metadata.append((commit, show.stdout))
+
+    return metadata
+
+
+def validate_worker_footer_values(commit: str, text: str) -> list[str]:
+    violations: list[str] = []
+
+    for field, raw_value in WORKER_FOOTER_PATTERN.findall(text):
+        value = raw_value.strip()
+        if field.lower() == "model":
+            if not WORKER_MODEL_PATTERN.fullmatch(value):
+                violations.append(f"commit {commit[:12]}: invalid Worker-Model footer value")
+                continue
+            if value.lower() in DISALLOWED_WORKER_MODELS:
+                violations.append(f"commit {commit[:12]}: Worker-Model cannot use orchestrator model")
+        elif field.lower() == "thinking" and value.lower() not in WORKER_THINKING_VALUES:
+            violations.append(f"commit {commit[:12]}: invalid Worker-Thinking footer value")
+
+    return violations
+
+
+def check_commit_metadata(commit_range: str) -> list[str]:
+    violations: list[str] = []
+
+    for commit, text in git_commit_metadata(commit_range):
+        short = commit[:12]
+
+        text_without_allowed_worker_footers = WORKER_FOOTER_PATTERN.sub("", text)
+        if MODEL_IDENTIFIER_PATTERN.search(text_without_allowed_worker_footers):
+            violations.append(f"commit {short}: internal model identifier outside allowed Worker-Model footer")
+
+        for regex, reason in [*LEAK_PATTERNS, *SECRET_PATTERNS, *COMMIT_METADATA_PATTERNS]:
+            if regex.search(text):
+                violations.append(f"commit {short}: {reason}")
+
+        violations.extend(validate_worker_footer_values(commit, text))
+
+    return violations
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--commit-range", help="Optional git commit range to scan for public metadata leaks")
     parser.add_argument("files", nargs="*", help="Optional file list from pre-commit")
     args = parser.parse_args()
 
@@ -141,6 +236,9 @@ def main() -> int:
         for regex, reason in SECRET_PATTERNS:
             if regex.search(content):
                 violations.append(f"{relative}: possible {reason}")
+
+    if args.commit_range:
+        violations.extend(check_commit_metadata(args.commit_range))
 
     if violations:
         print("public-artifact-guard failed:")
