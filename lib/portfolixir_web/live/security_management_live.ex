@@ -20,6 +20,23 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     "notes" => ""
   }
 
+  @security_column_storage_key "portfolixir.securities.visibleColumns"
+  @security_table_columns [
+    %{key: "name", label: "Name", required?: true},
+    %{key: "symbol", label: "Symbol"},
+    %{key: "currency", label: "Currency"},
+    %{key: "isin", label: "ISIN"},
+    %{key: "wkn", label: "WKN"},
+    %{key: "latest_quote", label: "Latest quote"},
+    %{key: "latest_quote_date", label: "Latest quote date"},
+    %{key: "position_quantity", label: "Position quantity"},
+    %{key: "provider_symbol", label: "Provider symbol"},
+    %{key: "exchange", label: "Exchange"},
+    %{key: "status", label: "Status"},
+    %{key: "actions", label: "Actions", required?: true}
+  ]
+  @default_security_column_keys Enum.map(@security_table_columns, & &1.key)
+
   def mount(params, _session, socket) do
     security_status_filter = parse_security_status_filter(params["status"])
 
@@ -41,6 +58,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:selected_security_id, nil)
       |> assign(:selected_security, nil)
       |> assign(:security_status_filter, security_status_filter)
+      |> assign(:security_table_columns, @security_table_columns)
+      |> assign(:security_column_storage_key, @security_column_storage_key)
+      |> assign(:visible_security_column_keys, @default_security_column_keys)
       |> load_securities()
 
     {:ok, socket}
@@ -127,6 +147,47 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </button>
           </div>
 
+          <details id="security-column-menu" class="app-shell-column-menu">
+            <summary
+              id="security-column-menu-button"
+              class="app-shell-secondary"
+              role="button"
+              aria-label={gettext("Choose visible security table columns")}
+            >
+              <%= gettext("Columns") %>
+            </summary>
+            <form
+              id="security-column-form"
+              class="app-shell-column-menu-panel"
+              phx-change="set_security_columns"
+              data-storage-key={@security_column_storage_key}
+              aria-label={gettext("Visible security table columns")}
+            >
+              <fieldset>
+                <legend><%= gettext("Visible columns") %></legend>
+                <p class="app-shell-help-text">
+                  <%= gettext("Choose which security table columns are shown. Your browser saves the selection locally.") %>
+                </p>
+                <%= for column <- @security_table_columns do %>
+                  <label for={"security-column-#{column.key}"}>
+                    <input
+                      id={"security-column-#{column.key}"}
+                      type="checkbox"
+                      name="columns[]"
+                      value={column.key}
+                      checked={security_column_visible?(@visible_security_column_keys, column.key)}
+                      disabled={Map.get(column, :required?, false)}
+                    />
+                    <%= security_column_label(column.key) %>
+                  </label>
+                  <%= if Map.get(column, :required?, false) do %>
+                    <input type="hidden" name="columns[]" value={column.key} />
+                  <% end %>
+                <% end %>
+              </fieldset>
+            </form>
+          </details>
+
           <%= if Enum.empty?(@securities) do %>
             <div id="no-securities" class="app-shell-empty-state">
               <h3><%= security_filter_empty_title(@security_status_filter, @security_total_count) %></h3>
@@ -137,18 +198,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <table id="security-list">
                 <thead>
                   <tr>
-                    <th><%= gettext("Name") %></th>
-                    <th><%= gettext("Symbol") %></th>
-                    <th><%= gettext("Currency") %></th>
-                    <th>ISIN</th>
-                    <th>WKN</th>
-                    <th><%= gettext("Latest quote") %></th>
-                    <th><%= gettext("Latest quote date") %></th>
-                    <th><%= gettext("Position quantity") %></th>
-                    <th><%= gettext("Provider symbol") %></th>
-                    <th><%= gettext("Exchange") %></th>
-                    <th><%= gettext("Status") %></th>
-                    <th><%= gettext("Actions") %></th>
+                    <%= for column <- @security_table_columns, security_column_visible?(@visible_security_column_keys, column.key) do %>
+                      <th data-column-key={column.key}><%= security_column_label(column.key) %></th>
+                    <% end %>
                   </tr>
                 </thead>
                 <tbody>
@@ -159,55 +211,79 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       phx-click="select_security"
                       phx-value-id={security.id}
                     >
-                      <td>
-                        <strong><%= security.name %></strong>
-                      </td>
-                      <td><%= security.symbol %></td>
-                      <td><%= security.currency_code %></td>
-                      <td><%= security.isin || "—" %></td>
-                      <td><%= security.wkn || "—" %></td>
-                      <td><%= decimal_to_string(security.latest_quote_close) %></td>
-                      <td><%= iso_date_or_dash(security.latest_quote_date) %></td>
-                      <td><%= decimal_to_string(security.position_quantity) %></td>
-                      <td><%= security.provider_symbol || "—" %></td>
-                      <td><%= security.exchange_code || "—" %></td>
-                      <td>
-                        <a
-                          id={"security-detail-link-#{security.id}"}
-                          href={"/securities/#{security.id}"}
-                        >
-                          <%= gettext("Open detail") %>
-                        </a>
-                        <%= if security.active do %>
-                          <span class="app-shell-badge"><%= gettext("Active") %></span>
-                        <% else %>
-                          <span class="app-shell-badge app-shell-muted">
-                            <%= gettext("Inactive") %>
-                          </span>
-                        <% end %>
-                      </td>
-                      <td>
-                        <%= if security.active do %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "name") do %>
+                        <td data-column-key="name">
+                          <strong><%= security.name %></strong>
+                        </td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "symbol") do %>
+                        <td data-column-key="symbol"><%= security.symbol %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "currency") do %>
+                        <td data-column-key="currency"><%= security.currency_code %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "isin") do %>
+                        <td data-column-key="isin"><%= security.isin || "—" %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "wkn") do %>
+                        <td data-column-key="wkn"><%= security.wkn || "—" %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "latest_quote") do %>
+                        <td data-column-key="latest_quote"><%= decimal_to_string(security.latest_quote_close) %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "latest_quote_date") do %>
+                        <td data-column-key="latest_quote_date"><%= iso_date_or_dash(security.latest_quote_date) %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "position_quantity") do %>
+                        <td data-column-key="position_quantity"><%= decimal_to_string(security.position_quantity) %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "provider_symbol") do %>
+                        <td data-column-key="provider_symbol"><%= security.provider_symbol || "—" %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "exchange") do %>
+                        <td data-column-key="exchange"><%= security.exchange_code || "—" %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "status") do %>
+                        <td data-column-key="status">
+                          <a
+                            id={"security-detail-link-#{security.id}"}
+                            href={"/securities/#{security.id}"}
+                          >
+                            <%= gettext("Open detail") %>
+                          </a>
+                          <%= if security.active do %>
+                            <span class="app-shell-badge"><%= gettext("Active") %></span>
+                          <% else %>
+                            <span class="app-shell-badge app-shell-muted">
+                              <%= gettext("Inactive") %>
+                            </span>
+                          <% end %>
+                        </td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "actions") do %>
+                        <td data-column-key="actions">
+                          <%= if security.active do %>
+                            <button
+                              id={"security-archive-#{security.id}"}
+                              type="button"
+                              class="app-shell-secondary"
+                              phx-click="archive_security"
+                              phx-value-id={security.id}
+                            >
+                              <%= gettext("Archive") %>
+                            </button>
+                          <% end %>
                           <button
-                            id={"security-archive-#{security.id}"}
+                            id={"security-edit-#{security.id}"}
                             type="button"
                             class="app-shell-secondary"
-                            phx-click="archive_security"
+                            phx-click="start_edit_security"
                             phx-value-id={security.id}
                           >
-                            <%= gettext("Archive") %>
+                            <%= gettext("Edit security") %>
                           </button>
-                        <% end %>
-                        <button
-                          id={"security-edit-#{security.id}"}
-                          type="button"
-                          class="app-shell-secondary"
-                          phx-click="start_edit_security"
-                          phx-value-id={security.id}
-                        >
-                          <%= gettext("Edit security") %>
-                        </button>
-                      </td>
+                        </td>
+                      <% end %>
                     </tr>
                   <% end %>
                 </tbody>
@@ -215,6 +291,52 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </div>
           <% end %>
         </section>
+
+        <script id="security-column-preferences-script">
+          (function () {
+            var form = document.getElementById("security-column-form");
+
+            if (!form || !window.localStorage) {
+              return;
+            }
+
+            var storageKey = form.getAttribute("data-storage-key");
+            var checkboxSelector = "input[type='checkbox'][name='columns[]']";
+
+            function checkedValues() {
+              return Array.prototype.slice.call(form.querySelectorAll(checkboxSelector))
+                .filter(function (input) { return input.checked || input.disabled; })
+                .map(function (input) { return input.value; });
+            }
+
+            function persist() {
+              localStorage.setItem(storageKey, JSON.stringify(checkedValues()));
+            }
+
+            function restore() {
+              var stored = localStorage.getItem(storageKey);
+              if (!stored) { return; }
+
+              try {
+                var visible = JSON.parse(stored);
+                if (!Array.isArray(visible)) { return; }
+
+                Array.prototype.slice.call(form.querySelectorAll(checkboxSelector)).forEach(function (input) {
+                  if (!input.disabled) {
+                    input.checked = visible.indexOf(input.value) !== -1;
+                  }
+                });
+
+                form.dispatchEvent(new Event("change", { bubbles: true }));
+              } catch (_error) {
+                localStorage.removeItem(storageKey);
+              }
+            }
+
+            form.addEventListener("change", persist);
+            restore();
+          })();
+        </script>
 
         <section id="security-selected-detail" class="app-shell-section-card" data-priority="secondary">
           <div class="app-shell-section-header">
@@ -549,6 +671,11 @@ defmodule PortfolixirWeb.SecurityManagementLive do
      |> load_securities()}
   end
 
+  def handle_event("set_security_columns", params, socket) do
+    {:noreply,
+     assign(socket, :visible_security_column_keys, visible_security_column_keys(params))}
+  end
+
   def handle_event("search_securities", %{"q" => query}, socket) do
     {:noreply,
      socket
@@ -699,6 +826,42 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     |> assign(:selected_security, selected_security)
     |> assign(:currencies, Catalog.list_currencies())
   end
+
+  defp visible_security_column_keys(%{"columns" => keys}) when is_list(keys) do
+    allowed_keys = MapSet.new(Enum.map(@security_table_columns, & &1.key))
+    selected_keys = Enum.filter(keys, &MapSet.member?(allowed_keys, &1))
+
+    selected_keys
+    |> Kernel.++(required_security_column_keys())
+    |> Enum.uniq()
+    |> then(fn
+      [] -> @default_security_column_keys
+      keys -> keys
+    end)
+  end
+
+  defp visible_security_column_keys(_), do: @default_security_column_keys
+
+  defp required_security_column_keys do
+    @security_table_columns
+    |> Enum.filter(&Map.get(&1, :required?, false))
+    |> Enum.map(& &1.key)
+  end
+
+  defp security_column_visible?(visible_keys, key), do: key in visible_keys
+
+  defp security_column_label("name"), do: gettext("Name")
+  defp security_column_label("symbol"), do: gettext("Symbol")
+  defp security_column_label("currency"), do: gettext("Currency")
+  defp security_column_label("isin"), do: "ISIN"
+  defp security_column_label("wkn"), do: "WKN"
+  defp security_column_label("latest_quote"), do: gettext("Latest quote")
+  defp security_column_label("latest_quote_date"), do: gettext("Latest quote date")
+  defp security_column_label("position_quantity"), do: gettext("Position quantity")
+  defp security_column_label("provider_symbol"), do: gettext("Provider symbol")
+  defp security_column_label("exchange"), do: gettext("Exchange")
+  defp security_column_label("status"), do: gettext("Status")
+  defp security_column_label("actions"), do: gettext("Actions")
 
   defp choose_selected_security_id(current_id, securities) do
     cond do
