@@ -3,7 +3,10 @@ defmodule PortfolixirWeb.ReadAPIControllerTest do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.{DepositAccount, Portfolio, SecuritiesAccount}
+  alias Portfolixir.Repo
   alias PortfolixirWeb.Router
 
   defp create_currency do
@@ -259,6 +262,85 @@ defmodule PortfolixirWeb.ReadAPIControllerTest do
     response = get(conn, "/api/read/positions", %{"portfolio_id" => "999999"})
     assert response.status == 404
     assert json_response(response, 404)["error"] == "portfolio not found"
+  end
+
+  test "invalid portfolio_id format returns 404 JSON", %{conn: conn} do
+    Enum.each(
+      [
+        "/api/read/portfolio_snapshot",
+        "/api/read/positions",
+        "/api/read/transactions",
+        "/api/read/cash_balances"
+      ],
+      fn path ->
+        response = get(conn, path, %{"portfolio_id" => "not-a-number"})
+        assert response.status == 404
+        assert json_response(response, 404)["error"] == "portfolio not found"
+      end
+    )
+  end
+
+  test "read endpoints return 404 when no portfolio exists", %{conn: conn} do
+    Repo.delete_all(Transaction)
+    Repo.delete_all(SecuritiesAccount)
+    Repo.delete_all(DepositAccount)
+    Repo.delete_all(Portfolio)
+
+    Enum.each(
+      [
+        "/api/read/portfolio_snapshot",
+        "/api/read/positions",
+        "/api/read/transactions",
+        "/api/read/cash_balances"
+      ],
+      fn path ->
+        response = get(conn, path)
+        assert response.status == 404
+        assert json_response(response, 404)["error"] == "portfolio not found"
+      end
+    )
+  end
+
+  test "cash_balances endpoint includes missing_cash_impacts for securities account without reference deposit",
+       %{conn: conn, first_portfolio: first_portfolio} do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Missing Impact Security",
+        symbol: "MIS",
+        currency_code: "EUR"
+      })
+
+    {:ok, orphan_securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: first_portfolio.id,
+        name: "Orphan Securities",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: first_portfolio.id,
+        securities_account_id: orphan_securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-05],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("5.00"),
+        amount: Decimal.new("5.00")
+      })
+
+    response =
+      json_response(
+        get(conn, "/api/read/cash_balances", %{
+          "portfolio_id" => Integer.to_string(first_portfolio.id)
+        }),
+        200
+      )
+
+    assert Enum.any?(response["cash_balances"]["missing_cash_impacts"], fn impact ->
+             impact["type"] == "buy" and impact["reason"] == "missing_reference_deposit_account"
+           end)
   end
 
   test "no non-GET route is added under /api/read" do
