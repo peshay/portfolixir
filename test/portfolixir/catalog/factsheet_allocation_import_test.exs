@@ -360,6 +360,73 @@ defmodule Portfolixir.Catalog.FactsheetAllocationImportTest do
     assert Repo.aggregate(Transaction, :count, :id) == transaction_count
   end
 
+  test "confirm_preview validates preview payload and security id" do
+    assert {:error, {:invalid_input, _message}} =
+             FactsheetAllocationImport.confirm_preview(:invalid)
+
+    assert {:error, {:invalid_security_id, _message}} =
+             FactsheetAllocationImport.confirm_preview(%{
+               "security_id" => "abc",
+               "allocations" => []
+             })
+
+    assert {:error, {:security_not_found, _message}} =
+             FactsheetAllocationImport.confirm_preview(%{
+               "security_id" => 999_999_999,
+               "allocations" => []
+             })
+  end
+
+  test "confirm_fund_document validates fund_document id type" do
+    assert {:error, {:invalid_input, _message}} =
+             FactsheetAllocationImport.confirm_fund_document("1")
+  end
+
+  test "invalid allocation date and items produce deterministic failures" do
+    security = create_security("CONFIRM-INVALID-DATE-ITEMS")
+
+    preview = %{
+      "security_id" => security.id,
+      "allocations" => [
+        %{
+          "allocation_type" => "region",
+          "as_of_date" => "2026/13/40",
+          "items" => [%{"label" => "North America", "weight" => "62.5"}]
+        },
+        %{
+          "allocation_type" => "country",
+          "items" => "invalid-items"
+        },
+        %{
+          "allocation_type" => "sector",
+          "items" => [
+            %{"label" => "Technology", "weight" => "24.1", "confidence" => "1.5"},
+            "invalid-payload"
+          ]
+        }
+      ]
+    }
+
+    assert {:ok, summary} = FactsheetAllocationImport.confirm_preview(preview)
+
+    assert summary["failed"]["allocations"] == 1
+    assert summary["created"]["allocations"] == 2
+    assert summary["failed"]["fund_allocation_items"] == 2
+
+    assert Enum.any?(summary["warnings"], &String.contains?(&1, "invalid_as_of_date"))
+    assert Enum.any?(summary["warnings"], &String.contains?(&1, "items were invalid"))
+
+    assert Enum.any?(
+             summary["warnings"],
+             &String.contains?(&1, "Invalid allocation item confidence")
+           )
+
+    assert Enum.any?(
+             summary["warnings"],
+             &String.contains?(&1, "Skipping invalid allocation item payload")
+           )
+  end
+
   defp create_security(symbol) do
     {:ok, security} =
       Catalog.create_security(%{
