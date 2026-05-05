@@ -489,6 +489,124 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-price-chart-empty", "No quotes yet")
   end
 
+  test "renders security detail without a current portfolio", %{conn: conn} do
+    security =
+      create_security(%{name: "Portfolio-less Security", symbol: "NOP", currency_code: "EUR"})
+
+    Repo.delete_all(Transaction)
+    Repo.delete_all(Portfolixir.Portfolios.SecuritiesAccount)
+    Repo.delete_all(Portfolixir.Portfolios.DepositAccount)
+    Repo.delete_all(Portfolixir.Portfolios.Portfolio)
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?from=invalid-date")
+
+    assert has_element?(view, "#no-security-positions")
+    assert has_element?(view, "#no-security-transactions")
+    assert has_element?(view, "#security-price-chart-empty")
+  end
+
+  test "renders deposit and withdrawal labels when a security-linked cash flow exists", %{
+    conn: conn,
+    deposit_account: deposit_account,
+    portfolio: portfolio
+  } do
+    security = create_security(%{name: "Cashflow Security", symbol: "CASH", currency_code: "EUR"})
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        security_id: security.id,
+        type: "deposit",
+        date: ~D[2026-04-01],
+        currency_code: "EUR",
+        amount: Decimal.new("100.00"),
+        notes: "Security-linked deposit"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        security_id: security.id,
+        type: "withdrawal",
+        date: ~D[2026-04-02],
+        currency_code: "EUR",
+        amount: Decimal.new("20.00"),
+        notes: "Security-linked withdrawal"
+      })
+
+    create_quote(security.id, ~D[2026-04-01], "100.00")
+    create_quote(security.id, ~D[2026-04-02], "101.00")
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}")
+
+    assert has_element?(view, "#security-transactions", "Deposit")
+    assert has_element?(view, "#security-transactions", "Withdrawal")
+    assert has_element?(view, "#security-transactions", "Security-linked deposit")
+    assert has_element?(view, "#security-transactions", "Security-linked withdrawal")
+  end
+
+  test "supports all quote range selectors and marker fallback without same-day quote", %{
+    conn: conn,
+    securities_account: securities_account,
+    portfolio: portfolio
+  } do
+    security = create_security(%{name: "Range Matrix", symbol: "RMAX", currency_code: "EUR"})
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: securities_account.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-05-15],
+        currency_code: "EUR",
+        quantity: Decimal.new("1.00"),
+        price: Decimal.new("11.00"),
+        amount: Decimal.new("11.00"),
+        notes: "marker without quote"
+      })
+
+    create_quote(security.id, ~D[2025-03-01], "90.00")
+    create_quote(security.id, ~D[2025-10-01], "95.00")
+    create_quote(security.id, ~D[2026-02-01], "100.00")
+    create_quote(security.id, ~D[2026-04-01], "105.00")
+    create_quote(security.id, ~D[2026-05-20], "110.00")
+
+    {:ok, from_only_view, _html} = live(conn, "/securities/#{security.id}?from=2026-05-01")
+
+    assert has_element?(
+             from_only_view,
+             "#security-chart-marker-0[data-notes='marker without quote']"
+           )
+
+    assert has_element?(from_only_view, "#security-chart-marker-0[cy='180.0']")
+
+    {:ok, to_only_view, _html} = live(conn, "/securities/#{security.id}?to=2026-05-31")
+
+    assert has_element?(
+             to_only_view,
+             "#security-chart-marker-0[data-notes='marker without quote']"
+           )
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}")
+
+    for selector <- [
+          "#security-price-range-3m",
+          "#security-price-range-6m",
+          "#security-price-range-1y",
+          "#security-price-range-ytd",
+          "#security-price-range-all"
+        ] do
+      view
+      |> element(selector)
+      |> render_click()
+
+      assert has_element?(view, "#security-price-chart-series")
+    end
+  end
+
   test "does not create allocations, allocation items, transactions, or quotes when viewing security detail",
        %{
          conn: conn
