@@ -18,7 +18,23 @@ mix phx.server
 2. Write acceptance tests first.
 3. Implement the smallest possible change.
 4. Run the quality gate.
-5. Open a PR with a short story summary.
+5. Run public artifact guard checks.
+6. Open a PR with a short story summary.
+
+## Public artifact guard
+
+This repository enforces a local and CI guard for GitHub-visible text artifacts.
+
+```bash
+pre-commit install --install-hooks
+pre-commit run --all-files
+```
+
+If the guard fails:
+
+1. Remove internal paths/metadata, leaked prompt/process text, or obvious secrets from the flagged files.
+2. Replace literal escaped backslash-n sequences with real line breaks in public-facing text/templates/scripts.
+3. Rerun `pre-commit run --all-files` until it passes.
 
 ## Branch naming
 

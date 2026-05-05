@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: public-artifact-guard
+        name: Public artifact guard
+        entry: scripts/public_artifact_guard.py
+        language: python
+        pass_filenames: true
