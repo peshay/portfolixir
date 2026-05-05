@@ -242,7 +242,7 @@ defmodule PortfolixirWeb.DocumentUploadLive do
            ) do
       {:ok, {status, fund_document}}
     else
-      {:error, _} = error -> error
+      {:error, reason} -> {:ok, {:error, reason}}
     end
   end
 
