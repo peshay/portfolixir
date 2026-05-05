@@ -2,7 +2,7 @@ defmodule Portfolixir.Imports.ImportSource do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Portfolixir.Imports.{ImportRun, RawImportItem}
+  alias Portfolixir.Imports.{ImportConflict, ImportRun, RawImportItem}
 
   schema "import_sources" do
     field(:name, :string)
@@ -12,6 +12,7 @@ defmodule Portfolixir.Imports.ImportSource do
 
     has_many(:import_runs, ImportRun)
     has_many(:raw_import_items, RawImportItem)
+    has_many(:import_conflicts, ImportConflict)
 
     timestamps()
   end

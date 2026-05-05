@@ -3,7 +3,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.SecurityCsv
+  alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Positions
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.WorkbenchToolbar
 
   @security_form_defaults %{
     "name" => "",
@@ -24,6 +27,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     %{key: "currency", label: "Currency"},
     %{key: "isin", label: "ISIN"},
     %{key: "wkn", label: "WKN"},
+    %{key: "latest_quote", label: "Latest quote"},
+    %{key: "latest_quote_date", label: "Latest quote date"},
+    %{key: "position_quantity", label: "Position quantity"},
     %{key: "provider_symbol", label: "Provider symbol"},
     %{key: "exchange", label: "Exchange"},
     %{key: "status", label: "Status"},
@@ -45,9 +51,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:editing_security_id, nil)
       |> assign(:security_error, nil)
       |> assign(:security_success, nil)
+      |> assign(:security_search, "")
       |> assign(:security_csv_input, "")
       |> assign(:security_csv_error, nil)
       |> assign(:security_csv_preview_rows, nil)
+      |> assign(:selected_security_id, nil)
+      |> assign(:selected_security, nil)
       |> assign(:security_status_filter, security_status_filter)
       |> assign(:security_table_columns, @security_table_columns)
       |> assign(:security_column_storage_key, @security_column_storage_key)
@@ -73,11 +82,18 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           class="app-shell-section-card"
           data-priority="primary"
         >
-          <div class="app-shell-section-header">
-            <div>
-              <h2 class="app-shell-section-title"><%= gettext("Securities") %></h2>
-              <p><%= gettext("Core identifiers used by the ledger and valuation workspaces.") %></p>
-            </div>
+          <WorkbenchToolbar.toolbar
+            id="security-workbench-toolbar"
+            title={gettext("Securities")}
+            description={gettext("Core identifiers used by the ledger and valuation workspaces.")}
+            search_id="security-workbench-search"
+            search_placeholder={gettext("Search (planned)")}
+            search_label={gettext("Search securities")}
+            time_ranges={["1M", "3M", "6M", "1Y", "YTD", "ALL"]}
+            active_time_range="ALL"
+          />
+
+          <div class="app-shell-form-actions">
             <a id="security-export-csv" href="/securities/export.csv" class="app-shell-secondary">
               <%= gettext("Export CSV") %>
             </a>
@@ -92,6 +108,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <%= if @security_form_visible, do: gettext("Close form"), else: gettext("Add security") %>
             </button>
           </div>
+          <form id="security-search-form" class="app-shell-form-actions" phx-change="search_securities">
+            <input
+              id="security-search"
+              name="q"
+              type="search"
+              value={@security_search}
+              placeholder={gettext("Search securities")}
+            />
+          </form>
           <div id="security-status-filter" class="app-shell-form-actions">
             <button
               id="security-filter-active"
@@ -180,15 +205,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 </thead>
                 <tbody>
                   <%= for security <- @securities do %>
-                    <tr class={security_row_class(security)}>
+                    <tr
+                      id={"security-row-#{security.id}"}
+                      class={security_row_class(security)}
+                      phx-click="select_security"
+                      phx-value-id={security.id}
+                    >
                       <%= if security_column_visible?(@visible_security_column_keys, "name") do %>
                         <td data-column-key="name">
-                          <a
-                            id={"security-detail-link-#{security.id}"}
-                            href={"/securities/#{security.id}"}
-                          >
-                            <strong><%= security.name %></strong>
-                          </a>
+                          <strong><%= security.name %></strong>
                         </td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "symbol") do %>
@@ -203,6 +228,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       <%= if security_column_visible?(@visible_security_column_keys, "wkn") do %>
                         <td data-column-key="wkn"><%= security.wkn || "—" %></td>
                       <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "latest_quote") do %>
+                        <td data-column-key="latest_quote"><%= decimal_to_string(security.latest_quote_close) %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "latest_quote_date") do %>
+                        <td data-column-key="latest_quote_date"><%= iso_date_or_dash(security.latest_quote_date) %></td>
+                      <% end %>
+                      <%= if security_column_visible?(@visible_security_column_keys, "position_quantity") do %>
+                        <td data-column-key="position_quantity"><%= decimal_to_string(security.position_quantity) %></td>
+                      <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "provider_symbol") do %>
                         <td data-column-key="provider_symbol"><%= security.provider_symbol || "—" %></td>
                       <% end %>
@@ -211,6 +245,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "status") do %>
                         <td data-column-key="status">
+                          <a
+                            id={"security-detail-link-#{security.id}"}
+                            href={"/securities/#{security.id}"}
+                          >
+                            <%= gettext("Open detail") %>
+                          </a>
                           <%= if security.active do %>
                             <span class="app-shell-badge"><%= gettext("Active") %></span>
                           <% else %>
@@ -297,6 +337,39 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             restore();
           })();
         </script>
+
+        <section id="security-selected-detail" class="app-shell-section-card" data-priority="secondary">
+          <div class="app-shell-section-header">
+            <div>
+              <h2 class="app-shell-section-title"><%= gettext("Selected security") %></h2>
+              <p class="app-shell-panel-intro"><%= gettext("Inspect one security without leaving the table.") %></p>
+            </div>
+          </div>
+
+          <%= if @selected_security do %>
+            <div id="security-selected-summary" class="app-shell-summary-grid">
+              <p><strong><%= gettext("Name") %>:</strong> <%= @selected_security.name %></p>
+              <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
+              <p><strong><%= gettext("Latest quote") %>:</strong> <%= decimal_to_string(@selected_security.latest_quote_close) %></p>
+              <p><strong><%= gettext("Latest quote date") %>:</strong> <%= iso_date_or_dash(@selected_security.latest_quote_date) %></p>
+            </div>
+
+            <div id="security-selected-chart-placeholder" class="app-shell-empty-state">
+              <h3><%= gettext("Chart preview") %></h3>
+              <p><%= gettext("Chart placeholder: open the full detail page for the current chart view.") %></p>
+              <p>
+                <a id="security-selected-open-detail" href={"/securities/#{@selected_security.id}"}>
+                  <%= gettext("Open full security detail") %>
+                </a>
+              </p>
+            </div>
+          <% else %>
+            <div id="security-selected-empty" class="app-shell-empty-state">
+              <h3><%= gettext("No security selected") %></h3>
+              <p><%= gettext("Select a row to view details here.") %></p>
+            </div>
+          <% end %>
+        </section>
 
         <%= if @security_form_visible || @security_success || @security_error do %>
           <section
@@ -603,6 +676,26 @@ defmodule PortfolixirWeb.SecurityManagementLive do
      assign(socket, :visible_security_column_keys, visible_security_column_keys(params))}
   end
 
+  def handle_event("search_securities", %{"q" => query}, socket) do
+    {:noreply,
+     socket
+     |> assign(:security_search, query)
+     |> load_securities()}
+  end
+
+  def handle_event("select_security", %{"id" => id_string}, socket) do
+    case Integer.parse(id_string) do
+      {id, ""} ->
+        {:noreply,
+         socket
+         |> assign(:selected_security_id, id)
+         |> load_securities()}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("archive_security", %{"id" => id_string}, socket) do
     {id, ""} = Integer.parse(id_string)
     security = Catalog.get_security!(id)
@@ -712,10 +805,25 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp load_securities(socket) do
     all_securities = Catalog.list_securities(:all)
+    search = String.trim(socket.assigns.security_search || "")
+
+    position_quantity_by_security_id = position_quantity_by_security_id()
+
+    quoted_and_positioned =
+      Catalog.list_securities(socket.assigns.security_status_filter)
+      |> Enum.map(&enrich_security(&1, position_quantity_by_security_id))
+      |> maybe_filter_by_search(search)
+
+    selected_security_id =
+      choose_selected_security_id(socket.assigns.selected_security_id, quoted_and_positioned)
+
+    selected_security = Enum.find(quoted_and_positioned, &(&1.id == selected_security_id))
 
     socket
     |> assign(:security_total_count, Enum.count(all_securities))
-    |> assign(:securities, Catalog.list_securities(socket.assigns.security_status_filter))
+    |> assign(:securities, quoted_and_positioned)
+    |> assign(:selected_security_id, selected_security_id)
+    |> assign(:selected_security, selected_security)
     |> assign(:currencies, Catalog.list_currencies())
   end
 
@@ -747,10 +855,52 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp security_column_label("currency"), do: gettext("Currency")
   defp security_column_label("isin"), do: "ISIN"
   defp security_column_label("wkn"), do: "WKN"
+  defp security_column_label("latest_quote"), do: gettext("Latest quote")
+  defp security_column_label("latest_quote_date"), do: gettext("Latest quote date")
+  defp security_column_label("position_quantity"), do: gettext("Position quantity")
   defp security_column_label("provider_symbol"), do: gettext("Provider symbol")
   defp security_column_label("exchange"), do: gettext("Exchange")
   defp security_column_label("status"), do: gettext("Status")
   defp security_column_label("actions"), do: gettext("Actions")
+
+  defp choose_selected_security_id(current_id, securities) do
+    cond do
+      current_id && Enum.any?(securities, &(&1.id == current_id)) -> current_id
+      first = List.first(securities) -> first.id
+      true -> nil
+    end
+  end
+
+  defp enrich_security(security, position_quantity_by_security_id) do
+    latest_quote = Catalog.get_latest_security_quote(security.id)
+    position_quantity = Map.get(position_quantity_by_security_id, security.id, Decimal.new("0"))
+
+    Map.merge(security, %{
+      latest_quote_close: latest_quote && latest_quote.close,
+      latest_quote_date: latest_quote && latest_quote.date,
+      position_quantity: position_quantity
+    })
+  end
+
+  defp position_quantity_by_security_id do
+    Ledger.list_transactions()
+    |> Positions.calculate()
+    |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
+      Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
+    end)
+  end
+
+  defp maybe_filter_by_search(securities, ""), do: securities
+
+  defp maybe_filter_by_search(securities, search) do
+    needle = String.downcase(search)
+
+    Enum.filter(securities, fn security ->
+      [security.name, security.symbol, security.isin, security.wkn, security.provider_symbol]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.any?(fn value -> String.contains?(String.downcase(value), needle) end)
+    end)
+  end
 
   defp security_filter_empty_title(:all, _total_count), do: gettext("No securities yet")
 
@@ -773,6 +923,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp security_row_class(%Portfolixir.Catalog.Security{active: false}), do: "app-shell-muted"
   defp security_row_class(_), do: ""
+
+  defp iso_date_or_dash(nil), do: "—"
+  defp iso_date_or_dash(%Date{} = date), do: Date.to_iso8601(date)
+
+  defp decimal_to_string(nil), do: "—"
+  defp decimal_to_string(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
 
   defp filter_button_class(:active, :active), do: "app-shell-primary"
   defp filter_button_class(:inactive, :inactive), do: "app-shell-primary"

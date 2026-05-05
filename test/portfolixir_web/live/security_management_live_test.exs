@@ -77,6 +77,9 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-column-name[value='name'][disabled]")
     assert has_element?(view, "#security-column-symbol[value='symbol']")
     assert has_element?(view, "#security-column-provider_symbol[value='provider_symbol']")
+    assert has_element?(view, "#security-column-latest_quote[value='latest_quote']")
+    assert has_element?(view, "#security-column-latest_quote_date[value='latest_quote_date']")
+    assert has_element?(view, "#security-column-position_quantity[value='position_quantity']")
     assert has_element?(view, "#security-column-actions[value='actions'][disabled]")
     assert html =~ "portfolixir.securities.visibleColumns"
     assert html =~ "security-column-preferences-script"
@@ -96,7 +99,8 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities")
 
-    for key <- ~w(name symbol currency isin wkn provider_symbol exchange status actions) do
+    for key <-
+          ~w(name symbol currency isin wkn latest_quote latest_quote_date position_quantity provider_symbol exchange status actions) do
       assert has_element?(view, "#security-list th[data-column-key='#{key}']")
       assert has_element?(view, "#security-list td[data-column-key='#{key}']")
     end
@@ -129,6 +133,25 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     refute has_element?(view, "#security-list td[data-column-key='currency']")
     refute has_element?(view, "#security-list td[data-column-key='provider_symbol']")
     assert Repo.aggregate(Security, :count, :id) == initial_count
+  end
+
+  test "securities page renders shared toolbar controls and keeps status filters", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-workbench-toolbar")
+    assert has_element?(view, "#security-workbench-search")
+    assert has_element?(view, "#security-workbench-toolbar-filter[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-export[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-columns[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-range-1m[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-range-3m[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-range-6m[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-range-1y[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-range-ytd[disabled]")
+    assert has_element?(view, "#security-workbench-toolbar-range-all[disabled]")
+    assert has_element?(view, "#security-filter-active")
+    assert has_element?(view, "#security-filter-inactive")
+    assert has_element?(view, "#security-filter-all")
   end
 
   test "shows CSV preview section on the securities page", %{conn: conn} do
@@ -822,5 +845,119 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "Apple Inc."
     assert html =~ "Zebra Holdings"
     assert html =~ "security-list"
+  end
+
+  test "securities table shows latest quote, quote date, position quantity and search", %{
+    conn: conn
+  } do
+    alias Portfolixir.Ledger
+    alias Portfolixir.Portfolios
+
+    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Synthetic Growth ETF",
+        symbol: "SGE",
+        currency_code: "EUR",
+        provider_symbol: "SGE.DE"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        type: "buy",
+        date: ~D[2026-05-02],
+        currency_code: "EUR",
+        amount: Decimal.new("300"),
+        quantity: Decimal.new("3"),
+        price: Decimal.new("100"),
+        securities_account_id: securities_account.id,
+        security_id: security.id
+      })
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-02],
+        source: "manual",
+        currency_code: "EUR",
+        close: Decimal.new("111.11")
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-list th", "Latest quote")
+    assert has_element?(view, "#security-list th", "Latest quote date")
+    assert has_element?(view, "#security-list th", "Position quantity")
+    assert has_element?(view, "#security-list tbody", "111.11")
+    assert has_element?(view, "#security-list tbody", "2026-05-02")
+    assert has_element?(view, "#security-list tbody", "3")
+
+    view
+    |> element("#security-search-form")
+    |> render_change(%{"q" => "growth"})
+
+    assert has_element?(view, "#security-list tbody", "Synthetic Growth ETF")
+
+    view
+    |> element("#security-search-form")
+    |> render_change(%{"q" => "nomatch"})
+
+    refute has_element?(view, "#security-list tbody tr")
+  end
+
+  test "split view shows selected security and chart placeholder", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{name: "Alpha Corp", symbol: "ALP", currency_code: "EUR"})
+
+    {:ok, _} =
+      Catalog.create_security(%{name: "Beta Corp", symbol: "BET", currency_code: "EUR"})
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-selected-detail", "Selected security")
+    assert has_element?(view, "#security-selected-summary", "Alpha Corp")
+    assert has_element?(view, "#security-selected-chart-placeholder", "Chart preview")
+
+    assert has_element?(
+             view,
+             "#security-selected-open-detail[href='/securities/#{security.id}']"
+           )
+  end
+
+  test "clicking another row updates selected security detail area", %{conn: conn} do
+    {:ok, first_security} =
+      Catalog.create_security(%{name: "Alpha Corp", symbol: "ALP", currency_code: "EUR"})
+
+    {:ok, second_security} =
+      Catalog.create_security(%{name: "Beta Corp", symbol: "BET", currency_code: "EUR"})
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-selected-summary", "Alpha Corp")
+
+    view
+    |> element("#security-row-#{second_security.id}")
+    |> render_click()
+
+    assert has_element?(view, "#security-selected-summary", "Beta Corp")
+
+    refute has_element?(
+             view,
+             "#security-selected-open-detail[href='/securities/#{first_security.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-open-detail[href='/securities/#{second_security.id}']"
+           )
   end
 end

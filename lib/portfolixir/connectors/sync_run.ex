@@ -66,6 +66,8 @@ defmodule Portfolixir.Connectors.SyncRun do
       "import_run_id" => run_id,
       "created" => base_counts,
       "skipped" => base_counts,
+      "changed" => base_counts,
+      "conflicts" => base_counts,
       "failed" => base_counts,
       "warnings" => [],
       "record_counts" => base_counts
@@ -182,12 +184,22 @@ defmodule Portfolixir.Connectors.SyncRun do
     import_run_id = summary["import_run_id"]
 
     case find_existing_item(import_source_id, external_id, content_hash) do
-      %RawImportItem{} ->
+      {:same, %RawImportItem{}} ->
         summary
         |> increment("skipped", record_type)
         |> increment("skipped", "raw_items")
 
-      nil ->
+      {:changed, %RawImportItem{} = existing_item} ->
+        summary
+        |> increment("changed", record_type)
+        |> increment("changed", "raw_items")
+        |> increment("conflicts", record_type)
+        |> increment("conflicts", "raw_items")
+        |> append_warning(
+          "Changed #{record_type} detected for external_id #{inspect(existing_item.external_id || external_id)}"
+        )
+
+      :new ->
         attrs = %{
           import_source_id: import_source_id,
           import_run_id: import_run_id,
@@ -216,13 +228,27 @@ defmodule Portfolixir.Connectors.SyncRun do
   end
 
   defp find_existing_item(import_source_id, external_id, content_hash) do
-    case external_id do
-      id when is_binary(id) ->
-        Repo.get_by(RawImportItem, import_source_id: import_source_id, external_id: id) ||
-          find_by_content_hash(import_source_id, content_hash)
+    by_external_id =
+      case external_id do
+        id when is_binary(id) ->
+          Repo.get_by(RawImportItem, import_source_id: import_source_id, external_id: id)
 
-      _ ->
-        find_by_content_hash(import_source_id, content_hash)
+        _ ->
+          nil
+      end
+
+    cond do
+      match?(%RawImportItem{}, by_external_id) and by_external_id.content_hash == content_hash ->
+        {:same, by_external_id}
+
+      match?(%RawImportItem{}, by_external_id) ->
+        {:changed, by_external_id}
+
+      item = find_by_content_hash(import_source_id, content_hash) ->
+        {:same, item}
+
+      true ->
+        :new
     end
   end
 

@@ -4,6 +4,13 @@ defmodule PortfolixirWeb.SecurityControllerTest do
   alias Portfolixir.Catalog
 
   setup do
+    old_auth_config =
+      Application.get_env(:portfolixir, PortfolixirWeb.Plugs.BrowserApiKeyAuth, [])
+
+    on_exit(fn ->
+      Application.put_env(:portfolixir, PortfolixirWeb.Plugs.BrowserApiKeyAuth, old_auth_config)
+    end)
+
     Catalog.ensure_mvp_currencies!()
     :ok
   end
@@ -41,6 +48,38 @@ defmodule PortfolixirWeb.SecurityControllerTest do
 
     assert body =~ active_security.name
     assert body =~ inactive_security.name
+  end
+
+  test "denies anonymous browser and CSV export access when browser auth is enabled", %{
+    conn: conn
+  } do
+    Application.put_env(:portfolixir, PortfolixirWeb.Plugs.BrowserApiKeyAuth,
+      enabled: true,
+      api_key: "browser-test-key"
+    )
+
+    assert get(conn, "/accounts") |> response(401) == "unauthorized"
+    assert get(conn, "/securities/export.csv") |> response(401) == "unauthorized"
+  end
+
+  test "allows browser and CSV export access with valid API key when browser auth is enabled", %{
+    conn: conn
+  } do
+    Application.put_env(:portfolixir, PortfolixirWeb.Plugs.BrowserApiKeyAuth,
+      enabled: true,
+      api_key: "browser-test-key"
+    )
+
+    assert get(put_req_header(conn, "x-api-key", "browser-test-key"), "/accounts")
+           |> response(200)
+
+    csv_conn =
+      conn
+      |> recycle()
+      |> put_req_header("x-api-key", "browser-test-key")
+      |> get("/securities/export.csv")
+
+    assert response(csv_conn, 200)
   end
 
   test "CSV export escapes special characters and includes empty cells", %{conn: conn} do

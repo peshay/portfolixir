@@ -12,4 +12,12 @@ config :portfolixir, PortfolixirWeb.Endpoint,
   live_view: [signing_salt: "portfolixir-salt"],
   json_library: Jason
 
+config :portfolixir, PortfolixirWeb.Plugs.ReadApiKeyAuth,
+  enabled: false,
+  api_key: nil
+
+config :portfolixir, PortfolixirWeb.Plugs.BrowserApiKeyAuth,
+  enabled: false,
+  api_key: nil
+
 import_config "#{Mix.env()}.exs"

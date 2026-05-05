@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
 
   alias Portfolixir.Catalog
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.WorkbenchToolbar
 
   @impl true
   def mount(_params, _session, socket) do
@@ -35,6 +36,18 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
 
       <%= if !Enum.empty?(@fund_allocations) do %>
         <div id="fund-allocation-report" class="app-shell-workspace-stack">
+          <section id="fund-allocation-workbench-toolbar" class="app-shell-section-card" data-priority="primary">
+            <WorkbenchToolbar.toolbar
+              id="fund-allocation-toolbar"
+              title={gettext("Fund allocation workbench")}
+              description={gettext("Shared report controls are visible before advanced actions are implemented.")}
+              search_id="fund-allocation-search"
+              search_placeholder={gettext("Search (planned)")}
+              search_label={gettext("Search allocations")}
+              time_ranges={["1M", "3M", "6M", "1Y", "YTD", "ALL"]}
+              active_time_range="ALL"
+            />
+          </section>
           <%= for section <- fund_allocation_sections(@fund_allocations) do %>
             <section
               id={"fund-allocation-security-#{section.security.id}"}
