@@ -102,6 +102,8 @@ mix format
 mix test
 ```
 
+CI also enforces a coverage non-regression floor at **87.8%** (ExCoveralls/Cobertura line coverage).
+
 ## Read API authentication
 
 `/api/read/*` can be protected with an API key.
