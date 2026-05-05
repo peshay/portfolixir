@@ -221,26 +221,15 @@ defmodule Portfolixir.Catalog.FactsheetAllocationImport do
 
   defp process_allocation_item(allocation_id, item, summary) when is_map(item) do
     with {:ok, label} <- parse_item_label(item),
-         {:ok, weight} <- parse_item_weight(item) do
-      confidence_result = parse_item_confidence(item)
-
+         {:ok, weight} <- parse_item_weight(item),
+         {:ok, confidence} <- parse_item_confidence(item) do
       attrs =
-        case confidence_result do
-          {:ok, confidence} ->
-            %{
-              fund_allocation_id: allocation_id,
-              label: label,
-              weight: weight,
-              confidence: confidence
-            }
-
-          {:error, _reason} ->
-            %{
-              fund_allocation_id: allocation_id,
-              label: label,
-              weight: weight
-            }
-        end
+        %{
+          fund_allocation_id: allocation_id,
+          label: label,
+          weight: weight,
+          confidence: confidence
+        }
         |> Enum.reject(fn {_key, value} -> is_nil(value) end)
         |> Enum.into(%{})
 
