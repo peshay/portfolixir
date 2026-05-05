@@ -144,6 +144,7 @@ defmodule PortfolixirWeb.ImportOverviewLive do
                   <th><%= gettext("External ID") %></th>
                   <th><%= gettext("Content hash") %></th>
                   <th><%= gettext("Created at") %></th>
+                  <th><%= gettext("Review") %></th>
                 </tr>
               </thead>
               <tbody>
@@ -156,6 +157,11 @@ defmodule PortfolixirWeb.ImportOverviewLive do
                     <td><%= item.external_id || gettext("—") %></td>
                     <td><%= item.content_hash || gettext("—") %></td>
                     <td><%= format_datetime(item.inserted_at) %></td>
+                    <td>
+                      <a id={"import-raw-item-review-link-#{item.id}"} href={"/imports/raw-items/#{item.id}/review"}>
+                        <%= gettext("Review") %>
+                      </a>
+                    </td>
                   </tr>
                 <% end %>
               </tbody>

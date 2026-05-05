@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Router do
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
+    plug(PortfolixirWeb.Plugs.BrowserApiKeyAuth)
     plug(PortfolixirWeb.Locale)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
@@ -13,6 +14,7 @@ defmodule PortfolixirWeb.Router do
   pipeline :browser_csv do
     plug(:accepts, ["html", "csv"])
     plug(:fetch_session)
+    plug(PortfolixirWeb.Plugs.BrowserApiKeyAuth)
     plug(PortfolixirWeb.Locale)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
@@ -21,6 +23,11 @@ defmodule PortfolixirWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+  end
+
+  pipeline :read_api do
+    plug(:accepts, ["json"])
+    plug(PortfolixirWeb.Plugs.ReadApiKeyAuth)
   end
 
   scope "/", PortfolixirWeb do
@@ -40,12 +47,15 @@ defmodule PortfolixirWeb.Router do
       live("/documents/new", DocumentUploadLive)
       live("/fund-documents/:id/allocations/review", FactsheetAllocationReviewLive)
       live("/reports/fund-allocations", FundAllocationReportLive)
+      live("/reports/classification-exposure", ClassificationExposureReportLive)
+      live("/reports/payments", PaymentsReportLive)
       live("/accounts", AccountManagementLive)
       live("/transactions", TransactionManagementLive)
       live("/taxonomies", CategoryManagementLive)
       live("/securities", SecurityManagementLive)
       live("/securities/:id", SecurityDetailLive)
       live("/imports", ImportOverviewLive)
+      live("/imports/raw-items/:id/review", RawImportItemReviewLive)
     end
   end
 
@@ -56,7 +66,7 @@ defmodule PortfolixirWeb.Router do
   end
 
   scope "/api/read", PortfolixirWeb do
-    pipe_through(:api)
+    pipe_through(:read_api)
 
     get("/portfolio_snapshot", ReadAPIController, :portfolio_snapshot)
     get("/positions", ReadAPIController, :positions)

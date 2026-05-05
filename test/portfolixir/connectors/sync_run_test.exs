@@ -51,6 +51,26 @@ defmodule Portfolixir.Connectors.SyncRunTest do
     def permissions(_config), do: {:ok, ["read_accounts", "read_balances"]}
   end
 
+  defmodule ChangedAccountProvider do
+    @moduledoc false
+    @behaviour Provider
+
+    def accounts(config) do
+      version = Map.get(config, :version, 1)
+
+      {:ok,
+       [
+         %{"id" => "acct-1", "name" => "Main #{version}", "currency" => "EUR"},
+         %{"id" => "acct-2", "name" => "Savings", "currency" => "EUR"}
+       ]}
+    end
+
+    def balances(_config), do: {:ok, []}
+    def transactions(_config, _opts), do: {:ok, []}
+    def documents(_config, _opts), do: {:ok, []}
+    def permissions(_config), do: {:ok, []}
+  end
+
   defmodule SpyProvider do
     @moduledoc false
     @behaviour Provider
@@ -166,6 +186,8 @@ defmodule Portfolixir.Connectors.SyncRunTest do
                "import_run_id",
                "created",
                "skipped",
+               "changed",
+               "conflicts",
                "failed",
                "warnings",
                "record_counts"
@@ -198,6 +220,30 @@ defmodule Portfolixir.Connectors.SyncRunTest do
     assert Enum.all?(existing_raw_imports, fn item ->
              item.import_run_id == first_summary["import_run_id"]
            end)
+  end
+
+  test "reimport with changed external-id payload is classified as changed/conflict without duplicates" do
+    provider_name = "Changed Account Connector"
+
+    assert {:ok, first_summary} =
+             SyncRun.run(ChangedAccountProvider, provider_name, %{version: 1}, %{})
+
+    initial_count = Repo.aggregate(RawImportItem, :count, :id)
+
+    assert {:ok, second_summary} =
+             SyncRun.run(ChangedAccountProvider, provider_name, %{version: 2}, %{})
+
+    assert second_summary["import_source_id"] == first_summary["import_source_id"]
+    assert Repo.aggregate(RawImportItem, :count, :id) == initial_count
+    assert second_summary["changed"]["accounts"] == 1
+    assert second_summary["changed"]["raw_items"] == 1
+    assert second_summary["conflicts"]["accounts"] == 1
+    assert second_summary["conflicts"]["raw_items"] == 1
+
+    assert Enum.any?(
+             second_summary["warnings"],
+             &String.contains?(&1, "Changed accounts detected")
+           )
   end
 
   test "records without external id are deduped by deterministic content hash" do

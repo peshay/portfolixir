@@ -2,7 +2,7 @@ defmodule Portfolixir.Imports.ImportRun do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Portfolixir.Imports.{ImportSource, RawImportItem}
+  alias Portfolixir.Imports.{ImportConflict, ImportSource, RawImportItem}
 
   schema "import_runs" do
     field(:status, :string, default: "pending")
@@ -12,6 +12,7 @@ defmodule Portfolixir.Imports.ImportRun do
 
     belongs_to(:import_source, ImportSource)
     has_many(:raw_import_items, RawImportItem)
+    has_many(:import_conflicts, ImportConflict)
 
     timestamps()
   end

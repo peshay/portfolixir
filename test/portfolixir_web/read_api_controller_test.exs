@@ -101,6 +101,12 @@ defmodule PortfolixirWeb.ReadAPIControllerTest do
   end
 
   setup do
+    old_auth_config = Application.get_env(:portfolixir, PortfolixirWeb.Plugs.ReadApiKeyAuth, [])
+
+    on_exit(fn ->
+      Application.put_env(:portfolixir, PortfolixirWeb.Plugs.ReadApiKeyAuth, old_auth_config)
+    end)
+
     create_currency()
     first_portfolio = create_portfolio("Primary portfolio")
     second_portfolio = create_portfolio("Secondary portfolio")
@@ -114,6 +120,45 @@ defmodule PortfolixirWeb.ReadAPIControllerTest do
     post_transactions(second_portfolio, second_deposit, second_securities, security)
 
     %{first_portfolio: first_portfolio, second_portfolio: second_portfolio}
+  end
+
+  test "returns 401 when read API auth is enabled and no key is provided", %{conn: conn} do
+    Application.put_env(:portfolixir, PortfolixirWeb.Plugs.ReadApiKeyAuth,
+      enabled: true,
+      api_key: "test-read-key"
+    )
+
+    response = get(conn, "/api/read/positions")
+    assert response.status == 401
+    assert json_response(response, 401)["error"] == "unauthorized"
+  end
+
+  test "returns 401 when read API auth is enabled but key is not configured", %{conn: conn} do
+    Application.put_env(:portfolixir, PortfolixirWeb.Plugs.ReadApiKeyAuth,
+      enabled: true,
+      api_key: nil
+    )
+
+    response = get(conn, "/api/read/positions")
+    assert response.status == 401
+    assert json_response(response, 401)["error"] == "unauthorized"
+  end
+
+  test "returns 200 when read API auth is enabled and valid key is provided", %{
+    conn: conn,
+    first_portfolio: first_portfolio
+  } do
+    Application.put_env(:portfolixir, PortfolixirWeb.Plugs.ReadApiKeyAuth,
+      enabled: true,
+      api_key: "test-read-key"
+    )
+
+    response =
+      conn
+      |> put_req_header("x-api-key", "test-read-key")
+      |> get("/api/read/positions")
+
+    assert json_response(response, 200)["portfolio_id"] == first_portfolio.id
   end
 
   test "all read endpoints return 200 JSON", %{conn: conn, first_portfolio: first_portfolio} do

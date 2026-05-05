@@ -2,7 +2,7 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImportTest do
   use Portfolixir.DataCase, async: false
 
   alias Portfolixir.Imports.PortfolioPerformanceXmlImport
-  alias Portfolixir.Imports.{ImportRun, ImportSource, RawImportItem}
+  alias Portfolixir.Imports.{ImportConflict, ImportRun, ImportSource, RawImportItem}
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Taxonomies.Taxonomy
@@ -28,6 +28,14 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImportTest do
         i in RawImportItem,
         join: s in ImportSource,
         on: i.import_source_id == s.id,
+        where: s.name == @source_name and s.type == @source_type
+      )
+    )
+
+    Repo.delete_all(
+      from(c in ImportConflict,
+        join: s in ImportSource,
+        on: c.import_source_id == s.id,
         where: s.name == @source_name and s.type == @source_type
       )
     )
@@ -294,5 +302,47 @@ defmodule Portfolixir.Imports.PortfolioPerformanceXmlImportTest do
 
     assert {:ok, summary} = PortfolioPerformanceXmlImport.confirm_preview(preview)
     assert is_map(summary)
+  end
+
+  test "confirm rejects non xml/non preview inputs" do
+    assert {:error, {:invalid_input, _}} = PortfolioPerformanceXmlImport.confirm(123)
+  end
+
+  test "confirm accepts charlists the same as binaries" do
+    assert {:ok, summary} =
+             PortfolioPerformanceXmlImport.confirm(String.to_charlist(fixture_xml()))
+
+    assert is_integer(summary["import_run_id"])
+  end
+
+  test "confirm persists transaction conflicts for missing mapped security references" do
+    assert {:ok, preview} =
+             Portfolixir.Imports.PortfolioPerformanceXmlPreview.preview(fixture_xml())
+
+    [first_transaction | remaining_transactions] = Map.fetch!(preview, "transactions")
+
+    conflict_preview =
+      Map.put(preview, "transactions", [
+        Map.put(first_transaction, "security_reference_id", "sec-missing")
+        | remaining_transactions
+      ])
+
+    assert {:ok, summary} = PortfolioPerformanceXmlImport.confirm_preview(conflict_preview)
+
+    run_id = summary["import_run_id"]
+
+    conflicts =
+      Repo.all(
+        from(c in ImportConflict,
+          where: c.import_run_id == ^run_id,
+          order_by: [asc: c.id]
+        )
+      )
+
+    assert Enum.any?(conflicts, fn conflict ->
+             conflict.conflict_type == "missing_security" and
+               conflict.summary =~ "Transaction conflict" and
+               is_map(conflict.details)
+           end)
   end
 end
