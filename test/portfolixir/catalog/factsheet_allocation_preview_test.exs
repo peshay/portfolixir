@@ -136,6 +136,21 @@ defmodule Portfolixir.Catalog.FactsheetAllocationPreviewTest do
     assert Decimal.equal?(second["weight"], Decimal.new("5.2"))
   end
 
+  test "preview_text warns when section totals exceed threshold" do
+    text = """
+    Regions
+    North America 70%
+    Europe 40%
+    """
+
+    assert {:ok, preview} = FactsheetAllocationPreview.preview_text(text)
+
+    assert Enum.any?(
+             preview["warnings"],
+             &String.contains?(&1, "allocation total")
+           )
+  end
+
   test "ambiguous or unparseable lines produce warnings" do
     text = """
     Regions
@@ -240,6 +255,15 @@ defmodule Portfolixir.Catalog.FactsheetAllocationPreviewTest do
     assert Repo.aggregate(FundAllocationItem, :count, :id) == before_items
     assert Repo.aggregate(Transaction, :count, :id) == before_transactions
     assert Repo.aggregate(Category, :count, :id) == before_categories
+  end
+
+  test "preview_fund_document validates argument type and missing ids" do
+    assert {:error, :invalid_arguments} = FactsheetAllocationPreview.preview_fund_document("1")
+    assert {:error, :not_found} = FactsheetAllocationPreview.preview_fund_document(999_999_999)
+  end
+
+  test "preview_text rejects non-string inputs" do
+    assert {:error, {:invalid_input, _message}} = FactsheetAllocationPreview.preview_text(%{})
   end
 
   defp create_security(symbol) do

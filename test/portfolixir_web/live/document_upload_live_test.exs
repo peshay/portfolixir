@@ -190,12 +190,13 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
 
     assert render_upload(upload, "factsheet.pdf") =~ "100%"
 
-    _second_html =
+    second_html =
       second_view
       |> form("#document-upload-form", %{"security_id" => "#{security.id}"})
       |> render_submit()
 
     assert has_element?(second_view, "#document-upload-success")
+    assert second_html =~ "This factsheet has already been uploaded for the selected security."
 
     assert Repo.aggregate(
              from(fd in FundDocument, where: fd.security_id == ^security.id),
@@ -228,6 +229,105 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
     assert {:error, [[_entry_ref, :not_accepted]]} = render_upload(upload, "factsheet.txt")
     assert has_element?(view, "#document-upload-upload-error", "Unsupported file type.")
     assert Repo.aggregate(FundDocument, :count, :id) == 0
+  end
+
+  test "invalid security id shows a validation error", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Target Security",
+        symbol: "TGT#{System.unique_integer([:positive])}",
+        currency_code: "USD"
+      })
+
+    {:ok, view, _html} = live(conn, "/documents/new")
+
+    upload =
+      file_input(view, "#document-upload-form", :factsheet_file, [
+        %{
+          name: "factsheet.pdf",
+          content: @pdf_with_text,
+          type: "application/pdf",
+          size: byte_size(@pdf_with_text)
+        }
+      ])
+
+    assert render_upload(upload, "factsheet.pdf") =~ "100%"
+
+    html =
+      render_submit(view, "register_factsheet", %{
+        "security_id" => "not-a-number",
+        "factsheet_file" => upload
+      })
+
+    assert html =~ "Please select a valid security."
+    assert has_element?(view, "#document-upload-error", "Please select a valid security.")
+
+    assert Repo.aggregate(
+             from(fd in FundDocument, where: fd.security_id == ^security.id),
+             :count,
+             :id
+           ) == 0
+  end
+
+  test "submitting without a file shows a deterministic error", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Target Security",
+        symbol: "TGT#{System.unique_integer([:positive])}",
+        currency_code: "USD"
+      })
+
+    {:ok, view, _html} = live(conn, "/documents/new")
+
+    html =
+      view
+      |> form("#document-upload-form", %{"security_id" => "#{security.id}"})
+      |> render_submit()
+
+    assert html =~ "Please choose a PDF file before submitting."
+
+    assert has_element?(
+             view,
+             "#document-upload-error",
+             "Please choose a PDF file before submitting."
+           )
+  end
+
+  test "non-existent security shows no-longer-available error", %{conn: conn} do
+    {:ok, _security} =
+      Catalog.create_security(%{
+        name: "Target Security",
+        symbol: "TGT#{System.unique_integer([:positive])}",
+        currency_code: "USD"
+      })
+
+    {:ok, view, _html} = live(conn, "/documents/new")
+
+    upload =
+      file_input(view, "#document-upload-form", :factsheet_file, [
+        %{
+          name: "factsheet.pdf",
+          content: @pdf_with_text,
+          type: "application/pdf",
+          size: byte_size(@pdf_with_text)
+        }
+      ])
+
+    assert render_upload(upload, "factsheet.pdf") =~ "100%"
+
+    html =
+      render_submit(view, "register_factsheet", %{
+        "security_id" => "999999",
+        "factsheet_file" => upload
+      })
+
+    assert html =~ "Selected security is no longer available."
+
+    assert has_element?(
+             view,
+             "#document-upload-error",
+             "Selected security is no longer available."
+           )
   end
 
   test "missing security selection shows a validation error", %{conn: conn} do
