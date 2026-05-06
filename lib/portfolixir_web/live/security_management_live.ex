@@ -241,18 +241,24 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                           <p
                             id={"security-valuation-source-label-#{security.id}"}
                             class="app-shell-help-text"
+                            data-testid={"security-valuation-source-label-#{security.id}"}
+                            aria-label={gettext("Valuation source label")}
                           >
                             <%= valuation_source_label(security.latest_quote_source) %>
                           </p>
                           <p
                             id={"security-valuation-source-timestamp-#{security.id}"}
                             class="app-shell-help-text"
+                            data-testid={"security-valuation-source-timestamp-#{security.id}"}
+                            aria-label={gettext("Valuation source timestamp label")}
                           >
                             <%= valuation_source_timestamp_label(security.latest_quote_date) %>
                           </p>
                           <p
                             id={"security-valuation-freshness-summary-#{security.id}"}
                             class="app-shell-help-text"
+                            data-testid={"security-valuation-freshness-summary-#{security.id}"}
+                            aria-label={gettext("Valuation freshness summary label")}
                           >
                             <%= valuation_freshness_label(
                               valuation_freshness_state(
@@ -266,6 +272,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                           <p
                             id={"security-valuation-source-legend-#{security.id}"}
                             class="app-shell-help-text"
+                            data-testid={"security-valuation-source-legend-#{security.id}"}
+                            aria-label={gettext("Valuation source legend label")}
                           >
                             <%= valuation_source_legend_label(
                               security.latest_quote_source,
@@ -276,12 +284,16 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             <p
                               id={"security-valuation-warning-#{security.id}"}
                               class="app-shell-warning-note"
+                              data-testid={"security-valuation-warning-#{security.id}"}
+                              aria-label={gettext("Valuation warning label")}
                             >
                               <%= valuation_warning_label(security.valuation_warning) %>
                             </p>
                             <p
                               id={"security-valuation-warning-detail-#{security.id}"}
                               class="app-shell-help-text"
+                              data-testid={"security-valuation-warning-detail-#{security.id}"}
+                              aria-label={gettext("Valuation warning detail label")}
                             >
                               <%= valuation_warning_detail_label(
                                 security.valuation_warning,
@@ -409,14 +421,26 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
               <p><strong><%= gettext("Latest quote") %>:</strong> <%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %></p>
               <p><strong><%= gettext("Latest quote date") %>:</strong> <%= iso_date_or_dash(@selected_security.latest_quote_date) %></p>
-              <p id="security-selected-valuation-source-label">
+              <p
+                id="security-selected-valuation-source-label"
+                data-testid="security-selected-valuation-source-label"
+                aria-label={gettext("Valuation source label")}
+              >
                 <%= valuation_source_label(@selected_security.latest_quote_source) %>
               </p>
-              <p id="security-selected-valuation-source-timestamp">
+              <p
+                id="security-selected-valuation-source-timestamp"
+                data-testid="security-selected-valuation-source-timestamp"
+                aria-label={gettext("Valuation source timestamp label")}
+              >
                 <strong><%= gettext("Valuation source timestamp") %>:</strong>
                 <%= valuation_source_timestamp_label(@selected_security.latest_quote_date) %>
               </p>
-              <p id="security-selected-valuation-freshness-summary">
+              <p
+                id="security-selected-valuation-freshness-summary"
+                data-testid="security-selected-valuation-freshness-summary"
+                aria-label={gettext("Valuation freshness summary label")}
+              >
                 <%= valuation_freshness_label(
                   valuation_freshness_state(
                     @selected_security.valuation_warning,
@@ -426,18 +450,34 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                   )
                 ) %>
               </p>
-              <p id="security-selected-valuation-source-legend" class="app-shell-help-text">
+              <p
+                id="security-selected-valuation-source-legend"
+                class="app-shell-help-text"
+                data-testid="security-selected-valuation-source-legend"
+                aria-label={gettext("Valuation source legend label")}
+              >
                 <%= valuation_source_legend_label(
                   @selected_security.latest_quote_source,
                   @selected_security.valuation_warning
                 ) %>
               </p>
               <%= if @selected_security.valuation_warning do %>
-                <p id="security-selected-valuation-warning" class="app-shell-warning-note" role="alert">
+                <p
+                  id="security-selected-valuation-warning"
+                  class="app-shell-warning-note"
+                  role="alert"
+                  data-testid="security-selected-valuation-warning"
+                  aria-label={gettext("Valuation warning label")}
+                >
                   <strong><%= gettext("Valuation warning") %>:</strong>
                   <%= valuation_warning_label(@selected_security.valuation_warning) %>
                 </p>
-                <p id="security-selected-valuation-warning-detail" class="app-shell-help-text">
+                <p
+                  id="security-selected-valuation-warning-detail"
+                  class="app-shell-help-text"
+                  data-testid="security-selected-valuation-warning-detail"
+                  aria-label={gettext("Valuation warning detail label")}
+                >
                   <%= valuation_warning_detail_label(
                     @selected_security.valuation_warning,
                     @selected_security.latest_quote_date
