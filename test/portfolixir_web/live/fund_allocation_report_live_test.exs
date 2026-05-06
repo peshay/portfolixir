@@ -241,6 +241,20 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
     {:ok, view, _html} = live(conn, "/reports/fund-allocations")
 
     assert has_element?(view, "#fund-allocation-workbench-toolbar")
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-actions[role='group'][aria-labelledby='fund-allocation-toolbar-actions-label']"
+           )
+
+    assert has_element?(view, "#fund-allocation-toolbar-actions-label")
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-ranges[role='group'][aria-labelledby='fund-allocation-toolbar-ranges-label']"
+           )
+
+    assert has_element?(view, "#fund-allocation-toolbar-ranges-label")
     assert has_element?(view, "#fund-allocation-search")
     assert has_element?(view, "#fund-allocation-toolbar-filter[disabled]")
     assert has_element?(view, "#fund-allocation-toolbar-export[disabled]")

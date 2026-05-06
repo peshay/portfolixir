@@ -139,6 +139,20 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     assert has_element?(view, "#security-workbench-toolbar")
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-actions[role='group'][aria-labelledby='security-workbench-toolbar-actions-label']"
+           )
+
+    assert has_element?(view, "#security-workbench-toolbar-actions-label")
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-ranges[role='group'][aria-labelledby='security-workbench-toolbar-ranges-label']"
+           )
+
+    assert has_element?(view, "#security-workbench-toolbar-ranges-label")
     assert has_element?(view, "#security-workbench-search")
     assert has_element?(view, "#security-workbench-toolbar-filter[disabled]")
     assert has_element?(view, "#security-workbench-toolbar-export[disabled]")
@@ -149,6 +163,17 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-workbench-toolbar-range-1y[disabled]")
     assert has_element?(view, "#security-workbench-toolbar-range-ytd[disabled]")
     assert has_element?(view, "#security-workbench-toolbar-range-all[disabled]")
+
+    assert has_element?(
+             view,
+             "#security-list-actions[role='group'][aria-labelledby='security-list-actions-label']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-status-filter[role='group'][aria-labelledby='security-status-filter-label']"
+           )
+
     assert has_element?(view, "#security-filter-active")
     assert has_element?(view, "#security-filter-inactive")
     assert has_element?(view, "#security-filter-all")
@@ -359,11 +384,35 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   end
 
   test "renders an empty state when there are no securities", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/securities")
+    {:ok, view, _html} = live(conn, "/securities")
 
-    assert html =~ "All Securities"
-    assert html =~ "No securities yet"
-    assert html =~ "Add your first security to start building your portfolio."
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-actions[role='group'][aria-labelledby='security-workbench-toolbar-actions-label']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-ranges[role='group'][aria-labelledby='security-workbench-toolbar-ranges-label']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list-actions[role='group'][aria-labelledby='security-list-actions-label']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-status-filter[role='group'][aria-labelledby='security-status-filter-label']"
+           )
+
+    assert has_element?(view, "#no-securities h3", "No securities yet")
+
+    assert has_element?(
+             view,
+             "#no-securities p",
+             "Add your first security to start building your portfolio."
+           )
   end
 
   test "shows active securities by default", %{conn: conn} do
