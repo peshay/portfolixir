@@ -99,6 +99,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities")
 
+    assert has_element?(
+             view,
+             "#security-list caption",
+             "Securities workbench table with identifiers, valuation, status, and row actions."
+           )
+
     for key <-
           ~w(name symbol currency isin wkn latest_quote latest_quote_date position_quantity provider_symbol exchange status actions) do
       assert has_element?(view, "#security-list th[data-column-key='#{key}']")
@@ -205,7 +211,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "security-preview-row-1"
     assert has_element?(view, "#security-preview-status-1", "valid")
     assert has_element?(view, "#security-preview-row-1", "Test Security")
-    assert has_element?(view, "#security-csv-preview-table")
+    assert has_element?(view, "#security-csv-preview-table caption", "Security CSV preview table")
     refute has_element?(view, "button", "Confirm import")
   end
 
