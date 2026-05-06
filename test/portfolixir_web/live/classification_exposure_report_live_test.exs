@@ -269,9 +269,9 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
 
     {:ok, view, _html} = live(conn, "/reports/classification-exposure")
 
-    assert has_element?(view, "#classification-exposure-row-core", "120")
-    assert has_element?(view, "#classification-exposure-row-core", "100%")
-    assert has_element?(view, "#classification-exposure-row-satellite", "0")
+    assert has_element?(view, "#classification-exposure-row-core", "120.00 EUR")
+    assert has_element?(view, "#classification-exposure-row-core", "100.00%")
+    assert has_element?(view, "#classification-exposure-row-satellite", "Unavailable")
 
     assert has_element?(
              view,
