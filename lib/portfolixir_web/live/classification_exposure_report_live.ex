@@ -28,8 +28,26 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
        sunburst_hierarchy: sunburst.hierarchy,
        sunburst_hierarchy_json: Jason.encode!(sunburst.hierarchy),
        sunburst_legend_rows: sunburst.legend_rows,
-       sunburst_gradient: sunburst.gradient
+       sunburst_gradient: sunburst.gradient,
+       selected_category_name: nil,
+       selected_drilldown_row: nil
      )}
+  end
+
+  @impl true
+  def handle_event("select_category_drilldown", %{"category-name" => category_name}, socket) do
+    selected_row = find_category_row(socket.assigns.report.rows, category_name)
+
+    {:noreply,
+     assign(socket,
+       selected_category_name: if(selected_row, do: category_name, else: nil),
+       selected_drilldown_row: selected_row
+     )}
+  end
+
+  @impl true
+  def handle_event("clear_category_drilldown", _params, socket) do
+    {:noreply, assign(socket, selected_category_name: nil, selected_drilldown_row: nil)}
   end
 
   @impl true
@@ -95,7 +113,19 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
               <tbody>
                 <%= for row <- @report.rows do %>
                   <tr id={"classification-exposure-row-#{slug(row.category_name)}"}>
-                    <td><%= row.category_name %></td>
+                    <td>
+                      <button
+                        id={"classification-exposure-select-#{slug(row.category_name)}"}
+                        type="button"
+                        phx-click="select_category_drilldown"
+                        phx-value-category-name={row.category_name}
+                      >
+                        <%= row.category_name %>
+                        <%= if @selected_category_name == row.category_name do %>
+                          <span aria-hidden="true">•</span>
+                        <% end %>
+                      </button>
+                    </td>
                     <td><%= decimal_to_string(row.value) %></td>
                     <td><%= decimal_to_string(row.percentage) %>%</td>
                     <td><%= Enum.join(row.source_securities, ", ") %></td>
@@ -104,6 +134,65 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
               </tbody>
             </table>
           </div>
+
+          <section id="classification-exposure-drilldown" class="app-shell-section-card" data-priority="secondary">
+            <div class="app-shell-section-header">
+              <div>
+                <h2 class="app-shell-section-title"><%= gettext("Category drilldown details") %></h2>
+                <p><%= gettext("Read-only detail view from the existing classification exposure rows.") %></p>
+              </div>
+            </div>
+
+            <%= if @selected_drilldown_row do %>
+              <div id="classification-exposure-drilldown-summary" class="app-shell-summary-grid">
+                <p><strong><%= gettext("Category") %>:</strong> <%= @selected_drilldown_row.category_name %></p>
+                <p><strong><%= gettext("Exposure") %>:</strong> <%= decimal_to_string(@selected_drilldown_row.value) %></p>
+                <p><strong><%= gettext("Weight") %>:</strong> <%= decimal_to_string(@selected_drilldown_row.percentage) %>%</p>
+              </div>
+
+              <div class="app-shell-table-wrapper">
+                <table id="classification-exposure-drilldown-detail-table">
+                  <thead>
+                    <tr>
+                      <th><%= gettext("Source") %></th>
+                      <th><%= gettext("Status") %></th>
+                      <th><%= gettext("Security") %></th>
+                      <th><%= gettext("Input") %></th>
+                      <th><%= gettext("Exposure") %></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <%= for detail <- @selected_drilldown_row.drilldown_details do %>
+                      <tr id={"classification-exposure-drilldown-detail-#{slug(@selected_drilldown_row.category_name)}-#{slug(detail.security_name)}-#{slug(detail.source_type)}-#{slug(detail.status)}-#{slug(detail.source_label || detail.allocation_type || "none")}"}>
+                        <td><%= source_type_label(detail.source_type) %></td>
+                        <td><%= status_label(detail.status) %></td>
+                        <td><%= detail.security_name %></td>
+                        <td><%= input_label(detail) %></td>
+                        <td><%= decimal_to_string(detail.value) %></td>
+                      </tr>
+
+                      <%= if detail.note do %>
+                        <tr id={"classification-exposure-drilldown-note-#{slug(@selected_drilldown_row.category_name)}-#{slug(detail.security_name)}-#{slug(detail.source_type)}-#{slug(detail.status)}-#{slug(detail.source_label || detail.allocation_type || detail.note)}"}>
+                          <td colspan="5">
+                            <strong><%= gettext("Note") %>:</strong> <%= detail.note %>
+                          </td>
+                        </tr>
+                      <% end %>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+
+              <button id="classification-exposure-drilldown-clear" type="button" phx-click="clear_category_drilldown">
+                <%= gettext("Clear selection") %>
+              </button>
+            <% else %>
+              <div id="classification-exposure-drilldown-empty" class="app-shell-empty-state">
+                <h3><%= gettext("No category selected") %></h3>
+                <p><%= gettext("Select a category row to inspect direct-assignment and weighted-allocation source details.") %></p>
+              </div>
+            <% end %>
+          </section>
 
           <%= if @report.warnings != [] do %>
             <ul id="classification-exposure-warnings">
@@ -181,6 +270,37 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
 
     %{legend_rows: legend_rows, gradient: gradient, hierarchy: hierarchy}
   end
+
+  defp find_category_row(rows, category_name) do
+    Enum.find(rows, &(&1.category_name == category_name))
+  end
+
+  defp source_type_label("direct-assignment"), do: "Direct assignment"
+  defp source_type_label("weighted-allocation"), do: "Weighted allocation"
+  defp source_type_label(other), do: other
+
+  defp status_label("mapped"), do: "Mapped"
+  defp status_label("unmapped"), do: "Unmapped"
+  defp status_label("unknown"), do: "Unknown"
+  defp status_label(other), do: other
+
+  defp input_label(%{source_type: "direct-assignment", status: "mapped"}),
+    do: "Direct category assignment"
+
+  defp input_label(%{source_type: "direct-assignment", status: "unmapped"}),
+    do: "No direct category assignment"
+
+  defp input_label(%{
+         source_type: "weighted-allocation",
+         allocation_type: allocation_type,
+         source_label: source_label
+       })
+       when is_binary(allocation_type) and is_binary(source_label),
+       do: "#{allocation_type}: #{source_label}"
+
+  defp input_label(%{source_type: "weighted-allocation"}), do: "Unknown weighted allocation input"
+
+  defp input_label(_detail), do: "Unknown"
 
   defp decimal_to_string(%Decimal{} = value), do: Decimal.to_string(value, :normal)
 
