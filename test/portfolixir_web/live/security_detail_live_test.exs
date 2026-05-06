@@ -164,11 +164,20 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-chart-marker-0[data-type='dividend']")
   end
 
-  test "shows an empty state when no transactions exist", %{conn: conn} do
+  test "shows neutral current position empty state when no transactions exist", %{conn: conn} do
     security =
       create_security(%{name: "Empty Security", symbol: "EMPTY", currency_code: "EUR"})
 
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
+
+    assert has_element?(view, "#no-security-positions")
+    assert has_element?(view, "#no-security-positions", "No current position available")
+
+    assert has_element?(
+             view,
+             "#no-security-positions",
+             "Current position data is unavailable for this security."
+           )
 
     assert has_element?(view, "#no-security-transactions")
     assert has_element?(view, "#no-security-transactions", "No transactions are recorded")
@@ -501,6 +510,17 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     {:ok, view, _html} = live(conn, "/securities/#{security.id}?from=invalid-date")
 
     assert has_element?(view, "#no-security-positions")
+    assert has_element?(view, "#no-security-positions", "No current position available")
+
+    assert has_element?(
+             view,
+             "#no-security-positions",
+             "Current position data is unavailable for this security."
+           )
+
+    refute has_element?(view, "#security-position-list")
+    refute has_element?(view, "#no-security-positions", "No trades for this security")
+
     assert has_element?(view, "#no-security-transactions")
     assert has_element?(view, "#security-price-chart-empty")
   end
