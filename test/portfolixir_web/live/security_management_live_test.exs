@@ -925,6 +925,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "Valuation source as of 2026-05-02"
            )
 
+    assert has_element?(
+             view,
+             "#security-valuation-source-legend-#{security.id}",
+             "Source legend: latest stored quote source is shown for this valuation."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-legend",
+             "Source legend: latest stored quote source is shown for this valuation."
+           )
+
     assert has_element?(view, "#security-list td[data-column-key='latest_quote']", "111.11 EUR")
 
     assert has_element?(
@@ -1048,6 +1060,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-valuation-source-legend-#{security.id}",
+             "Source legend: no stored quote source is available for this valuation."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-legend",
+             "Source legend: no stored quote source is available for this valuation."
+           )
+
+    assert has_element?(
+             view,
              "#security-list td[data-column-key='latest_quote']",
              "Unavailable"
            )
@@ -1159,6 +1183,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              view,
              "#security-valuation-freshness-compact-summary",
              "Valuation freshness summary: 0 current · 1 stale · 0 missing"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-source-legend-#{security.id}",
+             "Source legend: latest stored quote source is shown; quote date may be older than recent transactions."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-legend",
+             "Source legend: latest stored quote source is shown; quote date may be older than recent transactions."
            )
   end
 
