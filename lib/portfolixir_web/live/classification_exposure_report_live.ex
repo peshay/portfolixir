@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
   alias Portfolixir.ClassificationExposure
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ReportState
 
   @sunburst_root "Classification exposure"
   @sunburst_palette ["#0f766e", "#2563eb", "#7c3aed", "#d97706", "#dc2626", "#059669", "#7c2d12"]
@@ -62,9 +63,11 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
       </header>
 
       <%= if is_nil(@portfolio) or Enum.empty?(@report.rows) do %>
-        <section id="classification-exposure-empty-state" class="app-shell-empty-state">
-          <h2><%= gettext("No classification exposure data yet") %></h2>
-        </section>
+        <ReportState.empty_state
+          id="classification-exposure-empty-state"
+          title={gettext("No classification exposure data yet")}
+          description={gettext("Add positions and category mappings to populate this report.")}
+        />
       <% else %>
         <section id="classification-exposure-sunburst" class="app-shell-section-card">
           <div class="app-shell-section-header">
@@ -187,19 +190,22 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
                 <%= gettext("Clear selection") %>
               </button>
             <% else %>
-              <div id="classification-exposure-drilldown-empty" class="app-shell-empty-state">
-                <h3><%= gettext("No category selected") %></h3>
-                <p><%= gettext("Select a category row to inspect direct-assignment and weighted-allocation source details.") %></p>
-              </div>
+              <ReportState.empty_state
+                id="classification-exposure-drilldown-empty"
+                title={gettext("No category selected")}
+                title_tag="h3"
+                inline={true}
+                description={gettext("Select a category row to inspect direct-assignment and weighted-allocation source details.")}
+              />
             <% end %>
           </section>
 
           <%= if @report.warnings != [] do %>
-            <ul id="classification-exposure-warnings">
-              <%= for warning <- @report.warnings do %>
-                <li><%= warning %></li>
-              <% end %>
-            </ul>
+            <ReportState.warning_state
+              id="classification-exposure-warnings"
+              title={gettext("Exposure warnings")}
+              warnings={@report.warnings}
+            />
           <% end %>
         </section>
       <% end %>
