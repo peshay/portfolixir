@@ -1376,7 +1376,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp format_valuation_amount(amount, currency_code),
     do: AmountFormat.format_currency_amount(amount, currency_code)
 
-  defp valuation_amount_label(nil, _currency_code), do: gettext("Valuation unavailable")
+  defp valuation_amount_label(nil, _currency_code), do: AmountFormat.missing_amount_label()
 
   defp valuation_amount_label(amount, currency_code),
     do: format_valuation_amount(amount, currency_code)
