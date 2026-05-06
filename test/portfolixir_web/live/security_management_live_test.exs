@@ -915,6 +915,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "[data-testid='security-valuation-source-label-#{security.id}'][aria-label='Valuation source label']",
+             "Valuation source: manual"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-label[data-testid='security-selected-valuation-source-label'][aria-label='Valuation source label']",
+             "Valuation source: manual"
+           )
+
+    assert has_element?(
+             view,
              "#security-valuation-source-timestamp-#{security.id}",
              "Valuation source as of 2026-05-02"
            )
@@ -948,6 +960,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-selected-valuation-freshness-summary",
+             "Valuation freshness: current"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-freshness-summary[data-testid='security-selected-valuation-freshness-summary'][aria-label='Valuation freshness summary label']",
              "Valuation freshness: current"
            )
 
@@ -1024,6 +1042,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-selected-valuation-warning[data-testid='security-selected-valuation-warning'][aria-label='Valuation warning label']",
+             "Missing quote for valuation."
+           )
+
+    assert has_element?(
+             view,
              "#security-valuation-warning-detail-#{security.id}",
              "No latest quote is available for this positioned security."
            )
@@ -1043,6 +1067,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-selected-valuation-source-label",
+             "Valuation source unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "[data-testid='security-valuation-source-label-#{security.id}'][aria-label='Valuation source label']",
+             "Valuation source unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-label[data-testid='security-selected-valuation-source-label'][aria-label='Valuation source label']",
              "Valuation source unavailable"
            )
 
