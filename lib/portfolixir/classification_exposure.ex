@@ -29,7 +29,9 @@ defmodule Portfolixir.ClassificationExposure do
           category_name: category_name,
           value: value,
           percentage: percent(value, total_value),
-          source_securities: grouped |> Enum.map(& &1.security_name) |> Enum.uniq() |> Enum.sort()
+          source_securities:
+            grouped |> Enum.map(& &1.security_name) |> Enum.uniq() |> Enum.sort(),
+          drilldown_details: build_drilldown_details(grouped)
         }
       end)
       |> Enum.sort_by(&{&1.category_name == "Unmapped", &1.category_name})
@@ -96,7 +98,12 @@ defmodule Portfolixir.ClassificationExposure do
             category_name: category.name,
             security_name: position.security_name,
             value: share,
-            warning: position.valuation_warning
+            warning: position.valuation_warning,
+            source_type: "direct-assignment",
+            status: "mapped",
+            allocation_type: nil,
+            source_label: nil,
+            detail_note: nil
           }
         end)
     end
@@ -118,7 +125,13 @@ defmodule Portfolixir.ClassificationExposure do
         category_name: category_name,
         security_name: position.security_name,
         value: value,
-        warning: warning
+        warning: warning,
+        source_type: "weighted-allocation",
+        status: to_string(item.status),
+        allocation_type: item.allocation_type,
+        source_label: item.source_label,
+        detail_note:
+          if(item.status == :mapped, do: nil, else: "No category mapping for allocation input")
       }
     end)
     |> Kernel.++(
@@ -127,7 +140,12 @@ defmodule Portfolixir.ClassificationExposure do
           category_name: "Unmapped",
           security_name: position.security_name,
           value: @zero,
-          warning: warning
+          warning: warning,
+          source_type: "weighted-allocation",
+          status: "unknown",
+          allocation_type: nil,
+          source_label: nil,
+          detail_note: warning
         }
       end)
     )
@@ -138,8 +156,32 @@ defmodule Portfolixir.ClassificationExposure do
       category_name: "Unmapped",
       security_name: position.security_name,
       value: position.market_value,
-      warning: warning
+      warning: warning,
+      source_type: "direct-assignment",
+      status: "unmapped",
+      allocation_type: nil,
+      source_label: nil,
+      detail_note: "No direct category assignment"
     }
+  end
+
+  defp build_drilldown_details(grouped) do
+    grouped
+    |> Enum.map(fn exposure ->
+      %{
+        source_type: exposure.source_type,
+        status: exposure.status,
+        security_name: exposure.security_name,
+        value: exposure.value,
+        allocation_type: exposure.allocation_type,
+        source_label: exposure.source_label,
+        note: exposure.detail_note
+      }
+    end)
+    |> Enum.sort_by(fn detail ->
+      {detail.source_type, detail.status, detail.security_name, detail.allocation_type || "",
+       detail.source_label || ""}
+    end)
   end
 
   defp percent(value, total) do
