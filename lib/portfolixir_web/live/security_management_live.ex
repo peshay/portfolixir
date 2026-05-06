@@ -234,10 +234,22 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                         <td data-column-key="wkn"><%= security.wkn || "—" %></td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "latest_quote") do %>
-                        <td data-column-key="latest_quote"><%= format_valuation_amount(security.latest_quote_close, security.latest_quote_currency_code) %></td>
+                        <td
+                          data-column-key="latest_quote"
+                          class={valuation_fallback_class(security.latest_quote_close)}
+                          data-valuation-state={valuation_fallback_state(security.latest_quote_close)}
+                          aria-label={valuation_amount_label(security.latest_quote_close, security.latest_quote_currency_code)}
+                        >
+                          <%= format_valuation_amount(security.latest_quote_close, security.latest_quote_currency_code) %>
+                        </td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "latest_quote_date") do %>
-                        <td data-column-key="latest_quote_date">
+                        <td
+                          data-column-key="latest_quote_date"
+                          class={valuation_fallback_class(security.latest_quote_date)}
+                          data-valuation-state={valuation_fallback_state(security.latest_quote_date)}
+                          aria-label={valuation_source_timestamp_label(security.latest_quote_date)}
+                        >
                           <div
                             id={"security-valuation-panel-#{security.id}"}
                             role="group"
@@ -252,17 +264,19 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             <%= iso_date_or_dash(security.latest_quote_date) %>
                             <p
                               id={"security-valuation-source-label-#{security.id}"}
-                              class="app-shell-help-text"
+                              class={["app-shell-help-text", valuation_fallback_class(security.latest_quote_source)]}
                               data-testid={"security-valuation-source-label-#{security.id}"}
-                              aria-label={gettext("Valuation source label")}
+                              data-valuation-state={valuation_fallback_state(security.latest_quote_source)}
+                              aria-label={valuation_source_label(security.latest_quote_source)}
                             >
                               <%= valuation_source_label(security.latest_quote_source) %>
                             </p>
                             <p
                               id={"security-valuation-source-timestamp-#{security.id}"}
-                              class="app-shell-help-text"
+                              class={["app-shell-help-text", valuation_fallback_class(security.latest_quote_date)]}
                               data-testid={"security-valuation-source-timestamp-#{security.id}"}
-                              aria-label={gettext("Valuation source timestamp label")}
+                              data-valuation-state={valuation_fallback_state(security.latest_quote_date)}
+                              aria-label={valuation_source_timestamp_label(security.latest_quote_date)}
                             >
                               <%= if match?(%Date{}, security.latest_quote_date) do %>
                                 <time datetime={Date.to_iso8601(security.latest_quote_date)}>
@@ -451,19 +465,35 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               </span>
               <p><strong><%= gettext("Name") %>:</strong> <%= @selected_security.name %></p>
               <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
-              <p><strong><%= gettext("Latest quote") %>:</strong> <%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %></p>
-              <p><strong><%= gettext("Latest quote date") %>:</strong> <%= iso_date_or_dash(@selected_security.latest_quote_date) %></p>
+              <p
+                class={valuation_fallback_class(@selected_security.latest_quote_close)}
+                data-valuation-state={valuation_fallback_state(@selected_security.latest_quote_close)}
+                aria-label={valuation_amount_label(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code)}
+              >
+                <strong><%= gettext("Latest quote") %>:</strong> <%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %>
+              </p>
+              <p
+                class={valuation_fallback_class(@selected_security.latest_quote_date)}
+                data-valuation-state={valuation_fallback_state(@selected_security.latest_quote_date)}
+                aria-label={valuation_source_timestamp_label(@selected_security.latest_quote_date)}
+              >
+                <strong><%= gettext("Latest quote date") %>:</strong> <%= iso_date_or_dash(@selected_security.latest_quote_date) %>
+              </p>
               <p
                 id="security-selected-valuation-source-label"
+                class={valuation_fallback_class(@selected_security.latest_quote_source)}
                 data-testid="security-selected-valuation-source-label"
-                aria-label={gettext("Valuation source label")}
+                data-valuation-state={valuation_fallback_state(@selected_security.latest_quote_source)}
+                aria-label={valuation_source_label(@selected_security.latest_quote_source)}
               >
                 <%= valuation_source_label(@selected_security.latest_quote_source) %>
               </p>
               <p
                 id="security-selected-valuation-source-timestamp"
+                class={valuation_fallback_class(@selected_security.latest_quote_date)}
                 data-testid="security-selected-valuation-source-timestamp"
-                aria-label={gettext("Valuation source timestamp label")}
+                data-valuation-state={valuation_fallback_state(@selected_security.latest_quote_date)}
+                aria-label={valuation_source_timestamp_label(@selected_security.latest_quote_date)}
               >
                 <strong><%= gettext("Valuation source timestamp") %>:</strong>
                 <%= if match?(%Date{}, @selected_security.latest_quote_date) do %>
@@ -1323,14 +1353,33 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp security_row_class(%Portfolixir.Catalog.Security{active: false}), do: "app-shell-muted"
   defp security_row_class(_), do: ""
 
-  defp iso_date_or_dash(nil), do: "—"
+  defp iso_date_or_dash(nil), do: gettext("Valuation source timestamp unavailable")
   defp iso_date_or_dash(%Date{} = date), do: Date.to_iso8601(date)
+
+  defp valuation_fallback_state(value) do
+    if valuation_fallback?(value), do: "missing", else: "present"
+  end
+
+  defp valuation_fallback_class(value) do
+    if valuation_fallback?(value), do: "app-shell-muted"
+  end
+
+  defp valuation_fallback?(nil), do: true
+  defp valuation_fallback?(%Date{}), do: false
+  defp valuation_fallback?(%Decimal{}), do: false
+  defp valuation_fallback?(value) when is_binary(value), do: String.trim(value) == ""
+  defp valuation_fallback?(_), do: false
 
   defp decimal_to_string(nil), do: "—"
   defp decimal_to_string(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
 
   defp format_valuation_amount(amount, currency_code),
     do: AmountFormat.format_currency_amount(amount, currency_code)
+
+  defp valuation_amount_label(nil, _currency_code), do: gettext("Valuation unavailable")
+
+  defp valuation_amount_label(amount, currency_code),
+    do: format_valuation_amount(amount, currency_code)
 
   defp security_freshness_aria_label(%{
          latest_quote_date: latest_quote_date,
