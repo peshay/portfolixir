@@ -493,6 +493,12 @@ defmodule Portfolixir.ImportsTest do
 
     open_conflicts = Imports.list_open_import_conflicts()
     assert Enum.any?(open_conflicts, &(&1.id == open_conflict.id))
+    assert Enum.all?(open_conflicts, &Ecto.assoc_loaded?(&1.import_source))
+    assert Enum.all?(open_conflicts, &Ecto.assoc_loaded?(&1.import_run))
+
+    resolved_conflicts = Imports.list_resolved_import_conflicts()
+    assert Enum.any?(resolved_conflicts, &(&1.id != open_conflict.id))
+    assert Enum.all?(resolved_conflicts, &(&1.status == "resolved"))
 
     assert {:ok, resolved} =
              Imports.resolve_import_conflict(open_conflict.id, %{
