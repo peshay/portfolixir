@@ -167,6 +167,21 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             <%= valuation_freshness_compact_summary(@securities) %>
           </p>
 
+          <p
+            id="security-results-status"
+            class="app-shell-visually-hidden"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <%= security_results_status_label(
+              @security_search,
+              @security_status_filter,
+              @security_total_count,
+              @securities
+            ) %>
+          </p>
+
           <details id="security-column-menu" class="app-shell-column-menu">
             <summary
               id="security-column-menu-button"
@@ -209,13 +224,19 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           </details>
 
           <%= if Enum.empty?(@securities) do %>
-            <div id="no-securities" class="app-shell-empty-state">
+            <div
+              id="no-securities"
+              class="app-shell-empty-state"
+              role="status"
+              aria-live="polite"
+              aria-describedby="security-results-status"
+            >
               <h3><%= security_filter_empty_title(@security_status_filter, @security_total_count) %></h3>
               <p><%= security_filter_empty_description(@security_status_filter, @security_total_count) %></p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
-              <table id="security-list">
+              <table id="security-list" aria-describedby="security-results-status">
                 <thead>
                   <tr>
                     <%= for column <- @security_table_columns, security_column_visible?(@visible_security_column_keys, column.key) do %>
@@ -372,7 +393,13 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                         <td data-column-key="exchange"><%= security.exchange_code || "—" %></td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "status") do %>
-                        <td data-column-key="status">
+                        <td
+                          data-column-key="status"
+                          aria-labelledby={security_status_cell_label_id(security.id, :combined)}
+                        >
+                          <span id={security_status_cell_label_id(security.id, :label)} class="app-shell-visually-hidden">
+                            <%= gettext("Status") %>
+                          </span>
                           <a
                             id={"security-detail-link-#{security.id}"}
                             href={"/securities/#{security.id}"}
@@ -380,9 +407,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             <%= gettext("Open detail") %>
                           </a>
                           <%= if security.active do %>
-                            <span class="app-shell-badge"><%= gettext("Active") %></span>
+                            <span id={security_status_cell_label_id(security.id, :value)} class="app-shell-badge"><%= gettext("Active") %></span>
                           <% else %>
-                            <span class="app-shell-badge app-shell-muted">
+                            <span id={security_status_cell_label_id(security.id, :value)} class="app-shell-badge app-shell-muted">
                               <%= gettext("Inactive") %>
                             </span>
                           <% end %>
@@ -1119,6 +1146,17 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp security_column_header_id(key), do: "security-column-header-#{key}"
 
+  defp security_status_cell_label_id(security_id, suffix)
+
+  defp security_status_cell_label_id(security_id, :label),
+    do: "security-status-label-#{security_id}"
+
+  defp security_status_cell_label_id(security_id, :value),
+    do: "security-status-value-#{security_id}"
+
+  defp security_status_cell_label_id(security_id, :combined),
+    do: "security-status-label-#{security_id} security-status-value-#{security_id}"
+
   defp choose_selected_security_id(current_id, securities) do
     cond do
       current_id && Enum.any?(securities, &(&1.id == current_id)) -> current_id
@@ -1418,6 +1456,53 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp security_filter_empty_description(:inactive, _),
     do: gettext("No inactive securities match this filter.")
+
+  defp security_results_status_label(search, filter, total_count, securities) do
+    count = Enum.count(securities)
+    search_active = String.trim(search || "") != ""
+
+    cond do
+      count == 0 and filter == :all and total_count == 0 ->
+        gettext("No securities yet")
+
+      count == 0 and filter == :all and search_active ->
+        gettext("No securities match your search.")
+
+      count == 0 and filter == :all ->
+        gettext("No securities match this view.")
+
+      count == 0 and filter == :active and total_count == 0 ->
+        gettext("No securities yet")
+
+      count == 0 and filter == :active and search_active ->
+        gettext("No active securities match your search.")
+
+      count == 0 and filter == :active ->
+        gettext("No active securities")
+
+      count == 0 and filter == :inactive and search_active ->
+        gettext("No inactive securities match your search.")
+
+      count == 0 and filter == :inactive ->
+        gettext("No inactive securities")
+
+      filter == :active ->
+        ngettext("Showing %{count} active security", "Showing %{count} active securities", count,
+          count: count
+        )
+
+      filter == :inactive ->
+        ngettext(
+          "Showing %{count} inactive security",
+          "Showing %{count} inactive securities",
+          count,
+          count: count
+        )
+
+      true ->
+        ngettext("Showing %{count} security", "Showing %{count} securities", count, count: count)
+    end
+  end
 
   defp security_row_class(%Portfolixir.Catalog.Security{active: false}), do: "app-shell-muted"
   defp security_row_class(_), do: ""
