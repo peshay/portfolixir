@@ -450,10 +450,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           })();
         </script>
 
-        <section id="security-selected-detail" class="app-shell-section-card" data-priority="secondary">
+        <section
+          id="security-selected-detail"
+          class="app-shell-section-card"
+          data-priority="secondary"
+          aria-labelledby="security-selected-detail-title"
+        >
           <div class="app-shell-section-header">
             <div>
-              <h2 class="app-shell-section-title"><%= gettext("Selected security") %></h2>
+              <h2 id="security-selected-detail-title" class="app-shell-section-title"><%= gettext("Selected security") %></h2>
               <p class="app-shell-panel-intro"><%= gettext("Inspect one security without leaving the table.") %></p>
             </div>
           </div>
@@ -573,8 +578,13 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <% end %>
             </div>
 
-            <div id="security-selected-chart-placeholder" class="app-shell-empty-state">
-              <h3><%= gettext("Chart preview") %></h3>
+            <div
+              id="security-selected-chart-placeholder"
+              class="app-shell-empty-state"
+              role="region"
+              aria-labelledby="security-selected-chart-placeholder-title"
+            >
+              <h3 id="security-selected-chart-placeholder-title"><%= gettext("Chart preview") %></h3>
               <p><%= gettext("Chart placeholder: open the full detail page for the current chart view.") %></p>
               <p>
                 <a id="security-selected-open-detail" href={"/securities/#{@selected_security.id}"}>
