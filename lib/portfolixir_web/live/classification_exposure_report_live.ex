@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
 
   alias Portfolixir.ClassificationExposure
   alias Portfolixir.Portfolios
+  alias PortfolixirWeb.AmountFormat
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ReportState
 
@@ -94,7 +95,7 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
                 >
                 </span>
                 <strong><%= row.category_name %></strong>
-                <span><%= decimal_to_string(row.percentage) %>%</span>
+                <span><%= format_percentage(row.percentage) %></span>
               </li>
             <% end %>
           </ol>
@@ -129,8 +130,8 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
                         <% end %>
                       </button>
                     </td>
-                    <td><%= decimal_to_string(row.value) %></td>
-                    <td><%= decimal_to_string(row.percentage) %>%</td>
+                    <td><%= format_exposure_amount(row, @portfolio.base_currency_code) %></td>
+                    <td><%= format_percentage(row.percentage) %></td>
                     <td><%= Enum.join(row.source_securities, ", ") %></td>
                   </tr>
                 <% end %>
@@ -149,8 +150,8 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
             <%= if @selected_drilldown_row do %>
               <div id="classification-exposure-drilldown-summary" class="app-shell-summary-grid">
                 <p><strong><%= gettext("Category") %>:</strong> <%= @selected_drilldown_row.category_name %></p>
-                <p><strong><%= gettext("Exposure") %>:</strong> <%= decimal_to_string(@selected_drilldown_row.value) %></p>
-                <p><strong><%= gettext("Weight") %>:</strong> <%= decimal_to_string(@selected_drilldown_row.percentage) %>%</p>
+                <p><strong><%= gettext("Exposure") %>:</strong> <%= format_exposure_amount(@selected_drilldown_row, @portfolio.base_currency_code) %></p>
+                <p><strong><%= gettext("Weight") %>:</strong> <%= format_percentage(@selected_drilldown_row.percentage) %></p>
               </div>
 
               <div class="app-shell-table-wrapper">
@@ -171,7 +172,7 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
                         <td><%= status_label(detail.status) %></td>
                         <td><%= detail.security_name %></td>
                         <td><%= input_label(detail) %></td>
-                        <td><%= decimal_to_string(detail.value) %></td>
+                        <td><%= format_detail_amount(detail, @portfolio.base_currency_code) %></td>
                       </tr>
 
                       <%= if detail.note do %>
@@ -309,6 +310,20 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
   defp input_label(_detail), do: "Unknown"
 
   defp decimal_to_string(%Decimal{} = value), do: Decimal.to_string(value, :normal)
+
+  defp format_exposure_amount(%{valuation_unavailable?: true}, _currency_code),
+    do: AmountFormat.missing_amount_label()
+
+  defp format_exposure_amount(%{value: value}, currency_code),
+    do: AmountFormat.format_currency_amount(value, currency_code)
+
+  defp format_detail_amount(%{valuation_unavailable?: true}, _currency_code),
+    do: AmountFormat.missing_amount_label()
+
+  defp format_detail_amount(%{value: value}, currency_code),
+    do: AmountFormat.format_currency_amount(value, currency_code)
+
+  defp format_percentage(value), do: "#{AmountFormat.format_decimal(value)}%"
 
   defp format_exposure_warning("missing_quote_fallback_quantity:" <> security_id) do
     "missing_quote_fallback_quantity:#{security_id} — Missing latest quote; exposure falls back to zero market value for this security."
