@@ -234,6 +234,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       <%= if security_column_visible?(@visible_security_column_keys, "latest_quote_date") do %>
                         <td data-column-key="latest_quote_date">
                           <%= iso_date_or_dash(security.latest_quote_date) %>
+                          <p
+                            id={"security-valuation-source-timestamp-#{security.id}"}
+                            class="app-shell-help-text"
+                          >
+                            <%= valuation_source_timestamp_label(security.latest_quote_date) %>
+                          </p>
                           <%= if security.valuation_warning do %>
                             <p
                               id={"security-valuation-warning-#{security.id}"}
@@ -362,6 +368,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
               <p><strong><%= gettext("Latest quote") %>:</strong> <%= decimal_to_string(@selected_security.latest_quote_close) %></p>
               <p><strong><%= gettext("Latest quote date") %>:</strong> <%= iso_date_or_dash(@selected_security.latest_quote_date) %></p>
+              <p id="security-selected-valuation-source-timestamp">
+                <strong><%= gettext("Valuation source timestamp") %>:</strong>
+                <%= valuation_source_timestamp_label(@selected_security.latest_quote_date) %>
+              </p>
               <%= if @selected_security.valuation_warning do %>
                 <p id="security-selected-valuation-warning" class="app-shell-warning-note" role="alert">
                   <strong><%= gettext("Valuation warning") %>:</strong>
@@ -982,6 +992,11 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     do: gettext("Stale quote used for valuation.")
 
   defp valuation_warning_label(_warning), do: gettext("Quote warning for valuation.")
+
+  defp valuation_source_timestamp_label(%Date{} = date),
+    do: gettext("Valuation source as of %{date}", date: Date.to_iso8601(date))
+
+  defp valuation_source_timestamp_label(_), do: gettext("Valuation source timestamp unavailable")
 
   defp maybe_filter_by_search(securities, ""), do: securities
 
