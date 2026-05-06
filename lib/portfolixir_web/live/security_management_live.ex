@@ -291,6 +291,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             <p
                               id={"security-valuation-warning-#{security.id}"}
                               class="app-shell-warning-note"
+                              role="status"
+                              aria-live="polite"
                               data-testid={"security-valuation-warning-#{security.id}"}
                               aria-label={gettext("Valuation warning label")}
                             >
@@ -483,7 +485,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 <p
                   id="security-selected-valuation-warning"
                   class="app-shell-warning-note"
-                  role="alert"
+                  role="status"
+                  aria-live="polite"
                   data-testid="security-selected-valuation-warning"
                   aria-label={gettext("Valuation warning label")}
                 >
