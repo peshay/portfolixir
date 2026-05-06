@@ -232,7 +232,17 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                         <td data-column-key="latest_quote"><%= decimal_to_string(security.latest_quote_close) %></td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "latest_quote_date") do %>
-                        <td data-column-key="latest_quote_date"><%= iso_date_or_dash(security.latest_quote_date) %></td>
+                        <td data-column-key="latest_quote_date">
+                          <%= iso_date_or_dash(security.latest_quote_date) %>
+                          <%= if security.valuation_warning do %>
+                            <p
+                              id={"security-valuation-warning-#{security.id}"}
+                              class="app-shell-warning-note"
+                            >
+                              <%= valuation_warning_label(security.valuation_warning) %>
+                            </p>
+                          <% end %>
+                        </td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "position_quantity") do %>
                         <td data-column-key="position_quantity"><%= decimal_to_string(security.position_quantity) %></td>
@@ -352,6 +362,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
               <p><strong><%= gettext("Latest quote") %>:</strong> <%= decimal_to_string(@selected_security.latest_quote_close) %></p>
               <p><strong><%= gettext("Latest quote date") %>:</strong> <%= iso_date_or_dash(@selected_security.latest_quote_date) %></p>
+              <%= if @selected_security.valuation_warning do %>
+                <p id="security-selected-valuation-warning" class="app-shell-warning-note" role="alert">
+                  <strong><%= gettext("Valuation warning") %>:</strong>
+                  <%= valuation_warning_label(@selected_security.valuation_warning) %>
+                </p>
+              <% end %>
             </div>
 
             <div id="security-selected-chart-placeholder" class="app-shell-empty-state">
@@ -807,11 +823,20 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     all_securities = Catalog.list_securities(:all)
     search = String.trim(socket.assigns.security_search || "")
 
-    position_quantity_by_security_id = position_quantity_by_security_id()
+    %{
+      position_quantity_by_security_id: position_quantity_by_security_id,
+      latest_transaction_date_by_security_id: latest_transaction_date_by_security_id
+    } = security_valuation_context()
 
     quoted_and_positioned =
       Catalog.list_securities(socket.assigns.security_status_filter)
-      |> Enum.map(&enrich_security(&1, position_quantity_by_security_id))
+      |> Enum.map(
+        &enrich_security(
+          &1,
+          position_quantity_by_security_id,
+          latest_transaction_date_by_security_id
+        )
+      )
       |> maybe_filter_by_search(search)
 
     selected_security_id =
@@ -871,24 +896,92 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     end
   end
 
-  defp enrich_security(security, position_quantity_by_security_id) do
+  defp enrich_security(
+         security,
+         position_quantity_by_security_id,
+         latest_transaction_date_by_security_id
+       ) do
     latest_quote = Catalog.get_latest_security_quote(security.id)
     position_quantity = Map.get(position_quantity_by_security_id, security.id, Decimal.new("0"))
+    latest_transaction_date = Map.get(latest_transaction_date_by_security_id, security.id)
 
     Map.merge(security, %{
       latest_quote_close: latest_quote && latest_quote.close,
       latest_quote_date: latest_quote && latest_quote.date,
-      position_quantity: position_quantity
+      position_quantity: position_quantity,
+      valuation_warning:
+        valuation_warning(
+          position_quantity,
+          latest_quote && latest_quote.date,
+          latest_transaction_date
+        )
     })
   end
 
-  defp position_quantity_by_security_id do
-    Ledger.list_transactions()
-    |> Positions.calculate()
-    |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
-      Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
-    end)
+  defp security_valuation_context do
+    transactions = Ledger.list_transactions()
+
+    position_quantity_by_security_id =
+      transactions
+      |> Positions.calculate()
+      |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
+        Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
+      end)
+
+    latest_transaction_date_by_security_id =
+      Enum.reduce(transactions, %{}, fn transaction, acc ->
+        case transaction.security_id do
+          security_id when is_integer(security_id) ->
+            Map.update(acc, security_id, transaction.date, &max_date(&1, transaction.date))
+
+          _ ->
+            acc
+        end
+      end)
+
+    %{
+      position_quantity_by_security_id: position_quantity_by_security_id,
+      latest_transaction_date_by_security_id: latest_transaction_date_by_security_id
+    }
   end
+
+  defp valuation_warning(position_quantity, latest_quote_date, latest_transaction_date) do
+    if position_non_zero?(position_quantity) do
+      cond do
+        is_nil(latest_quote_date) ->
+          "missing_latest_quote"
+
+        is_struct(latest_transaction_date, Date) and
+            Date.compare(latest_quote_date, latest_transaction_date) == :lt ->
+          "stale_latest_quote"
+
+        true ->
+          nil
+      end
+    else
+      nil
+    end
+  end
+
+  defp position_non_zero?(%Decimal{} = quantity),
+    do: not Decimal.equal?(quantity, Decimal.new("0"))
+
+  defp position_non_zero?(_quantity), do: false
+
+  defp max_date(%Date{} = left, %Date{} = right) do
+    case Date.compare(left, right) do
+      :gt -> left
+      _ -> right
+    end
+  end
+
+  defp valuation_warning_label("missing_latest_quote"),
+    do: gettext("Missing quote for valuation.")
+
+  defp valuation_warning_label("stale_latest_quote"),
+    do: gettext("Stale quote used for valuation.")
+
+  defp valuation_warning_label(_warning), do: gettext("Quote warning for valuation.")
 
   defp maybe_filter_by_search(securities, ""), do: securities
 
