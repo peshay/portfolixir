@@ -928,13 +928,13 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-valuation-source-timestamp-#{security.id}",
+             "#security-valuation-source-timestamp-#{security.id} time[datetime='2026-05-02']",
              "Valuation source as of 2026-05-02"
            )
 
     assert has_element?(
              view,
-             "#security-selected-valuation-source-timestamp",
+             "#security-selected-valuation-source-timestamp time[datetime='2026-05-02']",
              "Valuation source as of 2026-05-02"
            )
 
@@ -1095,6 +1095,13 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-selected-valuation-source-timestamp",
              "Valuation source timestamp #{copy.unavailable}"
            )
+
+    refute has_element?(
+             view,
+             "#security-valuation-source-timestamp-#{security.id} time[datetime]"
+           )
+
+    refute has_element?(view, "#security-selected-valuation-source-timestamp time[datetime]")
 
     assert has_element?(
              view,
