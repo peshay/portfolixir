@@ -253,7 +253,13 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             data-testid={"security-valuation-source-timestamp-#{security.id}"}
                             aria-label={gettext("Valuation source timestamp label")}
                           >
-                            <%= valuation_source_timestamp_label(security.latest_quote_date) %>
+                            <%= if match?(%Date{}, security.latest_quote_date) do %>
+                              <time datetime={Date.to_iso8601(security.latest_quote_date)}>
+                                <%= valuation_source_timestamp_label(security.latest_quote_date) %>
+                              </time>
+                            <% else %>
+                              <%= valuation_source_timestamp_label(security.latest_quote_date) %>
+                            <% end %>
                           </p>
                           <p
                             id={"security-valuation-freshness-summary-#{security.id}"}
@@ -440,7 +446,13 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 aria-label={gettext("Valuation source timestamp label")}
               >
                 <strong><%= gettext("Valuation source timestamp") %>:</strong>
-                <%= valuation_source_timestamp_label(@selected_security.latest_quote_date) %>
+                <%= if match?(%Date{}, @selected_security.latest_quote_date) do %>
+                  <time datetime={Date.to_iso8601(@selected_security.latest_quote_date)}>
+                    <%= valuation_source_timestamp_label(@selected_security.latest_quote_date) %>
+                  </time>
+                <% else %>
+                  <%= valuation_source_timestamp_label(@selected_security.latest_quote_date) %>
+                <% end %>
               </p>
               <p
                 id="security-selected-valuation-freshness-summary"
