@@ -271,7 +271,7 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
 
     assert has_element?(view, "#classification-exposure-row-core", "120.00 EUR")
     assert has_element?(view, "#classification-exposure-row-core", "100.00%")
-    assert has_element?(view, "#classification-exposure-row-satellite", "Unavailable")
+    assert has_element?(view, "#classification-exposure-row-satellite", "Valuation unavailable")
 
     assert has_element?(
              view,
