@@ -149,6 +149,69 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
 
     assert has_element?(view, "#classification-exposure-sunburst-hierarchy", "Core")
     assert has_element?(view, "#classification-exposure-sunburst-hierarchy", "Growth")
+
+    assert has_element?(view, "#classification-exposure-drilldown-empty", "No category selected")
+
+    view
+    |> element("#classification-exposure-select-core")
+    |> render_click()
+
+    assert has_element?(view, "#classification-exposure-drilldown-summary", "Core")
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-detail-table",
+             "Direct assignment"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-detail-table",
+             "Direct category assignment"
+           )
+
+    assert has_element?(view, "#classification-exposure-drilldown-detail-table", "Stock A")
+
+    view
+    |> element("#classification-exposure-select-growth")
+    |> render_click()
+
+    assert has_element?(view, "#classification-exposure-drilldown-summary", "Growth")
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-detail-table",
+             "Weighted allocation"
+           )
+
+    assert has_element?(view, "#classification-exposure-drilldown-detail-table", "region: Europe")
+    assert has_element?(view, "#classification-exposure-drilldown-detail-table", "Fund B")
+
+    view
+    |> element("#classification-exposure-select-unmapped")
+    |> render_click()
+
+    assert has_element?(view, "#classification-exposure-drilldown-summary", "Unmapped")
+    assert has_element?(view, "#classification-exposure-drilldown-detail-table", "Unmapped")
+    assert has_element?(view, "#classification-exposure-drilldown-detail-table", "Unknown")
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-detail-table",
+             "region: Unmapped Region"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-detail-table",
+             "No category mapping"
+           )
+
+    view
+    |> element("#classification-exposure-drilldown-clear")
+    |> render_click()
+
+    assert has_element?(view, "#classification-exposure-drilldown-empty", "No category selected")
   end
 
   test "missing quote fallback stays explicit and does not distort percentages", %{
