@@ -976,8 +976,8 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "Valuation freshness summary: 1 #{copy.current} · 0 #{copy.stale} · 0 #{copy.missing}"
            )
 
-    refute has_element?(view, "#security-valuation-warning-#{security.id}")
-    refute has_element?(view, "#security-selected-valuation-warning")
+    refute has_element?(view, "#security-valuation-warning-#{security.id}[role='status']")
+    refute has_element?(view, "#security-selected-valuation-warning[role='status']")
 
     view
     |> element("#security-search-form")
@@ -1032,13 +1032,13 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-valuation-warning-#{security.id}",
+             "#security-valuation-warning-#{security.id}[role='status'][aria-live='polite']",
              "Missing quote for valuation."
            )
 
     assert has_element?(
              view,
-             "#security-selected-valuation-warning",
+             "#security-selected-valuation-warning[role='status'][aria-live='polite']",
              "Missing quote for valuation."
            )
 
@@ -1190,13 +1190,13 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-valuation-warning-#{security.id}",
+             "#security-valuation-warning-#{security.id}[role='status'][aria-live='polite']",
              "Stale quote used for valuation."
            )
 
     assert has_element?(
              view,
-             "#security-selected-valuation-warning",
+             "#security-selected-valuation-warning[role='status'][aria-live='polite']",
              "Stale quote used for valuation."
            )
 
