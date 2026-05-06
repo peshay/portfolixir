@@ -927,6 +927,24 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(view, "#security-list td[data-column-key='latest_quote']", "111.11 EUR")
 
+    assert has_element?(
+             view,
+             "#security-valuation-freshness-summary-#{security.id}",
+             "Valuation freshness: current"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-freshness-summary",
+             "Valuation freshness: current"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-freshness-compact-summary",
+             "Valuation freshness summary: 1 current · 0 stale · 0 missing"
+           )
+
     refute has_element?(view, "#security-valuation-warning-#{security.id}")
     refute has_element?(view, "#security-selected-valuation-warning")
 
@@ -1034,6 +1052,24 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "Unavailable"
            )
 
+    assert has_element?(
+             view,
+             "#security-valuation-freshness-summary-#{security.id}",
+             "Valuation freshness: missing"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-freshness-summary",
+             "Valuation freshness: missing"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-freshness-compact-summary",
+             "Valuation freshness summary: 0 current · 0 stale · 1 missing"
+           )
+
     assert has_element?(view, "#security-selected-summary", "Unavailable")
   end
 
@@ -1105,6 +1141,49 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              view,
              "#security-selected-valuation-warning-detail",
              "Latest quote date 2026-05-01 is older than recent transactions."
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-freshness-summary-#{security.id}",
+             "Valuation freshness: stale"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-freshness-summary",
+             "Valuation freshness: stale"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-freshness-compact-summary",
+             "Valuation freshness summary: 0 current · 1 stale · 0 missing"
+           )
+  end
+
+  test "uses neutral valuation freshness summary for no-position rows" do
+    {:ok, security} =
+      Catalog.create_security(%{name: "Neutral Security", symbol: "NEU", currency_code: "EUR"})
+
+    {:ok, view, _html} = live(build_conn(), "/securities")
+
+    assert has_element?(
+             view,
+             "#security-valuation-freshness-summary-#{security.id}",
+             "Valuation freshness unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-freshness-summary",
+             "Valuation freshness unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-freshness-compact-summary",
+             "Valuation freshness summary unavailable"
            )
   end
 
