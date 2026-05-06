@@ -903,6 +903,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-valuation-source-label-#{security.id}",
+             "Valuation source: manual"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-label",
+             "Valuation source: manual"
+           )
+
+    assert has_element?(
+             view,
              "#security-valuation-source-timestamp-#{security.id}",
              "Valuation source as of 2026-05-02"
            )
@@ -978,6 +990,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              view,
              "#security-selected-valuation-warning",
              "Missing quote for valuation."
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-source-label-#{security.id}",
+             "Valuation source unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-label",
+             "Valuation source unavailable"
            )
 
     assert has_element?(
