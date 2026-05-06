@@ -893,6 +893,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
       })
 
     {:ok, view, _html} = live(conn, "/securities")
+    copy = PortfolixirWeb.SecurityManagementLive.valuation_state_copy_matrix()
 
     assert has_element?(view, "#security-list th", "Latest quote")
     assert has_element?(view, "#security-list th", "Latest quote date")
@@ -954,25 +955,25 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-valuation-freshness-summary-#{security.id}",
-             "Valuation freshness: current"
+             "Valuation freshness: #{copy.current}"
            )
 
     assert has_element?(
              view,
              "#security-selected-valuation-freshness-summary",
-             "Valuation freshness: current"
+             "Valuation freshness: #{copy.current}"
            )
 
     assert has_element?(
              view,
              "#security-selected-valuation-freshness-summary[data-testid='security-selected-valuation-freshness-summary'][aria-label='Valuation freshness summary label']",
-             "Valuation freshness: current"
+             "Valuation freshness: #{copy.current}"
            )
 
     assert has_element?(
              view,
              "#security-valuation-freshness-compact-summary",
-             "Valuation freshness summary: 1 current · 0 stale · 0 missing"
+             "Valuation freshness summary: 1 #{copy.current} · 0 #{copy.stale} · 0 #{copy.missing}"
            )
 
     refute has_element?(view, "#security-valuation-warning-#{security.id}")
@@ -1027,6 +1028,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
       })
 
     {:ok, view, _html} = live(conn, "/securities")
+    copy = PortfolixirWeb.SecurityManagementLive.valuation_state_copy_matrix()
 
     assert has_element?(
              view,
@@ -1061,37 +1063,37 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-valuation-source-label-#{security.id}",
-             "Valuation source unavailable"
+             "Valuation source #{copy.unavailable}"
            )
 
     assert has_element?(
              view,
              "#security-selected-valuation-source-label",
-             "Valuation source unavailable"
+             "Valuation source #{copy.unavailable}"
            )
 
     assert has_element?(
              view,
              "[data-testid='security-valuation-source-label-#{security.id}'][aria-label='Valuation source label']",
-             "Valuation source unavailable"
+             "Valuation source #{copy.unavailable}"
            )
 
     assert has_element?(
              view,
              "#security-selected-valuation-source-label[data-testid='security-selected-valuation-source-label'][aria-label='Valuation source label']",
-             "Valuation source unavailable"
+             "Valuation source #{copy.unavailable}"
            )
 
     assert has_element?(
              view,
              "#security-valuation-source-timestamp-#{security.id}",
-             "Valuation source timestamp unavailable"
+             "Valuation source timestamp #{copy.unavailable}"
            )
 
     assert has_element?(
              view,
              "#security-selected-valuation-source-timestamp",
-             "Valuation source timestamp unavailable"
+             "Valuation source timestamp #{copy.unavailable}"
            )
 
     assert has_element?(
@@ -1115,19 +1117,19 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-valuation-freshness-summary-#{security.id}",
-             "Valuation freshness: missing"
+             "Valuation freshness: #{copy.missing}"
            )
 
     assert has_element?(
              view,
              "#security-selected-valuation-freshness-summary",
-             "Valuation freshness: missing"
+             "Valuation freshness: #{copy.missing}"
            )
 
     assert has_element?(
              view,
              "#security-valuation-freshness-compact-summary",
-             "Valuation freshness summary: 0 current · 0 stale · 1 missing"
+             "Valuation freshness summary: 0 #{copy.current} · 0 #{copy.stale} · 1 #{copy.missing}"
            )
 
     assert has_element?(view, "#security-selected-summary", "Unavailable")
@@ -1239,23 +1241,24 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
       Catalog.create_security(%{name: "Neutral Security", symbol: "NEU", currency_code: "EUR"})
 
     {:ok, view, _html} = live(build_conn(), "/securities")
+    copy = PortfolixirWeb.SecurityManagementLive.valuation_state_copy_matrix()
 
     assert has_element?(
              view,
              "#security-valuation-freshness-summary-#{security.id}",
-             "Valuation freshness unavailable"
+             "Valuation freshness #{copy.unavailable}"
            )
 
     assert has_element?(
              view,
              "#security-selected-valuation-freshness-summary",
-             "Valuation freshness unavailable"
+             "Valuation freshness #{copy.unavailable}"
            )
 
     assert has_element?(
              view,
              "#security-valuation-freshness-compact-summary",
-             "Valuation freshness summary unavailable"
+             "Valuation freshness summary #{copy.unavailable}"
            )
   end
 
