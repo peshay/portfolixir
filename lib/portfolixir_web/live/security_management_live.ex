@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   alias Portfolixir.Catalog.SecurityCsv
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Positions
+  alias PortfolixirWeb.AmountFormat
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.WorkbenchToolbar
 
@@ -229,7 +230,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                         <td data-column-key="wkn"><%= security.wkn || "—" %></td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "latest_quote") do %>
-                        <td data-column-key="latest_quote"><%= decimal_to_string(security.latest_quote_close) %></td>
+                        <td data-column-key="latest_quote"><%= format_valuation_amount(security.latest_quote_close, security.latest_quote_currency_code) %></td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "latest_quote_date") do %>
                         <td data-column-key="latest_quote_date">
@@ -366,7 +367,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             <div id="security-selected-summary" class="app-shell-summary-grid">
               <p><strong><%= gettext("Name") %>:</strong> <%= @selected_security.name %></p>
               <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
-              <p><strong><%= gettext("Latest quote") %>:</strong> <%= decimal_to_string(@selected_security.latest_quote_close) %></p>
+              <p><strong><%= gettext("Latest quote") %>:</strong> <%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %></p>
               <p><strong><%= gettext("Latest quote date") %>:</strong> <%= iso_date_or_dash(@selected_security.latest_quote_date) %></p>
               <p id="security-selected-valuation-source-timestamp">
                 <strong><%= gettext("Valuation source timestamp") %>:</strong>
@@ -918,6 +919,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     Map.merge(security, %{
       latest_quote_close: latest_quote && latest_quote.close,
       latest_quote_date: latest_quote && latest_quote.date,
+      latest_quote_currency_code:
+        (latest_quote && latest_quote.currency_code) || security.currency_code,
       position_quantity: position_quantity,
       valuation_warning:
         valuation_warning(
@@ -1037,6 +1040,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp decimal_to_string(nil), do: "—"
   defp decimal_to_string(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
+
+  defp format_valuation_amount(amount, currency_code),
+    do: AmountFormat.format_currency_amount(amount, currency_code)
 
   defp filter_button_class(:active, :active), do: "app-shell-primary"
   defp filter_button_class(:inactive, :inactive), do: "app-shell-primary"
