@@ -147,6 +147,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <%= gettext("All") %>
             </button>
           </div>
+          <p id="security-valuation-freshness-compact-summary" class="app-shell-help-text">
+            <%= valuation_freshness_compact_summary(@securities) %>
+          </p>
 
           <details id="security-column-menu" class="app-shell-column-menu">
             <summary
@@ -246,6 +249,19 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             class="app-shell-help-text"
                           >
                             <%= valuation_source_timestamp_label(security.latest_quote_date) %>
+                          </p>
+                          <p
+                            id={"security-valuation-freshness-summary-#{security.id}"}
+                            class="app-shell-help-text"
+                          >
+                            <%= valuation_freshness_label(
+                              valuation_freshness_state(
+                                security.valuation_warning,
+                                security.position_quantity,
+                                security.latest_quote_source,
+                                security.latest_quote_date
+                              )
+                            ) %>
                           </p>
                           <%= if security.valuation_warning do %>
                             <p
@@ -390,6 +406,16 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <p id="security-selected-valuation-source-timestamp">
                 <strong><%= gettext("Valuation source timestamp") %>:</strong>
                 <%= valuation_source_timestamp_label(@selected_security.latest_quote_date) %>
+              </p>
+              <p id="security-selected-valuation-freshness-summary">
+                <%= valuation_freshness_label(
+                  valuation_freshness_state(
+                    @selected_security.valuation_warning,
+                    @selected_security.position_quantity,
+                    @selected_security.latest_quote_source,
+                    @selected_security.latest_quote_date
+                  )
+                ) %>
               </p>
               <%= if @selected_security.valuation_warning do %>
                 <p id="security-selected-valuation-warning" class="app-shell-warning-note" role="alert">
@@ -1047,6 +1073,79 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     do: gettext("Valuation source as of %{date}", date: Date.to_iso8601(date))
 
   defp valuation_source_timestamp_label(_), do: gettext("Valuation source timestamp unavailable")
+
+  defp valuation_freshness_state(
+         "missing_latest_quote",
+         _position_quantity,
+         _latest_quote_source,
+         _latest_quote_date
+       ),
+       do: :missing
+
+  defp valuation_freshness_state(
+         "stale_latest_quote",
+         _position_quantity,
+         _latest_quote_source,
+         _latest_quote_date
+       ),
+       do: :stale
+
+  defp valuation_freshness_state(
+         _valuation_warning,
+         position_quantity,
+         latest_quote_source,
+         latest_quote_date
+       ) do
+    cond do
+      not position_non_zero?(position_quantity) ->
+        :neutral
+
+      not valuation_source_present?(latest_quote_source) ->
+        :neutral
+
+      is_struct(latest_quote_date, Date) ->
+        :current
+
+      true ->
+        :neutral
+    end
+  end
+
+  defp valuation_source_present?(source) when is_binary(source), do: String.trim(source) != ""
+  defp valuation_source_present?(_source), do: false
+
+  defp valuation_freshness_label(:current), do: gettext("Valuation freshness: current")
+  defp valuation_freshness_label(:stale), do: gettext("Valuation freshness: stale")
+  defp valuation_freshness_label(:missing), do: gettext("Valuation freshness: missing")
+  defp valuation_freshness_label(:neutral), do: gettext("Valuation freshness unavailable")
+
+  defp valuation_freshness_compact_summary(securities) do
+    counts =
+      Enum.reduce(securities, %{current: 0, stale: 0, missing: 0}, fn security, acc ->
+        case valuation_freshness_state(
+               security.valuation_warning,
+               security.position_quantity,
+               security.latest_quote_source,
+               security.latest_quote_date
+             ) do
+          :current -> Map.update!(acc, :current, &(&1 + 1))
+          :stale -> Map.update!(acc, :stale, &(&1 + 1))
+          :missing -> Map.update!(acc, :missing, &(&1 + 1))
+          :neutral -> acc
+        end
+      end)
+
+    if counts.current + counts.stale + counts.missing > 0 do
+      gettext(
+        "Valuation freshness summary: %{current} current · %{stale} stale · %{missing} missing",
+        current: counts.current,
+        stale: counts.stale,
+        missing: counts.missing
+      )
+    else
+      gettext("Valuation freshness summary unavailable")
+    end
+  end
 
   defp maybe_filter_by_search(securities, ""), do: securities
 
