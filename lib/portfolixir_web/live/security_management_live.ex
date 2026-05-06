@@ -236,6 +236,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                         <td data-column-key="latest_quote_date">
                           <%= iso_date_or_dash(security.latest_quote_date) %>
                           <p
+                            id={"security-valuation-source-label-#{security.id}"}
+                            class="app-shell-help-text"
+                          >
+                            <%= valuation_source_label(security.latest_quote_source) %>
+                          </p>
+                          <p
                             id={"security-valuation-source-timestamp-#{security.id}"}
                             class="app-shell-help-text"
                           >
@@ -369,6 +375,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
               <p><strong><%= gettext("Latest quote") %>:</strong> <%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %></p>
               <p><strong><%= gettext("Latest quote date") %>:</strong> <%= iso_date_or_dash(@selected_security.latest_quote_date) %></p>
+              <p id="security-selected-valuation-source-label">
+                <%= valuation_source_label(@selected_security.latest_quote_source) %>
+              </p>
               <p id="security-selected-valuation-source-timestamp">
                 <strong><%= gettext("Valuation source timestamp") %>:</strong>
                 <%= valuation_source_timestamp_label(@selected_security.latest_quote_date) %>
@@ -921,6 +930,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       latest_quote_date: latest_quote && latest_quote.date,
       latest_quote_currency_code:
         (latest_quote && latest_quote.currency_code) || security.currency_code,
+      latest_quote_source: latest_quote && latest_quote.source,
       position_quantity: position_quantity,
       valuation_warning:
         valuation_warning(
@@ -995,6 +1005,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     do: gettext("Stale quote used for valuation.")
 
   defp valuation_warning_label(_warning), do: gettext("Quote warning for valuation.")
+
+  defp valuation_source_label(source) when is_binary(source) do
+    case String.trim(source) do
+      "" -> gettext("Valuation source unavailable")
+      value -> gettext("Valuation source: %{source}", source: value)
+    end
+  end
+
+  defp valuation_source_label(_), do: gettext("Valuation source unavailable")
 
   defp valuation_source_timestamp_label(%Date{} = date),
     do: gettext("Valuation source as of %{date}", date: Date.to_iso8601(date))
