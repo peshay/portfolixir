@@ -212,6 +212,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                     <tr
                       id={"security-row-#{security.id}"}
                       class={security_row_class(security)}
+                      aria-label={security_freshness_aria_label(security)}
                       phx-click="select_security"
                       phx-value-id={security.id}
                     >
@@ -416,7 +417,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           </div>
 
           <%= if @selected_security do %>
-            <div id="security-selected-summary" class="app-shell-summary-grid">
+            <div
+              id="security-selected-summary"
+              class="app-shell-summary-grid"
+              role="group"
+              aria-label={security_freshness_aria_label(@selected_security)}
+            >
               <p><strong><%= gettext("Name") %>:</strong> <%= @selected_security.name %></p>
               <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
               <p><strong><%= gettext("Latest quote") %>:</strong> <%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %></p>
@@ -1263,6 +1269,25 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp format_valuation_amount(amount, currency_code),
     do: AmountFormat.format_currency_amount(amount, currency_code)
+
+  defp security_freshness_aria_label(%{
+         latest_quote_date: latest_quote_date,
+         position_quantity: position_quantity
+       }) do
+    cond do
+      Decimal.compare(position_quantity, Decimal.new("0")) == :eq ->
+        gettext("No position freshness")
+
+      is_nil(latest_quote_date) ->
+        gettext("Missing quote freshness")
+
+      Date.compare(latest_quote_date, Date.utc_today()) == :lt ->
+        gettext("Stale quote freshness")
+
+      true ->
+        gettext("Current quote freshness")
+    end
+  end
 
   defp filter_button_class(:active, :active), do: "app-shell-primary"
   defp filter_button_class(:inactive, :inactive), do: "app-shell-primary"

@@ -1288,6 +1288,118 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
+  test "freshness accessibility labels cover current stale missing and neutral states", %{
+    conn: conn
+  } do
+    alias Portfolixir.Ledger
+    alias Portfolixir.Portfolios
+
+    today = Date.utc_today()
+    yesterday = Date.add(today, -1)
+
+    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, neutral_security} =
+      Catalog.create_security(%{name: "Alpha Neutral", symbol: "ALP", currency_code: "EUR"})
+
+    {:ok, current_security} =
+      Catalog.create_security(%{name: "Beta Current", symbol: "CUR", currency_code: "EUR"})
+
+    {:ok, stale_security} =
+      Catalog.create_security(%{name: "Gamma Stale", symbol: "STA", currency_code: "EUR"})
+
+    {:ok, missing_security} =
+      Catalog.create_security(%{name: "Omega Missing", symbol: "MIS", currency_code: "EUR"})
+
+    for security <- [current_security, stale_security, missing_security] do
+      {:ok, _} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          type: "buy",
+          date: today,
+          currency_code: "EUR",
+          amount: Decimal.new("300"),
+          quantity: Decimal.new("3"),
+          price: Decimal.new("100"),
+          securities_account_id: securities_account.id,
+          security_id: security.id
+        })
+    end
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: current_security.id,
+        date: today,
+        source: "manual",
+        currency_code: "EUR",
+        close: Decimal.new("111.11")
+      })
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: stale_security.id,
+        date: yesterday,
+        source: "manual",
+        currency_code: "EUR",
+        close: Decimal.new("99.99")
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-selected-summary[aria-label='No position freshness']")
+
+    assert has_element?(
+             view,
+             "#security-row-#{neutral_security.id}[aria-label='No position freshness']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-row-#{current_security.id}[aria-label='Current quote freshness']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-row-#{stale_security.id}[aria-label='Stale quote freshness']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-row-#{missing_security.id}[aria-label='Missing quote freshness']"
+           )
+
+    view
+    |> element("#security-row-#{current_security.id}")
+    |> render_click()
+
+    assert has_element?(view, "#security-selected-summary[aria-label='Current quote freshness']")
+
+    view
+    |> element("#security-row-#{stale_security.id}")
+    |> render_click()
+
+    assert has_element?(view, "#security-selected-summary[aria-label='Stale quote freshness']")
+
+    view
+    |> element("#security-row-#{missing_security.id}")
+    |> render_click()
+
+    assert has_element?(view, "#security-selected-summary[aria-label='Missing quote freshness']")
+
+    view
+    |> element("#security-row-#{neutral_security.id}")
+    |> render_click()
+
+    assert has_element?(view, "#security-selected-summary[aria-label='No position freshness']")
+  end
+
   test "clicking another row updates selected security detail area", %{conn: conn} do
     {:ok, first_security} =
       Catalog.create_security(%{name: "Alpha Corp", symbol: "ALP", currency_code: "EUR"})
