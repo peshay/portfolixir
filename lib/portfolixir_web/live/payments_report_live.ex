@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.PaymentsReportLive do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ReportState
 
   @group_modes ["list", "month", "quarter", "year", "security"]
 
@@ -84,10 +85,11 @@ defmodule PortfolixirWeb.PaymentsReportLive do
         </section>
 
         <%= if Enum.empty?(@dividend_rows) do %>
-          <section id="payments-empty-state" class="app-shell-empty-state">
-            <h2><%= gettext("No dividend payments yet") %></h2>
-            <p><%= gettext("Record dividend transactions to populate this report.") %></p>
-          </section>
+          <ReportState.empty_state
+            id="payments-empty-state"
+            title={gettext("No dividend payments yet")}
+            description={gettext("Record dividend transactions to populate this report.")}
+          />
         <% else %>
           <section id="payments-accumulation-chart" class="app-shell-section-card">
             <div class="app-shell-section-header">
