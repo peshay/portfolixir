@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
 
   alias Portfolixir.Catalog
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ReportState
   alias PortfolixirWeb.WorkbenchToolbar
 
   @impl true
@@ -23,15 +24,14 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
       </header>
 
       <%= if Enum.empty?(@fund_allocations) do %>
-        <section id="fund-allocation-empty-state" class="app-shell-empty-state">
-          <h2><%= gettext("No confirmed fund allocations yet") %></h2>
-          <p><%= gettext("Upload a factsheet with allocations to populate this report.") %></p>
-          <p>
-            <a id="fund-allocation-empty-state-link" href="/documents/new">
-              <%= gettext("Upload a factsheet") %>
-            </a>
-          </p>
-        </section>
+        <ReportState.empty_state
+          id="fund-allocation-empty-state"
+          title={gettext("No confirmed fund allocations yet")}
+          description={gettext("Upload a factsheet with allocations to populate this report.")}
+          action_id="fund-allocation-empty-state-link"
+          action_href="/documents/new"
+          action_text={gettext("Upload a factsheet")}
+        />
       <% end %>
 
       <%= if !Enum.empty?(@fund_allocations) do %>
