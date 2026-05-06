@@ -476,7 +476,12 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
 
-    assert has_element?(view, "#security-price-chart")
+    assert has_element?(
+             view,
+             "#security-price-chart[aria-labelledby='security-price-chart-title']"
+           )
+
+    assert has_element?(view, "#security-price-chart-title", "Price chart")
     assert has_element?(view, "#security-price-chart-svg")
     assert has_element?(view, "#security-price-chart-series", "2025-01-15")
     assert has_element?(view, "#security-price-chart-series", "2025-12-10")
@@ -494,6 +499,12 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
 
+    assert has_element?(
+             view,
+             "#security-price-chart[aria-labelledby='security-price-chart-title']"
+           )
+
+    assert has_element?(view, "#security-price-chart-title", "Price chart")
     assert has_element?(view, "#security-price-chart-empty")
     assert has_element?(view, "#security-price-chart-empty", "No quotes yet")
   end

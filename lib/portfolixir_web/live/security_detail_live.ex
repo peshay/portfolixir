@@ -291,10 +291,15 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             <% end %>
           </section>
 
-          <section id="security-price-chart" class="app-shell-section-card app-shell-workspace-stack" data-priority="secondary">
+          <section
+            id="security-price-chart"
+            class="app-shell-section-card app-shell-workspace-stack"
+            data-priority="secondary"
+            aria-labelledby="security-price-chart-title"
+          >
             <div class="app-shell-section-header">
               <div>
-                <h2 class="app-shell-section-title"><%= gettext("Price chart") %></h2>
+                <h2 id="security-price-chart-title" class="app-shell-section-title"><%= gettext("Price chart") %></h2>
                 <p><%= gettext("Stored close quotes with buy/sell/dividend markers.") %></p>
               </div>
             </div>

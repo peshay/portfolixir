@@ -1496,7 +1496,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities")
 
-    assert has_element?(view, "#security-selected-detail", "Selected security")
+    assert has_element?(
+             view,
+             "#security-selected-detail[aria-labelledby='security-selected-detail-title']"
+           )
+
+    assert has_element?(view, "#security-selected-detail-title", "Selected security")
 
     assert has_element?(
              view,
@@ -1510,7 +1515,13 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
 
     assert has_element?(view, "#security-selected-summary", "Alpha Corp")
-    assert has_element?(view, "#security-selected-chart-placeholder", "Chart preview")
+
+    assert has_element?(
+             view,
+             "#security-selected-chart-placeholder[role='region'][aria-labelledby='security-selected-chart-placeholder-title']"
+           )
+
+    assert has_element?(view, "#security-selected-chart-placeholder-title", "Chart preview")
 
     assert has_element?(
              view,
