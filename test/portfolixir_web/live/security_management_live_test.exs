@@ -900,6 +900,8 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-list tbody", "111.11")
     assert has_element?(view, "#security-list tbody", "2026-05-02")
     assert has_element?(view, "#security-list tbody", "3")
+    refute has_element?(view, "#security-valuation-warning-#{security.id}")
+    refute has_element?(view, "#security-selected-valuation-warning")
 
     view
     |> element("#security-search-form")
@@ -912,6 +914,115 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     |> render_change(%{"q" => "nomatch"})
 
     refute has_element?(view, "#security-list tbody tr")
+  end
+
+  test "shows missing quote valuation warning for positioned securities", %{
+    conn: conn
+  } do
+    alias Portfolixir.Ledger
+    alias Portfolixir.Portfolios
+
+    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Missing Quote Security",
+        symbol: "MQS",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        type: "buy",
+        date: ~D[2026-05-02],
+        currency_code: "EUR",
+        amount: Decimal.new("500"),
+        quantity: Decimal.new("5"),
+        price: Decimal.new("100"),
+        securities_account_id: securities_account.id,
+        security_id: security.id
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-valuation-warning-#{security.id}",
+             "Missing quote for valuation."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-warning",
+             "Missing quote for valuation."
+           )
+  end
+
+  test "shows stale quote valuation warning when latest quote predates latest transaction", %{
+    conn: conn
+  } do
+    alias Portfolixir.Ledger
+    alias Portfolixir.Portfolios
+
+    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Stale Quote Security",
+        symbol: "SQS",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        type: "buy",
+        date: ~D[2026-05-10],
+        currency_code: "EUR",
+        amount: Decimal.new("200"),
+        quantity: Decimal.new("2"),
+        price: Decimal.new("100"),
+        securities_account_id: securities_account.id,
+        security_id: security.id
+      })
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: security.id,
+        date: ~D[2026-05-01],
+        source: "manual",
+        currency_code: "EUR",
+        close: Decimal.new("98.00")
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-valuation-warning-#{security.id}",
+             "Stale quote used for valuation."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-warning",
+             "Stale quote used for valuation."
+           )
   end
 
   test "split view shows selected security and chart placeholder", %{conn: conn} do
