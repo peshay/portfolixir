@@ -981,6 +981,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-selected-summary p[aria-label='111.11 EUR']",
+             "Latest quote: 111.11 EUR"
+           )
+
+    assert has_element?(
+             view,
              "#security-valuation-panel-#{security.id}[role='group'][aria-labelledby='security-valuation-panel-title-#{security.id}']"
            )
 
