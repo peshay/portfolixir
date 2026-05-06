@@ -9,6 +9,6 @@ defmodule PortfolixirWeb.AmountFormatTest do
   end
 
   test "uses an explicit neutral fallback for unavailable valuation amounts" do
-    assert AmountFormat.format_currency_amount(nil, "EUR") == "Unavailable"
+    assert AmountFormat.format_currency_amount(nil, "EUR") == "Valuation unavailable"
   end
 end

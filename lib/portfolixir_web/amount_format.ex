@@ -1,7 +1,7 @@
 defmodule PortfolixirWeb.AmountFormat do
   @moduledoc "Deterministic read-only formatting helpers for financial amounts."
 
-  @missing_amount "Unavailable"
+  @missing_amount "Valuation unavailable"
 
   def format_currency_amount(nil, _currency_code), do: @missing_amount
 

@@ -608,7 +608,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-create > .app-shell-section-header h2", "Add security")
   end
 
-  test "renders optional fields as em dashes when omitted", %{conn: conn} do
+  test "renders optional fields and valuation fallbacks explicitly when omitted", %{conn: conn} do
     assert {:ok, _} =
              Catalog.create_security(%{
                name: "No IDs Security",
@@ -621,8 +621,25 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-list tbody tr")
     assert has_element?(view, "#security-list tbody tr td:nth-child(4)", "—")
     assert has_element?(view, "#security-list tbody tr td:nth-child(5)", "—")
-    assert has_element?(view, "#security-list tbody tr td:nth-child(6)", "Unavailable")
-    assert has_element?(view, "#security-list tbody tr td:nth-child(7)", "—")
+    assert has_element?(view, "#security-list tbody tr td:nth-child(6)", "Valuation unavailable")
+
+    assert has_element?(
+             view,
+             "#security-list tbody tr td:nth-child(6).app-shell-muted[data-valuation-state='missing']",
+             "Valuation unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list tbody tr td:nth-child(7)",
+             "Valuation source timestamp unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list tbody tr td:nth-child(7).app-shell-muted[data-valuation-state='missing']",
+             "Valuation source timestamp unavailable"
+           )
   end
 
   test "shows validation error when name is missing", %{conn: conn} do
@@ -916,25 +933,31 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "[data-testid='security-valuation-source-label-#{security.id}'][aria-label='Valuation source label']",
+             "[data-testid='security-valuation-source-label-#{security.id}'][aria-label='Valuation source: manual']",
              "Valuation source: manual"
            )
 
     assert has_element?(
              view,
-             "#security-selected-valuation-source-label[data-testid='security-selected-valuation-source-label'][aria-label='Valuation source label']",
+             "#security-selected-valuation-source-label[data-testid='security-selected-valuation-source-label'][aria-label='Valuation source: manual']",
              "Valuation source: manual"
            )
 
     assert has_element?(
              view,
-             "#security-valuation-source-timestamp-#{security.id} time[datetime='2026-05-02']",
+             "#security-valuation-source-timestamp-#{security.id}[aria-label='Valuation source as of 2026-05-02'] time[datetime='2026-05-02']",
              "Valuation source as of 2026-05-02"
            )
 
     assert has_element?(
              view,
-             "#security-selected-valuation-source-timestamp time[datetime='2026-05-02']",
+             "#security-selected-valuation-source-timestamp[aria-label='Valuation source as of 2026-05-02'] time[datetime='2026-05-02']",
+             "Valuation source as of 2026-05-02"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list td[data-column-key='latest_quote_date'][aria-label='Valuation source as of 2026-05-02']",
              "Valuation source as of 2026-05-02"
            )
 
@@ -950,7 +973,11 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "Source legend: latest stored quote source is shown for this valuation."
            )
 
-    assert has_element?(view, "#security-list td[data-column-key='latest_quote']", "111.11 EUR")
+    assert has_element?(
+             view,
+             "#security-list td[data-column-key='latest_quote'][aria-label='111.11 EUR']",
+             "111.11 EUR"
+           )
 
     assert has_element?(
              view,
@@ -1096,13 +1123,25 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "[data-testid='security-valuation-source-label-#{security.id}'][aria-label='Valuation source label']",
+             "[data-testid='security-valuation-source-label-#{security.id}'][aria-label='Valuation source unavailable']",
              "Valuation source #{copy.unavailable}"
            )
 
     assert has_element?(
              view,
-             "#security-selected-valuation-source-label[data-testid='security-selected-valuation-source-label'][aria-label='Valuation source label']",
+             "#security-selected-valuation-source-label[data-testid='security-selected-valuation-source-label'][aria-label='Valuation source unavailable']",
+             "Valuation source #{copy.unavailable}"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-source-label-#{security.id}.app-shell-muted[data-valuation-state='missing']",
+             "Valuation source #{copy.unavailable}"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-label.app-shell-muted[data-valuation-state='missing']",
              "Valuation source #{copy.unavailable}"
            )
 
@@ -1115,6 +1154,30 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-selected-valuation-source-timestamp",
+             "Valuation source timestamp #{copy.unavailable}"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-source-timestamp-#{security.id}[aria-label='Valuation source timestamp unavailable']",
+             "Valuation source timestamp #{copy.unavailable}"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-timestamp[aria-label='Valuation source timestamp unavailable']",
+             "Valuation source timestamp #{copy.unavailable}"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-source-timestamp-#{security.id}.app-shell-muted[data-valuation-state='missing']",
+             "Valuation source timestamp #{copy.unavailable}"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-source-timestamp.app-shell-muted[data-valuation-state='missing']",
              "Valuation source timestamp #{copy.unavailable}"
            )
 
@@ -1139,8 +1202,44 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-list td[data-column-key='latest_quote']",
-             "Unavailable"
+             "#security-list td[data-column-key='latest_quote'][aria-label='Valuation unavailable']",
+             "Valuation unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list td[data-column-key='latest_quote'].app-shell-muted[data-valuation-state='missing']",
+             "Valuation unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list td[data-column-key='latest_quote_date'][aria-label='Valuation source timestamp unavailable']",
+             "Valuation source timestamp unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list td[data-column-key='latest_quote_date'].app-shell-muted[data-valuation-state='missing']",
+             "Valuation source timestamp unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-summary p[aria-label='Valuation source timestamp unavailable']",
+             "Latest quote date: Valuation source timestamp unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-summary p[aria-label='Valuation unavailable'][data-valuation-state='missing']",
+             "Latest quote: Valuation unavailable"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-summary p[aria-label='Valuation source timestamp unavailable'][data-valuation-state='missing']",
+             "Latest quote date: Valuation source timestamp unavailable"
            )
 
     assert has_element?(
@@ -1171,7 +1270,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-selected-summary[role='group'][aria-labelledby='security-selected-valuation-summary-title security-selected-valuation-freshness']"
            )
 
-    assert has_element?(view, "#security-selected-summary", "Unavailable")
+    assert has_element?(view, "#security-selected-summary", "Valuation unavailable")
   end
 
   test "shows stale quote valuation warning when latest quote predates latest transaction", %{
