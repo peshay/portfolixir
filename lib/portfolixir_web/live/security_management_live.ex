@@ -1094,13 +1094,14 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     end
   end
 
-  defp valuation_warning_label("missing_latest_quote"),
+  @doc false
+  def valuation_warning_label("missing_latest_quote"),
     do: gettext("Missing quote for valuation.")
 
-  defp valuation_warning_label("stale_latest_quote"),
+  def valuation_warning_label("stale_latest_quote"),
     do: gettext("Stale quote used for valuation.")
 
-  defp valuation_warning_label(_warning), do: gettext("Quote warning for valuation.")
+  def valuation_warning_label(_warning), do: valuation_warning_fallback()
 
   @doc false
   def valuation_warning_detail_label("missing_latest_quote", _latest_quote_date),
@@ -1113,7 +1114,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       )
 
   def valuation_warning_detail_label(_warning, _latest_quote_date),
-    do: gettext("Valuation warning detail unavailable.")
+    do: valuation_warning_fallback()
+
+  defp valuation_warning_fallback, do: gettext("Valuation warning unavailable.")
 
   defp valuation_source_label(source) when is_binary(source) do
     case String.trim(source) do
