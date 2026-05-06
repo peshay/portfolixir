@@ -254,6 +254,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             >
                               <%= valuation_warning_label(security.valuation_warning) %>
                             </p>
+                            <p
+                              id={"security-valuation-warning-detail-#{security.id}"}
+                              class="app-shell-help-text"
+                            >
+                              <%= valuation_warning_detail_label(
+                                security.valuation_warning,
+                                security.latest_quote_date
+                              ) %>
+                            </p>
                           <% end %>
                         </td>
                       <% end %>
@@ -386,6 +395,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 <p id="security-selected-valuation-warning" class="app-shell-warning-note" role="alert">
                   <strong><%= gettext("Valuation warning") %>:</strong>
                   <%= valuation_warning_label(@selected_security.valuation_warning) %>
+                </p>
+                <p id="security-selected-valuation-warning-detail" class="app-shell-help-text">
+                  <%= valuation_warning_detail_label(
+                    @selected_security.valuation_warning,
+                    @selected_security.latest_quote_date
+                  ) %>
                 </p>
               <% end %>
             </div>
@@ -1005,6 +1020,19 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     do: gettext("Stale quote used for valuation.")
 
   defp valuation_warning_label(_warning), do: gettext("Quote warning for valuation.")
+
+  @doc false
+  def valuation_warning_detail_label("missing_latest_quote", _latest_quote_date),
+    do: gettext("No latest quote is available for this positioned security.")
+
+  def valuation_warning_detail_label("stale_latest_quote", %Date{} = latest_quote_date),
+    do:
+      gettext("Latest quote date %{date} is older than recent transactions.",
+        date: Date.to_iso8601(latest_quote_date)
+      )
+
+  def valuation_warning_detail_label(_warning, _latest_quote_date),
+    do: gettext("Valuation warning detail unavailable.")
 
   defp valuation_source_label(source) when is_binary(source) do
     case String.trim(source) do

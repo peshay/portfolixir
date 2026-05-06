@@ -994,6 +994,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-valuation-warning-detail-#{security.id}",
+             "No latest quote is available for this positioned security."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-warning-detail",
+             "No latest quote is available for this positioned security."
+           )
+
+    assert has_element?(
+             view,
              "#security-valuation-source-label-#{security.id}",
              "Valuation source unavailable"
            )
@@ -1082,6 +1094,25 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-selected-valuation-warning",
              "Stale quote used for valuation."
            )
+
+    assert has_element?(
+             view,
+             "#security-valuation-warning-detail-#{security.id}",
+             "Latest quote date 2026-05-01 is older than recent transactions."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-warning-detail",
+             "Latest quote date 2026-05-01 is older than recent transactions."
+           )
+  end
+
+  test "valuation warning detail uses neutral fallback when supporting detail is missing" do
+    assert PortfolixirWeb.SecurityManagementLive.valuation_warning_detail_label(
+             "unknown_warning",
+             nil
+           ) == "Valuation warning detail unavailable."
   end
 
   test "split view shows selected security and chart placeholder", %{conn: conn} do
