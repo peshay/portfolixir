@@ -406,6 +406,17 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-status-filter[role='group'][aria-labelledby='security-status-filter-label']"
            )
 
+    assert has_element?(
+             view,
+             "#security-results-status[role='status'][aria-live='polite']",
+             "No securities yet"
+           )
+
+    assert has_element?(
+             view,
+             "#no-securities[role='status'][aria-describedby='security-results-status']"
+           )
+
     assert has_element?(view, "#no-securities h3", "No securities yet")
 
     assert has_element?(
@@ -416,7 +427,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   end
 
   test "shows active securities by default", %{conn: conn} do
-    assert {:ok, _} =
+    assert {:ok, _active_security} =
              Catalog.create_security(%{
                name: "Active Security",
                symbol: "AC",
@@ -424,7 +435,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
                active: true
              })
 
-    assert {:ok, _} =
+    assert {:ok, _inactive_security} =
              Catalog.create_security(%{
                name: "Inactive Security",
                symbol: "IN",
@@ -505,6 +516,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     assert has_element?(view, "#security-filter-active.app-shell-primary", "Active")
+
+    assert has_element?(
+             view,
+             "#security-results-status[role='status'][aria-live='polite']",
+             "No active securities"
+           )
+
+    assert has_element?(
+             view,
+             "#no-securities[role='status'][aria-describedby='security-results-status']"
+           )
+
     assert has_element?(view, "#no-securities h3", "No active securities")
 
     assert has_element?(
@@ -549,7 +572,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   end
 
   test "shows all securities and status indicator when all filter is selected", %{conn: conn} do
-    assert {:ok, _} =
+    assert {:ok, active_security} =
              Catalog.create_security(%{
                name: "Active Security",
                symbol: "AC",
@@ -557,7 +580,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
                active: true
              })
 
-    assert {:ok, _} =
+    assert {:ok, _inactive_security} =
              Catalog.create_security(%{
                name: "Inactive Security",
                symbol: "IN",
@@ -569,6 +592,20 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     view |> element("#security-filter-all") |> render_click()
 
     assert has_element?(view, "#security-filter-all.app-shell-primary", "All")
+
+    assert has_element?(
+             view,
+             "#security-results-status[role='status'][aria-live='polite']",
+             "Showing 2 securities"
+           )
+
+    assert has_element?(
+             view,
+             "#security-row-#{active_security.id} td[data-column-key='status'][aria-labelledby='security-status-label-#{active_security.id} security-status-value-#{active_security.id}']"
+           )
+
+    assert has_element?(view, "#security-status-label-#{active_security.id}", "Status")
+    assert has_element?(view, "#security-status-value-#{active_security.id}", "Active")
     assert has_element?(view, "#security-list tbody tr", "Active Security")
     assert has_element?(view, "#security-list tbody tr", "Inactive Security")
     assert has_element?(view, "span.app-shell-badge", "Active")
