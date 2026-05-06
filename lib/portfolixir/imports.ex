@@ -116,6 +116,17 @@ defmodule Portfolixir.Imports do
     Repo.all(
       from(conflict in ImportConflict,
         where: conflict.status == "open",
+        preload: [:import_source, :import_run, :raw_import_item],
+        order_by: [desc: conflict.inserted_at, desc: conflict.id]
+      )
+    )
+  end
+
+  def list_resolved_import_conflicts do
+    Repo.all(
+      from(conflict in ImportConflict,
+        where: conflict.status == "resolved",
+        preload: [:import_source, :import_run, :raw_import_item],
         order_by: [desc: conflict.inserted_at, desc: conflict.id]
       )
     )
