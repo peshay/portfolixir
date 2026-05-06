@@ -263,6 +263,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                               )
                             ) %>
                           </p>
+                          <p
+                            id={"security-valuation-source-legend-#{security.id}"}
+                            class="app-shell-help-text"
+                          >
+                            <%= valuation_source_legend_label(
+                              security.latest_quote_source,
+                              security.valuation_warning
+                            ) %>
+                          </p>
                           <%= if security.valuation_warning do %>
                             <p
                               id={"security-valuation-warning-#{security.id}"}
@@ -415,6 +424,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                     @selected_security.latest_quote_source,
                     @selected_security.latest_quote_date
                   )
+                ) %>
+              </p>
+              <p id="security-selected-valuation-source-legend" class="app-shell-help-text">
+                <%= valuation_source_legend_label(
+                  @selected_security.latest_quote_source,
+                  @selected_security.valuation_warning
                 ) %>
               </p>
               <%= if @selected_security.valuation_warning do %>
@@ -1146,6 +1161,22 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       gettext("Valuation freshness summary unavailable")
     end
   end
+
+  defp valuation_source_legend_label(_source, "stale_latest_quote") do
+    gettext(
+      "Source legend: latest stored quote source is shown; quote date may be older than recent transactions."
+    )
+  end
+
+  defp valuation_source_legend_label(source, _warning) when is_binary(source) do
+    case String.trim(source) do
+      "" -> gettext("Source legend: no stored quote source is available for this valuation.")
+      _value -> gettext("Source legend: latest stored quote source is shown for this valuation.")
+    end
+  end
+
+  defp valuation_source_legend_label(_source, _warning),
+    do: gettext("Source legend: no stored quote source is available for this valuation.")
 
   defp maybe_filter_by_search(securities, ""), do: securities
 
