@@ -219,8 +219,8 @@ defmodule PortfolixirWeb.SecurityDetailLive do
 
             <%= if Enum.empty?(@position_rows) do %>
               <div id="no-security-positions" class="app-shell-empty-state">
-                <h3><%= gettext("No positions yet") %></h3>
-                <p><%= gettext("No trades for this security in the selected portfolio yet.") %></p>
+                <h3><%= gettext("No current position available") %></h3>
+                <p><%= gettext("Current position data is unavailable for this security.") %></p>
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
