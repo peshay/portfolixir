@@ -106,6 +106,13 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
 
     assert has_element?(view, "#fund-allocation-security-#{security_alpha.id}", "Allocated Alpha")
     assert has_element?(view, "#fund-allocation-security-#{security_alpha.id}", "(ALP)")
+
+    assert has_element?(
+             view,
+             "#fund-allocation-table-#{security_alpha.id} caption",
+             "Allocated Alpha"
+           )
+
     assert has_element?(view, "#fund-allocation-security-#{security_beta.id}", "Allocated Beta")
     assert has_element?(view, "#fund-allocation-security-#{security_beta.id}", "(BET)")
 
