@@ -441,12 +441,14 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               id="security-selected-summary"
               class="app-shell-summary-grid"
               role="group"
-              aria-label={security_freshness_aria_label(@selected_security)}
-              aria-labelledby="security-selected-valuation-summary-title"
+              aria-labelledby="security-selected-valuation-summary-title security-selected-valuation-freshness"
             >
               <h3 id="security-selected-valuation-summary-title" class="app-shell-visually-hidden">
                 <%= gettext("Selected security valuation summary") %>
               </h3>
+              <span id="security-selected-valuation-freshness" class="app-shell-visually-hidden">
+                <%= security_freshness_aria_label(@selected_security) %>
+              </span>
               <p><strong><%= gettext("Name") %>:</strong> <%= @selected_security.name %></p>
               <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
               <p><strong><%= gettext("Latest quote") %>:</strong> <%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %></p>

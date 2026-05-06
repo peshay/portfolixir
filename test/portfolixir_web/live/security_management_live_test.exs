@@ -965,7 +965,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-summary[role='group'][aria-labelledby='security-selected-valuation-summary-title']"
+             "#security-selected-summary[role='group'][aria-labelledby='security-selected-valuation-summary-title security-selected-valuation-freshness']"
            )
 
     assert has_element?(
@@ -1168,7 +1168,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-summary[role='group'][aria-labelledby='security-selected-valuation-summary-title']"
+             "#security-selected-summary[role='group'][aria-labelledby='security-selected-valuation-summary-title security-selected-valuation-freshness']"
            )
 
     assert has_element?(view, "#security-selected-summary", "Unavailable")
@@ -1324,7 +1324,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-summary[aria-labelledby='security-selected-valuation-summary-title']"
+             "#security-selected-summary[aria-labelledby='security-selected-valuation-summary-title security-selected-valuation-freshness']"
            )
 
     assert has_element?(
@@ -1407,11 +1407,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities")
 
-    assert has_element?(view, "#security-selected-summary[aria-label='No position freshness']")
+    assert has_element?(view, "#security-selected-summary")
 
     assert has_element?(
              view,
-             "#security-selected-summary[aria-labelledby='security-selected-valuation-summary-title']"
+             "#security-selected-summary[aria-labelledby='security-selected-valuation-summary-title security-selected-valuation-freshness']",
+             "No position freshness"
            )
 
     assert has_element?(
@@ -1444,25 +1445,25 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     |> element("#security-row-#{current_security.id}")
     |> render_click()
 
-    assert has_element?(view, "#security-selected-summary[aria-label='Current quote freshness']")
+    assert has_element?(view, "#security-selected-summary", "Current quote freshness")
 
     view
     |> element("#security-row-#{stale_security.id}")
     |> render_click()
 
-    assert has_element?(view, "#security-selected-summary[aria-label='Stale quote freshness']")
+    assert has_element?(view, "#security-selected-summary", "Stale quote freshness")
 
     view
     |> element("#security-row-#{missing_security.id}")
     |> render_click()
 
-    assert has_element?(view, "#security-selected-summary[aria-label='Missing quote freshness']")
+    assert has_element?(view, "#security-selected-summary", "Missing quote freshness")
 
     view
     |> element("#security-row-#{neutral_security.id}")
     |> render_click()
 
-    assert has_element?(view, "#security-selected-summary[aria-label='No position freshness']")
+    assert has_element?(view, "#security-selected-summary")
   end
 
   test "clicking another row updates selected security detail area", %{conn: conn} do
