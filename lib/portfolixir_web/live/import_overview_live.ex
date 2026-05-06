@@ -26,6 +26,11 @@ defmodule PortfolixirWeb.ImportOverviewLive do
           <p class="app-shell-page-kicker"><%= gettext("Imports") %></p>
           <h1><%= gettext("Imports") %></h1>
           <p><%= gettext("Read-only overview of staged import sources, runs, and raw import items.") %></p>
+          <p>
+            <a id="imports-conflicts-queue-link" href="/imports/conflicts">
+              <%= gettext("Open import conflict review queue") %>
+            </a>
+          </p>
         </div>
       </header>
 
