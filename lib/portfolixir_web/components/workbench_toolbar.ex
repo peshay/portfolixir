@@ -34,7 +34,16 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
         />
       </form>
 
-      <div class="app-shell-form-actions">
+      <span id={"#{@id}-actions-label"} class="app-shell-visually-hidden">
+        <%= toolbar_actions_label(@title) %>
+      </span>
+
+      <div
+        id={"#{@id}-actions"}
+        class="app-shell-form-actions"
+        role="group"
+        aria-labelledby={"#{@id}-actions-label"}
+      >
         <button id={"#{@id}-filter"} type="button" class="app-shell-secondary" disabled>
           <%= gettext("Filter") %>
         </button>
@@ -47,7 +56,16 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
       </div>
 
       <%= if @time_ranges != [] do %>
-        <div class="app-shell-form-actions" role="group" aria-label={gettext("Time range")}> 
+        <span id={"#{@id}-ranges-label"} class="app-shell-visually-hidden">
+          <%= toolbar_time_ranges_label(@title) %>
+        </span>
+
+        <div
+          id={"#{@id}-ranges"}
+          class="app-shell-form-actions"
+          role="group"
+          aria-labelledby={"#{@id}-ranges-label"}
+        >
           <%= for range <- @time_ranges do %>
             <button
               id={"#{@id}-range-#{String.downcase(range)}"}
@@ -65,4 +83,8 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
     </div>
     """
   end
+
+  defp toolbar_actions_label(title), do: "#{title} #{gettext("toolbar actions")}"
+
+  defp toolbar_time_ranges_label(title), do: "#{title} #{gettext("time range")}"
 end
