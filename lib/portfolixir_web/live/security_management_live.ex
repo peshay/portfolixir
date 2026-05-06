@@ -94,7 +94,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             active_time_range="ALL"
           />
 
-          <div class="app-shell-form-actions">
+          <span id="security-list-actions-label" class="app-shell-visually-hidden">
+            <%= gettext("Security list actions") %>
+          </span>
+          <div
+            id="security-list-actions"
+            class="app-shell-form-actions"
+            role="group"
+            aria-labelledby="security-list-actions-label"
+          >
             <a id="security-export-csv" href="/securities/export.csv" class="app-shell-secondary">
               <%= gettext("Export CSV") %>
             </a>
@@ -118,7 +126,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               placeholder={gettext("Search securities")}
             />
           </form>
-          <div id="security-status-filter" class="app-shell-form-actions">
+          <span id="security-status-filter-label" class="app-shell-visually-hidden">
+            <%= gettext("Security status filter") %>
+          </span>
+          <div
+            id="security-status-filter"
+            class="app-shell-form-actions"
+            role="group"
+            aria-labelledby="security-status-filter-label"
+          >
             <button
               id="security-filter-active"
               type="button"
