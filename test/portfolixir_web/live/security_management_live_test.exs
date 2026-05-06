@@ -621,7 +621,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-list tbody tr")
     assert has_element?(view, "#security-list tbody tr td:nth-child(4)", "—")
     assert has_element?(view, "#security-list tbody tr td:nth-child(5)", "—")
-    assert has_element?(view, "#security-list tbody tr td:nth-child(6)", "—")
+    assert has_element?(view, "#security-list tbody tr td:nth-child(6)", "Unavailable")
     assert has_element?(view, "#security-list tbody tr td:nth-child(7)", "—")
   end
 
@@ -897,7 +897,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-list th", "Latest quote")
     assert has_element?(view, "#security-list th", "Latest quote date")
     assert has_element?(view, "#security-list th", "Position quantity")
-    assert has_element?(view, "#security-list tbody", "111.11")
+    assert has_element?(view, "#security-list tbody", "111.11 EUR")
     assert has_element?(view, "#security-list tbody", "2026-05-02")
     assert has_element?(view, "#security-list tbody", "3")
 
@@ -912,6 +912,8 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-selected-valuation-source-timestamp",
              "Valuation source as of 2026-05-02"
            )
+
+    assert has_element?(view, "#security-list td[data-column-key='latest_quote']", "111.11 EUR")
 
     refute has_element?(view, "#security-valuation-warning-#{security.id}")
     refute has_element?(view, "#security-selected-valuation-warning")
@@ -989,6 +991,14 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-selected-valuation-source-timestamp",
              "Valuation source timestamp unavailable"
            )
+
+    assert has_element?(
+             view,
+             "#security-list td[data-column-key='latest_quote']",
+             "Unavailable"
+           )
+
+    assert has_element?(view, "#security-selected-summary", "Unavailable")
   end
 
   test "shows stale quote valuation warning when latest quote predates latest transaction", %{
