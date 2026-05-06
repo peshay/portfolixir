@@ -31,7 +31,8 @@ defmodule Portfolixir.ClassificationExposure do
           percentage: percent(value, total_value),
           source_securities:
             grouped |> Enum.map(& &1.security_name) |> Enum.uniq() |> Enum.sort(),
-          drilldown_details: build_drilldown_details(grouped)
+          drilldown_details: build_drilldown_details(grouped),
+          valuation_unavailable?: Enum.any?(grouped, &valuation_unavailable?/1)
         }
       end)
       |> Enum.sort_by(&{&1.category_name == "Unmapped", &1.category_name})
@@ -173,6 +174,7 @@ defmodule Portfolixir.ClassificationExposure do
         status: exposure.status,
         security_name: exposure.security_name,
         value: exposure.value,
+        valuation_unavailable?: valuation_unavailable?(exposure),
         allocation_type: exposure.allocation_type,
         source_label: exposure.source_label,
         note: exposure.detail_note
@@ -183,6 +185,9 @@ defmodule Portfolixir.ClassificationExposure do
        detail.source_label || ""}
     end)
   end
+
+  defp valuation_unavailable?(%{warning: "missing_quote_fallback_quantity:" <> _}), do: true
+  defp valuation_unavailable?(_exposure), do: false
 
   defp percent(value, total) do
     if Decimal.equal?(total, @zero) do
