@@ -1259,11 +1259,14 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
-  test "valuation warning detail uses neutral fallback when supporting detail is missing" do
+  test "valuation warning fallback uses one neutral phrase when supporting context is missing" do
+    assert PortfolixirWeb.SecurityManagementLive.valuation_warning_label("unknown_warning") ==
+             "Valuation warning unavailable."
+
     assert PortfolixirWeb.SecurityManagementLive.valuation_warning_detail_label(
              "unknown_warning",
              nil
-           ) == "Valuation warning detail unavailable."
+           ) == "Valuation warning unavailable."
   end
 
   test "split view shows selected security and chart placeholder", %{conn: conn} do
