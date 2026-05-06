@@ -203,7 +203,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 <thead>
                   <tr>
                     <%= for column <- @security_table_columns, security_column_visible?(@visible_security_column_keys, column.key) do %>
-                      <th data-column-key={column.key}><%= security_column_label(column.key) %></th>
+                      <th id={security_column_header_id(column.key)} data-column-key={column.key}><%= security_column_label(column.key) %></th>
                     <% end %>
                   </tr>
                 </thead>
@@ -236,6 +236,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       <%= if security_column_visible?(@visible_security_column_keys, "latest_quote") do %>
                         <td
                           data-column-key="latest_quote"
+                          headers={security_column_header_id("latest_quote")}
                           class={valuation_fallback_class(security.latest_quote_close)}
                           data-valuation-state={valuation_fallback_state(security.latest_quote_close)}
                           aria-label={valuation_amount_label(security.latest_quote_close, security.latest_quote_currency_code)}
@@ -246,6 +247,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       <%= if security_column_visible?(@visible_security_column_keys, "latest_quote_date") do %>
                         <td
                           data-column-key="latest_quote_date"
+                          headers={security_column_header_id("latest_quote_date")}
                           class={valuation_fallback_class(security.latest_quote_date)}
                           data-valuation-state={valuation_fallback_state(security.latest_quote_date)}
                           aria-label={valuation_source_timestamp_label(security.latest_quote_date)}
@@ -468,16 +470,20 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <p
                 class={valuation_fallback_class(@selected_security.latest_quote_close)}
                 data-valuation-state={valuation_fallback_state(@selected_security.latest_quote_close)}
+                aria-labelledby="security-selected-latest-quote-label security-selected-latest-quote-value"
                 aria-label={valuation_amount_label(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code)}
               >
-                <strong><%= gettext("Latest quote") %>:</strong> <%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %>
+                <strong id="security-selected-latest-quote-label"><%= gettext("Latest quote") %>:</strong>
+                <span id="security-selected-latest-quote-value"><%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %></span>
               </p>
               <p
                 class={valuation_fallback_class(@selected_security.latest_quote_date)}
                 data-valuation-state={valuation_fallback_state(@selected_security.latest_quote_date)}
+                aria-labelledby="security-selected-latest-quote-date-label security-selected-latest-quote-date-value"
                 aria-label={valuation_source_timestamp_label(@selected_security.latest_quote_date)}
               >
-                <strong><%= gettext("Latest quote date") %>:</strong> <%= iso_date_or_dash(@selected_security.latest_quote_date) %>
+                <strong id="security-selected-latest-quote-date-label"><%= gettext("Latest quote date") %>:</strong>
+                <span id="security-selected-latest-quote-date-value"><%= iso_date_or_dash(@selected_security.latest_quote_date) %></span>
               </p>
               <p
                 id="security-selected-valuation-source-label"
@@ -1072,6 +1078,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp security_column_label("exchange"), do: gettext("Exchange")
   defp security_column_label("status"), do: gettext("Status")
   defp security_column_label("actions"), do: gettext("Actions")
+
+  defp security_column_header_id(key), do: "security-column-header-#{key}"
 
   defp choose_selected_security_id(current_id, securities) do
     cond do
