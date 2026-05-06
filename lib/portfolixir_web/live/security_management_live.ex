@@ -256,6 +256,11 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             id={"security-valuation-panel-#{security.id}"}
                             role="group"
                             aria-labelledby={"security-valuation-panel-title-#{security.id}"}
+                            aria-describedby={valuation_description_ids(
+                              "security",
+                              security.id,
+                              security.valuation_warning
+                            )}
                           >
                             <h3
                               id={"security-valuation-panel-title-#{security.id}"}
@@ -322,6 +327,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                                 aria-live="polite"
                                 data-testid={"security-valuation-warning-#{security.id}"}
                                 aria-label={gettext("Valuation warning label")}
+                                aria-describedby={valuation_warning_detail_id("security", security.id)}
                               >
                                 <%= valuation_warning_label(security.valuation_warning) %>
                               </p>
@@ -458,6 +464,11 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               class="app-shell-summary-grid"
               role="group"
               aria-labelledby="security-selected-valuation-summary-title security-selected-valuation-freshness"
+              aria-describedby={valuation_description_ids(
+                "security-selected",
+                nil,
+                @selected_security.valuation_warning
+              )}
             >
               <h3 id="security-selected-valuation-summary-title" class="app-shell-visually-hidden">
                 <%= gettext("Selected security valuation summary") %>
@@ -543,6 +554,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                   aria-live="polite"
                   data-testid="security-selected-valuation-warning"
                   aria-label={gettext("Valuation warning label")}
+                  aria-describedby={valuation_warning_detail_id("security-selected", nil)}
                 >
                   <strong><%= gettext("Valuation warning") %>:</strong>
                   <%= valuation_warning_label(@selected_security.valuation_warning) %>
@@ -1326,6 +1338,29 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp valuation_source_legend_label(_source, _warning),
     do: gettext("Source legend: no stored quote source is available for this valuation.")
+
+  defp valuation_description_ids(prefix, suffix, warning) do
+    suffix = valuation_description_suffix(suffix)
+
+    ids =
+      [
+        "#{prefix}-valuation-source-legend#{suffix}",
+        warning && "#{prefix}-valuation-warning-detail#{suffix}"
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    case ids do
+      [] -> nil
+      _ -> Enum.join(ids, " ")
+    end
+  end
+
+  defp valuation_warning_detail_id(prefix, suffix) do
+    "#{prefix}-valuation-warning-detail#{valuation_description_suffix(suffix)}"
+  end
+
+  defp valuation_description_suffix(nil), do: ""
+  defp valuation_description_suffix(suffix), do: "-#{suffix}"
 
   defp maybe_filter_by_search(securities, ""), do: securities
 
