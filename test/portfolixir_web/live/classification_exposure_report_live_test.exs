@@ -134,11 +134,21 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
 
     {:ok, view, _html} = live(conn, "/reports/classification-exposure")
 
+    assert has_element?(view, "#classification-exposure-sunburst-chart")
     assert has_element?(view, "#classification-exposure-row-core", "Core")
     assert has_element?(view, "#classification-exposure-row-growth", "Growth")
     assert has_element?(view, "#classification-exposure-row-unmapped", "Unmapped")
     assert has_element?(view, "#classification-exposure-row-core", "Stock A")
     assert has_element?(view, "#classification-exposure-row-growth", "Fund B")
+
+    assert has_element?(
+             view,
+             "#classification-exposure-sunburst-hierarchy",
+             "Classification exposure"
+           )
+
+    assert has_element?(view, "#classification-exposure-sunburst-hierarchy", "Core")
+    assert has_element?(view, "#classification-exposure-sunburst-hierarchy", "Growth")
   end
 
   test "missing quote fallback stays explicit and does not distort percentages", %{
