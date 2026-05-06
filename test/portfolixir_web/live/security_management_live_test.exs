@@ -983,8 +983,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-valuation-panel-#{security.id}[aria-describedby='security-valuation-source-legend-#{security.id}']"
+           )
+
+    assert has_element?(
+             view,
              "#security-selected-valuation-source-legend",
              "Source legend: latest stored quote source is shown for this valuation."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-summary[aria-describedby='security-selected-valuation-source-legend']"
            )
 
     assert has_element?(
@@ -1244,8 +1254,30 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-valuation-panel-#{security.id}[aria-describedby='security-valuation-source-legend-#{security.id} security-valuation-warning-detail-#{security.id}']"
+           )
+
+    assert has_element?(
+             view,
              "#security-selected-valuation-source-legend",
              "Source legend: no stored quote source is available for this valuation."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-summary[aria-describedby='security-selected-valuation-source-legend security-selected-valuation-warning-detail']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-warning-#{security.id}[aria-describedby='security-valuation-warning-detail-#{security.id}']",
+             "Missing quote for valuation."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-warning[aria-describedby='security-selected-valuation-warning-detail']",
+             "Missing quote for valuation."
            )
 
     assert has_element?(
