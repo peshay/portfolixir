@@ -237,6 +237,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           <% else %>
             <div class="app-shell-table-wrapper">
               <table id="security-list" aria-describedby="security-results-status">
+                <caption class="app-shell-visually-hidden">
+                  <%= gettext("Securities workbench table with identifiers, valuation, status, and row actions.") %>
+                </caption>
                 <thead>
                   <tr>
                     <%= for column <- @security_table_columns, security_column_visible?(@visible_security_column_keys, column.key) do %>
@@ -825,6 +828,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           <%= if @security_csv_preview_rows do %>
             <div class="app-shell-table-wrapper">
               <table id="security-csv-preview-table">
+                <caption class="app-shell-visually-hidden">
+                  <%= gettext("Security CSV preview table with parsed rows, validation status, and errors before import.") %>
+                </caption>
                 <thead>
                   <tr>
                     <th><%= gettext("Row") %></th>
