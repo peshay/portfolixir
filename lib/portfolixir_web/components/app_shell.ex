@@ -1521,7 +1521,7 @@ defmodule PortfolixirWeb.AppShell do
                 href="/imports"
                 aria-label={gettext("Imports")}
                 title={gettext("Imports")}
-                class={nav_link_class(@current_path, "/imports")}
+                class={imports_nav_link_class(@current_path)}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">IM</span>
                 <span class="app-shell-nav-label"><%= gettext("Imports") %></span>
@@ -1812,6 +1812,10 @@ defmodule PortfolixirWeb.AppShell do
     end
   end
 
+  defp imports_nav_link_class("/imports"), do: "app-shell-nav-link is-active"
+  defp imports_nav_link_class("/imports/" <> _), do: "app-shell-nav-link is-active"
+  defp imports_nav_link_class(_path), do: "app-shell-nav-link"
+
   defp mobile_nav_link_class(current_path, path, root_active? \\ false) do
     if current_path == path || (root_active? && current_path == "/") do
       "app-shell-bottom-link is-active"
@@ -1835,6 +1839,7 @@ defmodule PortfolixirWeb.AppShell do
   defp section_label("/documents/new"), do: gettext("Imports")
   defp section_label("/fund-documents/" <> _), do: gettext("Imports")
   defp section_label("/imports"), do: gettext("Imports")
+  defp section_label("/imports/" <> _), do: gettext("Imports")
   defp section_label("/reports/" <> _), do: gettext("Reports")
   defp section_label("/accounts"), do: gettext("Master data")
   defp section_label("/transactions"), do: gettext("Ledger")
@@ -1846,6 +1851,8 @@ defmodule PortfolixirWeb.AppShell do
   defp page_label("/documents/new"), do: gettext("Factsheet document")
   defp page_label("/fund-documents/" <> _), do: gettext("Factsheet allocation review")
   defp page_label("/imports"), do: gettext("Imports")
+  defp page_label("/imports/conflicts"), do: gettext("Import conflicts")
+  defp page_label("/imports/raw-items/" <> _), do: gettext("Raw import item review")
   defp page_label("/reports/" <> _), do: gettext("Fund allocation report")
   defp page_label("/accounts"), do: gettext("Accounts Overview")
   defp page_label("/transactions"), do: gettext("Transactions")

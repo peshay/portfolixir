@@ -20,6 +20,7 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
     assert has_element?(view, "#import-runs-empty-state")
     assert has_element?(view, "#import-raw-items-empty-state")
     assert has_element?(view, "a[href=\"/imports\"]")
+    assert has_element?(view, "#imports-conflicts-queue-link[href=\"/imports/conflicts\"]")
     assert html =~ "/imports"
   end
 
