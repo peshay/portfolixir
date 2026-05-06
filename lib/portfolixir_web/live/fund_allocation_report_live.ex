@@ -63,6 +63,9 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
 
               <div class="app-shell-table-wrapper">
                 <table id={"fund-allocation-table-#{section.security.id}"}>
+                  <caption class="app-shell-visually-hidden">
+                    <%= gettext("Fund allocation table for %{name} (%{symbol}) with allocation type, source, as-of date, label, weight, and confidence.", name: section.security.name, symbol: section.security.symbol) %>
+                  </caption>
                   <thead>
                     <tr>
                       <th><%= gettext("Allocation type") %></th>
