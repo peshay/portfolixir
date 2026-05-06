@@ -1124,19 +1124,38 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp valuation_warning_fallback, do: gettext("Valuation warning unavailable.")
 
+  @doc false
+  def valuation_state_copy_matrix do
+    %{
+      current: gettext("current"),
+      stale: gettext("stale"),
+      missing: gettext("missing"),
+      unavailable: gettext("unavailable")
+    }
+  end
+
+  defp valuation_state_word(state) do
+    Map.fetch!(valuation_state_copy_matrix(), state)
+  end
+
   defp valuation_source_label(source) when is_binary(source) do
     case String.trim(source) do
-      "" -> gettext("Valuation source unavailable")
+      "" -> gettext("Valuation source %{state}", state: valuation_state_word(:unavailable))
       value -> gettext("Valuation source: %{source}", source: value)
     end
   end
 
-  defp valuation_source_label(_), do: gettext("Valuation source unavailable")
+  defp valuation_source_label(_),
+    do: gettext("Valuation source %{state}", state: valuation_state_word(:unavailable))
 
   defp valuation_source_timestamp_label(%Date{} = date),
     do: gettext("Valuation source as of %{date}", date: Date.to_iso8601(date))
 
-  defp valuation_source_timestamp_label(_), do: gettext("Valuation source timestamp unavailable")
+  defp valuation_source_timestamp_label(_),
+    do:
+      gettext("Valuation source timestamp %{state}",
+        state: valuation_state_word(:unavailable)
+      )
 
   defp valuation_freshness_state(
          "missing_latest_quote",
@@ -1178,10 +1197,17 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp valuation_source_present?(source) when is_binary(source), do: String.trim(source) != ""
   defp valuation_source_present?(_source), do: false
 
-  defp valuation_freshness_label(:current), do: gettext("Valuation freshness: current")
-  defp valuation_freshness_label(:stale), do: gettext("Valuation freshness: stale")
-  defp valuation_freshness_label(:missing), do: gettext("Valuation freshness: missing")
-  defp valuation_freshness_label(:neutral), do: gettext("Valuation freshness unavailable")
+  defp valuation_freshness_label(:current),
+    do: gettext("Valuation freshness: %{state}", state: valuation_state_word(:current))
+
+  defp valuation_freshness_label(:stale),
+    do: gettext("Valuation freshness: %{state}", state: valuation_state_word(:stale))
+
+  defp valuation_freshness_label(:missing),
+    do: gettext("Valuation freshness: %{state}", state: valuation_state_word(:missing))
+
+  defp valuation_freshness_label(:neutral),
+    do: gettext("Valuation freshness %{state}", state: valuation_state_word(:unavailable))
 
   defp valuation_freshness_compact_summary(securities) do
     counts =
@@ -1201,13 +1227,16 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
     if counts.current + counts.stale + counts.missing > 0 do
       gettext(
-        "Valuation freshness summary: %{current} current · %{stale} stale · %{missing} missing",
+        "Valuation freshness summary: %{current} %{current_state} · %{stale} %{stale_state} · %{missing} %{missing_state}",
         current: counts.current,
         stale: counts.stale,
-        missing: counts.missing
+        missing: counts.missing,
+        current_state: valuation_state_word(:current),
+        stale_state: valuation_state_word(:stale),
+        missing_state: valuation_state_word(:missing)
       )
     else
-      gettext("Valuation freshness summary unavailable")
+      gettext("Valuation freshness summary %{state}", state: valuation_state_word(:unavailable))
     end
   end
 
