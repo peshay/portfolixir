@@ -238,78 +238,90 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "latest_quote_date") do %>
                         <td data-column-key="latest_quote_date">
-                          <%= iso_date_or_dash(security.latest_quote_date) %>
-                          <p
-                            id={"security-valuation-source-label-#{security.id}"}
-                            class="app-shell-help-text"
-                            data-testid={"security-valuation-source-label-#{security.id}"}
-                            aria-label={gettext("Valuation source label")}
+                          <div
+                            id={"security-valuation-panel-#{security.id}"}
+                            role="group"
+                            aria-labelledby={"security-valuation-panel-title-#{security.id}"}
                           >
-                            <%= valuation_source_label(security.latest_quote_source) %>
-                          </p>
-                          <p
-                            id={"security-valuation-source-timestamp-#{security.id}"}
-                            class="app-shell-help-text"
-                            data-testid={"security-valuation-source-timestamp-#{security.id}"}
-                            aria-label={gettext("Valuation source timestamp label")}
-                          >
-                            <%= if match?(%Date{}, security.latest_quote_date) do %>
-                              <time datetime={Date.to_iso8601(security.latest_quote_date)}>
-                                <%= valuation_source_timestamp_label(security.latest_quote_date) %>
-                              </time>
-                            <% else %>
-                              <%= valuation_source_timestamp_label(security.latest_quote_date) %>
-                            <% end %>
-                          </p>
-                          <p
-                            id={"security-valuation-freshness-summary-#{security.id}"}
-                            class="app-shell-help-text"
-                            data-testid={"security-valuation-freshness-summary-#{security.id}"}
-                            aria-label={gettext("Valuation freshness summary label")}
-                          >
-                            <%= valuation_freshness_label(
-                              valuation_freshness_state(
-                                security.valuation_warning,
-                                security.position_quantity,
-                                security.latest_quote_source,
-                                security.latest_quote_date
-                              )
-                            ) %>
-                          </p>
-                          <p
-                            id={"security-valuation-source-legend-#{security.id}"}
-                            class="app-shell-help-text"
-                            data-testid={"security-valuation-source-legend-#{security.id}"}
-                            aria-label={gettext("Valuation source legend label")}
-                          >
-                            <%= valuation_source_legend_label(
-                              security.latest_quote_source,
-                              security.valuation_warning
-                            ) %>
-                          </p>
-                          <%= if security.valuation_warning do %>
-                            <p
-                              id={"security-valuation-warning-#{security.id}"}
-                              class="app-shell-warning-note"
-                              role="status"
-                              aria-live="polite"
-                              data-testid={"security-valuation-warning-#{security.id}"}
-                              aria-label={gettext("Valuation warning label")}
+                            <h3
+                              id={"security-valuation-panel-title-#{security.id}"}
+                              class="app-shell-visually-hidden"
                             >
-                              <%= valuation_warning_label(security.valuation_warning) %>
+                              <%= gettext("Security valuation panel") %>
+                            </h3>
+                            <%= iso_date_or_dash(security.latest_quote_date) %>
+                            <p
+                              id={"security-valuation-source-label-#{security.id}"}
+                              class="app-shell-help-text"
+                              data-testid={"security-valuation-source-label-#{security.id}"}
+                              aria-label={gettext("Valuation source label")}
+                            >
+                              <%= valuation_source_label(security.latest_quote_source) %>
                             </p>
                             <p
-                              id={"security-valuation-warning-detail-#{security.id}"}
+                              id={"security-valuation-source-timestamp-#{security.id}"}
                               class="app-shell-help-text"
-                              data-testid={"security-valuation-warning-detail-#{security.id}"}
-                              aria-label={gettext("Valuation warning detail label")}
+                              data-testid={"security-valuation-source-timestamp-#{security.id}"}
+                              aria-label={gettext("Valuation source timestamp label")}
                             >
-                              <%= valuation_warning_detail_label(
-                                security.valuation_warning,
-                                security.latest_quote_date
+                              <%= if match?(%Date{}, security.latest_quote_date) do %>
+                                <time datetime={Date.to_iso8601(security.latest_quote_date)}>
+                                  <%= valuation_source_timestamp_label(security.latest_quote_date) %>
+                                </time>
+                              <% else %>
+                                <%= valuation_source_timestamp_label(security.latest_quote_date) %>
+                              <% end %>
+                            </p>
+                            <p
+                              id={"security-valuation-freshness-summary-#{security.id}"}
+                              class="app-shell-help-text"
+                              data-testid={"security-valuation-freshness-summary-#{security.id}"}
+                              aria-label={gettext("Valuation freshness summary label")}
+                            >
+                              <%= valuation_freshness_label(
+                                valuation_freshness_state(
+                                  security.valuation_warning,
+                                  security.position_quantity,
+                                  security.latest_quote_source,
+                                  security.latest_quote_date
+                                )
                               ) %>
                             </p>
-                          <% end %>
+                            <p
+                              id={"security-valuation-source-legend-#{security.id}"}
+                              class="app-shell-help-text"
+                              data-testid={"security-valuation-source-legend-#{security.id}"}
+                              aria-label={gettext("Valuation source legend label")}
+                            >
+                              <%= valuation_source_legend_label(
+                                security.latest_quote_source,
+                                security.valuation_warning
+                              ) %>
+                            </p>
+                            <%= if security.valuation_warning do %>
+                              <p
+                                id={"security-valuation-warning-#{security.id}"}
+                                class="app-shell-warning-note"
+                                role="status"
+                                aria-live="polite"
+                                data-testid={"security-valuation-warning-#{security.id}"}
+                                aria-label={gettext("Valuation warning label")}
+                              >
+                                <%= valuation_warning_label(security.valuation_warning) %>
+                              </p>
+                              <p
+                                id={"security-valuation-warning-detail-#{security.id}"}
+                                class="app-shell-help-text"
+                                data-testid={"security-valuation-warning-detail-#{security.id}"}
+                                aria-label={gettext("Valuation warning detail label")}
+                              >
+                                <%= valuation_warning_detail_label(
+                                  security.valuation_warning,
+                                  security.latest_quote_date
+                                ) %>
+                              </p>
+                            <% end %>
+                          </div>
                         </td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "position_quantity") do %>
@@ -430,7 +442,11 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               class="app-shell-summary-grid"
               role="group"
               aria-label={security_freshness_aria_label(@selected_security)}
+              aria-labelledby="security-selected-valuation-summary-title"
             >
+              <h3 id="security-selected-valuation-summary-title" class="app-shell-visually-hidden">
+                <%= gettext("Selected security valuation summary") %>
+              </h3>
               <p><strong><%= gettext("Name") %>:</strong> <%= @selected_security.name %></p>
               <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
               <p><strong><%= gettext("Latest quote") %>:</strong> <%= format_valuation_amount(@selected_security.latest_quote_close, @selected_security.latest_quote_currency_code) %></p>

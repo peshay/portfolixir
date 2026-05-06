@@ -954,6 +954,28 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-valuation-panel-#{security.id}[role='group'][aria-labelledby='security-valuation-panel-title-#{security.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-panel-title-#{security.id}",
+             "Security valuation panel"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-summary[role='group'][aria-labelledby='security-selected-valuation-summary-title']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-summary-title",
+             "Selected security valuation summary"
+           )
+
+    assert has_element?(
+             view,
              "#security-valuation-freshness-summary-#{security.id}",
              "Valuation freshness: #{copy.current}"
            )
@@ -1139,6 +1161,16 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "Valuation freshness summary: 0 #{copy.current} · 0 #{copy.stale} · 1 #{copy.missing}"
            )
 
+    assert has_element?(
+             view,
+             "#security-valuation-panel-#{security.id}[role='group'][aria-labelledby='security-valuation-panel-title-#{security.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-summary[role='group'][aria-labelledby='security-selected-valuation-summary-title']"
+           )
+
     assert has_element?(view, "#security-selected-summary", "Unavailable")
   end
 
@@ -1289,6 +1321,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     assert has_element?(view, "#security-selected-detail", "Selected security")
+
+    assert has_element?(
+             view,
+             "#security-selected-summary[aria-labelledby='security-selected-valuation-summary-title']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-summary-title",
+             "Selected security valuation summary"
+           )
+
     assert has_element?(view, "#security-selected-summary", "Alpha Corp")
     assert has_element?(view, "#security-selected-chart-placeholder", "Chart preview")
 
@@ -1364,6 +1408,17 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     assert has_element?(view, "#security-selected-summary[aria-label='No position freshness']")
+
+    assert has_element?(
+             view,
+             "#security-selected-summary[aria-labelledby='security-selected-valuation-summary-title']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-summary-title",
+             "Selected security valuation summary"
+           )
 
     assert has_element?(
              view,
