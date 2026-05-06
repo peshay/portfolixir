@@ -204,7 +204,7 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
             <ReportState.warning_state
               id="classification-exposure-warnings"
               title={gettext("Exposure warnings")}
-              warnings={@report.warnings}
+              warnings={Enum.map(@report.warnings, &format_exposure_warning/1)}
             />
           <% end %>
         </section>
@@ -309,6 +309,16 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
   defp input_label(_detail), do: "Unknown"
 
   defp decimal_to_string(%Decimal{} = value), do: Decimal.to_string(value, :normal)
+
+  defp format_exposure_warning("missing_quote_fallback_quantity:" <> security_id) do
+    "missing_quote_fallback_quantity:#{security_id} — Missing latest quote; exposure falls back to zero market value for this security."
+  end
+
+  defp format_exposure_warning("stale_quote_fallback_quantity:" <> warning_tail) do
+    "stale_quote_fallback_quantity:#{warning_tail} — Stale latest quote detected; verify quote recency before using this exposure value."
+  end
+
+  defp format_exposure_warning(warning), do: warning
 
   defp slug(value) do
     value
