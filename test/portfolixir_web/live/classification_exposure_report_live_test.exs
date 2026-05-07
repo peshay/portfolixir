@@ -210,6 +210,12 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
 
     assert has_element?(
              view,
+             "#classification-exposure-drilldown-detail-table caption",
+             "Category drilldown detail table for Core with source type, status, security, input, exposure, and note rows."
+           )
+
+    assert has_element?(
+             view,
              "#classification-exposure-drilldown-detail-table",
              "Direct category assignment"
            )
@@ -250,6 +256,14 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
              "#classification-exposure-drilldown-detail-table",
              "No category mapping"
            )
+
+    rendered_unmapped = render(view)
+    assert :binary.match(rendered_unmapped, "region: Unmapped Region") != :nomatch
+    assert :binary.match(rendered_unmapped, "No category mapping") != :nomatch
+
+    {unmapped_input_index, _} = :binary.match(rendered_unmapped, "region: Unmapped Region")
+    {unmapped_note_index, _} = :binary.match(rendered_unmapped, "No category mapping")
+    assert unmapped_input_index < unmapped_note_index
 
     view
     |> element("#classification-exposure-drilldown-clear")
