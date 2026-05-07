@@ -86,12 +86,12 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
       <table id={@id}>
         <thead>
           <tr>
-            <th><%= gettext("Source") %></th>
-            <th><%= gettext("Run") %></th>
-            <th><%= gettext("Type") %></th>
-            <th><%= gettext("Summary") %></th>
-            <th><%= gettext("Raised at") %></th>
-            <th><%= gettext("Raw item") %></th>
+            <th scope="col"><%= gettext("Source") %></th>
+            <th scope="col"><%= gettext("Run") %></th>
+            <th scope="col"><%= gettext("Type") %></th>
+            <th scope="col"><%= gettext("Summary") %></th>
+            <th scope="col"><%= gettext("Raised at") %></th>
+            <th scope="col"><%= gettext("Raw item") %></th>
           </tr>
         </thead>
         <tbody>

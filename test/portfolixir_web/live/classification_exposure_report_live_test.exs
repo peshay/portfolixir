@@ -132,7 +132,10 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
         category_id: growth.id
       })
 
-    {:ok, view, _html} = live(conn, "/reports/classification-exposure")
+    {:ok, view, html} = live(conn, "/reports/classification-exposure")
+
+    assert html =~ ~r/<th scope="col">Category<\/th>/
+    assert html =~ ~r/<th scope="col">Exposure<\/th>/
 
     assert has_element?(view, "#classification-exposure-sunburst-chart")
     assert has_element?(view, "#classification-exposure-row-core", "Core")
@@ -155,6 +158,10 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
     view
     |> element("#classification-exposure-select-core")
     |> render_click()
+
+    rendered = render(view)
+    assert rendered =~ ~r/<th scope="row" data-column-key="category">/
+    assert rendered =~ ~r/<th scope="col">Source<\/th>/
 
     assert has_element?(view, "#classification-exposure-drilldown-summary", "Core")
 

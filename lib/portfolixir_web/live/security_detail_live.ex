@@ -132,27 +132,27 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               <table>
                 <tbody>
                   <tr>
-                    <th><%= gettext("Name") %></th>
+                    <th scope="row"><%= gettext("Name") %></th>
                     <td><%= @security.name %></td>
                   </tr>
                   <tr>
-                    <th><%= gettext("Symbol") %></th>
+                    <th scope="row"><%= gettext("Symbol") %></th>
                     <td><%= @security.symbol %></td>
                   </tr>
                   <tr>
-                    <th>ISIN</th>
+                    <th scope="row">ISIN</th>
                     <td><%= @security.isin || "—" %></td>
                   </tr>
                   <tr>
-                    <th>WKN</th>
+                    <th scope="row">WKN</th>
                     <td><%= @security.wkn || "—" %></td>
                   </tr>
                   <tr>
-                    <th><%= gettext("Currency") %></th>
+                    <th scope="row"><%= gettext("Currency") %></th>
                     <td><%= @security.currency_code %></td>
                   </tr>
                   <tr>
-                    <th><%= gettext("Provider symbol") %></th>
+                    <th scope="row"><%= gettext("Provider symbol") %></th>
                     <td><%= @security.provider_symbol || "—" %></td>
                   </tr>
                 </tbody>
@@ -178,13 +178,13 @@ defmodule PortfolixirWeb.SecurityDetailLive do
                 <table id="security-fund-document-list">
                   <thead>
                     <tr>
-                      <th><%= gettext("Original filename") %></th>
-                      <th><%= gettext("Document type") %></th>
-                      <th><%= gettext("Source") %></th>
-                      <th><%= gettext("Content type") %></th>
-                      <th><%= gettext("Extraction status") %></th>
-                      <th><%= gettext("Extraction error") %></th>
-                      <th><%= gettext("Created") %></th>
+                      <th scope="col"><%= gettext("Original filename") %></th>
+                      <th scope="col"><%= gettext("Document type") %></th>
+                      <th scope="col"><%= gettext("Source") %></th>
+                      <th scope="col"><%= gettext("Content type") %></th>
+                      <th scope="col"><%= gettext("Extraction status") %></th>
+                      <th scope="col"><%= gettext("Extraction error") %></th>
+                      <th scope="col"><%= gettext("Created") %></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -227,8 +227,8 @@ defmodule PortfolixirWeb.SecurityDetailLive do
                 <table id="security-position-list">
                   <thead>
                     <tr>
-                      <th><%= gettext("Securities account") %></th>
-                      <th><%= gettext("Quantity") %></th>
+                      <th scope="col"><%= gettext("Securities account") %></th>
+                      <th scope="col"><%= gettext("Quantity") %></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -262,14 +262,14 @@ defmodule PortfolixirWeb.SecurityDetailLive do
                 <table id="security-transactions">
                   <thead>
                     <tr>
-                      <th><%= gettext("Date") %></th>
-                      <th><%= gettext("Type") %></th>
-                      <th><%= gettext("Account") %></th>
-                      <th><%= gettext("Quantity") %></th>
-                      <th><%= gettext("Price") %></th>
-                      <th><%= gettext("Amount") %></th>
-                      <th><%= gettext("Currency") %></th>
-                      <th><%= gettext("Notes") %></th>
+                      <th scope="col"><%= gettext("Date") %></th>
+                      <th scope="col"><%= gettext("Type") %></th>
+                      <th scope="col"><%= gettext("Account") %></th>
+                      <th scope="col"><%= gettext("Quantity") %></th>
+                      <th scope="col"><%= gettext("Price") %></th>
+                      <th scope="col"><%= gettext("Amount") %></th>
+                      <th scope="col"><%= gettext("Currency") %></th>
+                      <th scope="col"><%= gettext("Notes") %></th>
                     </tr>
                   </thead>
                   <tbody>

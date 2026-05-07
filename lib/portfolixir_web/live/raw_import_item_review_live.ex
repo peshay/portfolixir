@@ -34,13 +34,13 @@ defmodule PortfolixirWeb.RawImportItemReviewLive do
           <div class="app-shell-table-wrapper">
             <table id="raw-import-item-review-metadata-table">
               <tbody>
-                <tr><th><%= gettext("Source") %></th><td><%= @raw_item.import_source.name %></td></tr>
-                <tr><th><%= gettext("Status") %></th><td><%= @raw_item.status %></td></tr>
-                <tr><th><%= gettext("External ID") %></th><td><%= @raw_item.external_id || "—" %></td></tr>
-                <tr><th><%= gettext("Content hash") %></th><td><%= @raw_item.content_hash || "—" %></td></tr>
-                <tr><th><%= gettext("Content type") %></th><td><%= @raw_item.content_type || "—" %></td></tr>
-                <tr><th><%= gettext("Original filename") %></th><td><%= @raw_item.original_filename || "—" %></td></tr>
-                <tr><th><%= gettext("Created at") %></th><td><%= format_datetime(@raw_item.inserted_at) %></td></tr>
+                <tr><th scope="row"><%= gettext("Source") %></th><td><%= @raw_item.import_source.name %></td></tr>
+                <tr><th scope="row"><%= gettext("Status") %></th><td><%= @raw_item.status %></td></tr>
+                <tr><th scope="row"><%= gettext("External ID") %></th><td><%= @raw_item.external_id || "—" %></td></tr>
+                <tr><th scope="row"><%= gettext("Content hash") %></th><td><%= @raw_item.content_hash || "—" %></td></tr>
+                <tr><th scope="row"><%= gettext("Content type") %></th><td><%= @raw_item.content_type || "—" %></td></tr>
+                <tr><th scope="row"><%= gettext("Original filename") %></th><td><%= @raw_item.original_filename || "—" %></td></tr>
+                <tr><th scope="row"><%= gettext("Created at") %></th><td><%= format_datetime(@raw_item.inserted_at) %></td></tr>
               </tbody>
             </table>
           </div>
