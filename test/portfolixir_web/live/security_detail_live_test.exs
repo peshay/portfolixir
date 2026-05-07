@@ -423,6 +423,11 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     assert has_element?(
              view,
+             "#security-fund-document-list[aria-describedby='security-fund-document-list-caption']"
+           )
+
+    assert has_element?(
+             view,
              "#security-fund-document-list-caption",
              "Fund documents table with filename, type, source, extraction status, and creation date."
            )
