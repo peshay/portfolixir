@@ -178,7 +178,10 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
-                <table id="security-fund-document-list">
+                <table
+                  id="security-fund-document-list"
+                  aria-describedby="security-fund-document-list-caption"
+                >
                   <caption id="security-fund-document-list-caption" class="app-shell-visually-hidden">
                     <%= gettext("Fund documents table with filename, type, source, extraction status, and creation date.") %>
                   </caption>
