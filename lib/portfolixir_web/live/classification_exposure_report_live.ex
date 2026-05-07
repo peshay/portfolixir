@@ -151,11 +151,21 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
             </table>
           </div>
 
-          <section id="classification-exposure-drilldown" class="app-shell-section-card" data-priority="secondary">
+          <section
+            id="classification-exposure-drilldown"
+            class="app-shell-section-card"
+            data-priority="secondary"
+            aria-labelledby="classification-exposure-drilldown-heading"
+            aria-describedby="classification-exposure-drilldown-description"
+          >
             <div class="app-shell-section-header">
               <div>
-                <h2 class="app-shell-section-title"><%= gettext("Category drilldown details") %></h2>
-                <p><%= gettext("Read-only detail view from the existing classification exposure rows.") %></p>
+                <h2 id="classification-exposure-drilldown-heading" class="app-shell-section-title">
+                  <%= gettext("Category drilldown details") %>
+                </h2>
+                <p id="classification-exposure-drilldown-description">
+                  <%= gettext("Read-only detail view from the existing classification exposure rows.") %>
+                </p>
               </div>
             </div>
 
