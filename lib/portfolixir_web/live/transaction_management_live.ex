@@ -136,15 +136,15 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <table id="transaction-list">
                     <thead>
                       <tr>
-                        <th><%= gettext("Date") %></th>
-                        <th><%= gettext("Type") %></th>
-                        <th><%= gettext("Account") %></th>
-                        <th><%= gettext("Security") %></th>
-                        <th><%= gettext("Quantity") %></th>
-                        <th><%= gettext("Price") %></th>
-                        <th><%= gettext("Amount") %></th>
-                        <th><%= gettext("Currency") %></th>
-                        <th><%= gettext("Notes") %></th>
+                        <th scope="col"><%= gettext("Date") %></th>
+                        <th scope="col"><%= gettext("Type") %></th>
+                        <th scope="col"><%= gettext("Account") %></th>
+                        <th scope="col"><%= gettext("Security") %></th>
+                        <th scope="col"><%= gettext("Quantity") %></th>
+                        <th scope="col"><%= gettext("Price") %></th>
+                        <th scope="col"><%= gettext("Amount") %></th>
+                        <th scope="col"><%= gettext("Currency") %></th>
+                        <th scope="col"><%= gettext("Notes") %></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -188,9 +188,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <table id="position-list">
                     <thead>
                       <tr>
-                        <th><%= gettext("Securities account") %></th>
-                        <th><%= gettext("Security") %></th>
-                        <th><%= gettext("Quantity") %></th>
+                        <th scope="col"><%= gettext("Securities account") %></th>
+                        <th scope="col"><%= gettext("Security") %></th>
+                        <th scope="col"><%= gettext("Quantity") %></th>
                       </tr>
                     </thead>
                     <tbody>

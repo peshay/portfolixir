@@ -108,16 +108,16 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
             <table>
               <thead>
                 <tr>
-                  <th><%= gettext("Category") %></th>
-                  <th><%= gettext("Exposure") %></th>
-                  <th><%= gettext("Weight") %></th>
-                  <th><%= gettext("Source securities") %></th>
+                  <th scope="col"><%= gettext("Category") %></th>
+                  <th scope="col"><%= gettext("Exposure") %></th>
+                  <th scope="col"><%= gettext("Weight") %></th>
+                  <th scope="col"><%= gettext("Source securities") %></th>
                 </tr>
               </thead>
               <tbody>
                 <%= for row <- @report.rows do %>
                   <tr id={"classification-exposure-row-#{slug(row.category_name)}"}>
-                    <td>
+                    <th scope="row" data-column-key="category">
                       <button
                         id={"classification-exposure-select-#{slug(row.category_name)}"}
                         type="button"
@@ -129,7 +129,7 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
                           <span aria-hidden="true">•</span>
                         <% end %>
                       </button>
-                    </td>
+                    </th>
                     <td><%= format_exposure_amount(row, @portfolio.base_currency_code) %></td>
                     <td><%= format_percentage(row.percentage) %></td>
                     <td><%= Enum.join(row.source_securities, ", ") %></td>
@@ -158,11 +158,11 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
                 <table id="classification-exposure-drilldown-detail-table">
                   <thead>
                     <tr>
-                      <th><%= gettext("Source") %></th>
-                      <th><%= gettext("Status") %></th>
-                      <th><%= gettext("Security") %></th>
-                      <th><%= gettext("Input") %></th>
-                      <th><%= gettext("Exposure") %></th>
+                      <th scope="col"><%= gettext("Source") %></th>
+                      <th scope="col"><%= gettext("Status") %></th>
+                      <th scope="col"><%= gettext("Security") %></th>
+                      <th scope="col"><%= gettext("Input") %></th>
+                      <th scope="col"><%= gettext("Exposure") %></th>
                     </tr>
                   </thead>
                   <tbody>
