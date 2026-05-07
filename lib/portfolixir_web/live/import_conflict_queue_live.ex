@@ -43,8 +43,13 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
           </div>
 
           <%= if Enum.empty?(@open_conflicts) do %>
-            <div id="import-conflicts-open-empty-state" class="app-shell-empty-state">
-              <h3><%= gettext("No open conflicts") %></h3>
+            <div
+              id="import-conflicts-open-empty-state"
+              class="app-shell-empty-state"
+              role="region"
+              aria-labelledby="import-conflicts-open-empty-state-title"
+            >
+              <h3 id="import-conflicts-open-empty-state-title"><%= gettext("No open conflicts") %></h3>
             </div>
           <% else %>
             <.conflict_table id="import-conflicts-open-table" conflicts={@open_conflicts} row_prefix="open" />
