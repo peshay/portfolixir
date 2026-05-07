@@ -51,6 +51,25 @@ LEAK_PATTERNS = [
     (re.compile(r"\bclaw-code\d+\b", re.IGNORECASE), "private host metadata leak"),
 ]
 
+TRACE_METADATA_PATTERNS = [
+    (re.compile(r"\[Subagent Context\]", re.IGNORECASE), "subagent transcript marker leak"),
+    (re.compile(r"Requester session:\s*", re.IGNORECASE), "requester session metadata leak"),
+    (re.compile(r"Session Context\s*", re.IGNORECASE), "session context metadata leak"),
+    (re.compile(r"\bRuntime:\s*agent=", re.IGNORECASE), "runtime trace metadata leak"),
+    (re.compile(r"\bcapabilities=", re.IGNORECASE), "runtime capability trace metadata leak"),
+    (re.compile(r"\bos=Linux\s+\d+\.\d+", re.IGNORECASE), "private runtime host metadata leak"),
+]
+
+PRIVATE_OBJECT_ID_PATTERNS = [
+    (
+        re.compile(
+            r"(?i)\b(?:boardId|boardMembershipId|listId|cardId|projectId|projectManagerId|"
+            r"taskId|taskListId|commentId|attachmentId|notificationId|actionId|userId)\b\s*[:=]",
+        ),
+        "private board/object identifier leak",
+    ),
+]
+
 SECRET_PATTERNS = [
     (re.compile(r"-----BEGIN (?:RSA|OPENSSH|EC|DSA|PGP) PRIVATE KEY-----"), "private key material"),
     (re.compile(r"\bghp_[A-Za-z0-9]{20,}\b"), "GitHub personal access token"),
@@ -192,7 +211,13 @@ def check_commit_metadata_text(commit: str, text: str) -> list[str]:
     if MODEL_IDENTIFIER_PATTERN.search(text_without_allowed_worker_footers):
         violations.append(f"commit {short}: internal model identifier outside allowed Worker-Model footer")
 
-    for regex, reason in [*LEAK_PATTERNS, *SECRET_PATTERNS, *COMMIT_METADATA_PATTERNS]:
+    for regex, reason in [
+        *LEAK_PATTERNS,
+        *TRACE_METADATA_PATTERNS,
+        *PRIVATE_OBJECT_ID_PATTERNS,
+        *SECRET_PATTERNS,
+        *COMMIT_METADATA_PATTERNS,
+    ]:
         if regex.search(text):
             violations.append(f"commit {short}: {reason}")
 
@@ -209,9 +234,25 @@ def check_commit_metadata(commit_range: str) -> list[str]:
     return violations
 
 
+def check_text_artifact(label: str, text: str) -> list[str]:
+    violations: list[str] = []
+
+    if "\\n" in text:
+        violations.append(f"{label}: contains literal escaped newline \\n in public artifact text; use real line breaks")
+
+    for regex, reason in [*LEAK_PATTERNS, *TRACE_METADATA_PATTERNS, *PRIVATE_OBJECT_ID_PATTERNS, *SECRET_PATTERNS]:
+        if regex.search(text):
+            violations.append(f"{label}: {reason}")
+
+    return violations
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--commit-range", help="Optional git commit range to scan for public metadata leaks")
+    parser.add_argument("--stdin", action="store_true", help="Scan stdin as public artifact text")
+    parser.add_argument("--text", help="Direct text to scan as public artifact text")
+    parser.add_argument("--label", default="text-artifact", help="Label used for stdin/text findings")
     parser.add_argument("files", nargs="*", help="Optional file list from pre-commit")
     args = parser.parse_args()
 
@@ -235,7 +276,7 @@ def main() -> int:
             )
 
         if is_public_artifact_file(relative):
-            for regex, reason in LEAK_PATTERNS:
+            for regex, reason in [*LEAK_PATTERNS, *TRACE_METADATA_PATTERNS, *PRIVATE_OBJECT_ID_PATTERNS]:
                 if regex.search(content):
                     violations.append(f"{relative}: {reason}")
 
@@ -245,6 +286,12 @@ def main() -> int:
 
     if args.commit_range:
         violations.extend(check_commit_metadata(args.commit_range))
+
+    if args.stdin:
+        violations.extend(check_text_artifact(args.label, sys.stdin.read()))
+
+    if args.text is not None:
+        violations.extend(check_text_artifact(args.label, args.text))
 
     if violations:
         print("public-artifact-guard failed:")
