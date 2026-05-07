@@ -112,6 +112,11 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-list[aria-describedby='security-list-caption security-results-status']"
+           )
+
+    assert has_element?(
+             view,
              "#security-list-caption.app-shell-visually-hidden",
              "Securities workbench table with identifiers, valuation, status, and row actions."
            )
@@ -1448,6 +1453,11 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "label[for='security-search']", "Search securities")
     assert has_element?(view, "#security-search[type='search'][placeholder='Search securities']")
     assert has_element?(view, "#security-search[value='']")
+
+    assert has_element?(
+             view,
+             "#security-list[aria-describedby='security-list-caption security-results-status']"
+           )
 
     view
     |> element("#security-search-form")
