@@ -120,6 +120,13 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     {:ok, view, _html} = live(conn, "/")
 
     assert has_element?(view, "#dashboard-recent-fund-documents")
+
+    assert has_element?(
+             view,
+             "#dashboard-fund-documents-table-caption.app-shell-visually-hidden",
+             "Recent fund documents with security, filename, extraction status, and review action."
+           )
+
     assert has_element?(view, "#dashboard-fund-document-row-#{fund_document.id}")
     assert has_element?(view, "#dashboard-fund-document-row-#{fund_document.id}", security.name)
     assert has_element?(view, "#dashboard-fund-document-row-#{fund_document.id}", security.symbol)
