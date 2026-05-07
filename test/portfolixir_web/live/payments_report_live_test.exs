@@ -110,6 +110,12 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
 
     assert has_element?(view, "#payments-list", "Dividend note")
     refute has_element?(view, "#payments-list", "Deposit note")
+
+    assert has_element?(
+             view,
+             "#payments-list-table-caption.app-shell-visually-hidden",
+             "Dividend payments table with date, security, account, amount, currency, and notes."
+           )
   end
 
   test "groups by month quarter year and security", %{
@@ -144,6 +150,12 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
     assert has_element?(view, "#payments-group-2026-03")
     assert has_element?(view, "#payments-group-2026-01")
 
+    assert has_element?(
+             view,
+             "#payments-group-table-caption-2026-04.app-shell-visually-hidden",
+             "Dividend payments table for 2026-04 with date, security, account, amount, currency, and notes."
+           )
+
     render_change(element(view, "#payments-group-form"), %{group_mode: "quarter"})
     assert has_element?(view, "#payments-group-2026-q2")
     assert has_element?(view, "#payments-group-2026-q1")
@@ -158,6 +170,18 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
              view,
              "#payments-group-security-#{second_security.id}",
              "Growth Fund (GRW)"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-group-table-caption-security-#{security.id}.app-shell-visually-hidden",
+             "Dividend payments table for Synthetic ETF (SYN) with date, security, account, amount, currency, and notes."
+           )
+
+    assert has_element?(
+             view,
+             "#payments-group-table-caption-security-#{second_security.id}.app-shell-visually-hidden",
+             "Dividend payments table for Growth Fund (GRW) with date, security, account, amount, currency, and notes."
            )
   end
 

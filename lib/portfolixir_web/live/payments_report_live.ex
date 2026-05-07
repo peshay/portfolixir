@@ -211,6 +211,9 @@ defmodule PortfolixirWeb.PaymentsReportLive do
             <section id="payments-list" class="app-shell-section-card">
               <div class="app-shell-table-wrapper">
                 <table>
+                  <caption id="payments-list-table-caption" class="app-shell-visually-hidden">
+                    <%= gettext("Dividend payments table with date, security, account, amount, currency, and notes.") %>
+                  </caption>
                   <thead>
                     <tr>
                       <th scope="col"><%= gettext("Date") %></th>
@@ -247,6 +250,9 @@ defmodule PortfolixirWeb.PaymentsReportLive do
                   <p id={"payments-group-total-#{group.id}"}><%= totals_label(group.rows) %></p>
                   <div class="app-shell-table-wrapper">
                     <table>
+                      <caption id={"payments-group-table-caption-#{group.id}"} class="app-shell-visually-hidden">
+                        <%= gettext("Dividend payments table for %{group} with date, security, account, amount, currency, and notes.", group: group.label) %>
+                      </caption>
                       <thead>
                         <tr>
                           <th scope="col"><%= gettext("Date") %></th>
