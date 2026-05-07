@@ -139,7 +139,12 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
 
     assert has_element?(
              view,
-             "#classification-exposure-table caption",
+             "#classification-exposure-table[aria-describedby='classification-exposure-table-caption']"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-table-caption.app-shell-visually-hidden",
              "Classification exposure report table with category, exposure, weight, and source securities."
            )
 
