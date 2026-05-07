@@ -29,6 +29,13 @@ defmodule PortfolixirWeb.RawImportItemReviewLiveTest do
     {:ok, view, html} = live(conn, "/imports/raw-items/#{raw_item.id}/review")
 
     assert has_element?(view, "#raw-import-item-review-metadata-table")
+
+    assert has_element?(
+             view,
+             "#raw-import-item-review-metadata-table-caption.app-shell-visually-hidden",
+             "Raw import item metadata with source, status, identifiers, content details, and created timestamp"
+           )
+
     assert has_element?(view, "#raw-import-item-review", "Connector source")
     assert has_element?(view, "#raw-import-item-review", "raw-connector-1")
     assert has_element?(view, "#raw-import-item-review", "sha256:abc")
