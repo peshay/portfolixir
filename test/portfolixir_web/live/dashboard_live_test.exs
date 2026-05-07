@@ -93,6 +93,13 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     {:ok, view, _html} = live(conn, "/")
 
     assert has_element?(view, "#dashboard-recent-import-runs")
+
+    assert has_element?(
+             view,
+             "#dashboard-import-runs-table-caption.app-shell-visually-hidden",
+             "Recent import runs with source, status, start time, and finish time."
+           )
+
     assert has_element?(view, "#dashboard-import-runs-link[href=\"/imports\"]")
     assert has_element?(view, "#dashboard-import-run-row-#{run.id}")
     assert has_element?(view, "#dashboard-import-run-row-#{run.id}", source.name)
