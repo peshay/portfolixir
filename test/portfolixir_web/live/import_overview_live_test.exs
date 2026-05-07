@@ -62,6 +62,13 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
     {:ok, view, html} = live(conn, "/imports")
 
     assert has_element?(view, "#import-sources-table")
+
+    assert has_element?(
+             view,
+             "#import-sources-table caption.app-shell-visually-hidden",
+             "Import sources with status, run counts, and latest run timestamps"
+           )
+
     assert has_element?(view, "#import-source-row-#{source.id}")
     assert has_element?(view, "#import-source-row-#{source.id}", "File ingest")
     assert has_element?(view, "#import-source-row-#{source.id}", "connector")
@@ -107,6 +114,13 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
     [latest_run_id | _] = run_rows
 
     assert has_element?(view, "#import-runs-table")
+
+    assert has_element?(
+             view,
+             "#import-runs-table caption.app-shell-visually-hidden",
+             "Recent import runs with source, status, timestamps, and summary preview"
+           )
+
     assert has_element?(view, "#import-run-row-#{latest_run_id}")
     assert has_element?(view, "#import-run-row-#{latest_run_id}", "Document inbox")
     assert has_element?(view, "#import-run-row-#{latest_run_id}", "completed")
