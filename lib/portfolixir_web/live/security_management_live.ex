@@ -82,6 +82,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           id="security-listing"
           class="app-shell-section-card"
           data-priority="primary"
+          aria-labelledby="security-workbench-toolbar-title"
+          aria-describedby="security-workbench-toolbar-description"
         >
           <WorkbenchToolbar.toolbar
             id="security-workbench-toolbar"

@@ -19,8 +19,8 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
     ~H"""
     <div id={@id} class="app-shell-section-header">
       <div>
-        <h2 class="app-shell-section-title"><%= @title %></h2>
-        <p><%= @description %></p>
+        <h2 id={"#{@id}-title"} class="app-shell-section-title"><%= @title %></h2>
+        <p id={"#{@id}-description"}><%= @description %></p>
       </div>
 
       <form class="app-shell-search" role="search" aria-label={@search_label}>
