@@ -146,6 +146,9 @@ defmodule PortfolixirWeb.ImportOverviewLive do
         <% else %>
           <div class="app-shell-table-wrapper">
             <table id="import-raw-items-table">
+              <caption class="app-shell-visually-hidden">
+                <%= gettext("Recent raw import items with source, metadata, status, and review links") %>
+              </caption>
               <thead>
                 <tr>
                   <th scope="col"><%= gettext("Source") %></th>
