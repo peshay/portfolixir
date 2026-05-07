@@ -849,7 +849,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
           <%= if @security_csv_preview_rows do %>
             <div class="app-shell-table-wrapper">
-              <table id="security-csv-preview-table">
+              <table id="security-csv-preview-table" aria-describedby="security-csv-preview-table-caption">
                 <caption id="security-csv-preview-table-caption" class="app-shell-visually-hidden">
                   <%= gettext("Security CSV preview table with parsed rows, validation status, and errors before import.") %>
                 </caption>

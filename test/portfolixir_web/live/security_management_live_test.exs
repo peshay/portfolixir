@@ -347,6 +347,11 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
+             "#security-csv-preview-table[aria-describedby='security-csv-preview-table-caption']"
+           )
+
+    assert has_element?(
+             view,
              "#security-csv-preview-table-caption.app-shell-visually-hidden",
              "Security CSV preview table with parsed rows, validation status, and errors before import."
            )
