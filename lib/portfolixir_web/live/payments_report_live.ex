@@ -114,11 +114,16 @@ defmodule PortfolixirWeb.PaymentsReportLive do
             description={gettext("Record dividend transactions to populate this report.")}
           />
         <% else %>
-          <section id="payments-accumulation-chart" class="app-shell-section-card">
+          <section
+            id="payments-accumulation-chart"
+            class="app-shell-section-card"
+            aria-labelledby="payments-accumulation-chart-title"
+            aria-describedby="payments-accumulation-chart-intro"
+          >
             <div class="app-shell-section-header">
               <div>
-                <h2 class="app-shell-section-title"><%= gettext("Accumulated dividends") %></h2>
-                <p><%= gettext("Monthly cumulative progression based on recorded dividend transactions.") %></p>
+                <h2 id="payments-accumulation-chart-title" class="app-shell-section-title"><%= gettext("Accumulated dividends") %></h2>
+                <p id="payments-accumulation-chart-intro"><%= gettext("Monthly cumulative progression based on recorded dividend transactions.") %></p>
               </div>
             </div>
 
