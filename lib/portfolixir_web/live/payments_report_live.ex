@@ -177,11 +177,14 @@ defmodule PortfolixirWeb.PaymentsReportLive do
             <div class="app-shell-section-header">
               <div>
                 <h2 class="app-shell-section-title"><%= gettext("Yearly comparison") %></h2>
-                <p><%= gettext("Year-by-year cumulative dividend progression by month.") %></p>
+                <p id="payments-yearly-comparison-intro"><%= gettext("Year-by-year cumulative dividend progression by month.") %></p>
               </div>
             </div>
             <div class="app-shell-table-wrapper">
-              <table>
+              <table aria-describedby="payments-yearly-comparison-intro">
+                <caption id="payments-yearly-comparison-table-caption" class="app-shell-visually-hidden">
+                  <%= gettext("Yearly dividend comparison table with year, month, currency, and year-to-date accumulated dividends.") %>
+                </caption>
                 <thead>
                   <tr>
                     <th scope="col"><%= gettext("Year") %></th>

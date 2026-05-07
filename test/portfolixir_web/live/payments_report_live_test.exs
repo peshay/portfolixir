@@ -241,6 +241,18 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
     assert has_element?(view, "#payments-accumulation-row-eur-2026-01", "12.5")
     assert has_element?(view, "#payments-accumulation-row-eur-2026-02", "15.0")
     assert has_element?(view, "#payments-yearly-comparison", "Yearly comparison")
+
+    assert has_element?(
+             view,
+             "#payments-yearly-comparison table[aria-describedby='payments-yearly-comparison-intro']"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-yearly-comparison-table-caption.app-shell-visually-hidden",
+             "Yearly dividend comparison table with year, month, currency, and year-to-date accumulated dividends."
+           )
+
     assert has_element?(view, "#payments-yearly-row-2026-1-eur", "12.5")
     assert has_element?(view, "#payments-yearly-row-2026-2-eur", "15.0")
   end
