@@ -114,7 +114,10 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
 
         <section id="classification-exposure-report" class="app-shell-section-card">
           <div class="app-shell-table-wrapper">
-            <table>
+            <table id="classification-exposure-table">
+              <caption class="app-shell-visually-hidden">
+                <%= gettext("Classification exposure report table with category, exposure, weight, and source securities.") %>
+              </caption>
               <thead>
                 <tr>
                   <th scope="col"><%= gettext("Category") %></th>

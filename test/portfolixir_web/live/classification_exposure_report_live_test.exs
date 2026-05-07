@@ -137,6 +137,12 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
     assert html =~ ~r/<th scope="col">Category<\/th>/
     assert html =~ ~r/<th scope="col">Exposure<\/th>/
 
+    assert has_element?(
+             view,
+             "#classification-exposure-table caption",
+             "Classification exposure report table with category, exposure, weight, and source securities."
+           )
+
     assert has_element?(view, "#classification-exposure-sunburst-chart")
 
     assert has_element?(
