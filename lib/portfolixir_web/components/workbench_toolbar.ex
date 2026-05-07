@@ -37,20 +37,42 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
       <span id={"#{@id}-actions-label"} class="app-shell-visually-hidden">
         <%= toolbar_actions_label(@title) %>
       </span>
+      <span id={"#{@id}-actions-description"} class="app-shell-visually-hidden">
+        <%= toolbar_actions_description() %>
+      </span>
 
       <div
         id={"#{@id}-actions"}
         class="app-shell-form-actions"
         role="group"
         aria-labelledby={"#{@id}-actions-label"}
+        aria-describedby={"#{@id}-actions-description"}
       >
-        <button id={"#{@id}-filter"} type="button" class="app-shell-secondary" disabled>
+        <button
+          id={"#{@id}-filter"}
+          type="button"
+          class="app-shell-secondary"
+          disabled
+          aria-describedby={"#{@id}-actions-description"}
+        >
           <%= gettext("Filter") %>
         </button>
-        <button id={"#{@id}-export"} type="button" class="app-shell-secondary" disabled>
+        <button
+          id={"#{@id}-export"}
+          type="button"
+          class="app-shell-secondary"
+          disabled
+          aria-describedby={"#{@id}-actions-description"}
+        >
           <%= gettext("Export") %>
         </button>
-        <button id={"#{@id}-columns"} type="button" class="app-shell-secondary" disabled>
+        <button
+          id={"#{@id}-columns"}
+          type="button"
+          class="app-shell-secondary"
+          disabled
+          aria-describedby={"#{@id}-actions-description"}
+        >
           <%= gettext("Columns") %>
         </button>
       </div>
@@ -59,12 +81,16 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
         <span id={"#{@id}-ranges-label"} class="app-shell-visually-hidden">
           <%= toolbar_time_ranges_label(@title) %>
         </span>
+        <span id={"#{@id}-ranges-description"} class="app-shell-visually-hidden">
+          <%= toolbar_time_ranges_description() %>
+        </span>
 
         <div
           id={"#{@id}-ranges"}
           class="app-shell-form-actions"
           role="group"
           aria-labelledby={"#{@id}-ranges-label"}
+          aria-describedby={"#{@id}-ranges-description"}
         >
           <%= for range <- @time_ranges do %>
             <button
@@ -73,6 +99,7 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
               class="app-shell-secondary"
               disabled
               aria-disabled="true"
+              aria-describedby={"#{@id}-ranges-description"}
               aria-pressed={to_string(@active_time_range == range)}
             >
               <%= range %>
@@ -86,5 +113,13 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
 
   defp toolbar_actions_label(title), do: "#{title} #{gettext("toolbar actions")}"
 
+  defp toolbar_actions_description do
+    gettext("These toolbar actions are disabled in this view.")
+  end
+
   defp toolbar_time_ranges_label(title), do: "#{title} #{gettext("time range")}"
+
+  defp toolbar_time_ranges_description do
+    gettext("These time range controls are disabled in this view.")
+  end
 end
