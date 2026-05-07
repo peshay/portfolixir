@@ -209,13 +209,13 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
 
     assert has_element?(
              view,
-             "#classification-exposure-drilldown-detail-table",
+             "#classification-exposure-drilldown-detail-table[aria-describedby='classification-exposure-drilldown-detail-table-caption']",
              "Direct assignment"
            )
 
     assert has_element?(
              view,
-             "#classification-exposure-drilldown-detail-table caption",
+             "#classification-exposure-drilldown-detail-table-caption.app-shell-visually-hidden",
              "Category drilldown detail table for Core with source type, status, security, input, exposure, and note rows."
            )
 
