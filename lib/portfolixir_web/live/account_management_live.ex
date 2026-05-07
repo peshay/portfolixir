@@ -184,8 +184,14 @@ defmodule PortfolixirWeb.AccountManagementLive do
               </div>
 
               <%= if Enum.empty?(@deposit_accounts) do %>
-                <div id="no-deposit-accounts" class="app-shell-empty-state">
-                  <h3><%= gettext("No deposit accounts yet") %></h3>
+                <div
+                  id="no-deposit-accounts"
+                  class="app-shell-empty-state"
+                  role="status"
+                  aria-live="polite"
+                  aria-labelledby="no-deposit-accounts-title"
+                >
+                  <h3 id="no-deposit-accounts-title"><%= gettext("No deposit accounts yet") %></h3>
                   <p><%= gettext("Add a cash or settlement account.") %></p>
                 </div>
               <% else %>
