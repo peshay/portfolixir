@@ -71,11 +71,34 @@ defmodule PortfolixirWeb.PaymentsReportLive do
           </form>
         </section>
 
-        <section id="payments-group-controls" class="app-shell-section-card">
-          <form id="payments-group-form" phx-change="set_group_mode" class="app-shell-form-grid">
+        <section
+          id="payments-group-controls"
+          class="app-shell-section-card"
+          role="group"
+          aria-labelledby="payments-group-controls-label"
+          aria-describedby="payments-group-controls-description"
+        >
+          <span id="payments-group-controls-label" class="app-shell-visually-hidden">
+            <%= group_controls_label() %>
+          </span>
+          <span id="payments-group-controls-description" class="app-shell-visually-hidden">
+            <%= group_controls_description() %>
+          </span>
+
+          <form
+            id="payments-group-form"
+            phx-change="set_group_mode"
+            class="app-shell-form-grid"
+            aria-labelledby="payments-group-controls-label"
+            aria-describedby="payments-group-controls-description"
+          >
             <div class="app-shell-field app-shell-field--full">
               <label for="payments-group-mode"><%= gettext("Group by") %></label>
-              <select id="payments-group-mode" name="group_mode">
+              <select
+                id="payments-group-mode"
+                name="group_mode"
+                aria-describedby="payments-group-controls-description"
+              >
                 <%= for mode <- @group_modes do %>
                   <option value={mode} selected={mode == @group_mode}><%= group_mode_label(mode) %></option>
                 <% end %>
@@ -463,6 +486,12 @@ defmodule PortfolixirWeb.PaymentsReportLive do
 
   defp security_display_name(security) do
     "#{security.name} (#{security.symbol})"
+  end
+
+  defp group_controls_label, do: gettext("Payments grouping controls")
+
+  defp group_controls_description do
+    gettext("Choose how to group dividend payment rows in this report.")
   end
 
   defp group_mode_label("list"), do: gettext("List")
