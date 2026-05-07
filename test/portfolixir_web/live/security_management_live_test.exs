@@ -73,7 +73,18 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(view, "#security-column-menu")
     assert has_element?(view, "#security-column-menu-button[aria-label]")
-    assert has_element?(view, "#security-column-form[aria-label]")
+
+    assert has_element?(
+             view,
+             "#security-column-menu-button[aria-controls='security-column-form']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-column-form[aria-labelledby='security-column-menu-legend']"
+           )
+
+    assert has_element?(view, "#security-column-menu-legend", "Visible columns")
     assert has_element?(view, "#security-column-name[value='name'][disabled]")
     assert has_element?(view, "#security-column-symbol[value='symbol']")
     assert has_element?(view, "#security-column-provider_symbol[value='provider_symbol']")
