@@ -135,8 +135,8 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
 
     assert has_element?(
              view,
-             "#fund-allocation-table-#{security_alpha.id} caption",
-             "Allocated Alpha"
+             "#fund-allocation-table-#{security_alpha.id} caption.app-shell-visually-hidden",
+             "Per-security fund allocation table for Allocated Alpha (ALP)"
            )
 
     assert has_element?(
