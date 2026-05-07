@@ -154,6 +154,13 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
     raw_item = hd(Imports.list_recent_raw_import_items(1))
 
     assert has_element?(view, "#import-raw-items-table")
+
+    assert has_element?(
+             view,
+             "#import-raw-items-table caption.app-shell-visually-hidden",
+             "Recent raw import items with source, metadata, status, and review links"
+           )
+
     assert has_element?(view, "#import-raw-item-row-#{raw_item.id}")
     assert has_element?(view, "#import-raw-item-row-#{raw_item.id}", "File source")
     assert has_element?(view, "#import-raw-item-row-#{raw_item.id}", "transactions.csv")
