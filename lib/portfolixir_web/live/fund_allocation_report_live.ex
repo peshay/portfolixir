@@ -36,7 +36,13 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
 
       <%= if !Enum.empty?(@fund_allocations) do %>
         <div id="fund-allocation-report" class="app-shell-workspace-stack">
-          <section id="fund-allocation-workbench-toolbar" class="app-shell-section-card" data-priority="primary">
+          <section
+            id="fund-allocation-workbench-toolbar"
+            class="app-shell-section-card"
+            data-priority="primary"
+            aria-labelledby="fund-allocation-toolbar-title"
+            aria-describedby="fund-allocation-toolbar-description"
+          >
             <WorkbenchToolbar.toolbar
               id="fund-allocation-toolbar"
               title={gettext("Fund allocation workbench")}
