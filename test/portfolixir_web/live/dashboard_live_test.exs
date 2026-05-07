@@ -284,7 +284,12 @@ defmodule PortfolixirWeb.DashboardLiveTest do
   test "dashboard shows the chart placeholder and no fake value cards", %{conn: conn} do
     {:ok, view, html} = live(conn, "/")
 
-    assert has_element?(view, "#dashboard-chart-placeholder")
+    assert has_element?(
+             view,
+             "#dashboard-chart-placeholder[role='region'][aria-labelledby='dashboard-chart-placeholder-title']"
+           )
+
+    assert has_element?(view, "#dashboard-chart-placeholder-title", "Portfolio value chart")
 
     assert has_element?(
              view,

@@ -216,9 +216,11 @@ defmodule PortfolixirWeb.DashboardLive do
         id="dashboard-chart-placeholder"
         class="app-shell-section-card app-shell-onboarding app-shell-onboarding--compact"
         data-priority="secondary"
+        role="region"
+        aria-labelledby="dashboard-chart-placeholder-title"
       >
         <p class="app-shell-page-kicker"><%= gettext("Portfolio analytics") %></p>
-        <h2><%= gettext("Portfolio value chart") %></h2>
+        <h2 id="dashboard-chart-placeholder-title"><%= gettext("Portfolio value chart") %></h2>
         <p><%= gettext("Portfolio value chart will appear here once valuations are available.") %></p>
       </section>
     </AppShell.shell>
