@@ -497,7 +497,23 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     assert has_element?(view, "#security-workspace.app-shell-workspace-stack")
-    assert has_element?(view, "#security-listing[data-priority='primary']")
+
+    assert has_element?(
+             view,
+             "#security-listing[data-priority='primary'][aria-labelledby='security-workbench-toolbar-title'][aria-describedby='security-workbench-toolbar-description']"
+           )
+
+    assert has_element?(view, "#security-workbench-toolbar-title", "Securities")
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-description",
+             "Core identifiers used by the ledger and valuation workspaces."
+           )
+
+    assert has_element?(view, "#security-search-form[role='search']")
+    assert has_element?(view, "#security-list")
+
     assert has_element?(view, "#security-listing", "Securities")
 
     assert has_element?(view, "#security-add-toggle")
