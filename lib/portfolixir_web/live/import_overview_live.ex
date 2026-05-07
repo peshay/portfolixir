@@ -50,6 +50,9 @@ defmodule PortfolixirWeb.ImportOverviewLive do
         <% else %>
           <div class="app-shell-table-wrapper">
             <table id="import-sources-table">
+              <caption class="app-shell-visually-hidden">
+                <%= gettext("Import sources with status, run counts, and latest run timestamps") %>
+              </caption>
               <thead>
                 <tr>
                   <th scope="col"><%= gettext("Name") %></th>
@@ -99,6 +102,9 @@ defmodule PortfolixirWeb.ImportOverviewLive do
         <% else %>
           <div class="app-shell-table-wrapper">
             <table id="import-runs-table">
+              <caption class="app-shell-visually-hidden">
+                <%= gettext("Recent import runs with source, status, timestamps, and summary preview") %>
+              </caption>
               <thead>
                 <tr>
                   <th scope="col"><%= gettext("Source") %></th>
