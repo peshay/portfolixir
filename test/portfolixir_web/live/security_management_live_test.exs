@@ -1307,6 +1307,68 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     refute has_element?(view, "#security-list tbody tr")
   end
 
+  test "security search is labeled and keeps status filters working", %{conn: conn} do
+    assert {:ok, _active_security} =
+             Catalog.create_security(%{
+               name: "Alpha Search Target",
+               symbol: "AST",
+               currency_code: "EUR",
+               active: true
+             })
+
+    assert {:ok, _inactive_security} =
+             Catalog.create_security(%{
+               name: "Beta Search Target",
+               symbol: "BST",
+               currency_code: "EUR",
+               active: false
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-search-form[role='search'][aria-label='Search securities']"
+           )
+
+    assert has_element?(view, "label[for='security-search']", "Search securities")
+    assert has_element?(view, "#security-search[type='search'][placeholder='Search securities']")
+    assert has_element?(view, "#security-search[value='']")
+
+    view
+    |> element("#security-search-form")
+    |> render_change(%{"q" => "Alpha"})
+
+    assert has_element?(view, "#security-list tbody tr", "Alpha Search Target")
+    refute has_element?(view, "#security-list tbody tr", "Beta Search Target")
+
+    assert has_element?(
+             view,
+             "#security-results-status[role='status'][aria-live='polite']",
+             "Showing 1 active security"
+           )
+
+    view |> element("#security-filter-inactive") |> render_click()
+
+    assert has_element?(view, "#security-search[value='Alpha']")
+
+    assert has_element?(
+             view,
+             "#security-results-status[role='status'][aria-live='polite']",
+             "No inactive securities match your search."
+           )
+
+    assert has_element?(
+             view,
+             "#no-securities[role='status'][aria-describedby='security-results-status']"
+           )
+
+    assert has_element?(view, "#no-securities h3", "No inactive securities")
+    assert has_element?(view, "#no-securities p", "No inactive securities match this filter.")
+    refute has_element?(view, "#security-list tbody tr", "Alpha Search Target")
+    refute has_element?(view, "#security-list tbody tr", "Beta Search Target")
+  end
+
   test "shows missing quote valuation warning for positioned securities", %{
     conn: conn
   } do
