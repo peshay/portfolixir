@@ -70,11 +70,20 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
           description={gettext("Add positions and category mappings to populate this report.")}
         />
       <% else %>
-        <section id="classification-exposure-sunburst" class="app-shell-section-card">
+        <section
+          id="classification-exposure-sunburst"
+          class="app-shell-section-card"
+          aria-labelledby="classification-exposure-sunburst-heading"
+          aria-describedby="classification-exposure-sunburst-description"
+        >
           <div class="app-shell-section-header">
             <div>
-              <h2 class="app-shell-section-title"><%= gettext("Sunburst") %></h2>
-              <p><%= gettext("Read-only chart view based on the current classification exposure rows.") %></p>
+              <h2 id="classification-exposure-sunburst-heading" class="app-shell-section-title">
+                <%= gettext("Sunburst") %>
+              </h2>
+              <p id="classification-exposure-sunburst-description">
+                <%= gettext("Read-only chart view based on the current classification exposure rows.") %>
+              </p>
             </div>
           </div>
 
