@@ -18,8 +18,8 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
       <header class="app-shell-page-header">
         <div>
           <p class="app-shell-page-kicker"><%= gettext("Reports") %></p>
-          <h1><%= gettext("Fund allocation report") %></h1>
-          <p><%= gettext("Review confirmed ETF allocation breakdowns imported from factsheets.") %></p>
+          <h1 id="fund-allocation-report-title"><%= gettext("Fund allocation report") %></h1>
+          <p id="fund-allocation-report-intro"><%= gettext("Review confirmed ETF allocation breakdowns imported from factsheets.") %></p>
         </div>
       </header>
 
@@ -35,7 +35,13 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
       <% end %>
 
       <%= if !Enum.empty?(@fund_allocations) do %>
-        <div id="fund-allocation-report" class="app-shell-workspace-stack">
+        <div
+          id="fund-allocation-report"
+          class="app-shell-workspace-stack"
+          role="region"
+          aria-labelledby="fund-allocation-report-title"
+          aria-describedby="fund-allocation-report-intro"
+        >
           <section
             id="fund-allocation-workbench-toolbar"
             class="app-shell-section-card"
