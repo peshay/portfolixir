@@ -61,11 +61,14 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
 
     {:ok, view, html} = live(conn, "/imports")
 
-    assert has_element?(view, "#import-sources-table")
+    assert has_element?(
+             view,
+             "#import-sources-table[aria-describedby=\"import-sources-table-caption\"]"
+           )
 
     assert has_element?(
              view,
-             "#import-sources-table caption.app-shell-visually-hidden",
+             "#import-sources-table #import-sources-table-caption.app-shell-visually-hidden",
              "Import sources with status, run counts, and latest run timestamps"
            )
 
