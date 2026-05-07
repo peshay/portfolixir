@@ -117,7 +117,16 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <%= if @security_form_visible, do: gettext("Close form"), else: gettext("Add security") %>
             </button>
           </div>
-          <form id="security-search-form" class="app-shell-form-actions" phx-change="search_securities">
+          <form
+            id="security-search-form"
+            class="app-shell-form-actions"
+            phx-change="search_securities"
+            role="search"
+            aria-label={gettext("Search securities")}
+          >
+            <label for="security-search" class="app-shell-visually-hidden">
+              <%= gettext("Search securities") %>
+            </label>
             <input
               id="security-search"
               name="q"
