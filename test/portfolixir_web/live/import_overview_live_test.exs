@@ -116,11 +116,14 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
     run_rows = Imports.list_recent_import_runs(2) |> Enum.map(& &1.id)
     [latest_run_id | _] = run_rows
 
-    assert has_element?(view, "#import-runs-table")
+    assert has_element?(
+             view,
+             "#import-runs-table[aria-describedby='import-runs-table-caption']"
+           )
 
     assert has_element?(
              view,
-             "#import-runs-table caption.app-shell-visually-hidden",
+             "#import-runs-table #import-runs-table-caption.app-shell-visually-hidden",
              "Recent import runs with source, status, timestamps, and summary preview"
            )
 
