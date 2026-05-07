@@ -251,12 +251,21 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
        %{conn: conn} do
     {:ok, view, _html} = live(conn, "/reports/fund-allocations")
 
-    assert has_element?(view, "#fund-allocation-empty-state")
+    assert has_element?(
+             view,
+             "#fund-allocation-empty-state[role='status'][aria-live='polite'][aria-labelledby='fund-allocation-empty-state-title'][aria-describedby='fund-allocation-empty-state-description']"
+           )
 
     assert has_element?(
              view,
-             "#fund-allocation-empty-state h2",
+             "#fund-allocation-empty-state-title",
              "No confirmed fund allocations yet"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-empty-state-description",
+             "Upload a factsheet with allocations to populate this report."
            )
 
     assert has_element?(
