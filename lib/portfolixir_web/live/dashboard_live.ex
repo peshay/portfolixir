@@ -172,6 +172,9 @@ defmodule PortfolixirWeb.DashboardLive do
           <% else %>
             <div class="app-shell-table-wrapper">
               <table id="dashboard-fund-documents-table">
+                <caption id="dashboard-fund-documents-table-caption" class="app-shell-visually-hidden">
+                  <%= gettext("Recent fund documents with security, filename, extraction status, and review action.") %>
+                </caption>
                 <thead>
                   <tr>
                     <th scope="col"><%= gettext("Security") %></th>
