@@ -534,6 +534,13 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#no-securities p",
              "Add your first security to start building your portfolio."
            )
+
+    assert has_element?(
+             view,
+             "#security-selected-empty[role='status'][aria-live='polite'][aria-labelledby='security-selected-empty-title']"
+           )
+
+    assert has_element?(view, "#security-selected-empty-title", "No security selected")
   end
 
   test "shows active securities by default", %{conn: conn} do
@@ -691,6 +698,13 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#no-securities p",
              "Add your first security to start building your portfolio."
            )
+
+    assert has_element?(
+             view,
+             "#security-selected-empty[role='status'][aria-live='polite'][aria-labelledby='security-selected-empty-title']"
+           )
+
+    assert has_element?(view, "#security-selected-empty-title", "No security selected")
   end
 
   test "shows all securities and status indicator when all filter is selected", %{conn: conn} do
