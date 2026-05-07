@@ -33,6 +33,9 @@ defmodule PortfolixirWeb.RawImportItemReviewLive do
         <section id="raw-import-item-review" class="app-shell-section-card">
           <div class="app-shell-table-wrapper">
             <table id="raw-import-item-review-metadata-table">
+              <caption id="raw-import-item-review-metadata-table-caption" class="app-shell-visually-hidden">
+                <%= gettext("Raw import item metadata with source, status, identifiers, content details, and created timestamp") %>
+              </caption>
               <tbody>
                 <tr><th scope="row"><%= gettext("Source") %></th><td><%= @raw_item.import_source.name %></td></tr>
                 <tr><th scope="row"><%= gettext("Status") %></th><td><%= @raw_item.status %></td></tr>
