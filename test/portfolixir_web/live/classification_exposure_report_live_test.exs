@@ -138,6 +138,20 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
     assert html =~ ~r/<th scope="col">Exposure<\/th>/
 
     assert has_element?(view, "#classification-exposure-sunburst-chart")
+
+    assert has_element?(
+             view,
+             "#classification-exposure-sunburst[aria-labelledby='classification-exposure-sunburst-heading'][aria-describedby='classification-exposure-sunburst-description']"
+           )
+
+    assert has_element?(view, "#classification-exposure-sunburst-heading", "Sunburst")
+
+    assert has_element?(
+             view,
+             "#classification-exposure-sunburst-description",
+             "Read-only chart view based on the current classification exposure rows."
+           )
+
     assert has_element?(view, "#classification-exposure-row-core", "Core")
     assert has_element?(view, "#classification-exposure-row-growth", "Growth")
     assert has_element?(view, "#classification-exposure-row-unmapped", "Unmapped")
