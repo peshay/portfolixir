@@ -193,9 +193,9 @@ defmodule PortfolixirWeb.AccountManagementLive do
                   <table id="deposit-account-list">
                     <thead>
                       <tr>
-                        <th><%= gettext("Name") %></th>
-                        <th><%= gettext("Currency") %></th>
-                        <th><%= gettext("Notes") %></th>
+                        <th scope="col"><%= gettext("Name") %></th>
+                        <th scope="col"><%= gettext("Currency") %></th>
+                        <th scope="col"><%= gettext("Notes") %></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -230,9 +230,9 @@ defmodule PortfolixirWeb.AccountManagementLive do
                   <table id="cash-balance-list">
                     <thead>
                       <tr>
-                        <th><%= gettext("Deposit account") %></th>
-                        <th><%= gettext("Currency") %></th>
-                        <th><%= gettext("Balance") %></th>
+                        <th scope="col"><%= gettext("Deposit account") %></th>
+                        <th scope="col"><%= gettext("Currency") %></th>
+                        <th scope="col"><%= gettext("Balance") %></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -259,9 +259,9 @@ defmodule PortfolixirWeb.AccountManagementLive do
                     <table>
                       <thead>
                         <tr>
-                          <th><%= gettext("Transaction") %></th>
-                          <th><%= gettext("Type") %></th>
-                          <th><%= gettext("Securities account") %></th>
+                          <th scope="col"><%= gettext("Transaction") %></th>
+                          <th scope="col"><%= gettext("Type") %></th>
+                          <th scope="col"><%= gettext("Securities account") %></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -302,10 +302,10 @@ defmodule PortfolixirWeb.AccountManagementLive do
                   <table id="securities-account-list">
                     <thead>
                       <tr>
-                        <th><%= gettext("Name") %></th>
-                        <th><%= gettext("Currency") %></th>
-                        <th><%= gettext("Reference deposit account") %></th>
-                        <th><%= gettext("Notes") %></th>
+                        <th scope="col"><%= gettext("Name") %></th>
+                        <th scope="col"><%= gettext("Currency") %></th>
+                        <th scope="col"><%= gettext("Reference deposit account") %></th>
+                        <th scope="col"><%= gettext("Notes") %></th>
                       </tr>
                     </thead>
                     <tbody>

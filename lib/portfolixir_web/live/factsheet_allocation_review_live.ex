@@ -94,11 +94,11 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLive do
               <table id="factsheet-allocation-groups">
                 <thead>
                   <tr>
-                    <th><%= gettext("Allocation type") %></th>
-                    <th><%= gettext("Item label") %></th>
-                    <th><%= gettext("Weight") %></th>
-                    <th><%= gettext("Confidence") %></th>
-                    <th><%= gettext("Raw line") %></th>
+                    <th scope="col"><%= gettext("Allocation type") %></th>
+                    <th scope="col"><%= gettext("Item label") %></th>
+                    <th scope="col"><%= gettext("Weight") %></th>
+                    <th scope="col"><%= gettext("Confidence") %></th>
+                    <th scope="col"><%= gettext("Raw line") %></th>
                   </tr>
                 </thead>
                 <tbody>

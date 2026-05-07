@@ -126,10 +126,10 @@ defmodule PortfolixirWeb.DashboardLive do
               <table id="dashboard-import-runs-table">
                 <thead>
                   <tr>
-                    <th><%= gettext("Source") %></th>
-                    <th><%= gettext("Status") %></th>
-                    <th><%= gettext("Started") %></th>
-                    <th><%= gettext("Finished") %></th>
+                    <th scope="col"><%= gettext("Source") %></th>
+                    <th scope="col"><%= gettext("Status") %></th>
+                    <th scope="col"><%= gettext("Started") %></th>
+                    <th scope="col"><%= gettext("Finished") %></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -171,10 +171,10 @@ defmodule PortfolixirWeb.DashboardLive do
               <table id="dashboard-fund-documents-table">
                 <thead>
                   <tr>
-                    <th><%= gettext("Security") %></th>
-                    <th><%= gettext("Filename") %></th>
-                    <th><%= gettext("Extraction status") %></th>
-                    <th><%= gettext("Review") %></th>
+                    <th scope="col"><%= gettext("Security") %></th>
+                    <th scope="col"><%= gettext("Filename") %></th>
+                    <th scope="col"><%= gettext("Extraction status") %></th>
+                    <th scope="col"><%= gettext("Review") %></th>
                   </tr>
                 </thead>
                 <tbody>
