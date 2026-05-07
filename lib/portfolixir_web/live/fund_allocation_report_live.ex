@@ -59,12 +59,22 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
               id={"fund-allocation-security-#{section.security.id}"}
               class="app-shell-section-card"
               data-priority="primary"
+              aria-labelledby={"fund-allocation-security-title-#{section.security.id}"}
+              aria-describedby={"fund-allocation-security-intro-#{section.security.id}"}
             >
               <div class="app-shell-section-header">
-                <h2 class="app-shell-section-title">
+                <h2
+                  id={"fund-allocation-security-title-#{section.security.id}"}
+                  class="app-shell-section-title"
+                >
                   <%= section.security.name %> (<%= section.security.symbol %>)
                 </h2>
-                <p class="app-shell-panel-intro"><%= gettext("Imported allocation rows grouped by security") %></p>
+                <p
+                  id={"fund-allocation-security-intro-#{section.security.id}"}
+                  class="app-shell-panel-intro"
+                >
+                  <%= gettext("Imported allocation rows grouped by security") %>
+                </p>
               </div>
 
               <div class="app-shell-table-wrapper">
