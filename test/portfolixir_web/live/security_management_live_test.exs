@@ -228,12 +228,36 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-workbench-toolbar-filter[disabled]")
     assert has_element?(view, "#security-workbench-toolbar-export[disabled]")
     assert has_element?(view, "#security-workbench-toolbar-columns[disabled]")
-    assert has_element?(view, "#security-workbench-toolbar-range-1m[disabled]")
-    assert has_element?(view, "#security-workbench-toolbar-range-3m[disabled]")
-    assert has_element?(view, "#security-workbench-toolbar-range-6m[disabled]")
-    assert has_element?(view, "#security-workbench-toolbar-range-1y[disabled]")
-    assert has_element?(view, "#security-workbench-toolbar-range-ytd[disabled]")
-    assert has_element?(view, "#security-workbench-toolbar-range-all[disabled]")
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-range-1m[disabled][aria-pressed=\"false\"]"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-range-3m[disabled][aria-pressed=\"false\"]"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-range-6m[disabled][aria-pressed=\"false\"]"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-range-1y[disabled][aria-pressed=\"false\"]"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-range-ytd[disabled][aria-pressed=\"false\"]"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-range-all[disabled][aria-pressed=\"true\"]"
+           )
 
     assert has_element?(
              view,
@@ -244,6 +268,10 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              view,
              "#security-status-filter[role='group'][aria-labelledby='security-status-filter-label']"
            )
+
+    assert has_element?(view, "#security-filter-active[aria-pressed=\"true\"]")
+    assert has_element?(view, "#security-filter-inactive[aria-pressed=\"false\"]")
+    assert has_element?(view, "#security-filter-all[aria-pressed=\"false\"]")
 
     assert has_element?(view, "#security-filter-active")
     assert has_element?(view, "#security-filter-inactive")
@@ -565,11 +593,23 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              })
 
     {:ok, view, _html} = live(conn, "/securities")
-    assert has_element?(view, "#security-filter-active.app-shell-primary", "Active")
+
+    assert has_element?(
+             view,
+             "#security-filter-active.app-shell-primary[aria-pressed=\"true\"]",
+             "Active"
+           )
 
     view |> element("#security-filter-inactive") |> render_click()
 
-    assert has_element?(view, "#security-filter-inactive.app-shell-primary", "Inactive")
+    assert has_element?(view, "#security-filter-active[aria-pressed=\"false\"]", "Active")
+
+    assert has_element?(
+             view,
+             "#security-filter-inactive.app-shell-primary[aria-pressed=\"true\"]",
+             "Inactive"
+           )
+
     assert has_element?(view, "#security-list tbody tr", "Inactive Security")
     refute has_element?(view, "#security-list tbody tr", "Active Security")
   end
