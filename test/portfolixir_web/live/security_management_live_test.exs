@@ -224,50 +224,79 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-actions[role='group'][aria-labelledby='security-workbench-toolbar-actions-label']"
+             "#security-workbench-toolbar-actions[role='group'][aria-labelledby='security-workbench-toolbar-actions-label'][aria-describedby='security-workbench-toolbar-actions-description']"
            )
 
     assert has_element?(view, "#security-workbench-toolbar-actions-label")
+    assert has_element?(view, "#security-workbench-toolbar-actions-description")
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-ranges[role='group'][aria-labelledby='security-workbench-toolbar-ranges-label']"
+             "#security-workbench-toolbar-filter[disabled][aria-describedby='security-workbench-toolbar-actions-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-export[disabled][aria-describedby='security-workbench-toolbar-actions-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-columns[disabled][aria-describedby='security-workbench-toolbar-actions-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-ranges[role='group'][aria-labelledby='security-workbench-toolbar-ranges-label'][aria-describedby='security-workbench-toolbar-ranges-description']"
            )
 
     assert has_element?(view, "#security-workbench-toolbar-ranges-label")
+    assert has_element?(view, "#security-workbench-toolbar-ranges-description")
     assert has_element?(view, "#security-workbench-search")
-    assert has_element?(view, "#security-workbench-toolbar-filter[disabled]")
-    assert has_element?(view, "#security-workbench-toolbar-export[disabled]")
-    assert has_element?(view, "#security-workbench-toolbar-columns[disabled]")
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-range-1m[disabled][aria-pressed=\"false\"]"
+             "#security-workbench-toolbar-filter[disabled][aria-describedby='security-workbench-toolbar-actions-description']"
            )
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-range-3m[disabled][aria-pressed=\"false\"]"
+             "#security-workbench-toolbar-export[disabled][aria-describedby='security-workbench-toolbar-actions-description']"
            )
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-range-6m[disabled][aria-pressed=\"false\"]"
+             "#security-workbench-toolbar-columns[disabled][aria-describedby='security-workbench-toolbar-actions-description']"
            )
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-range-1y[disabled][aria-pressed=\"false\"]"
+             "#security-workbench-toolbar-range-1m[disabled][aria-pressed=\"false\"][aria-describedby='security-workbench-toolbar-ranges-description']"
            )
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-range-ytd[disabled][aria-pressed=\"false\"]"
+             "#security-workbench-toolbar-range-3m[disabled][aria-pressed=\"false\"][aria-describedby='security-workbench-toolbar-ranges-description']"
            )
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-range-all[disabled][aria-pressed=\"true\"]"
+             "#security-workbench-toolbar-range-6m[disabled][aria-pressed=\"false\"][aria-describedby='security-workbench-toolbar-ranges-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-range-1y[disabled][aria-pressed=\"false\"][aria-describedby='security-workbench-toolbar-ranges-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-range-ytd[disabled][aria-pressed=\"false\"][aria-describedby='security-workbench-toolbar-ranges-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-range-all[disabled][aria-pressed=\"true\"][aria-describedby='security-workbench-toolbar-ranges-description']"
            )
 
     assert has_element?(
@@ -531,12 +560,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-actions[role='group'][aria-labelledby='security-workbench-toolbar-actions-label']"
+             "#security-workbench-toolbar-actions[role='group'][aria-labelledby='security-workbench-toolbar-actions-label'][aria-describedby='security-workbench-toolbar-actions-description']"
            )
 
     assert has_element?(
              view,
-             "#security-workbench-toolbar-ranges[role='group'][aria-labelledby='security-workbench-toolbar-ranges-label']"
+             "#security-workbench-toolbar-ranges[role='group'][aria-labelledby='security-workbench-toolbar-ranges-label'][aria-describedby='security-workbench-toolbar-ranges-description']"
            )
 
     assert has_element?(
