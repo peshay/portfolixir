@@ -53,7 +53,12 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLiveTest do
 
     assert has_element?(
              view,
-             "#factsheet-allocation-groups caption.app-shell-visually-hidden",
+             "#factsheet-allocation-groups[aria-describedby='factsheet-allocation-groups-caption']"
+           )
+
+    assert has_element?(
+             view,
+             "#factsheet-allocation-groups-caption.app-shell-visually-hidden",
              "Parsed allocation preview with allocation type, item label, weight, confidence, and raw line before confirmation."
            )
 
