@@ -240,7 +240,13 @@ def check_text_artifact(label: str, text: str) -> list[str]:
     if "\\n" in text:
         violations.append(f"{label}: contains literal escaped newline \\n in public artifact text; use real line breaks")
 
-    for regex, reason in [*LEAK_PATTERNS, *TRACE_METADATA_PATTERNS, *PRIVATE_OBJECT_ID_PATTERNS, *SECRET_PATTERNS]:
+    for regex, reason in [
+        *LEAK_PATTERNS,
+        *TRACE_METADATA_PATTERNS,
+        *PRIVATE_OBJECT_ID_PATTERNS,
+        *SECRET_PATTERNS,
+        *COMMIT_METADATA_PATTERNS,
+    ]:
         if regex.search(text):
             violations.append(f"{label}: {reason}")
 

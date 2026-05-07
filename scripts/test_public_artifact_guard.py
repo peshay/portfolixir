@@ -83,6 +83,13 @@ class TextArtifactScanTest(unittest.TestCase):
         self.assertIn("private board/object identifier leak", joined)
         self.assertIn("requester session metadata leak", joined)
 
+    def test_text_artifact_blocks_commit_metadata_markers(self) -> None:
+        text = "PR body\nAI-Agent: internal\nRuntime-Model: codex/gpt-5.3-codex"
+        violations = public_artifact_guard.check_text_artifact("pr-body", text)
+        joined = "\n".join(violations)
+        self.assertIn("internal agent metadata footer", joined)
+        self.assertIn("private runtime metadata footer", joined)
+
     def test_text_artifact_accepts_sanitized_text(self) -> None:
         text = "Story: PFX-DEV-004\nSummary: harden metadata leak guard"
         self.assertEqual(public_artifact_guard.check_text_artifact("pr-body", text), [])
