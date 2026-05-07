@@ -191,6 +191,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               class="app-shell-secondary"
               role="button"
               aria-label={gettext("Choose visible security table columns")}
+              aria-controls="security-column-form"
             >
               <%= gettext("Columns") %>
             </summary>
@@ -199,10 +200,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               class="app-shell-column-menu-panel"
               phx-change="set_security_columns"
               data-storage-key={@security_column_storage_key}
-              aria-label={gettext("Visible security table columns")}
+              aria-labelledby="security-column-menu-legend"
             >
               <fieldset>
-                <legend><%= gettext("Visible columns") %></legend>
+                <legend id="security-column-menu-legend"><%= gettext("Visible columns") %></legend>
                 <p class="app-shell-help-text">
                   <%= gettext("Choose which security table columns are shown. Your browser saves the selection locally.") %>
                 </p>
