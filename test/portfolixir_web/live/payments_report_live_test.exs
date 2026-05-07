@@ -210,7 +210,23 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
 
     {:ok, view, _html} = live(conn, "/reports/payments")
 
-    assert has_element?(view, "#payments-accumulation-chart", "Accumulated dividends")
+    assert has_element?(
+             view,
+             "#payments-accumulation-chart[aria-labelledby='payments-accumulation-chart-title'][aria-describedby='payments-accumulation-chart-intro']"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-accumulation-chart-title.app-shell-section-title",
+             "Accumulated dividends"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-accumulation-chart-intro",
+             "Monthly cumulative progression based on recorded dividend transactions."
+           )
+
     assert has_element?(view, "#payments-accumulation-row-eur-2026-01", "12.5")
     assert has_element?(view, "#payments-accumulation-row-eur-2026-02", "15.0")
     assert has_element?(view, "#payments-yearly-comparison", "Yearly comparison")
