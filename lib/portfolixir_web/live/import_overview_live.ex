@@ -101,8 +101,8 @@ defmodule PortfolixirWeb.ImportOverviewLive do
           </div>
         <% else %>
           <div class="app-shell-table-wrapper">
-            <table id="import-runs-table">
-              <caption class="app-shell-visually-hidden">
+            <table id="import-runs-table" aria-describedby="import-runs-table-caption">
+              <caption id="import-runs-table-caption" class="app-shell-visually-hidden">
                 <%= gettext("Recent import runs with source, status, timestamps, and summary preview") %>
               </caption>
               <thead>
