@@ -100,7 +100,19 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
 
     {:ok, view, html} = live(conn, "/reports/fund-allocations")
 
-    assert has_element?(view, "h1", "Fund allocation report")
+    assert has_element?(
+             view,
+             "#fund-allocation-report[role='region'][aria-labelledby='fund-allocation-report-title'][aria-describedby='fund-allocation-report-intro']"
+           )
+
+    assert has_element?(view, "#fund-allocation-report-title", "Fund allocation report")
+
+    assert has_element?(
+             view,
+             "#fund-allocation-report-intro",
+             "Review confirmed ETF allocation breakdowns imported from factsheets."
+           )
+
     assert has_element?(view, "#nav-reports.app-shell-nav-link.is-active")
     assert has_element?(view, "#nav-reports[href='/reports/fund-allocations']")
 
