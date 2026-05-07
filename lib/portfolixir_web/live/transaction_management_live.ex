@@ -217,24 +217,25 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               id="transaction-form-panel"
               class="app-shell-section-card"
               data-priority="secondary"
+              aria-labelledby="transaction-form-panel-title"
             >
-            <div class="app-shell-section-header">
-              <div>
-                <h2 class="app-shell-section-title"><%= gettext("Add transaction") %></h2>
-                <p class="app-shell-panel-intro">
-                  <%= gettext("Deposit and withdrawal use the deposit account. Dividend uses the deposit account and a security.") %>
-                </p>
-                <p class="app-shell-panel-intro">
-                  <%= gettext("Buy and sell use the securities account plus security, quantity, price and amount.") %>
-                </p>
-                <p class="app-shell-panel-intro">
-                  <%= gettext("Buy and sell cash impact is only reflected when a securities account has a linked deposit account.") %>
-                </p>
-                <p class="app-shell-panel-intro">
-                  <%= gettext("Amount is the gross transaction amount. Fees and taxes are optional.") %>
-                </p>
+              <div class="app-shell-section-header">
+                <div>
+                  <h2 id="transaction-form-panel-title" class="app-shell-section-title"><%= gettext("Add transaction") %></h2>
+                  <p class="app-shell-panel-intro">
+                    <%= gettext("Deposit and withdrawal use the deposit account. Dividend uses the deposit account and a security.") %>
+                  </p>
+                  <p class="app-shell-panel-intro">
+                    <%= gettext("Buy and sell use the securities account plus security, quantity, price and amount.") %>
+                  </p>
+                  <p class="app-shell-panel-intro">
+                    <%= gettext("Buy and sell cash impact is only reflected when a securities account has a linked deposit account.") %>
+                  </p>
+                  <p class="app-shell-panel-intro">
+                    <%= gettext("Amount is the gross transaction amount. Fees and taxes are optional.") %>
+                  </p>
+                </div>
               </div>
-            </div>
 
             <%= if @transaction_success do %>
               <p
