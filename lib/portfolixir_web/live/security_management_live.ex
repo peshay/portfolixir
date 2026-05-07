@@ -141,6 +141,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               class={filter_button_class(@security_status_filter, :active)}
               phx-click="set_security_status_filter"
               phx-value-status="active"
+              aria-pressed={to_string(@security_status_filter == :active)}
             >
               <%= gettext("Active") %>
             </button>
@@ -150,6 +151,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               class={filter_button_class(@security_status_filter, :inactive)}
               phx-click="set_security_status_filter"
               phx-value-status="inactive"
+              aria-pressed={to_string(@security_status_filter == :inactive)}
             >
               <%= gettext("Inactive") %>
             </button>
@@ -159,6 +161,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               class={filter_button_class(@security_status_filter, :all)}
               phx-click="set_security_status_filter"
               phx-value-status="all"
+              aria-pressed={to_string(@security_status_filter == :all)}
             >
               <%= gettext("All") %>
             </button>
