@@ -348,7 +348,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-csv-preview-table-caption.app-shell-visually-hidden",
-             "Security CSV preview table with parsed rows, validation status, and errors before import."
+             "Security CSV import preview table with parsed rows, validation status, and errors before import."
            )
 
     refute has_element?(view, "button", "Confirm import")

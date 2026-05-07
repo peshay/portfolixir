@@ -851,7 +851,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             <div class="app-shell-table-wrapper">
               <table id="security-csv-preview-table">
                 <caption id="security-csv-preview-table-caption" class="app-shell-visually-hidden">
-                  <%= gettext("Security CSV preview table with parsed rows, validation status, and errors before import.") %>
+                  <%= gettext("Security CSV import preview table with parsed rows, validation status, and errors before import.") %>
                 </caption>
                 <thead>
                   <tr>
