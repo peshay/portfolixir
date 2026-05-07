@@ -83,7 +83,10 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
   defp conflict_table(assigns) do
     ~H"""
     <div class="app-shell-table-wrapper">
-      <table id={@id}>
+      <table id={@id} aria-describedby={"#{@id}-caption"}>
+        <caption id={"#{@id}-caption"} class="app-shell-visually-hidden">
+          <%= conflict_table_caption(@row_prefix) %>
+        </caption>
         <thead>
           <tr>
             <th scope="col"><%= gettext("Source") %></th>
@@ -134,5 +137,23 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
     datetime
     |> NaiveDateTime.truncate(:second)
     |> NaiveDateTime.to_iso8601()
+  end
+
+  defp conflict_table_caption("open") do
+    gettext(
+      "Open import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+    )
+  end
+
+  defp conflict_table_caption("resolved") do
+    gettext(
+      "Resolved import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+    )
+  end
+
+  defp conflict_table_caption(_row_prefix) do
+    gettext(
+      "Import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+    )
   end
 end
