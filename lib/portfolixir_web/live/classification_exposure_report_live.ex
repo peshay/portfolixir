@@ -178,6 +178,11 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
 
               <div class="app-shell-table-wrapper">
                 <table id="classification-exposure-drilldown-detail-table">
+                  <caption class="app-shell-visually-hidden">
+                    <%= gettext("Category drilldown detail table for %{category} with source type, status, security, input, exposure, and note rows.",
+                      category: @selected_drilldown_row.category_name
+                    ) %>
+                  </caption>
                   <thead>
                     <tr>
                       <th scope="col"><%= gettext("Source") %></th>
