@@ -122,10 +122,10 @@ defmodule PortfolixirWeb.PaymentsReportLive do
               <table>
                 <thead>
                   <tr>
-                    <th><%= gettext("Month") %></th>
-                    <th><%= gettext("Currency") %></th>
-                    <th><%= gettext("Monthly dividends") %></th>
-                    <th><%= gettext("Accumulated dividends") %></th>
+                    <th scope="col"><%= gettext("Month") %></th>
+                    <th scope="col"><%= gettext("Currency") %></th>
+                    <th scope="col"><%= gettext("Monthly dividends") %></th>
+                    <th scope="col"><%= gettext("Accumulated dividends") %></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -153,10 +153,10 @@ defmodule PortfolixirWeb.PaymentsReportLive do
               <table>
                 <thead>
                   <tr>
-                    <th><%= gettext("Year") %></th>
-                    <th><%= gettext("Month") %></th>
-                    <th><%= gettext("Currency") %></th>
-                    <th><%= gettext("Year-to-date accumulated") %></th>
+                    <th scope="col"><%= gettext("Year") %></th>
+                    <th scope="col"><%= gettext("Month") %></th>
+                    <th scope="col"><%= gettext("Currency") %></th>
+                    <th scope="col"><%= gettext("Year-to-date accumulated") %></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -179,12 +179,12 @@ defmodule PortfolixirWeb.PaymentsReportLive do
                 <table>
                   <thead>
                     <tr>
-                      <th><%= gettext("Date") %></th>
-                      <th><%= gettext("Security") %></th>
-                      <th><%= gettext("Account") %></th>
-                      <th><%= gettext("Amount") %></th>
-                      <th><%= gettext("Currency") %></th>
-                      <th><%= gettext("Notes") %></th>
+                      <th scope="col"><%= gettext("Date") %></th>
+                      <th scope="col"><%= gettext("Security") %></th>
+                      <th scope="col"><%= gettext("Account") %></th>
+                      <th scope="col"><%= gettext("Amount") %></th>
+                      <th scope="col"><%= gettext("Currency") %></th>
+                      <th scope="col"><%= gettext("Notes") %></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -215,12 +215,12 @@ defmodule PortfolixirWeb.PaymentsReportLive do
                     <table>
                       <thead>
                         <tr>
-                          <th><%= gettext("Date") %></th>
-                          <th><%= gettext("Security") %></th>
-                          <th><%= gettext("Account") %></th>
-                          <th><%= gettext("Amount") %></th>
-                          <th><%= gettext("Currency") %></th>
-                          <th><%= gettext("Notes") %></th>
+                          <th scope="col"><%= gettext("Date") %></th>
+                          <th scope="col"><%= gettext("Security") %></th>
+                          <th scope="col"><%= gettext("Account") %></th>
+                          <th scope="col"><%= gettext("Amount") %></th>
+                          <th scope="col"><%= gettext("Currency") %></th>
+                          <th scope="col"><%= gettext("Notes") %></th>
                         </tr>
                       </thead>
                       <tbody>

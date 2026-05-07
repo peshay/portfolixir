@@ -68,12 +68,12 @@ defmodule PortfolixirWeb.FundAllocationReportLive do
                   </caption>
                   <thead>
                     <tr>
-                      <th><%= gettext("Allocation type") %></th>
-                      <th><%= gettext("Source") %></th>
-                      <th><%= gettext("As-of date") %></th>
-                      <th><%= gettext("Label") %></th>
-                      <th><%= gettext("Weight") %></th>
-                      <th><%= gettext("Confidence") %></th>
+                      <th scope="col"><%= gettext("Allocation type") %></th>
+                      <th scope="col"><%= gettext("Source") %></th>
+                      <th scope="col"><%= gettext("As-of date") %></th>
+                      <th scope="col"><%= gettext("Label") %></th>
+                      <th scope="col"><%= gettext("Weight") %></th>
+                      <th scope="col"><%= gettext("Confidence") %></th>
                     </tr>
                   </thead>
                   <tbody>
