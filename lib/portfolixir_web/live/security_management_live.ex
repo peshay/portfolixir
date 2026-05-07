@@ -673,13 +673,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             id="security-create"
             class="app-shell-section-card"
             data-priority="secondary"
+            aria-labelledby="security-create-title"
+            aria-describedby="security-create-intro"
           >
             <div class="app-shell-section-header">
               <div>
-                <h2 class="app-shell-section-title">
+                <h2 id="security-create-title" class="app-shell-section-title">
                   <%= if @security_form_mode == :edit, do: gettext("Edit security"), else: gettext("Add security") %>
                 </h2>
-                <p class="app-shell-panel-intro">
+                <p id="security-create-intro" class="app-shell-panel-intro">
                   <%= gettext("Create one instrument at a time.") %>
                 </p>
               </div>
@@ -702,7 +704,13 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               </p>
             <% end %>
 
-            <form id="security-form" class="app-shell-form-grid" phx-submit="save_security">
+            <form
+              id="security-form"
+              class="app-shell-form-grid"
+              phx-submit="save_security"
+              aria-labelledby="security-create-title"
+              aria-describedby={security_form_description_ids(@security_success, @security_error)}
+            >
               <div class="app-shell-field app-shell-field--full">
                 <label for="security-name"><%= gettext("Name") %></label>
                 <input
@@ -1185,6 +1193,16 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   end
 
   defp security_column_header_id(key), do: "security-column-header-#{key}"
+
+  defp security_form_description_ids(security_success, security_error) do
+    [
+      "security-create-intro",
+      security_success && "security-form-success",
+      security_error && "security-form-error"
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
 
   defp security_status_cell_label_id(security_id, suffix)
 
