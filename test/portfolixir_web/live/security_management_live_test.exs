@@ -1357,7 +1357,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-valuation-freshness-summary[data-testid='security-selected-valuation-freshness-summary'][aria-label='Valuation freshness summary label']",
+             "#security-selected-valuation-freshness-summary[data-testid='security-selected-valuation-freshness-summary']",
              "Valuation freshness: #{copy.current}"
            )
 
@@ -1376,6 +1376,16 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              view,
              "#security-selected-latest-quote-date-value",
              "2026-05-02"
+           )
+
+    refute has_element?(
+             view,
+             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-label security-selected-latest-quote-value'][aria-label]"
+           )
+
+    refute has_element?(
+             view,
+             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-date-label security-selected-latest-quote-date-value'][aria-label]"
            )
 
     assert has_element?(
@@ -1514,7 +1524,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-valuation-warning[data-testid='security-selected-valuation-warning'][aria-label='Valuation warning label']",
+             "#security-selected-valuation-warning[data-testid='security-selected-valuation-warning']",
              "Missing quote for valuation."
            )
 
@@ -1669,17 +1679,35 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-date-label security-selected-latest-quote-date-value'][aria-label='Valuation source timestamp unavailable']"
+             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-date-label security-selected-latest-quote-date-value']"
+           )
+
+    assert has_element?(view, "#security-selected-latest-quote-value", "Valuation unavailable")
+
+    assert has_element?(
+             view,
+             "#security-selected-latest-quote-date-value",
+             "Valuation source timestamp unavailable"
            )
 
     assert has_element?(
              view,
-             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-label security-selected-latest-quote-value'][aria-label='Valuation unavailable'][data-valuation-state='missing']"
+             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-label security-selected-latest-quote-value'][data-valuation-state='missing']"
            )
 
     assert has_element?(
              view,
-             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-date-label security-selected-latest-quote-date-value'][aria-label='Valuation source timestamp unavailable'][data-valuation-state='missing']"
+             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-date-label security-selected-latest-quote-date-value'][data-valuation-state='missing']"
+           )
+
+    refute has_element?(
+             view,
+             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-label security-selected-latest-quote-value'][aria-label]"
+           )
+
+    refute has_element?(
+             view,
+             "#security-selected-summary p[aria-labelledby='security-selected-latest-quote-date-label security-selected-latest-quote-date-value'][aria-label]"
            )
 
     assert has_element?(
