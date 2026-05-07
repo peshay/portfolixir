@@ -50,6 +50,13 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLiveTest do
     assert has_element?(view, "#factsheet-review-security", security.name)
     assert has_element?(view, "#factsheet-review-filename", "factsheet.pdf")
     assert has_element?(view, "#factsheet-review-status", "extracted")
+
+    assert has_element?(
+             view,
+             "#factsheet-allocation-groups caption.app-shell-visually-hidden",
+             "Parsed allocation preview with allocation type, item label, weight, confidence, and raw line before confirmation."
+           )
+
     assert has_element?(view, "#factsheet-allocation-item-region-north-america", "North America")
     assert has_element?(view, "#factsheet-allocation-item-region-north-america", "62.5%")
     assert has_element?(view, "#factsheet-allocation-item-region-north-america", "1")

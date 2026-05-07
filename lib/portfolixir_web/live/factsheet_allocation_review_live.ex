@@ -92,6 +92,9 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLive do
           <% else %>
             <div class="app-shell-table-wrapper">
               <table id="factsheet-allocation-groups">
+                <caption class="app-shell-visually-hidden">
+                  <%= gettext("Parsed allocation preview with allocation type, item label, weight, confidence, and raw line before confirmation.") %>
+                </caption>
                 <thead>
                   <tr>
                     <th scope="col"><%= gettext("Allocation type") %></th>
