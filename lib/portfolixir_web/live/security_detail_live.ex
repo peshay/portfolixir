@@ -130,6 +130,9 @@ defmodule PortfolixirWeb.SecurityDetailLive do
 
             <div id="security-master-data" class="app-shell-table-wrapper">
               <table>
+                <caption id="security-master-data-caption" class="app-shell-visually-hidden">
+                  <%= gettext("Security master data table with identifiers and provider mapping.") %>
+                </caption>
                 <tbody>
                   <tr>
                     <th scope="row"><%= gettext("Name") %></th>
@@ -176,6 +179,9 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             <% else %>
               <div class="app-shell-table-wrapper">
                 <table id="security-fund-document-list">
+                  <caption id="security-fund-document-list-caption" class="app-shell-visually-hidden">
+                    <%= gettext("Fund documents table with filename, type, source, extraction status, and creation date.") %>
+                  </caption>
                   <thead>
                     <tr>
                       <th scope="col"><%= gettext("Original filename") %></th>
@@ -225,6 +231,9 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             <% else %>
               <div class="app-shell-table-wrapper">
                 <table id="security-position-list">
+                  <caption id="security-position-list-caption" class="app-shell-visually-hidden">
+                    <%= gettext("Current position table with securities account and quantity.") %>
+                  </caption>
                   <thead>
                     <tr>
                       <th scope="col"><%= gettext("Securities account") %></th>
@@ -260,6 +269,9 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             <% else %>
               <div class="app-shell-table-wrapper">
                 <table id="security-transactions">
+                  <caption id="security-transactions-caption" class="app-shell-visually-hidden">
+                    <%= gettext("Transaction history table with date, type, account, quantity, price, amount, currency, and notes.") %>
+                  </caption>
                   <thead>
                     <tr>
                       <th scope="col"><%= gettext("Date") %></th>
