@@ -104,8 +104,22 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
     assert has_element?(view, "#nav-reports.app-shell-nav-link.is-active")
     assert has_element?(view, "#nav-reports[href='/reports/fund-allocations']")
 
-    assert has_element?(view, "#fund-allocation-security-#{security_alpha.id}", "Allocated Alpha")
-    assert has_element?(view, "#fund-allocation-security-#{security_alpha.id}", "(ALP)")
+    assert has_element?(
+             view,
+             "#fund-allocation-security-#{security_alpha.id}[aria-labelledby='fund-allocation-security-title-#{security_alpha.id}'][aria-describedby='fund-allocation-security-intro-#{security_alpha.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-security-title-#{security_alpha.id}",
+             "Allocated Alpha"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-security-intro-#{security_alpha.id}",
+             "Imported allocation rows grouped by security"
+           )
 
     assert has_element?(
              view,
@@ -113,7 +127,12 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
              "Allocated Alpha"
            )
 
-    assert has_element?(view, "#fund-allocation-security-#{security_beta.id}", "Allocated Beta")
+    assert has_element?(
+             view,
+             "#fund-allocation-security-#{security_beta.id}",
+             "Allocated Beta"
+           )
+
     assert has_element?(view, "#fund-allocation-security-#{security_beta.id}", "(BET)")
 
     assert has_element?(
