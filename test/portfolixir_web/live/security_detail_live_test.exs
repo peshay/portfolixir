@@ -65,6 +65,12 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-master-data", "A1B2C3")
     assert has_element?(view, "#security-master-data", "EUR")
     assert has_element?(view, "#security-master-data", "SYN.X")
+
+    assert has_element?(
+             view,
+             "#security-master-data-caption",
+             "Security master data table with identifiers and provider mapping."
+           )
   end
 
   test "shows buy transactions for the selected security", %{
@@ -98,6 +104,12 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-transactions", "12.5")
     assert has_element?(view, "#security-transactions", "125")
     assert has_element?(view, "#security-transactions", "Initial buy")
+
+    assert has_element?(
+             view,
+             "#security-transactions-caption",
+             "Transaction history table with date, type, account, quantity, price, amount, currency, and notes."
+           )
 
     assert has_element?(view, "#security-price-chart-svg")
     assert has_element?(view, "#security-chart-marker-0[data-type='buy']")
@@ -241,6 +253,12 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-position-list", "Secondary depot")
     assert has_element?(view, "#security-position-list", "8")
     assert has_element?(view, "#security-position-list", "5")
+
+    assert has_element?(
+             view,
+             "#security-position-list-caption",
+             "Current position table with securities account and quantity."
+           )
   end
 
   test "does not include transactions from other securities", %{
@@ -402,6 +420,12 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-fund-documents", "extracted")
     assert has_element?(view, "#security-fund-documents", "failed")
     assert has_element?(view, "#security-fund-documents", "Unable to read text")
+
+    assert has_element?(
+             view,
+             "#security-fund-document-list-caption",
+             "Fund documents table with filename, type, source, extraction status, and creation date."
+           )
 
     assert has_element?(
              view,
