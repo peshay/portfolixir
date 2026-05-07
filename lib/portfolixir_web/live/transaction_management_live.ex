@@ -134,6 +134,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="transaction-list">
+                    <caption id="transaction-list-caption" class="app-shell-visually-hidden">
+                      <%= gettext("Transaction history table with date, type, account, security, quantity, price, amount, currency, and notes.") %>
+                    </caption>
                     <thead>
                       <tr>
                         <th scope="col"><%= gettext("Date") %></th>
@@ -186,6 +189,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="position-list">
+                    <caption id="position-list-caption" class="app-shell-visually-hidden">
+                      <%= gettext("Positions overview table with securities account, security, and quantity.") %>
+                    </caption>
                     <thead>
                       <tr>
                         <th scope="col"><%= gettext("Securities account") %></th>

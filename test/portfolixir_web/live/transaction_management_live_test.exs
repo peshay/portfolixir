@@ -104,6 +104,19 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert html =~ "Amount is the gross transaction amount."
     assert has_element?(view, "#position-list")
     assert has_element?(view, "#transaction-history-panel .app-shell-table-wrapper")
+
+    assert has_element?(
+             view,
+             "#transaction-list-caption",
+             "Transaction history table with date, type, account, security, quantity, price, amount, currency, and notes."
+           )
+
+    assert has_element?(
+             view,
+             "#position-list-caption",
+             "Positions overview table with securities account, security, and quantity."
+           )
+
     assert has_element?(view, "#transaction-form.app-shell-form-grid")
     assert has_element?(view, "#transaction-form .app-shell-fieldset")
 
