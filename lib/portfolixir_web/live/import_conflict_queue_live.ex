@@ -81,10 +81,12 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
   attr(:row_prefix, :string, required: true)
 
   defp conflict_table(assigns) do
+    assigns = assign(assigns, :caption_id, "#{assigns.id}-caption")
+
     ~H"""
     <div class="app-shell-table-wrapper">
-      <table id={@id} aria-describedby={"#{@id}-caption"}>
-        <caption id={"#{@id}-caption"} class="app-shell-visually-hidden">
+      <table id={@id} aria-describedby={@caption_id}>
+        <caption id={@caption_id} class="app-shell-visually-hidden">
           <%= conflict_table_caption(@row_prefix) %>
         </caption>
         <thead>
