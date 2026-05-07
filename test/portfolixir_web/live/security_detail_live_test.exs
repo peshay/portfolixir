@@ -540,7 +540,13 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
            )
 
     assert has_element?(view, "#security-price-chart-title", "Price chart")
-    assert has_element?(view, "#security-price-chart-empty")
+
+    assert has_element?(
+             view,
+             "#security-price-chart-empty[role='region'][aria-labelledby='security-price-chart-empty-title']"
+           )
+
+    assert has_element?(view, "#security-price-chart-empty-title", "No quotes yet")
     assert has_element?(view, "#security-price-chart-empty", "No quotes yet")
   end
 
