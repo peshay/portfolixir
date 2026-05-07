@@ -251,27 +251,65 @@ defmodule PortfolixirWeb.FundAllocationReportLiveTest do
 
     assert has_element?(
              view,
-             "#fund-allocation-toolbar-actions[role='group'][aria-labelledby='fund-allocation-toolbar-actions-label']"
+             "#fund-allocation-toolbar-actions[role='group'][aria-labelledby='fund-allocation-toolbar-actions-label'][aria-describedby='fund-allocation-toolbar-actions-description']"
            )
 
     assert has_element?(view, "#fund-allocation-toolbar-actions-label")
+    assert has_element?(view, "#fund-allocation-toolbar-actions-description")
 
     assert has_element?(
              view,
-             "#fund-allocation-toolbar-ranges[role='group'][aria-labelledby='fund-allocation-toolbar-ranges-label']"
+             "#fund-allocation-toolbar-filter[disabled][aria-describedby='fund-allocation-toolbar-actions-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-export[disabled][aria-describedby='fund-allocation-toolbar-actions-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-columns[disabled][aria-describedby='fund-allocation-toolbar-actions-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-ranges[role='group'][aria-labelledby='fund-allocation-toolbar-ranges-label'][aria-describedby='fund-allocation-toolbar-ranges-description']"
            )
 
     assert has_element?(view, "#fund-allocation-toolbar-ranges-label")
+    assert has_element?(view, "#fund-allocation-toolbar-ranges-description")
     assert has_element?(view, "#fund-allocation-search")
-    assert has_element?(view, "#fund-allocation-toolbar-filter[disabled]")
-    assert has_element?(view, "#fund-allocation-toolbar-export[disabled]")
-    assert has_element?(view, "#fund-allocation-toolbar-columns[disabled]")
-    assert has_element?(view, "#fund-allocation-toolbar-range-1m[disabled]")
-    assert has_element?(view, "#fund-allocation-toolbar-range-3m[disabled]")
-    assert has_element?(view, "#fund-allocation-toolbar-range-6m[disabled]")
-    assert has_element?(view, "#fund-allocation-toolbar-range-1y[disabled]")
-    assert has_element?(view, "#fund-allocation-toolbar-range-ytd[disabled]")
-    assert has_element?(view, "#fund-allocation-toolbar-range-all[disabled]")
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-range-1m[disabled][aria-describedby='fund-allocation-toolbar-ranges-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-range-3m[disabled][aria-describedby='fund-allocation-toolbar-ranges-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-range-6m[disabled][aria-describedby='fund-allocation-toolbar-ranges-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-range-1y[disabled][aria-describedby='fund-allocation-toolbar-ranges-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-range-ytd[disabled][aria-describedby='fund-allocation-toolbar-ranges-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#fund-allocation-toolbar-range-all[disabled][aria-describedby='fund-allocation-toolbar-ranges-description']"
+           )
   end
 
   test "report route is read-only and does not create allocations, items, categories, or ledger rows",
