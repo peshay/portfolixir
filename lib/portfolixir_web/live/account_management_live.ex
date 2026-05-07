@@ -191,6 +191,9 @@ defmodule PortfolixirWeb.AccountManagementLive do
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="deposit-account-list">
+                    <caption id="deposit-account-list-caption" class="app-shell-visually-hidden">
+                      <%= gettext("Deposit accounts with name, currency, and notes.") %>
+                    </caption>
                     <thead>
                       <tr>
                         <th scope="col"><%= gettext("Name") %></th>
@@ -228,6 +231,9 @@ defmodule PortfolixirWeb.AccountManagementLive do
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="cash-balance-list">
+                    <caption id="cash-balance-list-caption" class="app-shell-visually-hidden">
+                      <%= gettext("Cash balances by deposit account and currency.") %>
+                    </caption>
                     <thead>
                       <tr>
                         <th scope="col"><%= gettext("Deposit account") %></th>
@@ -300,6 +306,9 @@ defmodule PortfolixirWeb.AccountManagementLive do
               <% else %>
                 <div class="app-shell-table-wrapper">
                   <table id="securities-account-list">
+                    <caption id="securities-account-list-caption" class="app-shell-visually-hidden">
+                      <%= gettext("Securities accounts with reference deposit account and notes.") %>
+                    </caption>
                     <thead>
                       <tr>
                         <th scope="col"><%= gettext("Name") %></th>
