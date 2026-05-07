@@ -655,8 +655,14 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               </p>
             </div>
           <% else %>
-            <div id="security-selected-empty" class="app-shell-empty-state">
-              <h3><%= gettext("No security selected") %></h3>
+            <div
+              id="security-selected-empty"
+              class="app-shell-empty-state"
+              role="status"
+              aria-live="polite"
+              aria-labelledby="security-selected-empty-title"
+            >
+              <h3 id="security-selected-empty-title"><%= gettext("No security selected") %></h3>
               <p><%= gettext("Select a row to view details here.") %></p>
             </div>
           <% end %>
