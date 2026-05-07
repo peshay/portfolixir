@@ -121,6 +121,62 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     end
   end
 
+  test "security row actions expose row-specific accessible names", %{conn: conn} do
+    assert {:ok, alpha_security} =
+             Catalog.create_security(%{
+               name: "Alpha Fund",
+               symbol: "ALP",
+               currency_code: "EUR",
+               active: true
+             })
+
+    assert {:ok, beta_security} =
+             Catalog.create_security(%{
+               name: "Beta Fund",
+               symbol: "BET",
+               currency_code: "EUR",
+               active: true
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-detail-link-#{alpha_security.id}[aria-label='Open detail for Alpha Fund (ALP)']",
+             "Open detail"
+           )
+
+    assert has_element?(
+             view,
+             "#security-detail-link-#{beta_security.id}[aria-label='Open detail for Beta Fund (BET)']",
+             "Open detail"
+           )
+
+    assert has_element?(
+             view,
+             "#security-archive-#{alpha_security.id}[aria-label='Archive Alpha Fund (ALP)']",
+             "Archive"
+           )
+
+    assert has_element?(
+             view,
+             "#security-archive-#{beta_security.id}[aria-label='Archive Beta Fund (BET)']",
+             "Archive"
+           )
+
+    assert has_element?(
+             view,
+             "#security-edit-#{alpha_security.id}[aria-label='Edit security for Alpha Fund (ALP)']",
+             "Edit security"
+           )
+
+    assert has_element?(
+             view,
+             "#security-edit-#{beta_security.id}[aria-label='Edit security for Beta Fund (BET)']",
+             "Edit security"
+           )
+  end
+
   test "hidden security columns do not render and no data writes occur", %{conn: conn} do
     assert {:ok, _} =
              Catalog.create_security(%{

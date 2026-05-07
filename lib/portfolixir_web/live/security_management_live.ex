@@ -406,6 +406,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                           <a
                             id={"security-detail-link-#{security.id}"}
                             href={"/securities/#{security.id}"}
+                            aria-label={security_detail_link_aria_label(security)}
                           >
                             <%= gettext("Open detail") %>
                           </a>
@@ -427,6 +428,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                               class="app-shell-secondary"
                               phx-click="archive_security"
                               phx-value-id={security.id}
+                              aria-label={security_archive_button_aria_label(security)}
                             >
                               <%= gettext("Archive") %>
                             </button>
@@ -437,6 +439,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             class="app-shell-secondary"
                             phx-click="start_edit_security"
                             phx-value-id={security.id}
+                            aria-label={security_edit_button_aria_label(security)}
                           >
                             <%= gettext("Edit security") %>
                           </button>
@@ -1149,6 +1152,18 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp security_column_label("exchange"), do: gettext("Exchange")
   defp security_column_label("status"), do: gettext("Status")
   defp security_column_label("actions"), do: gettext("Actions")
+
+  defp security_detail_link_aria_label(security) do
+    gettext("Open detail for %{name} (%{symbol})", name: security.name, symbol: security.symbol)
+  end
+
+  defp security_archive_button_aria_label(security) do
+    gettext("Archive %{name} (%{symbol})", name: security.name, symbol: security.symbol)
+  end
+
+  defp security_edit_button_aria_label(security) do
+    gettext("Edit security for %{name} (%{symbol})", name: security.name, symbol: security.symbol)
+  end
 
   defp security_column_header_id(key), do: "security-column-header-#{key}"
 
