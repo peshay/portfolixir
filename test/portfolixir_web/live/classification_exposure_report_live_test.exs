@@ -173,6 +173,23 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
     assert has_element?(view, "#classification-exposure-sunburst-hierarchy", "Core")
     assert has_element?(view, "#classification-exposure-sunburst-hierarchy", "Growth")
 
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown[aria-labelledby='classification-exposure-drilldown-heading'][aria-describedby='classification-exposure-drilldown-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-heading",
+             "Category drilldown details"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-description",
+             "Read-only detail view from the existing classification exposure rows."
+           )
+
     assert has_element?(view, "#classification-exposure-drilldown-empty", "No category selected")
 
     view
