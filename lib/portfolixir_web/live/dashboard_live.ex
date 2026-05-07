@@ -124,6 +124,9 @@ defmodule PortfolixirWeb.DashboardLive do
           <% else %>
             <div class="app-shell-table-wrapper">
               <table id="dashboard-import-runs-table">
+                <caption id="dashboard-import-runs-table-caption" class="app-shell-visually-hidden">
+                  <%= gettext("Recent import runs with source, status, start time, and finish time.") %>
+                </caption>
                 <thead>
                   <tr>
                     <th scope="col"><%= gettext("Source") %></th>
