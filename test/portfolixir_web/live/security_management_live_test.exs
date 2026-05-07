@@ -112,7 +112,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-list caption",
+             "#security-list-caption.app-shell-visually-hidden",
              "Securities workbench table with identifiers, valuation, status, and row actions."
            )
 
@@ -344,7 +344,13 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "security-preview-row-1"
     assert has_element?(view, "#security-preview-status-1", "valid")
     assert has_element?(view, "#security-preview-row-1", "Test Security")
-    assert has_element?(view, "#security-csv-preview-table caption", "Security CSV preview table")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-table-caption.app-shell-visually-hidden",
+             "Security CSV preview table with parsed rows, validation status, and errors before import."
+           )
+
     refute has_element?(view, "button", "Confirm import")
   end
 
