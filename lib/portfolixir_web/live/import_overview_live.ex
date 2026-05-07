@@ -52,15 +52,15 @@ defmodule PortfolixirWeb.ImportOverviewLive do
             <table id="import-sources-table">
               <thead>
                 <tr>
-                  <th><%= gettext("Name") %></th>
-                  <th><%= gettext("Type") %></th>
-                  <th><%= gettext("Status") %></th>
-                  <th><%= gettext("Created") %></th>
-                  <th><%= gettext("Runs") %></th>
-                  <th><%= gettext("Raw items") %></th>
-                  <th><%= gettext("Latest run status") %></th>
-                  <th><%= gettext("Latest run started") %></th>
-                  <th><%= gettext("Latest run finished") %></th>
+                  <th scope="col"><%= gettext("Name") %></th>
+                  <th scope="col"><%= gettext("Type") %></th>
+                  <th scope="col"><%= gettext("Status") %></th>
+                  <th scope="col"><%= gettext("Created") %></th>
+                  <th scope="col"><%= gettext("Runs") %></th>
+                  <th scope="col"><%= gettext("Raw items") %></th>
+                  <th scope="col"><%= gettext("Latest run status") %></th>
+                  <th scope="col"><%= gettext("Latest run started") %></th>
+                  <th scope="col"><%= gettext("Latest run finished") %></th>
                 </tr>
               </thead>
               <tbody>
@@ -101,11 +101,11 @@ defmodule PortfolixirWeb.ImportOverviewLive do
             <table id="import-runs-table">
               <thead>
                 <tr>
-                  <th><%= gettext("Source") %></th>
-                  <th><%= gettext("Status") %></th>
-                  <th><%= gettext("Started at") %></th>
-                  <th><%= gettext("Finished at") %></th>
-                  <th><%= gettext("Summary preview") %></th>
+                  <th scope="col"><%= gettext("Source") %></th>
+                  <th scope="col"><%= gettext("Status") %></th>
+                  <th scope="col"><%= gettext("Started at") %></th>
+                  <th scope="col"><%= gettext("Finished at") %></th>
+                  <th scope="col"><%= gettext("Summary preview") %></th>
                 </tr>
               </thead>
               <tbody>
@@ -142,14 +142,14 @@ defmodule PortfolixirWeb.ImportOverviewLive do
             <table id="import-raw-items-table">
               <thead>
                 <tr>
-                  <th><%= gettext("Source") %></th>
-                  <th><%= gettext("Original filename") %></th>
-                  <th><%= gettext("Content type") %></th>
-                  <th><%= gettext("Status") %></th>
-                  <th><%= gettext("External ID") %></th>
-                  <th><%= gettext("Content hash") %></th>
-                  <th><%= gettext("Created at") %></th>
-                  <th><%= gettext("Review") %></th>
+                  <th scope="col"><%= gettext("Source") %></th>
+                  <th scope="col"><%= gettext("Original filename") %></th>
+                  <th scope="col"><%= gettext("Content type") %></th>
+                  <th scope="col"><%= gettext("Status") %></th>
+                  <th scope="col"><%= gettext("External ID") %></th>
+                  <th scope="col"><%= gettext("Content hash") %></th>
+                  <th scope="col"><%= gettext("Created at") %></th>
+                  <th scope="col"><%= gettext("Review") %></th>
                 </tr>
               </thead>
               <tbody>

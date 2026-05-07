@@ -243,7 +243,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 <thead>
                   <tr>
                     <%= for column <- @security_table_columns, security_column_visible?(@visible_security_column_keys, column.key) do %>
-                      <th id={security_column_header_id(column.key)} data-column-key={column.key}><%= security_column_label(column.key) %></th>
+                      <th scope="col" id={security_column_header_id(column.key)} data-column-key={column.key}><%= security_column_label(column.key) %></th>
                     <% end %>
                   </tr>
                 </thead>
@@ -257,9 +257,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                       phx-value-id={security.id}
                     >
                       <%= if security_column_visible?(@visible_security_column_keys, "name") do %>
-                        <td data-column-key="name">
+                        <th scope="row" data-column-key="name">
                           <strong><%= security.name %></strong>
-                        </td>
+                        </th>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "symbol") do %>
                         <td data-column-key="symbol"><%= security.symbol %></td>
@@ -833,18 +833,18 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 </caption>
                 <thead>
                   <tr>
-                    <th><%= gettext("Row") %></th>
-                    <th><%= gettext("Status") %></th>
-                    <th><%= gettext("Name") %></th>
-                    <th><%= gettext("Symbol") %></th>
-                    <th><%= gettext("Currency") %></th>
-                    <th><%= gettext("Active") %></th>
-                    <th>ISIN</th>
-                    <th>WKN</th>
-                    <th><%= gettext("Provider symbol") %></th>
-                    <th><%= gettext("Exchange") %></th>
-                    <th><%= gettext("Notes") %></th>
-                    <th><%= gettext("Errors") %></th>
+                    <th scope="col"><%= gettext("Row") %></th>
+                    <th scope="col"><%= gettext("Status") %></th>
+                    <th scope="col"><%= gettext("Name") %></th>
+                    <th scope="col"><%= gettext("Symbol") %></th>
+                    <th scope="col"><%= gettext("Currency") %></th>
+                    <th scope="col"><%= gettext("Active") %></th>
+                    <th scope="col">ISIN</th>
+                    <th scope="col">WKN</th>
+                    <th scope="col"><%= gettext("Provider symbol") %></th>
+                    <th scope="col"><%= gettext("Exchange") %></th>
+                    <th scope="col"><%= gettext("Notes") %></th>
+                    <th scope="col"><%= gettext("Errors") %></th>
                   </tr>
                 </thead>
                 <tbody>

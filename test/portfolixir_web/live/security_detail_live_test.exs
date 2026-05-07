@@ -53,7 +53,10 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
         provider_symbol: "SYN.X"
       })
 
-    {:ok, view, _html} = live(conn, "/securities/#{security.id}")
+    {:ok, view, html} = live(conn, "/securities/#{security.id}")
+
+    assert html =~ ~r/<th scope="row">Name<\/th>/
+    assert html =~ ~r/<th scope="row">Symbol<\/th>/
 
     assert has_element?(view, "#security-detail-title", "Synthetic ETF (SYN)")
     assert has_element?(view, "#security-master-data", "Synthetic ETF")

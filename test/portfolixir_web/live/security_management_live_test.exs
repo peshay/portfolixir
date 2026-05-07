@@ -97,7 +97,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
                exchange_code: "XNYS"
              })
 
-    {:ok, view, _html} = live(conn, "/securities")
+    {:ok, view, html} = live(conn, "/securities")
 
     assert has_element?(
              view,
@@ -105,8 +105,17 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "Securities workbench table with identifiers, valuation, status, and row actions."
            )
 
+    assert html =~
+             ~r/<th scope="col" id="security-column-header-name" data-column-key="name">Name<\/th>/
+
+    assert html =~
+             ~r/<th scope="row" data-column-key="name"><strong>Synthetic ETF<\/strong><\/th>/
+
+    assert has_element?(view, "#security-list th[data-column-key='name']")
+    refute has_element?(view, "#security-list td[data-column-key='name']")
+
     for key <-
-          ~w(name symbol currency isin wkn latest_quote latest_quote_date position_quantity provider_symbol exchange status actions) do
+          ~w(symbol currency isin wkn latest_quote latest_quote_date position_quantity provider_symbol exchange status actions) do
       assert has_element?(view, "#security-list th[data-column-key='#{key}']")
       assert has_element?(view, "#security-list td[data-column-key='#{key}']")
     end
