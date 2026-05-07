@@ -44,6 +44,39 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
     assert has_element?(view, "#payments-empty-state", "No dividend payments yet")
   end
 
+  test "group controls expose deterministic accessible relationship for grouping selector", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/reports/payments")
+
+    assert has_element?(
+             view,
+             "#payments-group-controls[role='group'][aria-labelledby='payments-group-controls-label'][aria-describedby='payments-group-controls-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-group-controls-label.app-shell-visually-hidden",
+             "Payments grouping controls"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-group-controls-description.app-shell-visually-hidden",
+             "Choose how to group dividend payment rows in this report."
+           )
+
+    assert has_element?(
+             view,
+             "#payments-group-form[aria-labelledby='payments-group-controls-label'][aria-describedby='payments-group-controls-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-group-mode[aria-describedby='payments-group-controls-description']"
+           )
+  end
+
   test "shows only dividend transactions in list mode", %{
     conn: conn,
     portfolio: portfolio,
