@@ -68,6 +68,29 @@ defmodule PortfolixirWeb.ImportConflictQueueLiveTest do
 
     assert has_element?(view, "#import-conflicts-open-table")
     assert has_element?(view, "#import-conflicts-resolved-table")
+
+    assert has_element?(
+             view,
+             "#import-conflicts-open-table[aria-describedby='import-conflicts-open-table-caption']"
+           )
+
+    assert has_element?(
+             view,
+             "#import-conflicts-open-table-caption.app-shell-visually-hidden",
+             "Open import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+           )
+
+    assert has_element?(
+             view,
+             "#import-conflicts-resolved-table[aria-describedby='import-conflicts-resolved-table-caption']"
+           )
+
+    assert has_element?(
+             view,
+             "#import-conflicts-resolved-table-caption.app-shell-visually-hidden",
+             "Resolved import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+           )
+
     assert has_element?(view, "#import-conflict-open-row-#{open_newer.id}")
     assert has_element?(view, "#import-conflict-open-row-#{open_older.id}")
     assert has_element?(view, "#import-conflict-resolved-row-#{resolved_newer.id}")
