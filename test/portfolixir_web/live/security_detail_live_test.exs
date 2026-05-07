@@ -486,6 +486,7 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     assert has_element?(view, "#security-price-chart-title", "Price chart")
     assert has_element?(view, "#security-price-chart-svg")
+    assert has_element?(view, "#security-price-range-all[aria-pressed=\"true\"]")
     assert has_element?(view, "#security-price-chart-series", "2025-01-15")
     assert has_element?(view, "#security-price-chart-series", "2025-12-10")
 
@@ -493,6 +494,8 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     |> element("#security-price-range-1m")
     |> render_click()
 
+    assert has_element?(view, "#security-price-range-1m[aria-pressed=\"true\"]")
+    assert has_element?(view, "#security-price-range-all[aria-pressed=\"false\"]")
     refute has_element?(view, "#security-price-chart-series", "2025-01-15")
     assert has_element?(view, "#security-price-chart-series", "2025-12-10")
   end
@@ -637,6 +640,8 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
       |> element(selector)
       |> render_click()
 
+      assert has_element?(view, "#{selector}[aria-pressed=\"true\"]")
+      assert has_element?(view, "#security-price-range-1m[aria-pressed=\"false\"]")
       assert has_element?(view, "#security-price-chart-series")
     end
   end

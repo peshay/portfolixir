@@ -305,12 +305,12 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             </div>
 
             <div class="app-shell-toolbar" role="group" aria-label={gettext("Quote range") }>
-              <button id="security-price-range-1m" type="button" phx-click="set_quote_range" phx-value-range="1M">1M</button>
-              <button id="security-price-range-3m" type="button" phx-click="set_quote_range" phx-value-range="3M">3M</button>
-              <button id="security-price-range-6m" type="button" phx-click="set_quote_range" phx-value-range="6M">6M</button>
-              <button id="security-price-range-1y" type="button" phx-click="set_quote_range" phx-value-range="1Y">1Y</button>
-              <button id="security-price-range-ytd" type="button" phx-click="set_quote_range" phx-value-range="YTD">YTD</button>
-              <button id="security-price-range-all" type="button" phx-click="set_quote_range" phx-value-range="ALL">ALL</button>
+              <button id="security-price-range-1m" type="button" phx-click="set_quote_range" phx-value-range="1M" aria-pressed={to_string(@quote_range == "1M")}>1M</button>
+              <button id="security-price-range-3m" type="button" phx-click="set_quote_range" phx-value-range="3M" aria-pressed={to_string(@quote_range == "3M")}>3M</button>
+              <button id="security-price-range-6m" type="button" phx-click="set_quote_range" phx-value-range="6M" aria-pressed={to_string(@quote_range == "6M")}>6M</button>
+              <button id="security-price-range-1y" type="button" phx-click="set_quote_range" phx-value-range="1Y" aria-pressed={to_string(@quote_range == "1Y")}>1Y</button>
+              <button id="security-price-range-ytd" type="button" phx-click="set_quote_range" phx-value-range="YTD" aria-pressed={to_string(@quote_range == "YTD")}>YTD</button>
+              <button id="security-price-range-all" type="button" phx-click="set_quote_range" phx-value-range="ALL" aria-pressed={to_string(@quote_range == "ALL")}>ALL</button>
             </div>
 
             <%= if Enum.empty?(@quote_series) do %>
