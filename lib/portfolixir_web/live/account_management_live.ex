@@ -262,7 +262,10 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 <div id="missing-cash-impacts" class="app-shell-alert app-shell-alert--warning" role="alert">
                   <strong><%= gettext("Missing cash impact") %></strong>
                   <div class="app-shell-table-wrapper">
-                    <table>
+                    <table id="missing-cash-impacts-table">
+                      <caption id="missing-cash-impacts-table-caption" class="app-shell-visually-hidden">
+                        <%= gettext("Transactions missing a reference deposit account cash impact.") %>
+                      </caption>
                       <thead>
                         <tr>
                           <th scope="col"><%= gettext("Transaction") %></th>
