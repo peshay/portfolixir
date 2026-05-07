@@ -147,7 +147,10 @@ defmodule PortfolixirWeb.PaymentsReportLive do
 
           <section id="payments-accumulation-table" class="app-shell-section-card">
             <div class="app-shell-table-wrapper">
-              <table>
+              <table aria-describedby="payments-accumulation-chart-intro">
+                <caption id="payments-accumulation-table-caption" class="app-shell-visually-hidden">
+                  <%= gettext("Monthly dividend accumulation table with month, currency, monthly dividends, and accumulated dividends.") %>
+                </caption>
                 <thead>
                   <tr>
                     <th scope="col"><%= gettext("Month") %></th>

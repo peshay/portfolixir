@@ -227,6 +227,17 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
              "Monthly cumulative progression based on recorded dividend transactions."
            )
 
+    assert has_element?(
+             view,
+             "#payments-accumulation-table table[aria-describedby='payments-accumulation-chart-intro']"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-accumulation-table-caption.app-shell-visually-hidden",
+             "Monthly dividend accumulation table with month, currency, monthly dividends, and accumulated dividends."
+           )
+
     assert has_element?(view, "#payments-accumulation-row-eur-2026-01", "12.5")
     assert has_element?(view, "#payments-accumulation-row-eur-2026-02", "15.0")
     assert has_element?(view, "#payments-yearly-comparison", "Yearly comparison")
