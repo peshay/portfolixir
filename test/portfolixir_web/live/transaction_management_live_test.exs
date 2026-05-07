@@ -60,6 +60,13 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert has_element?(view, "#ledger-kpis .app-shell-stat-card", "Positions")
     assert has_element?(view, "#positions[data-priority='secondary']")
     assert has_element?(view, "#transaction-form-panel[data-priority='secondary']")
+
+    assert has_element?(
+             view,
+             "#transaction-form-panel[aria-labelledby='transaction-form-panel-title']"
+           )
+
+    assert has_element?(view, "#transaction-form-panel-title", "Add transaction")
     assert has_element?(view, "#transaction-form")
   end
 
