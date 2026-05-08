@@ -806,13 +806,19 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           </section>
         <% end %>
 
-        <section id="security-csv-preview" class="app-shell-section-card" data-priority="secondary">
+        <section
+          id="security-csv-preview"
+          class="app-shell-section-card"
+          data-priority="secondary"
+          aria-labelledby="security-csv-preview-title"
+          aria-describedby="security-csv-preview-description security-csv-preview-status"
+        >
           <div class="app-shell-section-header">
             <div>
-              <h2 class="app-shell-section-title">
+              <h2 id="security-csv-preview-title" class="app-shell-section-title">
                 <%= gettext("Import CSV preview") %>
               </h2>
-              <p class="app-shell-panel-intro">
+              <p id="security-csv-preview-description" class="app-shell-panel-intro">
                 <%= gettext("Paste security CSV data to validate rows before import.") %>
               </p>
             </div>
@@ -828,7 +834,30 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </p>
           <% end %>
 
-          <form id="security-csv-preview-form" class="app-shell-form-grid" phx-submit="preview_security_csv">
+          <p
+            id="security-csv-preview-status"
+            class="app-shell-visually-hidden"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-labelledby="security-csv-preview-status-title"
+            aria-describedby="security-csv-preview-status-description"
+          >
+            <span id="security-csv-preview-status-title">
+              <%= security_csv_preview_status_title(@security_csv_preview_rows, @security_csv_error) %>
+            </span>
+            <span id="security-csv-preview-status-description">
+              <%= security_csv_preview_status_description(@security_csv_preview_rows, @security_csv_error) %>
+            </span>
+          </p>
+
+          <form
+            id="security-csv-preview-form"
+            class="app-shell-form-grid"
+            phx-submit="preview_security_csv"
+            aria-labelledby="security-csv-preview-title"
+            aria-describedby={security_csv_preview_description_ids(@security_csv_preview_rows, @security_csv_error)}
+          >
             <div class="app-shell-field app-shell-field--full">
               <label for="security-csv-text"><%= gettext("CSV content") %></label>
               <textarea
@@ -1198,6 +1227,17 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       "security-create-intro",
       security_success && "security-form-success",
       security_error && "security-form-error"
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp security_csv_preview_description_ids(security_csv_preview_rows, security_csv_error) do
+    [
+      "security-csv-preview-description",
+      "security-csv-preview-status",
+      security_csv_preview_rows && "security-csv-preview-table-caption",
+      security_csv_error && "security-csv-error"
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
@@ -1619,6 +1659,22 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp security_csv_preview_status(:valid), do: gettext("valid")
   defp security_csv_preview_status(:invalid), do: gettext("invalid")
   defp security_csv_preview_status(_), do: gettext("invalid")
+
+  defp security_csv_preview_status_title(security_csv_preview_rows, security_csv_error) do
+    cond do
+      security_csv_error -> gettext("CSV preview unavailable")
+      security_csv_preview_rows -> gettext("CSV preview ready")
+      true -> gettext("CSV preview pending")
+    end
+  end
+
+  defp security_csv_preview_status_description(security_csv_preview_rows, security_csv_error) do
+    cond do
+      security_csv_error -> gettext("Resolve the CSV validation error and preview again.")
+      security_csv_preview_rows -> gettext("Preview rows are available in the table below.")
+      true -> gettext("Submit CSV content to generate a validation preview.")
+    end
+  end
 
   defp security_csv_preview_active(true), do: gettext("Active")
   defp security_csv_preview_active(false), do: gettext("Inactive")
