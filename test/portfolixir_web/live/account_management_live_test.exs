@@ -553,7 +553,34 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert html =~ "Securities accounts"
   end
 
-  test "portfolio validation errors render as alerts", %{conn: conn} do
+  test "portfolio form success feedback is referenced from a stable form description", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(view, "#portfolio-form[aria-describedby='portfolio-form-intro']")
+
+    html =
+      view
+      |> form("#portfolio-form", %{
+        "portfolio" => %{
+          "name" => "Long Term",
+          "base_currency_code" => "EUR",
+          "description" => "Synthetic planning portfolio"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Portfolio created."
+    assert has_element?(view, "#portfolio-form-success[role='status'][aria-live='polite']")
+
+    assert has_element?(
+             view,
+             "#portfolio-form[aria-describedby='portfolio-form-intro portfolio-form-success']"
+           )
+  end
+
+  test "portfolio form error alert is referenced from a stable form description", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/accounts")
 
     html =
@@ -569,6 +596,11 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
 
     assert html =~ "id=\"portfolio-form-error\""
     assert has_element?(view, "#portfolio-form-error[role='alert']")
+
+    assert has_element?(
+             view,
+             "#portfolio-form[aria-describedby='portfolio-form-intro portfolio-form-error']"
+           )
   end
 
   test "creates a deposit account for the current portfolio", %{conn: conn} do
