@@ -137,6 +137,42 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     end
   end
 
+  test "security table keeps caption and status relationships across table rerenders", %{
+    conn: conn
+  } do
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Alpha Search Target",
+               symbol: "AST",
+               currency_code: "EUR",
+               active: true
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Beta Search Target",
+               symbol: "BST",
+               currency_code: "EUR",
+               active: false
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert_security_table_accessibility_relationship(view)
+
+    view |> element("#security-filter-all") |> render_click()
+    assert_security_table_accessibility_relationship(view)
+
+    view
+    |> element("#security-search-form")
+    |> render_change(%{"q" => "Beta"})
+
+    assert_security_table_accessibility_relationship(view)
+
+    view |> element("#security-filter-inactive") |> render_click()
+    assert_security_table_accessibility_relationship(view)
+  end
+
   test "security row actions expose row-specific accessible names", %{conn: conn} do
     assert {:ok, alpha_security} =
              Catalog.create_security(%{
@@ -2256,6 +2292,19 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              view,
              "#security-results-status[role='status'][aria-live='polite'][aria-atomic='true']",
              expected_text
+           )
+  end
+
+  defp assert_security_table_accessibility_relationship(view) do
+    assert has_element?(
+             view,
+             "#security-list[aria-describedby='security-list-caption security-results-status']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list #security-list-caption.app-shell-visually-hidden",
+             "Securities workbench table with identifiers, valuation, status, and row actions."
            )
   end
 end

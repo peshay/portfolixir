@@ -182,7 +182,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           </p>
 
           <p
-            id="security-results-status"
+            id={security_results_status_id()}
             class="app-shell-visually-hidden"
             role="status"
             aria-live="polite"
@@ -245,7 +245,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               role="status"
               aria-live="polite"
               aria-labelledby="no-securities-title"
-              aria-describedby="no-securities-description security-results-status"
+              aria-describedby={no_securities_description_ids()}
             >
               <h3 id="no-securities-title">
                 <%= security_filter_empty_title(@security_status_filter, @security_total_count) %>
@@ -256,8 +256,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
-              <table id="security-list" aria-describedby="security-list-caption security-results-status">
-                <caption id="security-list-caption" class="app-shell-visually-hidden">
+              <table id="security-list" aria-describedby={security_list_described_by_ids()}>
+                <caption id={security_list_caption_id()} class="app-shell-visually-hidden">
                   <%= gettext("Securities workbench table with identifiers, valuation, status, and row actions.") %>
                 </caption>
                 <thead>
@@ -1226,6 +1226,20 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   end
 
   defp security_column_header_id(key), do: "security-column-header-#{key}"
+
+  defp security_list_caption_id, do: "security-list-caption"
+
+  defp security_results_status_id, do: "security-results-status"
+
+  defp security_list_described_by_ids do
+    [security_list_caption_id(), security_results_status_id()]
+    |> Enum.join(" ")
+  end
+
+  defp no_securities_description_ids do
+    ["no-securities-description", security_results_status_id()]
+    |> Enum.join(" ")
+  end
 
   defp security_form_description_ids(security_success, security_error) do
     [
