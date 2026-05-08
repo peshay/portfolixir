@@ -135,9 +135,18 @@ defmodule PortfolixirWeb.CategoryManagementLive do
           </form>
 
           <%= if Enum.empty?(@taxonomies) do %>
-            <div id="no-taxonomies" class="app-shell-empty-state">
-              <h3><%= gettext("No taxonomies yet") %></h3>
-              <p><%= gettext("Create a taxonomy before adding categories.") %></p>
+            <div
+              id="no-taxonomies"
+              class="app-shell-empty-state"
+              role="status"
+              aria-live="polite"
+              aria-labelledby="no-taxonomies-heading"
+              aria-describedby="no-taxonomies-description"
+            >
+              <h3 id="no-taxonomies-heading"><%= gettext("No taxonomies yet") %></h3>
+              <p id="no-taxonomies-description">
+                <%= gettext("Create a taxonomy before adding categories.") %>
+              </p>
             </div>
           <% else %>
             <ul id="taxonomy-list" class="app-shell-list">
