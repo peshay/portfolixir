@@ -255,9 +255,15 @@ defmodule PortfolixirWeb.DashboardLive do
         aria-labelledby="dashboard-chart-placeholder-title"
         aria-describedby="dashboard-chart-placeholder-description"
       >
+        <span id="dashboard-chart-placeholder-title" class="app-shell-visually-hidden">
+          <%= gettext("Portfolio value chart") %>
+        </span>
+        <span id="dashboard-chart-placeholder-description" class="app-shell-visually-hidden">
+          <%= gettext("Portfolio value chart will appear here once valuations are available.") %>
+        </span>
         <p class="app-shell-page-kicker"><%= gettext("Portfolio analytics") %></p>
-        <h2 id="dashboard-chart-placeholder-title"><%= gettext("Portfolio value chart") %></h2>
-        <p id="dashboard-chart-placeholder-description">
+        <h2><%= gettext("Portfolio value chart") %></h2>
+        <p>
           <%= gettext("Portfolio value chart will appear here once valuations are available.") %>
         </p>
       </section>
