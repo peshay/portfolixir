@@ -195,6 +195,40 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLiveTest do
     assert has_element?(view, "#factsheet-summary-skipped-items", "2")
   end
 
+  test "confirm form references stable feedback ids and keeps confirm errors as alert", %{
+    conn: conn
+  } do
+    security = create_security("FACTSHEET-REVIEW-CONFIRM-ERROR")
+
+    assert {:ok, :created, fund_document} =
+             FactsheetDocuments.register_factsheet(
+               security.id,
+               "factsheet.pdf",
+               "application/pdf",
+               "PDF-LIKE\nFACTSHEET_TEXT:#{@single_region_text}\nEOF"
+             )
+
+    {:ok, view, _html} = live(conn, "/fund-documents/#{fund_document.id}/allocations/review")
+
+    assert has_element?(
+             view,
+             "#factsheet-review-confirm-form[aria-describedby='factsheet-review-confirm-feedback-context']"
+           )
+
+    Repo.delete!(fund_document)
+
+    view
+    |> element("#factsheet-review-confirm-form")
+    |> render_submit()
+
+    assert has_element?(view, "#factsheet-review-confirm-error[role='alert']")
+
+    assert has_element?(
+             view,
+             "#factsheet-review-confirm-form[aria-describedby='factsheet-review-confirm-feedback-context factsheet-review-confirm-error']"
+           )
+  end
+
   test "unknown fund document id shows accessible not found state", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/fund-documents/9999999/allocations/review")
 
