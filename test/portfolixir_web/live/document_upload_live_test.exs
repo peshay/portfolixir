@@ -389,12 +389,12 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
     assert Repo.aggregate(FundDocument, :count, :id) == 0
   end
 
-  test "no-securities state instructs to create a security first", %{conn: conn} do
-    {:ok, view, html} = live(conn, "/documents/new")
+  test "no-securities state exposes deterministic accessible title and description", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/documents/new")
 
     assert has_element?(
              view,
-             "#document-upload-empty-state[role=\"status\"][aria-live=\"polite\"][aria-labelledby=\"document-upload-empty-state-title\"][aria-describedby=\"document-upload-empty-state-description\"]"
+             "#document-upload-empty-state[aria-labelledby=\"document-upload-empty-state-title\"][aria-describedby=\"document-upload-empty-state-description\"]"
            )
 
     assert has_element?(view, "#document-upload-empty-state-title", "No securities yet")
@@ -403,6 +403,15 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
              view,
              "#document-upload-empty-state-description",
              "Create a security first to attach factsheets."
+           )
+  end
+
+  test "no-securities state instructs to create a security first", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/documents/new")
+
+    assert has_element?(
+             view,
+             "#document-upload-empty-state[role=\"status\"][aria-live=\"polite\"]"
            )
 
     assert has_element?(view, "#document-upload-empty-state a[href=\"/securities\"]")

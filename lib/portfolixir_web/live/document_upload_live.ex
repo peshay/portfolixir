@@ -9,6 +9,10 @@ defmodule PortfolixirWeb.DocumentUploadLive do
   @fallback_filename "factsheet.pdf"
   @fallback_content_type "application/pdf"
 
+  @document_upload_empty_state_id "document-upload-empty-state"
+  @document_upload_empty_state_title_id "#{@document_upload_empty_state_id}-title"
+  @document_upload_empty_state_description_id "#{@document_upload_empty_state_id}-description"
+
   @impl true
   def mount(_params, _session, socket) do
     socket =
@@ -88,15 +92,15 @@ defmodule PortfolixirWeb.DocumentUploadLive do
 
           <%= if Enum.empty?(@securities) do %>
             <div
-              id="document-upload-empty-state"
+              id={document_upload_empty_state_id()}
               class="app-shell-empty-state"
               role="status"
               aria-live="polite"
-              aria-labelledby="document-upload-empty-state-title"
-              aria-describedby="document-upload-empty-state-description"
+              aria-labelledby={document_upload_empty_state_title_id()}
+              aria-describedby={document_upload_empty_state_description_id()}
             >
-              <h3 id="document-upload-empty-state-title"><%= gettext("No securities yet") %></h3>
-              <p id="document-upload-empty-state-description">
+              <h3 id={document_upload_empty_state_title_id()}><%= gettext("No securities yet") %></h3>
+              <p id={document_upload_empty_state_description_id()}>
                 <%= gettext("Create a security first to attach factsheets.") %>
               </p>
               <p><a href="/securities"><%= gettext("Create your first security") %></a></p>
@@ -364,6 +368,10 @@ defmodule PortfolixirWeb.DocumentUploadLive do
     |> Enum.with_index(1)
     |> Enum.map(fn {_error, index} -> "document-upload-upload-error-#{index}" end)
   end
+
+  defp document_upload_empty_state_id, do: @document_upload_empty_state_id
+  defp document_upload_empty_state_title_id, do: @document_upload_empty_state_title_id
+  defp document_upload_empty_state_description_id, do: @document_upload_empty_state_description_id
 
   defp review_path(fund_document_id) when is_integer(fund_document_id),
     do: "/fund-documents/#{fund_document_id}/allocations/review"
