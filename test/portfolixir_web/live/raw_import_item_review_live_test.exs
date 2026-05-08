@@ -49,16 +49,38 @@ defmodule PortfolixirWeb.RawImportItemReviewLiveTest do
     refute html =~ "record_type: transaction"
   end
 
-  test "review page shows explicit not found for unknown raw item", %{conn: conn} do
+  test "review page shows accessible not found state for unknown raw item", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/imports/raw-items/999999/review")
 
-    assert has_element?(view, "#raw-import-item-not-found", "Raw import item not found")
+    assert has_element?(
+             view,
+             "#raw-import-item-not-found[role='status'][aria-labelledby='raw-import-item-not-found-title'][aria-describedby='raw-import-item-not-found-description']"
+           )
+
+    assert has_element?(view, "#raw-import-item-not-found-title", "Raw import item not found")
+
+    assert has_element?(
+             view,
+             "#raw-import-item-not-found-description",
+             "The requested raw import item does not exist."
+           )
   end
 
-  test "review page shows explicit not found for invalid raw item id", %{conn: conn} do
+  test "review page shows accessible not found state for invalid raw item id", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/imports/raw-items/not-a-number/review")
 
-    assert has_element?(view, "#raw-import-item-not-found", "Raw import item not found")
+    assert has_element?(
+             view,
+             "#raw-import-item-not-found[role='status'][aria-labelledby='raw-import-item-not-found-title'][aria-describedby='raw-import-item-not-found-description']"
+           )
+
+    assert has_element?(view, "#raw-import-item-not-found-title", "Raw import item not found")
+
+    assert has_element?(
+             view,
+             "#raw-import-item-not-found-description",
+             "The requested raw import item does not exist."
+           )
   end
 
   test "review page summarizes mixed payload value types", %{conn: conn} do
