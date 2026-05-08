@@ -141,7 +141,7 @@ defmodule PortfolixirWeb.RawImportItemReviewLiveTest do
 
     assert has_element?(
              view,
-             "#raw-import-item-payload-preview [role='status'][aria-labelledby='raw-import-item-payload-preview-title'][aria-describedby='raw-import-item-payload-preview-no-preview-description']"
+             "#raw-import-item-payload-preview-no-preview-status[role='status'][aria-labelledby='raw-import-item-payload-preview-title'][aria-describedby='raw-import-item-payload-preview-no-preview-description']"
            )
 
     assert has_element?(

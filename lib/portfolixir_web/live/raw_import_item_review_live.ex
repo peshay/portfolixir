@@ -56,6 +56,7 @@ defmodule PortfolixirWeb.RawImportItemReviewLive do
               <pre><%= safe_payload_preview(@raw_item.payload) %></pre>
             <% else %>
               <div
+                id="raw-import-item-payload-preview-no-preview-status"
                 role="status"
                 aria-labelledby="raw-import-item-payload-preview-title"
                 aria-describedby="raw-import-item-payload-preview-no-preview-description"
