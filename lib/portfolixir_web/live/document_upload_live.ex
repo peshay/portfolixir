@@ -100,7 +100,8 @@ defmodule PortfolixirWeb.DocumentUploadLive do
             <div
               id="document-upload-empty-state"
               class="app-shell-empty-state"
-              role="region"
+              role="status"
+              aria-live="polite"
               aria-labelledby="document-upload-empty-state-title"
               aria-describedby="document-upload-empty-state-description"
             >

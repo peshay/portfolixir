@@ -366,7 +366,7 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
 
     assert has_element?(
              view,
-             "#document-upload-empty-state[role=\"region\"][aria-labelledby=\"document-upload-empty-state-title\"][aria-describedby=\"document-upload-empty-state-description\"]"
+             "#document-upload-empty-state[role=\"status\"][aria-live=\"polite\"][aria-labelledby=\"document-upload-empty-state-title\"][aria-describedby=\"document-upload-empty-state-description\"]"
            )
 
     assert has_element?(view, "#document-upload-empty-state-title", "No securities yet")
