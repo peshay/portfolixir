@@ -29,14 +29,26 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
 
     assert has_element?(
              view,
-             "#import-sources-empty-state[role='status'][aria-live='polite'][aria-labelledby='import-sources-empty-state-title'][aria-describedby='import-sources-empty-state-description']"
+             "#import-sources-empty-state[role='status'][aria-live='polite'][aria-labelledby='import-sources-empty-state-a11y-title'][aria-describedby='import-sources-empty-state-a11y-description']"
            )
-
-    assert has_element?(view, "#import-sources-empty-state-title", "No import sources yet")
 
     assert has_element?(
              view,
-             "#import-sources-empty-state-description",
+             "#import-sources-empty-state-a11y-title.app-shell-visually-hidden",
+             "No import sources yet"
+           )
+
+    assert has_element?(
+             view,
+             "#import-sources-empty-state-a11y-description.app-shell-visually-hidden",
+             "Create or register import sources to see them here."
+           )
+
+    assert has_element?(view, "#import-sources-empty-state h3", "No import sources yet")
+
+    assert has_element?(
+             view,
+             "#import-sources-empty-state p",
              "Create or register import sources to see them here."
            )
   end
