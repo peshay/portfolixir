@@ -85,13 +85,25 @@ defmodule PortfolixirWeb.DashboardLiveTest do
 
     assert has_element?(
              view,
-             "#dashboard-recent-import-runs-empty-state-title",
+             "#dashboard-recent-import-runs-empty-state-title.app-shell-visually-hidden",
              "No import runs yet"
            )
 
     assert has_element?(
              view,
-             "#dashboard-recent-import-runs-empty-state-description",
+             "#dashboard-recent-import-runs-empty-state-description.app-shell-visually-hidden",
+             "Run imports to build recent activity here."
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-import-runs-empty-state h3",
+             "No import runs yet"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-import-runs-empty-state > p",
              "Run imports to build recent activity here."
            )
   end
