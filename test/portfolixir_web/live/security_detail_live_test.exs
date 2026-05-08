@@ -488,14 +488,18 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
 
-    assert has_element?(view, "#security-fund-documents-empty-state")
+    assert has_element?(
+             view,
+             "#security-fund-documents-empty-state[role='status'][aria-live='polite'][aria-labelledby='security-fund-documents-empty-state-title'][aria-describedby='security-fund-documents-empty-state-description']"
+           )
 
     assert has_element?(
              view,
-             "#security-fund-documents-empty-state",
+             "#security-fund-documents-empty-state-title",
              "No factsheets attached yet."
            )
 
+    assert has_element?(view, "#security-fund-documents-empty-state-description")
     assert has_element?(view, "#security-fund-documents-empty-state a[href=\"/documents/new\"]")
   end
 
