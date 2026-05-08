@@ -917,7 +917,18 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
 
     {:ok, view, html} = live(conn, "/accounts")
 
-    assert has_element?(view, "#missing-cash-impacts")
+    assert has_element?(
+             view,
+             "#missing-cash-impacts[role='alert'][aria-labelledby='missing-cash-impacts-title'][aria-describedby='missing-cash-impacts-description']"
+           )
+
+    assert has_element?(view, "#missing-cash-impacts-title", "Missing cash impact")
+
+    assert has_element?(
+             view,
+             "#missing-cash-impacts-description.app-shell-visually-hidden",
+             "Transactions missing a reference deposit account cash impact."
+           )
 
     assert has_element?(
              view,
