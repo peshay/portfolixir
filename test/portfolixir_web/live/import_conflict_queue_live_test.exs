@@ -86,7 +86,7 @@ defmodule PortfolixirWeb.ImportConflictQueueLiveTest do
 
     assert has_element?(
              view,
-             "#import-conflicts-resolved-empty-state-description",
+             "#import-conflicts-resolved-empty-state #import-conflicts-resolved-empty-state-description.app-shell-visually-hidden",
              "Historical conflicts that were already resolved."
            )
   end
