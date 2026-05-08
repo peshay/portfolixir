@@ -147,6 +147,23 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
            )
   end
 
+  test "positions empty state has deterministic accessible status semantics", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert has_element?(
+             view,
+             "#no-positions[role='status'][aria-live='polite'][aria-labelledby='no-positions-title'][aria-describedby='no-positions-description']"
+           )
+
+    assert has_element?(view, "#no-positions-title", "No positions yet")
+
+    assert has_element?(
+             view,
+             "#no-positions-description",
+             "Positions are derived from buy and sell transactions."
+           )
+  end
+
   test "shows a current portfolio selector for multiple portfolios", %{
     conn: conn,
     portfolio: portfolio

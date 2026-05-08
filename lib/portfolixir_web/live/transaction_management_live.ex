@@ -189,9 +189,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               </div>
 
               <%= if Enum.empty?(@position_rows) do %>
-                <div id="no-positions" class="app-shell-empty-state">
-                  <h3><%= gettext("No positions yet") %></h3>
-                  <p><%= gettext("Positions are derived from buy and sell transactions.") %></p>
+                <div
+                  id="no-positions"
+                  class="app-shell-empty-state"
+                  role="status"
+                  aria-live="polite"
+                  aria-labelledby="no-positions-title"
+                  aria-describedby="no-positions-description"
+                >
+                  <h3 id="no-positions-title"><%= gettext("No positions yet") %></h3>
+                  <p id="no-positions-description"><%= gettext("Positions are derived from buy and sell transactions.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
