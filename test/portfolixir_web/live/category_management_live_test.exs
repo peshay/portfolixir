@@ -136,6 +136,27 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert html =~ "Top level allocation groups"
   end
 
+  test "taxonomy create errors are referenced from the taxonomy form", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/taxonomies")
+
+    assert has_element?(view, "#taxonomy-form[aria-describedby='taxonomy-feedback-context']")
+
+    html =
+      view
+      |> form("#taxonomy-form", %{
+        "taxonomy" => %{"name" => "", "description" => "Top level allocation groups"}
+      })
+      |> render_submit()
+
+    assert html =~ "taxonomy-form-error"
+    assert has_element?(view, "#taxonomy-form-error[role='alert']")
+
+    assert has_element?(
+             view,
+             "#taxonomy-form[aria-describedby='taxonomy-feedback-context taxonomy-form-error']"
+           )
+  end
+
   test "German UI can create Portfolio Performance classification presets idempotently", %{
     conn: conn
   } do
@@ -151,6 +172,11 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
              "Portfolio-Performance-Vorlagen anlegen"
            )
 
+    assert has_element?(
+             view,
+             "#portfolio-performance-presets[aria-describedby='taxonomy-feedback-context']"
+           )
+
     html = view |> element("#portfolio-performance-presets") |> render_click()
 
     assert html =~ "Strategien"
@@ -161,6 +187,16 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     html = view |> element("#portfolio-performance-presets") |> render_click()
 
     assert html =~ "Portfolio-Performance-Vorlagen sind vorhanden."
+
+    assert has_element?(
+             view,
+             "#portfolio-performance-presets-success[role='status'][aria-live='polite']"
+           )
+
+    assert has_element?(
+             view,
+             "#portfolio-performance-presets[aria-describedby='taxonomy-feedback-context portfolio-performance-presets-success']"
+           )
 
     assert Taxonomies.list_taxonomies() |> Enum.filter(&(&1.name == "Strategien")) |> length() ==
              1

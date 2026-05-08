@@ -83,7 +83,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
           <div class="app-shell-section-header">
             <div>
               <h2 class="app-shell-section-title"><%= gettext("Taxonomy tree") %></h2>
-              <p><%= gettext("Each taxonomy is a classification system with its own category tree.") %></p>
+              <p id="taxonomy-feedback-context"><%= gettext("Each taxonomy is a classification system with its own category tree.") %></p>
             </div>
             <span class="app-shell-badge app-shell-badge--accent">
               <%= ngettext("%{count} total", "%{count} total", Enum.count(@taxonomies), count: Enum.count(@taxonomies)) %>
@@ -96,6 +96,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
               type="button"
               class="app-shell-secondary"
               phx-click="create_portfolio_performance_presets"
+              aria-describedby={taxonomy_preset_button_description_ids(@preset_success)}
             >
               <%= gettext("Create Portfolio Performance presets") %>
             </button>
@@ -118,7 +119,12 @@ defmodule PortfolixirWeb.CategoryManagementLive do
             </p>
           <% end %>
 
-          <form id="taxonomy-form" class="app-shell-form-grid" phx-submit="create_taxonomy">
+          <form
+            id="taxonomy-form"
+            class="app-shell-form-grid"
+            phx-submit="create_taxonomy"
+            aria-describedby={taxonomy_form_description_ids(@taxonomy_error)}
+          >
             <div class="app-shell-field app-shell-field--full">
               <label for="taxonomy-name"><%= gettext("Name") %></label>
               <input id="taxonomy-name" name="taxonomy[name]" value={@taxonomy_form["name"]} />
@@ -646,6 +652,24 @@ defmodule PortfolixirWeb.CategoryManagementLive do
 
   defp fallback_selected_taxonomy_id(taxonomies) do
     taxonomies |> Enum.min_by(& &1.inserted_at) |> Map.get(:id)
+  end
+
+  defp taxonomy_preset_button_description_ids(preset_success) do
+    [
+      "taxonomy-feedback-context",
+      if(preset_success, do: "portfolio-performance-presets-success")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp taxonomy_form_description_ids(taxonomy_error) do
+    [
+      "taxonomy-feedback-context",
+      if(taxonomy_error, do: "taxonomy-form-error")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
   end
 
   defp sanitize_params(params) when is_map(params) do
