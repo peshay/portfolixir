@@ -87,6 +87,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         >
           <WorkbenchToolbar.toolbar
             id="security-workbench-toolbar"
+            title_id="security-workbench-toolbar-title"
+            description_id="security-workbench-toolbar-description"
             title={gettext("Securities")}
             description={gettext("Core identifiers used by the ledger and valuation workspaces.")}
             search_id="security-workbench-search"
