@@ -97,9 +97,17 @@ defmodule PortfolixirWeb.DocumentUploadLive do
           <% end %>
 
           <%= if Enum.empty?(@securities) do %>
-            <div id="document-upload-empty-state" class="app-shell-empty-state">
-              <h3><%= gettext("No securities yet") %></h3>
-              <p><%= gettext("Create a security first to attach factsheets.") %></p>
+            <div
+              id="document-upload-empty-state"
+              class="app-shell-empty-state"
+              role="region"
+              aria-labelledby="document-upload-empty-state-title"
+              aria-describedby="document-upload-empty-state-description"
+            >
+              <h3 id="document-upload-empty-state-title"><%= gettext("No securities yet") %></h3>
+              <p id="document-upload-empty-state-description">
+                <%= gettext("Create a security first to attach factsheets.") %>
+              </p>
               <p><a href="/securities"><%= gettext("Create your first security") %></a></p>
             </div>
           <% else %>
