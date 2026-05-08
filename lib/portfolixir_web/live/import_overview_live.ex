@@ -139,9 +139,16 @@ defmodule PortfolixirWeb.ImportOverviewLive do
         </div>
 
         <%= if Enum.empty?(@recent_raw_import_items) do %>
-          <div id="import-raw-items-empty-state" class="app-shell-empty-state">
-            <h3><%= gettext("No raw import items yet") %></h3>
-            <p><%= gettext("Raw items will appear here after intake.") %></p>
+          <div
+            id="import-raw-items-empty-state"
+            class="app-shell-empty-state"
+            role="status"
+            aria-live="polite"
+            aria-labelledby="import-raw-items-empty-state-title"
+            aria-describedby="import-raw-items-empty-state-description"
+          >
+            <h3 id="import-raw-items-empty-state-title"><%= gettext("No raw import items yet") %></h3>
+            <p id="import-raw-items-empty-state-description"><%= gettext("Raw items will appear here after intake.") %></p>
           </div>
         <% else %>
           <div class="app-shell-table-wrapper">

@@ -24,6 +24,23 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
     assert html =~ "/imports"
   end
 
+  test "raw import items empty state has deterministic accessible status semantics", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+
+    assert has_element?(
+             view,
+             "#import-raw-items-empty-state[role='status'][aria-live='polite'][aria-labelledby='import-raw-items-empty-state-title'][aria-describedby='import-raw-items-empty-state-description']"
+           )
+
+    assert has_element?(view, "#import-raw-items-empty-state-title", "No raw import items yet")
+
+    assert has_element?(
+             view,
+             "#import-raw-items-empty-state-description",
+             "Raw items will appear here after intake."
+           )
+  end
+
   test "imports sidebar item links to /imports", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
