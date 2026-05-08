@@ -516,7 +516,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
               <div class="app-shell-section-header">
                 <div>
                   <h2 class="app-shell-section-title"><%= gettext("Add securities account") %></h2>
-                  <p class="app-shell-panel-intro"><%= gettext("Link a reference deposit account when trades should affect cash balances.") %></p>
+                  <p id="securities-account-form-intro" class="app-shell-panel-intro"><%= gettext("Link a reference deposit account when trades should affect cash balances.") %></p>
                 </div>
               </div>
 
@@ -541,6 +541,12 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 id="securities-account-form"
                 class="app-shell-form-grid"
                 phx-submit="create_securities_account"
+                aria-describedby={
+                  securities_account_form_description_ids(
+                    @securities_account_success,
+                    @securities_account_error
+                  )
+                }
               >
                 <div class="app-shell-field app-shell-field--full">
                   <label for="securities-account-name"><%= gettext("Name") %></label>
@@ -837,6 +843,19 @@ defmodule PortfolixirWeb.AccountManagementLive do
       "deposit-account-form-intro",
       if(deposit_account_success, do: "deposit-account-form-success"),
       if(deposit_account_error, do: "deposit-account-form-error")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp securities_account_form_description_ids(
+         securities_account_success,
+         securities_account_error
+       ) do
+    [
+      "securities-account-form-intro",
+      if(securities_account_success, do: "securities-account-form-success"),
+      if(securities_account_error, do: "securities-account-form-error")
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
