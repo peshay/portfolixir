@@ -65,6 +65,19 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
            )
 
     assert has_element?(view, "#category-form")
+
+    assert has_element?(
+             view,
+             "#classification-tree-empty[role='status'][aria-live='polite'][aria-labelledby='classification-tree-empty-title'][aria-describedby='classification-tree-empty-description']"
+           )
+
+    assert has_element?(view, "#classification-tree-empty-title", "No categories yet")
+
+    assert has_element?(
+             view,
+             "#classification-tree-empty-description",
+             "Select a taxonomy and add categories to populate the category tree."
+           )
   end
 
   test "classifications workspace explains taxonomy/category relationship", %{conn: conn} do
