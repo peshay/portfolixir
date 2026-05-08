@@ -183,11 +183,11 @@ defmodule PortfolixirWeb.SecurityDetailLive do
                 class="app-shell-empty-state"
                 role="status"
                 aria-live="polite"
-                aria-labelledby="security-fund-documents-empty-state-title"
-                aria-describedby="security-fund-documents-empty-state-description"
+                aria-labelledby={fund_documents_empty_state_title_id()}
+                aria-describedby={fund_documents_empty_state_description_id()}
               >
-                <h3 id="security-fund-documents-empty-state-title"><%= gettext("No factsheets attached yet.") %></h3>
-                <p id="security-fund-documents-empty-state-description"><a href="/documents/new"><%= gettext("Attach a new factsheet") %></a></p>
+                <h3 id={fund_documents_empty_state_title_id()}><%= gettext("No factsheets attached yet.") %></h3>
+                <p id={fund_documents_empty_state_description_id()}><a href="/documents/new"><%= gettext("Attach a new factsheet") %></a></p>
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
@@ -582,6 +582,11 @@ defmodule PortfolixirWeb.SecurityDetailLive do
   defp in_date_range?(date, from_date, to_date) do
     Date.compare(date, from_date) != :lt and Date.compare(date, to_date) != :gt
   end
+
+  defp fund_documents_empty_state_title_id, do: "security-fund-documents-empty-state-title"
+
+  defp fund_documents_empty_state_description_id,
+    do: "security-fund-documents-empty-state-description"
 
   defp decimal_data(nil), do: ""
   defp decimal_data(value), do: Decimal.to_string(value, :normal)
