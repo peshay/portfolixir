@@ -185,15 +185,15 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
               <%= if Enum.empty?(@deposit_accounts) do %>
                 <div
-                  id="no-deposit-accounts"
+                  id={deposit_accounts_empty_state_id()}
                   class="app-shell-empty-state"
                   role="status"
                   aria-live="polite"
-                  aria-labelledby="no-deposit-accounts-title"
-                  aria-describedby="no-deposit-accounts-description"
+                  aria-labelledby={deposit_accounts_empty_state_title_id()}
+                  aria-describedby={deposit_accounts_empty_state_description_id()}
                 >
-                  <h3 id="no-deposit-accounts-title"><%= gettext("No deposit accounts yet") %></h3>
-                  <p id="no-deposit-accounts-description"><%= gettext("Add a cash or settlement account.") %></p>
+                  <h3 id={deposit_accounts_empty_state_title_id()}><%= gettext("No deposit accounts yet") %></h3>
+                  <p id={deposit_accounts_empty_state_description_id()}><%= gettext("Add a cash or settlement account.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
@@ -860,6 +860,12 @@ defmodule PortfolixirWeb.AccountManagementLive do
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
   end
+
+  defp deposit_accounts_empty_state_id, do: "no-deposit-accounts"
+  defp deposit_accounts_empty_state_title_id, do: "no-deposit-accounts-title"
+
+  defp deposit_accounts_empty_state_description_id,
+    do: "no-deposit-accounts-description"
 
   defp default_deposit_account_form(currencies) do
     Map.put(@deposit_account_form_defaults, "currency_code", preferred_currency_code(currencies))
