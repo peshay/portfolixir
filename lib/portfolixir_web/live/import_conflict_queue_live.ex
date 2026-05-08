@@ -72,7 +72,7 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
           <div class="app-shell-section-header">
             <div>
               <h2 class="app-shell-section-title"><%= gettext("Resolved conflicts") %></h2>
-              <p id="import-conflicts-resolved-empty-state-description">
+              <p id="import-conflicts-resolved-section-description">
                 <%= gettext("Historical conflicts that were already resolved.") %>
               </p>
             </div>
@@ -90,6 +90,12 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
               <h3 id="import-conflicts-resolved-empty-state-title">
                 <%= gettext("No resolved conflicts") %>
               </h3>
+              <p
+                id="import-conflicts-resolved-empty-state-description"
+                class="app-shell-visually-hidden"
+              >
+                <%= gettext("Historical conflicts that were already resolved.") %>
+              </p>
             </div>
           <% else %>
             <.conflict_table
