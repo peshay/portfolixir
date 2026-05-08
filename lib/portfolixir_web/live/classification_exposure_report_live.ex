@@ -64,11 +64,30 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
       </header>
 
       <%= if is_nil(@portfolio) or Enum.empty?(@report.rows) do %>
-        <ReportState.empty_state
+        <section
           id="classification-exposure-empty-state"
-          title={gettext("No classification exposure data yet")}
-          description={gettext("Add positions and category mappings to populate this report.")}
-        />
+          class="app-shell-empty-state"
+          role="status"
+          aria-live="polite"
+          aria-labelledby="classification-exposure-empty-state-status-title"
+          aria-describedby="classification-exposure-empty-state-status-description"
+        >
+          <h2 id="classification-exposure-empty-state-title">
+            <%= gettext("No classification exposure data yet") %>
+          </h2>
+          <p id="classification-exposure-empty-state-description">
+            <%= gettext("Add positions and category mappings to populate this report.") %>
+          </p>
+          <span id="classification-exposure-empty-state-status-title" class="app-shell-visually-hidden">
+            <%= gettext("No classification exposure data yet") %>
+          </span>
+          <span
+            id="classification-exposure-empty-state-status-description"
+            class="app-shell-visually-hidden"
+          >
+            <%= gettext("Add positions and category mappings to populate this report.") %>
+          </span>
+        </section>
       <% else %>
         <section
           id="classification-exposure-sunburst"
