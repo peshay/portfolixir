@@ -603,6 +603,69 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
            )
   end
 
+  test "deposit account form success feedback is referenced from a stable form description", %{
+    conn: conn
+  } do
+    create_portfolio("Primary portfolio")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(
+             view,
+             "#deposit-account-form[aria-describedby='deposit-account-form-intro']"
+           )
+
+    html =
+      view
+      |> form("#deposit-account-form", %{
+        "deposit_account" => %{
+          "name" => "Settlement Cash",
+          "currency_code" => "EUR",
+          "notes" => "Synthetic fixture account"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Deposit account created."
+
+    assert has_element?(
+             view,
+             "#deposit-account-form-success[role='status'][aria-live='polite']"
+           )
+
+    assert has_element?(
+             view,
+             "#deposit-account-form[aria-describedby='deposit-account-form-intro deposit-account-form-success']"
+           )
+  end
+
+  test "deposit account form error alert is referenced from a stable form description", %{
+    conn: conn
+  } do
+    create_portfolio("Primary portfolio")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    html =
+      view
+      |> form("#deposit-account-form", %{
+        "deposit_account" => %{
+          "name" => "",
+          "currency_code" => "EUR",
+          "notes" => "Missing name"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "id=\"deposit-account-form-error\""
+    assert has_element?(view, "#deposit-account-form-error[role='alert']")
+
+    assert has_element?(
+             view,
+             "#deposit-account-form[aria-describedby='deposit-account-form-intro deposit-account-form-error']"
+           )
+  end
+
   test "creates a deposit account for the current portfolio", %{conn: conn} do
     create_portfolio("Primary portfolio")
 
