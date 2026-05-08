@@ -248,9 +248,18 @@ defmodule PortfolixirWeb.CategoryManagementLive do
             </form>
 
             <%= if Enum.empty?(@selected_categories) do %>
-              <div id="no-categories" class="app-shell-empty-state">
-                <h3><%= gettext("No categories yet") %></h3>
-                <p><%= gettext("Add the first category for this taxonomy.") %></p>
+              <div
+                id="no-categories"
+                class="app-shell-empty-state"
+                role="status"
+                aria-live="polite"
+                aria-labelledby="no-categories-title"
+                aria-describedby="no-categories-description"
+              >
+                <h3 id="no-categories-title"><%= gettext("No categories yet") %></h3>
+                <p id="no-categories-description">
+                  <%= gettext("Add the first category for this taxonomy.") %>
+                </p>
               </div>
             <% else %>
               <section id="category-assignment-region" class="app-shell-section-card">
