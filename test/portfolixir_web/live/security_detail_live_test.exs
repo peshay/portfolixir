@@ -198,8 +198,19 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
              "Current position data is unavailable for this security."
            )
 
-    assert has_element?(view, "#no-security-transactions")
-    assert has_element?(view, "#no-security-transactions", "No transactions are recorded")
+    assert has_element?(
+             view,
+             "#no-security-transactions[role='status'][aria-live='polite'][aria-labelledby='no-security-transactions-title'][aria-describedby='no-security-transactions-description']"
+           )
+
+    assert has_element?(view, "#no-security-transactions-title", "No transactions yet")
+
+    assert has_element?(
+             view,
+             "#no-security-transactions-description",
+             "No transactions are recorded for this security yet."
+           )
+
     assert has_element?(view, "#security-price-chart-empty")
   end
 
