@@ -364,8 +364,21 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
   test "no-securities state instructs to create a security first", %{conn: conn} do
     {:ok, view, html} = live(conn, "/documents/new")
 
-    assert has_element?(view, "#document-upload-empty-state")
+    assert has_element?(
+             view,
+             "#document-upload-empty-state[role=\"region\"][aria-labelledby=\"document-upload-empty-state-title\"][aria-describedby=\"document-upload-empty-state-description\"]"
+           )
+
+    assert has_element?(view, "#document-upload-empty-state-title", "No securities yet")
+
+    assert has_element?(
+             view,
+             "#document-upload-empty-state-description",
+             "Create a security first to attach factsheets."
+           )
+
     assert has_element?(view, "#document-upload-empty-state a[href=\"/securities\"]")
+    refute has_element?(view, "#document-upload-form")
     assert html =~ "Create a security first to attach factsheets."
   end
 end
