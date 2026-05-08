@@ -35,6 +35,25 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert html =~ "Reference deposit account"
   end
 
+  test "deposit accounts empty state has deterministic accessible status semantics", %{conn: conn} do
+    create_portfolio("Primary portfolio")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(
+             view,
+             "#no-deposit-accounts[role='status'][aria-live='polite'][aria-labelledby='no-deposit-accounts-title'][aria-describedby='no-deposit-accounts-description']"
+           )
+
+    assert has_element?(view, "#no-deposit-accounts-title", "No deposit accounts yet")
+
+    assert has_element?(
+             view,
+             "#no-deposit-accounts-description",
+             "Add a cash or settlement account."
+           )
+  end
+
   test "shows a current portfolio selector and selects the first portfolio by default", %{
     conn: conn
   } do
