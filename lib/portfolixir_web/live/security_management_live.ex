@@ -379,7 +379,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                             </p>
                             <%= if security.valuation_warning do %>
                               <p
-                                id={"security-valuation-warning-#{security.id}"}
+                                id={valuation_warning_status_id("security", security.id)}
                                 class="app-shell-warning-note"
                                 role="status"
                                 aria-live="polite"
@@ -389,7 +389,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                                 <%= valuation_warning_label(security.valuation_warning) %>
                               </p>
                               <p
-                                id={"security-valuation-warning-detail-#{security.id}"}
+                                id={valuation_warning_detail_id("security", security.id)}
                                 class="app-shell-help-text"
                                 data-testid={"security-valuation-warning-detail-#{security.id}"}
                               >
@@ -614,7 +614,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               </p>
               <%= if @selected_security.valuation_warning do %>
                 <p
-                  id="security-selected-valuation-warning"
+                  id={valuation_warning_status_id("security-selected", nil)}
                   class="app-shell-warning-note"
                   role="status"
                   aria-live="polite"
@@ -625,7 +625,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                   <%= valuation_warning_label(@selected_security.valuation_warning) %>
                 </p>
                 <p
-                  id="security-selected-valuation-warning-detail"
+                  id={valuation_warning_detail_id("security-selected", nil)}
                   class="app-shell-help-text"
                   data-testid="security-selected-valuation-warning-detail"
                 >
@@ -1533,6 +1533,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       [] -> nil
       _ -> Enum.join(ids, " ")
     end
+  end
+
+  defp valuation_warning_status_id(prefix, suffix) do
+    "#{prefix}-valuation-warning#{valuation_description_suffix(suffix)}"
   end
 
   defp valuation_warning_detail_id(prefix, suffix) do
