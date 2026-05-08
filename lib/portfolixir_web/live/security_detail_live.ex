@@ -233,9 +233,16 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             </div>
 
             <%= if Enum.empty?(@position_rows) do %>
-              <div id="no-security-positions" class="app-shell-empty-state">
-                <h3><%= gettext("No current position available") %></h3>
-                <p><%= gettext("Current position data is unavailable for this security.") %></p>
+              <div
+                id="no-security-positions"
+                class="app-shell-empty-state"
+                role="status"
+                aria-live="polite"
+                aria-labelledby="no-security-positions-title"
+                aria-describedby="no-security-positions-description"
+              >
+                <h3 id="no-security-positions-title"><%= gettext("No current position available") %></h3>
+                <p id="no-security-positions-description"><%= gettext("Current position data is unavailable for this security.") %></p>
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
