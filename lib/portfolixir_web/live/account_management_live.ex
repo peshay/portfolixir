@@ -317,15 +317,19 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
               <%= if Enum.empty?(@securities_accounts) do %>
                 <div
-                  id="no-securities-accounts"
+                  id={securities_accounts_empty_state_id()}
                   class="app-shell-empty-state"
                   role="status"
                   aria-live="polite"
-                  aria-labelledby="no-securities-accounts-title"
-                  aria-describedby="no-securities-accounts-description"
+                  aria-labelledby={securities_accounts_empty_state_title_id()}
+                  aria-describedby={securities_accounts_empty_state_description_id()}
                 >
-                  <h3 id="no-securities-accounts-title"><%= gettext("No securities accounts yet") %></h3>
-                  <p id="no-securities-accounts-description"><%= gettext("Add a brokerage or custody account.") %></p>
+                  <h3 id={securities_accounts_empty_state_title_id()}>
+                    <%= gettext("No securities accounts yet") %>
+                  </h3>
+                  <p id={securities_accounts_empty_state_description_id()}>
+                    <%= gettext("Add a brokerage or custody account.") %>
+                  </p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
@@ -872,6 +876,12 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
   defp cash_balances_empty_state_description_id,
     do: "no-cash-balances-description"
+
+  defp securities_accounts_empty_state_id, do: "no-securities-accounts"
+  defp securities_accounts_empty_state_title_id, do: "no-securities-accounts-title"
+
+  defp securities_accounts_empty_state_description_id,
+    do: "no-securities-accounts-description"
 
   defp default_deposit_account_form(currencies) do
     Map.put(@deposit_account_form_defaults, "currency_code", preferred_currency_code(currencies))
