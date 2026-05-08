@@ -445,7 +445,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
               <div class="app-shell-section-header">
                 <div>
                   <h2 class="app-shell-section-title"><%= gettext("Add deposit account") %></h2>
-                  <p class="app-shell-panel-intro"><%= gettext("Use for cash, settlement and savings accounts.") %></p>
+                  <p id="deposit-account-form-intro" class="app-shell-panel-intro"><%= gettext("Use for cash, settlement and savings accounts.") %></p>
                 </div>
               </div>
 
@@ -470,6 +470,12 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 id="deposit-account-form"
                 class="app-shell-form-grid"
                 phx-submit="create_deposit_account"
+                aria-describedby={
+                  deposit_account_form_description_ids(
+                    @deposit_account_success,
+                    @deposit_account_error
+                  )
+                }
               >
                 <div class="app-shell-field app-shell-field--full">
                   <label for="deposit-account-name"><%= gettext("Name") %></label>
@@ -821,6 +827,16 @@ defmodule PortfolixirWeb.AccountManagementLive do
       "portfolio-form-intro",
       if(portfolio_success, do: "portfolio-form-success"),
       if(portfolio_error, do: "portfolio-form-error")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp deposit_account_form_description_ids(deposit_account_success, deposit_account_error) do
+    [
+      "deposit-account-form-intro",
+      if(deposit_account_success, do: "deposit-account-form-success"),
+      if(deposit_account_error, do: "deposit-account-form-error")
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
