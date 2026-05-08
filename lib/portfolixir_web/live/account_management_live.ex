@@ -365,15 +365,15 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 <h2><%= gettext("Create your first portfolio") %></h2>
                 <p><%= gettext("Create this portfolio first so account setup appears next.") %></p>
               <div
-                id="no-portfolio"
+                id={portfolio_empty_state_id()}
                 class="app-shell-empty-state app-shell-empty-state--inline"
                 role="status"
                 aria-live="polite"
-                aria-labelledby="no-portfolio-title"
-                aria-describedby="no-portfolio-description"
+                aria-labelledby={portfolio_empty_state_title_id()}
+                aria-describedby={portfolio_empty_state_description_id()}
               >
-                <h3 id="no-portfolio-title"><%= gettext("No portfolio yet") %></h3>
-                <p id="no-portfolio-description">
+                <h3 id={portfolio_empty_state_title_id()}><%= gettext("No portfolio yet") %></h3>
+                <p id={portfolio_empty_state_description_id()}>
                   <%= gettext("After you create this portfolio, you can set up a deposit account and then a securities account.") %>
                 </p>
               </div>
@@ -864,6 +864,10 @@ defmodule PortfolixirWeb.AccountManagementLive do
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
   end
+
+  defp portfolio_empty_state_id, do: "no-portfolio"
+  defp portfolio_empty_state_title_id, do: "no-portfolio-title"
+  defp portfolio_empty_state_description_id, do: "no-portfolio-description"
 
   defp deposit_accounts_empty_state_id, do: "no-deposit-accounts"
   defp deposit_accounts_empty_state_title_id, do: "no-deposit-accounts-title"
