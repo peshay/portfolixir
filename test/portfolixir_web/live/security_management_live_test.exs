@@ -27,6 +27,23 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "All Securities"
   end
 
+  test "securities listing keeps stable toolbar accessible relationship", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-listing[aria-labelledby='security-workbench-toolbar-title'][aria-describedby='security-workbench-toolbar-description']"
+           )
+
+    assert has_element?(view, "#security-workbench-toolbar-title", "Securities")
+
+    assert has_element?(
+             view,
+             "#security-workbench-toolbar-description",
+             "Core identifiers used by the ledger and valuation workspaces."
+           )
+  end
+
   test "security form uses a seeded currency select with EUR selected by default", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities")
     view |> element("#security-add-toggle") |> render_click()
