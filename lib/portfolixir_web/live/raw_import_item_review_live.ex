@@ -58,9 +58,17 @@ defmodule PortfolixirWeb.RawImportItemReviewLive do
           </div>
         </section>
       <% else %>
-        <section id="raw-import-item-not-found" class="app-shell-empty-state">
-          <h2><%= gettext("Raw import item not found") %></h2>
-          <p><%= gettext("The requested raw import item does not exist.") %></p>
+        <section
+          id="raw-import-item-not-found"
+          class="app-shell-empty-state"
+          role="status"
+          aria-labelledby="raw-import-item-not-found-title"
+          aria-describedby="raw-import-item-not-found-description"
+        >
+          <h2 id="raw-import-item-not-found-title"><%= gettext("Raw import item not found") %></h2>
+          <p id="raw-import-item-not-found-description">
+            <%= gettext("The requested raw import item does not exist.") %>
+          </p>
         </section>
       <% end %>
     </AppShell.shell>
