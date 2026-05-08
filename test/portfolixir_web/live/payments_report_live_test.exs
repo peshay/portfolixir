@@ -52,7 +52,7 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
     assert {:ok, _account} = Portfolios.delete_deposit_account(deposit_account)
     assert {:ok, _portfolio} = Portfolios.delete_portfolio(portfolio)
 
-    {:ok, view, _html} = live(conn, "/reports/payments")
+    {:ok, view, html} = live(conn, "/reports/payments")
 
     assert has_element?(
              view,
@@ -70,6 +70,19 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
              "#payments-current-portfolio-empty-state-description",
              "Create a portfolio to review dividend payments."
            )
+
+    status_html = render(element(view, "#payments-current-portfolio-empty-state"))
+
+    assert status_html =~ "aria-labelledby=\"payments-current-portfolio-empty-state-title\""
+
+    assert status_html =~
+             "aria-describedby=\"payments-current-portfolio-empty-state-description\""
+
+    assert Regex.scan(~r/id="payments-current-portfolio-empty-state-title"/, html) |> length() ==
+             1
+
+    assert Regex.scan(~r/id="payments-current-portfolio-empty-state-description"/, html)
+           |> length() == 1
 
     refute has_element?(view, "#payments-current-portfolio-selector")
   end
