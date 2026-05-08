@@ -90,11 +90,23 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
              "#import-raw-items-empty-state[role='status'][aria-live='polite'][aria-labelledby='import-raw-items-empty-state-title'][aria-describedby='import-raw-items-empty-state-description']"
            )
 
-    assert has_element?(view, "#import-raw-items-empty-state-title", "No raw import items yet")
+    assert has_element?(
+             view,
+             "#import-raw-items-empty-state-title.app-shell-visually-hidden",
+             "No raw import items yet"
+           )
 
     assert has_element?(
              view,
-             "#import-raw-items-empty-state-description",
+             "#import-raw-items-empty-state-description.app-shell-visually-hidden",
+             "Raw items will appear here after intake."
+           )
+
+    assert has_element?(view, "#import-raw-items-empty-state h3", "No raw import items yet")
+
+    assert has_element?(
+             view,
+             "#import-raw-items-empty-state p",
              "Raw items will appear here after intake."
            )
   end
