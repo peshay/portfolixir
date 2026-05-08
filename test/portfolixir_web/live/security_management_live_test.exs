@@ -615,10 +615,16 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-empty[role='status'][aria-live='polite'][aria-labelledby='security-selected-empty-title']"
+             "#security-selected-empty[role='status'][aria-live='polite'][aria-labelledby='security-selected-empty-title'][aria-describedby='security-selected-empty-description']"
            )
 
     assert has_element?(view, "#security-selected-empty-title", "No security selected")
+
+    assert has_element?(
+             view,
+             "#security-selected-empty-description",
+             "Select a row to view details here."
+           )
   end
 
   test "shows active securities by default", %{conn: conn} do
@@ -779,10 +785,16 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-empty[role='status'][aria-live='polite'][aria-labelledby='security-selected-empty-title']"
+             "#security-selected-empty[role='status'][aria-live='polite'][aria-labelledby='security-selected-empty-title'][aria-describedby='security-selected-empty-description']"
            )
 
     assert has_element?(view, "#security-selected-empty-title", "No security selected")
+
+    assert has_element?(
+             view,
+             "#security-selected-empty-description",
+             "Select a row to view details here."
+           )
   end
 
   test "shows all securities and status indicator when all filter is selected", %{conn: conn} do
