@@ -875,6 +875,67 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "span.app-shell-badge", "Inactive")
   end
 
+  test "security results status keeps live-region semantics across default, filtered, empty, and populated states",
+       %{
+         conn: conn
+       } do
+    assert {:ok, _active_security} =
+             Catalog.create_security(%{
+               name: "Alpha Filter Target",
+               symbol: "AFT",
+               currency_code: "EUR",
+               active: true
+             })
+
+    assert {:ok, _inactive_security} =
+             Catalog.create_security(%{
+               name: "Beta Filter Target",
+               symbol: "BFT",
+               currency_code: "EUR",
+               active: false
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert_security_results_status(view, "Showing 1 active security")
+
+    assert has_element?(
+             view,
+             "#security-list[aria-describedby='security-list-caption security-results-status']"
+           )
+
+    view |> element("#security-filter-inactive") |> render_click()
+
+    assert_security_results_status(view, "Showing 1 inactive security")
+
+    assert has_element?(
+             view,
+             "#security-list[aria-describedby='security-list-caption security-results-status']"
+           )
+
+    view
+    |> element("#security-search-form")
+    |> render_change(%{"q" => "zzz"})
+
+    assert_security_results_status(view, "No inactive securities match your search.")
+
+    assert has_element?(
+             view,
+             "#no-securities[role='status'][aria-labelledby='no-securities-title'][aria-describedby='no-securities-description security-results-status']"
+           )
+
+    view
+    |> element("#security-search-form")
+    |> render_change(%{"q" => ""})
+
+    assert_security_results_status(view, "Showing 1 inactive security")
+
+    assert has_element?(
+             view,
+             "#security-list[aria-describedby='security-list-caption security-results-status']"
+           )
+  end
+
   test "archives an active security from the list and removes it from the active view", %{
     conn: conn
   } do
@@ -2187,6 +2248,14 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-selected-open-detail[href='/securities/#{second_security.id}']"
+           )
+  end
+
+  defp assert_security_results_status(view, expected_text) do
+    assert has_element?(
+             view,
+             "#security-results-status[role='status'][aria-live='polite'][aria-atomic='true']",
+             expected_text
            )
   end
 end
