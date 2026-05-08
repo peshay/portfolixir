@@ -170,8 +170,18 @@ defmodule PortfolixirWeb.CategoryManagementLive do
               <h3 class="app-shell-section-title"><%= gettext("Category tree") %></h3>
 
               <%= if Enum.empty?(@selected_category_tree) do %>
-                <p id="classification-tree-empty" class="app-shell-muted">
-                  <%= gettext("No categories yet") %>
+                <p
+                  id="classification-tree-empty"
+                  class="app-shell-muted"
+                  role="status"
+                  aria-live="polite"
+                  aria-labelledby="classification-tree-empty-title"
+                  aria-describedby="classification-tree-empty-description"
+                >
+                  <span id="classification-tree-empty-title"><%= gettext("No categories yet") %></span>
+                  <span id="classification-tree-empty-description" class="app-shell-visually-hidden">
+                    <%= gettext("Select a taxonomy and add categories to populate the category tree.") %>
+                  </span>
                 </p>
               <% else %>
                 <ul id="classification-tree-root" class="app-shell-list">
