@@ -382,7 +382,7 @@ defmodule PortfolixirWeb.AccountManagementLive do
             <div class="app-shell-section-header">
               <div>
                 <h2 class="app-shell-section-title"><%= gettext("Portfolio setup") %></h2>
-                <p class="app-shell-panel-intro"><%= gettext("Create your first portfolio, then add a deposit account and then a securities account.") %></p>
+                <p id="portfolio-form-intro" class="app-shell-panel-intro"><%= gettext("Create your first portfolio, then add a deposit account and then a securities account.") %></p>
               </div>
             </div>
 
@@ -403,7 +403,12 @@ defmodule PortfolixirWeb.AccountManagementLive do
               </p>
             <% end %>
 
-            <form id="portfolio-form" class="app-shell-form-grid" phx-submit="create_portfolio">
+            <form
+              id="portfolio-form"
+              class="app-shell-form-grid"
+              phx-submit="create_portfolio"
+              aria-describedby={portfolio_form_description_ids(@portfolio_success, @portfolio_error)}
+            >
               <div class="app-shell-field app-shell-field--full">
                 <label for="portfolio-name"><%= gettext("Name") %></label>
                 <input id="portfolio-name" name="portfolio[name]" value={@portfolio_form["name"]} />
@@ -809,6 +814,16 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
   defp default_portfolio_form(currencies) do
     Map.put(@portfolio_form_defaults, "base_currency_code", preferred_currency_code(currencies))
+  end
+
+  defp portfolio_form_description_ids(portfolio_success, portfolio_error) do
+    [
+      "portfolio-form-intro",
+      if(portfolio_success, do: "portfolio-form-success"),
+      if(portfolio_error, do: "portfolio-form-error")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
   end
 
   defp default_deposit_account_form(currencies) do
