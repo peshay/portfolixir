@@ -282,6 +282,12 @@ defmodule PortfolixirWeb.PaymentsReportLive do
             </section>
           <% end %>
         <% end %>
+      <% else %>
+        <ReportState.empty_state
+          id="payments-current-portfolio-empty-state"
+          title={gettext("No portfolio yet")}
+          description={gettext("Create a portfolio to review dividend payments.")}
+        />
       <% end %>
     </AppShell.shell>
     """
