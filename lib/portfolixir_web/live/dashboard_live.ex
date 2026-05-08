@@ -232,10 +232,13 @@ defmodule PortfolixirWeb.DashboardLive do
         data-priority="secondary"
         role="region"
         aria-labelledby="dashboard-chart-placeholder-title"
+        aria-describedby="dashboard-chart-placeholder-description"
       >
         <p class="app-shell-page-kicker"><%= gettext("Portfolio analytics") %></p>
         <h2 id="dashboard-chart-placeholder-title"><%= gettext("Portfolio value chart") %></h2>
-        <p><%= gettext("Portfolio value chart will appear here once valuations are available.") %></p>
+        <p id="dashboard-chart-placeholder-description">
+          <%= gettext("Portfolio value chart will appear here once valuations are available.") %>
+        </p>
       </section>
     </AppShell.shell>
     """
