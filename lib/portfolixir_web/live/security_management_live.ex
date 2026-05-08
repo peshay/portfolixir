@@ -798,7 +798,12 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                     <%= gettext("Cancel") %>
                   </button>
                 <% end %>
-                <button type="submit" class="app-shell-primary">
+                <button
+                  id="security-form-submit"
+                  type="submit"
+                  class="app-shell-primary"
+                  aria-describedby={security_form_description_ids(@security_success, @security_error)}
+                >
                   <%= if @security_form_mode == :edit, do: gettext("Save security"), else: gettext("Add security") %>
                 </button>
               </div>
