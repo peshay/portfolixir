@@ -43,9 +43,16 @@ defmodule PortfolixirWeb.ImportOverviewLive do
         </div>
 
         <%= if Enum.empty?(@import_sources) do %>
-          <div id="import-sources-empty-state" class="app-shell-empty-state">
-            <h3><%= gettext("No import sources yet") %></h3>
-            <p><%= gettext("Create or register import sources to see them here.") %></p>
+          <div
+            id="import-sources-empty-state"
+            class="app-shell-empty-state"
+            role="status"
+            aria-live="polite"
+            aria-labelledby="import-sources-empty-state-title"
+            aria-describedby="import-sources-empty-state-description"
+          >
+            <h3 id="import-sources-empty-state-title"><%= gettext("No import sources yet") %></h3>
+            <p id="import-sources-empty-state-description"><%= gettext("Create or register import sources to see them here.") %></p>
           </div>
         <% else %>
           <div class="app-shell-table-wrapper">
