@@ -142,15 +142,15 @@ defmodule PortfolixirWeb.CategoryManagementLive do
 
           <%= if Enum.empty?(@taxonomies) do %>
             <div
-              id="no-taxonomies"
+              id={taxonomies_empty_state_id()}
               class="app-shell-empty-state"
               role="status"
               aria-live="polite"
-              aria-labelledby="no-taxonomies-heading"
-              aria-describedby="no-taxonomies-description"
+              aria-labelledby={taxonomies_empty_state_title_id()}
+              aria-describedby={taxonomies_empty_state_description_id()}
             >
-              <h3 id="no-taxonomies-heading"><%= gettext("No taxonomies yet") %></h3>
-              <p id="no-taxonomies-description">
+              <h3 id={taxonomies_empty_state_title_id()}><%= gettext("No taxonomies yet") %></h3>
+              <p id={taxonomies_empty_state_description_id()}>
                 <%= gettext("Create a taxonomy before adding categories.") %>
               </p>
             </div>
@@ -653,6 +653,10 @@ defmodule PortfolixirWeb.CategoryManagementLive do
   defp fallback_selected_taxonomy_id(taxonomies) do
     taxonomies |> Enum.min_by(& &1.inserted_at) |> Map.get(:id)
   end
+
+  defp taxonomies_empty_state_id, do: "no-taxonomies"
+  defp taxonomies_empty_state_title_id, do: "no-taxonomies-title"
+  defp taxonomies_empty_state_description_id, do: "no-taxonomies-description"
 
   defp taxonomy_preset_button_description_ids(preset_success) do
     [

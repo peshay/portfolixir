@@ -108,10 +108,10 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
 
     assert has_element?(
              view,
-             "#no-taxonomies[role='status'][aria-live='polite'][aria-labelledby='no-taxonomies-heading'][aria-describedby='no-taxonomies-description']"
+             "#no-taxonomies[role='status'][aria-live='polite'][aria-labelledby='no-taxonomies-title'][aria-describedby='no-taxonomies-description']"
            )
 
-    assert has_element?(view, "#no-taxonomies-heading", "No taxonomies yet")
+    assert has_element?(view, "#no-taxonomies-title", "No taxonomies yet")
 
     assert has_element?(
              view,
