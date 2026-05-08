@@ -178,9 +178,16 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             </div>
 
             <%= if Enum.empty?(@fund_documents) do %>
-              <div id="security-fund-documents-empty-state" class="app-shell-empty-state">
-                <h3><%= gettext("No factsheets attached yet.") %></h3>
-                <p><a href="/documents/new"><%= gettext("Attach a new factsheet") %></a></p>
+              <div
+                id="security-fund-documents-empty-state"
+                class="app-shell-empty-state"
+                role="status"
+                aria-live="polite"
+                aria-labelledby="security-fund-documents-empty-state-title"
+                aria-describedby="security-fund-documents-empty-state-description"
+              >
+                <h3 id="security-fund-documents-empty-state-title"><%= gettext("No factsheets attached yet.") %></h3>
+                <p id="security-fund-documents-empty-state-description"><a href="/documents/new"><%= gettext("Attach a new factsheet") %></a></p>
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
