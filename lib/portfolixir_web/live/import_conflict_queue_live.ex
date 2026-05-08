@@ -47,7 +47,9 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
           <div class="app-shell-section-header">
             <div>
               <h2 class="app-shell-section-title"><%= gettext("Open conflicts") %></h2>
-              <p><%= gettext("Actionable import conflicts that still require review.") %></p>
+              <p id="import-conflicts-open-empty-state-description">
+                <%= gettext("Actionable import conflicts that still require review.") %>
+              </p>
             </div>
           </div>
 
@@ -57,6 +59,7 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
               class="app-shell-empty-state"
               role="region"
               aria-labelledby="import-conflicts-open-empty-state-title"
+              aria-describedby="import-conflicts-open-empty-state-description"
             >
               <h3 id="import-conflicts-open-empty-state-title"><%= gettext("No open conflicts") %></h3>
             </div>
