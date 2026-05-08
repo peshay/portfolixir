@@ -285,9 +285,16 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             </div>
 
             <%= if Enum.empty?(@transaction_rows) do %>
-              <div id="no-security-transactions" class="app-shell-empty-state">
-                <h3><%= gettext("No transactions yet") %></h3>
-                <p><%= gettext("No transactions are recorded for this security yet.") %></p>
+              <div
+                id="no-security-transactions"
+                class="app-shell-empty-state"
+                role="status"
+                aria-live="polite"
+                aria-labelledby="no-security-transactions-title"
+                aria-describedby="no-security-transactions-description"
+              >
+                <h3 id="no-security-transactions-title"><%= gettext("No transactions yet") %></h3>
+                <p id="no-security-transactions-description"><%= gettext("No transactions are recorded for this security yet.") %></p>
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
