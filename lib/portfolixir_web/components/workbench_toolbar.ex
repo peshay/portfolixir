@@ -5,6 +5,8 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
   attr(:id, :string, required: true)
   attr(:title, :string, required: true)
   attr(:description, :string, required: true)
+  attr(:title_id, :string, default: nil)
+  attr(:description_id, :string, default: nil)
   attr(:search_id, :string, required: true)
   attr(:search_name, :string, default: "q")
   attr(:search_value, :string, default: "")
@@ -15,12 +17,14 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
 
   def toolbar(assigns) do
     assigns = assign_new(assigns, :search_label, fn -> gettext("Search") end)
+    assigns = assign_new(assigns, :title_id, fn -> "#{assigns.id}-title" end)
+    assigns = assign_new(assigns, :description_id, fn -> "#{assigns.id}-description" end)
 
     ~H"""
     <div id={@id} class="app-shell-section-header">
       <div>
-        <h2 id={"#{@id}-title"} class="app-shell-section-title"><%= @title %></h2>
-        <p id={"#{@id}-description"}><%= @description %></p>
+        <h2 id={@title_id} class="app-shell-section-title"><%= @title %></h2>
+        <p id={@description_id}><%= @description %></p>
       </div>
 
       <form class="app-shell-search" role="search" aria-label={@search_label}>
