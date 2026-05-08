@@ -352,18 +352,53 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-csv-preview-form[aria-labelledby='security-csv-preview-title'][aria-describedby='security-csv-preview-description security-csv-preview-status']"
            )
 
-    assert has_element?(
-             view,
-             "#security-csv-preview-status[role='status'][aria-live='polite'][aria-atomic='true'][aria-labelledby='security-csv-preview-status-title'][aria-describedby='security-csv-preview-status-description']"
-           )
+    assert_security_csv_preview_status_relationships(
+      view,
+      "CSV preview pending",
+      "Submit CSV content to generate a validation preview."
+    )
+  end
 
-    assert has_element?(view, "#security-csv-preview-status-title", "CSV preview pending")
+  test "CSV preview status relationships remain stable across pending, error, and row-preview states",
+       %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
 
-    assert has_element?(
-             view,
-             "#security-csv-preview-status-description",
-             "Submit CSV content to generate a validation preview."
-           )
+    assert_security_csv_preview_status_relationships(
+      view,
+      "CSV preview pending",
+      "Submit CSV content to generate a validation preview."
+    )
+
+    view
+    |> form("#security-csv-preview-form", %{"security_csv_text" => ""})
+    |> render_submit()
+
+    assert_security_csv_preview_status_relationships(
+      view,
+      "CSV preview unavailable",
+      "Resolve the CSV validation error and preview again."
+    )
+
+    assert has_element?(view, "#security-csv-error")
+
+    csv = """
+    name,symbol,currency_code,active,isin,wkn,provider_symbol,exchange_code,notes
+    Test Security,TEST,USD,true,US123,123,WTEST,XNYS,Example
+    """
+
+    view
+    |> form("#security-csv-preview-form", %{
+      "security_csv_text" => csv
+    })
+    |> render_submit()
+
+    assert_security_csv_preview_status_relationships(
+      view,
+      "CSV preview ready",
+      "Preview rows are available in the table below."
+    )
+
+    assert has_element?(view, "#security-preview-row-1")
   end
 
   test "CSV preview status relationships stay stable across empty, error, and preview states", %{
@@ -2457,5 +2492,15 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-list-caption.app-shell-visually-hidden",
              "Securities workbench table with identifiers, valuation, status, and row actions."
            )
+  end
+
+  defp assert_security_csv_preview_status_relationships(view, title, description) do
+    assert has_element?(
+             view,
+             "#security-csv-preview-status[role='status'][aria-live='polite'][aria-atomic='true'][aria-labelledby='security-csv-preview-status-title'][aria-describedby='security-csv-preview-status-description']"
+           )
+
+    assert has_element?(view, "#security-csv-preview-status-title", title)
+    assert has_element?(view, "#security-csv-preview-status-description", description)
   end
 end
