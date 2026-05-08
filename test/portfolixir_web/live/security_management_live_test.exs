@@ -366,6 +366,66 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
+  test "CSV preview status relationships stay stable across empty, error, and preview states", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-status[role='status'][aria-live='polite'][aria-atomic='true'][aria-labelledby='security-csv-preview-status-title'][aria-describedby='security-csv-preview-status-description']"
+           )
+
+    assert has_element?(view, "#security-csv-preview-status-title", "CSV preview pending")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-status-description",
+             "Submit CSV content to generate a validation preview."
+           )
+
+    view
+    |> form("#security-csv-preview-form", %{"security_csv_text" => ""})
+    |> render_submit()
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-status[role='status'][aria-live='polite'][aria-atomic='true'][aria-labelledby='security-csv-preview-status-title'][aria-describedby='security-csv-preview-status-description']"
+           )
+
+    assert has_element?(view, "#security-csv-preview-status-title", "CSV preview unavailable")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-status-description",
+             "Resolve the CSV validation error and preview again."
+           )
+
+    assert has_element?(view, "#security-csv-error")
+
+    csv = """
+    name,symbol,currency_code,active,isin,wkn,provider_symbol,exchange_code,notes
+    Test Security,TEST,USD,true,US123,123,WTEST,XNYS,Example
+    """
+
+    view
+    |> form("#security-csv-preview-form", %{"security_csv_text" => csv})
+    |> render_submit()
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-status[role='status'][aria-live='polite'][aria-atomic='true'][aria-labelledby='security-csv-preview-status-title'][aria-describedby='security-csv-preview-status-description']"
+           )
+
+    assert has_element?(view, "#security-csv-preview-status-title", "CSV preview ready")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-status-description",
+             "Preview rows are available in the table below."
+           )
+  end
+
   test "previews a pasted securities CSV with row status", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities")
 
