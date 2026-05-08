@@ -130,11 +130,21 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert html =~ ~r/id="transaction-history-panel".*id="positions"/s
   end
 
-  test "renders an empty state when there are no transactions", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/transactions")
+  test "transaction list empty state has deterministic accessible status semantics", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/transactions")
 
-    assert html =~ "No transactions yet"
-    assert html =~ "Record the first ledger transaction."
+    assert has_element?(
+             view,
+             "#no-transactions[role='status'][aria-live='polite'][aria-labelledby='no-transactions-title'][aria-describedby='no-transactions-description']"
+           )
+
+    assert has_element?(view, "#no-transactions-title", "No transactions yet")
+
+    assert has_element?(
+             view,
+             "#no-transactions-description",
+             "Record the first ledger transaction."
+           )
   end
 
   test "shows a current portfolio selector for multiple portfolios", %{
