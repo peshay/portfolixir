@@ -361,9 +361,10 @@ defmodule PortfolixirWeb.SecurityDetailLive do
                 class="app-shell-empty-state"
                 role="region"
                 aria-labelledby="security-price-chart-empty-title"
+                aria-describedby="security-price-chart-empty-description"
               >
                 <h3 id="security-price-chart-empty-title"><%= gettext("No quotes yet") %></h3>
-                <p><%= gettext("No stored quotes are available for this security yet.") %></p>
+                <p id="security-price-chart-empty-description"><%= gettext("No stored quotes are available for this security yet.") %></p>
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
