@@ -244,10 +244,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               class="app-shell-empty-state"
               role="status"
               aria-live="polite"
-              aria-describedby="security-results-status"
+              aria-labelledby="no-securities-title"
+              aria-describedby="no-securities-description security-results-status"
             >
-              <h3><%= security_filter_empty_title(@security_status_filter, @security_total_count) %></h3>
-              <p><%= security_filter_empty_description(@security_status_filter, @security_total_count) %></p>
+              <h3 id="no-securities-title">
+                <%= security_filter_empty_title(@security_status_filter, @security_total_count) %>
+              </h3>
+              <p id="no-securities-description">
+                <%= security_filter_empty_description(@security_status_filter, @security_total_count) %>
+              </p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
