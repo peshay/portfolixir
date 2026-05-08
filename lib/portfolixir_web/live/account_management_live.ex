@@ -232,15 +232,15 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
               <%= if Enum.empty?(@cash_balance_rows) do %>
                 <div
-                  id="no-cash-balances"
+                  id={cash_balances_empty_state_id()}
                   class="app-shell-empty-state"
                   role="status"
                   aria-live="polite"
-                  aria-labelledby="no-cash-balances-title"
-                  aria-describedby="no-cash-balances-description"
+                  aria-labelledby={cash_balances_empty_state_title_id()}
+                  aria-describedby={cash_balances_empty_state_description_id()}
                 >
-                  <h3 id="no-cash-balances-title"><%= gettext("No cash balances yet") %></h3>
-                  <p id="no-cash-balances-description"><%= gettext("Balances appear after deposit, withdrawal and trade transactions.") %></p>
+                  <h3 id={cash_balances_empty_state_title_id()}><%= gettext("No cash balances yet") %></h3>
+                  <p id={cash_balances_empty_state_description_id()}><%= gettext("Balances appear after deposit, withdrawal and trade transactions.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
@@ -866,6 +866,12 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
   defp deposit_accounts_empty_state_description_id,
     do: "no-deposit-accounts-description"
+
+  defp cash_balances_empty_state_id, do: "no-cash-balances"
+  defp cash_balances_empty_state_title_id, do: "no-cash-balances-title"
+
+  defp cash_balances_empty_state_description_id,
+    do: "no-cash-balances-description"
 
   defp default_deposit_account_form(currencies) do
     Map.put(@deposit_account_form_defaults, "currency_code", preferred_currency_code(currencies))
