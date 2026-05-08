@@ -331,6 +331,41 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "button", "Preview CSV")
   end
 
+  test "CSV preview pre-submit state has deterministic accessible semantics", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview[aria-labelledby='security-csv-preview-title'][aria-describedby='security-csv-preview-description security-csv-preview-status']"
+           )
+
+    assert has_element?(view, "#security-csv-preview-title", "Import CSV preview")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-description",
+             "Paste security CSV data to validate rows before import."
+           )
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-form[aria-labelledby='security-csv-preview-title'][aria-describedby='security-csv-preview-description security-csv-preview-status']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-status[role='status'][aria-live='polite'][aria-atomic='true'][aria-labelledby='security-csv-preview-status-title'][aria-describedby='security-csv-preview-status-description']"
+           )
+
+    assert has_element?(view, "#security-csv-preview-status-title", "CSV preview pending")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-status-description",
+             "Submit CSV content to generate a validation preview."
+           )
+  end
+
   test "previews a pasted securities CSV with row status", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities")
 
