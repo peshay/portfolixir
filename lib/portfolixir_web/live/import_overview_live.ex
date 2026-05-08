@@ -113,11 +113,17 @@ defmodule PortfolixirWeb.ImportOverviewLive do
             class="app-shell-empty-state"
             role="status"
             aria-live="polite"
-            aria-labelledby="import-runs-empty-state-title"
-            aria-describedby="import-runs-empty-state-description"
+            aria-labelledby="import-runs-empty-state-a11y-title"
+            aria-describedby="import-runs-empty-state-a11y-description"
           >
-            <h3 id="import-runs-empty-state-title"><%= gettext("No import runs yet") %></h3>
-            <p id="import-runs-empty-state-description"><%= gettext("Runs will appear here after source execution.") %></p>
+            <span id="import-runs-empty-state-a11y-title" class="app-shell-visually-hidden">
+              <%= gettext("No import runs yet") %>
+            </span>
+            <span id="import-runs-empty-state-a11y-description" class="app-shell-visually-hidden">
+              <%= gettext("Runs will appear here after source execution.") %>
+            </span>
+            <h3><%= gettext("No import runs yet") %></h3>
+            <p><%= gettext("Runs will appear here after source execution.") %></p>
           </div>
         <% else %>
           <div class="app-shell-table-wrapper">

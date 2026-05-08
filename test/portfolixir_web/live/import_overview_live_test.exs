@@ -58,14 +58,26 @@ defmodule PortfolixirWeb.ImportOverviewLiveTest do
 
     assert has_element?(
              view,
-             "#import-runs-empty-state[role='status'][aria-live='polite'][aria-labelledby='import-runs-empty-state-title'][aria-describedby='import-runs-empty-state-description']"
+             "#import-runs-empty-state[role='status'][aria-live='polite'][aria-labelledby='import-runs-empty-state-a11y-title'][aria-describedby='import-runs-empty-state-a11y-description']"
            )
-
-    assert has_element?(view, "#import-runs-empty-state-title", "No import runs yet")
 
     assert has_element?(
              view,
-             "#import-runs-empty-state-description",
+             "#import-runs-empty-state-a11y-title.app-shell-visually-hidden",
+             "No import runs yet"
+           )
+
+    assert has_element?(
+             view,
+             "#import-runs-empty-state-a11y-description.app-shell-visually-hidden",
+             "Runs will appear here after source execution."
+           )
+
+    assert has_element?(view, "#import-runs-empty-state h3", "No import runs yet")
+
+    assert has_element?(
+             view,
+             "#import-runs-empty-state p",
              "Runs will appear here after source execution."
            )
   end
