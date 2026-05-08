@@ -243,13 +243,33 @@ defmodule PortfolixirWeb.ClassificationExposureReportLive do
                 <%= gettext("Clear selection") %>
               </button>
             <% else %>
-              <ReportState.empty_state
+              <section
                 id="classification-exposure-drilldown-empty"
-                title={gettext("No category selected")}
-                title_tag="h3"
-                inline={true}
-                description={gettext("Select a category row to inspect direct-assignment and weighted-allocation source details.")}
-              />
+                class="app-shell-empty-state app-shell-empty-state--inline"
+                role="status"
+                aria-live="polite"
+                aria-labelledby="classification-exposure-drilldown-empty-status-title"
+                aria-describedby="classification-exposure-drilldown-empty-status-description"
+              >
+                <h3 id="classification-exposure-drilldown-empty-title">
+                  <%= gettext("No category selected") %>
+                </h3>
+                <p id="classification-exposure-drilldown-empty-description">
+                  <%= gettext("Select a category row to inspect direct-assignment and weighted-allocation source details.") %>
+                </p>
+                <span
+                  id="classification-exposure-drilldown-empty-status-title"
+                  class="app-shell-visually-hidden"
+                >
+                  <%= gettext("No category selected") %>
+                </span>
+                <span
+                  id="classification-exposure-drilldown-empty-status-description"
+                  class="app-shell-visually-hidden"
+                >
+                  <%= gettext("Select a category row to inspect direct-assignment and weighted-allocation source details.") %>
+                </span>
+              </section>
             <% end %>
           </section>
 
