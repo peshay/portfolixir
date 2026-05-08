@@ -356,9 +356,18 @@ defmodule PortfolixirWeb.CategoryManagementLive do
               </ul>
             <% end %>
           <% else %>
-            <div id="no-taxonomy-selected" class="app-shell-empty-state">
-              <h3><%= gettext("Create or select a taxonomy first") %></h3>
-              <p><%= gettext("Categories belong to one taxonomy, so choose the grouping system before adding them.") %></p>
+            <div
+              id="no-taxonomy-selected"
+              class="app-shell-empty-state"
+              role="status"
+              aria-live="polite"
+              aria-labelledby="no-taxonomy-selected-title"
+              aria-describedby="no-taxonomy-selected-description"
+            >
+              <h3 id="no-taxonomy-selected-title"><%= gettext("Create or select a taxonomy first") %></h3>
+              <p id="no-taxonomy-selected-description">
+                <%= gettext("Categories belong to one taxonomy, so choose the grouping system before adding them.") %>
+              </p>
             </div>
           <% end %>
         </section>
