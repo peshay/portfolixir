@@ -22,7 +22,7 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
 
     assert has_element?(
              view,
-             "#no-taxonomy-selected[role='status'][aria-live='polite'][aria-labelledby='no-taxonomy-selected-title'][aria-describedby='no-taxonomy-selected-description']"
+             "#no-taxonomy-selected[role='status'][aria-live='polite'][aria-labelledby='no-taxonomy-selected-status-title'][aria-describedby='no-taxonomy-selected-status-description']"
            )
 
     assert has_element?(
@@ -34,6 +34,18 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert has_element?(
              view,
              "#no-taxonomy-selected-description",
+             "Categories belong to one taxonomy, so choose the grouping system before adding them."
+           )
+
+    assert has_element?(
+             view,
+             "#no-taxonomy-selected-status-title.app-shell-visually-hidden",
+             "Create or select a taxonomy first"
+           )
+
+    assert has_element?(
+             view,
+             "#no-taxonomy-selected-status-description.app-shell-visually-hidden",
              "Categories belong to one taxonomy, so choose the grouping system before adding them."
            )
   end
