@@ -39,7 +39,34 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
   test "renders empty state when no positions exist", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/reports/classification-exposure")
 
-    assert has_element?(view, "#classification-exposure-empty-state")
+    assert has_element?(
+             view,
+             "#classification-exposure-empty-state[role='status'][aria-live='polite'][aria-labelledby='classification-exposure-empty-state-status-title'][aria-describedby='classification-exposure-empty-state-status-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-empty-state-title",
+             "No classification exposure data yet"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-empty-state-description",
+             "Add positions and category mappings to populate this report."
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-empty-state-status-title.app-shell-visually-hidden",
+             "No classification exposure data yet"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-empty-state-status-description.app-shell-visually-hidden",
+             "Add positions and category mappings to populate this report."
+           )
   end
 
   test "direct and weighted mappings contribute to exposure report", %{
