@@ -32,6 +32,13 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
     assert has_element?(view, "#document-security-id")
     assert has_element?(view, "option[value=\"#{security.id}\"]")
     assert has_element?(view, "#document-upload-submit", "Upload factsheet")
+
+    assert has_element?(
+             view,
+             "#document-upload-form[aria-describedby=\"document-upload-form-intro\"]"
+           )
+
+    assert has_element?(view, "#document-upload-file-hint")
     assert html =~ "Attach PDF factsheet files directly to a security."
   end
 
@@ -76,6 +83,11 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
       |> render_submit()
 
     assert has_element?(view, "#factsheet-review-link")
+
+    assert has_element?(
+             view,
+             "#document-upload-form[aria-describedby=\"document-upload-form-intro document-upload-success\"]"
+           )
 
     assert Repo.aggregate(
              from(fd in FundDocument, where: fd.security_id == ^security.id),
@@ -227,7 +239,18 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
       ])
 
     assert {:error, [[_entry_ref, :not_accepted]]} = render_upload(upload, "factsheet.txt")
-    assert has_element?(view, "#document-upload-upload-error", "Unsupported file type.")
+
+    assert has_element?(
+             view,
+             "#document-upload-upload-error-1[role=\"alert\"]",
+             "Unsupported file type."
+           )
+
+    assert has_element?(
+             view,
+             "#document-upload-form[aria-describedby=\"document-upload-form-intro document-upload-upload-error-1\"]"
+           )
+
     assert Repo.aggregate(FundDocument, :count, :id) == 0
   end
 
@@ -261,6 +284,11 @@ defmodule PortfolixirWeb.DocumentUploadLiveTest do
 
     assert html =~ "Please select a valid security."
     assert has_element?(view, "#document-upload-error", "Please select a valid security.")
+
+    assert has_element?(
+             view,
+             "#document-upload-form[aria-describedby=\"document-upload-form-intro document-upload-error\"]"
+           )
 
     assert Repo.aggregate(
              from(fd in FundDocument, where: fd.security_id == ^security.id),
