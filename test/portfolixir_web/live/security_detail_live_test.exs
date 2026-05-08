@@ -185,12 +185,16 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
 
-    assert has_element?(view, "#no-security-positions")
-    assert has_element?(view, "#no-security-positions", "No current position available")
+    assert has_element?(
+             view,
+             "#no-security-positions[role='status'][aria-live='polite'][aria-labelledby='no-security-positions-title'][aria-describedby='no-security-positions-description']"
+           )
+
+    assert has_element?(view, "#no-security-positions-title", "No current position available")
 
     assert has_element?(
              view,
-             "#no-security-positions",
+             "#no-security-positions-description",
              "Current position data is unavailable for this security."
            )
 
