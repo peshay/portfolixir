@@ -183,10 +183,21 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLiveTest do
     assert has_element?(view, "#factsheet-summary-skipped-items", "2")
   end
 
-  test "unknown fund document id shows clear not found state", %{conn: conn} do
+  test "unknown fund document id shows accessible not found state", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/fund-documents/9999999/allocations/review")
 
-    assert has_element?(view, "#factsheet-review-not-found", "Fund document not found")
+    assert has_element?(
+             view,
+             "#factsheet-review-not-found[role='status'][aria-labelledby='factsheet-review-not-found-title'][aria-describedby='factsheet-review-not-found-description']"
+           )
+
+    assert has_element?(view, "#factsheet-review-not-found-title", "Fund document not found")
+
+    assert has_element?(
+             view,
+             "#factsheet-review-not-found-description",
+             "This factsheet document is not available."
+           )
   end
 
   defp create_security(symbol) do
