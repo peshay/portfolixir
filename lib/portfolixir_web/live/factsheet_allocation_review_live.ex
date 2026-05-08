@@ -7,6 +7,10 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLive do
   alias Portfolixir.Repo
   alias PortfolixirWeb.AppShell
 
+  @empty_state_id "factsheet-review-empty-state"
+  @empty_state_title_id "#{@empty_state_id}-title"
+  @empty_state_description_id "#{@empty_state_id}-description"
+
   def mount(%{"id" => id_param}, _session, socket) do
     socket =
       socket
@@ -94,15 +98,15 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLive do
 
           <%= if Enum.empty?(@preview["allocations"]) do %>
             <div
-              id="factsheet-review-empty-state"
+              id={empty_state_id()}
               class="app-shell-empty-state"
               role="status"
               aria-live="polite"
-              aria-labelledby="factsheet-review-empty-state-title"
-              aria-describedby="factsheet-review-empty-state-description"
+              aria-labelledby={empty_state_title_id()}
+              aria-describedby={empty_state_description_id()}
             >
-              <h3 id="factsheet-review-empty-state-title"><%= gettext("No allocations were parsed") %></h3>
-              <p id="factsheet-review-empty-state-description">
+              <h3 id={empty_state_title_id()}><%= gettext("No allocations were parsed") %></h3>
+              <p id={empty_state_description_id()}>
                 <%= gettext("No allocation rows were available for review from this factsheet.") %>
               </p>
             </div>
@@ -320,4 +324,8 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLive do
     do: "#{Atom.to_string(reason)}: #{message}"
 
   defp format_confirm_error(reason), do: inspect(reason)
+
+  defp empty_state_id, do: @empty_state_id
+  defp empty_state_title_id, do: @empty_state_title_id
+  defp empty_state_description_id, do: @empty_state_description_id
 end
