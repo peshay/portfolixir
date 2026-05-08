@@ -51,6 +51,40 @@ defmodule PortfolixirWeb.ImportConflictQueueLiveTest do
     assert has_element?(view, "#import-conflicts-open-empty-state-title", "No open conflicts")
   end
 
+  test "resolved conflicts empty state has deterministic accessible status semantics", %{
+    conn: conn
+  } do
+    source = create_import_source(name: "Open-only source")
+    {:ok, run} = Imports.create_import_run(%{import_source_id: source.id, status: "finished"})
+
+    {:ok, _open_conflict} =
+      Imports.create_import_conflict(%{
+        import_source_id: source.id,
+        import_run_id: run.id,
+        conflict_type: "missing_security",
+        summary: "Needs review"
+      })
+
+    {:ok, view, _html} = live(conn, "/imports/conflicts")
+
+    assert has_element?(
+             view,
+             "#import-conflicts-resolved-empty-state[role='status'][aria-live='polite'][aria-labelledby='import-conflicts-resolved-empty-state-title'][aria-describedby='import-conflicts-resolved-empty-state-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#import-conflicts-resolved-empty-state-title",
+             "No resolved conflicts"
+           )
+
+    assert has_element?(
+             view,
+             "#import-conflicts-resolved-empty-state-description",
+             "Historical conflicts that were already resolved."
+           )
+  end
+
   test "conflict queue groups open/resolved conflicts deterministically with review links", %{
     conn: conn
   } do
