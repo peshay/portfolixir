@@ -293,19 +293,42 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert has_element?(view, ".app-shell-warning-note")
   end
 
-  test "no deposit accounts empty state exposes status semantics", %{conn: conn} do
-    create_portfolio("Primary portfolio")
+  test "account list tables include hidden captions", %{conn: conn} do
+    portfolio = create_portfolio("Primary portfolio")
+    deposit_account = create_deposit_account(portfolio, "Settlement Cash")
+    create_securities_account(portfolio, deposit_account, "Primary Depot")
+
+    {:ok, _deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        deposit_account_id: deposit_account.id,
+        type: "deposit",
+        date: ~D[2026-04-01],
+        currency_code: "EUR",
+        amount: Decimal.new("1000.00")
+      })
 
     {:ok, view, _html} = live(conn, "/accounts")
 
     assert has_element?(
              view,
-             "#no-deposit-accounts[role='status'][aria-live='polite'][aria-labelledby='no-deposit-accounts-title']"
+             "#deposit-account-list-caption.app-shell-visually-hidden",
+             "Deposit accounts with name, currency, and notes."
            )
 
-    assert has_element?(view, "#no-deposit-accounts-title", "No deposit accounts yet")
+    assert has_element?(
+             view,
+             "#cash-balance-list-caption.app-shell-visually-hidden",
+             "Cash balances by deposit account and currency."
+           )
 
-    assert has_element?(view, "#no-deposit-accounts", "Add a cash or settlement account.")
+    assert has_element?(
+             view,
+             "#securities-account-list-caption.app-shell-visually-hidden",
+             "Securities accounts with reference deposit account and notes."
+           )
+
+    assert has_element?(view, "#deposit-account-list", "Settlement Cash")
   end
 
   test "renders an empty state when there is no portfolio", %{conn: conn} do
@@ -636,7 +659,6 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     {:ok, view, html} = live(conn, "/accounts")
 
     assert has_element?(view, "#missing-cash-impacts")
-
     assert html =~ "Missing cash impact"
     assert html =~ "Unlinked Depot"
   end
