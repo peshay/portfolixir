@@ -666,6 +666,71 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
            )
   end
 
+  test "securities account form success feedback is referenced from a stable form description", %{
+    conn: conn
+  } do
+    create_portfolio("Primary portfolio")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(
+             view,
+             "#securities-account-form[aria-describedby='securities-account-form-intro']"
+           )
+
+    html =
+      view
+      |> form("#securities-account-form", %{
+        "securities_account" => %{
+          "name" => "Main Depot",
+          "currency_code" => "EUR",
+          "reference_deposit_account_id" => "",
+          "notes" => "Synthetic fixture account"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Securities account created."
+
+    assert has_element?(
+             view,
+             "#securities-account-form-success[role='status'][aria-live='polite']"
+           )
+
+    assert has_element?(
+             view,
+             "#securities-account-form[aria-describedby='securities-account-form-intro securities-account-form-success']"
+           )
+  end
+
+  test "securities account form error alert is referenced from a stable form description", %{
+    conn: conn
+  } do
+    create_portfolio("Primary portfolio")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    html =
+      view
+      |> form("#securities-account-form", %{
+        "securities_account" => %{
+          "name" => "",
+          "currency_code" => "EUR",
+          "reference_deposit_account_id" => "",
+          "notes" => "Missing name"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "id=\"securities-account-form-error\""
+    assert has_element?(view, "#securities-account-form-error[role='alert']")
+
+    assert has_element?(
+             view,
+             "#securities-account-form[aria-describedby='securities-account-form-intro securities-account-form-error']"
+           )
+  end
+
   test "creates a deposit account for the current portfolio", %{conn: conn} do
     create_portfolio("Primary portfolio")
 
