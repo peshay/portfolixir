@@ -579,6 +579,38 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     assert has_element?(view, "#security-price-chart-empty", "No quotes yet")
   end
 
+  test "shows markers empty state semantics when quotes exist but no marker transactions", %{
+    conn: conn
+  } do
+    security =
+      create_security(%{name: "No Marker Security", symbol: "NMRK", currency_code: "EUR"})
+
+    create_quote(security.id, ~D[2026-04-01], "10.00")
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}")
+
+    assert has_element?(view, "#security-price-chart-svg")
+
+    assert has_element?(
+             view,
+             "#security-chart-markers-empty-state[role='status'][aria-live='polite'][aria-labelledby='security-chart-markers-empty-state-title'][aria-describedby='security-chart-markers-empty-state-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-chart-markers-empty-state-title",
+             "No markers in selected range"
+           )
+
+    assert has_element?(
+             view,
+             "#security-chart-markers-empty-state-description",
+             "No buy, sell, or dividend markers are available for this selection."
+           )
+
+    refute has_element?(view, "#security-chart-marker-0")
+  end
+
   test "renders security detail without a current portfolio", %{conn: conn} do
     security =
       create_security(%{name: "Portfolio-less Security", symbol: "NOP", currency_code: "EUR"})
