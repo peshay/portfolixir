@@ -38,9 +38,17 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLive do
     ~H"""
     <AppShell.shell current_path={review_current_path(@fund_document)}>
       <%= if @fund_document_not_found do %>
-        <section id="factsheet-review-not-found" class="app-shell-empty-state">
-          <h1><%= gettext("Fund document not found") %></h1>
-          <p><%= gettext("This factsheet document is not available.") %></p>
+        <section
+          id="factsheet-review-not-found"
+          class="app-shell-empty-state"
+          role="status"
+          aria-labelledby="factsheet-review-not-found-title"
+          aria-describedby="factsheet-review-not-found-description"
+        >
+          <h1 id="factsheet-review-not-found-title"><%= gettext("Fund document not found") %></h1>
+          <p id="factsheet-review-not-found-description">
+            <%= gettext("This factsheet document is not available.") %>
+          </p>
         </section>
       <% else %>
         <header class="app-shell-page-header">
