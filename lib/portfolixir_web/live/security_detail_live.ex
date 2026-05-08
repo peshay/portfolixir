@@ -104,9 +104,15 @@ defmodule PortfolixirWeb.SecurityDetailLive do
           </div>
         </header>
 
-        <section id="security-detail-not-found" class="app-shell-section-card app-shell-empty-state">
-          <h2><%= gettext("Security not found") %></h2>
-          <p><%= gettext("The selected security does not exist.") %></p>
+        <section
+          id="security-detail-not-found"
+          class="app-shell-section-card app-shell-empty-state"
+          role="status"
+          aria-labelledby="security-detail-not-found-title"
+          aria-describedby="security-detail-not-found-description"
+        >
+          <h2 id="security-detail-not-found-title"><%= gettext("Security not found") %></h2>
+          <p id="security-detail-not-found-description"><%= gettext("The selected security does not exist.") %></p>
           <p><a href="/securities"><%= gettext("Back to all securities") %></a></p>
         </section>
       <% end %>
