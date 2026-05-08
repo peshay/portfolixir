@@ -231,9 +231,16 @@ defmodule PortfolixirWeb.AccountManagementLive do
               </div>
 
               <%= if Enum.empty?(@cash_balance_rows) do %>
-                <div id="no-cash-balances" class="app-shell-empty-state">
-                  <h3><%= gettext("No cash balances yet") %></h3>
-                  <p><%= gettext("Balances appear after deposit, withdrawal and trade transactions.") %></p>
+                <div
+                  id="no-cash-balances"
+                  class="app-shell-empty-state"
+                  role="status"
+                  aria-live="polite"
+                  aria-labelledby="no-cash-balances-title"
+                  aria-describedby="no-cash-balances-description"
+                >
+                  <h3 id="no-cash-balances-title"><%= gettext("No cash balances yet") %></h3>
+                  <p id="no-cash-balances-description"><%= gettext("Balances appear after deposit, withdrawal and trade transactions.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">

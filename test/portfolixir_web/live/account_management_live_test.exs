@@ -54,6 +54,25 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
            )
   end
 
+  test "cash balances empty state has deterministic accessible status semantics", %{conn: conn} do
+    create_portfolio("Primary portfolio")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(
+             view,
+             "#no-cash-balances[role='status'][aria-live='polite'][aria-labelledby='no-cash-balances-title'][aria-describedby='no-cash-balances-description']"
+           )
+
+    assert has_element?(view, "#no-cash-balances-title", "No cash balances yet")
+
+    assert has_element?(
+             view,
+             "#no-cash-balances-description",
+             "Balances appear after deposit, withdrawal and trade transactions."
+           )
+  end
+
   test "shows a current portfolio selector and selects the first portfolio by default", %{
     conn: conn
   } do
