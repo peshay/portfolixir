@@ -316,9 +316,16 @@ defmodule PortfolixirWeb.AccountManagementLive do
               </div>
 
               <%= if Enum.empty?(@securities_accounts) do %>
-                <div id="no-securities-accounts" class="app-shell-empty-state">
-                  <h3><%= gettext("No securities accounts yet") %></h3>
-                  <p><%= gettext("Add a brokerage or custody account.") %></p>
+                <div
+                  id="no-securities-accounts"
+                  class="app-shell-empty-state"
+                  role="status"
+                  aria-live="polite"
+                  aria-labelledby="no-securities-accounts-title"
+                  aria-describedby="no-securities-accounts-description"
+                >
+                  <h3 id="no-securities-accounts-title"><%= gettext("No securities accounts yet") %></h3>
+                  <p id="no-securities-accounts-description"><%= gettext("Add a brokerage or custody account.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
