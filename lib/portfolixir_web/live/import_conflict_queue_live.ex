@@ -69,13 +69,24 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
           <div class="app-shell-section-header">
             <div>
               <h2 class="app-shell-section-title"><%= gettext("Resolved conflicts") %></h2>
-              <p><%= gettext("Historical conflicts that were already resolved.") %></p>
+              <p id="import-conflicts-resolved-empty-state-description">
+                <%= gettext("Historical conflicts that were already resolved.") %>
+              </p>
             </div>
           </div>
 
           <%= if Enum.empty?(@resolved_conflicts) do %>
-            <div id="import-conflicts-resolved-empty-state" class="app-shell-empty-state">
-              <h3><%= gettext("No resolved conflicts") %></h3>
+            <div
+              id="import-conflicts-resolved-empty-state"
+              class="app-shell-empty-state"
+              role="status"
+              aria-live="polite"
+              aria-labelledby="import-conflicts-resolved-empty-state-title"
+              aria-describedby="import-conflicts-resolved-empty-state-description"
+            >
+              <h3 id="import-conflicts-resolved-empty-state-title">
+                <%= gettext("No resolved conflicts") %>
+              </h3>
             </div>
           <% else %>
             <.conflict_table
