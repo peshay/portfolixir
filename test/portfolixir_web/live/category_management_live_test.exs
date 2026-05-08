@@ -316,6 +316,33 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert has_element?(view, "#security-assignment-#{security.id}-#{category.id}")
   end
 
+  test "security assignment empty hint exposes deterministic semantics for assistive technology",
+       %{
+         conn: conn
+       } do
+    {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
+    {:ok, _category} = Taxonomies.create_category(%{taxonomy_id: taxonomy.id, name: "Core"})
+
+    {:ok, view, _html} = live(conn, "/taxonomies")
+
+    assert has_element?(
+             view,
+             "#security-assignments-empty[role='status'][aria-live='polite'][aria-labelledby='security-assignments-empty-title'][aria-describedby='security-assignments-empty-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-assignments-empty-title",
+             "Select a security to view assignments."
+           )
+
+    assert has_element?(
+             view,
+             "#security-assignments-empty-description.app-shell-visually-hidden",
+             "Select a security in the assignment form to review category assignments."
+           )
+  end
+
   test "assigns and removes category assignments through UI", %{conn: conn} do
     {:ok, taxonomy} = Taxonomies.create_taxonomy(%{name: "Allocation"})
 

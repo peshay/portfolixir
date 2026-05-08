@@ -322,7 +322,21 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                 </form>
 
                 <%= if is_nil(@selected_security_id) do %>
-                  <p id="security-assignments-empty" class="app-shell-muted"><%= gettext("Select a security to view assignments.") %></p>
+                  <p
+                    id="security-assignments-empty"
+                    class="app-shell-muted"
+                    role="status"
+                    aria-live="polite"
+                    aria-labelledby="security-assignments-empty-title"
+                    aria-describedby="security-assignments-empty-description"
+                  >
+                    <span id="security-assignments-empty-title">
+                      <%= gettext("Select a security to view assignments.") %>
+                    </span>
+                    <span id="security-assignments-empty-description" class="app-shell-visually-hidden">
+                      <%= gettext("Select a security in the assignment form to review category assignments.") %>
+                    </span>
+                  </p>
                 <% else %>
                   <ul id="security-assignment-list" class="app-shell-list">
                     <%= for category <- @selected_security_categories do %>
