@@ -273,11 +273,27 @@ defmodule PortfolixirWeb.AccountManagementLive do
               </p>
 
               <%= if not Enum.empty?(@missing_cash_impact_rows) do %>
-                <div id="missing-cash-impacts" class="app-shell-alert app-shell-alert--warning" role="alert">
-                  <strong><%= gettext("Missing cash impact") %></strong>
+                <div
+                  id={missing_cash_impacts_alert_id()}
+                  class="app-shell-alert app-shell-alert--warning"
+                  role="alert"
+                  aria-labelledby={missing_cash_impacts_alert_title_id()}
+                  aria-describedby={missing_cash_impacts_alert_description_id()}
+                >
+                  <strong id={missing_cash_impacts_alert_title_id()}>
+                    <%= gettext("Missing cash impact") %>
+                  </strong>
+
+                  <p id={missing_cash_impacts_alert_description_id()} class="app-shell-visually-hidden">
+                    <%= gettext("Transactions missing a reference deposit account cash impact.") %>
+                  </p>
+
                   <div class="app-shell-table-wrapper">
-                    <table id="missing-cash-impacts-table">
-                      <caption id="missing-cash-impacts-table-caption" class="app-shell-visually-hidden">
+                    <table id={missing_cash_impacts_table_id()}>
+                      <caption
+                        id={missing_cash_impacts_table_caption_id()}
+                        class="app-shell-visually-hidden"
+                      >
                         <%= gettext("Transactions missing a reference deposit account cash impact.") %>
                       </caption>
                       <thead>
@@ -880,6 +896,15 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
   defp cash_balances_empty_state_description_id,
     do: "no-cash-balances-description"
+
+  defp missing_cash_impacts_alert_id, do: "missing-cash-impacts"
+  defp missing_cash_impacts_alert_title_id, do: "missing-cash-impacts-title"
+
+  defp missing_cash_impacts_alert_description_id,
+    do: "missing-cash-impacts-description"
+
+  defp missing_cash_impacts_table_id, do: "missing-cash-impacts-table"
+  defp missing_cash_impacts_table_caption_id, do: "missing-cash-impacts-table-caption"
 
   defp securities_accounts_empty_state_id, do: "no-securities-accounts"
   defp securities_accounts_empty_state_title_id, do: "no-securities-accounts-title"
