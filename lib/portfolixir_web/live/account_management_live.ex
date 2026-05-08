@@ -289,7 +289,10 @@ defmodule PortfolixirWeb.AccountManagementLive do
                   </p>
 
                   <div class="app-shell-table-wrapper">
-                    <table id={missing_cash_impacts_table_id()}>
+                    <table
+                      id={missing_cash_impacts_table_id()}
+                      aria-describedby={missing_cash_impacts_table_description_ids()}
+                    >
                       <caption
                         id={missing_cash_impacts_table_caption_id()}
                         class="app-shell-visually-hidden"
@@ -905,6 +908,11 @@ defmodule PortfolixirWeb.AccountManagementLive do
 
   defp missing_cash_impacts_table_id, do: "missing-cash-impacts-table"
   defp missing_cash_impacts_table_caption_id, do: "missing-cash-impacts-table-caption"
+
+  defp missing_cash_impacts_table_description_ids do
+    [missing_cash_impacts_table_caption_id(), missing_cash_impacts_alert_description_id()]
+    |> Enum.join(" ")
+  end
 
   defp securities_accounts_empty_state_id, do: "no-securities-accounts"
   defp securities_accounts_empty_state_title_id, do: "no-securities-accounts-title"
