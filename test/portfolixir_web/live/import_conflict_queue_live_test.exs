@@ -45,10 +45,16 @@ defmodule PortfolixirWeb.ImportConflictQueueLiveTest do
 
     assert has_element?(
              view,
-             "#import-conflicts-open-empty-state[role='region'][aria-labelledby='import-conflicts-open-empty-state-title']"
+             "#import-conflicts-open-empty-state[role='region'][aria-labelledby='import-conflicts-open-empty-state-title'][aria-describedby='import-conflicts-open-empty-state-description']"
            )
 
     assert has_element?(view, "#import-conflicts-open-empty-state-title", "No open conflicts")
+
+    assert has_element?(
+             view,
+             "#import-conflicts-open-empty-state-description",
+             "Actionable import conflicts that still require review."
+           )
   end
 
   test "resolved conflicts empty state has deterministic accessible status semantics", %{
