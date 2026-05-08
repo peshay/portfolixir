@@ -898,20 +898,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     assert_security_results_status(view, "Showing 1 active security")
-
-    assert has_element?(
-             view,
-             "#security-list[aria-describedby='security-list-caption security-results-status']"
-           )
+    assert_security_table_relationship(view)
 
     view |> element("#security-filter-inactive") |> render_click()
 
     assert_security_results_status(view, "Showing 1 inactive security")
-
-    assert has_element?(
-             view,
-             "#security-list[aria-describedby='security-list-caption security-results-status']"
-           )
+    assert_security_table_relationship(view)
 
     view
     |> element("#security-search-form")
@@ -929,11 +921,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     |> render_change(%{"q" => ""})
 
     assert_security_results_status(view, "Showing 1 inactive security")
-
-    assert has_element?(
-             view,
-             "#security-list[aria-describedby='security-list-caption security-results-status']"
-           )
+    assert_security_table_relationship(view)
   end
 
   test "archives an active security from the list and removes it from the active view", %{
@@ -2256,6 +2244,19 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              view,
              "#security-results-status[role='status'][aria-live='polite'][aria-atomic='true']",
              expected_text
+           )
+  end
+
+  defp assert_security_table_relationship(view) do
+    assert has_element?(
+             view,
+             "#security-list[aria-describedby='security-list-caption security-results-status']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list-caption.app-shell-visually-hidden",
+             "Securities workbench table with identifiers, valuation, status, and row actions."
            )
   end
 end
