@@ -262,7 +262,10 @@ defmodule PortfolixirWeb.AccountManagementLive do
                 <div id="missing-cash-impacts" class="app-shell-alert app-shell-alert--warning" role="alert">
                   <strong><%= gettext("Missing cash impact") %></strong>
                   <div class="app-shell-table-wrapper">
-                    <table>
+                    <table id="missing-cash-impacts-table">
+                      <caption id="missing-cash-impacts-table-caption" class="app-shell-visually-hidden">
+                        <%= gettext("Transactions missing a reference deposit account cash impact.") %>
+                      </caption>
                       <thead>
                         <tr>
                           <th scope="col"><%= gettext("Transaction") %></th>
@@ -336,11 +339,18 @@ defmodule PortfolixirWeb.AccountManagementLive do
               <p class="app-shell-page-kicker"><%= gettext("First run") %></p>
                 <h2><%= gettext("Create your first portfolio") %></h2>
                 <p><%= gettext("Create this portfolio first so account setup appears next.") %></p>
-              <div id="no-portfolio" class="app-shell-empty-state app-shell-empty-state--inline" role="status">
-                <h3><%= gettext("No portfolio yet") %></h3>
-                  <p>
-                    <%= gettext("After you create this portfolio, you can set up a deposit account and then a securities account.") %>
-                  </p>
+              <div
+                id="no-portfolio"
+                class="app-shell-empty-state app-shell-empty-state--inline"
+                role="status"
+                aria-live="polite"
+                aria-labelledby="no-portfolio-title"
+                aria-describedby="no-portfolio-description"
+              >
+                <h3 id="no-portfolio-title"><%= gettext("No portfolio yet") %></h3>
+                <p id="no-portfolio-description">
+                  <%= gettext("After you create this portfolio, you can set up a deposit account and then a securities account.") %>
+                </p>
               </div>
             </section>
           <% end %>

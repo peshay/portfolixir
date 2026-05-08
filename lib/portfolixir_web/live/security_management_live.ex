@@ -251,7 +251,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
-              <table id="security-list" aria-describedby="security-results-status">
+              <table id="security-list" aria-describedby="security-list-caption security-results-status">
                 <caption id="security-list-caption" class="app-shell-visually-hidden">
                   <%= gettext("Securities workbench table with identifiers, valuation, status, and row actions.") %>
                 </caption>

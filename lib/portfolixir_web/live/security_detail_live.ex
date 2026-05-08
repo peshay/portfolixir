@@ -178,7 +178,10 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
-                <table id="security-fund-document-list">
+                <table
+                  id="security-fund-document-list"
+                  aria-describedby="security-fund-document-list-caption"
+                >
                   <caption id="security-fund-document-list-caption" class="app-shell-visually-hidden">
                     <%= gettext("Fund documents table with filename, type, source, extraction status, and creation date.") %>
                   </caption>
@@ -326,8 +329,13 @@ defmodule PortfolixirWeb.SecurityDetailLive do
             </div>
 
             <%= if Enum.empty?(@quote_series) do %>
-              <div id="security-price-chart-empty" class="app-shell-empty-state">
-                <h3><%= gettext("No quotes yet") %></h3>
+              <div
+                id="security-price-chart-empty"
+                class="app-shell-empty-state"
+                role="region"
+                aria-labelledby="security-price-chart-empty-title"
+              >
+                <h3 id="security-price-chart-empty-title"><%= gettext("No quotes yet") %></h3>
                 <p><%= gettext("No stored quotes are available for this security yet.") %></p>
               </div>
             <% else %>

@@ -337,6 +337,19 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     assert has_element?(view, "#portfolio-onboarding.app-shell-onboarding")
     assert has_element?(view, "#portfolio-onboarding h2", "Create your first portfolio")
 
+    assert has_element?(
+             view,
+             "#no-portfolio[role='status'][aria-live='polite'][aria-labelledby='no-portfolio-title'][aria-describedby='no-portfolio-description']"
+           )
+
+    assert has_element?(view, "#no-portfolio-title", "No portfolio yet")
+
+    assert has_element?(
+             view,
+             "#no-portfolio-description",
+             "After you create this portfolio, you can set up a deposit account and then a securities account."
+           )
+
     assert html =~ "Create this portfolio first so account setup appears next."
 
     assert html =~ "No portfolio yet"
@@ -659,6 +672,13 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     {:ok, view, html} = live(conn, "/accounts")
 
     assert has_element?(view, "#missing-cash-impacts")
+
+    assert has_element?(
+             view,
+             "#missing-cash-impacts-table-caption.app-shell-visually-hidden",
+             "Transactions missing a reference deposit account cash impact."
+           )
+
     assert html =~ "Missing cash impact"
     assert html =~ "Unlinked Depot"
   end

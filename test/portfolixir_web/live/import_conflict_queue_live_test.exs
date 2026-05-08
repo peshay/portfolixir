@@ -16,6 +16,29 @@ defmodule PortfolixirWeb.ImportConflictQueueLiveTest do
     assert has_element?(view, "#import-conflicts-empty-state", "No import conflicts queued")
   end
 
+  test "open conflicts empty state has deterministic accessible region semantics", %{conn: conn} do
+    source = create_import_source(name: "Resolved-only source")
+    {:ok, run} = Imports.create_import_run(%{import_source_id: source.id, status: "finished"})
+
+    {:ok, _resolved_conflict} =
+      Imports.create_import_conflict(%{
+        import_source_id: source.id,
+        import_run_id: run.id,
+        conflict_type: "duplicate_transaction",
+        status: "resolved",
+        summary: "Already resolved"
+      })
+
+    {:ok, view, _html} = live(conn, "/imports/conflicts")
+
+    assert has_element?(
+             view,
+             "#import-conflicts-open-empty-state[role='region'][aria-labelledby='import-conflicts-open-empty-state-title']"
+           )
+
+    assert has_element?(view, "#import-conflicts-open-empty-state-title", "No open conflicts")
+  end
+
   test "conflict queue groups open/resolved conflicts deterministically with review links", %{
     conn: conn
   } do
@@ -68,6 +91,29 @@ defmodule PortfolixirWeb.ImportConflictQueueLiveTest do
 
     assert has_element?(view, "#import-conflicts-open-table")
     assert has_element?(view, "#import-conflicts-resolved-table")
+
+    assert has_element?(
+             view,
+             "#import-conflicts-open-table[aria-describedby='import-conflicts-open-table-caption']"
+           )
+
+    assert has_element?(
+             view,
+             "#import-conflicts-open-table #import-conflicts-open-table-caption.app-shell-visually-hidden",
+             "Open import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+           )
+
+    assert has_element?(
+             view,
+             "#import-conflicts-resolved-table[aria-describedby='import-conflicts-resolved-table-caption']"
+           )
+
+    assert has_element?(
+             view,
+             "#import-conflicts-resolved-table #import-conflicts-resolved-table-caption.app-shell-visually-hidden",
+             "Resolved import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+           )
+
     assert has_element?(view, "#import-conflict-open-row-#{open_newer.id}")
     assert has_element?(view, "#import-conflict-open-row-#{open_older.id}")
     assert has_element?(view, "#import-conflict-resolved-row-#{resolved_newer.id}")

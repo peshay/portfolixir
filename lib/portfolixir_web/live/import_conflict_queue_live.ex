@@ -43,8 +43,13 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
           </div>
 
           <%= if Enum.empty?(@open_conflicts) do %>
-            <div id="import-conflicts-open-empty-state" class="app-shell-empty-state">
-              <h3><%= gettext("No open conflicts") %></h3>
+            <div
+              id="import-conflicts-open-empty-state"
+              class="app-shell-empty-state"
+              role="region"
+              aria-labelledby="import-conflicts-open-empty-state-title"
+            >
+              <h3 id="import-conflicts-open-empty-state-title"><%= gettext("No open conflicts") %></h3>
             </div>
           <% else %>
             <.conflict_table id="import-conflicts-open-table" conflicts={@open_conflicts} row_prefix="open" />
@@ -81,9 +86,14 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
   attr(:row_prefix, :string, required: true)
 
   defp conflict_table(assigns) do
+    assigns = assign(assigns, :caption_id, "#{assigns.id}-caption")
+
     ~H"""
     <div class="app-shell-table-wrapper">
-      <table id={@id}>
+      <table id={@id} aria-describedby={@caption_id}>
+        <caption id={@caption_id} class="app-shell-visually-hidden">
+          <%= conflict_table_caption(@row_prefix) %>
+        </caption>
         <thead>
           <tr>
             <th scope="col"><%= gettext("Source") %></th>
@@ -134,5 +144,23 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
     datetime
     |> NaiveDateTime.truncate(:second)
     |> NaiveDateTime.to_iso8601()
+  end
+
+  defp conflict_table_caption("open") do
+    gettext(
+      "Open import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+    )
+  end
+
+  defp conflict_table_caption("resolved") do
+    gettext(
+      "Resolved import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+    )
+  end
+
+  defp conflict_table_caption(_row_prefix) do
+    gettext(
+      "Import conflicts table with source, run, type, summary, raised timestamp, and raw item review link."
+    )
   end
 end
