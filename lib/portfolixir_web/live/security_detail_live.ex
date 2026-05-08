@@ -393,9 +393,16 @@ defmodule PortfolixirWeb.SecurityDetailLive do
               </div>
 
               <%= if Enum.empty?(@chart_markers) do %>
-                <div id="security-chart-markers-empty-state" class="app-shell-empty-state">
-                  <h3><%= gettext("No markers in selected range") %></h3>
-                  <p><%= gettext("No buy, sell, or dividend markers are available for this selection.") %></p>
+                <div
+                  id="security-chart-markers-empty-state"
+                  class="app-shell-empty-state"
+                  role="status"
+                  aria-live="polite"
+                  aria-labelledby="security-chart-markers-empty-state-title"
+                  aria-describedby="security-chart-markers-empty-state-description"
+                >
+                  <h3 id="security-chart-markers-empty-state-title"><%= gettext("No markers in selected range") %></h3>
+                  <p id="security-chart-markers-empty-state-description"><%= gettext("No buy, sell, or dividend markers are available for this selection.") %></p>
                 </div>
               <% end %>
             <% end %>
