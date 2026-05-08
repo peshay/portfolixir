@@ -29,9 +29,18 @@ defmodule PortfolixirWeb.ImportConflictQueueLive do
       </header>
 
       <%= if Enum.empty?(@open_conflicts) and Enum.empty?(@resolved_conflicts) do %>
-        <section id="import-conflicts-empty-state" class="app-shell-empty-state">
-          <h2><%= gettext("No import conflicts queued") %></h2>
-          <p><%= gettext("Open and resolved conflicts will appear here after import runs.") %></p>
+        <section
+          id="import-conflicts-empty-state"
+          class="app-shell-empty-state"
+          role="status"
+          aria-live="polite"
+          aria-labelledby="import-conflicts-empty-state-title"
+          aria-describedby="import-conflicts-empty-state-description"
+        >
+          <h2 id="import-conflicts-empty-state-title"><%= gettext("No import conflicts queued") %></h2>
+          <p id="import-conflicts-empty-state-description">
+            <%= gettext("Open and resolved conflicts will appear here after import runs.") %>
+          </p>
         </section>
       <% else %>
         <section id="import-conflicts-open-section" class="app-shell-section-card">
