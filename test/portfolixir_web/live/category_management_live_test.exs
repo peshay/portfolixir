@@ -19,6 +19,23 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert html =~ "Taxonomy tree"
     assert html =~ "Selected classification details"
     assert html =~ "Create Taxonomy"
+
+    assert has_element?(
+             view,
+             "#no-taxonomy-selected[role='status'][aria-live='polite'][aria-labelledby='no-taxonomy-selected-title'][aria-describedby='no-taxonomy-selected-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#no-taxonomy-selected-title",
+             "Create or select a taxonomy first"
+           )
+
+    assert has_element?(
+             view,
+             "#no-taxonomy-selected-description",
+             "Categories belong to one taxonomy, so choose the grouping system before adding them."
+           )
   end
 
   test "classifications workspace explains taxonomy/category relationship", %{conn: conn} do
