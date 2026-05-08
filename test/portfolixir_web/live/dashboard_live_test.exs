@@ -334,14 +334,14 @@ defmodule PortfolixirWeb.DashboardLiveTest do
 
     assert has_element?(
              view,
-             "#dashboard-chart-placeholder[role='region'][aria-labelledby='dashboard-chart-placeholder-title']"
+             "#dashboard-chart-placeholder[role='region'][aria-labelledby='dashboard-chart-placeholder-title'][aria-describedby='dashboard-chart-placeholder-description']"
            )
 
     assert has_element?(view, "#dashboard-chart-placeholder-title", "Portfolio value chart")
 
     assert has_element?(
              view,
-             "#dashboard-chart-placeholder",
+             "#dashboard-chart-placeholder-description",
              "Portfolio value chart will appear here once valuations are available."
            )
 
