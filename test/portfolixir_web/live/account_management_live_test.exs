@@ -422,6 +422,33 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
     refute has_element?(view, "#securities-account-form")
   end
 
+  test "portfolio onboarding empty state keeps deterministic title/description relationships", %{
+    conn: conn
+  } do
+    {:ok, view, html} = live(conn, "/accounts")
+
+    assert has_element?(
+             view,
+             "#no-portfolio[role='status'][aria-live='polite'][aria-labelledby='no-portfolio-title'][aria-describedby='no-portfolio-description']"
+           )
+
+    assert has_element?(view, "#no-portfolio-title", "No portfolio yet")
+
+    assert has_element?(
+             view,
+             "#no-portfolio-description",
+             "After you create this portfolio, you can set up a deposit account and then a securities account."
+           )
+
+    status_html = render(element(view, "#no-portfolio"))
+
+    assert status_html =~ "aria-labelledby=\"no-portfolio-title\""
+    assert status_html =~ "aria-describedby=\"no-portfolio-description\""
+
+    assert Regex.scan(~r/id=\"no-portfolio-title\"/, html) |> length() == 1
+    assert Regex.scan(~r/id=\"no-portfolio-description\"/, html) |> length() == 1
+  end
+
   test "walks through the first-run account setup flow", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/accounts")
 
