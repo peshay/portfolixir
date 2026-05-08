@@ -602,14 +602,14 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#no-securities[role='status'][aria-describedby='security-results-status']"
+             "#no-securities[role='status'][aria-labelledby='no-securities-title'][aria-describedby='no-securities-description security-results-status']"
            )
 
-    assert has_element?(view, "#no-securities h3", "No securities yet")
+    assert has_element?(view, "#no-securities-title", "No securities yet")
 
     assert has_element?(
              view,
-             "#no-securities p",
+             "#no-securities-description",
              "Add your first security to start building your portfolio."
            )
 
@@ -732,7 +732,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#no-securities[role='status'][aria-describedby='security-results-status']"
+             "#no-securities[role='status'][aria-labelledby='no-securities-title'][aria-describedby='no-securities-description security-results-status']"
            )
 
     assert has_element?(view, "#no-securities h3", "No active securities")
@@ -1484,7 +1484,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#no-securities[role='status'][aria-describedby='security-results-status']"
+             "#no-securities[role='status'][aria-labelledby='no-securities-title'][aria-describedby='no-securities-description security-results-status']"
            )
 
     assert has_element?(view, "#no-securities h3", "No inactive securities")
