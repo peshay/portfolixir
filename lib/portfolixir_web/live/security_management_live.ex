@@ -533,17 +533,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               id="security-selected-summary"
               class="app-shell-summary-grid"
               role="group"
-              aria-labelledby="security-selected-valuation-summary-title security-selected-valuation-freshness"
-              aria-describedby={valuation_description_ids(
-                "security-selected",
-                nil,
+              aria-labelledby={selected_security_summary_labelledby_ids()}
+              aria-describedby={selected_security_summary_describedby_ids(
                 @selected_security.valuation_warning
               )}
             >
-              <h3 id="security-selected-valuation-summary-title" class="app-shell-visually-hidden">
+              <h3 id={selected_security_summary_title_id()} class="app-shell-visually-hidden">
                 <%= gettext("Selected security valuation summary") %>
               </h3>
-              <span id="security-selected-valuation-freshness" class="app-shell-visually-hidden">
+              <span id={selected_security_summary_freshness_id()} class="app-shell-visually-hidden">
                 <%= security_freshness_aria_label(@selected_security) %>
               </span>
               <p><strong><%= gettext("Name") %>:</strong> <%= @selected_security.name %></p>
@@ -603,7 +601,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 ) %>
               </p>
               <p
-                id="security-selected-valuation-source-legend"
+                id={selected_security_valuation_source_legend_id()}
                 class="app-shell-help-text"
                 data-testid="security-selected-valuation-source-legend"
               >
@@ -1236,6 +1234,19 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp no_securities_description_ids,
     do: "no-securities-description #{security_results_status_id()}"
+
+  defp selected_security_summary_title_id, do: "security-selected-valuation-summary-title"
+
+  defp selected_security_summary_freshness_id, do: "security-selected-valuation-freshness"
+
+  defp selected_security_summary_labelledby_ids,
+    do: "#{selected_security_summary_title_id()} #{selected_security_summary_freshness_id()}"
+
+  defp selected_security_valuation_source_legend_id,
+    do: "security-selected-valuation-source-legend"
+
+  defp selected_security_summary_describedby_ids(warning),
+    do: valuation_description_ids("security-selected", nil, warning)
 
   defp security_table_caption_text do
     gettext("Securities workbench table with identifiers, valuation, status, and row actions.")

@@ -2061,6 +2061,97 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            ) == "Valuation warning unavailable."
   end
 
+  test "selected valuation summary keeps deterministic accessibility relationships", %{conn: conn} do
+    alias Portfolixir.Ledger
+    alias Portfolixir.Portfolios
+
+    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, current_security} =
+      Catalog.create_security(%{name: "Alpha Current", symbol: "CUR", currency_code: "EUR"})
+
+    {:ok, warning_security} =
+      Catalog.create_security(%{name: "Beta Missing", symbol: "MIS", currency_code: "EUR"})
+
+    for security <- [current_security, warning_security] do
+      {:ok, _} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          type: "buy",
+          date: ~D[2026-05-02],
+          currency_code: "EUR",
+          amount: Decimal.new("200"),
+          quantity: Decimal.new("2"),
+          price: Decimal.new("100"),
+          securities_account_id: securities_account.id,
+          security_id: security.id
+        })
+    end
+
+    {:ok, _} =
+      Catalog.create_security_quote(%{
+        security_id: current_security.id,
+        date: ~D[2026-05-02],
+        source: "manual",
+        currency_code: "EUR",
+        close: Decimal.new("101.00")
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    view
+    |> element("#security-row-#{current_security.id}")
+    |> render_click()
+
+    assert has_element?(
+             view,
+             "#security-selected-summary[role='group'][aria-labelledby='security-selected-valuation-summary-title security-selected-valuation-freshness'][aria-describedby='security-selected-valuation-source-legend']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-summary-title",
+             "Selected security valuation summary"
+           )
+
+    assert has_element?(view, "#security-selected-valuation-freshness")
+
+    assert has_element?(view, "#security-selected-valuation-source-legend")
+    refute has_element?(view, "#security-selected-valuation-warning-detail")
+
+    view
+    |> element("#security-row-#{warning_security.id}")
+    |> render_click()
+
+    assert has_element?(
+             view,
+             "#security-selected-summary[role='group'][aria-labelledby='security-selected-valuation-summary-title security-selected-valuation-freshness'][aria-describedby='security-selected-valuation-source-legend security-selected-valuation-warning-detail']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-summary-title",
+             "Selected security valuation summary"
+           )
+
+    assert has_element?(view, "#security-selected-valuation-freshness")
+
+    assert has_element?(view, "#security-selected-valuation-source-legend")
+
+    assert has_element?(
+             view,
+             "#security-selected-valuation-warning-detail",
+             "No latest quote is available for this positioned security."
+           )
+  end
+
   test "split view shows selected security and chart placeholder", %{conn: conn} do
     {:ok, security} =
       Catalog.create_security(%{name: "Alpha Corp", symbol: "ALP", currency_code: "EUR"})
