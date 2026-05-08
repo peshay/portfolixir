@@ -117,9 +117,16 @@ defmodule PortfolixirWeb.DashboardLive do
           </div>
 
           <%= if Enum.empty?(@recent_import_runs) do %>
-            <div id="dashboard-recent-import-runs-empty-state" class="app-shell-empty-state">
-              <h3><%= gettext("No import runs yet") %></h3>
-              <p><%= gettext("Run imports to build recent activity here.") %></p>
+            <div
+              id="dashboard-recent-import-runs-empty-state"
+              class="app-shell-empty-state"
+              role="status"
+              aria-live="polite"
+              aria-labelledby="dashboard-recent-import-runs-empty-state-title"
+              aria-describedby="dashboard-recent-import-runs-empty-state-description"
+            >
+              <h3 id="dashboard-recent-import-runs-empty-state-title"><%= gettext("No import runs yet") %></h3>
+              <p id="dashboard-recent-import-runs-empty-state-description"><%= gettext("Run imports to build recent activity here.") %></p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
