@@ -125,8 +125,17 @@ defmodule PortfolixirWeb.DashboardLive do
               aria-labelledby="dashboard-recent-import-runs-empty-state-title"
               aria-describedby="dashboard-recent-import-runs-empty-state-description"
             >
-              <h3 id="dashboard-recent-import-runs-empty-state-title"><%= gettext("No import runs yet") %></h3>
-              <p id="dashboard-recent-import-runs-empty-state-description"><%= gettext("Run imports to build recent activity here.") %></p>
+              <span id="dashboard-recent-import-runs-empty-state-title" class="app-shell-visually-hidden">
+                <%= gettext("No import runs yet") %>
+              </span>
+              <span
+                id="dashboard-recent-import-runs-empty-state-description"
+                class="app-shell-visually-hidden"
+              >
+                <%= gettext("Run imports to build recent activity here.") %>
+              </span>
+              <h3><%= gettext("No import runs yet") %></h3>
+              <p><%= gettext("Run imports to build recent activity here.") %></p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
