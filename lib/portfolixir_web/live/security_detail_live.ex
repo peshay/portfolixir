@@ -294,11 +294,11 @@ defmodule PortfolixirWeb.SecurityDetailLive do
                 class="app-shell-empty-state"
                 role="status"
                 aria-live="polite"
-                aria-labelledby="no-security-transactions-title"
-                aria-describedby="no-security-transactions-description"
+                aria-labelledby={security_transactions_empty_state_title_id()}
+                aria-describedby={security_transactions_empty_state_description_id()}
               >
-                <h3 id="no-security-transactions-title"><%= gettext("No transactions yet") %></h3>
-                <p id="no-security-transactions-description"><%= gettext("No transactions are recorded for this security yet.") %></p>
+                <h3 id={security_transactions_empty_state_title_id()}><%= gettext("No transactions yet") %></h3>
+                <p id={security_transactions_empty_state_description_id()}><%= gettext("No transactions are recorded for this security yet.") %></p>
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
@@ -596,6 +596,12 @@ defmodule PortfolixirWeb.SecurityDetailLive do
 
   defp current_position_empty_state_description_id,
     do: "no-security-positions-description"
+
+  defp security_transactions_empty_state_title_id,
+    do: "no-security-transactions-title"
+
+  defp security_transactions_empty_state_description_id,
+    do: "no-security-transactions-description"
 
   defp decimal_data(nil), do: ""
   defp decimal_data(value), do: Decimal.to_string(value, :normal)
