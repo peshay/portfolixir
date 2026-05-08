@@ -932,6 +932,11 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
 
     assert has_element?(
              view,
+             "#missing-cash-impacts-table[aria-describedby='missing-cash-impacts-table-caption missing-cash-impacts-description']"
+           )
+
+    assert has_element?(
+             view,
              "#missing-cash-impacts-table-caption.app-shell-visually-hidden",
              "Transactions missing a reference deposit account cash impact."
            )
