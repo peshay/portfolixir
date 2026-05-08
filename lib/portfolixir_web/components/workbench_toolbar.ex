@@ -16,9 +16,11 @@ defmodule PortfolixirWeb.WorkbenchToolbar do
   attr(:active_time_range, :string, default: nil)
 
   def toolbar(assigns) do
-    assigns = assign_new(assigns, :search_label, fn -> gettext("Search") end)
-    assigns = assign_new(assigns, :title_id, fn -> "#{assigns.id}-title" end)
-    assigns = assign_new(assigns, :description_id, fn -> "#{assigns.id}-description" end)
+    assigns =
+      assigns
+      |> assign_new(:search_label, fn -> gettext("Search") end)
+      |> assign(:title_id, assigns[:title_id] || "#{assigns.id}-title")
+      |> assign(:description_id, assigns[:description_id] || "#{assigns.id}-description")
 
     ~H"""
     <div id={@id} class="app-shell-section-header">
