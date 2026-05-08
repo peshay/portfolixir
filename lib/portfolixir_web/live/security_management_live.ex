@@ -23,6 +23,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   @security_column_storage_key "portfolixir.securities.visibleColumns"
   @security_list_actions_label_id "security-list-actions-label"
+  @security_status_filter_label_id "security-status-filter-label"
+  @security_status_filter_group_id "security-status-filter"
   @security_table_columns [
     %{key: "name", label: "Name", required?: true},
     %{key: "symbol", label: "Symbol"},
@@ -141,14 +143,14 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               placeholder={gettext("Search securities")}
             />
           </form>
-          <span id="security-status-filter-label" class="app-shell-visually-hidden">
+          <span id={security_status_filter_label_id()} class="app-shell-visually-hidden">
             <%= gettext("Security status filter") %>
           </span>
           <div
-            id="security-status-filter"
+            id={security_status_filter_group_id()}
             class="app-shell-form-actions"
             role="group"
-            aria-labelledby="security-status-filter-label"
+            aria-labelledby={security_status_filter_label_id()}
           >
             <button
               id="security-filter-active"
@@ -1232,6 +1234,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp security_table_caption_id, do: "security-list-caption"
 
   defp security_results_status_id, do: "security-results-status"
+
+  defp security_status_filter_group_id, do: @security_status_filter_group_id
+
+  defp security_status_filter_label_id, do: @security_status_filter_label_id
 
   defp security_table_description_ids,
     do: "#{security_table_caption_id()} #{security_results_status_id()}"
