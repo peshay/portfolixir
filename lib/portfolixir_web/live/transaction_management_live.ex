@@ -127,9 +127,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               </div>
 
               <%= if Enum.empty?(@transactions) do %>
-                <div id="no-transactions" class="app-shell-empty-state">
-                  <h3><%= gettext("No transactions yet") %></h3>
-                  <p><%= gettext("Record the first ledger transaction.") %></p>
+                <div
+                  id="no-transactions"
+                  class="app-shell-empty-state"
+                  role="status"
+                  aria-live="polite"
+                  aria-labelledby="no-transactions-title"
+                  aria-describedby="no-transactions-description"
+                >
+                  <h3 id="no-transactions-title"><%= gettext("No transactions yet") %></h3>
+                  <p id="no-transactions-description"><%= gettext("Record the first ledger transaction.") %></p>
                 </div>
               <% else %>
                 <div class="app-shell-table-wrapper">
