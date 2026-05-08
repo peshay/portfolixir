@@ -73,6 +73,27 @@ defmodule PortfolixirWeb.AccountManagementLiveTest do
            )
   end
 
+  test "securities accounts empty state has deterministic accessible status semantics", %{
+    conn: conn
+  } do
+    create_portfolio("Primary portfolio")
+
+    {:ok, view, _html} = live(conn, "/accounts")
+
+    assert has_element?(
+             view,
+             "#no-securities-accounts[role='status'][aria-live='polite'][aria-labelledby='no-securities-accounts-title'][aria-describedby='no-securities-accounts-description']"
+           )
+
+    assert has_element?(view, "#no-securities-accounts-title", "No securities accounts yet")
+
+    assert has_element?(
+             view,
+             "#no-securities-accounts-description",
+             "Add a brokerage or custody account."
+           )
+  end
+
   test "shows a current portfolio selector and selects the first portfolio by default", %{
     conn: conn
   } do
