@@ -1977,16 +1977,10 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-chart-placeholder[role='region'][aria-labelledby='security-selected-chart-placeholder-title'][aria-describedby='security-selected-chart-placeholder-accessible-description']"
+             "#security-selected-chart-placeholder[role='region'][aria-labelledby='security-selected-chart-placeholder-title'][aria-describedby='security-selected-chart-placeholder-description']"
            )
 
     assert has_element?(view, "#security-selected-chart-placeholder-title", "Chart preview")
-
-    assert has_element?(
-             view,
-             "#security-selected-chart-placeholder-accessible-description.app-shell-visually-hidden",
-             "Chart placeholder: open the full detail page for the current chart view."
-           )
 
     assert has_element?(
              view,
@@ -2011,12 +2005,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-chart-placeholder[aria-describedby='security-selected-chart-placeholder-accessible-description']"
+             "#security-selected-chart-placeholder[aria-describedby='security-selected-chart-placeholder-description']"
            )
 
     assert has_element?(
              view,
-             "#security-selected-chart-placeholder-accessible-description",
+             "#security-selected-chart-placeholder-description",
              "Chart placeholder: open the full detail page for the current chart view."
            )
 
