@@ -1977,14 +1977,46 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert has_element?(
              view,
-             "#security-selected-chart-placeholder[role='region'][aria-labelledby='security-selected-chart-placeholder-title'][aria-describedby='security-selected-chart-placeholder-description']"
+             "#security-selected-chart-placeholder[role='region'][aria-labelledby='security-selected-chart-placeholder-title'][aria-describedby='security-selected-chart-placeholder-accessible-description']"
            )
 
     assert has_element?(view, "#security-selected-chart-placeholder-title", "Chart preview")
 
     assert has_element?(
              view,
+             "#security-selected-chart-placeholder-accessible-description.app-shell-visually-hidden",
+             "Chart placeholder: open the full detail page for the current chart view."
+           )
+
+    assert has_element?(
+             view,
              "#security-selected-chart-placeholder-description",
+             "Chart placeholder: open the full detail page for the current chart view."
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-open-detail[href='/securities/#{security.id}']"
+           )
+  end
+
+  test "selected chart placeholder keeps a deterministic accessibility description across locales",
+       %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{name: "Locale Corp", symbol: "LOC", currency_code: "EUR"})
+
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-selected-chart-placeholder[aria-describedby='security-selected-chart-placeholder-accessible-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-selected-chart-placeholder-accessible-description",
              "Chart placeholder: open the full detail page for the current chart view."
            )
 
