@@ -355,11 +355,21 @@ defmodule PortfolixirWeb.SecurityDetailLiveTest do
     refute has_element?(view, "#security-chart-marker-0[data-notes='outside range']")
   end
 
-  test "returns a clear not found message for unknown security id", %{conn: conn} do
+  test "returns an accessible not found status for unknown security id", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities/999999")
 
-    assert has_element?(view, "#security-detail-not-found")
-    assert has_element?(view, "#security-detail-not-found", "Security not found")
+    assert has_element?(
+             view,
+             "#security-detail-not-found[role='status'][aria-labelledby='security-detail-not-found-title'][aria-describedby='security-detail-not-found-description']"
+           )
+
+    assert has_element?(view, "#security-detail-not-found-title", "Security not found")
+
+    assert has_element?(
+             view,
+             "#security-detail-not-found-description",
+             "The selected security does not exist."
+           )
   end
 
   test "links security list rows to their detail pages", %{conn: conn} do
