@@ -102,9 +102,16 @@ defmodule PortfolixirWeb.ImportOverviewLive do
         </div>
 
         <%= if Enum.empty?(@recent_import_runs) do %>
-          <div id="import-runs-empty-state" class="app-shell-empty-state">
-            <h3><%= gettext("No import runs yet") %></h3>
-            <p><%= gettext("Runs will appear here after source execution.") %></p>
+          <div
+            id="import-runs-empty-state"
+            class="app-shell-empty-state"
+            role="status"
+            aria-live="polite"
+            aria-labelledby="import-runs-empty-state-title"
+            aria-describedby="import-runs-empty-state-description"
+          >
+            <h3 id="import-runs-empty-state-title"><%= gettext("No import runs yet") %></h3>
+            <p id="import-runs-empty-state-description"><%= gettext("Runs will appear here after source execution.") %></p>
           </div>
         <% else %>
           <div class="app-shell-table-wrapper">
