@@ -30,6 +30,8 @@ defmodule PortfolixirWeb.DocumentUploadLive do
   @impl true
   def render(assigns) do
     ~H"""
+    <% upload_errors = upload_error_messages(@uploads.factsheet_file) %>
+
     <AppShell.shell current_path="/documents/new">
       <header class="app-shell-page-header">
         <div>
@@ -43,7 +45,7 @@ defmodule PortfolixirWeb.DocumentUploadLive do
           <div class="app-shell-section-header">
             <div>
               <h2 class="app-shell-section-title"><%= gettext("Add factsheet document") %></h2>
-              <p class="app-shell-panel-intro">
+              <p id="document-upload-form-intro" class="app-shell-panel-intro">
                 <%= gettext("Pick a security, upload a PDF, and register it in the factsheet library.") %>
               </p>
             </div>
@@ -74,26 +76,14 @@ defmodule PortfolixirWeb.DocumentUploadLive do
             <% end %>
           <% end %>
 
-          <%= for err <- upload_errors(@uploads.factsheet_file) do %>
+          <%= for {error, index} <- Enum.with_index(upload_errors, 1) do %>
             <p
-              id="document-upload-upload-error"
+              id={"document-upload-upload-error-#{index}"}
               class="app-shell-alert app-shell-alert--error"
               role="alert"
             >
-              <%= upload_error_to_string(err) %>
+              <%= error %>
             </p>
-          <% end %>
-
-          <%= for entry <- @uploads.factsheet_file.entries do %>
-            <%= for err <- upload_errors(@uploads.factsheet_file, entry) do %>
-              <p
-                id="document-upload-upload-error"
-                class="app-shell-alert app-shell-alert--error"
-                role="alert"
-              >
-                <%= upload_error_to_string(err) %>
-              </p>
-            <% end %>
           <% end %>
 
           <%= if Enum.empty?(@securities) do %>
@@ -112,7 +102,18 @@ defmodule PortfolixirWeb.DocumentUploadLive do
               <p><a href="/securities"><%= gettext("Create your first security") %></a></p>
             </div>
           <% else %>
-            <form id="document-upload-form" class="app-shell-form-grid" phx-submit="register_factsheet">
+            <form
+              id="document-upload-form"
+              class="app-shell-form-grid"
+              phx-submit="register_factsheet"
+              aria-describedby={
+                document_upload_form_description_ids(
+                  @document_upload_success,
+                  @document_upload_error,
+                  upload_errors
+                )
+              }
+            >
               <div class="app-shell-field">
                 <label for="document-security-id"><%= gettext("Security") %></label>
                 <select id="document-security-id" name="security_id">
@@ -129,9 +130,15 @@ defmodule PortfolixirWeb.DocumentUploadLive do
 
               <div class="app-shell-field">
                 <label for="factsheet-file"><%= gettext("PDF document") %></label>
-                <.live_file_input upload={@uploads.factsheet_file} id="factsheet-file" />
+                <.live_file_input
+                  upload={@uploads.factsheet_file}
+                  id="factsheet-file"
+                  aria-describedby={document_upload_file_description_ids(upload_errors)}
+                />
                 <small>
-                  <%= gettext("Max size") %> <%= @uploads.factsheet_file.max_file_size |> format_bytes() %>
+                  <span id="document-upload-file-hint">
+                    <%= gettext("Max size") %> <%= @uploads.factsheet_file.max_file_size |> format_bytes() %>
+                  </span>
                 </small>
               </div>
 
@@ -321,6 +328,42 @@ defmodule PortfolixirWeb.DocumentUploadLive do
 
   defp upload_error_reason_to_string(_),
     do: gettext("Could not register the factsheet. Please retry.")
+
+  defp upload_error_messages(upload) do
+    global_messages = Enum.map(upload_errors(upload), &upload_error_to_string/1)
+
+    entry_messages =
+      upload.entries
+      |> Enum.flat_map(&upload_errors(upload, &1))
+      |> Enum.map(&upload_error_to_string/1)
+
+    global_messages ++ entry_messages
+  end
+
+  defp document_upload_form_description_ids(
+         document_upload_success,
+         document_upload_error,
+         upload_error_messages
+       ) do
+    ([
+       "document-upload-form-intro",
+       if(document_upload_success, do: "document-upload-success"),
+       if(document_upload_error, do: "document-upload-error")
+     ] ++ upload_error_description_ids(upload_error_messages))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp document_upload_file_description_ids(upload_error_messages) do
+    ["document-upload-file-hint" | upload_error_description_ids(upload_error_messages)]
+    |> Enum.join(" ")
+  end
+
+  defp upload_error_description_ids(upload_error_messages) do
+    upload_error_messages
+    |> Enum.with_index(1)
+    |> Enum.map(fn {_error, index} -> "document-upload-upload-error-#{index}" end)
+  end
 
   defp review_path(fund_document_id) when is_integer(fund_document_id),
     do: "/fund-documents/#{fund_document_id}/allocations/review"
