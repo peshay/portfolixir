@@ -1558,6 +1558,80 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     refute has_element?(view, "#security-list tbody tr", "Beta Search Target")
   end
 
+  test "security results status live region semantics stay stable across workbench states", %{
+    conn: conn
+  } do
+    {:ok, empty_view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             empty_view,
+             "#security-results-status[role='status'][aria-live='polite'][aria-atomic='true']",
+             "No securities yet"
+           )
+
+    assert has_element?(
+             empty_view,
+             "#no-securities[aria-describedby='no-securities-description security-results-status']"
+           )
+
+    assert {:ok, _active_security} =
+             Catalog.create_security(%{
+               name: "Alpha Stable Status",
+               symbol: "ASS",
+               currency_code: "EUR",
+               active: true
+             })
+
+    assert {:ok, _inactive_security} =
+             Catalog.create_security(%{
+               name: "Beta Stable Status",
+               symbol: "BSS",
+               currency_code: "EUR",
+               active: false
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-results-status[role='status'][aria-live='polite'][aria-atomic='true']",
+             "Showing 1 active security"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list[aria-describedby='security-list-caption security-results-status']"
+           )
+
+    view |> element("#security-filter-inactive") |> render_click()
+
+    assert has_element?(
+             view,
+             "#security-results-status[role='status'][aria-live='polite'][aria-atomic='true']",
+             "Showing 1 inactive security"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list[aria-describedby='security-list-caption security-results-status']"
+           )
+
+    view
+    |> element("#security-search-form")
+    |> render_change(%{"q" => "no-match"})
+
+    assert has_element?(
+             view,
+             "#security-results-status[role='status'][aria-live='polite'][aria-atomic='true']",
+             "No inactive securities match your search."
+           )
+
+    assert has_element?(
+             view,
+             "#no-securities[aria-describedby='no-securities-description security-results-status']"
+           )
+  end
+
   test "shows missing quote valuation warning for positioned securities", %{
     conn: conn
   } do
