@@ -83,7 +83,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
           <div class="app-shell-section-header">
             <div>
               <h2 class="app-shell-section-title"><%= gettext("Taxonomy tree") %></h2>
-              <p id="taxonomy-feedback-context"><%= gettext("Each taxonomy is a classification system with its own category tree.") %></p>
+              <p id={taxonomy_feedback_context_id()}><%= gettext("Each taxonomy is a classification system with its own category tree.") %></p>
             </div>
             <span class="app-shell-badge app-shell-badge--accent">
               <%= ngettext("%{count} total", "%{count} total", Enum.count(@taxonomies), count: Enum.count(@taxonomies)) %>
@@ -114,7 +114,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
           <% end %>
 
           <%= if @taxonomy_error do %>
-            <p id="taxonomy-form-error" class="app-shell-alert app-shell-alert--error" role="alert">
+            <p id={taxonomy_form_error_id()} class="app-shell-alert app-shell-alert--error" role="alert">
               <%= @taxonomy_error %>
             </p>
           <% end %>
@@ -666,7 +666,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
 
   defp taxonomy_preset_button_description_ids(preset_success) do
     [
-      "taxonomy-feedback-context",
+      taxonomy_feedback_context_id(),
       if(preset_success, do: "portfolio-performance-presets-success")
     ]
     |> Enum.reject(&is_nil/1)
@@ -675,12 +675,15 @@ defmodule PortfolixirWeb.CategoryManagementLive do
 
   defp taxonomy_form_description_ids(taxonomy_error) do
     [
-      "taxonomy-feedback-context",
-      if(taxonomy_error, do: "taxonomy-form-error")
+      taxonomy_feedback_context_id(),
+      if(taxonomy_error, do: taxonomy_form_error_id())
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
   end
+
+  defp taxonomy_feedback_context_id, do: "taxonomy-feedback-context"
+  defp taxonomy_form_error_id, do: "taxonomy-form-error"
 
   defp sanitize_params(params) when is_map(params) do
     params
