@@ -222,7 +222,34 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
              "Read-only detail view from the existing classification exposure rows."
            )
 
-    assert has_element?(view, "#classification-exposure-drilldown-empty", "No category selected")
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty[role='status'][aria-live='polite'][aria-labelledby='classification-exposure-drilldown-empty-status-title'][aria-describedby='classification-exposure-drilldown-empty-status-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty-title",
+             "No category selected"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty-description",
+             "Select a category row to inspect direct-assignment and weighted-allocation source details."
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty-status-title.app-shell-visually-hidden",
+             "No category selected"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty-status-description.app-shell-visually-hidden",
+             "Select a category row to inspect direct-assignment and weighted-allocation source details."
+           )
 
     view
     |> element("#classification-exposure-select-core")
@@ -301,7 +328,34 @@ defmodule PortfolixirWeb.ClassificationExposureReportLiveTest do
     |> element("#classification-exposure-drilldown-clear")
     |> render_click()
 
-    assert has_element?(view, "#classification-exposure-drilldown-empty", "No category selected")
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty[role='status'][aria-live='polite'][aria-labelledby='classification-exposure-drilldown-empty-status-title'][aria-describedby='classification-exposure-drilldown-empty-status-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty-title",
+             "No category selected"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty-description",
+             "Select a category row to inspect direct-assignment and weighted-allocation source details."
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty-status-title.app-shell-visually-hidden",
+             "No category selected"
+           )
+
+    assert has_element?(
+             view,
+             "#classification-exposure-drilldown-empty-status-description.app-shell-visually-hidden",
+             "Select a category row to inspect direct-assignment and weighted-allocation source details."
+           )
   end
 
   test "missing quote fallback stays explicit and does not distort percentages", %{
