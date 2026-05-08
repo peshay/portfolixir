@@ -72,6 +72,30 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     assert has_element?(view, "#dashboard-next-step-link[href=\"/documents/new\"]")
   end
 
+  test "dashboard recent import runs empty state has deterministic accessible status semantics",
+       %{
+         conn: conn
+       } do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-import-runs-empty-state[role='status'][aria-live='polite'][aria-labelledby='dashboard-recent-import-runs-empty-state-title'][aria-describedby='dashboard-recent-import-runs-empty-state-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-import-runs-empty-state-title",
+             "No import runs yet"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-import-runs-empty-state-description",
+             "Run imports to build recent activity here."
+           )
+  end
+
   test "dashboard shows recent import runs with source, status, timestamps, and import link", %{
     conn: conn
   } do
