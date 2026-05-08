@@ -173,8 +173,14 @@ defmodule PortfolixirWeb.ImportOverviewLive do
             aria-labelledby="import-raw-items-empty-state-title"
             aria-describedby="import-raw-items-empty-state-description"
           >
-            <h3 id="import-raw-items-empty-state-title"><%= gettext("No raw import items yet") %></h3>
-            <p id="import-raw-items-empty-state-description"><%= gettext("Raw items will appear here after intake.") %></p>
+            <span id="import-raw-items-empty-state-title" class="app-shell-visually-hidden">
+              <%= gettext("No raw import items yet") %>
+            </span>
+            <span id="import-raw-items-empty-state-description" class="app-shell-visually-hidden">
+              <%= gettext("Raw items will appear here after intake.") %>
+            </span>
+            <h3><%= gettext("No raw import items yet") %></h3>
+            <p><%= gettext("Raw items will appear here after intake.") %></p>
           </div>
         <% else %>
           <div class="app-shell-table-wrapper">
