@@ -282,12 +282,18 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                 <div class="app-shell-section-header">
                   <div>
                     <h3 class="app-shell-section-title"><%= gettext("Security assignments") %></h3>
-                    <p><%= gettext("Assign a security to a classification category.") %></p>
+                    <p id={category_assignment_feedback_context_id()}>
+                      <%= gettext("Assign a security to a classification category.") %>
+                    </p>
                   </div>
                 </div>
 
                 <%= if @category_assignment_error do %>
-                  <p id="category-assignment-error" class="app-shell-alert app-shell-alert--error" role="alert">
+                  <p
+                    id={category_assignment_error_id()}
+                    class="app-shell-alert app-shell-alert--error"
+                    role="alert"
+                  >
                     <%= @category_assignment_error %>
                   </p>
                 <% end %>
@@ -295,6 +301,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
                 <form
                   id="category-assignment-form"
                   class="app-shell-form-grid"
+                  aria-describedby={category_assignment_form_description_ids(@category_assignment_error)}
                   phx-change="select_security_for_assignment"
                   phx-submit="assign_category_to_security"
                 >
@@ -684,6 +691,18 @@ defmodule PortfolixirWeb.CategoryManagementLive do
 
   defp taxonomy_feedback_context_id, do: "taxonomy-feedback-context"
   defp taxonomy_form_error_id, do: "taxonomy-form-error"
+
+  defp category_assignment_form_description_ids(category_assignment_error) do
+    [
+      category_assignment_feedback_context_id(),
+      if(category_assignment_error, do: category_assignment_error_id())
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp category_assignment_feedback_context_id, do: "category-assignment-feedback-context"
+  defp category_assignment_error_id, do: "category-assignment-error"
 
   defp sanitize_params(params) when is_map(params) do
     params
