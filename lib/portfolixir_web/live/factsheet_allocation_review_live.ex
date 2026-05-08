@@ -210,7 +210,15 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLive do
             </section>
           <% end %>
 
-          <form id="factsheet-review-confirm-form" phx-submit="confirm_allocations">
+          <p id="factsheet-review-confirm-feedback-context" class="app-shell-visually-hidden">
+            <%= gettext("Submit this form to confirm parsed allocations.") %>
+          </p>
+
+          <form
+            id="factsheet-review-confirm-form"
+            phx-submit="confirm_allocations"
+            aria-describedby={confirm_form_description_ids(@confirmation_error)}
+          >
             <div class="app-shell-form-actions">
               <button
                 id="factsheet-review-confirm-button"
@@ -297,6 +305,15 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLive do
       |> String.trim("-")
 
     "factsheet-allocation-item-#{allocation_type}-#{escaped_label}"
+  end
+
+  defp confirm_form_description_ids(confirmation_error) do
+    [
+      "factsheet-review-confirm-feedback-context",
+      if(confirmation_error, do: "factsheet-review-confirm-error")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
   end
 
   defp format_confirm_error({reason, message}) when is_binary(message),
