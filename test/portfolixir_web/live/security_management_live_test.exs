@@ -1607,6 +1607,54 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     refute has_element?(view, "#security-list tbody tr", "Beta Search Target")
   end
 
+  test "security row valuation warning keeps status semantics and detail linkage", %{conn: conn} do
+    alias Portfolixir.Ledger
+    alias Portfolixir.Portfolios
+
+    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        name: "Depot",
+        currency_code: "EUR"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Warning Row Security",
+        symbol: "WRS",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        type: "buy",
+        date: ~D[2026-05-02],
+        currency_code: "EUR",
+        amount: Decimal.new("500"),
+        quantity: Decimal.new("5"),
+        price: Decimal.new("100"),
+        securities_account_id: securities_account.id,
+        security_id: security.id
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-valuation-warning-#{security.id}[role='status'][aria-live='polite'][aria-describedby='security-valuation-warning-detail-#{security.id}']",
+             "Missing quote for valuation."
+           )
+
+    assert has_element?(
+             view,
+             "#security-valuation-warning-detail-#{security.id}",
+             "No latest quote is available for this positioned security."
+           )
+  end
+
   test "shows missing quote valuation warning for positioned securities", %{
     conn: conn
   } do
