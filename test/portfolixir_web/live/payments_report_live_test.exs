@@ -44,6 +44,36 @@ defmodule PortfolixirWeb.PaymentsReportLiveTest do
     assert has_element?(view, "#payments-empty-state", "No dividend payments yet")
   end
 
+  test "shows deterministic accessible empty state semantics when no portfolio exists", %{
+    conn: conn,
+    portfolio: portfolio,
+    deposit_account: deposit_account
+  } do
+    assert {:ok, _account} = Portfolios.delete_deposit_account(deposit_account)
+    assert {:ok, _portfolio} = Portfolios.delete_portfolio(portfolio)
+
+    {:ok, view, _html} = live(conn, "/reports/payments")
+
+    assert has_element?(
+             view,
+             "#payments-current-portfolio-empty-state[role='status'][aria-live='polite'][aria-labelledby='payments-current-portfolio-empty-state-title'][aria-describedby='payments-current-portfolio-empty-state-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-current-portfolio-empty-state-title",
+             "No portfolio yet"
+           )
+
+    assert has_element?(
+             view,
+             "#payments-current-portfolio-empty-state-description",
+             "Create a portfolio to review dividend payments."
+           )
+
+    refute has_element?(view, "#payments-current-portfolio-selector")
+  end
+
   test "group controls expose deterministic accessible relationship for grouping selector", %{
     conn: conn
   } do
