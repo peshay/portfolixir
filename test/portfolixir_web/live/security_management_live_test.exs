@@ -550,6 +550,8 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-form[aria-labelledby='security-create-title'][aria-describedby='security-create-intro']"
            )
 
+    assert has_element?(view, "#security-form-submit[aria-describedby='security-create-intro']")
+
     assert has_element?(view, "#security-add-toggle", "Close form")
   end
 
@@ -936,6 +938,11 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-form-success[role='status'][aria-live='polite']",
              "Security added."
            )
+
+    assert has_element?(
+             view,
+             "#security-form-submit[aria-describedby='security-create-intro security-form-success']"
+           )
   end
 
   test "existing create flow still works with existing records", %{conn: conn} do
@@ -1021,6 +1028,11 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-form[aria-describedby='security-create-intro security-form-error']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-form-submit[aria-describedby='security-create-intro security-form-error']"
            )
 
     assert html =~ "name"
@@ -1195,6 +1207,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "id=\"security-form-error\""
     assert has_element?(view, "#security-create > .app-shell-section-header h2", "Edit security")
     assert has_element?(view, "#security-cancel-edit")
+
+    assert has_element?(
+             view,
+             "#security-form-submit[aria-describedby='security-create-intro security-form-error']"
+           )
+
     assert html =~ "value=\"AAPL\""
   end
 
