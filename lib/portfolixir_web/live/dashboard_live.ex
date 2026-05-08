@@ -172,9 +172,16 @@ defmodule PortfolixirWeb.DashboardLive do
           </div>
 
           <%= if Enum.empty?(@recent_fund_documents) do %>
-            <div id="dashboard-recent-fund-documents-empty-state" class="app-shell-empty-state">
-              <h3><%= gettext("No fund documents yet") %></h3>
-              <p><%= gettext("Upload a factsheet to populate this list.") %></p>
+            <div
+              id="dashboard-recent-fund-documents-empty-state"
+              class="app-shell-empty-state"
+              role="status"
+              aria-live="polite"
+              aria-labelledby="dashboard-recent-fund-documents-empty-state-title"
+              aria-describedby="dashboard-recent-fund-documents-empty-state-description"
+            >
+              <h3 id="dashboard-recent-fund-documents-empty-state-title"><%= gettext("No fund documents yet") %></h3>
+              <p id="dashboard-recent-fund-documents-empty-state-description"><%= gettext("Upload a factsheet to populate this list.") %></p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">

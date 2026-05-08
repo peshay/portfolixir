@@ -96,6 +96,30 @@ defmodule PortfolixirWeb.DashboardLiveTest do
            )
   end
 
+  test "dashboard recent fund documents empty state has deterministic accessible status semantics",
+       %{
+         conn: conn
+       } do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-fund-documents-empty-state[role='status'][aria-live='polite'][aria-labelledby='dashboard-recent-fund-documents-empty-state-title'][aria-describedby='dashboard-recent-fund-documents-empty-state-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-fund-documents-empty-state-title",
+             "No fund documents yet"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-fund-documents-empty-state-description",
+             "Upload a factsheet to populate this list."
+           )
+  end
+
   test "dashboard shows recent import runs with source, status, timestamps, and import link", %{
     conn: conn
   } do
