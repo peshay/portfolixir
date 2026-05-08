@@ -637,9 +637,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               class="app-shell-empty-state"
               role="region"
               aria-labelledby="security-selected-chart-placeholder-title"
+              aria-describedby="security-selected-chart-placeholder-description"
             >
               <h3 id="security-selected-chart-placeholder-title"><%= gettext("Chart preview") %></h3>
-              <p><%= gettext("Chart placeholder: open the full detail page for the current chart view.") %></p>
+              <p id="security-selected-chart-placeholder-description"><%= gettext("Chart placeholder: open the full detail page for the current chart view.") %></p>
               <p>
                 <a id="security-selected-open-detail" href={"/securities/#{@selected_security.id}"}>
                   <%= gettext("Open full security detail") %>
