@@ -111,7 +111,19 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLiveTest do
 
     {:ok, view, _html} = live(conn, "/fund-documents/#{fund_document.id}/allocations/review")
 
-    assert has_element?(view, "#factsheet-review-empty-state")
+    assert has_element?(
+             view,
+             "#factsheet-review-empty-state[role='status'][aria-live='polite'][aria-labelledby='factsheet-review-empty-state-title'][aria-describedby='factsheet-review-empty-state-description']"
+           )
+
+    assert has_element?(view, "#factsheet-review-empty-state-title", "No allocations were parsed")
+
+    assert has_element?(
+             view,
+             "#factsheet-review-empty-state-description",
+             "No allocation rows were available for review from this factsheet."
+           )
+
     assert has_element?(view, "#factsheet-review-confirm-button[disabled]")
   end
 

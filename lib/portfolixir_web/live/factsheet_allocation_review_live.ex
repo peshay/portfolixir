@@ -93,9 +93,18 @@ defmodule PortfolixirWeb.FactsheetAllocationReviewLive do
           </div>
 
           <%= if Enum.empty?(@preview["allocations"]) do %>
-            <div id="factsheet-review-empty-state" class="app-shell-empty-state">
-              <h3><%= gettext("No allocations were parsed") %></h3>
-              <p><%= gettext("No allocation rows were available for review from this factsheet.") %></p>
+            <div
+              id="factsheet-review-empty-state"
+              class="app-shell-empty-state"
+              role="status"
+              aria-live="polite"
+              aria-labelledby="factsheet-review-empty-state-title"
+              aria-describedby="factsheet-review-empty-state-description"
+            >
+              <h3 id="factsheet-review-empty-state-title"><%= gettext("No allocations were parsed") %></h3>
+              <p id="factsheet-review-empty-state-description">
+                <%= gettext("No allocation rows were available for review from this factsheet.") %>
+              </p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
