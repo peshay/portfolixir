@@ -245,11 +245,15 @@ defmodule PortfolixirWeb.SecurityDetailLive do
                 class="app-shell-empty-state"
                 role="status"
                 aria-live="polite"
-                aria-labelledby="no-security-positions-title"
-                aria-describedby="no-security-positions-description"
+                aria-labelledby={current_position_empty_state_title_id()}
+                aria-describedby={current_position_empty_state_description_id()}
               >
-                <h3 id="no-security-positions-title"><%= gettext("No current position available") %></h3>
-                <p id="no-security-positions-description"><%= gettext("Current position data is unavailable for this security.") %></p>
+                <h3 id={current_position_empty_state_title_id()}>
+                  <%= gettext("No current position available") %>
+                </h3>
+                <p id={current_position_empty_state_description_id()}>
+                  <%= gettext("Current position data is unavailable for this security.") %>
+                </p>
               </div>
             <% else %>
               <div class="app-shell-table-wrapper">
@@ -587,6 +591,11 @@ defmodule PortfolixirWeb.SecurityDetailLive do
 
   defp fund_documents_empty_state_description_id,
     do: "security-fund-documents-empty-state-description"
+
+  defp current_position_empty_state_title_id, do: "no-security-positions-title"
+
+  defp current_position_empty_state_description_id,
+    do: "no-security-positions-description"
 
   defp decimal_data(nil), do: ""
   defp decimal_data(value), do: Decimal.to_string(value, :normal)
