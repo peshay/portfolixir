@@ -405,21 +405,21 @@ defmodule PortfolixirWeb.CategoryManagementLive do
             <% end %>
           <% else %>
             <div
-              id="no-taxonomy-selected"
+              id={no_taxonomy_selected_status_id()}
               class="app-shell-empty-state"
               role="status"
               aria-live="polite"
-              aria-labelledby="no-taxonomy-selected-status-title"
-              aria-describedby="no-taxonomy-selected-status-description"
+              aria-labelledby={no_taxonomy_selected_status_title_id()}
+              aria-describedby={no_taxonomy_selected_status_description_id()}
             >
-              <h3 id="no-taxonomy-selected-title"><%= gettext("Create or select a taxonomy first") %></h3>
-              <p id="no-taxonomy-selected-description">
+              <h3 id={no_taxonomy_selected_title_id()}><%= gettext("Create or select a taxonomy first") %></h3>
+              <p id={no_taxonomy_selected_description_id()}>
                 <%= gettext("Categories belong to one taxonomy, so choose the grouping system before adding them.") %>
               </p>
-              <span id="no-taxonomy-selected-status-title" class="app-shell-visually-hidden">
+              <span id={no_taxonomy_selected_status_title_id()} class="app-shell-visually-hidden">
                 <%= gettext("Create or select a taxonomy first") %>
               </span>
-              <span id="no-taxonomy-selected-status-description" class="app-shell-visually-hidden">
+              <span id={no_taxonomy_selected_status_description_id()} class="app-shell-visually-hidden">
                 <%= gettext("Categories belong to one taxonomy, so choose the grouping system before adding them.") %>
               </span>
             </div>
@@ -657,6 +657,12 @@ defmodule PortfolixirWeb.CategoryManagementLive do
   defp taxonomies_empty_state_id, do: "no-taxonomies"
   defp taxonomies_empty_state_title_id, do: "no-taxonomies-title"
   defp taxonomies_empty_state_description_id, do: "no-taxonomies-description"
+
+  defp no_taxonomy_selected_status_id, do: "no-taxonomy-selected"
+  defp no_taxonomy_selected_title_id, do: "no-taxonomy-selected-title"
+  defp no_taxonomy_selected_description_id, do: "no-taxonomy-selected-description"
+  defp no_taxonomy_selected_status_title_id, do: "no-taxonomy-selected-status-title"
+  defp no_taxonomy_selected_status_description_id, do: "no-taxonomy-selected-status-description"
 
   defp taxonomy_preset_button_description_ids(preset_success) do
     [
