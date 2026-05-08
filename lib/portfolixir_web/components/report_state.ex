@@ -5,6 +5,8 @@ defmodule PortfolixirWeb.ReportState do
   attr(:id, :string, required: true)
   attr(:title, :string, required: true)
   attr(:description, :string, default: nil)
+  attr(:title_id, :string, default: nil)
+  attr(:description_id, :string, default: nil)
   attr(:title_tag, :string, default: "h2")
   attr(:inline, :boolean, default: false)
   attr(:action_text, :string, default: nil)
@@ -14,8 +16,8 @@ defmodule PortfolixirWeb.ReportState do
   def empty_state(assigns) do
     assigns =
       assigns
-      |> assign_new(:title_id, fn -> "#{assigns.id}-title" end)
-      |> assign_new(:description_id, fn -> "#{assigns.id}-description" end)
+      |> assign(:title_id, assigns.title_id || "#{assigns.id}-title")
+      |> assign(:description_id, assigns.description_id || "#{assigns.id}-description")
 
     ~H"""
     <section
