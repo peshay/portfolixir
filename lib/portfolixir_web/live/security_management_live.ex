@@ -23,6 +23,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   @security_column_storage_key "portfolixir.securities.visibleColumns"
   @security_list_actions_label_id "security-list-actions-label"
+  @security_status_filter_group_id "security-status-filter"
+  @security_status_filter_label_id "security-status-filter-label"
   @security_table_columns [
     %{key: "name", label: "Name", required?: true},
     %{key: "symbol", label: "Symbol"},
@@ -63,6 +65,8 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:security_table_columns, @security_table_columns)
       |> assign(:security_column_storage_key, @security_column_storage_key)
       |> assign(:security_list_actions_label_id, @security_list_actions_label_id)
+      |> assign(:security_status_filter_group_id, @security_status_filter_group_id)
+      |> assign(:security_status_filter_label_id, @security_status_filter_label_id)
       |> assign(:visible_security_column_keys, @default_security_column_keys)
       |> load_securities()
 
@@ -141,14 +145,14 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               placeholder={gettext("Search securities")}
             />
           </form>
-          <span id="security-status-filter-label" class="app-shell-visually-hidden">
+          <span id={@security_status_filter_label_id} class="app-shell-visually-hidden">
             <%= gettext("Security status filter") %>
           </span>
           <div
-            id="security-status-filter"
+            id={@security_status_filter_group_id}
             class="app-shell-form-actions"
             role="group"
-            aria-labelledby="security-status-filter-label"
+            aria-labelledby={@security_status_filter_label_id}
           >
             <button
               id="security-filter-active"

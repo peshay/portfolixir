@@ -880,6 +880,50 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     refute has_element?(view, "#security-list tbody tr", "Active Security")
   end
 
+  test "security status filter keeps labeled group semantics as pressed states change", %{
+    conn: conn
+  } do
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Active Security",
+               symbol: "AC",
+               currency_code: "USD",
+               active: true
+             })
+
+    assert {:ok, _} =
+             Catalog.create_security(%{
+               name: "Inactive Security",
+               symbol: "IN",
+               currency_code: "USD",
+               active: false
+             })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert_security_status_filter_group_relationship(view,
+      active_pressed?: true,
+      inactive_pressed?: false,
+      all_pressed?: false
+    )
+
+    view |> element("#security-filter-inactive") |> render_click()
+
+    assert_security_status_filter_group_relationship(view,
+      active_pressed?: false,
+      inactive_pressed?: true,
+      all_pressed?: false
+    )
+
+    view |> element("#security-filter-all") |> render_click()
+
+    assert_security_status_filter_group_relationship(view,
+      active_pressed?: false,
+      inactive_pressed?: false,
+      all_pressed?: true
+    )
+  end
+
   test "shows active-empty state when active filter matches no rows but other securities exist",
        %{conn: conn} do
     assert {:ok, _} =
@@ -2523,6 +2567,37 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              view,
              "#security-list-caption.app-shell-visually-hidden",
              "Securities workbench table with identifiers, valuation, status, and row actions."
+           )
+  end
+
+  defp assert_security_status_filter_group_relationship(view, opts) do
+    assert has_element?(
+             view,
+             "#security-status-filter[role='group'][aria-labelledby='security-status-filter-label']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-status-filter-label.app-shell-visually-hidden",
+             "Security status filter"
+           )
+
+    assert has_element?(
+             view,
+             "#security-filter-active[aria-pressed=\"#{opts[:active_pressed?]}\"]",
+             "Active"
+           )
+
+    assert has_element?(
+             view,
+             "#security-filter-inactive[aria-pressed=\"#{opts[:inactive_pressed?]}\"]",
+             "Inactive"
+           )
+
+    assert has_element?(
+             view,
+             "#security-filter-all[aria-pressed=\"#{opts[:all_pressed?]}\"]",
+             "All"
            )
   end
 
