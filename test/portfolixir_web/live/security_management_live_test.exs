@@ -83,6 +83,21 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
+  test "security list actions are grouped with a stable hidden label", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-list-actions[role='group'][aria-labelledby='security-list-actions-label']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-list-actions-label.app-shell-visually-hidden",
+             "Security list actions"
+           )
+  end
+
   test "security table column menu renders with stable column keys and local storage script", %{
     conn: conn
   } do

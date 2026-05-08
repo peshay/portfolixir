@@ -22,6 +22,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   }
 
   @security_column_storage_key "portfolixir.securities.visibleColumns"
+  @security_list_actions_label_id "security-list-actions-label"
   @security_table_columns [
     %{key: "name", label: "Name", required?: true},
     %{key: "symbol", label: "Symbol"},
@@ -61,6 +62,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:security_status_filter, security_status_filter)
       |> assign(:security_table_columns, @security_table_columns)
       |> assign(:security_column_storage_key, @security_column_storage_key)
+      |> assign(:security_list_actions_label_id, @security_list_actions_label_id)
       |> assign(:visible_security_column_keys, @default_security_column_keys)
       |> load_securities()
 
@@ -98,14 +100,14 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             active_time_range="ALL"
           />
 
-          <span id="security-list-actions-label" class="app-shell-visually-hidden">
+          <span id={@security_list_actions_label_id} class="app-shell-visually-hidden">
             <%= gettext("Security list actions") %>
           </span>
           <div
             id="security-list-actions"
             class="app-shell-form-actions"
             role="group"
-            aria-labelledby="security-list-actions-label"
+            aria-labelledby={@security_list_actions_label_id}
           >
             <a id="security-export-csv" href="/securities/export.csv" class="app-shell-secondary">
               <%= gettext("Export CSV") %>
