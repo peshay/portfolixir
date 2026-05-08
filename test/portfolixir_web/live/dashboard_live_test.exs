@@ -374,6 +374,39 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     refute String.contains?(html, "$")
   end
 
+  test "chart placeholder uses assistive-tech-only deterministic title and description ids", %{
+    conn: conn
+  } do
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
+
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             "#dashboard-chart-placeholder[role='region'][aria-labelledby='dashboard-chart-placeholder-title'][aria-describedby='dashboard-chart-placeholder-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-chart-placeholder > span#dashboard-chart-placeholder-title.app-shell-visually-hidden"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-chart-placeholder > span#dashboard-chart-placeholder-description.app-shell-visually-hidden"
+           )
+
+    refute has_element?(
+             view,
+             "#dashboard-chart-placeholder > h2#dashboard-chart-placeholder-title"
+           )
+
+    refute has_element?(
+             view,
+             "#dashboard-chart-placeholder > p#dashboard-chart-placeholder-description"
+           )
+  end
+
   test "German locale renders translated dashboard action and placeholder", %{conn: conn} do
     conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
 
