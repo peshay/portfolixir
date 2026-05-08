@@ -98,6 +98,23 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
+  test "security status filter keeps label relationship while pressed states change", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert_security_status_filter_relationships(view, :active)
+
+    view |> element("#security-filter-inactive") |> render_click()
+    assert_security_status_filter_relationships(view, :inactive)
+
+    view |> element("#security-filter-all") |> render_click()
+    assert_security_status_filter_relationships(view, :all)
+
+    view |> element("#security-filter-active") |> render_click()
+    assert_security_status_filter_relationships(view, :active)
+  end
+
   test "security table column menu renders with stable column keys and local storage script", %{
     conn: conn
   } do
@@ -2502,6 +2519,34 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(
              view,
              "#security-selected-open-detail[href='/securities/#{second_security.id}']"
+           )
+  end
+
+  defp assert_security_status_filter_relationships(view, active_filter) do
+    assert has_element?(
+             view,
+             "#security-status-filter[role='group'][aria-labelledby='security-status-filter-label']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-status-filter-label.app-shell-visually-hidden",
+             "Security status filter"
+           )
+
+    assert has_element?(
+             view,
+             "#security-filter-active[aria-pressed='#{to_string(active_filter == :active)}']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-filter-inactive[aria-pressed='#{to_string(active_filter == :inactive)}']"
+           )
+
+    assert has_element?(
+             view,
+             "#security-filter-all[aria-pressed='#{to_string(active_filter == :all)}']"
            )
   end
 
