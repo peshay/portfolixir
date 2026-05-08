@@ -38,6 +38,35 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
            )
   end
 
+  test "category empty state announces deterministic semantics for assistive technology", %{
+    conn: conn
+  } do
+    {:ok, taxonomy} =
+      Taxonomies.create_taxonomy(%{
+        name: "Allocation",
+        description: "Top level allocation groups"
+      })
+
+    {:ok, view, _html} = live(conn, "/taxonomies")
+
+    assert has_element?(view, "#taxonomy-#{taxonomy.id}[disabled]", "Allocation")
+
+    assert has_element?(
+             view,
+             "#no-categories[role='status'][aria-live='polite'][aria-labelledby='no-categories-title'][aria-describedby='no-categories-description']"
+           )
+
+    assert has_element?(view, "#no-categories-title", "No categories yet")
+
+    assert has_element?(
+             view,
+             "#no-categories-description",
+             "Add the first category for this taxonomy."
+           )
+
+    assert has_element?(view, "#category-form")
+  end
+
   test "classifications workspace explains taxonomy/category relationship", %{conn: conn} do
     {:ok, view, html} = live(conn, "/taxonomies")
 
