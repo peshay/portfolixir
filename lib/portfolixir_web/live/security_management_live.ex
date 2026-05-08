@@ -814,7 +814,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           class="app-shell-section-card"
           data-priority="secondary"
           aria-labelledby="security-csv-preview-title"
-          aria-describedby="security-csv-preview-description security-csv-preview-status"
+          aria-describedby={"security-csv-preview-description #{security_csv_preview_status_id()}"}
         >
           <div class="app-shell-section-header">
             <div>
@@ -838,18 +838,18 @@ defmodule PortfolixirWeb.SecurityManagementLive do
           <% end %>
 
           <p
-            id="security-csv-preview-status"
+            id={security_csv_preview_status_id()}
             class="app-shell-visually-hidden"
             role="status"
             aria-live="polite"
             aria-atomic="true"
-            aria-labelledby="security-csv-preview-status-title"
-            aria-describedby="security-csv-preview-status-description"
+            aria-labelledby={security_csv_preview_status_title_id()}
+            aria-describedby={security_csv_preview_status_description_id()}
           >
-            <span id="security-csv-preview-status-title">
+            <span id={security_csv_preview_status_title_id()}>
               <%= security_csv_preview_status_title(@security_csv_preview_rows, @security_csv_error) %>
             </span>
-            <span id="security-csv-preview-status-description">
+            <span id={security_csv_preview_status_description_id()}>
               <%= security_csv_preview_status_description(@security_csv_preview_rows, @security_csv_error) %>
             </span>
           </p>
@@ -1265,13 +1265,19 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp security_csv_preview_description_ids(security_csv_preview_rows, security_csv_error) do
     [
       "security-csv-preview-description",
-      "security-csv-preview-status",
+      security_csv_preview_status_id(),
       security_csv_preview_rows && "security-csv-preview-table-caption",
       security_csv_error && "security-csv-error"
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
   end
+
+  defp security_csv_preview_status_id, do: "security-csv-preview-status"
+
+  defp security_csv_preview_status_title_id, do: "security-csv-preview-status-title"
+
+  defp security_csv_preview_status_description_id, do: "security-csv-preview-status-description"
 
   defp security_status_cell_label_id(security_id, suffix)
 
