@@ -49,11 +49,21 @@ defmodule PortfolixirWeb.RawImportItemReviewLive do
           </div>
 
           <div id="raw-import-item-payload-preview" class="app-shell-section-card app-shell-stack-md">
-            <h2 class="app-shell-section-title"><%= gettext("Sanitized payload preview") %></h2>
+            <h2 id="raw-import-item-payload-preview-title" class="app-shell-section-title">
+              <%= gettext("Sanitized payload preview") %>
+            </h2>
             <%= if safe_payload_preview(@raw_item.payload) do %>
               <pre><%= safe_payload_preview(@raw_item.payload) %></pre>
             <% else %>
-              <p><%= gettext("No safe compact payload preview is available for this item.") %></p>
+              <div
+                role="status"
+                aria-labelledby="raw-import-item-payload-preview-title"
+                aria-describedby="raw-import-item-payload-preview-no-preview-description"
+              >
+                <p id="raw-import-item-payload-preview-no-preview-description">
+                  <%= gettext("No safe compact payload preview is available for this item.") %>
+                </p>
+              </div>
             <% end %>
           </div>
         </section>

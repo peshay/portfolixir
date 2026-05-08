@@ -42,6 +42,13 @@ defmodule PortfolixirWeb.RawImportItemReviewLiveTest do
     assert has_element?(view, "#raw-import-item-review", "application/json")
     assert has_element?(view, "#raw-import-item-review", "import.json")
     assert has_element?(view, "#raw-import-item-review", "2026")
+
+    assert has_element?(
+             view,
+             "#raw-import-item-payload-preview-title",
+             "Sanitized payload preview"
+           )
+
     assert has_element?(view, "#raw-import-item-payload-preview", "field_count: 3")
     assert has_element?(view, "#raw-import-item-payload-preview", "string_fields: 3")
     refute html =~ "must-not-render"
@@ -113,7 +120,7 @@ defmodule PortfolixirWeb.RawImportItemReviewLiveTest do
     assert has_element?(view, "#raw-import-item-payload-preview", "other_fields: 0")
   end
 
-  test "review page shows empty preview state when payload is not a map", %{conn: conn} do
+  test "review page shows accessible empty preview state when payload is not a map", %{conn: conn} do
     source = create_import_source(name: "No preview source", type: "manual", status: "active")
 
     {:ok, raw_item} =
@@ -128,7 +135,18 @@ defmodule PortfolixirWeb.RawImportItemReviewLiveTest do
 
     assert has_element?(
              view,
-             "#raw-import-item-payload-preview",
+             "#raw-import-item-payload-preview-title",
+             "Sanitized payload preview"
+           )
+
+    assert has_element?(
+             view,
+             "#raw-import-item-payload-preview [role='status'][aria-labelledby='raw-import-item-payload-preview-title'][aria-describedby='raw-import-item-payload-preview-no-preview-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#raw-import-item-payload-preview-no-preview-description",
              "No safe compact payload preview is available for this item."
            )
   end
