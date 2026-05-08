@@ -51,7 +51,20 @@ defmodule PortfolixirWeb.CategoryManagementLiveTest do
     assert has_element?(view, "#classification-tree-region[data-priority='primary']")
     assert has_element?(view, "#classification-details-region[data-priority='secondary']")
     assert has_element?(view, "#taxonomy-form.app-shell-form-grid")
-    assert has_element?(view, "#no-taxonomies")
+
+    assert has_element?(
+             view,
+             "#no-taxonomies[role='status'][aria-live='polite'][aria-labelledby='no-taxonomies-heading'][aria-describedby='no-taxonomies-description']"
+           )
+
+    assert has_element?(view, "#no-taxonomies-heading", "No taxonomies yet")
+
+    assert has_element?(
+             view,
+             "#no-taxonomies-description",
+             "Create a taxonomy before adding categories."
+           )
+
     assert has_element?(view, "#classification-details-region .app-shell-empty-state")
   end
 
