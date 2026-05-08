@@ -116,7 +116,19 @@ defmodule PortfolixirWeb.DashboardLiveTest do
 
     assert has_element?(
              view,
-             "#dashboard-recent-fund-documents-empty-state[role='status'][aria-live='polite'][aria-labelledby='dashboard-recent-fund-documents-empty-state-title'][aria-describedby='dashboard-recent-fund-documents-empty-state-description']"
+             "#dashboard-recent-fund-documents-empty-state[role='status'][aria-live='polite'][aria-labelledby='dashboard-recent-fund-documents-empty-state-status-title'][aria-describedby='dashboard-recent-fund-documents-empty-state-status-description']"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-fund-documents-empty-state-status-title.app-shell-visually-hidden",
+             "No fund documents yet"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-recent-fund-documents-empty-state-status-description.app-shell-visually-hidden",
+             "Upload a factsheet to populate this list."
            )
 
     assert has_element?(

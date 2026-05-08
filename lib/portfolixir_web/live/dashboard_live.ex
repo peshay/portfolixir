@@ -186,9 +186,21 @@ defmodule PortfolixirWeb.DashboardLive do
               class="app-shell-empty-state"
               role="status"
               aria-live="polite"
-              aria-labelledby="dashboard-recent-fund-documents-empty-state-title"
-              aria-describedby="dashboard-recent-fund-documents-empty-state-description"
+              aria-labelledby="dashboard-recent-fund-documents-empty-state-status-title"
+              aria-describedby="dashboard-recent-fund-documents-empty-state-status-description"
             >
+              <span
+                id="dashboard-recent-fund-documents-empty-state-status-title"
+                class="app-shell-visually-hidden"
+              >
+                <%= gettext("No fund documents yet") %>
+              </span>
+              <span
+                id="dashboard-recent-fund-documents-empty-state-status-description"
+                class="app-shell-visually-hidden"
+              >
+                <%= gettext("Upload a factsheet to populate this list.") %>
+              </span>
               <h3 id="dashboard-recent-fund-documents-empty-state-title"><%= gettext("No fund documents yet") %></h3>
               <p id="dashboard-recent-fund-documents-empty-state-description"><%= gettext("Upload a factsheet to populate this list.") %></p>
             </div>
