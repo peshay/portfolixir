@@ -1,8 +1,38 @@
+default_install_hook_types:
+  - pre-commit
+
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args:
+          - --markdown-linebreak-ext=md,markdown
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: mixed-line-ending
+        args:
+          - --fix=lf
+
   - repo: local
     hooks:
+      - id: mix-format-check
+        name: Elixir formatting check
+        entry: mix format --check-formatted
+        language: system
+        pass_filenames: false
+        files: "(\\.exs?$|^mix\\.exs$|^\\.formatter\\.exs$)"
+
       - id: public-artifact-guard
-        name: Public artifact guard
-        entry: scripts/public_artifact_guard.py
-        language: python
+        name: Public artifact and Markdown readability guard
+        entry: python3 scripts/public_artifact_guard.py
+        language: system
         pass_filenames: true
+        types:
+          - text
+
+      - id: public-artifact-guard-tests
+        name: Public artifact guard regression tests
+        entry: python3 scripts/test_public_artifact_guard.py
+        language: system
+        pass_filenames: false

@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Guard against accidental publication of internal artifacts in repo-facing text."""
+"""Guard public repository text against internal metadata and obvious secret leaks.
+
+Examples:
+  python3 scripts/public_artifact_guard.py $(git ls-files)
+  python3 scripts/public_artifact_guard.py --text "Story: PFX-123" --label pr-body
+  python3 scripts/public_artifact_guard.py --commit-range origin/main..HEAD
+"""
 
 from __future__ import annotations
 
@@ -10,6 +16,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+EXAMPLES = """
+examples:
+  python3 scripts/public_artifact_guard.py $(git ls-files)
+  python3 scripts/public_artifact_guard.py --text "Story: PFX-123" --label pr-body
+  python3 scripts/public_artifact_guard.py --commit-range origin/main..HEAD
+"""
 
 PUBLIC_EXTENSIONS = {
     ".md",
@@ -297,7 +310,11 @@ def check_text_artifact(label: str, text: str) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description="Guard public repository text against internal metadata and obvious secret leaks.",
+        epilog=EXAMPLES,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--commit-range", help="Optional git commit range to scan for public metadata leaks")
     parser.add_argument("--stdin", action="store_true", help="Scan stdin as public artifact text")
     parser.add_argument("--text", help="Direct text to scan as public artifact text")
