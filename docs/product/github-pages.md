@@ -24,11 +24,18 @@ The page is intentionally static and does not change Phoenix runtime behavior.
 
 ## Domains and canonical behavior
 
-| Purpose | Domain | Status | Notes |
-| --- | --- | --- | --- |
-| Current GitHub Pages custom domain | `portfolixir.dev` | Active target | Must match `docs/CNAME` exactly. |
-| Preferred product/docs domain | `portfolixir.dev` | Preferred canonical | Keep product overview and docs links canonical here unless a later product decision changes it. |
-| Future aliases | `www.portfolixir.dev`, `portfolixir.app`, `portfolixir.com`, `portfolixir.cloud`, `portfolixir.de` | Reserved / optional | If used later, redirect to the canonical product domain instead of serving divergent content. |
+- **Current GitHub Pages custom domain:** `portfolixir.dev`.
+  - Status: active target.
+  - Notes: must match `docs/CNAME` exactly.
+- **Preferred product/docs domain:** `portfolixir.dev`.
+  - Status: preferred canonical.
+  - Notes: keep product overview and docs links canonical here unless a later
+    product decision changes it.
+- **Future aliases:** `www.portfolixir.dev`, `portfolixir.app`,
+  `portfolixir.com`, `portfolixir.cloud`, `portfolixir.de`.
+  - Status: reserved / optional.
+  - Notes: if used later, redirect to the canonical product domain instead of
+    serving divergent content.
 
 Canonical rules:
 

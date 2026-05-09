@@ -32,8 +32,10 @@ pre-commit run --all-files
 
 If the guard fails:
 
-1. Remove internal paths/metadata, leaked prompt/process text, or obvious secrets from the flagged files.
-2. Replace literal escaped backslash-n sequences with real line breaks in public-facing text/templates/scripts.
+1. Remove internal paths/metadata, leaked prompt/process text, or obvious secrets from the flagged
+   files.
+2. Replace literal escaped backslash-n sequences with real line breaks in public-facing
+   text/templates/scripts.
 3. Rerun `pre-commit run --all-files` until it passes.
 
 ## Public commit and merge metadata
@@ -41,11 +43,18 @@ If the guard fails:
 GitHub-visible commit and merge metadata must stay repo-facing. Before opening or merging a PR:
 
 - Use public-safe author and co-author identities. Do not use local-only email domains.
-- Keep commit bodies and merge messages to the story summary, constraints respected, tests run, and follow-up tasks.
-- Do not include private agent identity, model/runtime identifiers, hostnames, workspace paths, prompt/process text, or board-only metadata in commit messages, merge messages, PR bodies, or release notes.
-- If GitHub suggests a merge message containing private metadata, rewrite it before merge. If an already-published commit needs history rewriting or branch deletion to hide metadata, stop and get explicit maintainer approval first.
+- Keep commit bodies and merge messages to the story summary, constraints respected, tests run, and
+  follow-up tasks.
+- Do not include private agent identity, model/runtime identifiers, hostnames, workspace paths,
+  prompt/process text, or board-only metadata in commit messages, merge messages, PR bodies, or
+  release notes.
+- If GitHub suggests a merge message containing private metadata, rewrite it before merge. If an
+  already-published commit needs history rewriting or branch deletion to hide metadata, stop and get
+  explicit maintainer approval first.
 
-The CI public artifact guard scans PR commit metadata as well as repository files. It allows only `Worker-Model` and `Worker-Thinking` worker traceability footers, and fails unsafe author/co-author data or any other private metadata before merge.
+The CI public artifact guard scans PR commit metadata as well as repository files. It allows only
+`Worker-Model` and `Worker-Thinking` worker traceability footers, and fails unsafe author/co-author
+data or any other private metadata before merge.
 
 ## Branch naming
 
