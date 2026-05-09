@@ -6,4 +6,3 @@ liquid layers.
 
 The application should use this logo in the app shell/sidebar and ensure it works on both light and
 dark themes.
-
