@@ -10,7 +10,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     "type" => "buy",
     "date" => "",
     "securities_account_id" => "",
-    "cash_account_id" => "",
     "security_id" => "",
     "quantity" => "",
     "price" => "",
@@ -69,19 +68,15 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <select name="transaction[securities_account_id]" required>
                     <option value=""><%= gettext("Select depot") %></option>
                     <%= for account <- @securities_accounts do %>
-                      <option value={account.id}><%= account.name %></option>
+                      <option value={account.id}>
+                        <%= account.name %> -> <%= linked_cash_account_name(account) %>
+                      </option>
                     <% end %>
                   </select>
                 </label>
-                <label>
-                  <span><%= gettext("Cash account") %></span>
-                  <select name="transaction[cash_account_id]" required>
-                    <option value=""><%= gettext("Select cash account") %></option>
-                    <%= for account <- @cash_accounts do %>
-                      <option value={account.id}><%= account.name %></option>
-                    <% end %>
-                  </select>
-                </label>
+                <p class="form-help">
+                  <%= gettext("Linked cash account is derived from the selected depot.") %>
+                </p>
                 <label>
                   <span><%= gettext("Security") %></span>
                   <select name="transaction[security_id]" required>
@@ -222,10 +217,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     current_portfolio = List.first(portfolios)
     securities = Catalog.list_securities()
 
-    {cash_accounts, securities_accounts, transactions, position_rows} =
+    {securities_accounts, transactions, position_rows} =
       if current_portfolio do
-        cash_accounts = Portfolios.list_cash_accounts_for_portfolio(current_portfolio.id)
-
         securities_accounts =
           Portfolios.list_securities_accounts_for_portfolio(current_portfolio.id)
 
@@ -236,15 +229,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           |> Ledger.positions_for_portfolio()
           |> position_rows(securities_accounts, securities)
 
-        {cash_accounts, securities_accounts, transactions, position_rows}
+        {securities_accounts, transactions, position_rows}
       else
-        {[], [], [], []}
+        {[], [], []}
       end
 
     assign(socket,
       portfolios: portfolios,
       current_portfolio: current_portfolio,
-      cash_accounts: cash_accounts,
       securities_accounts: securities_accounts,
       securities: securities,
       transactions: transactions,
@@ -270,6 +262,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp format_decimal(nil), do: ""
   defp format_decimal(decimal), do: Decimal.to_string(decimal, :normal)
+
+  defp linked_cash_account_name(%{cash_account: %{name: name}}), do: name
+  defp linked_cash_account_name(_account), do: gettext("Missing linked cash account")
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)

@@ -1,7 +1,9 @@
 # Portfolixir
 
 Portfolixir is a self-hosted Elixir/Phoenix app for local portfolio tracking.
-The reboot MVP focuses on a narrow manual workflow:
+This branch is a controlled foundation reset, not a finished MVP.
+
+The reboot foundation focuses on a narrow manual workflow:
 
 1. Create securities.
 2. Create one portfolio.
@@ -14,9 +16,9 @@ The reboot MVP focuses on a narrow manual workflow:
 Portfolixir is not a broker, bank, payment, trading, order, rebalance, import,
 document intake, LLM, or MCP system.
 
-## Current Scope
+## Reboot Foundation Scope
 
-The active MVP foundation contains:
+The active foundation contains:
 
 - Phoenix and LiveView shell;
 - securities master data;
@@ -27,9 +29,17 @@ The active MVP foundation contains:
 - a security detail price history chart;
 - tests for the basic schema workflow and dashboard/navigation path.
 
+Future MVP functionality will be added through human-reviewed Epics. Each Epic
+should pass local checks, deploy to staging, receive staging review, and only
+then be considered for production promotion.
+
 Deferred work includes PDF import, CSV import, broker sync, bank sync, document
 intake, MCP tools, LLM features, advanced reports, advanced classifications,
 trading, payments, orders, and rebalancing.
+
+For MVP trade entry, each depot has exactly one linked cash account. Buy and
+sell transactions derive the cash account from the selected depot instead of
+asking the user to choose one independently.
 
 ## Local Development
 
@@ -67,6 +77,19 @@ If the host database already contains prototype-era migrations, run
 Open the app at the Phoenix port shown by the server, usually
 `http://localhost:4000`.
 
+## Deployment Process Scaffolding
+
+Deployment is intentionally a process handoff in this foundation branch. Runtime
+deployment should use reviewed container image digests, staging review, and
+explicit production promotion. The foundation does not claim production
+readiness.
+
+The deployment scaffolding is documented in
+[docs/deployment.md](docs/deployment.md). Local development continues to use the
+root `docker-compose.yml`; runtime deployments use `deploy/compose.yml` with a
+reviewed GHCR image digest. Internal Compose examples set `DATABASE_SSL=false`
+because the app and PostgreSQL share a Compose network.
+
 ## Quality Gate
 
 Run these before opening a PR:
@@ -78,10 +101,18 @@ pre-commit run --all-files
 ```
 
 Development keeps the user story, TDD, and user documentation together. For each
-user-visible story, write the story as a comment in the relevant test file, add
-the functional test directly below it, confirm the test fails, implement the
-smallest change, then review and update user documentation when visible behavior
-changed.
+user-visible story, follow this order:
+
+1. User Story documented.
+2. Functional test written directly below the User Story comment.
+3. Test failure confirmed for the expected reason.
+4. Smallest implementation code written.
+5. Required gates run.
+6. User documentation reviewed and updated when visible behavior changed.
+
+Future MVP functionality is added through human-reviewed Epics on staging.
+See [docs/development/story-workflow.md](docs/development/story-workflow.md)
+for the full story, test, implementation, and documentation process.
 
 Install pre-commit once per checkout:
 

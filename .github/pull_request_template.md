@@ -10,7 +10,15 @@ Closes PFX-...
 
 ## Tests
 
-Commands run:
+Story comment evidence:
+
+-
+
+Test-first evidence:
+
+-
+
+Gates run:
 
 ```bash
 mix format
@@ -20,7 +28,7 @@ pre-commit run --all-files
 
 ## Documentation
 
-User documentation reviewed/updated:
+Docs review/update note:
 
 -
 

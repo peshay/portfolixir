@@ -4,8 +4,9 @@ These instructions apply to all coding agents working on Portfolixir.
 
 ## Project Goal
 
-Portfolixir is being rebooted as the smallest coherent self-hosted Phoenix MVP
-for local portfolio tracking.
+Portfolixir is being rebooted as the smallest coherent self-hosted Phoenix
+foundation for local portfolio tracking. This branch is a foundation reset, not
+a finished MVP.
 
 Build only this workflow until a story explicitly changes scope:
 
@@ -16,6 +17,9 @@ Build only this workflow until a story explicitly changes scope:
 5. Calculate current holdings from transactions.
 6. Store and display quote history.
 7. Show a security detail chart with price history.
+
+Future MVP functionality must be added Epic-by-Epic with human review on
+staging before production promotion.
 
 ## Hard Rules
 
@@ -98,19 +102,17 @@ pre-commit install --install-hooks
 
 ## Story Workflow
 
-1. Read the user-visible problem, expected behavior, affected route or surface,
-   acceptance criteria, and non-goals.
-2. Write the user story as a comment in the relevant test file.
-3. Write the functional test directly below the user story comment.
-4. Run the test and confirm it fails for the expected reason.
-5. Implement the smallest code change that fulfills the story and test.
-6. Run the test suite again.
-7. Review user documentation for consistency with the story and code.
-8. Update user documentation when the story changes visible behavior. If the
-   story only changes background behavior, note that user documentation was
-   reviewed and no update was needed.
-9. Refactor only within story scope.
-10. Summarize files changed and commands run.
+1. User Story documented.
+2. Functional test written directly below the User Story comment.
+3. Test failure confirmed for the expected reason.
+4. Smallest implementation code written.
+5. Required gates run.
+6. User documentation reviewed and updated when visible behavior changed.
+
+Read the user-visible problem, expected behavior, affected screen, route, or
+surface, severity, acceptance criteria, and non-goals before editing. Keep every
+change inside the story scope. Future MVP functionality is added through
+human-reviewed Epics on staging before production promotion.
 
 ## Scope Lock
 
