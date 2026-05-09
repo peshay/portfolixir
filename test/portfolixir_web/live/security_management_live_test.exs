@@ -83,6 +83,47 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
+  test "watchlists can be created from workbench and appear in sidebar", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#nav-securities", "All Securities")
+    assert has_element?(view, "#security-watchlists", "Watchlists")
+    assert has_element?(view, "#watchlist-all-securities", "All Securities")
+    refute has_element?(view, "#sidebar-watchlist-1")
+
+    html =
+      view
+      |> form("#watchlist-form", %{"watchlist" => %{"name" => "Dividend Ideas"}})
+      |> render_submit()
+
+    assert html =~ "Watchlist Dividend Ideas created."
+    assert has_element?(view, "#watchlist-item-1", "Dividend Ideas")
+    assert has_element?(view, "#sidebar-watchlist-1", "Dividend Ideas")
+
+    view
+    |> form("#sidebar-watchlist-form", %{"watchlist" => %{"name" => "Core ETFs"}})
+    |> render_submit()
+
+    assert has_element?(view, "#watchlist-item-2", "Core ETFs")
+    assert has_element?(view, "#sidebar-watchlist-2", "Core ETFs")
+  end
+
+  test "CSV preview action is not styled as the primary MVP CTA", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(
+             view,
+             "#security-csv-preview-form button.app-shell-secondary",
+             "Preview CSV"
+           )
+
+    refute has_element?(
+             view,
+             "#security-csv-preview-form button.app-shell-primary",
+             "Preview CSV"
+           )
+  end
+
   test "security list actions are grouped with a stable hidden label", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities")
 
