@@ -688,6 +688,13 @@ defmodule PortfolixirWeb.AppShell do
           flex: 1;
         }
 
+        #app-shell .app-shell-action-list {
+          margin: 0;
+          padding-left: 1.25rem;
+          display: grid;
+          gap: 0.45rem;
+        }
+
         #app-shell .app-shell-search {
           max-width: 20rem;
         }
@@ -1515,16 +1522,16 @@ defmodule PortfolixirWeb.AppShell do
             </div>
 
             <div class="app-shell-nav-group">
-              <p class="app-shell-nav-group-title"><%= gettext("Imports") %></p>
+              <p class="app-shell-nav-group-title"><%= gettext("Experimental") %></p>
               <a
                 id="nav-imports"
                 href="/imports"
-                aria-label={gettext("Imports")}
-                title={gettext("Imports")}
+                aria-label={gettext("Experimental imports")}
+                title={gettext("Experimental imports")}
                 class={imports_nav_link_class(@current_path)}
               >
                 <span class="app-shell-nav-icon" aria-hidden="true">IM</span>
-                <span class="app-shell-nav-label"><%= gettext("Imports") %></span>
+                <span class="app-shell-nav-label"><%= gettext("Imports (experimental)") %></span>
               </a>
             </div>
 
@@ -1836,10 +1843,10 @@ defmodule PortfolixirWeb.AppShell do
 
   defp section_label("/"), do: gettext("Dashboard")
   defp section_label("/dashboard"), do: gettext("Dashboard")
-  defp section_label("/documents/new"), do: gettext("Imports")
-  defp section_label("/fund-documents/" <> _), do: gettext("Imports")
-  defp section_label("/imports"), do: gettext("Imports")
-  defp section_label("/imports/" <> _), do: gettext("Imports")
+  defp section_label("/documents/new"), do: gettext("Experimental")
+  defp section_label("/fund-documents/" <> _), do: gettext("Experimental")
+  defp section_label("/imports"), do: gettext("Experimental")
+  defp section_label("/imports/" <> _), do: gettext("Experimental")
   defp section_label("/reports/" <> _), do: gettext("Reports")
   defp section_label("/accounts"), do: gettext("Master data")
   defp section_label("/transactions"), do: gettext("Ledger")
