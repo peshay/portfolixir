@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.AppShell do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   attr(:current_path, :string, default: "/")
+  attr(:security_watchlists_enabled, :boolean, default: false)
+  attr(:security_watchlists, :list, default: [])
   slot(:inner_block, required: true)
 
   def shell(assigns) do
@@ -385,6 +387,82 @@ defmodule PortfolixirWeb.AppShell do
         }
 
         #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-label {
+          display: none;
+        }
+
+        #app-shell .app-shell-nav-sublist {
+          display: flex;
+          flex-direction: column;
+          gap: 0.22rem;
+          margin: 0.05rem 0 0;
+          padding: 0 0 0 2.45rem;
+        }
+
+        #app-shell .app-shell-nav-subitem {
+          min-height: 2rem;
+          display: flex;
+          align-items: center;
+          border: 1px solid transparent;
+          border-radius: 6px;
+          padding: 0.38rem 0.55rem;
+          color: var(--pfx-sidebar-text);
+          font-size: 0.88rem;
+          font-weight: 650;
+          line-height: 1.25;
+        }
+
+        #app-shell .app-shell-nav-subitem:hover {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: var(--pfx-sidebar-border);
+          text-decoration: none;
+        }
+
+        #app-shell .app-shell-sidebar-form {
+          margin: 0.2rem 0 0;
+          padding: 0.55rem;
+          border: 1px solid var(--pfx-sidebar-border);
+          border-radius: var(--pfx-radius);
+          background: rgba(255, 255, 255, 0.04);
+          display: flex;
+          flex-direction: column;
+          gap: 0.45rem;
+        }
+
+        #app-shell .app-shell-sidebar-form label {
+          color: var(--pfx-sidebar-muted);
+          font-size: 0.74rem;
+          font-weight: 750;
+        }
+
+        #app-shell .app-shell-sidebar-form-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 0.35rem;
+        }
+
+        #app-shell .app-shell-sidebar-input {
+          min-width: 0;
+          border: 1px solid var(--pfx-sidebar-border);
+          border-radius: 6px;
+          padding: 0.5rem 0.55rem;
+          background: var(--pfx-sidebar-surface);
+          color: var(--pfx-sidebar-text);
+          font: inherit;
+        }
+
+        #app-shell .app-shell-sidebar-button {
+          border: 1px solid rgba(94, 234, 212, 0.45);
+          border-radius: 6px;
+          padding: 0.5rem 0.6rem;
+          background: var(--pfx-accent);
+          color: var(--pfx-accent-contrast);
+          cursor: pointer;
+          font: inherit;
+          font-weight: 800;
+        }
+
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-nav-sublist,
+        #app-shell[data-sidebar-collapsed="true"] .app-shell-sidebar-form {
           display: none;
         }
 
@@ -1418,25 +1496,82 @@ defmodule PortfolixirWeb.AppShell do
 
             <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title"><%= gettext("Securities") %></p>
-              <a
-                id="nav-securities"
-                href="/securities"
-                aria-label={gettext("All Securities")}
-                title={gettext("All Securities")}
-                class={nav_link_class(@current_path, "/securities")}
-              >
-                <span class="app-shell-nav-icon" aria-hidden="true">SEC</span>
-                <span class="app-shell-nav-label"><%= gettext("All Securities") %></span>
-              </a>
-              <span
-                class="app-shell-nav-link is-disabled"
-                aria-label={gettext("Watchlist")}
-                aria-disabled="true"
-                title={gettext("Coming soon")}
-              >
-                <span class="app-shell-nav-icon" aria-hidden="true">W</span>
-                <span class="app-shell-nav-label"><%= gettext("Watchlist") %></span>
-              </span>
+              <%= if @security_watchlists_enabled do %>
+                <.link
+                  id="nav-securities"
+                  patch="/securities"
+                  aria-label={gettext("All Securities")}
+                  title={gettext("All Securities")}
+                  class={nav_link_class(@current_path, "/securities")}
+                >
+                  <span class="app-shell-nav-icon" aria-hidden="true">SEC</span>
+                  <span class="app-shell-nav-label"><%= gettext("All Securities") %></span>
+                </.link>
+              <% else %>
+                <a
+                  id="nav-securities"
+                  href="/securities"
+                  aria-label={gettext("All Securities")}
+                  title={gettext("All Securities")}
+                  class={nav_link_class(@current_path, "/securities")}
+                >
+                  <span class="app-shell-nav-icon" aria-hidden="true">SEC</span>
+                  <span class="app-shell-nav-label"><%= gettext("All Securities") %></span>
+                </a>
+              <% end %>
+              <%= if @security_watchlists_enabled do %>
+                <div
+                  id="sidebar-security-watchlists"
+                  class="app-shell-nav-sublist"
+                  aria-labelledby="sidebar-security-watchlists-title"
+                >
+                  <span id="sidebar-security-watchlists-title" class="app-shell-visually-hidden">
+                    <%= gettext("Watchlists") %>
+                  </span>
+                  <%= for watchlist <- @security_watchlists do %>
+                    <.link
+                      id={"sidebar-watchlist-#{watchlist.id}"}
+                      patch="/securities"
+                      class="app-shell-nav-subitem"
+                      aria-label={gettext("Watchlist %{name}", name: watchlist.name)}
+                      title={watchlist.name}
+                    >
+                      <%= watchlist.name %>
+                    </.link>
+                  <% end %>
+                </div>
+                <form
+                  id="sidebar-watchlist-form"
+                  class="app-shell-sidebar-form"
+                  phx-submit="create_watchlist"
+                  aria-labelledby="sidebar-watchlist-label"
+                >
+                  <label id="sidebar-watchlist-label" for="sidebar-watchlist-name">
+                    <%= gettext("New watchlist") %>
+                  </label>
+                  <div class="app-shell-sidebar-form-row">
+                    <input
+                      id="sidebar-watchlist-name"
+                      class="app-shell-sidebar-input"
+                      name="watchlist[name]"
+                      placeholder={gettext("Watchlist name")}
+                    />
+                    <button id="sidebar-watchlist-submit" class="app-shell-sidebar-button" type="submit">
+                      <%= gettext("Add") %>
+                    </button>
+                  </div>
+                </form>
+              <% else %>
+                <span
+                  class="app-shell-nav-link is-disabled"
+                  aria-label={gettext("Watchlist")}
+                  aria-disabled="true"
+                  title={gettext("Coming soon")}
+                >
+                  <span class="app-shell-nav-icon" aria-hidden="true">W</span>
+                  <span class="app-shell-nav-label"><%= gettext("Watchlist") %></span>
+                </span>
+              <% end %>
             </div>
 
             <div class="app-shell-nav-group">
