@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   alias Portfolixir.Catalog.SecurityCsv
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Positions
+  alias Portfolixir.MarketData
   alias PortfolixirWeb.AmountFormat
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.WorkbenchToolbar
@@ -56,6 +57,10 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:security_error, nil)
       |> assign(:security_success, nil)
       |> assign(:security_search, "")
+      |> assign(:provider_security_query, "")
+      |> assign(:provider_security_results, [])
+      |> assign(:provider_security_preview, nil)
+      |> assign(:provider_security_error, nil)
       |> assign(:security_csv_input, "")
       |> assign(:security_csv_error, nil)
       |> assign(:security_csv_preview_rows, nil)
@@ -208,6 +213,135 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               <%= if @security_form_visible, do: gettext("Close form"), else: gettext("Add security") %>
             </button>
           </div>
+
+          <section
+            id="security-provider-search"
+            class="app-shell-section-card"
+            data-priority="secondary"
+            aria-labelledby="security-provider-search-title"
+            aria-describedby={provider_security_description_ids(@provider_security_error, @provider_security_preview)}
+          >
+            <div class="app-shell-section-header">
+              <div>
+                <h2 id="security-provider-search-title" class="app-shell-section-title">
+                  <%= gettext("Find via Yahoo Finance") %>
+                </h2>
+                <p id="security-provider-search-description" class="app-shell-panel-intro">
+                  <%= gettext("Search Apple, AAPL, or MSFT, preview the provider result, then create the security with historical closing quotes.") %>
+                </p>
+              </div>
+            </div>
+
+            <%= if @provider_security_error do %>
+              <p id="security-provider-error" class="app-shell-alert app-shell-alert--error" role="alert">
+                <%= @provider_security_error %>
+              </p>
+            <% end %>
+
+            <form
+              id="security-provider-search-form"
+              class="app-shell-form-actions"
+              phx-submit="search_provider_securities"
+              role="search"
+              aria-labelledby="security-provider-search-title"
+              aria-describedby={provider_security_description_ids(@provider_security_error, @provider_security_preview)}
+            >
+              <label for="security-provider-query" class="app-shell-visually-hidden">
+                <%= gettext("Search Yahoo Finance securities") %>
+              </label>
+              <input
+                id="security-provider-query"
+                name="q"
+                type="search"
+                value={@provider_security_query}
+                placeholder={gettext("Apple, AAPL, or MSFT")}
+              />
+              <button id="security-provider-search-submit" type="submit" class="app-shell-secondary">
+                <%= gettext("Search Yahoo") %>
+              </button>
+            </form>
+
+            <%= if @provider_security_results != [] do %>
+              <div class="app-shell-table-wrapper">
+                <table id="security-provider-results" aria-describedby="security-provider-results-caption">
+                  <caption id="security-provider-results-caption" class="app-shell-visually-hidden">
+                    <%= gettext("Yahoo Finance candidate securities available for preview before creation.") %>
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col"><%= gettext("Name") %></th>
+                      <th scope="col"><%= gettext("Provider symbol") %></th>
+                      <th scope="col"><%= gettext("Currency") %></th>
+                      <th scope="col"><%= gettext("Exchange") %></th>
+                      <th scope="col"><%= gettext("Source") %></th>
+                      <th scope="col"><%= gettext("Actions") %></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <%= for {candidate, index} <- Enum.with_index(@provider_security_results) do %>
+                      <tr id={"security-provider-result-#{index}"}>
+                        <td><%= candidate.name %></td>
+                        <td><%= candidate.provider_symbol %></td>
+                        <td><%= candidate.currency_code || "—" %></td>
+                        <td><%= candidate.exchange_code || candidate.market || "—" %></td>
+                        <td><%= candidate.provider_source %></td>
+                        <td>
+                          <button
+                            id={"security-provider-preview-#{index}"}
+                            type="button"
+                            class="app-shell-secondary"
+                            phx-click="preview_provider_security"
+                            phx-value-index={index}
+                            aria-label={provider_preview_button_label(candidate)}
+                          >
+                            <%= gettext("Preview") %>
+                          </button>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+
+            <%= if @provider_security_preview do %>
+              <div
+                id="security-provider-preview"
+                class="app-shell-empty-state"
+                role="region"
+                aria-labelledby="security-provider-preview-title"
+                aria-describedby="security-provider-preview-description"
+              >
+                <h3 id="security-provider-preview-title"><%= gettext("Provider preview") %></h3>
+                <p id="security-provider-preview-description">
+                  <%= gettext("Review Yahoo Finance data before creating the security. ISIN and WKN remain empty when the provider does not supply them.") %>
+                </p>
+                <dl>
+                  <dt><%= gettext("Name") %></dt>
+                  <dd id="security-provider-preview-name"><%= @provider_security_preview.name %></dd>
+                  <dt><%= gettext("Provider symbol") %></dt>
+                  <dd id="security-provider-preview-symbol"><%= @provider_security_preview.provider_symbol %></dd>
+                  <dt><%= gettext("Currency") %></dt>
+                  <dd id="security-provider-preview-currency"><%= @provider_security_preview.currency_code || "—" %></dd>
+                  <dt><%= gettext("Exchange") %></dt>
+                  <dd id="security-provider-preview-exchange"><%= @provider_security_preview.exchange_code || @provider_security_preview.market || "—" %></dd>
+                  <dt><%= gettext("Latest close") %></dt>
+                  <dd id="security-provider-preview-latest-close"><%= provider_latest_close_label(@provider_security_preview) %></dd>
+                  <dt><%= gettext("Source") %></dt>
+                  <dd id="security-provider-preview-source"><%= @provider_security_preview.provider_source %></dd>
+                </dl>
+                <button
+                  id="security-provider-create"
+                  type="button"
+                  class="app-shell-primary"
+                  phx-click="create_provider_security"
+                >
+                  <%= gettext("Create from Yahoo") %>
+                </button>
+              </div>
+            <% end %>
+          </section>
+
           <form
             id="security-search-form"
             class="app-shell-form-actions"
@@ -1147,6 +1281,82 @@ defmodule PortfolixirWeb.SecurityManagementLive do
      |> load_securities()}
   end
 
+  def handle_event("search_provider_securities", %{"q" => query}, socket) do
+    query = String.trim(query || "")
+
+    if query == "" do
+      {:noreply,
+       socket
+       |> assign(:provider_security_query, query)
+       |> assign(:provider_security_results, [])
+       |> assign(:provider_security_preview, nil)
+       |> assign(:provider_security_error, gettext("Search query is required."))}
+    else
+      case MarketData.search_securities(query) do
+        {:ok, []} ->
+          {:noreply,
+           socket
+           |> assign(:provider_security_query, query)
+           |> assign(:provider_security_results, [])
+           |> assign(:provider_security_preview, nil)
+           |> assign(:provider_security_error, gettext("No Yahoo Finance results found."))}
+
+        {:ok, results} ->
+          {:noreply,
+           socket
+           |> assign(:provider_security_query, query)
+           |> assign(:provider_security_results, results)
+           |> assign(:provider_security_preview, nil)
+           |> assign(:provider_security_error, nil)}
+
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(:provider_security_query, query)
+           |> assign(:provider_security_results, [])
+           |> assign(:provider_security_preview, nil)
+           |> assign(:provider_security_error, provider_error_label(reason))}
+      end
+    end
+  end
+
+  def handle_event("preview_provider_security", %{"index" => index_string}, socket) do
+    with {index, ""} <- Integer.parse(index_string),
+         candidate when not is_nil(candidate) <-
+           Enum.at(socket.assigns.provider_security_results, index) do
+      case MarketData.preview_security(candidate) do
+        {:ok, preview} ->
+          {:noreply,
+           socket
+           |> assign(:provider_security_preview, preview)
+           |> assign(:provider_security_error, nil)}
+
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(:provider_security_preview, nil)
+           |> assign(:provider_security_error, provider_error_label(reason))}
+      end
+    else
+      _ ->
+        {:noreply,
+         socket
+         |> assign(:provider_security_preview, nil)
+         |> assign(:provider_security_error, gettext("Select a valid provider result."))}
+    end
+  end
+
+  def handle_event("create_provider_security", _params, socket) do
+    case socket.assigns.provider_security_preview do
+      nil ->
+        {:noreply,
+         assign(socket, :provider_security_error, gettext("Preview a provider result first."))}
+
+      preview ->
+        create_security_from_provider_preview(socket, preview)
+    end
+  end
+
   def handle_event("select_security", %{"id" => id_string}, socket) do
     case Integer.parse(id_string) do
       {id, ""} ->
@@ -1230,6 +1440,70 @@ defmodule PortfolixirWeb.SecurityManagementLive do
          |> assign(:security_success, nil)
          |> assign(:security_form_visible, true)
          |> load_securities()}
+    end
+  end
+
+  defp create_security_from_provider_preview(socket, preview) do
+    case provider_preview_security_attrs(preview) do
+      {:ok, security_attrs} ->
+        with {:ok, quotes} <-
+               MarketData.historical_quotes(preview, %{range: "1y", interval: "1d"}),
+             :ok <- ensure_provider_quotes_available(quotes),
+             {:ok, security} <- Catalog.create_security_with_quotes(security_attrs, quotes) do
+          {:noreply,
+           socket
+           |> assign(:provider_security_preview, nil)
+           |> assign(:provider_security_results, [])
+           |> assign(:provider_security_error, nil)
+           |> assign(
+             :security_success,
+             gettext("Security %{name} added from Yahoo Finance.", name: security.name)
+           )
+           |> assign(:security_error, nil)
+           |> load_securities()}
+        else
+          {:error, %Ecto.Changeset{} = changeset} ->
+            {:noreply,
+             socket
+             |> assign(:provider_security_error, format_errors(changeset))
+             |> assign(:security_success, nil)
+             |> load_securities()}
+
+          {:error, reason} ->
+            {:noreply,
+             socket
+             |> assign(:provider_security_error, provider_error_label(reason))
+             |> assign(:security_success, nil)
+             |> load_securities()}
+        end
+
+      {:error, message} ->
+        {:noreply, assign(socket, :provider_security_error, message)}
+    end
+  end
+
+  defp ensure_provider_quotes_available([]), do: {:error, :no_historical_quotes}
+  defp ensure_provider_quotes_available(_quotes), do: :ok
+
+  defp provider_preview_security_attrs(preview) do
+    currency_code = blank_to_nil(preview.currency_code)
+
+    if is_nil(currency_code) do
+      {:error, gettext("Yahoo Finance did not provide a supported currency for this result.")}
+    else
+      {:ok,
+       %{
+         "name" => preview.name,
+         "symbol" => preview.symbol,
+         "currency_code" => currency_code,
+         "provider_symbol" => preview.provider_symbol,
+         "provider_source" => preview.provider_source,
+         "exchange_code" => blank_to_nil(preview.exchange_code || preview.market),
+         "isin" => nil,
+         "wkn" => nil,
+         "active" => "true",
+         "notes" => nil
+       }}
     end
   end
 
@@ -1428,6 +1702,38 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
+  end
+
+  defp provider_security_description_ids(provider_security_error, provider_security_preview) do
+    [
+      "security-provider-search-description",
+      provider_security_error && "security-provider-error",
+      provider_security_preview && "security-provider-preview-description"
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp provider_preview_button_label(candidate) do
+    gettext("Preview %{name} (%{symbol}) from Yahoo Finance",
+      name: candidate.name,
+      symbol: candidate.provider_symbol
+    )
+  end
+
+  defp provider_latest_close_label(%{latest_close: nil}), do: "—"
+
+  defp provider_latest_close_label(%{latest_close: close, latest_close_date: nil}),
+    do: to_string(close)
+
+  defp provider_latest_close_label(%{latest_close: close, latest_close_date: %Date{} = date}) do
+    "#{close} on #{Date.to_iso8601(date)}"
+  end
+
+  defp provider_latest_close_label(_preview), do: "—"
+
+  defp provider_error_label(reason) do
+    gettext("Provider lookup failed: %{reason}", reason: inspect(reason))
   end
 
   defp security_csv_preview_description_ids(security_csv_preview_rows, security_csv_error) do
@@ -1917,6 +2223,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     |> maybe_remove_empty_string("wkn")
     |> maybe_remove_empty_string("exchange_code")
     |> maybe_remove_empty_string("provider_symbol")
+    |> maybe_remove_empty_string("provider_source")
     |> maybe_remove_empty_string("notes")
   end
 
@@ -1928,6 +2235,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       _ -> params
     end
   end
+
+  defp blank_to_nil(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp blank_to_nil(value), do: value
 
   defp format_errors(%Ecto.Changeset{} = changeset) do
     changeset.errors

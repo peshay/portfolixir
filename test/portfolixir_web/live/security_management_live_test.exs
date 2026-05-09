@@ -83,6 +83,61 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
+  test "Yahoo Finance search result can be previewed and created with historical closes", %{
+    conn: conn
+  } do
+    previous_provider = Application.get_env(:portfolixir, :market_data_provider)
+
+    Application.put_env(
+      :portfolixir,
+      :market_data_provider,
+      {Portfolixir.FakeMarketDataProvider, %{}}
+    )
+
+    on_exit(fn ->
+      if previous_provider do
+        Application.put_env(:portfolixir, :market_data_provider, previous_provider)
+      else
+        Application.delete_env(:portfolixir, :market_data_provider)
+      end
+    end)
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    view
+    |> form("#security-provider-search-form", %{"q" => "Apple"})
+    |> render_submit()
+
+    assert has_element?(view, "#security-provider-results", "Apple Inc.")
+    assert has_element?(view, "#security-provider-result-0", "AAPL")
+    assert has_element?(view, "#security-provider-result-0", "yahoo")
+
+    view |> element("#security-provider-preview-0") |> render_click()
+
+    assert has_element?(view, "#security-provider-preview", "Provider preview")
+    assert has_element?(view, "#security-provider-preview-currency", "USD")
+    assert has_element?(view, "#security-provider-preview-latest-close", "185.64")
+
+    html = view |> element("#security-provider-create") |> render_click()
+
+    assert html =~ "Security Apple Inc. added from Yahoo Finance."
+    assert html =~ "Apple Inc."
+
+    security = Repo.get_by!(Security, provider_symbol: "AAPL")
+    assert security.name == "Apple Inc."
+    assert security.symbol == "AAPL"
+    assert security.currency_code == "USD"
+    assert security.exchange_code == "NMS"
+    assert security.provider_source == "yahoo"
+    assert is_nil(security.isin)
+    assert is_nil(security.wkn)
+
+    quotes = Catalog.list_security_quotes(security.id)
+    assert Enum.map(quotes, & &1.date) == [~D[2024-01-02], ~D[2024-01-03]]
+    assert Enum.map(quotes, &Decimal.to_string(&1.close)) == ["184.25", "185.64"]
+    assert Enum.all?(quotes, &(&1.source == "yahoo"))
+  end
+
   test "watchlists can be created from workbench and appear in sidebar", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities")
 
