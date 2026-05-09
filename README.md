@@ -1,6 +1,7 @@
 # Portfolixir
 
-Portfolixir is an early-stage, self-hosted portfolio analytics and wealth graph platform built with Elixir, Phoenix, and LiveView.
+Portfolixir is an early-stage, self-hosted portfolio analytics and wealth graph
+platform built with Elixir, Phoenix, and LiveView.
 
 <p align="center">
   <picture>
@@ -16,58 +17,38 @@ Portfolixir is an early-stage, self-hosted portfolio analytics and wealth graph 
 
 [![Support maintenance via bunq](https://img.shields.io/badge/Support-Maintenance-4CAF50?style=flat-square&logo=ko-fi&logoColor=white)](https://bunq.me/ahuservices?description=portfolixir-maintenance-support)
 
-## What is Portfolixir
+## What it is
 
-Portfolixir focuses on transparent, ledger-driven portfolio analysis with a strong read/reporting surface. It is designed to keep financial logic explicit, testable, and auditable.
+Portfolixir helps self-hosters and portfolio tinkerers model investments through
+an explicit ledger, then inspect read-only portfolio, security, allocation, and
+import views.
 
-## Why Portfolixir
+It exists to make portfolio data flows transparent, testable, and auditable
+without adding broker, banking, payment, order, or rebalance capabilities.
 
-- Elixir/Phoenix foundation for reliable server-side state and testability.
-- Deterministic read models for reports and portfolio insights.
-- Clear safety boundaries: no broker execution, no real-money actions, no write-capable AI tooling in MVP direction.
+## Current MVP scope
 
-## Current status
+The MVP can currently support local exploration of:
 
-- Early-stage MVP in active development.
-- Not production-ready.
-- Feature set is evolving through small scoped story cards.
+- portfolio, account, and transaction records;
+- securities workbench and security detail views;
+- classification and fund-allocation workbench pages;
+- read-only report pages such as fund allocations and payments;
+- import overview and document/factsheet review flows;
+- authenticated read API and read-only MCP wrapper boundaries.
 
-## What works today
+The MVP cannot provide financial advice, connect to brokers for execution,
+move money, place orders, rebalance accounts, or promise production readiness.
 
-Current merged surface includes:
+## Product documentation
 
-- Portfolio, account, and transaction management basics.
-- Securities workbench and security detail views.
-- Classification and fund-allocation workbench pages.
-- Read-only report pages (for example fund allocations and payments).
-- Import overview and document/factsheet review flows.
+Detailed product material lives outside this README:
 
-Representative routes available in local runs include:
-
-- `/`
-- `/securities`
-- `/reports/payments`
-- `/imports`
-
-## Product direction
-
-Near-term direction is to harden portfolio read/reporting capabilities around:
-
-- quote and valuation reliability,
-- richer classifications/exposure reporting,
-- safer import/reimport flows,
-- read-only API/MCP boundaries.
-
-## Safety and non-goals
-
-Portfolixir is:
-
-- **not financial advice**,
-- **not a broker**,
-- **not a trading/payment/order execution platform**,
-- **not intended for real-money actions** in its current state.
-
-MVP direction also excludes write-capable LLM/MCP tools.
+- [GitHub Page / product overview](https://portfolixir.dev/)
+- [GitHub Pages publishing notes](docs/product/github-pages.md)
+- [Product backlog](docs/product/pp-inspired-product-backlog.md)
+- [LLM story workflow](docs/product/llm-story-workflow.md)
+- [Portfolio boundaries](docs/architecture/portfolio-boundaries.md)
 
 ## Quick start
 
@@ -82,10 +63,8 @@ MVP direction also excludes write-capable LLM/MCP tools.
 docker compose up --build
 ```
 
-Open:
-
-- http://localhost:4000
-- http://localhost:4000/health
+Open the app and health endpoint at the local Phoenix port shown by the
+running server.
 
 Stop and remove local volumes:
 
@@ -102,55 +81,39 @@ mix format
 mix test
 ```
 
-CI also enforces a coverage non-regression floor at **87.8%** (ExCoveralls/Cobertura line coverage).
+CI also enforces a coverage non-regression floor at **87.8%**
+(ExCoveralls/Cobertura line coverage).
 
-## Read API authentication
+## Safety boundaries
 
-`/api/read/*` can be protected with an API key.
+Portfolixir is:
 
-- `READ_API_AUTH_ENABLED=true` enables API key checks.
-- `READ_API_KEY=<your-key>` sets the expected key.
-- Clients send the key with header `x-api-key`.
+- **not financial advice**;
+- **not a broker**;
+- **not a trading, banking, payment, order, or rebalance platform**;
+- **not intended for real-money actions** in its current state.
 
-In production, read API auth is fail-closed by default (`READ_API_AUTH_ENABLED` defaults to `true`). Setting `READ_API_AUTH_ENABLED=false` in production raises at boot. In local dev/test, auth may be left disabled.
+MVP direction also excludes write-capable LLM/MCP tools.
 
-## Read-only MCP wrapper boundary
+## Contributing
 
-Portfolixir includes a read-only MCP tool-definition wrapper over authenticated read API endpoints.
-
-- Module: `Portfolixir.MCP.ReadOnlyTools`
-- Allowed tool paths:
-  - `/api/read/portfolio_snapshot`
-  - `/api/read/positions`
-  - `/api/read/transactions`
-  - `/api/read/cash_balances`
-- Allowed method: `GET` only
-
-No write-capable MCP tools exist. Portfolixir does not expose MCP tools for broker, banking, trading, payment, order, or rebalance actions.
-
-## Roadmap and next milestones
-
-Roadmap execution is tracked through Planka story cards and PR handoffs. Product-level story sources:
-
-- [`docs/product/pp-inspired-product-backlog.md`](docs/product/pp-inspired-product-backlog.md)
-- [`docs/product/llm-story-workflow.md`](docs/product/llm-story-workflow.md)
-
-## Contributing / AI agent workflow
-
-- Read [`AGENTS.md`](AGENTS.md) before making changes.
+- Read [AGENTS.md](AGENTS.md) before making changes.
 - Keep changes scoped to a single story.
 - Keep public artifacts concise and repo-facing.
-
-Additional workflow documentation is maintained in this repository as it is merged on `main`.
+- Follow the repository pull request template.
 
 ## Portfolio Performance inspiration note
 
-Portfolixir is inspired by Portfolio Performance workflow ideas. It is an independent project and is not affiliated with or endorsed by the Portfolio Performance project.
+Portfolixir is inspired by Portfolio Performance workflow ideas. It is an
+independent project and is not affiliated with or endorsed by the Portfolio
+Performance project.
 
 ## Support
 
-Support payments help fund ongoing maintenance work. They do not automatically create entitlement to support, features, consulting, SLA, or invoice-based engagement.
+Support payments help fund ongoing maintenance work. They do not automatically
+create entitlement to support, features, consulting, SLA, or invoice-based
+engagement.
 
 ## License
 
-This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

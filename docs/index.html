@@ -6,88 +6,97 @@
     <title>Portfolixir</title>
     <meta
       name="description"
-      content="Portfolixir is a self-hosted portfolio data hub with a ledger core, PP-inspired workflows, and a read-only API/AI direction."
+      content="Portfolixir is an early-stage self-hosted portfolio analytics project with a ledger core, PP-inspired workflows, and read-only API/AI boundaries."
     />
+    <link rel="canonical" href="https://portfolixir.dev/" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="page">
       <header class="hero">
         <img src="assets/logo-wordmark.svg" alt="Portfolixir" class="logo" />
-        <p class="tagline">Self-hosted portfolio data hub with a ledger-first core.</p>
+        <p class="eyebrow">Self-hosted portfolio analytics, early MVP.</p>
+        <h1>Ledger-first portfolio insight without execution rails.</h1>
+        <p class="tagline">
+          Portfolixir helps self-hosters and portfolio tinkerers model investment history,
+          inspect read-only reports, and keep financial logic explicit.
+        </p>
+        <nav class="actions" aria-label="Primary links">
+          <a href="https://github.com/peshay/portfolixir">Repository</a>
+          <a href="https://github.com/peshay/portfolixir#quick-start">Quick start</a>
+          <a href="https://github.com/peshay/portfolixir/tree/main/docs/product">Product docs</a>
+        </nav>
       </header>
 
       <section>
-        <h1>Why Portfolixir?</h1>
+        <h2>Product overview</h2>
         <p>
-          Portfolixir is built for transparent, reproducible portfolio analysis with clear boundaries:
-          self-hosted by default, ledger-driven history, and read-first interfaces.
+          Portfolixir is built for transparent, reproducible portfolio analysis with clear
+          boundaries: self-hosted by default, ledger-driven history, and read-first
+          interfaces for reports and future API/AI integrations.
         </p>
         <p>
-          It is inspired by Portfolio Performance workflows, but is not affiliated with Portfolio Performance.
+          It is inspired by Portfolio Performance workflows, but is independent and not
+          affiliated with or endorsed by Portfolio Performance.
         </p>
       </section>
 
       <section>
-        <h2>Current features</h2>
-        <ul>
-          <li>Ledger-based portfolio model with positions, balances, and valuation snapshots</li>
-          <li>Securities and classification workbench flows with taxonomy and mapping support</li>
-          <li>Import/document intake and review paths for controlled data ingestion</li>
-          <li>Read API boundary for analytics and future read-only AI/API integrations</li>
-        </ul>
+        <h2>MVP workflow</h2>
+        <ol class="workflow">
+          <li>Maintain portfolio, account, transaction, security, and classification data.</li>
+          <li>Review imported documents and factsheets before relying on derived facts.</li>
+          <li>Inspect read-only views for positions, payments, allocations, and valuation snapshots.</li>
+          <li>Use authenticated read APIs and read-only MCP boundaries for controlled integrations.</li>
+        </ol>
       </section>
 
       <section>
-        <h2>Roadmap</h2>
+        <h2>Current MVP surface</h2>
         <ul>
-          <li>Harden reports for valuation, payments, trades, and classification exposure</li>
-          <li>Expand safe Portfolio Performance-style import/reimport and conflict handling</li>
-          <li>Advance a strict read-only MCP/API layer after authenticated read boundaries</li>
+          <li>Ledger-based portfolio model with positions, balances, and valuation snapshots.</li>
+          <li>Securities and classification workbench flows with taxonomy and mapping support.</li>
+          <li>Import/document intake and review paths for controlled data ingestion.</li>
+          <li>Read API boundary for analytics and future read-only AI/API integrations.</li>
         </ul>
       </section>
 
       <section>
         <h2>Safety and non-goals</h2>
         <ul>
-          <li>No broker/order/payment execution capability</li>
-          <li>No write-capable external trading or banking integrations</li>
-          <li>No financial advice and no real financial data fixtures in tests</li>
+          <li>No financial, legal, tax, or investment advice.</li>
+          <li>No broker, banking, trading, payment, order, or rebalance execution.</li>
+          <li>No write-capable external trading or banking integrations.</li>
+          <li>No production-readiness promise for the current MVP.</li>
         </ul>
       </section>
 
       <section>
-        <h2>Getting started</h2>
-        <p>
-          Follow the quick-start steps in
-          <a href="https://github.com/peshay/portfolixir#quick-start">README.md</a>
-          to run locally with Docker Compose.
-        </p>
-      </section>
-
-      <section>
-        <h2>Contributing</h2>
-        <p>
-          Contributors and coding agents should follow
-          <a href="https://github.com/peshay/portfolixir/blob/main/AGENTS.md">AGENTS.md</a>
-          and the documented story workflow.
-        </p>
-      </section>
-
-      <section>
         <h2>Screenshots</h2>
-        <p>
-          No committed product screenshots are currently published in this landing page bundle.
-          Screenshot slots remain intentionally empty until real assets are added.
-        </p>
+        <div class="screenshots" aria-label="Screenshot placeholders">
+          <article>
+            <h3>Portfolio dashboard</h3>
+            <p>Placeholder for a sanitized dashboard screenshot.</p>
+          </article>
+          <article>
+            <h3>Securities workbench</h3>
+            <p>Placeholder for a sanitized securities workflow screenshot.</p>
+          </article>
+          <article>
+            <h3>Import review</h3>
+            <p>Placeholder for a sanitized import review screenshot.</p>
+          </article>
+        </div>
       </section>
 
       <section>
-        <h2>Repository</h2>
-        <p>
-          Source code and roadmap progress:
-          <a href="https://github.com/peshay/portfolixir">github.com/peshay/portfolixir</a>
-        </p>
+        <h2>Repository docs</h2>
+        <ul>
+          <li><a href="https://github.com/peshay/portfolixir#quick-start">Run Portfolixir locally</a></li>
+          <li><a href="https://github.com/peshay/portfolixir/blob/main/docs/product/github-pages.md">GitHub Pages setup</a></li>
+          <li><a href="https://github.com/peshay/portfolixir/blob/main/docs/architecture/portfolio-boundaries.md">Portfolio boundaries</a></li>
+          <li><a href="https://github.com/peshay/portfolixir/blob/main/CONTRIBUTING.md">Contributing</a></li>
+        </ul>
       </section>
     </main>
   </body>
