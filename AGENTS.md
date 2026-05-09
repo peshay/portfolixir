@@ -4,8 +4,9 @@ These instructions apply to all coding agents working on Portfolixir.
 
 ## Project Goal
 
-Portfolixir is being rebooted as the smallest coherent self-hosted Phoenix MVP
-for local portfolio tracking.
+Portfolixir is being rebooted as the smallest coherent self-hosted Phoenix
+foundation for local portfolio tracking. This branch is a foundation reset, not
+a finished MVP.
 
 Build only this workflow until a story explicitly changes scope:
 
@@ -16,6 +17,9 @@ Build only this workflow until a story explicitly changes scope:
 5. Calculate current holdings from transactions.
 6. Store and display quote history.
 7. Show a security detail chart with price history.
+
+Future MVP functionality must be added Epic-by-Epic with human review on
+staging before production promotion.
 
 ## Hard Rules
 

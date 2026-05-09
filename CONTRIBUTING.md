@@ -1,7 +1,10 @@
 # Contributing to Portfolixir
 
-Portfolixir is in a controlled MVP reboot. Keep changes small, tested first,
-and aligned with the manual portfolio tracking workflow.
+Portfolixir is in a controlled foundation reset. Keep changes small, tested
+first, and aligned with the manual portfolio tracking workflow.
+
+This branch is not a finished MVP. Future MVP functionality is added through
+human-reviewed Epics, staging review, and explicit production promotion.
 
 ## MVP Scope
 
