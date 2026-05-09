@@ -2,7 +2,7 @@ name: Build image
 
 on:
   push:
-    branches: ["main", "reboot/mvp-foundation"]
+    branches: ["main", "staging", "reboot/mvp-foundation"]
   release:
     types: [published]
   workflow_dispatch:

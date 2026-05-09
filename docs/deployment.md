@@ -1,12 +1,13 @@
 # Deployment Scaffolding
 
 Portfolixir reboot deployments are based on reviewed immutable digest image refs.
-The digest, not a moving tag, is the reviewed and released artifact.
+The immutable digest is the release source of truth, not a moving tag.
 
 ## Target Process
 
 1. A branch, PR, or Epic passes CI gates.
-2. The image workflow builds `Dockerfile.release`.
+2. The `Build image` workflow builds `Dockerfile.release` on `main`,
+   `staging`, `reboot/mvp-foundation`, manual dispatch, and published releases.
 3. The image workflow pushes `ghcr.io/peshay/portfolixir`.
 4. The workflow prints the full immutable image ref:
    `ghcr.io/peshay/portfolixir@sha256:<digest>`.

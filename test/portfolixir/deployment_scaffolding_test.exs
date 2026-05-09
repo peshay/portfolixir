@@ -8,7 +8,7 @@ defmodule Portfolixir.DeploymentScaffoldingTest do
   #
   # Acceptance criteria:
   # - Runtime Compose uses PORTFOLIXIR_IMAGE and does not build or mount source code.
-  # - Build image builds Dockerfile.release and prints the immutable GHCR image ref.
+  # - Build image builds Dockerfile.release on main, staging, and reboot branches.
   # - Deploy validates a full immutable image ref before dispatching to target runners.
   # - The repo keeps exactly one build workflow and exactly one deploy workflow.
   # - Deployment docs describe digest promotion, target hosts, and Scotty/Judy responsibilities.
@@ -45,6 +45,7 @@ defmodule Portfolixir.DeploymentScaffoldingTest do
     image_workflow = File.read!(".github/workflows/build-image.yml")
 
     assert image_workflow =~ "name: Build image"
+    assert image_workflow =~ ~s(branches: ["main", "staging", "reboot/mvp-foundation"])
     assert image_workflow =~ "ghcr.io/peshay/portfolixir"
     assert image_workflow =~ "Dockerfile.release"
     assert image_workflow =~ "packages: write"
