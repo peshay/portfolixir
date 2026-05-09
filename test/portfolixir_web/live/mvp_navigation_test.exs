@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.MVPNavigationTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Portfolios
 
   # User story:
   # As a local portfolio maintainer,
@@ -63,5 +64,46 @@ defmodule PortfolixirWeb.MVPNavigationTest do
 
     assert has_element?(view, "#security-price-chart")
     assert has_element?(view, "#security-quote-history", "100.25")
+  end
+
+  # User story:
+  # As a local portfolio maintainer recording a manual trade,
+  # I want to select only the depot and see its linked cash account as context,
+  # so that I cannot choose an inconsistent cash account in the transaction form.
+  #
+  # Acceptance criteria:
+  # - The transaction form has no independent cash-account select field.
+  # - The selected depot options include the linked cash account name as read-only context.
+  # - The page explains that the linked cash account is derived from the depot.
+  test "transaction form derives cash account from depot instead of asking for it", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "MVP Portfolio", base_currency_code: "EUR"})
+
+    {:ok, cash_account} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Cash EUR",
+        currency_code: "EUR"
+      })
+
+    {:ok, _depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash_account.id,
+        name: "Depot"
+      })
+
+    {:ok, _security} =
+      Catalog.create_security(%{
+        name: "Synthetic Global ETF",
+        symbol: "SYN",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    refute has_element?(view, "#transaction-form select[name='transaction[cash_account_id]']")
+    assert has_element?(view, "#transaction-form", "Linked cash account")
+    assert has_element?(view, "#transaction-form", "Depot -> Cash EUR")
   end
 end

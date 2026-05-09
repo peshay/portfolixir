@@ -17,6 +17,8 @@ The reboot foundation keeps only the narrow local portfolio-tracking base:
 - derived holdings from stored transactions;
 - stored quote history and a simple security detail chart.
 
+For trade entry, the selected depot determines the linked cash account.
+
 ## Future Work
 
 Future MVP functionality will be added Epic-by-Epic. Each Epic should pass local

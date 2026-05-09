@@ -37,6 +37,10 @@ Deferred work includes PDF import, CSV import, broker sync, bank sync, document
 intake, MCP tools, LLM features, advanced reports, advanced classifications,
 trading, payments, orders, and rebalancing.
 
+For MVP trade entry, each depot has exactly one linked cash account. Buy and
+sell transactions derive the cash account from the selected depot instead of
+asking the user to choose one independently.
+
 ## Local Development
 
 Prerequisites:
