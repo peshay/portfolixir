@@ -34,7 +34,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
     assert has_element?(view, "p.app-shell-nav-group-title", "Ledger")
     assert has_element?(view, "p.app-shell-nav-group-title", "Classifications")
     assert has_element?(view, "p.app-shell-nav-group-title", "Reports")
-    assert has_element?(view, "p.app-shell-nav-group-title", "Imports")
+    assert has_element?(view, "p.app-shell-nav-group-title", "Experimental")
     assert has_element?(view, "#theme-toggle")
     assert has_element?(view, "#sidebar-toggle[aria-expanded='true']")
     assert has_element?(view, "#mobile-nav-dashboard.app-shell-bottom-link")
@@ -243,7 +243,7 @@ defmodule PortfolixirWeb.AppShellLiveTest do
 
     assert has_element?(
              view,
-             "a[aria-label='Imports'][href='/imports'][title='Imports']"
+             "a[aria-label='Experimental imports'][href='/imports'][title='Experimental imports']"
            )
 
     assert html =~ "app-shell-nav-icon"
