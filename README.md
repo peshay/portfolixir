@@ -1,128 +1,102 @@
 # Portfolixir
 
-Portfolixir is an early-stage, self-hosted portfolio analytics and wealth graph
-platform built with Elixir, Phoenix, and LiveView.
+Portfolixir is a self-hosted Elixir/Phoenix app for local portfolio tracking.
+The reboot MVP focuses on a narrow manual workflow:
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="priv/static/images/logo-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="priv/static/images/logo-light.svg">
-    <img alt="Portfolixir logo" src="priv/static/images/logo-wordmark.svg" width="420" />
-  </picture>
-</p>
+1. Create securities.
+2. Create one portfolio.
+3. Create one depot linked to one cash account.
+4. Record manual buy and sell transactions.
+5. Calculate current holdings from transactions.
+6. Store quote history.
+7. Display a security detail chart from stored quotes.
 
-[![CI](https://github.com/peshay/portfolixir/actions/workflows/ci.yml/badge.svg)](https://github.com/peshay/portfolixir/actions/workflows/ci.yml)
-[![Elixir](https://img.shields.io/badge/Elixir-Phoenix-4B275F?logo=elixir&logoColor=white)](https://elixir-lang.org/)
-[![License](https://img.shields.io/github/license/peshay/portfolixir)](LICENSE)
+Portfolixir is not a broker, bank, payment, trading, order, rebalance, import,
+document intake, LLM, or MCP system.
 
-[![Support maintenance via bunq](https://img.shields.io/badge/Support-Maintenance-4CAF50?style=flat-square&logo=ko-fi&logoColor=white)](https://bunq.me/ahuservices?description=portfolixir-maintenance-support)
+## Current Scope
 
-## What it is
+The active MVP foundation contains:
 
-Portfolixir helps self-hosters and portfolio tinkerers model investments through
-an explicit ledger, then inspect read-only portfolio, security, allocation, and
-import views.
+- Phoenix and LiveView shell;
+- securities master data;
+- portfolios, cash accounts, and linked securities accounts;
+- manual buy and sell transactions using `Decimal`;
+- derived current holdings from stored transactions;
+- manually stored security quote history;
+- a security detail price history chart;
+- tests for the basic schema workflow and dashboard/navigation path.
 
-It exists to make portfolio data flows transparent, testable, and auditable
-without adding broker, banking, payment, order, or rebalance capabilities.
+Deferred work includes PDF import, CSV import, broker sync, bank sync, document
+intake, MCP tools, LLM features, advanced reports, advanced classifications,
+trading, payments, orders, and rebalancing.
 
-## Current MVP scope
+## Local Development
 
-The MVP can currently support local exploration of:
+Prerequisites:
 
-- portfolio, account, and transaction records;
-- securities workbench and security detail views;
-- classification and fund-allocation workbench pages;
-- read-only report pages such as fund allocations and payments;
-- import overview and document/factsheet review flows;
-- authenticated read API and read-only MCP wrapper boundaries.
+- Elixir and Erlang compatible with `mix.exs`;
+- PostgreSQL;
+- optionally Docker and Docker Compose.
 
-The MVP cannot provide financial advice, connect to brokers for execution,
-move money, place orders, rebalance accounts, or promise production readiness.
+Run with Docker Compose:
 
-## Product documentation
-
-Detailed product material lives outside this README:
-
-- [GitHub Page / product overview](https://portfolixir.dev/)
-- [GitHub Pages publishing notes](docs/product/github-pages.md)
-- [Product backlog](docs/product/pp-inspired-product-backlog.md)
-- [LLM story workflow](docs/product/llm-story-workflow.md)
-- [Portfolio boundaries](docs/architecture/portfolio-boundaries.md)
-
-## Quick start
-
-### Prerequisites
-
-- Docker Engine
-- Docker Compose plugin (`docker compose`)
-
-### Run locally
-
-```sh
+```bash
 docker compose up --build
 ```
 
-Open the app and health endpoint at the local Phoenix port shown by the
-running server.
+If the checkout already has a prototype-era Docker database volume, reset it
+before first reboot use:
 
-Stop and remove local volumes:
-
-```sh
+```bash
 docker compose down -v
+docker compose up --build
 ```
 
-## Development workflow
+Run on the host:
 
-Project quality gates:
+```bash
+mix deps.get
+mix ecto.setup
+mix phx.server
+```
 
-```sh
+If the host database already contains prototype-era migrations, run
+`mix ecto.reset` once for the reboot foundation.
+
+Open the app at the Phoenix port shown by the server, usually
+`http://localhost:4000`.
+
+## Quality Gate
+
+Run these before opening a PR:
+
+```bash
 mix format
 mix test
+pre-commit run --all-files
 ```
 
-Generate the CycloneDX dependency SBOM locally with:
+Development keeps the user story, TDD, and user documentation together. For each
+user-visible story, write the story as a comment in the relevant test file, add
+the functional test directly below it, confirm the test fails, implement the
+smallest change, then review and update user documentation when visible behavior
+changed.
 
-```sh
-mix sbom.ci
+Install pre-commit once per checkout:
+
+```bash
+pre-commit install --install-hooks
 ```
 
-The SBOM is written to `sbom/portfolixir.cdx.json`. CI uploads the same
-path as the `portfolixir-sbom` artifact. Runtime and local PostgreSQL 18
-upgrade notes live in [Dependency inventory and runtime baseline](docs/process/dependency-sbom.md).
+## Safety
 
-CI also enforces a coverage non-regression floor at **87.8%**
-(ExCoveralls/Cobertura line coverage).
+Use synthetic data for development and tests. Do not commit real account
+numbers, broker statements, wallet addresses, personal names, or private
+portfolio files.
 
-## Safety boundaries
-
-Portfolixir is:
-
-- **not financial advice**;
-- **not a broker**;
-- **not a trading, banking, payment, order, or rebalance platform**;
-- **not intended for real-money actions** in its current state.
-
-MVP direction also excludes write-capable LLM/MCP tools.
-
-## Contributing
-
-- Read [AGENTS.md](AGENTS.md) before making changes.
-- Keep changes scoped to a single story.
-- Keep public artifacts concise and repo-facing.
-- Follow the repository pull request template.
-
-## Portfolio Performance inspiration note
-
-Portfolixir is inspired by Portfolio Performance workflow ideas. It is an
-independent project and is not affiliated with or endorsed by the Portfolio
-Performance project.
-
-## Support
-
-Support payments help fund ongoing maintenance work. They do not automatically
-create entitlement to support, features, consulting, SLA, or invoice-based
-engagement.
+Tests must not make external network calls. Market data integration is deferred;
+quote history in the MVP is stored manually.
 
 ## License
 

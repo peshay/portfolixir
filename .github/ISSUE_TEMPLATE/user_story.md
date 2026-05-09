@@ -20,7 +20,7 @@ What should be true after the story is done.
 
 ## Affected route or surface
 
-Examples: `/securities`, `/accounts`, `README.md`, a background job, or an API read endpoint.
+Examples: `/securities`, `/portfolios`, `/transactions`, or `README.md`.
 
 ## Severity
 
@@ -34,10 +34,17 @@ blocking | annoying | papercut | parked
 
 ## TDD plan
 
+- [ ] User story comment added to the relevant test file
 - [ ] Test written before implementation
+- [ ] Functional test placed directly below the user story comment
 - [ ] Test fails for expected reason
 - [ ] Minimal implementation added
 - [ ] Test passes
+
+## User documentation plan
+
+- [ ] User-facing docs reviewed for consistency
+- [ ] User-facing docs updated, or not needed because this is background-only work
 
 ## Non-goals
 
@@ -49,7 +56,8 @@ Do not implement:
 
 - [ ] `mix format`
 - [ ] `mix test`
-- [ ] Public-artifact guard or pre-commit check
+- [ ] `pre-commit run --all-files`
+- [ ] Documentation review note
 
 ## Notes
 
