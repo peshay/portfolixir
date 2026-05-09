@@ -4,8 +4,8 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports
-  alias Portfolixir.Imports.{ImportSource, RawImportItem}
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios.{DepositAccount, Portfolio, SecuritiesAccount}
   alias Portfolixir.Repo
   alias PortfolixirWeb.AppShell
 
@@ -13,25 +13,29 @@ defmodule PortfolixirWeb.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    portfolios_count = count_records(Portfolio)
+    deposit_accounts_count = count_records(DepositAccount)
+    securities_accounts_count = count_records(SecuritiesAccount)
     securities_count = count_records(Security)
+    transactions_count = count_records(Transaction)
     recent_import_runs = Imports.list_recent_import_runs(@dashboard_recent_limit)
     recent_fund_documents = Catalog.list_recent_fund_documents(@dashboard_recent_limit)
 
     {:ok,
      assign(socket,
-       has_data: securities_count > 0,
+       portfolios_count: portfolios_count,
+       tracking_accounts_count: deposit_accounts_count + securities_accounts_count,
        securities_count: securities_count,
-       transactions_count: count_records(Transaction),
-       import_sources_count: count_records(ImportSource),
-       raw_import_items_count: count_records(RawImportItem),
+       transactions_count: transactions_count,
        recent_import_runs: recent_import_runs,
        recent_fund_documents: recent_fund_documents,
        next_step:
          dashboard_next_step(
+           portfolios_count,
+           deposit_accounts_count,
+           securities_accounts_count,
            securities_count,
-           Catalog.count_fund_documents(),
-           Catalog.count_fund_allocations(),
-           recent_fund_documents
+           transactions_count
          )
      )}
   end
@@ -43,16 +47,16 @@ defmodule PortfolixirWeb.DashboardLive do
       <header class="app-shell-page-header">
         <div>
           <h1><%= gettext("Dashboard") %></h1>
-          <p><%= gettext("Your product entry point with quick access to imports, positions, and activity.") %></p>
+          <p><%= gettext("Track portfolio data manually first: setup, securities, transactions, then read-only reports.") %></p>
         </div>
-        <.primary_action has_data={@has_data} />
+        <.primary_action next_step={@next_step} />
       </header>
 
       <section id="dashboard-next-steps" class="app-shell-section-card app-shell-section-card--compact" data-priority="secondary">
         <div class="app-shell-section-header">
           <div>
             <h2 class="app-shell-section-title"><%= gettext("Next steps") %></h2>
-            <p><%= gettext("Continue your workflow from current progress.") %></p>
+            <p><%= gettext("Follow the manual MVP path before testing imports or document workflows.") %></p>
           </div>
         </div>
         <p>
@@ -60,6 +64,25 @@ defmodule PortfolixirWeb.DashboardLive do
             <%= @next_step.label %>
           </a>
         </p>
+      </section>
+
+      <section
+        id="dashboard-mvp-path"
+        class="app-shell-section-card app-shell-section-card--compact"
+        aria-labelledby="dashboard-mvp-path-title"
+      >
+        <div class="app-shell-section-header">
+          <div>
+            <h2 id="dashboard-mvp-path-title" class="app-shell-section-title"><%= gettext("Manual MVP path") %></h2>
+            <p><%= gettext("Use this order for a first portfolio: setup, securities, transactions, then reports and charts.") %></p>
+          </div>
+        </div>
+        <ol class="app-shell-action-list">
+          <li><a id="dashboard-mvp-step-accounts" href="/accounts"><%= gettext("1. Set up portfolio and tracking accounts") %></a></li>
+          <li><a id="dashboard-mvp-step-securities" href="/securities"><%= gettext("2. Add securities") %></a></li>
+          <li><a id="dashboard-mvp-step-transactions" href="/transactions"><%= gettext("3. Record buy transactions") %></a></li>
+          <li><a id="dashboard-mvp-step-reports" href="/reports/fund-allocations"><%= gettext("4. Review reports and charts") %></a></li>
+        </ol>
       </section>
 
       <section class="app-shell-workspace-grid" aria-label={gettext("Dashboard quick status")}>
@@ -71,10 +94,26 @@ defmodule PortfolixirWeb.DashboardLive do
           <div class="app-shell-section-header">
             <div>
               <h2 class="app-shell-section-title"><%= gettext("Product status") %></h2>
-              <p><%= gettext("Real counts from your current workspace.") %></p>
+              <p><%= gettext("Real counts from the manual tracking workflow.") %></p>
             </div>
           </div>
           <div class="app-shell-stat-grid">
+            <article id="dashboard-portfolios-card" class="app-shell-stat-card">
+              <span class="app-shell-stat-icon" aria-hidden="true">PF</span>
+              <div>
+                <span class="app-shell-stat-label"><%= gettext("Portfolios") %></span>
+                <span id="dashboard-portfolios-value" class="app-shell-stat-value"><%= @portfolios_count %></span>
+                <span class="app-shell-stat-hint"><%= gettext("Tracked portfolios") %></span>
+              </div>
+            </article>
+            <article id="dashboard-accounts-card" class="app-shell-stat-card">
+              <span class="app-shell-stat-icon" aria-hidden="true">ACC</span>
+              <div>
+                <span class="app-shell-stat-label"><%= gettext("Tracking accounts") %></span>
+                <span id="dashboard-accounts-value" class="app-shell-stat-value"><%= @tracking_accounts_count %></span>
+                <span class="app-shell-stat-hint"><%= gettext("Cash and securities accounts") %></span>
+              </div>
+            </article>
             <article id="dashboard-securities-card" class="app-shell-stat-card">
               <span class="app-shell-stat-icon" aria-hidden="true">S</span>
               <div>
@@ -91,28 +130,21 @@ defmodule PortfolixirWeb.DashboardLive do
                 <span class="app-shell-stat-hint"><%= gettext("Recorded ledger entries") %></span>
               </div>
             </article>
-            <article id="dashboard-imports-card" class="app-shell-stat-card">
-              <span class="app-shell-stat-icon" aria-hidden="true">IM</span>
-              <div>
-                <span class="app-shell-stat-label"><%= gettext("Import sources") %></span>
-                <span id="dashboard-import-sources-value" class="app-shell-stat-value"><%= @import_sources_count %></span>
-                <span class="app-shell-stat-hint"><%= gettext("Raw import items") %>: <%= @raw_import_items_count %></span>
-              </div>
-            </article>
           </div>
         </section>
       </section>
 
       <section
-        id="dashboard-recent-activity"
+        id="dashboard-experimental-activity"
         class="app-shell-workspace-grid"
-        aria-label={gettext("Recent dashboard activity")}
+        aria-label={gettext("Experimental import and document activity")}
       >
-        <section id="dashboard-recent-import-runs" class="app-shell-section-card">
+        <section id="dashboard-recent-import-runs" class="app-shell-section-card" data-priority="experimental">
           <div class="app-shell-section-header">
             <div>
+              <p class="app-shell-page-kicker"><%= gettext("Experimental") %></p>
               <h2 class="app-shell-section-title"><%= gettext("Recent import runs") %></h2>
-              <p><%= gettext("Latest import run attempts with status and timestamps.") %></p>
+              <p><%= gettext("Optional import workflow activity; not required for the manual MVP path.") %></p>
             </div>
           </div>
 
@@ -132,10 +164,10 @@ defmodule PortfolixirWeb.DashboardLive do
                 id="dashboard-recent-import-runs-empty-state-description"
                 class="app-shell-visually-hidden"
               >
-                <%= gettext("Run imports to build recent activity here.") %>
+                <%= gettext("Optional import runs appear here when you test experimental import flows.") %>
               </span>
               <h3><%= gettext("No import runs yet") %></h3>
-              <p><%= gettext("Run imports to build recent activity here.") %></p>
+              <p><%= gettext("Optional import runs appear here when you test experimental import flows.") %></p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
@@ -167,16 +199,17 @@ defmodule PortfolixirWeb.DashboardLive do
 
           <p>
             <a id="dashboard-import-runs-link" href="/imports">
-              <%= gettext("Open imports") %>
+              <%= gettext("Open experimental imports") %>
             </a>
           </p>
         </section>
 
-        <section id="dashboard-recent-fund-documents" class="app-shell-section-card">
+        <section id="dashboard-recent-fund-documents" class="app-shell-section-card" data-priority="experimental">
           <div class="app-shell-section-header">
             <div>
+              <p class="app-shell-page-kicker"><%= gettext("Experimental") %></p>
               <h2 class="app-shell-section-title"><%= gettext("Recent fund documents") %></h2>
-              <p><%= gettext("Recently uploaded factsheets and extraction status.") %></p>
+              <p><%= gettext("Optional document workflow activity; not required for the manual MVP path.") %></p>
             </div>
           </div>
 
@@ -199,10 +232,10 @@ defmodule PortfolixirWeb.DashboardLive do
                 id="dashboard-recent-fund-documents-empty-state-status-description"
                 class="app-shell-visually-hidden"
               >
-                <%= gettext("Upload a factsheet to populate this list.") %>
+                <%= gettext("Optional factsheet uploads appear here when you test experimental document flows.") %>
               </span>
               <h3 id="dashboard-recent-fund-documents-empty-state-title"><%= gettext("No fund documents yet") %></h3>
-              <p id="dashboard-recent-fund-documents-empty-state-description"><%= gettext("Upload a factsheet to populate this list.") %></p>
+              <p id="dashboard-recent-fund-documents-empty-state-description"><%= gettext("Optional factsheet uploads appear here when you test experimental document flows.") %></p>
             </div>
           <% else %>
             <div class="app-shell-table-wrapper">
@@ -241,7 +274,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
           <p>
             <a id="dashboard-fund-documents-link" href="/documents/new">
-              <%= gettext("Upload a factsheet") %>
+              <%= gettext("Open experimental factsheet upload") %>
             </a>
           </p>
         </section>
@@ -272,36 +305,44 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   defp dashboard_next_step(
-         0,
-         _fund_documents_count,
-         _fund_allocations_count,
-         _recent_fund_documents
-       ) do
-    %{label: gettext("Import portfolio data"), path: "/securities"}
-  end
-
-  defp dashboard_next_step(_securities_count, 0, _fund_allocations_count, _recent_fund_documents) do
-    %{label: gettext("Add document"), path: "/documents/new"}
-  end
-
-  defp dashboard_next_step(_securities_count, _fund_documents_count, 0, [latest_fund_document | _]) do
-    %{
-      label: gettext("Review latest factsheet"),
-      path: "/fund-documents/#{latest_fund_document.id}/allocations/review"
-    }
-  end
-
-  defp dashboard_next_step(_securities_count, _fund_documents_count, 0, _recent_fund_documents) do
-    %{label: gettext("Upload a factsheet"), path: "/documents/new"}
+         portfolios_count,
+         deposit_accounts_count,
+         securities_accounts_count,
+         _securities_count,
+         _transactions_count
+       )
+       when portfolios_count == 0 or deposit_accounts_count == 0 or securities_accounts_count == 0 do
+    %{label: gettext("Set up portfolio and accounts"), path: "/accounts"}
   end
 
   defp dashboard_next_step(
-         _securities_count,
-         _fund_documents_count,
-         _fund_allocations_count,
-         _recent_fund_documents
+         _portfolios_count,
+         _deposit_accounts_count,
+         _securities_accounts_count,
+         0,
+         _transactions_count
        ) do
-    %{label: gettext("Open allocations report"), path: "/reports/fund-allocations"}
+    %{label: gettext("Add your first security"), path: "/securities"}
+  end
+
+  defp dashboard_next_step(
+         _portfolios_count,
+         _deposit_accounts_count,
+         _securities_accounts_count,
+         _securities_count,
+         0
+       ) do
+    %{label: gettext("Record a buy transaction"), path: "/transactions"}
+  end
+
+  defp dashboard_next_step(
+         _portfolios_count,
+         _deposit_accounts_count,
+         _securities_accounts_count,
+         _securities_count,
+         _transactions_count
+       ) do
+    %{label: gettext("Review reports and charts"), path: "/reports/fund-allocations"}
   end
 
   defp security_display_name(nil), do: gettext("Unlinked security")
@@ -330,18 +371,9 @@ defmodule PortfolixirWeb.DashboardLive do
   defp format_datetime(_datetime), do: gettext("—")
 
   defp primary_action(assigns) do
-    assigns =
-      assign_new(assigns, :has_data, fn ->
-        false
-      end)
-
     ~H"""
-    <a
-      id="dashboard-primary-action"
-      class="app-shell-button app-shell-primary"
-      href={if @has_data, do: "/documents/new", else: "/securities"}
-    >
-      <%= if @has_data, do: gettext("Add document"), else: gettext("Import portfolio data") %>
+    <a id="dashboard-primary-action" class="app-shell-button app-shell-primary" href={@next_step.path}>
+      <%= @next_step.label %>
     </a>
     """
   end
