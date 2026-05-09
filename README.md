@@ -81,6 +81,16 @@ mix format
 mix test
 ```
 
+Generate the CycloneDX dependency SBOM locally with:
+
+```sh
+mix sbom.ci
+```
+
+The SBOM is written to `sbom/portfolixir.cdx.json`. CI uploads the same
+path as the `portfolixir-sbom` artifact. Runtime and local PostgreSQL 18
+upgrade notes live in [Dependency inventory and runtime baseline](docs/process/dependency-sbom.md).
+
 CI also enforces a coverage non-regression floor at **87.8%**
 (ExCoveralls/Cobertura line coverage).
 

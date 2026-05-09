@@ -24,8 +24,8 @@ jobs:
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.17.3'
-          otp-version: '27.0'
+          elixir-version: '1.18.3'
+          otp-version: '27'
 
       - name: Install pre-commit
         run: python3 -m pip install --upgrade pre-commit
@@ -56,11 +56,12 @@ jobs:
 
     services:
       db:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: portfolixir_test
+          PGDATA: /var/lib/postgresql/18/docker
         ports:
           - 5432:5432
         options: >-
@@ -76,11 +77,22 @@ jobs:
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.17.3'
-          otp-version: '27.0'
+          elixir-version: '1.18.3'
+          otp-version: '27'
 
       - name: Install dependencies
         run: mix deps.get
+
+      - name: Generate dependency SBOM
+        run: mix sbom.ci
+
+      - name: Upload dependency SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolixir-sbom
+          path: sbom/portfolixir.cdx.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Check formatting
         run: mix format --check-formatted
