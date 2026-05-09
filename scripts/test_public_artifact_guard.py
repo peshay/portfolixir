@@ -114,5 +114,13 @@ class TextArtifactScanTest(unittest.TestCase):
         self.assertEqual(public_artifact_guard.check_text_artifact("pr-body", text), [])
 
 
+class PublicArtifactPathSelectionTest(unittest.TestCase):
+    def test_root_prompts_directory_is_not_scanned_as_public_documentation(self) -> None:
+        self.assertFalse(public_artifact_guard.is_public_artifact_file("prompts/obsolete.md"))
+
+    def test_docs_directory_remains_scanned_as_public_documentation(self) -> None:
+        self.assertTrue(public_artifact_guard.is_public_artifact_file("docs/product/llm-story-workflow.md"))
+
+
 if __name__ == "__main__":
     unittest.main()
