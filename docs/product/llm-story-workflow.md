@@ -11,9 +11,10 @@ The primary product backlog is:
 Coding agents should read it before selecting or implementing a story.
 
 Concrete per-run Spark/Codex prompt files are one-off inputs and must not be committed.
+There is intentionally no root `prompts/` directory in the repository; use chat, issue comments,
+or local notes for temporary run instructions.
 Product stories belong in the backlog file.
 Reusable workflow guidance belongs in this document.
-Keep temporary prompts outside the repository (chat, issue comments, local notes).
 
 ## Working mode
 
