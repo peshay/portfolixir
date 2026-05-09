@@ -23,6 +23,9 @@ erl_crash.dump
 *.sqlite3
 *.db
 
+# Generated local/CI artifacts
+/sbom/*.cdx.json
+
 # Sensitive finance data
 *.portfolio
 *.ppxml
