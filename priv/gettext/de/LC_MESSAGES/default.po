@@ -1346,3 +1346,59 @@ msgstr "Optionale Factsheet-Uploads erscheinen hier, wenn du experimentelle Doku
 #, elixir-autogen, elixir-format
 msgid "Open experimental factsheet upload"
 msgstr "Experimentellen Factsheet-Upload öffnen"
+
+#, elixir-autogen, elixir-format
+msgid "Additional attributes"
+msgstr "Weitere Attribute"
+
+#, elixir-autogen, elixir-format
+msgid "Current quote"
+msgstr "Aktueller Kurs"
+
+#, elixir-autogen, elixir-format
+msgid "Historical quotes"
+msgstr "Historische Kurse"
+
+#, elixir-autogen, elixir-format
+msgid "Create security"
+msgstr "Wertpapier anlegen"
+
+#, elixir-autogen, elixir-format
+msgid "Maintain one security with Portfolio Performance-inspired master-data sections."
+msgstr "Pflege ein Wertpapier mit an Portfolio Performance angelehnten Stammdatenbereichen."
+
+#, elixir-autogen, elixir-format
+msgid "Use in dialog"
+msgstr "Im Dialog verwenden"
+
+#, elixir-autogen, elixir-format
+msgid "Security dialog sections"
+msgstr "Wertpapierdialogbereiche"
+
+#, elixir-autogen, elixir-format
+msgid "Symbol (optional)"
+msgstr "Symbol (optional)"
+
+#, elixir-autogen, elixir-format
+msgid "ISIN and WKN stay empty unless a reliable source provides them; you can edit them manually."
+msgstr "ISIN und WKN bleiben leer, sofern keine verlässliche Quelle sie liefert; du kannst sie manuell bearbeiten."
+
+#, elixir-autogen, elixir-format
+msgid "Classification assignment is managed from the classifications workspace in this MVP."
+msgstr "Klassifizierungszuordnungen werden in diesem MVP im Klassifizierungsbereich gepflegt."
+
+#, elixir-autogen, elixir-format
+msgid "Historical quotes will be imported from Yahoo Finance when you save."
+msgstr "Historische Kurse werden beim Speichern von Yahoo Finance importiert."
+
+#, elixir-autogen, elixir-format
+msgid "No historical quotes are imported for manual entries in this MVP dialog."
+msgstr "Für manuelle Einträge importiert dieser MVP-Dialog keine historischen Kurse."
+
+#, elixir-autogen, elixir-format
+msgid "No current quote preview is available."
+msgstr "Keine aktuelle Kursvorschau verfügbar."
+
+#, elixir-autogen, elixir-format
+msgid "OK"
+msgstr "OK"

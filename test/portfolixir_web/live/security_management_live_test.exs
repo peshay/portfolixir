@@ -48,6 +48,40 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     {:ok, view, _html} = live(conn, "/securities")
     view |> element("#security-add-toggle") |> render_click()
 
+    assert has_element?(view, "#security-create[role='dialog'][aria-modal='false']")
+    assert has_element?(view, "#security-create-title", "Create security")
+    assert has_element?(view, "#security-form-submit", "OK")
+    assert has_element?(view, "#security-cancel-edit", "Cancel")
+
+    assert has_element?(view, "#security-dialog-tabs[role='tablist']")
+    assert has_element?(view, "#security-dialog-tab-master-data[role='tab']", "Master data")
+
+    assert has_element?(
+             view,
+             "#security-dialog-tab-additional-attributes[role='tab']",
+             "Additional attributes"
+           )
+
+    assert has_element?(
+             view,
+             "#security-dialog-tab-classifications[role='tab']",
+             "Classifications"
+           )
+
+    assert has_element?(
+             view,
+             "#security-dialog-tab-historical-quotes[role='tab']",
+             "Historical quotes"
+           )
+
+    assert has_element?(view, "#security-dialog-tab-current-quote[role='tab']", "Current quote")
+
+    assert has_element?(view, "#security-master-data-section[role='tabpanel']")
+    assert has_element?(view, "#security-additional-attributes-section[role='tabpanel']")
+    assert has_element?(view, "#security-classifications-section[role='tabpanel']")
+    assert has_element?(view, "#security-historical-quotes-section[role='tabpanel']")
+    assert has_element?(view, "#security-current-quote-section[role='tabpanel']")
+
     assert has_element?(
              view,
              "select#security-currency-code[name='security[currency_code]'] option[value='EUR'][selected]"
@@ -62,7 +96,6 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
       |> form("#security-form", %{
         "security" => %{
           "name" => "Synthetic EUR ETF",
-          "symbol" => "SEUR",
           "currency_code" => "EUR"
         }
       })
@@ -71,6 +104,19 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "Security added."
     assert html =~ "Synthetic EUR ETF"
     assert html =~ "EUR"
+  end
+
+  test "security dialog cancel discards unsaved create values", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#security-add-toggle") |> render_click()
+
+    assert has_element?(view, "#security-create")
+
+    view |> element("#security-cancel-edit") |> render_click()
+
+    refute has_element?(view, "#security-create")
+    refute has_element?(view, "#security-list tbody tr", "Unsaved Fund")
+    assert Repo.aggregate(Security, :count, :id) == 0
   end
 
   test "All Securities page includes a working Export CSV action", %{conn: conn} do
@@ -83,9 +129,10 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
            )
   end
 
-  test "Yahoo Finance search result can be previewed and created with historical closes", %{
-    conn: conn
-  } do
+  test "Yahoo Finance search result can prefill the security dialog and save with historical closes",
+       %{
+         conn: conn
+       } do
     previous_provider = Application.get_env(:portfolixir, :market_data_provider)
 
     Application.put_env(
@@ -119,6 +166,43 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert has_element?(view, "#security-provider-preview-latest-close", "185.64")
 
     html = view |> element("#security-provider-create") |> render_click()
+
+    refute html =~ "Security Apple Inc. added from Yahoo Finance."
+    assert Repo.aggregate(Security, :count, :id) == 0
+
+    assert has_element?(view, "#security-create[role='dialog']")
+    assert has_element?(view, "#security-create-title", "Create security")
+    assert has_element?(view, "input#security-name[value='Apple Inc.']")
+    assert has_element?(view, "input#security-symbol[value='AAPL']")
+    assert has_element?(view, "select#security-currency-code option[value='USD'][selected]")
+    assert has_element?(view, "input#security-provider-symbol[value='AAPL']")
+    assert has_element?(view, "input#security-exchange-code[value='NMS']")
+    assert has_element?(view, "input#security-isin[value='']")
+    assert has_element?(view, "input#security-wkn[value='']")
+
+    assert has_element?(
+             view,
+             "#security-historical-quotes-section",
+             "Historical quotes will be imported from Yahoo Finance when you save."
+           )
+
+    assert has_element?(view, "#security-current-quote-section", "185.64 on 2024-01-03")
+
+    html =
+      view
+      |> form("#security-form", %{
+        "security" => %{
+          "name" => "Apple Inc.",
+          "symbol" => "AAPL",
+          "currency_code" => "USD",
+          "provider_symbol" => "AAPL",
+          "provider_source" => "yahoo",
+          "exchange_code" => "NMS",
+          "isin" => "",
+          "wkn" => ""
+        }
+      })
+      |> render_submit()
 
     assert html =~ "Security Apple Inc. added from Yahoo Finance."
     assert html =~ "Apple Inc."
@@ -794,11 +878,7 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "Wertpapier bearbeiten"
            )
 
-    assert has_element?(
-             view,
-             "#security-create .app-shell-form-actions button",
-             "Wertpapier speichern"
-           )
+    assert has_element?(view, "#security-create .app-shell-form-actions button", "OK")
 
     assert has_element?(view, "#security-add-toggle", "Formular schließen")
   end
@@ -824,12 +904,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
              "#security-create[aria-labelledby='security-create-title'][aria-describedby='security-create-intro']"
            )
 
-    assert has_element?(view, "#security-create-title", "Add security")
+    assert has_element?(view, "#security-create-title", "Create security")
 
     assert has_element?(
              view,
              "#security-create .app-shell-panel-intro#security-create-intro",
-             "Create one instrument at a time."
+             "Maintain one security with Portfolio Performance-inspired master-data sections."
            )
 
     assert has_element?(
@@ -1306,7 +1386,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert html =~ "Security added."
     assert html =~ "Created after existing"
     assert html =~ "CAE"
-    assert has_element?(view, "#security-create > .app-shell-section-header h2", "Add security")
+
+    assert has_element?(
+             view,
+             "#security-create > .app-shell-section-header h2",
+             "Create security"
+           )
   end
 
   test "renders optional fields and valuation fallbacks explicitly when omitted", %{conn: conn} do
