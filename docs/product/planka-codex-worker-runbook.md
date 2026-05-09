@@ -61,4 +61,5 @@ Include:
 Do not include private runtime/workspace details.
 
 ## Stop condition
-Worker run is complete when exactly one card is handed off in `PR Open` or moved to a true `Blocked` state with evidence.
+Worker run is complete when exactly one card is handed off in `PR Open` or moved to a true `Blocked`
+state with evidence.

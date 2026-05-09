@@ -2,7 +2,8 @@
 
 ## Should Portfolixir use a GitHub Project board?
 
-A GitHub Project board can be useful for human planning, but it should not be the primary source of truth for LLM-driven development.
+A GitHub Project board can be useful for human planning, but it should not be the primary source of
+truth for LLM-driven development.
 
 For LLMs, a versioned Markdown backlog inside the repository is more useful because:
 

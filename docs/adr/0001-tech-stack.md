@@ -21,9 +21,13 @@ Portfolixir uses:
 
 ## Rationale
 
-The system needs a web UI, API, background jobs, deterministic domain logic and future MCP/LLM integration. Phoenix provides a compact full-stack framework and LiveView avoids a separate frontend application during the MVP.
+The system needs a web UI, API, background jobs, deterministic domain logic and future MCP/LLM
+integration. Phoenix provides a compact full-stack framework and LiveView avoids a separate frontend
+application during the MVP.
 
-PostgreSQL is the canonical store because the core domain is relational and ledger-like. TimescaleDB may be evaluated later for large time-series workloads. InfluxDB is not part of the MVP because market prices are not the core data model and can be stored relationally at first.
+PostgreSQL is the canonical store because the core domain is relational and ledger-like. TimescaleDB
+may be evaluated later for large time-series workloads. InfluxDB is not part of the MVP because
+market prices are not the core data model and can be stored relationally at first.
 
 ## Consequences
 

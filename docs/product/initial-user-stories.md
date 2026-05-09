@@ -4,7 +4,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-000 — Bootstrap Phoenix app
 
-**As a maintainer**, I want a clean Phoenix app skeleton so that Portfolixir has a testable foundation.
+**As a maintainer**, I want a clean Phoenix app skeleton so that Portfolixir has a testable
+foundation.
 
 ### Acceptance criteria
 
@@ -24,7 +25,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-001 — Health endpoint
 
-**As an operator**, I want a health endpoint so that Docker and future orchestration can verify the app is running.
+**As an operator**, I want a health endpoint so that Docker and future orchestration can verify the
+app is running.
 
 ### Acceptance criteria
 
@@ -47,7 +49,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-002 — Currency catalogue
 
-**As an investor**, I want currencies to be represented explicitly so that portfolios, securities and transactions can use correct currencies.
+**As an investor**, I want currencies to be represented explicitly so that portfolios, securities
+and transactions can use correct currencies.
 
 ### Acceptance criteria
 
@@ -71,7 +74,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-003 — Portfolio with base currency
 
-**As an investor**, I want to create a portfolio with a base currency so that valuations can be reported consistently.
+**As an investor**, I want to create a portfolio with a base currency so that valuations can be
+reported consistently.
 
 ### Acceptance criteria
 
@@ -98,7 +102,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-004 — Category taxonomies and category descriptions
 
-**As an investor**, I want to create custom categories with descriptions so that I can document how my depot is structured.
+**As an investor**, I want to create custom categories with descriptions so that I can document how
+my depot is structured.
 
 ### Acceptance criteria
 
@@ -136,7 +141,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-005 — Category management UI
 
-**As an investor**, I want a simple UI for category management so that I can maintain my depot categories in the browser.
+**As an investor**, I want a simple UI for category management so that I can maintain my depot
+categories in the browser.
 
 ### Acceptance criteria
 
@@ -156,7 +162,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-006 — Securities with symbol and currency
 
-**As an investor**, I want to create securities with symbol and currency so that I can track holdings.
+**As an investor**, I want to create securities with symbol and currency so that I can track
+holdings.
 
 ### Acceptance criteria
 
@@ -188,7 +195,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-006A — Security management UI
 
-**As an investor**, I want to manage securities in the browser so that I can add and inspect stocks/assets without using the console.
+**As an investor**, I want to manage securities in the browser so that I can add and inspect
+stocks/assets without using the console.
 
 ### Acceptance criteria
 
@@ -211,7 +219,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-007 — Assign categories to securities
 
-**As an investor**, I want to assign my custom categories to securities so that my depot structure can be analyzed.
+**As an investor**, I want to assign my custom categories to securities so that my depot structure
+can be analyzed.
 
 ### Acceptance criteria
 
@@ -219,7 +228,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 - MVP supports assigning categories to securities.
 - Assignment is unique per security/category.
 - Optional weight field may exist but defaults to `1.0` or nil; choose and document.
-- For MVP, assignment weight defaults to `Decimal.new("1.0")` and duplicates are rejected by unique constraint.
+- For MVP, assignment weight defaults to `Decimal.new("1.0")` and duplicates are rejected by unique
+  constraint.
 - Context functions exist:
   - `assign_category_to_security/2`
   - `list_security_categories/1`
@@ -235,7 +245,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-008 — Symbol search provider behaviour
 
-**As an investor**, I want to enter a base symbol and see possible exchange-specific symbols so that I can select the right listing.
+**As an investor**, I want to enter a base symbol and see possible exchange-specific symbols so that
+I can select the right listing.
 
 ### Acceptance criteria
 
@@ -259,7 +270,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-009 — Store symbol candidates
 
-**As an investor**, I want symbol candidates to be stored so that I can review and select a listing later.
+**As an investor**, I want symbol candidates to be stored so that I can review and select a listing
+later.
 
 ### Acceptance criteria
 
@@ -283,7 +295,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-010 — Latest quote provider behaviour
 
-**As an investor**, I want to fetch a simple latest quote by symbol so that portfolio value can be calculated.
+**As an investor**, I want to fetch a simple latest quote by symbol so that portfolio value can be
+calculated.
 
 ### Acceptance criteria
 
@@ -326,7 +339,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-012 — Record buy transactions
 
-**As an investor**, I want to record buy transactions so that my purchase history can drive positions.
+**As an investor**, I want to record buy transactions so that my purchase history can drive
+positions.
 
 ### Acceptance criteria
 
@@ -358,7 +372,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-013 — Position calculation from buy history
 
-**As an investor**, I want my position quantity to be calculated from buy history so that holdings are derived from transactions.
+**As an investor**, I want my position quantity to be calculated from buy history so that holdings
+are derived from transactions.
 
 ### Acceptance criteria
 
@@ -377,7 +392,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-014 — Portfolio valuation from latest quotes
 
-**As an investor**, I want portfolio value to be calculated from positions and latest quotes so that I know the current depot value.
+**As an investor**, I want portfolio value to be calculated from positions and latest quotes so that
+I know the current depot value.
 
 ### Acceptance criteria
 
@@ -395,7 +411,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-015 — FX rates for portfolio base currency
 
-**As an investor**, I want FX rates so that securities in foreign currencies can be valued in my portfolio base currency.
+**As an investor**, I want FX rates so that securities in foreign currencies can be valued in my
+portfolio base currency.
 
 ### Acceptance criteria
 
@@ -414,7 +431,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ## PFX-016 — Minimal portfolio dashboard
 
-**As an investor**, I want a minimal dashboard so that I can see categories, positions and depot value.
+**As an investor**, I want a minimal dashboard so that I can see categories, positions and depot
+value.
 
 ### Acceptance criteria
 
@@ -435,7 +453,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ### PFX-017 — Yahoo Finance quote provider adapter
 
-**As an investor**, I want to use Yahoo Finance as a first market-data provider so that I can fetch simple current and historical quotes.
+**As an investor**, I want to use Yahoo Finance as a first market-data provider so that I can fetch
+simple current and historical quotes.
 
 ### Acceptance criteria
 
@@ -449,7 +468,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ### PFX-018 — Manual quote sync for one security
 
-**As an investor**, I want a button to sync the latest quote for one security so that I can refresh a single asset on demand.
+**As an investor**, I want a button to sync the latest quote for one security so that I can refresh
+a single asset on demand.
 
 ### Acceptance criteria
 
@@ -463,7 +483,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ### PFX-019 — Historical quote storage
 
-**As an investor**, I want historical quotes stored so that charts and performance calculations can use price history.
+**As an investor**, I want historical quotes stored so that charts and performance calculations can
+use price history.
 
 ### Acceptance criteria
 
@@ -476,7 +497,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ### PFX-020 — Historical quote backfill for one security
 
-**As an investor**, I want to backfill historical quotes for one security so that charts can be populated.
+**As an investor**, I want to backfill historical quotes for one security so that charts can be
+populated.
 
 ### Acceptance criteria
 
@@ -489,7 +511,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ### PFX-021 — Watchlists
 
-**As an investor**, I want watchlists so that I can group assets I track without necessarily owning them.
+**As an investor**, I want watchlists so that I can group assets I track without necessarily owning
+them.
 
 ### Acceptance criteria
 
@@ -515,7 +538,8 @@ These stories are ordered for a small-model coding agent. Do not skip ahead.
 
 ### PFX-023 — Themeable app shell
 
-**As a user**, I want a themeable app shell so that Portfolixir has a polished UI and supports different visual themes.
+**As a user**, I want a themeable app shell so that Portfolixir has a polished UI and supports
+different visual themes.
 
 ### Acceptance criteria
 

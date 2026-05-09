@@ -30,9 +30,11 @@ jobs:
       - name: Run public commit metadata guard
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            scripts/public_artifact_guard.py --commit-range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+            commit_range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+            scripts/public_artifact_guard.py --commit-range "$commit_range"
           elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
-            scripts/public_artifact_guard.py --commit-range "${{ github.event.before }}..${{ github.sha }}"
+            commit_range="${{ github.event.before }}..${{ github.sha }}"
+            scripts/public_artifact_guard.py --commit-range "$commit_range"
           fi
 
       - name: Run public PR body metadata guard

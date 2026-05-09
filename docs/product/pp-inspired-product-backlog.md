@@ -1,35 +1,50 @@
 # Portfolixir Product Backlog
 
 Status: draft for story-driven implementation  
-Scope: Portfolio-management product planning inspired by established portfolio-tracking workflows, adapted for Portfolixir.
+Scope: Portfolio-management product planning inspired by established portfolio-tracking workflows,
+adapted for Portfolixir.
 
 ## Purpose
 
-This backlog maps common portfolio-management capabilities into Portfolixir epics and implementation stories.
+This backlog maps common portfolio-management capabilities into Portfolixir epics and implementation
+stories.
 
-The goal is not to clone Portfolio Performance 1:1 and not to copy its UI or documentation. The goal is to use proven portfolio-management concepts as a functional reference point, then shape them into a modern, self-hosted Portfolixir product.
+The goal is not to clone Portfolio Performance 1:1 and not to copy its UI or documentation. The goal
+is to use proven portfolio-management concepts as a functional reference point, then shape them into
+a modern, self-hosted Portfolixir product.
 
-Portfolixir should become a self-hosted portfolio analytics and wealth graph platform with transparent calculations, import/export-friendly data handling, and a future path toward API and MCP-based AI-assisted analysis.
+Portfolixir should become a self-hosted portfolio analytics and wealth graph platform with
+transparent calculations, import/export-friendly data handling, and a future path toward API and
+MCP-based AI-assisted analysis.
 
 ## Product principles
 
 - **Self-hosted first:** Portfolixir should work well as a local or private self-hosted web app.
 - **Data ownership:** User data should remain exportable and understandable.
-- **Transparent calculations:** Positions, cash balances, valuation and later performance metrics should be traceable back to transactions and prices.
-- **Ledger-like core:** Portfolio state should be derived from master data, accounts, transactions, prices and FX rates, not manually mutated reports.
-- **Import/export friendly and automation-first:** Import and sync flows are primary; manual forms are fallback maintenance.
-- **AI/MCP-ready early:** The domain model and API boundaries support read-only AI access safely before late-stage polishing.
+- **Transparent calculations:** Positions, cash balances, valuation and later performance metrics
+  should be traceable back to transactions and prices.
+- **Ledger-like core:** Portfolio state should be derived from master data, accounts, transactions,
+  prices and FX rates, not manually mutated reports.
+- **Import/export friendly and automation-first:** Import and sync flows are primary; manual forms
+  are fallback maintenance.
+- **AI/MCP-ready early:** The domain model and API boundaries support read-only AI access safely
+  before late-stage polishing.
 - **Modern web UI:** The product should feel like a clean, usable web app, not a desktop clone.
 - **No broker execution:** Portfolixir must not place trades or trigger real-money actions.
-- **No fake data in production flows:** Demo data may exist only behind explicit dev/test mechanisms.
-- **Portfolio boundaries:** A `Portfolio` is a tenant-like workspace, comparable to one Portfolio Performance `.portfolio` file.
+- **No fake data in production flows:** Demo data may exist only behind explicit dev/test
+  mechanisms.
+- **Portfolio boundaries:** A `Portfolio` is a tenant-like workspace, comparable to one Portfolio
+  Performance `.portfolio` file.
 - **Portfolio scoping:** Accounts, transactions, and reports are portfolio-scoped.
-- **Shared market model:** quotes, FX rates, and market metadata are shared across portfolios where possible.
+- **Shared market model:** quotes, FX rates, and market metadata are shared across portfolios where
+  possible.
 
 ## Automation-first direction
 
-- Portfolixir is a self-hosted portfolio data hub with import/sync-first ingestion and a strict ledger source of truth.
-- Core workflows start with automated intake (connector, document inbox, PP XML preview/confirm), while manual forms remain fallback paths.
+- Portfolixir is a self-hosted portfolio data hub with import/sync-first ingestion and a strict
+  ledger source of truth.
+- Core workflows start with automated intake (connector, document inbox, PP XML preview/confirm),
+  while manual forms remain fallback paths.
 - Read-only API/MCP analysis access is part of early architecture and remains non-mutating.
 
 ## Current foundation
@@ -37,13 +52,16 @@ Portfolixir should become a self-hosted portfolio analytics and wealth graph pla
 Current model notes:
 
 - Portfolio records already exist.
-- Deposit accounts and securities accounts include `portfolio_id` and are currently listable per portfolio.
+- Deposit accounts and securities accounts include `portfolio_id` and are currently listable per
+  portfolio.
 - Catalog securities are currently global.
-- The account workspace currently defaults to the first portfolio in the database (implicit current context).
+- The account workspace currently defaults to the first portfolio in the database (implicit current
+  context).
 
 ### PFX-015D: Add explicit current portfolio selection
 
-As a user with multiple portfolios, I want to explicitly choose the current portfolio, so account and future ledger workflows do not accidentally use a hidden fallback.
+As a user with multiple portfolios, I want to explicitly choose the current portfolio, so account
+and future ledger workflows do not accidentally use a hidden fallback.
 
 - Add explicit current-portfolio selection state in the UI/application context.
 - Make account pages use the selected portfolio consistently.
@@ -165,7 +183,8 @@ Capabilities:
 - Transaction correction model
 
 Design principle:
-Transactions are immutable or ledger-like. Editing a transaction should be implemented carefully, with auditability in mind. Reports derive from transactions; reports must not mutate state.
+Transactions are immutable or ledger-like. Editing a transaction should be implemented carefully,
+with auditability in mind. Reports derive from transactions; reports must not mutate state.
 
 ## F. Positions and valuation
 
@@ -339,7 +358,8 @@ Exit criteria:
 ## PFX-AUTO-001: Import Domain Foundation
 
 ### User story
-As a system, I want import entities and a canonical staging pipeline, so automated inputs are auditable and replayable before any ledger mutation.
+As a system, I want import entities and a canonical staging pipeline, so automated inputs are
+auditable and replayable before any ledger mutation.
 
 ### Acceptance criteria
 - Add `Portfolixir.Imports` context with `import_sources`, `import_runs`, and `raw_import_items`.
@@ -358,7 +378,8 @@ As a system, I want import entities and a canonical staging pipeline, so automat
 ## PFX-AUTO-002: Read-only Portfolio API
 
 ### User story
-As a user, I want read-only access surfaces for portfolio data so AI tools can analyze safely without the ability to place actions.
+As a user, I want read-only access surfaces for portfolio data so AI tools can analyze safely
+without the ability to place actions.
 
 ### Acceptance criteria
 - Add `/api/read` scope with portfolio-wide GET routes only.
@@ -380,14 +401,16 @@ As a user, I want read-only access surfaces for portfolio data so AI tools can a
 ## PFX-AUTO-003: Local Document Inbox
 
 ### User story
-As a user, I want local document uploads to land in a queue with processing state, so imports start from structured evidence.
+As a user, I want local document uploads to land in a queue with processing state, so imports start
+from structured evidence.
 
 ### Acceptance criteria
 - Add `Portfolixir.Imports.DocumentInbox` for local document intake.
 - Compute SHA256 for every accepted uploaded document.
 - Add a local `import_source` for Local Document Inbox records.
 - Create `raw_import_items` from Local Document Inbox intake.
-- Store PDF metadata only (filename, mime, size, hash, import_source), not full PDF bytes in item payloads.
+- Store PDF metadata only (filename, mime, size, hash, import_source), not full PDF bytes in item
+  payloads.
 - Detect duplicates by `content_hash` before writing intake records.
 - Keep queue state transitions visible for queue/preview flow.
 
@@ -404,7 +427,8 @@ As a user, I want PP XML parsed into a reviewable preview, so I can validate wha
 
 ### Acceptance criteria
 - Accept uploaded PP XML fixture files for preview.
-- Parse PP XML into preview data for securities, accounts, portfolio/base currency, transactions, and taxonomies/categories where available.
+- Parse PP XML into preview data for securities, accounts, portfolio/base currency, transactions,
+  and taxonomies/categories where available.
 - Preview includes row-level or section-level validation warnings.
 - No ledger writes happen in preview mode.
 - Use safe XML parser settings that prevent unsafe entity expansion.
@@ -418,7 +442,8 @@ As a user, I want PP XML parsed into a reviewable preview, so I can validate wha
 ## PFX-PP-002: Portfolio Performance XML Import Confirmation
 
 ### User story
-As a user, I want a confirm step for PP XML parsed data, so imported rows are only written after approval.
+As a user, I want a confirm step for PP XML parsed data, so imported rows are only written after
+approval.
 
 ### Acceptance criteria
 - Confirm transitions a previously reviewed PP XML preview into persisted data.
@@ -436,7 +461,8 @@ As a user, I want a confirm step for PP XML parsed data, so imported rows are on
 ## PFX-CONN-001: Connector Behaviour
 
 ### User story
-As a developer, I want a connector behaviour contract, so additional sync sources can be added without rewriting the import core.
+As a developer, I want a connector behaviour contract, so additional sync sources can be added
+without rewriting the import core.
 
 ### Acceptance criteria
 - Add `Portfolixir.Connectors.Provider` behaviour with read-only callbacks:
@@ -464,7 +490,8 @@ As a developer, I want a connector behaviour contract, so additional sync source
 ## PFX-ETF-001: Fund Allocation Model
 
 ### User story
-As a user with ETF-heavy holdings, I want allocation model support for fund/ETF categories, so classification remains meaningful.
+As a user with ETF-heavy holdings, I want allocation model support for fund/ETF categories, so
+classification remains meaningful.
 
 ### Acceptance criteria
 - Add `fund_allocations` and `fund_allocation_items` domain artifacts.
@@ -473,9 +500,11 @@ As a user with ETF-heavy holdings, I want allocation model support for fund/ETF 
   - country
   - sector
   - asset_class
-- Store `security_id`, `source`, `as_of_date`, `label`, `weight`, and `confidence` on allocation items.
+- Store `security_id`, `source`, `as_of_date`, `label`, `weight`, and `confidence` on allocation
+  items.
 - Use `Decimal` for weights/confidence calculations.
-- Ensure allocation model can represent deterministic "create/update/skip" behavior for importer reuse.
+- Ensure allocation model can represent deterministic "create/update/skip" behavior for importer
+  reuse.
 
 ### Notes / non-goals
 - No rebalance execution.
@@ -485,7 +514,8 @@ As a user with ETF-heavy holdings, I want allocation model support for fund/ETF 
 ## PFX-009: Clean up All Securities page and table
 
 ### User story
-As a user, I want the All Securities page to show my securities in a clear table with a focused add flow, so that the page feels like a usable product screen instead of a raw prototype form.
+As a user, I want the All Securities page to show my securities in a clear table with a focused add
+flow, so that the page feels like a usable product screen instead of a raw prototype form.
 
 ### Acceptance criteria
 - `/` and `/securities` render a page titled `All Securities`.
@@ -512,7 +542,8 @@ As a user, I want the All Securities page to show my securities in a clear table
 ## PFX-010: Edit existing security
 
 ### User story
-As a user, I want to edit a security, so that I can correct names, identifiers, exchange code or notes after creation.
+As a user, I want to edit a security, so that I can correct names, identifiers, exchange code or
+notes after creation.
 
 ### Acceptance criteria
 - Each security row has an edit action.
@@ -524,7 +555,8 @@ As a user, I want to edit a security, so that I can correct names, identifiers, 
 ### Notes / non-goals
 - Do not implement audit history yet.
 - Do not implement bulk edit.
-- If changing currency would conflict with transactions later, document future restriction but allow it for now if no transactions exist.
+- If changing currency would conflict with transactions later, document future restriction but allow
+  it for now if no transactions exist.
 
 ### Suggested implementation scope
 - Add LiveView edit state.
@@ -550,7 +582,8 @@ As a user, I want to remove or archive securities that I no longer use, so that 
 ## PFX-012: Add active/inactive status to securities
 
 ### User story
-As a user, I want to mark a security as inactive, so that old holdings do not clutter active workflows while history remains intact.
+As a user, I want to mark a security as inactive, so that old holdings do not clutter active
+workflows while history remains intact.
 
 ### Acceptance criteria
 - Securities have an `active` boolean defaulting to true.
@@ -566,11 +599,13 @@ As a user, I want to mark a security as inactive, so that old holdings do not cl
 ## PFX-013: CSV export for securities
 
 ### User story
-As a user, I want to export securities as CSV, so that I can back up or inspect my master data outside Portfolixir.
+As a user, I want to export securities as CSV, so that I can back up or inspect my master data
+outside Portfolixir.
 
 ### Acceptance criteria
 - A CSV export endpoint/action exists for securities.
-- Export contains name, symbol, currency_code, isin, wkn, exchange_code, provider_symbol, notes and active if available.
+- Export contains name, symbol, currency_code, isin, wkn, exchange_code, provider_symbol, notes and
+  active if available.
 - CSV has a header row.
 - Tests cover response status, content type and sample content.
 
@@ -581,7 +616,8 @@ As a user, I want to export securities as CSV, so that I can back up or inspect 
 ## PFX-014: CSV import preview for securities
 
 ### User story
-As a user, I want to upload or paste a securities CSV and preview parsed rows before import, so that I can avoid bad imports.
+As a user, I want to upload or paste a securities CSV and preview parsed rows before import, so that
+I can avoid bad imports.
 
 ### Acceptance criteria
 - User can provide CSV input for securities.
@@ -597,7 +633,8 @@ As a user, I want to upload or paste a securities CSV and preview parsed rows be
 ## PFX-015: Create deposit accounts
 
 ### User story
-As a user, I want to create cash/deposit accounts, so that cash movements and dividends have a place in the model.
+As a user, I want to create cash/deposit accounts, so that cash movements and dividends have a place
+in the model.
 
 ### Acceptance criteria
 - A `deposit_accounts` or generic `accounts` model supports cash accounts.
@@ -612,7 +649,8 @@ As a user, I want to create cash/deposit accounts, so that cash movements and di
 ## PFX-016: Create securities accounts
 
 ### User story
-As a user, I want to create securities accounts/depots, so that buy/sell transactions can be assigned to a depot.
+As a user, I want to create securities accounts/depots, so that buy/sell transactions can be
+assigned to a depot.
 
 ### Acceptance criteria
 - A securities account can be created.
@@ -627,7 +665,8 @@ As a user, I want to create securities accounts/depots, so that buy/sell transac
 ## PFX-017: Link securities account to reference deposit account
 
 ### User story
-As a user, I want a securities account to reference a cash account, so that buys, sells and dividends can affect the correct cash balance later.
+As a user, I want a securities account to reference a cash account, so that buys, sells and
+dividends can affect the correct cash balance later.
 
 ### Acceptance criteria
 - A securities account can have a reference deposit account.
@@ -642,10 +681,12 @@ As a user, I want a securities account to reference a cash account, so that buys
 ## PFX-018: Record buy transaction
 
 ### User story
-As a user, I want to record a buy transaction, so that Portfolixir can later calculate holdings and cash impact.
+As a user, I want to record a buy transaction, so that Portfolixir can later calculate holdings and
+cash impact.
 
 ### Acceptance criteria
-- A buy transaction can be recorded with date, securities account, security, quantity, price, fees, taxes and currency.
+- A buy transaction can be recorded with date, securities account, security, quantity, price, fees,
+  taxes and currency.
 - Transaction is persisted.
 - Validation prevents missing required fields and non-positive quantity.
 - Tests cover successful buy and validation failure.
@@ -657,12 +698,14 @@ As a user, I want to record a buy transaction, so that Portfolixir can later cal
 ## PFX-019: Record sell transaction
 
 ### User story
-As a user, I want to record a sell transaction, so that reductions in holdings and proceeds can be modeled.
+As a user, I want to record a sell transaction, so that reductions in holdings and proceeds can be
+modeled.
 
 ### Acceptance criteria
 - A sell transaction can be recorded with similar fields as buy.
 - Validation prevents non-positive quantity.
-- Optional validation warns or prevents selling more than held if positions are already implemented; otherwise document future behavior.
+- Optional validation warns or prevents selling more than held if positions are already implemented;
+  otherwise document future behavior.
 - Tests cover successful sell and validation failure.
 
 ### Notes / non-goals
@@ -688,7 +731,8 @@ As a user, I want to see all transactions in one list, so that I can audit what 
 ## PFX-021: Record deposit and withdrawal
 
 ### User story
-As a user, I want to record deposits and withdrawals on cash accounts, so that cash balances can be derived.
+As a user, I want to record deposits and withdrawals on cash accounts, so that cash balances can be
+derived.
 
 ### Acceptance criteria
 - Deposit transaction can be recorded.
@@ -718,7 +762,8 @@ As a user, I want to record dividends for a security, so that investment income 
 ## PFX-023: Record fees and taxes
 
 ### User story
-As a user, I want to record standalone fees and taxes, so that portfolio cash movements are complete.
+As a user, I want to record standalone fees and taxes, so that portfolio cash movements are
+complete.
 
 ### Acceptance criteria
 - Fee transaction can be recorded.
@@ -733,7 +778,8 @@ As a user, I want to record standalone fees and taxes, so that portfolio cash mo
 ## PFX-024: Calculate security positions from transactions
 
 ### User story
-As a user, I want Portfolixir to calculate my holdings from buy and sell transactions, so that positions are transparent and reproducible.
+As a user, I want Portfolixir to calculate my holdings from buy and sell transactions, so that
+positions are transparent and reproducible.
 
 ### Acceptance criteria
 - A position calculation module exists.
@@ -749,7 +795,8 @@ As a user, I want Portfolixir to calculate my holdings from buy and sell transac
 ## PFX-025: Calculate cash balances from transactions
 
 ### User story
-As a user, I want cash balances to be calculated from cash-related transactions, so that account balances are not manually maintained.
+As a user, I want cash balances to be calculated from cash-related transactions, so that account
+balances are not manually maintained.
 
 ### Acceptance criteria
 - Cash balance calculation module exists.
@@ -766,7 +813,8 @@ As a user, I want cash balances to be calculated from cash-related transactions,
 ## PFX-026: Manual latest quote entry
 
 ### User story
-As a user, I want to enter a latest quote manually, so that portfolio valuation can work before automated market data exists.
+As a user, I want to enter a latest quote manually, so that portfolio valuation can work before
+automated market data exists.
 
 ### Acceptance criteria
 - A quote can be stored for a security.
@@ -781,7 +829,8 @@ As a user, I want to enter a latest quote manually, so that portfolio valuation 
 ## PFX-027: Holdings report
 
 ### User story
-As a user, I want a holdings report, so that I can see current quantities and latest valuation per security.
+As a user, I want a holdings report, so that I can see current quantities and latest valuation per
+security.
 
 ### Acceptance criteria
 - `/reports/holdings` route exists or holdings are shown on a reports page.
@@ -796,7 +845,8 @@ As a user, I want a holdings report, so that I can see current quantities and la
 ## PFX-028: Portfolio valuation snapshot
 
 ### User story
-As a user, I want to see the latest total portfolio value, so that I know the current approximate value of my holdings and cash.
+As a user, I want to see the latest total portfolio value, so that I know the current approximate
+value of my holdings and cash.
 
 ### Acceptance criteria
 - Portfolio value combines holdings and cash balances.
@@ -810,7 +860,8 @@ As a user, I want to see the latest total portfolio value, so that I know the cu
 ## PFX-029: Show assigned categories on securities
 
 ### User story
-As a user, I want to see categories assigned to each security, so that I understand portfolio classification at a glance.
+As a user, I want to see categories assigned to each security, so that I understand portfolio
+classification at a glance.
 
 ### Acceptance criteria
 - All Securities table shows assigned categories or a compact indicator.
@@ -824,7 +875,8 @@ As a user, I want to see categories assigned to each security, so that I underst
 ## PFX-030: Manage security-category assignments in UI
 
 ### User story
-As a user, I want to assign and unassign categories from securities, so that classifications can be maintained without direct database work.
+As a user, I want to assign and unassign categories from securities, so that classifications can be
+maintained without direct database work.
 
 ### Acceptance criteria
 - User can assign category to a security.
@@ -839,7 +891,8 @@ As a user, I want to assign and unassign categories from securities, so that cla
 ## PFX-031: Add target weights to category assignments
 
 ### User story
-As a user, I want to assign target weights to classifications, so that later allocation reports can compare current versus desired allocation.
+As a user, I want to assign target weights to classifications, so that later allocation reports can
+compare current versus desired allocation.
 
 ### Acceptance criteria
 - Assignment weight can be set.
@@ -854,7 +907,8 @@ As a user, I want to assign target weights to classifications, so that later all
 ## PFX-032: Allocation report by taxonomy
 
 ### User story
-As a user, I want to see current portfolio allocation by taxonomy/category, so that I understand how my portfolio is distributed.
+As a user, I want to see current portfolio allocation by taxonomy/category, so that I understand how
+my portfolio is distributed.
 
 ### Acceptance criteria
 - User can select taxonomy.
@@ -869,7 +923,8 @@ As a user, I want to see current portfolio allocation by taxonomy/category, so t
 ## PFX-033: Allocation deviation report
 
 ### User story
-As a user, I want to compare current allocation with target allocation, so that I can identify drift.
+As a user, I want to compare current allocation with target allocation, so that I can identify
+drift.
 
 ### Acceptance criteria
 - Report shows current percentage, target percentage and deviation.
@@ -883,7 +938,8 @@ As a user, I want to compare current allocation with target allocation, so that 
 ## PFX-034: Transaction CSV import preview
 
 ### User story
-As a user, I want to preview transaction CSV imports, so that I can validate data before writing to the ledger.
+As a user, I want to preview transaction CSV imports, so that I can validate data before writing to
+the ledger.
 
 ### Acceptance criteria
 - User can paste or upload CSV transaction data.
@@ -899,7 +955,8 @@ As a user, I want to preview transaction CSV imports, so that I can validate dat
 ## PFX-035: Transaction CSV import confirmation
 
 ### User story
-As a user, I want to confirm a validated transaction import, so that rows are written only after review.
+As a user, I want to confirm a validated transaction import, so that rows are written only after
+review.
 
 ### Acceptance criteria
 - Valid preview can be confirmed.
@@ -915,7 +972,8 @@ As a user, I want to confirm a validated transaction import, so that rows are wr
 ## PFX-036: Quote provider behaviour and manual provider
 
 ### User story
-As a developer, I want market data behind a provider behaviour, so that external quote providers can be added without coupling tests to external APIs.
+As a developer, I want market data behind a provider behaviour, so that external quote providers can
+be added without coupling tests to external APIs.
 
 ### Acceptance criteria
 - Provider behaviour is defined.
@@ -930,7 +988,8 @@ As a developer, I want market data behind a provider behaviour, so that external
 ## PFX-037: External quote provider integration
 
 ### User story
-As a user, I want Portfolixir to fetch quotes from an external provider, so that manual quote entry is not required forever.
+As a user, I want Portfolixir to fetch quotes from an external provider, so that manual quote entry
+is not required forever.
 
 ### Acceptance criteria
 - Provider can fetch current quote for configured symbols.
@@ -945,7 +1004,8 @@ As a user, I want Portfolixir to fetch quotes from an external provider, so that
 ## PFX-038: API/MCP readiness notes and read-only endpoints
 
 ### User story
-As a user, I want Portfolixir to expose clean read-only data endpoints later, so that AI agents can analyze my portfolio safely.
+As a user, I want Portfolixir to expose clean read-only data endpoints later, so that AI agents can
+analyze my portfolio safely.
 
 ### Acceptance criteria
 - Document API/MCP design principles.
@@ -963,11 +1023,14 @@ As a user, I want Portfolixir to expose clean read-only data endpoints later, so
 
 ## Securities are master data
 
-Securities represent instruments such as stocks, ETFs, funds, bonds or crypto-like instruments if supported later. They should be stable records referenced by transactions and prices.
+Securities represent instruments such as stocks, ETFs, funds, bonds or crypto-like instruments if
+supported later. They should be stable records referenced by transactions and prices.
 
 ## Accounts hold cash or securities
 
-The account model should support cash/deposit accounts, securities accounts/depots and a reference cash account relationship. Avoid embedding balances directly as primary state. Balances should be derived from transactions.
+The account model should support cash/deposit accounts, securities accounts/depots and a reference
+cash account relationship. Avoid embedding balances directly as primary state. Balances should be
+derived from transactions.
 
 ## Transactions are ledger-like records
 
@@ -981,7 +1044,8 @@ Design rules:
 
 ## Reports do not mutate state
 
-Reports should read master data, transactions, prices and FX rates. They should not change portfolio data.
+Reports should read master data, transactions, prices and FX rates. They should not change portfolio
+data.
 
 ## Imports use preview/confirm
 
@@ -998,7 +1062,8 @@ This prevents accidental database pollution.
 
 ## External quote providers are abstracted
 
-Market data should be behind behaviours/adapters so tests can run without live network calls and providers can be replaced later.
+Market data should be behind behaviours/adapters so tests can run without live network calls and
+providers can be replaced later.
 
 ---
 
