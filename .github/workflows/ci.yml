@@ -21,10 +21,16 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.17.3'
+          otp-version: '27.0'
+
       - name: Install pre-commit
         run: python3 -m pip install --upgrade pre-commit
 
-      - name: Run public artifact guard
+      - name: Run pre-commit quality gates
         run: pre-commit run --all-files
 
       - name: Run public commit metadata guard
