@@ -50,7 +50,7 @@ defmodule Portfolixir.Catalog.Security do
       :currency_code,
       :notes
     ])
-    |> validate_required([:name, :symbol, :currency_code])
+    |> validate_required([:name, :currency_code])
     |> assoc_constraint(:currency)
     |> unique_constraint(:provider_symbol,
       name: :securities_provider_symbol_exchange_code_unique_index

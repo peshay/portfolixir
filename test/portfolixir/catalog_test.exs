@@ -123,13 +123,15 @@ defmodule Portfolixir.CatalogTest do
     assert %{name: ["can't be blank"]} = errors_on(changeset)
   end
 
-  test "creating a security without symbol fails" do
+  test "creating a security without symbol is allowed" do
     :ok = Catalog.ensure_mvp_currencies!()
 
-    assert {:error, changeset} =
+    assert {:ok, security} =
              Catalog.create_security(%{name: "Apple Inc.", currency_code: "USD"})
 
-    assert %{symbol: ["can't be blank"]} = errors_on(changeset)
+    assert security.name == "Apple Inc."
+    assert is_nil(security.symbol)
+    assert security.currency_code == "USD"
   end
 
   test "duplicate provider symbol and exchange combination is rejected when both are present" do

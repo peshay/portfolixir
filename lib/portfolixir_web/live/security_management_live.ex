@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     "wkn" => "",
     "exchange_code" => "",
     "provider_symbol" => "",
+    "provider_source" => "",
     "active" => "true",
     "notes" => ""
   }
@@ -54,6 +55,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:security_form_visible, false)
       |> assign(:security_form_mode, :create)
       |> assign(:editing_security_id, nil)
+      |> assign(:security_form_provider_preview, nil)
       |> assign(:security_error, nil)
       |> assign(:security_success, nil)
       |> assign(:security_search, "")
@@ -336,7 +338,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                   class="app-shell-primary"
                   phx-click="create_provider_security"
                 >
-                  <%= gettext("Create from Yahoo") %>
+                  <%= gettext("Use in dialog") %>
                 </button>
               </div>
             <% end %>
@@ -505,7 +507,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                         </th>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "symbol") do %>
-                        <td data-column-key="symbol"><%= security.symbol %></td>
+                        <td data-column-key="symbol"><%= display_symbol(security) %></td>
                       <% end %>
                       <%= if security_column_visible?(@visible_security_column_keys, "currency") do %>
                         <td data-column-key="currency"><%= security.currency_code %></td>
@@ -768,7 +770,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
                 <%= security_freshness_aria_label(@selected_security) %>
               </span>
               <p><strong><%= gettext("Name") %>:</strong> <%= @selected_security.name %></p>
-              <p><strong><%= gettext("Symbol") %>:</strong> <%= @selected_security.symbol %></p>
+              <p><strong><%= gettext("Symbol") %>:</strong> <%= display_symbol(@selected_security) %></p>
               <p
                 class={valuation_fallback_class(@selected_security.latest_quote_close)}
                 data-valuation-state={valuation_fallback_state(@selected_security.latest_quote_close)}
@@ -893,16 +895,18 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             id="security-create"
             class="app-shell-section-card"
             data-priority="secondary"
+            role="dialog"
+            aria-modal="false"
             aria-labelledby="security-create-title"
             aria-describedby="security-create-intro"
           >
             <div class="app-shell-section-header">
               <div>
                 <h2 id="security-create-title" class="app-shell-section-title">
-                  <%= if @security_form_mode == :edit, do: gettext("Edit security"), else: gettext("Add security") %>
+                  <%= if @security_form_mode == :edit, do: gettext("Edit security"), else: gettext("Create security") %>
                 </h2>
                 <p id="security-create-intro" class="app-shell-panel-intro">
-                  <%= gettext("Create one instrument at a time.") %>
+                  <%= gettext("Maintain one security with Portfolio Performance-inspired master-data sections.") %>
                 </p>
               </div>
             </div>
@@ -924,6 +928,29 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               </p>
             <% end %>
 
+            <nav
+              id="security-dialog-tabs"
+              class="app-shell-action-row"
+              role="tablist"
+              aria-label={gettext("Security dialog sections")}
+            >
+              <a id="security-dialog-tab-master-data" role="tab" aria-selected="true" aria-controls="security-master-data-section" href="#security-master-data-section" class="app-shell-badge">
+                <%= gettext("Master data") %>
+              </a>
+              <a id="security-dialog-tab-additional-attributes" role="tab" aria-selected="false" aria-controls="security-additional-attributes-section" href="#security-additional-attributes-section" class="app-shell-badge app-shell-muted">
+                <%= gettext("Additional attributes") %>
+              </a>
+              <a id="security-dialog-tab-classifications" role="tab" aria-selected="false" aria-controls="security-classifications-section" href="#security-classifications-section" class="app-shell-badge app-shell-muted">
+                <%= gettext("Classifications") %>
+              </a>
+              <a id="security-dialog-tab-historical-quotes" role="tab" aria-selected="false" aria-controls="security-historical-quotes-section" href="#security-historical-quotes-section" class="app-shell-badge app-shell-muted">
+                <%= gettext("Historical quotes") %>
+              </a>
+              <a id="security-dialog-tab-current-quote" role="tab" aria-selected="false" aria-controls="security-current-quote-section" href="#security-current-quote-section" class="app-shell-badge app-shell-muted">
+                <%= gettext("Current quote") %>
+              </a>
+            </nav>
+
             <form
               id="security-form"
               class="app-shell-form-grid"
@@ -931,101 +958,161 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               aria-labelledby="security-create-title"
               aria-describedby={security_form_description_ids(@security_success, @security_error)}
             >
-              <div class="app-shell-field app-shell-field--full">
-                <label for="security-name"><%= gettext("Name") %></label>
-                <input
-                  id="security-name"
-                  name="security[name]"
-                  value={@security_form["name"]}
-                />
-              </div>
+              <input
+                type="hidden"
+                id="security-provider-source"
+                name="security[provider_source]"
+                value={@security_form["provider_source"]}
+              />
 
-              <div class="app-shell-field">
-                <label for="security-symbol"><%= gettext("Symbol") %></label>
-                <input
-                  id="security-symbol"
-                  name="security[symbol]"
-                  value={@security_form["symbol"]}
-                />
-              </div>
+              <fieldset
+                id="security-master-data-section"
+                class="app-shell-fieldset"
+                role="tabpanel"
+                aria-labelledby="security-dialog-tab-master-data"
+              >
+                <legend><%= gettext("Master data") %></legend>
+                <div class="app-shell-fieldset-grid">
+                  <div class="app-shell-field app-shell-field--full">
+                    <label for="security-name"><%= gettext("Name") %></label>
+                    <input
+                      id="security-name"
+                      name="security[name]"
+                      value={@security_form["name"]}
+                      required
+                    />
+                  </div>
 
-              <div class="app-shell-field">
-                <label for="security-currency-code"><%= gettext("Currency") %></label>
-                <select
-                  id="security-currency-code"
-                  name="security[currency_code]"
-                >
-                  <option value=""><%= gettext("Select currency") %></option>
-                  <%= for currency <- @currencies do %>
-                    <option
-                      value={currency.code}
-                      selected={currency.code == @security_form["currency_code"]}
+                  <div class="app-shell-field">
+                    <label for="security-currency-code"><%= gettext("Currency") %></label>
+                    <select
+                      id="security-currency-code"
+                      name="security[currency_code]"
+                      required
                     >
-                      <%= currency_option_label(currency) %>
-                    </option>
-                  <% end %>
-                </select>
-              </div>
+                      <option value=""><%= gettext("Select currency") %></option>
+                      <%= for currency <- @currencies do %>
+                        <option
+                          value={currency.code}
+                          selected={currency.code == @security_form["currency_code"]}
+                        >
+                          <%= currency_option_label(currency) %>
+                        </option>
+                      <% end %>
+                    </select>
+                  </div>
 
-              <div class="app-shell-field">
-                <label for="security-isin"><%= gettext("ISIN (optional)") %></label>
-                <input id="security-isin" name="security[isin]" value={@security_form["isin"]} />
-              </div>
+                  <div class="app-shell-field">
+                    <label for="security-symbol"><%= gettext("Symbol (optional)") %></label>
+                    <input
+                      id="security-symbol"
+                      name="security[symbol]"
+                      value={@security_form["symbol"]}
+                    />
+                  </div>
 
-              <div class="app-shell-field">
-                <label for="security-wkn"><%= gettext("WKN (optional)") %></label>
-                <input id="security-wkn" name="security[wkn]" value={@security_form["wkn"]} />
-              </div>
+                  <div class="app-shell-field">
+                    <label for="security-active"><%= gettext("Status") %></label>
+                    <select id="security-active" name="security[active]">
+                      <option value="true" selected={@security_form["active"] == "true"}><%= gettext("Active") %></option>
+                      <option value="false" selected={@security_form["active"] == "false"}><%= gettext("Inactive") %></option>
+                    </select>
+                  </div>
+                </div>
+              </fieldset>
 
-              <div class="app-shell-field">
-                <label for="security-exchange-code"><%= gettext("Exchange code (optional)") %></label>
-                <input
-                  id="security-exchange-code"
-                  name="security[exchange_code]"
-                  value={@security_form["exchange_code"]}
-                />
-              </div>
+              <fieldset
+                id="security-additional-attributes-section"
+                class="app-shell-fieldset"
+                role="tabpanel"
+                aria-labelledby="security-dialog-tab-additional-attributes"
+              >
+                <legend><%= gettext("Additional attributes") %></legend>
+                <p class="app-shell-panel-intro">
+                  <%= gettext("ISIN and WKN stay empty unless a reliable source provides them; you can edit them manually.") %>
+                </p>
+                <div class="app-shell-fieldset-grid">
+                  <div class="app-shell-field">
+                    <label for="security-isin"><%= gettext("ISIN (optional)") %></label>
+                    <input id="security-isin" name="security[isin]" value={@security_form["isin"]} />
+                  </div>
 
-              <div class="app-shell-field">
-                <label for="security-provider-symbol"><%= gettext("Provider symbol (optional)") %></label>
-                <input
-                  id="security-provider-symbol"
-                  name="security[provider_symbol]"
-                  value={@security_form["provider_symbol"]}
-                />
-              </div>
+                  <div class="app-shell-field">
+                    <label for="security-wkn"><%= gettext("WKN (optional)") %></label>
+                    <input id="security-wkn" name="security[wkn]" value={@security_form["wkn"]} />
+                  </div>
 
-              <div class="app-shell-field">
-                <label for="security-active"><%= gettext("Status") %></label>
-                <select id="security-active" name="security[active]">
-                  <option value="true" selected={@security_form["active"] == "true"}><%= gettext("Active") %></option>
-                  <option value="false" selected={@security_form["active"] == "false"}><%= gettext("Inactive") %></option>
-                </select>
-              </div>
+                  <div class="app-shell-field">
+                    <label for="security-provider-symbol"><%= gettext("Provider symbol (optional)") %></label>
+                    <input
+                      id="security-provider-symbol"
+                      name="security[provider_symbol]"
+                      value={@security_form["provider_symbol"]}
+                    />
+                  </div>
 
-              <div class="app-shell-field app-shell-field--full">
-                <label for="security-notes"><%= gettext("Notes (optional)") %></label>
-                <textarea id="security-notes" rows="2" name="security[notes]"><%= @security_form["notes"] %></textarea>
-              </div>
+                  <div class="app-shell-field">
+                    <label for="security-exchange-code"><%= gettext("Exchange code (optional)") %></label>
+                    <input
+                      id="security-exchange-code"
+                      name="security[exchange_code]"
+                      value={@security_form["exchange_code"]}
+                    />
+                  </div>
+
+                  <div class="app-shell-field app-shell-field--full">
+                    <label for="security-notes"><%= gettext("Notes (optional)") %></label>
+                    <textarea id="security-notes" rows="2" name="security[notes]"><%= @security_form["notes"] %></textarea>
+                  </div>
+                </div>
+              </fieldset>
+
+              <section
+                id="security-classifications-section"
+                class="app-shell-empty-state"
+                role="tabpanel"
+                aria-labelledby="security-dialog-tab-classifications"
+              >
+                <h3><%= gettext("Classifications") %></h3>
+                <p><%= gettext("Classification assignment is managed from the classifications workspace in this MVP.") %></p>
+              </section>
+
+              <section
+                id="security-historical-quotes-section"
+                class="app-shell-empty-state"
+                role="tabpanel"
+                aria-labelledby="security-dialog-tab-historical-quotes"
+              >
+                <h3><%= gettext("Historical quotes") %></h3>
+                <p><%= historical_quotes_dialog_text(@security_form) %></p>
+              </section>
+
+              <section
+                id="security-current-quote-section"
+                class="app-shell-empty-state"
+                role="tabpanel"
+                aria-labelledby="security-dialog-tab-current-quote"
+              >
+                <h3><%= gettext("Current quote") %></h3>
+                <p><%= current_quote_dialog_text(@security_form_provider_preview) %></p>
+              </section>
 
               <div class="app-shell-form-actions">
-                <%= if @security_form_mode == :edit do %>
-                  <button
-                    id="security-cancel-edit"
-                    type="button"
-                    class="app-shell-secondary"
-                    phx-click="cancel_edit_security"
-                  >
-                    <%= gettext("Cancel") %>
-                  </button>
-                <% end %>
+                <button
+                  id="security-cancel-edit"
+                  type="button"
+                  class="app-shell-secondary"
+                  phx-click="cancel_edit_security"
+                >
+                  <%= gettext("Cancel") %>
+                </button>
                 <button
                   id="security-form-submit"
                   type="submit"
                   class="app-shell-primary"
                   aria-describedby={security_form_description_ids(@security_success, @security_error)}
                 >
-                  <%= if @security_form_mode == :edit, do: gettext("Save security"), else: gettext("Add security") %>
+                  <%= gettext("OK") %>
                 </button>
               </div>
             </form>
@@ -1236,8 +1323,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         {:noreply, exit_edit_mode(socket)}
 
       :create ->
-        {:noreply,
-         assign(socket, :security_form_visible, not socket.assigns.security_form_visible)}
+        {:noreply, toggle_create_security_dialog(socket)}
     end
   end
 
@@ -1252,6 +1338,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
      |> assign(:editing_security_id, security.id)
      |> assign(:security_form_visible, true)
      |> assign(:security_form, security_form_values(security))
+     |> assign(:security_form_provider_preview, nil)
      |> assign(:security_success, nil)
      |> assign(:security_error, nil)}
   end
@@ -1353,7 +1440,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
          assign(socket, :provider_security_error, gettext("Preview a provider result first."))}
 
       preview ->
-        create_security_from_provider_preview(socket, preview)
+        {:noreply, open_security_dialog_from_provider_preview(socket, preview)}
     end
   end
 
@@ -1399,14 +1486,17 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   end
 
   defp save_security_create(socket, params) do
-    case Catalog.create_security(sanitize_security_params(params)) do
-      {:ok, _security} ->
+    attrs = sanitize_security_params(params)
+
+    case create_security_from_dialog(socket, attrs) do
+      {:ok, _security, success_message} ->
         {:noreply,
          socket
          |> assign(:security_form, default_security_form(socket.assigns.currencies))
+         |> assign(:security_form_provider_preview, nil)
          |> assign(:security_form_visible, true)
          |> assign(:security_error, nil)
-         |> assign(:security_success, gettext("Security added."))
+         |> assign(:security_success, success_message || gettext("Security added."))
          |> load_securities()}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -1415,6 +1505,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
          |> assign(:security_form, security_form_input_values(params))
          |> assign(:security_form_visible, true)
          |> assign(:security_error, format_errors(changeset))
+         |> assign(:security_success, nil)
+         |> load_securities()}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:security_form, security_form_input_values(params))
+         |> assign(:security_form_visible, true)
+         |> assign(:security_error, provider_error_label(reason))
          |> assign(:security_success, nil)
          |> load_securities()}
     end
@@ -1436,6 +1535,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
         {:noreply,
          socket
          |> assign(:security_form, security_form_input_values(params))
+         |> assign(:security_form_provider_preview, nil)
          |> assign(:security_error, format_errors(changeset))
          |> assign(:security_success, nil)
          |> assign(:security_form_visible, true)
@@ -1443,42 +1543,60 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     end
   end
 
-  defp create_security_from_provider_preview(socket, preview) do
+  defp toggle_create_security_dialog(socket) do
+    if socket.assigns.security_form_visible do
+      exit_edit_mode(socket)
+    else
+      socket
+      |> assign(:security_form_mode, :create)
+      |> assign(:editing_security_id, nil)
+      |> assign(:security_form_visible, true)
+      |> assign(:security_form, default_security_form(socket.assigns.currencies))
+      |> assign(:security_form_provider_preview, nil)
+      |> assign(:security_success, nil)
+      |> assign(:security_error, nil)
+    end
+  end
+
+  defp open_security_dialog_from_provider_preview(socket, preview) do
     case provider_preview_security_attrs(preview) do
       {:ok, security_attrs} ->
-        with {:ok, quotes} <-
-               MarketData.historical_quotes(preview, %{range: "1y", interval: "1d"}),
-             :ok <- ensure_provider_quotes_available(quotes),
-             {:ok, security} <- Catalog.create_security_with_quotes(security_attrs, quotes) do
-          {:noreply,
-           socket
-           |> assign(:provider_security_preview, nil)
-           |> assign(:provider_security_results, [])
-           |> assign(:provider_security_error, nil)
-           |> assign(
-             :security_success,
-             gettext("Security %{name} added from Yahoo Finance.", name: security.name)
-           )
-           |> assign(:security_error, nil)
-           |> load_securities()}
-        else
-          {:error, %Ecto.Changeset{} = changeset} ->
-            {:noreply,
-             socket
-             |> assign(:provider_security_error, format_errors(changeset))
-             |> assign(:security_success, nil)
-             |> load_securities()}
-
-          {:error, reason} ->
-            {:noreply,
-             socket
-             |> assign(:provider_security_error, provider_error_label(reason))
-             |> assign(:security_success, nil)
-             |> load_securities()}
-        end
+        socket
+        |> assign(:security_form_mode, :create)
+        |> assign(:editing_security_id, nil)
+        |> assign(:security_form_visible, true)
+        |> assign(:security_form, security_form_input_values(security_attrs))
+        |> assign(:security_form_provider_preview, preview)
+        |> assign(:security_success, nil)
+        |> assign(:security_error, nil)
+        |> assign(:provider_security_error, nil)
 
       {:error, message} ->
-        {:noreply, assign(socket, :provider_security_error, message)}
+        assign(socket, :provider_security_error, message)
+    end
+  end
+
+  defp create_security_from_dialog(socket, attrs) do
+    if yahoo_dialog_attrs?(socket, attrs) do
+      create_security_with_yahoo_quotes(socket.assigns.security_form_provider_preview, attrs)
+    else
+      case Catalog.create_security(attrs) do
+        {:ok, security} -> {:ok, security, nil}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  defp yahoo_dialog_attrs?(socket, attrs) do
+    not is_nil(socket.assigns.security_form_provider_preview) and
+      attrs["provider_source"] == "yahoo"
+  end
+
+  defp create_security_with_yahoo_quotes(preview, attrs) do
+    with {:ok, quotes} <- MarketData.historical_quotes(preview, %{range: "1y", interval: "1d"}),
+         :ok <- ensure_provider_quotes_available(quotes),
+         {:ok, security} <- Catalog.create_security_with_quotes(attrs, quotes) do
+      {:ok, security, gettext("Security %{name} added from Yahoo Finance.", name: security.name)}
     end
   end
 
@@ -1516,6 +1634,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     |> assign(:editing_security_id, nil)
     |> assign(:security_form_visible, false)
     |> assign(:security_form, security_form)
+    |> assign(:security_form_provider_preview, nil)
     |> assign(:security_error, nil)
     |> assign(:security_success, nil)
     |> load_securities()
@@ -1537,6 +1656,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       "wkn" => security.wkn || "",
       "exchange_code" => security.exchange_code || "",
       "provider_symbol" => security.provider_symbol || "",
+      "provider_source" => security.provider_source || "",
       "notes" => security.notes || ""
     }
   end
@@ -1611,16 +1731,25 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   defp security_column_label("actions"), do: gettext("Actions")
 
   defp security_detail_link_aria_label(security) do
-    gettext("Open detail for %{name} (%{symbol})", name: security.name, symbol: security.symbol)
+    gettext("Open detail for %{name} (%{symbol})",
+      name: security.name,
+      symbol: display_symbol(security)
+    )
   end
 
   defp security_archive_button_aria_label(security) do
-    gettext("Archive %{name} (%{symbol})", name: security.name, symbol: security.symbol)
+    gettext("Archive %{name} (%{symbol})", name: security.name, symbol: display_symbol(security))
   end
 
   defp security_edit_button_aria_label(security) do
-    gettext("Edit security for %{name} (%{symbol})", name: security.name, symbol: security.symbol)
+    gettext("Edit security for %{name} (%{symbol})",
+      name: security.name,
+      symbol: display_symbol(security)
+    )
   end
+
+  defp display_symbol(%{symbol: symbol}) when is_binary(symbol) and symbol != "", do: symbol
+  defp display_symbol(_security), do: "—"
 
   defp security_column_input_id(key), do: "security-column-#{key}"
 
@@ -1731,6 +1860,18 @@ defmodule PortfolixirWeb.SecurityManagementLive do
   end
 
   defp provider_latest_close_label(_preview), do: "—"
+
+  defp historical_quotes_dialog_text(%{"provider_source" => "yahoo"}) do
+    gettext("Historical quotes will be imported from Yahoo Finance when you save.")
+  end
+
+  defp historical_quotes_dialog_text(_form) do
+    gettext("No historical quotes are imported for manual entries in this MVP dialog.")
+  end
+
+  defp current_quote_dialog_text(nil), do: gettext("No current quote preview is available.")
+
+  defp current_quote_dialog_text(preview), do: provider_latest_close_label(preview)
 
   defp provider_error_label(reason) do
     gettext("Provider lookup failed: %{reason}", reason: inspect(reason))
