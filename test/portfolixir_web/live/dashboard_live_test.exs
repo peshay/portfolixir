@@ -6,7 +6,9 @@ defmodule PortfolixirWeb.DashboardLiveTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Imports
   alias Portfolixir.Imports.{ImportRun, ImportSource, RawImportItem}
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios
   alias Portfolixir.Repo
 
   setup do
@@ -20,9 +22,11 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     assert has_element?(view, "h1", "Dashboard")
     assert has_element?(view, "#nav-dashboard.app-shell-nav-link.is-active")
     assert has_element?(view, "#dashboard-primary-action")
+    assert has_element?(view, "#dashboard-portfolios-card")
+    assert has_element?(view, "#dashboard-accounts-card")
     assert has_element?(view, "#dashboard-securities-card")
     assert has_element?(view, "#dashboard-transactions-card")
-    assert has_element?(view, "#dashboard-imports-card")
+    assert has_element?(view, "#dashboard-mvp-path")
     assert has_element?(view, "#dashboard-chart-placeholder")
     refute has_element?(view, "#security-listing")
     refute has_element?(view, "h1", "All Securities")
@@ -41,35 +45,67 @@ defmodule PortfolixirWeb.DashboardLiveTest do
       )
 
     assert length(primary_action_matches) == 1
-    assert has_element?(view, "#dashboard-primary-action", "Import portfolio data")
+    assert has_element?(view, "#dashboard-primary-action", "Set up portfolio and accounts")
+    assert has_element?(view, "#dashboard-primary-action[href=\"/accounts\"]")
     refute has_element?(view, "#dashboard-primary-action[href=\"/documents/new\"]")
   end
 
-  test "dashboard no-security state links primary action and next step to /securities", %{
-    conn: conn
-  } do
-    {:ok, view, _html} = live(conn, "/")
+  test "dashboard empty state orders CTAs around the manual MVP path", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
 
     assert has_element?(view, "#dashboard-next-steps")
-    assert has_element?(view, "#dashboard-next-step-link[href=\"/securities\"]")
-    assert has_element?(view, "#dashboard-primary-action[href=\"/securities\"]")
+    assert has_element?(view, "#dashboard-next-step-link[href=\"/accounts\"]")
+    assert has_element?(view, "#dashboard-primary-action[href=\"/accounts\"]")
+
+    account_index = html_position!(html, "dashboard-mvp-step-accounts")
+    securities_index = html_position!(html, "dashboard-mvp-step-securities")
+    transactions_index = html_position!(html, "dashboard-mvp-step-transactions")
+    reports_index = html_position!(html, "dashboard-mvp-step-reports")
+
+    assert account_index < securities_index
+    assert securities_index < transactions_index
+    assert transactions_index < reports_index
+
+    assert has_element?(view, "#dashboard-mvp-step-accounts[href=\"/accounts\"]")
+    assert has_element?(view, "#dashboard-mvp-step-securities[href=\"/securities\"]")
+    assert has_element?(view, "#dashboard-mvp-step-transactions[href=\"/transactions\"]")
+    assert has_element?(view, "#dashboard-mvp-step-reports[href=\"/reports/fund-allocations\"]")
+    refute has_element?(view, "#dashboard-next-step-link[href=\"/documents/new\"]")
   end
 
-  test "dashboard with securities but no fund documents links next step to /documents/new", %{
+  test "dashboard advances next step from accounts to securities to transactions to reports", %{
     conn: conn
   } do
-    {:ok, _security} =
-      Catalog.create_security(%{
-        name: "Security without factsheet",
-        symbol: "NOWDOC",
-        currency_code: "EUR"
-      })
+    accounts = create_mvp_accounts()
+
+    {:ok, view, _html} = live(conn, "/")
+    assert has_element?(view, "#dashboard-next-step-link[href=\"/securities\"]")
+    assert has_element?(view, "#dashboard-primary-action", "Add your first security")
+
+    security = create_security("NOWDOC")
+
+    {:ok, view, _html} = live(conn, "/")
+    assert has_element?(view, "#dashboard-next-step-link[href=\"/transactions\"]")
+    assert has_element?(view, "#dashboard-primary-action", "Record a buy transaction")
+
+    create_buy_transaction(accounts, security)
+
+    {:ok, view, _html} = live(conn, "/")
+    assert has_element?(view, "#dashboard-next-step-link[href=\"/reports/fund-allocations\"]")
+    assert has_element?(view, "#dashboard-primary-action", "Review reports and charts")
+  end
+
+  test "dashboard keeps prompting for a buy transaction when only deposits exist", %{conn: conn} do
+    accounts = create_mvp_accounts()
+    _security = create_security("DEP-ONLY")
+    create_deposit_transaction(accounts)
 
     {:ok, view, _html} = live(conn, "/")
 
-    assert has_element?(view, "#dashboard-primary-action", "Add document")
-    assert has_element?(view, "#dashboard-primary-action[href=\"/documents/new\"]")
-    assert has_element?(view, "#dashboard-next-step-link[href=\"/documents/new\"]")
+    assert has_element?(view, "#dashboard-next-step-link[href=\"/transactions\"]")
+    assert has_element?(view, "#dashboard-primary-action", "Record a buy transaction")
+    refute has_element?(view, "#dashboard-primary-action", "Review reports and charts")
+    assert Repo.aggregate(Transaction, :count, :id) == 1
   end
 
   test "dashboard recent import runs empty state has deterministic accessible status semantics",
@@ -92,7 +128,7 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     assert has_element?(
              view,
              "#dashboard-recent-import-runs-empty-state-description.app-shell-visually-hidden",
-             "Run imports to build recent activity here."
+             "Optional import runs appear here when you test experimental import flows."
            )
 
     assert has_element?(
@@ -104,7 +140,7 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     assert has_element?(
              view,
              "#dashboard-recent-import-runs-empty-state > p",
-             "Run imports to build recent activity here."
+             "Optional import runs appear here when you test experimental import flows."
            )
   end
 
@@ -128,7 +164,7 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     assert has_element?(
              view,
              "#dashboard-recent-fund-documents-empty-state-status-description.app-shell-visually-hidden",
-             "Upload a factsheet to populate this list."
+             "Optional factsheet uploads appear here when you test experimental document flows."
            )
 
     assert has_element?(
@@ -140,7 +176,7 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     assert has_element?(
              view,
              "#dashboard-recent-fund-documents-empty-state-description",
-             "Upload a factsheet to populate this list."
+             "Optional factsheet uploads appear here when you test experimental document flows."
            )
   end
 
@@ -217,10 +253,11 @@ defmodule PortfolixirWeb.DashboardLiveTest do
            )
   end
 
-  test "dashboard points next step to latest factsheet review if no allocations exist", %{
+  test "dashboard keeps import documents experimental and does not use them for MVP next step", %{
     conn: conn
   } do
-    security = create_security("DASH-NO-ALLOC")
+    accounts = create_mvp_accounts()
+    security = create_security("DASH-ALLOC")
 
     {:ok, first_doc} =
       create_fund_document_for_security(security,
@@ -232,24 +269,6 @@ defmodule PortfolixirWeb.DashboardLiveTest do
         original_filename: "review-two.pdf"
       )
 
-    {:ok, view, _html} = live(conn, "/")
-
-    latest_doc = if first_doc.id > second_doc.id, do: first_doc, else: second_doc
-    expected_link = "/fund-documents/#{latest_doc.id}/allocations/review"
-
-    assert has_element?(view, "#dashboard-next-step-link[href=\"#{expected_link}\"]")
-  end
-
-  test "dashboard points next step to allocations report when fund allocations exist", %{
-    conn: conn
-  } do
-    security = create_security("DASH-ALLOC")
-
-    {:ok, _fund_document} =
-      create_fund_document_for_security(security,
-        original_filename: "seed-factsheet.pdf"
-      )
-
     {:ok, _allocation} =
       Catalog.create_fund_allocation(%{
         security_id: security.id,
@@ -257,9 +276,35 @@ defmodule PortfolixirWeb.DashboardLiveTest do
         allocation_type: "region"
       })
 
+    create_buy_transaction(accounts, security)
+
     {:ok, view, _html} = live(conn, "/")
 
-    assert has_element?(view, "#dashboard-next-step-link[href=\"/reports/fund-allocations\"]")
+    latest_doc = if first_doc.id > second_doc.id, do: first_doc, else: second_doc
+    factsheet_link = "/fund-documents/#{latest_doc.id}/allocations/review"
+
+    assert has_element?(view, ~s(#dashboard-next-step-link[href="/reports/fund-allocations"]))
+    refute has_element?(view, ~s(#dashboard-next-step-link[href="#{factsheet_link}"]))
+    refute has_element?(view, ~s(#dashboard-next-step-link[href="/documents/new"]))
+
+    assert has_element?(view, "#dashboard-experimental-activity")
+    assert has_element?(view, "#dashboard-fund-document-review-link-#{latest_doc.id}")
+  end
+
+  test "manual MVP path can show a visible position without import records", %{conn: conn} do
+    accounts = create_mvp_accounts()
+    security = create_security("MVP-PATH")
+    create_buy_transaction(accounts, security)
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#security-list", "Dashboard MVP-PATH")
+    assert has_element?(view, "#security-list", "MVP-PATH")
+    assert has_element?(view, "#security-list", "1")
+
+    assert Repo.aggregate(ImportSource, :count, :id) == 0
+    assert Repo.aggregate(ImportRun, :count, :id) == 0
+    assert Repo.aggregate(RawImportItem, :count, :id) == 0
   end
 
   test "dashboard does not render raw payloads and does not create records on read", %{conn: conn} do
@@ -412,8 +457,71 @@ defmodule PortfolixirWeb.DashboardLiveTest do
 
     {:ok, _view, html} = live(conn, "/")
 
-    assert html =~ "Portfoliodaten importieren"
+    assert html =~ "Portfolio und Konten einrichten"
     assert html =~ "Der Portfolio-Wert-Chart erscheint hier, sobald Bewertungen verfügbar sind."
+  end
+
+  defp create_mvp_accounts do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "Main portfolio", base_currency_code: "EUR"})
+
+    {:ok, deposit_account} =
+      Portfolios.create_deposit_account(%{
+        portfolio_id: portfolio.id,
+        name: "Settlement cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, securities_account} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        reference_deposit_account_id: deposit_account.id,
+        name: "Main depot",
+        currency_code: "EUR"
+      })
+
+    %{
+      portfolio: portfolio,
+      deposit_account: deposit_account,
+      securities_account: securities_account
+    }
+  end
+
+  defp create_buy_transaction(accounts, security) do
+    {:ok, transaction} =
+      Ledger.create_transaction(%{
+        portfolio_id: accounts.portfolio.id,
+        type: "buy",
+        date: ~D[2026-05-09],
+        currency_code: "EUR",
+        amount: Decimal.new("42"),
+        quantity: Decimal.new("1"),
+        price: Decimal.new("42"),
+        securities_account_id: accounts.securities_account.id,
+        deposit_account_id: accounts.deposit_account.id,
+        security_id: security.id
+      })
+
+    transaction
+  end
+
+  defp create_deposit_transaction(accounts) do
+    {:ok, transaction} =
+      Ledger.create_transaction(%{
+        portfolio_id: accounts.portfolio.id,
+        type: "deposit",
+        date: ~D[2026-05-09],
+        currency_code: "EUR",
+        amount: Decimal.new("42"),
+        deposit_account_id: accounts.deposit_account.id
+      })
+
+    transaction
+  end
+
+  defp html_position!(html, marker) do
+    {position, _length} = :binary.match(html, marker)
+    position
   end
 
   defp create_import_source(attrs) do
