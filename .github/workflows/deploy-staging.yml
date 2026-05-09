@@ -1,0 +1,31 @@
+name: Deploy staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_digest:
+        description: "Reviewed image digest, for example sha256:..."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  staging-handoff:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Validate digest input
+        run: |
+          case "${{ inputs.image_digest }}" in
+            sha256:*) ;;
+            *) echo "image_digest must start with sha256:" && exit 1 ;;
+          esac
+
+      - name: Record staging deployment handoff
+        run: |
+          echo "Target: portfolixir-staging.home.arpa"
+          echo "Image: ghcr.io/peshay/portfolixir@${{ inputs.image_digest }}"
+          echo "Scotty-owned deploy-agent should pull this exact digest with deploy/compose.yml."

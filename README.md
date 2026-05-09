@@ -80,6 +80,11 @@ deployment should use reviewed container image digests, staging review, and
 explicit production promotion. The foundation does not claim production
 readiness.
 
+The deployment scaffolding is documented in
+[docs/deployment.md](docs/deployment.md). Local development continues to use the
+root `docker-compose.yml`; runtime deployments use `deploy/compose.yml` with a
+reviewed GHCR image digest.
+
 ## Quality Gate
 
 Run these before opening a PR:
