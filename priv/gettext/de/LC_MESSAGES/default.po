@@ -1238,3 +1238,111 @@ msgstr "Portfoliostatistiken"
 #, elixir-autogen, elixir-format
 msgid "Portfolio value chart"
 msgstr "Portfolio-Wert-Diagramm"
+
+#, elixir-autogen, elixir-format
+msgid "Set up portfolio and accounts"
+msgstr "Portfolio und Konten einrichten"
+
+#, elixir-autogen, elixir-format
+msgid "Track portfolio data manually first: setup, securities, transactions, then read-only reports."
+msgstr "Erfasse Portfoliodaten zuerst manuell: Einrichtung, Wertpapiere, Buchungen und danach Read-only-Berichte."
+
+#, elixir-autogen, elixir-format
+msgid "Follow the manual MVP path before testing imports or document workflows."
+msgstr "Folge dem manuellen MVP-Pfad, bevor du Import- oder Dokument-Workflows testest."
+
+#, elixir-autogen, elixir-format
+msgid "Manual MVP path"
+msgstr "Manueller MVP-Pfad"
+
+#, elixir-autogen, elixir-format
+msgid "Use this order for a first portfolio: setup, securities, transactions, then reports and charts."
+msgstr "Nutze diese Reihenfolge für ein erstes Portfolio: Einrichtung, Wertpapiere, Buchungen, danach Berichte und Charts."
+
+#, elixir-autogen, elixir-format
+msgid "1. Set up portfolio and tracking accounts"
+msgstr "1. Portfolio und Verfolgungskonten einrichten"
+
+#, elixir-autogen, elixir-format
+msgid "2. Add securities"
+msgstr "2. Wertpapiere hinzufügen"
+
+#, elixir-autogen, elixir-format
+msgid "3. Record buy transactions"
+msgstr "3. Kaufbuchungen erfassen"
+
+#, elixir-autogen, elixir-format
+msgid "4. Review reports and charts"
+msgstr "4. Berichte und Charts ansehen"
+
+#, elixir-autogen, elixir-format
+msgid "Real counts from the manual tracking workflow."
+msgstr "Echte Zählwerte aus dem manuellen Tracking-Workflow."
+
+#, elixir-autogen, elixir-format
+msgid "Portfolios"
+msgstr "Portfolios"
+
+#, elixir-autogen, elixir-format
+msgid "Tracked portfolios"
+msgstr "Verfolgte Portfolios"
+
+#, elixir-autogen, elixir-format
+msgid "Tracking accounts"
+msgstr "Verfolgungskonten"
+
+#, elixir-autogen, elixir-format
+msgid "Cash and securities accounts"
+msgstr "Geld- und Depotkonten"
+
+#, elixir-autogen, elixir-format
+msgid "Add your first security"
+msgstr "Erstes Wertpapier hinzufügen"
+
+#, elixir-autogen, elixir-format
+msgid "Record a buy transaction"
+msgstr "Kaufbuchung erfassen"
+
+#, elixir-autogen, elixir-format
+msgid "Review reports and charts"
+msgstr "Berichte und Charts ansehen"
+
+#, elixir-autogen, elixir-format
+msgid "Experimental"
+msgstr "Experimentell"
+
+#, elixir-autogen, elixir-format
+msgid "Experimental imports"
+msgstr "Experimentelle Importe"
+
+#, elixir-autogen, elixir-format
+msgid "Imports (experimental)"
+msgstr "Importe (experimentell)"
+
+#, elixir-autogen, elixir-format
+msgid "Experimental import and document activity"
+msgstr "Experimentelle Import- und Dokumentaktivität"
+
+#, elixir-autogen, elixir-format
+msgid "Optional import workflow activity; not required for the manual MVP path."
+msgstr "Optionale Import-Workflow-Aktivität; für den manuellen MVP-Pfad nicht erforderlich."
+
+#, elixir-autogen, elixir-format
+msgid "Optional import runs appear here when you test experimental import flows."
+msgstr "Optionale Importläufe erscheinen hier, wenn du experimentelle Import-Flows testest."
+
+#, elixir-autogen, elixir-format
+msgid "Open experimental imports"
+msgstr "Experimentelle Importe öffnen"
+
+#, elixir-autogen, elixir-format
+msgid "Optional document workflow activity; not required for the manual MVP path."
+msgstr "Optionale Dokument-Workflow-Aktivität; für den manuellen MVP-Pfad nicht erforderlich."
+
+#, elixir-autogen, elixir-format
+msgid "Optional factsheet uploads appear here when you test experimental document flows."
+msgstr "Optionale Factsheet-Uploads erscheinen hier, wenn du experimentelle Dokument-Flows testest."
+
+#, elixir-autogen, elixir-format
+msgid "Open experimental factsheet upload"
+msgstr "Experimentellen Factsheet-Upload öffnen"
