@@ -1,7 +1,8 @@
 import Config
 
 config :portfolixir,
-  ecto_repos: [Portfolixir.Repo]
+  ecto_repos: [Portfolixir.Repo],
+  market_data_provider: {Portfolixir.MarketData.YahooFinanceProvider, %{}}
 
 config :portfolixir, PortfolixirWeb.Endpoint,
   render_errors: [
