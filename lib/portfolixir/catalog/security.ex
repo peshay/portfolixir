@@ -14,6 +14,7 @@ defmodule Portfolixir.Catalog.Security do
     field(:active, :boolean, default: true)
     field(:exchange_code, :string)
     field(:provider_symbol, :string)
+    field(:provider_source, :string)
     field(:isin, :string)
     field(:wkn, :string)
     field(:notes, :string)
@@ -43,6 +44,7 @@ defmodule Portfolixir.Catalog.Security do
       :active,
       :exchange_code,
       :provider_symbol,
+      :provider_source,
       :isin,
       :wkn,
       :currency_code,
