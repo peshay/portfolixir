@@ -1,6 +1,8 @@
 defmodule PortfolixirWeb.DashboardLive do
   use PortfolixirWeb, :live_view
 
+  import Ecto.Query, only: [from: 2]
+
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports
@@ -18,6 +20,7 @@ defmodule PortfolixirWeb.DashboardLive do
     securities_accounts_count = count_records(SecuritiesAccount)
     securities_count = count_records(Security)
     transactions_count = count_records(Transaction)
+    buy_transactions_count = count_buy_transactions()
     recent_import_runs = Imports.list_recent_import_runs(@dashboard_recent_limit)
     recent_fund_documents = Catalog.list_recent_fund_documents(@dashboard_recent_limit)
 
@@ -35,7 +38,7 @@ defmodule PortfolixirWeb.DashboardLive do
            deposit_accounts_count,
            securities_accounts_count,
            securities_count,
-           transactions_count
+           buy_transactions_count
          )
      )}
   end
@@ -380,5 +383,10 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp count_records(schema_module) do
     Repo.aggregate(schema_module, :count, :id)
+  end
+
+  defp count_buy_transactions do
+    from(t in Transaction, where: t.type == "buy")
+    |> Repo.aggregate(:count, :id)
   end
 end

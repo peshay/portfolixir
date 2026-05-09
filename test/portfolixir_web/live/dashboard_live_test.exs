@@ -95,6 +95,19 @@ defmodule PortfolixirWeb.DashboardLiveTest do
     assert has_element?(view, "#dashboard-primary-action", "Review reports and charts")
   end
 
+  test "dashboard keeps prompting for a buy transaction when only deposits exist", %{conn: conn} do
+    accounts = create_mvp_accounts()
+    _security = create_security("DEP-ONLY")
+    create_deposit_transaction(accounts)
+
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(view, "#dashboard-next-step-link[href=\"/transactions\"]")
+    assert has_element?(view, "#dashboard-primary-action", "Record a buy transaction")
+    refute has_element?(view, "#dashboard-primary-action", "Review reports and charts")
+    assert Repo.aggregate(Transaction, :count, :id) == 1
+  end
+
   test "dashboard recent import runs empty state has deterministic accessible status semantics",
        %{
          conn: conn
@@ -487,6 +500,20 @@ defmodule PortfolixirWeb.DashboardLiveTest do
         securities_account_id: accounts.securities_account.id,
         deposit_account_id: accounts.deposit_account.id,
         security_id: security.id
+      })
+
+    transaction
+  end
+
+  defp create_deposit_transaction(accounts) do
+    {:ok, transaction} =
+      Ledger.create_transaction(%{
+        portfolio_id: accounts.portfolio.id,
+        type: "deposit",
+        date: ~D[2026-05-09],
+        currency_code: "EUR",
+        amount: Decimal.new("42"),
+        deposit_account_id: accounts.deposit_account.id
       })
 
     transaction
