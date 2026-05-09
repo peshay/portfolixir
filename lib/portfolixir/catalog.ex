@@ -96,6 +96,37 @@ defmodule Portfolixir.Catalog do
     |> Repo.insert()
   end
 
+  def create_security_with_quotes(security_attrs, quote_attrs_list)
+      when is_map(security_attrs) and is_list(quote_attrs_list) do
+    Repo.transaction(fn ->
+      case create_security(security_attrs) do
+        {:ok, security} ->
+          Enum.each(quote_attrs_list, fn quote_attrs ->
+            attrs =
+              quote_attrs
+              |> Map.put(:security_id, security.id)
+              |> ensure_quote_field(:currency_code, security.currency_code)
+              |> ensure_quote_field(:source, security.provider_source || "provider")
+
+            case upsert_security_quote(attrs) do
+              {:ok, _quote} -> :ok
+              {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
+            end
+          end)
+
+          security
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+    |> case do
+      {:ok, security} -> {:ok, security}
+      {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   def create_security_quote(attrs) when is_map(attrs) do
     %SecurityQuote{}
     |> SecurityQuote.changeset(attrs)
@@ -289,6 +320,14 @@ defmodule Portfolixir.Catalog do
   end
 
   def seed_mvp_currencies!, do: ensure_mvp_currencies!()
+
+  defp ensure_quote_field(attrs, field, fallback) do
+    case Map.get(attrs, field) do
+      nil -> Map.put(attrs, field, fallback)
+      "" -> Map.put(attrs, field, fallback)
+      _value -> attrs
+    end
+  end
 
   defp maybe_filter_from(query, %Date{} = from_date) do
     where(query, [sq], sq.date >= ^from_date)
