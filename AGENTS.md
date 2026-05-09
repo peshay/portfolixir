@@ -4,16 +4,18 @@ These instructions apply to all AI coding agents working on Portfolixir.
 
 ## Project goal
 
-Build Portfolixir: a self-hosted Elixir/Phoenix portfolio analytics and wealth graph platform.
+Build Portfolixir: a self-hosted Elixir/Phoenix portfolio analytics and wealth graph platform
+for local, auditable portfolio modelling.
 
-The initial milestone is:
+The current MVP path is intentionally narrow. Build in this order unless a story says otherwise:
 
-- category/taxonomy management with descriptions
-- security creation with symbol/currency/exchange metadata
-- buy transaction history
-- position calculation from transaction history
-- simple quote lookup via symbol and provider candidates
-- portfolio valuation in base currency
+1. securities workbench and security master data;
+2. portfolio, depot/securities account, and linked cash-account setup;
+3. manual buy/sell transaction entry with deterministic Decimal calculations;
+4. quote history, valuations, and charts over stored data.
+
+Import, document, broker, bank, payment, trading, order, rebalance, and production-readiness work
+is deferred unless a story explicitly scopes a safe, read-only or mocked slice.
 
 ## Hard rules
 
@@ -23,16 +25,17 @@ The initial milestone is:
 - Do not add adjacent features.
 - Do not silently change architecture decisions.
 - Do not commit real financial data.
-- Do not add real account numbers, wallet addresses, broker statements, customer names or private
+- Do not add real account numbers, wallet addresses, broker statements, personal names, or private
   portfolio files.
 - Use synthetic fixtures only.
-- Do not make network calls in tests.
-- Use provider behaviours and mocks for market data.
+- Do not make external network calls in tests.
+- Use provider behaviours, fakes, or mocks for market data.
 - Never create atoms from external input with `String.to_atom/1`.
 - Use explicit whitelists or strings for external values.
-- Use `Decimal` for money, quantities, prices and FX rates.
+- Use `Decimal` for money, quantities, prices, and FX rates.
 - Do not use floats for persisted financial values.
 - Do not implement write-capable LLM/MCP tools in the MVP.
+- Do not add broker, banking, trading, payment, order, or rebalance actions.
 - Do not claim production readiness.
 
 ## Preferred architecture
@@ -57,26 +60,34 @@ Every story must include tests.
 
 Minimum test types:
 
-- contexts: unit/integration tests using `DataCase`
-- API endpoints: `ConnCase`
-- LiveView: `Phoenix.LiveViewTest` when UI is part of the story
-- market providers: behaviours + Mox/fakes, no real HTTP in tests
-- calculations: deterministic fixtures and explicit expected values
+- contexts: unit/integration tests using `DataCase`;
+- API endpoints: `ConnCase`;
+- LiveView: `Phoenix.LiveViewTest` when UI is part of the story;
+- market providers: behaviours plus fakes or Mox-style mocks, no real HTTP in tests;
+- calculations: deterministic fixtures and explicit expected values.
 
-For financial calculations, tests must include exact Decimal expectations where practical.
+For financial calculations, tests must include exact `Decimal` expectations where practical.
 
-## Coverage goal
+## Required local quality gate
 
-The long-term goal is 100% meaningful coverage for domain, importer and calculation modules.
-Generated Phoenix boilerplate may be excluded only if documented.
-
-## Quality gate
-
-Run these whenever available:
+Run the required local checks before opening a PR:
 
 ```bash
 mix format
 mix test
+pre-commit run --all-files
+```
+
+If pre-commit is not installed yet, either install it with `pre-commit install --install-hooks`
+or run the repository public-artifact guard directly through the documented replacement command
+in `CONTRIBUTING.md`.
+
+## Optional heavy checks
+
+These checks are useful when the story touches riskier areas, but they are optional unless a story
+or PR reviewer asks for them:
+
+```bash
 mix coveralls
 mix credo --strict
 mix dialyzer
@@ -84,13 +95,14 @@ mix sobelow
 mix deps.audit
 ```
 
-If a tool is not yet configured, do not configure unrelated tools unless the story asks for it.
+If a tool is not configured, do not configure it unless the story asks for that work.
 
 ## Story workflow
 
 For each story:
 
-1. Read the story and acceptance criteria.
+1. Read the user-visible problem, expected behavior, affected route or surface, severity,
+   acceptance criteria, and non-goals.
 2. Add or update tests first.
 3. Run tests and confirm they fail for the expected reason.
 4. Implement the smallest code change.
@@ -100,19 +112,18 @@ For each story:
 
 ## Scope lock
 
-If you discover a larger design issue, create a follow-up note instead of solving it
-opportunistically.
+If you discover a larger design issue, create a follow-up note instead of solving it opportunistically.
 
 ## Security boundaries
 
 This project handles sensitive financial data. For the MVP:
 
-- no external LLM calls from the app
-- no market-data network calls in tests
-- no stored API keys in source
-- no `.env` writing from the web UI
-- no bank, broker or wallet signing actions
-- no automatic trading/payment functionality
+- no external LLM calls from the app;
+- no market-data network calls in tests;
+- no stored API keys in source;
+- no `.env` writing from the web UI;
+- no real bank, broker, wallet, payment, order, trading, or rebalance action;
+- no automatic trading/payment functionality.
 
 ## Naming
 
