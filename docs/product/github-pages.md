@@ -1,15 +1,43 @@
 # GitHub Pages setup
 
-Portfolixir includes a minimal static landing page foundation under `docs/`.
+Portfolixir includes a minimal static product page under `docs/`. GitHub Pages
+publishes that folder without a docs generator, analytics, or tracking scripts.
+
+## Page responsibilities
+
+- Keep the public product overview short and static.
+- Link readers back to repository documentation for setup, contribution, and
+  deeper product notes.
+- Avoid claims that Portfolixir is production-ready or safe for real-money use.
+- Leave screenshots as placeholders until real, sanitized product images are
+  committed.
 
 ## Included files
 
 - `docs/index.html`
 - `docs/styles.css`
 - `docs/.nojekyll`
-- `docs/CNAME` (required when publishing from the `docs/` folder on a branch)
+- `docs/CNAME`
+- `docs/assets/logo-wordmark.svg`
 
 The page is intentionally static and does not change Phoenix runtime behavior.
+
+## Domains and canonical behavior
+
+| Purpose | Domain | Status | Notes |
+| --- | --- | --- | --- |
+| Current GitHub Pages custom domain | `portfolixir.dev` | Active target | Must match `docs/CNAME` exactly. |
+| Preferred product/docs domain | `portfolixir.dev` | Preferred canonical | Keep product overview and docs links canonical here unless a later product decision changes it. |
+| Future aliases | `www.portfolixir.dev`, `portfolixir.app`, `portfolixir.com`, `portfolixir.cloud`, `portfolixir.de` | Reserved / optional | If used later, redirect to the canonical product domain instead of serving divergent content. |
+
+Canonical rules:
+
+- Public copy should link to `https://portfolixir.dev/` for the product page.
+- Repository docs should link to source files on GitHub when pointing outside the
+  static page bundle.
+- Future alias domains should use HTTP redirects to the canonical product domain.
+- Do not publish duplicate independent landing pages with different canonical
+  product claims.
 
 ## Manual GitHub + DNS checklist
 
@@ -24,13 +52,16 @@ The page is intentionally static and does not change Phoenix runtime behavior.
 9. Do **not** use wildcard DNS records.
 10. After certificate provisioning, enable **Enforce HTTPS** in GitHub Pages.
 
-## Follow-up domain strategy
+## CNAME requirements
 
-- Keep `portfolixir.app`, `portfolixir.com`, `portfolixir.cloud`, and `portfolixir.de` reserved for later redirect/canonical work.
-- If the Pages publishing mode changes to GitHub Actions later, re-check whether `docs/CNAME` is still needed.
+- `docs/CNAME` must contain only the active custom domain.
+- Keep the file in `docs/` while Pages publishes from the branch `/docs` folder.
+- Re-check this requirement if publishing moves to a GitHub Actions workflow.
 
 ## Scope boundaries
 
-- Static site only (no generator/toolchain required).
+- Static site only; no generator or build toolchain.
 - No analytics or tracking scripts.
-- No write-capable broker/trading/payment actions.
+- No legal, tax, or financial advice copy.
+- No write-capable broker, trading, banking, payment, order, or rebalance
+  behavior.
