@@ -204,30 +204,30 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
           <details id="security-column-menu" class="app-shell-column-menu">
             <summary
-              id="security-column-menu-button"
+              id={security_column_menu_button_id()}
               class="app-shell-secondary"
               role="button"
               aria-label={gettext("Choose visible security table columns")}
-              aria-controls="security-column-form"
+              aria-controls={security_column_form_id()}
             >
               <%= gettext("Columns") %>
             </summary>
             <form
-              id="security-column-form"
+              id={security_column_form_id()}
               class="app-shell-column-menu-panel"
               phx-change="set_security_columns"
               data-storage-key={@security_column_storage_key}
-              aria-labelledby="security-column-menu-legend"
+              aria-labelledby={security_column_menu_legend_id()}
             >
               <fieldset>
-                <legend id="security-column-menu-legend"><%= gettext("Visible columns") %></legend>
+                <legend id={security_column_menu_legend_id()}><%= gettext("Visible columns") %></legend>
                 <p class="app-shell-help-text">
                   <%= gettext("Choose which security table columns are shown. Your browser saves the selection locally.") %>
                 </p>
                 <%= for column <- @security_table_columns do %>
-                  <label for={"security-column-#{column.key}"}>
+                  <label for={security_column_input_id(column.key)}>
                     <input
-                      id={"security-column-#{column.key}"}
+                      id={security_column_input_id(column.key)}
                       type="checkbox"
                       name="columns[]"
                       value={column.key}
@@ -1229,7 +1229,15 @@ defmodule PortfolixirWeb.SecurityManagementLive do
     gettext("Edit security for %{name} (%{symbol})", name: security.name, symbol: security.symbol)
   end
 
+  defp security_column_input_id(key), do: "security-column-#{key}"
+
   defp security_column_header_id(key), do: "security-column-header-#{key}"
+
+  defp security_column_form_id, do: "security-column-form"
+
+  defp security_column_menu_button_id, do: "security-column-menu-button"
+
+  defp security_column_menu_legend_id, do: "security-column-menu-legend"
 
   defp security_table_caption_id, do: "security-list-caption"
 
