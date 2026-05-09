@@ -6,11 +6,25 @@ labels: story
 assignees: ''
 ---
 
-## Story
+## Story ID
 
-As a ...
-I want ...
-so that ...
+PFX-XXX
+
+## User-visible problem
+
+What a user, contributor, or maintainer experiences today.
+
+## Expected behavior
+
+What should be true after the story is done.
+
+## Affected route or surface
+
+Examples: `/securities`, `/accounts`, `README.md`, a background job, or an API read endpoint.
+
+## Severity
+
+blocking | annoying | papercut | parked
 
 ## Acceptance criteria
 
@@ -25,11 +39,17 @@ so that ...
 - [ ] Minimal implementation added
 - [ ] Test passes
 
-## Scope lock
+## Non-goals
 
 Do not implement:
 
 - ...
+
+## Required evidence
+
+- [ ] `mix format`
+- [ ] `mix test`
+- [ ] Public-artifact guard or pre-commit check
 
 ## Notes
 
