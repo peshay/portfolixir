@@ -30,7 +30,9 @@ Example environment files:
 - [deploy/production.env.example](../deploy/production.env.example)
 
 Internal Compose deployments set `DATABASE_SSL=false` by default because the app
-and PostgreSQL communicate inside the Compose network.
+and PostgreSQL communicate inside the Compose network. Set `DATABASE_SSL=1`,
+`DATABASE_SSL=true`, or `DATABASE_SSL=yes` only when the database endpoint
+requires TLS.
 
 ## Release Image
 

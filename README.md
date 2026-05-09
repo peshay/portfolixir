@@ -83,7 +83,8 @@ readiness.
 The deployment scaffolding is documented in
 [docs/deployment.md](docs/deployment.md). Local development continues to use the
 root `docker-compose.yml`; runtime deployments use `deploy/compose.yml` with a
-reviewed GHCR image digest.
+reviewed GHCR image digest. Internal Compose examples set `DATABASE_SSL=false`
+because the app and PostgreSQL share a Compose network.
 
 ## Quality Gate
 
