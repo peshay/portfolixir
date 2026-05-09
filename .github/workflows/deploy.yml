@@ -1,0 +1,58 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deployment target"
+        type: choice
+        required: true
+        options:
+          - staging
+          - production
+      image:
+        description: "Immutable image ref: ghcr.io/peshay/portfolixir@sha256:<digest>"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portfolixir-deploy-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.validate.outputs.image }}
+    steps:
+      - name: Validate immutable GHCR digest
+        id: validate
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          if [[ ! "$IMAGE" =~ ^ghcr\.io/peshay/portfolixir@sha256:[0-9a-fA-F]{64}$ ]]; then
+            echo "Image must be ghcr.io/peshay/portfolixir@sha256:<64 hex>" >&2
+            exit 64
+          fi
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  deploy-staging:
+    if: inputs.target == 'staging'
+    needs: validate
+    runs-on: [self-hosted, Linux, X64, portfolixir, portfolixir-staging, deploy-staging]
+    environment: staging
+    steps:
+      - name: Deploy staging
+        run: sudo /usr/local/sbin/portfolixir-deploy '${{ needs.validate.outputs.image }}'
+
+  deploy-production:
+    if: inputs.target == 'production'
+    needs: validate
+    runs-on: [self-hosted, Linux, X64, portfolixir, portfolixir-prod, deploy-prod]
+    environment: production
+    steps:
+      - name: Deploy production
+        run: sudo /usr/local/sbin/portfolixir-deploy '${{ needs.validate.outputs.image }}'
