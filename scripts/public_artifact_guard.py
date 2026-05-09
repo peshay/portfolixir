@@ -30,7 +30,6 @@ PUBLIC_EXTENSIONS = {
 PUBLIC_PREFIXES = (
     ".github/",
     "docs/",
-    "prompts/",
 )
 
 PUBLIC_BASENAMES = (
@@ -43,6 +42,10 @@ PUBLIC_BASENAMES = (
 EXCLUDED_FILES = {
     "scripts/public_artifact_guard.py",
 }
+
+EXCLUDED_PREFIXES = (
+    "prompts/",
+)
 
 LEAK_PATTERNS = [
     (re.compile(r"/home/openclaw/", re.IGNORECASE), "internal path leak: /home/openclaw/"),
@@ -165,6 +168,9 @@ def is_binary(path: Path) -> bool:
 
 def is_public_artifact_file(relative_path: str) -> bool:
     if relative_path in EXCLUDED_FILES:
+        return False
+
+    if any(relative_path.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
         return False
 
     if any(relative_path.startswith(prefix) for prefix in PUBLIC_PREFIXES):
