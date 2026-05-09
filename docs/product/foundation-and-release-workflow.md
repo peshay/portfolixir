@@ -2,11 +2,17 @@
 
 ## 1. Why this document exists
 
-Portfolixir is moving from tiny starter stories into foundation-building work. The early story PRs were useful for establishing the app shell, product structure and small domain surfaces, but the next phase needs larger coherent slices so the core portfolio model can fit together cleanly.
+Portfolixir is moving from tiny starter stories into foundation-building work. The early story PRs
+were useful for establishing the app shell, product structure and small domain surfaces, but the
+next phase needs larger coherent slices so the core portfolio model can fit together cleanly.
 
-The project should still use reviewable pull requests. We do not want one giant unreviewable "clone Portfolio Performance" PR that mixes accounts, transactions, reports, API design, imports and market data. We also do not want to over-fragment the foundation into UI or domain micro-stories that cannot prove meaningful behavior on their own.
+The project should still use reviewable pull requests. We do not want one giant unreviewable "clone
+Portfolio Performance" PR that mixes accounts, transactions, reports, API design, imports and market
+data. We also do not want to over-fragment the foundation into UI or domain micro-stories that
+cannot prove meaningful behavior on their own.
 
-The preferred direction is coherent foundation slices: each PR should have one clear architectural purpose, enough tests to prove the domain behavior, and a scope that can be reviewed in one sitting.
+The preferred direction is coherent foundation slices: each PR should have one clear architectural
+purpose, enough tests to prove the domain behavior, and a scope that can be reviewed in one sitting.
 
 ## 2. Foundation sprint plan
 
@@ -43,7 +49,8 @@ Recommended next sequence:
 
 ## 3. API policy
 
-Every new feature must consider whether an API surface is relevant. For each feature, the implementation PR should choose one of these outcomes:
+Every new feature must consider whether an API surface is relevant. For each feature, the
+implementation PR should choose one of these outcomes:
 
 - Add an API endpoint now.
 - Explicitly defer the API because the domain is unstable.
@@ -56,29 +63,39 @@ API endpoints should be added only when:
 - The JSON shape can be tested.
 - Authentication and security assumptions are documented.
 
-No write API for financial data should be added until the security model is explicit. Portfolixir must also not expose AI or MCP write tools for financial data in the MVP.
+No write API for financial data should be added until the security model is explicit. Portfolixir
+must also not expose AI or MCP write tools for financial data in the MVP.
 
 ## 4. PR size policy
 
 Avoid giant PRs. Prefer coherent foundation slices.
 
-A PR may touch multiple files or layers when those changes implement one coherent foundation slice. For example, a domain migration, context functions and tests may belong together when they define one account or transaction capability.
+A PR may touch multiple files or layers when those changes implement one coherent foundation slice.
+For example, a domain migration, context functions and tests may belong together when they define
+one account or transaction capability.
 
-PRs should be reviewable in one sitting. They must not mix unrelated work such as UI redesign, ledger schema, API endpoints and market-data provider changes in the same pull request.
+PRs should be reviewable in one sitting. They must not mix unrelated work such as UI redesign,
+ledger schema, API endpoints and market-data provider changes in the same pull request.
 
 ## 5. Testing policy
 
-TDD is preferred for domain logic. For foundation work, tests may be written around domain invariants rather than UI user stories when the main value is the correctness of the model.
+TDD is preferred for domain logic. For foundation work, tests may be written around domain
+invariants rather than UI user stories when the main value is the correctness of the model.
 
-All financial quantities, money, prices and FX rates must use `Decimal`. Persisted financial values must not use floats.
+All financial quantities, money, prices and FX rates must use `Decimal`. Persisted financial values
+must not use floats.
 
-Tests must not make live network calls. Tests and fixtures must not contain real financial data, real account numbers, wallet addresses, broker statements, customer names or private portfolio files. Use synthetic fixtures only.
+Tests must not make live network calls. Tests and fixtures must not contain real financial data,
+real account numbers, wallet addresses, broker statements, customer names or private portfolio
+files. Use synthetic fixtures only.
 
 ## 6. Git history and changelog policy
 
-Use Conventional Commits for project history. Each PR should be cleaned before merge into one to three meaningful commits.
+Use Conventional Commits for project history. Each PR should be cleaned before merge into one to
+three meaningful commits.
 
-Rebase merge is acceptable when the commits are meaningful. Squash merge is acceptable for one-change PRs. Avoid noisy WIP commits on `main`.
+Rebase merge is acceptable when the commits are meaningful. Squash merge is acceptable for
+one-change PRs. Avoid noisy WIP commits on `main`.
 
 Supported commit types:
 
@@ -90,7 +107,9 @@ Supported commit types:
 - `chore`
 - `ci`
 
-The future changelog generator candidate is `git-cliff`. Changelog generation should be added in a separate PR, without mixing it into domain work. Release notes should be generated from the Conventional Commit history.
+The future changelog generator candidate is `git-cliff`. Changelog generation should be added in a
+separate PR, without mixing it into domain work. Release notes should be generated from the
+Conventional Commit history.
 
 ## 7. Recommended next implementation PR
 
@@ -98,4 +117,6 @@ Recommended next PR:
 
 `PFX-FND-001: Link securities accounts to reference deposit accounts`
 
-This completes the account foundation needed before transactions can affect the correct cash account. It is still small and reviewable, but it connects the account model to the transaction work that follows.
+This completes the account foundation needed before transactions can affect the correct cash
+account. It is still small and reviewable, but it connects the account model to the transaction work
+that follows.

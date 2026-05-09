@@ -24,7 +24,8 @@ AAPL.SG  Apple Inc. Synthetic Stuttgart   EUR
 TEST.DE  Test ETF Synthetic XETRA         EUR
 ```
 
-These may use real-looking symbols for recognizability, but no real holdings, account numbers or user-specific values may be included.
+These may use real-looking symbols for recognizability, but no real holdings, account numbers or
+user-specific values may be included.
 
 ## Example buy transaction
 
