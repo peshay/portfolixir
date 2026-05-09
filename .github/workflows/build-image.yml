@@ -2,7 +2,7 @@ name: Build image
 
 on:
   push:
-    branches: ["main", "reboot/mvp-foundation"]
+    branches: ["main", "staging", "reboot/mvp-foundation", "fix/reboot-foundation-merge-ready"]
   workflow_dispatch:
 
 permissions:
@@ -34,12 +34,14 @@ jobs:
           context: .
           file: Dockerfile.release
           push: true
-          tags: ghcr.io/peshay/portfolixir:${{ github.sha }}
+          tags: |
+            ghcr.io/peshay/portfolixir:${{ github.sha }}
+            ghcr.io/peshay/portfolixir:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Print immutable image digest
         run: |
-          echo "Image: ghcr.io/peshay/portfolixir@${{ steps.build.outputs.digest }}"
+          echo "Image ref: ghcr.io/peshay/portfolixir@${{ steps.build.outputs.digest }}"
           echo "Digest: ${{ steps.build.outputs.digest }}"

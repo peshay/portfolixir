@@ -3,29 +3,38 @@ name: Deploy production
 on:
   workflow_dispatch:
     inputs:
-      image_digest:
-        description: "Staging-accepted image digest, for example sha256:..."
+      image_ref:
+        description: "Full immutable image ref accepted from staging: ghcr.io/peshay/portfolixir@sha256:<digest>"
         required: true
         type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: portfolixir-deploy-production
+  cancel-in-progress: false
+
 jobs:
-  production-handoff:
-    runs-on: ubuntu-latest
+  deploy-production:
+    runs-on: [self-hosted, Linux, X64, portfolixir, portfolixir-prod, deploy-prod]
     environment: production
 
     steps:
-      - name: Validate digest input
+      - name: Validate immutable image ref
+        env:
+          IMAGE_REF: ${{ inputs.image_ref }}
         run: |
-          case "${{ inputs.image_digest }}" in
-            sha256:*) ;;
-            *) echo "image_digest must start with sha256:" && exit 1 ;;
-          esac
+          if [[ ! "$IMAGE_REF" =~ ^ghcr\.io/peshay/portfolixir@sha256:[0-9a-fA-F]{64}$ ]]; then
+            echo "image_ref must be ghcr.io/peshay/portfolixir@sha256:<64 hex>" >&2
+            exit 64
+          fi
 
-      - name: Record production deployment handoff
+      - name: Deploy production digest
+        run: sudo /usr/local/sbin/portfolixir-deploy '${{ inputs.image_ref }}'
+
+      - name: Record production target
         run: |
-          echo "Target: portfolixir.home.arpa"
-          echo "Image: ghcr.io/peshay/portfolixir@${{ inputs.image_digest }}"
-          echo "Production Environment protection must approve this handoff before use."
+          echo "Environment: production"
+          echo "Target: https://portfolixir.home.arpa"
+          echo "Image: ${{ inputs.image_ref }}"
