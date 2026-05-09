@@ -1,6 +1,6 @@
 # Deployment Scaffolding
 
-Portfolixir reboot deployments are based on reviewed container image digests.
+Portfolixir reboot deployments are based on reviewed immutable digest image refs.
 The digest, not a moving tag, is the reviewed and released artifact.
 
 ## Target Process
@@ -8,13 +8,17 @@ The digest, not a moving tag, is the reviewed and released artifact.
 1. A branch, PR, or Epic passes CI gates.
 2. The image workflow builds `Dockerfile.release`.
 3. The image workflow pushes `ghcr.io/peshay/portfolixir`.
-4. The workflow prints the immutable digest.
-5. Staging pulls `ghcr.io/peshay/portfolixir@sha256:<digest>` through
+4. The workflow prints the full immutable image ref:
+   `ghcr.io/peshay/portfolixir@sha256:<digest>`.
+5. `Deploy` validates that full immutable image ref before dispatching to the
+   selected target.
+6. Staging on `portfolixir-staging.home.arpa` pulls the exact digest through
    `deploy/compose.yml`.
-6. The `/health` check passes.
-7. Andreas reviews staging.
-8. The accepted digest is promoted to production.
-9. Production pulls the exact accepted digest through `deploy/compose.yml`.
+7. The `/health` check passes.
+8. Andreas reviews staging.
+9. The accepted digest is promoted to production.
+10. Production on `portfolixir.home.arpa` pulls the exact accepted digest
+    through `deploy/compose.yml`.
 
 ## Runtime Compose
 
@@ -49,19 +53,28 @@ docker compose --env-file deploy/staging.env -f deploy/compose.yml run --rm \
 
 Use the production environment file for production after staging acceptance.
 
-## Workflow Skeletons
+## Workflows
 
-- `Build image` builds and pushes the GHCR release image and prints the digest.
-- `Deploy staging` records a staging handoff for `portfolixir-staging.home.arpa`.
-- `Deploy production` records a production handoff for `portfolixir.home.arpa`.
+- `Build image` builds `Dockerfile.release`, pushes
+  `ghcr.io/peshay/portfolixir`, and prints the immutable image ref.
+- `Deploy` accepts `target` (`staging` or `production`) and a full immutable
+  image ref such as `ghcr.io/peshay/portfolixir@sha256:<digest>`.
+- `Deploy` validates the image ref before running the target job.
+- Staging runs on the self-hosted runner labels
+  `self-hosted, Linux, X64, portfolixir, portfolixir-staging, deploy-staging`.
+- Production runs on the self-hosted runner labels
+  `self-hosted, Linux, X64, portfolixir, portfolixir-prod, deploy-prod`.
+- The deploy command is `sudo /usr/local/sbin/portfolixir-deploy
+  '<validated-image-ref>'`.
 
 Production environment protection must be enabled in GitHub before the
-production workflow is used. The workflow names the `production` Environment so
+production target is used. The workflow names the `production` Environment so
 repository administrators can require manual approval there.
 
 ## Responsibilities
 
-Scotty owns LXC, DNS, reverse proxy, runner/deploy-agent setup, backups, and rollback.
+Scotty owns LXC, DNS, reverse proxy, runner/deploy-agent setup, deploy script
+setup, backups, rollback, and the supporting infrastructure.
 
 Judy only records, coordinates, or requests deployments. Judy does not need
 Proxmox rights for this process.

@@ -3,15 +3,28 @@ name: Build image
 on:
   push:
     branches: ["main", "reboot/mvp-foundation"]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: portfolixir-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/peshay/portfolixir
+
 jobs:
   build-image:
     runs-on: ubuntu-latest
+
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      image: ${{ steps.ref.outputs.image_ref }}
 
     steps:
       - name: Checkout
@@ -27,6 +40,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=release-${{ github.event.release.tag_name }},enable=${{ github.event_name == 'release' }}
+
       - name: Build and push release image
         id: build
         uses: docker/build-push-action@v6
@@ -34,12 +57,13 @@ jobs:
           context: .
           file: Dockerfile.release
           push: true
-          tags: ghcr.io/peshay/portfolixir:${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Print immutable image digest
+      - name: Print immutable image ref
+        id: ref
         run: |
-          echo "Image: ghcr.io/peshay/portfolixir@${{ steps.build.outputs.digest }}"
+          IMAGE_REF="ghcr.io/peshay/portfolixir@${{ steps.build.outputs.digest }}"
+          echo "Immutable image ref: ${IMAGE_REF}"
           echo "Digest: ${{ steps.build.outputs.digest }}"
+          echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
