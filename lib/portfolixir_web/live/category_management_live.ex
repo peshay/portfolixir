@@ -57,7 +57,7 @@ defmodule PortfolixirWeb.CategoryManagementLive do
             <h2 class="app-shell-section-title"><%= gettext("Classification workbench") %></h2>
             <p><%= gettext("Tree/details layout with explicit placeholder views.") %></p>
           </div>
-          <div class="app-shell-form-actions" role="group" aria-label={gettext("View mode")}> 
+          <div class="app-shell-form-actions" role="group" aria-label={gettext("View mode")}>
             <button id="classification-view-list" type="button" class="app-shell-secondary" disabled>
               <%= gettext("List") %>
             </button>
