@@ -54,37 +54,37 @@ mix test
 pre-commit run --all-files
 ```
 
-If pre-commit is not installed, install it once:
+Install the pre-commit hooks once per checkout:
 
 ```bash
 pre-commit install --install-hooks
 ```
 
+The hooks are small repo hygiene checks, not activity tracking. They run on your local files to catch
+formatting drift, whitespace issues, YAML mistakes, mixed line endings, Markdown readability issues,
+and public-artifact leaks before CI repeats the same guardrails.
+
 The CI test job runs the same formatting and test expectations with `mix format --check-formatted`,
-database setup, `MIX_ENV=test mix test`, and a coverage-floor check.
+database setup, `MIX_ENV=test mix test`, and a coverage-floor check. The CI quality-gates job runs
+`pre-commit run --all-files` so local and CI public-artifact checks stay aligned.
 
-## Optional heavy checks
+## Pre-commit quality gates
 
-Run these when the touched area is risky or a reviewer asks for them:
+The local pre-commit setup runs these checks:
 
-```bash
-mix coveralls
-mix credo --strict
-mix dialyzer
-mix sobelow
-mix deps.audit
-```
+- standard whitespace, end-of-file, YAML, and mixed-line-ending hooks;
+- `mix format --check-formatted` for Elixir-compatible formatting feedback;
+- `scripts/public_artifact_guard.py` for public docs, workflow text, Markdown line sanity,
+  commit metadata, PR body text, and obvious secret patterns;
+- `scripts/test_public_artifact_guard.py` so changes to the guard keep its documented leak checks covered.
 
-These are not mandatory for every local contribution unless the story or review explicitly
-requires them.
-Do not add or configure a missing heavy tool as drive-by work.
-
-## Public artifact guard
-
-This repository enforces a local and CI guard for GitHub-visible text artifacts.
+Useful examples:
 
 ```bash
 pre-commit run --all-files
+pre-commit run public-artifact-guard --all-files
+pre-commit run public-artifact-guard-tests --all-files
+python3 scripts/public_artifact_guard.py --text "Story: PFX-123" --label example
 ```
 
 Replacement command if pre-commit is unavailable:
@@ -100,6 +100,26 @@ If the guard fails:
 2. Replace literal escaped backslash-n sequences with real line breaks in public-facing text,
    templates, or scripts.
 3. Rerun the guard until it passes.
+
+## Optional and future heavy checks
+
+Run these when the touched area is risky or a reviewer asks for them:
+
+```bash
+mix coveralls
+```
+
+These are useful future gates once they are deliberately configured for the project:
+
+```bash
+mix credo --strict
+mix dialyzer
+mix sobelow
+mix deps.audit
+```
+
+They are not mandatory for every local contribution unless the story or review explicitly requires
+them. Do not add or configure a missing heavy tool as drive-by work.
 
 ## Public commit and merge metadata
 
