@@ -15,9 +15,11 @@ The seeded reference currencies are:
 - DKK
 - NOK
 
-This setup is idempotent. Running `Portfolixir.Catalog.ensure_mvp_currencies!/0` or `mix run priv/repo/seeds.exs` multiple times does not duplicate currencies.
+This setup is idempotent. Running `Portfolixir.Catalog.ensure_mvp_currencies!/0` or `mix run
+priv/repo/seeds.exs` multiple times does not duplicate currencies.
 
-Docker development startup runs migrations and then `mix run priv/repo/seeds.exs`, so a fresh local Docker setup can create portfolios, securities and accounts without a manual currency setup step.
+Docker development startup runs migrations and then `mix run priv/repo/seeds.exs`, so a fresh local
+Docker setup can create portfolios, securities and accounts without a manual currency setup step.
 
 ## Supported Languages
 
@@ -30,7 +32,8 @@ Locale selection order:
 3. Browser `Accept-Language`
 4. English fallback
 
-The app shell exposes a `DE` / `EN` toggle. Selecting a language stores the locale in a cookie. Theme selection remains independent and continues to use local storage.
+The app shell exposes a `DE` / `EN` toggle. Selecting a language stores the locale in a cookie.
+Theme selection remains independent and continues to use local storage.
 
 ## German Portfolio Performance Terminology
 
@@ -63,7 +66,8 @@ Important page titles:
 | `/transactions` | Transactions | Buchungen |
 | `/taxonomies` | Classifications | Klassifizierungen |
 
-Transaction type labels are localized in the UI while stored transaction type values remain the existing English strings:
+Transaction type labels are localized in the UI while stored transaction type values remain the
+existing English strings:
 
 | Stored value | German label |
 | --- | --- |
@@ -92,7 +96,9 @@ The action creates missing taxonomy systems only:
 - Branchen
 - Wertpapierarten
 
-The current taxonomy schema has a single `name` field, so the preset names are German to support the primary Portfolio Performance comparison experience. The action intentionally creates empty taxonomies only; users define their own categories.
+The current taxonomy schema has a single `name` field, so the preset names are German to support the
+primary Portfolio Performance comparison experience. The action intentionally creates empty
+taxonomies only; users define their own categories.
 
 ## Intentionally Not Included
 

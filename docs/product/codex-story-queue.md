@@ -1,7 +1,8 @@
 # Codex Story Queue
 
 ## Purpose
-Portfolixir tracks implementation stories through a project workflow board and hands work off through pull requests.
+Portfolixir tracks implementation stories through a project workflow board and hands work off
+through pull requests.
 This note keeps only contributor-facing guidance.
 
 ## One-card implementation flow
@@ -33,4 +34,5 @@ Keep PR artifacts concise and repo-facing:
 Do not include private runtime, workspace, or internal workflow details.
 
 ## Fix-cycle flow
-If review requests fixes, continue on the existing PR branch, apply only requested fixes, rerun gates, push, and hand back to review.
+If review requests fixes, continue on the existing PR branch, apply only requested fixes, rerun
+gates, push, and hand back to review.

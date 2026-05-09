@@ -110,4 +110,5 @@ fx_rates
 - Use string enums or explicit Ecto enums for external values.
 - Do not create atoms from provider input.
 - Persist raw provider responses only in safe JSON fields.
-- Calculated positions and valuations may be materialized later, but must be derivable from the canonical ledger.
+- Calculated positions and valuations may be materialized later, but must be derivable from the
+  canonical ledger.

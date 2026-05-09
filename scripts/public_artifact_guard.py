@@ -46,10 +46,14 @@ EXCLUDED_FILES = {
 
 LEAK_PATTERNS = [
     (re.compile(r"/home/openclaw/", re.IGNORECASE), "internal path leak: /home/openclaw/"),
+    (re.compile(r"/Users/[A-Za-z0-9._-]+/", re.IGNORECASE), "local user path leak"),
     (re.compile(r"\.openclaw", re.IGNORECASE), "internal runtime marker leak: .openclaw"),
     (re.compile(r"agent:[A-Za-z0-9:_-]+"), "internal session identifier leak"),
     (re.compile(r"\bclaw-code\d+\b", re.IGNORECASE), "private host metadata leak"),
 ]
+
+MAX_PUBLIC_LINE_LENGTH = 220
+MAX_PUBLIC_AVERAGE_LINE_LENGTH = 120
 
 TRACE_METADATA_PATTERNS = [
     (re.compile(r"\[Subagent Context\]", re.IGNORECASE), "subagent transcript marker leak"),
@@ -101,6 +105,42 @@ DISALLOWED_WORKER_MODELS = {
     "openai-codex/gpt-5.4-mini",
 }
 WORKER_FOOTER_PATTERN = re.compile(r"(?im)^[ \t]*Worker-(Model|Thinking)\s*:\s*(.+?)\s*$")
+
+
+def is_allowed_long_url_line(line: str) -> bool:
+    stripped = line.strip()
+
+    return "http://" in stripped or "https://" in stripped
+
+
+def readability_violations(label: str, text: str) -> list[str]:
+    violations: list[str] = []
+
+    if "\\n" in text:
+        violations.append(f"{label}: contains literal escaped newline \\n in public artifact text; use real line breaks")
+
+    lines = text.splitlines()
+    measured_lengths: list[int] = []
+
+    for index, line in enumerate(lines, start=1):
+        if not line.strip() or is_allowed_long_url_line(line):
+            continue
+
+        measured_lengths.append(len(line))
+
+        if len(line) > MAX_PUBLIC_LINE_LENGTH:
+            violations.append(
+                f"{label}:{index}: line is {len(line)} characters; wrap public artifact text"
+            )
+
+    if measured_lengths:
+        average_length = sum(measured_lengths) / len(measured_lengths)
+        if average_length > MAX_PUBLIC_AVERAGE_LINE_LENGTH:
+            violations.append(
+                f"{label}: average line length is {average_length:.1f}; use readable line breaks"
+            )
+
+    return violations
 
 
 def git_tracked_files() -> list[Path]:
@@ -235,10 +275,7 @@ def check_commit_metadata(commit_range: str) -> list[str]:
 
 
 def check_text_artifact(label: str, text: str) -> list[str]:
-    violations: list[str] = []
-
-    if "\\n" in text:
-        violations.append(f"{label}: contains literal escaped newline \\n in public artifact text; use real line breaks")
+    violations: list[str] = readability_violations(label, text)
 
     for regex, reason in [
         *LEAK_PATTERNS,
@@ -276,12 +313,9 @@ def main() -> int:
         except UnicodeDecodeError:
             content = file_path.read_text(encoding="utf-8", errors="ignore")
 
-        if is_public_artifact_file(relative) and "\\n" in content:
-            violations.append(
-                f"{relative}: contains literal escaped newline \\n in public artifact text; use real line breaks"
-            )
-
         if is_public_artifact_file(relative):
+            violations.extend(readability_violations(relative, content))
+
             for regex, reason in [*LEAK_PATTERNS, *TRACE_METADATA_PATTERNS, *PRIVATE_OBJECT_ID_PATTERNS]:
                 if regex.search(content):
                     violations.append(f"{relative}: {reason}")

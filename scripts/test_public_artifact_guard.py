@@ -90,6 +90,25 @@ class TextArtifactScanTest(unittest.TestCase):
         self.assertIn("internal agent metadata footer", joined)
         self.assertIn("private runtime metadata footer", joined)
 
+    def test_text_artifact_blocks_escaped_newline_markers(self) -> None:
+        text = "Heading\\nBody that should have used real line breaks"
+        violations = public_artifact_guard.check_text_artifact("pr-body", text)
+        self.assertIn("literal escaped newline", "\n".join(violations))
+
+    def test_text_artifact_blocks_extreme_average_line_length(self) -> None:
+        text = "This public artifact is an unreadable blob. " * 20
+        violations = public_artifact_guard.check_text_artifact("pr-body", text)
+        self.assertIn("average line length", "\n".join(violations))
+
+    def test_text_artifact_allows_long_url_lines(self) -> None:
+        text = "https://example.com/" + "a" * 260
+        self.assertEqual(public_artifact_guard.check_text_artifact("pr-body", text), [])
+
+    def test_text_artifact_blocks_local_user_paths(self) -> None:
+        text = "Prototype was read from /Users/example/Downloads/archive.zip"
+        violations = public_artifact_guard.check_text_artifact("pr-body", text)
+        self.assertIn("local user path leak", "\n".join(violations))
+
     def test_text_artifact_accepts_sanitized_text(self) -> None:
         text = "Story: PFX-DEV-004\nSummary: harden metadata leak guard"
         self.assertEqual(public_artifact_guard.check_text_artifact("pr-body", text), [])
