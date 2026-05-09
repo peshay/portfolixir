@@ -101,10 +101,18 @@ pre-commit run --all-files
 ```
 
 Development keeps the user story, TDD, and user documentation together. For each
-user-visible story, write the story as a comment in the relevant test file, add
-the functional test directly below it, confirm the test fails, implement the
-smallest change, then review and update user documentation when visible behavior
-changed.
+user-visible story, follow this order:
+
+1. User Story documented.
+2. Functional test written directly below the User Story comment.
+3. Test failure confirmed for the expected reason.
+4. Smallest implementation code written.
+5. Required gates run.
+6. User documentation reviewed and updated when visible behavior changed.
+
+Future MVP functionality is added through human-reviewed Epics on staging.
+See [docs/development/story-workflow.md](docs/development/story-workflow.md)
+for the full story, test, implementation, and documentation process.
 
 Install pre-commit once per checkout:
 

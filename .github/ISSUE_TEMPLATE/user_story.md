@@ -18,7 +18,7 @@ What a user, contributor, or maintainer experiences today.
 
 What should be true after the story is done.
 
-## Affected route or surface
+## Affected screen/route/surface
 
 Examples: `/securities`, `/portfolios`, `/transactions`, or `README.md`.
 
@@ -57,7 +57,13 @@ Do not implement:
 - [ ] `mix format`
 - [ ] `mix test`
 - [ ] `pre-commit run --all-files`
+- [ ] Story comment evidence
+- [ ] Test-first evidence
 - [ ] Documentation review note
+
+## Done condition
+
+What must be true for this story to be complete and reviewable.
 
 ## Notes
 

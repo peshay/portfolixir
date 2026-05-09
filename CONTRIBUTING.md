@@ -59,18 +59,18 @@ app.
 
 ## Development Workflow
 
-1. Pick one story.
-2. Confirm expected behavior and non-goals.
-3. Write the user story as a comment in the relevant test file.
-4. Write the functional test directly below the user story comment.
-5. Run the test and confirm the expected failure.
-6. Implement the smallest change that fulfills the story and test.
-7. Review user documentation against the implemented behavior.
-8. Update user documentation when the story changes visible behavior. For
-   background-only changes, record that user documentation was reviewed and no
-   update was needed.
-9. Run the required local checks.
-10. Open a PR with a short summary, documentation note, and commands run.
+Each user-visible story must move in this order:
+
+1. User Story documented.
+2. Functional test written directly below the User Story comment.
+3. Test failure confirmed for the expected reason.
+4. Smallest implementation code written.
+5. Required gates run.
+6. User documentation reviewed and updated when visible behavior changed.
+
+Open a PR with a short summary, story-comment evidence, test-first evidence,
+documentation review note, and commands run. Future MVP functionality is added
+through human-reviewed Epics on staging before production promotion.
 
 ## Story And Test Format
 
@@ -103,6 +103,9 @@ User documentation moves with user-visible behavior. For each story:
 - update docs when routes, workflows, labels, setup, or visible behavior change;
 - leave docs unchanged for internal-only changes only after explicitly reviewing
   them.
+
+The detailed story workflow lives in
+[docs/development/story-workflow.md](docs/development/story-workflow.md).
 
 ## Required Local Checks
 
