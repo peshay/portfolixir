@@ -1496,16 +1496,29 @@ defmodule PortfolixirWeb.AppShell do
 
             <div class="app-shell-nav-group">
               <p class="app-shell-nav-group-title"><%= gettext("Securities") %></p>
-              <a
-                id="nav-securities"
-                href="/securities"
-                aria-label={gettext("All Securities")}
-                title={gettext("All Securities")}
-                class={nav_link_class(@current_path, "/securities")}
-              >
-                <span class="app-shell-nav-icon" aria-hidden="true">SEC</span>
-                <span class="app-shell-nav-label"><%= gettext("All Securities") %></span>
-              </a>
+              <%= if @security_watchlists_enabled do %>
+                <.link
+                  id="nav-securities"
+                  patch="/securities"
+                  aria-label={gettext("All Securities")}
+                  title={gettext("All Securities")}
+                  class={nav_link_class(@current_path, "/securities")}
+                >
+                  <span class="app-shell-nav-icon" aria-hidden="true">SEC</span>
+                  <span class="app-shell-nav-label"><%= gettext("All Securities") %></span>
+                </.link>
+              <% else %>
+                <a
+                  id="nav-securities"
+                  href="/securities"
+                  aria-label={gettext("All Securities")}
+                  title={gettext("All Securities")}
+                  class={nav_link_class(@current_path, "/securities")}
+                >
+                  <span class="app-shell-nav-icon" aria-hidden="true">SEC</span>
+                  <span class="app-shell-nav-label"><%= gettext("All Securities") %></span>
+                </a>
+              <% end %>
               <%= if @security_watchlists_enabled do %>
                 <div
                   id="sidebar-security-watchlists"
@@ -1516,15 +1529,15 @@ defmodule PortfolixirWeb.AppShell do
                     <%= gettext("Watchlists") %>
                   </span>
                   <%= for watchlist <- @security_watchlists do %>
-                    <a
+                    <.link
                       id={"sidebar-watchlist-#{watchlist.id}"}
-                      href="/securities"
+                      patch="/securities"
                       class="app-shell-nav-subitem"
                       aria-label={gettext("Watchlist %{name}", name: watchlist.name)}
                       title={watchlist.name}
                     >
                       <%= watchlist.name %>
-                    </a>
+                    </.link>
                   <% end %>
                 </div>
                 <form

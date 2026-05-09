@@ -86,7 +86,12 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
   test "watchlists can be created from workbench and appear in sidebar", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/securities")
 
-    assert has_element?(view, "#nav-securities", "All Securities")
+    assert has_element?(
+             view,
+             "#nav-securities[data-phx-link='patch'][href='/securities']",
+             "All Securities"
+           )
+
     assert has_element?(view, "#security-watchlists", "Watchlists")
     assert has_element?(view, "#watchlist-all-securities", "All Securities")
     refute has_element?(view, "#sidebar-watchlist-1")
@@ -98,14 +103,24 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
 
     assert html =~ "Watchlist Dividend Ideas created."
     assert has_element?(view, "#watchlist-item-1", "Dividend Ideas")
-    assert has_element?(view, "#sidebar-watchlist-1", "Dividend Ideas")
+
+    assert has_element?(
+             view,
+             "#sidebar-watchlist-1[data-phx-link='patch'][href='/securities']",
+             "Dividend Ideas"
+           )
 
     view
     |> form("#sidebar-watchlist-form", %{"watchlist" => %{"name" => "Core ETFs"}})
     |> render_submit()
 
     assert has_element?(view, "#watchlist-item-2", "Core ETFs")
-    assert has_element?(view, "#sidebar-watchlist-2", "Core ETFs")
+
+    assert has_element?(
+             view,
+             "#sidebar-watchlist-2[data-phx-link='patch'][href='/securities']",
+             "Core ETFs"
+           )
   end
 
   test "CSV preview action is not styled as the primary MVP CTA", %{conn: conn} do
