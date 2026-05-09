@@ -23,7 +23,8 @@ The initial milestone is:
 - Do not add adjacent features.
 - Do not silently change architecture decisions.
 - Do not commit real financial data.
-- Do not add real account numbers, wallet addresses, broker statements, customer names or private portfolio files.
+- Do not add real account numbers, wallet addresses, broker statements, customer names or private
+  portfolio files.
 - Use synthetic fixtures only.
 - Do not make network calls in tests.
 - Use provider behaviours and mocks for market data.
@@ -99,7 +100,8 @@ For each story:
 
 ## Scope lock
 
-If you discover a larger design issue, create a follow-up note instead of solving it opportunistically.
+If you discover a larger design issue, create a follow-up note instead of solving it
+opportunistically.
 
 ## Security boundaries
 
