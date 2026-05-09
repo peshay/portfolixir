@@ -115,32 +115,64 @@ defmodule PortfolixirWeb.SecurityManagementLiveTest do
     assert_security_status_filter_relationships(view, :active)
   end
 
-  test "security table column menu renders with stable column keys and local storage script", %{
+  test "security table column menu keeps stable form legend and control relationships", %{
     conn: conn
   } do
     {:ok, view, html} = live(conn, "/securities")
 
     assert has_element?(view, "#security-column-menu")
-    assert has_element?(view, "#security-column-menu-button[aria-label]")
 
     assert has_element?(
              view,
-             "#security-column-menu-button[aria-controls='security-column-form']"
+             "#security-column-menu > summary#security-column-menu-button[role='button'][aria-label][aria-controls='security-column-form']"
            )
 
     assert has_element?(
              view,
-             "#security-column-form[aria-labelledby='security-column-menu-legend']"
+             "#security-column-menu > form#security-column-form[aria-labelledby='security-column-menu-legend']"
            )
 
-    assert has_element?(view, "#security-column-menu-legend", "Visible columns")
-    assert has_element?(view, "#security-column-name[value='name'][disabled]")
-    assert has_element?(view, "#security-column-symbol[value='symbol']")
-    assert has_element?(view, "#security-column-provider_symbol[value='provider_symbol']")
-    assert has_element?(view, "#security-column-latest_quote[value='latest_quote']")
-    assert has_element?(view, "#security-column-latest_quote_date[value='latest_quote_date']")
-    assert has_element?(view, "#security-column-position_quantity[value='position_quantity']")
-    assert has_element?(view, "#security-column-actions[value='actions'][disabled]")
+    assert has_element?(
+             view,
+             "#security-column-form fieldset > legend#security-column-menu-legend",
+             "Visible columns"
+           )
+
+    assert has_element?(
+             view,
+             "label[for='security-column-name'] > input#security-column-name[name='columns[]'][value='name'][disabled]"
+           )
+
+    assert has_element?(
+             view,
+             "label[for='security-column-symbol'] > input#security-column-symbol[name='columns[]'][value='symbol']"
+           )
+
+    assert has_element?(
+             view,
+             "label[for='security-column-provider_symbol'] > input#security-column-provider_symbol[name='columns[]'][value='provider_symbol']"
+           )
+
+    assert has_element?(
+             view,
+             "label[for='security-column-latest_quote'] > input#security-column-latest_quote[name='columns[]'][value='latest_quote']"
+           )
+
+    assert has_element?(
+             view,
+             "label[for='security-column-latest_quote_date'] > input#security-column-latest_quote_date[name='columns[]'][value='latest_quote_date']"
+           )
+
+    assert has_element?(
+             view,
+             "label[for='security-column-position_quantity'] > input#security-column-position_quantity[name='columns[]'][value='position_quantity']"
+           )
+
+    assert has_element?(
+             view,
+             "label[for='security-column-actions'] > input#security-column-actions[name='columns[]'][value='actions'][disabled]"
+           )
+
     assert html =~ "portfolixir.securities.visibleColumns"
     assert html =~ "security-column-preferences-script"
   end
