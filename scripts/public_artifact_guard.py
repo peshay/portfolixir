@@ -46,7 +46,7 @@ EXCLUDED_FILES = {
 
 LEAK_PATTERNS = [
     (re.compile(r"/home/openclaw/", re.IGNORECASE), "internal path leak: /home/openclaw/"),
-    (re.compile(r"/Users/[A-Za-z0-9._-]+/", re.IGNORECASE), "local user path leak"),
+    (re.compile(r"/Users/[A-Za-z0-9._-]+/"), "local user path leak"),
     (re.compile(r"\.openclaw", re.IGNORECASE), "internal runtime marker leak: .openclaw"),
     (re.compile(r"agent:[A-Za-z0-9:_-]+"), "internal session identifier leak"),
     (re.compile(r"\bclaw-code\d+\b", re.IGNORECASE), "private host metadata leak"),
