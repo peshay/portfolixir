@@ -46,7 +46,8 @@ defmodule Portfolixir.MixProject do
       {:plug_cowboy, "~> 2.7"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:excoveralls, "~> 0.18", only: :test}
+      {:excoveralls, "~> 0.18", only: :test},
+      {:sbom, "~> 0.10", only: :dev, runtime: false}
     ]
   end
 
@@ -54,7 +55,11 @@ defmodule Portfolixir.MixProject do
     [
       setup: ["deps.get", "ecto.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"]
+      "ecto.reset": ["ecto.drop", "ecto.setup"],
+      "sbom.ci": [
+        "cmd mkdir -p sbom",
+        "sbom.cyclonedx --format json --pretty --force --output sbom/portfolixir.cdx.json"
+      ]
     ]
   end
 end
