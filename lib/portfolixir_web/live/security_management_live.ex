@@ -59,6 +59,9 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       |> assign(:security_csv_input, "")
       |> assign(:security_csv_error, nil)
       |> assign(:security_csv_preview_rows, nil)
+      |> assign(:security_watchlists, [])
+      |> assign(:watchlist_error, nil)
+      |> assign(:watchlist_success, nil)
       |> assign(:selected_security_id, nil)
       |> assign(:selected_security, nil)
       |> assign(:security_status_filter, security_status_filter)
@@ -73,7 +76,11 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   def render(assigns) do
     ~H"""
-    <AppShell.shell current_path="/securities">
+    <AppShell.shell
+      current_path="/securities"
+      security_watchlists_enabled={true}
+      security_watchlists={@security_watchlists}
+    >
       <header class="app-shell-page-header">
         <div>
           <h1><%= gettext("All Securities") %></h1>
@@ -101,6 +108,82 @@ defmodule PortfolixirWeb.SecurityManagementLive do
             time_ranges={["1M", "3M", "6M", "1Y", "YTD", "ALL"]}
             active_time_range="ALL"
           />
+
+          <section
+            id="security-watchlists"
+            class="app-shell-section-card"
+            data-priority="secondary"
+            aria-labelledby="security-watchlists-title"
+            aria-describedby={watchlist_description_ids(@watchlist_success, @watchlist_error)}
+          >
+            <div class="app-shell-section-header">
+              <div>
+                <h2 id="security-watchlists-title" class="app-shell-section-title">
+                  <%= gettext("Watchlists") %>
+                </h2>
+                <p id="security-watchlists-description" class="app-shell-panel-intro">
+                  <%= gettext("Create named watchlists for securities you want to follow next to All Securities.") %>
+                </p>
+              </div>
+            </div>
+
+            <%= if @watchlist_success do %>
+              <p
+                id="watchlist-success"
+                class="app-shell-alert app-shell-alert--success"
+                role="status"
+                aria-live="polite"
+              >
+                <%= @watchlist_success %>
+              </p>
+            <% end %>
+
+            <%= if @watchlist_error do %>
+              <p id="watchlist-error" class="app-shell-alert app-shell-alert--error" role="alert">
+                <%= @watchlist_error %>
+              </p>
+            <% end %>
+
+            <form
+              id="watchlist-form"
+              class="app-shell-form-actions"
+              phx-submit="create_watchlist"
+              aria-labelledby="security-watchlists-title"
+              aria-describedby={watchlist_description_ids(@watchlist_success, @watchlist_error)}
+            >
+              <label for="watchlist-name" class="app-shell-visually-hidden">
+                <%= gettext("Watchlist name") %>
+              </label>
+              <input
+                id="watchlist-name"
+                name="watchlist[name]"
+                placeholder={gettext("Watchlist name")}
+              />
+              <button id="watchlist-submit" type="submit" class="app-shell-primary">
+                <%= gettext("Create watchlist") %>
+              </button>
+            </form>
+
+            <div
+              id="watchlist-list"
+              class="app-shell-action-row"
+              role="list"
+              aria-label={gettext("Security watchlists")}
+            >
+              <span id="watchlist-all-securities" role="listitem" class="app-shell-badge">
+                <%= gettext("All Securities") %>
+              </span>
+              <%= for watchlist <- @security_watchlists do %>
+                <span
+                  id={"watchlist-item-#{watchlist.id}"}
+                  role="listitem"
+                  class="app-shell-badge app-shell-muted"
+                >
+                  <%= watchlist.name %>
+                </span>
+              <% end %>
+            </div>
+          </section>
 
           <span id={@security_list_actions_label_id} class="app-shell-visually-hidden">
             <%= gettext("Security list actions") %>
@@ -876,7 +959,7 @@ defmodule PortfolixirWeb.SecurityManagementLive do
               ><%= @security_csv_input %></textarea>
             </div>
             <div class="app-shell-form-actions">
-              <button type="submit" class="app-shell-primary">
+              <button type="submit" class="app-shell-secondary">
                 <%= gettext("Preview CSV") %>
               </button>
               <%= if @security_csv_preview_rows || @security_csv_error do %>
@@ -940,6 +1023,42 @@ defmodule PortfolixirWeb.SecurityManagementLive do
       </div>
     </AppShell.shell>
     """
+  end
+
+  def handle_event("create_watchlist", %{"watchlist" => %{"name" => name}}, socket) do
+    case normalize_watchlist_name(name) do
+      "" ->
+        {:noreply,
+         socket
+         |> assign(:watchlist_error, gettext("Watchlist name is required."))
+         |> assign(:watchlist_success, nil)}
+
+      name ->
+        if watchlist_name_exists?(socket.assigns.security_watchlists, name) do
+          {:noreply,
+           socket
+           |> assign(:watchlist_error, gettext("Watchlist already exists."))
+           |> assign(:watchlist_success, nil)}
+        else
+          watchlist = %{id: next_watchlist_id(socket.assigns.security_watchlists), name: name}
+
+          {:noreply,
+           socket
+           |> assign(:security_watchlists, socket.assigns.security_watchlists ++ [watchlist])
+           |> assign(:watchlist_error, nil)
+           |> assign(
+             :watchlist_success,
+             gettext("Watchlist %{name} created.", name: watchlist.name)
+           )}
+        end
+    end
+  end
+
+  def handle_event("create_watchlist", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:watchlist_error, gettext("Watchlist name is required."))
+     |> assign(:watchlist_success, nil)}
   end
 
   def handle_event("preview_security_csv", %{"security_csv_text" => csv_text}, socket) do
@@ -1268,6 +1387,37 @@ defmodule PortfolixirWeb.SecurityManagementLive do
 
   defp security_table_caption_text do
     gettext("Securities workbench table with identifiers, valuation, status, and row actions.")
+  end
+
+  defp watchlist_description_ids(watchlist_success, watchlist_error) do
+    [
+      "security-watchlists-description",
+      watchlist_success && "watchlist-success",
+      watchlist_error && "watchlist-error"
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp normalize_watchlist_name(name) when is_binary(name), do: String.trim(name)
+
+  defp normalize_watchlist_name(_name), do: ""
+
+  defp watchlist_name_exists?(watchlists, name) do
+    normalized_name = String.downcase(name)
+
+    Enum.any?(watchlists, fn watchlist ->
+      String.downcase(watchlist.name) == normalized_name
+    end)
+  end
+
+  defp next_watchlist_id([]), do: 1
+
+  defp next_watchlist_id(watchlists) do
+    watchlists
+    |> Enum.map(& &1.id)
+    |> Enum.max()
+    |> Kernel.+(1)
   end
 
   defp security_form_description_ids(security_success, security_error) do
