@@ -86,4 +86,3 @@ security detail charts are built from local records only, not live feeds.
 - No bank, broker, or wallet integrations.
 - No payment scheduling or settlement workflows.
 - No external import/parsing features for statements.
-
