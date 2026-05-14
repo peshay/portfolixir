@@ -3,26 +3,269 @@ msgid ""
 msgstr ""
 "Language: de\n"
 
-msgid "Dashboard"
-msgstr "Dashboard"
+msgid "Add quote"
+msgstr "Kurs hinzufügen"
 
-msgid "Securities"
-msgstr "Wertpapiere"
+msgid "Add security"
+msgstr "Wertpapier hinzufügen"
 
-msgid "Portfolios"
-msgstr "Portfolios"
+msgid "All securities"
+msgstr "Alle Wertpapiere"
 
-msgid "Transactions"
-msgstr "Transaktionen"
+msgid "Application navigation"
+msgstr "App-Navigation"
 
-msgid "Create securities"
-msgstr "Wertpapiere anlegen"
+msgid "Base currency"
+msgstr "Basiswährung"
+
+msgid "Cash account created"
+msgstr "Verrechnungskonto angelegt"
+
+msgid "Cash accounts"
+msgstr "Verrechnungskonten"
+
+msgid "Close"
+msgstr "Schlusskurs"
+
+msgid "Create a portfolio and linked accounts before recording transactions."
+msgstr "Lege ein Portfolio und verknüpfte Konten an, bevor du Transaktionen erfasst."
+
+msgid "Create a portfolio first"
+msgstr "Lege zuerst ein Portfolio an"
+
+msgid "Create cash account"
+msgstr "Verrechnungskonto anlegen"
+
+msgid "Create depot"
+msgstr "Depot anlegen"
 
 msgid "Create one portfolio"
 msgstr "Ein Portfolio anlegen"
 
-msgid "Record manual buy and sell transactions"
-msgstr "Manuelle Kauf- und Verkaufstransaktionen erfassen"
+msgid "Create portfolio"
+msgstr "Portfolio anlegen"
+
+msgid "Create securities"
+msgstr "Wertpapiere anlegen"
+
+msgid "Create security"
+msgstr "Wertpapier anlegen"
+
+msgid "Currency"
+msgstr "Währung"
+
+msgid "Current holdings"
+msgstr "Aktuelle Bestände"
+
+msgid "Current setup"
+msgstr "Aktuelle Einrichtung"
+
+msgid "Dark"
+msgstr "Dunkel"
+
+msgid "Dashboard"
+msgstr "Dashboard"
+
+msgid "Date"
+msgstr "Datum"
+
+msgid "Depot"
+msgstr "Depot"
+
+msgid "Depot created"
+msgstr "Depot angelegt"
+
+msgid "Depots"
+msgstr "Depots"
+
+msgid "Detail"
+msgstr "Detail"
+
+msgid "Display preferences"
+msgstr "Anzeigeeinstellungen"
+
+msgid "English"
+msgstr "Englisch"
+
+msgid "Exchange"
+msgstr "Börse"
+
+msgid "Fees"
+msgstr "Gebühren"
+
+msgid "German"
+msgstr "Deutsch"
+
+msgid "High"
+msgstr "Hoch"
+
+msgid "ISIN"
+msgstr "ISIN"
+
+msgid "Language"
+msgstr "Sprache"
+
+msgid "Light"
+msgstr "Hell"
+
+msgid "Link one depot to one cash account"
+msgstr "Ein Depot mit einem Verrechnungskonto verknüpfen"
+
+msgid "Linked cash account"
+msgstr "Verknüpftes Verrechnungskonto"
 
 msgid "Linked cash account is derived from the selected depot."
 msgstr "Das verknüpfte Verrechnungskonto wird aus dem ausgewählten Depot abgeleitet."
+
+msgid "Local portfolio tracking MVP"
+msgstr "Lokales Portfolio-Tracking-MVP"
+
+msgid "Low"
+msgstr "Tief"
+
+msgid "MVP counts"
+msgstr "MVP-Zähler"
+
+msgid "MVP path"
+msgstr "MVP-Pfad"
+
+msgid "Manual buy and sell ledger"
+msgstr "Manuelles Kauf- und Verkaufsjournal"
+
+msgid "Missing linked cash account"
+msgstr "Verknüpftes Verrechnungskonto fehlt"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "No holdings yet"
+msgstr "Noch keine Bestände"
+
+msgid "No quote history yet"
+msgstr "Noch keine Kurshistorie"
+
+msgid "No quotes yet"
+msgstr "Noch keine Kurse"
+
+msgid "No securities yet"
+msgstr "Noch keine Wertpapiere"
+
+msgid "No transactions yet"
+msgstr "Noch keine Transaktionen"
+
+msgid "Notes"
+msgstr "Notizen"
+
+msgid "Open"
+msgstr "Öffnen"
+
+msgid "Open navigation"
+msgstr "Navigation öffnen"
+
+msgid "Portfolio created"
+msgstr "Portfolio angelegt"
+
+msgid "Portfolio, cash account, and depot setup"
+msgstr "Portfolio-, Verrechnungskonto- und Depot-Einrichtung"
+
+msgid "Portfolios"
+msgstr "Portfolios"
+
+msgid "Price"
+msgstr "Preis"
+
+msgid "Price history"
+msgstr "Kurshistorie"
+
+msgid "Primary navigation"
+msgstr "Hauptnavigation"
+
+msgid "Quantity"
+msgstr "Stückzahl"
+
+msgid "Quote history"
+msgstr "Kurshistorie"
+
+msgid "Quote stored"
+msgstr "Kurs gespeichert"
+
+msgid "Quotes"
+msgstr "Kurse"
+
+msgid "Record manual buy and sell transactions"
+msgstr "Manuelle Kauf- und Verkaufstransaktionen erfassen"
+
+msgid "Record transaction"
+msgstr "Transaktion erfassen"
+
+msgid "Review current holdings"
+msgstr "Aktuelle Bestände prüfen"
+
+msgid "Securities"
+msgstr "Wertpapiere"
+
+msgid "Security"
+msgstr "Wertpapier"
+
+msgid "Security created"
+msgstr "Wertpapier angelegt"
+
+msgid "Security master data"
+msgstr "Wertpapier-Stammdaten"
+
+msgid "Security price history chart"
+msgstr "Wertpapier-Kurshistorie"
+
+msgid "Select cash account"
+msgstr "Verrechnungskonto auswählen"
+
+msgid "Select depot"
+msgstr "Depot auswählen"
+
+msgid "Select security"
+msgstr "Wertpapier auswählen"
+
+msgid "Source"
+msgstr "Quelle"
+
+msgid "Store and display quote history"
+msgstr "Kurshistorie speichern und anzeigen"
+
+msgid "Store quote"
+msgstr "Kurs speichern"
+
+msgid "Symbol"
+msgstr "Symbol"
+
+msgid "System"
+msgstr "System"
+
+msgid "Taxes"
+msgstr "Steuern"
+
+msgid "Theme"
+msgstr "Theme"
+
+msgid "Toggle navigation"
+msgstr "Navigation umschalten"
+
+msgid "Transaction history"
+msgstr "Transaktionshistorie"
+
+msgid "Transaction recorded"
+msgstr "Transaktion erfasst"
+
+msgid "Transactions"
+msgstr "Transaktionen"
+
+msgid "Type"
+msgstr "Typ"
+
+msgid "Unknown depot"
+msgstr "Unbekanntes Depot"
+
+msgid "Unknown security"
+msgstr "Unbekanntes Wertpapier"
+
+msgid "Volume"
+msgstr "Volumen"
