@@ -494,9 +494,9 @@ msgid "Volume"
 msgstr "Volumen"
 
 #: lib/portfolixir_web/components/app_shell.ex:195
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "All transactions"
-msgstr "Noch keine Transaktionen"
+msgstr "Alle Transaktionen"
 
 #: lib/portfolixir_web/components/app_shell.ex:206
 #, elixir-autogen, elixir-format
@@ -519,9 +519,9 @@ msgid "Coming soon"
 msgstr "Bald verfügbar"
 
 #: lib/portfolixir_web/components/app_shell.ex:270
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Currencies"
-msgstr "Währung"
+msgstr "Währungen"
 
 #: lib/portfolixir_web/components/app_shell.ex:230
 #, elixir-autogen, elixir-format
@@ -564,9 +564,9 @@ msgid "Regions"
 msgstr "Regionen"
 
 #: lib/portfolixir_web/components/app_shell.ex:202
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Reports"
-msgstr "Depots"
+msgstr "Berichte"
 
 #: lib/portfolixir_web/components/app_shell.ex:224
 #, elixir-autogen, elixir-format
