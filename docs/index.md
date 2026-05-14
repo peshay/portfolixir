@@ -5,33 +5,37 @@
     <img src="assets/logo.svg" alt="" class="docs-logo">
     <div>
       <p class="docs-kicker">Portfolixir</p>
-      <h1>Local portfolio tracking</h1>
+      <h1>Product documentation</h1>
       <p>
-        Portfolixir is a self-hosted Phoenix and LiveView application for
-        transparent local portfolio records, manual transactions, holdings, and
-        quote history.
+        Portfolixir is a local-first Phoenix application for securities tracking:
+        audited manual transactions, derived holdings, and stored quote history.
       </p>
     </div>
   </header>
 
+  <nav class="docs-nav">
+    <a class="docs-nav-link" href="product-documentation.md">Product documentation</a>
+    <a class="docs-nav-link" href="home-deployment.md">Home Deployment</a>
+    <a class="docs-nav-link" href="development/story-workflow.md">Story Workflow</a>
+    <a class="docs-nav-link" href="development/guide.md">Development Guide</a>
+  </nav>
+
   <section class="docs-panel">
     <h2>Current Scope</h2>
     <p>
-      The app focuses on a small local workflow for securities, one portfolio,
-      linked cash and depot accounts, manual buy/sell transactions, holdings,
-      stored quotes, and security price history.
+      The application is intentionally scoped as a reboot foundation for one local
+      portfolio workflow. The aim is to stay small, auditable, and deterministic
+      before adding larger features in future epics.
     </p>
-    <ul>
-      <li>Responsive Phoenix and LiveView app shell with matching docs styling.</li>
-      <li>Light and dark themes using the Portfolixir logo palette.</li>
-      <li>Top-bar controls for theme and English/German language switching.</li>
-      <li>Manual securities, accounts, transactions, holdings, and quote history.</li>
-    </ul>
+    <p>
+      Open the full product walkthrough in <a href="product-documentation.md">Product documentation</a>
+      and the implementation-focused notes in the development section.
+    </p>
   </section>
 
   <section class="docs-grid">
     <article class="docs-card">
-      <h2>Local Workflow</h2>
+      <h2>Product Workflow</h2>
       <ol>
         <li>Create securities.</li>
         <li>Create one portfolio.</li>
@@ -43,30 +47,29 @@
     </article>
 
     <article class="docs-card">
-      <h2>Theme and Language</h2>
+      <h2>Product Documentation</h2>
       <p>
-        The app and documentation share the same violet, teal, and coral accent
-        palette. The app starts with the system theme and browser language, and
-        the top bar lets you switch System, Light, and Dark themes as well as
-        English and German UI text.
+        The focus is on manual, local records only. Features are documented with
+        clear behavior, formulas, and limits so scope stays testable and
+        predictable.
+      </p>
+    </article>
+
+    <article class="docs-card">
+      <h2>Language and Theme</h2>
+      <p>
+        The UI supports System, Light, and Dark themes, and EN/DE language
+        switching. Language and themes are runtime preferences and do not affect
+        persisted domain data.
       </p>
     </article>
 
     <article class="docs-card">
       <h2>Development</h2>
       <p>
-        Start locally with Docker Compose or run the Phoenix app from source.
-        Keep changes scoped, tested, and documented when visible behavior
-        changes.
-      </p>
-      <p>
-        Portfolixir is not a broker, bank, trading, payment, order, or rebalance
-        platform.
+        Start with the development guides when you want local checks, story workflow
+        conventions, and scope rules before adding or changing behavior.
       </p>
     </article>
   </section>
-
-  <footer class="docs-footer">
-    <a href="home-deployment.md">Home Deployment</a>
-  </footer>
 </main>
