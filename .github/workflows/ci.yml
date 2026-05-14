@@ -76,3 +76,6 @@ jobs:
 
       - name: Run test suite
         run: MIX_ENV=test mix test
+
+      - name: Run coverage suite
+        run: MIX_ENV=test mix coveralls

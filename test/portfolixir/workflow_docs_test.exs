@@ -17,8 +17,8 @@ defmodule Portfolixir.WorkflowDocsTest do
   # - Public docs state the required story -> test -> failure -> code -> gates -> docs order.
   # - The user story template includes problem, behavior, surface, severity, acceptance, non-goals,
   #   required evidence, and done condition fields.
-  # - The pull request template requires story-comment, test-first, docs-review, and gate evidence.
-  # - Public docs state that future MVP functionality is added through human-reviewed staging Epics.
+  # - The pull request template requires story-comment, test-first, docs-review, coverage, and gate evidence.
+  # - Public docs state that new functionality updates user documentation and coverage gates.
   test "public workflow docs require story comments, failing tests, gates, and docs review" do
     workflow_text =
       @workflow_docs
@@ -36,7 +36,8 @@ defmodule Portfolixir.WorkflowDocsTest do
       assert workflow_text =~ step
     end
 
-    assert workflow_text =~ "human-reviewed Epics on staging"
+    assert workflow_text =~ "Every user-visible change updates user documentation"
+    assert workflow_text =~ "mix coveralls"
 
     story_template = File.read!(".github/ISSUE_TEMPLATE/user_story.md")
 
@@ -59,7 +60,8 @@ defmodule Portfolixir.WorkflowDocsTest do
           "Story comment evidence",
           "Test-first evidence",
           "Docs review/update note",
-          "Gates run"
+          "Gates run",
+          "mix coveralls"
         ] do
       assert pr_template =~ evidence
     end
