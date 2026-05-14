@@ -25,6 +25,7 @@ erl_crash.dump
 
 # Generated local/CI artifacts
 /sbom/*.cdx.json
+/.playwright-mcp/
 
 # Sensitive finance data
 *.portfolio

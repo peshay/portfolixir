@@ -1,8 +1,8 @@
 # Story Workflow
 
-Portfolixir adds future MVP behavior through small, human-reviewed Epics on
-staging. The reboot foundation keeps story scope narrow so code, tests, and user
-documentation stay consistent.
+Portfolixir adds future MVP behavior through small, human-reviewed Epics. The
+reboot foundation keeps story scope narrow so code, tests, translations, and
+user documentation stay consistent.
 
 For every user-visible story, use this order:
 
@@ -12,6 +12,10 @@ For every user-visible story, use this order:
 4. Smallest implementation code written.
 5. Required gates run.
 6. User documentation reviewed and updated when visible behavior changed.
+
+Every user-visible change updates user documentation when behavior changes.
+Visible copy stays English-first in code and must include German gettext
+translations.
 
 The story comment belongs in the relevant test file immediately above the
 functional test:
@@ -39,6 +43,7 @@ Run the required gates before review:
 ```bash
 mix format
 mix test
+mix coveralls
 pre-commit run --all-files
 ```
 
@@ -46,6 +51,4 @@ Review user-facing documentation for every story. Update docs when the story
 changes routes, screens, labels, setup, or visible behavior. For background-only
 work, record that user documentation was reviewed and no update was needed.
 
-Production promotion is not automatic. Future MVP Epics should pass local gates,
-deploy to staging for human review, and only then be promoted by the documented
-deployment process.
+Future MVP Epics should pass local gates and human review before merge.
