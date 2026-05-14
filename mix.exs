@@ -15,6 +15,19 @@ defmodule Portfolixir.MixProject do
     ]
   end
 
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test,
+        "coveralls.lcov": :test,
+        "coveralls.post": :test
+      ]
+    ]
+  end
+
   def application do
     [
       mod: {Portfolixir.Application, []},

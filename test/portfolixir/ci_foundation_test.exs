@@ -8,6 +8,7 @@ defmodule Portfolixir.CIFoundationTest do
   #
   # Acceptance criteria:
   # - CI runs mix coveralls.
+  # - mix coveralls is configured to run in the test environment by default.
   # - The test dependencies include excoveralls.
   # - No image build or deploy workflow remains.
   # - Release-image and runtime-deploy files are absent from the simplified foundation.
@@ -17,6 +18,8 @@ defmodule Portfolixir.CIFoundationTest do
 
     assert ci_workflow =~ "mix coveralls"
     assert mix_file =~ ":excoveralls"
+    assert mix_file =~ "preferred_envs:"
+    assert mix_file =~ ~s(coveralls: :test)
 
     refute File.exists?(".github/workflows/build-image.yml")
     refute File.exists?(".github/workflows/deploy.yml")
