@@ -43,4 +43,3 @@ If pre-commit is not installed:
 
 - [Home Deployment](../home-deployment.md)
 - [Story Workflow](./story-workflow.md)
-
