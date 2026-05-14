@@ -2,127 +2,93 @@ defmodule Portfolixir.Ledger.Transaction do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Portfolixir.Catalog.Currency
   alias Portfolixir.Catalog.Security
-  alias Portfolixir.Portfolios.DepositAccount
+  alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
 
-  @types ["deposit", "withdrawal", "buy", "sell", "dividend"]
+  @manual_trade_types ["buy", "sell"]
 
   schema "transactions" do
     field(:type, :string)
     field(:date, :date)
-    field(:amount, :decimal)
     field(:quantity, :decimal)
     field(:price, :decimal)
-    field(:fees, :decimal)
-    field(:taxes, :decimal)
+    field(:fees, :decimal, default: Decimal.new("0"))
+    field(:taxes, :decimal, default: Decimal.new("0"))
+    field(:currency_code, :string)
     field(:notes, :string)
 
     belongs_to(:portfolio, Portfolio)
-    belongs_to(:deposit_account, DepositAccount)
     belongs_to(:securities_account, SecuritiesAccount)
+    belongs_to(:cash_account, CashAccount)
     belongs_to(:security, Security)
-
-    belongs_to(:currency, Currency,
-      foreign_key: :currency_code,
-      references: :code,
-      type: :string,
-      define_field: true
-    )
 
     timestamps()
   end
 
-  @doc false
+  def manual_trade_types, do: @manual_trade_types
+
   def changeset(transaction, attrs) do
     transaction
     |> cast(attrs, [
       :portfolio_id,
-      :deposit_account_id,
       :securities_account_id,
+      :cash_account_id,
       :security_id,
       :type,
       :date,
-      :currency_code,
-      :amount,
       :quantity,
       :price,
       :fees,
       :taxes,
+      :currency_code,
       :notes
     ])
-    |> validate_required([:portfolio_id, :type, :date, :currency_code])
-    |> validate_inclusion(:type, @types)
-    |> validate_required_for_type()
-    |> validate_numeric_values()
+    |> normalize_currency_code()
+    |> put_decimal_default(:fees)
+    |> put_decimal_default(:taxes)
+    |> validate_required([
+      :portfolio_id,
+      :securities_account_id,
+      :cash_account_id,
+      :security_id,
+      :type,
+      :date,
+      :quantity,
+      :price,
+      :fees,
+      :taxes,
+      :currency_code
+    ])
+    |> validate_inclusion(:type, @manual_trade_types)
+    |> validate_length(:currency_code, is: 3)
+    |> validate_number(:quantity, greater_than: 0)
+    |> validate_number(:price, greater_than: 0)
+    |> validate_number(:fees, greater_than_or_equal_to: 0)
+    |> validate_number(:taxes, greater_than_or_equal_to: 0)
     |> assoc_constraint(:portfolio)
-    |> assoc_constraint(:currency)
     |> assoc_constraint(:security)
-    |> foreign_key_constraint(:deposit_account_id)
-    |> foreign_key_constraint(:deposit_account_id,
-      name: :transactions_deposit_account_portfolio_fkey
-    )
-    |> foreign_key_constraint(:securities_account_id)
+    |> assoc_constraint(:cash_account)
+    |> assoc_constraint(:securities_account)
+    |> foreign_key_constraint(:cash_account_id, name: :transactions_cash_account_portfolio_fkey)
     |> foreign_key_constraint(:securities_account_id,
       name: :transactions_securities_account_portfolio_fkey
     )
-    |> check_constraint(:type, name: :transactions_supported_type_check)
+    |> check_constraint(:type, name: :transactions_manual_trade_type_check)
   end
 
-  defp validate_required_for_type(changeset) do
-    case get_field(changeset, :type) do
-      "deposit" ->
-        validate_required(changeset, [:deposit_account_id, :amount])
-
-      "withdrawal" ->
-        validate_required(changeset, [:deposit_account_id, :amount])
-
-      "dividend" ->
-        validate_required(changeset, [:deposit_account_id, :security_id, :amount])
-
-      type when type in ["buy", "sell"] ->
-        validate_required(changeset, [
-          :securities_account_id,
-          :security_id,
-          :quantity,
-          :price,
-          :amount
-        ])
-
-      _type ->
-        changeset
-    end
+  defp normalize_currency_code(changeset) do
+    update_change(changeset, :currency_code, fn
+      value when is_binary(value) -> value |> String.trim() |> String.upcase()
+      value -> value
+    end)
   end
 
-  defp validate_numeric_values(changeset) do
-    changeset
-    |> validate_amount_for_type()
-    |> validate_quantity_and_price_for_type()
-    |> validate_number(:fees, greater_than_or_equal_to: 0)
-    |> validate_number(:taxes, greater_than_or_equal_to: 0)
-  end
-
-  defp validate_amount_for_type(changeset) do
-    case get_field(changeset, :type) do
-      type when type in @types ->
-        validate_number(changeset, :amount, greater_than: 0)
-
-      _type ->
-        changeset
-    end
-  end
-
-  defp validate_quantity_and_price_for_type(changeset) do
-    case get_field(changeset, :type) do
-      type when type in ["buy", "sell"] ->
-        changeset
-        |> validate_number(:quantity, greater_than: 0)
-        |> validate_number(:price, greater_than: 0)
-
-      _type ->
-        changeset
+  defp put_decimal_default(changeset, field) do
+    case get_field(changeset, field) do
+      nil -> put_change(changeset, field, Decimal.new("0"))
+      _value -> changeset
     end
   end
 end
