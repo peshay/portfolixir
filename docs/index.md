@@ -20,7 +20,8 @@ The reboot foundation keeps only the narrow local portfolio-tracking base:
 
 For trade entry, the selected depot determines the linked cash account. The UI
 is intentionally plain; visual design and branding are deferred to a separate
-reviewed change.
+reviewed change. Logo and favicon assets are retained for that later design
+work.
 
 ## Future Work
 

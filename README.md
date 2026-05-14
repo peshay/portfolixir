@@ -42,7 +42,8 @@ sell transactions derive the cash account from the selected depot instead of
 asking the user to choose one independently.
 
 Visual product design and branding are intentionally deferred. The foundation
-keeps the UI plain so design can restart in a separate reviewed PR.
+keeps the UI plain so design can restart in a separate reviewed PR. Existing
+logo and favicon assets are retained for that later design work.
 
 ## Local Development
 
