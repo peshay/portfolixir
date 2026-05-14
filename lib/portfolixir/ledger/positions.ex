@@ -1,5 +1,5 @@
 defmodule Portfolixir.Ledger.Positions do
-  @moduledoc "Derives security positions from ledger transactions."
+  @moduledoc "Derives current holdings from manual buy and sell transactions."
 
   @zero Decimal.new("0")
 
@@ -8,19 +8,21 @@ defmodule Portfolixir.Ledger.Positions do
   end
 
   defp apply_transaction(%{type: "buy"} = transaction, positions) do
-    add_position(positions, transaction, transaction.quantity)
+    add_quantity(positions, transaction, transaction.quantity)
   end
 
   defp apply_transaction(%{type: "sell"} = transaction, positions) do
-    add_position(positions, transaction, Decimal.negate(transaction.quantity))
+    add_quantity(positions, transaction, Decimal.negate(transaction.quantity))
   end
 
   defp apply_transaction(_transaction, positions), do: positions
 
-  defp add_position(positions, transaction, quantity) do
+  defp add_quantity(positions, transaction, quantity) do
     key = {transaction.securities_account_id, transaction.security_id}
-    current = Map.get(positions, key, @zero)
 
-    Map.put(positions, key, Decimal.add(current, quantity))
+    positions
+    |> Map.update(key, quantity, &Decimal.add(&1, quantity))
+    |> Enum.reject(fn {_key, value} -> Decimal.equal?(value, @zero) end)
+    |> Map.new()
   end
 end

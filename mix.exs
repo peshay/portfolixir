@@ -10,15 +10,7 @@ defmodule Portfolixir.MixProject do
       start_permanent: Mix.env() == :prod,
       licenses: ["MIT"],
       aliases: aliases(),
-      deps: deps(),
-      test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: [
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.post": :test,
-        "coveralls.html": :test,
-        "coveralls.xml": :test
-      ]
+      deps: deps()
     ]
   end
 
@@ -45,9 +37,7 @@ defmodule Portfolixir.MixProject do
       {:jason, "~> 1.4"},
       {:plug_cowboy, "~> 2.7"},
       {:telemetry_metrics, "~> 1.0"},
-      {:telemetry_poller, "~> 1.0"},
-      {:excoveralls, "~> 0.18", only: :test},
-      {:sbom, "~> 0.10", only: :dev, runtime: false}
+      {:telemetry_poller, "~> 1.0"}
     ]
   end
 
@@ -55,11 +45,7 @@ defmodule Portfolixir.MixProject do
     [
       setup: ["deps.get", "ecto.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"],
-      "sbom.ci": [
-        "cmd mkdir -p sbom",
-        "sbom.cyclonedx --format json --pretty --force --output sbom/portfolixir.cdx.json"
-      ]
+      "ecto.reset": ["ecto.drop", "ecto.setup"]
     ]
   end
 end

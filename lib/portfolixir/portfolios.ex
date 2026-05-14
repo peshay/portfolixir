@@ -1,10 +1,10 @@
 defmodule Portfolixir.Portfolios do
-  @moduledoc "Portfolio context."
+  @moduledoc "Portfolio and linked account setup."
 
   import Ecto.Query
 
+  alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
-  alias Portfolixir.Portfolios.DepositAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
@@ -12,24 +12,15 @@ defmodule Portfolixir.Portfolios do
     Repo.all(from(portfolio in Portfolio, order_by: [asc: portfolio.id]))
   end
 
+  def count_portfolios do
+    Repo.aggregate(Portfolio, :count, :id)
+  end
+
   def first_portfolio do
     Repo.one(from(portfolio in Portfolio, order_by: [asc: portfolio.id], limit: 1))
   end
 
-  def get_portfolio!(id) do
-    Repo.get!(Portfolio, id)
-  end
-
-  def get_portfolio(id) when is_integer(id), do: Repo.get(Portfolio, id)
-
-  def get_portfolio(id) when is_binary(id) do
-    case Integer.parse(id) do
-      {portfolio_id, ""} -> Repo.get(Portfolio, portfolio_id)
-      _ -> nil
-    end
-  end
-
-  def get_portfolio(_), do: nil
+  def get_portfolio!(id), do: Repo.get!(Portfolio, id)
 
   def create_portfolio(attrs) when is_map(attrs) do
     %Portfolio{}
@@ -37,62 +28,58 @@ defmodule Portfolixir.Portfolios do
     |> Repo.insert()
   end
 
-  def update_portfolio(%Portfolio{} = portfolio, attrs) when is_map(attrs) do
-    portfolio
-    |> Portfolio.changeset(attrs)
-    |> Repo.update()
+  def change_portfolio(%Portfolio{} = portfolio, attrs \\ %{}) do
+    Portfolio.changeset(portfolio, attrs)
   end
 
-  def delete_portfolio(%Portfolio{} = portfolio) do
-    Repo.delete(portfolio)
+  def list_cash_accounts do
+    Repo.all(from(account in CashAccount, order_by: [asc: account.name, asc: account.id]))
   end
 
-  def list_deposit_accounts do
-    Repo.all(from(account in DepositAccount, order_by: [asc: account.name]))
-  end
-
-  def list_deposit_accounts_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
+  def list_cash_accounts_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
     Repo.all(
-      from(account in DepositAccount,
+      from(account in CashAccount,
         where: account.portfolio_id == ^portfolio_id,
-        order_by: [asc: account.name]
+        order_by: [asc: account.name, asc: account.id]
       )
     )
   end
 
-  def get_deposit_account!(id), do: Repo.get!(DepositAccount, id)
+  def count_cash_accounts do
+    Repo.aggregate(CashAccount, :count, :id)
+  end
 
-  def create_deposit_account(attrs) when is_map(attrs) do
-    %DepositAccount{}
-    |> DepositAccount.changeset(attrs)
+  def create_cash_account(attrs) when is_map(attrs) do
+    %CashAccount{}
+    |> CashAccount.changeset(attrs)
     |> Repo.insert()
   end
 
-  def update_deposit_account(%DepositAccount{} = account, attrs) when is_map(attrs) do
-    account
-    |> DepositAccount.changeset(attrs)
-    |> Repo.update()
-  end
-
-  def delete_deposit_account(%DepositAccount{} = account) do
-    Repo.delete(account)
+  def change_cash_account(%CashAccount{} = cash_account, attrs \\ %{}) do
+    CashAccount.changeset(cash_account, attrs)
   end
 
   def list_securities_accounts do
-    Repo.all(from(account in SecuritiesAccount, order_by: [asc: account.name]))
+    Repo.all(
+      from(account in SecuritiesAccount,
+        order_by: [asc: account.name, asc: account.id],
+        preload: [:cash_account]
+      )
+    )
   end
 
   def list_securities_accounts_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
     Repo.all(
       from(account in SecuritiesAccount,
         where: account.portfolio_id == ^portfolio_id,
-        order_by: [asc: account.name]
+        order_by: [asc: account.name, asc: account.id],
+        preload: [:cash_account]
       )
     )
   end
 
-  def get_securities_account!(id) do
-    Repo.get!(SecuritiesAccount, id)
+  def count_securities_accounts do
+    Repo.aggregate(SecuritiesAccount, :count, :id)
   end
 
   def create_securities_account(attrs) when is_map(attrs) do
@@ -101,13 +88,7 @@ defmodule Portfolixir.Portfolios do
     |> Repo.insert()
   end
 
-  def update_securities_account(%SecuritiesAccount{} = account, attrs) when is_map(attrs) do
-    account
-    |> SecuritiesAccount.changeset(attrs)
-    |> Repo.update()
-  end
-
-  def delete_securities_account(%SecuritiesAccount{} = account) do
-    Repo.delete(account)
+  def change_securities_account(%SecuritiesAccount{} = securities_account, attrs \\ %{}) do
+    SecuritiesAccount.changeset(securities_account, attrs)
   end
 end

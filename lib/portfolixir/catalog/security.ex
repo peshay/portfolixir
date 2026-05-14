@@ -2,58 +2,49 @@ defmodule Portfolixir.Catalog.Security do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Portfolixir.Catalog.SecurityCategoryAssignment
-  alias Portfolixir.Catalog.FundAllocation
-  alias Portfolixir.Catalog.FundDocument
   alias Portfolixir.Catalog.SecurityQuote
-  alias Portfolixir.Catalog.Currency
 
   schema "securities" do
     field(:name, :string)
     field(:symbol, :string)
-    field(:active, :boolean, default: true)
-    field(:exchange_code, :string)
-    field(:provider_symbol, :string)
-    field(:provider_source, :string)
+    field(:currency_code, :string)
     field(:isin, :string)
-    field(:wkn, :string)
+    field(:exchange_code, :string)
     field(:notes, :string)
 
-    belongs_to(:currency, Currency,
-      foreign_key: :currency_code,
-      references: :code,
-      type: :string,
-      define_field: true
-    )
-
-    has_many(:security_category_assignments, SecurityCategoryAssignment)
-    has_many(:fund_allocations, FundAllocation)
     has_many(:security_quotes, SecurityQuote)
-    has_many(:categories, through: [:security_category_assignments, :category])
-    has_many(:fund_documents, FundDocument)
 
     timestamps()
   end
 
-  @doc false
   def changeset(security, attrs) do
     security
-    |> cast(attrs, [
-      :name,
-      :symbol,
-      :active,
-      :exchange_code,
-      :provider_symbol,
-      :provider_source,
-      :isin,
-      :wkn,
-      :currency_code,
-      :notes
-    ])
+    |> cast(attrs, [:name, :symbol, :currency_code, :isin, :exchange_code, :notes])
+    |> normalize_text(:symbol, &String.upcase/1)
+    |> normalize_text(:currency_code, &String.upcase/1)
+    |> empty_to_nil([:isin, :exchange_code, :notes])
     |> validate_required([:name, :symbol, :currency_code])
-    |> assoc_constraint(:currency)
-    |> unique_constraint(:provider_symbol,
-      name: :securities_provider_symbol_exchange_code_unique_index
-    )
+    |> validate_length(:currency_code, is: 3)
+    |> unique_constraint([:symbol, :currency_code])
+  end
+
+  defp normalize_text(changeset, field, fun) do
+    update_change(changeset, field, fn
+      value when is_binary(value) -> value |> String.trim() |> fun.()
+      value -> value
+    end)
+  end
+
+  defp empty_to_nil(changeset, fields) do
+    Enum.reduce(fields, changeset, fn field, acc ->
+      update_change(acc, field, fn
+        value when is_binary(value) ->
+          value = String.trim(value)
+          if value == "", do: nil, else: value
+
+        value ->
+          value
+      end)
+    end)
   end
 end

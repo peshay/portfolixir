@@ -2,32 +2,23 @@ defmodule Portfolixir.Catalog.SecurityQuote do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Portfolixir.Catalog.Currency
   alias Portfolixir.Catalog.Security
 
   schema "security_quotes" do
     field(:date, :date)
-    field(:source, :string)
+    field(:source, :string, default: "manual")
+    field(:currency_code, :string)
     field(:open, :decimal)
     field(:high, :decimal)
     field(:low, :decimal)
     field(:close, :decimal)
     field(:volume, :decimal)
-    field(:metadata, :map, default: %{})
 
     belongs_to(:security, Security)
-
-    belongs_to(:currency, Currency,
-      foreign_key: :currency_code,
-      references: :code,
-      type: :string,
-      define_field: true
-    )
 
     timestamps()
   end
 
-  @doc false
   def changeset(security_quote, attrs) do
     security_quote
     |> cast(attrs, [
@@ -39,29 +30,32 @@ defmodule Portfolixir.Catalog.SecurityQuote do
       :high,
       :low,
       :close,
-      :volume,
-      :metadata
+      :volume
     ])
+    |> normalize_currency_code()
+    |> default_source()
     |> validate_required([:security_id, :date, :source, :currency_code, :close])
     |> validate_number(:open, greater_than_or_equal_to: 0)
     |> validate_number(:high, greater_than_or_equal_to: 0)
     |> validate_number(:low, greater_than_or_equal_to: 0)
     |> validate_number(:close, greater_than_or_equal_to: 0)
     |> validate_number(:volume, greater_than_or_equal_to: 0)
-    |> validate_metadata_map()
     |> assoc_constraint(:security)
-    |> assoc_constraint(:currency)
-    |> unique_constraint(:security_id,
-      name: :security_quotes_security_id_source_date_unique_index
-    )
+    |> unique_constraint([:security_id, :source, :date])
   end
 
-  defp validate_metadata_map(changeset) do
-    validate_change(changeset, :metadata, fn :metadata, metadata ->
-      case metadata do
-        %{} = _map -> []
-        _ -> [metadata: "is invalid"]
-      end
+  defp normalize_currency_code(changeset) do
+    update_change(changeset, :currency_code, fn
+      value when is_binary(value) -> value |> String.trim() |> String.upcase()
+      value -> value
     end)
+  end
+
+  defp default_source(changeset) do
+    case get_field(changeset, :source) do
+      nil -> put_change(changeset, :source, "manual")
+      "" -> put_change(changeset, :source, "manual")
+      _source -> changeset
+    end
   end
 end
