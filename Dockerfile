@@ -3,6 +3,7 @@ FROM elixir:1.18.3-otp-27
 ENV DEBIAN_FRONTEND=noninteractive \
     MIX_HOME=/opt/mix \
     HEX_HOME=/opt/hex \
+    HEX_VERSION=2.4.2 \
     PATH="/opt/mix/bin:${PATH}" \
     APP_HOME=/app
 
@@ -19,7 +20,7 @@ RUN apt-get update && \
       wget \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mix local.hex --force && \
+RUN mix local.hex ${HEX_VERSION} --force && \
     mix local.rebar --force
 
 WORKDIR ${APP_HOME}
