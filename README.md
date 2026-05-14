@@ -21,6 +21,7 @@ document intake, LLM, or MCP system.
 The active foundation contains:
 
 - Phoenix and LiveView shell;
+- neutral, unbranded HTML surfaces for the MVP workflow;
 - securities master data;
 - portfolios, cash accounts, and linked securities accounts;
 - manual buy and sell transactions using `Decimal`;
@@ -40,6 +41,9 @@ trading, payments, orders, and rebalancing.
 For MVP trade entry, each depot has exactly one linked cash account. Buy and
 sell transactions derive the cash account from the selected depot instead of
 asking the user to choose one independently.
+
+Visual product design and branding are intentionally deferred. The foundation
+keeps the UI plain so design can restart in a separate reviewed PR.
 
 ## Local Development
 

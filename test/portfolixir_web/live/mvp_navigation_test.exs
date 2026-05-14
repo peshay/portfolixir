@@ -35,6 +35,29 @@ defmodule PortfolixirWeb.MVPNavigationTest do
   end
 
   # User story:
+  # As a maintainer preparing main for the reboot,
+  # I want the foundation shell to avoid prototype branding and embedded visual design,
+  # so that product design can restart in a separate human-reviewed PR.
+  #
+  # Acceptance criteria:
+  # - The dashboard shell renders without an embedded style block.
+  # - The root layout does not reference prototype favicon or logo assets.
+  # - Prototype public logo and favicon assets are not kept in the foundation.
+  test "foundation shell avoids prototype branding and embedded visual design", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    refute html =~ "<style"
+
+    root_layout = File.read!("lib/portfolixir_web/layout_view.ex")
+
+    refute root_layout =~ "favicon"
+    refute root_layout =~ "logo"
+    refute File.exists?("priv/static/favicon.ico")
+    refute File.exists?("priv/static/favicon.svg")
+    refute File.exists?("priv/static/images")
+  end
+
+  # User story:
   # As a local portfolio maintainer,
   # I want a security detail page to display stored quote history as a chart,
   # so that I can inspect manual price history without import or market sync features.
