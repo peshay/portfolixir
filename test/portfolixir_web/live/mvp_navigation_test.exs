@@ -35,27 +35,119 @@ defmodule PortfolixirWeb.MVPNavigationTest do
   end
 
   # User story:
-  # As a maintainer preparing main for the reboot,
-  # I want the foundation shell to avoid embedded visual design while keeping logo assets,
-  # so that product design can restart later without losing useful brand files.
+  # As a local portfolio maintainer,
+  # I want a responsive Portfolixir design shell with matching light and dark themes,
+  # so that the MVP workflow has a coherent app frame on desktop, tablet, and phone.
   #
   # Acceptance criteria:
-  # - The dashboard shell renders without an embedded style block.
-  # - The root layout does not reference favicon or logo assets yet.
-  # - Public logo and favicon assets are kept for the later design PR.
-  test "foundation shell stays neutral while keeping logo assets for later design", %{conn: conn} do
+  # - The root layout loads the app stylesheet, color-scheme metadata, and favicon assets.
+  # - The app shell renders a logo, hamburger toggle, collapsible sidebar, and active navigation state.
+  # - The stylesheet defines shared light/dark theme tokens from the logo palette.
+  # - The stylesheet includes responsive sidebar and compact navigation rules.
+  test "app shell establishes the initial responsive light and dark design foundation", %{
+    conn: conn
+  } do
+    {:ok, view, html} = live(conn, "/")
+
+    assert html =~ ~s(href="/app.css")
+    assert html =~ ~s(rel="icon")
+    assert html =~ ~s(name="color-scheme")
+
+    assert html =~ ~s(id="app-sidebar-toggle")
+    assert html =~ ~s(class="sidebar-toggle")
+    assert html =~ ~s(src="/images/logo-mark-light.svg")
+    assert html =~ ~s(src="/images/logo-mark-dark.svg")
+    assert html =~ ~s(class="brand-wordmark")
+    assert has_element?(view, "#app-sidebar")
+    assert has_element?(view, "#nav-dashboard[aria-current='page']")
+    refute html =~ ~s(id="nav-securities" aria-current)
+
+    app_css = File.read!("priv/static/app.css")
+
+    for token <- [
+          "--color-accent-violet: #7c3aed",
+          "--color-accent-teal: #0f766e",
+          "--color-accent-coral: #e11d48",
+          "--color-positive",
+          "--color-danger"
+        ] do
+      assert app_css =~ token
+    end
+
+    assert app_css =~ "@media (prefers-color-scheme: dark)"
+    assert app_css =~ ~s([data-theme="light"])
+    assert app_css =~ ~s([data-theme="dark"])
+    assert app_css =~ "@media (max-width: 900px)"
+    assert app_css =~ "#app-sidebar-toggle:checked"
+    assert app_css =~ ".app-shell"
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want theme and language controls in the top bar instead of a second sidebar collapse control,
+  # so that display preferences are obvious and the navigation frame stays simple.
+  #
+  # Acceptance criteria:
+  # - The bottom sidebar collapse control is not rendered.
+  # - The top bar contains a compact theme dropdown with system, light, and dark icon choices.
+  # - The top bar contains language links for English and German.
+  # - Light and dark logo marks exist without bundled wordmark text.
+  test "top bar contains display controls and sidebar has no duplicate collapse control", %{
+    conn: conn
+  } do
     {:ok, _view, html} = live(conn, "/")
 
-    refute html =~ "<style"
+    refute html =~ "sidebar-collapse"
+    assert html =~ ~s(id="theme-mode")
+    assert html =~ ~s(class="theme-menu")
+    assert html =~ ~s(class="theme-menu-trigger")
+    assert html =~ ~s(data-theme-choice="system")
+    assert html =~ ~s(data-theme-choice="light")
+    assert html =~ ~s(data-theme-choice="dark")
+    assert html =~ ~s(class="theme-icon theme-icon-system")
+    assert html =~ ~s(class="theme-icon theme-icon-light")
+    assert html =~ ~s(class="theme-icon theme-icon-dark")
+    assert html =~ ~s(title="System")
+    assert html =~ ~s(title="Light")
+    assert html =~ ~s(title="Dark")
+    assert html =~ ~s(id="locale-en")
+    assert html =~ ~s(id="locale-de")
+    assert html =~ ~s(src="/images/logo-mark-light.svg")
+    assert html =~ ~s(src="/images/logo-mark-dark.svg")
 
-    root_layout = File.read!("lib/portfolixir_web/layout_view.ex")
+    logo_mark_light = File.read!("priv/static/images/logo-mark-light.svg")
+    logo_mark_dark = File.read!("priv/static/images/logo-mark-dark.svg")
 
-    refute root_layout =~ "favicon"
-    refute root_layout =~ "logo"
-    assert File.exists?("priv/static/favicon.ico")
-    assert File.exists?("priv/static/favicon.svg")
-    assert File.exists?("priv/static/images/logo.svg")
-    assert File.exists?("priv/static/images/logo-wordmark.svg")
+    refute logo_mark_light =~ "<text"
+    refute logo_mark_dark =~ "<text"
+    assert logo_mark_light =~ ~s(stroke="#201631")
+    assert logo_mark_dark =~ ~s(stroke="#F5F3FF")
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want Portfolixir to default to my browser language while still offering a manual switch,
+  # so that I can use German or English without changing the application scope.
+  #
+  # Acceptance criteria:
+  # - German browser language renders the dashboard navigation in German.
+  # - The locale query parameter overrides the browser language.
+  # - Locale switching avoids creating atoms from request input.
+  test "browser language defaults to german and locale query can switch back to english", %{
+    conn: conn
+  } do
+    german_conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9,en;q=0.8")
+
+    {:ok, view, _html} = live(german_conn, "/")
+
+    assert has_element?(view, "#nav-securities", "Wertpapiere")
+    assert has_element?(view, "#locale-de[aria-current='true']")
+    assert has_element?(view, "#locale-en[href='/?locale=en']")
+
+    {:ok, english_view, _html} = live(german_conn, "/?locale=en")
+
+    assert has_element?(english_view, "#nav-securities", "Securities")
+    assert has_element?(english_view, "#locale-en[aria-current='true']")
   end
 
   # User story:

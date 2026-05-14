@@ -3,26 +3,269 @@ msgid ""
 msgstr ""
 "Language: en\n"
 
-msgid "Dashboard"
+msgid "Add quote"
 msgstr ""
 
-msgid "Securities"
+msgid "Add security"
 msgstr ""
 
-msgid "Portfolios"
+msgid "All securities"
 msgstr ""
 
-msgid "Transactions"
+msgid "Application navigation"
 msgstr ""
 
-msgid "Create securities"
+msgid "Base currency"
+msgstr ""
+
+msgid "Cash account created"
+msgstr ""
+
+msgid "Cash accounts"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Create a portfolio and linked accounts before recording transactions."
+msgstr ""
+
+msgid "Create a portfolio first"
+msgstr ""
+
+msgid "Create cash account"
+msgstr ""
+
+msgid "Create depot"
 msgstr ""
 
 msgid "Create one portfolio"
 msgstr ""
 
-msgid "Record manual buy and sell transactions"
+msgid "Create portfolio"
+msgstr ""
+
+msgid "Create securities"
+msgstr ""
+
+msgid "Create security"
+msgstr ""
+
+msgid "Currency"
+msgstr ""
+
+msgid "Current holdings"
+msgstr ""
+
+msgid "Current setup"
+msgstr ""
+
+msgid "Dark"
+msgstr ""
+
+msgid "Dashboard"
+msgstr ""
+
+msgid "Date"
+msgstr ""
+
+msgid "Depot"
+msgstr ""
+
+msgid "Depot created"
+msgstr ""
+
+msgid "Depots"
+msgstr ""
+
+msgid "Detail"
+msgstr ""
+
+msgid "Display preferences"
+msgstr ""
+
+msgid "English"
+msgstr ""
+
+msgid "Exchange"
+msgstr ""
+
+msgid "Fees"
+msgstr ""
+
+msgid "German"
+msgstr ""
+
+msgid "High"
+msgstr ""
+
+msgid "ISIN"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Light"
+msgstr ""
+
+msgid "Link one depot to one cash account"
+msgstr ""
+
+msgid "Linked cash account"
 msgstr ""
 
 msgid "Linked cash account is derived from the selected depot."
+msgstr ""
+
+msgid "Local portfolio tracking MVP"
+msgstr ""
+
+msgid "Low"
+msgstr ""
+
+msgid "MVP counts"
+msgstr ""
+
+msgid "MVP path"
+msgstr ""
+
+msgid "Manual buy and sell ledger"
+msgstr ""
+
+msgid "Missing linked cash account"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "No holdings yet"
+msgstr ""
+
+msgid "No quote history yet"
+msgstr ""
+
+msgid "No quotes yet"
+msgstr ""
+
+msgid "No securities yet"
+msgstr ""
+
+msgid "No transactions yet"
+msgstr ""
+
+msgid "Notes"
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Open navigation"
+msgstr ""
+
+msgid "Portfolio created"
+msgstr ""
+
+msgid "Portfolio, cash account, and depot setup"
+msgstr ""
+
+msgid "Portfolios"
+msgstr ""
+
+msgid "Price"
+msgstr ""
+
+msgid "Price history"
+msgstr ""
+
+msgid "Primary navigation"
+msgstr ""
+
+msgid "Quantity"
+msgstr ""
+
+msgid "Quote history"
+msgstr ""
+
+msgid "Quote stored"
+msgstr ""
+
+msgid "Quotes"
+msgstr ""
+
+msgid "Record manual buy and sell transactions"
+msgstr ""
+
+msgid "Record transaction"
+msgstr ""
+
+msgid "Review current holdings"
+msgstr ""
+
+msgid "Securities"
+msgstr ""
+
+msgid "Security"
+msgstr ""
+
+msgid "Security created"
+msgstr ""
+
+msgid "Security master data"
+msgstr ""
+
+msgid "Security price history chart"
+msgstr ""
+
+msgid "Select cash account"
+msgstr ""
+
+msgid "Select depot"
+msgstr ""
+
+msgid "Select security"
+msgstr ""
+
+msgid "Source"
+msgstr ""
+
+msgid "Store and display quote history"
+msgstr ""
+
+msgid "Store quote"
+msgstr ""
+
+msgid "Symbol"
+msgstr ""
+
+msgid "System"
+msgstr ""
+
+msgid "Taxes"
+msgstr ""
+
+msgid "Theme"
+msgstr ""
+
+msgid "Toggle navigation"
+msgstr ""
+
+msgid "Transaction history"
+msgstr ""
+
+msgid "Transaction recorded"
+msgstr ""
+
+msgid "Transactions"
+msgstr ""
+
+msgid "Type"
+msgstr ""
+
+msgid "Unknown depot"
+msgstr ""
+
+msgid "Unknown security"
+msgstr ""
+
+msgid "Volume"
 msgstr ""

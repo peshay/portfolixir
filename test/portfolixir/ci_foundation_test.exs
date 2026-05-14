@@ -29,4 +29,23 @@ defmodule Portfolixir.CIFoundationTest do
     refute File.exists?("lib/portfolixir/release.ex")
     refute File.exists?(".github/CODEOWNERS")
   end
+
+  # User story:
+  # As a maintainer starting the local Docker app,
+  # I want the container image to install the expected Hex version during build,
+  # so that runtime startup does not print package-manager update warnings.
+  #
+  # Acceptance criteria:
+  # - The Dockerfile pins Hex to the currently expected version.
+  # - The pinned Hex version is installed before dependencies are fetched.
+  test "docker image pins hex before fetching dependencies" do
+    dockerfile = File.read!("Dockerfile")
+
+    assert dockerfile =~ "HEX_VERSION=2.4.2"
+    assert dockerfile =~ "mix local.hex ${HEX_VERSION} --force"
+
+    assert String.split(dockerfile, "mix local.hex ${HEX_VERSION} --force")
+           |> Enum.at(1)
+           |> String.contains?("mix deps.get")
+  end
 end
