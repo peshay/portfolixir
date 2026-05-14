@@ -100,14 +100,38 @@ If pre-commit is not installed:
 pre-commit install --install-hooks
 ```
 
+Before every LLM-authored commit on `codex/*` branches, include this footer in the
+commit message so the agent identity and reasoning budget are explicit:
+
+```text
+Model: <model-name>
+Thinking level: <none|minimal|low|medium|high|xhigh>
+```
+
 ## Story Workflow
 
 1. User Story documented.
 2. Functional test written directly below the User Story comment.
 3. Test failure confirmed for the expected reason.
 4. Smallest implementation code written.
-5. Required gates run.
-6. User documentation reviewed and updated when visible behavior changed.
+5. Security audit is performed before finalizing the patch.
+6. Required gates run.
+7. User documentation reviewed and updated when visible behavior changed.
+
+For AI-assisted changes, the above cycle is required to run as distinct iterations.
+
+## AI Authoring Contract
+
+Agent commits must follow this order and keep each iteration reviewable:
+
+1. Write the user story and acceptance criteria.
+2. Add the user-story-backed test cases first.
+3. Implement only the minimal behavior needed by the tests.
+4. Run a security review pass and harden risks introduced by the patch.
+5. Update docs when user-visible behavior changes.
+
+All AI-authored commits should document model and reasoning level in the commit
+footer and use PR body structure that includes evidence for each iteration step.
 
 Read the user-visible problem, expected behavior, affected screen, route, or
 surface, severity, acceptance criteria, and non-goals before editing. Keep every
