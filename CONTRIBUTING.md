@@ -65,11 +65,23 @@ Each user-visible story must move in this order:
 2. Functional test written directly below the User Story comment.
 3. Test failure confirmed for the expected reason.
 4. Smallest implementation code written.
-5. Required gates run.
-6. User documentation reviewed and updated when visible behavior changed.
+5. Security audit performed.
+6. Required gates run.
+7. User documentation reviewed and updated when visible behavior changed.
 
 Open a PR with a short summary, story-comment evidence, test-first evidence,
 documentation review note, coverage evidence, and commands run.
+
+## AI/Commit Metadata
+
+For codex-style agent branches, append metadata to commit messages in this format:
+
+```text
+Model: <model>
+Thinking level: <none|minimal|low|medium|high|xhigh>
+```
+
+The repository pre-commit config validates this footer before commit.
 
 ## Story And Test Format
 
@@ -148,6 +160,7 @@ chore/pre-commit
 - [ ] The functional test sits directly below the user story comment.
 - [ ] Tests were written before implementation.
 - [ ] The new or changed test failed for the expected reason before implementation.
+- [ ] Security audit was performed.
 - [ ] User documentation was reviewed for consistency.
 - [ ] User documentation was updated, or the PR explains why no user docs changed.
 - [ ] `mix format` was run.
