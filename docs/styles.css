@@ -108,6 +108,28 @@ h2 {
   font-size: 22px;
 }
 
+.docs-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 10px 0 22px;
+}
+
+.docs-nav-link {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--color-panel) 94%, transparent);
+  box-shadow: var(--shadow-panel);
+}
+
+.docs-nav-link:hover {
+  text-decoration: none;
+  border-color: color-mix(in srgb, var(--color-accent-violet) 30%, var(--color-border));
+}
+
 p {
   max-width: 760px;
   margin: 12px 0 0;
@@ -170,5 +192,9 @@ li::marker {
 
   h1 {
     font-size: 34px;
+  }
+
+  .docs-nav {
+    grid-template-columns: 1fr;
   }
 }
