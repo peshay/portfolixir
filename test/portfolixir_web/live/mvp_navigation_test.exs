@@ -36,14 +36,14 @@ defmodule PortfolixirWeb.MVPNavigationTest do
 
   # User story:
   # As a maintainer preparing main for the reboot,
-  # I want the foundation shell to avoid prototype branding and embedded visual design,
-  # so that product design can restart in a separate human-reviewed PR.
+  # I want the foundation shell to avoid embedded visual design while keeping logo assets,
+  # so that product design can restart later without losing useful brand files.
   #
   # Acceptance criteria:
   # - The dashboard shell renders without an embedded style block.
-  # - The root layout does not reference prototype favicon or logo assets.
-  # - Prototype public logo and favicon assets are not kept in the foundation.
-  test "foundation shell avoids prototype branding and embedded visual design", %{conn: conn} do
+  # - The root layout does not reference favicon or logo assets yet.
+  # - Public logo and favicon assets are kept for the later design PR.
+  test "foundation shell stays neutral while keeping logo assets for later design", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     refute html =~ "<style"
@@ -52,9 +52,10 @@ defmodule PortfolixirWeb.MVPNavigationTest do
 
     refute root_layout =~ "favicon"
     refute root_layout =~ "logo"
-    refute File.exists?("priv/static/favicon.ico")
-    refute File.exists?("priv/static/favicon.svg")
-    refute File.exists?("priv/static/images")
+    assert File.exists?("priv/static/favicon.ico")
+    assert File.exists?("priv/static/favicon.svg")
+    assert File.exists?("priv/static/images/logo.svg")
+    assert File.exists?("priv/static/images/logo-wordmark.svg")
   end
 
   # User story:

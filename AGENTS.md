@@ -18,8 +18,8 @@ Build only this workflow until a story explicitly changes scope:
 6. Store and display quote history.
 7. Show a security detail chart with price history.
 
-Future MVP functionality must be added Epic-by-Epic with human review on
-staging before production promotion.
+Future MVP functionality must be added Epic-by-Epic with human review and local
+quality gates before merge.
 
 ## Hard Rules
 
@@ -111,8 +111,8 @@ pre-commit install --install-hooks
 
 Read the user-visible problem, expected behavior, affected screen, route, or
 surface, severity, acceptance criteria, and non-goals before editing. Keep every
-change inside the story scope. Future MVP functionality is added through
-human-reviewed Epics on staging before production promotion.
+change inside the story scope. Every user-visible change updates user
+documentation when behavior changes.
 
 ## Scope Lock
 
