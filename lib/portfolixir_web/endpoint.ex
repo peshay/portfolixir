@@ -13,7 +13,7 @@ defmodule PortfolixirWeb.Endpoint do
     at: "/",
     from: :portfolixir,
     gzip: false,
-    only: ~w(favicon.ico favicon.svg images)
+    only: ~w(app.css favicon.ico favicon.svg images)
   )
 
   plug(Plug.Static,

@@ -4,6 +4,8 @@ defmodule PortfolixirWeb.Router do
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
+    plug(:fetch_cookies)
+    plug(PortfolixirWeb.Locale)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
@@ -16,7 +18,7 @@ defmodule PortfolixirWeb.Router do
   scope "/", PortfolixirWeb do
     pipe_through(:browser)
 
-    live_session :browser do
+    live_session :browser, on_mount: PortfolixirWeb.LiveLocale do
       live("/", DashboardLive)
       live("/securities", SecurityManagementLive)
       live("/securities/:id", SecurityDetailLive)
