@@ -100,13 +100,27 @@ If pre-commit is not installed:
 pre-commit install --install-hooks
 ```
 
-Before every LLM-authored commit on `codex/*` branches, include this footer in the
-commit message so the agent identity and reasoning budget are explicit:
+For every Agent-authored branch, include this footer in the commit message so
+agent identity and reasoning budget are explicit:
 
 ```text
 Model: <model-name>
 Thinking level: <none|minimal|low|medium|high|xhigh>
 ```
+
+## Branch naming for agent work
+
+Use agent branches with provider context:
+
+- `agent/<provider>/<topic-slug>`
+
+Examples:
+
+- `agent/codex/product-documentation`
+- `agent/claude/design-system`
+- `agent/gemini/locale-copy`
+- `agent/gemma/dev-guide`
+- `codex/<topic-slug>` (legacy while existing work may still use this prefix)
 
 ## Story Workflow
 
