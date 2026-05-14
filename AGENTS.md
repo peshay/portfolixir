@@ -1,76 +1,92 @@
 # AGENTS.md
 
-These instructions apply to all AI coding agents working on Portfolixir.
+These instructions apply to all coding agents working on Portfolixir.
 
-## Project goal
+## Project Goal
 
-Build Portfolixir: a self-hosted Elixir/Phoenix portfolio analytics and wealth graph platform
-for local, auditable portfolio modelling.
+Portfolixir is being rebooted as the smallest coherent self-hosted Phoenix
+foundation for local portfolio tracking. This branch is a foundation reset, not
+a finished MVP.
 
-The current MVP path is intentionally narrow. Build in this order unless a story says otherwise:
+Build only this workflow until a story explicitly changes scope:
 
-1. securities workbench and security master data;
-2. portfolio, depot/securities account, and linked cash-account setup;
-3. manual buy/sell transaction entry with deterministic Decimal calculations;
-4. quote history, valuations, and charts over stored data.
+1. Create securities.
+2. Create one portfolio.
+3. Create one securities account/depot linked to one cash account.
+4. Record manual buy and sell transactions.
+5. Calculate current holdings from transactions.
+6. Store and display quote history.
+7. Show a security detail chart with price history.
 
-Import, document, broker, bank, payment, trading, order, rebalance, and production-readiness work
-is deferred unless a story explicitly scopes a safe, read-only or mocked slice.
+Future MVP functionality must be added Epic-by-Epic with human review on
+staging before production promotion.
 
-## Hard rules
+## Hard Rules
 
 - Follow TDD strictly.
 - Write tests before implementation.
-- Work on exactly the requested story or story batch.
+- Work only on the requested story or story batch.
 - Do not add adjacent features.
 - Do not silently change architecture decisions.
 - Do not commit real financial data.
-- Do not add real account numbers, wallet addresses, broker statements, personal names, or private
-  portfolio files.
 - Use synthetic fixtures only.
 - Do not make external network calls in tests.
-- Use provider behaviours, fakes, or mocks for market data.
 - Never create atoms from external input with `String.to_atom/1`.
-- Use explicit whitelists or strings for external values.
-- Use `Decimal` for money, quantities, prices, and FX rates.
+- Use `Decimal` for money, quantities, prices, fees, taxes, and FX rates.
 - Do not use floats for persisted financial values.
-- Do not implement write-capable LLM/MCP tools in the MVP.
-- Do not add broker, banking, trading, payment, order, or rebalance actions.
+- Do not implement imports, document intake, broker sync, bank sync, trading,
+  payment, order, rebalance, LLM, or MCP behavior.
+- Do not add advanced reports or advanced classifications.
 - Do not claim production readiness.
+- Public files must be normal readable multiline files.
 
-## Preferred architecture
+## Active Architecture
 
-Use a modular Phoenix monolith:
+Use a small modular Phoenix monolith:
 
 ```text
-Portfolixir.Catalog      # currencies, exchanges, securities
-Portfolixir.Taxonomies   # taxonomies, categories, assignments
-Portfolixir.Portfolios   # portfolios, accounts, base currency
-Portfolixir.Ledger       # transactions, lots/effects later
-Portfolixir.MarketData   # provider behaviour, symbol search, quotes
-Portfolixir.Valuation    # positions and portfolio value
-PortfolixirWeb           # controllers, LiveViews, components
+Portfolixir.Catalog      # securities and security quotes
+Portfolixir.Portfolios   # portfolios, cash accounts, depots
+Portfolixir.Ledger       # manual buy/sell transactions and holdings
+PortfolixirWeb           # LiveViews, router, components
 ```
 
-Keep domain modules separate from web/controllers whenever possible.
+Keep domain modules separate from LiveViews and controllers.
 
-## Testing expectations
+## Testing Expectations
 
 Every story must include tests.
 
+For user-visible stories, start in the test file. Add a short user story
+comment, then place the functional test for that story directly below it. Use
+this shape unless a narrower format already exists in the touched test file:
+
+```elixir
+# User story:
+# As a local portfolio maintainer,
+# I want to record a manual buy transaction,
+# so that my current holdings are derived from auditable local data.
+#
+# Acceptance criteria:
+# - The transaction is stored with Decimal quantity and price values.
+# - The holdings view includes the bought quantity.
+test "records a manual buy transaction and updates holdings" do
+  ...
+end
+```
+
 Minimum test types:
 
-- contexts: unit/integration tests using `DataCase`;
-- API endpoints: `ConnCase`;
-- LiveView: `Phoenix.LiveViewTest` when UI is part of the story;
-- market providers: behaviours plus fakes or Mox-style mocks, no real HTTP in tests;
-- calculations: deterministic fixtures and explicit expected values.
+- contexts and schemas: `DataCase`;
+- web routes and LiveViews: `ConnCase` with `Phoenix.LiveViewTest`;
+- calculations: deterministic fixtures and exact `Decimal` expectations where
+  practical.
 
-For financial calculations, tests must include exact `Decimal` expectations where practical.
+Do not make real network calls in tests.
 
-## Required local quality gate
+## Required Local Checks
 
-Run the required local checks before opening a PR:
+Run these before opening a PR:
 
 ```bash
 mix format
@@ -78,52 +94,41 @@ mix test
 pre-commit run --all-files
 ```
 
-If pre-commit is not installed yet, either install it with `pre-commit install --install-hooks`
-or run the repository public-artifact guard directly through the documented replacement command
-in `CONTRIBUTING.md`.
-
-## Optional heavy checks
-
-These checks are useful when the story touches riskier areas, but they are optional unless a story
-or PR reviewer asks for them:
+If pre-commit is not installed:
 
 ```bash
-mix coveralls
-mix credo --strict
-mix dialyzer
-mix sobelow
-mix deps.audit
+pre-commit install --install-hooks
 ```
 
-If a tool is not configured, do not configure it unless the story asks for that work.
+## Story Workflow
 
-## Story workflow
+1. User Story documented.
+2. Functional test written directly below the User Story comment.
+3. Test failure confirmed for the expected reason.
+4. Smallest implementation code written.
+5. Required gates run.
+6. User documentation reviewed and updated when visible behavior changed.
 
-For each story:
+Read the user-visible problem, expected behavior, affected screen, route, or
+surface, severity, acceptance criteria, and non-goals before editing. Keep every
+change inside the story scope. Future MVP functionality is added through
+human-reviewed Epics on staging before production promotion.
 
-1. Read the user-visible problem, expected behavior, affected route or surface, severity,
-   acceptance criteria, and non-goals.
-2. Add or update tests first.
-3. Run tests and confirm they fail for the expected reason.
-4. Implement the smallest code change.
-5. Run tests again.
-6. Refactor only within the story scope.
-7. Summarize files changed and commands run.
+## Scope Lock
 
-## Scope lock
+If you discover a larger design issue, leave a follow-up note instead of solving
+it opportunistically.
 
-If you discover a larger design issue, create a follow-up note instead of solving it opportunistically.
+## Security Boundaries
 
-## Security boundaries
-
-This project handles sensitive financial data. For the MVP:
+For the MVP:
 
 - no external LLM calls from the app;
 - no market-data network calls in tests;
 - no stored API keys in source;
 - no `.env` writing from the web UI;
 - no real bank, broker, wallet, payment, order, trading, or rebalance action;
-- no automatic trading/payment functionality.
+- no automatic trading or payment functionality.
 
 ## Naming
 

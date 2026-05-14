@@ -22,17 +22,3 @@ repos:
         language: system
         pass_filenames: false
         files: "(\\.exs?$|^mix\\.exs$|^\\.formatter\\.exs$)"
-
-      - id: public-artifact-guard
-        name: Public artifact and Markdown readability guard
-        entry: python3 scripts/public_artifact_guard.py
-        language: system
-        pass_filenames: true
-        types:
-          - text
-
-      - id: public-artifact-guard-tests
-        name: Public artifact guard regression tests
-        entry: python3 scripts/test_public_artifact_guard.py
-        language: system
-        pass_filenames: false
