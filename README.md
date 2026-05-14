@@ -85,6 +85,8 @@ pre-commit install --install-hooks
 
 ## Documentation
 
+- [docs](docs/index.md)
+
 - Product documentation
   - [Product docs home](docs/index.md)
   - [Product feature documentation](docs/product-documentation.md)
