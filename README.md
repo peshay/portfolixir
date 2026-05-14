@@ -85,8 +85,13 @@ pre-commit install --install-hooks
 
 ## Documentation
 
-- [docs](docs/index.md)
-- [Home Deployment](docs/home-deployment.md)
+- Product documentation
+  - [Product docs home](docs/index.md)
+  - [Product feature documentation](docs/product-documentation.md)
+  - [Home Deployment](docs/home-deployment.md)
+- Development documentation
+  - [Story workflow](docs/development/story-workflow.md)
+  - [Developer guide](docs/development/guide.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [AGENTS.md](AGENTS.md)
 
