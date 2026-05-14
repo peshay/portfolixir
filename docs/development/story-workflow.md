@@ -10,8 +10,9 @@ For every user-visible story, use this order:
 2. Functional test written directly below the User Story comment.
 3. Test failure confirmed for the expected reason.
 4. Smallest implementation code written.
-5. Required gates run.
-6. User documentation reviewed and updated when visible behavior changed.
+5. Security audit completed before finalizing behavior changes.
+6. Required gates run.
+7. User documentation reviewed and updated when visible behavior changed.
 
 Every user-visible change updates user documentation when behavior changes.
 Visible copy stays English-first in code and must include German gettext

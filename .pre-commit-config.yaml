@@ -1,5 +1,6 @@
 default_install_hook_types:
   - pre-commit
+  - commit-msg
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -22,3 +23,9 @@ repos:
         language: system
         pass_filenames: false
         files: "(\\.exs?$|^mix\\.exs$|^\\.formatter\\.exs$)"
+      - id: llm-commit-footer
+        name: Require commit footer with model and thinking level
+        entry: bash scripts/validate-llm-commit-footer.sh
+        language: system
+        stages: [commit-msg]
+        pass_filenames: true
