@@ -74,14 +74,25 @@ documentation review note, coverage evidence, and commands run.
 
 ## AI/Commit Metadata
 
-For codex-style agent branches, append metadata to commit messages in this format:
+For agent-authored branches, append metadata to commit messages in this format:
 
 ```text
 Model: <model>
 Thinking level: <none|minimal|low|medium|high|xhigh>
 ```
 
-The repository pre-commit config validates this footer before commit.
+The repository pre-commit config validates this footer for branches matching the
+agent naming convention.
+
+Use branch names that include the agent/provider:
+
+- `agent/<provider>/<topic-slug>`
+
+Examples:
+- `agent/codex/product-documentation`
+- `agent/claude/design-system`
+- `agent/gemini/locale-copy`
+- `agent/gemma/dev-guide`
 
 ## Story And Test Format
 

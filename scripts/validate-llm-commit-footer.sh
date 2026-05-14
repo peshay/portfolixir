@@ -8,9 +8,10 @@ fi
 
 COMMIT_MSG_FILE=$1
 BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+AGENT_BRANCH_REGEX='^(agent|codex)/.+'
 
-if [ "$BRANCH_NAME" != "HEAD" ] && [[ "$BRANCH_NAME" == codex/* ]]; then
-  echo "LLM commit metadata is required on codex/* branches."
+if [ "$BRANCH_NAME" != "HEAD" ] && [[ "$BRANCH_NAME" =~ $AGENT_BRANCH_REGEX ]]; then
+  echo "LLM commit metadata is required on agent branches."
 
   if ! grep -Eq "^Model:[[:space:]]+.+$" "$COMMIT_MSG_FILE"; then
     echo "Missing commit footer line: 'Model: <model-name>'"

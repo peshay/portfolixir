@@ -1,7 +1,7 @@
 ## Story
 
 - Closes PFX-...
-- User story reference:
+- Agent branch (if applicable): `agent/<provider>/<topic-slug>` or `codex/<topic-slug>` (legacy).
 
 ## Summary
 
