@@ -4,7 +4,7 @@ Portfolixir is in a controlled foundation reset. Keep changes small, tested
 first, and aligned with the manual portfolio tracking workflow.
 
 This branch is not a finished MVP. Future MVP functionality is added through
-human-reviewed Epics, staging review, and explicit production promotion.
+human-reviewed Epics and local quality gates.
 
 ## MVP Scope
 
@@ -69,8 +69,7 @@ Each user-visible story must move in this order:
 6. User documentation reviewed and updated when visible behavior changed.
 
 Open a PR with a short summary, story-comment evidence, test-first evidence,
-documentation review note, and commands run. Future MVP functionality is added
-through human-reviewed Epics on staging before production promotion.
+documentation review note, coverage evidence, and commands run.
 
 ## Story And Test Format
 
@@ -112,6 +111,7 @@ The detailed story workflow lives in
 ```bash
 mix format
 mix test
+mix coveralls
 pre-commit run --all-files
 ```
 
@@ -137,7 +137,6 @@ The pre-commit setup uses standard hygiene hooks and `mix format --check-formatt
 Use short, scoped names:
 
 ```text
-reboot/mvp-foundation
 story/manual-buy-sell
 fix/security-quote-validation
 chore/pre-commit

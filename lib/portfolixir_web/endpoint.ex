@@ -10,6 +10,13 @@ defmodule PortfolixirWeb.Endpoint do
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
   plug(Plug.Static,
+    at: "/",
+    from: :portfolixir,
+    gzip: false,
+    only: ~w(favicon.ico favicon.svg images)
+  )
+
+  plug(Plug.Static,
     at: "/vendor",
     from: {:phoenix, "priv/static"},
     gzip: false,

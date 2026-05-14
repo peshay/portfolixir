@@ -1,0 +1,48 @@
+<svg width="512" height="512" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Portfolixir logo mark</title>
+  <desc id="desc">A round flask containing violet, teal green, and coral red chart-like liquid layers.</desc>
+  <style>
+    :root {
+      --surface: #FCFBFF;
+      --outline: #201631;
+      --separator: #FCFBFF;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --surface: #12101A;
+        --outline: #F5F3FF;
+        --separator: #12101A;
+      }
+    }
+  </style>
+  <defs>
+    <linearGradient id="a" x1="76" y1="34" x2="202" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="b" x1="75" y1="76" x2="204" y2="231" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="c" x1="76" y1="112" x2="204" y2="238" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDBA74"/>
+      <stop offset="1" stop-color="#E11D48"/>
+    </linearGradient>
+    <clipPath id="liquidClip">
+      <path d="M113 43H143V92L188 165C201 186 186.5 220 159 220H97C69.5 220 55 186 68 165L113 92V43Z"/>
+    </clipPath>
+  </defs>
+  <rect width="512" height="512" rx="56" fill="var(--surface)"/>
+  <g>
+    <g clip-path="url(#liquidClip)">
+      <path d="M50 102L74 131L102 101L127 120L152 79L180 106L207 69V236H50V102Z" fill="url(#a)"/>
+      <path d="M50 146L75 170L104 142L133 156L159 127L207 88V236H50V146Z" fill="url(#b)" opacity="0.96"/>
+      <path d="M50 185L80 204L113 177L144 190L174 159L207 131V236H50V185Z" fill="url(#c)" opacity="0.98"/>
+      <path d="M62 117L74 131L102 101L127 120L152 79L180 106L196 84" stroke="var(--separator)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M62 157L75 170L104 142L133 156L159 127L196 97" stroke="var(--separator)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M62 192L80 204L113 177L144 190L174 159L196 140" stroke="var(--separator)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <path d="M109 38H147V90L193 164C210 191 191 226 160 226H96C65 226 46 191 63 164L109 90V38Z" fill="none" stroke="var(--outline)" stroke-width="11" stroke-linejoin="round"/>
+    <rect x="94" y="22" width="68" height="30" rx="13" fill="var(--outline)"/>
+  </g>
+</svg>

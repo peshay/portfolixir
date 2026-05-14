@@ -20,12 +20,14 @@ The reboot foundation keeps only the narrow local portfolio-tracking base:
 
 For trade entry, the selected depot determines the linked cash account. The UI
 is intentionally plain; visual design and branding are deferred to a separate
-reviewed change.
+reviewed change. Logo and favicon assets are retained for that later design
+work.
 
 ## Future Work
 
 Future MVP functionality will be added Epic-by-Epic. Each Epic should pass local
-checks, deploy to staging, receive human staging review, and only then be
-promoted toward production.
+checks, include tests, and update user documentation when behavior changes.
 
 Deferred capabilities remain out of scope until explicitly reviewed and scoped.
+
+For a small local or home setup, see [Home Deployment](home-deployment.md).
