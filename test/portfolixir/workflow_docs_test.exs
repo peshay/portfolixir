@@ -62,7 +62,7 @@ defmodule Portfolixir.WorkflowDocsTest do
           "User story test evidence",
           "Security audit evidence",
           "Tests and Gates",
-          "Docs review/update note",
+          "## Documentation",
           "mix coveralls",
           "Agent branch"
         ] do
