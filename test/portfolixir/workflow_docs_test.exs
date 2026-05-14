@@ -30,8 +30,9 @@ defmodule Portfolixir.WorkflowDocsTest do
           "2. Functional test written directly below the User Story comment.",
           "3. Test failure confirmed for the expected reason.",
           "4. Smallest implementation code written.",
-          "5. Required gates run.",
-          "6. User documentation reviewed and updated when visible behavior changed."
+          "5. Security audit performed.",
+          "6. Required gates run.",
+          "7. User documentation reviewed and updated when visible behavior changed."
         ] do
       assert workflow_text =~ step
     end
@@ -57,11 +58,13 @@ defmodule Portfolixir.WorkflowDocsTest do
     pr_template = File.read!(".github/pull_request_template.md")
 
     for evidence <- [
-          "Story comment evidence",
-          "Test-first evidence",
+          "Story text and acceptance criteria",
+          "User story test evidence",
+          "Security audit evidence",
+          "Tests and Gates",
           "Docs review/update note",
-          "Gates run",
-          "mix coveralls"
+          "mix coveralls",
+          "Agent branch"
         ] do
       assert pr_template =~ evidence
     end
