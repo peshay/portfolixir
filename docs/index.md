@@ -5,10 +5,11 @@
     <img src="assets/logo.svg" alt="" class="docs-logo">
     <div>
       <p class="docs-kicker">Portfolixir</p>
-      <h1>Product documentation</h1>
+      <h1>Local portfolio tracking</h1>
       <p>
-        Portfolixir is a local-first Phoenix application for securities tracking:
-        audited manual transactions, derived holdings, and stored quote history.
+        Portfolixir is a local-first Phoenix application for securities tracking
+        with audited manual transactions, derived holdings, and stored quote
+        history.
       </p>
     </div>
   </header>
@@ -56,10 +57,11 @@
     </article>
 
     <article class="docs-card">
-      <h2>Language and Theme</h2>
+      <h2>Theme and Language</h2>
       <p>
-        The UI supports System, Light, and Dark themes, and EN/DE language
-        switching. Language and themes are runtime preferences and do not affect
+        The UI supports System, Light, and Dark themes, and English and German
+        language switching. The initial state follows the browser language and
+        system theme. Language and themes are runtime preferences and do not affect
         persisted domain data.
       </p>
     </article>
