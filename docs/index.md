@@ -25,7 +25,8 @@ reviewed change.
 ## Future Work
 
 Future MVP functionality will be added Epic-by-Epic. Each Epic should pass local
-checks, deploy to staging, receive human staging review, and only then be
-promoted toward production.
+checks, include tests, and update user documentation when behavior changes.
 
 Deferred capabilities remain out of scope until explicitly reviewed and scoped.
+
+For a small local or home setup, see [Home Deployment](home-deployment.md).

@@ -31,8 +31,7 @@ The active foundation contains:
 - tests for the basic schema workflow and dashboard/navigation path.
 
 Future MVP functionality will be added through human-reviewed Epics. Each Epic
-should pass local checks, deploy to staging, receive staging review, and only
-then be considered for production promotion.
+should pass local checks before it is merged.
 
 Deferred work includes PDF import, CSV import, broker sync, bank sync, document
 intake, MCP tools, LLM features, advanced reports, advanced classifications,
@@ -81,18 +80,11 @@ If the host database already contains prototype-era migrations, run
 Open the app at the Phoenix port shown by the server, usually
 `http://localhost:4000`.
 
-## Deployment Process Scaffolding
+## Home Deployment
 
-Deployment is intentionally a process handoff in this foundation branch. Runtime
-deployment should use reviewed container image digests, staging review, and
-explicit production promotion. The foundation does not claim production
-readiness.
-
-The deployment scaffolding is documented in
-[docs/deployment.md](docs/deployment.md). Local development continues to use the
-root `docker-compose.yml`; runtime deployments use `deploy/compose.yml` with a
-reviewed GHCR image digest. Internal Compose examples set `DATABASE_SSL=false`
-because the app and PostgreSQL share a Compose network.
+The foundation supports a simple home setup from source with Docker Compose.
+See [docs/home-deployment.md](docs/home-deployment.md). This is intentionally
+not a production deployment process.
 
 ## Quality Gate
 
@@ -101,6 +93,7 @@ Run these before opening a PR:
 ```bash
 mix format
 mix test
+mix coveralls
 pre-commit run --all-files
 ```
 
@@ -114,7 +107,7 @@ user-visible story, follow this order:
 5. Required gates run.
 6. User documentation reviewed and updated when visible behavior changed.
 
-Future MVP functionality is added through human-reviewed Epics on staging.
+Every user-visible change updates user documentation when behavior changes.
 See [docs/development/story-workflow.md](docs/development/story-workflow.md)
 for the full story, test, implementation, and documentation process.
 

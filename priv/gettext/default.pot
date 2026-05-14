@@ -1,0 +1,28 @@
+## This file is a gettext template for Portfolixir's English-first UI.
+msgid ""
+msgstr ""
+"Language: en\n"
+
+msgid "Dashboard"
+msgstr ""
+
+msgid "Securities"
+msgstr ""
+
+msgid "Portfolios"
+msgstr ""
+
+msgid "Transactions"
+msgstr ""
+
+msgid "Create securities"
+msgstr ""
+
+msgid "Create one portfolio"
+msgstr ""
+
+msgid "Record manual buy and sell transactions"
+msgstr ""
+
+msgid "Linked cash account is derived from the selected depot."
+msgstr ""

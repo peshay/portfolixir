@@ -9,6 +9,7 @@ defmodule Portfolixir.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       licenses: ["MIT"],
+      test_coverage: [tool: ExCoveralls],
       aliases: aliases(),
       deps: deps()
     ]
@@ -33,6 +34,7 @@ defmodule Portfolixir.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_view, "~> 0.20.17"},
+      {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:floki, ">= 0.36.0", only: :test},
       {:jason, "~> 1.4"},
       {:plug_cowboy, "~> 2.7"},

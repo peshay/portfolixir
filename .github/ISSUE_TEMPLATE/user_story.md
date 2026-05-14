@@ -56,9 +56,11 @@ Do not implement:
 
 - [ ] `mix format`
 - [ ] `mix test`
+- [ ] `mix coveralls`
 - [ ] `pre-commit run --all-files`
 - [ ] Story comment evidence
 - [ ] Test-first evidence
+- [ ] German gettext translations for visible copy, where applicable
 - [ ] Documentation review note
 
 ## Done condition

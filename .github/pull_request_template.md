@@ -23,6 +23,7 @@ Gates run:
 ```bash
 mix format
 mix test
+mix coveralls
 pre-commit run --all-files
 ```
 
@@ -40,6 +41,8 @@ Docs review/update note:
 - [ ] New or changed test failed for the expected reason before implementation.
 - [ ] User documentation was reviewed for consistency.
 - [ ] User documentation was updated, or this PR explains why no user docs changed.
+- [ ] English-first visible copy has German gettext translations where applicable.
+- [ ] `mix coveralls` was run.
 - [ ] No real financial data was added.
 - [ ] No live network calls are used in tests.
 - [ ] Financial values use Decimal where relevant.
