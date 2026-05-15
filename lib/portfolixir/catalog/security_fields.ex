@@ -12,6 +12,7 @@ defmodule Portfolixir.Catalog.SecurityFields do
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Catalog.SecurityWithMetrics
 
   defmodule Field do
     @moduledoc false
@@ -71,6 +72,46 @@ defmodule Portfolixir.Catalog.SecurityFields do
       build(:is_retired, :boolean, :column, :stammdaten,
         label: "Retired",
         render_hint: :checkbox
+      ),
+      # Derived from quote history (see Portfolixir.Catalog.Quotes.attach_metrics/1).
+      # Not filterable in v1 — sorting client-side after enrichment.
+      build(:latest_price, :decimal, :metric, :kurse,
+        default_visible?: true,
+        label: "Latest price",
+        render_hint: :money,
+        sortable?: true,
+        filterable?: false
+      ),
+      build(:latest_price_date, :date, :metric, :kurse,
+        label: "Latest price date",
+        render_hint: :date,
+        sortable?: true,
+        filterable?: false
+      ),
+      build(:day_change_abs, :decimal, :metric, :kurse,
+        label: "Day change",
+        render_hint: :money_signed,
+        sortable?: true,
+        filterable?: false
+      ),
+      build(:day_change_pct, :decimal, :metric, :kurse,
+        default_visible?: true,
+        label: "Day change %",
+        render_hint: :percent_signed,
+        sortable?: true,
+        filterable?: false
+      ),
+      build(:performance_1m, :decimal, :metric, :kurse,
+        label: "1M performance",
+        render_hint: :percent_signed,
+        sortable?: true,
+        filterable?: false
+      ),
+      build(:performance_1y, :decimal, :metric, :kurse,
+        label: "1Y performance",
+        render_hint: :percent_signed,
+        sortable?: true,
+        filterable?: false
       ),
       build(:note, :string, :column, :sonstiges,
         label: "Note",
@@ -142,6 +183,7 @@ defmodule Portfolixir.Catalog.SecurityFields do
       case source_kind do
         :column -> :column
         :attributes -> source
+        :metric -> :metric
       end
 
     %Field{
@@ -191,14 +233,28 @@ defmodule Portfolixir.Catalog.SecurityFields do
     field.source == :column and field.type in [:integer, :decimal, :date]
   end
 
-  @doc "Pulls the field value from a Security row, honoring :column vs {:attributes, key}."
+  @doc "Pulls the field value from a Security row, honoring :column vs {:attributes, key} vs :metric."
   def value(%Field{source: :column, key: key}, %Security{} = security) do
+    Map.get(security, key)
+  end
+
+  def value(%Field{source: :column, key: key}, %SecurityWithMetrics{security: security}) do
     Map.get(security, key)
   end
 
   def value(%Field{source: {:attributes, jsonb_key}}, %Security{attributes: attrs}) do
     Map.get(attrs || %{}, jsonb_key)
   end
+
+  def value(%Field{source: {:attributes, jsonb_key}}, %SecurityWithMetrics{security: security}) do
+    Map.get(security.attributes || %{}, jsonb_key)
+  end
+
+  def value(%Field{source: :metric, key: key}, %SecurityWithMetrics{metrics: metrics}) do
+    Map.get(metrics, key)
+  end
+
+  def value(%Field{source: :metric}, %Security{}), do: nil
 
   @doc """
   Returns true if (key, op) is an allowed filter combination given the field's type.

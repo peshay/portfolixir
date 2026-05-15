@@ -19,4 +19,12 @@ config :portfolixir, Portfolixir.Catalog.SecuritySearch,
   ],
   timeout_ms: 4000
 
+config :portfolixir, Portfolixir.Catalog.QuoteSync,
+  enabled?: false,
+  interval_ms: 6 * 60 * 60 * 1000,
+  adapter_for: %{
+    "coingecko" => Portfolixir.Catalog.QuoteSync.Yahoo,
+    "portfolio_performance" => Portfolixir.Catalog.QuoteSync.Yahoo
+  }
+
 import_config "#{Mix.env()}.exs"

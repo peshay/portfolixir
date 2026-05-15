@@ -28,3 +28,8 @@ config :phoenix, :plug_init_mode, :runtime
 config :portfolixir, Portfolixir.Catalog.SecuritySearch,
   providers: [Portfolixir.Catalog.SecuritySearch.Fake],
   timeout_ms: 1000
+
+config :portfolixir, Portfolixir.Catalog.QuoteSync,
+  enabled?: false,
+  interval_ms: 60_000,
+  adapter_for: %{}
