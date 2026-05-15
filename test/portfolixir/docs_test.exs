@@ -250,7 +250,9 @@ defmodule Portfolixir.DocsTest do
           "Authorization: Bearer <PORTFOLIXIR_API_TOKEN>",
           "`PORTFOLIXIR_API_TOKEN`",
           "`PORTFOLIXIR_MCP_TOKEN`",
+          "`PORTFOLIXIR_MCP_TOKEN` is required for HTTP transport",
           "Financial decimals are serialized as strings",
+          "`DELETE /api/v1/securities/:id` is the success exception: it returns `204 No Content` with an empty body",
           "MCP tools call the JSON API only"
         ] do
       assert normalized_api_docs =~ expected

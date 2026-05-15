@@ -18,9 +18,9 @@ API requests require a local bearer token:
 Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 ```
 
-The MCP companion uses `PORTFOLIXIR_API_TOKEN` to call Portfolixir and can also
-require a local companion token through `PORTFOLIXIR_MCP_TOKEN` when running in
-HTTP mode.
+The MCP companion uses `PORTFOLIXIR_API_TOKEN` to call Portfolixir.
+`PORTFOLIXIR_MCP_TOKEN` is required for HTTP transport so local HTTP clients can
+authenticate to the companion.
 
 ## Data Rules
 
@@ -28,6 +28,10 @@ All responses use JSON envelopes with either `data` or `errors`. Financial
 decimals are serialized as strings, including quantities, prices, fees, taxes,
 quote closes, and monetary totals. Request payloads for those values should also
 send strings.
+
+`DELETE /api/v1/securities/:id` is the success exception: it returns
+`204 No Content` with an empty body. Clients should not parse a JSON body for
+that successful delete response.
 
 ## Securities
 
