@@ -4,12 +4,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
+  alias Portfolixir.Catalog.QuoteSync
+  alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
+  alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.Ledger
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Securities.ColumnPicker
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.SecurityFormDialog
+
+  @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
+  @default_range "1Y"
 
   @impl true
   def mount(_params, _session, socket) do
@@ -22,7 +31,29 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:open_popover, nil)
      |> assign(:dialog_open?, false)
      |> assign(:flash_message, nil)
+     |> assign(:sync_running?, false)
+     |> assign(:selected_security, nil)
+     |> assign(:detail_range, @default_range)
+     |> assign(:detail_log_scale?, false)
+     |> assign(:detail_show_transactions?, true)
+     |> assign(:detail_quotes, [])
+     |> assign(:detail_transactions, [])
+     |> assign(:detail_latest, nil)
      |> load_securities()}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    case params["id"] do
+      nil ->
+        {:noreply, clear_selection(socket)}
+
+      id ->
+        case Catalog.get_security(id) do
+          %Security{} = security -> {:noreply, select_security(socket, security)}
+          nil -> {:noreply, clear_selection(socket)}
+        end
+    end
   end
 
   @impl true
@@ -59,6 +90,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
               title={gettext("Add new")}
             >
               <AppShell.icon name={:plus} />
+            </button>
+
+            <button
+              type="button"
+              id="sync-prices"
+              class={["icon-button", @sync_running? && "is-busy"]}
+              phx-click="sync_now"
+              aria-label={gettext("Sync prices")}
+              title={gettext("Sync prices")}
+              disabled={@sync_running?}
+            >
+              <AppShell.icon name={:refresh_cw} />
             </button>
 
             <button
@@ -165,16 +208,39 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   </td>
                 </tr>
               <% end %>
-              <%= for security <- @securities do %>
-                <tr id={"security-row-#{security.id}"}>
-                  <%= for column <- visible_fields(@visible_columns) do %>
-                    <td><%= render_cell(column, security) %></td>
+              <% visible = visible_fields(@visible_columns) %>
+              <% first_key = first_visible_key(visible) %>
+              <%= for row <- @securities do %>
+                <% row_path = "/securities/#{security_id(row)}" %>
+                <tr
+                  id={"security-row-#{security_id(row)}"}
+                  class={[
+                    "security-row",
+                    selected?(@selected_security, row) && "is-selected"
+                  ]}
+                  phx-click={Phoenix.LiveView.JS.patch(row_path)}
+                  role="link"
+                >
+                  <%= for column <- visible do %>
+                    <td>
+                      <%= if column.key == first_key do %>
+                        <.link patch={row_path} class="row-target" tabindex="0">
+                          <%= render_cell(column, row) %>
+                        </.link>
+                      <% else %>
+                        <%= render_cell(column, row) %>
+                      <% end %>
+                    </td>
                   <% end %>
                 </tr>
               <% end %>
             </tbody>
           </table>
         </div>
+
+        <%= if @selected_security do %>
+          <%= render_detail_pane(assigns) %>
+        <% end %>
       </section>
 
       <%= if @dialog_open? do %>
@@ -184,11 +250,99 @@ defmodule PortfolixirWeb.SecuritiesLive do
     """
   end
 
+  defp render_detail_pane(assigns) do
+    ~H"""
+    <aside class="detail-pane" id="security-detail-pane" aria-label={gettext("Selected security")}>
+      <header class="detail-pane-head">
+        <div>
+          <h2><%= @selected_security.name %></h2>
+          <p class="detail-pane-sub">
+            <%= [@selected_security.isin, @selected_security.ticker_symbol, @selected_security.currency_code]
+              |> Enum.reject(&(&1 in [nil, ""]))
+              |> Enum.join(" · ") %>
+            <%= if @detail_latest do %>
+              · <%= gettext("Latest") %> <%= format_decimal(@detail_latest.close, 2) %>
+              (<%= Date.to_iso8601(@detail_latest.date) %>)
+            <% end %>
+          </p>
+        </div>
+        <.link patch="/securities" class="icon-button" aria-label={gettext("Close detail")}>
+          <AppShell.icon name={:x} />
+        </.link>
+      </header>
+
+      <div class="detail-pane-toolbar" role="toolbar" aria-label={gettext("Chart options")}>
+        <div class="range-buttons" role="group" aria-label={gettext("Range")}>
+          <%= for range <- ranges() do %>
+            <button
+              type="button"
+              phx-click="set_detail_range"
+              phx-value-range={range}
+              class={["range-button", @detail_range == range && "is-active"]}
+            >
+              <%= range %>
+            </button>
+          <% end %>
+        </div>
+
+        <div class="chart-toggles">
+          <button
+            type="button"
+            id="toggle-log"
+            phx-click="toggle_detail_log"
+            class={["chart-toggle", @detail_log_scale? && "is-active"]}
+            aria-pressed={@detail_log_scale?}
+          >
+            <%= gettext("Log scale") %>
+          </button>
+          <button
+            type="button"
+            id="toggle-transactions"
+            phx-click="toggle_detail_transactions"
+            class={["chart-toggle", @detail_show_transactions? && "is-active"]}
+            aria-pressed={@detail_show_transactions?}
+          >
+            <%= gettext("Show transactions") %>
+          </button>
+          <button
+            type="button"
+            id="detail-sync"
+            phx-click="sync_now"
+            class={["chart-toggle", @sync_running? && "is-busy"]}
+            disabled={@sync_running?}
+          >
+            <%= gettext("Sync prices") %>
+          </button>
+        </div>
+      </div>
+
+      <div class="chart-frame">
+        <SecurityChart.chart
+          quotes={@detail_quotes}
+          transactions={@detail_transactions}
+          log_scale?={@detail_log_scale?}
+          show_transactions?={@detail_show_transactions?}
+          currency_code={@selected_security.currency_code}
+        />
+      </div>
+    </aside>
+    """
+  end
+
+  defp selected?(nil, _row), do: false
+  defp selected?(%Security{id: id}, row), do: id == security_id(row)
+
   defp visible_fields(visible) when is_list(visible) do
     visible
     |> Enum.map(&SecurityFields.get/1)
     |> Enum.reject(&is_nil/1)
   end
+
+  defp first_visible_key([%Field{key: key} | _]), do: key
+  defp first_visible_key(_), do: :name
+
+  defp security_id(%SecurityWithMetrics{security: security}), do: security.id
+  defp security_id(%{id: id}), do: id
 
   defp sort_marker({key, :asc}, key), do: " ↑"
   defp sort_marker({key, :desc}, key), do: " ↓"
@@ -225,10 +379,82 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  defp render_cell(%Field{render_hint: :money} = field, security) do
+    case SecurityFields.value(field, security) do
+      nil -> ""
+      value -> format_decimal(value, 2)
+    end
+  end
+
+  defp render_cell(%Field{render_hint: :money_signed} = field, security) do
+    case SecurityFields.value(field, security) do
+      nil ->
+        ""
+
+      value ->
+        formatted = format_signed_decimal(value, 2)
+
+        Phoenix.HTML.raw(
+          ~s(<span class="#{decimal_class(value)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
+        )
+    end
+  end
+
+  defp render_cell(%Field{render_hint: :percent_signed} = field, security) do
+    case SecurityFields.value(field, security) do
+      nil ->
+        ""
+
+      value ->
+        # value is a fractional decimal (0.05 → +5.00 %)
+        as_percent = Decimal.mult(value, Decimal.new(100))
+        formatted = format_signed_decimal(as_percent, 2) <> " %"
+
+        Phoenix.HTML.raw(
+          ~s(<span class="#{decimal_class(value)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
+        )
+    end
+  end
+
+  defp render_cell(%Field{render_hint: :date} = field, security) do
+    case SecurityFields.value(field, security) do
+      nil -> ""
+      %Date{} = d -> Date.to_iso8601(d)
+      other -> to_string(other)
+    end
+  end
+
   defp render_cell(field, security) do
     case SecurityFields.value(field, security) do
       nil -> ""
       value -> display_value(field.key, value)
+    end
+  end
+
+  defp format_decimal(%Decimal{} = value, places) do
+    value
+    |> Decimal.round(places)
+    |> Decimal.to_string(:normal)
+  end
+
+  defp format_decimal(other, places) when is_binary(other) or is_integer(other) do
+    format_decimal(Decimal.new(to_string(other)), places)
+  end
+
+  defp format_signed_decimal(%Decimal{} = value, places) do
+    rounded = Decimal.round(value, places)
+
+    case Decimal.compare(rounded, 0) do
+      :gt -> "+" <> Decimal.to_string(rounded, :normal)
+      _ -> Decimal.to_string(rounded, :normal)
+    end
+  end
+
+  defp decimal_class(%Decimal{} = value) do
+    case Decimal.compare(value, 0) do
+      :gt -> "decimal-positive"
+      :lt -> "decimal-negative"
+      :eq -> "decimal-neutral"
     end
   end
 
@@ -286,6 +512,36 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, true)
      |> assign(:open_popover, nil)}
+  end
+
+  def handle_event("sync_now", _params, socket) do
+    parent = self()
+
+    Task.start(fn ->
+      _ = QuoteSync.sync_all()
+      send(parent, :sync_done)
+    end)
+
+    {:noreply,
+     socket
+     |> assign(:sync_running?, true)
+     |> assign(:flash_message, gettext("Syncing prices…"))}
+  end
+
+  def handle_event("set_detail_range", %{"range" => range}, socket) do
+    if range in @ranges and socket.assigns.selected_security do
+      {:noreply, socket |> assign(:detail_range, range) |> load_detail_data()}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_detail_log", _params, socket) do
+    {:noreply, update(socket, :detail_log_scale?, &(!&1))}
+  end
+
+  def handle_event("toggle_detail_transactions", _params, socket) do
+    {:noreply, update(socket, :detail_show_transactions?, &(!&1))}
   end
 
   def handle_event("remove_filter", %{"idx" => idx}, socket) do
@@ -384,9 +640,79 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :dialog_open?, false)}
   end
 
+  def handle_info(:sync_done, socket) do
+    {:noreply,
+     socket
+     |> assign(:sync_running?, false)
+     |> assign(:flash_message, gettext("Prices synced."))
+     |> load_securities()
+     |> load_detail_data()}
+  end
+
+  defp select_security(socket, %Security{} = security) do
+    socket
+    |> assign(:selected_security, security)
+    |> load_detail_data()
+  end
+
+  defp clear_selection(socket) do
+    socket
+    |> assign(:selected_security, nil)
+    |> assign(:detail_quotes, [])
+    |> assign(:detail_transactions, [])
+    |> assign(:detail_latest, nil)
+  end
+
+  defp load_detail_data(%{assigns: %{selected_security: nil}} = socket), do: socket
+
+  defp load_detail_data(socket) do
+    %Security{id: id} = socket.assigns.selected_security
+    {from, to} = range_to_dates(socket.assigns.detail_range, id)
+
+    quotes =
+      id
+      |> Quotes.range(from, to)
+      |> Enum.map(&%{date: &1.date, close: &1.close})
+
+    transactions =
+      id
+      |> Ledger.list_transactions_for_security()
+      |> Enum.map(&%{date: &1.date, type: &1.type, price: &1.price, quantity: &1.quantity})
+
+    socket
+    |> assign(:detail_quotes, quotes)
+    |> assign(:detail_transactions, transactions)
+    |> assign(:detail_latest, Quotes.latest(id))
+  end
+
+  defp range_to_dates(range, security_id) do
+    today = Date.utc_today()
+
+    case range do
+      "1M" -> {Date.add(today, -30), today}
+      "3M" -> {Date.add(today, -90), today}
+      "6M" -> {Date.add(today, -180), today}
+      "YTD" -> {Date.new!(today.year, 1, 1), today}
+      "1Y" -> {Date.add(today, -365), today}
+      "3Y" -> {Date.add(today, -3 * 365), today}
+      "5Y" -> {Date.add(today, -5 * 365), today}
+      "MAX" -> {oldest_date(security_id) || today, today}
+      _ -> {Date.add(today, -365), today}
+    end
+  end
+
+  defp oldest_date(security_id) do
+    case Quotes.range(security_id, ~D[1900-01-01], Date.utc_today()) do
+      [] -> nil
+      [first | _] -> first.date
+    end
+  end
+
+  defp ranges, do: @ranges
+
   defp load_securities(socket) do
     securities =
-      Catalog.list_securities(
+      Catalog.list_securities_with_metrics(
         query: socket.assigns.query,
         filters: socket.assigns.filters,
         sort: socket.assigns.sort

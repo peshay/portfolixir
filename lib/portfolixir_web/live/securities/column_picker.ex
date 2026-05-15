@@ -68,11 +68,13 @@ defmodule PortfolixirWeb.Securities.ColumnPicker do
   end
 
   defp group_order(:stammdaten), do: 0
-  defp group_order(:online_quelle), do: 1
-  defp group_order(:sonstiges), do: 2
+  defp group_order(:kurse), do: 1
+  defp group_order(:online_quelle), do: 2
+  defp group_order(:sonstiges), do: 3
   defp group_order(_), do: 99
 
   defp group_label(:stammdaten), do: gettext("Core data")
+  defp group_label(:kurse), do: gettext("Prices")
   defp group_label(:online_quelle), do: gettext("Online source")
   defp group_label(:sonstiges), do: gettext("Other")
   defp group_label(other), do: to_string(other)

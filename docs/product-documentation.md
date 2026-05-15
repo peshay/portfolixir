@@ -70,8 +70,44 @@ transactions over time, so the state is reproducible and traceable.
 
 ### Quote history
 
-Each quote entry captures a timestamp and price. Price history is persisted so that
-security detail charts are built from local records only, not live feeds.
+Each quote entry captures a date and a Decimal close. Price history is
+persisted so security detail charts are built from local records.
+
+Two ways quotes enter the system:
+
+- **Automatic sync**: a background scheduler ticks every six hours
+  (configurable in `config :portfolixir, Portfolixir.Catalog.QuoteSync`)
+  and pulls daily closes from each security's configured provider.
+- **Sync now**: the toolbar's *Sync prices* button (and the per-security
+  button on the detail page) triggers an immediate sync without waiting
+  for the next tick.
+
+Quote sources in this iteration:
+
+- Search step (which catalog the security came from) uses Portfolio
+  Performance for stocks/ETFs/funds and CoinGecko for crypto.
+- Quote-history fetch uses Yahoo Finance for both. Two reasons:
+  - PP's own API exposes only search, no price history.
+  - CoinGecko's free public API caps history at 365 days
+    (`error_code 10012`); Yahoo returns the full daily series for
+    crypto via the `<TICKER>-<CURRENCY>` symbol form (e.g. `BTC-USD`).
+
+Yahoo is queried with `period1=0` and `period2=<now>` so it returns the
+full available daily history — `range=max` silently downsamples to
+monthly for long-history tickers.
+
+Securities whose `provider` is unrecognised are skipped silently.
+
+### Security detail chart
+
+Clicking a row in the securities list opens `/securities/:id`. The detail
+page shows a server-rendered SVG price chart with:
+
+- Time-range buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).
+- A *Log scale* toggle (logarithmic Y-axis).
+- A *Show transactions* toggle that overlays Buy/Sell markers from the
+  ledger.
+- A *Sync prices for this security* button.
 
 ## Interface behavior
 

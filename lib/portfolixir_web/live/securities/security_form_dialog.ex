@@ -289,7 +289,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
           <%= gettext("Back") %>
         </button>
         <button type="submit" class="button-primary">
-          <%= gettext("Save") %>
+          <%= if @conflict, do: gettext("Update existing"), else: gettext("Save") %>
         </button>
       </div>
     </form>
@@ -459,20 +459,35 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   def handle_event("save", %{"security" => params}, socket) do
-    result = socket.assigns.selected_result
-    market = socket.assigns.selected_market
-    overrides = to_overrides(params)
+    case socket.assigns.conflict do
+      nil ->
+        result = socket.assigns.selected_result
+        market = socket.assigns.selected_market
+        overrides = to_overrides(params)
 
-    case Catalog.create_from_search_result(result, market, overrides) do
-      {:ok, security} ->
-        notify_parent(socket, {:created, security})
-        {:noreply, socket}
+        case Catalog.create_from_search_result(result, market, overrides) do
+          {:ok, security} ->
+            notify_parent(socket, {:created, security})
+            {:noreply, socket}
 
-      {:conflict, existing} ->
-        {:noreply, assign(socket, :conflict, existing)}
+          {:conflict, existing} ->
+            {:noreply, assign(socket, :conflict, existing)}
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, :errors, changeset_errors(changeset))}
+          {:error, changeset} ->
+            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
+        end
+
+      existing ->
+        attrs = to_overrides(params)
+
+        case Catalog.update_security(existing, attrs) do
+          {:ok, security} ->
+            notify_parent(socket, {:updated, security})
+            {:noreply, socket}
+
+          {:error, changeset} ->
+            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
+        end
     end
   end
 
@@ -480,8 +495,9 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     existing = socket.assigns.conflict
     result = socket.assigns.selected_result
     market = socket.assigns.selected_market
+    form_overrides = to_overrides(socket.assigns.form)
 
-    case Catalog.merge_search_result(existing, result, market) do
+    case Catalog.merge_search_result(existing, result, market, form_overrides) do
       {:ok, security} ->
         notify_parent(socket, {:updated, security})
         {:noreply, socket}
