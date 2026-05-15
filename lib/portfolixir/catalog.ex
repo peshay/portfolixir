@@ -104,17 +104,14 @@ defmodule Portfolixir.Catalog do
   to open the existing record or merge the online fields.
   """
   def create_from_search_result(%SearchResult{} = result, market \\ nil, overrides \\ %{}) do
-    case find_matching_security(result, market) do
-      {:exists, existing} ->
-        {:conflict, existing}
+    attrs = result |> SearchResult.to_security_attrs(market) |> Map.merge(overrides)
 
-      :not_found ->
-        attrs =
-          result
-          |> SearchResult.to_security_attrs(market)
-          |> Map.merge(overrides)
-
-        create_security(attrs)
+    with nil <- lookup_by_provider(attrs),
+         nil <- lookup_by_isin(attrs),
+         nil <- lookup_by_ticker(attrs) do
+      create_security(attrs)
+    else
+      %Security{} = existing -> {:conflict, existing}
     end
   end
 
@@ -256,6 +253,16 @@ defmodule Portfolixir.Catalog do
 
   defp order_by_field(query, %Field{source: :column, key: key}, :desc) do
     from(s in query, order_by: [desc: field(s, ^key)])
+  end
+
+  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}, type: type}, :asc)
+       when type in [:integer, :decimal] do
+    from(s in query, order_by: [asc: fragment("(? ->> ?)::numeric", s.attributes, ^jsonb_key)])
+  end
+
+  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}, type: type}, :desc)
+       when type in [:integer, :decimal] do
+    from(s in query, order_by: [desc: fragment("(? ->> ?)::numeric", s.attributes, ^jsonb_key)])
   end
 
   defp order_by_field(query, %Field{source: {:attributes, jsonb_key}}, :asc) do
