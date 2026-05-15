@@ -1886,11 +1886,19 @@ li + li {
 }
 
 .chart-frame {
+  position: relative;
   width: 100%;
+  height: 320px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg);
   padding: 8px;
+  box-sizing: border-box;
+  touch-action: pan-y;
+}
+
+.chart-frame > script {
+  display: none;
 }
 
 .security-chart {
@@ -1898,6 +1906,63 @@ li + li {
   width: 100%;
   height: 320px;
   color: var(--color-accent);
+}
+
+.chart-crosshair {
+  position: absolute;
+  width: 1px;
+  background: var(--color-accent);
+  opacity: 0.55;
+  pointer-events: none;
+  transform: translateX(-0.5px);
+}
+
+.chart-crosshair[hidden] {
+  display: none;
+}
+
+.chart-tooltip {
+  position: absolute;
+  min-width: 92px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-surface, var(--color-bg));
+  color: var(--color-text);
+  font-size: 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  line-height: 1.35;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+  pointer-events: none;
+  z-index: 2;
+}
+
+.chart-tooltip[hidden] {
+  display: none;
+}
+
+.chart-tooltip__date {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.chart-tooltip__price {
+  font-weight: 600;
+}
+
+.chart-tooltip__tx {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+  font-size: 11px;
+}
+
+.chart-tooltip__tx--buy {
+  color: #047857;
+}
+
+.chart-tooltip__tx--sell {
+  color: #b91c1c;
 }
 
 .security-chart text {

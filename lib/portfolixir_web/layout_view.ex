@@ -75,6 +75,142 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            Hooks.ChartCrosshair = {
+              mounted: function () {
+                this.payload = this.readPayload();
+                this.svg = this.el.querySelector("svg.security-chart");
+
+                if (!this.svg) {
+                  return;
+                }
+
+                this.crosshair = document.createElement("div");
+                this.crosshair.className = "chart-crosshair";
+                this.crosshair.hidden = true;
+                this.el.appendChild(this.crosshair);
+
+                this.tooltip = document.createElement("div");
+                this.tooltip.className = "chart-tooltip";
+                this.tooltip.hidden = true;
+                this.tooltip.setAttribute("role", "status");
+                this.el.appendChild(this.tooltip);
+
+                var self = this;
+                this.onMove = function (event) { self.handleMove(event); };
+                this.onLeave = function () { self.hide(); };
+
+                this.svg.addEventListener("pointermove", this.onMove);
+                this.svg.addEventListener("pointerdown", this.onMove);
+                this.svg.addEventListener("pointerleave", this.onLeave);
+                this.svg.addEventListener("pointercancel", this.onLeave);
+              },
+              updated: function () {
+                this.payload = this.readPayload();
+                this.hide();
+              },
+              destroyed: function () {
+                if (this.svg) {
+                  this.svg.removeEventListener("pointermove", this.onMove);
+                  this.svg.removeEventListener("pointerdown", this.onMove);
+                  this.svg.removeEventListener("pointerleave", this.onLeave);
+                  this.svg.removeEventListener("pointercancel", this.onLeave);
+                }
+              },
+              readPayload: function () {
+                var node = this.el.querySelector("script[data-chart-payload]");
+                if (!node) return { points: [], txs: [], view: { width: 960, height: 320 }, currency: "" };
+                try {
+                  return JSON.parse(node.textContent);
+                } catch (_) {
+                  return { points: [], txs: [], view: { width: 960, height: 320 }, currency: "" };
+                }
+              },
+              handleMove: function (event) {
+                var payload = this.payload;
+                if (!payload || !payload.points || payload.points.length === 0) {
+                  return;
+                }
+
+                var svgRect = this.svg.getBoundingClientRect();
+                var frameRect = this.el.getBoundingClientRect();
+                if (svgRect.width === 0 || svgRect.height === 0) return;
+
+                var view = payload.view || { width: 960, height: 320 };
+                var pointerSvgX = (event.clientX - svgRect.left) * (view.width / svgRect.width);
+
+                var idx = this.nearestIndex(payload.points, pointerSvgX);
+                var point = payload.points[idx];
+                var iso = point[0];
+                var close = point[1];
+                var px = point[2];
+                var py = point[3];
+
+                var svgOffsetX = svgRect.left - frameRect.left;
+                var svgOffsetY = svgRect.top - frameRect.top;
+                var cssX = svgOffsetX + px * (svgRect.width / view.width);
+                var cssY = svgOffsetY + py * (svgRect.height / view.height);
+
+                this.crosshair.style.left = cssX + "px";
+                this.crosshair.style.top = svgOffsetY + "px";
+                this.crosshair.style.height = svgRect.height + "px";
+                this.crosshair.hidden = false;
+
+                var tx = this.transactionAt(payload.txs, px);
+                this.renderTooltip(iso, close, payload.currency, tx);
+
+                this.positionTooltip(cssX, cssY, frameRect.width);
+              },
+              nearestIndex: function (points, x) {
+                var lo = 0;
+                var hi = points.length - 1;
+                while (lo < hi) {
+                  var mid = (lo + hi) >> 1;
+                  if (points[mid][2] < x) lo = mid + 1; else hi = mid;
+                }
+                if (lo > 0 && Math.abs(points[lo - 1][2] - x) < Math.abs(points[lo][2] - x)) {
+                  return lo - 1;
+                }
+                return lo;
+              },
+              transactionAt: function (txs, x) {
+                if (!txs || txs.length === 0) return null;
+                for (var i = 0; i < txs.length; i++) {
+                  if (Math.abs(txs[i].x - x) <= 3) return txs[i];
+                }
+                return null;
+              },
+              renderTooltip: function (iso, close, currency, tx) {
+                var parts = [
+                  '<div class="chart-tooltip__date">' + iso + "</div>",
+                  '<div class="chart-tooltip__price">' + close + (currency ? " " + currency : "") + "</div>"
+                ];
+                if (tx) {
+                  parts.push(
+                    '<div class="chart-tooltip__tx chart-tooltip__tx--' + tx.type + '">' +
+                      tx.type + " " + tx.quantity + " @ " + tx.price +
+                    "</div>"
+                  );
+                }
+                this.tooltip.innerHTML = parts.join("");
+                this.tooltip.hidden = false;
+              },
+              positionTooltip: function (cssX, cssY, frameWidth) {
+                var tipWidth = this.tooltip.offsetWidth || 120;
+                var pad = 8;
+                var x = cssX + 12;
+                if (x + tipWidth + pad > frameWidth) {
+                  x = cssX - tipWidth - 12;
+                  if (x < pad) x = pad;
+                }
+                this.tooltip.style.left = x + "px";
+                this.tooltip.style.top = Math.max(pad, cssY - 16) + "px";
+              },
+              hide: function () {
+                if (this.crosshair) this.crosshair.hidden = true;
+                if (this.tooltip) this.tooltip.hidden = true;
+              }
+            };
+
             var liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
               hooks: Hooks,
               params: { _csrf_token: csrfToken }
