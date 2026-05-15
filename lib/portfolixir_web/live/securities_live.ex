@@ -250,8 +250,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <%= for column <- visible do %>
                     <td>
                       <%= if column.key == first_key do %>
-                        <.link patch={row_path} class="row-target" tabindex="0">
-                          <%= render_cell(column, row) %>
+                        <.link patch={row_path} class="row-target row-target--with-logo" tabindex="0">
+                          <.security_logo security={inner_security} variant="row" />
+                          <span class="row-target__label"><%= render_cell(column, row) %></span>
                         </.link>
                       <% else %>
                         <%= render_cell(column, row) %>
@@ -302,7 +303,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
     ~H"""
     <aside class="detail-pane" id="security-detail-pane" aria-label={gettext("Selected security")}>
       <header class="detail-pane-head">
-        <div>
+        <div class="detail-pane-head__title">
+          <.security_logo security={@selected_security} variant="lg" />
+          <div>
           <h2><%= @selected_security.name %></h2>
           <p class="detail-pane-sub">
             <%= [@selected_security.isin, @selected_security.ticker_symbol, @selected_security.currency_code]
@@ -313,6 +316,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               (<%= Date.to_iso8601(@detail_latest.date) %>)
             <% end %>
           </p>
+          </div>
         </div>
         <.link patch="/securities" class="icon-button" aria-label={gettext("Close detail")}>
           <AppShell.icon name={:x} />
@@ -392,6 +396,43 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp security_from_row(%SecurityWithMetrics{security: security}), do: security
   defp security_from_row(%Security{} = security), do: security
+
+  attr(:security, :any, required: true)
+  attr(:variant, :string, default: "row")
+
+  defp security_logo(assigns) do
+    path = get_in(assigns.security.attributes || %{}, ["logo_path"])
+
+    assigns =
+      assigns
+      |> assign(:path, path)
+      |> assign(:initial, initial_letter(assigns.security.name))
+
+    ~H"""
+    <%= if @path do %>
+      <img class={"security-logo security-logo--#{@variant}"} src={@path} alt="" loading="lazy" />
+    <% else %>
+      <span
+        class={"security-logo security-logo--#{@variant} security-logo--initial"}
+        aria-hidden="true"
+      >
+        <%= @initial %>
+      </span>
+    <% end %>
+    """
+  end
+
+  defp initial_letter(nil), do: "?"
+
+  defp initial_letter(name) when is_binary(name) do
+    name
+    |> String.trim()
+    |> String.first()
+    |> case do
+      nil -> "?"
+      letter -> String.upcase(letter)
+    end
+  end
 
   defp sort_marker({key, :asc}, key), do: " ↑"
   defp sort_marker({key, :desc}, key), do: " ↓"
@@ -764,6 +805,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  defp dispatch_row_action(socket, "update_logo", %Security{} = sec) do
+    parent = self()
+    sec_id = sec.id
+
+    Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
+      result = Portfolixir.Catalog.LogoLookup.run(sec)
+      send(parent, {:logo_update_done, sec_id, result})
+    end)
+
+    {:noreply, assign(socket, :flash_message, gettext("Looking up logo…"))}
+  end
+
   defp dispatch_row_action(socket, _action, _sec), do: {:noreply, socket}
 
   defp safe_column_atom(key) when is_binary(key) do
@@ -832,6 +885,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, false)
      |> assign(:editing_security, nil)}
+  end
+
+  def handle_info({:logo_update_done, _sec_id, result}, socket) do
+    flash =
+      case result do
+        {:ok, _security} -> gettext("Logo updated")
+        :skip -> gettext("No logo source available")
+        {:error, _reason} -> gettext("Logo lookup failed")
+      end
+
+    {:noreply,
+     socket
+     |> assign(:flash_message, flash)
+     |> load_securities()
+     |> load_detail_data()}
   end
 
   def handle_info(:sync_done, socket) do

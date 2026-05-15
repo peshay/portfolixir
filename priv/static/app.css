@@ -1871,6 +1871,74 @@ li + li {
   color: var(--color-text);
 }
 
+.security-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--color-surface, var(--color-bg));
+  border: 1px solid var(--color-border);
+  object-fit: contain;
+  box-sizing: border-box;
+}
+
+/* Many vendor logos on Wikipedia ship in a single colour (e.g. Apple's
+   black wordmark). Without a neutral backdrop, a black logo on the dark
+   theme renders as an invisible black square. Force a near-white plate
+   behind real image logos in both themes; initial-letter fallbacks keep
+   their theme-aware colour. */
+img.security-logo {
+  background: #ffffff;
+  padding: 2px;
+}
+
+.security-logo--row {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.security-logo--lg {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  margin-right: 12px;
+}
+
+.security-logo--initial {
+  background: var(--color-hover);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.security-logo--initial.security-logo--row {
+  font-size: 11px;
+}
+
+.security-logo--initial.security-logo--lg {
+  font-size: 18px;
+}
+
+.row-target--with-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.row-target__label {
+  vertical-align: middle;
+}
+
+.detail-pane-head__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .security-row a.row-target:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
