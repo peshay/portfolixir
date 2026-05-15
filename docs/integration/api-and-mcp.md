@@ -40,8 +40,9 @@ that successful delete response.
 - `POST /api/v1/securities` creates a security with a `security` object.
 - `GET /api/v1/securities/:id` returns one security.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
-- `DELETE /api/v1/securities/:id` deletes a security when no dependent records
-  reference it.
+- `DELETE /api/v1/securities/:id` deletes a security when no dependent
+  transactions or quote history reference it; referenced securities return
+  `409 Conflict`.
 - `GET /api/v1/securities/search` searches configured online security providers.
   Query params: `query`; optional `type` with `security` or `crypto`.
 
@@ -61,6 +62,7 @@ Example create payload:
 
 - `GET /api/v1/securities/:security_id/quotes` lists quote history for one
   security. Optional query params: `from` and `to`, formatted as ISO dates.
+  Invalid date filters return `422 Unprocessable Entity` with field errors.
 - `PUT /api/v1/securities/:security_id/quotes` upserts manual quote rows.
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
   one security.
@@ -127,7 +129,7 @@ Example account payloads:
 - `POST /api/v1/transactions` creates a manual buy or sell transaction with a
   `transaction` object.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
-  portfolio.
+  portfolio; unknown portfolios return `404 Not Found`.
 
 Example transaction payload:
 
