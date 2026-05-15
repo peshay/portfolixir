@@ -24,7 +24,7 @@ msgstr "Verrechnungskonto angelegt"
 msgid "Cash accounts"
 msgstr "Verrechnungskonten"
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:140
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:152
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:76
 #, elixir-autogen
 msgid "Close"
@@ -557,7 +557,7 @@ msgstr "Details bestätigen"
 msgid "Core data"
 msgstr "Stammdaten"
 
-#: lib/portfolixir_web/live/securities_live.ex:805
+#: lib/portfolixir_web/live/securities_live.ex:859
 #, elixir-autogen, elixir-format
 msgid "Created %{name}"
 msgstr "%{name} angelegt"
@@ -725,7 +725,7 @@ msgstr "Dieses Wertpapier existiert bereits"
 msgid "Ticker"
 msgstr "Ticker"
 
-#: lib/portfolixir_web/live/securities_live.ex:814
+#: lib/portfolixir_web/live/securities_live.ex:868
 #, elixir-autogen, elixir-format
 msgid "Updated %{name}"
 msgstr "%{name} aktualisiert"
@@ -970,32 +970,32 @@ msgstr "Türkische Lira"
 msgid "US Dollar"
 msgstr "US-Dollar"
 
-#: lib/portfolixir_web/live/securities_live.ex:311
+#: lib/portfolixir_web/live/securities_live.ex:315
 #, elixir-autogen, elixir-format
 msgid "Chart options"
 msgstr "Chart-Optionen"
 
-#: lib/portfolixir_web/live/securities_live.ex:301
+#: lib/portfolixir_web/live/securities_live.ex:304
 #, elixir-autogen, elixir-format
 msgid "Latest"
 msgstr "Letzter"
 
-#: lib/portfolixir_web/live/securities_live.ex:333
+#: lib/portfolixir_web/live/securities_live.ex:337
 #, elixir-autogen, elixir-format
 msgid "Log scale"
 msgstr "Logarithmische Skala"
 
-#: lib/portfolixir_web/live/securities_live.ex:829
+#: lib/portfolixir_web/live/securities_live.ex:898
 #, elixir-autogen, elixir-format
 msgid "Prices synced."
 msgstr "Kurse aktualisiert."
 
-#: lib/portfolixir_web/live/securities_live.ex:312
+#: lib/portfolixir_web/live/securities_live.ex:316
 #, elixir-autogen, elixir-format
 msgid "Range"
 msgstr "Zeitraum"
 
-#: lib/portfolixir_web/live/securities_live.ex:342
+#: lib/portfolixir_web/live/securities_live.ex:346
 #, elixir-autogen, elixir-format
 msgid "Show transactions"
 msgstr "Transaktionen anzeigen"
@@ -1003,12 +1003,12 @@ msgstr "Transaktionen anzeigen"
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:51
 #: lib/portfolixir_web/live/securities_live.ex:106
 #: lib/portfolixir_web/live/securities_live.ex:107
-#: lib/portfolixir_web/live/securities_live.ex:351
+#: lib/portfolixir_web/live/securities_live.ex:355
 #, elixir-autogen, elixir-format
 msgid "Sync prices"
 msgstr "Kurse aktualisieren"
 
-#: lib/portfolixir_web/live/securities_live.ex:579
+#: lib/portfolixir_web/live/securities_live.ex:620
 #, elixir-autogen, elixir-format
 msgid "Syncing prices…"
 msgstr "Aktualisiere Kurse…"
@@ -1018,23 +1018,23 @@ msgstr "Aktualisiere Kurse…"
 msgid "Prices"
 msgstr "Kurse"
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:149
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:161
 #, elixir-autogen, elixir-format
 msgid "%{name} is referenced by existing transactions or quote history and cannot be deleted. Retire it instead to hide it from the active list while keeping the historical record intact."
 msgstr "%{name} wird von bestehenden Transaktionen oder Kursdaten referenziert und kann nicht gelöscht werden. Stilllegen verbirgt das Wertpapier aus der aktiven Liste, der historische Eintrag bleibt erhalten."
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:158
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:170
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:325
 #, elixir-autogen, elixir-format
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:136
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:148
 #, elixir-autogen, elixir-format
 msgid "Cannot delete"
 msgstr "Kann nicht gelöscht werden"
 
-#: lib/portfolixir_web/live/securities_live.ex:306
+#: lib/portfolixir_web/live/securities_live.ex:310
 #, elixir-autogen, elixir-format
 msgid "Close detail"
 msgstr "Detail schließen"
@@ -1049,17 +1049,17 @@ msgstr "ISIN kopieren"
 msgid "Copy ticker"
 msgstr "Ticker kopieren"
 
-#: lib/portfolixir_web/live/securities_live.ex:714
+#: lib/portfolixir_web/live/securities_live.ex:755
 #, elixir-autogen, elixir-format
 msgid "Could not change status."
 msgstr "Status konnte nicht geändert werden."
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:119
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:131
 #, elixir-autogen, elixir-format
 msgid "Delete"
 msgstr "Löschen"
 
-#: lib/portfolixir_web/live/securities_live.ex:746
+#: lib/portfolixir_web/live/securities_live.ex:788
 #, elixir-autogen, elixir-format
 msgid "Deleted %{name}"
 msgstr "%{name} gelöscht"
@@ -1074,12 +1074,12 @@ msgstr "Bearbeiten"
 msgid "Edit security"
 msgstr "Wertpapier bearbeiten"
 
-#: lib/portfolixir_web/live/securities_live.ex:726
+#: lib/portfolixir_web/live/securities_live.ex:768
 #, elixir-autogen, elixir-format
 msgid "ISIN copied"
 msgstr "ISIN kopiert"
 
-#: lib/portfolixir_web/live/securities_live.ex:253
+#: lib/portfolixir_web/live/securities_live.ex:254
 #, elixir-autogen, elixir-format
 msgid "Open actions menu"
 msgstr "Aktionsmenü öffnen"
@@ -1089,27 +1089,27 @@ msgstr "Aktionsmenü öffnen"
 msgid "Open detail"
 msgstr "Detail öffnen"
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:103
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:115
 #, elixir-autogen, elixir-format
 msgid "Reactivate"
 msgstr "Reaktivieren"
 
-#: lib/portfolixir_web/live/securities_live.ex:704
+#: lib/portfolixir_web/live/securities_live.ex:745
 #, elixir-autogen, elixir-format
 msgid "Reactivated %{name}"
 msgstr "%{name} reaktiviert"
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:105
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:117
 #, elixir-autogen, elixir-format
 msgid "Retire"
 msgstr "Stilllegen"
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:167
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:179
 #, elixir-autogen, elixir-format
 msgid "Retire instead"
 msgstr "Stattdessen stilllegen"
 
-#: lib/portfolixir_web/live/securities_live.ex:705
+#: lib/portfolixir_web/live/securities_live.ex:746
 #, elixir-autogen, elixir-format
 msgid "Retired %{name}"
 msgstr "%{name} stillgelegt"
@@ -1129,17 +1129,17 @@ msgstr "Änderungen speichern"
 msgid "Security actions"
 msgstr "Wertpapier-Aktionen"
 
-#: lib/portfolixir_web/live/securities_live.ex:292
+#: lib/portfolixir_web/live/securities_live.ex:293
 #, elixir-autogen, elixir-format
 msgid "Selected security"
 msgstr "Ausgewähltes Wertpapier"
 
-#: lib/portfolixir_web/live/securities_live.ex:696
+#: lib/portfolixir_web/live/securities_live.ex:737
 #, elixir-autogen, elixir-format
 msgid "Syncing %{name}…"
 msgstr "Synchronisiere %{name}…"
 
-#: lib/portfolixir_web/live/securities_live.ex:736
+#: lib/portfolixir_web/live/securities_live.ex:778
 #, elixir-autogen, elixir-format
 msgid "Ticker copied"
 msgstr "Ticker kopiert"
@@ -1148,3 +1148,28 @@ msgstr "Ticker kopiert"
 #, elixir-autogen, elixir-format
 msgid "Update existing"
 msgstr "Vorhandenes aktualisieren"
+
+#: lib/portfolixir_web/live/securities_live.ex:884
+#, elixir-autogen, elixir-format
+msgid "Logo lookup failed"
+msgstr "Logo-Suche fehlgeschlagen"
+
+#: lib/portfolixir_web/live/securities_live.ex:882
+#, elixir-autogen, elixir-format
+msgid "Logo updated"
+msgstr "Logo aktualisiert"
+
+#: lib/portfolixir_web/live/securities_live.ex:806
+#, elixir-autogen, elixir-format
+msgid "Looking up logo…"
+msgstr "Suche Logo…"
+
+#: lib/portfolixir_web/live/securities_live.ex:883
+#, elixir-autogen, elixir-format
+msgid "No logo source available"
+msgstr "Keine Logo-Quelle verfügbar"
+
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:101
+#, elixir-autogen, elixir-format
+msgid "Update logo"
+msgstr "Logo aktualisieren"
