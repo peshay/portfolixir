@@ -104,6 +104,106 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert Catalog.list_securities() |> length() == 1
     end
 
+    test "in conflict mode, Save updates the existing record with the form values",
+         %{conn: conn} do
+      # User story:
+      # As a local portfolio maintainer,
+      # I want the dialog's Save button to update the matched existing
+      # security when a conflict is shown,
+      # so that I can fix a value (e.g. switch the quote feed) without
+      # having to find a separate edit screen.
+      {:ok, existing} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          isin: "US0378331005",
+          currency_code: "USD",
+          asset_class: "equity",
+          provider: "portfolio_performance",
+          online_id: "us0378331005",
+          feed: "PORTFOLIO_PERFORMANCE"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+      view |> element("#open-new-dialog") |> render_click()
+      view |> element("button[phx-value-mode='security']") |> render_click()
+
+      view
+      |> element("#security-form-dialog form")
+      |> render_change(%{"query" => "apple"})
+
+      view |> element("#security-form-dialog .search-result") |> render_click()
+
+      view
+      |> element("#security-form-dialog .market-list button[phx-value-idx='0']")
+      |> render_click()
+
+      assert has_element?(view, "#security-form-dialog", "This security already exists")
+      assert has_element?(view, "#security-form-dialog button[type='submit']", "Update existing")
+
+      # User edits the feed via the form, then hits Save.
+      view
+      |> element("#security-form-dialog form")
+      |> render_submit(%{
+        "security" => %{
+          "name" => "Apple Inc.",
+          "ticker_symbol" => "AAPL",
+          "isin" => "US0378331005",
+          "currency_code" => "USD",
+          "asset_class" => "equity",
+          "feed" => "MANUAL"
+        }
+      })
+
+      refute has_element?(view, "#security-form-dialog")
+      updated = Catalog.get_security!(existing.id)
+      assert updated.feed == "MANUAL"
+    end
+
+    test "in conflict mode, Merge online fields applies the user's form edits on top",
+         %{conn: conn} do
+      {:ok, existing} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          isin: "US0378331005",
+          currency_code: "USD",
+          asset_class: "equity",
+          provider: "portfolio_performance",
+          online_id: "us0378331005",
+          feed: "PORTFOLIO_PERFORMANCE",
+          note: "kept across merges"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+      view |> element("#open-new-dialog") |> render_click()
+      view |> element("button[phx-value-mode='security']") |> render_click()
+
+      view
+      |> element("#security-form-dialog form")
+      |> render_change(%{"query" => "apple"})
+
+      view |> element("#security-form-dialog .search-result") |> render_click()
+
+      view
+      |> element("#security-form-dialog .market-list button[phx-value-idx='0']")
+      |> render_click()
+
+      # User edits feed in the form, then triggers merge.
+      view
+      |> element("#security-form-dialog form")
+      |> render_change(%{"security" => %{"feed" => "MANUAL"}})
+
+      view
+      |> element("#security-form-dialog button", "Merge online fields")
+      |> render_click()
+
+      refute has_element?(view, "#security-form-dialog")
+      updated = Catalog.get_security!(existing.id)
+      assert updated.feed == "MANUAL"
+      assert updated.note == "kept across merges"
+    end
+
     test "duplicate insert surfaces a conflict banner instead of an exception", %{conn: conn} do
       {:ok, _existing} =
         Catalog.create_security(%{
@@ -153,6 +253,109 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       refute has_element?(view, "#securities-table thead button", "Name")
       assert has_element?(view, "#securities-table thead", "Ticker")
+    end
+  end
+
+  describe "price columns and sync" do
+    alias Portfolixir.Catalog.Quote, as: SecurityQuote
+    alias Portfolixir.Repo
+
+    setup do
+      {:ok, apple} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          isin: "US0378331005",
+          currency_code: "USD",
+          asset_class: "equity",
+          provider: "portfolio_performance",
+          online_id: "us0378331005"
+        })
+
+      [%{date: ~D[2026-05-14], close: "120.00"}, %{date: ~D[2026-05-15], close: "126.00"}]
+      |> Enum.each(fn row ->
+        %SecurityQuote{}
+        |> SecurityQuote.changeset(Map.merge(row, %{security_id: apple.id, source: "manual"}))
+        |> Repo.insert!()
+      end)
+
+      %{apple: apple}
+    end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want the securities list to show the latest price and the day change
+    # for each security and to navigate to a detail page when I click a row,
+    # so that I can scan price movement and drill in like in Portfolio
+    # Performance.
+    #
+    # Acceptance criteria:
+    # - Default columns include "Latest price" and "Day change %".
+    # - The latest close and absolute day-change render in the row.
+    # - Clicking a row navigates to /securities/:id.
+    # - A "Sync prices" toolbar button is available.
+    test "shows latest price and day-change for a security with quote history",
+         %{conn: conn, apple: _apple} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      html = render(view)
+      assert html =~ "Latest price"
+      assert html =~ "Day change"
+      assert html =~ "126.00"
+      # Day change %: (126 - 120) / 120 = +5.00 %
+      assert html =~ "+5.00"
+    end
+
+    test "exposes a Sync prices toolbar button", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/securities")
+      assert has_element?(view, "button#sync-prices")
+    end
+
+    test "rows are navigable to the detail page", %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      assert has_element?(
+               view,
+               ~s|tr#security-row-#{apple.id} a[href="/securities/#{apple.id}"]|
+             )
+    end
+
+    test "opens the detail pane when the URL points at a security", %{conn: conn, apple: apple} do
+      {:ok, view, html} = live(conn, "/securities/#{apple.id}")
+
+      assert html =~ "security-detail-pane"
+      assert html =~ "Apple Inc."
+      assert html =~ "Log scale"
+
+      for range <- ~w(1M 3M 6M YTD 1Y MAX) do
+        assert has_element?(view, "button[phx-value-range='#{range}']", range)
+      end
+
+      assert has_element?(view, "tr#security-row-#{apple.id}.is-selected")
+    end
+
+    test "patching to a row id opens the pane without a full navigation",
+         %{conn: conn, apple: apple} do
+      {:ok, view, html_before} = live(conn, "/securities")
+      refute html_before =~ "security-detail-pane"
+
+      view |> element("tr#security-row-#{apple.id} a") |> render_click()
+
+      assert has_element?(view, "#security-detail-pane")
+    end
+
+    test "patching back to /securities closes the pane", %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+      assert has_element?(view, "#security-detail-pane")
+
+      view |> element("#security-detail-pane .icon-button") |> render_click()
+
+      refute has_element?(view, "#security-detail-pane")
+    end
+
+    test "unknown id silently falls back to the list view", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/securities/999999")
+      refute has_element?(view, "#security-detail-pane")
     end
   end
 
