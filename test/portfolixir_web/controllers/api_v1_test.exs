@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.ApiV1Test do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.QuoteSync.Fake, as: QuoteSyncFake
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   @auth {"authorization", "Bearer test-api-token"}
@@ -230,6 +231,92 @@ defmodule PortfolixirWeb.ApiV1Test do
       |> Map.fetch!("data")
 
     assert Enum.map(quote_history, & &1["close"]) == ["42.5", "43.75"]
+  end
+
+  # User story:
+  # As a local portfolio maintainer preserving auditable price history,
+  # I want quote history to block security deletion through the API,
+  # so that recorded quotes are not silently removed with their security.
+  #
+  # Acceptance criteria:
+  # - Deleting a security referenced only by quote history returns 409 JSON.
+  # - The security record is preserved.
+  # - The quote history row is preserved.
+  test "delete returns conflict when quote history references the security", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Quoted Security",
+        currency_code: "EUR",
+        provider: "manual"
+      })
+
+    assert {:ok, 1} =
+             Quotes.upsert_many(security.id, [
+               %{"date" => "2026-05-16", "close" => "43.75", "source" => "manual"}
+             ])
+
+    conflict =
+      conn
+      |> api_conn()
+      |> delete("/api/v1/securities/#{security.id}")
+      |> json_response(409)
+
+    assert conflict == %{"errors" => %{"detail" => "security is referenced by existing records"}}
+    assert Catalog.get_security(security.id)
+    assert [%{close: close}] = Quotes.range(security.id, ~D[2026-05-01], ~D[2026-05-31])
+    assert Decimal.equal?(close, Decimal.new("43.75"))
+  end
+
+  # User story:
+  # As an API client requesting derived holdings,
+  # I want syntactically valid but unknown portfolio IDs to return not found,
+  # so that an empty holdings list is reserved for existing portfolios with no positions.
+  #
+  # Acceptance criteria:
+  # - `GET /api/v1/portfolios/:portfolio_id/holdings` returns 404 for a missing portfolio.
+  # - The response uses the normal JSON not-found shape.
+  test "holdings returns not found for a syntactically valid missing portfolio", %{conn: conn} do
+    response =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/999999/holdings")
+      |> json_response(404)
+
+    assert response == %{"errors" => %{"detail" => "not found"}}
+  end
+
+  # User story:
+  # As an API client filtering quote history by date,
+  # I want invalid date parameters to return field-specific validation errors,
+  # so that clients can distinguish malformed filters from missing securities.
+  #
+  # Acceptance criteria:
+  # - Invalid `from` returns 422 with a `from` error.
+  # - Invalid `to` returns 422 with a `to` error.
+  # - The existing security is not treated as missing when only date params are invalid.
+  test "quote list returns field errors for invalid date filters", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Date Filter Security",
+        currency_code: "EUR",
+        provider: "manual"
+      })
+
+    invalid_from =
+      conn
+      |> api_conn()
+      |> get("/api/v1/securities/#{security.id}/quotes?from=not-a-date")
+      |> json_response(422)
+
+    assert invalid_from == %{"errors" => %{"from" => ["is invalid"]}}
+
+    invalid_to =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities/#{security.id}/quotes?to=2026-99-99")
+      |> json_response(422)
+
+    assert invalid_to == %{"errors" => %{"to" => ["is invalid"]}}
   end
 
   # User story:
