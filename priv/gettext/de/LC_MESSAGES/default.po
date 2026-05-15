@@ -1,4 +1,4 @@
-## German translations for Portfolixir's reboot foundation UI.
+## German translations for Portfolixir's UI.
 msgid ""
 msgstr ""
 "Language: de\n"
@@ -177,20 +177,43 @@ msgstr "Verknüpftes Verrechnungskonto"
 msgid "Linked cash account is derived from the selected depot."
 msgstr "Das verknüpfte Verrechnungskonto wird aus dem ausgewählten Depot abgeleitet."
 
+#: lib/portfolixir_web/components/app_shell.ex:116
+#: lib/portfolixir_web/components/app_shell.ex:119
+#: lib/portfolixir_web/components/app_shell.ex:123
+#: lib/portfolixir_web/components/app_shell.ex:126
+#, elixir-autogen
+msgid "Accent color"
+msgstr "Akzentfarbe"
+
+#: lib/portfolixir_web/components/app_shell.ex:336
+#, elixir-autogen
+msgid "Coral"
+msgstr "Koralle"
+
 #: lib/portfolixir_web/live/dashboard_live.ex:20
 #, elixir-autogen
-msgid "Local portfolio tracking MVP"
-msgstr "Lokales Portfolio-Tracking-MVP"
+msgid "Local portfolio tracking"
+msgstr "Lokales Portfolio-Tracking"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:34
 #, elixir-autogen
-msgid "MVP counts"
-msgstr "MVP-Zähler"
+msgid "Portfolio counts"
+msgstr "Portfolio-Zähler"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:24
 #, elixir-autogen
-msgid "MVP path"
-msgstr "MVP-Pfad"
+msgid "Workflow path"
+msgstr "Workflow-Pfad"
+
+#: lib/portfolixir_web/components/app_shell.ex:335
+#, elixir-autogen
+msgid "Teal"
+msgstr "Türkis"
+
+#: lib/portfolixir_web/components/app_shell.ex:334
+#, elixir-autogen
+msgid "Violet"
+msgstr "Violett"
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:38
 #, elixir-autogen

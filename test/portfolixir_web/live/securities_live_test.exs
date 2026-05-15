@@ -247,6 +247,35 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   end
 
   describe "column picker" do
+    # User story:
+    # As a local portfolio maintainer,
+    # I want the securities list headers to read like a data table,
+    # so that sorting feels integrated instead of looking like button columns.
+    #
+    # Acceptance criteria:
+    # - Sortable headers keep accessible button semantics.
+    # - Sort buttons are styled as table-header controls, not gradient buttons.
+    # - The table has stronger row and header separation for scanning.
+    test "securities table keeps sort semantics while using neutral table styling", %{
+      conn: conn
+    } do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      assert has_element?(view, "#securities-table thead button.sort-toggle", "Name")
+
+      app_css = File.read!("priv/static/app.css")
+
+      refute app_css =~
+               "button {\n  justify-self: start;\n  min-height: 42px;\n  padding: 9px 14px;\n  color: #ffffff;\n  cursor: pointer;\n  background: linear-gradient"
+
+      assert app_css =~ ".sort-toggle"
+      assert app_css =~ "background: transparent;"
+      assert app_css =~ "box-shadow: none;"
+      assert app_css =~ ".sort-toggle::after"
+      assert app_css =~ ".data-table tbody tr"
+      assert app_css =~ "border-bottom: 1px solid var(--color-border);"
+    end
+
     test "toggling a column removes it from the table header", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/securities")
 

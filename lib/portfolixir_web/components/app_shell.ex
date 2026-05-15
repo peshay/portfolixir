@@ -110,6 +110,36 @@ defmodule PortfolixirWeb.AppShell do
               </div>
             </details>
 
+            <details
+              id="accent-color"
+              class="accent-menu"
+              aria-label={gettext("Accent color")}
+              data-accent-control
+            >
+              <summary class="accent-menu-trigger" title={gettext("Accent color")}>
+                <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+                <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+                <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden"><%= gettext("Accent color") %></span>
+              </summary>
+
+              <div class="accent-menu-list" role="group" aria-label={gettext("Accent color")}>
+                <%= for accent <- accent_colors() do %>
+                  <button
+                    type="button"
+                    class={["accent-choice", accent.value == "violet" && "is-active"]}
+                    data-accent-choice={accent.value}
+                    aria-label={accent.label}
+                    aria-pressed={if accent.value == "violet", do: "true", else: "false"}
+                    title={accent.label}
+                  >
+                    <span class={"accent-dot accent-dot-#{accent.value}"} aria-hidden="true"></span>
+                    <span class="visually-hidden"><%= accent.label %></span>
+                  </button>
+                <% end %>
+              </div>
+            </details>
+
             <nav class="locale-switcher" aria-label={gettext("Language")}>
               <%= for locale <- [{"en", "EN"}, {"de", "DE"}] do %>
                 <a
@@ -296,6 +326,14 @@ defmodule PortfolixirWeb.AppShell do
       %{value: "system", label: gettext("System")},
       %{value: "light", label: gettext("Light")},
       %{value: "dark", label: gettext("Dark")}
+    ]
+  end
+
+  defp accent_colors do
+    [
+      %{value: "violet", label: gettext("Violet")},
+      %{value: "teal", label: gettext("Teal")},
+      %{value: "coral", label: gettext("Coral")}
     ]
   end
 
