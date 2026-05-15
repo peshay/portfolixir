@@ -31,65 +31,134 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
   def chart(assigns) do
     geometry = build_geometry(assigns.quotes, assigns.log_scale?)
+    plot_left = @padding_left
+    plot_top = @padding_top
+    plot_right = @width - @padding_right
+    plot_bottom = @height - @padding_bottom
+
+    payload = build_payload(geometry, assigns, plot_left, plot_top, plot_right, plot_bottom)
+    chart_id = "chart-" <> Base.encode16(:crypto.strong_rand_bytes(6), case: :lower)
 
     assigns =
       assigns
       |> assign(:geometry, geometry)
       |> assign(:width, @width)
       |> assign(:height, @height)
-      |> assign(:plot_left, @padding_left)
-      |> assign(:plot_top, @padding_top)
-      |> assign(:plot_right, @width - @padding_right)
-      |> assign(:plot_bottom, @height - @padding_bottom)
+      |> assign(:plot_left, plot_left)
+      |> assign(:plot_top, plot_top)
+      |> assign(:plot_right, plot_right)
+      |> assign(:plot_bottom, plot_bottom)
+      |> assign(:chart_id, chart_id)
+      |> assign(:payload_json, Jason.encode!(payload, escape: :html_safe))
 
     ~H"""
-    <svg
-      class={["security-chart", @log_scale? && "is-log"]}
-      role="img"
-      aria-label="Price chart"
-      viewBox={"0 0 #{@width} #{@height}"}
-      preserveAspectRatio="none"
-      width="100%"
-      height="320"
-    >
-      <%= if @geometry == :empty do %>
-        <g class="no-quotes">
-          <text x={div(@width, 2)} y={div(@height, 2)} text-anchor="middle">
-            No price history yet.
-          </text>
-        </g>
-      <% else %>
-        <%= render_axes(assigns) %>
+    <div class="chart-frame" id={@chart_id} phx-hook="ChartCrosshair" data-chart-id={@chart_id}>
+      <svg
+        class={["security-chart", @log_scale? && "is-log"]}
+        role="img"
+        aria-label="Price chart"
+        viewBox={"0 0 #{@width} #{@height}"}
+        preserveAspectRatio="none"
+        width="100%"
+        height="320"
+      >
+        <%= if @geometry == :empty do %>
+          <g class="no-quotes">
+            <text x={div(@width, 2)} y={div(@height, 2)} text-anchor="middle">
+              No price history yet.
+            </text>
+          </g>
+        <% else %>
+          <%= render_axes(assigns) %>
 
-        <path
-          class="quote-area"
-          d={area_path(@geometry, @plot_left, @plot_top, @plot_right, @plot_bottom)}
-        />
+          <path
+            class="quote-area"
+            d={area_path(@geometry, @plot_left, @plot_top, @plot_right, @plot_bottom)}
+          />
 
-        <polyline
-          class="quote-line"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          points={polyline_points(@geometry, @plot_left, @plot_top, @plot_right, @plot_bottom)}
-        />
+          <polyline
+            class="quote-line"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            points={polyline_points(@geometry, @plot_left, @plot_top, @plot_right, @plot_bottom)}
+          />
 
-        <%= if @show_transactions? do %>
-          <%= for marker <- transaction_markers(@transactions, @geometry, @plot_left, @plot_top, @plot_right, @plot_bottom) do %>
-            <circle
-              class={"tx-marker tx-#{marker.type}"}
-              cx={marker.cx}
-              cy={marker.cy}
-              r="4"
-            >
-              <title><%= marker.label %></title>
-            </circle>
+          <%= if @show_transactions? do %>
+            <%= for marker <- transaction_markers(@transactions, @geometry, @plot_left, @plot_top, @plot_right, @plot_bottom) do %>
+              <circle
+                class={"tx-marker tx-#{marker.type}"}
+                cx={marker.cx}
+                cy={marker.cy}
+                r="4"
+              >
+                <title><%= marker.label %></title>
+              </circle>
+            <% end %>
           <% end %>
         <% end %>
-      <% end %>
-    </svg>
+      </svg>
+      <script type="application/json" data-chart-payload data-chart-id={@chart_id}><%= Phoenix.HTML.raw(@payload_json) %></script>
+    </div>
     """
   end
+
+  defp build_payload(:empty, assigns, _x0, _y0, _x1, _y1) do
+    %{
+      points: [],
+      txs: [],
+      view: %{width: @width, height: @height},
+      currency: assigns.currency_code
+    }
+  end
+
+  defp build_payload(geometry, assigns, x0, y0, x1, y1) do
+    points =
+      geometry
+      |> point_coords(x0, y0, x1, y1)
+      |> Enum.zip(geometry.quotes)
+      |> Enum.map(fn {{x, y}, {q, _idx}} ->
+        [Date.to_iso8601(q.date), Decimal.to_string(q.close), round2(x), round2(y)]
+      end)
+
+    txs =
+      if assigns.show_transactions? do
+        build_tx_payload(assigns.transactions, geometry, x0, y0, x1, y1)
+      else
+        []
+      end
+
+    %{
+      points: points,
+      txs: txs,
+      view: %{width: @width, height: @height},
+      currency: assigns.currency_code
+    }
+  end
+
+  defp build_tx_payload(transactions, geometry, x0, y0, x1, y1) do
+    plot_w = x1 - x0
+    plot_h = y1 - y0
+
+    transactions
+    |> Enum.filter(&within_range?(&1.date, geometry))
+    |> Enum.map(fn tx ->
+      x = x0 + plot_w * x_fraction_for_date(tx.date, geometry)
+      close = close_for_date(geometry, tx.date) || tx.price
+      y = y1 - plot_h * normalized_y(close, geometry)
+
+      %{
+        date: Date.to_iso8601(tx.date),
+        type: tx.type,
+        quantity: Decimal.to_string(tx.quantity),
+        price: Decimal.to_string(tx.price),
+        x: round2(x),
+        y: round2(y)
+      }
+    end)
+  end
+
+  defp round2(value), do: Float.round(:erlang.float(value), 2)
 
   # ---------------------------------------------------------------------------
   # Geometry
