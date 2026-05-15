@@ -431,7 +431,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
       assert has_element?(view, "#security-detail-pane")
 
-      view |> element("#security-detail-pane .icon-button") |> render_click()
+      view |> element("#detail-pane-close") |> render_click()
 
       refute has_element?(view, "#security-detail-pane")
     end
@@ -439,6 +439,106 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "unknown id silently falls back to the list view", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/securities/999999")
       refute has_element?(view, "#security-detail-pane")
+    end
+  end
+
+  describe "detail pane tabs" do
+    # User story:
+    # As a local portfolio maintainer,
+    # I want the security detail pane organized into named tabs,
+    # so that I can navigate between price chart, transactions, trades,
+    # quote history, holdings and master data without scrolling one long pane.
+    #
+    # Acceptance criteria:
+    # - The pane renders a tablist with six tabs: overview, chart, transactions,
+    #   trades, quotes, holdings.
+    # - The selected tab is reflected in the URL (?tab=…) so deep-links and
+    #   reloads keep the same tab active.
+    # - An unknown tab value falls back to the default tab (never crashes,
+    #   never creates atoms from external input).
+    # - Only the active tab's panel content is visible.
+
+    setup do
+      {:ok, apple} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          isin: "US0378331005",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {:ok, apple: apple}
+    end
+
+    test "renders a tablist with the six known tabs", %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      assert has_element?(view, "#detail-pane-tabs[role='tablist']")
+
+      for tab <- ~w(overview chart transactions trades quotes holdings) do
+        assert has_element?(
+                 view,
+                 "#detail-pane-tabs button[role='tab'][phx-value-tab='#{tab}']"
+               )
+      end
+    end
+
+    test "chart tab is active by default and renders the chart toolbar",
+         %{conn: conn, apple: apple} do
+      {:ok, view, html} = live(conn, "/securities/#{apple.id}")
+
+      assert has_element?(
+               view,
+               "#detail-pane-tabs button[phx-value-tab='chart'][aria-selected='true']"
+             )
+
+      assert html =~ "Log scale"
+      assert has_element?(view, "#detail-tab-panel-chart")
+      refute has_element?(view, "#detail-tab-panel-trades")
+    end
+
+    test "?tab=transactions selects the transactions tab on load",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=transactions")
+
+      assert has_element?(
+               view,
+               "#detail-pane-tabs button[phx-value-tab='transactions'][aria-selected='true']"
+             )
+
+      assert has_element?(view, "#detail-tab-panel-transactions")
+      refute has_element?(view, "#detail-tab-panel-chart")
+    end
+
+    test "clicking a tab patches the URL and swaps the active panel",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      view
+      |> element("#detail-pane-tabs button[phx-value-tab='trades']")
+      |> render_click()
+
+      assert_patched(view, "/securities/#{apple.id}?tab=trades")
+
+      assert has_element?(
+               view,
+               "#detail-pane-tabs button[phx-value-tab='trades'][aria-selected='true']"
+             )
+
+      assert has_element?(view, "#detail-tab-panel-trades")
+      refute has_element?(view, "#detail-tab-panel-chart")
+    end
+
+    test "unknown ?tab=… value silently falls back to the default chart tab",
+         %{conn: conn, apple: apple} do
+      # Guards against `String.to_atom/1` on external input.
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=__bogus__")
+
+      assert has_element?(
+               view,
+               "#detail-pane-tabs button[phx-value-tab='chart'][aria-selected='true']"
+             )
     end
   end
 
