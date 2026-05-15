@@ -81,6 +81,38 @@ defmodule PortfolixirWeb.Components.SecurityChartTest do
     assert html =~ ~s(class="tx-marker tx-buy")
   end
 
+  test "positions quote points by calendar date so markers stay aligned" do
+    # User story:
+    # As a local portfolio maintainer,
+    # I want a transaction marker on day N to land on the price line on day N,
+    # so weekends/holidays in the quote history don't make the chart lie.
+    #
+    # The chart used to space points by index, so Fri/Mon/Tue (span 4 days)
+    # rendered Mon at 50% width while a Mon transaction marker landed at
+    # 75%. Both should land at 75% now.
+    quotes = [
+      quote_fixture(~D[2026-05-08], "100"),
+      quote_fixture(~D[2026-05-11], "104"),
+      quote_fixture(~D[2026-05-12], "108")
+    ]
+
+    transactions = [
+      %{date: ~D[2026-05-11], type: "buy", quantity: Decimal.new("1"), price: Decimal.new("104")}
+    ]
+
+    html = render_chart(default_assigns(quotes: quotes, transactions: transactions))
+
+    marker_cx = Regex.run(~r/tx-marker tx-buy"\s+cx="([0-9.]+)"/, html) |> Enum.at(1)
+
+    # Polyline points are space-separated "x,y" pairs. The Monday point is
+    # the second one; its x must match the marker's cx.
+    points_attr = Regex.run(~r/<polyline[^>]*points="([^"]+)"/, html) |> Enum.at(1)
+    [_first, monday, _last] = String.split(points_attr, " ", trim: true)
+    [monday_x, _y] = String.split(monday, ",")
+
+    assert marker_cx == monday_x
+  end
+
   test "draws a sell marker for sell transactions" do
     quotes = [quote_fixture(~D[2026-05-15], "100")]
 

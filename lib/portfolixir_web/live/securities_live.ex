@@ -1,6 +1,8 @@
 defmodule PortfolixirWeb.SecuritiesLive do
   use PortfolixirWeb, :live_view
 
+  require Logger
+
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
@@ -518,8 +520,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
     parent = self()
 
     Task.start(fn ->
-      _ = QuoteSync.sync_all()
-      send(parent, :sync_done)
+      try do
+        _ = QuoteSync.sync_all()
+      rescue
+        exception ->
+          Logger.error(
+            "QuoteSync.sync_all crashed: " <> Exception.format(:error, exception, __STACKTRACE__)
+          )
+      catch
+        kind, reason ->
+          Logger.error("QuoteSync.sync_all exited: #{inspect({kind, reason})}")
+      after
+        # Always re-enable the UI, even on crash — otherwise the spinner
+        # would hang until the page is reloaded.
+        send(parent, :sync_done)
+      end
     end)
 
     {:noreply,
