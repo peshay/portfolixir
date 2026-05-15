@@ -317,6 +317,28 @@ defmodule PortfolixirWeb.AppShell do
        icon_paths(name) <> ~s(</svg>)}
   end
 
+  @doc "Renders one of the named inline SVG icons at the given size."
+  attr(:name, :atom, required: true)
+  attr(:size, :integer, default: 16)
+  attr(:class, :string, default: nil)
+
+  def icon(assigns) do
+    ~H"""
+    <svg
+      width={@size}
+      height={@size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.6"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={@class}
+      aria-hidden="true"
+    ><%= Phoenix.HTML.raw(icon_paths(@name)) %></svg>
+    """
+  end
+
   defp icon_paths(:dashboard),
     do:
       ~s(<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/>)
@@ -361,6 +383,26 @@ defmodule PortfolixirWeb.AppShell do
 
   defp icon_paths(:settings),
     do: ~s(<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/>)
+
+  defp icon_paths(:plus), do: ~s(<path d="M12 5v14M5 12h14"/>)
+
+  defp icon_paths(:filter),
+    do: ~s(<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>)
+
+  defp icon_paths(:columns),
+    do:
+      ~s(<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/>)
+
+  defp icon_paths(:search),
+    do: ~s(<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>)
+
+  defp icon_paths(:trash),
+    do:
+      ~s(<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/>)
+
+  defp icon_paths(:x), do: ~s(<path d="M6 6l12 12M18 6 6 18"/>)
+
+  defp icon_paths(:chevron_right), do: ~s(<path d="m9 6 6 6-6 6"/>)
 
   defp icon_paths(_), do: ~s(<circle cx="12" cy="12" r="5"/>)
 end
