@@ -1763,6 +1763,114 @@ li + li {
   text-decoration: none;
 }
 
+.security-row.is-retired td {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.row-actions {
+  position: relative;
+  width: 36px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.row-actions-head {
+  width: 36px;
+}
+
+.row-actions__kebab {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.row-actions__kebab:hover,
+.row-actions__kebab:focus-visible {
+  background: var(--color-hover);
+  color: var(--color-text);
+  outline: none;
+}
+
+.row-context-menu {
+  position: fixed;
+  /* top / left are set by the PositionedMenu JS hook */
+  min-width: 220px;
+  max-width: min(280px, calc(100vw - 16px));
+  z-index: 50;
+  background: var(--color-surface, var(--color-bg));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-md, 0 6px 20px rgba(0, 0, 0, 0.12));
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.row-context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  width: 100%;
+}
+
+.row-context-menu__item:hover:not(:disabled),
+.row-context-menu__item:focus-visible {
+  background: var(--color-hover);
+  outline: none;
+}
+
+.row-context-menu__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.row-context-menu__item--danger {
+  color: #b91c1c;
+}
+
+@media (max-width: 720px) {
+  .row-context-menu {
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
+    padding: 12px 12px env(safe-area-inset-bottom, 16px);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .row-context-menu__item {
+    padding: 14px 12px;
+    font-size: 16px;
+  }
+}
+
+.confirm-delete-blocked .modal-body p {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
 .security-row a.row-target:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
