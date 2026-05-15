@@ -219,7 +219,7 @@ defmodule Portfolixir.Catalog.Quotes do
   defp prepare_rows(security_id, rows, now) do
     Enum.reduce_while(rows, {:ok, []}, fn row, {:ok, acc} ->
       changeset =
-        SecurityQuote.changeset(%SecurityQuote{}, Map.put(row, :security_id, security_id))
+        SecurityQuote.changeset(%SecurityQuote{}, put_security_id(row, security_id))
 
       if changeset.valid? do
         data = Ecto.Changeset.apply_changes(changeset)
@@ -241,5 +241,13 @@ defmodule Portfolixir.Catalog.Quotes do
         {:halt, {:error, changeset}}
       end
     end)
+  end
+
+  defp put_security_id(row, security_id) do
+    if Enum.any?(Map.keys(row), &is_binary/1) do
+      Map.put(row, "security_id", security_id)
+    else
+      Map.put(row, :security_id, security_id)
+    end
   end
 end

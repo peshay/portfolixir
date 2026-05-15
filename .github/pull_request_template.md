@@ -25,6 +25,12 @@
 - Security surface touched:
 - Threats identified and mitigations:
 
+### API and MCP evidence
+
+- API coverage added or reviewed:
+- MCP coverage added or reviewed:
+- Why API/MCP coverage is not applicable (if true):
+
 ## Implementation
 
 - Main approach:
@@ -37,12 +43,16 @@
 - `mix test`:
 - `mix coveralls` (if applicable):
 - `pre-commit run --all-files`:
+- `npm test --prefix mcp-server` (if applicable):
+- `npm run build --prefix mcp-server` (if applicable):
 
 ```bash
 mix format
 mix test
 mix coveralls
 pre-commit run --all-files
+npm test --prefix mcp-server
+npm run build --prefix mcp-server
 ```
 
 ## Documentation
@@ -56,6 +66,8 @@ pre-commit run --all-files
 - [ ] User story is written as a comment in the relevant test file.
 - [ ] Functional test sits directly below the user story comment.
 - [ ] Tests were written first and validated as failing-first.
+- [ ] API coverage was reviewed and updated, or marked not applicable.
+- [ ] MCP coverage was reviewed and updated, or marked not applicable.
 - [ ] Security audit was run before finalizing changes.
 - [ ] Required gates were run and passed.
 - [ ] User documentation reviewed for consistency.
@@ -64,5 +76,5 @@ pre-commit run --all-files
 - [ ] No live network calls are used in tests.
 - [ ] Financial values use Decimal where relevant.
 - [ ] No external input is converted with `String.to_atom/1`.
-- [ ] No import, sync, trading, payment, order, rebalance, MCP, or LLM behavior was added.
+- [ ] No import, trading, payment, order, rebalance, or LLM behavior was added.
 - [ ] Story scope stayed inside the request.

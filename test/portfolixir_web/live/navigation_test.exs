@@ -1,4 +1,4 @@
-defmodule PortfolixirWeb.MVPNavigationTest do
+defmodule PortfolixirWeb.NavigationTest do
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
@@ -8,14 +8,14 @@ defmodule PortfolixirWeb.MVPNavigationTest do
 
   # User story:
   # As a local portfolio maintainer,
-  # I want the dashboard navigation to show only the reboot MVP workflow,
+  # I want the dashboard navigation to show only the active local workflow,
   # so that prototype import, document, taxonomy, and report surfaces do not guide my work.
   #
   # Acceptance criteria:
   # - The dashboard exposes securities, portfolios, and transactions as primary navigation.
   # - Prototype routes for imports, documents, taxonomies, and reports are absent.
-  # - The dashboard describes the manual MVP path in order.
-  test "dashboard renders only the reboot MVP navigation", %{conn: conn} do
+  # - The dashboard describes the manual workflow path in order.
+  test "dashboard renders only the active local workflow navigation", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
     assert has_element?(view, "#nav-dashboard[href='/']")
@@ -28,23 +28,23 @@ defmodule PortfolixirWeb.MVPNavigationTest do
     refute has_element?(view, "a[href='/taxonomies']")
     refute has_element?(view, "a[href='/reports/fund-allocations']")
 
-    assert has_element?(view, "#mvp-path", "Create securities")
-    assert has_element?(view, "#mvp-path", "Create one portfolio")
-    assert has_element?(view, "#mvp-path", "Link one depot to one cash account")
-    assert has_element?(view, "#mvp-path", "Record manual buy and sell transactions")
+    assert has_element?(view, "#workflow-path", "Create securities")
+    assert has_element?(view, "#workflow-path", "Create one portfolio")
+    assert has_element?(view, "#workflow-path", "Link one depot to one cash account")
+    assert has_element?(view, "#workflow-path", "Record manual buy and sell transactions")
   end
 
   # User story:
   # As a local portfolio maintainer,
   # I want a responsive Portfolixir design shell with matching light and dark themes,
-  # so that the MVP workflow has a coherent app frame on desktop, tablet, and phone.
+  # so that the local workflow has a coherent app frame on desktop, tablet, and phone.
   #
   # Acceptance criteria:
   # - The root layout loads the app stylesheet, color-scheme metadata, and favicon assets.
   # - The app shell renders a logo, hamburger toggle, collapsible sidebar, and active navigation state.
   # - The stylesheet defines shared light/dark theme tokens from the logo palette.
   # - The stylesheet includes responsive sidebar and compact navigation rules.
-  test "app shell establishes the initial responsive light and dark design foundation", %{
+  test "app shell establishes the responsive light and dark design system", %{
     conn: conn
   } do
     {:ok, view, html} = live(conn, "/")
@@ -126,6 +126,45 @@ defmodule PortfolixirWeb.MVPNavigationTest do
 
   # User story:
   # As a local portfolio maintainer,
+  # I want to try the three logo accent colors from the top bar,
+  # so that I can compare the app design without changing code.
+  #
+  # Acceptance criteria:
+  # - The top bar contains an accent dropdown next to the theme control.
+  # - The dropdown offers only Violet, Teal, and Coral.
+  # - The layout boot script restores the accent choice before the page paints.
+  # - Accentable UI states use the selected accent token instead of hard-coded violet.
+  test "top bar exposes logo accent choices and the stylesheet uses selected accent tokens", %{
+    conn: conn
+  } do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert html =~ ~s(id="accent-color")
+    assert html =~ ~s(data-accent-control)
+    assert html =~ ~s(data-accent-choice="violet")
+    assert html =~ ~s(data-accent-choice="teal")
+    assert html =~ ~s(data-accent-choice="coral")
+    assert html =~ ~s(title="Violet")
+    assert html =~ ~s(title="Teal")
+    assert html =~ ~s(title="Coral")
+    assert html =~ "portfolixir-accent"
+
+    app_css = File.read!("priv/static/app.css")
+
+    assert app_css =~ "--color-accent:"
+    assert app_css =~ "--color-accent-soft:"
+    assert app_css =~ ~s([data-accent="violet"])
+    assert app_css =~ ~s([data-accent="teal"])
+    assert app_css =~ ~s([data-accent="coral"])
+    assert app_css =~ ".button-primary"
+    assert app_css =~ "background: var(--color-accent);"
+    assert app_css =~ "accent-color: var(--color-accent);"
+    assert app_css =~ ".security-chart .quote-line"
+    assert app_css =~ "stroke: var(--color-accent);"
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
   # I want Portfolixir to default to my browser language while still offering a manual switch,
   # so that I can use German or English without changing the application scope.
   #
@@ -161,7 +200,7 @@ defmodule PortfolixirWeb.MVPNavigationTest do
   # - The page explains that the linked cash account is derived from the depot.
   test "transaction form derives cash account from depot instead of asking for it", %{conn: conn} do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "MVP Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
 
     {:ok, cash_account} =
       Portfolios.create_cash_account(%{

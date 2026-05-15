@@ -4,22 +4,19 @@ These instructions apply to all coding agents working on Portfolixir.
 
 ## Project Goal
 
-Portfolixir is being rebooted as the smallest coherent self-hosted Phoenix
-foundation for local portfolio tracking. This branch is a foundation reset, not
-a finished MVP.
-
-Build only this workflow until a story explicitly changes scope:
+Portfolixir is a small self-hosted Phoenix application for local portfolio
+tracking. Keep the product focused on auditable local records:
 
 1. Create securities.
-2. Create one portfolio.
-3. Create one securities account/depot linked to one cash account.
+2. Create portfolios.
+3. Create securities accounts/depots linked to cash accounts.
 4. Record manual buy and sell transactions.
 5. Calculate current holdings from transactions.
 6. Store and display quote history.
 7. Show a security detail chart with price history.
+8. Expose supported app functions through the JSON API and MCP companion.
 
-Future MVP functionality must be added Epic-by-Epic with human review and local
-quality gates before merge.
+New functionality must stay small, reviewed, locally tested, and documented.
 
 ## Hard Rules
 
@@ -35,23 +32,41 @@ quality gates before merge.
 - Use `Decimal` for money, quantities, prices, fees, taxes, and FX rates.
 - Do not use floats for persisted financial values.
 - Do not implement imports, document intake, broker sync, bank sync, trading,
-  payment, order, rebalance, LLM, or MCP behavior.
+  payment, order, rebalance, or LLM behavior unless a reviewed story explicitly
+  changes scope.
 - Do not add advanced reports or advanced classifications.
 - Do not claim production readiness.
 - Public files must be normal readable multiline files.
 
 ## Active Architecture
 
-Use a small modular Phoenix monolith:
+Use a small modular Phoenix monolith plus a thin MCP API companion:
 
 ```text
 Portfolixir.Catalog      # securities and security quotes
 Portfolixir.Portfolios   # portfolios, cash accounts, depots
 Portfolixir.Ledger       # manual buy/sell transactions and holdings
-PortfolixirWeb           # LiveViews, router, components
+PortfolixirWeb           # LiveViews, router, JSON API, components
+mcp-server/              # TypeScript MCP server wrapping the JSON API only
 ```
 
-Keep domain modules separate from LiveViews and controllers.
+Keep domain modules separate from LiveViews, controllers, and MCP wrapper code.
+MCP tools must call the public JSON API; they must not bypass it by talking
+directly to the database or Elixir contexts.
+
+## API And MCP Coverage
+
+Every new user-visible function must include API and MCP coverage, or the PR
+must explicitly document why coverage is not applicable.
+
+- JSON API endpoints belong under `/api/v1`.
+- API and MCP authentication must use local bearer tokens from environment
+  configuration.
+- API and MCP responses must serialize financial decimals as strings.
+- MCP tool schemas must expose financial decimals as strings.
+- API/MCP tests must use synthetic fixtures and fake providers only.
+- The MCP companion must remain installable and runnable separately from Docker
+  Compose.
 
 ## Testing Expectations
 
@@ -79,6 +94,8 @@ Minimum test types:
 
 - contexts and schemas: `DataCase`;
 - web routes and LiveViews: `ConnCase` with `Phoenix.LiveViewTest`;
+- JSON API routes: `ConnCase`;
+- MCP companion: TypeScript tests in `mcp-server/test`;
 - calculations: deterministic fixtures and exact `Decimal` expectations where
   practical.
 
@@ -91,7 +108,10 @@ Run these before opening a PR:
 ```bash
 mix format
 mix test
+mix coveralls
 pre-commit run --all-files
+npm test --prefix mcp-server
+npm run build --prefix mcp-server
 ```
 
 If pre-commit is not installed:
@@ -108,7 +128,7 @@ Model: <model-name>
 Thinking level: <none|minimal|low|medium|high|xhigh>
 ```
 
-## Branch naming for agent work
+## Branch Naming For Agent Work
 
 Use agent branches with provider context:
 
@@ -128,11 +148,14 @@ Examples:
 2. Functional test written directly below the User Story comment.
 3. Test failure confirmed for the expected reason.
 4. Smallest implementation code written.
-5. Security audit is performed before finalizing the patch.
-6. Required gates run.
+5. API coverage reviewed and updated, or explicitly marked not applicable.
+6. MCP coverage reviewed and updated, or explicitly marked not applicable.
 7. User documentation reviewed and updated when visible behavior changed.
+8. Security audit performed.
+9. Required gates run.
 
-For AI-assisted changes, the above cycle is required to run as distinct iterations.
+For AI-assisted changes, the above cycle is required to run as distinct
+iterations.
 
 ## AI Authoring Contract
 
@@ -141,8 +164,9 @@ Agent commits must follow this order and keep each iteration reviewable:
 1. Write the user story and acceptance criteria.
 2. Add the user-story-backed test cases first.
 3. Implement only the minimal behavior needed by the tests.
-4. Run a security review pass and harden risks introduced by the patch.
+4. Review and update API and MCP coverage.
 5. Update docs when user-visible behavior changes.
+6. Run a security review pass and harden risks introduced by the patch.
 
 All AI-authored commits should document model and reasoning level in the commit
 footer and use PR body structure that includes evidence for each iteration step.
@@ -158,8 +182,6 @@ If you discover a larger design issue, leave a follow-up note instead of solving
 it opportunistically.
 
 ## Security Boundaries
-
-For the MVP:
 
 - no external LLM calls from the app;
 - no market-data network calls in tests;

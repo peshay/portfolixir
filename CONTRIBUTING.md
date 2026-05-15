@@ -1,25 +1,24 @@
 # Contributing to Portfolixir
 
-Portfolixir is in a controlled foundation reset. Keep changes small, tested
-first, and aligned with the manual portfolio tracking workflow.
+Keep changes small, tested first, and aligned with the local portfolio tracking
+workflow.
 
-This branch is not a finished MVP. Future MVP functionality is added through
-human-reviewed Epics and local quality gates.
+## Active Scope
 
-## MVP Scope
-
-Active scope:
+Portfolixir currently focuses on:
 
 - securities;
-- one portfolio;
+- portfolios;
 - cash accounts;
 - securities accounts linked to cash accounts;
 - manual buy and sell transactions;
 - derived holdings;
 - stored quote history;
-- security detail price chart.
+- security detail price chart;
+- JSON API access for supported app functions;
+- MCP companion tools that wrap the JSON API.
 
-Out of scope:
+Out of scope unless a reviewed story explicitly changes it:
 
 - PDF import;
 - CSV import;
@@ -27,7 +26,7 @@ Out of scope:
 - broker sync;
 - bank sync;
 - trading, payment, order, or rebalance behavior;
-- MCP or LLM features;
+- LLM features;
 - advanced reports;
 - advanced classifications.
 
@@ -39,7 +38,15 @@ Docker workflow:
 docker compose up --build
 ```
 
-For prototype-era Docker volumes, reset before first reboot use:
+The Compose setup starts PostgreSQL, the Phoenix app, and the MCP companion.
+Set local bearer tokens through `.env` or the shell:
+
+```bash
+PORTFOLIXIR_API_TOKEN=replace-me
+PORTFOLIXIR_MCP_TOKEN=replace-me-too
+```
+
+Reset local Docker volumes when you need a clean database:
 
 ```bash
 docker compose down -v
@@ -54,8 +61,15 @@ mix ecto.setup
 mix phx.server
 ```
 
-For prototype-era host databases, run `mix ecto.reset` once before starting the
-app.
+MCP companion workflow:
+
+```bash
+npm install --prefix mcp-server
+npm run build --prefix mcp-server
+PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
+PORTFOLIXIR_API_TOKEN=replace-me \
+npm start --prefix mcp-server
+```
 
 ## Development Workflow
 
@@ -65,12 +79,15 @@ Each user-visible story must move in this order:
 2. Functional test written directly below the User Story comment.
 3. Test failure confirmed for the expected reason.
 4. Smallest implementation code written.
-5. Security audit performed.
-6. Required gates run.
+5. API coverage reviewed and updated, or explicitly marked not applicable.
+6. MCP coverage reviewed and updated, or explicitly marked not applicable.
 7. User documentation reviewed and updated when visible behavior changed.
+8. Security audit performed.
+9. Required gates run.
 
 Open a PR with a short summary, story-comment evidence, test-first evidence,
-documentation review note, coverage evidence, and commands run.
+API/MCP coverage notes, documentation review note, security audit note, coverage
+evidence, and commands run.
 
 ## AI/Commit Metadata
 
@@ -113,16 +130,28 @@ test "records a manual sell transaction and updates holdings" do
 end
 ```
 
-Use `ConnCase` and `Phoenix.LiveViewTest` for visible workflows. Use `DataCase`
-for schema and context behavior. The first test for a story should fail before
-implementation begins.
+Use `ConnCase` and `Phoenix.LiveViewTest` for visible workflows. Use `ConnCase`
+for JSON API routes. Use `DataCase` for schema and context behavior. Use
+TypeScript tests in `mcp-server/test` for MCP tools. The first test for a story
+should fail before implementation begins.
+
+## API And MCP Coverage
+
+Every new user-visible function must include JSON API and MCP companion coverage,
+or the PR must explain why coverage is not applicable.
+
+- API routes live under `/api/v1`.
+- MCP tools live in `mcp-server/` and wrap the API only.
+- Financial values are represented as strings in API and MCP payloads.
+- API and MCP auth use local bearer tokens from environment configuration.
 
 ## User Documentation
 
 User documentation moves with user-visible behavior. For each story:
 
 - check [README.md](README.md) and any future user-facing docs for consistency;
-- update docs when routes, workflows, labels, setup, or visible behavior change;
+- update docs when routes, workflows, labels, setup, API/MCP usage, or visible
+  behavior change;
 - leave docs unchanged for internal-only changes only after explicitly reviewing
   them.
 
@@ -136,6 +165,8 @@ mix format
 mix test
 mix coveralls
 pre-commit run --all-files
+npm test --prefix mcp-server
+npm run build --prefix mcp-server
 ```
 
 Install hooks once:
@@ -160,7 +191,7 @@ The pre-commit setup uses standard hygiene hooks and `mix format --check-formatt
 Use short, scoped names:
 
 ```text
-story/manual-buy-sell
+agent/codex/api-mcp-wrapper
 fix/security-quote-validation
 chore/pre-commit
 ```
@@ -171,18 +202,22 @@ chore/pre-commit
 - [ ] The functional test sits directly below the user story comment.
 - [ ] Tests were written before implementation.
 - [ ] The new or changed test failed for the expected reason before implementation.
-- [ ] Security audit was performed.
+- [ ] API coverage was reviewed and updated, or marked not applicable.
+- [ ] MCP coverage was reviewed and updated, or marked not applicable.
 - [ ] User documentation was reviewed for consistency.
 - [ ] User documentation was updated, or the PR explains why no user docs changed.
+- [ ] Security audit was performed.
 - [ ] `mix format` was run.
 - [ ] `mix test` was run.
+- [ ] `mix coveralls` was run.
 - [ ] `pre-commit run --all-files` was run.
+- [ ] `npm test --prefix mcp-server` was run when MCP code or contracts changed.
+- [ ] `npm run build --prefix mcp-server` was run when MCP code or contracts changed.
 - [ ] No real financial data was added.
 - [ ] No external network calls are used in tests.
 - [ ] Financial values use `Decimal` where relevant.
 - [ ] No external input is converted with `String.to_atom/1`.
-- [ ] No import, sync, trading, payment, order, rebalance, MCP, or LLM behavior
-      was added.
+- [ ] No import, trading, payment, order, rebalance, or LLM behavior was added.
 - [ ] Scope stayed inside the story.
 
 ## Commit Style
@@ -190,7 +225,7 @@ chore/pre-commit
 Use conventional commits:
 
 ```text
-feat(catalog): add security quote history
+feat(api): expose security quote history
 feat(ledger): record manual trades
 fix(portfolios): validate linked cash account
 chore(repo): simplify pre-commit hooks
