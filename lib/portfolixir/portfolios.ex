@@ -22,6 +22,8 @@ defmodule Portfolixir.Portfolios do
 
   def get_portfolio!(id), do: Repo.get!(Portfolio, id)
 
+  def get_portfolio(id) when is_integer(id), do: Repo.get(Portfolio, id)
+
   def create_portfolio(attrs) when is_map(attrs) do
     %Portfolio{}
     |> Portfolio.changeset(attrs)
