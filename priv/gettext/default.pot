@@ -24,7 +24,7 @@ msgstr ""
 msgid "Cash accounts"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:140
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:152
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:76
 #, elixir-autogen
 msgid "Close"
@@ -557,7 +557,7 @@ msgstr ""
 msgid "Core data"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:805
+#: lib/portfolixir_web/live/securities_live.ex:859
 #, elixir-autogen, elixir-format
 msgid "Created %{name}"
 msgstr ""
@@ -725,7 +725,7 @@ msgstr ""
 msgid "Ticker"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:814
+#: lib/portfolixir_web/live/securities_live.ex:868
 #, elixir-autogen, elixir-format
 msgid "Updated %{name}"
 msgstr ""
@@ -970,32 +970,32 @@ msgstr ""
 msgid "US Dollar"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:311
+#: lib/portfolixir_web/live/securities_live.ex:315
 #, elixir-autogen, elixir-format
 msgid "Chart options"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:301
+#: lib/portfolixir_web/live/securities_live.ex:304
 #, elixir-autogen, elixir-format
 msgid "Latest"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:333
+#: lib/portfolixir_web/live/securities_live.ex:337
 #, elixir-autogen, elixir-format
 msgid "Log scale"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:829
+#: lib/portfolixir_web/live/securities_live.ex:898
 #, elixir-autogen, elixir-format
 msgid "Prices synced."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:312
+#: lib/portfolixir_web/live/securities_live.ex:316
 #, elixir-autogen, elixir-format
 msgid "Range"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:342
+#: lib/portfolixir_web/live/securities_live.ex:346
 #, elixir-autogen, elixir-format
 msgid "Show transactions"
 msgstr ""
@@ -1003,12 +1003,12 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:51
 #: lib/portfolixir_web/live/securities_live.ex:106
 #: lib/portfolixir_web/live/securities_live.ex:107
-#: lib/portfolixir_web/live/securities_live.ex:351
+#: lib/portfolixir_web/live/securities_live.ex:355
 #, elixir-autogen, elixir-format
 msgid "Sync prices"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:579
+#: lib/portfolixir_web/live/securities_live.ex:620
 #, elixir-autogen, elixir-format
 msgid "Syncing prices…"
 msgstr ""
@@ -1018,23 +1018,23 @@ msgstr ""
 msgid "Prices"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:149
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:161
 #, elixir-autogen, elixir-format
 msgid "%{name} is referenced by existing transactions or quote history and cannot be deleted. Retire it instead to hide it from the active list while keeping the historical record intact."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:158
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:170
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:325
 #, elixir-autogen, elixir-format
 msgid "Cancel"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:136
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:148
 #, elixir-autogen, elixir-format
 msgid "Cannot delete"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:306
+#: lib/portfolixir_web/live/securities_live.ex:310
 #, elixir-autogen, elixir-format
 msgid "Close detail"
 msgstr ""
@@ -1049,17 +1049,17 @@ msgstr ""
 msgid "Copy ticker"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:714
+#: lib/portfolixir_web/live/securities_live.ex:755
 #, elixir-autogen, elixir-format
 msgid "Could not change status."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:119
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:131
 #, elixir-autogen, elixir-format
 msgid "Delete"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:746
+#: lib/portfolixir_web/live/securities_live.ex:788
 #, elixir-autogen, elixir-format
 msgid "Deleted %{name}"
 msgstr ""
@@ -1074,12 +1074,12 @@ msgstr ""
 msgid "Edit security"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:726
+#: lib/portfolixir_web/live/securities_live.ex:768
 #, elixir-autogen, elixir-format
 msgid "ISIN copied"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:253
+#: lib/portfolixir_web/live/securities_live.ex:254
 #, elixir-autogen, elixir-format
 msgid "Open actions menu"
 msgstr ""
@@ -1089,27 +1089,27 @@ msgstr ""
 msgid "Open detail"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:103
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:115
 #, elixir-autogen, elixir-format
 msgid "Reactivate"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:704
+#: lib/portfolixir_web/live/securities_live.ex:745
 #, elixir-autogen, elixir-format
 msgid "Reactivated %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:105
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:117
 #, elixir-autogen, elixir-format
 msgid "Retire"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:167
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:179
 #, elixir-autogen, elixir-format
 msgid "Retire instead"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:705
+#: lib/portfolixir_web/live/securities_live.ex:746
 #, elixir-autogen, elixir-format
 msgid "Retired %{name}"
 msgstr ""
@@ -1129,17 +1129,17 @@ msgstr ""
 msgid "Security actions"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:292
+#: lib/portfolixir_web/live/securities_live.ex:293
 #, elixir-autogen, elixir-format
 msgid "Selected security"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:696
+#: lib/portfolixir_web/live/securities_live.ex:737
 #, elixir-autogen, elixir-format
 msgid "Syncing %{name}…"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:736
+#: lib/portfolixir_web/live/securities_live.ex:778
 #, elixir-autogen, elixir-format
 msgid "Ticker copied"
 msgstr ""
@@ -1147,4 +1147,29 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:340
 #, elixir-autogen, elixir-format
 msgid "Update existing"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:884
+#, elixir-autogen, elixir-format
+msgid "Logo lookup failed"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:882
+#, elixir-autogen, elixir-format
+msgid "Logo updated"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:806
+#, elixir-autogen, elixir-format
+msgid "Looking up logo…"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:883
+#, elixir-autogen, elixir-format
+msgid "No logo source available"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/row_context_menu.ex:101
+#, elixir-autogen, elixir-format
+msgid "Update logo"
 msgstr ""
