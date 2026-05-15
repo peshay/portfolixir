@@ -96,6 +96,18 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         class="row-context-menu__item"
         role="menuitem"
         phx-click="row_action"
+        phx-value-action="update_logo"
+        phx-value-id={@security.id}
+      >
+        <AppShell.icon name={:refresh_cw} />
+        <span><%= gettext("Update logo") %></span>
+      </button>
+
+      <button
+        type="button"
+        class="row-context-menu__item"
+        role="menuitem"
+        phx-click="row_action"
         phx-value-action="retire"
         phx-value-id={@security.id}
       >

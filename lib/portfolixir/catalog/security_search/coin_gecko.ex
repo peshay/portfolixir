@@ -15,6 +15,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
 
   @endpoint "https://api.coingecko.com/api/v3/search"
+  @coins_endpoint "https://api.coingecko.com/api/v3/coins"
   @feed_id "COINGECKO"
 
   @impl true
@@ -30,6 +31,43 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
 
       {:ok, %Req.Response{status: 200}} ->
         {:ok, []}
+
+      {:ok, %Req.Response{status: status}} ->
+        {:error, {:http_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Fetches the canonical large image URL for a given CoinGecko coin id.
+
+  Returns `{:ok, url}`, `:not_found` (200 response with no image), or
+  `{:error, reason}` on HTTP/transport errors.
+  """
+  @spec fetch_image_url(String.t(), keyword()) ::
+          {:ok, String.t()} | :not_found | {:error, term()}
+  def fetch_image_url(coin_id, opts \\ []) when is_binary(coin_id) do
+    req = req(opts)
+    url = @coins_endpoint <> "/" <> URI.encode(coin_id, &URI.char_unreserved?/1)
+
+    case Req.get(req,
+           url: url,
+           params: [
+             localization: "false",
+             tickers: "false",
+             market_data: "false",
+             community_data: "false",
+             developer_data: "false"
+           ]
+         ) do
+      {:ok, %Req.Response{status: 200, body: %{"image" => %{"large" => large}}}}
+      when is_binary(large) ->
+        {:ok, large}
+
+      {:ok, %Req.Response{status: 200}} ->
+        :not_found
 
       {:ok, %Req.Response{status: status}} ->
         {:error, {:http_status, status}}

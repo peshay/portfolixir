@@ -13,3 +13,7 @@ config :portfolixir, PortfolixirWeb.Endpoint,
 # Background quote-history sync is opt-in. Enable it in prod so charts
 # stay current; tests/dev keep it off to avoid surprise HTTP traffic.
 config :portfolixir, Portfolixir.Catalog.QuoteSync, enabled?: true
+
+# Try to fetch a logo for new securities (CoinGecko for crypto, Wikipedia
+# for equities/ETFs/funds). Disabled in tests to keep them hermetic.
+config :portfolixir, :enable_logo_discovery, true
