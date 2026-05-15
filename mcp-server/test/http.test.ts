@@ -15,6 +15,7 @@ describe("MCP HTTP security helpers", () => {
     assert.equal(isAuthorizedMcpRequest("Bearer mcp-token", "mcp-token"), true);
     assert.equal(isAuthorizedMcpRequest("Bearer wrong", "mcp-token"), false);
     assert.equal(isAuthorizedMcpRequest(undefined, "mcp-token"), false);
-    assert.equal(isAuthorizedMcpRequest(undefined, undefined), true);
+    assert.equal(isAuthorizedMcpRequest(undefined, undefined), false);
+    assert.equal(isAuthorizedMcpRequest(undefined, ""), false);
   });
 });
