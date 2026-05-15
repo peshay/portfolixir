@@ -2030,6 +2030,130 @@ img.security-logo {
   font-size: 13px;
 }
 
+.detail-tab-panel--overview {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 18px;
+  margin: 0;
+}
+
+.overview-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overview-field dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.overview-field dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.overview-field--mono dd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.overview-field--full {
+  grid-column: 1 / -1;
+}
+
+.overview-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 12px;
+  background: var(--color-bg-muted);
+  border-radius: var(--radius-md);
+}
+
+.overview-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overview-metric dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.overview-metric dd {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.overview-metric__unit {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-left: 4px;
+}
+
+.overview-metric__sub {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.overview-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overview-notes label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.overview-notes textarea {
+  resize: vertical;
+  min-height: 60px;
+  padding: 8px;
+  font: inherit;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.overview-notes button {
+  align-self: flex-start;
+}
+
+.badge--retired {
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
 .detail-pane-toolbar {
   display: flex;
   flex-wrap: wrap;
