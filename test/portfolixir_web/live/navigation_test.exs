@@ -134,6 +134,7 @@ defmodule PortfolixirWeb.NavigationTest do
   # - The dropdown offers only Violet, Teal, and Coral.
   # - The layout boot script restores the accent choice before the page paints.
   # - Accentable UI states use the selected accent token instead of hard-coded violet.
+  # - Non-semantic success/info/badge highlights use selected accent tokens instead of fixed teal.
   test "top bar exposes logo accent choices and the stylesheet uses selected accent tokens", %{
     conn: conn
   } do
@@ -161,6 +162,15 @@ defmodule PortfolixirWeb.NavigationTest do
     assert app_css =~ "accent-color: var(--color-accent);"
     assert app_css =~ ".security-chart .quote-line"
     assert app_css =~ "stroke: var(--color-accent);"
+
+    for selector <- [".alert-success", ".alert-info", ".badge"] do
+      rule = css_rule(app_css, selector)
+
+      assert rule =~ "color: var(--color-accent);"
+      assert rule =~ "background: var(--color-accent-soft);"
+      refute rule =~ "var(--color-accent-teal"
+      refute rule =~ "var(--color-positive"
+    end
   end
 
   # User story:
@@ -228,5 +238,11 @@ defmodule PortfolixirWeb.NavigationTest do
     refute has_element?(view, "#transaction-form select[name='transaction[cash_account_id]']")
     assert has_element?(view, "#transaction-form", "Linked cash account")
     assert has_element?(view, "#transaction-form", "Depot -> Cash EUR")
+  end
+
+  defp css_rule(css, selector) do
+    escaped_selector = Regex.escape(selector)
+    [_, rule] = Regex.run(~r/#{escaped_selector}\s*\{([^}]*)\}/, css)
+    rule
   end
 end
