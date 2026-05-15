@@ -151,38 +151,6 @@ defmodule PortfolixirWeb.MVPNavigationTest do
   end
 
   # User story:
-  # As a local portfolio maintainer,
-  # I want a security detail page to display stored quote history as a chart,
-  # so that I can inspect manual price history without import or market sync features.
-  #
-  # Acceptance criteria:
-  # - A security with a stored quote renders its detail page.
-  # - The detail page shows a price chart.
-  # - The quote history table includes the stored close price.
-  test "security detail displays quote history chart", %{conn: conn} do
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "Synthetic Global ETF",
-        symbol: "SYN",
-        currency_code: "EUR"
-      })
-
-    {:ok, _quote} =
-      Catalog.create_security_quote(%{
-        security_id: security.id,
-        date: ~D[2026-01-02],
-        close: Decimal.new("100.25"),
-        currency_code: "EUR",
-        source: "manual"
-      })
-
-    {:ok, view, _html} = live(conn, "/securities/#{security.id}")
-
-    assert has_element?(view, "#security-price-chart")
-    assert has_element?(view, "#security-quote-history", "100.25")
-  end
-
-  # User story:
   # As a local portfolio maintainer recording a manual trade,
   # I want to select only the depot and see its linked cash account as context,
   # so that I cannot choose an inconsistent cash account in the transaction form.
@@ -212,7 +180,7 @@ defmodule PortfolixirWeb.MVPNavigationTest do
     {:ok, _security} =
       Catalog.create_security(%{
         name: "Synthetic Global ETF",
-        symbol: "SYN",
+        ticker_symbol: "SYN",
         currency_code: "EUR"
       })
 

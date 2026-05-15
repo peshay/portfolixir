@@ -20,8 +20,7 @@ defmodule PortfolixirWeb.Router do
 
     live_session :browser, on_mount: PortfolixirWeb.LiveLocale do
       live("/", DashboardLive)
-      live("/securities", SecurityManagementLive)
-      live("/securities/:id", SecurityDetailLive)
+      live("/securities", SecuritiesLive)
       live("/portfolios", PortfolioAccountsLive)
       live("/transactions", TransactionManagementLive)
     end
