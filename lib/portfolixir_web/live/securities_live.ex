@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Securities.ColumnPicker
   alias PortfolixirWeb.Securities.FilterPopover
+  alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
 
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
@@ -41,6 +42,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_quotes, [])
      |> assign(:detail_transactions, [])
      |> assign(:detail_latest, nil)
+     |> assign(:row_menu_id, nil)
+     |> assign(:editing_security, nil)
+     |> assign(:delete_blocked, nil)
      |> load_securities()}
   end
 
@@ -184,6 +188,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <table class="data-table">
             <thead>
               <tr>
+                <th class="row-actions-head" aria-label={gettext("Row actions")}></th>
                 <%= for column <- visible_fields(@visible_columns) do %>
                   <th>
                     <%= if column.sortable? do %>
@@ -205,7 +210,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <tbody>
               <%= if @securities == [] do %>
                 <tr>
-                  <td colspan={length(visible_fields(@visible_columns))} class="empty-state">
+                  <td colspan={length(visible_fields(@visible_columns)) + 1} class="empty-state">
                     <%= gettext("No securities yet — click + to add one.") %>
                   </td>
                 </tr>
@@ -213,16 +218,35 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <% visible = visible_fields(@visible_columns) %>
               <% first_key = first_visible_key(visible) %>
               <%= for row <- @securities do %>
-                <% row_path = "/securities/#{security_id(row)}" %>
+                <% sec_id = security_id(row) %>
+                <% inner_security = security_from_row(row) %>
+                <% row_path = "/securities/#{sec_id}" %>
                 <tr
-                  id={"security-row-#{security_id(row)}"}
+                  id={"security-row-#{sec_id}"}
                   class={[
                     "security-row",
-                    selected?(@selected_security, row) && "is-selected"
+                    selected?(@selected_security, row) && "is-selected",
+                    inner_security.is_retired && "is-retired"
                   ]}
                   phx-click={Phoenix.LiveView.JS.patch(row_path)}
+                  phx-contextmenu="open_row_menu"
+                  phx-value-id={sec_id}
                   role="link"
                 >
+                  <td class="row-actions">
+                    <button
+                      type="button"
+                      id={"row-kebab-#{sec_id}"}
+                      class="row-actions__kebab"
+                      phx-click="open_row_menu"
+                      phx-value-id={sec_id}
+                      aria-label={gettext("Open actions menu")}
+                      aria-haspopup="menu"
+                      aria-expanded={@row_menu_id == sec_id}
+                    >
+                      <AppShell.icon name={:ellipsis_vertical} />
+                    </button>
+                  </td>
                   <%= for column <- visible do %>
                     <td>
                       <%= if column.key == first_key do %>
@@ -245,11 +269,33 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <% end %>
       </section>
 
+      <% open_menu_security = @row_menu_id && find_open_menu_security(@securities, @row_menu_id) %>
+      <%= if open_menu_security do %>
+        <RowContextMenu.menu security={open_menu_security} />
+      <% end %>
+
       <%= if @dialog_open? do %>
-        <.live_component module={SecurityFormDialog} id="security-form-dialog" />
+        <.live_component
+          module={SecurityFormDialog}
+          id="security-form-dialog"
+          editing={@editing_security}
+        />
+      <% end %>
+
+      <%= if @delete_blocked do %>
+        <RowContextMenu.delete_blocked_dialog security={@delete_blocked} />
       <% end %>
     </AppShell.shell>
     """
+  end
+
+  defp find_open_menu_security(securities, menu_id) do
+    securities
+    |> Enum.find(&(security_id(&1) == menu_id))
+    |> case do
+      nil -> nil
+      row -> security_from_row(row)
+    end
   end
 
   defp render_detail_pane(assigns) do
@@ -343,6 +389,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp security_id(%SecurityWithMetrics{security: security}), do: security.id
   defp security_id(%{id: id}), do: id
+
+  defp security_from_row(%SecurityWithMetrics{security: security}), do: security
+  defp security_from_row(%Security{} = security), do: security
 
   defp sort_marker({key, :asc}, key), do: " ↑"
   defp sort_marker({key, :desc}, key), do: " ↓"
@@ -593,6 +642,130 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("set_columns", _params, socket), do: {:noreply, socket}
 
+  def handle_event("open_row_menu", %{"id" => id_str}, socket) do
+    with {id, ""} <- Integer.parse(to_string(id_str)),
+         row when not is_nil(row) <-
+           Enum.find(socket.assigns.securities, &(security_id(&1) == id)) do
+      {:noreply, assign(socket, :row_menu_id, id)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_row_menu", _params, socket) do
+    {:noreply, assign(socket, :row_menu_id, nil)}
+  end
+
+  def handle_event("close_delete_blocked", _params, socket) do
+    {:noreply, assign(socket, :delete_blocked, nil)}
+  end
+
+  def handle_event("row_action", %{"action" => action, "id" => id_str}, socket) do
+    with {id, ""} <- Integer.parse(to_string(id_str)),
+         %Security{} = sec <- Catalog.get_security(id) do
+      socket
+      |> assign(:row_menu_id, nil)
+      |> dispatch_row_action(action, sec)
+    else
+      _ -> {:noreply, assign(socket, :row_menu_id, nil)}
+    end
+  end
+
+  defp dispatch_row_action(socket, "edit", %Security{} = sec) do
+    {:noreply,
+     socket
+     |> assign(:editing_security, sec)
+     |> assign(:dialog_open?, true)
+     |> assign(:delete_blocked, nil)}
+  end
+
+  defp dispatch_row_action(socket, "sync", %Security{} = sec) do
+    parent = self()
+
+    Task.start(fn ->
+      try do
+        _ = QuoteSync.sync_security(sec)
+      rescue
+        exception ->
+          Logger.error(
+            "QuoteSync.sync_security crashed for ##{sec.id}: " <>
+              Exception.format(:error, exception, __STACKTRACE__)
+          )
+      catch
+        kind, reason ->
+          Logger.error(
+            "QuoteSync.sync_security exited for ##{sec.id}: #{inspect({kind, reason})}"
+          )
+      after
+        send(parent, :sync_done)
+      end
+    end)
+
+    {:noreply,
+     socket
+     |> assign(:sync_running?, true)
+     |> assign(:flash_message, gettext("Syncing %{name}…", name: sec.name))}
+  end
+
+  defp dispatch_row_action(socket, "retire", %Security{} = sec) do
+    case Catalog.update_security(sec, %{is_retired: !sec.is_retired}) do
+      {:ok, _updated} ->
+        flash =
+          if sec.is_retired,
+            do: gettext("Reactivated %{name}", name: sec.name),
+            else: gettext("Retired %{name}", name: sec.name)
+
+        {:noreply,
+         socket
+         |> assign(:flash_message, flash)
+         |> assign(:delete_blocked, nil)
+         |> load_securities()}
+
+      {:error, _changeset} ->
+        {:noreply, assign(socket, :flash_message, gettext("Could not change status."))}
+    end
+  end
+
+  defp dispatch_row_action(socket, "open", %Security{} = sec) do
+    {:noreply, push_patch(socket, to: "/securities/#{sec.id}")}
+  end
+
+  defp dispatch_row_action(socket, "copy_isin", %Security{isin: isin})
+       when is_binary(isin) and isin != "" do
+    {:noreply,
+     socket
+     |> push_event("copy-to-clipboard", %{text: isin})
+     |> assign(:flash_message, gettext("ISIN copied"))}
+  end
+
+  defp dispatch_row_action(socket, "copy_isin", _sec), do: {:noreply, socket}
+
+  defp dispatch_row_action(socket, "copy_ticker", %Security{ticker_symbol: t})
+       when is_binary(t) and t != "" do
+    {:noreply,
+     socket
+     |> push_event("copy-to-clipboard", %{text: t})
+     |> assign(:flash_message, gettext("Ticker copied"))}
+  end
+
+  defp dispatch_row_action(socket, "copy_ticker", _sec), do: {:noreply, socket}
+
+  defp dispatch_row_action(socket, "delete", %Security{} = sec) do
+    case Catalog.delete_security(sec) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(:flash_message, gettext("Deleted %{name}", name: sec.name))
+         |> assign(:delete_blocked, nil)
+         |> load_securities()}
+
+      {:error, _changeset} ->
+        {:noreply, assign(socket, :delete_blocked, sec)}
+    end
+  end
+
+  defp dispatch_row_action(socket, _action, _sec), do: {:noreply, socket}
+
   defp safe_column_atom(key) when is_binary(key) do
     field = Enum.find(SecurityFields.all(), &(Atom.to_string(&1.key) == key))
     field && field.key
@@ -630,13 +803,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_info({:dialog, _id, :close}, socket) do
-    {:noreply, assign(socket, :dialog_open?, false)}
+    {:noreply,
+     socket
+     |> assign(:dialog_open?, false)
+     |> assign(:editing_security, nil)}
   end
 
   def handle_info({:dialog, _id, {:created, security}}, socket) do
     {:noreply,
      socket
      |> assign(:dialog_open?, false)
+     |> assign(:editing_security, nil)
      |> assign(:flash_message, gettext("Created %{name}", name: security.name))
      |> load_securities()}
   end
@@ -645,12 +822,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:dialog_open?, false)
+     |> assign(:editing_security, nil)
      |> assign(:flash_message, gettext("Updated %{name}", name: security.name))
      |> load_securities()}
   end
 
   def handle_info({:dialog, _id, {:open_existing, _security}}, socket) do
-    {:noreply, assign(socket, :dialog_open?, false)}
+    {:noreply,
+     socket
+     |> assign(:dialog_open?, false)
+     |> assign(:editing_security, nil)}
   end
 
   def handle_info(:sync_done, socket) do
