@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.ApiV1Test do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.QuoteSync.Fake, as: QuoteSyncFake
+  alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
   @auth {"authorization", "Bearer test-api-token"}
 
   defp api_conn(conn) do
@@ -237,6 +239,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   #
   # Acceptance criteria:
   # - PATCH updates an existing security and DELETE removes it.
+  # - DELETE returns 409 JSON when existing transactions still reference the security.
   # - Validation errors are returned as structured JSON field errors.
   # - Invalid external action inputs are rejected without creating atoms.
   test "updates deletes and reports structured validation errors", %{conn: conn} do
@@ -289,6 +292,54 @@ defmodule PortfolixirWeb.ApiV1Test do
       |> json_response(404)
 
     assert missing_quote_target == %{"errors" => %{"detail" => "not found"}}
+
+    {:ok, protected_security} =
+      Catalog.create_security(%{
+        name: "Referenced Security",
+        currency_code: "EUR",
+        provider: "manual"
+      })
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "Delete Guard Portfolio", base_currency_code: "EUR"})
+
+    {:ok, cash_account} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Delete Guard Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash_account.id,
+        name: "Delete Guard Depot"
+      })
+
+    assert {:ok, _transaction} =
+             Ledger.create_transaction(%{
+               portfolio_id: portfolio.id,
+               securities_account_id: depot.id,
+               cash_account_id: cash_account.id,
+               security_id: protected_security.id,
+               type: "buy",
+               date: ~D[2026-05-15],
+               quantity: Decimal.new("1"),
+               price: Decimal.new("100"),
+               fees: Decimal.new("0"),
+               taxes: Decimal.new("0"),
+               currency_code: "EUR"
+             })
+
+    conflict =
+      build_conn()
+      |> api_conn()
+      |> delete("/api/v1/securities/#{protected_security.id}")
+      |> json_response(409)
+
+    assert conflict == %{"errors" => %{"detail" => "security is referenced by existing records"}}
+    assert Catalog.get_security(protected_security.id)
 
     conn = build_conn() |> api_conn() |> delete("/api/v1/securities/#{security.id}")
     assert response(conn, 204) == ""

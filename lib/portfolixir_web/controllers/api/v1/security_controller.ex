@@ -65,8 +65,13 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         not_found(conn)
 
       security ->
-        {:ok, _} = Catalog.delete_security(security)
-        send_resp(conn, :no_content, "")
+        case Catalog.delete_security(security) do
+          {:ok, _} ->
+            send_resp(conn, :no_content, "")
+
+          {:error, _changeset} ->
+            conflict(conn)
+        end
     end
   end
 
@@ -113,5 +118,11 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{errors: JSON.errors(changeset)})
+  end
+
+  defp conflict(conn) do
+    conn
+    |> put_status(:conflict)
+    |> json(%{errors: %{detail: "security is referenced by existing records"}})
   end
 end

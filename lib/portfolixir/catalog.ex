@@ -120,7 +120,11 @@ defmodule Portfolixir.Catalog do
     |> Repo.update()
   end
 
-  def delete_security(%Security{} = security), do: Repo.delete(security)
+  def delete_security(%Security{} = security) do
+    security
+    |> Security.delete_changeset()
+    |> Repo.delete()
+  end
 
   def change_security(%Security{} = security, attrs \\ %{}) do
     Security.changeset(security, attrs)
