@@ -8,6 +8,7 @@ single portfolio workflow. It is intentionally narrow:
 - Manual creation of securities, portfolio, accounts, and transactions.
 - Holdings are derived from transaction history.
 - Security prices are stored as quote history and shown in a security detail chart.
+- Supported functions are available through the UI, JSON API, and MCP companion.
 - No broker sync, bank sync, trading engine, payment flow, order flow, rebalancing,
   document ingestion, or AI-assisted behavior.
 
@@ -26,7 +27,9 @@ The codebase is split into three local domain modules plus the web layer:
   - Manual buy/sell transactions
   - Holdings calculation from immutable history
 - `PortfolixirWeb`
-  - Routes, pages, and LiveViews
+  - Routes, pages, LiveViews, and JSON API
+- `mcp-server/`
+  - TypeScript MCP companion that wraps the JSON API
 
 ## Core workflow
 
@@ -109,12 +112,24 @@ page shows a server-rendered SVG price chart with:
   ledger.
 - A *Sync prices for this security* button.
 
+### API and MCP companion
+
+The JSON API lives under `/api/v1` and requires a local bearer token from
+`PORTFOLIXIR_API_TOKEN`. It exposes the supported local workflow: securities,
+online search, quote sync/history, portfolios, accounts, transactions, and
+holdings.
+
+The MCP companion lives in `mcp-server/`. It is intentionally a thin wrapper
+around the JSON API, supports local stdio usage and a Streamable HTTP companion
+mode, and can be run through Docker Compose or installed separately with npm.
+
 ## Interface behavior
 
 - Theme: system, light, and dark modes are supported.
+- Accent: violet, teal, and coral logo accent choices are supported.
 - Language: English and German can be selected in the UI.
-- Theme and language are user preferences and do not affect stored financial
-  values.
+- Theme, accent, and language are user preferences and do not affect stored
+  financial values.
 
 ## Non-goals today
 

@@ -63,10 +63,16 @@ defmodule Portfolixir.Catalog.QuoteSync do
 
     counts =
       Enum.reduce(securities, %{ok: 0, skipped: 0, error: 0}, fn security, acc ->
-        update_counts(acc, sync_security(security, adapter_for, opts))
+        update_counts(acc, sync_one(security, adapter_for, opts))
       end)
 
     {:ok, counts}
+  end
+
+  @doc "Synchronously sync one security with the configured or provided adapter map."
+  def sync_security(%Security{} = security, opts \\ []) do
+    adapter_for = Keyword.get(opts, :adapter_for, runtime_adapter_for())
+    sync_one(security, adapter_for, opts)
   end
 
   # -- GenServer callbacks --------------------------------------------------
@@ -107,7 +113,7 @@ defmodule Portfolixir.Catalog.QuoteSync do
 
   # -- per-security sync ----------------------------------------------------
 
-  defp sync_security(%Security{provider: provider} = security, adapter_for, opts) do
+  defp sync_one(%Security{provider: provider} = security, adapter_for, opts) do
     case Map.get(adapter_for, provider) do
       nil ->
         :skipped

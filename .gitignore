@@ -13,6 +13,10 @@ erl_crash.dump
 /priv/static/assets/
 /priv/static/cache_manifest.json
 
+# MCP companion
+/mcp-server/node_modules/
+/mcp-server/dist/
+
 # Environment / secrets
 .env
 .env.*

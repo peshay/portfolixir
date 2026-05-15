@@ -17,11 +17,11 @@ defmodule PortfolixirWeb.DashboardLive do
     <AppShell.shell current_path="/">
       <header class="page-header">
         <h1><%= gettext("Dashboard") %></h1>
-        <p><%= gettext("Local portfolio tracking MVP") %></p>
+        <p><%= gettext("Local portfolio tracking") %></p>
       </header>
 
-      <section id="mvp-path" class="panel">
-        <h2><%= gettext("MVP path") %></h2>
+      <section id="workflow-path" class="panel">
+        <h2><%= gettext("Workflow path") %></h2>
         <ol>
           <li><a href="/securities"><%= gettext("Create securities") %></a></li>
           <li><a href="/portfolios"><%= gettext("Create one portfolio") %></a></li>
@@ -31,7 +31,7 @@ defmodule PortfolixirWeb.DashboardLive do
         </ol>
       </section>
 
-      <section class="grid" aria-label={gettext("MVP counts")}>
+      <section class="grid" aria-label={gettext("Portfolio counts")}>
         <article id="dashboard-securities-count" class="stat">
           <span><%= gettext("Securities") %></span>
           <strong><%= @securities_count %></strong>
