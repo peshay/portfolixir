@@ -31,6 +31,7 @@ services:
       DATABASE_USER: postgres
       DATABASE_PASSWORD: postgres
       PHX_BIND_ALL: true
+      PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:-dev-api-token}
       PORT: 4000
     ports:
       - "4000:4000"
@@ -45,6 +46,23 @@ services:
       - .:/app
       - app-deps:/app/deps
       - app-build:/app/_build
+
+  mcp:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      PORTFOLIXIR_API_BASE_URL: http://app:4000
+      PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:-dev-api-token}
+      PORTFOLIXIR_MCP_TOKEN: ${PORTFOLIXIR_MCP_TOKEN:-dev-mcp-token}
+      PORTFOLIXIR_MCP_TRANSPORT: http
+      PORTFOLIXIR_MCP_HOST: 0.0.0.0
+      PORTFOLIXIR_MCP_PORT: 4001
+    ports:
+      - "127.0.0.1:4001:4001"
 
 volumes:
   portfolixir-postgres-data:

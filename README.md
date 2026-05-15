@@ -22,6 +22,8 @@ app.
 
 The project focuses on transparent portfolio records and read-only inspection.
 It is not a broker, bank, trading, payment, order, or rebalance platform.
+Supported functions are also available through a local JSON API and an MCP
+companion that wraps that API.
 
 ## What works today
 
@@ -29,6 +31,7 @@ It is not a broker, bank, trading, payment, order, or rebalance platform.
 - Record manual buy and sell transactions.
 - Review derived holdings and stored quote history.
 - Open a security detail chart from local quote history.
+- Use `/api/v1` and the MCP companion for the same supported local actions.
 
 ## Quick start
 
@@ -44,10 +47,11 @@ It is not a broker, bank, trading, payment, order, or rebalance platform.
 docker compose up --build
 ```
 
-Open the app at:
+Open the app and MCP companion at:
 
 ```text
 http://localhost:4000
+http://127.0.0.1:4001/mcp
 ```
 
 Stop and remove local volumes:
@@ -67,6 +71,24 @@ mix phx.server
 Open the Phoenix URL printed by the server, usually
 `http://localhost:4000`.
 
+### API and MCP
+
+Set a local API token before using `/api/v1`:
+
+```sh
+export PORTFOLIXIR_API_TOKEN=replace-me
+```
+
+Run the MCP companion separately when you do not use Docker Compose:
+
+```sh
+npm install --prefix mcp-server
+npm run build --prefix mcp-server
+PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
+PORTFOLIXIR_API_TOKEN=replace-me \
+npm start --prefix mcp-server
+```
+
 ## Development
 
 Common local checks:
@@ -75,6 +97,8 @@ Common local checks:
 mix format
 mix test
 pre-commit run --all-files
+npm test --prefix mcp-server
+npm run build --prefix mcp-server
 ```
 
 Install pre-commit once per checkout:
