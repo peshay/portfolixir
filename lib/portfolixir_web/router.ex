@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.Router do
     live_session :browser, on_mount: PortfolixirWeb.LiveLocale do
       live("/", DashboardLive)
       live("/securities", SecuritiesLive)
+      live("/securities/:id", SecuritiesLive)
       live("/portfolios", PortfolioAccountsLive)
       live("/transactions", TransactionManagementLive)
     end

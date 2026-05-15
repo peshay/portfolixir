@@ -6,6 +6,8 @@ defmodule Portfolixir.Application do
     children = [
       Portfolixir.Repo,
       {Phoenix.PubSub, name: Portfolixir.PubSub},
+      {Portfolixir.Catalog.QuoteSync,
+       Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])},
       PortfolixirWeb.Endpoint
     ]
 
