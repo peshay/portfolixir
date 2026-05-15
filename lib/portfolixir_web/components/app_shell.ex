@@ -404,5 +404,8 @@ defmodule PortfolixirWeb.AppShell do
 
   defp icon_paths(:chevron_right), do: ~s(<path d="m9 6 6 6-6 6"/>)
 
+  defp icon_paths(:refresh_cw),
+    do: ~s(<path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/>)
+
   defp icon_paths(_), do: ~s(<circle cx="12" cy="12" r="5"/>)
 end

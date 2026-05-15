@@ -4,10 +4,12 @@ defmodule Portfolixir.Catalog do
   import Ecto.Query
   require Logger
 
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
+  alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Repo
 
   @doc """
@@ -20,13 +22,76 @@ defmodule Portfolixir.Catalog do
     * `:sort` – `{field_key, :asc | :desc}`, default `{:name, :asc}`
   """
   def list_securities(opts \\ []) when is_list(opts) do
+    sort = opts[:sort] || {:name, :asc}
+
     Security
     |> from(as: :security)
     |> apply_query(opts[:query])
     |> apply_filters(opts[:filters] || [])
-    |> apply_sort(opts[:sort] || {:name, :asc})
+    |> apply_sort(db_sort_or_default(sort))
     |> Repo.all()
   end
+
+  @doc """
+  Like `list_securities/1` but returns `%SecurityWithMetrics{}` wrappers,
+  enriched with latest/prev/1M/1Y closes from quote history. Sort on metric
+  columns is applied in Elixir post-enrichment (DB sort falls back to
+  `{:name, :asc}` for that case).
+  """
+  def list_securities_with_metrics(opts \\ []) when is_list(opts) do
+    sort = opts[:sort] || {:name, :asc}
+
+    opts
+    |> list_securities()
+    |> Quotes.attach_metrics()
+    |> sort_metric_rows(sort)
+  end
+
+  defp db_sort_or_default({key, _dir} = sort) do
+    case SecurityFields.get(key) do
+      %Field{source: :metric} -> {:name, :asc}
+      _ -> sort
+    end
+  end
+
+  defp db_sort_or_default(other), do: other
+
+  defp sort_metric_rows(rows, {key, dir}) do
+    case SecurityFields.get(key) do
+      %Field{source: :metric} = field ->
+        Enum.sort_by(rows, &metric_sort_key(field, &1), metric_comparator(dir))
+
+      _ ->
+        rows
+    end
+  end
+
+  defp sort_metric_rows(rows, _), do: rows
+
+  defp metric_sort_key(field, %SecurityWithMetrics{} = wrapped) do
+    SecurityFields.value(field, wrapped)
+  end
+
+  defp metric_comparator(:asc) do
+    fn a, b -> compare_nilable(a, b, :asc) end
+  end
+
+  defp metric_comparator(:desc) do
+    fn a, b -> compare_nilable(a, b, :desc) end
+  end
+
+  defp compare_nilable(nil, nil, _), do: true
+  defp compare_nilable(nil, _, :asc), do: false
+  defp compare_nilable(_, nil, :asc), do: true
+  defp compare_nilable(nil, _, :desc), do: false
+  defp compare_nilable(_, nil, :desc), do: true
+
+  defp compare_nilable(%Decimal{} = a, %Decimal{} = b, :asc), do: Decimal.compare(a, b) != :gt
+  defp compare_nilable(%Decimal{} = a, %Decimal{} = b, :desc), do: Decimal.compare(a, b) != :lt
+  defp compare_nilable(%Date{} = a, %Date{} = b, :asc), do: Date.compare(a, b) != :gt
+  defp compare_nilable(%Date{} = a, %Date{} = b, :desc), do: Date.compare(a, b) != :lt
+  defp compare_nilable(a, b, :asc), do: a <= b
+  defp compare_nilable(a, b, :desc), do: a >= b
 
   def count_securities, do: Repo.aggregate(Security, :count, :id)
 
@@ -119,18 +184,46 @@ defmodule Portfolixir.Catalog do
   Merges online fields from a search result into an existing security. Keeps
   user-edited fields (`note`) and merges `attributes` rather than replacing.
   """
-  def merge_search_result(%Security{} = existing, %SearchResult{} = result, market \\ nil) do
+  def merge_search_result(existing, result, market \\ nil, overrides \\ %{})
+
+  def merge_search_result(%Security{} = existing, %SearchResult{} = result, market, overrides) do
     incoming = SearchResult.to_security_attrs(result, market)
 
     merged_attributes =
       Map.merge(existing.attributes || %{}, incoming[:attributes] || %{})
 
-    update_security(
-      existing,
+    attrs =
       incoming
       |> Map.drop([:note, :attributes])
       |> Map.put(:attributes, merged_attributes)
-    )
+      |> Map.merge(normalize_overrides(overrides))
+
+    update_security(existing, attrs)
+  end
+
+  defp normalize_overrides(overrides) when is_map(overrides) do
+    overrides
+    |> Enum.flat_map(fn
+      {k, v} when is_atom(k) ->
+        [{k, v}]
+
+      {k, v} when is_binary(k) ->
+        case Map.fetch(string_to_security_key(), k) do
+          {:ok, atom} -> [{atom, v}]
+          :error -> []
+        end
+    end)
+    |> Map.new()
+  end
+
+  defp normalize_overrides(_), do: %{}
+
+  defp string_to_security_key do
+    ~w(name ticker_symbol isin wkn currency_code exchange_code asset_class
+       note feed feed_url latest_feed latest_feed_url is_retired
+       online_id provider)a
+    |> Enum.map(fn key -> {Atom.to_string(key), key} end)
+    |> Map.new()
   end
 
   # -- query helpers ---------------------------------------------------------
