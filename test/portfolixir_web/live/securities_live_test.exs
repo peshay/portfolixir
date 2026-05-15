@@ -408,13 +408,18 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert html =~ "security-detail-pane"
       assert html =~ "Apple Inc."
-      assert html =~ "Log scale"
+      assert has_element?(view, "tr#security-row-#{apple.id}.is-selected")
+    end
+
+    test "chart tab exposes the range buttons and Log scale toggle",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=chart")
+
+      assert render(view) =~ "Log scale"
 
       for range <- ~w(1M 3M 6M YTD 1Y MAX) do
         assert has_element?(view, "button[phx-value-range='#{range}']", range)
       end
-
-      assert has_element?(view, "tr#security-row-#{apple.id}.is-selected")
     end
 
     test "patching to a row id opens the pane without a full navigation",
@@ -484,18 +489,17 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       end
     end
 
-    test "chart tab is active by default and renders the chart toolbar",
+    test "overview tab is active by default and chart content is hidden",
          %{conn: conn, apple: apple} do
-      {:ok, view, html} = live(conn, "/securities/#{apple.id}")
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
 
       assert has_element?(
                view,
-               "#detail-pane-tabs button[phx-value-tab='chart'][aria-selected='true']"
+               "#detail-pane-tabs button[phx-value-tab='overview'][aria-selected='true']"
              )
 
-      assert html =~ "Log scale"
-      assert has_element?(view, "#detail-tab-panel-chart")
-      refute has_element?(view, "#detail-tab-panel-trades")
+      assert has_element?(view, "#detail-tab-panel-overview")
+      refute has_element?(view, "#detail-tab-panel-chart")
     end
 
     test "?tab=transactions selects the transactions tab on load",
@@ -530,15 +534,101 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       refute has_element?(view, "#detail-tab-panel-chart")
     end
 
-    test "unknown ?tab=… value silently falls back to the default chart tab",
+    test "unknown ?tab=… value silently falls back to the default overview tab",
          %{conn: conn, apple: apple} do
       # Guards against `String.to_atom/1` on external input.
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=__bogus__")
 
       assert has_element?(
                view,
-               "#detail-pane-tabs button[phx-value-tab='chart'][aria-selected='true']"
+               "#detail-pane-tabs button[phx-value-tab='overview'][aria-selected='true']"
              )
+    end
+  end
+
+  describe "detail pane — overview tab" do
+    # User story:
+    # As a local portfolio maintainer,
+    # I want a master-data summary for the selected security,
+    # so that I can confirm its identifiers, classification and key metrics
+    # at a glance without opening the edit dialog.
+    #
+    # Acceptance criteria:
+    # - The overview tab shows ISIN, WKN, ticker, exchange, currency, asset
+    #   class, and feed configuration when present.
+    # - It surfaces the latest quote and 1M/1Y performance derived metrics.
+    # - It shows a clearly labelled retired badge when the security is
+    #   retired.
+    # - Notes can be edited inline and the form persists via
+    #   Catalog.update_security/2.
+
+    setup do
+      {:ok, apple} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          isin: "US0378331005",
+          wkn: "865985",
+          currency_code: "USD",
+          exchange_code: "XNAS",
+          asset_class: "equity",
+          note: "Bellwether holding"
+        })
+
+      {:ok, apple: apple}
+    end
+
+    test "renders master data fields", %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      html = render(view)
+      assert html =~ "US0378331005"
+      assert html =~ "865985"
+      assert html =~ "AAPL"
+      assert html =~ "XNAS"
+      assert html =~ "USD"
+      # asset class is rendered through the existing AssetClasses copy
+      assert html =~ "Equity"
+    end
+
+    test "shows the retired badge when the security is retired",
+         %{conn: conn, apple: apple} do
+      {:ok, _} = Portfolixir.Catalog.update_security(apple, %{is_retired: true})
+
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      assert has_element?(view, "#detail-tab-panel-overview .badge", "Retired")
+    end
+
+    test "renders 1M / 1Y performance metrics when quotes are present",
+         %{conn: conn, apple: apple} do
+      today = Date.utc_today()
+
+      {:ok, _} =
+        Portfolixir.Catalog.Quotes.upsert_many(apple.id, [
+          %{date: Date.add(today, -400), close: "100.00", source: "manual"},
+          %{date: Date.add(today, -45), close: "120.00", source: "manual"},
+          %{date: today, close: "150.00", source: "manual"}
+        ])
+
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      panel = element(view, "#detail-tab-panel-overview") |> render()
+      assert panel =~ "1M"
+      assert panel =~ "1Y"
+      # The latest price appears in both the header and overview body.
+      assert panel =~ "150"
+    end
+
+    test "saving the notes form persists via Catalog.update_security/2",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      view
+      |> form("#overview-notes-form", %{"security" => %{"note" => "Long-term core position."}})
+      |> render_submit()
+
+      assert Catalog.get_security(apple.id).note == "Long-term core position."
     end
   end
 

@@ -24,7 +24,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @default_range "1Y"
 
   @tabs ~w(overview chart transactions trades quotes holdings)
-  @default_tab "chart"
+  @default_tab "overview"
 
   @impl true
   def mount(_params, _session, socket) do
@@ -46,6 +46,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_quotes, [])
      |> assign(:detail_transactions, [])
      |> assign(:detail_latest, nil)
+     |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
@@ -423,7 +424,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </section>
       <% end %>
 
-      <%= if @detail_tab != "chart" do %>
+      <%= if @detail_tab == "overview" do %>
+        <.overview_tab_panel
+          security={@selected_security}
+          latest={@detail_latest}
+          metrics={@detail_metrics}
+        />
+      <% end %>
+
+      <%= if @detail_tab not in ["overview", "chart"] do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -436,6 +445,129 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <% end %>
     </aside>
     """
+  end
+
+  attr(:security, :map, required: true)
+  attr(:latest, :map, default: nil)
+  attr(:metrics, :map, required: true)
+
+  defp overview_tab_panel(assigns) do
+    ~H"""
+    <section
+      id="detail-tab-panel-overview"
+      role="tabpanel"
+      class="detail-tab-panel detail-tab-panel--overview"
+    >
+      <dl class="overview-grid">
+        <.overview_field label={gettext("Name")} value={@security.name} />
+        <.overview_field label={gettext("ISIN")} value={@security.isin} mono />
+        <.overview_field label={gettext("WKN")} value={@security.wkn} mono />
+        <.overview_field label={gettext("Ticker")} value={@security.ticker_symbol} mono />
+        <.overview_field label={gettext("Exchange")} value={@security.exchange_code} mono />
+        <.overview_field label={gettext("Currency")} value={@security.currency_code} mono />
+        <.overview_field
+          label={gettext("Asset class")}
+          value={asset_class_label(@security.asset_class)}
+        />
+        <.overview_field
+          label={gettext("Feed")}
+          value={@security.feed}
+        />
+        <.overview_field
+          label={gettext("Latest quote feed")}
+          value={@security.latest_feed}
+        />
+        <%= if @security.is_retired do %>
+          <div class="overview-field overview-field--full">
+            <dt><%= gettext("Status") %></dt>
+            <dd><span class="badge badge--retired"><%= gettext("Retired") %></span></dd>
+          </div>
+        <% end %>
+      </dl>
+
+      <dl class="overview-metrics">
+        <div class="overview-metric">
+          <dt><%= gettext("Latest price") %></dt>
+          <dd>
+            <%= if @metrics[:latest_price] do %>
+              <%= format_decimal(@metrics.latest_price, 2) %>
+              <small class="overview-metric__unit"><%= @security.currency_code %></small>
+              <%= if @metrics[:latest_price_date] do %>
+                <small class="overview-metric__sub">
+                  (<%= Date.to_iso8601(@metrics.latest_price_date) %>)
+                </small>
+              <% end %>
+            <% else %>
+              —
+            <% end %>
+          </dd>
+        </div>
+        <div class="overview-metric">
+          <dt><%= gettext("Day change") %></dt>
+          <dd><%= signed_percent_or_dash(@metrics[:day_change_pct]) %></dd>
+        </div>
+        <div class="overview-metric">
+          <dt>1M</dt>
+          <dd><%= signed_percent_or_dash(@metrics[:performance_1m]) %></dd>
+        </div>
+        <div class="overview-metric">
+          <dt>1Y</dt>
+          <dd><%= signed_percent_or_dash(@metrics[:performance_1y]) %></dd>
+        </div>
+      </dl>
+
+      <form
+        id="overview-notes-form"
+        phx-submit="save_detail_note"
+        class="overview-notes"
+        aria-label={gettext("Notes")}
+      >
+        <label for="overview-notes-input"><%= gettext("Notes") %></label>
+        <textarea
+          id="overview-notes-input"
+          name="security[note]"
+          rows="3"
+          placeholder={gettext("Add a personal note for this security…")}
+        ><%= @security.note %></textarea>
+        <button type="submit" class="button">
+          <%= gettext("Save notes") %>
+        </button>
+      </form>
+    </section>
+    """
+  end
+
+  attr(:label, :string, required: true)
+  attr(:value, :any, default: nil)
+  attr(:mono, :boolean, default: false)
+
+  defp overview_field(assigns) do
+    ~H"""
+    <%= if @value not in [nil, ""] do %>
+      <div class={["overview-field", @mono && "overview-field--mono"]}>
+        <dt><%= @label %></dt>
+        <dd><%= @value %></dd>
+      </div>
+    <% end %>
+    """
+  end
+
+  defp asset_class_label(nil), do: nil
+  defp asset_class_label(code) when is_binary(code), do: AssetClasses.label(code)
+
+  defp signed_percent_or_dash(nil), do: "—"
+
+  defp signed_percent_or_dash(%Decimal{} = fractional) do
+    as_pct = Decimal.mult(fractional, Decimal.new(100))
+    rounded = Decimal.round(as_pct, 2)
+
+    sign =
+      case Decimal.compare(rounded, 0) do
+        :gt -> "+"
+        _ -> ""
+      end
+
+    sign <> Decimal.to_string(rounded, :normal) <> " %"
   end
 
   defp detail_tabs do
@@ -699,6 +831,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:sync_running?, true)
      |> assign(:flash_message, gettext("Syncing prices…"))}
+  end
+
+  def handle_event("save_detail_note", %{"security" => %{"note" => note}}, socket) do
+    case socket.assigns.selected_security do
+      %Security{} = security ->
+        case Catalog.update_security(security, %{"note" => note}) do
+          {:ok, updated} ->
+            {:noreply,
+             socket
+             |> assign(:selected_security, updated)
+             |> load_securities()
+             |> assign(:flash_message, gettext("Notes saved."))}
+
+          {:error, _changeset} ->
+            {:noreply, assign(socket, :flash_message, gettext("Could not save notes."))}
+        end
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   def handle_event("select_detail_tab", %{"tab" => tab}, socket) do
@@ -1008,6 +1160,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_quotes, [])
     |> assign(:detail_transactions, [])
     |> assign(:detail_latest, nil)
+    |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
   end
 
   defp load_detail_data(%{assigns: %{selected_security: nil}} = socket), do: socket
@@ -1026,10 +1179,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
       |> Ledger.list_transactions_for_security()
       |> Enum.map(&%{date: &1.date, type: &1.type, price: &1.price, quantity: &1.quantity})
 
+    metrics =
+      case Quotes.attach_metrics([socket.assigns.selected_security]) do
+        [%SecurityWithMetrics{metrics: m}] -> m
+        _ -> SecurityWithMetrics.empty_metrics()
+      end
+
     socket
     |> assign(:detail_quotes, quotes)
     |> assign(:detail_transactions, transactions)
     |> assign(:detail_latest, Quotes.latest(id))
+    |> assign(:detail_metrics, metrics)
   end
 
   defp range_to_dates(range, security_id) do
