@@ -1,19 +1,34 @@
 defmodule Portfolixir.Catalog do
-  @moduledoc "Security master data and stored quote history."
+  @moduledoc "Security master data and online search integration."
 
   import Ecto.Query
+  require Logger
 
   alias Portfolixir.Catalog.Security
-  alias Portfolixir.Catalog.SecurityQuote
+  alias Portfolixir.Catalog.SecurityFields
+  alias Portfolixir.Catalog.SecurityFields.Field
+  alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias Portfolixir.Repo
 
-  def list_securities do
-    Repo.all(from(security in Security, order_by: [asc: security.name, asc: security.symbol]))
+  @doc """
+  Lists securities with optional :query, :filters and :sort. Unknown keys or
+  invalid operators are silently dropped (with a Logger warning).
+
+  Options:
+    * `:query` – substring match on name/ticker/isin/wkn (case-insensitive)
+    * `:filters` – list of `{field_key, op, value}` tuples
+    * `:sort` – `{field_key, :asc | :desc}`, default `{:name, :asc}`
+  """
+  def list_securities(opts \\ []) when is_list(opts) do
+    Security
+    |> from(as: :security)
+    |> apply_query(opts[:query])
+    |> apply_filters(opts[:filters] || [])
+    |> apply_sort(opts[:sort] || {:name, :asc})
+    |> Repo.all()
   end
 
-  def count_securities do
-    Repo.aggregate(Security, :count, :id)
-  end
+  def count_securities, do: Repo.aggregate(Security, :count, :id)
 
   def get_security!(id), do: Repo.get!(Security, id)
 
@@ -22,7 +37,7 @@ defmodule Portfolixir.Catalog do
   def get_security(id) when is_binary(id) do
     case Integer.parse(id) do
       {security_id, ""} -> get_security(security_id)
-      _invalid -> nil
+      _ -> nil
     end
   end
 
@@ -34,40 +49,220 @@ defmodule Portfolixir.Catalog do
     |> Repo.insert()
   end
 
+  def update_security(%Security{} = security, attrs) when is_map(attrs) do
+    security
+    |> Security.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_security(%Security{} = security), do: Repo.delete(security)
+
   def change_security(%Security{} = security, attrs \\ %{}) do
     Security.changeset(security, attrs)
   end
 
-  def create_security_quote(attrs) when is_map(attrs) do
-    %SecurityQuote{}
-    |> SecurityQuote.changeset(attrs)
-    |> Repo.insert()
+  @doc """
+  Finds an existing security that matches the search result (provider+online_id,
+  ISIN, or ticker+currency) without inserting. Returns `{:exists, security}`
+  when found, `:not_found` otherwise.
+  """
+  def find_matching_security(%SearchResult{} = result, market \\ nil) do
+    attrs = SearchResult.to_security_attrs(result, market)
+
+    with nil <- lookup_by_provider(attrs),
+         nil <- lookup_by_isin(attrs),
+         nil <- lookup_by_ticker(attrs) do
+      :not_found
+    else
+      %Security{} = existing -> {:exists, existing}
+    end
   end
 
-  def change_security_quote(%SecurityQuote{} = security_quote, attrs \\ %{}) do
-    SecurityQuote.changeset(security_quote, attrs)
+  defp lookup_by_provider(%{provider: provider, online_id: online_id})
+       when is_binary(provider) and is_binary(online_id) do
+    Repo.get_by(Security, provider: provider, online_id: online_id)
   end
 
-  def list_security_quotes(security_id) when is_integer(security_id) do
-    Repo.all(
-      from(quote in SecurityQuote,
-        where: quote.security_id == ^security_id,
-        order_by: [asc: quote.date, asc: quote.id]
-      )
+  defp lookup_by_provider(_), do: nil
+
+  defp lookup_by_isin(%{isin: isin}) when is_binary(isin) do
+    Repo.get_by(Security, isin: isin)
+  end
+
+  defp lookup_by_isin(_), do: nil
+
+  defp lookup_by_ticker(%{ticker_symbol: ticker, currency_code: currency})
+       when is_binary(ticker) and is_binary(currency) do
+    Repo.get_by(Security, ticker_symbol: ticker, currency_code: currency)
+  end
+
+  defp lookup_by_ticker(_), do: nil
+
+  @doc """
+  Creates a security from a search result. When an existing record is found,
+  returns `{:conflict, existing_security}` so the UI can ask the user whether
+  to open the existing record or merge the online fields.
+  """
+  def create_from_search_result(%SearchResult{} = result, market \\ nil, overrides \\ %{}) do
+    case find_matching_security(result, market) do
+      {:exists, existing} ->
+        {:conflict, existing}
+
+      :not_found ->
+        attrs =
+          result
+          |> SearchResult.to_security_attrs(market)
+          |> Map.merge(overrides)
+
+        create_security(attrs)
+    end
+  end
+
+  @doc """
+  Merges online fields from a search result into an existing security. Keeps
+  user-edited fields (`note`) and merges `attributes` rather than replacing.
+  """
+  def merge_search_result(%Security{} = existing, %SearchResult{} = result, market \\ nil) do
+    incoming = SearchResult.to_security_attrs(result, market)
+
+    merged_attributes =
+      Map.merge(existing.attributes || %{}, incoming[:attributes] || %{})
+
+    update_security(
+      existing,
+      incoming
+      |> Map.drop([:note, :attributes])
+      |> Map.put(:attributes, merged_attributes)
     )
   end
 
-  def get_latest_security_quote(security_id) when is_integer(security_id) do
-    Repo.one(
-      from(quote in SecurityQuote,
-        where: quote.security_id == ^security_id,
-        order_by: [desc: quote.date, desc: quote.id],
-        limit: 1
-      )
+  # -- query helpers ---------------------------------------------------------
+
+  defp apply_query(query, nil), do: query
+  defp apply_query(query, ""), do: query
+
+  defp apply_query(query, term) when is_binary(term) do
+    pattern = "%" <> escape_like(String.trim(term)) <> "%"
+
+    from(security in query,
+      where:
+        ilike(security.name, ^pattern) or
+          ilike(security.ticker_symbol, ^pattern) or
+          ilike(security.isin, ^pattern) or
+          ilike(security.wkn, ^pattern)
     )
   end
 
-  def count_security_quotes do
-    Repo.aggregate(SecurityQuote, :count, :id)
+  defp escape_like(value) do
+    value
+    |> String.replace("\\", "\\\\")
+    |> String.replace("%", "\\%")
+    |> String.replace("_", "\\_")
+  end
+
+  defp apply_filters(query, filters) do
+    Enum.reduce(filters, query, fn filter, acc ->
+      case normalize_filter(filter) do
+        {:ok, key, op, value} ->
+          field = SecurityFields.get!(key)
+
+          if SecurityFields.valid_filter?(key, op, value) do
+            add_filter(acc, field, op, value)
+          else
+            Logger.warning("dropping invalid security filter: #{inspect(filter)}")
+            acc
+          end
+
+        :error ->
+          Logger.warning("dropping malformed security filter: #{inspect(filter)}")
+          acc
+      end
+    end)
+  end
+
+  defp normalize_filter({key, op, value}) when is_atom(key) and is_atom(op) do
+    {:ok, key, op, value}
+  end
+
+  defp normalize_filter(%{key: key, op: op, value: value}) when is_atom(key) and is_atom(op) do
+    {:ok, key, op, value}
+  end
+
+  defp normalize_filter(_), do: :error
+
+  defp add_filter(query, %Field{source: :column, key: key}, :eq, value),
+    do: from(s in query, where: field(s, ^key) == ^value)
+
+  defp add_filter(query, %Field{source: :column, key: key}, :neq, value),
+    do: from(s in query, where: field(s, ^key) != ^value)
+
+  defp add_filter(query, %Field{source: :column, key: key}, :contains, value),
+    do: from(s in query, where: ilike(field(s, ^key), ^"%#{value}%"))
+
+  defp add_filter(query, %Field{source: :column, key: key}, :starts_with, value),
+    do: from(s in query, where: ilike(field(s, ^key), ^"#{value}%"))
+
+  defp add_filter(query, %Field{source: :column, key: key}, :gt, value),
+    do: from(s in query, where: field(s, ^key) > ^value)
+
+  defp add_filter(query, %Field{source: :column, key: key}, :lt, value),
+    do: from(s in query, where: field(s, ^key) < ^value)
+
+  defp add_filter(query, %Field{source: :column, key: key}, :is_true, _),
+    do: from(s in query, where: field(s, ^key) == true)
+
+  defp add_filter(query, %Field{source: :column, key: key}, :is_false, _),
+    do: from(s in query, where: field(s, ^key) == false)
+
+  defp add_filter(query, %Field{source: {:attributes, jsonb_key}}, :eq, value),
+    do:
+      from(s in query,
+        where: fragment("? ->> ? = ?", s.attributes, ^jsonb_key, ^to_string(value))
+      )
+
+  defp add_filter(query, %Field{source: {:attributes, jsonb_key}}, :neq, value),
+    do:
+      from(s in query,
+        where: fragment("? ->> ? <> ?", s.attributes, ^jsonb_key, ^to_string(value))
+      )
+
+  defp add_filter(query, %Field{source: {:attributes, jsonb_key}}, :contains, value),
+    do:
+      from(s in query,
+        where: fragment("(? ->> ?) ILIKE ?", s.attributes, ^jsonb_key, ^"%#{value}%")
+      )
+
+  defp add_filter(query, %Field{source: {:attributes, jsonb_key}}, :starts_with, value),
+    do:
+      from(s in query,
+        where: fragment("(? ->> ?) ILIKE ?", s.attributes, ^jsonb_key, ^"#{value}%")
+      )
+
+  defp apply_sort(query, {key, dir}) when is_atom(key) and dir in [:asc, :desc] do
+    case SecurityFields.get(key) do
+      %Field{sortable?: true} = field ->
+        order_by_field(query, field, dir)
+
+      _ ->
+        from(s in query, order_by: [asc: s.name])
+    end
+  end
+
+  defp apply_sort(query, _), do: from(s in query, order_by: [asc: s.name])
+
+  defp order_by_field(query, %Field{source: :column, key: key}, :asc) do
+    from(s in query, order_by: [asc: field(s, ^key)])
+  end
+
+  defp order_by_field(query, %Field{source: :column, key: key}, :desc) do
+    from(s in query, order_by: [desc: field(s, ^key)])
+  end
+
+  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}}, :asc) do
+    from(s in query, order_by: [asc: fragment("? ->> ?", s.attributes, ^jsonb_key)])
+  end
+
+  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}}, :desc) do
+    from(s in query, order_by: [desc: fragment("? ->> ?", s.attributes, ^jsonb_key)])
   end
 end

@@ -24,3 +24,7 @@ config :portfolixir, PortfolixirWeb.Endpoint,
 config :logger, level: :warning
 
 config :phoenix, :plug_init_mode, :runtime
+
+config :portfolixir, Portfolixir.Catalog.SecuritySearch,
+  providers: [Portfolixir.Catalog.SecuritySearch.Fake],
+  timeout_ms: 1000

@@ -12,4 +12,11 @@ config :portfolixir, PortfolixirWeb.Endpoint,
   live_view: [signing_salt: "portfolixir-salt"],
   json_library: Jason
 
+config :portfolixir, Portfolixir.Catalog.SecuritySearch,
+  providers: [
+    Portfolixir.Catalog.SecuritySearch.PortfolioPerformance,
+    Portfolixir.Catalog.SecuritySearch.CoinGecko
+  ],
+  timeout_ms: 4000
+
 import_config "#{Mix.env()}.exs"

@@ -20,7 +20,7 @@ defmodule Portfolixir.MVPFoundationTest do
       assert {:ok, security} =
                Catalog.create_security(%{
                  name: "Synthetic Global ETF",
-                 symbol: "SYN",
+                 ticker_symbol: "SYN",
                  currency_code: "EUR",
                  isin: "XS0000000001"
                })
@@ -84,33 +84,7 @@ defmodule Portfolixir.MVPFoundationTest do
 
       assert Decimal.equal?(quantity, Decimal.new("8.25"))
 
-      assert {:ok, _first_quote} =
-               Catalog.create_security_quote(%{
-                 security_id: security.id,
-                 date: ~D[2026-01-02],
-                 close: Decimal.new("100.25"),
-                 currency_code: "EUR",
-                 source: "manual"
-               })
-
-      assert {:ok, _second_quote} =
-               Catalog.create_security_quote(%{
-                 security_id: security.id,
-                 date: ~D[2026-02-03],
-                 close: Decimal.new("111.75"),
-                 currency_code: "EUR",
-                 source: "manual"
-               })
-
-      assert Enum.map(Catalog.list_security_quotes(security.id), & &1.date) == [
-               ~D[2026-01-02],
-               ~D[2026-02-03]
-             ]
-
-      assert Decimal.equal?(
-               Catalog.get_latest_security_quote(security.id).close,
-               Decimal.new("111.75")
-             )
+      assert security.ticker_symbol == "SYN"
     end
 
     # User story:
@@ -209,7 +183,7 @@ defmodule Portfolixir.MVPFoundationTest do
     assert {:ok, security} =
              Catalog.create_security(%{
                name: "#{prefix} Synthetic ETF",
-               symbol: String.slice(prefix, 0, 3) |> String.upcase(),
+               ticker_symbol: String.slice(prefix, 0, 3) |> String.upcase(),
                currency_code: "EUR"
              })
 

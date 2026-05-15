@@ -51,6 +51,7 @@ defmodule Portfolixir.MixProject do
       {:floki, ">= 0.36.0", only: :test},
       {:jason, "~> 1.4"},
       {:plug_cowboy, "~> 2.7"},
+      {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"}
     ]
