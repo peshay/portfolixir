@@ -21,6 +21,15 @@ defmodule Portfolixir.Ledger do
     )
   end
 
+  def list_transactions_for_security(security_id) when is_integer(security_id) do
+    Repo.all(
+      from(transaction in Transaction,
+        where: transaction.security_id == ^security_id,
+        order_by: [asc: transaction.date, asc: transaction.id]
+      )
+    )
+  end
+
   def count_transactions do
     Repo.aggregate(Transaction, :count, :id)
   end

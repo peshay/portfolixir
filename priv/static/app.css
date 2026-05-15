@@ -685,9 +685,9 @@ textarea {
 }
 
 .app-main {
-  width: min(100%, 1260px);
-  margin: 0 auto;
-  padding: clamp(22px, 3vw, 40px);
+  width: 100%;
+  margin: 0;
+  padding: clamp(18px, 2.4vw, 32px) clamp(18px, 2.4vw, 36px);
 }
 
 #app-sidebar-toggle:checked ~ .app-sidebar {
@@ -1625,4 +1625,211 @@ li + li {
     flex: 1 1 100%;
     max-width: none;
   }
+}
+
+/* ===== Selected row + detail pane ===== */
+
+.security-row {
+  cursor: pointer;
+}
+
+.security-row:hover td {
+  background: var(--color-hover);
+}
+
+.security-row.is-selected td {
+  background: var(--color-selected);
+}
+
+.security-row.is-selected a {
+  color: var(--color-accent-violet);
+  font-weight: 600;
+}
+
+.security-row a.row-target {
+  color: inherit;
+  text-decoration: none;
+}
+
+.security-row a.row-target:focus-visible {
+  outline: 2px solid var(--color-accent-violet);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.detail-pane {
+  margin-top: 18px;
+  padding: 16px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detail-pane-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-pane-head h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--color-text);
+}
+
+.detail-pane-sub {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.detail-pane-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.range-buttons {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.range-button {
+  /* Neutralize the global gradient and shadow */
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-right: 1px solid var(--color-border);
+  letter-spacing: 0.04em;
+}
+
+.range-button:last-child {
+  border-right: 0;
+}
+
+.range-button:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+  filter: none;
+}
+
+.range-button.is-active {
+  background: var(--color-selected);
+  color: var(--color-accent-violet);
+  font-weight: 600;
+}
+
+.chart-toggles {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.chart-toggle {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.chart-toggle:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+  filter: none;
+}
+
+.chart-toggle.is-active {
+  background: var(--color-selected);
+  color: var(--color-accent-violet);
+  border-color: var(--color-accent-violet);
+}
+
+.chart-toggle.is-busy,
+.chart-toggle[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.chart-frame {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  padding: 8px;
+}
+
+.security-chart {
+  display: block;
+  width: 100%;
+  height: 320px;
+  color: var(--color-accent-violet);
+}
+
+.security-chart text {
+  fill: var(--color-text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+}
+
+.security-chart .quote-line {
+  stroke: var(--color-accent-violet);
+  fill: none;
+}
+
+.security-chart .quote-area {
+  fill: var(--color-accent-violet);
+  fill-opacity: 0.14;
+  stroke: none;
+}
+
+.security-chart .tx-marker {
+  stroke: white;
+  stroke-width: 1.5;
+}
+
+.security-chart .tx-buy {
+  fill: #10b981;
+}
+
+.security-chart .tx-sell {
+  fill: #ef4444;
+}
+
+.security-chart .no-quotes text {
+  font-size: 13px;
+}
+
+.decimal-positive {
+  color: #047857;
+}
+
+.decimal-negative {
+  color: #b91c1c;
+}
+
+.decimal-neutral {
+  color: var(--color-text-muted);
 }
