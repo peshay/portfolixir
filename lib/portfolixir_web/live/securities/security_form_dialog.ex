@@ -24,8 +24,43 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
      |> assign(:form, %{})
      |> assign(:errors, %{})
      |> assign(:conflict, nil)
+     |> assign(:editing, nil)
      |> assign(:search_loading?, false)
      |> assign(:search_error, nil)}
+  end
+
+  @impl true
+  def update(%{editing: %Portfolixir.Catalog.Security{} = security} = assigns, socket) do
+    socket =
+      socket
+      |> assign(assigns)
+      |> assign(:step, :confirm)
+      |> assign(:mode, "edit")
+      |> assign(:editing, security)
+      |> assign(:form, security_to_form(security))
+      |> assign(:conflict, nil)
+      |> assign(:errors, %{})
+
+    {:ok, socket}
+  end
+
+  def update(assigns, socket) do
+    {:ok, assign(socket, assigns)}
+  end
+
+  defp security_to_form(security) do
+    %{
+      "name" => security.name || "",
+      "ticker_symbol" => security.ticker_symbol || "",
+      "isin" => security.isin || "",
+      "wkn" => security.wkn || "",
+      "currency_code" => security.currency_code || "",
+      "exchange_code" => security.exchange_code || "",
+      "asset_class" => security.asset_class || "",
+      "feed" => security.feed || "",
+      "feed_url" => security.feed_url || "",
+      "note" => security.note || ""
+    }
   end
 
   @impl true
@@ -280,17 +315,31 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       </label>
 
       <div class="modal-footer">
-        <button
-          type="button"
-          class="button-ghost"
-          phx-click="back_from_confirm"
-          phx-target={@myself}
-        >
-          <%= gettext("Back") %>
-        </button>
-        <button type="submit" class="button-primary">
-          <%= if @conflict, do: gettext("Update existing"), else: gettext("Save") %>
-        </button>
+        <%= if @editing do %>
+          <button
+            type="button"
+            class="button-ghost"
+            phx-click="close"
+            phx-target={@myself}
+          >
+            <%= gettext("Cancel") %>
+          </button>
+          <button type="submit" class="button-primary">
+            <%= gettext("Save changes") %>
+          </button>
+        <% else %>
+          <button
+            type="button"
+            class="button-ghost"
+            phx-click="back_from_confirm"
+            phx-target={@myself}
+          >
+            <%= gettext("Back") %>
+          </button>
+          <button type="submit" class="button-primary">
+            <%= if @conflict, do: gettext("Update existing"), else: gettext("Save") %>
+          </button>
+        <% end %>
       </div>
     </form>
     """
@@ -358,6 +407,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   defp dialog_title(:search, "crypto"), do: gettext("Search cryptocurrency")
   defp dialog_title(:search, _), do: gettext("Search security")
   defp dialog_title(:market, _), do: gettext("Choose market")
+  defp dialog_title(:confirm, "edit"), do: gettext("Edit security")
   defp dialog_title(:confirm, _), do: gettext("Confirm details")
 
   defp provider_label(:portfolio_performance), do: "Portfolio Performance"
@@ -459,8 +509,33 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   def handle_event("save", %{"security" => params}, socket) do
-    case socket.assigns.conflict do
-      nil ->
+    cond do
+      socket.assigns.editing ->
+        attrs = to_overrides(params)
+
+        case Catalog.update_security(socket.assigns.editing, attrs) do
+          {:ok, security} ->
+            notify_parent(socket, {:updated, security})
+            {:noreply, socket}
+
+          {:error, changeset} ->
+            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
+        end
+
+      socket.assigns.conflict ->
+        existing = socket.assigns.conflict
+        attrs = to_overrides(params)
+
+        case Catalog.update_security(existing, attrs) do
+          {:ok, security} ->
+            notify_parent(socket, {:updated, security})
+            {:noreply, socket}
+
+          {:error, changeset} ->
+            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
+        end
+
+      true ->
         result = socket.assigns.selected_result
         market = socket.assigns.selected_market
         overrides = to_overrides(params)
@@ -472,18 +547,6 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
 
           {:conflict, existing} ->
             {:noreply, assign(socket, :conflict, existing)}
-
-          {:error, changeset} ->
-            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
-        end
-
-      existing ->
-        attrs = to_overrides(params)
-
-        case Catalog.update_security(existing, attrs) do
-          {:ok, security} ->
-            notify_parent(socket, {:updated, security})
-            {:noreply, socket}
 
           {:error, changeset} ->
             {:noreply, assign(socket, :errors, changeset_errors(changeset))}

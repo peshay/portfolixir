@@ -445,5 +445,21 @@ defmodule PortfolixirWeb.AppShell do
   defp icon_paths(:refresh_cw),
     do: ~s(<path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/>)
 
+  defp icon_paths(:ellipsis_vertical),
+    do:
+      ~s(<circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/>)
+
+  defp icon_paths(:copy),
+    do: ~s(<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>)
+
+  defp icon_paths(:edit), do: ~s(<path d="M4 20h4l10-10-4-4L4 16Z"/>)
+
+  defp icon_paths(:archive),
+    do: ~s(<rect x="3" y="4" width="18" height="4"/><path d="M5 8v12h14V8M10 12h4"/>)
+
+  defp icon_paths(:external_link),
+    do:
+      ~s(<path d="M14 4h6v6M10 14 20 4M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>)
+
   defp icon_paths(_), do: ~s(<circle cx="12" cy="12" r="5"/>)
 end

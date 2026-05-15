@@ -75,6 +75,60 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            Hooks.PositionedMenu = {
+              mounted: function () {
+                this.reposition();
+
+                var self = this;
+                this.onWindow = function () { self.reposition(); };
+                window.addEventListener("resize", this.onWindow);
+                window.addEventListener("scroll", this.onWindow, true);
+              },
+              updated: function () {
+                this.reposition();
+              },
+              destroyed: function () {
+                window.removeEventListener("resize", this.onWindow);
+                window.removeEventListener("scroll", this.onWindow, true);
+              },
+              reposition: function () {
+                if (window.matchMedia("(max-width: 720px)").matches) {
+                  // Mobile bottom sheet uses CSS, no positioning needed
+                  this.el.style.top = "";
+                  this.el.style.left = "";
+                  this.el.style.right = "";
+                  return;
+                }
+
+                var triggerId = this.el.dataset.trigger;
+                var trigger = triggerId && document.getElementById(triggerId);
+                if (!trigger) return;
+
+                var rect = trigger.getBoundingClientRect();
+                var menuWidth = this.el.offsetWidth || 220;
+                var menuHeight = this.el.offsetHeight || 320;
+                var pad = 8;
+
+                var top = rect.bottom + 4;
+                var left = rect.right - menuWidth;
+
+                if (left < pad) left = pad;
+                if (left + menuWidth + pad > window.innerWidth) {
+                  left = window.innerWidth - menuWidth - pad;
+                }
+
+                if (top + menuHeight + pad > window.innerHeight) {
+                  // Not enough space below — flip above
+                  top = rect.top - menuHeight - 4;
+                  if (top < pad) top = pad;
+                }
+
+                this.el.style.top = top + "px";
+                this.el.style.left = left + "px";
+                this.el.style.right = "auto";
+              }
+            };
+
             Hooks.ChartCrosshair = {
               mounted: function () {
                 this.payload = this.readPayload();
@@ -214,6 +268,37 @@ defmodule PortfolixirWeb.LayoutView do
             var liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
               hooks: Hooks,
               params: { _csrf_token: csrfToken }
+            });
+
+            window.addEventListener("phx:copy-to-clipboard", function (event) {
+              var text = event.detail && event.detail.text;
+              if (!text) return;
+
+              function fallbackCopy() {
+                try {
+                  var area = document.createElement("textarea");
+                  area.value = text;
+                  area.setAttribute("readonly", "");
+                  area.style.position = "absolute";
+                  area.style.left = "-9999px";
+                  document.body.appendChild(area);
+                  area.select();
+                  document.execCommand("copy");
+                  document.body.removeChild(area);
+                } catch (_) {}
+              }
+
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                  var promise = navigator.clipboard.writeText(text);
+                  if (promise && typeof promise.then === "function") {
+                    promise.then(function () {}, fallbackCopy);
+                    return;
+                  }
+                } catch (_) {}
+              }
+
+              fallbackCopy();
             });
 
             liveSocket.connect();
