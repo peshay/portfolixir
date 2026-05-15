@@ -167,17 +167,20 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp point_coords(geometry, x0, y0, x1, y1) do
     plot_w = x1 - x0
     plot_h = y1 - y0
-    count = length(geometry.quotes)
 
-    Enum.map(geometry.quotes, fn {q, idx} ->
-      x = x0 + plot_w * normalized_x(idx, count)
+    Enum.map(geometry.quotes, fn {q, _idx} ->
+      x = x0 + plot_w * x_fraction_for_date(q.date, geometry)
       y = y1 - plot_h * normalized_y(q.close, geometry)
       {x, y}
     end)
   end
 
-  defp normalized_x(_idx, count) when count <= 1, do: 0.0
-  defp normalized_x(idx, count), do: idx / (count - 1)
+  defp x_fraction_for_date(date, geometry) do
+    span = date_span_days(geometry)
+    if span == 0, do: 0.0, else: Date.diff(date, geometry.first_date) / span
+  end
+
+  defp date_span_days(geometry), do: Date.diff(geometry.last_date, geometry.first_date)
 
   defp normalized_y(%Decimal{} = close, geometry) do
     value =
@@ -197,12 +200,11 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp transaction_markers(transactions, geometry, x0, y0, x1, y1) do
     plot_w = x1 - x0
     plot_h = y1 - y0
-    span_days = max(Date.diff(geometry.last_date, geometry.first_date), 1)
 
     transactions
     |> Enum.filter(&within_range?(&1.date, geometry))
     |> Enum.map(fn tx ->
-      x = x0 + plot_w * Date.diff(tx.date, geometry.first_date) / span_days
+      x = x0 + plot_w * x_fraction_for_date(tx.date, geometry)
       close = close_for_date(geometry, tx.date) || tx.price
       y = y1 - plot_h * normalized_y(close, geometry)
 
