@@ -318,15 +318,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </div>
       </div>
 
-      <div class="chart-frame">
-        <SecurityChart.chart
-          quotes={@detail_quotes}
-          transactions={@detail_transactions}
-          log_scale?={@detail_log_scale?}
-          show_transactions?={@detail_show_transactions?}
-          currency_code={@selected_security.currency_code}
-        />
-      </div>
+      <SecurityChart.chart
+        quotes={@detail_quotes}
+        transactions={@detail_transactions}
+        log_scale?={@detail_log_scale?}
+        show_transactions?={@detail_show_transactions?}
+        currency_code={@selected_security.currency_code}
+      />
     </aside>
     """
   end
