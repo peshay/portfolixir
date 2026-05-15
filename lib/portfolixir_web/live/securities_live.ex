@@ -271,9 +271,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("toggle_popover", %{"popover" => name}, socket) do
-    key = String.to_existing_atom(name)
-    next = if socket.assigns.open_popover == key, do: nil, else: key
-    {:noreply, assign(socket, :open_popover, next)}
+    case safe_atom(name) do
+      nil ->
+        {:noreply, socket}
+
+      key ->
+        next = if socket.assigns.open_popover == key, do: nil, else: key
+        {:noreply, assign(socket, :open_popover, next)}
+    end
   end
 
   def handle_event("open_new", _params, socket) do
@@ -290,16 +295,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("toggle_sort", %{"key" => key}, socket) do
-    key_atom = String.to_existing_atom(key)
+    case safe_column_atom(key) do
+      nil ->
+        {:noreply, socket}
 
-    sort =
-      case socket.assigns.sort do
-        {^key_atom, :asc} -> {key_atom, :desc}
-        {^key_atom, :desc} -> {:name, :asc}
-        _ -> {key_atom, :asc}
-      end
+      key_atom ->
+        sort =
+          case socket.assigns.sort do
+            {^key_atom, :asc} -> {key_atom, :desc}
+            {^key_atom, :desc} -> {:name, :asc}
+            _ -> {key_atom, :asc}
+          end
 
-    {:noreply, socket |> assign(:sort, sort) |> load_securities()}
+        {:noreply, socket |> assign(:sort, sort) |> load_securities()}
+    end
   end
 
   def handle_event("set_columns", %{"columns" => columns}, socket) when is_list(columns) do
@@ -321,6 +330,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp safe_column_atom(_), do: nil
+
+  defp safe_atom(string) when is_binary(string) do
+    String.to_existing_atom(string)
+  rescue
+    ArgumentError -> nil
+  end
 
   # -- messages from child components --------------------------------------
 
