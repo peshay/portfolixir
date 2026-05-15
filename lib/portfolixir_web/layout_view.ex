@@ -43,7 +43,35 @@ defmodule PortfolixirWeb.LayoutView do
               return;
             }
 
+            var Hooks = {};
+
+            Hooks.ColumnPrefs = {
+              mounted: function () {
+                var key = this.el.dataset.storageKey || "securities.columns";
+                var raw = null;
+                try { raw = window.localStorage && window.localStorage.getItem(key); } catch (_) {}
+
+                if (raw) {
+                  try {
+                    var stored = JSON.parse(raw);
+                    if (Array.isArray(stored) && stored.length > 0) {
+                      this.pushEvent("set_columns", { columns: stored });
+                    }
+                  } catch (_) {}
+                }
+
+                this.handleEvent("column-prefs-changed", function (payload) {
+                  try {
+                    if (window.localStorage && payload && Array.isArray(payload.columns)) {
+                      window.localStorage.setItem(key, JSON.stringify(payload.columns));
+                    }
+                  } catch (_) {}
+                });
+              }
+            };
+
             var liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
+              hooks: Hooks,
               params: { _csrf_token: csrfToken }
             });
 

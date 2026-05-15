@@ -3,21 +3,6 @@ msgid ""
 msgstr ""
 "Language: de\n"
 
-#: lib/portfolixir_web/live/security_detail_live.ex:42
-#, elixir-autogen
-msgid "Add quote"
-msgstr "Kurs hinzufügen"
-
-#: lib/portfolixir_web/live/security_management_live.ex:37
-#, elixir-autogen
-msgid "Add security"
-msgstr "Wertpapier hinzufügen"
-
-#: lib/portfolixir_web/live/security_management_live.ex:76
-#, elixir-autogen
-msgid "All securities"
-msgstr "Alle Wertpapiere"
-
 #: lib/portfolixir_web/components/app_shell.ex:18
 #, elixir-autogen
 msgid "Application navigation"
@@ -33,17 +18,16 @@ msgstr "Basiswährung"
 msgid "Cash account created"
 msgstr "Verrechnungskonto angelegt"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:45
+#: lib/portfolixir_web/live/dashboard_live.ex:44
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:112
 #, elixir-autogen
 msgid "Cash accounts"
 msgstr "Verrechnungskonten"
 
-#: lib/portfolixir_web/live/security_detail_live.ex:56
-#: lib/portfolixir_web/live/security_detail_live.ex:124
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:41
 #, elixir-autogen
 msgid "Close"
-msgstr "Schlusskurs"
+msgstr "Schließen"
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:119
 #, elixir-autogen
@@ -85,16 +69,8 @@ msgstr "Portfolio anlegen"
 msgid "Create securities"
 msgstr "Wertpapiere anlegen"
 
-#: lib/portfolixir_web/live/security_management_live.ex:71
-#, elixir-autogen
-msgid "Create security"
-msgstr "Wertpapier anlegen"
-
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:71
-#: lib/portfolixir_web/live/security_detail_live.ex:60
-#: lib/portfolixir_web/live/security_detail_live.ex:125
-#: lib/portfolixir_web/live/security_management_live.ex:55
-#: lib/portfolixir_web/live/security_management_live.ex:87
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:243
 #: lib/portfolixir_web/live/transaction_management_live.ex:106
 #: lib/portfolixir_web/live/transaction_management_live.ex:166
 #, elixir-autogen
@@ -122,8 +98,6 @@ msgstr "Dunkel"
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: lib/portfolixir_web/live/security_detail_live.ex:52
-#: lib/portfolixir_web/live/security_detail_live.ex:123
 #: lib/portfolixir_web/live/transaction_management_live.ex:63
 #: lib/portfolixir_web/live/transaction_management_live.ex:161
 #, elixir-autogen
@@ -141,16 +115,11 @@ msgstr "Depot"
 msgid "Depot created"
 msgstr "Depot angelegt"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:49
+#: lib/portfolixir_web/live/dashboard_live.ex:48
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:120
 #, elixir-autogen
 msgid "Depots"
 msgstr "Depots"
-
-#: lib/portfolixir_web/live/security_management_live.ex:88
-#, elixir-autogen
-msgid "Detail"
-msgstr "Detail"
 
 #: lib/portfolixir_web/components/app_shell.ex:81
 #, elixir-autogen
@@ -162,7 +131,7 @@ msgstr "Anzeigeeinstellungen"
 msgid "English"
 msgstr "Englisch"
 
-#: lib/portfolixir_web/live/security_management_live.ex:63
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:251
 #, elixir-autogen
 msgid "Exchange"
 msgstr "Börse"
@@ -177,12 +146,7 @@ msgstr "Gebühren"
 msgid "German"
 msgstr "Deutsch"
 
-#: lib/portfolixir_web/live/security_detail_live.ex:72
-#, elixir-autogen
-msgid "High"
-msgstr "Hoch"
-
-#: lib/portfolixir_web/live/security_management_live.ex:59
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:231
 #, elixir-autogen
 msgid "ISIN"
 msgstr "ISIN"
@@ -217,12 +181,7 @@ msgstr "Das verknüpfte Verrechnungskonto wird aus dem ausgewählten Depot abgel
 msgid "Local portfolio tracking MVP"
 msgstr "Lokales Portfolio-Tracking-MVP"
 
-#: lib/portfolixir_web/live/security_detail_live.ex:76
-#, elixir-autogen
-msgid "Low"
-msgstr "Tief"
-
-#: lib/portfolixir_web/live/dashboard_live.ex:35
+#: lib/portfolixir_web/live/dashboard_live.ex:34
 #, elixir-autogen
 msgid "MVP counts"
 msgstr "MVP-Zähler"
@@ -245,8 +204,7 @@ msgstr "Verknüpftes Verrechnungskonto fehlt"
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:45
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:67
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:82
-#: lib/portfolixir_web/live/security_management_live.ex:47
-#: lib/portfolixir_web/live/security_management_live.ex:85
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:218
 #, elixir-autogen
 msgid "Name"
 msgstr "Name"
@@ -256,38 +214,16 @@ msgstr "Name"
 msgid "No holdings yet"
 msgstr "Noch keine Bestände"
 
-#: lib/portfolixir_web/live/security_detail_live.ex:117
-#, elixir-autogen
-msgid "No quote history yet"
-msgstr "Noch keine Kurshistorie"
-
-#: lib/portfolixir_web/live/security_detail_live.ex:92
-#, elixir-autogen
-msgid "No quotes yet"
-msgstr "Noch keine Kurse"
-
-#: lib/portfolixir_web/live/security_management_live.ex:79
-#, elixir-autogen
-msgid "No securities yet"
-msgstr "Noch keine Wertpapiere"
-
 #: lib/portfolixir_web/live/transaction_management_live.ex:155
 #, elixir-autogen
 msgid "No transactions yet"
 msgstr "Noch keine Transaktionen"
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:54
-#: lib/portfolixir_web/live/security_management_live.ex:68
 #: lib/portfolixir_web/live/transaction_management_live.ex:111
 #, elixir-autogen
 msgid "Notes"
 msgstr "Notizen"
-
-#: lib/portfolixir_web/live/security_detail_live.ex:68
-#: lib/portfolixir_web/live/security_management_live.ex:97
-#, elixir-autogen
-msgid "Open"
-msgstr "Öffnen"
 
 #: lib/portfolixir_web/components/app_shell.ex:69
 #, elixir-autogen
@@ -305,7 +241,7 @@ msgid "Portfolio, cash account, and depot setup"
 msgstr "Portfolio-, Verrechnungskonto- und Depot-Einrichtung"
 
 #: lib/portfolixir_web/components/app_shell.ex:176
-#: lib/portfolixir_web/live/dashboard_live.ex:41
+#: lib/portfolixir_web/live/dashboard_live.ex:40
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:28
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:104
 #, elixir-autogen
@@ -318,11 +254,6 @@ msgstr "Portfolios"
 msgid "Price"
 msgstr "Preis"
 
-#: lib/portfolixir_web/live/security_detail_live.ex:89
-#, elixir-autogen
-msgid "Price history"
-msgstr "Kurshistorie"
-
 #: lib/portfolixir_web/components/app_shell.ex:27
 #, elixir-autogen
 msgid "Primary navigation"
@@ -334,21 +265,6 @@ msgstr "Hauptnavigation"
 #, elixir-autogen
 msgid "Quantity"
 msgstr "Stückzahl"
-
-#: lib/portfolixir_web/live/security_detail_live.ex:114
-#, elixir-autogen
-msgid "Quote history"
-msgstr "Kurshistorie"
-
-#: lib/portfolixir_web/live/security_detail_live.ex:159
-#, elixir-autogen
-msgid "Quote stored"
-msgstr "Kurs gespeichert"
-
-#: lib/portfolixir_web/live/dashboard_live.ex:57
-#, elixir-autogen
-msgid "Quotes"
-msgstr "Kurse"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:29
 #, elixir-autogen
@@ -368,8 +284,8 @@ msgstr "Aktuelle Bestände prüfen"
 
 #: lib/portfolixir_web/components/app_shell.ex:153
 #: lib/portfolixir_web/components/app_shell.ex:158
-#: lib/portfolixir_web/live/dashboard_live.ex:37
-#: lib/portfolixir_web/live/security_management_live.ex:31
+#: lib/portfolixir_web/live/dashboard_live.ex:36
+#: lib/portfolixir_web/live/securities_live.ex:33
 #, elixir-autogen
 msgid "Securities"
 msgstr "Wertpapiere"
@@ -380,21 +296,6 @@ msgstr "Wertpapiere"
 #, elixir-autogen
 msgid "Security"
 msgstr "Wertpapier"
-
-#: lib/portfolixir_web/live/security_management_live.ex:117
-#, elixir-autogen
-msgid "Security created"
-msgstr "Wertpapier angelegt"
-
-#: lib/portfolixir_web/live/security_management_live.ex:32
-#, elixir-autogen
-msgid "Security master data"
-msgstr "Wertpapier-Stammdaten"
-
-#: lib/portfolixir_web/live/security_detail_live.ex:100
-#, elixir-autogen
-msgid "Security price history chart"
-msgstr "Wertpapier-Kurshistorie"
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:88
 #, elixir-autogen
@@ -410,28 +311,6 @@ msgstr "Depot auswählen"
 #, elixir-autogen
 msgid "Select security"
 msgstr "Wertpapier auswählen"
-
-#: lib/portfolixir_web/live/security_detail_live.ex:64
-#: lib/portfolixir_web/live/security_detail_live.ex:126
-#, elixir-autogen
-msgid "Source"
-msgstr "Quelle"
-
-#: lib/portfolixir_web/live/dashboard_live.ex:31
-#, elixir-autogen
-msgid "Store and display quote history"
-msgstr "Kurshistorie speichern und anzeigen"
-
-#: lib/portfolixir_web/live/security_detail_live.ex:84
-#, elixir-autogen
-msgid "Store quote"
-msgstr "Kurs speichern"
-
-#: lib/portfolixir_web/live/security_management_live.ex:51
-#: lib/portfolixir_web/live/security_management_live.ex:86
-#, elixir-autogen
-msgid "Symbol"
-msgstr "Symbol"
 
 #: lib/portfolixir_web/components/app_shell.ex:296
 #, elixir-autogen
@@ -466,7 +345,7 @@ msgstr "Transaktionshistorie"
 msgid "Transaction recorded"
 msgstr "Transaktion erfasst"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:53
+#: lib/portfolixir_web/live/dashboard_live.ex:52
 #: lib/portfolixir_web/live/transaction_management_live.ex:37
 #, elixir-autogen
 msgid "Transactions"
@@ -488,11 +367,6 @@ msgstr "Unbekanntes Depot"
 msgid "Unknown security"
 msgstr "Unbekanntes Wertpapier"
 
-#: lib/portfolixir_web/live/security_detail_live.ex:80
-#, elixir-autogen
-msgid "Volume"
-msgstr "Volumen"
-
 #: lib/portfolixir_web/components/app_shell.ex:195
 #, elixir-autogen, elixir-format
 msgid "All transactions"
@@ -504,6 +378,7 @@ msgid "Asset allocation"
 msgstr "Vermögensaufteilung"
 
 #: lib/portfolixir_web/components/app_shell.ex:241
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:257
 #, elixir-autogen, elixir-format
 msgid "Asset class"
 msgstr "Anlageklasse"
@@ -597,3 +472,476 @@ msgstr "Strategien"
 #, elixir-autogen, elixir-format
 msgid "Watchlist"
 msgstr "Beobachtungsliste"
+
+#: lib/portfolixir_web/live/securities_live.ex:109
+#, elixir-autogen, elixir-format
+msgid "Active filters"
+msgstr "Aktive Filter"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:36
+#, elixir-autogen, elixir-format
+msgid "Add filter"
+msgstr "Filter hinzufügen"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:357
+#: lib/portfolixir_web/live/securities_live.ex:58
+#: lib/portfolixir_web/live/securities_live.ex:59
+#, elixir-autogen, elixir-format
+msgid "Add new"
+msgstr "Neu anlegen"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:82
+#, elixir-autogen, elixir-format
+msgid "Apply filter"
+msgstr "Filter anwenden"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:174
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:289
+#, elixir-autogen, elixir-format
+msgid "Back"
+msgstr "Zurück"
+
+#: lib/portfolixir_web/live/securities/column_picker.ex:12
+#, elixir-autogen, elixir-format
+msgid "Choose columns"
+msgstr "Spalten wählen"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:360
+#, elixir-autogen, elixir-format
+msgid "Choose market"
+msgstr "Markt wählen"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:42
+#, elixir-autogen, elixir-format
+msgid "Column"
+msgstr "Spalte"
+
+#: lib/portfolixir_web/live/securities/column_picker.ex:14
+#: lib/portfolixir_web/live/securities_live.ex:83
+#: lib/portfolixir_web/live/securities_live.ex:85
+#, elixir-autogen, elixir-format
+msgid "Columns"
+msgstr "Spalten"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:361
+#, elixir-autogen, elixir-format
+msgid "Confirm details"
+msgstr "Details bestätigen"
+
+#: lib/portfolixir_web/live/securities/column_picker.ex:75
+#, elixir-autogen, elixir-format
+msgid "Core data"
+msgstr "Stammdaten"
+
+#: lib/portfolixir_web/live/securities_live.ex:356
+#, elixir-autogen, elixir-format
+msgid "Created %{name}"
+msgstr "%{name} angelegt"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:211
+#, elixir-autogen, elixir-format
+msgid "Default currency EUR — please confirm or edit."
+msgstr "Standardwährung EUR — bitte bestätigen oder anpassen."
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:38
+#: lib/portfolixir_web/live/securities_live.ex:70
+#: lib/portfolixir_web/live/securities_live.ex:72
+#, elixir-autogen, elixir-format
+msgid "Filter"
+msgstr "Filter"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:163
+#, elixir-autogen, elixir-format
+msgid "Market"
+msgstr "Markt"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:374
+#, elixir-autogen, elixir-format
+msgid "Matching existing entry: %{summary}"
+msgstr "Passender vorhandener Eintrag: %{summary}"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:194
+#, elixir-autogen, elixir-format
+msgid "Merge online fields"
+msgstr "Online-Felder übernehmen"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:89
+#, elixir-autogen, elixir-format
+msgid "New cryptocurrency"
+msgstr "Neue Kryptowährung"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:76
+#, elixir-autogen, elixir-format
+msgid "New security"
+msgstr "Neues Wertpapier"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:142
+#, elixir-autogen, elixir-format
+msgid "No matches"
+msgstr "Keine Treffer"
+
+#: lib/portfolixir_web/live/securities_live.ex:164
+#, elixir-autogen, elixir-format
+msgid "No securities yet — click + to add one."
+msgstr "Noch keine Wertpapiere — auf + klicken, um eines anzulegen."
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:278
+#, elixir-autogen, elixir-format
+msgid "Note"
+msgstr "Notiz"
+
+#: lib/portfolixir_web/live/securities/column_picker.ex:76
+#, elixir-autogen, elixir-format
+msgid "Online source"
+msgstr "Online-Quelle"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:54
+#, elixir-autogen, elixir-format
+msgid "Operator"
+msgstr "Operator"
+
+#: lib/portfolixir/catalog/asset_classes.ex:30
+#: lib/portfolixir_web/live/securities/column_picker.ex:77
+#, elixir-autogen, elixir-format
+msgid "Other"
+msgstr "Sonstiges"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:151
+#, elixir-autogen, elixir-format
+msgid "Pick the market to import for"
+msgstr "Wähle den Markt für"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:264
+#, elixir-autogen, elixir-format
+msgid "Quote feed"
+msgstr "Kursquelle"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:271
+#, elixir-autogen, elixir-format
+msgid "Quote feed URL"
+msgstr "Kursquelle-URL"
+
+#: lib/portfolixir_web/live/securities_live.ex:118
+#, elixir-autogen, elixir-format
+msgid "Remove filter"
+msgstr "Filter entfernen"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:292
+#, elixir-autogen, elixir-format
+msgid "Save"
+msgstr "Speichern"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:108
+#, elixir-autogen, elixir-format
+msgid "Search by name, ISIN or ticker…"
+msgstr "Nach Name, ISIN oder Ticker suchen…"
+
+#: lib/portfolixir_web/live/securities_live.ex:46
+#, elixir-autogen, elixir-format
+msgid "Search by name, ISIN, WKN or ticker…"
+msgstr "Nach Name, ISIN, WKN oder Ticker suchen…"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:91
+#, elixir-autogen, elixir-format
+msgid "Search coins via CoinGecko."
+msgstr "Coins über CoinGecko suchen."
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:358
+#, elixir-autogen, elixir-format
+msgid "Search cryptocurrency"
+msgstr "Kryptowährung suchen"
+
+#: lib/portfolixir_web/live/securities_live.ex:48
+#, elixir-autogen, elixir-format
+msgid "Search securities"
+msgstr "Wertpapiere suchen"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:359
+#, elixir-autogen, elixir-format
+msgid "Search security"
+msgstr "Wertpapier suchen"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:78
+#, elixir-autogen, elixir-format
+msgid "Search stocks, ETFs, funds and bonds via Portfolio Performance."
+msgstr "Aktien, ETFs, Fonds und Anleihen über Portfolio Performance suchen."
+
+#: lib/portfolixir_web/live/securities_live.ex:34
+#, elixir-autogen, elixir-format
+msgid "Search, filter and curate your investable universe."
+msgstr "Suchen, filtern und pflegen deines investierbaren Universums."
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:120
+#, elixir-autogen, elixir-format
+msgid "Searching…"
+msgstr "Suche…"
+
+#: lib/portfolixir_web/live/securities_live.ex:38
+#, elixir-autogen, elixir-format
+msgid "Securities toolbar"
+msgstr "Wertpapier-Werkzeugleiste"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:203
+#, elixir-autogen, elixir-format
+msgid "Show existing"
+msgstr "Vorhandenes öffnen"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:68
+#, elixir-autogen, elixir-format
+msgid "Source type"
+msgstr "Quellenart"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:185
+#, elixir-autogen, elixir-format
+msgid "This security already exists"
+msgstr "Dieses Wertpapier existiert bereits"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:225
+#, elixir-autogen, elixir-format
+msgid "Ticker"
+msgstr "Ticker"
+
+#: lib/portfolixir_web/live/securities_live.ex:364
+#, elixir-autogen, elixir-format
+msgid "Updated %{name}"
+msgstr "%{name} aktualisiert"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:66
+#, elixir-autogen, elixir-format
+msgid "Value"
+msgstr "Wert"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:237
+#, elixir-autogen, elixir-format
+msgid "WKN"
+msgstr "WKN"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:182
+#, elixir-autogen, elixir-format
+msgid "contains"
+msgstr "enthält"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:180
+#, elixir-autogen, elixir-format
+msgid "equals"
+msgstr "gleich"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:184
+#, elixir-autogen, elixir-format
+msgid "greater than"
+msgstr "größer als"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:187
+#, elixir-autogen, elixir-format
+msgid "is false"
+msgstr "ist falsch"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:186
+#, elixir-autogen, elixir-format
+msgid "is true"
+msgstr "ist wahr"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:185
+#, elixir-autogen, elixir-format
+msgid "less than"
+msgstr "kleiner als"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:181
+#, elixir-autogen, elixir-format
+msgid "not equal"
+msgstr "ungleich"
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:183
+#, elixir-autogen, elixir-format
+msgid "starts with"
+msgstr "beginnt mit"
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:338
+#, elixir-autogen, elixir-format
+msgid "—"
+msgstr "—"
+
+#: lib/portfolixir/catalog/currencies.ex:35
+#, elixir-autogen, elixir-format
+msgid "Australian Dollar"
+msgstr "Australischer Dollar"
+
+#: lib/portfolixir/catalog/asset_classes.ex:26
+#, elixir-autogen, elixir-format
+msgid "Bond"
+msgstr "Anleihe"
+
+#: lib/portfolixir/catalog/currencies.ex:48
+#, elixir-autogen, elixir-format
+msgid "Brazilian Real"
+msgstr "Brasilianischer Real"
+
+#: lib/portfolixir/catalog/currencies.ex:55
+#, elixir-autogen, elixir-format
+msgid "British Pence (GBX)"
+msgstr "Britische Pence (GBX)"
+
+#: lib/portfolixir/catalog/currencies.ex:32
+#, elixir-autogen, elixir-format
+msgid "British Pound"
+msgstr "Britisches Pfund"
+
+#: lib/portfolixir/catalog/currencies.ex:36
+#, elixir-autogen, elixir-format
+msgid "Canadian Dollar"
+msgstr "Kanadischer Dollar"
+
+#: lib/portfolixir/catalog/currencies.ex:46
+#, elixir-autogen, elixir-format
+msgid "Chinese Yuan"
+msgstr "Chinesischer Yuan"
+
+#: lib/portfolixir/catalog/feeds.ex:31
+#, elixir-autogen, elixir-format
+msgid "CoinGecko"
+msgstr "CoinGecko"
+
+#: lib/portfolixir/catalog/asset_classes.ex:28
+#, elixir-autogen, elixir-format
+msgid "Commodity"
+msgstr "Rohstoff"
+
+#: lib/portfolixir/catalog/asset_classes.ex:27
+#, elixir-autogen, elixir-format
+msgid "Cryptocurrency"
+msgstr "Kryptowährung"
+
+#: lib/portfolixir/catalog/currencies.ex:42
+#, elixir-autogen, elixir-format
+msgid "Czech Koruna"
+msgstr "Tschechische Krone"
+
+#: lib/portfolixir/catalog/currencies.ex:40
+#, elixir-autogen, elixir-format
+msgid "Danish Krone"
+msgstr "Dänische Krone"
+
+#: lib/portfolixir/catalog/asset_classes.ex:24
+#, elixir-autogen, elixir-format
+msgid "ETF"
+msgstr "ETF"
+
+#: lib/portfolixir/catalog/asset_classes.ex:23
+#, elixir-autogen, elixir-format
+msgid "Equity"
+msgstr "Aktie"
+
+#: lib/portfolixir/catalog/currencies.ex:30
+#, elixir-autogen, elixir-format
+msgid "Euro"
+msgstr "Euro"
+
+#: lib/portfolixir/catalog/asset_classes.ex:25
+#, elixir-autogen, elixir-format
+msgid "Fund"
+msgstr "Fonds"
+
+#: lib/portfolixir/catalog/currencies.ex:44
+#, elixir-autogen, elixir-format
+msgid "Hong Kong Dollar"
+msgstr "Hongkong-Dollar"
+
+#: lib/portfolixir/catalog/currencies.ex:43
+#, elixir-autogen, elixir-format
+msgid "Hungarian Forint"
+msgstr "Ungarischer Forint"
+
+#: lib/portfolixir/catalog/asset_classes.ex:29
+#, elixir-autogen, elixir-format
+msgid "Index"
+msgstr "Index"
+
+#: lib/portfolixir/catalog/currencies.ex:47
+#, elixir-autogen, elixir-format
+msgid "Indian Rupee"
+msgstr "Indische Rupie"
+
+#: lib/portfolixir/catalog/currencies.ex:52
+#, elixir-autogen, elixir-format
+msgid "Israeli Shekel"
+msgstr "Israelischer Schekel"
+
+#: lib/portfolixir/catalog/currencies.ex:34
+#, elixir-autogen, elixir-format
+msgid "Japanese Yen"
+msgstr "Japanischer Yen"
+
+#: lib/portfolixir/catalog/feeds.ex:29
+#, elixir-autogen, elixir-format
+msgid "Manual"
+msgstr "Manuell"
+
+#: lib/portfolixir/catalog/currencies.ex:49
+#, elixir-autogen, elixir-format
+msgid "Mexican Peso"
+msgstr "Mexikanischer Peso"
+
+#: lib/portfolixir/catalog/currencies.ex:37
+#, elixir-autogen, elixir-format
+msgid "New Zealand Dollar"
+msgstr "Neuseeland-Dollar"
+
+#: lib/portfolixir/catalog/feeds.ex:28
+#, elixir-autogen, elixir-format
+msgid "None"
+msgstr "Keine"
+
+#: lib/portfolixir/catalog/currencies.ex:39
+#, elixir-autogen, elixir-format
+msgid "Norwegian Krone"
+msgstr "Norwegische Krone"
+
+#: lib/portfolixir/catalog/currencies.ex:41
+#, elixir-autogen, elixir-format
+msgid "Polish Złoty"
+msgstr "Polnischer Złoty"
+
+#: lib/portfolixir/catalog/feeds.ex:30
+#, elixir-autogen, elixir-format
+msgid "Portfolio Performance"
+msgstr "Portfolio Performance"
+
+#: lib/portfolixir/catalog/currencies.ex:45
+#, elixir-autogen, elixir-format
+msgid "Singapore Dollar"
+msgstr "Singapur-Dollar"
+
+#: lib/portfolixir/catalog/currencies.ex:50
+#, elixir-autogen, elixir-format
+msgid "South African Rand"
+msgstr "Südafrikanischer Rand"
+
+#: lib/portfolixir/catalog/currencies.ex:53
+#, elixir-autogen, elixir-format
+msgid "South Korean Won"
+msgstr "Südkoreanischer Won"
+
+#: lib/portfolixir/catalog/currencies.ex:38
+#, elixir-autogen, elixir-format
+msgid "Swedish Krona"
+msgstr "Schwedische Krone"
+
+#: lib/portfolixir/catalog/currencies.ex:33
+#, elixir-autogen, elixir-format
+msgid "Swiss Franc"
+msgstr "Schweizer Franken"
+
+#: lib/portfolixir/catalog/currencies.ex:54
+#, elixir-autogen, elixir-format
+msgid "Taiwan Dollar"
+msgstr "Taiwan-Dollar"
+
+#: lib/portfolixir/catalog/currencies.ex:51
+#, elixir-autogen, elixir-format
+msgid "Turkish Lira"
+msgstr "Türkische Lira"
+
+#: lib/portfolixir/catalog/currencies.ex:31
+#, elixir-autogen, elixir-format
+msgid "US Dollar"
+msgstr "US-Dollar"
