@@ -82,7 +82,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <select name="transaction[security_id]" required>
                     <option value=""><%= gettext("Select security") %></option>
                     <%= for security <- @securities do %>
-                      <option value={security.id}><%= security.name %> (<%= security.symbol %>)</option>
+                      <option value={security.id}><%= security.name %> (<%= security.ticker_symbol %>)</option>
                     <% end %>
                   </select>
                 </label>
@@ -246,7 +246,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp position_rows(positions, securities_accounts, securities) do
     securities_account_names = Map.new(securities_accounts, &{&1.id, &1.name})
-    security_names = Map.new(securities, &{&1.id, "#{&1.name} (#{&1.symbol})"})
+    security_names = Map.new(securities, &{&1.id, "#{&1.name} (#{&1.ticker_symbol})"})
 
     positions
     |> Enum.map(fn {{securities_account_id, security_id}, quantity} ->
