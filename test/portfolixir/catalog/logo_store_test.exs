@@ -10,7 +10,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
   # - Successful PNG download is written to
   #   `<storage_dir>/<security_id>.png` and the security's
   #   `attributes["logo_path"]` + `attributes["logo_source"]` are updated.
-  # - Content types outside the allowlist (png/jpg/jpeg/svg/webp) are
+  # - Content types outside the allowlist (png/jpg/jpeg/webp) are
   #   refused.
   # - Files larger than the configured max size are refused.
   # - Network/HTTP errors return `{:error, _}` and do not touch the DB.
@@ -85,6 +85,23 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
              )
 
     refute File.exists?(Path.join(tmp, "#{sec.id}.png"))
+    refute Repo.get!(Security, sec.id).attributes["logo_path"]
+  end
+
+  test "refuses SVG content and leaves the security untouched",
+       %{tmp: tmp, security: sec} do
+    svg = ~S|<svg xmlns="http://www.w3.org/2000/svg"><script>alert("x")</script></svg>|
+
+    assert {:error, :unsupported_content_type} =
+             LogoStore.download_and_store(
+               sec,
+               "https://example.test/logo.svg",
+               :wikipedia,
+               req: png_stub(svg, "image/svg+xml"),
+               storage_dir: tmp
+             )
+
+    refute File.exists?(Path.join(tmp, "#{sec.id}.svg"))
     refute Repo.get!(Security, sec.id).attributes["logo_path"]
   end
 
