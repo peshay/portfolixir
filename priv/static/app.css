@@ -1976,6 +1976,60 @@ img.security-logo {
   font-size: 13px;
 }
 
+.detail-pane-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--color-border);
+  margin: 0;
+  overflow-x: auto;
+}
+
+.detail-pane-tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.detail-pane-tab:hover {
+  color: var(--color-text);
+  background: var(--color-hover);
+  filter: none;
+}
+
+.detail-pane-tab.is-active,
+.detail-pane-tab[aria-selected="true"] {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
+}
+
+.detail-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detail-tab-panel--placeholder {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-tab-empty {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
 .detail-pane-toolbar {
   display: flex;
   flex-wrap: wrap;
