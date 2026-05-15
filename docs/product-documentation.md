@@ -1,6 +1,12 @@
+---
+layout: docs
+title: Product Documentation
+description: Portfolixir app handbook for current local portfolio tracking behavior.
+---
+
 # Product Documentation
 
-## Positioning and scope
+## Overview
 
 Portfolixir is a self-hosted, local-first Phoenix application for managing a
 single portfolio workflow. It is intentionally narrow:
@@ -12,7 +18,7 @@ single portfolio workflow. It is intentionally narrow:
 - No broker sync, bank sync, trading engine, payment flow, order flow, rebalancing,
   document ingestion, or AI-assisted behavior.
 
-## Product modules in practice
+## Product Modules
 
 The codebase is split into three local domain modules plus the web layer:
 
@@ -31,7 +37,10 @@ The codebase is split into three local domain modules plus the web layer:
 - `mcp-server/`
   - TypeScript MCP companion that wraps the JSON API
 
-## Core workflow
+Integration details for `/api/v1` and `mcp-server/` are documented separately in
+[API and MCP](integration/api-and-mcp.html).
+
+## Core Workflow
 
 1. Create one or more securities with basic identifying data.
 2. Create a portfolio.
@@ -41,21 +50,21 @@ The codebase is split into three local domain modules plus the web layer:
 6. Record security quotes over time and keep history for reproducible charts.
 7. Review current holdings and quote chart behavior directly in the app.
 
-## Features explained
-
-### Securities
+## Securities
 
 Each security is a first-class object with stable identity fields and market metadata.
 They are the basis for all transaction and holdings calculations.
 
-### Portfolio and accounts
+## Portfolios and Accounts
 
 The portfolio owns one working set of account models:
 
 - cash account: tracks available liquidity context
 - depot/account: stores security positions linked to that cash account
 
-### Manual transactions
+## Transactions and Holdings
+
+### Manual Transactions
 
 Transactions are explicit and auditable. A transaction defines:
 
@@ -66,12 +75,14 @@ Transactions are explicit and auditable. A transaction defines:
 - unit price (Decimal)
 - optional taxes, fees, and notes
 
-### Holdings calculation
+### Holdings Calculation
 
 Current holdings are not entered manually. They are derived from all
 transactions over time, so the state is reproducible and traceable.
 
-### Quote history
+## Quotes and Charts
+
+### Quote History
 
 Each quote entry captures a date and a Decimal close. Price history is
 persisted so security detail charts are built from local records.
@@ -101,7 +112,7 @@ monthly for long-history tickers.
 
 Securities whose `provider` is unrecognised are skipped silently.
 
-### Security detail chart
+### Security Detail Chart
 
 Clicking a row in the securities list opens `/securities/:id`. The detail
 page shows a server-rendered SVG price chart with:
@@ -111,17 +122,6 @@ page shows a server-rendered SVG price chart with:
 - A *Show transactions* toggle that overlays Buy/Sell markers from the
   ledger.
 - A *Sync prices for this security* button.
-
-### API and MCP companion
-
-The JSON API lives under `/api/v1` and requires a local bearer token from
-`PORTFOLIXIR_API_TOKEN`. It exposes the supported local workflow: securities,
-online search, quote sync/history, portfolios, accounts, transactions, and
-holdings.
-
-The MCP companion lives in `mcp-server/`. It is intentionally a thin wrapper
-around the JSON API, supports local stdio usage and a Streamable HTTP companion
-mode, and can be run through Docker Compose or installed separately with npm.
 
 ## Interface behavior
 

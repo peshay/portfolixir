@@ -1,3 +1,9 @@
+---
+layout: docs
+title: Story Workflow
+description: Test-first story workflow for Portfolixir contributors.
+---
+
 # Story Workflow
 
 Portfolixir changes are developed as small, reviewed stories. Keep story scope
