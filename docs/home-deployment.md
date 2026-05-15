@@ -1,3 +1,9 @@
+---
+layout: docs
+title: Home Deployment
+description: Local Docker Compose setup for running Portfolixir at home.
+---
+
 # Home Deployment
 
 Portfolixir is a local self-hosted application. For a small home setup, run it
