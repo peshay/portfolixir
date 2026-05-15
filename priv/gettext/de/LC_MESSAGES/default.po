@@ -208,7 +208,7 @@ msgstr "Workflow-Pfad"
 #: lib/portfolixir_web/components/app_shell.ex:335
 #, elixir-autogen
 msgid "Teal"
-msgstr "Türkis"
+msgstr "Petrol"
 
 #: lib/portfolixir_web/components/app_shell.ex:334
 #, elixir-autogen
