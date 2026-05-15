@@ -1,0 +1,34 @@
+- title: Home
+  items:
+    - title: Home
+      url: /index.html
+
+- title: App Handbook
+  items:
+    - title: Overview
+      url: /product-documentation.html
+    - title: Securities
+      url: /product-documentation.html#securities
+    - title: Portfolios and Accounts
+      url: /product-documentation.html#portfolios-and-accounts
+    - title: Transactions and Holdings
+      url: /product-documentation.html#transactions-and-holdings
+    - title: Quotes and Charts
+      url: /product-documentation.html#quotes-and-charts
+
+- title: Operations
+  items:
+    - title: Home Deployment
+      url: /home-deployment.html
+
+- title: Integration
+  items:
+    - title: API and MCP
+      url: /integration/api-and-mcp.html
+
+- title: Development
+  items:
+    - title: Story Workflow
+      url: /development/story-workflow.html
+    - title: Development Guide
+      url: /development/guide.html

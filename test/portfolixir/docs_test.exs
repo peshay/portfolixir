@@ -9,6 +9,15 @@ defmodule Portfolixir.DocsTest do
     "docs/home-deployment.md"
   ]
 
+  @public_doc_files [
+    "docs/index.md",
+    "docs/product-documentation.md",
+    "docs/home-deployment.md",
+    "docs/integration/api-and-mcp.md",
+    "docs/development/story-workflow.md",
+    "docs/development/guide.md"
+  ]
+
   @process_claims [
     "staging review",
     "human-reviewed " <> "Epics on staging",
@@ -124,6 +133,139 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
+  # As a public reader using portfolixir.app,
+  # I want every public documentation page to render inside one handbook layout with HTML navigation,
+  # so that I can move between app, operations, and development docs without landing on raw Markdown.
+  #
+  # Acceptance criteria:
+  # - Public docs pages use the shared Jekyll docs layout.
+  # - The docs navigation is data-driven and groups app, operations, and development pages.
+  # - Public docs content links to rendered .html pages instead of raw .md files.
+  # - The docs stylesheet defines the responsive sidebar layout and Portfolixir accent tokens.
+  test "public docs use a shared handbook layout with rendered html navigation" do
+    layout = File.read!("docs/_layouts/docs.html")
+    navigation = File.read!("docs/_data/navigation.yml")
+    docs_css = File.read!("docs/styles.css")
+
+    for doc_file <- @public_doc_files do
+      assert File.read!(doc_file) =~ ~r/\A---\nlayout: docs\n/
+    end
+
+    assert layout =~ "site.data.navigation"
+    assert layout =~ "docs-sidebar"
+    assert layout =~ "docs-mobile-nav"
+    assert layout =~ "{{ content }}"
+
+    for expected <- [
+          "title: Home",
+          "title: App Handbook",
+          "title: Overview",
+          "title: Securities",
+          "title: Portfolios and Accounts",
+          "title: Transactions and Holdings",
+          "title: Quotes and Charts",
+          "title: Operations",
+          "title: Home Deployment",
+          "title: Integration",
+          "title: API and MCP",
+          "title: Development",
+          "title: Story Workflow",
+          "title: Development Guide"
+        ] do
+      assert navigation =~ expected
+    end
+
+    for expected <- [
+          "url: /index.html",
+          "url: /product-documentation.html",
+          "url: /product-documentation.html#securities",
+          "url: /home-deployment.html",
+          "url: /integration/api-and-mcp.html",
+          "url: /development/story-workflow.html",
+          "url: /development/guide.html"
+        ] do
+      assert navigation =~ expected
+    end
+
+    docs_text =
+      @public_doc_files
+      |> Enum.map(&File.read!/1)
+      |> Enum.join("\n")
+
+    refute docs_text =~ ~r/\]\([^)\n]+\.md(?:#[^)\n]+)?\)/
+    refute docs_text =~ ~r/href=["'][^"']+\.md(?:#[^"']*)?["']/
+
+    for selector <- [
+          ".docs-layout",
+          ".docs-sidebar",
+          ".docs-mobile-nav",
+          ".docs-main",
+          ".docs-content"
+        ] do
+      assert docs_css =~ selector
+    end
+
+    for token <- [
+          "--color-accent-violet: #7c3aed",
+          "--color-accent-teal: #0f766e",
+          "--color-accent-coral: #e11d48"
+        ] do
+      assert docs_css =~ token
+    end
+  end
+
+  # User story:
+  # As a local integrator using Portfolixir from another tool,
+  # I want API and MCP documentation in its own section with the current routes and tools,
+  # so that integrations can use the supported local contract without reading source files.
+  #
+  # Acceptance criteria:
+  # - The docs layout serves light and dark logo assets through a theme-aware picture element.
+  # - The navigation exposes API and MCP as an Integration section.
+  # - The API and MCP page documents authentication, string decimals, every current /api/v1 route,
+  #   and every current MCP tool.
+  # - The product handbook links to the Integration page instead of embedding the endpoint reference.
+  test "integration docs document api routes, mcp tools, and theme-aware logos" do
+    layout = File.read!("docs/_layouts/docs.html")
+    navigation = File.read!("docs/_data/navigation.yml")
+    api_docs = File.read!("docs/integration/api-and-mcp.md")
+    normalized_api_docs = String.replace(api_docs, ~r/\s+/, " ")
+    product_docs = File.read!("docs/product-documentation.md")
+
+    assert File.exists?("docs/assets/logo-light.svg")
+    assert File.exists?("docs/assets/logo-dark.svg")
+    assert layout =~ "<picture"
+    assert layout =~ "prefers-color-scheme: dark"
+    assert layout =~ "logo-dark.svg"
+    assert layout =~ "logo-light.svg"
+
+    assert navigation =~ "title: Integration"
+    assert navigation =~ "title: API and MCP"
+    assert navigation =~ "url: /integration/api-and-mcp.html"
+
+    assert product_docs =~ "[API and MCP](integration/api-and-mcp.html)"
+    refute product_docs =~ "## API and MCP"
+
+    for expected <- [
+          "Authorization: Bearer <PORTFOLIXIR_API_TOKEN>",
+          "`PORTFOLIXIR_API_TOKEN`",
+          "`PORTFOLIXIR_MCP_TOKEN`",
+          "Financial decimals are serialized as strings",
+          "MCP tools call the JSON API only"
+        ] do
+      assert normalized_api_docs =~ expected
+    end
+
+    for route <- api_routes_from_router() do
+      assert api_docs =~ route
+    end
+
+    for tool <- mcp_tools_from_source() do
+      assert api_docs =~ tool
+    end
+  end
+
+  # User story:
   # As a public reader of the Portfolixir docs,
   # I want the documentation page to use the same Portfolixir theme accents as the app,
   # so that the project identity is consistent across app and docs.
@@ -135,10 +277,11 @@ defmodule Portfolixir.DocsTest do
   # - The docs landing page keeps the visible scope focused on local portfolio tracking.
   test "public docs landing page uses the shared light and dark design palette" do
     docs_index = File.read!("docs/index.md")
+    docs_layout = File.read!("docs/_layouts/docs.html")
     docs_css = File.read!("docs/styles.css")
     app_css = File.read!("priv/static/app.css")
 
-    assert docs_index =~ ~s(href="styles.css")
+    assert docs_layout =~ "styles.css"
     assert docs_index =~ "Portfolixir"
     assert docs_index =~ "Local portfolio tracking"
     assert docs_index =~ "Theme, Accent, and Language"
@@ -159,5 +302,28 @@ defmodule Portfolixir.DocsTest do
 
     assert docs_css =~ "@media (prefers-color-scheme: dark)"
     assert docs_css =~ ".docs-shell"
+  end
+
+  defp api_routes_from_router do
+    router = File.read!("lib/portfolixir_web/router.ex")
+
+    ~r/\b(get|post|put|patch|delete)\("([^"]+)"/
+    |> Regex.scan(router)
+    |> Enum.map(fn
+      [_, verb, "/health"] ->
+        "#{String.upcase(verb)} /health"
+
+      [_, verb, path] ->
+        "#{String.upcase(verb)} /api/v1#{path}"
+    end)
+    |> Enum.reject(&(&1 == "GET /health"))
+  end
+
+  defp mcp_tools_from_source do
+    tools = File.read!("mcp-server/src/tools.ts")
+
+    ~r/tool\("([^"]+)"/
+    |> Regex.scan(tools)
+    |> Enum.map(fn [_, tool] -> tool end)
   end
 end
