@@ -22,7 +22,12 @@ defmodule PortfolixirWeb.LayoutView do
             if (["system", "light", "dark"].indexOf(mode) === -1) {
               mode = "system";
             }
+            var accent = window.localStorage && window.localStorage.getItem("portfolixir-accent");
+            if (["violet", "teal", "coral"].indexOf(accent) === -1) {
+              accent = "violet";
+            }
             document.documentElement.dataset.theme = mode;
+            document.documentElement.dataset.accent = accent;
           })();
         </script>
         <link rel="stylesheet" href="/app.css" />
@@ -82,10 +87,16 @@ defmodule PortfolixirWeb.LayoutView do
         <script id="theme-control-script">
           (function () {
             var allowedModes = ["system", "light", "dark"];
+            var allowedAccents = ["violet", "teal", "coral"];
 
             function currentMode() {
               var stored = window.localStorage && window.localStorage.getItem("portfolixir-theme");
               return allowedModes.indexOf(stored) === -1 ? "system" : stored;
+            }
+
+            function currentAccent() {
+              var stored = window.localStorage && window.localStorage.getItem("portfolixir-accent");
+              return allowedAccents.indexOf(stored) === -1 ? "violet" : stored;
             }
 
             function applyTheme(mode) {
@@ -101,6 +112,19 @@ defmodule PortfolixirWeb.LayoutView do
               syncControls(mode);
             }
 
+            function applyAccent(accent) {
+              if (allowedAccents.indexOf(accent) === -1) {
+                accent = "violet";
+              }
+
+              if (window.localStorage) {
+                window.localStorage.setItem("portfolixir-accent", accent);
+              }
+
+              document.documentElement.dataset.accent = accent;
+              syncAccentControls(accent);
+            }
+
             function syncControls(mode) {
               document.querySelectorAll("[data-theme-control]").forEach(function (container) {
                 container.dataset.currentTheme = mode;
@@ -108,6 +132,18 @@ defmodule PortfolixirWeb.LayoutView do
 
               document.querySelectorAll("[data-theme-control] [data-theme-choice]").forEach(function (control) {
                 var active = control.dataset.themeChoice === mode;
+                control.classList.toggle("is-active", active);
+                control.setAttribute("aria-pressed", active ? "true" : "false");
+              });
+            }
+
+            function syncAccentControls(accent) {
+              document.querySelectorAll("[data-accent-control]").forEach(function (container) {
+                container.dataset.currentAccent = accent;
+              });
+
+              document.querySelectorAll("[data-accent-control] [data-accent-choice]").forEach(function (control) {
+                var active = control.dataset.accentChoice === accent;
                 control.classList.toggle("is-active", active);
                 control.setAttribute("aria-pressed", active ? "true" : "false");
               });
@@ -127,8 +163,27 @@ defmodule PortfolixirWeb.LayoutView do
                 return;
               }
 
+              var accentControl = event.target && event.target.closest("[data-accent-choice]");
+
+              if (accentControl) {
+                applyAccent(accentControl.dataset.accentChoice);
+
+                var accentMenu = accentControl.closest("details");
+                if (accentMenu) {
+                  accentMenu.removeAttribute("open");
+                }
+
+                return;
+              }
+
               if (event.target && !event.target.closest("[data-theme-control]")) {
                 document.querySelectorAll("[data-theme-control][open]").forEach(function (menu) {
+                  menu.removeAttribute("open");
+                });
+              }
+
+              if (event.target && !event.target.closest("[data-accent-control]")) {
+                document.querySelectorAll("[data-accent-control][open]").forEach(function (menu) {
                   menu.removeAttribute("open");
                 });
               }
@@ -136,9 +191,11 @@ defmodule PortfolixirWeb.LayoutView do
 
             document.addEventListener("DOMContentLoaded", function () {
               syncControls(currentMode());
+              syncAccentControls(currentAccent());
             });
             document.addEventListener("phx:update", function () {
               syncControls(currentMode());
+              syncAccentControls(currentAccent());
             });
           })();
         </script>

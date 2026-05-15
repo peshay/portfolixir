@@ -24,9 +24,9 @@
   <section class="docs-panel">
     <h2>Current Scope</h2>
     <p>
-      The application is intentionally scoped as a reboot foundation for one local
-      portfolio workflow. The aim is to stay small, auditable, and deterministic
-      before adding larger features in future epics.
+      The application is intentionally scoped to local portfolio records. The aim
+      is to stay small, auditable, deterministic, and available through the UI,
+      JSON API, and MCP companion.
     </p>
     <p>
       Open the full product walkthrough in <a href="product-documentation.md">Product documentation</a>
@@ -57,12 +57,21 @@
     </article>
 
     <article class="docs-card">
-      <h2>Theme and Language</h2>
+      <h2>Theme, Accent, and Language</h2>
       <p>
-        The UI supports System, Light, and Dark themes, and English and German
-        language switching. The initial state follows the browser language and
-        system theme. Language and themes are runtime preferences and do not affect
-        persisted domain data.
+        The UI supports System, Light, and Dark themes, Violet, Teal, and Coral
+        accent choices, and English and German language switching. The initial
+        state follows the browser language and system theme. Language, theme, and
+        accent are runtime preferences and do not affect persisted domain data.
+      </p>
+    </article>
+
+    <article class="docs-card">
+      <h2>API and MCP</h2>
+      <p>
+        Supported local actions are available through `/api/v1`. The companion
+        MCP server lives in the repository under `mcp-server/` and wraps that API
+        so MCP clients use the same application contract as other integrations.
       </p>
     </article>
 

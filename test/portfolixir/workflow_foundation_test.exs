@@ -1,4 +1,4 @@
-defmodule Portfolixir.MVPFoundationTest do
+defmodule Portfolixir.WorkflowFoundationTest do
   use Portfolixir.DataCase
 
   alias Portfolixir.Catalog
@@ -27,7 +27,7 @@ defmodule Portfolixir.MVPFoundationTest do
 
       assert {:ok, portfolio} =
                Portfolios.create_portfolio(%{
-                 name: "MVP Portfolio",
+                 name: "Local Portfolio",
                  base_currency_code: "EUR"
                })
 
@@ -98,7 +98,7 @@ defmodule Portfolixir.MVPFoundationTest do
     # - A depot from one portfolio cannot be combined with a cash account from another portfolio.
     # - Existing holdings calculation still reflects buy and sell quantities.
     test "transactions derive the depot-linked cash account and reject cash account mismatches" do
-      {portfolio, security, linked_cash_account, depot} = create_minimal_trade_setup("MVP")
+      {portfolio, security, linked_cash_account, depot} = create_minimal_trade_setup("Main")
 
       {_other_portfolio, _other_security, other_cash_account, _other_depot} =
         create_minimal_trade_setup("Other")
@@ -159,8 +159,8 @@ defmodule Portfolixir.MVPFoundationTest do
 
     # User story:
     # As a local portfolio maintainer,
-    # I want the reboot ledger to accept only manual buy and sell transactions,
-    # so that deferred income, import, payment, and broker behaviors stay out of the MVP.
+    # I want the ledger to accept only manual buy and sell transactions,
+    # so that deferred income, import, payment, and broker behaviors stay out of scope.
     #
     # Acceptance criteria:
     # - Unsupported transaction types are rejected by the changeset.
