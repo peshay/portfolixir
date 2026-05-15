@@ -5,6 +5,15 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
   alias Portfolixir.Catalog
 
+  defmodule RaisingAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+    @impl true
+    def id, do: :raising
+    @impl true
+    def fetch(_security, _opts), do: raise("boom")
+  end
+
   describe "list view" do
     test "renders empty-state when no securities exist", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/securities")
@@ -309,6 +318,51 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "exposes a Sync prices toolbar button", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/securities")
       assert has_element?(view, "button#sync-prices")
+    end
+
+    test "Sync prices recovers even if the background sync raises",
+         %{conn: conn} do
+      # User story:
+      # As a local portfolio maintainer,
+      # I want the Sync-prices button to recover when the background sync
+      # crashes (adapter exception, DB blip, …),
+      # so I don't have to reload the page to try again.
+      #
+      # The handler must guarantee `:sync_done` delivery (try/after) so
+      # the busy flag clears even when QuoteSync.sync_all/0 raises.
+      {:ok, _sec} =
+        Catalog.create_security(%{name: "Crashy", currency_code: "USD", provider: "manual"})
+
+      prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
+
+      Application.put_env(
+        :portfolixir,
+        Portfolixir.Catalog.QuoteSync,
+        Keyword.put(prior_cfg, :adapter_for, %{"manual" => RaisingAdapter})
+      )
+
+      try do
+        {:ok, view, _html} = live(conn, "/securities")
+
+        ExUnit.CaptureLog.with_log(fn ->
+          view |> element("button#sync-prices") |> render_click()
+
+          # Poll for the busy flag to clear (try/after delivers :sync_done
+          # even after the inner raise).
+          Enum.reduce_while(1..50, :ok, fn _i, _acc ->
+            if has_element?(view, "button#sync-prices[disabled]") do
+              Process.sleep(20)
+              {:cont, :ok}
+            else
+              {:halt, :ok}
+            end
+          end)
+
+          refute has_element?(view, "button#sync-prices[disabled]")
+        end)
+      after
+        Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
+      end
     end
 
     test "rows are navigable to the detail page", %{conn: conn, apple: apple} do
