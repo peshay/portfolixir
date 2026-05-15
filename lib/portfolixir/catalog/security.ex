@@ -71,6 +71,19 @@ defmodule Portfolixir.Catalog.Security do
     |> unique_constraint(:isin, name: :securities_isin_unique_index)
   end
 
+  def delete_changeset(security) do
+    security
+    |> change()
+    |> foreign_key_constraint(:id,
+      name: :transactions_security_id_fkey,
+      message: "is referenced by existing records"
+    )
+    |> foreign_key_constraint(:id,
+      name: :security_quotes_security_id_fkey,
+      message: "is referenced by existing records"
+    )
+  end
+
   def asset_classes, do: AssetClasses.codes()
   def providers, do: @providers
 

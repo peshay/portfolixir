@@ -28,11 +28,13 @@ export function isAuthorizedMcpRequest(
   authorization: string | undefined,
   configuredToken: string | undefined
 ): boolean {
-  if (!configuredToken) {
-    return true;
+  const token = configuredToken?.trim();
+
+  if (!token) {
+    return false;
   }
 
-  return authorization === `Bearer ${configuredToken}`;
+  return authorization === `Bearer ${token}`;
 }
 
 export async function startHttpServer(options: HttpServerOptions): Promise<void> {
