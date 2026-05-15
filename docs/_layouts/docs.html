@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="{{ page.lang | default: 'en' }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if page.title %}{{ page.title }} | {% endif %}Portfolixir Docs</title>
+    <meta
+      name="description"
+      content="{{ page.description | default: 'Portfolixir documentation for local portfolio tracking.' }}"
+    >
+    <link rel="stylesheet" href="{{ '/styles.css' | relative_url }}">
+  </head>
+  <body>
+    {% assign current_url = page.url %}
+    {% if current_url == '/' %}
+      {% assign current_url = '/index.html' %}
+    {% endif %}
+
+    <div class="docs-shell docs-layout">
+      <aside class="docs-sidebar" aria-label="Documentation navigation">
+        <a class="docs-brand" href="{{ '/index.html' | relative_url }}">
+          <picture>
+            <source
+              srcset="{{ '/assets/logo-dark.svg' | relative_url }}"
+              media="(prefers-color-scheme: dark)"
+            >
+            <img src="{{ '/assets/logo-light.svg' | relative_url }}" alt="Portfolixir" class="docs-logo">
+          </picture>
+        </a>
+
+        <nav class="docs-nav" aria-label="Documentation">
+          {% for group in site.data.navigation %}
+            <section class="docs-nav-group" aria-labelledby="docs-nav-{{ forloop.index }}">
+              <h2 class="docs-nav-heading" id="docs-nav-{{ forloop.index }}">{{ group.title }}</h2>
+              <ul class="docs-nav-list">
+                {% for item in group.items %}
+                  {% assign item_page_url = item.url | split: '#' | first %}
+                  {% assign active_class = '' %}
+                  {% if current_url == item.url %}
+                    {% assign active_class = ' is-active' %}
+                  {% elsif current_url == item_page_url and item.url == item_page_url %}
+                    {% assign active_class = ' is-active' %}
+                  {% endif %}
+                  <li>
+                    <a
+                      class="docs-nav-link{{ active_class }}"
+                      href="{{ item.url | relative_url }}"
+                    >{{ item.title }}</a>
+                  </li>
+                {% endfor %}
+              </ul>
+            </section>
+          {% endfor %}
+        </nav>
+      </aside>
+
+      <div class="docs-main">
+        <header class="docs-topbar">
+          <a class="docs-topbar-brand" href="{{ '/index.html' | relative_url }}">
+            <picture>
+              <source
+                srcset="{{ '/assets/logo-dark.svg' | relative_url }}"
+                media="(prefers-color-scheme: dark)"
+              >
+              <img src="{{ '/assets/logo-light.svg' | relative_url }}" alt="Portfolixir" class="docs-logo">
+            </picture>
+          </a>
+          <nav class="docs-mobile-nav" aria-label="Documentation sections">
+            <details>
+              <summary>Documentation</summary>
+              {% for group in site.data.navigation %}
+                <section class="docs-mobile-group">
+                  <h2 class="docs-mobile-heading">{{ group.title }}</h2>
+                  <ul class="docs-mobile-list">
+                  {% for item in group.items %}
+                    {% assign item_page_url = item.url | split: '#' | first %}
+                    {% assign active_class = '' %}
+                    {% if current_url == item.url %}
+                      {% assign active_class = ' is-active' %}
+                    {% elsif current_url == item_page_url and item.url == item_page_url %}
+                      {% assign active_class = ' is-active' %}
+                    {% endif %}
+                    <li>
+                      <a
+                        class="docs-mobile-link{{ active_class }}"
+                        href="{{ item.url | relative_url }}"
+                      >{{ item.title }}</a>
+                    </li>
+                  {% endfor %}
+                  </ul>
+                </section>
+              {% endfor %}
+            </details>
+          </nav>
+        </header>
+
+        <main class="docs-content" id="content">
+          {{ content }}
+        </main>
+
+        <footer class="docs-footer">
+          Portfolixir is local-first documentation for auditable portfolio records.
+        </footer>
+      </div>
+    </div>
+  </body>
+</html>

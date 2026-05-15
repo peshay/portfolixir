@@ -1,3 +1,9 @@
+---
+layout: docs
+title: Development Guide
+description: Local development guide for Portfolixir contributors.
+---
+
 # Development documentation
 
 ## Purpose
@@ -26,7 +32,10 @@ Run before opening a PR:
 
 - `mix format`
 - `mix test`
+- `mix coveralls`
 - `pre-commit run --all-files`
+- `npm test --prefix mcp-server`
+- `npm run build --prefix mcp-server`
 
 If pre-commit is not installed:
 
@@ -41,5 +50,5 @@ If pre-commit is not installed:
 
 ## Cross-links
 
-- [Home Deployment](../home-deployment.md)
-- [Story Workflow](./story-workflow.md)
+- [Home Deployment](../home-deployment.html)
+- [Story Workflow](story-workflow.html)
