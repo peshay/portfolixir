@@ -9,7 +9,7 @@ defmodule Portfolixir.Catalog.LogoStore do
   `"wikipedia"`).
 
   Defensive checks:
-    * Content-Type must be one of png / jpg / jpeg / svg+xml / webp.
+    * Content-Type must be one of png / jpg / jpeg / webp.
     * Body must be at most `:max_bytes` (default 256 KiB).
   """
 
@@ -21,7 +21,6 @@ defmodule Portfolixir.Catalog.LogoStore do
     "image/png" => "png",
     "image/jpeg" => "jpg",
     "image/jpg" => "jpg",
-    "image/svg+xml" => "svg",
     "image/webp" => "webp"
   }
 
