@@ -15,6 +15,11 @@ defmodule PortfolixirWeb.Router do
     plug(:accepts, ["json"])
   end
 
+  pipeline :api_auth do
+    plug(:accepts, ["json"])
+    plug(PortfolixirWeb.ApiAuthPlug)
+  end
+
   scope "/", PortfolixirWeb do
     pipe_through(:browser)
 
@@ -31,5 +36,33 @@ defmodule PortfolixirWeb.Router do
     pipe_through(:api)
 
     get("/health", HealthController, :show)
+  end
+
+  scope "/api/v1", PortfolixirWeb.Api.V1 do
+    pipe_through(:api_auth)
+
+    get("/securities/search", SecuritySearchController, :index)
+    get("/securities", SecurityController, :index)
+    post("/securities", SecurityController, :create)
+    get("/securities/:id", SecurityController, :show)
+    patch("/securities/:id", SecurityController, :update)
+    delete("/securities/:id", SecurityController, :delete)
+
+    get("/securities/:security_id/quotes", QuoteController, :index)
+    put("/securities/:security_id/quotes", QuoteController, :upsert)
+    post("/securities/:security_id/sync_quotes", QuoteController, :sync)
+
+    get("/portfolios", PortfolioController, :index)
+    post("/portfolios", PortfolioController, :create)
+    get("/portfolios/:portfolio_id/holdings", HoldingController, :index)
+
+    get("/cash_accounts", CashAccountController, :index)
+    post("/cash_accounts", CashAccountController, :create)
+
+    get("/securities_accounts", SecuritiesAccountController, :index)
+    post("/securities_accounts", SecuritiesAccountController, :create)
+
+    get("/transactions", TransactionController, :index)
+    post("/transactions", TransactionController, :create)
   end
 end

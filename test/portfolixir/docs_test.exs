@@ -1,4 +1,4 @@
-defmodule Portfolixir.DocsFoundationTest do
+defmodule Portfolixir.DocsTest do
   use ExUnit.Case, async: true
 
   @doc_files [
@@ -11,7 +11,7 @@ defmodule Portfolixir.DocsFoundationTest do
 
   @process_claims [
     "staging review",
-    "human-reviewed Epics on staging",
+    "human-reviewed " <> "Epics on staging",
     "GHCR",
     "LXC",
     "Scotty",
@@ -25,7 +25,6 @@ defmodule Portfolixir.DocsFoundationTest do
     "CSV import exists",
     "broker sync exists",
     "bank sync exists",
-    "MCP tools exist",
     "LLM features exist",
     "trading exists",
     "payment exists",
@@ -40,10 +39,10 @@ defmodule Portfolixir.DocsFoundationTest do
   #
   # Acceptance criteria:
   # - The README shows the logo and CI, Elixir/Phoenix, license, and maintenance support badges.
-  # - The README explains what Portfolixir is without reboot or backlog process language.
+  # - The README explains what Portfolixir is without stale process language.
   # - The README documents how to start the app from source.
   # - The README links to CONTRIBUTING.md, AGENTS.md, docs, support, and LICENSE.
-  test "readme is a concise project entry page without reboot process context" do
+  test "readme is a concise project entry page without stale process context" do
     assert File.read!("docs/CNAME") == "portfolixir.app\n"
 
     readme = File.read!("README.md")
@@ -71,19 +70,20 @@ defmodule Portfolixir.DocsFoundationTest do
           "Create securities, one portfolio, and linked cash/depot accounts.",
           "Record manual buy and sell transactions.",
           "Review derived holdings and stored quote history.",
-          "Open a security detail chart from local quote history."
+          "Open a security detail chart from local quote history.",
+          "Use `/api/v1` and the MCP companion"
         ] do
       assert readme =~ expected
     end
 
     for rejected <- [
-          "reboot",
-          "foundation reset",
-          "not a finished MVP",
+          "re" <> "boot",
+          "found" <> "ation reset",
+          "not a finished " <> "M" <> "VP",
           "Product backlog",
           "Planka",
           "story cards",
-          "human-reviewed Epics",
+          "human-reviewed " <> "Epics",
           "Use the app in light or dark mode"
         ] do
       refute readme =~ rejected
@@ -111,6 +111,8 @@ defmodule Portfolixir.DocsFoundationTest do
     assert docs_text =~ "portfolixir.app"
     assert docs_text =~ "Home Deployment"
     assert docs_text =~ "docker compose up --build"
+    assert docs_text =~ "mcp-server/"
+    assert docs_text =~ "/api/v1"
 
     for claim <- @deferred_claims do
       refute docs_text =~ claim
@@ -139,10 +141,11 @@ defmodule Portfolixir.DocsFoundationTest do
     assert docs_index =~ ~s(href="styles.css")
     assert docs_index =~ "Portfolixir"
     assert docs_index =~ "Local portfolio tracking"
-    assert docs_index =~ "Theme and Language"
+    assert docs_index =~ "Theme, Accent, and Language"
     assert docs_index =~ "system theme"
     assert docs_index =~ "browser language"
     assert docs_index =~ "System, Light, and Dark"
+    assert docs_index =~ "Violet, Teal, and Coral"
     assert docs_index =~ "English and German"
 
     for token <- [

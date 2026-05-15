@@ -1,8 +1,8 @@
-defmodule Portfolixir.CIFoundationTest do
+defmodule Portfolixir.CITest do
   use ExUnit.Case, async: true
 
   # User story:
-  # As a maintainer keeping the reboot foundation simple,
+  # As a maintainer keeping CI focused,
   # I want CI to run code coverage without deployment workflows,
   # so that the base branch proves quality without carrying staging or release machinery.
   #
@@ -11,8 +11,8 @@ defmodule Portfolixir.CIFoundationTest do
   # - mix coveralls is configured to run in the test environment by default.
   # - The test dependencies include excoveralls.
   # - No image build or deploy workflow remains.
-  # - Release-image and runtime-deploy files are absent from the simplified foundation.
-  test "ci keeps coverage while deployment automation stays out of the foundation" do
+  # - Release-image and runtime-deploy files are absent.
+  test "ci keeps coverage while deployment automation stays out" do
     ci_workflow = File.read!(".github/workflows/ci.yml")
     mix_file = File.read!("mix.exs")
 

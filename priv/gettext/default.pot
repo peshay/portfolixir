@@ -177,19 +177,42 @@ msgstr ""
 msgid "Linked cash account is derived from the selected depot."
 msgstr ""
 
+#: lib/portfolixir_web/components/app_shell.ex:116
+#: lib/portfolixir_web/components/app_shell.ex:119
+#: lib/portfolixir_web/components/app_shell.ex:123
+#: lib/portfolixir_web/components/app_shell.ex:126
+#, elixir-autogen
+msgid "Accent color"
+msgstr ""
+
+#: lib/portfolixir_web/components/app_shell.ex:336
+#, elixir-autogen
+msgid "Coral"
+msgstr ""
+
 #: lib/portfolixir_web/live/dashboard_live.ex:20
 #, elixir-autogen
-msgid "Local portfolio tracking MVP"
+msgid "Local portfolio tracking"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:34
 #, elixir-autogen
-msgid "MVP counts"
+msgid "Portfolio counts"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:24
 #, elixir-autogen
-msgid "MVP path"
+msgid "Workflow path"
+msgstr ""
+
+#: lib/portfolixir_web/components/app_shell.ex:335
+#, elixir-autogen
+msgid "Teal"
+msgstr ""
+
+#: lib/portfolixir_web/components/app_shell.ex:334
+#, elixir-autogen
+msgid "Violet"
 msgstr ""
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:38

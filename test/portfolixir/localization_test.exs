@@ -1,4 +1,4 @@
-defmodule Portfolixir.LocalizationFoundationTest do
+defmodule Portfolixir.LocalizationTest do
   use ExUnit.Case, async: true
 
   @core_messages [
@@ -9,6 +9,10 @@ defmodule Portfolixir.LocalizationFoundationTest do
     "Theme",
     "Light",
     "Dark",
+    "Accent color",
+    "Violet",
+    "Teal",
+    "Coral",
     "Language",
     "German",
     "Create securities",
@@ -26,7 +30,7 @@ defmodule Portfolixir.LocalizationFoundationTest do
   # - The English gettext template exists.
   # - The German gettext catalog exists.
   # - Core visible workflow messages have German translations.
-  test "visible foundation messages have gettext template entries and German translations" do
+  test "visible messages have gettext template entries and German translations" do
     template = File.read!("priv/gettext/default.pot")
     german = File.read!("priv/gettext/de/LC_MESSAGES/default.po")
 

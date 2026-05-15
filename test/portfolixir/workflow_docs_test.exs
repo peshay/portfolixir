@@ -9,16 +9,16 @@ defmodule Portfolixir.WorkflowDocsTest do
   ]
 
   # User story:
-  # As a contributor preparing future Portfolixir Epics,
-  # I want the story, test, implementation, and user documentation workflow documented,
+  # As a contributor preparing Portfolixir stories,
+  # I want the story, test, implementation, API, MCP, and documentation workflow documented,
   # so that visible changes stay small, reviewed, and test-first.
   #
   # Acceptance criteria:
-  # - Public docs state the required story -> test -> failure -> code -> gates -> docs order.
+  # - Public docs state the required story -> test -> failure -> code -> API/MCP -> docs -> security -> gates order.
   # - The user story template includes problem, behavior, surface, severity, acceptance, non-goals,
   #   required evidence, and done condition fields.
-  # - The pull request template requires story-comment, test-first, docs-review, coverage, and gate evidence.
-  # - Public docs state that new functionality updates user documentation and coverage gates.
+  # - The pull request template requires story-comment, test-first, API/MCP, docs-review, coverage, and gate evidence.
+  # - Public docs state that new functionality updates user documentation, API/MCP coverage, and coverage gates.
   test "public workflow docs require story comments, failing tests, gates, and docs review" do
     workflow_text =
       @workflow_docs
@@ -30,15 +30,22 @@ defmodule Portfolixir.WorkflowDocsTest do
           "2. Functional test written directly below the User Story comment.",
           "3. Test failure confirmed for the expected reason.",
           "4. Smallest implementation code written.",
-          "5. Security audit performed.",
-          "6. Required gates run.",
-          "7. User documentation reviewed and updated when visible behavior changed."
+          "5. API coverage reviewed and updated, or explicitly marked not applicable.",
+          "6. MCP coverage reviewed and updated, or explicitly marked not applicable.",
+          "7. User documentation reviewed and updated when visible behavior changed.",
+          "8. Security audit performed.",
+          "9. Required gates run."
         ] do
       assert workflow_text =~ step
     end
 
     assert workflow_text =~ "Every user-visible change updates user documentation"
+
+    assert workflow_text =~
+             "Every new user-visible function must include JSON API and MCP companion coverage"
+
     assert workflow_text =~ "mix coveralls"
+    assert workflow_text =~ "npm test --prefix mcp-server"
 
     story_template = File.read!(".github/ISSUE_TEMPLATE/user_story.md")
 
@@ -61,9 +68,11 @@ defmodule Portfolixir.WorkflowDocsTest do
           "Story text and acceptance criteria",
           "User story test evidence",
           "Security audit evidence",
+          "API and MCP evidence",
           "Tests and Gates",
           "## Documentation",
           "mix coveralls",
+          "npm test --prefix mcp-server",
           "Agent branch"
         ] do
       assert pr_template =~ evidence
