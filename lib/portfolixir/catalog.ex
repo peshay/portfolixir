@@ -109,9 +109,24 @@ defmodule Portfolixir.Catalog do
   def get_security(_id), do: nil
 
   def create_security(attrs) when is_map(attrs) do
-    %Security{}
-    |> Security.changeset(attrs)
-    |> Repo.insert()
+    case %Security{} |> Security.changeset(attrs) |> Repo.insert() do
+      {:ok, security} = ok ->
+        maybe_discover_logo(security)
+        ok
+
+      other ->
+        other
+    end
+  end
+
+  defp maybe_discover_logo(%Security{} = security) do
+    if Application.get_env(:portfolixir, :enable_logo_discovery, false) do
+      Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
+        Portfolixir.Catalog.LogoLookup.run(security)
+      end)
+    end
+
+    :ok
   end
 
   def update_security(%Security{} = security, attrs) when is_map(attrs) do

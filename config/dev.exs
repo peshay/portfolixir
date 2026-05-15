@@ -23,3 +23,7 @@ config :portfolixir, PortfolixirWeb.Endpoint,
   secret_key_base:
     "dev_secret_key_base_which_should_be_changed_in_production_and_is_long_enough_for_sessions",
   watchers: []
+
+# Try to fetch a logo for new securities locally as well so the dev
+# experience matches prod.
+config :portfolixir, :enable_logo_discovery, true

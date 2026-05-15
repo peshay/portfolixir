@@ -102,6 +102,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     assert html =~ ~s(phx-value-action="open")
     assert html =~ ~s(phx-value-action="copy_isin")
     assert html =~ ~s(phx-value-action="copy_ticker")
+    assert html =~ ~s(phx-value-action="update_logo")
     assert html =~ ~s(phx-value-action="delete")
   end
 

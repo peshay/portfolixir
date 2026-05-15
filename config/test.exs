@@ -35,3 +35,8 @@ config :portfolixir, Portfolixir.Catalog.QuoteSync,
   enabled?: false,
   interval_ms: 60_000,
   adapter_for: %{}
+
+# Logo discovery is gated off in tests so create_security/1 doesn't make
+# outbound HTTP calls. Tests that need it call LogoLookup.run/2 directly
+# with a Req plug stub.
+config :portfolixir, :enable_logo_discovery, false
