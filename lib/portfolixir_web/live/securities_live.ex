@@ -23,6 +23,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
 
+  @tabs ~w(overview chart transactions trades quotes holdings)
+  @default_tab "chart"
+
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
@@ -36,6 +39,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:flash_message, nil)
      |> assign(:sync_running?, false)
      |> assign(:selected_security, nil)
+     |> assign(:detail_tab, @default_tab)
      |> assign(:detail_range, @default_range)
      |> assign(:detail_log_scale?, false)
      |> assign(:detail_show_transactions?, true)
@@ -50,17 +54,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
+    tab = safe_tab(params["tab"])
+
     case params["id"] do
       nil ->
-        {:noreply, clear_selection(socket)}
+        {:noreply, clear_selection(socket) |> assign(:detail_tab, tab)}
 
       id ->
         case Catalog.get_security(id) do
-          %Security{} = security -> {:noreply, select_security(socket, security)}
-          nil -> {:noreply, clear_selection(socket)}
+          %Security{} = security ->
+            {:noreply, socket |> assign(:detail_tab, tab) |> select_security(security)}
+
+          nil ->
+            {:noreply, clear_selection(socket) |> assign(:detail_tab, tab)}
         end
     end
   end
+
+  defp safe_tab(tab) when is_binary(tab) and tab in @tabs, do: tab
+  defp safe_tab(_), do: @default_tab
 
   @impl true
   def render(assigns) do
@@ -318,65 +330,123 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </p>
           </div>
         </div>
-        <.link patch="/securities" class="icon-button" aria-label={gettext("Close detail")}>
+        <.link
+          id="detail-pane-close"
+          patch="/securities"
+          class="icon-button"
+          aria-label={gettext("Close detail")}
+        >
           <AppShell.icon name={:x} />
         </.link>
       </header>
 
-      <div class="detail-pane-toolbar" role="toolbar" aria-label={gettext("Chart options")}>
-        <div class="range-buttons" role="group" aria-label={gettext("Range")}>
-          <%= for range <- ranges() do %>
-            <button
-              type="button"
-              phx-click="set_detail_range"
-              phx-value-range={range}
-              class={["range-button", @detail_range == range && "is-active"]}
-            >
-              <%= range %>
-            </button>
-          <% end %>
-        </div>
+      <nav
+        id="detail-pane-tabs"
+        class="detail-pane-tabs"
+        role="tablist"
+        aria-label={gettext("Security detail tabs")}
+      >
+        <%= for {tab, label} <- detail_tabs() do %>
+          <button
+            type="button"
+            role="tab"
+            phx-click="select_detail_tab"
+            phx-value-tab={tab}
+            aria-selected={if @detail_tab == tab, do: "true", else: "false"}
+            aria-controls={"detail-tab-panel-#{tab}"}
+            class={["detail-pane-tab", @detail_tab == tab && "is-active"]}
+          >
+            <%= label %>
+          </button>
+        <% end %>
+      </nav>
 
-        <div class="chart-toggles">
-          <button
-            type="button"
-            id="toggle-log"
-            phx-click="toggle_detail_log"
-            class={["chart-toggle", @detail_log_scale? && "is-active"]}
-            aria-pressed={@detail_log_scale?}
-          >
-            <%= gettext("Log scale") %>
-          </button>
-          <button
-            type="button"
-            id="toggle-transactions"
-            phx-click="toggle_detail_transactions"
-            class={["chart-toggle", @detail_show_transactions? && "is-active"]}
-            aria-pressed={@detail_show_transactions?}
-          >
-            <%= gettext("Show transactions") %>
-          </button>
-          <button
-            type="button"
-            id="detail-sync"
-            phx-click="sync_now"
-            class={["chart-toggle", @sync_running? && "is-busy"]}
-            disabled={@sync_running?}
-          >
-            <%= gettext("Sync prices") %>
-          </button>
-        </div>
-      </div>
+      <%= if @detail_tab == "chart" do %>
+        <section
+          id="detail-tab-panel-chart"
+          role="tabpanel"
+          aria-labelledby="detail-tab-chart"
+          class="detail-tab-panel detail-tab-panel--chart"
+        >
+          <div class="detail-pane-toolbar" role="toolbar" aria-label={gettext("Chart options")}>
+            <div class="range-buttons" role="group" aria-label={gettext("Range")}>
+              <%= for range <- ranges() do %>
+                <button
+                  type="button"
+                  phx-click="set_detail_range"
+                  phx-value-range={range}
+                  class={["range-button", @detail_range == range && "is-active"]}
+                >
+                  <%= range %>
+                </button>
+              <% end %>
+            </div>
 
-      <SecurityChart.chart
-        quotes={@detail_quotes}
-        transactions={@detail_transactions}
-        log_scale?={@detail_log_scale?}
-        show_transactions?={@detail_show_transactions?}
-        currency_code={@selected_security.currency_code}
-      />
+            <div class="chart-toggles">
+              <button
+                type="button"
+                id="toggle-log"
+                phx-click="toggle_detail_log"
+                class={["chart-toggle", @detail_log_scale? && "is-active"]}
+                aria-pressed={@detail_log_scale?}
+              >
+                <%= gettext("Log scale") %>
+              </button>
+              <button
+                type="button"
+                id="toggle-transactions"
+                phx-click="toggle_detail_transactions"
+                class={["chart-toggle", @detail_show_transactions? && "is-active"]}
+                aria-pressed={@detail_show_transactions?}
+              >
+                <%= gettext("Show transactions") %>
+              </button>
+              <button
+                type="button"
+                id="detail-sync"
+                phx-click="sync_now"
+                class={["chart-toggle", @sync_running? && "is-busy"]}
+                disabled={@sync_running?}
+              >
+                <%= gettext("Sync prices") %>
+              </button>
+            </div>
+          </div>
+
+          <SecurityChart.chart
+            quotes={@detail_quotes}
+            transactions={@detail_transactions}
+            log_scale?={@detail_log_scale?}
+            show_transactions?={@detail_show_transactions?}
+            currency_code={@selected_security.currency_code}
+          />
+        </section>
+      <% end %>
+
+      <%= if @detail_tab != "chart" do %>
+        <section
+          id={"detail-tab-panel-#{@detail_tab}"}
+          role="tabpanel"
+          class="detail-tab-panel detail-tab-panel--placeholder"
+        >
+          <p class="detail-tab-empty">
+            <%= gettext("This view is not implemented yet.") %>
+          </p>
+        </section>
+      <% end %>
     </aside>
     """
+  end
+
+  defp detail_tabs do
+    [
+      {"overview", gettext("Overview")},
+      {"chart", gettext("Chart")},
+      {"transactions", gettext("Transactions")},
+      {"trades", gettext("Trades")},
+      {"quotes", gettext("Quotes")},
+      {"holdings", gettext("Holdings")}
+    ]
   end
 
   defp selected?(nil, _row), do: false
@@ -629,6 +699,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:sync_running?, true)
      |> assign(:flash_message, gettext("Syncing prices…"))}
+  end
+
+  def handle_event("select_detail_tab", %{"tab" => tab}, socket) do
+    tab = safe_tab(tab)
+
+    case socket.assigns.selected_security do
+      %Security{id: id} ->
+        {:noreply,
+         socket
+         |> assign(:detail_tab, tab)
+         |> push_patch(to: "/securities/#{id}?tab=#{tab}")}
+
+      _ ->
+        {:noreply, assign(socket, :detail_tab, tab)}
+    end
   end
 
   def handle_event("set_detail_range", %{"range" => range}, socket) do
