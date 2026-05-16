@@ -632,6 +632,123 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
   end
 
+  describe "detail pane — transactions tab" do
+    # User story:
+    # As a local portfolio maintainer,
+    # I want to see all ledger transactions that touched this security,
+    # so that I can audit my buys and sells without scanning every portfolio.
+    #
+    # Acceptance criteria:
+    # - When the security has no transactions a localized empty state shows.
+    # - Each transaction renders date, type, quantity, price, fees, taxes,
+    #   portfolio and depot names, and notes.
+    # - Transactions are listed newest first.
+    # - Decimal values format identically to the rest of the app (via the
+    #   existing format helpers — no float drift).
+
+    alias Portfolixir.Ledger
+    alias Portfolixir.Portfolios
+
+    setup do
+      {:ok, security} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          isin: "US0378331005",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {:ok, portfolio} =
+        Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+
+      {:ok, cash} =
+        Portfolios.create_cash_account(%{
+          portfolio_id: portfolio.id,
+          name: "Local Cash",
+          currency_code: "EUR"
+        })
+
+      {:ok, depot} =
+        Portfolios.create_securities_account(%{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          name: "Main Depot"
+        })
+
+      {:ok, security: security, portfolio: portfolio, cash: cash, depot: depot}
+    end
+
+    test "shows a localized empty state when there are no transactions",
+         %{conn: conn, security: security} do
+      {:ok, view, _html} =
+        live(conn, "/securities/#{security.id}?tab=transactions")
+
+      assert has_element?(
+               view,
+               "#detail-tab-panel-transactions",
+               "No transactions for this security yet"
+             )
+    end
+
+    test "lists transactions newest-first with type, qty, price, portfolio and depot",
+         %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
+      {:ok, _earlier} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-01-10],
+          quantity: Decimal.new("5"),
+          price: Decimal.new("150.00"),
+          fees: Decimal.new("1.50"),
+          taxes: Decimal.new("0"),
+          currency_code: "USD",
+          notes: "Initial entry"
+        })
+
+      {:ok, _later} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "sell",
+          date: ~D[2026-04-22],
+          quantity: Decimal.new("2"),
+          price: Decimal.new("180.00"),
+          fees: Decimal.new("1.20"),
+          taxes: Decimal.new("0.50"),
+          currency_code: "USD"
+        })
+
+      {:ok, view, _html} =
+        live(conn, "/securities/#{security.id}?tab=transactions")
+
+      panel = element(view, "#detail-tab-panel-transactions") |> render()
+
+      # Both transactions show
+      assert panel =~ "2026-04-22"
+      assert panel =~ "2026-01-10"
+      assert panel =~ "Buy"
+      assert panel =~ "Sell"
+
+      # Quantities + prices + fees rendered as decimals
+      assert panel =~ "150.00"
+      assert panel =~ "180.00"
+      assert panel =~ "Main Depot"
+      assert panel =~ "Local Portfolio"
+      assert panel =~ "Initial entry"
+
+      # Newest first: the April row appears before the January row
+      [_, april_idx | _] = String.split(panel, "2026-04-22", parts: 2)
+      [_, january_idx | _] = String.split(panel, "2026-01-10", parts: 2)
+      assert String.length(april_idx) > String.length(january_idx)
+    end
+  end
+
   describe "filter popover" do
     test "filter on asset_class adds a chip and narrows the list", %{conn: conn} do
       {:ok, _} =
