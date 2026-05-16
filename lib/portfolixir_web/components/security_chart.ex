@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
   attr(:quotes, :list, required: true)
   attr(:transactions, :list, default: [])
+  attr(:overlays, :list, default: [])
   attr(:log_scale?, :boolean, default: false)
   attr(:percent_mode?, :boolean, default: false)
   attr(:show_transactions?, :boolean, default: true)
@@ -86,6 +87,17 @@ defmodule PortfolixirWeb.Components.SecurityChart do
             stroke-width="1.6"
             points={polyline_points(@geometry, @plot_left, @plot_top, @plot_right, @plot_bottom)}
           />
+
+          <%= for overlay <- @overlays do %>
+            <polyline
+              class={overlay.class}
+              fill="none"
+              stroke-width="1.3"
+              points={overlay_points(overlay, @geometry, @plot_left, @plot_top, @plot_right, @plot_bottom)}
+            >
+              <title><%= overlay.label %></title>
+            </polyline>
+          <% end %>
 
           <%= if @show_transactions? do %>
             <%= for marker <- transaction_markers(@transactions, @geometry, @plot_left, @plot_top, @plot_right, @plot_bottom) do %>
@@ -316,6 +328,39 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         label: "#{tx.type} on #{Date.to_iso8601(tx.date)} at #{Decimal.to_string(tx.price)}"
       }
     end)
+  end
+
+  defp overlay_points(_overlay, :empty, _, _, _, _), do: ""
+
+  defp overlay_points(%{points: points}, geometry, x0, y0, x1, y1) do
+    plot_w = x1 - x0
+    plot_h = y1 - y0
+
+    points
+    |> Enum.filter(&within_range?(&1.date, geometry))
+    |> Enum.map(fn p ->
+      x = x0 + plot_w * x_fraction_for_date(p.date, geometry)
+      y = y1 - plot_h * normalized_overlay_y(p.value, geometry)
+      "#{format_coord(x)},#{format_coord(y)}"
+    end)
+    |> Enum.join(" ")
+  end
+
+  defp normalized_overlay_y(value, geometry) when is_number(value) do
+    transformed =
+      cond do
+        geometry.percent_mode? and geometry.first_close != 0.0 ->
+          (value - geometry.first_close) / geometry.first_close * 100.0
+
+        geometry.log_scale? ->
+          safe_log(value)
+
+        true ->
+          value
+      end
+
+    range = geometry.y_max - geometry.y_min
+    if range == 0, do: 0.5, else: (transformed - geometry.y_min) / range
   end
 
   defp within_range?(date, geometry) do

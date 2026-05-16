@@ -572,12 +572,17 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       today = Date.utc_today()
 
-      {:ok, _} =
-        Portfolixir.Catalog.Quotes.upsert_many(security.id, [
-          %{date: Date.add(today, -60), close: "100.00", source: "manual"},
-          %{date: Date.add(today, -30), close: "110.00", source: "manual"},
-          %{date: today, close: "150.00", source: "manual"}
-        ])
+      # 90 daily quotes — enough for the MA30 toggle to render points.
+      rows =
+        for i <- 0..89 do
+          %{
+            date: Date.add(today, -i),
+            close: Decimal.to_string(Decimal.new("100.00") |> Decimal.add(Decimal.new(i))),
+            source: "manual"
+          }
+        end
+
+      {:ok, _} = Portfolixir.Catalog.Quotes.upsert_many(security.id, rows)
 
       {:ok, security: security, today: today}
     end
@@ -596,6 +601,57 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # The default "1Y" range is no longer the active one
       refute has_element?(view, "button[phx-value-range='1Y'].is-active")
       assert has_element?(view, "#detail-custom-range[data-active='true']")
+    end
+
+    test "MA30 toggle adds a chart-ma-30 polyline to the SVG",
+         %{conn: conn, security: security} do
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")
+
+      view |> element("#toggle-ma-30") |> render_click()
+
+      assert has_element?(view, "polyline.chart-ma-30")
+      refute has_element?(view, "polyline.chart-cost-basis")
+    end
+
+    test "cost-basis toggle adds a chart-cost-basis polyline once transactions exist",
+         %{conn: conn, security: security} do
+      {:ok, portfolio} =
+        Portfolixir.Portfolios.create_portfolio(%{name: "P", base_currency_code: "USD"})
+
+      {:ok, cash} =
+        Portfolixir.Portfolios.create_cash_account(%{
+          portfolio_id: portfolio.id,
+          name: "C",
+          currency_code: "USD"
+        })
+
+      {:ok, depot} =
+        Portfolixir.Portfolios.create_securities_account(%{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          name: "D"
+        })
+
+      {:ok, _} =
+        Portfolixir.Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: Date.add(Date.utc_today(), -45),
+          quantity: Decimal.new("5"),
+          price: Decimal.new("100.00"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          currency_code: "USD"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")
+
+      view |> element("#toggle-cost-basis") |> render_click()
+
+      assert has_element?(view, "polyline.chart-cost-basis")
     end
 
     test "percent-return toggle marks the chart payload as percent mode",
