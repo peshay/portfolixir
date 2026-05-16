@@ -2263,6 +2263,48 @@ img.security-logo {
   color: var(--color-danger);
 }
 
+.detail-quotes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.detail-quotes-table th,
+.detail-quotes-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.detail-quotes-table th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.detail-quotes-table th.num,
+.detail-quotes-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-quotes-table small {
+  margin-left: 4px;
+  color: var(--color-text-muted);
+}
+
+.detail-tab-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.quote-source {
+  font-size: 11px;
+}
+
 .detail-pane-toolbar {
   display: flex;
   flex-wrap: wrap;
