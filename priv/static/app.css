@@ -1970,11 +1970,23 @@ img.security-logo {
   box-shadow: none;
 }
 
-.detail-pane--fullscreen .detail-pane-tabs {
+.detail-pane--fullscreen .detail-pane-head {
   position: sticky;
   top: 0;
   background: var(--color-bg-elevated);
+  padding-block: 8px;
+  z-index: 6;
+}
+
+.detail-pane--fullscreen .detail-pane-tabs {
+  position: sticky;
+  top: 60px;
+  background: var(--color-bg-elevated);
   z-index: 5;
+}
+
+.detail-pane--fullscreen .detail-tab-panel {
+  overflow-x: hidden;
 }
 
 .detail-pane-head__actions {
@@ -2008,6 +2020,7 @@ img.security-logo {
   border-bottom: 1px solid var(--color-border);
   margin: 0;
   overflow-x: auto;
+  flex-shrink: 0;
 }
 
 .detail-pane-tab {
