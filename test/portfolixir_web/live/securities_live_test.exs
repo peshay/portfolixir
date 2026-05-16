@@ -691,6 +691,77 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
              )
     end
 
+    test "trades tab renders open positions with unrealised P&L",
+         %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
+      {:ok, _} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-01-10],
+          quantity: Decimal.new("10"),
+          price: Decimal.new("100.00"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          currency_code: "USD"
+        })
+
+      {:ok, _} =
+        Portfolixir.Catalog.Quotes.upsert_many(security.id, [
+          %{date: Date.utc_today(), close: "150.00", source: "manual"}
+        ])
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=trades")
+
+      panel = element(view, "#detail-tab-panel-trades") |> render()
+      assert panel =~ "Open positions"
+      # unrealised P&L = 10 * (150 - 100) = +500
+      assert panel =~ "+500"
+    end
+
+    test "trades tab renders closed round-trips with realised P&L",
+         %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
+      common = %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        fees: Decimal.new("0"),
+        taxes: Decimal.new("0"),
+        currency_code: "USD"
+      }
+
+      {:ok, _} =
+        Ledger.create_transaction(
+          Map.merge(common, %{
+            type: "buy",
+            date: ~D[2026-01-10],
+            quantity: Decimal.new("10"),
+            price: Decimal.new("100.00")
+          })
+        )
+
+      {:ok, _} =
+        Ledger.create_transaction(
+          Map.merge(common, %{
+            type: "sell",
+            date: ~D[2026-04-10],
+            quantity: Decimal.new("10"),
+            price: Decimal.new("150.00")
+          })
+        )
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=trades")
+
+      panel = element(view, "#detail-tab-panel-trades") |> render()
+      assert panel =~ "Closed trades"
+      assert panel =~ "+500"
+      assert panel =~ "2026-01-10"
+      assert panel =~ "2026-04-10"
+    end
+
     test "lists transactions newest-first with type, qty, price, portfolio and depot",
          %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
       {:ok, _earlier} =
