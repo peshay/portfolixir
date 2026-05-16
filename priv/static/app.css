@@ -2459,6 +2459,15 @@ img.security-logo {
   stroke-width: 1.5;
 }
 
+.chart-zoom-rect {
+  position: absolute;
+  pointer-events: none;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent);
+  opacity: 0.45;
+  z-index: 2;
+}
+
 .chart-toggles {
   display: inline-flex;
   gap: 6px;
