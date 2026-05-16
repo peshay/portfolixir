@@ -26,11 +26,14 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   attr(:quotes, :list, required: true)
   attr(:transactions, :list, default: [])
   attr(:log_scale?, :boolean, default: false)
+  attr(:percent_mode?, :boolean, default: false)
   attr(:show_transactions?, :boolean, default: true)
   attr(:currency_code, :string, default: "")
 
   def chart(assigns) do
-    geometry = build_geometry(assigns.quotes, assigns.log_scale?)
+    geometry =
+      build_geometry(assigns.quotes, assigns.log_scale?, percent_mode?: assigns.percent_mode?)
+
     plot_left = @padding_left
     plot_top = @padding_top
     plot_right = @width - @padding_right
@@ -108,7 +111,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       points: [],
       txs: [],
       view: %{width: @width, height: @height},
-      currency: assigns.currency_code
+      currency: assigns.currency_code,
+      mode: payload_mode(assigns)
     }
   end
 
@@ -132,9 +136,13 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       points: points,
       txs: txs,
       view: %{width: @width, height: @height},
-      currency: assigns.currency_code
+      currency: assigns.currency_code,
+      mode: payload_mode(assigns)
     }
   end
+
+  defp payload_mode(%{percent_mode?: true}), do: "percent"
+  defp payload_mode(_), do: "absolute"
 
   defp build_tx_payload(transactions, geometry, x0, y0, x1, y1) do
     plot_w = x1 - x0
@@ -164,28 +172,41 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # Geometry
   # ---------------------------------------------------------------------------
 
-  defp build_geometry([], _log_scale?), do: :empty
+  defp build_geometry([], _log_scale?, _opts), do: :empty
 
-  defp build_geometry(quotes, log_scale?) do
+  defp build_geometry(quotes, log_scale?, opts) do
+    percent_mode? = Keyword.get(opts, :percent_mode?, false)
     indexed = Enum.with_index(quotes)
     first_date = List.first(quotes).date
     last_date = List.last(quotes).date
+    first_close = Decimal.to_float(List.first(quotes).close)
+
+    raw_values =
+      if percent_mode? and first_close != 0.0 do
+        Enum.map(quotes, fn q ->
+          (Decimal.to_float(q.close) - first_close) / first_close * 100.0
+        end)
+      else
+        Enum.map(quotes, &Decimal.to_float(&1.close))
+      end
+
+    {y_min, y_max} = Enum.min_max(raw_values)
+    {y_min, y_max} = pad_range(y_min, y_max)
+
+    log_scale? = log_scale? and not percent_mode?
 
     {y_min, y_max} =
-      quotes
-      |> Enum.map(&Decimal.to_float(&1.close))
-      |> Enum.min_max()
-
-    {y_min, y_max} = pad_range(y_min, y_max)
-    {y_min, y_max} = if log_scale?, do: {safe_log(y_min), safe_log(y_max)}, else: {y_min, y_max}
+      if log_scale?, do: {safe_log(y_min), safe_log(y_max)}, else: {y_min, y_max}
 
     %{
       quotes: indexed,
       first_date: first_date,
       last_date: last_date,
+      first_close: first_close,
       y_min: y_min,
       y_max: y_max,
-      log_scale?: log_scale?
+      log_scale?: log_scale?,
+      percent_mode?: percent_mode?
     }
   end
 
@@ -252,8 +273,19 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp date_span_days(geometry), do: Date.diff(geometry.last_date, geometry.first_date)
 
   defp normalized_y(%Decimal{} = close, geometry) do
+    raw = Decimal.to_float(close)
+
     value =
-      if geometry.log_scale?, do: safe_log(Decimal.to_float(close)), else: Decimal.to_float(close)
+      cond do
+        geometry.percent_mode? and geometry.first_close != 0.0 ->
+          (raw - geometry.first_close) / geometry.first_close * 100.0
+
+        geometry.log_scale? ->
+          safe_log(raw)
+
+        true ->
+          raw
+      end
 
     range = geometry.y_max - geometry.y_min
     if range == 0, do: 0.5, else: (value - geometry.y_min) / range
@@ -310,7 +342,14 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       for i <- 0..ticks do
         frac = i / ticks
         raw = assigns.geometry.y_min + (assigns.geometry.y_max - assigns.geometry.y_min) * frac
-        value = if assigns.log_scale?, do: :math.pow(10, raw), else: raw
+
+        value =
+          cond do
+            assigns.percent_mode? -> raw
+            assigns.geometry.log_scale? -> :math.pow(10, raw)
+            true -> raw
+          end
+
         y_pixel = assigns.plot_bottom - (assigns.plot_bottom - assigns.plot_top) * frac
         {value, y_pixel}
       end
@@ -326,7 +365,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     <g class="chart-axis-labels">
       <%= for {value, y} <- @y_ticks do %>
         <text x={@plot_left - 6} y={y} text-anchor="end" dominant-baseline="central">
-          <%= format_axis_value(value) %>
+          <%= if @percent_mode?, do: format_percent(value), else: format_axis_value(value) %>
         </text>
       <% end %>
       <text x={@plot_left} y={@height - 6} text-anchor="start">
@@ -348,4 +387,11 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   end
 
   defp format_axis_value(value), do: to_string(value)
+
+  defp format_percent(value) when is_float(value) do
+    sign = if value > 0, do: "+", else: ""
+    sign <> :erlang.float_to_binary(value, decimals: 1) <> " %"
+  end
+
+  defp format_percent(_), do: "—"
 end
