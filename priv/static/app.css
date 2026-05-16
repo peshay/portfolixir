@@ -1989,6 +1989,70 @@ img.security-logo {
   overflow-x: hidden;
 }
 
+.detail-pane--fullscreen .chart-frame {
+  height: min(520px, 60vh);
+}
+
+@media (max-width: 720px) {
+  .detail-pane {
+    margin-top: 12px;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .detail-pane-head h2 {
+    font-size: 15px;
+  }
+
+  .detail-pane-sub {
+    font-size: 12px;
+  }
+
+  .detail-pane-tab {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .detail-pane-toolbar {
+    gap: 8px;
+  }
+
+  .chart-frame {
+    height: 220px;
+    padding: 4px;
+  }
+
+  .detail-pane--fullscreen {
+    padding: 12px;
+  }
+
+  .detail-pane--fullscreen .chart-frame {
+    height: min(320px, 45vh);
+  }
+
+  .overview-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .overview-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .detail-pane-toolbar .range-buttons,
+  .detail-pane-toolbar .chart-toggles,
+  .detail-custom-range {
+    flex-wrap: wrap;
+  }
+
+  .detail-transactions-table,
+  .detail-trades-table,
+  .detail-quotes-table,
+  .detail-holdings-table {
+    font-size: 12px;
+  }
+}
+
 .detail-pane-head__actions {
   display: flex;
   gap: 6px;
@@ -2546,9 +2610,7 @@ img.security-logo {
 .security-chart {
   display: block;
   width: 100%;
-  height: auto;
-  min-height: 220px;
-  max-height: 72vh;
+  height: 100%;
   color: var(--color-accent);
 }
 
@@ -2612,7 +2674,7 @@ img.security-logo {
 .security-chart text {
   fill: var(--color-text-muted);
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 11px;
+  font-size: 9px;
 }
 
 .security-chart .quote-line {
