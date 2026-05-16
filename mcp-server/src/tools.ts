@@ -267,7 +267,19 @@ const toolDefinitions: ToolDefinition[] = [
     additionalProperties: false,
     required: ["portfolio_id"],
     properties: { portfolio_id: { type: "integer", minimum: 1 } }
-  }, z.object({ portfolio_id: z.number().int().positive() }))
+  }, z.object({ portfolio_id: z.number().int().positive() })),
+  tool(
+    "portfolixir.trades.list",
+    "List trades",
+    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells.",
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["security_id"],
+      properties: { security_id: { type: "integer", minimum: 1 } }
+    },
+    z.object({ security_id: z.number().int().positive() })
+  )
 ];
 
 export function listTools(): ToolDefinition[] {
@@ -329,6 +341,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("POST", "/api/v1/transactions", { transaction: args.transaction });
     case "portfolixir.holdings.list":
       return client.request("GET", `/api/v1/portfolios/${args.portfolio_id}/holdings`);
+    case "portfolixir.trades.list":
+      return client.request("GET", `/api/v1/securities/${args.security_id}/trades`);
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);
   }

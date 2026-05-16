@@ -2209,6 +2209,60 @@ img.security-logo {
   border-color: rgba(220, 38, 38, 0.35);
 }
 
+.detail-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 6px 0 4px;
+}
+
+.detail-trades-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.detail-trades-table th,
+.detail-trades-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.detail-trades-table th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.detail-trades-table th.num,
+.detail-trades-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-tab-warning {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: rgba(180, 83, 9, 0.1);
+  border: 1px solid rgba(180, 83, 9, 0.35);
+  color: var(--color-warning);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+
+.is-positive {
+  color: var(--color-positive);
+}
+
+.is-negative {
+  color: var(--color-danger);
+}
+
 .detail-pane-toolbar {
   display: flex;
   flex-wrap: wrap;

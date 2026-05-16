@@ -110,6 +110,58 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def trades(%{open_lots: lots, closed_trades: closed, orphan_sells: orphans}) do
+    %{
+      open_lots: Enum.map(lots, &open_lot/1),
+      closed_trades: Enum.map(closed, &closed_trade/1),
+      orphan_sells: Enum.map(orphans, &orphan_sell/1)
+    }
+  end
+
+  defp open_lot(lot) do
+    %{
+      open_date: date(lot.open_date),
+      quantity: decimal(lot.quantity),
+      original_quantity: decimal(lot.original_quantity),
+      buy_price: decimal(lot.buy_price),
+      buy_fees: decimal(lot.buy_fees),
+      buy_taxes: decimal(lot.buy_taxes),
+      latest_price: decimal(lot.latest_price),
+      unrealized_pnl_abs: decimal(lot.unrealized_pnl_abs),
+      unrealized_pnl_pct: decimal(lot.unrealized_pnl_pct),
+      currency_code: lot.currency_code
+    }
+  end
+
+  defp closed_trade(trade) do
+    %{
+      open_date: date(trade.open_date),
+      close_date: date(trade.close_date),
+      quantity: decimal(trade.quantity),
+      avg_buy_price: decimal(trade.avg_buy_price),
+      avg_sell_price: decimal(trade.avg_sell_price),
+      buy_fees: decimal(trade.buy_fees),
+      buy_taxes: decimal(trade.buy_taxes),
+      sell_fees: decimal(trade.sell_fees),
+      sell_taxes: decimal(trade.sell_taxes),
+      basis: decimal(trade.basis),
+      proceeds: decimal(trade.proceeds),
+      realized_pnl_abs: decimal(trade.realized_pnl_abs),
+      realized_pnl_pct: decimal(trade.realized_pnl_pct),
+      holding_period_days: trade.holding_period_days,
+      currency_code: trade.currency_code
+    }
+  end
+
+  defp orphan_sell(orphan) do
+    %{
+      date: date(orphan.date),
+      quantity: decimal(orphan.quantity),
+      price: decimal(orphan.price),
+      currency_code: orphan.currency_code
+    }
+  end
+
   def quote(%SecurityQuote{} = quote) do
     %{
       id: quote.id,
