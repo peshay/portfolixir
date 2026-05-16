@@ -50,6 +50,58 @@ defmodule PortfolixirWeb.LayoutView do
 
             var Hooks = {};
 
+            window.Portfolixir = window.Portfolixir || {};
+
+            window.Portfolixir.exportChart = function (button, format) {
+              var frame = button.closest(".chart-frame") ||
+                button.closest(".detail-pane").querySelector(".chart-frame");
+              if (!frame) return;
+              var svg = frame.querySelector("svg.security-chart");
+              if (!svg) return;
+
+              var clone = svg.cloneNode(true);
+              clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+              var serializer = new XMLSerializer();
+              var source = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(clone);
+
+              if (format === "svg") {
+                var blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+                var url = URL.createObjectURL(blob);
+                window.Portfolixir._download(url, "chart.svg");
+                setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                return;
+              }
+
+              var img = new Image();
+              var encoded = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
+              img.onload = function () {
+                var canvas = document.createElement("canvas");
+                var rect = svg.getBoundingClientRect();
+                canvas.width = Math.max(960, Math.floor(rect.width || 960));
+                canvas.height = Math.max(320, Math.floor(rect.height || 320));
+                var ctx = canvas.getContext("2d");
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob(function (blob) {
+                  if (!blob) return;
+                  var url = URL.createObjectURL(blob);
+                  window.Portfolixir._download(url, "chart.png");
+                  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                }, "image/png");
+              };
+              img.src = encoded;
+            };
+
+            window.Portfolixir._download = function (url, filename) {
+              var a = document.createElement("a");
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            };
+
             Hooks.ColumnPrefs = {
               mounted: function () {
                 var key = this.el.dataset.storageKey || "securities.columns";
@@ -149,14 +201,26 @@ defmodule PortfolixirWeb.LayoutView do
                 this.tooltip.setAttribute("role", "status");
                 this.el.appendChild(this.tooltip);
 
+                this.zoomRect = document.createElement("div");
+                this.zoomRect.className = "chart-zoom-rect";
+                this.zoomRect.hidden = true;
+                this.el.appendChild(this.zoomRect);
+
+                this.zoom = null;
+
                 var self = this;
                 this.onMove = function (event) { self.handleMove(event); };
                 this.onLeave = function () { self.hide(); };
+                this.onDown = function (event) { self.beginZoom(event); };
+                this.onUp = function (event) { self.endZoom(event); };
+                this.onDbl = function () { self.resetZoom(); };
 
                 this.svg.addEventListener("pointermove", this.onMove);
-                this.svg.addEventListener("pointerdown", this.onMove);
+                this.svg.addEventListener("pointerdown", this.onDown);
+                this.svg.addEventListener("pointerup", this.onUp);
                 this.svg.addEventListener("pointerleave", this.onLeave);
                 this.svg.addEventListener("pointercancel", this.onLeave);
+                this.svg.addEventListener("dblclick", this.onDbl);
               },
               updated: function () {
                 this.payload = this.readPayload();
@@ -165,10 +229,43 @@ defmodule PortfolixirWeb.LayoutView do
               destroyed: function () {
                 if (this.svg) {
                   this.svg.removeEventListener("pointermove", this.onMove);
-                  this.svg.removeEventListener("pointerdown", this.onMove);
+                  this.svg.removeEventListener("pointerdown", this.onDown);
+                  this.svg.removeEventListener("pointerup", this.onUp);
                   this.svg.removeEventListener("pointerleave", this.onLeave);
                   this.svg.removeEventListener("pointercancel", this.onLeave);
+                  this.svg.removeEventListener("dblclick", this.onDbl);
                 }
+              },
+              beginZoom: function (event) {
+                if (!this.payload || !this.payload.points || this.payload.points.length < 2) return;
+                this.zoom = { startX: event.clientX };
+              },
+              endZoom: function (event) {
+                if (!this.zoom) return;
+                var startX = this.zoom.startX;
+                var endX = event.clientX;
+                this.zoom = null;
+                this.zoomRect.hidden = true;
+
+                if (Math.abs(endX - startX) < 8) return;
+
+                var svgRect = this.svg.getBoundingClientRect();
+                var view = this.payload.view || { width: 960, height: 320 };
+                var scale = view.width / svgRect.width;
+                var a = (Math.min(startX, endX) - svgRect.left) * scale;
+                var b = (Math.max(startX, endX) - svgRect.left) * scale;
+
+                var fromIdx = this.nearestIndex(this.payload.points, a);
+                var toIdx = this.nearestIndex(this.payload.points, b);
+                if (fromIdx === toIdx) return;
+
+                var fromIso = this.payload.points[fromIdx][0];
+                var toIso = this.payload.points[toIdx][0];
+
+                this.pushEvent("set_detail_custom_range", { from: fromIso, to: toIso });
+              },
+              resetZoom: function () {
+                this.pushEvent("clear_detail_custom_range", {});
               },
               readPayload: function () {
                 var node = this.el.querySelector("script[data-chart-payload]");
@@ -188,6 +285,16 @@ defmodule PortfolixirWeb.LayoutView do
                 var svgRect = this.svg.getBoundingClientRect();
                 var frameRect = this.el.getBoundingClientRect();
                 if (svgRect.width === 0 || svgRect.height === 0) return;
+
+                if (this.zoom) {
+                  var left = Math.min(this.zoom.startX, event.clientX) - frameRect.left;
+                  var width = Math.abs(event.clientX - this.zoom.startX);
+                  this.zoomRect.style.left = left + "px";
+                  this.zoomRect.style.top = (svgRect.top - frameRect.top) + "px";
+                  this.zoomRect.style.width = width + "px";
+                  this.zoomRect.style.height = svgRect.height + "px";
+                  this.zoomRect.hidden = false;
+                }
 
                 var view = payload.view || { width: 960, height: 320 };
                 var pointerSvgX = (event.clientX - svgRect.left) * (view.width / svgRect.width);
