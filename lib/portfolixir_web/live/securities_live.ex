@@ -47,6 +47,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_transactions, [])
      |> assign(:detail_transaction_rows, [])
      |> assign(:detail_trades, %{open_lots: [], closed_trades: [], orphan_sells: []})
+     |> assign(:detail_holdings, [])
      |> assign(:detail_latest, nil)
      |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
      |> assign(:row_menu_id, nil)
@@ -453,7 +454,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
-      <%= if @detail_tab not in ["overview", "chart", "transactions", "trades", "quotes"] do %>
+      <%= if @detail_tab == "holdings" do %>
+        <.holdings_tab_panel
+          holdings={@detail_holdings}
+          currency_code={@selected_security.currency_code}
+        />
+      <% end %>
+
+      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings) do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -720,6 +728,98 @@ defmodule PortfolixirWeb.SecuritiesLive do
             "Some sell transactions could not be matched to a preceding buy — they may indicate missing data."
           ) %>
         </p>
+      <% end %>
+    </section>
+    """
+  end
+
+  attr(:holdings, :list, required: true)
+  attr(:currency_code, :string, default: nil)
+
+  defp holdings_tab_panel(assigns) do
+    totals =
+      Enum.reduce(assigns.holdings, %{value: Decimal.new(0), cost: Decimal.new(0)}, fn h, acc ->
+        if h.current_value && h.avg_cost do
+          cost = Decimal.mult(h.quantity, h.avg_cost)
+
+          %{
+            value: Decimal.add(acc.value, h.current_value),
+            cost: Decimal.add(acc.cost, cost)
+          }
+        else
+          acc
+        end
+      end)
+
+    total_pnl = Decimal.sub(totals.value, totals.cost)
+    assigns = assign(assigns, :totals, totals) |> assign(:total_pnl, total_pnl)
+
+    ~H"""
+    <section
+      id="detail-tab-panel-holdings"
+      role="tabpanel"
+      class="detail-tab-panel detail-tab-panel--holdings"
+    >
+      <%= if @holdings == [] do %>
+        <p class="detail-tab-empty">
+          <%= gettext("No open positions for this security across your portfolios.") %>
+        </p>
+      <% else %>
+        <div class="data-table-wrap">
+          <table class="data-table detail-holdings-table">
+            <thead>
+              <tr>
+                <th><%= gettext("Portfolio") %></th>
+                <th><%= gettext("Depot") %></th>
+                <th class="num"><%= gettext("Quantity") %></th>
+                <th class="num"><%= gettext("Avg cost") %></th>
+                <th class="num"><%= gettext("Current value") %></th>
+                <th class="num"><%= gettext("Unrealised P&L") %></th>
+                <th class="num">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for h <- @holdings do %>
+                <tr>
+                  <td><%= h.portfolio && h.portfolio.name %></td>
+                  <td><%= h.depot && h.depot.name %></td>
+                  <td class="num"><%= format_decimal(h.quantity, 4) %></td>
+                  <td class="num">
+                    <%= format_decimal(h.avg_cost, 2) %>
+                    <small><%= @currency_code %></small>
+                  </td>
+                  <td class="num">
+                    <%= if h.current_value do %>
+                      <%= format_decimal(h.current_value, 2) %>
+                      <small><%= @currency_code %></small>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
+                  <td class={["num", pnl_class(h.unrealized_pnl_abs)]}>
+                    <%= signed_decimal_or_dash(h.unrealized_pnl_abs, 2) %>
+                  </td>
+                  <td class={["num", pnl_class(h.unrealized_pnl_abs)]}>
+                    <%= signed_percent_or_dash(h.unrealized_pnl_pct) %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+            <tfoot>
+              <tr class="totals-row">
+                <td colspan="4"><%= gettext("Total") %></td>
+                <td class="num">
+                  <%= format_decimal(@totals.value, 2) %>
+                  <small><%= @currency_code %></small>
+                </td>
+                <td class={["num", pnl_class(@total_pnl)]}>
+                  <%= signed_decimal_or_dash(@total_pnl, 2) %>
+                </td>
+                <td class="num"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       <% end %>
     </section>
     """
@@ -1443,6 +1543,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_transactions, [])
     |> assign(:detail_transaction_rows, [])
     |> assign(:detail_trades, %{open_lots: [], closed_trades: [], orphan_sells: []})
+    |> assign(:detail_holdings, [])
     |> assign(:detail_latest, nil)
     |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
   end
@@ -1479,6 +1580,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_transactions, transactions)
     |> assign(:detail_transaction_rows, transaction_rows)
     |> assign(:detail_trades, Ledger.list_trades_for_security(id))
+    |> assign(:detail_holdings, Ledger.holdings_for_security(id))
     |> assign(:detail_latest, Quotes.latest(id))
     |> assign(:detail_metrics, metrics)
   end
