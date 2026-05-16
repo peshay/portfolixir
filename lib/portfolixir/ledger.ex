@@ -25,7 +25,8 @@ defmodule Portfolixir.Ledger do
     Repo.all(
       from(transaction in Transaction,
         where: transaction.security_id == ^security_id,
-        order_by: [asc: transaction.date, asc: transaction.id]
+        order_by: [asc: transaction.date, asc: transaction.id],
+        preload: [:portfolio, :securities_account, :cash_account]
       )
     )
   end
