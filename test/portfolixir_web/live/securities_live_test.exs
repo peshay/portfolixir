@@ -762,6 +762,44 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert panel =~ "2026-04-10"
     end
 
+    test "quotes tab lists the price history newest-first",
+         %{conn: conn, security: security} do
+      today = Date.utc_today()
+
+      {:ok, _} =
+        Portfolixir.Catalog.Quotes.upsert_many(security.id, [
+          %{date: today, close: "150.00", source: "manual"},
+          %{date: Date.add(today, -3), close: "148.00", source: "manual"},
+          %{date: Date.add(today, -10), close: "120.00", source: "manual"}
+        ])
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=quotes")
+
+      panel = element(view, "#detail-tab-panel-quotes") |> render()
+      assert panel =~ "150.00"
+      assert panel =~ "120.00"
+      assert panel =~ Date.to_iso8601(today)
+
+      # Newest first: today's quote appears before the older one.
+      [_, today_idx | _] = String.split(panel, Date.to_iso8601(today), parts: 2)
+
+      [_, older_idx | _] =
+        String.split(panel, Date.to_iso8601(Date.add(today, -10)), parts: 2)
+
+      assert String.length(today_idx) > String.length(older_idx)
+    end
+
+    test "quotes tab empty state localizes when no quote history exists",
+         %{conn: conn, security: security} do
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=quotes")
+
+      assert has_element?(
+               view,
+               "#detail-tab-panel-quotes",
+               "No price history yet"
+             )
+    end
+
     test "lists transactions newest-first with type, qty, price, portfolio and depot",
          %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
       {:ok, _earlier} =

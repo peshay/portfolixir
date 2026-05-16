@@ -445,7 +445,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
-      <%= if @detail_tab not in ["overview", "chart", "transactions", "trades"] do %>
+      <%= if @detail_tab == "quotes" do %>
+        <.quotes_tab_panel
+          quotes={@detail_quotes}
+          currency_code={@selected_security.currency_code}
+          range={@detail_range}
+        />
+      <% end %>
+
+      <%= if @detail_tab not in ["overview", "chart", "transactions", "trades", "quotes"] do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -716,6 +724,63 @@ defmodule PortfolixirWeb.SecuritiesLive do
     </section>
     """
   end
+
+  attr(:quotes, :list, required: true)
+  attr(:currency_code, :string, default: nil)
+  attr(:range, :string, default: nil)
+
+  defp quotes_tab_panel(assigns) do
+    assigns = assign(assigns, :rows, Enum.reverse(assigns.quotes))
+
+    ~H"""
+    <section
+      id="detail-tab-panel-quotes"
+      role="tabpanel"
+      class="detail-tab-panel detail-tab-panel--quotes"
+    >
+      <%= if @rows == [] do %>
+        <p class="detail-tab-empty">
+          <%= gettext("No price history yet for the selected range.") %>
+        </p>
+      <% else %>
+        <p class="detail-tab-hint">
+          <%= gettext("Showing range %{range}. Adjust the Chart tab to change which quotes appear here.",
+            range: @range || gettext("default")) %>
+        </p>
+        <div class="data-table-wrap">
+          <table class="data-table detail-quotes-table">
+            <thead>
+              <tr>
+                <th><%= gettext("Date") %></th>
+                <th class="num"><%= gettext("Close") %></th>
+                <th><%= gettext("Source") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for q <- @rows do %>
+                <tr>
+                  <td><%= Date.to_iso8601(q.date) %></td>
+                  <td class="num">
+                    <%= format_decimal(q.close, 2) %>
+                    <small><%= @currency_code %></small>
+                  </td>
+                  <td><span class="badge quote-source"><%= quote_source_label(q.source) %></span></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </section>
+    """
+  end
+
+  defp quote_source_label("auto"), do: gettext("Auto")
+  defp quote_source_label("manual"), do: gettext("Manual")
+  defp quote_source_label("coingecko"), do: "CoinGecko"
+  defp quote_source_label("portfolio_performance"), do: "Portfolio Performance"
+  defp quote_source_label(other) when is_binary(other), do: other
+  defp quote_source_label(_), do: ""
 
   defp pnl_class(nil), do: nil
 
@@ -1391,7 +1456,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     quotes =
       id
       |> Quotes.range(from, to)
-      |> Enum.map(&%{date: &1.date, close: &1.close})
+      |> Enum.map(&%{date: &1.date, close: &1.close, source: &1.source})
 
     transaction_rows =
       id
