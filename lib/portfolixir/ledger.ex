@@ -63,6 +63,95 @@ defmodule Portfolixir.Ledger do
     }
   end
 
+  @doc """
+  Returns the current holdings of a single security, split by
+  (portfolio, depot). Computes a moving-average cost basis from the
+  chronological buy/sell stream within each grouping.
+
+  Pass `:latest_price` to inject the comparison price for tests;
+  otherwise reads it from `Catalog.Quotes.latest/1`.
+  """
+  def holdings_for_security(security_id, opts \\ []) when is_integer(security_id) do
+    latest_price =
+      Keyword.get_lazy(opts, :latest_price, fn ->
+        case Quotes.latest(security_id) do
+          %{close: close} -> close
+          _ -> nil
+        end
+      end)
+
+    security_id
+    |> list_transactions_for_security()
+    |> Enum.group_by(fn tx -> {tx.portfolio_id, tx.securities_account_id} end)
+    |> Enum.map(fn {{_pid, _depot_id}, txs} ->
+      summary = moving_average(txs)
+
+      base_row = %{
+        portfolio: List.first(txs).portfolio,
+        depot: List.first(txs).securities_account,
+        quantity: summary.quantity,
+        avg_cost: summary.avg_cost
+      }
+
+      decorate_holding(base_row, latest_price)
+    end)
+    |> Enum.reject(&Decimal.equal?(&1.quantity, 0))
+    |> Enum.sort_by(& &1.portfolio.name)
+  end
+
+  defp moving_average(transactions) do
+    Enum.reduce(transactions, %{quantity: Decimal.new(0), avg_cost: Decimal.new(0)}, fn tx, acc ->
+      case tx.type do
+        "buy" ->
+          new_qty = Decimal.add(acc.quantity, tx.quantity)
+
+          new_avg =
+            if Decimal.equal?(new_qty, 0) do
+              Decimal.new(0)
+            else
+              numerator =
+                Decimal.add(
+                  Decimal.mult(acc.quantity, acc.avg_cost),
+                  Decimal.mult(tx.quantity, tx.price)
+                )
+
+              Decimal.div(numerator, new_qty)
+            end
+
+          %{quantity: new_qty, avg_cost: new_avg}
+
+        "sell" ->
+          %{acc | quantity: Decimal.sub(acc.quantity, tx.quantity)}
+
+        _ ->
+          acc
+      end
+    end)
+  end
+
+  defp decorate_holding(row, nil) do
+    Map.merge(row, %{
+      latest_price: nil,
+      current_value: nil,
+      unrealized_pnl_abs: nil,
+      unrealized_pnl_pct: nil
+    })
+  end
+
+  defp decorate_holding(row, %Decimal{} = latest_price) do
+    current_value = Decimal.mult(row.quantity, latest_price)
+    cost = Decimal.mult(row.quantity, row.avg_cost)
+    abs_pnl = Decimal.sub(current_value, cost)
+    pct_pnl = if Decimal.equal?(cost, 0), do: Decimal.new(0), else: Decimal.div(abs_pnl, cost)
+
+    Map.merge(row, %{
+      latest_price: latest_price,
+      current_value: current_value,
+      unrealized_pnl_abs: abs_pnl,
+      unrealized_pnl_pct: pct_pnl
+    })
+  end
+
   defp transaction_for_matcher(%Transaction{} = tx) do
     %{
       type: tx.type,
