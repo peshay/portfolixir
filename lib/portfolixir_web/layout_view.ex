@@ -52,6 +52,37 @@ defmodule PortfolixirWeb.LayoutView do
 
             window.Portfolixir = window.Portfolixir || {};
 
+            // CSS properties we need to bake into the exported SVG so the
+            // file renders the same as on-screen without our stylesheet.
+            window.Portfolixir._CHART_EXPORT_PROPS = [
+              "fill", "fill-opacity", "stroke", "stroke-opacity",
+              "stroke-width", "stroke-dasharray", "stroke-linecap",
+              "stroke-linejoin", "opacity",
+              "font-family", "font-size", "font-weight", "color"
+            ];
+
+            window.Portfolixir._inlineStyles = function (sourceEl, cloneEl) {
+              var props = window.Portfolixir._CHART_EXPORT_PROPS;
+              var srcStyle = window.getComputedStyle(sourceEl);
+              var decls = [];
+              for (var i = 0; i < props.length; i++) {
+                var name = props[i];
+                var value = srcStyle.getPropertyValue(name);
+                if (value && value !== "" && value !== "normal") {
+                  decls.push(name + ":" + value);
+                }
+              }
+              if (decls.length > 0) {
+                cloneEl.setAttribute("style", decls.join(";"));
+              }
+
+              var sourceChildren = sourceEl.children;
+              var cloneChildren = cloneEl.children;
+              for (var j = 0; j < sourceChildren.length; j++) {
+                window.Portfolixir._inlineStyles(sourceChildren[j], cloneChildren[j]);
+              }
+            };
+
             window.Portfolixir.exportChart = function (button, format) {
               var frame = button.closest(".chart-frame") ||
                 button.closest(".detail-pane").querySelector(".chart-frame");
@@ -61,6 +92,25 @@ defmodule PortfolixirWeb.LayoutView do
 
               var clone = svg.cloneNode(true);
               clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+              // Bake the document background color into the export so dark
+              // themes don't end up with transparent (visually black) areas.
+              var bodyBg = window.getComputedStyle(document.body).backgroundColor || "#ffffff";
+              clone.setAttribute("style", "background:" + bodyBg);
+
+              // Bake the on-screen computed styles into the clone — without
+              // this the exported SVG opens as a black-and-white skeleton
+              // because none of our chart styling lives inline.
+              window.Portfolixir._inlineStyles(svg, clone);
+
+              // Pin the rendered dimensions so the export keeps its on-screen
+              // size and isn't reflowed by the consumer.
+              var rect = svg.getBoundingClientRect();
+              var exportW = Math.max(640, Math.floor(rect.width || 960));
+              var exportH = Math.max(240, Math.floor(rect.height || 320));
+              clone.setAttribute("width", exportW);
+              clone.setAttribute("height", exportH);
+
               var serializer = new XMLSerializer();
               var source = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(clone);
 
@@ -76,11 +126,10 @@ defmodule PortfolixirWeb.LayoutView do
               var encoded = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
               img.onload = function () {
                 var canvas = document.createElement("canvas");
-                var rect = svg.getBoundingClientRect();
-                canvas.width = Math.max(960, Math.floor(rect.width || 960));
-                canvas.height = Math.max(320, Math.floor(rect.height || 320));
+                canvas.width = exportW;
+                canvas.height = exportH;
                 var ctx = canvas.getContext("2d");
-                ctx.fillStyle = "#ffffff";
+                ctx.fillStyle = bodyBg;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 canvas.toBlob(function (blob) {
