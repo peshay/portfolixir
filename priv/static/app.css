@@ -2305,6 +2305,48 @@ img.security-logo {
   font-size: 11px;
 }
 
+.detail-holdings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.detail-holdings-table th,
+.detail-holdings-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.detail-holdings-table th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.detail-holdings-table th.num,
+.detail-holdings-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-holdings-table small {
+  margin-left: 4px;
+  color: var(--color-text-muted);
+}
+
+.detail-holdings-table tfoot .totals-row {
+  font-weight: 600;
+  background: var(--color-bg-muted);
+}
+
+.detail-holdings-table tfoot .totals-row td {
+  border-top: 2px solid var(--color-border);
+  border-bottom: 0;
+}
+
 .detail-pane-toolbar {
   display: flex;
   flex-wrap: wrap;
