@@ -3,7 +3,9 @@ defmodule Portfolixir.Ledger do
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger.Positions
+  alias Portfolixir.Ledger.TradeMatcher
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
@@ -29,6 +31,70 @@ defmodule Portfolixir.Ledger do
         preload: [:portfolio, :securities_account, :cash_account]
       )
     )
+  end
+
+  @doc """
+  Lists FIFO-matched trades for a security: closed round-trips, open
+  remaining lots (with unrealised P&L vs. the latest known quote close),
+  and any orphan sells.
+
+  Pass `:latest_price` (Decimal) to inject the comparison price for
+  tests; otherwise the function reads it from `Catalog.Quotes.latest/1`.
+  """
+  def list_trades_for_security(security_id, opts \\ []) when is_integer(security_id) do
+    latest_price =
+      Keyword.get_lazy(opts, :latest_price, fn ->
+        case Quotes.latest(security_id) do
+          %{close: close} -> close
+          _ -> nil
+        end
+      end)
+
+    transactions =
+      security_id
+      |> list_transactions_for_security()
+      |> Enum.map(&transaction_for_matcher/1)
+
+    result = TradeMatcher.match(transactions)
+
+    %{
+      result
+      | open_lots: Enum.map(result.open_lots, &decorate_open_lot(&1, latest_price))
+    }
+  end
+
+  defp transaction_for_matcher(%Transaction{} = tx) do
+    %{
+      type: tx.type,
+      date: tx.date,
+      quantity: tx.quantity,
+      price: tx.price,
+      fees: tx.fees,
+      taxes: tx.taxes,
+      currency_code: tx.currency_code
+    }
+  end
+
+  defp decorate_open_lot(lot, nil) do
+    Map.merge(lot, %{
+      latest_price: nil,
+      unrealized_pnl_abs: nil,
+      unrealized_pnl_pct: nil
+    })
+  end
+
+  defp decorate_open_lot(lot, %Decimal{} = latest_price) do
+    basis_per_unit = lot.buy_price
+    current_value = Decimal.mult(lot.quantity, latest_price)
+    cost = Decimal.mult(lot.quantity, basis_per_unit)
+    abs_pnl = Decimal.sub(current_value, cost)
+    pct_pnl = if Decimal.equal?(cost, 0), do: Decimal.new(0), else: Decimal.div(abs_pnl, cost)
+
+    Map.merge(lot, %{
+      latest_price: latest_price,
+      unrealized_pnl_abs: abs_pnl,
+      unrealized_pnl_pct: pct_pnl
+    })
   end
 
   def count_transactions do

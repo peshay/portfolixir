@@ -432,4 +432,94 @@ defmodule PortfolixirWeb.ApiV1Test do
     assert response(conn, 204) == ""
     assert Catalog.get_security(security.id) == nil
   end
+
+  # User story:
+  # As a non-browser client (or the MCP companion),
+  # I want to request the FIFO-matched trades for a security,
+  # so that I can show realised P&L and open exposure outside the UI.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/securities/:id/trades returns open_lots, closed_trades and
+  #   orphan_sells.
+  # - Decimal financial values are serialized as strings.
+  # - Unknown ids return 404.
+  test "exposes FIFO trades through GET /api/v1/securities/:id/trades", %{conn: _conn} do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Apple Inc.",
+        ticker_symbol: "AAPL",
+        currency_code: "USD",
+        asset_class: "equity"
+      })
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "Trades Portfolio", base_currency_code: "USD"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "USD",
+        currency_code: "USD"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "USD Depot"
+      })
+
+    common = %{
+      portfolio_id: portfolio.id,
+      securities_account_id: depot.id,
+      cash_account_id: cash.id,
+      security_id: security.id,
+      fees: Decimal.new("0"),
+      taxes: Decimal.new("0"),
+      currency_code: "USD"
+    }
+
+    {:ok, _} =
+      Ledger.create_transaction(
+        Map.merge(common, %{
+          type: "buy",
+          date: ~D[2026-01-10],
+          quantity: Decimal.new("10"),
+          price: Decimal.new("100.00")
+        })
+      )
+
+    {:ok, _} =
+      Ledger.create_transaction(
+        Map.merge(common, %{
+          type: "sell",
+          date: ~D[2026-04-10],
+          quantity: Decimal.new("4"),
+          price: Decimal.new("150.00")
+        })
+      )
+
+    response =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities/#{security.id}/trades")
+      |> json_response(200)
+
+    assert %{"data" => %{"open_lots" => [_], "closed_trades" => [closed], "orphan_sells" => []}} =
+             response
+
+    # Decimals are strings, not floats
+    assert is_binary(closed["realized_pnl_abs"])
+    assert closed["quantity"] == "4"
+    assert closed["realized_pnl_abs"] == "200"
+    assert closed["holding_period_days"] == 90
+
+    not_found =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities/999999/trades")
+      |> json_response(404)
+
+    assert not_found == %{"errors" => %{"detail" => "not found"}}
+  end
 end
