@@ -2435,6 +2435,30 @@ img.security-logo {
   border-radius: var(--radius-sm);
 }
 
+.chart-ma-30 {
+  stroke: var(--color-accent-violet);
+  stroke-dasharray: 4 2;
+  opacity: 0.85;
+}
+
+.chart-ma-50 {
+  stroke: var(--color-accent-teal);
+  stroke-dasharray: 2 2;
+  opacity: 0.85;
+}
+
+.chart-ma-200 {
+  stroke: var(--color-accent-coral);
+  stroke-dasharray: 6 2;
+  opacity: 0.85;
+}
+
+.chart-cost-basis {
+  stroke: var(--color-warning);
+  stroke-dasharray: 1 3;
+  stroke-width: 1.5;
+}
+
 .chart-toggles {
   display: inline-flex;
   gap: 6px;
