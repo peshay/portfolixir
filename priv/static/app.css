@@ -2413,6 +2413,28 @@ img.security-logo {
   font-weight: 600;
 }
 
+.detail-custom-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.detail-custom-range input[type="date"] {
+  padding: 4px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.detail-custom-range[data-active="true"] {
+  outline: 1px dashed var(--color-accent-soft);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .chart-toggles {
   display: inline-flex;
   gap: 6px;
