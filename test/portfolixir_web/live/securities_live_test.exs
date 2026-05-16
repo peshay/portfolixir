@@ -546,6 +546,73 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
   end
 
+  describe "detail pane fullscreen" do
+    # User story:
+    # As a local portfolio maintainer,
+    # I want to expand the security detail pane into a viewport-covering
+    # fullscreen view,
+    # so that I can analyse a security with maximum chart real estate.
+    #
+    # Acceptance criteria:
+    # - A Maximize button on the detail-pane header toggles fullscreen.
+    # - In fullscreen the pane has the `.detail-pane--fullscreen` class.
+    # - The Escape key MUST NOT close the pane while fullscreen is active.
+    # - Clicking the X button still closes the pane in either mode.
+
+    setup do
+      {:ok, apple} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {:ok, apple: apple}
+    end
+
+    test "toggles fullscreen via the maximize button", %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      refute has_element?(view, "#security-detail-pane.detail-pane--fullscreen")
+
+      view |> element("#detail-pane-fullscreen-toggle") |> render_click()
+
+      assert has_element?(view, "#security-detail-pane.detail-pane--fullscreen")
+
+      view |> element("#detail-pane-fullscreen-toggle") |> render_click()
+
+      refute has_element?(view, "#security-detail-pane.detail-pane--fullscreen")
+    end
+
+    test "X button still closes the pane while fullscreen is active",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      view |> element("#detail-pane-fullscreen-toggle") |> render_click()
+
+      assert has_element?(view, "#security-detail-pane.detail-pane--fullscreen")
+
+      view |> element("#detail-pane-close") |> render_click()
+
+      refute has_element?(view, "#security-detail-pane")
+    end
+
+    test "the detail pane DOES NOT bind a window-level Escape handler — strict X-only close",
+         %{conn: conn, apple: apple} do
+      # If a future change accidentally wires `phx-window-keydown` on the
+      # detail pane, this test catches it. The strict rule from the user's
+      # ask is: in fullscreen only the X must close the pane.
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      view |> element("#detail-pane-fullscreen-toggle") |> render_click()
+
+      pane = element(view, "#security-detail-pane") |> render()
+      refute pane =~ ~s|phx-window-keydown|
+      assert has_element?(view, "#security-detail-pane.detail-pane--fullscreen")
+    end
+  end
+
   describe "detail pane — overview tab" do
     # User story:
     # As a local portfolio maintainer,

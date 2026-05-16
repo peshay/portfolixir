@@ -1957,6 +1957,24 @@ img.security-logo {
   gap: 14px;
 }
 
+.detail-pane--fullscreen {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 24px;
+  border-radius: 0;
+  border: 0;
+  z-index: 100;
+  overflow: auto;
+  box-shadow: none;
+}
+
+.detail-pane-head__actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .detail-pane-head {
   display: flex;
   align-items: flex-start;
