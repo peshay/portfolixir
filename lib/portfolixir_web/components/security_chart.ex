@@ -62,9 +62,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         role="img"
         aria-label="Price chart"
         viewBox={"0 0 #{@width} #{@height}"}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         width="100%"
-        height="320"
       >
         <%= if @geometry == :empty do %>
           <g class="no-quotes">
