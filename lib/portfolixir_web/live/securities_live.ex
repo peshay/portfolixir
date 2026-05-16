@@ -46,6 +46,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_quotes, [])
      |> assign(:detail_transactions, [])
      |> assign(:detail_transaction_rows, [])
+     |> assign(:detail_trades, %{open_lots: [], closed_trades: [], orphan_sells: []})
      |> assign(:detail_latest, nil)
      |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
      |> assign(:row_menu_id, nil)
@@ -437,7 +438,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <.transactions_tab_panel transactions={@detail_transaction_rows} />
       <% end %>
 
-      <%= if @detail_tab not in ["overview", "chart", "transactions"] do %>
+      <%= if @detail_tab == "trades" do %>
+        <.trades_tab_panel
+          trades={@detail_trades}
+          currency_code={@selected_security.currency_code}
+        />
+      <% end %>
+
+      <%= if @detail_tab not in ["overview", "chart", "transactions", "trades"] do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -602,6 +610,132 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <% end %>
     </section>
     """
+  end
+
+  attr(:trades, :map, required: true)
+  attr(:currency_code, :string, default: nil)
+
+  defp trades_tab_panel(assigns) do
+    ~H"""
+    <section
+      id="detail-tab-panel-trades"
+      role="tabpanel"
+      class="detail-tab-panel detail-tab-panel--trades"
+    >
+      <%= if @trades.open_lots == [] and @trades.closed_trades == [] do %>
+        <p class="detail-tab-empty">
+          <%= gettext("No matched trades yet — record some buys and sells first.") %>
+        </p>
+      <% end %>
+
+      <%= if @trades.open_lots != [] do %>
+        <h3 class="detail-section-title"><%= gettext("Open positions (FIFO)") %></h3>
+        <div class="data-table-wrap">
+          <table class="data-table detail-trades-table">
+            <thead>
+              <tr>
+                <th><%= gettext("Open date") %></th>
+                <th class="num"><%= gettext("Quantity") %></th>
+                <th class="num"><%= gettext("Avg buy") %></th>
+                <th class="num"><%= gettext("Latest") %></th>
+                <th class="num"><%= gettext("Unrealised P&L") %></th>
+                <th class="num">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for lot <- @trades.open_lots do %>
+                <tr>
+                  <td><%= Date.to_iso8601(lot.open_date) %></td>
+                  <td class="num"><%= format_decimal(lot.quantity, 4) %></td>
+                  <td class="num"><%= format_decimal(lot.buy_price, 2) %></td>
+                  <td class="num">
+                    <%= if lot.latest_price do %>
+                      <%= format_decimal(lot.latest_price, 2) %>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
+                  <td class={["num", pnl_class(lot.unrealized_pnl_abs)]}>
+                    <%= signed_decimal_or_dash(lot.unrealized_pnl_abs, 2) %>
+                  </td>
+                  <td class={["num", pnl_class(lot.unrealized_pnl_abs)]}>
+                    <%= signed_percent_or_dash(lot.unrealized_pnl_pct) %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+
+      <%= if @trades.closed_trades != [] do %>
+        <h3 class="detail-section-title"><%= gettext("Closed trades (FIFO)") %></h3>
+        <div class="data-table-wrap">
+          <table class="data-table detail-trades-table">
+            <thead>
+              <tr>
+                <th><%= gettext("Open") %></th>
+                <th><%= gettext("Close") %></th>
+                <th class="num"><%= gettext("Quantity") %></th>
+                <th class="num"><%= gettext("Avg buy") %></th>
+                <th class="num"><%= gettext("Avg sell") %></th>
+                <th class="num"><%= gettext("Days") %></th>
+                <th class="num"><%= gettext("Realised P&L") %></th>
+                <th class="num">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for trade <- @trades.closed_trades do %>
+                <tr>
+                  <td><%= Date.to_iso8601(trade.open_date) %></td>
+                  <td><%= Date.to_iso8601(trade.close_date) %></td>
+                  <td class="num"><%= format_decimal(trade.quantity, 4) %></td>
+                  <td class="num"><%= format_decimal(trade.avg_buy_price, 2) %></td>
+                  <td class="num"><%= format_decimal(trade.avg_sell_price, 2) %></td>
+                  <td class="num"><%= trade.holding_period_days %></td>
+                  <td class={["num", pnl_class(trade.realized_pnl_abs)]}>
+                    <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %>
+                  </td>
+                  <td class={["num", pnl_class(trade.realized_pnl_abs)]}>
+                    <%= signed_percent_or_dash(trade.realized_pnl_pct) %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+
+      <%= if @trades.orphan_sells != [] do %>
+        <p class="detail-tab-warning">
+          <%= gettext(
+            "Some sell transactions could not be matched to a preceding buy — they may indicate missing data."
+          ) %>
+        </p>
+      <% end %>
+    </section>
+    """
+  end
+
+  defp pnl_class(nil), do: nil
+
+  defp pnl_class(%Decimal{} = d) do
+    case Decimal.compare(d, 0) do
+      :gt -> "is-positive"
+      :lt -> "is-negative"
+      _ -> nil
+    end
+  end
+
+  defp signed_decimal_or_dash(nil, _places), do: "—"
+
+  defp signed_decimal_or_dash(%Decimal{} = d, places) do
+    rounded = Decimal.round(d, places)
+
+    case Decimal.compare(rounded, 0) do
+      :gt -> "+" <> Decimal.to_string(rounded, :normal)
+      _ -> Decimal.to_string(rounded, :normal)
+    end
   end
 
   defp tx_type_label("buy"), do: gettext("Buy")
@@ -1243,6 +1377,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_quotes, [])
     |> assign(:detail_transactions, [])
     |> assign(:detail_transaction_rows, [])
+    |> assign(:detail_trades, %{open_lots: [], closed_trades: [], orphan_sells: []})
     |> assign(:detail_latest, nil)
     |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
   end
@@ -1278,6 +1413,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_quotes, quotes)
     |> assign(:detail_transactions, transactions)
     |> assign(:detail_transaction_rows, transaction_rows)
+    |> assign(:detail_trades, Ledger.list_trades_for_security(id))
     |> assign(:detail_latest, Quotes.latest(id))
     |> assign(:detail_metrics, metrics)
   end

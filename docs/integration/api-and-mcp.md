@@ -130,6 +130,9 @@ Example account payloads:
   `transaction` object.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
   portfolio; unknown portfolios return `404 Not Found`.
+- `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
+  one security: open lots, closed round-trips (with realised P&L and holding
+  period in days) and any orphan sells.
 
 Example transaction payload:
 
@@ -170,3 +173,4 @@ in MCP schemas are strings.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.holdings.list`
+- `portfolixir.trades.list`
