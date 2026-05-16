@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:sync_running?, false)
      |> assign(:selected_security, nil)
      |> assign(:detail_tab, @default_tab)
+     |> assign(:detail_fullscreen?, false)
      |> assign(:detail_range, @default_range)
      |> assign(:detail_log_scale?, false)
      |> assign(:detail_show_transactions?, true)
@@ -317,7 +318,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp render_detail_pane(assigns) do
     ~H"""
-    <aside class="detail-pane" id="security-detail-pane" aria-label={gettext("Selected security")}>
+    <aside
+      class={["detail-pane", @detail_fullscreen? && "detail-pane--fullscreen"]}
+      id="security-detail-pane"
+      aria-label={gettext("Selected security")}
+      aria-modal={if @detail_fullscreen?, do: "true", else: "false"}
+    >
       <header class="detail-pane-head">
         <div class="detail-pane-head__title">
           <.security_logo security={@selected_security} variant="lg" />
@@ -334,14 +340,35 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </p>
           </div>
         </div>
-        <.link
-          id="detail-pane-close"
-          patch="/securities"
-          class="icon-button"
-          aria-label={gettext("Close detail")}
-        >
-          <AppShell.icon name={:x} />
-        </.link>
+        <div class="detail-pane-head__actions">
+          <button
+            type="button"
+            id="detail-pane-fullscreen-toggle"
+            class="icon-button"
+            phx-click="toggle_detail_fullscreen"
+            aria-label={
+              if @detail_fullscreen?,
+                do: gettext("Exit fullscreen"),
+                else: gettext("Maximize")
+            }
+            title={
+              if @detail_fullscreen?,
+                do: gettext("Exit fullscreen"),
+                else: gettext("Maximize")
+            }
+          >
+            <AppShell.icon name={if @detail_fullscreen?, do: :minimize, else: :maximize} />
+          </button>
+          <.link
+            id="detail-pane-close"
+            patch="/securities"
+            class="icon-button"
+            aria-label={gettext("Close detail")}
+            title={gettext("Close detail")}
+          >
+            <AppShell.icon name={:x} />
+          </.link>
+        </div>
       </header>
 
       <nav
@@ -1215,6 +1242,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:flash_message, gettext("Syncing prices…"))}
   end
 
+  def handle_event("toggle_detail_fullscreen", _params, socket) do
+    {:noreply, update(socket, :detail_fullscreen?, &(!&1))}
+  end
+
   def handle_event("save_detail_note", %{"security" => %{"note" => note}}, socket) do
     case socket.assigns.selected_security do
       %Security{} = security ->
@@ -1539,6 +1570,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp clear_selection(socket) do
     socket
     |> assign(:selected_security, nil)
+    |> assign(:detail_fullscreen?, false)
     |> assign(:detail_quotes, [])
     |> assign(:detail_transactions, [])
     |> assign(:detail_transaction_rows, [])
