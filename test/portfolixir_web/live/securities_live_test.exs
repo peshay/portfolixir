@@ -789,6 +789,49 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert String.length(today_idx) > String.length(older_idx)
     end
 
+    test "holdings tab renders per-portfolio rows with current value",
+         %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
+      {:ok, _} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-01-10],
+          quantity: Decimal.new("10"),
+          price: Decimal.new("100.00"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          currency_code: "USD"
+        })
+
+      {:ok, _} =
+        Portfolixir.Catalog.Quotes.upsert_many(security.id, [
+          %{date: Date.utc_today(), close: "150.00", source: "manual"}
+        ])
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=holdings")
+
+      panel = element(view, "#detail-tab-panel-holdings") |> render()
+      assert panel =~ "Local Portfolio"
+      assert panel =~ "Main Depot"
+      assert panel =~ "1500"
+      # 10 * (150 - 100) = +500 unrealised P&L
+      assert panel =~ "+500"
+    end
+
+    test "holdings tab empty state when no open positions exist",
+         %{conn: conn, security: security} do
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=holdings")
+
+      assert has_element?(
+               view,
+               "#detail-tab-panel-holdings",
+               "No open positions"
+             )
+    end
+
     test "quotes tab empty state localizes when no quote history exists",
          %{conn: conn, security: security} do
       {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=quotes")
