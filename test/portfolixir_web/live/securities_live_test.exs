@@ -654,6 +654,32 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert has_element?(view, "polyline.chart-cost-basis")
     end
 
+    test "renders SVG and PNG export buttons on the chart tab",
+         %{conn: conn, security: security} do
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")
+
+      assert has_element?(view, "#chart-export-svg")
+      assert has_element?(view, "#chart-export-png")
+    end
+
+    test "clear_detail_custom_range event clears any active custom range",
+         %{conn: conn, security: security, today: today} do
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")
+
+      from = Date.to_iso8601(Date.add(today, -45))
+      to = Date.to_iso8601(today)
+
+      view
+      |> form("#detail-custom-range", %{"from" => from, "to" => to})
+      |> render_submit()
+
+      assert has_element?(view, "#detail-custom-range[data-active='true']")
+
+      render_hook(view, "clear_detail_custom_range", %{})
+
+      assert has_element?(view, "#detail-custom-range[data-active='false']")
+    end
+
     test "percent-return toggle marks the chart payload as percent mode",
          %{conn: conn, security: security} do
       {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")

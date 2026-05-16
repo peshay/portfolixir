@@ -504,6 +504,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
               >
                 <%= gettext("Sync prices") %>
               </button>
+              <button
+                type="button"
+                id="chart-export-svg"
+                class="chart-toggle"
+                onclick="Portfolixir.exportChart(this, 'svg')"
+              >
+                <%= gettext("Export SVG") %>
+              </button>
+              <button
+                type="button"
+                id="chart-export-png"
+                class="chart-toggle"
+                onclick="Portfolixir.exportChart(this, 'png')"
+              >
+                <%= gettext("Export PNG") %>
+              </button>
             </div>
           </div>
 
@@ -1477,6 +1493,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("toggle_detail_percent_mode", _params, socket) do
     {:noreply, update(socket, :detail_percent_mode?, &(!&1))}
+  end
+
+  def handle_event("clear_detail_custom_range", _params, socket) do
+    if socket.assigns.selected_security do
+      {:noreply,
+       socket
+       |> assign(:detail_custom_range, nil)
+       |> load_detail_data()}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("toggle_detail_ma", %{"window" => window_str}, socket) do
