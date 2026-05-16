@@ -52,6 +52,8 @@ defmodule PortfolixirWeb.Router do
     put("/securities/:security_id/quotes", QuoteController, :upsert)
     post("/securities/:security_id/sync_quotes", QuoteController, :sync)
 
+    get("/securities/:security_id/trades", TradeController, :index)
+
     get("/portfolios", PortfolioController, :index)
     post("/portfolios", PortfolioController, :create)
     get("/portfolios/:portfolio_id/holdings", HoldingController, :index)

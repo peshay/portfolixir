@@ -24,7 +24,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.securities_accounts.create",
       "portfolixir.transactions.list",
       "portfolixir.transactions.create",
-      "portfolixir.holdings.list"
+      "portfolixir.holdings.list",
+      "portfolixir.trades.list"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -67,6 +68,47 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].token, "Bearer api-token");
     assert.deepEqual(result.structuredContent, { data: [{ id: 7, name: "Synthetic" }] });
     assert.match(result.content[0].text, /Synthetic/);
+  });
+
+  it("issues a GET to /trades for portfolixir.trades.list", async () => {
+    const requests: Array<{ method: string; path: string; token: string }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          token: String(init?.headers?.["authorization"])
+        });
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              open_lots: [],
+              closed_trades: [
+                {
+                  open_date: "2026-01-10",
+                  close_date: "2026-04-10",
+                  quantity: "10",
+                  realized_pnl_abs: "500"
+                }
+              ],
+              orphan_sells: []
+            }
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.trades.list", { security_id: 42 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/securities/42/trades");
+    assert.equal(requests[0].token, "Bearer api-token");
+    assert.match(result.content[0].text, /500/);
   });
 
   it("maps invalid tool names and upstream API errors to clear failures", async () => {
