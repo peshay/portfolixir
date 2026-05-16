@@ -46,6 +46,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_percent_mode?, false)
      |> assign(:detail_log_scale?, false)
      |> assign(:detail_show_transactions?, true)
+     |> assign(:detail_ma, %{30 => false, 50 => false, 200 => false})
+     |> assign(:detail_cost_basis?, false)
      |> assign(:detail_quotes, [])
      |> assign(:detail_transactions, [])
      |> assign(:detail_transaction_rows, [])
@@ -472,6 +474,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
               >
                 <%= gettext("Show transactions") %>
               </button>
+              <%= for window <- [30, 50, 200] do %>
+                <button
+                  type="button"
+                  id={"toggle-ma-#{window}"}
+                  phx-click="toggle_detail_ma"
+                  phx-value-window={window}
+                  class={["chart-toggle", @detail_ma[window] && "is-active"]}
+                  aria-pressed={@detail_ma[window]}
+                >
+                  MA<%= window %>
+                </button>
+              <% end %>
+              <button
+                type="button"
+                id="toggle-cost-basis"
+                phx-click="toggle_detail_cost_basis"
+                class={["chart-toggle", @detail_cost_basis? && "is-active"]}
+                aria-pressed={@detail_cost_basis?}
+              >
+                <%= gettext("Cost basis") %>
+              </button>
               <button
                 type="button"
                 id="detail-sync"
@@ -487,6 +510,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <SecurityChart.chart
             quotes={@detail_quotes}
             transactions={@detail_transactions}
+            overlays={
+              build_chart_overlays(@detail_quotes, @detail_transaction_rows, @detail_ma, @detail_cost_basis?)
+            }
             log_scale?={@detail_log_scale? and not @detail_percent_mode?}
             percent_mode?={@detail_percent_mode?}
             show_transactions?={@detail_show_transactions?}
@@ -1020,6 +1046,103 @@ defmodule PortfolixirWeb.SecuritiesLive do
     sign <> Decimal.to_string(rounded, :normal) <> " %"
   end
 
+  defp build_chart_overlays(quotes, transactions, ma_toggles, cost_basis?) do
+    ma_overlays =
+      for {window, true} <- ma_toggles do
+        %{
+          class: "chart-ma-#{window}",
+          label: "MA#{window}",
+          points: moving_average(quotes, window)
+        }
+      end
+
+    cost_basis_overlay =
+      if cost_basis? do
+        [
+          %{
+            class: "chart-cost-basis",
+            label: "Cost basis",
+            points: cost_basis_series(quotes, transactions)
+          }
+        ]
+      else
+        []
+      end
+
+    Enum.reject(ma_overlays ++ cost_basis_overlay, &(&1.points == []))
+  end
+
+  defp moving_average(quotes, window) when window > 0 do
+    quotes
+    |> Enum.with_index()
+    |> Enum.reduce({[], []}, fn {q, idx}, {windowed, acc} ->
+      windowed = [Decimal.to_float(q.close) | windowed] |> Enum.take(window)
+
+      if length(windowed) == window do
+        avg = Enum.sum(windowed) / window
+        {windowed, [%{date: q.date, value: avg, idx: idx} | acc]}
+      else
+        {windowed, acc}
+      end
+    end)
+    |> elem(1)
+    |> Enum.reverse()
+  end
+
+  defp cost_basis_series(quotes, transactions) when transactions != [] do
+    sorted_txs = Enum.sort_by(transactions, & &1.date, Date)
+
+    series =
+      sorted_txs
+      |> Enum.reduce({Decimal.new(0), Decimal.new(0), []}, fn tx, {qty_held, avg_cost, points} ->
+        case tx.type do
+          "buy" ->
+            new_qty = Decimal.add(qty_held, tx.quantity)
+
+            new_avg =
+              if Decimal.equal?(new_qty, 0) do
+                Decimal.new(0)
+              else
+                numerator =
+                  Decimal.add(
+                    Decimal.mult(qty_held, avg_cost),
+                    Decimal.mult(tx.quantity, tx.price)
+                  )
+
+                Decimal.div(numerator, new_qty)
+              end
+
+            {new_qty, new_avg, [{tx.date, Decimal.to_float(new_avg)} | points]}
+
+          "sell" ->
+            new_qty = Decimal.sub(qty_held, tx.quantity)
+            {new_qty, avg_cost, [{tx.date, Decimal.to_float(avg_cost)} | points]}
+
+          _ ->
+            {qty_held, avg_cost, points}
+        end
+      end)
+      |> elem(2)
+      |> Enum.reverse()
+
+    # Extend the last value to the last visible quote date so the line is
+    # visible across the chart.
+    case {series, List.last(quotes)} do
+      {[], _} ->
+        []
+
+      {_, nil} ->
+        Enum.map(series, fn {d, v} -> %{date: d, value: v} end)
+
+      {points, last_quote} ->
+        {_d, last_v} = List.last(points)
+        ext = points ++ [{last_quote.date, last_v}]
+        Enum.map(ext, fn {d, v} -> %{date: d, value: v} end)
+    end
+  end
+
+  defp cost_basis_series(_quotes, _empty), do: []
+
   defp detail_tabs do
     [
       {"overview", gettext("Overview")},
@@ -1354,6 +1477,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("toggle_detail_percent_mode", _params, socket) do
     {:noreply, update(socket, :detail_percent_mode?, &(!&1))}
+  end
+
+  def handle_event("toggle_detail_ma", %{"window" => window_str}, socket) do
+    case Integer.parse(window_str) do
+      {window, ""} when window in [30, 50, 200] ->
+        {:noreply, update(socket, :detail_ma, &Map.update!(&1, window, fn b -> !b end))}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_detail_cost_basis", _params, socket) do
+    {:noreply, update(socket, :detail_cost_basis?, &(!&1))}
   end
 
   def handle_event("toggle_detail_log", _params, socket) do
