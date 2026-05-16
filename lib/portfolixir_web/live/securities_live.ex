@@ -800,8 +800,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <table class="data-table detail-trades-table">
             <thead>
               <tr>
-                <th><%= gettext("Open") %></th>
-                <th><%= gettext("Close") %></th>
+                <th><%= gettext("Opened") %></th>
+                <th><%= gettext("Closed") %></th>
                 <th class="num"><%= gettext("Quantity") %></th>
                 <th class="num"><%= gettext("Avg buy") %></th>
                 <th class="num"><%= gettext("Avg sell") %></th>
@@ -962,7 +962,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <thead>
               <tr>
                 <th><%= gettext("Date") %></th>
-                <th class="num"><%= gettext("Close") %></th>
+                <th class="num"><%= gettext("Closing price") %></th>
                 <th><%= gettext("Source") %></th>
               </tr>
             </thead>
