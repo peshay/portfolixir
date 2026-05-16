@@ -262,13 +262,15 @@ defmodule PortfolixirWeb.LayoutView do
                 this.onLeave = function () { self.hide(); };
                 this.onDown = function (event) { self.beginZoom(event); };
                 this.onUp = function (event) { self.endZoom(event); };
+                this.onCancel = function (event) { self.cancelZoom(); self.hide(); };
                 this.onDbl = function () { self.resetZoom(); };
 
                 this.svg.addEventListener("pointermove", this.onMove);
                 this.svg.addEventListener("pointerdown", this.onDown);
                 this.svg.addEventListener("pointerup", this.onUp);
                 this.svg.addEventListener("pointerleave", this.onLeave);
-                this.svg.addEventListener("pointercancel", this.onLeave);
+                this.svg.addEventListener("pointercancel", this.onCancel);
+                this.svg.addEventListener("lostpointercapture", this.onCancel);
                 this.svg.addEventListener("dblclick", this.onDbl);
               },
               updated: function () {
@@ -281,20 +283,38 @@ defmodule PortfolixirWeb.LayoutView do
                   this.svg.removeEventListener("pointerdown", this.onDown);
                   this.svg.removeEventListener("pointerup", this.onUp);
                   this.svg.removeEventListener("pointerleave", this.onLeave);
-                  this.svg.removeEventListener("pointercancel", this.onLeave);
+                  this.svg.removeEventListener("pointercancel", this.onCancel);
+                  this.svg.removeEventListener("lostpointercapture", this.onCancel);
                   this.svg.removeEventListener("dblclick", this.onDbl);
                 }
               },
               beginZoom: function (event) {
                 if (!this.payload || !this.payload.points || this.payload.points.length < 2) return;
-                this.zoom = { startX: event.clientX };
+                this.zoom = { startX: event.clientX, pointerId: event.pointerId };
+                // Capture the pointer so pointerup still fires on the SVG
+                // even when the user drags outside and releases.
+                if (event.pointerId != null && this.svg.setPointerCapture) {
+                  try { this.svg.setPointerCapture(event.pointerId); } catch (_) {}
+                }
+              },
+              cancelZoom: function () {
+                if (!this.zoom) return;
+                if (this.zoom.pointerId != null && this.svg.releasePointerCapture) {
+                  try { this.svg.releasePointerCapture(this.zoom.pointerId); } catch (_) {}
+                }
+                this.zoom = null;
+                this.zoomRect.hidden = true;
               },
               endZoom: function (event) {
                 if (!this.zoom) return;
                 var startX = this.zoom.startX;
                 var endX = event.clientX;
+                var pointerId = this.zoom.pointerId;
                 this.zoom = null;
                 this.zoomRect.hidden = true;
+                if (pointerId != null && this.svg.releasePointerCapture) {
+                  try { this.svg.releasePointerCapture(pointerId); } catch (_) {}
+                }
 
                 if (Math.abs(endX - startX) < 8) return;
 
