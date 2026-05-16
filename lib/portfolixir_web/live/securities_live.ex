@@ -45,6 +45,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_show_transactions?, true)
      |> assign(:detail_quotes, [])
      |> assign(:detail_transactions, [])
+     |> assign(:detail_transaction_rows, [])
      |> assign(:detail_latest, nil)
      |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
      |> assign(:row_menu_id, nil)
@@ -432,7 +433,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
-      <%= if @detail_tab not in ["overview", "chart"] do %>
+      <%= if @detail_tab == "transactions" do %>
+        <.transactions_tab_panel transactions={@detail_transaction_rows} />
+      <% end %>
+
+      <%= if @detail_tab not in ["overview", "chart", "transactions"] do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -536,6 +541,84 @@ defmodule PortfolixirWeb.SecuritiesLive do
     </section>
     """
   end
+
+  attr(:transactions, :list, required: true)
+
+  defp transactions_tab_panel(assigns) do
+    assigns = assign(assigns, :rows, Enum.reverse(assigns.transactions))
+
+    ~H"""
+    <section
+      id="detail-tab-panel-transactions"
+      role="tabpanel"
+      class="detail-tab-panel detail-tab-panel--transactions"
+    >
+      <%= if @rows == [] do %>
+        <p class="detail-tab-empty">
+          <%= gettext("No transactions for this security yet.") %>
+        </p>
+      <% else %>
+        <div class="data-table-wrap">
+          <table class="data-table detail-transactions-table">
+            <thead>
+              <tr>
+                <th><%= gettext("Date") %></th>
+                <th><%= gettext("Type") %></th>
+                <th class="num"><%= gettext("Quantity") %></th>
+                <th class="num"><%= gettext("Price") %></th>
+                <th class="num"><%= gettext("Fees") %></th>
+                <th class="num"><%= gettext("Taxes") %></th>
+                <th class="num"><%= gettext("Gross") %></th>
+                <th><%= gettext("Portfolio") %></th>
+                <th><%= gettext("Depot") %></th>
+                <th><%= gettext("Notes") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for tx <- @rows do %>
+                <tr class={"tx-row tx-row--#{tx.type}"}>
+                  <td><%= Date.to_iso8601(tx.date) %></td>
+                  <td>
+                    <span class={"badge tx-badge tx-badge--#{tx.type}"}>
+                      <%= tx_type_label(tx.type) %>
+                    </span>
+                  </td>
+                  <td class="num"><%= format_decimal(tx.quantity, 4) %></td>
+                  <td class="num">
+                    <%= format_decimal(tx.price, 2) %>
+                    <small><%= tx.currency_code %></small>
+                  </td>
+                  <td class="num"><%= format_decimal(tx.fees, 2) %></td>
+                  <td class="num"><%= format_decimal(tx.taxes, 2) %></td>
+                  <td class="num"><%= format_decimal(tx_gross(tx), 2) %></td>
+                  <td><%= portfolio_name(tx) %></td>
+                  <td><%= depot_name(tx) %></td>
+                  <td><%= tx.notes %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </section>
+    """
+  end
+
+  defp tx_type_label("buy"), do: gettext("Buy")
+  defp tx_type_label("sell"), do: gettext("Sell")
+  defp tx_type_label(other), do: to_string(other)
+
+  defp tx_gross(%{quantity: q, price: p}) when not is_nil(q) and not is_nil(p) do
+    Decimal.mult(q, p)
+  end
+
+  defp tx_gross(_), do: Decimal.new(0)
+
+  defp portfolio_name(%{portfolio: %{name: name}}), do: name
+  defp portfolio_name(_), do: nil
+
+  defp depot_name(%{securities_account: %{name: name}}), do: name
+  defp depot_name(_), do: nil
 
   attr(:label, :string, required: true)
   attr(:value, :any, default: nil)
@@ -1159,6 +1242,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:selected_security, nil)
     |> assign(:detail_quotes, [])
     |> assign(:detail_transactions, [])
+    |> assign(:detail_transaction_rows, [])
     |> assign(:detail_latest, nil)
     |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
   end
@@ -1174,10 +1258,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
       |> Quotes.range(from, to)
       |> Enum.map(&%{date: &1.date, close: &1.close})
 
-    transactions =
+    transaction_rows =
       id
       |> Ledger.list_transactions_for_security()
-      |> Enum.map(&%{date: &1.date, type: &1.type, price: &1.price, quantity: &1.quantity})
+
+    transactions =
+      Enum.map(
+        transaction_rows,
+        &%{date: &1.date, type: &1.type, price: &1.price, quantity: &1.quantity}
+      )
 
     metrics =
       case Quotes.attach_metrics([socket.assigns.selected_security]) do
@@ -1188,6 +1277,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     socket
     |> assign(:detail_quotes, quotes)
     |> assign(:detail_transactions, transactions)
+    |> assign(:detail_transaction_rows, transaction_rows)
     |> assign(:detail_latest, Quotes.latest(id))
     |> assign(:detail_metrics, metrics)
   end
