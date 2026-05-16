@@ -546,6 +546,70 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
   end
 
+  describe "detail pane — chart enhancements" do
+    # User story:
+    # As a local portfolio maintainer,
+    # I want a custom from/to date picker and a percent-return toggle on
+    # the price chart,
+    # so that I can analyse arbitrary windows and compare relative
+    # performance without rebuilding the data.
+    #
+    # Acceptance criteria:
+    # - Selecting a custom range narrows the rendered range and deselects
+    #   the preset range buttons.
+    # - The percent-return toggle changes the chart payload so the Y axis
+    #   reflects % change from the first visible close.
+    # - All math stays in Decimal until the final pixel conversion.
+
+    setup do
+      {:ok, security} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      today = Date.utc_today()
+
+      {:ok, _} =
+        Portfolixir.Catalog.Quotes.upsert_many(security.id, [
+          %{date: Date.add(today, -60), close: "100.00", source: "manual"},
+          %{date: Date.add(today, -30), close: "110.00", source: "manual"},
+          %{date: today, close: "150.00", source: "manual"}
+        ])
+
+      {:ok, security: security, today: today}
+    end
+
+    test "applying a custom date range deselects the preset range buttons",
+         %{conn: conn, security: security, today: today} do
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")
+
+      from = Date.to_iso8601(Date.add(today, -45))
+      to = Date.to_iso8601(today)
+
+      view
+      |> form("#detail-custom-range", %{"from" => from, "to" => to})
+      |> render_submit()
+
+      # The default "1Y" range is no longer the active one
+      refute has_element?(view, "button[phx-value-range='1Y'].is-active")
+      assert has_element?(view, "#detail-custom-range[data-active='true']")
+    end
+
+    test "percent-return toggle marks the chart payload as percent mode",
+         %{conn: conn, security: security} do
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")
+
+      view |> element("#toggle-percent-mode") |> render_click()
+
+      assert has_element?(view, "#toggle-percent-mode.is-active")
+      payload_html = element(view, "script[data-chart-payload]") |> render()
+      assert payload_html =~ ~s|"mode":"percent"|
+    end
+  end
+
   describe "detail pane fullscreen" do
     # User story:
     # As a local portfolio maintainer,

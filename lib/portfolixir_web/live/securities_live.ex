@@ -42,6 +42,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_tab, @default_tab)
      |> assign(:detail_fullscreen?, false)
      |> assign(:detail_range, @default_range)
+     |> assign(:detail_custom_range, nil)
+     |> assign(:detail_percent_mode?, false)
      |> assign(:detail_log_scale?, false)
      |> assign(:detail_show_transactions?, true)
      |> assign(:detail_quotes, [])
@@ -406,12 +408,40 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   type="button"
                   phx-click="set_detail_range"
                   phx-value-range={range}
-                  class={["range-button", @detail_range == range && "is-active"]}
+                  class={[
+                    "range-button",
+                    is_nil(@detail_custom_range) and @detail_range == range && "is-active"
+                  ]}
                 >
                   <%= range %>
                 </button>
               <% end %>
             </div>
+
+            <form
+              id="detail-custom-range"
+              phx-submit="set_detail_custom_range"
+              class="detail-custom-range"
+              data-active={if @detail_custom_range, do: "true", else: "false"}
+              aria-label={gettext("Custom range")}
+            >
+              <input
+                type="date"
+                name="from"
+                value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.from)}
+                aria-label={gettext("From")}
+              />
+              <span aria-hidden="true">→</span>
+              <input
+                type="date"
+                name="to"
+                value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.to)}
+                aria-label={gettext("To")}
+              />
+              <button type="submit" class="chart-toggle">
+                <%= gettext("Apply") %>
+              </button>
+            </form>
 
             <div class="chart-toggles">
               <button
@@ -420,8 +450,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 phx-click="toggle_detail_log"
                 class={["chart-toggle", @detail_log_scale? && "is-active"]}
                 aria-pressed={@detail_log_scale?}
+                disabled={@detail_percent_mode?}
               >
                 <%= gettext("Log scale") %>
+              </button>
+              <button
+                type="button"
+                id="toggle-percent-mode"
+                phx-click="toggle_detail_percent_mode"
+                class={["chart-toggle", @detail_percent_mode? && "is-active"]}
+                aria-pressed={@detail_percent_mode?}
+              >
+                <%= gettext("Percent") %>
               </button>
               <button
                 type="button"
@@ -447,7 +487,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <SecurityChart.chart
             quotes={@detail_quotes}
             transactions={@detail_transactions}
-            log_scale?={@detail_log_scale?}
+            log_scale?={@detail_log_scale? and not @detail_percent_mode?}
+            percent_mode?={@detail_percent_mode?}
             show_transactions?={@detail_show_transactions?}
             currency_code={@selected_security.currency_code}
           />
@@ -1283,10 +1324,36 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("set_detail_range", %{"range" => range}, socket) do
     if range in @ranges and socket.assigns.selected_security do
-      {:noreply, socket |> assign(:detail_range, range) |> load_detail_data()}
+      {:noreply,
+       socket
+       |> assign(:detail_range, range)
+       |> assign(:detail_custom_range, nil)
+       |> load_detail_data()}
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_event(
+        "set_detail_custom_range",
+        %{"from" => from_str, "to" => to_str},
+        socket
+      ) do
+    with %Security{} <- socket.assigns.selected_security,
+         {:ok, from} <- Date.from_iso8601(from_str),
+         {:ok, to} <- Date.from_iso8601(to_str),
+         true <- Date.compare(from, to) != :gt do
+      {:noreply,
+       socket
+       |> assign(:detail_custom_range, %{from: from, to: to})
+       |> load_detail_data()}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_detail_percent_mode", _params, socket) do
+    {:noreply, update(socket, :detail_percent_mode?, &(!&1))}
   end
 
   def handle_event("toggle_detail_log", _params, socket) do
@@ -1584,7 +1651,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp load_detail_data(socket) do
     %Security{id: id} = socket.assigns.selected_security
-    {from, to} = range_to_dates(socket.assigns.detail_range, id)
+
+    {from, to} =
+      case socket.assigns[:detail_custom_range] do
+        %{from: from, to: to} -> {from, to}
+        _ -> range_to_dates(socket.assigns.detail_range, id)
+      end
 
     quotes =
       id
