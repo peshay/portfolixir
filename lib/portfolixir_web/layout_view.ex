@@ -441,6 +441,63 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            Hooks.PPImportDrop = {
+              mounted: function () {
+                var container = this.el;
+                var input = container.querySelector("input[type='file']");
+                var button = container.querySelector("[data-import-file-button]");
+
+                if (button && input) {
+                  button.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    input.click();
+                  });
+                }
+
+                function setDragging(active) {
+                  if (active) {
+                    container.classList.add("is-dragging");
+                  } else {
+                    container.classList.remove("is-dragging");
+                  }
+                }
+
+                function hasFiles(event) {
+                  var dt = event.dataTransfer;
+                  if (!dt || !dt.types) return false;
+                  for (var i = 0; i < dt.types.length; i++) {
+                    if (dt.types[i] === "Files") return true;
+                  }
+                  return false;
+                }
+
+                this._onDragOver = function (event) {
+                  if (!hasFiles(event)) return;
+                  event.preventDefault();
+                  setDragging(true);
+                };
+                this._onDragLeave = function (event) {
+                  if (event.target !== container) return;
+                  setDragging(false);
+                };
+                this._onDrop = function () { setDragging(false); };
+
+                container.addEventListener("dragover", this._onDragOver);
+                container.addEventListener("dragleave", this._onDragLeave);
+                container.addEventListener("dragend", this._onDrop);
+                container.addEventListener("drop", this._onDrop);
+              },
+              destroyed: function () {
+                var container = this.el;
+                if (this._onDragOver) container.removeEventListener("dragover", this._onDragOver);
+                if (this._onDragLeave) container.removeEventListener("dragleave", this._onDragLeave);
+                if (this._onDrop) {
+                  container.removeEventListener("dragend", this._onDrop);
+                  container.removeEventListener("drop", this._onDrop);
+                }
+              }
+            };
+
             var liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
               hooks: Hooks,
               params: { _csrf_token: csrfToken }

@@ -2718,3 +2718,212 @@ img.security-logo {
 .decimal-neutral {
   color: var(--color-text-muted);
 }
+
+/* === Imports: drag-and-drop dropzone === */
+
+.import-drop-zone {
+  display: grid;
+  gap: 1rem;
+  min-height: 320px;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  border: 2px dashed var(--color-border, #d4d4d8);
+  border-radius: var(--radius-lg, 0.75rem);
+  background: var(--color-bg-elevated, #ffffff);
+  padding: 2.5rem 1.5rem;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.import-drop-zone h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+#pp-import-drop.is-dragging .import-drop-zone,
+.import-drop-zone.is-dragging {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent-soft) 58%, var(--color-bg-elevated, #ffffff));
+  transform: translateY(-1px);
+}
+
+.import-drop-icon {
+  width: 72px;
+  height: 72px;
+  color: var(--color-text-muted);
+}
+
+#pp-import-drop.is-dragging .import-drop-icon,
+.import-drop-zone.is-dragging .import-drop-icon {
+  color: var(--color-accent);
+}
+
+.import-drop-zone .muted {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.import-drop-zone .upload-progress {
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Imports: preview stats === */
+
+.import-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.import-stat-card {
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-lg, 0.75rem);
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.import-stat-card .label {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.import-stat-card .value {
+  font-size: 1.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.import-stat-card.warning .value {
+  color: #b91c1c;
+}
+
+/* === Imports: kind-count chips === */
+
+.kind-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.kind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.kind-chip .count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.kind-chip[data-family="trade"]    { background: rgba(15, 118, 110, 0.12); color: #0f766e; }
+.kind-chip[data-family="income"]   { background: rgba(124, 58, 237, 0.12); color: #7c3aed; }
+.kind-chip[data-family="cost"]     { background: rgba(225, 29, 72, 0.12);  color: #b91c1c; }
+.kind-chip[data-family="transfer"] { background: rgba(217, 119, 6, 0.14);  color: #b45309; }
+.kind-chip[data-family="cash"]     { background: rgba(75, 85, 99, 0.14);   color: #374151; }
+
+/* === Imports: mapping cards === */
+
+.mapping-grid {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.mapping-row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1.4fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.6rem 0.85rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-md, 0.5rem);
+}
+
+.mapping-row.depot {
+  grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1fr) minmax(14rem, 1fr);
+}
+
+.mapping-row:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border, #e5e7eb));
+}
+
+.mapping-row .source {
+  font-weight: 600;
+}
+
+.mapping-row .source small {
+  display: block;
+  color: var(--color-text-muted);
+  font-weight: 400;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mapping-row select {
+  width: 100%;
+}
+
+.panel.inner {
+  margin-top: 1rem;
+}
+
+.panel.inner h3 {
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
+/* === Imports: done screen === */
+
+.import-done {
+  text-align: center;
+  padding: 2rem 1rem;
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+}
+
+.import-done .success-icon {
+  width: 64px;
+  height: 64px;
+  color: #047857;
+  background: rgba(4, 120, 87, 0.12);
+  border-radius: 999px;
+  padding: 0.85rem;
+}
+
+.import-done h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.import-done .summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 36rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.import-done .actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
