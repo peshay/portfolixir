@@ -4,10 +4,11 @@ server_enabled = String.downcase(System.get_env("PHX_SERVER", "false")) in ["1",
 import Config
 
 config :portfolixir, Portfolixir.Repo,
-  database: "portfolixir_test",
-  username: "postgres",
-  password: "postgres",
+  database: System.get_env("DATABASE_NAME", "portfolixir_test"),
+  username: System.get_env("DATABASE_USER", "postgres"),
+  password: System.get_env("DATABASE_PASSWORD", "postgres"),
   hostname: System.get_env("DATABASE_HOST", "127.0.0.1"),
+  port: String.to_integer(System.get_env("DATABASE_PORT", "5432")),
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 5
 
