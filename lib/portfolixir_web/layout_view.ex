@@ -176,6 +176,85 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            Hooks.SecuritySplitPane = {
+              mounted: function () {
+                this.workspace = this.el.closest("#securities-workspace");
+                this.target = document.getElementById(this.el.dataset.target || "securities-list-pane");
+                this.key = this.el.dataset.storageKey || "securities.detailSplitHeight";
+                this.min = parseInt(this.el.dataset.minHeight || "220", 10);
+                this.max = parseInt(this.el.dataset.maxHeight || "720", 10);
+                this.drag = null;
+
+                var stored = null;
+                try { stored = window.localStorage && window.localStorage.getItem(this.key); } catch (_) {}
+                if (stored) {
+                  this.applyHeight(parseInt(stored, 10), false);
+                } else if (this.target) {
+                  this.applyHeight(this.target.getBoundingClientRect().height || 360, false);
+                }
+
+                var self = this;
+                this.onPointerDown = function (event) { self.startDrag(event); };
+                this.onPointerMove = function (event) { self.moveDrag(event); };
+                this.onPointerUp = function (event) { self.endDrag(event); };
+                this.onKeyDown = function (event) { self.handleKey(event); };
+
+                this.el.addEventListener("pointerdown", this.onPointerDown);
+                this.el.addEventListener("keydown", this.onKeyDown);
+              },
+              destroyed: function () {
+                this.el.removeEventListener("pointerdown", this.onPointerDown);
+                this.el.removeEventListener("keydown", this.onKeyDown);
+                window.removeEventListener("pointermove", this.onPointerMove);
+                window.removeEventListener("pointerup", this.onPointerUp);
+              },
+              startDrag: function (event) {
+                if (!this.target) return;
+                event.preventDefault();
+                this.drag = {
+                  y: event.clientY,
+                  height: this.target.getBoundingClientRect().height || 360
+                };
+                window.addEventListener("pointermove", this.onPointerMove);
+                window.addEventListener("pointerup", this.onPointerUp);
+              },
+              moveDrag: function (event) {
+                if (!this.drag) return;
+                this.applyHeight(this.drag.height + (event.clientY - this.drag.y), true);
+              },
+              endDrag: function () {
+                this.drag = null;
+                window.removeEventListener("pointermove", this.onPointerMove);
+                window.removeEventListener("pointerup", this.onPointerUp);
+              },
+              handleKey: function (event) {
+                if (!this.target) return;
+                var current = this.target.getBoundingClientRect().height || 360;
+                var next = current;
+
+                if (event.key === "ArrowUp") next = current - 24;
+                else if (event.key === "ArrowDown") next = current + 24;
+                else if (event.key === "Home") next = this.min;
+                else if (event.key === "End") next = this.max;
+                else return;
+
+                event.preventDefault();
+                this.applyHeight(next, true);
+              },
+              applyHeight: function (height, persist) {
+                if (!this.workspace || !Number.isFinite(height)) return;
+                var clamped = Math.max(this.min, Math.min(this.max, Math.round(height)));
+                this.workspace.style.setProperty("--securities-list-height", clamped + "px");
+                this.el.setAttribute("aria-valuenow", String(clamped));
+
+                if (persist) {
+                  try {
+                    if (window.localStorage) window.localStorage.setItem(this.key, String(clamped));
+                  } catch (_) {}
+                }
+              }
+            };
+
             Hooks.PositionedMenu = {
               mounted: function () {
                 this.reposition();

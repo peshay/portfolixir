@@ -42,6 +42,7 @@ defmodule Portfolixir.Imports.Applier do
   defmodule Result do
     @moduledoc false
     defstruct created_securities: 0,
+              created_security_ids: [],
               created_cash_accounts: 0,
               created_securities_accounts: 0,
               created_transactions: 0,
@@ -105,6 +106,7 @@ defmodule Portfolixir.Imports.Applier do
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
+    |> enrich_after_commit()
   end
 
   # Original auto-resolve path: kept for the JSON-API entry point and
@@ -134,7 +136,16 @@ defmodule Portfolixir.Imports.Applier do
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
+    |> enrich_after_commit()
   end
+
+  defp enrich_after_commit({:ok, %Result{} = result}) do
+    created_ids = Enum.reverse(result.created_security_ids)
+    Catalog.enrich_security_ids_async(created_ids)
+    {:ok, %Result{result | created_security_ids: created_ids}}
+  end
+
+  defp enrich_after_commit(other), do: other
 
   # --- mapping resolvers (new path) ---
 
@@ -336,7 +347,8 @@ defmodule Portfolixir.Imports.Applier do
       wkn: ref[:wkn],
       ticker_symbol: ref[:ticker],
       currency_code: ref[:currency] || state.default_currency,
-      provider: "portfolio_performance"
+      provider: "portfolio_performance",
+      feed: "PORTFOLIO_PERFORMANCE"
     }
 
     case Catalog.create_security(attrs) do
@@ -350,6 +362,7 @@ defmodule Portfolixir.Imports.Applier do
             Map.put(map, {security.name, security.currency_code}, security.id)
           end)
           |> bump_result(:created_securities)
+          |> track_created_security(security.id)
 
         {:ok, state, security.id}
 
@@ -551,6 +564,12 @@ defmodule Portfolixir.Imports.Applier do
   defp bump_result(state, field) when is_atom(field) do
     Map.update!(state, :result, fn %Result{} = r ->
       Map.update!(r, field, &(&1 + 1))
+    end)
+  end
+
+  defp track_created_security(state, security_id) do
+    Map.update!(state, :result, fn %Result{} = r ->
+      %Result{r | created_security_ids: [security_id | r.created_security_ids]}
     end)
   end
 

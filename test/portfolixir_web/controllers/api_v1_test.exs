@@ -234,6 +234,45 @@ defmodule PortfolixirWeb.ApiV1Test do
   end
 
   # User story:
+  # As an API client triggering quote sync,
+  # I want skipped syncs to include a reason,
+  # so that clients do not treat missing provider setup as fresh quote data.
+  #
+  # Acceptance criteria:
+  # - `sync_quotes` returns `status: "skipped"` for skipped syncs.
+  # - The response includes a stable `reason`.
+  # - The response remains under the existing `data` envelope.
+  test "quote sync API reports skipped status and reason", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "No Adapter Security",
+        currency_code: "USD",
+        provider: "manual"
+      })
+
+    prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
+
+    Application.put_env(
+      :portfolixir,
+      Portfolixir.Catalog.QuoteSync,
+      Keyword.put(prior_cfg, :adapter_for, %{})
+    )
+
+    try do
+      response =
+        conn
+        |> post_json("/api/v1/securities/#{security.id}/sync_quotes", %{})
+        |> json_response(200)
+
+      assert response == %{
+               "data" => %{"status" => "skipped", "reason" => "no_provider_adapter"}
+             }
+    after
+      Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
+    end
+  end
+
+  # User story:
   # As a local portfolio maintainer preserving auditable price history,
   # I want quote history to block security deletion through the API,
   # so that recorded quotes are not silently removed with their security.

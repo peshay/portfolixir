@@ -1705,3 +1705,88 @@ msgstr "Warnungen"
 #, elixir-autogen, elixir-format
 msgid "The CSV file is empty."
 msgstr "Die CSV-Datei ist leer."
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Dividend"
+msgstr "Dividende"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Interest"
+msgstr "Zinsen"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Deposit"
+msgstr "Einlage"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Removal"
+msgstr "Entnahme"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Fee"
+msgstr "Gebühren"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Tax"
+msgstr "Steuern"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Tax refund"
+msgstr "Steuererstattung"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Cash transfer"
+msgstr "Umbuchung"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Inbound delivery"
+msgstr "Einlieferung"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Outbound delivery"
+msgstr "Auslieferung"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Security transfer"
+msgstr "Wertpapierumbuchung"
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Copy parser warnings"
+msgstr "Parser-Warnungen kopieren"
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Resize detail split"
+msgstr "Detailaufteilung ändern"
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Price sync finished: %{ok} synced, %{skipped} skipped, %{error} failed."
+msgstr "Kurssync abgeschlossen: %{ok} synchronisiert, %{skipped} übersprungen, %{error} fehlgeschlagen."
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Price sync skipped: %{reason}"
+msgstr "Kurssync übersprungen: %{reason}"
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Price sync failed: %{reason}"
+msgstr "Kurssync fehlgeschlagen: %{reason}"
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Price sync failed."
+msgstr "Kurssync fehlgeschlagen."

@@ -1705,3 +1705,88 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "The CSV file is empty."
 msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Dividend"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Interest"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Deposit"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Removal"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Fee"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Tax"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Tax refund"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Cash transfer"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Inbound delivery"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Outbound delivery"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Security transfer"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "Copy parser warnings"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Resize detail split"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Price sync finished: %{ok} synced, %{skipped} skipped, %{error} failed."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Price sync skipped: %{reason}"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Price sync failed: %{reason}"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Price sync failed."
+msgstr ""
