@@ -229,6 +229,18 @@ defmodule PortfolixirWeb.AppShell do
         ]
       },
       %{
+        title: gettext("Tools"),
+        items: [
+          %{
+            id: "nav-imports",
+            href: "/imports",
+            label: gettext("Imports"),
+            section: :imports,
+            icon: :upload
+          }
+        ]
+      },
+      %{
         title: gettext("Reports"),
         items: [
           %{
@@ -318,6 +330,9 @@ defmodule PortfolixirWeb.AppShell do
 
   defp nav_current?(path, %{section: :transactions}),
     do: String.starts_with?(path, "/transactions")
+
+  defp nav_current?(path, %{section: :imports}),
+    do: String.starts_with?(path, "/imports")
 
   defp nav_current?(_path, _item), do: false
 
@@ -423,6 +438,9 @@ defmodule PortfolixirWeb.AppShell do
     do: ~s(<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/>)
 
   defp icon_paths(:plus), do: ~s(<path d="M12 5v14M5 12h14"/>)
+
+  defp icon_paths(:upload),
+    do: ~s(<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/>)
 
   defp icon_paths(:filter),
     do: ~s(<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>)

@@ -8,6 +8,7 @@ msgstr ""
 msgid "Application navigation"
 msgstr "App-Navigation"
 
+#: lib/portfolixir_web/live/imports_live.ex:177
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:49
 #, elixir-autogen
 msgid "Base currency"
@@ -19,6 +20,8 @@ msgid "Cash account created"
 msgstr "Verrechnungskonto angelegt"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:44
+#: lib/portfolixir_web/live/imports_live.ex:117
+#: lib/portfolixir_web/live/imports_live.ex:289
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:112
 #, elixir-autogen
 msgid "Cash accounts"
@@ -89,7 +92,7 @@ msgstr "Aktuelle Bestände"
 msgid "Current setup"
 msgstr "Aktuelle Einrichtung"
 
-#: lib/portfolixir_web/components/app_shell.ex:328
+#: lib/portfolixir_web/components/app_shell.ex:343
 #, elixir-autogen
 msgid "Dark"
 msgstr "Dunkel"
@@ -122,6 +125,8 @@ msgid "Depot created"
 msgstr "Depot angelegt"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:48
+#: lib/portfolixir_web/live/imports_live.ex:121
+#: lib/portfolixir_web/live/imports_live.ex:293
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:120
 #, elixir-autogen
 msgid "Depots"
@@ -132,7 +137,7 @@ msgstr "Depots"
 msgid "Display preferences"
 msgstr "Anzeigeeinstellungen"
 
-#: lib/portfolixir_web/components/app_shell.ex:349
+#: lib/portfolixir_web/components/app_shell.ex:364
 #, elixir-autogen
 msgid "English"
 msgstr "Englisch"
@@ -149,7 +154,7 @@ msgstr "Börse"
 msgid "Fees"
 msgstr "Gebühren"
 
-#: lib/portfolixir_web/components/app_shell.ex:348
+#: lib/portfolixir_web/components/app_shell.ex:363
 #, elixir-autogen
 msgid "German"
 msgstr "Deutsch"
@@ -165,7 +170,7 @@ msgstr "ISIN"
 msgid "Language"
 msgstr "Sprache"
 
-#: lib/portfolixir_web/components/app_shell.ex:327
+#: lib/portfolixir_web/components/app_shell.ex:342
 #, elixir-autogen
 msgid "Light"
 msgstr "Hell"
@@ -193,7 +198,7 @@ msgstr "Das verknüpfte Verrechnungskonto wird aus dem ausgewählten Depot abgel
 msgid "Accent color"
 msgstr "Akzentfarbe"
 
-#: lib/portfolixir_web/components/app_shell.ex:336
+#: lib/portfolixir_web/components/app_shell.ex:351
 #, elixir-autogen
 msgid "Coral"
 msgstr "Koralle"
@@ -213,12 +218,12 @@ msgstr "Portfolio-Zähler"
 msgid "Workflow path"
 msgstr "Workflow-Pfad"
 
-#: lib/portfolixir_web/components/app_shell.ex:335
+#: lib/portfolixir_web/components/app_shell.ex:350
 #, elixir-autogen
 msgid "Teal"
 msgstr "Petrol"
 
-#: lib/portfolixir_web/components/app_shell.ex:334
+#: lib/portfolixir_web/components/app_shell.ex:349
 #, elixir-autogen
 msgid "Violet"
 msgstr "Violett"
@@ -326,6 +331,8 @@ msgstr "Aktuelle Bestände prüfen"
 #: lib/portfolixir_web/components/app_shell.ex:183
 #: lib/portfolixir_web/components/app_shell.ex:188
 #: lib/portfolixir_web/live/dashboard_live.ex:36
+#: lib/portfolixir_web/live/imports_live.ex:113
+#: lib/portfolixir_web/live/imports_live.ex:285
 #: lib/portfolixir_web/live/securities_live.ex:91
 #, elixir-autogen
 msgid "Securities"
@@ -353,7 +360,7 @@ msgstr "Depot auswählen"
 msgid "Select security"
 msgstr "Wertpapier auswählen"
 
-#: lib/portfolixir_web/components/app_shell.ex:326
+#: lib/portfolixir_web/components/app_shell.ex:341
 #, elixir-autogen
 msgid "System"
 msgstr "System"
@@ -416,19 +423,19 @@ msgstr "Unbekanntes Wertpapier"
 msgid "All transactions"
 msgstr "Alle Transaktionen"
 
-#: lib/portfolixir_web/components/app_shell.ex:236
+#: lib/portfolixir_web/components/app_shell.ex:248
 #, elixir-autogen, elixir-format
 msgid "Asset allocation"
 msgstr "Vermögensaufteilung"
 
-#: lib/portfolixir_web/components/app_shell.ex:271
+#: lib/portfolixir_web/components/app_shell.ex:283
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:292
 #: lib/portfolixir_web/live/securities_live.ex:608
 #, elixir-autogen, elixir-format
 msgid "Asset class"
 msgstr "Anlageklasse"
 
-#: lib/portfolixir_web/components/app_shell.ex:267
+#: lib/portfolixir_web/components/app_shell.ex:279
 #, elixir-autogen, elixir-format
 msgid "Classifications"
 msgstr "Klassifizierungen"
@@ -438,17 +445,17 @@ msgstr "Klassifizierungen"
 msgid "Coming soon"
 msgstr "Bald verfügbar"
 
-#: lib/portfolixir_web/components/app_shell.ex:300
+#: lib/portfolixir_web/components/app_shell.ex:312
 #, elixir-autogen, elixir-format
 msgid "Currencies"
 msgstr "Währungen"
 
-#: lib/portfolixir_web/components/app_shell.ex:260
+#: lib/portfolixir_web/components/app_shell.ex:272
 #, elixir-autogen, elixir-format
 msgid "Dividends"
 msgstr "Dividenden"
 
-#: lib/portfolixir_web/components/app_shell.ex:296
+#: lib/portfolixir_web/components/app_shell.ex:308
 #, elixir-autogen, elixir-format
 msgid "General"
 msgstr "Allgemein"
@@ -458,13 +465,13 @@ msgstr "Allgemein"
 msgid "Grouped accounts"
 msgstr "Gruppierte Konten"
 
-#: lib/portfolixir_web/components/app_shell.ex:242
+#: lib/portfolixir_web/components/app_shell.ex:254
 #: lib/portfolixir_web/live/securities_live.ex:1169
 #, elixir-autogen, elixir-format
 msgid "Holdings"
 msgstr "Bestände"
 
-#: lib/portfolixir_web/components/app_shell.ex:283
+#: lib/portfolixir_web/components/app_shell.ex:295
 #, elixir-autogen, elixir-format
 msgid "Industries"
 msgstr "Branchen"
@@ -474,22 +481,22 @@ msgstr "Branchen"
 msgid "Master data"
 msgstr "Stammdaten"
 
-#: lib/portfolixir_web/components/app_shell.ex:248
+#: lib/portfolixir_web/components/app_shell.ex:260
 #, elixir-autogen, elixir-format
 msgid "Performance"
 msgstr "Performance"
 
-#: lib/portfolixir_web/components/app_shell.ex:277
+#: lib/portfolixir_web/components/app_shell.ex:289
 #, elixir-autogen, elixir-format
 msgid "Regions"
 msgstr "Regionen"
 
-#: lib/portfolixir_web/components/app_shell.ex:232
+#: lib/portfolixir_web/components/app_shell.ex:244
 #, elixir-autogen, elixir-format
 msgid "Reports"
 msgstr "Berichte"
 
-#: lib/portfolixir_web/components/app_shell.ex:254
+#: lib/portfolixir_web/components/app_shell.ex:266
 #, elixir-autogen, elixir-format
 msgid "Returns & risk"
 msgstr "Rendite & Risiko"
@@ -499,7 +506,7 @@ msgstr "Rendite & Risiko"
 msgid "Savings plans"
 msgstr "Sparpläne"
 
-#: lib/portfolixir_web/components/app_shell.ex:306
+#: lib/portfolixir_web/components/app_shell.ex:318
 #, elixir-autogen, elixir-format
 msgid "Settings"
 msgstr "Einstellungen"
@@ -509,7 +516,7 @@ msgstr "Einstellungen"
 msgid "Soon"
 msgstr "Bald"
 
-#: lib/portfolixir_web/components/app_shell.ex:289
+#: lib/portfolixir_web/components/app_shell.ex:301
 #, elixir-autogen, elixir-format
 msgid "Strategies"
 msgstr "Strategien"
@@ -1369,6 +1376,7 @@ msgstr "Übersicht"
 msgid "Percent"
 msgstr "Prozent"
 
+#: lib/portfolixir_web/live/imports_live.ex:157
 #: lib/portfolixir_web/live/securities_live.ex:706
 #: lib/portfolixir_web/live/securities_live.ex:882
 #, elixir-autogen, elixir-format
@@ -1470,3 +1478,225 @@ msgstr "Schlusskurs"
 #, elixir-autogen, elixir-format
 msgid "Opened"
 msgstr "Eröffnet"
+
+#: lib/portfolixir_web/live/imports_live.ex:236
+#, elixir-autogen, elixir-format
+msgid "(import) %{name}"
+msgstr "(Import) %{name}"
+
+#: lib/portfolixir_web/live/imports_live.ex:165
+#, elixir-autogen, elixir-format
+msgid "+ Create new portfolio"
+msgstr "+ Neues Portfolio anlegen"
+
+#: lib/portfolixir_web/live/imports_live.ex:196
+#: lib/portfolixir_web/live/imports_live.ex:222
+#, elixir-autogen, elixir-format
+msgid "+ Create new: %{name}"
+msgstr "+ Neu anlegen: %{name}"
+
+#: lib/portfolixir_web/live/imports_live.ex:39
+#, elixir-autogen, elixir-format
+msgid "Bulk-import Portfolio Performance CSV or JSON exports."
+msgstr "Portfolio-Performance-Exporte (CSV oder JSON) als Stapel importieren."
+
+#: lib/portfolixir_web/live/imports_live.ex:639
+#, elixir-autogen, elixir-format
+msgid "CSV missing columns: %{cols}"
+msgstr "CSV-Spalten fehlen: %{cols}"
+
+#: lib/portfolixir_web/live/imports_live.ex:69
+#, elixir-autogen, elixir-format
+msgid "CSV or JSON v1 · max 20 MB · nothing is saved before you confirm"
+msgstr "CSV oder JSON v1 · max. 20 MB · nichts wird gespeichert, bis du bestätigst"
+
+#: lib/portfolixir_web/live/imports_live.ex:186
+#, elixir-autogen, elixir-format
+msgid "Cash accounts from the export"
+msgstr "Verrechnungskonten aus dem Export"
+
+#: lib/portfolixir_web/live/imports_live.ex:74
+#, elixir-autogen, elixir-format
+msgid "Choose file"
+msgstr "Datei auswählen"
+
+#: lib/portfolixir_web/live/imports_live.ex:260
+#, elixir-autogen, elixir-format
+msgid "Confirm import"
+msgstr "Import bestätigen"
+
+#: lib/portfolixir_web/live/imports_live.ex:132
+#, elixir-autogen, elixir-format
+msgid "Counts by kind"
+msgstr "Anzahl pro Art"
+
+#: lib/portfolixir_web/live/imports_live.ex:278
+#, elixir-autogen, elixir-format
+msgid "Created transactions: %{n}"
+msgstr "Erzeugte Transaktionen: %{n}"
+
+#: lib/portfolixir_web/live/imports_live.ex:212
+#, elixir-autogen, elixir-format
+msgid "Depots from the export"
+msgstr "Depots aus dem Export"
+
+#: lib/portfolixir_web/live/imports_live.ex:262
+#, elixir-autogen, elixir-format
+msgid "Discard"
+msgstr "Verwerfen"
+
+#: lib/portfolixir_web/live/imports_live.ex:67
+#, elixir-autogen, elixir-format
+msgid "Drop a Portfolio Performance export here"
+msgstr "Portfolio-Performance-Export hier ablegen"
+
+#: lib/portfolixir_web/live/imports_live.ex:621
+#, elixir-autogen, elixir-format
+msgid "File too large."
+msgstr "Datei zu groß."
+
+#: lib/portfolixir_web/live/imports_live.ex:622
+#, elixir-autogen, elixir-format
+msgid "File type not accepted."
+msgstr "Dateityp nicht erlaubt."
+
+#: lib/portfolixir_web/live/imports_live.ex:300
+#, elixir-autogen, elixir-format
+msgid "Import another file"
+msgstr "Weitere Datei importieren"
+
+#: lib/portfolixir_web/live/imports_live.ex:276
+#, elixir-autogen, elixir-format
+msgid "Import complete"
+msgstr "Import abgeschlossen"
+
+#: lib/portfolixir_web/components/app_shell.ex:237
+#: lib/portfolixir_web/live/imports_live.ex:38
+#, elixir-autogen, elixir-format
+msgid "Imports"
+msgstr "Importe"
+
+#: lib/portfolixir_web/live/imports_live.ex:636
+#, elixir-autogen, elixir-format
+msgid "Invalid CSV: %{message}"
+msgstr "Ungültiges CSV: %{message}"
+
+#: lib/portfolixir_web/live/imports_live.ex:633
+#, elixir-autogen, elixir-format
+msgid "Invalid JSON: %{message}"
+msgstr "Ungültiges JSON: %{message}"
+
+#: lib/portfolixir_web/live/imports_live.ex:576
+#, elixir-autogen, elixir-format
+msgid "Invalid cash account id."
+msgstr "Ungültige Verrechnungskonto-ID."
+
+#: lib/portfolixir_web/live/imports_live.ex:553
+#, elixir-autogen, elixir-format
+msgid "Invalid portfolio id."
+msgstr "Ungültige Portfolio-ID."
+
+#: lib/portfolixir_web/live/imports_live.ex:252
+#, elixir-autogen, elixir-format
+msgid "Missing securities will be created automatically inside the chosen portfolio."
+msgstr "Fehlende Wertpapiere werden im gewählten Portfolio automatisch angelegt."
+
+#: lib/portfolixir_web/live/imports_live.ex:172
+#, elixir-autogen, elixir-format
+msgid "New portfolio name"
+msgstr "Name des neuen Portfolios"
+
+#: lib/portfolixir_web/live/imports_live.ex:623
+#, elixir-autogen, elixir-format
+msgid "Only one file at a time."
+msgstr "Nur eine Datei gleichzeitig."
+
+#: lib/portfolixir_web/live/imports_live.ex:191
+#, elixir-autogen, elixir-format
+msgid "PP account"
+msgstr "PP-Konto"
+
+#: lib/portfolixir_web/live/imports_live.ex:217
+#, elixir-autogen, elixir-format
+msgid "PP depot"
+msgstr "PP-Depot"
+
+#: lib/portfolixir_web/live/imports_live.ex:144
+#, elixir-autogen, elixir-format
+msgid "Parser warnings"
+msgstr "Parser-Warnungen"
+
+#: lib/portfolixir_web/live/imports_live.ex:232
+#, elixir-autogen, elixir-format
+msgid "Pick a cash account…"
+msgstr "Verrechnungskonto wählen…"
+
+#: lib/portfolixir_web/live/imports_live.ex:596
+#, elixir-autogen, elixir-format
+msgid "Pick a target and cash account for depot %{n}."
+msgstr "Ziel und Verrechnungskonto für Depot %{n} wählen."
+
+#: lib/portfolixir_web/live/imports_live.ex:583
+#, elixir-autogen, elixir-format
+msgid "Pick a target for cash account %{n}."
+msgstr "Ziel für Verrechnungskonto %{n} wählen."
+
+#: lib/portfolixir_web/live/imports_live.ex:568
+#, elixir-autogen, elixir-format
+msgid "Please pick or define a portfolio."
+msgstr "Bitte ein Portfolio wählen oder anlegen."
+
+#: lib/portfolixir_web/live/imports_live.ex:100
+#, elixir-autogen, elixir-format
+msgid "Preview"
+msgstr "Übersicht"
+
+#: lib/portfolixir_web/live/imports_live.ex:280
+#, elixir-autogen, elixir-format
+msgid "Skipped duplicates: %{n}"
+msgstr "Übersprungene Duplikate: %{n}"
+
+#: lib/portfolixir_web/live/imports_live.ex:102
+#, elixir-autogen, elixir-format
+msgid "Source format: %{format}"
+msgstr "Quellformat: %{format}"
+
+#: lib/portfolixir_web/live/imports_live.ex:155
+#, elixir-autogen, elixir-format
+msgid "Target portfolio"
+msgstr "Portfolio anlegen"
+
+#: lib/portfolixir_web/components/app_shell.ex:232
+#, elixir-autogen, elixir-format
+msgid "Tools"
+msgstr "Werkzeuge"
+
+#: lib/portfolixir_web/live/imports_live.ex:627
+#, elixir-autogen, elixir-format
+msgid "Unknown file format — expected Portfolio Performance JSON or CSV."
+msgstr "Unbekanntes Dateiformat — erwartet wurde Portfolio Performance JSON oder CSV."
+
+#: lib/portfolixir_web/live/imports_live.ex:630
+#, elixir-autogen, elixir-format
+msgid "Unsupported PP JSON version: %{v}"
+msgstr "Nicht unterstützte PP-JSON-Version: %{v}"
+
+#: lib/portfolixir_web/live/imports_live.ex:174
+#, elixir-autogen, elixir-format
+msgid "e.g. PP Import"
+msgstr "z. B. PP Import"
+
+#: lib/portfolixir_web/live/imports_live.ex:109
+#, elixir-autogen, elixir-format
+msgid "Entries"
+msgstr "Einträge"
+
+#: lib/portfolixir_web/live/imports_live.ex:302
+#, elixir-autogen, elixir-format
+msgid "View transactions"
+msgstr "Transaktionen ansehen"
+
+#: lib/portfolixir_web/live/imports_live.ex:126
+#, elixir-autogen, elixir-format
+msgid "Warnings"
+msgstr "Warnungen"
