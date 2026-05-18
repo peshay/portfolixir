@@ -8,12 +8,15 @@ defmodule PortfolixirWeb.NavigationTest do
 
   # User story:
   # As a local portfolio maintainer,
-  # I want the dashboard navigation to show only the active local workflow,
-  # so that prototype import, document, taxonomy, and report surfaces do not guide my work.
+  # I want the dashboard navigation to show the active local workflow
+  # plus the PP-import tool (AGENTS.md goal #9),
+  # so that the supported surfaces are visible and prototype document/
+  # taxonomy/report surfaces do not guide my work.
   #
   # Acceptance criteria:
-  # - The dashboard exposes securities, portfolios, and transactions as primary navigation.
-  # - Prototype routes for imports, documents, taxonomies, and reports are absent.
+  # - The dashboard exposes securities, portfolios, transactions and
+  #   imports as primary navigation.
+  # - Prototype routes for documents, taxonomies, and reports are absent.
   # - The dashboard describes the manual workflow path in order.
   test "dashboard renders only the active local workflow navigation", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
@@ -22,8 +25,8 @@ defmodule PortfolixirWeb.NavigationTest do
     assert has_element?(view, "#nav-securities[href='/securities']")
     assert has_element?(view, "#nav-portfolios[href='/portfolios']")
     assert has_element?(view, "#nav-transactions[href='/transactions']")
+    assert has_element?(view, "#nav-imports[href='/imports']")
 
-    refute has_element?(view, "a[href='/imports']")
     refute has_element?(view, "a[href='/documents/new']")
     refute has_element?(view, "a[href='/taxonomies']")
     refute has_element?(view, "a[href='/reports/fund-allocations']")
