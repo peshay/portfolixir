@@ -32,6 +32,9 @@ erl_crash.dump
 /sbom/*.cdx.json
 /.playwright-mcp/
 
+# Worktree-local docker overrides (not part of the project compose contract)
+/docker-compose.local.yml
+
 # Sensitive finance data
 *.portfolio
 *.ppxml
