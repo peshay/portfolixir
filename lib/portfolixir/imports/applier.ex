@@ -557,13 +557,25 @@ defmodule Portfolixir.Imports.Applier do
   # SHA-256 over the stable identity fields. Same import file applied
   # twice yields the same hash, so the unique partial index on
   # `transactions.import_hash` rejects the second insert.
+  #
+  # The fields below must be specific enough that two genuinely
+  # distinct PP rows never collapse to the same hash. In particular
+  # `time`, `price`, `fees` and `taxes` are part of the input because
+  # the same security can legitimately be bought twice on the same
+  # day with the same quantity and gross amount but different
+  # intraday timestamps or fee structures (e.g. two trades minutes
+  # apart at slightly different prices).
   defp compute_hash(%Entry{} = entry, portfolio_id) do
     parts = [
       entry.kind,
       date_str(entry.date),
+      time_str(entry.time),
       security_key(entry.security),
       decimal_str(entry.quantity),
+      decimal_str(entry.price),
       decimal_str(entry.gross_amount),
+      decimal_str(entry.fees),
+      decimal_str(entry.taxes),
       entry.pp_portfolio_name || "",
       entry.pp_account_name || "",
       entry.pp_counter_portfolio_name || "",
@@ -579,6 +591,9 @@ defmodule Portfolixir.Imports.Applier do
 
   defp date_str(nil), do: ""
   defp date_str(%Date{} = d), do: Date.to_iso8601(d)
+
+  defp time_str(nil), do: ""
+  defp time_str(%Time{} = t), do: Time.to_iso8601(t)
 
   defp decimal_str(nil), do: ""
   defp decimal_str(%Decimal{} = d), do: Decimal.to_string(d, :normal)

@@ -1500,7 +1500,7 @@ msgstr ""
 msgid "Bulk-import Portfolio Performance CSV or JSON exports."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:639
+#: lib/portfolixir_web/live/imports_live.ex:651
 #, elixir-autogen, elixir-format
 msgid "CSV missing columns: %{cols}"
 msgstr ""
@@ -1550,12 +1550,12 @@ msgstr ""
 msgid "Drop a Portfolio Performance export here"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:621
+#: lib/portfolixir_web/live/imports_live.ex:633
 #, elixir-autogen, elixir-format
 msgid "File too large."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:622
+#: lib/portfolixir_web/live/imports_live.ex:634
 #, elixir-autogen, elixir-format
 msgid "File type not accepted."
 msgstr ""
@@ -1576,22 +1576,22 @@ msgstr ""
 msgid "Imports"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:636
+#: lib/portfolixir_web/live/imports_live.ex:648
 #, elixir-autogen, elixir-format
 msgid "Invalid CSV: %{message}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:633
+#: lib/portfolixir_web/live/imports_live.ex:645
 #, elixir-autogen, elixir-format
 msgid "Invalid JSON: %{message}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:576
+#: lib/portfolixir_web/live/imports_live.ex:588
 #, elixir-autogen, elixir-format
 msgid "Invalid cash account id."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:553
+#: lib/portfolixir_web/live/imports_live.ex:565
 #, elixir-autogen, elixir-format
 msgid "Invalid portfolio id."
 msgstr ""
@@ -1606,7 +1606,7 @@ msgstr ""
 msgid "New portfolio name"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:623
+#: lib/portfolixir_web/live/imports_live.ex:635
 #, elixir-autogen, elixir-format
 msgid "Only one file at a time."
 msgstr ""
@@ -1631,17 +1631,17 @@ msgstr ""
 msgid "Pick a cash account…"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:596
+#: lib/portfolixir_web/live/imports_live.ex:608
 #, elixir-autogen, elixir-format
 msgid "Pick a target and cash account for depot %{n}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:583
+#: lib/portfolixir_web/live/imports_live.ex:595
 #, elixir-autogen, elixir-format
 msgid "Pick a target for cash account %{n}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:568
+#: lib/portfolixir_web/live/imports_live.ex:580
 #, elixir-autogen, elixir-format
 msgid "Please pick or define a portfolio."
 msgstr ""
@@ -1671,12 +1671,12 @@ msgstr ""
 msgid "Tools"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:627
+#: lib/portfolixir_web/live/imports_live.ex:639
 #, elixir-autogen, elixir-format
 msgid "Unknown file format — expected Portfolio Performance JSON or CSV."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:630
+#: lib/portfolixir_web/live/imports_live.ex:642
 #, elixir-autogen, elixir-format
 msgid "Unsupported PP JSON version: %{v}"
 msgstr ""
@@ -1699,4 +1699,9 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:126
 #, elixir-autogen, elixir-format
 msgid "Warnings"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:653
+#, elixir-autogen, elixir-format
+msgid "The CSV file is empty."
 msgstr ""
