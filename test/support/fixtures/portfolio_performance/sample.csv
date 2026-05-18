@@ -1,0 +1,14 @@
+Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+2024-01-15 10:01:00;Kauf;Apple Inc.;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;
+2024-04-22 12:25:00;Verkauf;Apple Inc.;10;180,00;1.800,00;2,50;12,00;1.785,50;Test-Depot;Test-Cash;;
+2024-02-15 00:00:00;Dividende;Apple Inc.;50;;9,13;;2,41;6,72;Test-Cash;;;
+2024-12-30 00:00:00;Zinsen;;;;4,55;;1,20;3,35;Test-Cash;;;
+2024-01-02 00:00:00;Einlage;;;;5.000,00;;;5.000,00;Test-Cash;;;
+2024-06-30 00:00:00;Entnahme;;;;250,00;;;250,00;Test-Cash;;Saldokorrektur;
+2024-03-10 00:00:00;Gebühren;;;;8,50;;;8,50;Test-Cash;;;
+2024-05-08 00:00:00;Steuern;;;;50,00;;;50,00;Test-Cash;;;
+2024-07-04 00:00:00;Steuerrückerstattung;;;;15,00;;;15,00;Test-Cash;;;
+2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;;;1.000,00;Test-Cash;Test-Cash-2;;
+2024-09-04 00:00:00;Einlieferung;iShares Core MSCI World UCITS ETF;5;;100,00;;;100,00;Test-Depot;;;
+2024-10-01 00:00:00;Auslieferung;iShares Core MSCI World UCITS ETF;2;;80,00;;;80,00;Test-Depot;;;
+2024-11-15 21:00:00;Umbuchung (Wertpapier);iShares Core MSCI World UCITS ETF;3;;200,00;;;200,00;Test-Depot;Test-Depot-2;;
