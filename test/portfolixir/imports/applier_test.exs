@@ -172,6 +172,56 @@ defmodule Portfolixir.Imports.ApplierTest do
     end
   end
 
+  describe "apply/2 import_hash discriminators" do
+    alias Portfolixir.Imports.Entry
+    alias Portfolixir.Imports.Preview
+
+    # Two buys of the same security on the same day with the same
+    # quantity and gross_amount, but distinct intraday times and per-
+    # share prices, must both end up in the ledger — the dedupe hash
+    # should not collapse them.
+    test "two same-day same-quantity buys at different times/prices both insert" do
+      portfolio = setup_portfolio()
+
+      security_ref = %{
+        name: "Apple Inc.",
+        isin: "US0378331005",
+        wkn: "865985",
+        ticker: "AAPL",
+        currency: "EUR"
+      }
+
+      entry_at = fn time, price ->
+        %Entry{
+          source_row: 1,
+          kind: "buy",
+          date: ~D[2024-04-01],
+          time: time,
+          currency_code: "EUR",
+          gross_amount: Decimal.new("1500.00"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          quantity: Decimal.new("10"),
+          price: price,
+          security: security_ref,
+          pp_portfolio_name: "Test-Depot",
+          pp_account_name: "Test-Cash"
+        }
+      end
+
+      preview = %Preview{
+        format: :json,
+        entries: [
+          entry_at.(~T[10:00:00], Decimal.new("150.00")),
+          entry_at.(~T[15:30:00], Decimal.new("150.10"))
+        ]
+      }
+
+      assert {:ok, %Result{created_transactions: 2, skipped_duplicates: 0}} =
+               Imports.apply(preview, %{portfolio_id: portfolio.id})
+    end
+  end
+
   describe "apply/2 rollback on real failure" do
     test "rolls back the entire transaction when one entry's changeset rejects" do
       portfolio = setup_portfolio()
