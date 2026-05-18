@@ -27,3 +27,9 @@ config :portfolixir, PortfolixirWeb.Endpoint,
 # Try to fetch a logo for new securities locally as well so the dev
 # experience matches prod.
 config :portfolixir, :enable_logo_discovery, true
+
+# Run the quote-sync GenServer in dev so freshly imported securities
+# get prices on the next tick. Disabled by default in `config/config.exs`
+# (because tests must not make real HTTP calls and prod is opt-in via
+# runtime.exs). For dev we want the full live experience.
+config :portfolixir, Portfolixir.Catalog.QuoteSync, enabled?: true
