@@ -75,6 +75,35 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
                LogoLookup.find_url(security, req: stub)
     end
 
+    # User story:
+    # As a local portfolio maintainer importing Portfolio Performance securities,
+    # I want logo lookup to use the security name even when PP did not provide an asset class,
+    # so that import-created securities can be enriched without inventing classifications.
+    #
+    # Acceptance criteria:
+    # - `provider="portfolio_performance"` with a name uses Wikipedia lookup.
+    # - No asset class is required for that path.
+    # - The lookup still uses the normal stubbed request path in tests.
+    test "Portfolio Performance securities can use name-based Wikipedia lookup without asset class" do
+      stub =
+        plug_stub(fn conn ->
+          assert conn.request_path =~ "/api/rest_v1/page/summary/"
+
+          json_response(conn, 200, %{
+            "originalimage" => %{"source" => "https://wikipedia/Imported.png"}
+          })
+        end)
+
+      security = %Security{
+        provider: "portfolio_performance",
+        asset_class: nil,
+        name: "Imported Fund"
+      }
+
+      assert {:ok, "https://wikipedia/Imported.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+    end
+
     test "Wikipedia page without originalimage -> :skip" do
       stub =
         plug_stub(fn conn ->

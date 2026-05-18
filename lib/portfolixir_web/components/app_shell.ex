@@ -3,6 +3,9 @@ defmodule PortfolixirWeb.AppShell do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   attr(:current_path, :string, default: "/")
+  attr(:page_title, :string, default: nil)
+  attr(:page_subtitle, :string, default: nil)
+  attr(:main_class, :any, default: "app-main--workspace")
   slot(:inner_block, required: true)
 
   def shell(assigns) do
@@ -70,25 +73,48 @@ defmodule PortfolixirWeb.AppShell do
             <span class="burger-bars" aria-hidden="true"></span>
           </label>
 
-          <a class="topbar-brand" href="/" aria-label="Portfolixir">
-            <span class="brand-logo" aria-hidden="true">
-              <img class="topbar-mark brand-mark-light" src="/images/logo-mark-light.svg" alt="" />
-              <img class="topbar-mark brand-mark-dark" src="/images/logo-mark-dark.svg" alt="" />
-            </span>
-            <span>Portfolixir</span>
-          </a>
+          <div class="topbar-primary">
+            <a class="topbar-brand" href="/" aria-label="Portfolixir">
+              <span class="brand-logo" aria-hidden="true">
+                <img class="topbar-mark brand-mark-light" src="/images/logo-mark-light.svg" alt="" />
+                <img class="topbar-mark brand-mark-dark" src="/images/logo-mark-dark.svg" alt="" />
+              </span>
+              <span>Portfolixir</span>
+            </a>
+
+            <div class="topbar-page" aria-live="polite">
+              <%= if @page_title do %>
+                <h1 id="app-topbar-title"><%= @page_title %></h1>
+              <% end %>
+              <%= if @page_subtitle do %>
+                <p id="app-topbar-subtitle"><%= @page_subtitle %></p>
+              <% end %>
+            </div>
+          </div>
 
           <div class="topbar-controls" aria-label={gettext("Display preferences")}>
             <details id="theme-mode" class="theme-menu" aria-label={gettext("Theme")} data-theme-control>
               <summary class="theme-menu-trigger" title={gettext("Theme")}>
-                <span class="theme-current-icon theme-current-icon-system" aria-hidden="true">
-                  <span class="theme-icon theme-icon-system"></span>
+                <span
+                  class="theme-current-icon theme-current-icon-system"
+                  data-current-theme-icon="system"
+                  aria-hidden="true"
+                >
+                  <.icon name={:monitor} size={16} class="theme-svg-icon" />
                 </span>
-                <span class="theme-current-icon theme-current-icon-light" aria-hidden="true">
-                  <span class="theme-icon theme-icon-light"></span>
+                <span
+                  class="theme-current-icon theme-current-icon-light"
+                  data-current-theme-icon="light"
+                  aria-hidden="true"
+                >
+                  <.icon name={:sun} size={16} class="theme-svg-icon" />
                 </span>
-                <span class="theme-current-icon theme-current-icon-dark" aria-hidden="true">
-                  <span class="theme-icon theme-icon-dark"></span>
+                <span
+                  class="theme-current-icon theme-current-icon-dark"
+                  data-current-theme-icon="dark"
+                  aria-hidden="true"
+                >
+                  <.icon name={:moon} size={16} class="theme-svg-icon" />
                 </span>
                 <span class="visually-hidden"><%= gettext("Theme") %></span>
               </summary>
@@ -99,11 +125,12 @@ defmodule PortfolixirWeb.AppShell do
                     type="button"
                     class={["theme-choice", mode.value == "system" && "is-active"]}
                     data-theme-choice={mode.value}
+                    data-theme-icon={mode.icon_name}
                     aria-label={mode.label}
                     aria-pressed={if mode.value == "system", do: "true", else: "false"}
                     title={mode.label}
                   >
-                    <span class={"theme-icon theme-icon-#{mode.value}"} aria-hidden="true"></span>
+                    <.icon name={mode.icon} size={16} class="theme-svg-icon" />
                     <span class="visually-hidden"><%= mode.label %></span>
                   </button>
                 <% end %>
@@ -157,7 +184,7 @@ defmodule PortfolixirWeb.AppShell do
           </div>
         </header>
 
-        <main class="app-main">
+        <main class={["app-main", @main_class]}>
           <%= render_slot(@inner_block) %>
         </main>
       </div>
@@ -338,9 +365,9 @@ defmodule PortfolixirWeb.AppShell do
 
   defp theme_modes do
     [
-      %{value: "system", label: gettext("System")},
-      %{value: "light", label: gettext("Light")},
-      %{value: "dark", label: gettext("Dark")}
+      %{value: "system", label: gettext("System"), icon: :monitor, icon_name: "monitor"},
+      %{value: "light", label: gettext("Light"), icon: :sun, icon_name: "sun"},
+      %{value: "dark", label: gettext("Dark"), icon: :moon, icon_name: "moon"}
     ]
   end
 
@@ -436,6 +463,16 @@ defmodule PortfolixirWeb.AppShell do
 
   defp icon_paths(:settings),
     do: ~s(<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/>)
+
+  defp icon_paths(:monitor),
+    do: ~s(<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>)
+
+  defp icon_paths(:sun),
+    do:
+      ~s(<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>)
+
+  defp icon_paths(:moon),
+    do: ~s(<path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"/>)
 
   defp icon_paths(:plus), do: ~s(<path d="M12 5v14M5 12h14"/>)
 

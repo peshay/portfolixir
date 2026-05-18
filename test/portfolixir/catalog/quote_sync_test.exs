@@ -6,6 +6,17 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.QuoteSync.Fake
 
+  defmodule MissingTickerAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+
+    @impl true
+    def id, do: :missing_ticker
+
+    @impl true
+    def fetch(_security, _opts), do: {:error, :missing_ticker}
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want quote history to keep itself up to date in the background and to
@@ -65,8 +76,11 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
     _alpha = security_fixture(provider: "coingecko")
     _beta = security_fixture(provider: nil)
 
-    assert {:ok, %{ok: 0, skipped: 2, error: 0}} =
+    assert {:ok, %{ok: 0, skipped: 2, error: 0, results: results}} =
              QuoteSync.sync_all(adapter_for: %{"portfolio_performance" => Fake})
+
+    assert Enum.all?(results, &(&1.status == :skipped))
+    assert Enum.all?(results, &(&1.reason == :no_provider_adapter))
   end
 
   test "isolates a failing fetch — other securities still succeed" do
@@ -80,10 +94,41 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
       {:ok, [%{date: ~D[2026-05-15], close: Decimal.new("50")}]}
     )
 
-    assert {:ok, %{ok: 1, error: 1, skipped: 0}} =
+    assert {:ok, %{ok: 1, error: 1, skipped: 0, results: results}} =
              QuoteSync.sync_all(adapter_for: %{"manual" => Fake})
 
+    assert Enum.any?(results, &(&1.status == :error and &1.reason == :timeout))
     assert Quotes.latest(sec_b.id).date == ~D[2026-05-15]
     assert Quotes.latest(sec_a.id) == nil
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want quote sync to report skipped and failed securities with reasons,
+  # so that missing setup is auditable instead of being counted as success.
+  #
+  # Acceptance criteria:
+  # - Missing ticker is reported as skipped with reason `:missing_ticker`.
+  # - Missing adapter is reported as skipped with reason `:no_provider_adapter`.
+  # - Aggregate counts still expose ok/skipped/error totals.
+  test "sync_security returns detailed skipped reasons" do
+    no_ticker = security_fixture(name: "No Ticker", provider: "manual", ticker_symbol: nil)
+    no_ticker_id = no_ticker.id
+
+    assert %{
+             status: :skipped,
+             reason: :missing_ticker,
+             security_id: ^no_ticker_id
+           } =
+             QuoteSync.sync_security(no_ticker, adapter_for: %{"manual" => MissingTickerAdapter})
+
+    no_adapter = security_fixture(name: "No Adapter", provider: "coingecko")
+    no_adapter_id = no_adapter.id
+
+    assert %{
+             status: :skipped,
+             reason: :no_provider_adapter,
+             security_id: ^no_adapter_id
+           } = QuoteSync.sync_security(no_adapter, adapter_for: %{"manual" => Fake})
   end
 end
