@@ -15,6 +15,25 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   end
 
   describe "list view" do
+    # User story:
+    # As a local portfolio maintainer,
+    # I want the securities list to use a full-width workspace below the top bar,
+    # so that the table gets the horizontal and vertical room instead of nested panel chrome.
+    #
+    # Acceptance criteria:
+    # - The securities page title is rendered in the top bar.
+    # - The securities content opts into the workspace main layout.
+    # - The securities table is not wrapped in the generic padded panel chrome.
+    test "securities list uses a full-width workspace under the top bar", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      assert has_element?(view, "#app-topbar-title", "Securities")
+      assert has_element?(view, "main.app-main.app-main--workspace")
+      assert has_element?(view, "#securities-panel.workspace-panel")
+      refute has_element?(view, "#securities-panel.panel")
+      refute has_element?(view, ".app-main .page-header")
+    end
+
     test "renders empty-state when no securities exist", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/securities")
 
@@ -394,6 +413,49 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       end
     end
 
+    test "Sync prices reports skipped work instead of saying prices synced",
+         %{conn: conn} do
+      # User story:
+      # As a local portfolio maintainer,
+      # I want quote-sync status to distinguish skipped securities from successful syncs,
+      # so that missing ticker/provider setup is not reported as fresh prices.
+      #
+      # Acceptance criteria:
+      # - A skipped sync clears the busy flag.
+      # - The flash does not say "Prices synced." when every security was skipped.
+      # - The status mentions skipped work.
+      {:ok, _sec} =
+        Catalog.create_security(%{name: "No Adapter", currency_code: "USD", provider: "manual"})
+
+      prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
+
+      Application.put_env(
+        :portfolixir,
+        Portfolixir.Catalog.QuoteSync,
+        Keyword.put(prior_cfg, :adapter_for, %{})
+      )
+
+      try do
+        {:ok, view, _html} = live(conn, "/securities")
+
+        view |> element("button#sync-prices") |> render_click()
+
+        Enum.reduce_while(1..50, :ok, fn _i, _acc ->
+          if has_element?(view, "button#sync-prices[disabled]") do
+            Process.sleep(20)
+            {:cont, :ok}
+          else
+            {:halt, :ok}
+          end
+        end)
+
+        refute has_element?(view, "#securities-flash", "Prices synced.")
+        assert has_element?(view, "#securities-flash", "skipped")
+      after
+        Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
+      end
+    end
+
     test "rows are navigable to the detail page", %{conn: conn, apple: apple} do
       {:ok, view, _html} = live(conn, "/securities")
 
@@ -409,6 +471,56 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert html =~ "security-detail-pane"
       assert html =~ "Apple Inc."
       assert has_element?(view, "tr#security-row-#{apple.id}.is-selected")
+    end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want the securities list to use the whole workspace when no row is selected,
+    # so that the list remains dense and uncluttered for scanning.
+    #
+    # Acceptance criteria:
+    # - The list-only workspace is rendered on /securities.
+    # - No detail pane or splitter is present without a selection.
+    # - The existing table remains the primary list surface.
+    test "list-only mode fills the securities workspace", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      assert has_element?(view, "#securities-workspace.securities-workspace--list-only")
+      assert has_element?(view, "#securities-list-pane")
+      assert has_element?(view, "#securities-table")
+      refute has_element?(view, "#securities-detail-splitter")
+      refute has_element?(view, "#security-detail-pane")
+    end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want a selected security to open in a resizable vertical split workspace,
+    # so that I can keep the list context while reviewing the detail pane.
+    #
+    # Acceptance criteria:
+    # - Selection renders list pane, separator, and detail pane.
+    # - The separator has accessible horizontal separator semantics.
+    # - The split height is browser-local through a stable storage key.
+    test "selected security renders split workspace with accessible separator", %{
+      conn: conn,
+      apple: apple
+    } do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      assert has_element?(view, "#securities-workspace.securities-workspace--split")
+      assert has_element?(view, "#securities-list-pane")
+
+      assert has_element?(
+               view,
+               "#securities-detail-splitter[role='separator'][aria-orientation='horizontal'][phx-hook='SecuritySplitPane']"
+             )
+
+      assert has_element?(
+               view,
+               "#securities-detail-splitter[data-storage-key='securities.detailSplitHeight']"
+             )
+
+      assert has_element?(view, "#security-detail-pane")
     end
 
     test "chart tab exposes the range buttons and Log scale toggle",
