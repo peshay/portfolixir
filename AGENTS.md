@@ -10,11 +10,20 @@ tracking. Keep the product focused on auditable local records:
 1. Create securities.
 2. Create portfolios.
 3. Create securities accounts/depots linked to cash accounts.
-4. Record manual buy and sell transactions.
+4. Record manual buy and sell transactions, plus the broader Portfolio
+   Performance transaction kinds (dividend, interest, deposit, removal,
+   fee, tax, tax refund, cash transfer, inbound delivery, outbound
+   delivery, security transfer) when needed to round-trip an imported
+   bookkeeping history.
 5. Calculate current holdings from transactions.
 6. Store and display quote history.
 7. Show a security detail chart with price history.
 8. Expose supported app functions through the JSON API and MCP companion.
+9. Bulk-import Portfolio Performance transaction exports (CSV/JSON v1)
+   via a dedicated Imports view: drag-and-drop file intake, parse,
+   preview the records that would be created (transactions, missing
+   securities, missing portfolios/depots/cash accounts) with user-driven
+   mapping, then apply atomically with content-hash idempotency.
 
 New functionality must stay small, reviewed, locally tested, and documented.
 
@@ -31,9 +40,10 @@ New functionality must stay small, reviewed, locally tested, and documented.
 - Never create atoms from external input with `String.to_atom/1`.
 - Use `Decimal` for money, quantities, prices, fees, taxes, and FX rates.
 - Do not use floats for persisted financial values.
-- Do not implement imports, document intake, broker sync, bank sync, trading,
-  payment, order, rebalance, or LLM behavior unless a reviewed story explicitly
-  changes scope.
+- Do not implement document intake (binary `.portfolio`, PP XML, broker PDFs),
+  broker sync, bank sync, trading, payment, order, rebalance, or LLM behavior
+  unless a reviewed story explicitly changes scope. The Portfolio Performance
+  CSV/JSON v1 import flow defined in goal #9 is an in-scope exception.
 - Do not add advanced reports or advanced classifications.
 - Do not claim production readiness.
 - Public files must be normal readable multiline files.
@@ -45,7 +55,7 @@ Use a small modular Phoenix monolith plus a thin MCP API companion:
 ```text
 Portfolixir.Catalog      # securities and security quotes
 Portfolixir.Portfolios   # portfolios, cash accounts, depots
-Portfolixir.Ledger       # manual buy/sell transactions and holdings
+Portfolixir.Ledger       # transactions (13 PP kinds) and holdings
 PortfolixirWeb           # LiveViews, router, JSON API, components
 mcp-server/              # TypeScript MCP server wrapping the JSON API only
 ```
