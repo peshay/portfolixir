@@ -650,6 +650,8 @@ defmodule PortfolixirWeb.ImportsLive do
   defp parse_error_message({:missing_columns, missing}),
     do: gettext("CSV missing columns: %{cols}", cols: Enum.join(missing, ", "))
 
+  defp parse_error_message(:empty_csv), do: gettext("The CSV file is empty.")
+
   defp parse_error_message(other), do: inspect(other)
 
   defp apply_error_message(reason), do: inspect(reason)
