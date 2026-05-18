@@ -159,16 +159,20 @@ defmodule Portfolixir.WorkflowFoundationTest do
 
     # User story:
     # As a local portfolio maintainer,
-    # I want the ledger to accept only manual buy and sell transactions,
-    # so that deferred income, import, payment, and broker behaviors stay out of scope.
+    # I want the ledger to accept only the known Portfolio Performance
+    # transaction kinds (manual buy/sell plus the broader set needed for
+    # PP imports — dividend, interest, deposit, removal, fee, tax,
+    # tax_refund, cash_transfer, inbound_delivery, outbound_delivery,
+    # security_transfer),
+    # so that arbitrary type strings cannot end up persisted.
     #
     # Acceptance criteria:
-    # - Unsupported transaction types are rejected by the changeset.
+    # - Unknown transaction kinds are rejected by the changeset.
     # - The validation happens before any record is persisted.
-    test "transaction changeset accepts only manual buy and sell types" do
+    test "transaction changeset rejects unknown transaction kinds" do
       assert {:error, changeset} =
                Ledger.create_transaction(%{
-                 type: "dividend",
+                 type: "made_up_kind",
                  date: ~D[2026-01-02],
                  quantity: Decimal.new("1"),
                  price: Decimal.new("1"),
