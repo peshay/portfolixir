@@ -1,5 +1,17 @@
 defmodule Portfolixir.Ledger do
-  @moduledoc "Manual buy and sell transaction ledger."
+  @moduledoc """
+  Transaction ledger.
+
+  Tracks the full set of Portfolio-Performance transaction kinds (see
+  `Portfolixir.Ledger.Transaction.kinds/0`): manual `buy`/`sell` trades
+  plus the cash-, dividend-, fee-, tax- and transfer-flavoured events
+  required to ingest external exports.
+
+  Holdings (`positions_for_portfolio/1`, `holdings_for_security/2`) and
+  the FIFO trade matcher consider only the `buy`/`sell` kinds; the other
+  kinds change cash balance or move shares without re-pricing existing
+  lots.
+  """
 
   import Ecto.Query
 
@@ -191,10 +203,17 @@ defmodule Portfolixir.Ledger do
   end
 
   def create_transaction(attrs) when is_map(attrs) do
-    with {:ok, attrs} <- derive_linked_cash_account(attrs) do
+    with {:ok, attrs} <- maybe_derive_linked_cash_account(attrs) do
       %Transaction{}
       |> Transaction.changeset(attrs)
       |> Repo.insert()
+    end
+  end
+
+  defp maybe_derive_linked_cash_account(attrs) do
+    case get_attr(attrs, :type) do
+      type when type in ["buy", "sell"] -> derive_linked_cash_account(attrs)
+      _other -> {:ok, attrs}
     end
   end
 
