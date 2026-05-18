@@ -86,13 +86,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell current_path="/securities">
-      <header class="page-header">
-        <h1><%= gettext("Securities") %></h1>
-        <p><%= gettext("Search, filter and curate your investable universe.") %></p>
-      </header>
-
-      <section class="panel" id="securities-panel">
+    <AppShell.shell
+      current_path="/securities"
+      page_title={gettext("Securities")}
+      page_subtitle={gettext("Search, filter and curate your investable universe.")}
+      main_class="app-main--workspace"
+    >
+      <section class="workspace-panel" id="securities-panel">
         <div class="toolbar" role="toolbar" aria-label={gettext("Securities toolbar")}>
           <form class="search-field" phx-change="search" phx-submit="search" id="securities-search-form">
             <AppShell.icon name={:search} />
@@ -199,96 +199,126 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <% end %>
 
         <div
-          class="data-table-wrapper"
-          id="securities-table"
-          phx-hook="ColumnPrefs"
-          data-storage-key="securities.columns"
-          data-default-columns={Jason.encode!(SecurityFields.visible_default() |> Enum.map(&Atom.to_string/1))}
-          data-current-columns={Jason.encode!(Enum.map(@visible_columns, &Atom.to_string/1))}
+          id="securities-workspace"
+          class={[
+            "securities-workspace",
+            @selected_security && "securities-workspace--split",
+            !@selected_security && "securities-workspace--list-only"
+          ]}
         >
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th class="row-actions-head" aria-label={gettext("Row actions")}></th>
-                <%= for column <- visible_fields(@visible_columns) do %>
-                  <th>
-                    <%= if column.sortable? do %>
-                      <button
-                        type="button"
-                        class="sort-toggle"
-                        phx-click="toggle_sort"
-                        phx-value-key={Atom.to_string(column.key)}
-                      >
-                        <%= column.label %><%= sort_marker(@sort, column.key) %>
-                      </button>
-                    <% else %>
-                      <span><%= column.label %></span>
+          <div id="securities-list-pane" class="securities-list-pane">
+            <div
+              class="data-table-wrapper"
+              id="securities-table"
+              phx-hook="ColumnPrefs"
+              data-storage-key="securities.columns"
+              data-default-columns={Jason.encode!(SecurityFields.visible_default() |> Enum.map(&Atom.to_string/1))}
+              data-current-columns={Jason.encode!(Enum.map(@visible_columns, &Atom.to_string/1))}
+            >
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="row-actions-head" aria-label={gettext("Row actions")}></th>
+                    <%= for column <- visible_fields(@visible_columns) do %>
+                      <th>
+                        <%= if column.sortable? do %>
+                          <button
+                            type="button"
+                            class="sort-toggle"
+                            phx-click="toggle_sort"
+                            phx-value-key={Atom.to_string(column.key)}
+                          >
+                            <%= column.label %><%= sort_marker(@sort, column.key) %>
+                          </button>
+                        <% else %>
+                          <span><%= column.label %></span>
+                        <% end %>
+                      </th>
                     <% end %>
-                  </th>
-                <% end %>
-              </tr>
-            </thead>
-            <tbody>
-              <%= if @securities == [] do %>
-                <tr>
-                  <td colspan={length(visible_fields(@visible_columns)) + 1} class="empty-state">
-                    <%= gettext("No securities yet — click + to add one.") %>
-                  </td>
-                </tr>
-              <% end %>
-              <% visible = visible_fields(@visible_columns) %>
-              <% first_key = first_visible_key(visible) %>
-              <%= for row <- @securities do %>
-                <% sec_id = security_id(row) %>
-                <% inner_security = security_from_row(row) %>
-                <% row_path = "/securities/#{sec_id}" %>
-                <tr
-                  id={"security-row-#{sec_id}"}
-                  class={[
-                    "security-row",
-                    selected?(@selected_security, row) && "is-selected",
-                    inner_security.is_retired && "is-retired"
-                  ]}
-                  phx-click={Phoenix.LiveView.JS.patch(row_path)}
-                  phx-contextmenu="open_row_menu"
-                  phx-value-id={sec_id}
-                  role="link"
-                >
-                  <td class="row-actions">
-                    <button
-                      type="button"
-                      id={"row-kebab-#{sec_id}"}
-                      class="row-actions__kebab"
-                      phx-click="open_row_menu"
-                      phx-value-id={sec_id}
-                      aria-label={gettext("Open actions menu")}
-                      aria-haspopup="menu"
-                      aria-expanded={@row_menu_id == sec_id}
-                    >
-                      <AppShell.icon name={:ellipsis_vertical} />
-                    </button>
-                  </td>
-                  <%= for column <- visible do %>
-                    <td>
-                      <%= if column.key == first_key do %>
-                        <.link patch={row_path} class="row-target row-target--with-logo" tabindex="0">
-                          <.security_logo security={inner_security} variant="row" />
-                          <span class="row-target__label"><%= render_cell(column, row) %></span>
-                        </.link>
-                      <% else %>
-                        <%= render_cell(column, row) %>
-                      <% end %>
-                    </td>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= if @securities == [] do %>
+                    <tr>
+                      <td colspan={length(visible_fields(@visible_columns)) + 1} class="empty-state">
+                        <%= gettext("No securities yet — click + to add one.") %>
+                      </td>
+                    </tr>
                   <% end %>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
+                  <% visible = visible_fields(@visible_columns) %>
+                  <% first_key = first_visible_key(visible) %>
+                  <%= for row <- @securities do %>
+                    <% sec_id = security_id(row) %>
+                    <% inner_security = security_from_row(row) %>
+                    <% row_path = "/securities/#{sec_id}" %>
+                    <tr
+                      id={"security-row-#{sec_id}"}
+                      class={[
+                        "security-row",
+                        selected?(@selected_security, row) && "is-selected",
+                        inner_security.is_retired && "is-retired"
+                      ]}
+                      phx-click={Phoenix.LiveView.JS.patch(row_path)}
+                      phx-contextmenu="open_row_menu"
+                      phx-value-id={sec_id}
+                      role="link"
+                    >
+                      <td class="row-actions">
+                        <button
+                          type="button"
+                          id={"row-kebab-#{sec_id}"}
+                          class="row-actions__kebab"
+                          phx-click="open_row_menu"
+                          phx-value-id={sec_id}
+                          aria-label={gettext("Open actions menu")}
+                          aria-haspopup="menu"
+                          aria-expanded={@row_menu_id == sec_id}
+                        >
+                          <AppShell.icon name={:ellipsis_vertical} />
+                        </button>
+                      </td>
+                      <%= for column <- visible do %>
+                        <td>
+                          <%= if column.key == first_key do %>
+                            <.link patch={row_path} class="row-target row-target--with-logo" tabindex="0">
+                              <.security_logo security={inner_security} variant="row" />
+                              <span class="row-target__label"><%= render_cell(column, row) %></span>
+                            </.link>
+                          <% else %>
+                            <%= render_cell(column, row) %>
+                          <% end %>
+                        </td>
+                      <% end %>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-        <%= if @selected_security do %>
-          <%= render_detail_pane(assigns) %>
-        <% end %>
+          <%= if @selected_security do %>
+            <div
+              id="securities-detail-splitter"
+              class="securities-detail-splitter"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-controls="securities-list-pane"
+              aria-valuemin="220"
+              aria-valuemax="720"
+              aria-valuenow="360"
+              tabindex="0"
+              phx-hook="SecuritySplitPane"
+              data-storage-key="securities.detailSplitHeight"
+              data-target="securities-list-pane"
+              data-min-height="220"
+              data-max-height="720"
+              title={gettext("Resize detail split")}
+            >
+              <span aria-hidden="true"></span>
+            </div>
+            <%= render_detail_pane(assigns) %>
+          <% end %>
+        </div>
       </section>
 
       <% open_menu_security = @row_menu_id && find_open_menu_security(@securities, @row_menu_id) %>
@@ -1399,21 +1429,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
     parent = self()
 
     Task.start(fn ->
-      try do
-        _ = QuoteSync.sync_all()
-      rescue
-        exception ->
-          Logger.error(
-            "QuoteSync.sync_all crashed: " <> Exception.format(:error, exception, __STACKTRACE__)
-          )
-      catch
-        kind, reason ->
-          Logger.error("QuoteSync.sync_all exited: #{inspect({kind, reason})}")
-      after
-        # Always re-enable the UI, even on crash — otherwise the spinner
-        # would hang until the page is reloaded.
-        send(parent, :sync_done)
-      end
+      result =
+        try do
+          QuoteSync.sync_all()
+        rescue
+          exception ->
+            Logger.error(
+              "QuoteSync.sync_all crashed: " <>
+                Exception.format(:error, exception, __STACKTRACE__)
+            )
+
+            sync_crash_result(:crashed)
+        catch
+          kind, reason ->
+            Logger.error("QuoteSync.sync_all exited: #{inspect({kind, reason})}")
+            sync_crash_result(:exited)
+        end
+
+      send(parent, {:sync_done, result})
     end)
 
     {:noreply,
@@ -1605,22 +1638,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
     parent = self()
 
     Task.start(fn ->
-      try do
-        _ = QuoteSync.sync_security(sec)
-      rescue
-        exception ->
-          Logger.error(
-            "QuoteSync.sync_security crashed for ##{sec.id}: " <>
-              Exception.format(:error, exception, __STACKTRACE__)
-          )
-      catch
-        kind, reason ->
-          Logger.error(
-            "QuoteSync.sync_security exited for ##{sec.id}: #{inspect({kind, reason})}"
-          )
-      after
-        send(parent, :sync_done)
-      end
+      result =
+        try do
+          QuoteSync.sync_security(sec)
+        rescue
+          exception ->
+            Logger.error(
+              "QuoteSync.sync_security crashed for ##{sec.id}: " <>
+                Exception.format(:error, exception, __STACKTRACE__)
+            )
+
+            %{status: :error, reason: :crashed}
+        catch
+          kind, reason ->
+            Logger.error(
+              "QuoteSync.sync_security exited for ##{sec.id}: #{inspect({kind, reason})}"
+            )
+
+            %{status: :error, reason: :exited}
+        end
+
+      send(parent, {:sync_done, result})
     end)
 
     {:noreply,
@@ -1784,10 +1822,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_info(:sync_done, socket) do
+    handle_info({:sync_done, {:ok, %{ok: 0, skipped: 0, error: 0}}}, socket)
+  end
+
+  def handle_info({:sync_done, result}, socket) do
     {:noreply,
      socket
      |> assign(:sync_running?, false)
-     |> assign(:flash_message, gettext("Prices synced."))
+     |> assign(:flash_message, sync_flash(result))
      |> load_securities()
      |> load_detail_data()}
   end
@@ -1868,6 +1910,43 @@ defmodule PortfolixirWeb.SecuritiesLive do
       _ -> {Date.add(today, -365), today}
     end
   end
+
+  defp sync_crash_result(reason) do
+    {:ok,
+     %{
+       ok: 0,
+       skipped: 0,
+       error: 1,
+       results: [%{status: :error, reason: reason}]
+     }}
+  end
+
+  defp sync_flash({:ok, %{ok: ok, skipped: 0, error: 0}}) when ok > 0 do
+    gettext("Prices synced.")
+  end
+
+  defp sync_flash({:ok, %{ok: ok, skipped: skipped, error: error}}) do
+    gettext("Price sync finished: %{ok} synced, %{skipped} skipped, %{error} failed.",
+      ok: ok,
+      skipped: skipped,
+      error: error
+    )
+  end
+
+  defp sync_flash(%{status: :ok}), do: gettext("Prices synced.")
+
+  defp sync_flash(%{status: :skipped, reason: reason}) do
+    gettext("Price sync skipped: %{reason}", reason: sync_reason(reason))
+  end
+
+  defp sync_flash(%{status: :error, reason: reason}) do
+    gettext("Price sync failed: %{reason}", reason: sync_reason(reason))
+  end
+
+  defp sync_flash(_), do: gettext("Price sync failed.")
+
+  defp sync_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
+  defp sync_reason(reason), do: inspect(reason)
 
   defp oldest_date(security_id) do
     case Quotes.range(security_id, ~D[1900-01-01], Date.utc_today()) do

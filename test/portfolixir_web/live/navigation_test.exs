@@ -107,9 +107,9 @@ defmodule PortfolixirWeb.NavigationTest do
     assert html =~ ~s(data-theme-choice="system")
     assert html =~ ~s(data-theme-choice="light")
     assert html =~ ~s(data-theme-choice="dark")
-    assert html =~ ~s(class="theme-icon theme-icon-system")
-    assert html =~ ~s(class="theme-icon theme-icon-light")
-    assert html =~ ~s(class="theme-icon theme-icon-dark")
+    assert html =~ ~s(data-theme-icon="monitor")
+    assert html =~ ~s(data-theme-icon="sun")
+    assert html =~ ~s(data-theme-icon="moon")
     assert html =~ ~s(title="System")
     assert html =~ ~s(title="Light")
     assert html =~ ~s(title="Dark")
@@ -125,6 +125,54 @@ defmodule PortfolixirWeb.NavigationTest do
     refute logo_mark_dark =~ "<text"
     assert logo_mark_light =~ ~s(stroke="#201631")
     assert logo_mark_dark =~ ~s(stroke="#F5F3FF")
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want the active section title in the top bar instead of above the content,
+  # so that data-heavy views can use the available vertical space.
+  #
+  # Acceptance criteria:
+  # - Every active menu route renders its current page title in the top bar.
+  # - The main content no longer repeats the page-level h1 header.
+  # - Every active menu route uses the full-width workspace layout.
+  test "active page title is rendered in the top bar for every menu route", %{conn: conn} do
+    for {path, title, workspace_selector} <- [
+          {"/", "Dashboard", "#dashboard-workspace.workspace-page"},
+          {"/securities", "Securities", "#securities-panel.workspace-panel"},
+          {"/portfolios", "Portfolios", "#portfolios-workspace.workspace-page"},
+          {"/transactions", "Transactions", "#transactions-workspace.workspace-page"},
+          {"/imports", "Imports", "#imports-workspace.workspace-page"}
+        ] do
+      {:ok, view, _html} = live(conn, path)
+
+      assert has_element?(view, "#app-topbar-title", title)
+      assert has_element?(view, "main.app-main.app-main--workspace")
+      assert has_element?(view, workspace_selector)
+      refute has_element?(view, ".app-main .page-header")
+      refute has_element?(view, ".app-main h1", title)
+    end
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want the theme selector to use compact system, light, and dark icon buttons,
+  # so that display mode selection is recognizable without custom CSS glyphs.
+  #
+  # Acceptance criteria:
+  # - The trigger exposes the currently selected mode icon.
+  # - The choices expose monitor, sun, and moon icons.
+  # - The old CSS-drawn theme glyph classes are not rendered.
+  test "theme selector renders compact monitor sun and moon icon buttons", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert html =~ ~s(data-current-theme-icon="system")
+    assert html =~ ~s(data-theme-icon="monitor")
+    assert html =~ ~s(data-theme-icon="sun")
+    assert html =~ ~s(data-theme-icon="moon")
+    refute html =~ "theme-icon-system"
+    refute html =~ "theme-icon-light"
+    refute html =~ "theme-icon-dark"
   end
 
   # User story:
@@ -197,6 +245,40 @@ defmodule PortfolixirWeb.NavigationTest do
     assert has_element?(view, "#locale-en[href='/?locale=en']")
 
     {:ok, english_view, _html} = live(german_conn, "/?locale=en")
+
+    assert has_element?(english_view, "#nav-securities", "Securities")
+    assert has_element?(english_view, "#locale-en[aria-current='true']")
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want a stale automatically stored session locale to be ignored on first open,
+  # so that a German browser still sees German unless I explicitly picked English.
+  #
+  # Acceptance criteria:
+  # - A session-only locale value does not override Accept-Language.
+  # - An explicit locale cookie still overrides Accept-Language.
+  # - The explicit query parameter still persists the chosen locale.
+  test "browser language beats stale automatic session locale unless an explicit cookie exists",
+       %{
+         conn: conn
+       } do
+    stale_session_conn =
+      conn
+      |> init_test_session(%{"locale" => "en"})
+      |> put_req_header("accept-language", "de-DE,de;q=0.9,en;q=0.8")
+
+    {:ok, german_view, _html} = live(stale_session_conn, "/")
+
+    assert has_element?(german_view, "#nav-securities", "Wertpapiere")
+    assert has_element?(german_view, "#locale-de[aria-current='true']")
+
+    explicit_cookie_conn =
+      build_conn()
+      |> put_req_header("accept-language", "de-DE,de;q=0.9,en;q=0.8")
+      |> put_req_cookie("portfolixir_locale", "en")
+
+    {:ok, english_view, _html} = live(explicit_cookie_conn, "/")
 
     assert has_element?(english_view, "#nav-securities", "Securities")
     assert has_element?(english_view, "#locale-en[aria-current='true']")

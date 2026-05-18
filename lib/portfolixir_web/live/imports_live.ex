@@ -33,24 +33,25 @@ defmodule PortfolixirWeb.ImportsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell current_path="/imports">
-      <header class="page-header">
-        <h1><%= gettext("Imports") %></h1>
-        <p><%= gettext("Bulk-import Portfolio Performance CSV or JSON exports.") %></p>
-      </header>
+    <AppShell.shell
+      current_path="/imports"
+      page_title={gettext("Imports")}
+      page_subtitle={gettext("Bulk-import Portfolio Performance CSV or JSON exports.")}
+    >
+      <div id="imports-workspace" class="workspace-page">
+        <%= if @error do %>
+          <p class="alert-error" role="alert"><%= @error %></p>
+        <% end %>
 
-      <%= if @error do %>
-        <p class="alert-error" role="alert"><%= @error %></p>
-      <% end %>
-
-      <%= case @stage do %>
-        <% :idle -> %>
-          <%= render_idle(assigns) %>
-        <% :preview -> %>
-          <%= render_preview(assigns) %>
-        <% :done -> %>
-          <%= render_done(assigns) %>
-      <% end %>
+        <%= case @stage do %>
+          <% :idle -> %>
+            <%= render_idle(assigns) %>
+          <% :preview -> %>
+            <%= render_preview(assigns) %>
+          <% :done -> %>
+            <%= render_done(assigns) %>
+        <% end %>
+      </div>
     </AppShell.shell>
     """
   end
@@ -58,7 +59,12 @@ defmodule PortfolixirWeb.ImportsLive do
   defp render_idle(assigns) do
     ~H"""
     <div id="pp-import-drop" class="stack" phx-hook="PPImportDrop" phx-drop-target={@uploads.pp_file.ref}>
-      <form id="pp-import-form" class="panel import-drop-zone" phx-submit="parse" phx-change="validate">
+      <form
+        id="pp-import-form"
+        class="workspace-section import-drop-zone"
+        phx-submit="parse"
+        phx-change="validate"
+      >
         <svg class="import-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3v12" />
           <path d="M7 8l5-5 5 5" />
@@ -96,7 +102,7 @@ defmodule PortfolixirWeb.ImportsLive do
       )
 
     ~H"""
-    <section class="panel">
+    <section class="workspace-section">
       <h2><%= gettext("Preview") %></h2>
       <p class="muted">
         <%= gettext("Source format: %{format}",
@@ -132,22 +138,30 @@ defmodule PortfolixirWeb.ImportsLive do
       <h3><%= gettext("Counts by kind") %></h3>
       <ul class="kind-chips">
         <%= for {kind, count} <- @kind_counts do %>
-          <li class="kind-chip" data-family={kind_family(kind)}>
-            <span class="name"><%= kind %></span>
+          <li class="kind-chip">
+            <span class="name"><%= kind_label(kind) %></span>
             <span class="count"><%= count %></span>
           </li>
         <% end %>
       </ul>
 
       <%= if @preview.errors != [] do %>
-        <details>
-          <summary><%= gettext("Parser warnings") %></summary>
-          <ul>
-            <%= for err <- @preview.errors do %>
-              <li>Row <%= err.row %>: <%= err.message %></li>
-            <% end %>
-          </ul>
-        </details>
+        <section class="import-warning-box" id="parser-warnings-box" aria-label={gettext("Parser warnings")}>
+          <div class="import-warning-box__head">
+            <h3><%= gettext("Parser warnings") %></h3>
+            <button
+              type="button"
+              id="copy-parser-warnings"
+              class="icon-button"
+              phx-click="copy_parser_warnings"
+              aria-label={gettext("Copy parser warnings")}
+              title={gettext("Copy parser warnings")}
+            >
+              <AppShell.icon name={:copy} />
+            </button>
+          </div>
+          <pre><%= parser_warning_text(@preview.errors) %></pre>
+        </section>
       <% end %>
 
       <form id="pp-import-apply" phx-change="mapping_changed" phx-submit="apply">
@@ -268,7 +282,7 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp render_done(assigns) do
     ~H"""
-    <section class="panel import-done">
+    <section class="workspace-section import-done">
       <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M5 12l5 5L20 7" />
@@ -305,27 +319,22 @@ defmodule PortfolixirWeb.ImportsLive do
     """
   end
 
-  # Group transaction kinds for chip colour coding in the preview.
-  defp kind_family(kind) do
+  defp kind_label(kind) do
     case kind do
-      k when k in ["buy", "sell"] ->
-        "trade"
-
-      k when k in ["dividend", "interest", "tax_refund"] ->
-        "income"
-
-      k when k in ["fee", "tax", "removal"] ->
-        "cost"
-
-      k
-      when k in ["cash_transfer", "security_transfer", "inbound_delivery", "outbound_delivery"] ->
-        "transfer"
-
-      "deposit" ->
-        "cash"
-
-      _ ->
-        "cash"
+      "buy" -> gettext("Buy")
+      "sell" -> gettext("Sell")
+      "dividend" -> gettext("Dividend")
+      "interest" -> gettext("Interest")
+      "deposit" -> gettext("Deposit")
+      "removal" -> gettext("Removal")
+      "fee" -> gettext("Fee")
+      "tax" -> gettext("Tax")
+      "tax_refund" -> gettext("Tax refund")
+      "cash_transfer" -> gettext("Cash transfer")
+      "inbound_delivery" -> gettext("Inbound delivery")
+      "outbound_delivery" -> gettext("Outbound delivery")
+      "security_transfer" -> gettext("Security transfer")
+      other -> other
     end
   end
 
@@ -373,6 +382,17 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:error, nil)
      |> assign(:mapping, blank_mapping())
      |> reload_lookups()}
+  end
+
+  def handle_event("copy_parser_warnings", _params, socket) do
+    text =
+      socket.assigns.preview
+      |> case do
+        %Preview{errors: errors} -> parser_warning_text(errors)
+        _ -> ""
+      end
+
+    {:noreply, push_event(socket, "copy-to-clipboard", %{text: text})}
   end
 
   defp handle_upload_progress(:pp_file, entry, socket) do
@@ -655,4 +675,10 @@ defmodule PortfolixirWeb.ImportsLive do
   defp parse_error_message(other), do: inspect(other)
 
   defp apply_error_message(reason), do: inspect(reason)
+
+  defp parser_warning_text(errors) do
+    errors
+    |> Enum.map(fn err -> "Row #{err.row || "?"}: #{err.message}" end)
+    |> Enum.join("\n")
+  end
 end

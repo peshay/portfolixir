@@ -23,13 +23,12 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell current_path="/portfolios">
-      <header class="page-header">
-        <h1><%= gettext("Portfolios") %></h1>
-        <p><%= gettext("Portfolio, cash account, and depot setup") %></p>
-      </header>
-
-      <div class="stack">
+    <AppShell.shell
+      current_path="/portfolios"
+      page_title={gettext("Portfolios")}
+      page_subtitle={gettext("Portfolio, cash account, and depot setup")}
+    >
+      <div id="portfolios-workspace" class="workspace-page">
         <%= if @error do %>
           <p class="alert-error" role="alert"><%= @error %></p>
         <% end %>
@@ -37,7 +36,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
           <p class="alert-success" role="status"><%= @success %></p>
         <% end %>
 
-        <section id="portfolio-create" class="panel">
+        <section id="portfolio-create" class="workspace-section">
           <h2><%= gettext("Create portfolio") %></h2>
           <form id="portfolio-form" phx-submit="save_portfolio">
             <div class="form-grid">
@@ -59,7 +58,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         </section>
 
         <%= if @current_portfolio do %>
-          <section id="account-create" class="grid">
+          <section id="account-create" class="workspace-section grid">
             <article class="panel">
               <h2><%= gettext("Create cash account") %></h2>
               <form id="cash-account-form" phx-submit="save_cash_account">
@@ -97,7 +96,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
           </section>
         <% end %>
 
-        <section id="portfolio-list-panel" class="panel">
+        <section id="portfolio-list-panel" class="workspace-section">
           <h2><%= gettext("Current setup") %></h2>
           <div class="grid">
             <article>

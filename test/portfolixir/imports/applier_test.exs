@@ -1,5 +1,5 @@
 defmodule Portfolixir.Imports.ApplierTest do
-  use Portfolixir.DataCase, async: true
+  use Portfolixir.DataCase, async: false
 
   alias Portfolixir.Catalog
   alias Portfolixir.Imports
@@ -7,6 +7,22 @@ defmodule Portfolixir.Imports.ApplierTest do
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+
+  defmodule EnrichmentAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+
+    @impl true
+    def id, do: :enrichment_test
+
+    @impl true
+    def fetch(security, _opts) do
+      test_pid = Application.fetch_env!(:portfolixir, :quote_sync_test_pid)
+      committed? = Portfolixir.Catalog.get_security(security.id) != nil
+      send(test_pid, {:post_commit_quote_sync, security.id, committed?})
+      {:ok, []}
+    end
+  end
 
   @fixtures Path.expand("../../support/fixtures/portfolio_performance", __DIR__)
 
@@ -69,6 +85,76 @@ defmodule Portfolixir.Imports.ApplierTest do
       assert result.created_transactions == 13
       assert result.skipped_duplicates == 0
       assert result.skipped_entries == []
+    end
+
+    # User story:
+    # As a local portfolio maintainer importing Portfolio Performance history,
+    # I want newly created securities to keep their PP quote attribution,
+    # so that later quote sync and logo enrichment can operate from auditable source data.
+    #
+    # Acceptance criteria:
+    # - Import-created securities have provider `portfolio_performance`.
+    # - Import-created securities have feed `PORTFOLIO_PERFORMANCE`.
+    # - The result includes the created security IDs for post-commit enrichment.
+    test "tags PP-created securities and returns their IDs", %{
+      portfolio: portfolio,
+      preview: preview
+    } do
+      assert {:ok, %Result{} = result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+      assert length(result.created_security_ids) == 2
+
+      securities = Enum.map(result.created_security_ids, &Catalog.get_security!/1)
+
+      assert Enum.all?(securities, &(&1.provider == "portfolio_performance"))
+      assert Enum.all?(securities, &(&1.feed == "PORTFOLIO_PERFORMANCE"))
+    end
+
+    # User story:
+    # As a local portfolio maintainer importing Portfolio Performance history,
+    # I want quote/logo enrichment to start only after the import transaction commits,
+    # so that background work can see the created securities and tests stay network-free.
+    #
+    # Acceptance criteria:
+    # - Import apply starts quote enrichment for created securities after commit.
+    # - Tests use a fake adapter and no external network.
+    # - The adapter can read the committed security row.
+    test "triggers post-commit quote enrichment for import-created securities", %{
+      portfolio: portfolio,
+      preview: preview
+    } do
+      prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
+      prior_logo = Application.get_env(:portfolixir, :enable_logo_discovery, false)
+      prior_test_pid = Application.get_env(:portfolixir, :quote_sync_test_pid)
+
+      Application.put_env(:portfolixir, :quote_sync_test_pid, self())
+      Application.put_env(:portfolixir, :enable_logo_discovery, false)
+
+      Application.put_env(
+        :portfolixir,
+        Portfolixir.Catalog.QuoteSync,
+        Keyword.merge(prior_cfg,
+          enabled?: true,
+          adapter_for: %{"portfolio_performance" => EnrichmentAdapter}
+        )
+      )
+
+      try do
+        assert {:ok, %Result{} = result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+        for id <- result.created_security_ids do
+          assert_receive {:post_commit_quote_sync, ^id, true}, 500
+        end
+      after
+        Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
+        Application.put_env(:portfolixir, :enable_logo_discovery, prior_logo)
+
+        if is_nil(prior_test_pid) do
+          Application.delete_env(:portfolixir, :quote_sync_test_pid)
+        else
+          Application.put_env(:portfolixir, :quote_sync_test_pid, prior_test_pid)
+        end
+      end
     end
 
     test "applies again as a no-op (idempotent on import_hash)", %{
