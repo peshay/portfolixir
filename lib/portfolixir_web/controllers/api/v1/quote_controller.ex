@@ -54,8 +54,8 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   def sync(conn, %{"security_id" => security_id}) do
     with {:ok, id} <- parse_id(security_id),
          security when not is_nil(security) <- Catalog.get_security(id) do
-      status = QuoteSync.sync_security(security)
-      json(conn, %{data: %{status: Atom.to_string(status)}})
+      result = QuoteSync.sync_security(security)
+      json(conn, %{data: sync_result(result)})
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
@@ -91,4 +91,15 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
     |> put_status(:unprocessable_entity)
     |> json(%{errors: %{field => ["is invalid"]}})
   end
+
+  defp sync_result(%{status: status, reason: nil}) do
+    %{status: Atom.to_string(status)}
+  end
+
+  defp sync_result(%{status: status, reason: reason}) do
+    %{status: Atom.to_string(status), reason: reason_to_string(reason)}
+  end
+
+  defp reason_to_string(reason) when is_atom(reason), do: Atom.to_string(reason)
+  defp reason_to_string(reason), do: inspect(reason)
 end

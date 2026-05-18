@@ -14,7 +14,6 @@ defmodule PortfolixirWeb.Locale do
 
     locale =
       query_locale ||
-        normalize_locale(get_session(conn, "locale")) ||
         normalize_locale(conn.cookies["portfolixir_locale"]) ||
         preferred_browser_locale(conn) ||
         @default_locale

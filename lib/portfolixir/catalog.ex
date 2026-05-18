@@ -5,6 +5,7 @@ defmodule Portfolixir.Catalog do
   require Logger
 
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
@@ -111,7 +112,7 @@ defmodule Portfolixir.Catalog do
   def create_security(attrs) when is_map(attrs) do
     case %Security{} |> Security.changeset(attrs) |> Repo.insert() do
       {:ok, security} = ok ->
-        maybe_discover_logo(security)
+        maybe_enrich_security(security)
         ok
 
       other ->
@@ -119,14 +120,47 @@ defmodule Portfolixir.Catalog do
     end
   end
 
-  defp maybe_discover_logo(%Security{} = security) do
-    if Application.get_env(:portfolixir, :enable_logo_discovery, false) do
+  @doc false
+  def enrich_security_ids_async(ids) when is_list(ids) do
+    Enum.each(ids, &enrich_security_async/1)
+    :ok
+  end
+
+  @doc false
+  def enrich_security_async(%Security{id: id}), do: enrich_security_async(id)
+
+  def enrich_security_async(id) when is_integer(id) do
+    if quote_enrichment_enabled?() or logo_enrichment_enabled?() do
       Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
-        Portfolixir.Catalog.LogoLookup.run(security)
+        case get_security(id) do
+          %Security{} = security ->
+            if quote_enrichment_enabled?(), do: QuoteSync.sync_security(security)
+            if logo_enrichment_enabled?(), do: Portfolixir.Catalog.LogoLookup.run(security)
+
+          nil ->
+            :ok
+        end
       end)
     end
 
     :ok
+  end
+
+  defp maybe_enrich_security(%Security{} = security) do
+    if Repo.in_transaction?() do
+      :ok
+    else
+      enrich_security_async(security)
+    end
+  end
+
+  defp quote_enrichment_enabled? do
+    Application.get_env(:portfolixir, QuoteSync, [])
+    |> Keyword.get(:enabled?, false)
+  end
+
+  defp logo_enrichment_enabled? do
+    Application.get_env(:portfolixir, :enable_logo_discovery, false)
   end
 
   def update_security(%Security{} = security, attrs) when is_map(attrs) do

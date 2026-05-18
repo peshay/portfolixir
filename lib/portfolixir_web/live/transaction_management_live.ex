@@ -32,13 +32,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell current_path="/transactions">
-      <header class="page-header">
-        <h1><%= gettext("Transactions") %></h1>
-        <p><%= gettext("Manual buy and sell ledger") %></p>
-      </header>
-
-      <div class="stack">
+    <AppShell.shell
+      current_path="/transactions"
+      page_title={gettext("Transactions")}
+      page_subtitle={gettext("Manual buy and sell ledger")}
+    >
+      <div id="transactions-workspace" class="workspace-page">
         <%= if @error do %>
           <p class="alert-error" role="alert"><%= @error %></p>
         <% end %>
@@ -47,7 +46,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         <% end %>
 
         <%= if @current_portfolio do %>
-          <section id="transaction-create" class="panel">
+          <section id="transaction-create" class="workspace-section">
             <h2><%= gettext("Record transaction") %></h2>
             <form id="transaction-form" phx-submit="save_transaction">
               <div class="form-grid">
@@ -120,7 +119,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </section>
         <% end %>
 
-        <section id="holdings-panel" class="panel">
+        <section id="holdings-panel" class="workspace-section">
           <h2><%= gettext("Current holdings") %></h2>
           <%= if Enum.empty?(@position_rows) do %>
             <div id="no-holdings" class="empty-state" role="status">
@@ -148,7 +147,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <% end %>
         </section>
 
-        <section id="transaction-list-panel" class="panel">
+        <section id="transaction-list-panel" class="workspace-section">
           <h2><%= gettext("Transaction history") %></h2>
           <%= if Enum.empty?(@transactions) do %>
             <div id="no-transactions" class="empty-state" role="status">
