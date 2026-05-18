@@ -49,30 +49,33 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
-    [header_row | data_rows] = __MODULE__.Parser.parse_string(body, skip_headers: false)
+    case __MODULE__.Parser.parse_string(body, skip_headers: false) do
+      [] ->
+        {:error, :empty_csv}
 
-    case validate_header(header_row) do
-      :ok ->
-        {entries, errors} =
-          data_rows
-          |> Enum.with_index(1)
-          |> Enum.reduce({[], []}, fn {raw, row}, {acc_entries, acc_errors} ->
-            case to_entry(header_row, raw, row) do
-              {:ok, entry} -> {[entry | acc_entries], acc_errors}
-              {:error, message} -> {acc_entries, [%{row: row, message: message} | acc_errors]}
-            end
-          end)
+      [header_row | data_rows] ->
+        with :ok <- validate_header(header_row) do
+          {entries, errors} =
+            data_rows
+            |> Enum.with_index(1)
+            |> Enum.reduce({[], []}, fn {raw, row}, {acc_entries, acc_errors} ->
+              case to_entry(header_row, raw, row) do
+                {:ok, entry} ->
+                  {[entry | acc_entries], acc_errors}
 
-        {:ok,
-         %Preview{
-           format: :csv,
-           source_filename: Keyword.get(opts, :filename),
-           entries: Enum.reverse(entries),
-           errors: Enum.reverse(errors)
-         }}
+                {:error, message} ->
+                  {acc_entries, [%{row: row, message: message} | acc_errors]}
+              end
+            end)
 
-      {:error, _} = err ->
-        err
+          {:ok,
+           %Preview{
+             format: :csv,
+             source_filename: Keyword.get(opts, :filename),
+             entries: Enum.reverse(entries),
+             errors: Enum.reverse(errors)
+           }}
+        end
     end
   rescue
     e in NimbleCSV.ParseError -> {:error, {:invalid_csv, Exception.message(e)}}

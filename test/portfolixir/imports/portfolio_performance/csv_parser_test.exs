@@ -101,6 +101,16 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert "Stück" in missing
     end
 
+    test "returns an :empty_csv error instead of crashing on an empty body" do
+      assert {:error, :empty_csv} = CsvParser.parse("")
+    end
+
+    test "returns a structured error for whitespace-only input rather than crashing" do
+      # whitespace-only parses to a single one-cell row, which fails
+      # column validation instead of pattern-matching to an empty list.
+      assert {:error, {:missing_columns, _}} = CsvParser.parse("   \n  \n")
+    end
+
     test "captures unknown German type labels as row-level errors" do
       body = """
       Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
