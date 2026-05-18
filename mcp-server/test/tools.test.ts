@@ -111,6 +111,38 @@ describe("Portfolixir MCP tools", () => {
     assert.match(result.content[0].text, /500/);
   });
 
+  it("passes richer quote sync status responses through unchanged", async () => {
+    const requests: Array<{ method: string; path: string; body?: unknown; token: string }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined,
+          token: String(init?.headers?.["authorization"])
+        });
+
+        return new Response(
+          JSON.stringify({ data: { status: "skipped", reason: "missing_ticker" } }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.quotes.sync", { security_id: 42 });
+
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/securities/42/sync_quotes");
+    assert.deepEqual(requests[0].body, {});
+    assert.deepEqual(result.structuredContent, {
+      data: { status: "skipped", reason: "missing_ticker" }
+    });
+    assert.match(result.content[0].text, /missing_ticker/);
+  });
+
   it("maps invalid tool names and upstream API errors to clear failures", async () => {
     const client = createApiClient({
       baseUrl: "http://portfolixir.test",

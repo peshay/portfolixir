@@ -28,6 +28,8 @@ defmodule Portfolixir.Catalog.QuoteSync do
     "portfolio_performance" => Portfolixir.Catalog.QuoteSync.Yahoo
   }
 
+  @skip_reasons [:missing_ticker, :missing_currency]
+
   # -- public API ------------------------------------------------------------
 
   def start_link(opts) do
@@ -51,8 +53,9 @@ defmodule Portfolixir.Catalog.QuoteSync do
   end
 
   @doc """
-  Synchronously sync all securities. Returns
-  `{:ok, %{ok: integer, skipped: integer, error: integer}}`.
+  Synchronously sync all securities. Returns aggregate counts plus the
+  per-security result list:
+  `{:ok, %{ok: integer, skipped: integer, error: integer, results: list}}`.
 
   Options:
     * `:adapter_for` – `%{"provider_string" => module}` map, overrides config.
@@ -61,12 +64,10 @@ defmodule Portfolixir.Catalog.QuoteSync do
     adapter_for = Keyword.get(opts, :adapter_for, runtime_adapter_for())
     securities = Catalog.list_securities()
 
-    counts =
-      Enum.reduce(securities, %{ok: 0, skipped: 0, error: 0}, fn security, acc ->
-        update_counts(acc, sync_one(security, adapter_for, opts))
-      end)
+    results = Enum.map(securities, &sync_one(&1, adapter_for, opts))
+    counts = Enum.reduce(results, %{ok: 0, skipped: 0, error: 0}, &update_counts/2)
 
-    {:ok, counts}
+    {:ok, Map.put(counts, :results, results)}
   end
 
   @doc "Synchronously sync one security with the configured or provided adapter map."
@@ -116,42 +117,72 @@ defmodule Portfolixir.Catalog.QuoteSync do
   defp sync_one(%Security{provider: provider} = security, adapter_for, opts) do
     case Map.get(adapter_for, provider) do
       nil ->
-        :skipped
+        result(security, :skipped, :no_provider_adapter)
 
       adapter ->
-        case adapter.fetch(security, opts) do
+        case safe_fetch(adapter, security, opts) do
           {:ok, rows} when is_list(rows) ->
             persist(security, rows, provider)
+
+          {:error, reason} when reason in @skip_reasons ->
+            result(security, :skipped, reason)
 
           {:error, reason} ->
             Logger.warning(
               "quote fetch failed for security ##{security.id} via #{inspect(adapter)}: #{inspect(reason)}"
             )
 
-            :error
+            result(security, :error, reason)
+
+          other ->
+            Logger.warning(
+              "quote fetch returned unexpected value for security ##{security.id} via #{inspect(adapter)}: #{inspect(other)}"
+            )
+
+            result(security, :error, {:unexpected_response, other})
         end
     end
   end
 
-  defp persist(_security, [], _provider), do: :ok
+  defp safe_fetch(adapter, security, opts) do
+    adapter.fetch(security, opts)
+  rescue
+    exception ->
+      {:error, {:adapter_exception, Exception.message(exception)}}
+  catch
+    kind, reason ->
+      {:error, {:adapter_exit, {kind, reason}}}
+  end
+
+  defp persist(security, [], _provider), do: result(security, :ok, nil, 0)
 
   defp persist(security, rows, provider) do
     case Quotes.upsert_many(
            security.id,
            Enum.map(rows, &Map.put(&1, :source, provider))
          ) do
-      {:ok, _} ->
-        :ok
+      {:ok, count} ->
+        result(security, :ok, nil, count)
 
       {:error, reason} ->
         Logger.warning("quote upsert failed for security ##{security.id}: #{inspect(reason)}")
-        :error
+        result(security, :error, {:upsert_failed, reason})
     end
   end
 
-  defp update_counts(acc, :ok), do: Map.update!(acc, :ok, &(&1 + 1))
-  defp update_counts(acc, :skipped), do: Map.update!(acc, :skipped, &(&1 + 1))
-  defp update_counts(acc, :error), do: Map.update!(acc, :error, &(&1 + 1))
+  defp result(security, status, reason, upserted \\ nil) do
+    %{
+      security_id: security.id,
+      provider: security.provider,
+      status: status,
+      reason: reason,
+      upserted: upserted
+    }
+  end
+
+  defp update_counts(%{status: :ok}, acc), do: Map.update!(acc, :ok, &(&1 + 1))
+  defp update_counts(%{status: :skipped}, acc), do: Map.update!(acc, :skipped, &(&1 + 1))
+  defp update_counts(%{status: :error}, acc), do: Map.update!(acc, :error, &(&1 + 1))
 
   defp runtime_adapter_for do
     Application.get_env(:portfolixir, __MODULE__, [])

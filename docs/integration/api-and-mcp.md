@@ -65,7 +65,9 @@ Example create payload:
   Invalid date filters return `422 Unprocessable Entity` with field errors.
 - `PUT /api/v1/securities/:security_id/quotes` upserts manual quote rows.
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
-  one security.
+  one security. The response includes `status` (`ok`, `skipped`, or `error`);
+  skipped and error responses may include a `reason` such as
+  `missing_ticker` or `no_provider_adapter`.
 
 Example quote upsert payload:
 
@@ -78,6 +80,17 @@ Example quote upsert payload:
       "source": "manual"
     }
   ]
+}
+```
+
+Example quote sync response:
+
+```json
+{
+  "data": {
+    "status": "skipped",
+    "reason": "missing_ticker"
+  }
 }
 ```
 

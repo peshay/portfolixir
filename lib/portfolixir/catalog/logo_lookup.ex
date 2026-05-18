@@ -38,16 +38,25 @@ defmodule Portfolixir.Catalog.LogoLookup do
     end
   end
 
+  def find_url(%Security{provider: "portfolio_performance", name: name}, opts)
+      when is_binary(name) and name != "" do
+    wikipedia_by_name(name, opts)
+  end
+
   def find_url(%Security{asset_class: class, name: name}, opts)
       when class in @equity_classes and is_binary(name) and name != "" do
+    wikipedia_by_name(name, opts)
+  end
+
+  def find_url(%Security{}, _opts), do: :skip
+
+  defp wikipedia_by_name(name, opts) do
     case lookup_wikipedia_variants(name, opts) do
       {:ok, url} -> {:ok, url, :wikipedia}
       :not_found -> :skip
       {:error, reason} -> {:error, reason}
     end
   end
-
-  def find_url(%Security{}, _opts), do: :skip
 
   # Names like "Apple" resolve to the fruit page on Wikipedia and return a
   # photo of an apple, not the Apple Inc. logo. Equity names without a
