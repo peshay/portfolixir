@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "MYSTERY_KIND",
+      "account": "Test-Cash",
+      "date": "2024-01-01",
+      "currency": "EUR",
+      "amount": 1.0
+    }
+  ]
+}

@@ -50,6 +50,7 @@ defmodule Portfolixir.MixProject do
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:floki, ">= 0.36.0", only: :test},
       {:jason, "~> 1.4"},
+      {:nimble_csv, "~> 1.2"},
       {:plug_cowboy, "~> 2.7"},
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},

@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "PURCHASE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2024-01-15",
+      "time": "10:01",
+      "currency": "EUR",
+      "amount": 1502.50,
+      "shares": 10.0,
+      "security": {
+        "name": "Apple Inc.",
+        "isin": "US0378331005",
+        "wkn": "865985",
+        "ticker": "AAPL",
+        "currency": "EUR"
+      },
+      "units": [
+        {"type": "FEE", "amount": 2.50}
+      ]
+    },
+    {
+      "type": "SALE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2024-04-22",
+      "time": "12:25",
+      "currency": "EUR",
+      "amount": 1800.00,
+      "shares": 10.0,
+      "security": {
+        "name": "Apple Inc.",
+        "isin": "US0378331005",
+        "wkn": "865985",
+        "ticker": "AAPL",
+        "currency": "EUR"
+      },
+      "units": [
+        {"type": "FEE", "amount": 2.50},
+        {"type": "TAX", "amount": 12.00}
+      ]
+    },
+    {
+      "type": "DIVIDEND",
+      "account": "Test-Cash",
+      "date": "2024-02-15",
+      "currency": "EUR",
+      "amount": 9.13,
+      "shares": 50.0,
+      "security": {
+        "name": "Apple Inc.",
+        "isin": "US0378331005",
+        "wkn": "865985",
+        "ticker": "AAPL",
+        "currency": "EUR"
+      },
+      "units": [
+        {"type": "TAX", "amount": 2.41}
+      ]
+    },
+    {
+      "type": "INTEREST",
+      "account": "Test-Cash",
+      "date": "2024-12-30",
+      "currency": "EUR",
+      "amount": 4.55,
+      "units": [
+        {"type": "TAX", "amount": 1.20}
+      ]
+    },
+    {
+      "type": "DEPOSIT",
+      "account": "Test-Cash",
+      "date": "2024-01-02",
+      "currency": "EUR",
+      "amount": 5000.00
+    },
+    {
+      "type": "REMOVAL",
+      "account": "Test-Cash",
+      "date": "2024-06-30",
+      "currency": "EUR",
+      "amount": 250.00,
+      "note": "Saldokorrektur"
+    },
+    {
+      "type": "FEE",
+      "account": "Test-Cash",
+      "date": "2024-03-10",
+      "currency": "EUR",
+      "amount": 8.50
+    },
+    {
+      "type": "TAX",
+      "account": "Test-Cash",
+      "date": "2024-05-08",
+      "currency": "EUR",
+      "amount": 50.00
+    },
+    {
+      "type": "TAX_REFUND",
+      "account": "Test-Cash",
+      "date": "2024-07-04",
+      "currency": "EUR",
+      "amount": 15.00
+    },
+    {
+      "type": "CASH_TRANSFER",
+      "account": "Test-Cash",
+      "otherAccount": "Test-Cash-2",
+      "date": "2024-08-12",
+      "time": "10:00",
+      "currency": "EUR",
+      "amount": 1000.00
+    },
+    {
+      "type": "INBOUND_DELIVERY",
+      "portfolio": "Test-Depot",
+      "date": "2024-09-04",
+      "currency": "EUR",
+      "amount": 100.00,
+      "shares": 5.0,
+      "security": {
+        "name": "iShares Core MSCI World UCITS ETF",
+        "isin": "IE00B4L5Y983",
+        "wkn": "A0RPWH",
+        "ticker": "EUNL",
+        "currency": "EUR"
+      }
+    },
+    {
+      "type": "OUTBOUND_DELIVERY",
+      "portfolio": "Test-Depot",
+      "date": "2024-10-01",
+      "currency": "EUR",
+      "amount": 80.00,
+      "shares": 2.0,
+      "security": {
+        "name": "iShares Core MSCI World UCITS ETF",
+        "isin": "IE00B4L5Y983",
+        "wkn": "A0RPWH",
+        "ticker": "EUNL",
+        "currency": "EUR"
+      }
+    },
+    {
+      "type": "SECURITY_TRANSFER",
+      "portfolio": "Test-Depot",
+      "otherPortfolio": "Test-Depot-2",
+      "date": "2024-11-15",
+      "time": "21:00",
+      "currency": "EUR",
+      "amount": 200.00,
+      "shares": 3.0,
+      "security": {
+        "name": "iShares Core MSCI World UCITS ETF",
+        "isin": "IE00B4L5Y983",
+        "wkn": "A0RPWH",
+        "ticker": "EUNL",
+        "currency": "EUR"
+      }
+    }
+  ]
+}
