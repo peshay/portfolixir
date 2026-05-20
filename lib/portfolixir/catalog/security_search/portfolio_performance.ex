@@ -87,7 +87,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
       wkn: nilify(Map.get(entry, "wkn")),
       ticker_symbol: first_market && first_market.symbol,
       currency_code: first_market && first_market.currency_code,
-      asset_class: map_asset_class(Map.get(entry, "type")),
+      asset_class: map_asset_class(Map.get(entry, "type"), description),
       feed: @feed_id,
       markets: markets,
       raw: entry
@@ -111,10 +111,16 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
 
   # Maps PP's free-form "type" string to our canonical asset_class codes.
   # Unknown types fall back to "other" so a search result is always selectable.
-  defp map_asset_class(type) when is_binary(type) do
+  defp map_asset_class(type, description) when is_binary(type) do
     normalized = type |> String.downcase() |> String.trim()
 
     cond do
+      government_bond_type?(normalized) ->
+        "government_bond"
+
+      normalized in ["bond", "fixed income"] and government_bond_description?(description) ->
+        "government_bond"
+
       normalized in ["common stock", "preferred stock", "stock", "share", "equity", "adr", "gdr"] ->
         "equity"
 
@@ -144,7 +150,33 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
     end
   end
 
-  defp map_asset_class(_), do: "other"
+  defp map_asset_class(_, description) do
+    if government_bond_description?(description), do: "government_bond", else: "other"
+  end
+
+  defp government_bond_type?(normalized) do
+    normalized in [
+      "government bond",
+      "sovereign bond",
+      "treasury",
+      "treasury bond",
+      "treasury note",
+      "treasury bill",
+      "govt bond",
+      "public bond",
+      "staatsanleihe",
+      "bundesanleihe"
+    ]
+  end
+
+  defp government_bond_description?(description) when is_binary(description) do
+    Regex.match?(
+      ~r/(bundesrepublik|bundesanleihe|bundesobligation|bundesschatz|staatsanleihe|treasury\s+(note|bond|bill)|government\s+bond|sovereign\s+bond|republic\s+of|kingdom\s+of)/i,
+      description
+    )
+  end
+
+  defp government_bond_description?(_), do: false
 
   # PP descriptions are usually upper-case (`APPLE INC`). Reduce to Title Case
   # for nicer display while leaving acronyms intact (e.g. `ETF`, `S&P`).

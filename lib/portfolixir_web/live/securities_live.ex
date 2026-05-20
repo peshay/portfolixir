@@ -25,12 +25,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   @tabs ~w(overview chart transactions trades quotes holdings)
   @default_tab "overview"
+  @holding_statuses ~w(all held not_held)
+  @default_holding_status "all"
 
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(:query, "")
+     |> assign(:holding_status, @default_holding_status)
      |> assign(:filters, [])
      |> assign(:sort, {:name, :asc})
      |> assign(:visible_columns, SecurityFields.visible_default())
@@ -106,6 +109,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
               aria-label={gettext("Search securities")}
             />
           </form>
+
+          <div
+            id="holding-status-filter"
+            class="segmented-control"
+            role="group"
+            aria-label={gettext("Holding status")}
+          >
+            <%= for {status, label} <- holding_status_options() do %>
+              <button
+                type="button"
+                class={["segmented-control__option", @holding_status == status && "is-active"]}
+                phx-click="set_holding_status"
+                phx-value-status={status}
+                aria-pressed={@holding_status == status}
+              >
+                <%= label %>
+              </button>
+            <% end %>
+          </div>
 
           <div class="toolbar-actions">
             <button
@@ -414,6 +436,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <%= for {tab, label} <- detail_tabs() do %>
           <button
             type="button"
+            id={"detail-tab-#{tab}"}
             role="tab"
             phx-click="select_detail_tab"
             phx-value-tab={tab}
@@ -636,7 +659,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <.overview_field label={gettext("Currency")} value={@security.currency_code} mono />
         <.overview_field
           label={gettext("Asset class")}
-          value={asset_class_label(@security.asset_class)}
+          value={asset_class_label(Security.effective_asset_class(@security))}
         />
         <.overview_field
           label={gettext("Feed")}
@@ -1022,36 +1045,38 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp quote_source_label(other) when is_binary(other), do: other
   defp quote_source_label(_), do: ""
 
-  defp pnl_class(nil), do: nil
+  defp pnl_class(value) do
+    case decimal_for_display(value) do
+      nil ->
+        nil
 
-  defp pnl_class(%Decimal{} = d) do
-    case Decimal.compare(d, 0) do
-      :gt -> "is-positive"
-      :lt -> "is-negative"
-      _ -> nil
+      d ->
+        case Decimal.compare(d, 0) do
+          :gt -> "is-positive"
+          :lt -> "is-negative"
+          _ -> nil
+        end
     end
   end
 
-  defp signed_decimal_or_dash(nil, _places), do: "—"
-
-  defp signed_decimal_or_dash(%Decimal{} = d, places) do
-    rounded = Decimal.round(d, places)
-
-    case Decimal.compare(rounded, 0) do
-      :gt -> "+" <> Decimal.to_string(rounded, :normal)
-      _ -> Decimal.to_string(rounded, :normal)
-    end
-  end
+  defp signed_decimal_or_dash(value, places), do: format_signed_decimal(value, places)
 
   defp tx_type_label("buy"), do: gettext("Buy")
   defp tx_type_label("sell"), do: gettext("Sell")
   defp tx_type_label(other), do: to_string(other)
 
-  defp tx_gross(%{quantity: q, price: p}) when not is_nil(q) and not is_nil(p) do
-    Decimal.mult(q, p)
+  defp tx_gross(%{quantity: q, price: p} = tx) do
+    with %Decimal{} = quantity <- decimal_for_display(q),
+         %Decimal{} = price <- decimal_for_display(p) do
+      Decimal.mult(quantity, price)
+    else
+      _ -> Map.get(tx, :gross_amount)
+    end
   end
 
-  defp tx_gross(_), do: Decimal.new(0)
+  defp tx_gross(%{gross_amount: gross}) when not is_nil(gross), do: gross
+
+  defp tx_gross(_), do: nil
 
   defp portfolio_name(%{portfolio: %{name: name}}), do: name
   defp portfolio_name(_), do: nil
@@ -1077,19 +1102,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp asset_class_label(nil), do: nil
   defp asset_class_label(code) when is_binary(code), do: AssetClasses.label(code)
 
-  defp signed_percent_or_dash(nil), do: "—"
+  defp signed_percent_or_dash(value) do
+    case decimal_for_display(value) do
+      nil ->
+        "—"
 
-  defp signed_percent_or_dash(%Decimal{} = fractional) do
-    as_pct = Decimal.mult(fractional, Decimal.new(100))
-    rounded = Decimal.round(as_pct, 2)
-
-    sign =
-      case Decimal.compare(rounded, 0) do
-        :gt -> "+"
-        _ -> ""
-      end
-
-    sign <> Decimal.to_string(rounded, :normal) <> " %"
+      fractional ->
+        fractional
+        |> Decimal.mult(Decimal.new(100))
+        |> format_signed_decimal(2)
+        |> Kernel.<>(" %")
+    end
   end
 
   defp build_chart_overlays(quotes, transactions, ma_toggles, cost_basis?) do
@@ -1200,6 +1223,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
     ]
   end
 
+  defp detail_tab_path(%Security{id: id}, tab), do: "/securities/#{id}?tab=#{tab}"
+
+  defp holding_status_options do
+    [
+      {"all", gettext("All")},
+      {"held", gettext("Held")},
+      {"not_held", gettext("Not held")}
+    ]
+  end
+
   defp selected?(nil, _row), do: false
   defp selected?(%Security{id: id}, row), do: id == security_id(row)
 
@@ -1223,24 +1256,61 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp security_logo(assigns) do
     path = get_in(assigns.security.attributes || %{}, ["logo_path"])
+    fallback = security_logo_fallback(assigns.security)
 
     assigns =
       assigns
       |> assign(:path, path)
-      |> assign(:initial, initial_letter(assigns.security.name))
+      |> assign(:fallback, fallback)
 
     ~H"""
     <%= if @path do %>
       <img class={"security-logo security-logo--#{@variant}"} src={@path} alt="" loading="lazy" />
     <% else %>
-      <span
-        class={"security-logo security-logo--#{@variant} security-logo--initial"}
-        aria-hidden="true"
-      >
-        <%= @initial %>
-      </span>
+      <%= case @fallback do %>
+        <% {:flag, flag} -> %>
+          <span
+            class={"security-logo security-logo--#{@variant} security-logo--flag"}
+            aria-hidden="true"
+          >
+            <%= flag %>
+          </span>
+        <% {:initial, initial} -> %>
+          <span
+            class={"security-logo security-logo--#{@variant} security-logo--initial"}
+            aria-hidden="true"
+          >
+            <%= initial %>
+          </span>
+      <% end %>
     <% end %>
     """
+  end
+
+  defp security_logo_fallback(%Security{isin: isin, name: name} = security)
+       when is_binary(isin) do
+    asset_class = Security.effective_asset_class(security)
+
+    case isin_country_code(isin) do
+      <<a, b>> when asset_class in ["bond", "government_bond"] -> {:flag, country_flag(a, b)}
+      _ -> {:initial, initial_letter(name)}
+    end
+  end
+
+  defp security_logo_fallback(%Security{name: name}), do: {:initial, initial_letter(name)}
+
+  defp isin_country_code(isin) do
+    code =
+      isin
+      |> String.trim()
+      |> String.slice(0, 2)
+      |> String.upcase()
+
+    if code =~ ~r/^[A-Z]{2}$/, do: code
+  end
+
+  defp country_flag(a, b) do
+    <<0x1F1E6 + a - ?A::utf8, 0x1F1E6 + b - ?A::utf8>>
   end
 
   defp initial_letter(nil), do: "?"
@@ -1254,6 +1324,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
       letter -> String.upcase(letter)
     end
   end
+
+  defp initial_letter(_), do: "?"
 
   defp sort_marker({key, :asc}, key), do: " ↑"
   defp sort_marker({key, :desc}, key), do: " ↓"
@@ -1317,13 +1389,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
         ""
 
       value ->
-        # value is a fractional decimal (0.05 → +5.00 %)
-        as_percent = Decimal.mult(value, Decimal.new(100))
-        formatted = format_signed_decimal(as_percent, 2) <> " %"
+        case decimal_for_display(value) do
+          nil ->
+            ""
 
-        Phoenix.HTML.raw(
-          ~s(<span class="#{decimal_class(value)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
-        )
+          decimal ->
+            # value is a fractional decimal (0.05 → +5.00 %)
+            as_percent = Decimal.mult(decimal, Decimal.new(100))
+            formatted = format_signed_decimal(as_percent, 2) <> " %"
+
+            Phoenix.HTML.raw(
+              ~s(<span class="#{decimal_class(decimal)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
+            )
+        end
     end
   end
 
@@ -1342,32 +1420,70 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp format_decimal(%Decimal{} = value, places) do
-    value
-    |> Decimal.round(places)
-    |> Decimal.to_string(:normal)
-  end
+  defp format_decimal(value, places) do
+    case decimal_for_display(value) do
+      nil ->
+        "—"
 
-  defp format_decimal(other, places) when is_binary(other) or is_integer(other) do
-    format_decimal(Decimal.new(to_string(other)), places)
-  end
-
-  defp format_signed_decimal(%Decimal{} = value, places) do
-    rounded = Decimal.round(value, places)
-
-    case Decimal.compare(rounded, 0) do
-      :gt -> "+" <> Decimal.to_string(rounded, :normal)
-      _ -> Decimal.to_string(rounded, :normal)
+      decimal ->
+        decimal
+        |> Decimal.round(places)
+        |> Decimal.to_string(:normal)
     end
   end
 
-  defp decimal_class(%Decimal{} = value) do
-    case Decimal.compare(value, 0) do
-      :gt -> "decimal-positive"
-      :lt -> "decimal-negative"
-      :eq -> "decimal-neutral"
+  defp format_signed_decimal(value, places) do
+    case decimal_for_display(value) do
+      nil ->
+        "—"
+
+      decimal ->
+        rounded = Decimal.round(decimal, places)
+
+        case Decimal.compare(rounded, 0) do
+          :gt -> "+" <> Decimal.to_string(rounded, :normal)
+          _ -> Decimal.to_string(rounded, :normal)
+        end
     end
   end
+
+  defp decimal_class(value) do
+    case decimal_for_display(value) do
+      nil ->
+        "decimal-neutral"
+
+      decimal ->
+        case Decimal.compare(decimal, 0) do
+          :gt -> "decimal-positive"
+          :lt -> "decimal-negative"
+          :eq -> "decimal-neutral"
+        end
+    end
+  end
+
+  defp decimal_for_display(nil), do: nil
+  defp decimal_for_display(%Decimal{} = value), do: value
+  defp decimal_for_display(value) when is_integer(value), do: Decimal.new(value)
+
+  defp decimal_for_display(value) when is_float(value) do
+    Decimal.from_float(value)
+  rescue
+    _ -> nil
+  end
+
+  defp decimal_for_display(value) when is_binary(value) do
+    value = String.trim(value)
+
+    if value == "" do
+      nil
+    else
+      Decimal.new(value)
+    end
+  rescue
+    _ -> nil
+  end
+
+  defp decimal_for_display(_), do: nil
 
   defp display_value(:asset_class, value), do: AssetClasses.label(value)
   defp display_value(:feed, value), do: Feeds.label(value)
@@ -1405,6 +1521,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
     {:noreply, socket |> assign(:query, query) |> load_securities()}
+  end
+
+  def handle_event("set_holding_status", %{"status" => status}, socket) do
+    {:noreply,
+     socket
+     |> assign(:holding_status, safe_holding_status(status))
+     |> load_securities()}
   end
 
   def handle_event("toggle_popover", %{"popover" => name}, socket) do
@@ -1483,11 +1606,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
     tab = safe_tab(tab)
 
     case socket.assigns.selected_security do
-      %Security{id: id} ->
+      %Security{} = security ->
         {:noreply,
          socket
          |> assign(:detail_tab, tab)
-         |> push_patch(to: "/securities/#{id}?tab=#{tab}")}
+         |> push_patch(to: detail_tab_path(security, tab))}
 
       _ ->
         {:noreply, assign(socket, :detail_tab, tab)}
@@ -1745,6 +1868,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp safe_column_atom(_), do: nil
 
+  defp safe_holding_status(status) when status in @holding_statuses, do: status
+  defp safe_holding_status(_), do: @default_holding_status
+
   defp safe_atom(string) when is_binary(string) do
     String.to_existing_atom(string)
   rescue
@@ -1961,6 +2087,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     securities =
       Catalog.list_securities_with_metrics(
         query: socket.assigns.query,
+        holding_status: socket.assigns.holding_status,
         filters: socket.assigns.filters,
         sort: socket.assigns.sort
       )

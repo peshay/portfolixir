@@ -76,15 +76,26 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   end
 
   defp list_opts(params) do
-    with {:ok, sort} <- sort_param(params) do
+    with {:ok, sort} <- sort_param(params),
+         {:ok, holding_status} <- holding_status_param(params) do
       opts =
         []
         |> put_if_present(:query, params["query"])
         |> put_if_present(:sort, sort)
+        |> put_if_present(:holding_status, holding_status)
 
       {:ok, opts}
     end
   end
+
+  defp holding_status_param(%{"holding_status" => status})
+       when status in ["all", "held", "not_held"] do
+    {:ok, status}
+  end
+
+  defp holding_status_param(%{"holding_status" => ""}), do: {:ok, nil}
+  defp holding_status_param(%{"holding_status" => _}), do: {:error, :holding_status}
+  defp holding_status_param(_params), do: {:ok, nil}
 
   defp sort_param(%{"sort" => sort} = params) when is_binary(sort) do
     direction = Map.get(params, "direction", "asc")

@@ -139,6 +139,213 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
                LogoLookup.find_url(security, req: stub)
     end
 
+    test "falls back to the normal name when the special Wikipedia variant has no image" do
+      {:ok, calls} = Agent.start_link(fn -> [] end)
+
+      stub =
+        plug_stub(fn conn ->
+          title =
+            conn.request_path
+            |> String.replace_prefix("/api/rest_v1/page/summary/", "")
+            |> URI.decode()
+
+          Agent.update(calls, &(&1 ++ [title]))
+
+          case title do
+            "Example (company)" ->
+              json_response(conn, 200, %{"title" => "Example"})
+
+            "Example" ->
+              json_response(conn, 200, %{
+                "originalimage" => %{"source" => "https://wikipedia/Example.png"}
+              })
+          end
+        end)
+
+      security = %Security{
+        provider: "manual",
+        asset_class: "equity",
+        name: "Example"
+      }
+
+      assert {:ok, "https://wikipedia/Example.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+
+      assert Agent.get(calls, & &1) == ["Example (company)", "Example"]
+    end
+
+    # User story:
+    # As a local portfolio maintainer with imported securities,
+    # I want logo lookup to recover from all-caps names like "ALPHABET INC",
+    # so that updating a logo does not fail just because the Wikipedia title
+    # uses normal company punctuation.
+    #
+    # Acceptance criteria:
+    # - A suffix-bearing all-caps company name is tried as stored first.
+    # - A normalized Wikipedia title variant is tried after a 404.
+    # - The lookup succeeds without adding a "(company)" disambiguator.
+    test "falls back from all-caps imported company names to normalized Wikipedia titles" do
+      {:ok, calls} = Agent.start_link(fn -> [] end)
+
+      stub =
+        plug_stub(fn conn ->
+          title =
+            conn.request_path
+            |> String.replace_prefix("/api/rest_v1/page/summary/", "")
+            |> URI.decode()
+
+          Agent.update(calls, &(&1 ++ [title]))
+
+          case title do
+            "ALPHABET INC" ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+
+            "Alphabet Inc." ->
+              json_response(conn, 200, %{
+                "originalimage" => %{"source" => "https://wikipedia/Alphabet_Inc..png"}
+              })
+          end
+        end)
+
+      security = %Security{
+        provider: "manual",
+        asset_class: "equity",
+        name: "ALPHABET INC"
+      }
+
+      assert {:ok, "https://wikipedia/Alphabet_Inc..png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+
+      assert Agent.get(calls, & &1) == ["ALPHABET INC", "Alphabet Inc."]
+    end
+
+    # User story:
+    # As a local portfolio maintainer adding ETFs,
+    # I want Portfolixir to use the ETF issuer logo (iShares, Vanguard,
+    # Lyxor, Amundi, …) before trying the individual fund name,
+    # so that ETF rows get a recognizable provider logo automatically.
+    #
+    # Acceptance criteria:
+    # - ETF names with a known issuer try the issuer Wikipedia title first.
+    # - The individual ETF name remains a fallback when the issuer has no image.
+    # - The behavior is deterministic and tested with a local Req plug.
+    test "ETF lookup prefers issuer logo titles before the full fund name" do
+      {:ok, calls} = Agent.start_link(fn -> [] end)
+
+      stub =
+        plug_stub(fn conn ->
+          title =
+            conn.request_path
+            |> String.replace_prefix("/api/rest_v1/page/summary/", "")
+            |> URI.decode()
+
+          Agent.update(calls, &(&1 ++ [title]))
+
+          case title do
+            "iShares" ->
+              json_response(conn, 200, %{
+                "originalimage" => %{"source" => "https://wikipedia/iShares.png"}
+              })
+          end
+        end)
+
+      security = %Security{
+        provider: "manual",
+        asset_class: "etf",
+        name: "iShares Core MSCI World UCITS ETF"
+      }
+
+      assert {:ok, "https://wikipedia/iShares.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+
+      assert Agent.get(calls, & &1) == ["iShares"]
+    end
+
+    test "ETF issuer lookup falls back to the fund name when the issuer has no image" do
+      {:ok, calls} = Agent.start_link(fn -> [] end)
+
+      stub =
+        plug_stub(fn conn ->
+          title =
+            conn.request_path
+            |> String.replace_prefix("/api/rest_v1/page/summary/", "")
+            |> URI.decode()
+
+          Agent.update(calls, &(&1 ++ [title]))
+
+          case title do
+            "The Vanguard Group" ->
+              json_response(conn, 200, %{"title" => "The Vanguard Group"})
+
+            "Vanguard FTSE All-World UCITS ETF (company)" ->
+              json_response(conn, 200, %{"title" => "Vanguard FTSE All-World UCITS ETF"})
+
+            "Vanguard FTSE All-World UCITS ETF" ->
+              json_response(conn, 200, %{
+                "originalimage" => %{"source" => "https://wikipedia/VanguardFund.png"}
+              })
+          end
+        end)
+
+      security = %Security{
+        provider: "manual",
+        asset_class: "etf",
+        name: "Vanguard FTSE All-World UCITS ETF"
+      }
+
+      assert {:ok, "https://wikipedia/VanguardFund.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+
+      assert Agent.get(calls, & &1) == [
+               "The Vanguard Group",
+               "Vanguard FTSE All-World UCITS ETF (company)",
+               "Vanguard FTSE All-World UCITS ETF"
+             ]
+    end
+
+    # User story:
+    # As a local portfolio maintainer importing Portfolio Performance data,
+    # I want imported ETF names to use issuer-logo lookup even when the export
+    # did not carry an asset class,
+    # so that import-created ETFs don't require manual type cleanup first.
+    #
+    # Acceptance criteria:
+    # - `provider="portfolio_performance"` and a PP-style ETF name infer the
+    #   ETF logo strategy from the name.
+    # - iShares/AIS-Amundi/Vanguard U.ETF spellings from imports hit issuer
+    #   titles before full fund titles.
+    test "Portfolio Performance ETF names infer issuer logo lookup without asset_class" do
+      {:ok, calls} = Agent.start_link(fn -> [] end)
+
+      stub =
+        plug_stub(fn conn ->
+          title =
+            conn.request_path
+            |> String.replace_prefix("/api/rest_v1/page/summary/", "")
+            |> URI.decode()
+
+          Agent.update(calls, &(&1 ++ [title]))
+
+          case title do
+            "iShares" ->
+              json_response(conn, 200, %{
+                "originalimage" => %{"source" => "https://wikipedia/iShares.png"}
+              })
+          end
+        end)
+
+      security = %Security{
+        provider: "portfolio_performance",
+        asset_class: nil,
+        name: "iShares Core MSCI Emerging Markets IMI UCITS ETF"
+      }
+
+      assert {:ok, "https://wikipedia/iShares.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+
+      assert Agent.get(calls, & &1) == ["iShares"]
+    end
+
     test "names that already carry a corporate suffix go straight to the bare lookup" do
       stub =
         plug_stub(fn conn ->

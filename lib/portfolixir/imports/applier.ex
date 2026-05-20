@@ -43,6 +43,7 @@ defmodule Portfolixir.Imports.Applier do
     @moduledoc false
     defstruct created_securities: 0,
               created_security_ids: [],
+              resolved_security_ids: [],
               created_cash_accounts: 0,
               created_securities_accounts: 0,
               created_transactions: 0,
@@ -141,8 +142,13 @@ defmodule Portfolixir.Imports.Applier do
 
   defp enrich_after_commit({:ok, %Result{} = result}) do
     created_ids = Enum.reverse(result.created_security_ids)
+    resolved_ids = result.resolved_security_ids |> Enum.reverse() |> Enum.uniq()
+
     Catalog.enrich_security_ids_async(created_ids)
-    {:ok, %Result{result | created_security_ids: created_ids}}
+    Catalog.enqueue_missing_security_logos_async()
+
+    {:ok,
+     %Result{result | created_security_ids: created_ids, resolved_security_ids: resolved_ids}}
   end
 
   defp enrich_after_commit(other), do: other
@@ -319,7 +325,7 @@ defmodule Portfolixir.Imports.Applier do
   defp resolve_security(%Entry{security: %{isin: isin}} = entry, state)
        when is_binary(isin) and isin != "" do
     case Map.fetch(state.securities_by_isin, isin) do
-      {:ok, id} -> {:ok, state, id}
+      {:ok, id} -> {:ok, track_resolved_security(state, id), id}
       :error -> create_security(entry, state)
     end
   end
@@ -329,7 +335,7 @@ defmodule Portfolixir.Imports.Applier do
     key = {name, currency || state.default_currency}
 
     case Map.fetch(state.securities_by_name, key) do
-      {:ok, id} -> {:ok, state, id}
+      {:ok, id} -> {:ok, track_resolved_security(state, id), id}
       :error -> create_security(entry, state)
     end
   end
@@ -363,6 +369,7 @@ defmodule Portfolixir.Imports.Applier do
           end)
           |> bump_result(:created_securities)
           |> track_created_security(security.id)
+          |> track_resolved_security(security.id)
 
         {:ok, state, security.id}
 
@@ -570,6 +577,12 @@ defmodule Portfolixir.Imports.Applier do
   defp track_created_security(state, security_id) do
     Map.update!(state, :result, fn %Result{} = r ->
       %Result{r | created_security_ids: [security_id | r.created_security_ids]}
+    end)
+  end
+
+  defp track_resolved_security(state, security_id) when is_integer(security_id) do
+    Map.update!(state, :result, fn %Result{} = r ->
+      %Result{r | resolved_security_ids: [security_id | r.resolved_security_ids]}
     end)
   end
 

@@ -49,6 +49,37 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformanceTest do
       assert result.asset_class == "etf"
     end
 
+    # User story:
+    # As a local portfolio maintainer importing state bonds from Portfolio
+    # Performance search,
+    # I want government bond hits to carry their own asset class,
+    # so that the security list can render the ISIN country flag immediately.
+    #
+    # Acceptance criteria:
+    # - Explicit government/sovereign bond result types map to
+    #   `government_bond`.
+    # - Generic bond types with a clear government-bond description also map
+    #   to `government_bond`.
+    test "maps government bond results to government_bond" do
+      body = [
+        %{
+          "description" => "BUNDESREPUBLIK DEUTSCHLAND 0% 2034",
+          "isin" => "DE000BU2Z023",
+          "type" => "Bond",
+          "markets" => [%{"symbol" => "BU2Z.DE", "currency" => "EUR", "exchange" => "XETR"}]
+        },
+        %{
+          "description" => "US TREASURY NOTE 2032",
+          "isin" => "US91282CFB28",
+          "type" => "Government Bond",
+          "markets" => [%{"symbol" => "91282CFB2", "currency" => "USD", "exchange" => "XNAS"}]
+        }
+      ]
+
+      {:ok, results} = PortfolioPerformance.search("treasury", req: req_stub(body))
+      assert Enum.map(results, & &1.asset_class) == ["government_bond", "government_bond"]
+    end
+
     test "unknown type falls back to 'other'" do
       body = [%{"description" => "Mystery", "type" => "WizardThingy", "markets" => []}]
       {:ok, [result]} = PortfolioPerformance.search("mys", req: req_stub(body))

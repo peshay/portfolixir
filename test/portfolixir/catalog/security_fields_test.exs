@@ -22,6 +22,21 @@ defmodule Portfolixir.Catalog.SecurityFieldsTest do
       assert SecurityFields.value(field, security) == "Apple Inc."
     end
 
+    test "infers asset class display value for imported securities with blank asset_class" do
+      field = SecurityFields.get!(:asset_class)
+
+      assert SecurityFields.value(field, %Security{
+               name: "iShares Core MSCI Emerging Markets IMI UCITS ETF",
+               asset_class: nil
+             }) == "etf"
+
+      assert SecurityFields.value(field, %Security{
+               name: "Anleihe USA 20/50",
+               isin: "US912810SN90",
+               asset_class: nil
+             }) == "government_bond"
+    end
+
     test "extracts JSONB-backed values via the registered key" do
       field = SecurityFields.get!(:attr_exchange_name)
       security = %Security{attributes: %{"exchange_name" => "NASDAQ"}}

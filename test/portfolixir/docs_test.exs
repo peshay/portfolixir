@@ -253,6 +253,7 @@ defmodule Portfolixir.DocsTest do
           "`PORTFOLIXIR_MCP_TOKEN` is required for HTTP transport",
           "Financial decimals are serialized as strings",
           "`DELETE /api/v1/securities/:id` is the success exception: it returns `204 No Content` with an empty body",
+          "holding_status (`all`, `held`, or `not_held`)",
           "MCP tools call the JSON API only"
         ] do
       assert normalized_api_docs =~ expected
@@ -264,6 +265,35 @@ defmodule Portfolixir.DocsTest do
 
     for tool <- mcp_tools_from_source() do
       assert api_docs =~ tool
+    end
+  end
+
+  # User story:
+  # As a local portfolio maintainer configuring quote history,
+  # I want the docs to state the researched boundaries for bonds and leveraged products,
+  # so that I know which existing providers may help without expecting new adapters or API keys.
+  #
+  # Acceptance criteria:
+  # - The product docs document Portfolio Performance search and Yahoo symbol reuse.
+  # - The docs explicitly exclude Ariva, generic Bundesbank ISIN coverage, and API-key defaults.
+  # - The docs do not claim a new quote adapter was implemented.
+  test "product docs document quote-provider research boundaries" do
+    product_docs = File.read!("docs/product-documentation.md")
+
+    for expected <- [
+          "Portfolio Performance search can provide symbols for some bonds and leveraged products",
+          "Yahoo remains usable when a suitable symbol exists",
+          "Ariva is not used as a quote adapter",
+          "Bundesbank is relevant for German federal securities and yield data, not a general ISIN quote provider",
+          "No API-key-based providers",
+          "No new bond or leveraged-product quote adapter is implemented in this batch",
+          "Logo discovery runs through a single background queue",
+          "logo candidates on startup",
+          "triggered after imports",
+          "ETF logo discovery tries known issuer names before the individual fund name",
+          "Government bonds use the `government_bond` asset class for ISIN country flag fallbacks"
+        ] do
+      assert product_docs =~ expected
     end
   end
 

@@ -133,7 +133,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       |> point_coords(x0, y0, x1, y1)
       |> Enum.zip(geometry.quotes)
       |> Enum.map(fn {{x, y}, {q, _idx}} ->
-        [Date.to_iso8601(q.date), Decimal.to_string(q.close), round2(x), round2(y)]
+        [Date.to_iso8601(q.date), chart_decimal_string(q.close), round2(x), round2(y)]
       end)
 
     txs =
@@ -160,20 +160,28 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     plot_h = y1 - y0
 
     transactions
+    |> Enum.filter(&trade_transaction?/1)
     |> Enum.filter(&within_range?(&1.date, geometry))
-    |> Enum.map(fn tx ->
+    |> Enum.flat_map(fn tx ->
       x = x0 + plot_w * x_fraction_for_date(tx.date, geometry)
       close = close_for_date(geometry, tx.date) || tx.price
-      y = y1 - plot_h * normalized_y(close, geometry)
 
-      %{
-        date: Date.to_iso8601(tx.date),
-        type: tx.type,
-        quantity: Decimal.to_string(tx.quantity),
-        price: Decimal.to_string(tx.price),
-        x: round2(x),
-        y: round2(y)
-      }
+      if is_nil(chart_float(close)) do
+        []
+      else
+        y = y1 - plot_h * normalized_y(close, geometry)
+
+        [
+          %{
+            date: Date.to_iso8601(tx.date),
+            type: tx.type,
+            quantity: chart_decimal_string(tx.quantity),
+            price: chart_decimal_string(tx.price),
+            x: round2(x),
+            y: round2(y)
+          }
+        ]
+      end
     end)
   end
 
@@ -183,22 +191,30 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # Geometry
   # ---------------------------------------------------------------------------
 
-  defp build_geometry([], _log_scale?, _opts), do: :empty
-
   defp build_geometry(quotes, log_scale?, opts) do
+    quotes = Enum.filter(quotes, &valid_quote?/1)
+
+    if quotes == [] do
+      :empty
+    else
+      build_geometry_from_quotes(quotes, log_scale?, opts)
+    end
+  end
+
+  defp build_geometry_from_quotes(quotes, log_scale?, opts) do
     percent_mode? = Keyword.get(opts, :percent_mode?, false)
     indexed = Enum.with_index(quotes)
     first_date = List.first(quotes).date
     last_date = List.last(quotes).date
-    first_close = Decimal.to_float(List.first(quotes).close)
+    first_close = chart_float(List.first(quotes).close)
 
     raw_values =
       if percent_mode? and first_close != 0.0 do
         Enum.map(quotes, fn q ->
-          (Decimal.to_float(q.close) - first_close) / first_close * 100.0
+          (chart_float(q.close) - first_close) / first_close * 100.0
         end)
       else
-        Enum.map(quotes, &Decimal.to_float(&1.close))
+        Enum.map(quotes, &chart_float(&1.close))
       end
 
     {y_min, y_max} = Enum.min_max(raw_values)
@@ -283,8 +299,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
   defp date_span_days(geometry), do: Date.diff(geometry.last_date, geometry.first_date)
 
-  defp normalized_y(%Decimal{} = close, geometry) do
-    raw = Decimal.to_float(close)
+  defp normalized_y(close, geometry) do
+    raw = chart_float(close) || 0.0
 
     value =
       cond do
@@ -314,20 +330,73 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     plot_h = y1 - y0
 
     transactions
+    |> Enum.filter(&trade_transaction?/1)
     |> Enum.filter(&within_range?(&1.date, geometry))
-    |> Enum.map(fn tx ->
+    |> Enum.flat_map(fn tx ->
       x = x0 + plot_w * x_fraction_for_date(tx.date, geometry)
       close = close_for_date(geometry, tx.date) || tx.price
-      y = y1 - plot_h * normalized_y(close, geometry)
 
-      %{
-        cx: format_coord(x),
-        cy: format_coord(y),
-        type: tx.type,
-        label: "#{tx.type} on #{Date.to_iso8601(tx.date)} at #{Decimal.to_string(tx.price)}"
-      }
+      if is_nil(chart_float(close)) do
+        []
+      else
+        y = y1 - plot_h * normalized_y(close, geometry)
+
+        [
+          %{
+            cx: format_coord(x),
+            cy: format_coord(y),
+            type: tx.type,
+            label:
+              "#{tx.type} on #{Date.to_iso8601(tx.date)} at #{chart_decimal_string(tx.price)}"
+          }
+        ]
+      end
     end)
   end
+
+  defp trade_transaction?(%{type: type}), do: type in ["buy", "sell"]
+  defp trade_transaction?(_), do: false
+
+  defp valid_quote?(%{date: %Date{}, close: close}), do: not is_nil(chart_float(close))
+  defp valid_quote?(_), do: false
+
+  defp chart_decimal_string(value) do
+    case chart_decimal(value) do
+      nil -> "—"
+      decimal -> Decimal.to_string(decimal, :normal)
+    end
+  end
+
+  defp chart_float(value) do
+    case chart_decimal(value) do
+      nil -> nil
+      decimal -> Decimal.to_float(decimal)
+    end
+  end
+
+  defp chart_decimal(nil), do: nil
+  defp chart_decimal(%Decimal{} = value), do: value
+  defp chart_decimal(value) when is_integer(value), do: Decimal.new(value)
+
+  defp chart_decimal(value) when is_float(value) do
+    Decimal.from_float(value)
+  rescue
+    _ -> nil
+  end
+
+  defp chart_decimal(value) when is_binary(value) do
+    value = String.trim(value)
+
+    if value == "" do
+      nil
+    else
+      Decimal.new(value)
+    end
+  rescue
+    _ -> nil
+  end
+
+  defp chart_decimal(_), do: nil
 
   defp overlay_points(_overlay, :empty, _, _, _, _), do: ""
 
