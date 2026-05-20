@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.Feeds
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias PortfolixirWeb.AppShell
@@ -56,7 +57,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       "wkn" => security.wkn || "",
       "currency_code" => security.currency_code || "",
       "exchange_code" => security.exchange_code || "",
-      "asset_class" => security.asset_class || "",
+      "asset_class" => Security.effective_asset_class(security) || "",
       "feed" => security.feed || "",
       "feed_url" => security.feed_url || "",
       "note" => security.note || ""

@@ -25,8 +25,56 @@ defmodule Portfolixir.Imports.ApplierTest do
   end
 
   @fixtures Path.expand("../../support/fixtures/portfolio_performance", __DIR__)
+  @png <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8,
+         6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 250, 207, 0, 0,
+         0, 3, 0, 1, 5, 12, 60, 192, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130>>
 
   defp read!(name), do: File.read!(Path.join(@fixtures, name))
+
+  defp logo_stub do
+    [
+      plug: fn conn ->
+        cond do
+          conn.request_path =~ "/api/rest_v1/page/summary/" ->
+            conn
+            |> Plug.Conn.put_resp_content_type("application/json")
+            |> Plug.Conn.send_resp(
+              200,
+              Jason.encode!(%{
+                "originalimage" => %{"source" => "https://example.test/logo.png"}
+              })
+            )
+
+          conn.request_path == "/logo.png" ->
+            conn
+            |> Plug.Conn.put_resp_content_type("image/png")
+            |> Plug.Conn.send_resp(200, @png)
+
+          true ->
+            Plug.Conn.send_resp(conn, 404, "not found")
+        end
+      end
+    ]
+  end
+
+  defp wait_until(fun, attempts \\ 40)
+
+  defp wait_until(fun, attempts) when attempts > 0 do
+    case fun.() do
+      nil ->
+        Process.sleep(50)
+        wait_until(fun, attempts - 1)
+
+      false ->
+        Process.sleep(50)
+        wait_until(fun, attempts - 1)
+
+      value ->
+        value
+    end
+  end
+
+  defp wait_until(fun, _attempts), do: fun.()
 
   # User story:
   # As a local portfolio maintainer who has parsed my PP export and
@@ -154,6 +202,126 @@ defmodule Portfolixir.Imports.ApplierTest do
         else
           Application.put_env(:portfolixir, :quote_sync_test_pid, prior_test_pid)
         end
+      end
+    end
+
+    # User story:
+    # As a local portfolio maintainer importing Portfolio Performance history,
+    # I want import-created securities to start logo enrichment after commit,
+    # so that Apple, Nvidia, Tesla, and ETF-provider logos appear without
+    # clicking "Update logo" row by row.
+    #
+    # Acceptance criteria:
+    # - Import-created equity and ETF securities infer an asset class during create.
+    # - Logo discovery runs after commit, where the background task can reload the rows.
+    # - Tests use fake Wikipedia/image responses and temporary storage only.
+    test "triggers post-commit logo enrichment for import-created securities", %{
+      portfolio: portfolio,
+      preview: preview
+    } do
+      prior_enabled = Application.get_env(:portfolixir, :enable_logo_discovery, false)
+      prior_opts = Application.get_env(:portfolixir, :logo_discovery_opts, [])
+
+      tmp =
+        Path.join(
+          System.tmp_dir!(),
+          "portfolixir-import-logos-#{System.unique_integer([:positive])}"
+        )
+
+      Application.put_env(:portfolixir, :enable_logo_discovery, true)
+      Application.put_env(:portfolixir, :logo_discovery_opts, req: logo_stub(), storage_dir: tmp)
+
+      try do
+        assert {:ok, %Result{} = result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+        securities = Enum.map(result.created_security_ids, &Catalog.get_security!/1)
+        assert Enum.sort(Enum.map(securities, & &1.asset_class)) == ["equity", "etf"]
+
+        assert wait_until(fn ->
+                 result.created_security_ids
+                 |> Enum.map(&Catalog.get_security!/1)
+                 |> Enum.all?(& &1.attributes["logo_path"])
+               end)
+
+        for id <- result.created_security_ids do
+          security = Catalog.get_security!(id)
+          assert security.attributes["logo_path"] == "/security_logos/#{id}.png"
+          assert security.attributes["logo_source"] == "wikipedia"
+          assert File.exists?(Path.join(tmp, "#{id}.png"))
+        end
+      after
+        Application.put_env(:portfolixir, :enable_logo_discovery, prior_enabled)
+        Application.put_env(:portfolixir, :logo_discovery_opts, prior_opts)
+        File.rm_rf(tmp)
+      end
+    end
+
+    # User story:
+    # As a local portfolio maintainer who imported data before automatic
+    # logos worked,
+    # I want a later idempotent import of the same file to enqueue missing
+    # logos for already-known securities,
+    # so that I am not forced to open each row and click "Update logo".
+    #
+    # Acceptance criteria:
+    # - The second import creates no new securities or transactions.
+    # - Existing securities referenced by the import are still considered for
+    #   missing-logo enrichment.
+    # - Tests use fake Wikipedia/image responses and temporary storage only.
+    test "re-import enriches missing logos for already-known securities", %{
+      portfolio: portfolio,
+      preview: preview
+    } do
+      prior_enabled = Application.get_env(:portfolixir, :enable_logo_discovery, false)
+      prior_opts = Application.get_env(:portfolixir, :logo_discovery_opts, [])
+
+      tmp =
+        Path.join(
+          System.tmp_dir!(),
+          "portfolixir-reimport-logos-#{System.unique_integer([:positive])}"
+        )
+
+      Application.put_env(:portfolixir, :enable_logo_discovery, false)
+      Application.put_env(:portfolixir, :logo_discovery_opts, [])
+
+      try do
+        assert {:ok, %Result{} = first} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+        ids = first.created_security_ids
+
+        assert ids != []
+
+        assert Enum.all?(ids, fn id ->
+                 is_nil(Catalog.get_security!(id).attributes["logo_path"])
+               end)
+
+        Application.put_env(:portfolixir, :enable_logo_discovery, true)
+
+        Application.put_env(:portfolixir, :logo_discovery_opts,
+          req: logo_stub(),
+          storage_dir: tmp
+        )
+
+        assert {:ok, %Result{} = second} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+        assert second.created_securities == 0
+        assert second.created_transactions == 0
+        assert second.skipped_duplicates == 13
+
+        assert wait_until(fn ->
+                 ids
+                 |> Enum.map(&Catalog.get_security!/1)
+                 |> Enum.all?(& &1.attributes["logo_path"])
+               end)
+
+        for id <- ids do
+          security = Catalog.get_security!(id)
+          assert security.attributes["logo_path"] == "/security_logos/#{id}.png"
+          assert security.attributes["logo_source"] == "wikipedia"
+          assert File.exists?(Path.join(tmp, "#{id}.png"))
+        end
+      after
+        Application.put_env(:portfolixir, :enable_logo_discovery, prior_enabled)
+        Application.put_env(:portfolixir, :logo_discovery_opts, prior_opts)
+        File.rm_rf(tmp)
       end
     end
 

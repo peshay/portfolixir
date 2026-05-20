@@ -4,6 +4,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
 
   defmodule RaisingAdapter do
     @moduledoc false
@@ -50,6 +52,28 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert has_element?(view, "button#toggle-column-popover")
     end
 
+    # User story:
+    # As a local portfolio maintainer,
+    # I want the default app UI to be denser without relying on browser zoom,
+    # so that more records fit on screen while controls remain normal CSS layout.
+    #
+    # Acceptance criteria:
+    # - The global app font size and top bar height are reduced through CSS variables.
+    # - Securities tables and detail panes use smaller padding values.
+    # - The stylesheet does not use `zoom` or `transform: scale(...)` for density.
+    test "stylesheet defines compact density without zoom or transform scaling" do
+      app_css = File.read!("priv/static/app.css")
+
+      assert app_css =~ "--density-font-size: 13px;"
+      assert app_css =~ "--topbar-height: 52px;"
+      assert app_css =~ "font-size: var(--density-font-size);"
+      assert app_css =~ ".data-table tbody td {\n  padding: 7px 9px;"
+      assert app_css =~ ".detail-pane {\n  margin-top: 12px;\n  padding: 12px;"
+
+      refute app_css =~ ~r/\bzoom\s*:/
+      refute app_css =~ ~r/transform:\s*scale\(/i
+    end
+
     test "search filters the list", %{conn: conn} do
       {:ok, _} =
         Catalog.create_security(%{
@@ -77,6 +101,89 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert has_element?(view, "td", "Apple Inc.")
       refute has_element?(view, "td", "Bitcoin")
+    end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want one-click filters for all, held, and not-held securities,
+    # so that I can focus the security list on current positions or cleanup candidates.
+    #
+    # Acceptance criteria:
+    # - The toolbar offers Alle, Im Bestand, and Ohne Bestand in the German UI.
+    # - Im Bestand shows only securities with a non-zero derived holding.
+    # - Ohne Bestand shows sold-out and never-held securities.
+    test "holding status toolbar filters the securities list", %{conn: conn} do
+      {:ok, held} =
+        Catalog.create_security(%{
+          name: "Active ETF",
+          ticker_symbol: "HELD",
+          currency_code: "EUR",
+          asset_class: "equity"
+        })
+
+      {:ok, flat} =
+        Catalog.create_security(%{
+          name: "Sold Out ETF",
+          ticker_symbol: "FLAT",
+          currency_code: "EUR",
+          asset_class: "equity"
+        })
+
+      {:ok, _never} =
+        Catalog.create_security(%{
+          name: "Never Held ETF",
+          ticker_symbol: "NEVR",
+          currency_code: "EUR",
+          asset_class: "equity"
+        })
+
+      {portfolio, cash_account, depot} = create_trade_accounts("Status Filter")
+
+      for {security, type, quantity, date} <- [
+            {held, "buy", "4", ~D[2026-01-02]},
+            {flat, "buy", "2", ~D[2026-01-03]},
+            {flat, "sell", "2", ~D[2026-01-04]}
+          ] do
+        assert {:ok, _} =
+                 Ledger.create_transaction(%{
+                   portfolio_id: portfolio.id,
+                   securities_account_id: depot.id,
+                   cash_account_id: cash_account.id,
+                   security_id: security.id,
+                   type: type,
+                   date: date,
+                   quantity: Decimal.new(quantity),
+                   price: Decimal.new("10"),
+                   fees: Decimal.new("0"),
+                   taxes: Decimal.new("0"),
+                   currency_code: "EUR"
+                 })
+      end
+
+      conn = put_req_header(conn, "accept-language", "de")
+      {:ok, view, _html} = live(conn, "/securities")
+
+      assert has_element?(view, "#holding-status-filter button", "Alle")
+      assert has_element?(view, "#holding-status-filter button", "Im Bestand")
+      assert has_element?(view, "#holding-status-filter button", "Ohne Bestand")
+
+      view |> element("#holding-status-filter button", "Im Bestand") |> render_click()
+
+      assert has_element?(view, "td", "Active ETF")
+      refute has_element?(view, "td", "Sold Out ETF")
+      refute has_element?(view, "td", "Never Held ETF")
+
+      view |> element("#holding-status-filter button", "Ohne Bestand") |> render_click()
+
+      refute has_element?(view, "td", "Active ETF")
+      assert has_element?(view, "td", "Sold Out ETF")
+      assert has_element?(view, "td", "Never Held ETF")
+
+      view |> element("#holding-status-filter button", "Alle") |> render_click()
+
+      assert has_element?(view, "td", "Active ETF")
+      assert has_element?(view, "td", "Sold Out ETF")
+      assert has_element?(view, "td", "Never Held ETF")
     end
 
     test "+ button opens the new-security dialog with the choose step", %{conn: conn} do
@@ -627,6 +734,59 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       refute has_element?(view, "#detail-tab-panel-chart")
     end
 
+    test "localized Chart and Transactions tab clicks patch the URL and swap panels",
+         %{conn: conn, apple: apple} do
+      conn = put_req_header(conn, "accept-language", "de")
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      view
+      |> element("#detail-pane-tabs [role='tab']", "Diagramm")
+      |> render_click()
+
+      assert_patched(view, "/securities/#{apple.id}?tab=chart")
+      assert has_element?(view, "#detail-tab-chart[aria-selected='true']", "Diagramm")
+      assert has_element?(view, "#detail-tab-panel-chart")
+      refute has_element?(view, "#detail-tab-panel-overview")
+
+      view
+      |> element("#detail-pane-tabs [role='tab']", "Transaktionen")
+      |> render_click()
+
+      assert_patched(view, "/securities/#{apple.id}?tab=transactions")
+
+      assert has_element?(
+               view,
+               "#detail-tab-transactions[aria-selected='true']",
+               "Transaktionen"
+             )
+
+      assert has_element?(view, "#detail-tab-panel-transactions")
+      refute has_element?(view, "#detail-tab-panel-chart")
+    end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want detail tab clicks to show immediate loading feedback,
+    # so that chart or transaction loading never feels like a dead click.
+    #
+    # Acceptance criteria:
+    # - Tab controls dispatch a LiveView click event so the client receives
+    #   the built-in `phx-click-loading` state immediately.
+    # - The compact app stylesheet defines a visible loading state for tabs.
+    test "tab buttons expose immediate loading feedback while patching",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      assert has_element?(
+               view,
+               "#detail-tab-chart[phx-click='select_detail_tab'][phx-value-tab='chart']"
+             )
+
+      css = File.read!("priv/static/app.css")
+      assert css =~ ".detail-pane-tab.phx-click-loading"
+      assert css =~ "cursor: progress"
+    end
+
     test "clicking a tab patches the URL and swaps the active panel",
          %{conn: conn, apple: apple} do
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
@@ -1016,6 +1176,44 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
              )
     end
 
+    # User story:
+    # As a local portfolio maintainer with Portfolio Performance history,
+    # I want the transactions detail tab to render dividend rows with no
+    # quantity or unit price,
+    # so that non-trade bookkeeping entries do not crash the security page.
+    #
+    # Acceptance criteria:
+    # - A dividend transaction with nil quantity and price renders in the
+    #   security transactions tab.
+    # - Missing quantity and price display as a dash instead of raising.
+    # - The dividend gross amount remains visible.
+    # - The LiveView stays mounted on the transactions tab.
+    test "transactions tab renders non-trade rows with missing quantity and price",
+         %{conn: conn, security: security, portfolio: portfolio, cash: cash} do
+      {:ok, _dividend} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "dividend",
+          date: ~D[2026-03-15],
+          gross_amount: Decimal.new("12.34"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          currency_code: "USD",
+          notes: "Quarterly dividend"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=transactions")
+
+      panel = element(view, "#detail-tab-panel-transactions") |> render()
+      assert panel =~ "dividend"
+      assert panel =~ "Quarterly dividend"
+      assert panel =~ "12.34"
+      assert panel =~ "—"
+      assert has_element?(view, "#detail-tab-transactions[aria-selected='true']")
+    end
+
     test "trades tab renders open positions with unrealised P&L",
          %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
       {:ok, _} =
@@ -1264,5 +1462,26 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       refute has_element?(view, "#filter-chips")
       assert has_element?(view, "td", "Apple Inc.")
     end
+  end
+
+  defp create_trade_accounts(prefix) do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "#{prefix} Portfolio", base_currency_code: "EUR"})
+
+    {:ok, cash_account} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "#{prefix} Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash_account.id,
+        name: "#{prefix} Depot"
+      })
+
+    {portfolio, cash_account, depot}
   end
 end

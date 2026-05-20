@@ -52,6 +52,132 @@ defmodule PortfolixirWeb.ApiV1Test do
   end
 
   # User story:
+  # As an API client creating master data,
+  # I want the securities API to accept government bond as a first-class type,
+  # so that local tools can create state bonds that get flag fallbacks in the UI.
+  #
+  # Acceptance criteria:
+  # - `asset_class=government_bond` is accepted by POST /api/v1/securities.
+  # - The response serializes the asset class as the stable string code.
+  test "creates a government bond security through the API", %{conn: conn} do
+    response =
+      conn
+      |> post_json("/api/v1/securities", %{
+        "security" => %{
+          "name" => "German Federal Bond",
+          "isin" => "DE0001102614",
+          "currency_code" => "EUR",
+          "asset_class" => "government_bond"
+        }
+      })
+      |> json_response(201)
+
+    assert response["data"]["asset_class"] == "government_bond"
+    assert response["data"]["isin"] == "DE0001102614"
+  end
+
+  # User story:
+  # As an API client listing securities,
+  # I want to filter by derived holding status,
+  # so that MCP and other local clients can request active or inactive securities without duplicating ledger logic.
+  #
+  # Acceptance criteria:
+  # - `holding_status=held` returns securities with non-zero net buy/sell quantity.
+  # - `holding_status=not_held` returns sold-out and never-held securities.
+  # - Invalid holding_status values return a field-specific 422 error.
+  test "lists securities with a derived holding_status filter", %{conn: conn} do
+    {:ok, held} =
+      Catalog.create_security(%{
+        name: "Held API ETF",
+        ticker_symbol: "HAPI",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, flat} =
+      Catalog.create_security(%{
+        name: "Flat API ETF",
+        ticker_symbol: "FAPI",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, _never} =
+      Catalog.create_security(%{
+        name: "Never API ETF",
+        ticker_symbol: "NAPI",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "API Filter Portfolio", base_currency_code: "EUR"})
+
+    {:ok, cash_account} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "API Filter Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash_account.id,
+        name: "API Filter Depot"
+      })
+
+    for {security, type, quantity, date} <- [
+          {held, "buy", "5", ~D[2026-01-02]},
+          {flat, "buy", "2", ~D[2026-01-03]},
+          {flat, "sell", "2", ~D[2026-01-04]}
+        ] do
+      assert {:ok, _} =
+               Ledger.create_transaction(%{
+                 portfolio_id: portfolio.id,
+                 securities_account_id: depot.id,
+                 cash_account_id: cash_account.id,
+                 security_id: security.id,
+                 type: type,
+                 date: date,
+                 quantity: Decimal.new(quantity),
+                 price: Decimal.new("10"),
+                 fees: Decimal.new("0"),
+                 taxes: Decimal.new("0"),
+                 currency_code: "EUR"
+               })
+    end
+
+    held_names =
+      conn
+      |> api_conn()
+      |> get("/api/v1/securities?holding_status=held&sort=name&direction=asc")
+      |> json_response(200)
+      |> Map.fetch!("data")
+      |> Enum.map(& &1["name"])
+
+    assert held_names == ["Held API ETF"]
+
+    not_held_names =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities?holding_status=not_held&sort=name&direction=asc")
+      |> json_response(200)
+      |> Map.fetch!("data")
+      |> Enum.map(& &1["name"])
+
+    assert not_held_names == ["Flat API ETF", "Never API ETF"]
+
+    invalid =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities?holding_status=__bad__")
+      |> json_response(422)
+
+    assert invalid == %{"errors" => %{"holding_status" => ["is invalid"]}}
+  end
+
+  # User story:
   # As a local portfolio maintainer,
   # I want the manual portfolio workflow available through JSON API calls,
   # so that non-browser clients and the MCP companion can perform the same
