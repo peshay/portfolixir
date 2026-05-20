@@ -234,6 +234,16 @@ defmodule Portfolixir.Catalog.SecurityFields do
   end
 
   @doc "Pulls the field value from a Security row, honoring :column vs {:attributes, key} vs :metric."
+  def value(%Field{source: :column, key: :asset_class}, %Security{} = security) do
+    Security.effective_asset_class(security)
+  end
+
+  def value(%Field{source: :column, key: :asset_class}, %SecurityWithMetrics{
+        security: security
+      }) do
+    Security.effective_asset_class(security)
+  end
+
   def value(%Field{source: :column, key: key}, %Security{} = security) do
     Map.get(security, key)
   end

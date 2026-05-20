@@ -823,6 +823,11 @@ msgstr "Australischer Dollar"
 
 #: lib/portfolixir/catalog/asset_classes.ex:26
 #, elixir-autogen, elixir-format
+msgid "Government bond"
+msgstr "Staatsanleihe"
+
+#: lib/portfolixir/catalog/asset_classes.ex:27
+#, elixir-autogen, elixir-format
 msgid "Bond"
 msgstr "Anleihe"
 
@@ -1790,3 +1795,23 @@ msgstr "Kurssync fehlgeschlagen: %{reason}"
 #, elixir-autogen, elixir-format
 msgid "Price sync failed."
 msgstr "Kurssync fehlgeschlagen."
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Holding status"
+msgstr "Bestandstatus"
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "All"
+msgstr "Alle"
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Held"
+msgstr "Im Bestand"
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Not held"
+msgstr "Ohne Bestand"

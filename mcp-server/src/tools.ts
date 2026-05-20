@@ -212,9 +212,15 @@ const toolDefinitions: ToolDefinition[] = [
     properties: {
       query: { type: "string" },
       sort: { type: "string" },
-      direction: { type: "string", enum: ["asc", "desc"] }
+      direction: { type: "string", enum: ["asc", "desc"] },
+      holding_status: { type: "string", enum: ["held", "not_held", "all"] }
     }
-  }, z.object({ query: optionalString, sort: optionalString, direction: z.enum(["asc", "desc"]).optional() })),
+  }, z.object({
+    query: optionalString,
+    sort: optionalString,
+    direction: z.enum(["asc", "desc"]).optional(),
+    holding_status: z.enum(["held", "not_held", "all"]).optional()
+  })),
   tool("portfolixir.securities.create", "Create security", "Create a local security.", securitySchema, securityZ),
   tool("portfolixir.securities.search_online", "Search online securities", "Search configured online security providers.", {
     type: "object",
@@ -302,7 +308,10 @@ export async function callTool(
 async function apiCall(client: ApiClient, name: string, args: Record<string, any>): Promise<unknown> {
   switch (name) {
     case "portfolixir.securities.list":
-      return client.request("GET", withQuery("/api/v1/securities", args, ["query", "sort", "direction"]));
+      return client.request(
+        "GET",
+        withQuery("/api/v1/securities", args, ["query", "sort", "direction", "holding_status"])
+      );
     case "portfolixir.securities.create":
       return client.request("POST", "/api/v1/securities", { security: args.security });
     case "portfolixir.securities.search_online":

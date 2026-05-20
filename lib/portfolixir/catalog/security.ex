@@ -58,6 +58,7 @@ defmodule Portfolixir.Catalog.Security do
       :provider
     ])
     |> default_attributes()
+    |> infer_asset_class()
     |> validate_required([:name, :currency_code])
     |> validate_length(:currency_code, is: 3)
     |> validate_inclusion(:currency_code, Currencies.codes(), message: "is invalid")
@@ -87,6 +88,15 @@ defmodule Portfolixir.Catalog.Security do
   def asset_classes, do: AssetClasses.codes()
   def providers, do: @providers
 
+  def effective_asset_class(%__MODULE__{asset_class: asset_class}) when is_binary(asset_class),
+    do: asset_class
+
+  def effective_asset_class(%__MODULE__{} = security) do
+    infer_asset_class_code(security.name, security.isin, security.ticker_symbol)
+  end
+
+  def effective_asset_class(_), do: nil
+
   defp validate_feed(changeset, field) do
     case get_field(changeset, field) do
       nil ->
@@ -107,6 +117,82 @@ defmodule Portfolixir.Catalog.Security do
       _ -> %{}
     end)
   end
+
+  defp infer_asset_class(changeset) do
+    case get_field(changeset, :asset_class) do
+      nil ->
+        class =
+          changeset
+          |> get_field(:name)
+          |> infer_asset_class_code(
+            get_field(changeset, :isin),
+            get_field(changeset, :ticker_symbol)
+          )
+
+        if class, do: put_change(changeset, :asset_class, class), else: changeset
+
+      _asset_class ->
+        changeset
+    end
+  end
+
+  defp infer_asset_class_code(name, _isin, ticker_symbol) do
+    cond do
+      government_bond_name?(name) -> "government_bond"
+      etf_name?(name) -> "etf"
+      crypto_name?(name) or crypto_ticker?(ticker_symbol) -> "crypto"
+      equity_name?(name) and not structured_product_name?(name) -> "equity"
+      true -> nil
+    end
+  end
+
+  defp government_bond_name?(name) when is_binary(name) do
+    Regex.match?(
+      ~r/(bundesrepublik|bundesanleihe|bundesobligation|bundesschatz|staatsanleihe|treasury\s+(note|bond|bill)|government\s+bond|sovereign\s+bond|republic\s+of|kingdom\s+of|^anleihe\s+(australien|belgien|deutschland|frankreich|italien|kanada|niederlande|norwegen|österreich|singapur|spanien|usa|vereinigte\s+staaten|united\s+states)\b)/i,
+      name
+    )
+  end
+
+  defp government_bond_name?(_), do: false
+
+  defp etf_name?(name) when is_binary(name) do
+    Regex.match?(~r/\b(U\.?ETF|UETF|UCITS\s+ETF|ETF|ETC|ETN|ETP)\b/i, name)
+  end
+
+  defp etf_name?(_), do: false
+
+  defp crypto_name?(name) when is_binary(name) do
+    Regex.match?(
+      ~r/^\s*(bitcoin|ethereum|ether|solana|cardano|polkadot|litecoin|chainlink|ripple|xrp)\s*$/i,
+      name
+    )
+  end
+
+  defp crypto_name?(_), do: false
+
+  defp crypto_ticker?(ticker) when is_binary(ticker) do
+    Regex.match?(~r/^(BTC|ETH|SOL|ADA|DOT|LTC|LINK|XRP)([-.][A-Z]{3})?$/i, ticker)
+  end
+
+  defp crypto_ticker?(_), do: false
+
+  defp structured_product_name?(name) when is_binary(name) do
+    Regex.match?(
+      ~r/(Turbo[LS]?|Disc[CP]?|Discount|Call|Put|Optionsschein|Zertifikat|O\.End|Em\.-u\.Handelsg\.mbH)/i,
+      name
+    )
+  end
+
+  defp structured_product_name?(_), do: false
+
+  defp equity_name?(name) when is_binary(name) do
+    Regex.match?(
+      ~r/(Registered Shares|Reg\.?\s*Shares|Inhaber-Aktien|Namens-Aktien|Vorzugsaktien|Actions|Aandelen|Common Stock|\bInc\.?\b|\bCorp\.?\b|\bLtd\.?\b|\bAG\b|\bSE\b|\bPLC\b|S\.?A\.?|SA\/NV)/i,
+      name
+    )
+  end
+
+  defp equity_name?(_), do: false
 
   defp normalize_text(changeset, field, fun) do
     update_change(changeset, field, fn

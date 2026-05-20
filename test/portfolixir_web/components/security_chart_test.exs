@@ -81,6 +81,57 @@ defmodule PortfolixirWeb.Components.SecurityChartTest do
     assert html =~ ~s(class="tx-marker tx-buy")
   end
 
+  # User story:
+  # As a local portfolio maintainer opening a security detail chart,
+  # I want the chart renderer to tolerate legacy numeric values,
+  # so that a stale or imported row cannot crash the page with
+  # `Decimal.to_string/2`.
+  #
+  # Acceptance criteria:
+  # - Numeric quote closes render without raising.
+  # - Numeric transaction quantity and price render in the payload.
+  # - No persisted financial value is converted to float by this test; this
+  #   only guards the view boundary.
+  test "renders legacy numeric quote and transaction values without crashing" do
+    quotes = [
+      %{date: ~D[2026-05-14], close: 99.5},
+      %{date: ~D[2026-05-15], close: 100.25}
+    ]
+
+    transactions = [
+      %{date: ~D[2026-05-15], type: "buy", quantity: 1, price: 100.25}
+    ]
+
+    html = render_chart(default_assigns(quotes: quotes, transactions: transactions))
+
+    assert html =~ ~s(class="tx-marker tx-buy")
+    assert html =~ "100.25"
+  end
+
+  # User story:
+  # As a local portfolio maintainer with dividend history,
+  # I want the price chart to ignore non-trade ledger entries,
+  # so that opening the chart tab cannot crash on a transaction without a
+  # unit price.
+  #
+  # Acceptance criteria:
+  # - A dividend row with nil quantity and nil price does not raise.
+  # - The chart still renders the price line.
+  # - No dividend marker is emitted because only buy/sell markers belong in
+  #   the price chart.
+  test "ignores non-trade transactions without unit prices" do
+    quotes = [quote_fixture(~D[2026-05-15], "100")]
+
+    transactions = [
+      %{date: ~D[2026-05-15], type: "dividend", quantity: nil, price: nil}
+    ]
+
+    html = render_chart(default_assigns(quotes: quotes, transactions: transactions))
+
+    assert html =~ ~s(class="quote-line")
+    refute html =~ "tx-dividend"
+  end
+
   test "positions quote points by calendar date so markers stay aligned" do
     # User story:
     # As a local portfolio maintainer,
