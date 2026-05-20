@@ -9,7 +9,7 @@ defmodule Portfolixir.Catalog.AssetClasses do
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
-  @ordered ~w(equity etf fund bond crypto commodity index other)
+  @ordered ~w(equity etf fund government_bond bond crypto commodity index other)
 
   @doc "Internal codes used in the database (stable, do not translate)."
   def codes, do: @ordered
@@ -23,6 +23,7 @@ defmodule Portfolixir.Catalog.AssetClasses do
   def label("equity"), do: gettext("Equity")
   def label("etf"), do: gettext("ETF")
   def label("fund"), do: gettext("Fund")
+  def label("government_bond"), do: gettext("Government bond")
   def label("bond"), do: gettext("Bond")
   def label("crypto"), do: gettext("Cryptocurrency")
   def label("commodity"), do: gettext("Commodity")

@@ -116,11 +116,26 @@ Quote sources in this iteration:
 
 - Search step (which catalog the security came from) uses Portfolio
   Performance for stocks/ETFs/funds and CoinGecko for crypto.
+- New securities start background quote/logo enrichment when configured.
+  Logo discovery runs through a single background queue, scans missing
+  logo candidates on startup, and is also triggered after imports.
+  ETF logo discovery tries known issuer names before the individual fund name
+  (for example iShares, Vanguard, Lyxor, Amundi, Xtrackers, SPDR, Invesco).
+  Government bonds use the `government_bond` asset class for ISIN country flag fallbacks.
 - Quote-history fetch uses Yahoo Finance for both. Two reasons:
   - PP's own API exposes only search, no price history.
   - CoinGecko's free public API caps history at 365 days
     (`error_code 10012`); Yahoo returns the full daily series for
     crypto via the `<TICKER>-<CURRENCY>` symbol form (e.g. `BTC-USD`).
+- Portfolio Performance search can provide symbols for some bonds and leveraged products.
+  Yahoo remains usable when a suitable symbol exists and is stored on the
+  security.
+- Ariva is not used as a quote adapter. Its historical endpoint for leveraged
+  products is currently blocked for this local default use case.
+- Bundesbank is relevant for German federal securities and yield data, not a general ISIN quote provider.
+- No API-key-based providers and no unofficial scraping dependency are used as
+  default quote sources.
+- No new bond or leveraged-product quote adapter is implemented in this batch.
 
 Yahoo is queried with `period1=0` and `period2=<now>` so it returns the
 full available daily history — `range=max` silently downsamples to

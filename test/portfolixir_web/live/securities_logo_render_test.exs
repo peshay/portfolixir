@@ -57,6 +57,69 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
     assert html =~ ~r/security-logo--initial[^>]*>[\s]*A[\s]*</
   end
 
+  test "renders a bond country flag fallback from the ISIN country code",
+       %{conn: conn} do
+    {:ok, _sec} =
+      Catalog.create_security(%{
+        name: "German Federal Bond",
+        isin: "DE0001102614",
+        currency_code: "EUR",
+        provider: "manual",
+        asset_class: "bond"
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    html = render(view)
+
+    assert html =~ ~s(security-logo--flag)
+    assert html =~ "🇩🇪"
+    refute html =~ ~r/security-logo--initial[^>]*>[\s]*G[\s]*</
+  end
+
+  test "renders a government bond country flag fallback from the ISIN country code",
+       %{conn: conn} do
+    {:ok, _sec} =
+      Catalog.create_security(%{
+        name: "United States Treasury Note",
+        isin: "US91282CFB28",
+        currency_code: "USD",
+        provider: "manual",
+        asset_class: "government_bond"
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    html = render(view)
+
+    assert html =~ ~s(security-logo--flag)
+    assert html =~ "🇺🇸"
+    refute html =~ ~r/security-logo--initial[^>]*>[\s]*U[\s]*</
+  end
+
+  test "renders an inferred imported state-bond flag when asset_class is still blank",
+       %{conn: conn} do
+    {:ok, sec} =
+      Catalog.create_security(%{
+        name: "Placeholder",
+        isin: "US912810SN90",
+        currency_code: "USD",
+        provider: "portfolio_performance",
+        asset_class: "other"
+      })
+
+    {:ok, _sec} =
+      Catalog.update_security(sec, %{
+        name: "Anleihe USA 20/50",
+        asset_class: nil
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+    html = render(view)
+
+    assert html =~ ~s(security-logo--flag)
+    assert html =~ "🇺🇸"
+    refute html =~ ~r/security-logo--initial[^>]*>[\s]*A[\s]*</
+  end
+
   test "renders the logo in the detail-pane header when a security is selected",
        %{conn: conn} do
     {:ok, sec} =

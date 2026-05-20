@@ -36,8 +36,10 @@ that successful delete response.
 ## Securities
 
 - `GET /api/v1/securities` lists securities. Optional query params: `query`,
-  `sort`, and `direction`.
+  `sort`, `direction`, and holding_status (`all`, `held`, or `not_held`).
 - `POST /api/v1/securities` creates a security with a `security` object.
+  `asset_class` is a stable string code such as `equity`, `etf`, `crypto`,
+  `bond`, or `government_bond`.
 - `GET /api/v1/securities/:id` returns one security.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
 - `DELETE /api/v1/securities/:id` deletes a security when no dependent

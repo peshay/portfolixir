@@ -823,6 +823,11 @@ msgstr ""
 
 #: lib/portfolixir/catalog/asset_classes.ex:26
 #, elixir-autogen, elixir-format
+msgid "Government bond"
+msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex:27
+#, elixir-autogen, elixir-format
 msgid "Bond"
 msgstr ""
 
@@ -1789,4 +1794,24 @@ msgstr ""
 #: lib/portfolixir_web/live/securities_live.ex
 #, elixir-autogen, elixir-format
 msgid "Price sync failed."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Holding status"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "All"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Held"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Not held"
 msgstr ""
