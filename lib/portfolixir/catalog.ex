@@ -9,8 +9,10 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
+  alias Portfolixir.Catalog.LogoDiscovery
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
   @doc """
@@ -29,6 +31,7 @@ defmodule Portfolixir.Catalog do
     |> from(as: :security)
     |> apply_query(opts[:query])
     |> apply_filters(opts[:filters] || [])
+    |> apply_holding_status(opts[:holding_status])
     |> apply_sort(db_sort_or_default(sort))
     |> Repo.all()
   end
@@ -127,22 +130,33 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc false
+  def enrich_missing_logo_ids_async(ids) when is_list(ids) do
+    if logo_enrichment_enabled?() do
+      LogoDiscovery.enqueue_security_ids(ids)
+    end
+
+    :ok
+  end
+
+  @doc false
+  def enqueue_missing_security_logos_async do
+    LogoDiscovery.enqueue_missing_security_logos()
+  end
+
+  @doc false
   def enrich_security_async(%Security{id: id}), do: enrich_security_async(id)
 
   def enrich_security_async(id) when is_integer(id) do
-    if quote_enrichment_enabled?() or logo_enrichment_enabled?() do
+    if quote_enrichment_enabled?() do
       Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
         case get_security(id) do
-          %Security{} = security ->
-            if quote_enrichment_enabled?(), do: QuoteSync.sync_security(security)
-            if logo_enrichment_enabled?(), do: Portfolixir.Catalog.LogoLookup.run(security)
-
-          nil ->
-            :ok
+          %Security{} = security -> QuoteSync.sync_security(security)
+          nil -> :ok
         end
       end)
     end
 
+    if logo_enrichment_enabled?(), do: LogoDiscovery.enqueue_security_ids([id])
     :ok
   end
 
@@ -321,6 +335,59 @@ defmodule Portfolixir.Catalog do
           acc
       end
     end)
+  end
+
+  defp apply_holding_status(query, status) do
+    case normalize_holding_status(status) do
+      :all ->
+        query
+
+      :held ->
+        from(s in query,
+          join: h in subquery(holding_totals_query()),
+          on: h.security_id == s.id,
+          where: fragment("? <> 0", h.quantity)
+        )
+
+      :not_held ->
+        from(s in query,
+          left_join: h in subquery(holding_totals_query()),
+          on: h.security_id == s.id,
+          where: is_nil(h.security_id) or fragment("? = 0", h.quantity)
+        )
+    end
+  end
+
+  defp normalize_holding_status(nil), do: :all
+  defp normalize_holding_status(""), do: :all
+  defp normalize_holding_status(:all), do: :all
+  defp normalize_holding_status("all"), do: :all
+  defp normalize_holding_status(:held), do: :held
+  defp normalize_holding_status("held"), do: :held
+  defp normalize_holding_status(:not_held), do: :not_held
+  defp normalize_holding_status("not_held"), do: :not_held
+
+  defp normalize_holding_status(other) do
+    Logger.warning("dropping invalid holding status filter: #{inspect(other)}")
+    :all
+  end
+
+  defp holding_totals_query do
+    from(t in Transaction,
+      where: t.type in ["buy", "sell"],
+      group_by: t.security_id,
+      select: %{
+        security_id: t.security_id,
+        quantity:
+          fragment(
+            "sum(CASE WHEN ? = 'buy' THEN ? WHEN ? = 'sell' THEN -? ELSE 0 END)",
+            t.type,
+            t.quantity,
+            t.type,
+            t.quantity
+          )
+      }
+    )
   end
 
   defp normalize_filter({key, op, value}) when is_atom(key) and is_atom(op) do

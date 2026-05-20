@@ -3,6 +3,12 @@ defmodule Portfolixir.CatalogTest do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.SecuritySearch.{Market, SearchResult}
+  alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
+
+  @png <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8,
+         6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 250, 207, 0, 0,
+         0, 3, 0, 1, 5, 12, 60, 192, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130>>
 
   describe "create_security/1" do
     test "creates with required fields and normalises codes" do
@@ -30,6 +36,127 @@ defmodule Portfolixir.CatalogTest do
                })
 
       assert {"is invalid", _} = changeset.errors[:asset_class]
+    end
+
+    # User story:
+    # As a local portfolio maintainer adding government bonds,
+    # I want Portfolixir to classify obvious state debt as its own type,
+    # so that the UI can use the ISIN country code for a flag fallback.
+    #
+    # Acceptance criteria:
+    # - `government_bond` is an accepted asset class.
+    # - A clearly named government bond without an explicit type is inferred
+    #   as `government_bond`.
+    # - The ISIN is still normalized independently of the inferred type.
+    test "accepts and infers government bond asset class" do
+      assert {:ok, explicit} =
+               Catalog.create_security(%{
+                 name: "German Federal Bond",
+                 isin: "de0001102614",
+                 currency_code: "EUR",
+                 asset_class: "government_bond"
+               })
+
+      assert explicit.asset_class == "government_bond"
+      assert explicit.isin == "DE0001102614"
+
+      assert {:ok, inferred} =
+               Catalog.create_security(%{
+                 name: "Bundesrepublik Deutschland Bundesanleihe 2034",
+                 isin: "DE000BU2Z023",
+                 currency_code: "EUR"
+               })
+
+      assert inferred.asset_class == "government_bond"
+    end
+
+    test "infers Portfolio Performance style ETF, crypto and state-bond names" do
+      examples = [
+        {"iShares Core MSCI Emerging Markets IMI UCITS ETF", "IE00BD45KH83", "etf"},
+        {"Vanguard FTSE Em.Markets U.ETF Registered Shares USD Acc.oN", "IE00BK5BR733", "etf"},
+        {"AIS-Amundi Index MSCI World Act.Nom.UCITS ETF DR D oN", "LU1737652237", "etf"},
+        {"Amu.S&P Wld Inds Screened UETF Reg.Shs UCITS ETF Acc o.N.", "IE000LTA2082", "etf"},
+        {"Bitcoin", nil, "crypto"},
+        {"Anleihe USA 20/50", "US912810SN90", "government_bond"},
+        {"Anleihe Norwegen 22/42", "NO0012712506", "government_bond"},
+        {"Anleihe Singapur 16/46", "SG31A7000004", "government_bond"}
+      ]
+
+      for {name, isin, expected_class} <- examples do
+        assert {:ok, security} =
+                 Catalog.create_security(%{
+                   name: name,
+                   isin: isin,
+                   currency_code: "EUR",
+                   provider: "portfolio_performance"
+                 })
+
+        assert security.asset_class == expected_class
+      end
+    end
+
+    # User story:
+    # As a local portfolio maintainer creating a security,
+    # I want logo lookup to start automatically after the record is inserted,
+    # so that I don't have to run "Update logo" row by row.
+    #
+    # Acceptance criteria:
+    # - With logo discovery enabled, `create_security/1` starts background
+    #   logo lookup after insert.
+    # - Tests pass a Req plug and temporary storage, so no external network is used.
+    # - The stored security gets `attributes["logo_path"]`.
+    test "starts automatic logo discovery after creating a security" do
+      prior_enabled = Application.get_env(:portfolixir, :enable_logo_discovery, false)
+      prior_opts = Application.get_env(:portfolixir, :logo_discovery_opts, [])
+
+      tmp =
+        Path.join(
+          System.tmp_dir!(),
+          "portfolixir-auto-logo-#{System.unique_integer([:positive])}"
+        )
+
+      stub = [
+        plug: fn conn ->
+          cond do
+            conn.request_path =~ "/api/rest_v1/page/summary/" ->
+              conn
+              |> Plug.Conn.put_resp_content_type("application/json")
+              |> Plug.Conn.send_resp(
+                200,
+                Jason.encode!(%{
+                  "originalimage" => %{"source" => "https://example.test/logo.png"}
+                })
+              )
+
+            conn.request_path == "/logo.png" ->
+              conn
+              |> Plug.Conn.put_resp_content_type("image/png")
+              |> Plug.Conn.send_resp(200, @png)
+          end
+        end
+      ]
+
+      Application.put_env(:portfolixir, :enable_logo_discovery, true)
+      Application.put_env(:portfolixir, :logo_discovery_opts, req: stub, storage_dir: tmp)
+
+      try do
+        assert {:ok, security} =
+                 Catalog.create_security(%{
+                   name: "Automatic Logo Inc.",
+                   currency_code: "USD",
+                   asset_class: "equity"
+                 })
+
+        assert wait_until(fn ->
+                 Catalog.get_security(security.id).attributes["logo_path"]
+               end) == "/security_logos/#{security.id}.png"
+
+        assert File.exists?(Path.join(tmp, "#{security.id}.png"))
+      after
+        Application.put_env(:portfolixir, :enable_logo_discovery, prior_enabled)
+        Application.put_env(:portfolixir, :logo_discovery_opts, prior_opts)
+        File.rm_rf(tmp)
+      end
     end
   end
 
@@ -112,6 +239,68 @@ defmodule Portfolixir.CatalogTest do
 
     test "sort by ticker_symbol descending", %{a: a, b: b, c: c} do
       assert [^c, ^b, ^a] = Catalog.list_securities(sort: {:ticker_symbol, :desc})
+    end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want to filter the securities list by current holding status,
+    # so that I can separate active positions from sold-out or never-held securities.
+    #
+    # Acceptance criteria:
+    # - `:held` returns securities with a non-zero derived buy/sell quantity.
+    # - `:not_held` returns securities with zero or no derived quantity.
+    # - `:all` keeps the existing unfiltered list behavior.
+    test "filters by derived holding status", %{a: a, b: b, c: c} do
+      {portfolio, cash_account, depot} = create_trade_accounts()
+
+      assert {:ok, _} =
+               Ledger.create_transaction(%{
+                 portfolio_id: portfolio.id,
+                 securities_account_id: depot.id,
+                 cash_account_id: cash_account.id,
+                 security_id: a.id,
+                 type: "buy",
+                 date: ~D[2026-01-02],
+                 quantity: Decimal.new("3"),
+                 price: Decimal.new("10"),
+                 fees: Decimal.new("0"),
+                 taxes: Decimal.new("0"),
+                 currency_code: "EUR"
+               })
+
+      assert {:ok, _} =
+               Ledger.create_transaction(%{
+                 portfolio_id: portfolio.id,
+                 securities_account_id: depot.id,
+                 cash_account_id: cash_account.id,
+                 security_id: b.id,
+                 type: "buy",
+                 date: ~D[2026-01-03],
+                 quantity: Decimal.new("2"),
+                 price: Decimal.new("20"),
+                 fees: Decimal.new("0"),
+                 taxes: Decimal.new("0"),
+                 currency_code: "EUR"
+               })
+
+      assert {:ok, _} =
+               Ledger.create_transaction(%{
+                 portfolio_id: portfolio.id,
+                 securities_account_id: depot.id,
+                 cash_account_id: cash_account.id,
+                 security_id: b.id,
+                 type: "sell",
+                 date: ~D[2026-01-04],
+                 quantity: Decimal.new("2"),
+                 price: Decimal.new("21"),
+                 fees: Decimal.new("0"),
+                 taxes: Decimal.new("0"),
+                 currency_code: "EUR"
+               })
+
+      assert [^a] = Catalog.list_securities(holding_status: :held, sort: {:name, :asc})
+      assert [^b, ^c] = Catalog.list_securities(holding_status: :not_held, sort: {:name, :asc})
+      assert [^a, ^b, ^c] = Catalog.list_securities(holding_status: :all, sort: {:name, :asc})
     end
   end
 
@@ -209,4 +398,47 @@ defmodule Portfolixir.CatalogTest do
       assert updated.attributes["exchange_name"] == "Xetra"
     end
   end
+
+  defp create_trade_accounts do
+    assert {:ok, portfolio} =
+             Portfolios.create_portfolio(%{
+               name: "Holding Filter Portfolio",
+               base_currency_code: "EUR"
+             })
+
+    assert {:ok, cash_account} =
+             Portfolios.create_cash_account(%{
+               portfolio_id: portfolio.id,
+               name: "Holding Filter Cash",
+               currency_code: "EUR"
+             })
+
+    assert {:ok, depot} =
+             Portfolios.create_securities_account(%{
+               portfolio_id: portfolio.id,
+               cash_account_id: cash_account.id,
+               name: "Holding Filter Depot"
+             })
+
+    {portfolio, cash_account, depot}
+  end
+
+  defp wait_until(fun, attempts \\ 30)
+
+  defp wait_until(fun, attempts) when attempts > 0 do
+    case fun.() do
+      nil ->
+        Process.sleep(25)
+        wait_until(fun, attempts - 1)
+
+      false ->
+        Process.sleep(25)
+        wait_until(fun, attempts - 1)
+
+      value ->
+        value
+    end
+  end
+
+  defp wait_until(_fun, 0), do: nil
 end
