@@ -34,6 +34,28 @@ describe("Portfolixir MCP tools", () => {
       "string"
     );
     assert.equal(transactionCreate?.inputSchema.properties.transaction.properties.price.type, "string");
+
+    const securitiesList = tools.find((tool) => tool.name === "portfolixir.securities.list");
+    assert.deepEqual(securitiesList?.inputSchema.properties.holding_status.enum, [
+      "held",
+      "not_held",
+      "all"
+    ]);
+
+    const securitiesCreate = tools.find((tool) => tool.name === "portfolixir.securities.create");
+    assert.equal(
+      securitiesCreate?.inputSchema.properties.security.properties.asset_class.type,
+      "string"
+    );
+    assert.doesNotThrow(() =>
+      securitiesCreate?.zodSchema.parse({
+        security: {
+          name: "Synthetic Government Bond",
+          currency_code: "EUR",
+          asset_class: "government_bond"
+        }
+      })
+    );
   });
 
   it("calls the Phoenix API with bearer auth and returns structured content", async () => {
@@ -60,11 +82,15 @@ describe("Portfolixir MCP tools", () => {
     const result = await callTool(client, "portfolixir.securities.list", {
       query: "syn",
       sort: "name",
-      direction: "asc"
+      direction: "asc",
+      holding_status: "held"
     });
 
     assert.equal(requests[0].method, "GET");
-    assert.equal(requests[0].path, "/api/v1/securities?query=syn&sort=name&direction=asc");
+    assert.equal(
+      requests[0].path,
+      "/api/v1/securities?query=syn&sort=name&direction=asc&holding_status=held"
+    );
     assert.equal(requests[0].token, "Bearer api-token");
     assert.deepEqual(result.structuredContent, { data: [{ id: 7, name: "Synthetic" }] });
     assert.match(result.content[0].text, /Synthetic/);

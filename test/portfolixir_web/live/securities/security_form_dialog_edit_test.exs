@@ -68,6 +68,31 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
     assert html =~ "Edit security" or html =~ "Wertpapier bearbeiten"
   end
 
+  test "prefills inferred asset class for imported securities with blank stored asset_class" do
+    {:ok, sec} =
+      Catalog.create_security(%{
+        name: "Placeholder",
+        isin: "US912810SN90",
+        currency_code: "USD",
+        asset_class: "other",
+        provider: "portfolio_performance"
+      })
+
+    {:ok, sec} =
+      Catalog.update_security(sec, %{
+        name: "Anleihe USA 20/50",
+        asset_class: nil
+      })
+
+    html =
+      render_component(SecurityFormDialog,
+        id: "security-form-dialog",
+        editing: sec
+      )
+
+    assert html =~ ~s(<option value="government_bond" selected)
+  end
+
   test "saving updates the security via Catalog.update_security/2" do
     sec = create_security!()
 
