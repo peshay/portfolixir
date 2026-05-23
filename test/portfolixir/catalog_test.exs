@@ -2,6 +2,7 @@ defmodule Portfolixir.CatalogTest do
   use Portfolixir.DataCase
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch.{Market, SearchResult}
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -397,6 +398,66 @@ defmodule Portfolixir.CatalogTest do
       assert updated.attributes["local"] == "keep"
       assert updated.attributes["exchange_name"] == "Xetra"
     end
+  end
+
+  describe "backfill_inferred_asset_classes/0" do
+    # User story:
+    # As a local portfolio maintainer,
+    # I want imported securities to be filterable by their inferred asset class,
+    # so that a security shown as ETF is also returned when I filter for ETF.
+    #
+    # Acceptance criteria:
+    # - Legacy rows with asset_class = nil get the inferred class persisted.
+    # - After backfill, the column-backed asset_class filter returns the row.
+    # - Rows with an explicit class, or no inferable class, are left unchanged.
+    test "persists inferred classes so display and filters agree" do
+      legacy = legacy_security_without_asset_class("iShares Core MSCI World UCITS ETF")
+      etf_filter = [%{key: :asset_class, op: :eq, value: "etf"}]
+
+      assert Security.effective_asset_class(legacy) == "etf"
+      assert is_nil(legacy.asset_class)
+      assert [] == Catalog.list_securities(filters: etf_filter)
+
+      assert 1 == Catalog.backfill_inferred_asset_classes()
+
+      assert Repo.get!(Security, legacy.id).asset_class == "etf"
+      assert [%{id: id}] = Catalog.list_securities(filters: etf_filter)
+      assert id == legacy.id
+    end
+
+    test "leaves explicit and non-inferable asset classes unchanged" do
+      {:ok, explicit} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      mystery = legacy_security_without_asset_class("Mystery Holding 2030")
+      assert is_nil(Security.effective_asset_class(mystery))
+
+      assert 0 == Catalog.backfill_inferred_asset_classes()
+
+      assert Repo.get!(Security, explicit.id).asset_class == "equity"
+      assert is_nil(Repo.get!(Security, mystery.id).asset_class)
+    end
+  end
+
+  # Simulates a security imported before asset-class inference: a persisted row
+  # whose name implies a class but whose asset_class column is nil. Bypasses
+  # Security.changeset/2 (which would infer on write) via a raw change.
+  defp legacy_security_without_asset_class(name) do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Seed #{System.unique_integer([:positive])}",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    security
+    |> Ecto.Changeset.change(%{name: name, asset_class: nil})
+    |> Repo.update!()
   end
 
   defp create_trade_accounts do
