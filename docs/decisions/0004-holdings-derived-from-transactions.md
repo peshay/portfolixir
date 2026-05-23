@@ -30,4 +30,3 @@ stored or entered manually.
   audit trail honest.
 - Derivation happens at read time; if data volume ever makes this expensive,
   caching or materialised views would be a future decision (new ADR).
-</content>
