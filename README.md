@@ -115,6 +115,9 @@ pre-commit install --install-hooks
   - [Product docs home](docs/index.md)
   - [Product feature documentation](docs/product-documentation.md)
   - [Home Deployment](docs/home-deployment.md)
+- Architecture documentation
+  - [Architecture overview](docs/architecture.md)
+  - [Architecture decisions (ADRs)](docs/decisions/index.md)
 - Development documentation
   - [Story workflow](docs/development/story-workflow.md)
   - [Developer guide](docs/development/guide.md)

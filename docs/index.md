@@ -49,6 +49,12 @@ lives in `mcp-server/` and wraps that API so MCP clients use the same local
 application contract as other integrations. The supported routes and tools are
 documented in [API and MCP](integration/api-and-mcp.html).
 
+## Architecture
+
+For a high-level view of how Portfolixir is built, see the
+[Architecture Overview](architecture.html) and the
+[Architecture Decisions](decisions/index.html) log.
+
 ## Development
 
 Start with the [Story Workflow](development/story-workflow.html) and
