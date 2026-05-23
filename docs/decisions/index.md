@@ -1,0 +1,37 @@
+---
+layout: docs
+title: Architecture Decisions
+description: Lightweight ADR log for Portfolixir architecture decisions.
+---
+
+# Architecture Decisions
+
+This is the Architecture Decision Record (ADR) log for Portfolixir. Each ADR
+captures one decision, the context that forced it, and its consequences.
+[`AGENTS.md`](https://github.com/peshay/portfolixir/blob/main/AGENTS.md)
+requires that architecture decisions not change silently: when a decision
+changes, add a new ADR and mark the old one as superseded rather than editing
+history.
+
+The records below were written after the fact to document decisions that were
+already in force in the codebase.
+
+## How to add an ADR
+
+1. Copy [the template](0000-adr-template.html) to
+   `docs/decisions/NNNN-short-title.md` with the next number.
+2. Fill in context, decision, and consequences. Keep it short.
+3. Set the status to `Accepted` and add it to the list below.
+4. To reverse a decision, add a new ADR and set the old one's status to
+   `Superseded by ADR-NNNN`.
+
+## Records
+
+| ADR | Title | Status |
+| --- | --- | --- |
+| [0001](0001-modular-phoenix-monolith.html) | Modular Phoenix monolith with bounded contexts | Accepted |
+| [0002](0002-thin-mcp-over-json-api.html) | Thin MCP companion over the JSON API only | Accepted |
+| [0003](0003-decimal-for-money.html) | Decimal for all financial values | Accepted |
+| [0004](0004-holdings-derived-from-transactions.html) | Holdings and trades derived from transaction history | Accepted |
+| [0005](0005-quote-provider-split.html) | Split quote providers: search vs. history | Accepted |
+</content>
