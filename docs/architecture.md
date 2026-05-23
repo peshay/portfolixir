@@ -169,5 +169,3 @@ Kept out on purpose to stay lightweight:
   single-user app beyond the goals in section 1.
 - **12. Glossary** — domain terms are defined inline in the
   [Product Documentation](product-documentation.html).
-</content>
-</invoke>
