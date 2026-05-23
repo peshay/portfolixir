@@ -37,4 +37,3 @@ on contexts; contexts do not depend on the web layer.
 - Discipline is required to keep web/MCP code from leaking into contexts; this
   is enforced by review and the rules in `AGENTS.md`.
 - Cross-context features must respect the one-way dependency direction.
-</content>
