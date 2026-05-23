@@ -51,6 +51,35 @@ defmodule Portfolixir.Catalog do
     |> sort_metric_rows(sort)
   end
 
+  @doc """
+  Backfills `asset_class` for securities that have none persisted yet, using
+  the same heuristic as `Security.effective_asset_class/1`.
+
+  Legacy rows imported before asset-class inference existed keep
+  `asset_class = nil`. The securities list derives a class for display via
+  `effective_asset_class/1`, but column-backed filters match the persisted
+  value, so such a row could be shown as e.g. ETF yet disappear when filtering
+  for ETF. Persisting the inferred class keeps display and filters consistent.
+
+  Rows with an explicit class, or where inference yields nothing, are left
+  unchanged. Returns the number of rows updated.
+  """
+  def backfill_inferred_asset_classes do
+    Security
+    |> where([s], is_nil(s.asset_class))
+    |> Repo.all()
+    |> Enum.reduce(0, fn security, updated ->
+      case Security.effective_asset_class(security) do
+        class when is_binary(class) ->
+          security |> Ecto.Changeset.change(asset_class: class) |> Repo.update!()
+          updated + 1
+
+        _ ->
+          updated
+      end
+    end)
+  end
+
   defp db_sort_or_default({key, _dir} = sort) do
     case SecurityFields.get(key) do
       %Field{source: :metric} -> {:name, :asc}
