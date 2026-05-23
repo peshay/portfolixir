@@ -31,4 +31,3 @@ requests should send them as strings) so no precision is lost in transport.
   fixtures.
 - `String.to_atom/1` on external input and float-backed financial fields are
   off-limits.
-</content>
