@@ -21,6 +21,13 @@
     - title: Home Deployment
       url: /home-deployment.html
 
+- title: Architecture
+  items:
+    - title: Overview
+      url: /architecture.html
+    - title: Decisions (ADRs)
+      url: /decisions/index.html
+
 - title: Integration
   items:
     - title: API and MCP
