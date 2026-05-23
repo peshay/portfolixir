@@ -31,4 +31,3 @@ companion stays installable and runnable separately from Docker Compose.
 - The companion needs its own local auth: `PORTFOLIXIR_API_TOKEN` to call the
   API, and `PORTFOLIXIR_MCP_TOKEN` for its HTTP transport.
 - Any capability MCP needs must first exist as a JSON API endpoint.
-</content>

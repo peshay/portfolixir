@@ -42,4 +42,3 @@ a reason; failed adapter calls are reported separately from successful syncs.
 - Two provider integrations to maintain, each behind its own adapter so one can
   change without disturbing the other.
 - All provider calls are stubbed with fakes in tests; no real network calls.
-</content>

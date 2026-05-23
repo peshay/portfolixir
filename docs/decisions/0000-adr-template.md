@@ -22,4 +22,3 @@ What was decided, stated as a single clear position.
 
 What becomes easier, harder, or off-limits as a result. Include the trade-offs
 that were accepted, not just the upside.
-</content>
