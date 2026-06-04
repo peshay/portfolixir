@@ -26,4 +26,5 @@ Never commit:
 
 ## Reporting issues
 
-Open a private issue or contact the maintainer directly for security concerns.
+Please do not open public issues for security vulnerabilities. Report them
+privately by email to security@ahu.services.
