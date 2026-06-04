@@ -11,7 +11,8 @@
 [![CI](https://github.com/peshay/portfolixir/actions/workflows/ci.yml/badge.svg)](https://github.com/peshay/portfolixir/actions/workflows/ci.yml)
 [![Elixir](https://img.shields.io/badge/Elixir-Phoenix-4B275F?logo=elixir&logoColor=white)](https://elixir-lang.org/)
 [![License](https://img.shields.io/github/license/peshay/portfolixir)](LICENSE)
-[![Support maintenance via bunq](https://img.shields.io/badge/Support-Maintenance-4CAF50?style=flat-square&logo=ko-fi&logoColor=white)](https://bunq.me/ahuservices?description=portfolixir-maintenance-support)
+
+[![Support via bunq](https://img.shields.io/badge/Support-bunq-00A1E0?style=flat-square&logo=bunq&logoColor=white)](https://bunq.me/ahuservices?description=portfolixir-maintenance-support)
 
 ## What is Portfolixir
 
@@ -134,9 +135,7 @@ Tests must not make external network calls.
 
 ## Support
 
-Support payments help fund ongoing maintenance work. They do not automatically
-create entitlement to support, features, consulting, SLA, or invoice-based
-engagement.
+If this app is useful to you, you can [support its ongoing maintenance via bunq](https://bunq.me/ahuservices?description=portfolixir-maintenance-support). Support is voluntary and appreciated, but does not create any entitlement to support, features, consulting, an SLA, or invoice-based work.
 
 ## License
 
