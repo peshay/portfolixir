@@ -187,6 +187,29 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def valuation(%{positions: positions} = valuation) do
+    %{
+      portfolio_id: valuation.portfolio_id,
+      total_value: decimal(valuation.total_value),
+      unvalued_count: valuation.unvalued_count,
+      positions: Enum.map(positions, &valuation_position/1)
+    }
+  end
+
+  defp valuation_position(position) do
+    %{
+      securities_account_id: position.securities_account_id,
+      security_id: position.security_id,
+      security_name: position.security_name,
+      asset_class: position.asset_class,
+      quantity: decimal(position.quantity),
+      latest_price: decimal(position.latest_price),
+      market_value: decimal(position.market_value),
+      weight: decimal(position.weight),
+      valued: position.valued
+    }
+  end
+
   def errors(%Changeset{} = changeset) do
     Changeset.traverse_errors(changeset, fn {message, opts} ->
       Enum.reduce(opts, message, fn {key, value}, acc ->
