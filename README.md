@@ -133,6 +133,14 @@ portfolio files.
 
 Tests must not make external network calls.
 
+## Governance
+
+- Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Security policy: [SECURITY.md](SECURITY.md)
+- Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- AI-agent guide: [AGENTS.md](AGENTS.md)
+- License: [LICENSE](LICENSE)
+
 ## Support
 
 If this app is useful to you, you can [support its ongoing maintenance via bunq](https://bunq.me/ahuservices?description=portfolixir-maintenance-support). Support is voluntary and appreciated, but does not create any entitlement to support, features, consulting, an SLA, or invoice-based work.
