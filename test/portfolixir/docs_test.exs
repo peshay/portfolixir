@@ -61,7 +61,7 @@ defmodule Portfolixir.DocsTest do
           "actions/workflows/ci.yml/badge.svg",
           "Elixir-Phoenix",
           "github/license",
-          "Support-Maintenance",
+          "Support-bunq",
           "What is Portfolixir",
           "Quick start",
           "mix deps.get",
