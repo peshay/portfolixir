@@ -451,6 +451,85 @@ defmodule PortfolixirWeb.ApiV1Test do
   end
 
   # User story:
+  # As an API client (and the LLM behind it),
+  # I want a live portfolio valuation endpoint,
+  # so that I can read current market values and actual weights as decimal strings.
+  #
+  # Acceptance criteria:
+  # - `GET /api/v1/portfolios/:portfolio_id/valuation` returns a total and per-position weights.
+  # - Market values, weights, and the total serialize as decimal strings.
+  # - A missing portfolio returns the normal 404 JSON shape.
+  test "values a portfolio and returns decimal-string weights", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Synthetic ETF",
+        ticker_symbol: "SYN",
+        currency_code: "EUR",
+        asset_class: "etf"
+      })
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "Valued Portfolio", base_currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Cash EUR",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, _tx} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-02],
+        quantity: "4",
+        price: "10",
+        fees: "0",
+        taxes: "0",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Quotes.upsert_many(security.id, [%{date: ~D[2026-06-01], close: "25", source: "manual"}])
+
+    valuation =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/valuation")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert valuation["total_value"] == "100"
+    assert valuation["unvalued_count"] == 0
+
+    assert [position] = valuation["positions"]
+    assert position["security_id"] == security.id
+    assert position["market_value"] == "100"
+    assert position["weight"] == "1"
+    assert position["valued"] == true
+    assert is_binary(position["market_value"])
+
+    missing =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/999999/valuation")
+      |> json_response(404)
+
+    assert missing == %{"errors" => %{"detail" => "not found"}}
+  end
+
+  # User story:
   # As an API client filtering quote history by date,
   # I want invalid date parameters to return field-specific validation errors,
   # so that clients can distinguish malformed filters from missing securities.

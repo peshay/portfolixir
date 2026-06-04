@@ -274,6 +274,12 @@ const toolDefinitions: ToolDefinition[] = [
     required: ["portfolio_id"],
     properties: { portfolio_id: { type: "integer", minimum: 1 } }
   }, z.object({ portfolio_id: z.number().int().positive() })),
+  tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, total, and actual weights per position.", {
+    type: "object",
+    additionalProperties: false,
+    required: ["portfolio_id"],
+    properties: { portfolio_id: { type: "integer", minimum: 1 } }
+  }, z.object({ portfolio_id: z.number().int().positive() })),
   tool(
     "portfolixir.trades.list",
     "List trades",
@@ -350,6 +356,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("POST", "/api/v1/transactions", { transaction: args.transaction });
     case "portfolixir.holdings.list":
       return client.request("GET", `/api/v1/portfolios/${args.portfolio_id}/holdings`);
+    case "portfolixir.portfolios.valuation":
+      return client.request("GET", `/api/v1/portfolios/${args.portfolio_id}/valuation`);
     case "portfolixir.trades.list":
       return client.request("GET", `/api/v1/securities/${args.security_id}/trades`);
     default:
