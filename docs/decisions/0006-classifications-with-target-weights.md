@@ -107,3 +107,9 @@ SOLL, IST, and drift over the existing thin MCP boundary.
 - Target weights are stored relative to the parent. Validation must keep sibling
   targets within `0..1`; surfacing a "remaining/over-allocated" hint is left to
   the UI stories.
+- **Known limitation (single currency):** the read-time valuation sums quote
+  closes without FX conversion, so a portfolio holding securities in different
+  currencies (or differing from its `base_currency_code`) yields a meaningful
+  `total_value` and weights only when all positions share one currency. This
+  matches the existing holdings and FIFO-trade code, which also assume a single
+  currency. A dedicated FX layer is out of scope here and tracked as future work.
