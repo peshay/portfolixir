@@ -150,6 +150,9 @@ Example account payloads:
   `total_value`, and each valued position's `weight` (its share of the total).
   Positions without a quote are returned with `valued: false` and `null`
   market value and weight. Unknown portfolios return `404 Not Found`.
+  Weights are raw shares (`market_value / total_value`) emitted at full Decimal
+  precision; because they are normalized ratios they need not sum to exactly
+  `1` (round for display). Market values and `total_value` are exact.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
   period in days) and any orphan sells.
