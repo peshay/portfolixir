@@ -148,17 +148,27 @@ Example account payloads:
 - `GET /api/v1/portfolios/:portfolio_id/valuation` returns a live valuation of a
   portfolio: each held position priced from its latest quote close, a
   `total_value`, and each valued position's `weight` (its share of the total).
-  Positions without a quote are returned with `valued: false` and `null`
-  market value and weight. Unknown portfolios return `404 Not Found`.
+  Each position's market value is converted into the portfolio
+  `base_currency` (top-level field) from stored exchange rates; per-position
+  `security_currency` shows the native currency. A position with no quote **or**
+  no exchange-rate path to the base currency is returned with `valued: false`
+  and `null` market value and weight, so a missing price or rate never distorts
+  the total. Unknown portfolios return `404 Not Found`.
   Weights are raw shares (`market_value / total_value`) emitted at full Decimal
   precision; because they are normalized ratios they need not sum to exactly
   `1` (round for display). Market values and `total_value` are exact.
-  Single currency: quote closes are summed without FX conversion, so
-  `total_value` and weights are only meaningful when all positions share one
-  currency (consistent with holdings and trades; an FX layer is future work).
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
   period in days) and any orphan sells.
+
+## Exchange Rates
+
+- `GET /api/v1/exchange_rates` lists stored exchange rates. Rates are kept
+  against the EUR hub (`1 base_currency = rate quote_currency`); other pairs are
+  derived by triangulation, and `GBX` (pence) is handled as `GBP × 100`.
+- `POST /api/v1/exchange_rates/sync` fetches the latest rates from the configured
+  provider (ECB daily reference rates by default) and returns `{provider,
+  status, upserted}`. A provider failure returns `502 Bad Gateway`.
 
 Example transaction payload:
 
@@ -200,4 +210,6 @@ in MCP schemas are strings.
 - `portfolixir.transactions.create`
 - `portfolixir.holdings.list`
 - `portfolixir.portfolios.valuation`
+- `portfolixir.exchange_rates.list`
+- `portfolixir.exchange_rates.sync`
 - `portfolixir.trades.list`
