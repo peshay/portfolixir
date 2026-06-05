@@ -10,8 +10,7 @@ defmodule Portfolixir.Application do
       {Portfolixir.Catalog.LogoDiscovery, []},
       {Portfolixir.Catalog.QuoteSync,
        Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])},
-      {Portfolixir.Fx.RateSync,
-       Application.get_env(:portfolixir, Portfolixir.Fx.RateSync, [])},
+      {Portfolixir.Fx.RateSync, Application.get_env(:portfolixir, Portfolixir.Fx.RateSync, [])},
       PortfolixirWeb.Endpoint
     ]
 
