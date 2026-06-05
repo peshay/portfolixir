@@ -190,6 +190,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   def valuation(%{positions: positions} = valuation) do
     %{
       portfolio_id: valuation.portfolio_id,
+      base_currency: valuation.base_currency,
       total_value: decimal(valuation.total_value),
       unvalued_count: valuation.unvalued_count,
       positions: Enum.map(positions, &valuation_position/1)
@@ -202,12 +203,27 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       security_id: position.security_id,
       security_name: position.security_name,
       asset_class: position.asset_class,
+      security_currency: position.security_currency,
       quantity: decimal(position.quantity),
       latest_price: decimal(position.latest_price),
       market_value: decimal(position.market_value),
       weight: decimal(position.weight),
       valued: position.valued
     }
+  end
+
+  def exchange_rate(%Portfolixir.Fx.ExchangeRate{} = rate) do
+    %{
+      base_currency: rate.base_currency,
+      quote_currency: rate.quote_currency,
+      date: date(rate.date),
+      rate: decimal(rate.rate),
+      source: rate.source
+    }
+  end
+
+  def fx_sync_result(%{provider: provider, status: status, upserted: upserted}) do
+    %{provider: to_string(provider), status: to_string(status), upserted: upserted}
   end
 
   def errors(%Changeset{} = changeset) do

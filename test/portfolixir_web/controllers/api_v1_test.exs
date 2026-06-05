@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.QuoteSync.Fake, as: QuoteSyncFake
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Fx.RateSync.Fake, as: FxRateFake
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   @auth {"authorization", "Bearer test-api-token"}
@@ -527,6 +528,58 @@ defmodule PortfolixirWeb.ApiV1Test do
       |> json_response(404)
 
     assert missing == %{"errors" => %{"detail" => "not found"}}
+  end
+
+  # User story:
+  # As an API client (and the LLM behind it),
+  # I want to refresh and read exchange rates,
+  # so that multi-currency valuations convert into the portfolio base currency.
+  #
+  # Acceptance criteria:
+  # - `POST /api/v1/exchange_rates/sync` returns the provider sync result.
+  # - `GET /api/v1/exchange_rates` lists the stored rates as decimal strings.
+  test "syncs and lists exchange rates", %{conn: conn} do
+    FxRateFake.clear_response()
+
+    FxRateFake.put_response(
+      {:ok,
+       [
+         %{
+           base_currency: "EUR",
+           quote_currency: "USD",
+           date: ~D[2026-06-04],
+           rate: "1.25",
+           source: "ecb"
+         }
+       ]}
+    )
+
+    sync =
+      conn
+      |> api_conn()
+      |> post("/api/v1/exchange_rates/sync")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert sync["provider"] == "fake"
+    assert sync["status"] == "ok"
+    assert sync["upserted"] == 1
+
+    rates =
+      conn
+      |> api_conn()
+      |> get("/api/v1/exchange_rates")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert [
+             %{
+               "base_currency" => "EUR",
+               "quote_currency" => "USD",
+               "rate" => "1.25",
+               "source" => "ecb"
+             }
+           ] = rates
   end
 
   # User story:

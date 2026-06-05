@@ -33,3 +33,4 @@ config :portfolixir, :enable_logo_discovery, true
 # (because tests must not make real HTTP calls and prod is opt-in via
 # runtime.exs). For dev we want the full live experience.
 config :portfolixir, Portfolixir.Catalog.QuoteSync, enabled?: true
+config :portfolixir, Portfolixir.Fx.RateSync, enabled?: true
