@@ -2,37 +2,46 @@ defmodule Portfolixir.Portfolios.Valuation do
   @moduledoc """
   Read-time market valuation of a portfolio.
 
-  Prices each currently held position from its latest quote close, sums the
-  valued positions into a portfolio total, and reports each valued position's
-  share (weight) of that total.
+  Prices each currently held position from its latest quote close, converts it
+  into the portfolio's `base_currency_code` (see `Portfolixir.Fx`), sums the
+  valued positions into a total, and reports each valued position's share
+  (weight) of that total.
 
   Nothing is stored: like holdings and FIFO trades, the valuation is derived
-  from transactions and quote history on read (see ADR-0004). A held position
-  without any quote is reported as unvalued so a missing price never silently
-  distorts the total or the weights.
+  from transactions, quote history, and exchange rates on read (see ADR-0004,
+  ADR-0007). A held position is reported as unvalued when it has no quote **or**
+  no exchange-rate path to the base currency, so a missing price or rate never
+  silently distorts the total or the weights.
   """
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
 
   @zero Decimal.new("0")
 
   @doc """
-  Returns the live valuation for one portfolio.
+  Returns the live valuation for one portfolio, in the portfolio base currency.
 
-  Pass `:prices` (a `%{security_id => Decimal}` map) to inject prices in tests;
-  any security missing from the map falls back to `Catalog.Quotes.latest/1`.
+  Options (for tests):
+    * `:prices` – `%{security_id => Decimal}` native prices; missing securities
+      fall back to `Catalog.Quotes.latest/1`.
+    * `:base_currency` – overrides the portfolio's base currency.
   """
   def for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     prices = Keyword.get(opts, :prices, %{})
+
+    base_currency =
+      Keyword.get_lazy(opts, :base_currency, fn -> base_currency_for(portfolio_id) end)
 
     positions =
       portfolio_id
       |> Ledger.positions_for_portfolio()
       |> Enum.map(fn {{securities_account_id, security_id}, quantity} ->
-        build_position(securities_account_id, security_id, quantity, prices)
+        build_position(securities_account_id, security_id, quantity, prices, base_currency)
       end)
 
     total = total_value(positions)
@@ -44,27 +53,26 @@ defmodule Portfolixir.Portfolios.Valuation do
 
     %{
       portfolio_id: portfolio_id,
+      base_currency: base_currency,
       total_value: total,
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued))
     }
   end
 
-  defp build_position(securities_account_id, security_id, quantity, prices) do
+  defp build_position(securities_account_id, security_id, quantity, prices, base_currency) do
     security = Catalog.get_security(security_id)
     price = price_for(security_id, prices)
+    security_currency = security && security.currency_code
 
-    {market_value, valued?} =
-      case price do
-        %Decimal{} -> {Decimal.mult(quantity, price), true}
-        _ -> {nil, false}
-      end
+    {market_value, valued?} = market_value(quantity, price, security_currency, base_currency)
 
     %{
       securities_account_id: securities_account_id,
       security_id: security_id,
       security_name: security && security.name,
       asset_class: security && Security.effective_asset_class(security),
+      security_currency: security_currency,
       quantity: quantity,
       latest_price: price,
       market_value: market_value,
@@ -72,6 +80,18 @@ defmodule Portfolixir.Portfolios.Valuation do
       valued: valued?
     }
   end
+
+  defp market_value(quantity, %Decimal{} = price, from, base)
+       when is_binary(from) and is_binary(base) do
+    native = Decimal.mult(quantity, price)
+
+    case Fx.convert(native, from, base) do
+      {:ok, converted} -> {converted, true}
+      {:error, _reason} -> {nil, false}
+    end
+  end
+
+  defp market_value(_quantity, _price, _from, _base), do: {nil, false}
 
   defp price_for(security_id, prices) do
     case Map.get(prices, security_id) do
@@ -83,6 +103,13 @@ defmodule Portfolixir.Portfolios.Valuation do
   defp latest_close(security_id) do
     case Quotes.latest(security_id) do
       %{close: %Decimal{} = close} -> close
+      _ -> nil
+    end
+  end
+
+  defp base_currency_for(portfolio_id) do
+    case Portfolios.get_portfolio(portfolio_id) do
+      %{base_currency_code: code} -> code
       _ -> nil
     end
   end
