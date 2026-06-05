@@ -280,6 +280,8 @@ const toolDefinitions: ToolDefinition[] = [
     required: ["portfolio_id"],
     properties: { portfolio_id: { type: "integer", minimum: 1 } }
   }, z.object({ portfolio_id: z.number().int().positive() })),
+  tool("portfolixir.exchange_rates.list", "List exchange rates", "List stored EUR-hub exchange rates.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store the latest exchange rates from the configured provider.", emptyObjectSchema, emptyObjectZ),
   tool(
     "portfolixir.trades.list",
     "List trades",
@@ -358,6 +360,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("GET", `/api/v1/portfolios/${args.portfolio_id}/holdings`);
     case "portfolixir.portfolios.valuation":
       return client.request("GET", `/api/v1/portfolios/${args.portfolio_id}/valuation`);
+    case "portfolixir.exchange_rates.list":
+      return client.request("GET", "/api/v1/exchange_rates");
+    case "portfolixir.exchange_rates.sync":
+      return client.request("POST", "/api/v1/exchange_rates/sync", {});
     case "portfolixir.trades.list":
       return client.request("GET", `/api/v1/securities/${args.security_id}/trades`);
     default:

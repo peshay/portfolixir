@@ -27,4 +27,9 @@ config :portfolixir, Portfolixir.Catalog.QuoteSync,
     "portfolio_performance" => Portfolixir.Catalog.QuoteSync.Yahoo
   }
 
+config :portfolixir, Portfolixir.Fx.RateSync,
+  enabled?: false,
+  interval_ms: 12 * 60 * 60 * 1000,
+  provider: Portfolixir.Fx.RateSync.Ecb
+
 import_config "#{Mix.env()}.exs"
