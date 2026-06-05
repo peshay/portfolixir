@@ -10,6 +10,10 @@ defmodule Portfolixir.MixProject do
       start_permanent: Mix.env() == :prod,
       licenses: ["MIT"],
       test_coverage: [tool: ExCoveralls],
+      dialyzer: [
+        plt_local_path: "priv/plts",
+        plt_core_path: "priv/plts"
+      ],
       aliases: aliases(),
       deps: deps()
     ]
@@ -48,6 +52,9 @@ defmodule Portfolixir.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_view, "~> 0.20.17"},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
       {:floki, ">= 0.36.0", only: :test},
       {:jason, "~> 1.4"},
       {:nimble_csv, "~> 1.2"},
