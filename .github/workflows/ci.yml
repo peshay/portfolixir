@@ -74,8 +74,61 @@ jobs:
           MIX_ENV=test mix ecto.create
           MIX_ENV=test mix ecto.migrate
 
-      - name: Run test suite
-        run: MIX_ENV=test mix test
+      - name: Run test suite with coverage
+        run: MIX_ENV=test mix coveralls.json
 
-      - name: Run coverage suite
-        run: MIX_ENV=test mix coveralls
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./cover/excoveralls.json
+          fail_ci_if_error: false
+
+  quality:
+    runs-on: ubuntu-latest
+    needs: pre-commit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.3'
+          otp-version: '27'
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      # Credo, Sobelow and Dialyzer are introduced as report-only for now:
+      # findings show up in the logs but do not fail CI. Tighten by removing
+      # the continue-on-error flags once the existing findings are addressed.
+      - name: Credo
+        continue-on-error: true
+        run: mix credo --strict
+
+      - name: Sobelow (security)
+        continue-on-error: true
+        run: mix sobelow --exit
+
+      - name: Restore PLT cache
+        uses: actions/cache@v4
+        id: plt-cache
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-otp27-elixir1.18.3-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-plt-otp27-elixir1.18.3-
+
+      - name: Build PLT
+        if: steps.plt-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: mix dialyzer --plt
+
+      - name: Dialyzer
+        continue-on-error: true
+        run: mix dialyzer --format github
