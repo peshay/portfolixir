@@ -26,6 +26,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.transactions.create",
       "portfolixir.holdings.list",
       "portfolixir.portfolios.valuation",
+      "portfolixir.exchange_rates.list",
+      "portfolixir.exchange_rates.sync",
       "portfolixir.trades.list"
     ]);
 
@@ -171,6 +173,35 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/portfolios/3/valuation");
     assert.equal(requests[0].token, "Bearer api-token");
     assert.match(result.content[0].text, /0\.5/);
+  });
+
+  it("issues a POST to /exchange_rates/sync for portfolixir.exchange_rates.sync", async () => {
+    const requests: Array<{ method: string; path: string; body?: unknown; token: string }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined,
+          token: String(init?.headers?.["authorization"])
+        });
+
+        return new Response(
+          JSON.stringify({ data: { provider: "ecb", status: "ok", upserted: 25 } }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.exchange_rates.sync", {});
+
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/exchange_rates/sync");
+    assert.deepEqual(requests[0].body, {});
+    assert.match(result.content[0].text, /ecb/);
   });
 
   it("passes richer quote sync status responses through unchanged", async () => {
