@@ -25,6 +25,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.transactions.list",
       "portfolixir.transactions.create",
       "portfolixir.holdings.list",
+      "portfolixir.portfolios.valuation",
       "portfolixir.trades.list"
     ]);
 
@@ -135,6 +136,41 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/securities/42/trades");
     assert.equal(requests[0].token, "Bearer api-token");
     assert.match(result.content[0].text, /500/);
+  });
+
+  it("issues a GET to /valuation for portfolixir.portfolios.valuation", async () => {
+    const requests: Array<{ method: string; path: string; token: string }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          token: String(init?.headers?.["authorization"])
+        });
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              portfolio_id: 3,
+              total_value: "2000",
+              unvalued_count: 0,
+              positions: [{ security_id: 9, market_value: "1000", weight: "0.5", valued: true }]
+            }
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.portfolios.valuation", { portfolio_id: 3 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/valuation");
+    assert.equal(requests[0].token, "Bearer api-token");
+    assert.match(result.content[0].text, /0\.5/);
   });
 
   it("passes richer quote sync status responses through unchanged", async () => {
