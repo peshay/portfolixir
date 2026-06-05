@@ -153,6 +153,9 @@ Example account payloads:
   Weights are raw shares (`market_value / total_value`) emitted at full Decimal
   precision; because they are normalized ratios they need not sum to exactly
   `1` (round for display). Market values and `total_value` are exact.
+  Single currency: quote closes are summed without FX conversion, so
+  `total_value` and weights are only meaningful when all positions share one
+  currency (consistent with holdings and trades; an FX layer is future work).
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
   period in days) and any orphan sells.
