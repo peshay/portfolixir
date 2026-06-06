@@ -63,6 +63,22 @@ defmodule PortfolixirWeb.Router do
     get("/exchange_rates", ExchangeRateController, :index)
     post("/exchange_rates/sync", ExchangeRateController, :sync)
 
+    get("/classifications", ClassificationController, :index)
+    post("/classifications", ClassificationController, :create)
+    put("/classifications/:classification_id/assignments", ClassificationController, :assign)
+
+    post(
+      "/classifications/:classification_id/categories",
+      ClassificationController,
+      :create_category
+    )
+
+    delete(
+      "/classifications/:classification_id/assignments/:security_id",
+      ClassificationController,
+      :unassign
+    )
+
     get("/cash_accounts", CashAccountController, :index)
     post("/cash_accounts", CashAccountController, :create)
 

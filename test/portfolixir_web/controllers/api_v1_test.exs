@@ -583,6 +583,66 @@ defmodule PortfolixirWeb.ApiV1Test do
   end
 
   # User story:
+  # As an API client (and the LLM behind it),
+  # I want to read classification trees and build custom ones with assignments,
+  # so that securities can be organised like folders, alongside the locked
+  # built-in asset-class and currency trees.
+  test "lists built-in classifications and manages custom trees", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{name: "Apple", currency_code: "USD", asset_class: "equity"})
+
+    trees =
+      conn
+      |> api_conn()
+      |> get("/api/v1/classifications")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    asset = Enum.find(trees, &(&1["key"] == "asset_class"))
+    assert asset["built_in"] == true
+    assert Enum.any?(asset["categories"], &(&1["key"] == "equity"))
+
+    classification =
+      conn
+      |> post_json("/api/v1/classifications", %{"classification" => %{"name" => "My Strategy"}})
+      |> json_response(201)
+      |> Map.fetch!("data")
+
+    refute classification["built_in"]
+
+    category =
+      conn
+      |> post_json("/api/v1/classifications/#{classification["id"]}/categories", %{
+        "category" => %{"name" => "Core", "color" => "#7C3AED"}
+      })
+      |> json_response(201)
+      |> Map.fetch!("data")
+
+    assert category["color"] == "#7c3aed"
+
+    assignment =
+      conn
+      |> put_json("/api/v1/classifications/#{classification["id"]}/assignments", %{
+        "security_id" => security.id,
+        "category_id" => category["id"]
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert assignment["category_id"] == category["id"]
+
+    # Built-in trees reject structural edits.
+    locked =
+      conn
+      |> post_json("/api/v1/classifications/#{asset["id"]}/categories", %{
+        "category" => %{"name" => "Nope"}
+      })
+      |> json_response(422)
+
+    assert locked["errors"]["detail"] =~ "built-in"
+  end
+
+  # User story:
   # As an API client filtering quote history by date,
   # I want invalid date parameters to return field-specific validation errors,
   # so that clients can distinguish malformed filters from missing securities.

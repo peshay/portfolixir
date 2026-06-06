@@ -205,6 +205,85 @@ const transactionSchema = objectWith("transaction", {
   }
 });
 
+const classificationSchema = objectWith("classification", {
+  type: "object",
+  required: ["name"],
+  properties: {
+    name: { type: "string" },
+    position: { type: "integer" },
+    description: { type: "string" }
+  }
+});
+
+const classificationZ = z.object({
+  classification: z.object({
+    name: z.string(),
+    position: z.number().int().optional(),
+    description: optionalString
+  })
+});
+
+const categorySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["classification_id", "category"],
+  properties: {
+    classification_id: { type: "integer", minimum: 1 },
+    category: {
+      type: "object",
+      required: ["name"],
+      properties: {
+        name: { type: "string" },
+        color: { type: "string" },
+        parent_id: { type: "integer", minimum: 1 },
+        position: { type: "integer" }
+      }
+    }
+  }
+};
+
+const categoryZ = z.object({
+  classification_id: z.number().int().positive(),
+  category: z.object({
+    name: z.string(),
+    color: optionalString,
+    parent_id: z.number().int().positive().optional(),
+    position: z.number().int().optional()
+  })
+});
+
+const assignSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["classification_id", "security_id", "category_id"],
+  properties: {
+    classification_id: { type: "integer", minimum: 1 },
+    security_id: { type: "integer", minimum: 1 },
+    category_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const assignZ = z.object({
+  classification_id: z.number().int().positive(),
+  security_id: z.number().int().positive(),
+  category_id: z.number().int().positive()
+});
+
+const unassignSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["classification_id", "security_id"],
+  properties: {
+    classification_id: { type: "integer", minimum: 1 },
+    security_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const unassignZ = z.object({
+  classification_id: z.number().int().positive(),
+  security_id: z.number().int().positive()
+});
+
 const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.list", "List securities", "List local securities.", {
     type: "object",
@@ -282,6 +361,11 @@ const toolDefinitions: ToolDefinition[] = [
   }, z.object({ portfolio_id: z.number().int().positive() })),
   tool("portfolixir.exchange_rates.list", "List exchange rates", "List stored EUR-hub exchange rates.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store the latest exchange rates from the configured provider.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and security assignments.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
+  tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom classification.", categorySchema, categoryZ),
+  tool("portfolixir.classifications.assign", "Assign security", "Assign a security to a category of a custom classification.", assignSchema, assignZ),
+  tool("portfolixir.classifications.unassign", "Unassign security", "Remove a security's assignment from a classification.", unassignSchema, unassignZ),
   tool(
     "portfolixir.trades.list",
     "List trades",
@@ -364,6 +448,29 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("GET", "/api/v1/exchange_rates");
     case "portfolixir.exchange_rates.sync":
       return client.request("POST", "/api/v1/exchange_rates/sync", {});
+    case "portfolixir.classifications.list":
+      return client.request("GET", "/api/v1/classifications");
+    case "portfolixir.classifications.create":
+      return client.request("POST", "/api/v1/classifications", {
+        classification: args.classification
+      });
+    case "portfolixir.classifications.categories.create":
+      return client.request(
+        "POST",
+        `/api/v1/classifications/${args.classification_id}/categories`,
+        { category: args.category }
+      );
+    case "portfolixir.classifications.assign":
+      return client.request(
+        "PUT",
+        `/api/v1/classifications/${args.classification_id}/assignments`,
+        { security_id: args.security_id, category_id: args.category_id }
+      );
+    case "portfolixir.classifications.unassign":
+      return client.request(
+        "DELETE",
+        `/api/v1/classifications/${args.classification_id}/assignments/${args.security_id}`
+      );
     case "portfolixir.trades.list":
       return client.request("GET", `/api/v1/securities/${args.security_id}/trades`);
     default:

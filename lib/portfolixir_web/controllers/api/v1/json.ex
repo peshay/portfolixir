@@ -5,6 +5,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
+  alias Portfolixir.Classifications.Assignment
+  alias Portfolixir.Classifications.Category
+  alias Portfolixir.Classifications.Classification
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount}
@@ -211,6 +214,50 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       weight: decimal(position.weight),
       valued: position.valued
     }
+  end
+
+  def classification_tree(%{classification: classification} = tree) do
+    classification
+    |> classification()
+    |> Map.merge(%{
+      categories: Enum.map(tree.categories, &category/1),
+      assignments: Enum.map(tree.assignments, &assignment/1)
+    })
+  end
+
+  def classification(%Classification{} = classification) do
+    %{
+      id: classification.id,
+      name: classification.name,
+      key: classification.key,
+      built_in: classification.built_in,
+      position: classification.position,
+      description: classification.description
+    }
+  end
+
+  def category(%Category{} = category) do
+    %{
+      id: category.id,
+      classification_id: category.classification_id,
+      parent_id: category.parent_id,
+      name: category.name,
+      key: category.key,
+      color: category.color,
+      position: category.position
+    }
+  end
+
+  def assignment(%Assignment{} = assignment) do
+    %{
+      security_id: assignment.security_id,
+      classification_id: assignment.classification_id,
+      category_id: assignment.category_id
+    }
+  end
+
+  def assignment(%{security_id: security_id, category_id: category_id}) do
+    %{security_id: security_id, category_id: category_id}
   end
 
   def exchange_rate(%ExchangeRate{} = rate) do
