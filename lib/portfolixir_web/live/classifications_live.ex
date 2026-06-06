@@ -5,27 +5,63 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias Portfolixir.Classifications
   alias PortfolixirWeb.AppShell
 
-  @new_classification %{"name" => ""}
-
   @impl true
   def mount(_params, _session, socket) do
+    Classifications.ensure_builtins()
+
     {:ok,
      socket
-     |> assign(:classification_form, @new_classification)
      |> assign(:error, nil)
      |> assign(:success, nil)
-     |> load_state()}
+     |> assign(:selected_id, nil)
+     |> assign(:tree, nil)
+     |> assign(:current_path, "/classifications")}
   end
 
   @impl true
-  def render(assigns) do
+  def handle_params(params, uri, socket) do
+    path = URI.parse(uri).path
+
+    {:noreply,
+     socket
+     |> assign(:current_path, path)
+     |> apply_action(socket.assigns.live_action, params)}
+  end
+
+  defp apply_action(socket, :index, _params) do
+    assign(socket, selected_id: nil, tree: nil)
+  end
+
+  defp apply_action(socket, :new, _params) do
+    assign(socket, selected_id: nil, tree: nil)
+  end
+
+  defp apply_action(socket, :show, %{"id" => id}) do
+    case Integer.parse(id) do
+      {classification_id, ""} -> load_show(socket, classification_id)
+      _ -> push_navigate(socket, to: "/classifications")
+    end
+  end
+
+  @impl true
+  def render(%{live_action: :show, tree: nil} = assigns) do
+    ~H"""
+    <AppShell.shell current_path={@current_path} page_title={gettext("Classifications")}>
+      <div class="workspace-page">
+        <p class="alert-error" role="alert"><%= gettext("Classification not found") %></p>
+      </div>
+    </AppShell.shell>
+    """
+  end
+
+  def render(%{live_action: :show} = assigns) do
     ~H"""
     <AppShell.shell
-      current_path="/classifications"
-      page_title={gettext("Classifications")}
-      page_subtitle={gettext("Organise securities into built-in and custom trees")}
+      current_path={@current_path}
+      page_title={@tree.classification.name}
+      page_subtitle={gettext("Organise securities by dragging them between categories")}
     >
-      <div id="classifications-workspace" phx-hook="ClassificationDnD" class="workspace-page">
+      <div id="classifications-workspace" phx-hook="ClassificationDnD" class="workspace-page classifications-detail">
         <%= if @error do %>
           <p class="alert-error" role="alert"><%= @error %></p>
         <% end %>
@@ -33,94 +69,169 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <p class="alert-success" role="status"><%= @success %></p>
         <% end %>
 
+        <header class="detail-head">
+          <h2>
+            <%= @tree.classification.name %>
+            <%= if @tree.classification.built_in do %>
+              <span class="badge"><%= gettext("Built-in") %></span>
+            <% end %>
+          </h2>
+          <%= if @tree.editable do %>
+            <button
+              type="button"
+              class="button-danger"
+              phx-click="delete_classification"
+              data-confirm={gettext("Delete this classification and all its categories?")}
+            >
+              <%= gettext("Delete classification") %>
+            </button>
+          <% end %>
+        </header>
+
+        <%= if @tree.editable do %>
+          <form phx-submit="create_category" class="inline-form category-form">
+            <input type="hidden" name="category[classification_id]" value={@tree.classification.id} />
+            <label>
+              <span><%= gettext("New category") %></span>
+              <input name="category[name]" required />
+            </label>
+            <label>
+              <span><%= gettext("Parent") %></span>
+              <select name="category[parent_id]">
+                <option value=""><%= gettext("— Top level —") %></option>
+                <%= for {category, depth} <- @tree.flat do %>
+                  <option value={category.id}><%= indent(depth) %><%= category.name %></option>
+                <% end %>
+              </select>
+            </label>
+            <label>
+              <span><%= gettext("Color") %></span>
+              <input type="color" name="category[color]" value="#7c3aed" />
+            </label>
+            <button type="submit"><%= gettext("Add") %></button>
+          </form>
+        <% end %>
+
+        <section class="tree">
+          <%= for node <- @tree.nodes do %>
+            <.category_node node={node} classification_id={@tree.classification.id} editable={@tree.editable} />
+          <% end %>
+          <%= if @tree.nodes == [] do %>
+            <p class="hint"><%= gettext("No categories yet.") %></p>
+          <% end %>
+        </section>
+
+        <details class="cat-node unsorted-node" open {unsorted_attrs(@tree)}>
+          <summary class="cat-summary">
+            <span class="cat-swatch is-empty" aria-hidden="true"></span>
+            <span class="cat-name"><%= gettext("Unsorted") %></span>
+            <span class="cat-count"><%= length(@tree.unsorted) %></span>
+          </summary>
+          <div class="cat-body">
+            <ul class="cat-securities">
+              <%= for security <- @tree.unsorted do %>
+                <li
+                  class={["dnd-chip", @tree.editable && "is-draggable"]}
+                  draggable={if @tree.editable, do: "true", else: nil}
+                  data-drag-security={if @tree.editable, do: security.id, else: nil}
+                >
+                  <span><%= security.name %></span>
+                  <small><%= security.currency_code %></small>
+                </li>
+              <% end %>
+              <%= if @tree.unsorted == [] do %>
+                <li class="hint"><%= gettext("Everything is sorted.") %></li>
+              <% end %>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </AppShell.shell>
+    """
+  end
+
+  def render(%{live_action: :new} = assigns) do
+    ~H"""
+    <AppShell.shell current_path={@current_path} page_title={gettext("New classification")}>
+      <div class="workspace-page">
+        <%= if @error do %>
+          <p class="alert-error" role="alert"><%= @error %></p>
+        <% end %>
         <section class="workspace-section">
           <h2><%= gettext("Create classification") %></h2>
           <form id="classification-form" phx-submit="create_classification" class="inline-form">
             <label>
               <span><%= gettext("Name") %></span>
-              <input name="classification[name]" value={@classification_form["name"]} required />
+              <input name="classification[name]" required autofocus />
             </label>
             <button type="submit"><%= gettext("Create classification") %></button>
           </form>
-        </section>
-
-        <div class="classification-grid">
-          <%= for tree <- @trees do %>
-            <article class="classification-tree">
-              <header class="classification-head">
-                <h3><%= tree.classification.name %></h3>
-                <%= if tree.classification.built_in do %>
-                  <span class="badge"><%= gettext("Built-in") %></span>
-                <% end %>
-              </header>
-
-              <%= unless tree.classification.built_in do %>
-                <form phx-submit="create_category" class="inline-form category-form">
-                  <input type="hidden" name="category[classification_id]" value={tree.classification.id} />
-                  <input name="category[name]" placeholder={gettext("New category")} required />
-                  <input type="color" name="category[color]" value="#7c3aed" aria-label={gettext("Color")} />
-                  <button type="submit"><%= gettext("Add") %></button>
-                </form>
-              <% end %>
-
-              <div class="category-list">
-                <%= for view <- tree.categories do %>
-                  <div class={category_class(tree)} {drop_attrs(tree, view.category)}>
-                    <div class="category-head">
-                      <span class="cat-swatch" style={swatch(view.category.color)} aria-hidden="true"></span>
-                      <span class="cat-name"><%= view.category.name %></span>
-                      <span class="cat-count"><%= length(view.securities) %></span>
-                    </div>
-                    <ul class="cat-securities">
-                      <%= for security <- view.securities do %>
-                        <li class="dnd-chip is-member">
-                          <span><%= security.name %></span>
-                          <%= unless tree.classification.built_in do %>
-                            <button
-                              type="button"
-                              class="chip-remove"
-                              phx-click="unassign"
-                              phx-value-security_id={security.id}
-                              phx-value-classification_id={tree.classification.id}
-                              aria-label={gettext("Remove")}
-                            >×</button>
-                          <% end %>
-                        </li>
-                      <% end %>
-                    </ul>
-                  </div>
-                <% end %>
-              </div>
-            </article>
-          <% end %>
-        </div>
-
-        <section class="workspace-section securities-palette">
-          <h2><%= gettext("Securities") %></h2>
-          <p class="hint"><%= gettext("Drag a security into a custom category.") %></p>
-          <ul class="palette-list">
-            <%= for security <- @securities do %>
-              <li class="dnd-chip" draggable="true" data-drag-security={security.id}>
-                <span><%= security.name %></span>
-                <small><%= security.currency_code %></small>
-              </li>
-            <% end %>
-          </ul>
         </section>
       </div>
     </AppShell.shell>
     """
   end
 
+  def render(assigns) do
+    ~H"""
+    <AppShell.shell current_path={@current_path} page_title={gettext("Classifications")}>
+      <div class="workspace-page">
+        <section class="workspace-section empty-state">
+          <h2><%= gettext("Classifications") %></h2>
+          <p><%= gettext("Pick a classification on the left, or create a new one.") %></p>
+          <.link navigate="/classifications/new" class="button">
+            <%= gettext("New classification") %>
+          </.link>
+        </section>
+      </div>
+    </AppShell.shell>
+    """
+  end
+
+  defp category_node(assigns) do
+    ~H"""
+    <details class="cat-node" open {category_attrs(@editable, @classification_id, @node.category.id)}>
+      <summary class="cat-summary">
+        <span class="cat-swatch" style={swatch(@node.category.color)} aria-hidden="true"></span>
+        <span class="cat-name"><%= @node.category.name %></span>
+        <span class="cat-count"><%= length(@node.securities) %></span>
+        <%= if @editable do %>
+          <button
+            type="button"
+            class="chip-remove"
+            phx-click="delete_category"
+            phx-value-id={@node.category.id}
+            data-confirm={gettext("Delete this category?")}
+            aria-label={gettext("Delete category")}
+          >×</button>
+        <% end %>
+      </summary>
+      <div class="cat-body">
+        <ul class="cat-securities">
+          <%= for security <- @node.securities do %>
+            <li
+              class={["dnd-chip", @editable && "is-draggable"]}
+              draggable={if @editable, do: "true", else: nil}
+              data-drag-security={if @editable, do: security.id, else: nil}
+            >
+              <span><%= security.name %></span>
+              <small><%= security.currency_code %></small>
+            </li>
+          <% end %>
+        </ul>
+        <%= for child <- @node.children do %>
+          <.category_node node={child} classification_id={@classification_id} editable={@editable} />
+        <% end %>
+      </div>
+    </details>
+    """
+  end
+
   @impl true
   def handle_event("create_classification", %{"classification" => params}, socket) do
     case Classifications.create_classification(params) do
-      {:ok, _classification} ->
-        {:noreply,
-         socket
-         |> assign(:classification_form, @new_classification)
-         |> success(gettext("Classification created"))
-         |> load_state()}
+      {:ok, classification} ->
+        {:noreply, push_navigate(socket, to: "/classifications/#{classification.id}")}
 
       {:error, changeset} ->
         {:noreply, failure(socket, changeset_error(changeset))}
@@ -130,10 +241,32 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("create_category", %{"category" => params}, socket) do
     case Classifications.create_category(params) do
       {:ok, _category} ->
-        {:noreply, socket |> success(gettext("Category created")) |> load_state()}
+        {:noreply, socket |> success(gettext("Category created")) |> reload()}
 
       {:error, reason} ->
         {:noreply, failure(socket, error_message(reason))}
+    end
+  end
+
+  def handle_event("delete_category", %{"id" => id}, socket) do
+    with {:ok, category_id} <- coerce_id(id),
+         category when not is_nil(category) <- Classifications.get_category(category_id),
+         {:ok, _} <- Classifications.delete_category(category) do
+      {:noreply, socket |> success(gettext("Category deleted")) |> reload()}
+    else
+      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("delete_classification", _params, socket) do
+    with id when not is_nil(id) <- socket.assigns.selected_id,
+         classification when not is_nil(classification) <- Classifications.get_classification(id),
+         {:ok, _} <- Classifications.delete_classification(classification) do
+      {:noreply, push_navigate(socket, to: "/classifications")}
+    else
+      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
+      _ -> {:noreply, socket}
     end
   end
 
@@ -143,7 +276,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
          {:ok, category_id} <- coerce_id(params["category_id"]),
          {:ok, _assignment} <-
            Classifications.assign_security(security_id, classification_id, category_id) do
-      {:noreply, load_state(socket)}
+      {:noreply, reload(socket)}
     else
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
       :error -> {:noreply, socket}
@@ -154,52 +287,113 @@ defmodule PortfolixirWeb.ClassificationsLive do
     with {:ok, security_id} <- coerce_id(params["security_id"]),
          {:ok, classification_id} <- coerce_id(params["classification_id"]) do
       {:ok, _} = Classifications.unassign_security(security_id, classification_id)
-      {:noreply, load_state(socket)}
+      {:noreply, reload(socket)}
     else
       :error -> {:noreply, socket}
     end
   end
 
-  defp load_state(socket) do
+  # -- data loading ---------------------------------------------------------
+
+  defp reload(%{assigns: %{selected_id: nil}} = socket), do: socket
+  defp reload(socket), do: load_show(socket, socket.assigns.selected_id)
+
+  defp load_show(socket, classification_id) do
+    tree = Enum.find(Classifications.list_trees(), &(&1.classification.id == classification_id))
+
+    if tree do
+      assign(socket, selected_id: classification_id, tree: build_view(tree))
+    else
+      assign(socket, selected_id: nil, tree: nil)
+    end
+  end
+
+  defp build_view(tree) do
     securities = Catalog.list_securities()
     securities_by_id = Map.new(securities, &{&1.id, &1})
 
-    trees = Enum.map(Classifications.list_trees(), &build_tree_view(&1, securities_by_id))
-
-    assign(socket, securities: securities, trees: trees)
-  end
-
-  defp build_tree_view(tree, securities_by_id) do
     by_category =
       tree.assignments
       |> Enum.group_by(& &1.category_id, & &1.security_id)
-
-    categories =
-      Enum.map(tree.categories, fn category ->
+      |> Map.new(fn {category_id, ids} ->
         members =
-          by_category
-          |> Map.get(category.id, [])
+          ids
           |> Enum.map(&Map.get(securities_by_id, &1))
           |> Enum.reject(&is_nil/1)
           |> Enum.sort_by(& &1.name)
 
-        %{category: category, securities: members}
+        {category_id, members}
       end)
 
-    %{classification: tree.classification, categories: categories}
+    assigned_ids = MapSet.new(tree.assignments, & &1.security_id)
+
+    unsorted =
+      securities
+      |> Enum.reject(&MapSet.member?(assigned_ids, &1.id))
+      |> Enum.sort_by(& &1.name)
+
+    grouped = Enum.group_by(tree.categories, & &1.parent_id)
+
+    %{
+      classification: tree.classification,
+      editable: not tree.classification.built_in,
+      nodes: build_nodes(grouped, nil, by_category),
+      flat: flatten(tree.categories),
+      unsorted: unsorted
+    }
   end
 
-  defp drop_attrs(%{classification: %{built_in: true}}, _category), do: []
+  defp build_nodes(grouped, parent_id, by_category) do
+    grouped
+    |> Map.get(parent_id, [])
+    |> Enum.map(fn category ->
+      %{
+        category: category,
+        securities: Map.get(by_category, category.id, []),
+        children: build_nodes(grouped, category.id, by_category)
+      }
+    end)
+  end
 
-  defp drop_attrs(%{classification: classification}, category) do
+  # Flat, depth-tagged list of categories for the parent <select>.
+  defp flatten(categories) do
+    grouped = Enum.group_by(categories, & &1.parent_id)
+    flatten_level(grouped, nil, 0)
+  end
+
+  defp flatten_level(grouped, parent_id, depth) do
+    grouped
+    |> Map.get(parent_id, [])
+    |> Enum.flat_map(fn category ->
+      [{category, depth} | flatten_level(grouped, category.id, depth + 1)]
+    end)
+  end
+
+  # -- view helpers ---------------------------------------------------------
+
+  defp category_attrs(false, _classification_id, _category_id), do: []
+
+  defp category_attrs(true, classification_id, category_id) do
     [
-      {"data-drop-category", category.id},
-      {"data-drop-classification", classification.id}
+      {"data-dropzone", ""},
+      {"data-drop-kind", "category"},
+      {"data-classification", classification_id},
+      {"data-category", category_id}
     ]
   end
 
-  defp category_class(%{classification: %{built_in: true}}), do: "dnd-dropzone is-builtin"
-  defp category_class(_tree), do: "dnd-dropzone"
+  defp unsorted_attrs(%{editable: false}), do: []
+
+  defp unsorted_attrs(%{editable: true, classification: %{id: id}}) do
+    [
+      {"data-dropzone", ""},
+      {"data-drop-kind", "unassign"},
+      {"data-classification", id}
+    ]
+  end
+
+  defp indent(0), do: ""
+  defp indent(depth), do: String.duplicate("— ", depth)
 
   defp swatch(nil), do: nil
   defp swatch(color), do: "background:#{color}"

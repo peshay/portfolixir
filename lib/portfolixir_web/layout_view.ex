@@ -583,7 +583,7 @@ defmodule PortfolixirWeb.LayoutView do
                 var el = this.el;
 
                 function zoneFrom(target) {
-                  return target && target.closest ? target.closest("[data-drop-category]") : null;
+                  return target && target.closest ? target.closest("[data-dropzone]") : null;
                 }
 
                 this._onDragStart = function (event) {
@@ -612,11 +612,19 @@ defmodule PortfolixirWeb.LayoutView do
                   zone.classList.remove("is-dropping");
                   var securityId = event.dataTransfer.getData("text/plain");
                   if (!securityId) return;
-                  self.pushEvent("assign_security", {
-                    security_id: parseInt(securityId, 10),
-                    classification_id: parseInt(zone.getAttribute("data-drop-classification"), 10),
-                    category_id: parseInt(zone.getAttribute("data-drop-category"), 10)
-                  });
+                  var classificationId = parseInt(zone.getAttribute("data-classification"), 10);
+                  if (zone.getAttribute("data-drop-kind") === "unassign") {
+                    self.pushEvent("unassign", {
+                      security_id: parseInt(securityId, 10),
+                      classification_id: classificationId
+                    });
+                  } else {
+                    self.pushEvent("assign_security", {
+                      security_id: parseInt(securityId, 10),
+                      classification_id: classificationId,
+                      category_id: parseInt(zone.getAttribute("data-category"), 10)
+                    });
+                  }
                 };
 
                 el.addEventListener("dragstart", this._onDragStart);
