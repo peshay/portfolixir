@@ -577,6 +577,62 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            Hooks.ClassificationDnD = {
+              mounted: function () {
+                var self = this;
+                var el = this.el;
+
+                function zoneFrom(target) {
+                  return target && target.closest ? target.closest("[data-drop-category]") : null;
+                }
+
+                this._onDragStart = function (event) {
+                  var chip = event.target.closest
+                    ? event.target.closest("[data-drag-security]")
+                    : null;
+                  if (!chip) return;
+                  event.dataTransfer.setData("text/plain", chip.getAttribute("data-drag-security"));
+                  event.dataTransfer.effectAllowed = "move";
+                };
+                this._onDragOver = function (event) {
+                  var zone = zoneFrom(event.target);
+                  if (!zone) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  zone.classList.add("is-dropping");
+                };
+                this._onDragLeave = function (event) {
+                  var zone = zoneFrom(event.target);
+                  if (zone) zone.classList.remove("is-dropping");
+                };
+                this._onDrop = function (event) {
+                  var zone = zoneFrom(event.target);
+                  if (!zone) return;
+                  event.preventDefault();
+                  zone.classList.remove("is-dropping");
+                  var securityId = event.dataTransfer.getData("text/plain");
+                  if (!securityId) return;
+                  self.pushEvent("assign_security", {
+                    security_id: parseInt(securityId, 10),
+                    classification_id: parseInt(zone.getAttribute("data-drop-classification"), 10),
+                    category_id: parseInt(zone.getAttribute("data-drop-category"), 10)
+                  });
+                };
+
+                el.addEventListener("dragstart", this._onDragStart);
+                el.addEventListener("dragover", this._onDragOver);
+                el.addEventListener("dragleave", this._onDragLeave);
+                el.addEventListener("drop", this._onDrop);
+              },
+              destroyed: function () {
+                var el = this.el;
+                el.removeEventListener("dragstart", this._onDragStart);
+                el.removeEventListener("dragover", this._onDragOver);
+                el.removeEventListener("dragleave", this._onDragLeave);
+                el.removeEventListener("drop", this._onDrop);
+              }
+            };
+
             var liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
               hooks: Hooks,
               params: { _csrf_token: csrfToken }
