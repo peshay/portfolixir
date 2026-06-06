@@ -12,12 +12,7 @@ defmodule Portfolixir.Repo.Migrations.CreateClassifications do
       timestamps()
     end
 
-    create(
-      unique_index(:classifications, [:key],
-        where: "key IS NOT NULL",
-        name: :classifications_key_index
-      )
-    )
+    create(unique_index(:classifications, [:key]))
 
     create table(:classification_categories) do
       add(:classification_id, references(:classifications, on_delete: :delete_all), null: false)
@@ -33,12 +28,7 @@ defmodule Portfolixir.Repo.Migrations.CreateClassifications do
     create(index(:classification_categories, [:classification_id]))
     create(index(:classification_categories, [:parent_id]))
 
-    create(
-      unique_index(:classification_categories, [:classification_id, :key],
-        where: "key IS NOT NULL",
-        name: :classification_categories_classification_id_key_index
-      )
-    )
+    create(unique_index(:classification_categories, [:classification_id, :key]))
 
     create table(:security_category_assignments) do
       add(:security_id, references(:securities, on_delete: :delete_all), null: false)
