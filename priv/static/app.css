@@ -3175,3 +3175,131 @@ img.security-logo {
   gap: 0.5rem;
   justify-content: center;
 }
+
+/* Classifications workspace */
+.classification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.classification-tree {
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.85rem;
+  background: var(--color-surface, var(--color-bg));
+}
+.classification-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.classification-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.classification-tree .badge {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--color-accent-soft, var(--color-border));
+  color: var(--color-accent, var(--color-text));
+}
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+}
+.category-form {
+  margin-bottom: 0.6rem;
+}
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.dnd-dropzone {
+  border: 1px dashed var(--color-border);
+  border-radius: 0.6rem;
+  padding: 0.5rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.dnd-dropzone.is-builtin {
+  border-style: solid;
+  opacity: 0.95;
+}
+.dnd-dropzone.is-dropping {
+  border-color: var(--color-accent-violet, #7c3aed);
+  background: var(--color-accent-soft, rgba(124, 58, 237, 0.08));
+}
+.category-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.cat-swatch {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--color-border);
+  display: inline-block;
+}
+.cat-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.cat-securities {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.dnd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  font-size: 0.8rem;
+  cursor: grab;
+}
+.dnd-chip.is-member {
+  cursor: default;
+}
+.dnd-chip small {
+  color: var(--color-text-muted, #6b7280);
+}
+.chip-remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-danger, #dc2626);
+  padding: 0;
+}
+.securities-palette {
+  margin-top: 1rem;
+}
+.palette-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+  margin: 0.2rem 0 0;
+}

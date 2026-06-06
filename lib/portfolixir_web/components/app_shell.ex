@@ -306,9 +306,10 @@ defmodule PortfolixirWeb.AppShell do
         title: gettext("Classifications"),
         items: [
           %{
-            id: "nav-classifications-asset-class",
-            label: gettext("Asset class"),
-            disabled: true,
+            id: "nav-classifications",
+            href: "/classifications",
+            label: gettext("Classifications"),
+            section: :classifications,
             icon: :tag
           },
           %{
@@ -360,6 +361,9 @@ defmodule PortfolixirWeb.AppShell do
 
   defp nav_current?(path, %{section: :imports}),
     do: String.starts_with?(path, "/imports")
+
+  defp nav_current?(path, %{section: :classifications}),
+    do: String.starts_with?(path, "/classifications")
 
   defp nav_current?(_path, _item), do: false
 
