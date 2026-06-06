@@ -51,7 +51,9 @@ defmodule Portfolixir.Classifications.Category do
   defp normalize_name(name) when is_binary(name), do: String.trim(name)
   defp normalize_name(name), do: name
 
-  defp normalize_color(color) when is_binary(color),
-    do: color |> String.trim() |> String.downcase()
+  defp normalize_color(color) when is_binary(color) do
+    color |> String.trim() |> String.downcase()
+  end
+
   defp normalize_color(color), do: color
 end
