@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
+  alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount}
 
@@ -212,7 +213,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  def exchange_rate(%Portfolixir.Fx.ExchangeRate{} = rate) do
+  def exchange_rate(%ExchangeRate{} = rate) do
     %{
       base_currency: rate.base_currency,
       quote_currency: rate.quote_currency,
