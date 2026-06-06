@@ -170,6 +170,25 @@ Example account payloads:
   provider (ECB daily reference rates by default) and returns `{provider,
   status, upserted}`. A provider failure returns `502 Bad Gateway`.
 
+## Classifications
+
+Classification trees organise securities like folders. Built-in trees
+(`asset_class`, `currency`) are derived automatically and locked; custom trees
+are editable. Editing a built-in tree returns `422 Unprocessable Entity`.
+
+- `GET /api/v1/classifications` lists every classification as a tree with its
+  `categories` and `assignments` (`{security_id, category_id}`). Built-in trees
+  carry `built_in: true` and a `key`.
+- `POST /api/v1/classifications` creates a custom classification from a
+  `classification` object (`name`, optional `position`, `description`).
+- `POST /api/v1/classifications/:classification_id/categories` adds a `category`
+  (`name`, optional `color`, `parent_id`, `position`) to a custom classification.
+- `PUT /api/v1/classifications/:classification_id/assignments` assigns a security
+  to a category (`security_id`, `category_id`), replacing any existing assignment
+  for that security in the classification.
+- `DELETE /api/v1/classifications/:classification_id/assignments/:security_id`
+  removes a security's assignment from the classification.
+
 Example transaction payload:
 
 ```json
@@ -212,4 +231,9 @@ in MCP schemas are strings.
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`
+- `portfolixir.classifications.list`
+- `portfolixir.classifications.create`
+- `portfolixir.classifications.categories.create`
+- `portfolixir.classifications.assign`
+- `portfolixir.classifications.unassign`
 - `portfolixir.trades.list`

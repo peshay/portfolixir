@@ -28,6 +28,11 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.portfolios.valuation",
       "portfolixir.exchange_rates.list",
       "portfolixir.exchange_rates.sync",
+      "portfolixir.classifications.list",
+      "portfolixir.classifications.create",
+      "portfolixir.classifications.categories.create",
+      "portfolixir.classifications.assign",
+      "portfolixir.classifications.unassign",
       "portfolixir.trades.list"
     ]);
 
@@ -202,6 +207,38 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/exchange_rates/sync");
     assert.deepEqual(requests[0].body, {});
     assert.match(result.content[0].text, /ecb/);
+  });
+
+  it("routes classification assignment to PUT /assignments with the body", async () => {
+    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined
+        });
+
+        return new Response(
+          JSON.stringify({ data: { security_id: 7, classification_id: 3, category_id: 9 } }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.classifications.assign", {
+      classification_id: 3,
+      security_id: 7,
+      category_id: 9
+    });
+
+    assert.equal(requests[0].method, "PUT");
+    assert.equal(requests[0].path, "/api/v1/classifications/3/assignments");
+    assert.deepEqual(requests[0].body, { security_id: 7, category_id: 9 });
+    assert.match(result.content[0].text, /category_id/);
   });
 
   it("passes richer quote sync status responses through unchanged", async () => {
