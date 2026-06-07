@@ -164,6 +164,35 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     refute filtered =~ "Apple"
   end
 
+  test "edits an existing category's name and description inline", %{conn: conn} do
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    view
+    |> element("button[phx-click='edit_category'][phx-value-id='#{category.id}']")
+    |> render_click()
+
+    assert has_element?(view, "form.cat-edit-form")
+
+    view
+    |> form("form.cat-edit-form", %{
+      "category" => %{
+        "id" => "#{category.id}",
+        "name" => "Core holdings",
+        "description" => "Buy and hold"
+      }
+    })
+    |> render_submit()
+
+    reloaded = Classifications.get_category(category.id)
+    assert reloaded.name == "Core holdings"
+    assert reloaded.description == "Buy and hold"
+  end
+
   defp assignments(classification_id) do
     Classifications.list_trees()
     |> Enum.find(&(&1.classification.id == classification_id))

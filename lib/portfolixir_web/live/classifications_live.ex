@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:selected_id, nil)
      |> assign(:tree, nil)
      |> assign(:query, "")
+     |> assign(:editing_id, nil)
      |> assign(:current_path, "/classifications")}
   end
 
@@ -39,7 +40,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp apply_action(socket, :show, %{"id" => id}) do
     case Integer.parse(id) do
-      {classification_id, ""} -> socket |> assign(:query, "") |> load_show(classification_id)
+      {classification_id, ""} ->
+        socket
+        |> assign(:query, "")
+        |> assign(:editing_id, nil)
+        |> load_show(classification_id)
       _ -> push_navigate(socket, to: "/classifications")
     end
   end
@@ -163,7 +168,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
         <section class="tree">
           <%= for node <- @tree.nodes do %>
-            <.category_node node={node} classification_id={@tree.classification.id} editable={@tree.editable} />
+            <.category_node
+              node={node}
+              classification_id={@tree.classification.id}
+              editable={@tree.editable}
+              editing_id={@editing_id}
+            />
           <% end %>
           <%= if @tree.nodes == [] and not @tree.filtering? do %>
             <p class="hint"><%= gettext("No categories yet.") %></p>
@@ -245,30 +255,76 @@ defmodule PortfolixirWeb.ClassificationsLive do
     <details class="cat-node" open {category_attrs(@editable, @classification_id, @node.category.id)}>
       <summary class="cat-summary">
         <span class="cat-swatch" style={swatch(@node.category.color)} aria-hidden="true"></span>
-        <span class="cat-name"><%= @node.category.name %></span>
+        <span class="cat-name">
+          <%= @node.category.name %>
+          <%= if @node.category.description not in [nil, ""] do %>
+            <small class="cat-description-inline"><%= @node.category.description %></small>
+          <% end %>
+        </span>
         <span class="cat-count"><%= length(@node.securities) %></span>
-        <%= if @editable do %>
+        <span class="cat-actions" data-no-toggle>
           <button
             type="button"
-            class="chip-remove"
-            phx-click="delete_category"
+            class="icon-mini"
+            phx-click="edit_category"
             phx-value-id={@node.category.id}
-            data-confirm={gettext("Delete this category?")}
-            aria-label={gettext("Delete category")}
-          >×</button>
-        <% end %>
+            aria-label={gettext("Edit category")}
+            title={gettext("Edit category")}
+          >✎</button>
+          <%= if @editable do %>
+            <button
+              type="button"
+              class="icon-mini"
+              phx-click="delete_category"
+              phx-value-id={@node.category.id}
+              data-confirm={gettext("Delete this category?")}
+              aria-label={gettext("Delete category")}
+              title={gettext("Delete category")}
+            >×</button>
+          <% end %>
+        </span>
       </summary>
       <div class="cat-body">
-        <%= if @node.category.description not in [nil, ""] do %>
-          <p class="cat-description"><%= @node.category.description %></p>
+        <%= if @editing_id == @node.category.id and @editable do %>
+          <form phx-submit="update_category" class="cat-edit-form">
+            <input type="hidden" name="category[id]" value={@node.category.id} />
+            <input
+              name="category[name]"
+              value={@node.category.name}
+              aria-label={gettext("Name")}
+              required
+            />
+            <input
+              name="category[description]"
+              value={@node.category.description}
+              placeholder={gettext("Description")}
+            />
+            <input
+              type="color"
+              name="category[color]"
+              value={@node.category.color || "#cccccc"}
+              class="color-mini"
+              aria-label={gettext("Color")}
+            />
+            <button type="submit" class="button"><%= gettext("Save") %></button>
+            <button type="button" phx-click="cancel_edit_category"><%= gettext("Cancel") %></button>
+          </form>
         <% end %>
-        <form class="recolor-form" phx-change="recolor_category">
-          <input type="hidden" name="category_id" value={@node.category.id} />
-          <label class="recolor-label">
-            <span><%= gettext("Color") %></span>
-            <input type="color" name="color" value={@node.category.color || "#cccccc"} />
-          </label>
-        </form>
+        <%= if @editing_id == @node.category.id and not @editable do %>
+          <form phx-change="recolor_category" class="cat-edit-form">
+            <input type="hidden" name="category_id" value={@node.category.id} />
+            <label class="recolor-label">
+              <span><%= gettext("Color") %></span>
+              <input
+                type="color"
+                name="color"
+                value={@node.category.color || "#cccccc"}
+                class="color-mini"
+              />
+            </label>
+            <button type="button" phx-click="cancel_edit_category"><%= gettext("Done") %></button>
+          </form>
+        <% end %>
         <ul class="cat-securities">
           <%= for security <- @node.securities do %>
             <li
@@ -282,7 +338,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <% end %>
         </ul>
         <%= for child <- @node.children do %>
-          <.category_node node={child} classification_id={@classification_id} editable={@editable} />
+          <.category_node
+            node={child}
+            classification_id={@classification_id}
+            editable={@editable}
+            editing_id={@editing_id}
+          />
         <% end %>
       </div>
     </details>
@@ -307,6 +368,32 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
       {:error, reason} ->
         {:noreply, failure(socket, error_message(reason))}
+    end
+  end
+
+  def handle_event("edit_category", %{"id" => id}, socket) do
+    case coerce_id(id) do
+      {:ok, category_id} -> {:noreply, assign(socket, :editing_id, category_id)}
+      :error -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("cancel_edit_category", _params, socket) do
+    {:noreply, assign(socket, :editing_id, nil)}
+  end
+
+  def handle_event("update_category", %{"category" => %{"id" => id} = params}, socket) do
+    with {:ok, category_id} <- coerce_id(id),
+         category when not is_nil(category) <- Classifications.get_category(category_id),
+         {:ok, _} <- Classifications.update_category(category, params) do
+      {:noreply,
+       socket
+       |> assign(:editing_id, nil)
+       |> success(gettext("Category updated"))
+       |> reload()}
+    else
+      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
+      _ -> {:noreply, socket}
     end
   end
 

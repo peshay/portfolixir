@@ -3624,3 +3624,83 @@ details[open] > .cat-summary::before {
 .overview-grid--readonly {
   margin-top: 0.9rem;
 }
+
+/* Compact, editable category rows (PP-style density) */
+.cat-node {
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.45rem;
+}
+.cat-summary {
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+.cat-summary .cat-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+.cat-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  overflow: hidden;
+}
+.cat-description-inline {
+  font-weight: 400;
+  font-size: 0.74rem;
+  color: var(--color-text-muted, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat-count {
+  margin-left: 0;
+  font-size: 0.72rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.cat-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+.icon-mini {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.12rem 0.3rem;
+  border-radius: 0.3rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.icon-mini:hover {
+  background: var(--color-surface-hover, rgba(127, 127, 127, 0.14));
+  color: inherit;
+}
+.cat-body {
+  padding: 0.25rem 0 0.15rem 0.9rem;
+  gap: 0.25rem;
+}
+.color-mini {
+  width: 1.5rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  background: none;
+  cursor: pointer;
+}
+.cat-edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0;
+}
+.cat-edit-form input[name="category[name]"] {
+  flex: 0 1 12rem;
+}
+.cat-edit-form input[name="category[description]"] {
+  flex: 1 1 14rem;
+}
