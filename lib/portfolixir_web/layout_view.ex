@@ -649,6 +649,10 @@ defmodule PortfolixirWeb.LayoutView do
 
                 this._onClick = function (event) {
                   if (!event.target.closest) return;
+                  if (event.target.closest("[data-no-toggle]")) {
+                    // Keep summary action buttons from toggling the <details> folder.
+                    event.preventDefault();
+                  }
                   if (event.target.closest("[data-move-selected]")) {
                     var sel = el.querySelector("[data-move-target]");
                     var categoryId = sel ? parseInt(sel.value, 10) : NaN;

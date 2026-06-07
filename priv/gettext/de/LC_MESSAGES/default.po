@@ -1961,3 +1961,12 @@ msgstr "Wertpapier aktualisiert."
 
 msgid "Could not save changes."
 msgstr "Änderungen konnten nicht gespeichert werden."
+
+msgid "Edit category"
+msgstr "Kategorie bearbeiten"
+
+msgid "Done"
+msgstr "Fertig"
+
+msgid "Category updated"
+msgstr "Kategorie aktualisiert"
