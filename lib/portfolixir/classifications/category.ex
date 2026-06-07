@@ -43,6 +43,14 @@ defmodule Portfolixir.Classifications.Category do
     |> foreign_key_constraint(:parent_id)
   end
 
+  @doc "Changeset that updates only the color (allowed on built-in categories)."
+  def color_changeset(category, color) do
+    category
+    |> cast(%{color: color}, [:color])
+    |> update_change(:color, &normalize_color/1)
+    |> validate_format(:color, @color_format, message: "must be a hex color like #1a2b3c")
+  end
+
   @doc false
   def builtin_changeset(category, attrs) do
     category
