@@ -3540,3 +3540,16 @@ details[open] > .cat-summary::before {
   color: var(--color-text-muted, #6b7280);
   font-size: 0.85rem;
 }
+
+/* Classification category descriptions */
+.cat-description {
+  margin: 0.1rem 0 0.35rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.category-form__description {
+  flex: 1 1 100%;
+}
+.category-form__description input {
+  width: 100%;
+}

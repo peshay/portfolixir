@@ -1931,3 +1931,9 @@ msgstr "Klassifizierungen verwalten"
 
 msgid "Set how this security is classified in each custom tree. Built-in trees are filled in automatically."
 msgstr "Lege fest, wie dieses Wertpapier in jedem eigenen Baum klassifiziert wird. Vordefinierte Bäume werden automatisch befüllt."
+
+msgid "Description"
+msgstr "Beschreibung"
+
+msgid "optional"
+msgstr "optional"

@@ -182,7 +182,8 @@ are editable. Editing a built-in tree returns `422 Unprocessable Entity`.
 - `POST /api/v1/classifications` creates a custom classification from a
   `classification` object (`name`, optional `position`, `description`).
 - `POST /api/v1/classifications/:classification_id/categories` adds a `category`
-  (`name`, optional `color`, `parent_id`, `position`) to a custom classification.
+  (`name`, optional `color`, `description`, `parent_id`, `position`) to a custom
+  classification.
 - `PUT /api/v1/classifications/:classification_id/assignments` assigns a security
   to a category (`security_id`, `category_id`), replacing any existing assignment
   for that security in the classification.

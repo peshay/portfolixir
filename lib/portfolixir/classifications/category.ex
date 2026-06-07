@@ -18,6 +18,7 @@ defmodule Portfolixir.Classifications.Category do
     field(:name, :string)
     field(:key, :string)
     field(:color, :string)
+    field(:description, :string)
     field(:position, :integer, default: 0)
 
     belongs_to(:classification, Classification)
@@ -30,11 +31,13 @@ defmodule Portfolixir.Classifications.Category do
   @doc "Changeset for user-editable category attributes."
   def changeset(category, attrs) do
     category
-    |> cast(attrs, [:name, :color, :position, :parent_id, :classification_id])
+    |> cast(attrs, [:name, :color, :description, :position, :parent_id, :classification_id])
     |> update_change(:name, &normalize_name/1)
     |> update_change(:color, &normalize_color/1)
+    |> update_change(:description, &normalize_description/1)
     |> validate_required([:name, :classification_id])
     |> validate_length(:name, max: 255)
+    |> validate_length(:description, max: 2000)
     |> validate_format(:color, @color_format, message: "must be a hex color like #1a2b3c")
     |> assoc_constraint(:classification)
     |> foreign_key_constraint(:parent_id)
@@ -50,6 +53,15 @@ defmodule Portfolixir.Classifications.Category do
 
   defp normalize_name(name) when is_binary(name), do: String.trim(name)
   defp normalize_name(name), do: name
+
+  defp normalize_description(description) when is_binary(description) do
+    case String.trim(description) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_description(description), do: description
 
   defp normalize_color(color) when is_binary(color) do
     color |> String.trim() |> String.downcase()

@@ -113,6 +113,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
               <span><%= gettext("Color") %></span>
               <input type="color" name="category[color]" value="#7c3aed" />
             </label>
+            <label class="category-form__description">
+              <span><%= gettext("Description") %> <small>(<%= gettext("optional") %>)</small></span>
+              <input name="category[description]" />
+            </label>
             <button type="submit"><%= gettext("Add") %></button>
           </form>
 
@@ -239,6 +243,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <% end %>
       </summary>
       <div class="cat-body">
+        <%= if @node.category.description not in [nil, ""] do %>
+          <p class="cat-description"><%= @node.category.description %></p>
+        <% end %>
         <ul class="cat-securities">
           <%= for security <- @node.securities do %>
             <li

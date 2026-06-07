@@ -146,4 +146,27 @@ defmodule Portfolixir.ClassificationsTest do
     assert {:error, :builtin_locked} =
              Classifications.assign_securities([security.id], asset.id, 0)
   end
+
+  test "stores an optional category description and blanks whitespace to nil" do
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    cid = classification.id
+
+    {:ok, with_desc} =
+      Classifications.create_category(%{
+        classification_id: cid,
+        name: "Core",
+        description: "  Long-term holdings  "
+      })
+
+    assert with_desc.description == "Long-term holdings"
+
+    {:ok, blank} =
+      Classifications.create_category(%{
+        classification_id: cid,
+        name: "Satellite",
+        description: "   "
+      })
+
+    assert blank.description == nil
+  end
 end
