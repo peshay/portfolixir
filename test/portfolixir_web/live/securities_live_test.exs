@@ -1175,6 +1175,21 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert Catalog.get_security(apple.id).note == "Long-term core position."
     end
+
+    test "saving the details form persists master data via Catalog.update_security/2",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      view
+      |> form("#overview-details-form", %{
+        "security" => %{"name" => "Apple Inc. (edited)", "ticker_symbol" => "AAPL2"}
+      })
+      |> render_submit()
+
+      updated = Catalog.get_security(apple.id)
+      assert updated.name == "Apple Inc. (edited)"
+      assert updated.ticker_symbol == "AAPL2"
+    end
   end
 
   describe "detail pane — transactions tab" do
