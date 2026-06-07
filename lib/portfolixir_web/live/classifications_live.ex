@@ -61,7 +61,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
       page_title={@tree.classification.name}
       page_subtitle={gettext("Organise securities by dragging them between categories")}
     >
-      <div id="classifications-workspace" phx-hook="ClassificationDnD" class="workspace-page classifications-detail">
+      <div
+        id="classifications-workspace"
+        phx-hook="ClassificationDnD"
+        class="workspace-page classifications-detail"
+        {workspace_attrs(@tree)}
+      >
         <%= if @error do %>
           <p class="alert-error" role="alert"><%= @error %></p>
         <% end %>
@@ -110,6 +115,33 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </label>
             <button type="submit"><%= gettext("Add") %></button>
           </form>
+
+          <div class="select-toolbar" data-select-toolbar hidden>
+            <span class="select-count">
+              <strong data-selected-count>0</strong> <%= gettext("selected") %>
+            </span>
+            <label class="select-move">
+              <span class="sr-only"><%= gettext("Target category") %></span>
+              <select data-move-target>
+                <%= for {category, depth} <- @tree.flat do %>
+                  <option value={category.id}><%= indent(depth) %><%= category.name %></option>
+                <% end %>
+              </select>
+            </label>
+            <button type="button" class="button" data-move-selected>
+              <%= gettext("Move to category") %>
+            </button>
+            <button type="button" class="button-danger" data-unassign-selected>
+              <%= gettext("Unassign") %>
+            </button>
+            <button type="button" data-clear-selection><%= gettext("Clear") %></button>
+          </div>
+        <% end %>
+
+        <%= if @tree.editable do %>
+          <p class="hint multiselect-hint">
+            <%= gettext("Tip: click rows to select several, then drag or use the toolbar to move them together.") %>
+          </p>
         <% end %>
 
         <section class="tree">
@@ -131,12 +163,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <ul class="cat-securities">
               <%= for security <- @tree.unsorted do %>
                 <li
-                  class={["dnd-chip", @tree.editable && "is-draggable"]}
+                  class={["dnd-row", @tree.editable && "is-draggable"]}
                   draggable={if @tree.editable, do: "true", else: nil}
                   data-drag-security={if @tree.editable, do: security.id, else: nil}
                 >
-                  <span><%= security.name %></span>
-                  <small><%= security.currency_code %></small>
+                  <span class="row-name"><%= security.name %></span>
+                  <small class="row-ccy"><%= security.currency_code %></small>
                 </li>
               <% end %>
               <%= if @tree.unsorted == [] do %>
@@ -210,12 +242,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <ul class="cat-securities">
           <%= for security <- @node.securities do %>
             <li
-              class={["dnd-chip", @editable && "is-draggable"]}
+              class={["dnd-row", @editable && "is-draggable"]}
               draggable={if @editable, do: "true", else: nil}
               data-drag-security={if @editable, do: security.id, else: nil}
             >
-              <span><%= security.name %></span>
-              <small><%= security.currency_code %></small>
+              <span class="row-name"><%= security.name %></span>
+              <small class="row-ccy"><%= security.currency_code %></small>
             </li>
           <% end %>
         </ul>
@@ -288,6 +320,28 @@ defmodule PortfolixirWeb.ClassificationsLive do
          {:ok, classification_id} <- coerce_id(params["classification_id"]) do
       {:ok, _} = Classifications.unassign_security(security_id, classification_id)
       {:noreply, reload(socket)}
+    else
+      :error -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("assign_securities", params, socket) do
+    with {:ok, ids} <- coerce_ids(params["security_ids"]),
+         {:ok, classification_id} <- coerce_id(params["classification_id"]),
+         {:ok, category_id} <- coerce_id(params["category_id"]),
+         {:ok, count} <- Classifications.assign_securities(ids, classification_id, category_id) do
+      {:noreply, socket |> success(moved_message(count)) |> reload()}
+    else
+      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
+      :error -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("unassign_many", params, socket) do
+    with {:ok, ids} <- coerce_ids(params["security_ids"]),
+         {:ok, classification_id} <- coerce_id(params["classification_id"]) do
+      {:ok, count} = Classifications.unassign_securities(ids, classification_id)
+      {:noreply, socket |> success(unassigned_message(count)) |> reload()}
     else
       :error -> {:noreply, socket}
     end
@@ -392,6 +446,19 @@ defmodule PortfolixirWeb.ClassificationsLive do
     ]
   end
 
+  defp workspace_attrs(%{editable: true, classification: %{id: id}}),
+    do: [{"data-classification", id}]
+
+  defp workspace_attrs(_tree), do: []
+
+  defp moved_message(count) do
+    ngettext("Moved %{count} security", "Moved %{count} securities", count)
+  end
+
+  defp unassigned_message(count) do
+    ngettext("Unassigned %{count} security", "Unassigned %{count} securities", count)
+  end
+
   defp indent(0), do: ""
   defp indent(depth), do: String.duplicate("— ", depth)
 
@@ -408,6 +475,20 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp coerce_id(_value), do: :error
+
+  defp coerce_ids(values) when is_list(values) do
+    ids =
+      Enum.flat_map(values, fn value ->
+        case coerce_id(value) do
+          {:ok, id} -> [id]
+          :error -> []
+        end
+      end)
+
+    {:ok, ids}
+  end
+
+  defp coerce_ids(_values), do: :error
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)

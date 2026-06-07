@@ -79,6 +79,44 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert assignments(classification.id) == []
   end
 
+  test "assigns and unassigns many securities via the bulk events", %{conn: conn} do
+    one = security!(%{name: "One"})
+    two = security!(%{name: "Two"})
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    render_hook(view, "assign_securities", %{
+      "security_ids" => [one.id, two.id],
+      "classification_id" => classification.id,
+      "category_id" => category.id
+    })
+
+    assert length(assignments(classification.id)) == 2
+
+    render_hook(view, "unassign_many", %{
+      "security_ids" => [one.id, two.id],
+      "classification_id" => classification.id
+    })
+
+    assert assignments(classification.id) == []
+  end
+
+  test "renders the multiselect toolbar on an editable tree", %{conn: conn} do
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, _category} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+
+    {:ok, _view, html} = live(conn, "/classifications/#{classification.id}")
+
+    assert html =~ "data-select-toolbar"
+    assert html =~ "Move to category"
+  end
+
   test "exposes a parent select for building nested categories", %{conn: conn} do
     {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
 

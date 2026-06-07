@@ -146,6 +146,51 @@ defmodule Portfolixir.Classifications do
     {:ok, count}
   end
 
+  @doc """
+  Assigns many securities to one category of a custom classification in a single
+  statement, replacing any existing assignment for each `(security, classification)`
+  pair. Returns `{:ok, count}` or `{:error, reason}`.
+  """
+  def assign_securities(security_ids, classification_id, category_id)
+      when is_list(security_ids) do
+    with {:ok, classification} <- fetch_classification_by_id(classification_id),
+         :ok <- ensure_custom(classification),
+         :ok <- ensure_category_in_classification(category_id, classification_id) do
+      now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+      entries =
+        security_ids
+        |> Enum.uniq()
+        |> Enum.map(fn security_id ->
+          %{
+            security_id: security_id,
+            classification_id: classification_id,
+            category_id: category_id,
+            inserted_at: now,
+            updated_at: now
+          }
+        end)
+
+      {count, _} =
+        Repo.insert_all(Assignment, entries,
+          on_conflict: {:replace, [:category_id, :updated_at]},
+          conflict_target: [:security_id, :classification_id]
+        )
+
+      {:ok, count}
+    end
+  end
+
+  @doc "Removes the given securities' assignments from a classification."
+  def unassign_securities(security_ids, classification_id) when is_list(security_ids) do
+    {count, _} =
+      Assignment
+      |> where([a], a.classification_id == ^classification_id and a.security_id in ^security_ids)
+      |> Repo.delete_all()
+
+    {:ok, count}
+  end
+
   # -- built-in seeding ------------------------------------------------------
 
   @doc "Idempotently seeds the built-in classification trees. Returns :ok."
