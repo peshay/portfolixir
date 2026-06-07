@@ -1815,3 +1815,107 @@ msgstr "Im Bestand"
 #, elixir-autogen, elixir-format
 msgid "Not held"
 msgstr "Ohne Bestand"
+
+## --- Classifications UI (added) ---
+msgid "Add"
+msgstr "Hinzufügen"
+
+msgid "Built-in"
+msgstr "Vordefiniert"
+
+msgid "Built-in classifications cannot be edited"
+msgstr "Vordefinierte Klassifizierungen können nicht bearbeitet werden"
+
+msgid "Category created"
+msgstr "Kategorie angelegt"
+
+msgid "Category deleted"
+msgstr "Kategorie gelöscht"
+
+msgid "Category not found"
+msgstr "Kategorie nicht gefunden"
+
+msgid "Classification not found"
+msgstr "Klassifizierung nicht gefunden"
+
+msgid "Clear"
+msgstr "Aufheben"
+
+msgid "Color"
+msgstr "Farbe"
+
+msgid "Create classification"
+msgstr "Klassifizierung anlegen"
+
+msgid "Delete category"
+msgstr "Kategorie löschen"
+
+msgid "Delete classification"
+msgstr "Klassifizierung löschen"
+
+msgid "Delete this category?"
+msgstr "Diese Kategorie löschen?"
+
+msgid "Delete this classification and all its categories?"
+msgstr "Diese Klassifizierung und alle ihre Kategorien löschen?"
+
+msgid "Everything is sorted."
+msgstr "Alles ist einsortiert."
+
+msgid "Move to category"
+msgstr "In Kategorie verschieben"
+
+msgid "New category"
+msgstr "Neue Kategorie"
+
+msgid "New classification"
+msgstr "Neue Klassifizierung"
+
+msgid "No categories yet."
+msgstr "Noch keine Kategorien."
+
+msgid "Not found"
+msgstr "Nicht gefunden"
+
+msgid "Organise securities by dragging them between categories"
+msgstr "Wertpapiere per Drag-and-drop zwischen Kategorien einsortieren"
+
+msgid "Parent"
+msgstr "Übergeordnet"
+
+msgid "Pick a classification on the left, or create a new one."
+msgstr "Wähle links eine Klassifizierung oder lege eine neue an."
+
+msgid "Something went wrong"
+msgstr "Etwas ist schiefgelaufen"
+
+msgid "Target category"
+msgstr "Zielkategorie"
+
+msgid "That category belongs to another tree"
+msgstr "Diese Kategorie gehört zu einem anderen Baum"
+
+msgid "Tip: click rows to select several, then drag or use the toolbar to move them together."
+msgstr "Tipp: Klicke Zeilen an, um mehrere auszuwählen, und ziehe sie dann oder nutze die Leiste, um sie gemeinsam zu verschieben."
+
+msgid "Unassign"
+msgstr "Zuordnung entfernen"
+
+msgid "Unsorted"
+msgstr "Nicht zugeordnet"
+
+msgid "selected"
+msgstr "ausgewählt"
+
+msgid "— Top level —"
+msgstr "— Oberste Ebene —"
+
+msgid "Moved %{count} security"
+msgid_plural "Moved %{count} securities"
+msgstr[0] "%{count} Wertpapier verschoben"
+msgstr[1] "%{count} Wertpapiere verschoben"
+
+msgid "Unassigned %{count} security"
+msgid_plural "Unassigned %{count} securities"
+msgstr[0] "Zuordnung von %{count} Wertpapier entfernt"
+msgstr[1] "Zuordnung von %{count} Wertpapieren entfernt"
