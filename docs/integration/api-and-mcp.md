@@ -36,7 +36,9 @@ that successful delete response.
 ## Securities
 
 - `GET /api/v1/securities` lists securities. Optional query params: `query`,
-  `sort`, `direction`, and holding_status (`all`, `held`, or `not_held`).
+  `sort`, `direction`, holding_status (`all`, `held`, or `not_held`), and
+  `limit`/`offset` for pagination (both non-negative integers). Use these to
+  page large catalogs instead of fetching the whole table at once.
 - `POST /api/v1/securities` creates a security with a `security` object.
   `asset_class` is a stable string code such as `equity`, `etf`, `crypto`,
   `bond`, or `government_bond`.
@@ -181,12 +183,25 @@ are editable. Editing a built-in tree returns `422 Unprocessable Entity`.
   carry `built_in: true` and a `key`.
 - `POST /api/v1/classifications` creates a custom classification from a
   `classification` object (`name`, optional `position`, `description`).
+- `PATCH /api/v1/classifications/:id` updates a custom classification's
+  `classification` object (`name`, `position`, `description` — all optional).
+- `DELETE /api/v1/classifications/:id` deletes a custom classification and
+  cascades its categories and assignments.
 - `POST /api/v1/classifications/:classification_id/categories` adds a `category`
   (`name`, optional `color`, `description`, `parent_id`, `position`) to a custom
   classification.
+- `PATCH /api/v1/classifications/:classification_id/categories/:id` patches a
+  `category` (`name`, `color`, `description`, `parent_id`, `position` — all
+  optional). The category's `classification_id` cannot be changed this way.
+- `DELETE /api/v1/classifications/:classification_id/categories/:id` deletes a
+  category and cascades its child categories and assignments.
 - `PUT /api/v1/classifications/:classification_id/assignments` assigns a security
   to a category (`security_id`, `category_id`), replacing any existing assignment
-  for that security in the classification.
+  for that security in the classification. The response carries a `status` of
+  `created`, `moved`, or `unchanged` plus `previous_category_id`.
+- `PUT /api/v1/classifications/:classification_id/assignments/bulk` assigns many
+  securities to one category in a single call (`category_id`, `security_ids`),
+  returning `{assigned, category_id, security_ids}`.
 - `DELETE /api/v1/classifications/:classification_id/assignments/:security_id`
   removes a security's assignment from the classification.
 
@@ -235,6 +250,11 @@ in MCP schemas are strings.
 - `portfolixir.classifications.list`
 - `portfolixir.classifications.create`
 - `portfolixir.classifications.categories.create`
+- `portfolixir.classifications.update`
+- `portfolixir.classifications.delete`
+- `portfolixir.classifications.categories.update`
+- `portfolixir.classifications.categories.delete`
 - `portfolixir.classifications.assign`
+- `portfolixir.classifications.assign_bulk`
 - `portfolixir.classifications.unassign`
 - `portfolixir.trades.list`

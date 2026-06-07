@@ -68,12 +68,32 @@ defmodule PortfolixirWeb.Router do
 
     get("/classifications", ClassificationController, :index)
     post("/classifications", ClassificationController, :create)
+    patch("/classifications/:id", ClassificationController, :update)
+    delete("/classifications/:id", ClassificationController, :delete)
     put("/classifications/:classification_id/assignments", ClassificationController, :assign)
+
+    put(
+      "/classifications/:classification_id/assignments/bulk",
+      ClassificationController,
+      :assign_bulk
+    )
 
     post(
       "/classifications/:classification_id/categories",
       ClassificationController,
       :create_category
+    )
+
+    patch(
+      "/classifications/:classification_id/categories/:id",
+      ClassificationController,
+      :update_category
+    )
+
+    delete(
+      "/classifications/:classification_id/categories/:id",
+      ClassificationController,
+      :delete_category
     )
 
     delete(

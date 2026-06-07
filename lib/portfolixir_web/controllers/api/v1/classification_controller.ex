@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Classifications
+  alias Portfolixir.Classifications.Classification
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, _params) do
@@ -19,6 +20,37 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
 
       {:error, changeset} ->
         unprocessable(conn, JSON.errors(changeset))
+    end
+  end
+
+  def update(conn, %{"id" => id} = params) do
+    attrs = Map.get(params, "classification", %{})
+
+    with {:ok, cid} <- parse_id(id),
+         %Classification{} = classification <- Classifications.get_classification(cid) do
+      case Classifications.update_classification(classification, attrs) do
+        {:ok, classification} ->
+          json(conn, %{data: JSON.classification(classification)})
+
+        {:error, reason} ->
+          render_error(conn, reason)
+      end
+    else
+      nil -> not_found(conn)
+      :error -> not_found(conn)
+    end
+  end
+
+  def delete(conn, %{"id" => id}) do
+    with {:ok, cid} <- parse_id(id),
+         %Classification{} = classification <- Classifications.get_classification(cid) do
+      case Classifications.delete_classification(classification) do
+        {:ok, _classification} -> json(conn, %{data: %{deleted: true}})
+        {:error, reason} -> render_error(conn, reason)
+      end
+    else
+      nil -> not_found(conn)
+      :error -> not_found(conn)
     end
   end
 
@@ -40,13 +72,49 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     end
   end
 
+  def update_category(conn, %{"classification_id" => classification_id, "id" => id} = params) do
+    # Only patch user-editable fields; never let a request re-home a category
+    # into a different classification.
+    attrs = params |> Map.get("category", %{}) |> Map.drop(["classification_id"])
+
+    with {:ok, cid} <- parse_id(classification_id),
+         {:ok, category_id} <- parse_id(id),
+         %{classification_id: ^cid} = category <- Classifications.get_category(category_id) do
+      case Classifications.update_category(category, attrs) do
+        {:ok, category} -> json(conn, %{data: JSON.category(category)})
+        {:error, reason} -> render_error(conn, reason)
+      end
+    else
+      :error -> not_found(conn)
+      nil -> not_found(conn)
+      %{} -> not_found(conn)
+    end
+  end
+
+  def delete_category(conn, %{"classification_id" => classification_id, "id" => id}) do
+    with {:ok, cid} <- parse_id(classification_id),
+         {:ok, category_id} <- parse_id(id),
+         %{classification_id: ^cid} = category <- Classifications.get_category(category_id) do
+      case Classifications.delete_category(category) do
+        {:ok, _category} -> json(conn, %{data: %{deleted: true}})
+        {:error, reason} -> render_error(conn, reason)
+      end
+    else
+      :error -> not_found(conn)
+      nil -> not_found(conn)
+      %{} -> not_found(conn)
+    end
+  end
+
   def assign(conn, %{"classification_id" => classification_id} = params) do
     with {:ok, cid} <- parse_id(classification_id),
          {:ok, security_id} <- parse_id(Map.get(params, "security_id")),
          {:ok, category_id} <- parse_id(Map.get(params, "category_id")) do
+      previous = Classifications.get_assignment(security_id, cid)
+
       case Classifications.assign_security(security_id, cid, category_id) do
         {:ok, assignment} ->
-          json(conn, %{data: JSON.assignment(assignment)})
+          json(conn, %{data: assignment_result(assignment, previous)})
 
         {:error, reason} ->
           render_error(conn, reason)
@@ -54,6 +122,40 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     else
       :error -> not_found(conn)
     end
+  end
+
+  def assign_bulk(conn, %{"classification_id" => classification_id} = params) do
+    with {:ok, cid} <- parse_id(classification_id),
+         {:ok, category_id} <- parse_id(Map.get(params, "category_id")),
+         {:ok, security_ids} <- parse_ids(Map.get(params, "security_ids")) do
+      case Classifications.assign_securities(security_ids, cid, category_id) do
+        {:ok, count} ->
+          json(conn, %{
+            data: %{assigned: count, category_id: category_id, security_ids: security_ids}
+          })
+
+        {:error, reason} ->
+          render_error(conn, reason)
+      end
+    else
+      :error -> not_found(conn)
+    end
+  end
+
+  # Reports whether the assignment was newly created, moved between categories,
+  # or already pointed at the target category.
+  defp assignment_result(assignment, previous) do
+    status =
+      cond do
+        is_nil(previous) -> "created"
+        previous.category_id == assignment.category_id -> "unchanged"
+        true -> "moved"
+      end
+
+    assignment
+    |> JSON.assignment()
+    |> Map.put(:status, status)
+    |> Map.put(:previous_category_id, previous && previous.category_id)
   end
 
   def unassign(conn, %{"classification_id" => classification_id, "security_id" => security_id}) do
@@ -88,6 +190,21 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   end
 
   defp parse_id(_value), do: :error
+
+  defp parse_ids(values) when is_list(values) do
+    Enum.reduce_while(values, {:ok, []}, fn value, {:ok, acc} ->
+      case parse_id(value) do
+        {:ok, id} -> {:cont, {:ok, [id | acc]}}
+        :error -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {:ok, ids} -> {:ok, Enum.reverse(ids)}
+      :error -> :error
+    end
+  end
+
+  defp parse_ids(_values), do: :error
 
   defp unprocessable(conn, errors) do
     conn

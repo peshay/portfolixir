@@ -643,6 +643,157 @@ defmodule PortfolixirWeb.ApiV1Test do
   end
 
   # User story:
+  # As an API/MCP client refining a taxonomy,
+  # I want to update and delete classifications and categories and bulk-assign
+  # securities, so that I can maintain trees in place rather than only create.
+  test "updates, bulk-assigns and deletes custom classification trees", %{conn: conn} do
+    {:ok, s1} =
+      Catalog.create_security(%{name: "Alpha", currency_code: "EUR", asset_class: "equity"})
+
+    {:ok, s2} =
+      Catalog.create_security(%{name: "Beta", currency_code: "EUR", asset_class: "equity"})
+
+    classification =
+      conn
+      |> post_json("/api/v1/classifications", %{"classification" => %{"name" => "Strategy"}})
+      |> json_response(201)
+      |> Map.fetch!("data")
+
+    cid = classification["id"]
+
+    parent =
+      conn
+      |> post_json("/api/v1/classifications/#{cid}/categories", %{
+        "category" => %{"name" => "Equity"}
+      })
+      |> json_response(201)
+      |> Map.fetch!("data")
+
+    child =
+      conn
+      |> post_json("/api/v1/classifications/#{cid}/categories", %{
+        "category" => %{"name" => "Core"}
+      })
+      |> json_response(201)
+      |> Map.fetch!("data")
+
+    # Patch classification metadata in place.
+    updated =
+      conn
+      |> patch_json("/api/v1/classifications/#{cid}", %{
+        "classification" => %{"name" => "Strategy v2", "description" => "Core/satellite"}
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert updated["name"] == "Strategy v2"
+    assert updated["description"] == "Core/satellite"
+
+    # Patch a category: description, color and re-home it under a parent.
+    recolored =
+      conn
+      |> patch_json("/api/v1/classifications/#{cid}/categories/#{child["id"]}", %{
+        "category" => %{
+          "description" => "Core holdings",
+          "color" => "#2563EB",
+          "parent_id" => parent["id"]
+        }
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert recolored["description"] == "Core holdings"
+    assert recolored["color"] == "#2563eb"
+    assert recolored["parent_id"] == parent["id"]
+
+    # A single assign reports that it created a fresh slot.
+    created =
+      conn
+      |> put_json("/api/v1/classifications/#{cid}/assignments", %{
+        "security_id" => s1.id,
+        "category_id" => child["id"]
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert created["status"] == "created"
+
+    # Bulk assign moves several securities to one category in one call.
+    bulk =
+      conn
+      |> put_json("/api/v1/classifications/#{cid}/assignments/bulk", %{
+        "category_id" => parent["id"],
+        "security_ids" => [s1.id, s2.id]
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert bulk["assigned"] == 2
+
+    # Re-assigning the moved security now reports a move, not a create.
+    moved =
+      conn
+      |> put_json("/api/v1/classifications/#{cid}/assignments", %{
+        "security_id" => s1.id,
+        "category_id" => child["id"]
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert moved["status"] == "moved"
+    assert moved["previous_category_id"] == parent["id"]
+
+    # Deleting a category cascades its assignments; deleting the tree cascades all.
+    assert conn
+           |> api_conn()
+           |> delete("/api/v1/classifications/#{cid}/categories/#{child["id"]}")
+           |> json_response(200)
+           |> Map.fetch!("data") == %{"deleted" => true}
+
+    assert conn
+           |> api_conn()
+           |> delete("/api/v1/classifications/#{cid}")
+           |> json_response(200)
+           |> Map.fetch!("data") == %{"deleted" => true}
+  end
+
+  # User story:
+  # As an API/MCP client paging a large catalog,
+  # I want limit/offset on the securities list,
+  # so that responses stay small instead of dumping the whole table.
+  test "paginates the securities list with limit and offset", %{conn: conn} do
+    for name <- ["Aaa", "Bbb", "Ccc"] do
+      {:ok, _} = Catalog.create_security(%{name: name, currency_code: "EUR"})
+    end
+
+    page1 =
+      conn
+      |> api_conn()
+      |> get("/api/v1/securities?limit=2")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert Enum.map(page1, & &1["name"]) == ["Aaa", "Bbb"]
+
+    page2 =
+      conn
+      |> api_conn()
+      |> get("/api/v1/securities?limit=2&offset=2")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert Enum.map(page2, & &1["name"]) == ["Ccc"]
+
+    invalid =
+      conn
+      |> api_conn()
+      |> get("/api/v1/securities?limit=-1")
+      |> json_response(422)
+
+    assert invalid["errors"]["limit"] == ["is invalid"]
+  end
+
+  # User story:
   # As an API client filtering quote history by date,
   # I want invalid date parameters to return field-specific validation errors,
   # so that clients can distinguish malformed filters from missing securities.

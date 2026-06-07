@@ -31,7 +31,12 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.classifications.list",
       "portfolixir.classifications.create",
       "portfolixir.classifications.categories.create",
+      "portfolixir.classifications.update",
+      "portfolixir.classifications.delete",
+      "portfolixir.classifications.categories.update",
+      "portfolixir.classifications.categories.delete",
       "portfolixir.classifications.assign",
+      "portfolixir.classifications.assign_bulk",
       "portfolixir.classifications.unassign",
       "portfolixir.trades.list"
     ]);
@@ -271,6 +276,108 @@ describe("Portfolixir MCP tools", () => {
       data: { status: "skipped", reason: "missing_ticker" }
     });
     assert.match(result.content[0].text, /missing_ticker/);
+  });
+
+  it("pages securities.list via limit/offset query params", async () => {
+    const requests: Array<{ method: string; path: string }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
+        return new Response(JSON.stringify({ data: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+    });
+
+    await callTool(client, "portfolixir.securities.list", { query: "etf", limit: 50, offset: 100 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/securities?query=etf&limit=50&offset=100");
+  });
+
+  it("routes category update to PATCH /categories/:id with the body", async () => {
+    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined
+        });
+        return new Response(JSON.stringify({ data: { id: 5 } }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+    });
+
+    await callTool(client, "portfolixir.classifications.categories.update", {
+      classification_id: 3,
+      id: 5,
+      category: { description: "Core equity", color: "#2563eb" }
+    });
+
+    assert.equal(requests[0].method, "PATCH");
+    assert.equal(requests[0].path, "/api/v1/classifications/3/categories/5");
+    assert.deepEqual(requests[0].body, { category: { description: "Core equity", color: "#2563eb" } });
+  });
+
+  it("routes classification delete to DELETE /classifications/:id", async () => {
+    const requests: Array<{ method: string; path: string }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
+        return new Response(JSON.stringify({ data: { deleted: true } }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+    });
+
+    await callTool(client, "portfolixir.classifications.delete", { id: 4 });
+
+    assert.equal(requests[0].method, "DELETE");
+    assert.equal(requests[0].path, "/api/v1/classifications/4");
+  });
+
+  it("routes bulk assign to PUT /assignments/bulk with the body", async () => {
+    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined
+        });
+        return new Response(JSON.stringify({ data: { assigned: 3 } }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+    });
+
+    await callTool(client, "portfolixir.classifications.assign_bulk", {
+      classification_id: 3,
+      category_id: 9,
+      security_ids: [1, 2, 7]
+    });
+
+    assert.equal(requests[0].method, "PUT");
+    assert.equal(requests[0].path, "/api/v1/classifications/3/assignments/bulk");
+    assert.deepEqual(requests[0].body, { category_id: 9, security_ids: [1, 2, 7] });
   });
 
   it("maps invalid tool names and upstream API errors to clear failures", async () => {

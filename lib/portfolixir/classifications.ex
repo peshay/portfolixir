@@ -161,6 +161,11 @@ defmodule Portfolixir.Classifications do
     end
   end
 
+  @doc "Returns the stored assignment for a `(security, classification)` pair, or nil."
+  def get_assignment(security_id, classification_id) do
+    Repo.get_by(Assignment, security_id: security_id, classification_id: classification_id)
+  end
+
   def unassign_security(security_id, classification_id) do
     {count, _} =
       Assignment
