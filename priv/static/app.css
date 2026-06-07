@@ -3586,3 +3586,17 @@ details[open] > .cat-summary::before {
 .sc-new-category input[name="name"] {
   flex: 1 1 10rem;
 }
+
+/* Classification tree search */
+.tree-search {
+  margin: 0.5rem 0 0.75rem;
+}
+.tree-search input[type="search"] {
+  width: 100%;
+  max-width: 28rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background: var(--color-bg);
+  color: inherit;
+}
