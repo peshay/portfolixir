@@ -100,4 +100,50 @@ defmodule Portfolixir.ClassificationsTest do
     assert {:error, :category_mismatch} =
              Classifications.assign_security(security.id, a.id, b_category.id)
   end
+
+  test "assigns and unassigns many securities at once" do
+    one = security!(%{name: "One", ticker_symbol: "ONE"})
+    two = security!(%{name: "Two", ticker_symbol: "TWO"})
+    three = security!(%{name: "Three", ticker_symbol: "THREE"})
+
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    cid = classification.id
+
+    {:ok, core} = Classifications.create_category(%{classification_id: cid, name: "Core"})
+
+    {:ok, satellite} =
+      Classifications.create_category(%{classification_id: cid, name: "Satellite"})
+
+    all_ids = [one.id, two.id, three.id]
+    assert {:ok, 3} = Classifications.assign_securities(all_ids, cid, core.id)
+
+    custom = Classifications.list_trees() |> tree(nil)
+    assert length(custom.assignments) == 3
+    assert Enum.all?(custom.assignments, &(&1.category_id == core.id))
+
+    # Re-assigning the same pair moves it (upsert), it does not duplicate.
+    pair = [one.id, two.id]
+    assert {:ok, 2} = Classifications.assign_securities(pair, cid, satellite.id)
+
+    custom = Classifications.list_trees() |> tree(nil)
+    assert length(custom.assignments) == 3
+    by_security = Map.new(custom.assignments, &{&1.security_id, &1.category_id})
+    assert by_security[one.id] == satellite.id
+    assert by_security[three.id] == core.id
+
+    assert {:ok, 2} = Classifications.unassign_securities([one.id, three.id], cid)
+
+    custom = Classifications.list_trees() |> tree(nil)
+    assert [%{security_id: security_id}] = custom.assignments
+    assert security_id == two.id
+  end
+
+  test "bulk assign rejects built-in classifications" do
+    security = security!(%{})
+    Classifications.ensure_builtins()
+    asset = Classifications.get_classification_by_key("asset_class")
+
+    assert {:error, :builtin_locked} =
+             Classifications.assign_securities([security.id], asset.id, 0)
+  end
 end
