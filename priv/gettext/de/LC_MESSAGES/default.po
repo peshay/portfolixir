@@ -1919,3 +1919,15 @@ msgid "Unassigned %{count} security"
 msgid_plural "Unassigned %{count} securities"
 msgstr[0] "Zuordnung von %{count} Wertpapier entfernt"
 msgstr[1] "Zuordnung von %{count} Wertpapieren entfernt"
+
+msgid "— Unassigned —"
+msgstr "— Nicht zugeordnet —"
+
+msgid "No classifications yet."
+msgstr "Noch keine Klassifizierungen."
+
+msgid "Manage classifications"
+msgstr "Klassifizierungen verwalten"
+
+msgid "Set how this security is classified in each custom tree. Built-in trees are filled in automatically."
+msgstr "Lege fest, wie dieses Wertpapier in jedem eigenen Baum klassifiziert wird. Vordefinierte Bäume werden automatisch befüllt."
