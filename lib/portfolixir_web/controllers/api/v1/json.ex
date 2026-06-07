@@ -196,8 +196,22 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       portfolio_id: valuation.portfolio_id,
       base_currency: valuation.base_currency,
       total_value: decimal(valuation.total_value),
+      total_cash: decimal(valuation.total_cash),
+      total_with_cash: decimal(valuation.total_with_cash),
       unvalued_count: valuation.unvalued_count,
-      positions: Enum.map(positions, &valuation_position/1)
+      positions: Enum.map(positions, &valuation_position/1),
+      cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
+    }
+  end
+
+  defp valuation_cash(cash) do
+    %{
+      cash_account_id: cash.cash_account_id,
+      name: cash.name,
+      currency: cash.currency,
+      balance: decimal(cash.balance),
+      base_value: decimal(cash.base_value),
+      valued: cash.valued
     }
   end
 

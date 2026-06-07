@@ -46,6 +46,83 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  Returns the current cash balance of each cash account, keyed by
+  `cash_account_id`, derived on read from the stored transactions (balances are
+  not persisted; see ADR-0004).
+
+  Amounts are stored as positive magnitudes and the transaction `type` implies
+  the direction of the cash flow. Each balance is in its own account's currency;
+  no FX conversion is applied here. Pass `:portfolio_id` to scope the calculation
+  to one portfolio. Accounts with no cash-affecting transaction are omitted and
+  should be treated as a zero balance by callers.
+  """
+  def cash_balances(opts \\ []) when is_list(opts) do
+    Transaction
+    |> scope_portfolio(opts[:portfolio_id])
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn transaction, balances ->
+      transaction
+      |> cash_effects()
+      |> Enum.reduce(balances, fn {account_id, delta}, acc ->
+        add_cash_delta(acc, account_id, delta)
+      end)
+    end)
+  end
+
+  defp scope_portfolio(query, nil), do: query
+
+  defp scope_portfolio(query, portfolio_id) when is_integer(portfolio_id),
+    do: where(query, [t], t.portfolio_id == ^portfolio_id)
+
+  # Per-kind cash effects as `{cash_account_id, signed_delta}` tuples. Stored
+  # amounts are positive magnitudes; the sign here comes from the kind.
+  defp cash_effects(%Transaction{type: type} = t)
+       when type in ["deposit", "dividend", "interest", "tax_refund"],
+       do: [{t.cash_account_id, gross_amount(t)}]
+
+  defp cash_effects(%Transaction{type: type} = t)
+       when type in ["removal", "fee", "tax"],
+       do: [{t.cash_account_id, Decimal.negate(gross_amount(t))}]
+
+  defp cash_effects(%Transaction{type: "sell"} = t),
+    do: [{t.cash_account_id, sell_proceeds(t)}]
+
+  defp cash_effects(%Transaction{type: "buy"} = t),
+    do: [{t.cash_account_id, Decimal.negate(buy_cost(t))}]
+
+  defp cash_effects(%Transaction{type: "cash_transfer"} = t) do
+    amount = gross_amount(t)
+    [{t.cash_account_id, Decimal.negate(amount)}, {t.counter_cash_account_id, amount}]
+  end
+
+  # Deliveries and security transfers move shares, not cash.
+  defp cash_effects(%Transaction{}), do: []
+
+  defp add_cash_delta(balances, nil, _delta), do: balances
+
+  defp add_cash_delta(balances, account_id, delta),
+    do: Map.update(balances, account_id, delta, &Decimal.add(&1, delta))
+
+  defp gross_amount(%Transaction{gross_amount: %Decimal{} = amount}), do: amount
+  defp gross_amount(%Transaction{}), do: Decimal.new("0")
+
+  # buy `gross_amount` is inclusive of fees/taxes; sell `gross_amount` is already
+  # net of them. When it was not recorded, reconstruct from quantity*price.
+  defp buy_cost(%Transaction{gross_amount: %Decimal{} = amount}), do: amount
+  defp buy_cost(%Transaction{} = t), do: Decimal.add(base_amount(t), fees_and_taxes(t))
+
+  defp sell_proceeds(%Transaction{gross_amount: %Decimal{} = amount}), do: amount
+  defp sell_proceeds(%Transaction{} = t), do: Decimal.sub(base_amount(t), fees_and_taxes(t))
+
+  defp base_amount(%Transaction{quantity: %Decimal{} = q, price: %Decimal{} = p}),
+    do: Decimal.mult(q, p)
+
+  defp base_amount(%Transaction{}), do: Decimal.new("0")
+
+  defp fees_and_taxes(%Transaction{fees: fees, taxes: taxes}),
+    do: Decimal.add(fees || Decimal.new("0"), taxes || Decimal.new("0"))
+
+  @doc """
   Lists FIFO-matched trades for a security: closed round-trips, open
   remaining lots (with unrealised P&L vs. the latest known quote close),
   and any orphan sells.

@@ -102,7 +102,12 @@ Example quote sync response:
 
 - `GET /api/v1/portfolios` lists portfolios.
 - `POST /api/v1/portfolios` creates a portfolio with a `portfolio` object.
-- `GET /api/v1/cash_accounts` lists cash accounts.
+- `GET /api/v1/cash_accounts` lists cash accounts. Each carries a `balance`
+  (decimal string, in the account's own currency) derived on read from the
+  ledger: amounts are stored as positive magnitudes and the transaction `type`
+  implies the direction (deposits, dividends, interest, tax refunds and sells
+  add cash; removals, fees, taxes and buys remove it; a cash transfer debits its
+  account and credits the counter account).
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
   object.
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
@@ -159,6 +164,12 @@ Example account payloads:
   Weights are raw shares (`market_value / total_value`) emitted at full Decimal
   precision; because they are normalized ratios they need not sum to exactly
   `1` (round for display). Market values and `total_value` are exact.
+  The valuation also carries cash: `cash_balances` lists each cash account
+  (`balance` in its own currency, plus `base_value`/`valued` after converting to
+  the base currency), `total_cash` is the base-currency sum of the valued cash
+  accounts, and `total_with_cash` is `total_value + total_cash`. An account whose
+  currency has no rate path to the base is reported `valued: false` and excluded
+  from `total_cash`, mirroring how unpriceable positions are handled.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
   period in days) and any orphan sells.
