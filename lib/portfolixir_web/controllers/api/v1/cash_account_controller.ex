@@ -1,11 +1,24 @@
 defmodule PortfolixirWeb.Api.V1.CashAccountController do
   use PortfolixirWeb, :controller
 
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, _params) do
-    json(conn, %{data: Enum.map(Portfolios.list_cash_accounts(), &JSON.cash_account/1)})
+    balances = Ledger.cash_balances()
+
+    data =
+      Portfolios.list_cash_accounts()
+      |> Enum.map(fn account ->
+        balance = Map.get(balances, account.id, Decimal.new("0"))
+
+        account
+        |> JSON.cash_account()
+        |> Map.put(:balance, JSON.decimal(balance))
+      end)
+
+    json(conn, %{data: data})
   end
 
   def create(conn, params) do

@@ -531,6 +531,79 @@ defmodule PortfolixirWeb.ApiV1Test do
   end
 
   # User story:
+  # As an API/MCP client managing a depot,
+  # I want cash balances surfaced per account and folded into the valuation,
+  # so that I can compute cash quote and floors directly.
+  test "reports cash balances per account and in the valuation", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{name: "ETF", currency_code: "EUR", asset_class: "etf"})
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "Cash Portfolio", base_currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Cash EUR",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        type: "deposit",
+        date: ~D[2026-01-01],
+        gross_amount: "1000",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-02],
+        quantity: "4",
+        price: "10",
+        currency_code: "EUR"
+      })
+
+    accounts =
+      conn
+      |> api_conn()
+      |> get("/api/v1/cash_accounts")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    # 1000 deposited - 40 spent on the buy (4 * 10).
+    assert [account] = accounts
+    assert account["balance"] == "960"
+
+    valuation =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/valuation")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert valuation["total_cash"] == "960"
+    assert [cash_entry] = valuation["cash_balances"]
+    assert cash_entry["cash_account_id"] == cash.id
+    assert cash_entry["balance"] == "960"
+    assert cash_entry["valued"] == true
+  end
+
+  # User story:
   # As an API client (and the LLM behind it),
   # I want to refresh and read exchange rates,
   # so that multi-currency valuations convert into the portfolio base currency.

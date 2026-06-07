@@ -51,14 +51,61 @@ defmodule Portfolixir.Portfolios.Valuation do
       |> Enum.map(&put_weight(&1, total))
       |> Enum.sort_by(& &1.security_id)
 
+    cash = cash_for(portfolio_id, base_currency)
+
     %{
       portfolio_id: portfolio_id,
       base_currency: base_currency,
       total_value: total,
+      total_cash: cash.total,
+      total_with_cash: Decimal.add(total, cash.total),
+      cash_balances: cash.balances,
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued))
     }
   end
+
+  # Per-account cash balances (in account currency) plus their sum converted to
+  # the portfolio base currency. An account whose currency has no rate path to
+  # the base is reported unvalued and left out of `total_cash`, mirroring how
+  # unpriceable positions are handled.
+  defp cash_for(portfolio_id, base_currency) do
+    balances = Ledger.cash_balances(portfolio_id: portfolio_id)
+
+    entries =
+      portfolio_id
+      |> Portfolios.list_cash_accounts_for_portfolio()
+      |> Enum.map(fn account ->
+        balance = Map.get(balances, account.id, @zero)
+        {base_value, valued?} = convert_cash(balance, account.currency_code, base_currency)
+
+        %{
+          cash_account_id: account.id,
+          name: account.name,
+          currency: account.currency_code,
+          balance: balance,
+          base_value: base_value,
+          valued: valued?
+        }
+      end)
+      |> Enum.sort_by(& &1.cash_account_id)
+
+    total =
+      entries
+      |> Enum.filter(& &1.valued)
+      |> Enum.reduce(@zero, fn entry, acc -> Decimal.add(acc, entry.base_value) end)
+
+    %{balances: entries, total: total}
+  end
+
+  defp convert_cash(%Decimal{} = balance, from, base) when is_binary(from) and is_binary(base) do
+    case Fx.convert(balance, from, base) do
+      {:ok, converted} -> {converted, true}
+      {:error, _reason} -> {nil, false}
+    end
+  end
+
+  defp convert_cash(_balance, _from, _base), do: {nil, false}
 
   defp build_position(securities_account_id, security_id, quantity, prices, base_currency) do
     security = Catalog.get_security(security_id)
