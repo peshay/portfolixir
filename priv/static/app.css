@@ -3704,3 +3704,12 @@ details[open] > .cat-summary::before {
 .cat-edit-form input[name="category[description]"] {
   flex: 1 1 14rem;
 }
+
+/* Mobile: keep the classification detail header from overflowing sideways */
+.classifications-detail .detail-head {
+  flex-wrap: wrap;
+}
+.classifications-detail .detail-head h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
