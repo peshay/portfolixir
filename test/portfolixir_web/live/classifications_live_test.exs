@@ -146,6 +146,24 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert html =~ "cannot be edited"
   end
 
+  test "filters the tree to securities matching the search", %{conn: conn} do
+    security!(%{name: "Apple"})
+    security!(%{name: "Microsoft"})
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+    assert html =~ "Apple"
+    assert html =~ "Microsoft"
+
+    filtered =
+      view
+      |> form("form.tree-search", %{"query" => "micro"})
+      |> render_change()
+
+    assert filtered =~ "Microsoft"
+    refute filtered =~ "Apple"
+  end
+
   defp assignments(classification_id) do
     Classifications.list_trees()
     |> Enum.find(&(&1.classification.id == classification_id))

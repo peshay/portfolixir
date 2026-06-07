@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:success, nil)
      |> assign(:selected_id, nil)
      |> assign(:tree, nil)
+     |> assign(:query, "")
      |> assign(:current_path, "/classifications")}
   end
 
@@ -38,7 +39,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp apply_action(socket, :show, %{"id" => id}) do
     case Integer.parse(id) do
-      {classification_id, ""} -> load_show(socket, classification_id)
+      {classification_id, ""} -> socket |> assign(:query, "") |> load_show(classification_id)
       _ -> push_navigate(socket, to: "/classifications")
     end
   end
@@ -92,6 +93,18 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </button>
           <% end %>
         </header>
+
+        <form phx-change="filter_tree" class="tree-search" onsubmit="return false">
+          <input
+            id="tree-search-input"
+            type="search"
+            name="query"
+            value={@query}
+            phx-debounce="150"
+            autocomplete="off"
+            placeholder={gettext("Search securities in this tree…")}
+          />
+        </form>
 
         <%= if @tree.editable do %>
           <form phx-submit="create_category" class="inline-form category-form">
@@ -152,8 +165,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <%= for node <- @tree.nodes do %>
             <.category_node node={node} classification_id={@tree.classification.id} editable={@tree.editable} />
           <% end %>
-          <%= if @tree.nodes == [] do %>
+          <%= if @tree.nodes == [] and not @tree.filtering? do %>
             <p class="hint"><%= gettext("No categories yet.") %></p>
+          <% end %>
+          <%= if @tree.filtering? and @tree.nodes == [] and @tree.unsorted == [] do %>
+            <p class="hint"><%= gettext("No securities match your search.") %></p>
           <% end %>
         </section>
 
@@ -327,6 +343,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
+  def handle_event("filter_tree", %{"query" => query}, socket) do
+    {:noreply, socket |> assign(:query, query) |> reload()}
+  end
+
   def handle_event("assign_security", params, socket) do
     with {:ok, security_id} <- coerce_id(params["security_id"]),
          {:ok, classification_id} <- coerce_id(params["classification_id"]),
@@ -381,13 +401,14 @@ defmodule PortfolixirWeb.ClassificationsLive do
     tree = Enum.find(Classifications.list_trees(), &(&1.classification.id == classification_id))
 
     if tree do
-      assign(socket, selected_id: classification_id, tree: build_view(tree))
+      assign(socket, selected_id: classification_id, tree: build_view(tree, socket.assigns.query))
     else
       assign(socket, selected_id: nil, tree: nil)
     end
   end
 
-  defp build_view(tree) do
+  defp build_view(tree, query) do
+    needle = query |> to_string() |> String.trim() |> String.downcase()
     securities = Catalog.list_securities()
     securities_by_id = Map.new(securities, &{&1.id, &1})
 
@@ -399,6 +420,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           ids
           |> Enum.map(&Map.get(securities_by_id, &1))
           |> Enum.reject(&is_nil/1)
+          |> Enum.filter(&matches?(&1, needle))
           |> Enum.sort_by(& &1.name)
 
         {category_id, members}
@@ -409,17 +431,37 @@ defmodule PortfolixirWeb.ClassificationsLive do
     unsorted =
       securities
       |> Enum.reject(&MapSet.member?(assigned_ids, &1.id))
+      |> Enum.filter(&matches?(&1, needle))
       |> Enum.sort_by(& &1.name)
 
     grouped = Enum.group_by(tree.categories, & &1.parent_id)
+    nodes = build_nodes(grouped, nil, by_category)
 
     %{
       classification: tree.classification,
       editable: not tree.classification.built_in,
-      nodes: build_nodes(grouped, nil, by_category),
+      nodes: if(needle == "", do: nodes, else: prune_nodes(nodes)),
       flat: flatten(tree.categories),
-      unsorted: unsorted
+      unsorted: unsorted,
+      query: query,
+      filtering?: needle != ""
     }
+  end
+
+  defp matches?(_security, ""), do: true
+
+  defp matches?(security, needle) do
+    [security.name, security.ticker_symbol, security.isin]
+    |> Enum.any?(fn value ->
+      is_binary(value) and String.contains?(String.downcase(value), needle)
+    end)
+  end
+
+  # When filtering, drop category branches that contain no matching securities.
+  defp prune_nodes(nodes) do
+    nodes
+    |> Enum.map(fn node -> %{node | children: prune_nodes(node.children)} end)
+    |> Enum.filter(fn node -> node.securities != [] or node.children != [] end)
   end
 
   defp build_nodes(grouped, parent_id, by_category) do

@@ -1946,3 +1946,9 @@ msgstr "Name der neuen Kategorie"
 
 msgid "Create & assign"
 msgstr "Anlegen & zuordnen"
+
+msgid "Search securities in this tree…"
+msgstr "Wertpapiere in diesem Baum suchen…"
+
+msgid "No securities match your search."
+msgstr "Keine Wertpapiere passen zur Suche."
