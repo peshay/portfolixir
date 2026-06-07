@@ -244,6 +244,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       name: category.name,
       key: category.key,
       color: category.color,
+      description: category.description,
       position: category.position
     }
   end

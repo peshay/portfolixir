@@ -235,6 +235,7 @@ const categorySchema = {
       properties: {
         name: { type: "string" },
         color: { type: "string" },
+        description: { type: "string" },
         parent_id: { type: "integer", minimum: 1 },
         position: { type: "integer" }
       }
@@ -247,6 +248,7 @@ const categoryZ = z.object({
   category: z.object({
     name: z.string(),
     color: optionalString,
+    description: optionalString,
     parent_id: z.number().int().positive().optional(),
     position: z.number().int().optional()
   })
