@@ -263,7 +263,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <small class="cat-description-inline"><%= @node.category.description %></small>
           <% end %>
         </span>
-        <span class="cat-count"><%= length(@node.securities) %></span>
+        <span class="cat-count" title={gettext("Securities in this category and its sub-categories")}><%= total_count(@node) %></span>
         <span class="cat-actions" data-no-toggle>
           <button
             type="button"
@@ -563,6 +563,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
         children: build_nodes(grouped, category.id, by_category)
       }
     end)
+  end
+
+  # Securities directly in this node plus everything in its sub-categories.
+  defp total_count(node) do
+    length(node.securities) + Enum.sum(Enum.map(node.children, &total_count/1))
   end
 
   # Flat, depth-tagged list of categories for the parent <select>.
