@@ -45,7 +45,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
         |> assign(:query, "")
         |> assign(:editing_id, nil)
         |> load_show(classification_id)
-      _ -> push_navigate(socket, to: "/classifications")
+
+      _ ->
+        push_navigate(socket, to: "/classifications")
     end
   end
 
