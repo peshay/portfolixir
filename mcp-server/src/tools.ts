@@ -286,21 +286,115 @@ const unassignZ = z.object({
   security_id: z.number().int().positive()
 });
 
+const classificationUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "classification"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    classification: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        position: { type: "integer" },
+        description: { type: "string" }
+      }
+    }
+  }
+};
+
+const classificationUpdateZ = z.object({
+  id: z.number().int().positive(),
+  classification: z.object({
+    name: optionalString,
+    position: z.number().int().optional(),
+    description: optionalString
+  })
+});
+
+const categoryUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["classification_id", "id", "category"],
+  properties: {
+    classification_id: { type: "integer", minimum: 1 },
+    id: { type: "integer", minimum: 1 },
+    category: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        color: { type: "string" },
+        description: { type: "string" },
+        parent_id: { type: "integer", minimum: 1 },
+        position: { type: "integer" }
+      }
+    }
+  }
+};
+
+const categoryUpdateZ = z.object({
+  classification_id: z.number().int().positive(),
+  id: z.number().int().positive(),
+  category: z.object({
+    name: optionalString,
+    color: optionalString,
+    description: optionalString,
+    parent_id: z.number().int().positive().optional(),
+    position: z.number().int().optional()
+  })
+});
+
+const categoryDeleteSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["classification_id", "id"],
+  properties: {
+    classification_id: { type: "integer", minimum: 1 },
+    id: { type: "integer", minimum: 1 }
+  }
+};
+
+const categoryDeleteZ = z.object({
+  classification_id: z.number().int().positive(),
+  id: z.number().int().positive()
+});
+
+const assignBulkSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["classification_id", "category_id", "security_ids"],
+  properties: {
+    classification_id: { type: "integer", minimum: 1 },
+    category_id: { type: "integer", minimum: 1 },
+    security_ids: { type: "array", items: { type: "integer", minimum: 1 }, minItems: 1 }
+  }
+};
+
+const assignBulkZ = z.object({
+  classification_id: z.number().int().positive(),
+  category_id: z.number().int().positive(),
+  security_ids: z.array(z.number().int().positive()).min(1)
+});
+
 const toolDefinitions: ToolDefinition[] = [
-  tool("portfolixir.securities.list", "List securities", "List local securities.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Use limit/offset to page large catalogs and keep responses small.", {
     type: "object",
     additionalProperties: false,
     properties: {
       query: { type: "string" },
       sort: { type: "string" },
       direction: { type: "string", enum: ["asc", "desc"] },
-      holding_status: { type: "string", enum: ["held", "not_held", "all"] }
+      holding_status: { type: "string", enum: ["held", "not_held", "all"] },
+      limit: { type: "integer", minimum: 0 },
+      offset: { type: "integer", minimum: 0 }
     }
   }, z.object({
     query: optionalString,
     sort: optionalString,
     direction: z.enum(["asc", "desc"]).optional(),
-    holding_status: z.enum(["held", "not_held", "all"]).optional()
+    holding_status: z.enum(["held", "not_held", "all"]).optional(),
+    limit: z.number().int().min(0).optional(),
+    offset: z.number().int().min(0).optional()
   })),
   tool("portfolixir.securities.create", "Create security", "Create a local security.", securitySchema, securityZ),
   tool("portfolixir.securities.search_online", "Search online securities", "Search configured online security providers.", {
@@ -366,7 +460,12 @@ const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and security assignments.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
   tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom classification.", categorySchema, categoryZ),
+  tool("portfolixir.classifications.update", "Update classification", "Update a custom classification's name, description or position.", classificationUpdateSchema, classificationUpdateZ),
+  tool("portfolixir.classifications.delete", "Delete classification", "Delete a custom classification and all its categories.", idSchema, idZ),
+  tool("portfolixir.classifications.categories.update", "Update category", "Patch a category's name, color, description, position or parent_id.", categoryUpdateSchema, categoryUpdateZ),
+  tool("portfolixir.classifications.categories.delete", "Delete category", "Delete a category from a custom classification.", categoryDeleteSchema, categoryDeleteZ),
   tool("portfolixir.classifications.assign", "Assign security", "Assign a security to a category of a custom classification.", assignSchema, assignZ),
+  tool("portfolixir.classifications.assign_bulk", "Assign securities (bulk)", "Assign many securities to one category in a single call.", assignBulkSchema, assignBulkZ),
   tool("portfolixir.classifications.unassign", "Unassign security", "Remove a security's assignment from a classification.", unassignSchema, unassignZ),
   tool(
     "portfolixir.trades.list",
@@ -404,7 +503,14 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.securities.list":
       return client.request(
         "GET",
-        withQuery("/api/v1/securities", args, ["query", "sort", "direction", "holding_status"])
+        withQuery("/api/v1/securities", args, [
+          "query",
+          "sort",
+          "direction",
+          "holding_status",
+          "limit",
+          "offset"
+        ])
       );
     case "portfolixir.securities.create":
       return client.request("POST", "/api/v1/securities", { security: args.security });
@@ -462,11 +568,34 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         `/api/v1/classifications/${args.classification_id}/categories`,
         { category: args.category }
       );
+    case "portfolixir.classifications.update":
+      return client.request("PATCH", `/api/v1/classifications/${args.id}`, {
+        classification: args.classification
+      });
+    case "portfolixir.classifications.delete":
+      return client.request("DELETE", `/api/v1/classifications/${args.id}`);
+    case "portfolixir.classifications.categories.update":
+      return client.request(
+        "PATCH",
+        `/api/v1/classifications/${args.classification_id}/categories/${args.id}`,
+        { category: args.category }
+      );
+    case "portfolixir.classifications.categories.delete":
+      return client.request(
+        "DELETE",
+        `/api/v1/classifications/${args.classification_id}/categories/${args.id}`
+      );
     case "portfolixir.classifications.assign":
       return client.request(
         "PUT",
         `/api/v1/classifications/${args.classification_id}/assignments`,
         { security_id: args.security_id, category_id: args.category_id }
+      );
+    case "portfolixir.classifications.assign_bulk":
+      return client.request(
+        "PUT",
+        `/api/v1/classifications/${args.classification_id}/assignments/bulk`,
+        { category_id: args.category_id, security_ids: args.security_ids }
       );
     case "portfolixir.classifications.unassign":
       return client.request(

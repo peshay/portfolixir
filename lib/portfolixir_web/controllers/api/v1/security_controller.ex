@@ -77,14 +77,40 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   defp list_opts(params) do
     with {:ok, sort} <- sort_param(params),
-         {:ok, holding_status} <- holding_status_param(params) do
+         {:ok, holding_status} <- holding_status_param(params),
+         {:ok, limit} <- int_param(params, "limit", :limit),
+         {:ok, offset} <- int_param(params, "offset", :offset) do
       opts =
         []
         |> put_if_present(:query, params["query"])
         |> put_if_present(:sort, sort)
         |> put_if_present(:holding_status, holding_status)
+        |> put_if_present(:limit, limit)
+        |> put_if_present(:offset, offset)
 
       {:ok, opts}
+    end
+  end
+
+  defp int_param(params, key, field) do
+    case Map.get(params, key) do
+      nil ->
+        {:ok, nil}
+
+      "" ->
+        {:ok, nil}
+
+      value when is_integer(value) and value >= 0 ->
+        {:ok, value}
+
+      value when is_binary(value) ->
+        case Integer.parse(value) do
+          {int, ""} when int >= 0 -> {:ok, int}
+          _ -> {:error, field}
+        end
+
+      _ ->
+        {:error, field}
     end
   end
 
