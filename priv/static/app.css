@@ -3732,7 +3732,16 @@ details[open] > .cat-summary::before {
   min-width: 0;
   max-width: 100%;
 }
-/* Ensure security rows actually truncate inside the clamped column. */
+/* Ensure security rows stay inside the clamped column. */
 .classifications-detail .dnd-row {
   min-width: 0;
+  align-items: flex-start;
+}
+/* Long ETF/security names should wrap onto multiple lines instead of
+   running out of the card (the default nowrap+ellipsis was overflowing). */
+.classifications-detail .dnd-row .row-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
 }
