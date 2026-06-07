@@ -246,6 +246,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <%= if @node.category.description not in [nil, ""] do %>
           <p class="cat-description"><%= @node.category.description %></p>
         <% end %>
+        <form class="recolor-form" phx-change="recolor_category">
+          <input type="hidden" name="category_id" value={@node.category.id} />
+          <label class="recolor-label">
+            <span><%= gettext("Color") %></span>
+            <input type="color" name="color" value={@node.category.color || "#cccccc"} />
+          </label>
+        </form>
         <ul class="cat-securities">
           <%= for security <- @node.securities do %>
             <li
@@ -284,6 +291,17 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
       {:error, reason} ->
         {:noreply, failure(socket, error_message(reason))}
+    end
+  end
+
+  def handle_event("recolor_category", %{"category_id" => id, "color" => color}, socket) do
+    with {:ok, category_id} <- coerce_id(id),
+         category when not is_nil(category) <- Classifications.get_category(category_id),
+         {:ok, _} <- Classifications.recolor_category(category, color) do
+      {:noreply, reload(socket)}
+    else
+      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
+      _ -> {:noreply, socket}
     end
   end
 

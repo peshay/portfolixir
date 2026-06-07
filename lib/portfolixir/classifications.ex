@@ -23,6 +23,20 @@ defmodule Portfolixir.Classifications do
 
   @builtin_keys ~w(asset_class currency)
 
+  # Distinct, asset-appropriate default colors so built-in asset-class
+  # categories are already differentiable in charts. Users may override them.
+  @asset_class_colors %{
+    "equity" => "#2563eb",
+    "etf" => "#0891b2",
+    "fund" => "#7c3aed",
+    "government_bond" => "#16a34a",
+    "bond" => "#65a30d",
+    "crypto" => "#f59e0b",
+    "commodity" => "#b45309",
+    "index" => "#475569",
+    "other" => "#6b7280"
+  }
+
   # -- read -----------------------------------------------------------------
 
   @doc """
@@ -114,6 +128,16 @@ defmodule Portfolixir.Classifications do
 
   def get_category(id) when is_integer(id), do: Repo.get(Category, id)
 
+  @doc """
+  Updates only a category's color. Allowed for built-in categories too, since
+  recoloring does not change the locked structure (names, keys, hierarchy).
+  """
+  def recolor_category(%Category{} = category, color) do
+    category
+    |> Category.color_changeset(color)
+    |> Repo.update()
+  end
+
   # -- assignments (custom only) --------------------------------------------
 
   @doc """
@@ -201,11 +225,13 @@ defmodule Portfolixir.Classifications do
   end
 
   defp builtin_asset_class_categories do
-    Enum.map(AssetClasses.options(), fn {label, code} -> {code, label} end)
+    Enum.map(AssetClasses.options(), fn {label, code} ->
+      {code, label, Map.get(@asset_class_colors, code)}
+    end)
   end
 
   defp builtin_currency_categories do
-    Enum.map(Currencies.options(), fn {label, code} -> {code, label} end)
+    Enum.map(Currencies.options(), fn {label, code} -> {code, label, nil} end)
   end
 
   defp ensure_builtin(key, name, categories) do
@@ -237,22 +263,30 @@ defmodule Portfolixir.Classifications do
     existing =
       Category
       |> where([c], c.classification_id == ^classification.id)
-      |> select([c], c.key)
       |> Repo.all()
-      |> MapSet.new()
+      |> Map.new(&{&1.key, &1})
 
     categories
     |> Enum.with_index()
-    |> Enum.each(fn {{code, label}, index} ->
-      unless MapSet.member?(existing, code) do
-        %Category{}
-        |> Category.builtin_changeset(%{
-          classification_id: classification.id,
-          key: code,
-          name: label,
-          position: index
-        })
-        |> Repo.insert(on_conflict: :nothing, conflict_target: [:classification_id, :key])
+    |> Enum.each(fn {{code, label, color}, index} ->
+      case Map.get(existing, code) do
+        nil ->
+          %Category{}
+          |> Category.builtin_changeset(%{
+            classification_id: classification.id,
+            key: code,
+            name: label,
+            color: color,
+            position: index
+          })
+          |> Repo.insert(on_conflict: :nothing, conflict_target: [:classification_id, :key])
+
+        %Category{color: nil} = category when not is_nil(color) ->
+          # Backfill a default color, but never overwrite a user-chosen one.
+          category |> Ecto.Changeset.change(color: color) |> Repo.update()
+
+        _ ->
+          :ok
       end
     end)
   end

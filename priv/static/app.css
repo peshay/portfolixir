@@ -3553,3 +3553,24 @@ details[open] > .cat-summary::before {
 .category-form__description input {
   width: 100%;
 }
+
+/* Recolor control inside a category */
+.recolor-form {
+  margin: 0 0 0.35rem;
+}
+.recolor-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.recolor-label input[type="color"] {
+  width: 1.6rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  background: none;
+  cursor: pointer;
+}

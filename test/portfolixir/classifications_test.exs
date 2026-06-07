@@ -147,6 +147,33 @@ defmodule Portfolixir.ClassificationsTest do
              Classifications.assign_securities([security.id], asset.id, 0)
   end
 
+  test "seeds asset-class categories with distinct default colors" do
+    asset = Classifications.list_trees() |> tree("asset_class")
+
+    equity = category(asset, "equity")
+    bond = category(asset, "bond")
+
+    assert equity.color == "#2563eb"
+    refute equity.color == bond.color
+  end
+
+  test "recolors a built-in category without unlocking its structure" do
+    asset = Classifications.list_trees() |> tree("asset_class")
+    equity = category(asset, "equity")
+
+    assert {:ok, updated} = Classifications.recolor_category(equity, "#123abc")
+    assert updated.color == "#123abc"
+
+    # Re-seeding must not clobber the user-chosen color.
+    Classifications.ensure_builtins()
+    reloaded = Classifications.list_trees() |> tree("asset_class") |> category("equity")
+    assert reloaded.color == "#123abc"
+
+    # Names/keys stay locked.
+    assert {:error, :builtin_locked} =
+             Classifications.update_category(equity, %{name: "Stocks"})
+  end
+
   test "stores an optional category description and blanks whitespace to nil" do
     {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
     cid = classification.id
