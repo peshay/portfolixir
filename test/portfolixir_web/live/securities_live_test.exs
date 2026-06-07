@@ -739,6 +739,35 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert assignments == [%{security_id: apple.id, category_id: category.id}]
     end
 
+    test "classifications tab creates a category inline and assigns the security",
+         %{conn: conn, apple: apple} do
+      {:ok, classification} =
+        Portfolixir.Classifications.create_classification(%{name: "Strategy"})
+
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=classifications")
+
+      view
+      |> element("form.sc-form")
+      |> render_change(%{
+        "classification_id" => "#{classification.id}",
+        "category_id" => "__new__"
+      })
+
+      assert has_element?(view, "form.sc-new-category")
+
+      view
+      |> form("form.sc-new-category", %{"name" => "Core"})
+      |> render_submit()
+
+      tree =
+        Portfolixir.Classifications.list_trees()
+        |> Enum.find(&(&1.classification.id == classification.id))
+
+      assert [category] = tree.categories
+      assert category.name == "Core"
+      assert tree.assignments == [%{security_id: apple.id, category_id: category.id}]
+    end
+
     test "overview tab is active by default and chart content is hidden",
          %{conn: conn, apple: apple} do
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")

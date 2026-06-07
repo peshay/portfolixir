@@ -60,6 +60,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_latest, nil)
      |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
      |> assign(:detail_classifications, [])
+     |> assign(:detail_new_category_for, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
@@ -630,6 +631,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <.classifications_tab_panel
           security={@selected_security}
           classifications={@detail_classifications}
+          new_category_for={@detail_new_category_for}
         />
       <% end %>
 
@@ -999,6 +1001,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   attr(:security, :map, required: true)
   attr(:classifications, :list, required: true)
+  attr(:new_category_for, :integer, default: nil)
 
   defp classifications_tab_panel(assigns) do
     ~H"""
@@ -1035,8 +1038,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       <%= classification_indent(depth) %><%= category.name %>
                     </option>
                   <% end %>
+                  <option value="__new__"><%= gettext("➕ New category…") %></option>
                 </select>
               </form>
+              <%= if @new_category_for == entry.classification.id do %>
+                <form phx-submit="create_and_assign_category" class="sc-new-category">
+                  <input type="hidden" name="classification_id" value={entry.classification.id} />
+                  <input name="name" placeholder={gettext("New category name")} required />
+                  <button type="submit" class="button"><%= gettext("Create & assign") %></button>
+                  <button type="button" phx-click="cancel_new_category">
+                    <%= gettext("Cancel") %>
+                  </button>
+                </form>
+              <% end %>
             <% else %>
               <span class="sc-value"><%= builtin_category_name(entry) %></span>
             <% end %>
@@ -1665,8 +1679,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       ) do
     case Integer.parse(classification_id) do
       {cid, ""} ->
-        apply_classification_change(id, cid, params["category_id"])
-        {:noreply, assign(socket, :detail_classifications, load_security_classifications(id))}
+        {:noreply, choose_security_category(socket, id, cid, params["category_id"])}
 
       _ ->
         {:noreply, socket}
@@ -1674,6 +1687,30 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("set_security_classification", _params, socket), do: {:noreply, socket}
+
+  def handle_event(
+        "create_and_assign_category",
+        %{"classification_id" => classification_id, "name" => name},
+        %{assigns: %{selected_security: %Security{id: id}}} = socket
+      ) do
+    with {cid, ""} <- Integer.parse(classification_id),
+         {:ok, category} <-
+           Classifications.create_category(%{"classification_id" => cid, "name" => name}),
+         {:ok, _} <- Classifications.assign_security(id, cid, category.id) do
+      {:noreply,
+       socket
+       |> assign(:detail_new_category_for, nil)
+       |> assign(:detail_classifications, load_security_classifications(id))}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("create_and_assign_category", _params, socket), do: {:noreply, socket}
+
+  def handle_event("cancel_new_category", _params, socket) do
+    {:noreply, assign(socket, :detail_new_category_for, nil)}
+  end
 
   def handle_event("save_detail_note", %{"security" => %{"note" => note}}, socket) do
     case socket.assigns.selected_security do
@@ -2071,6 +2108,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_latest, nil)
     |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
     |> assign(:detail_classifications, [])
+    |> assign(:detail_new_category_for, nil)
   end
 
   defp load_detail_data(%{assigns: %{selected_security: nil}} = socket), do: socket
@@ -2144,6 +2182,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> Enum.flat_map(fn category ->
       [{category, depth} | flat_categories_level(grouped, category.id, depth + 1)]
     end)
+  end
+
+  defp choose_security_category(socket, security_id, classification_id, "__new__") do
+    socket
+    |> assign(:detail_new_category_for, classification_id)
+    |> assign(:detail_classifications, load_security_classifications(security_id))
+  end
+
+  defp choose_security_category(socket, security_id, classification_id, category_id) do
+    apply_classification_change(security_id, classification_id, category_id)
+
+    socket
+    |> assign(:detail_new_category_for, nil)
+    |> assign(:detail_classifications, load_security_classifications(security_id))
   end
 
   defp apply_classification_change(security_id, classification_id, category_id)
