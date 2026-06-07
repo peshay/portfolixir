@@ -3713,3 +3713,17 @@ details[open] > .cat-summary::before {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Mobile: stop the workspace grid from blowing out horizontally.
+   The page is a single-column grid with an implicit `auto` track, so any
+   child wider than the viewport (e.g. the "parent category" <select>, whose
+   intrinsic width follows its longest option) stretches the whole track and
+   drags every card past the viewport, causing horizontal page scroll. Clamp
+   the track to the container width and let form controls shrink/wrap. */
+.workspace-page {
+  grid-template-columns: minmax(0, 1fr);
+}
+.classifications-detail :is(.inline-form, .cat-edit-form) :is(select, input) {
+  min-width: 0;
+  max-width: 100%;
+}
