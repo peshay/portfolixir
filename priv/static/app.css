@@ -3722,8 +3722,17 @@ details[open] > .cat-summary::before {
    the track to the container width and let form controls shrink/wrap. */
 .workspace-page {
   grid-template-columns: minmax(0, 1fr);
+  /* Never let a stray over-wide child (long ETF/security names, selects)
+     scroll the whole page sideways. `clip` (unlike auto/hidden) does not
+     create a scroll container, so the sticky select-toolbar keeps working,
+     and inner tables with their own overflow-x:auto are unaffected. */
+  overflow-x: clip;
 }
 .classifications-detail :is(.inline-form, .cat-edit-form) :is(select, input) {
   min-width: 0;
   max-width: 100%;
+}
+/* Ensure security rows actually truncate inside the clamped column. */
+.classifications-detail .dnd-row {
+  min-width: 0;
 }
