@@ -3600,3 +3600,27 @@ details[open] > .cat-summary::before {
   background: var(--color-bg);
   color: inherit;
 }
+
+/* Editable overview (inline security master-data editor) */
+.overview-form > .button {
+  margin-top: 0.7rem;
+}
+.overview-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.overview-edit-field > span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #6b7280);
+}
+.overview-edit-field input,
+.overview-edit-field select {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+}
+.overview-grid--readonly {
+  margin-top: 0.9rem;
+}

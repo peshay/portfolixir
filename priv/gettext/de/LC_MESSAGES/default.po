@@ -1952,3 +1952,12 @@ msgstr "Wertpapiere in diesem Baum suchen…"
 
 msgid "No securities match your search."
 msgstr "Keine Wertpapiere passen zur Suche."
+
+msgid "Automatic"
+msgstr "Automatisch"
+
+msgid "Security updated."
+msgstr "Wertpapier aktualisiert."
+
+msgid "Could not save changes."
+msgstr "Änderungen konnten nicht gespeichert werden."

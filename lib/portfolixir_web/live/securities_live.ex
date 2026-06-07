@@ -661,25 +661,48 @@ defmodule PortfolixirWeb.SecuritiesLive do
       role="tabpanel"
       class="detail-tab-panel detail-tab-panel--overview"
     >
-      <dl class="overview-grid">
-        <.overview_field label={gettext("Name")} value={@security.name} />
-        <.overview_field label={gettext("ISIN")} value={@security.isin} mono />
-        <.overview_field label={gettext("WKN")} value={@security.wkn} mono />
-        <.overview_field label={gettext("Ticker")} value={@security.ticker_symbol} mono />
-        <.overview_field label={gettext("Exchange")} value={@security.exchange_code} mono />
-        <.overview_field label={gettext("Currency")} value={@security.currency_code} mono />
-        <.overview_field
-          label={gettext("Asset class")}
-          value={asset_class_label(Security.effective_asset_class(@security))}
-        />
-        <.overview_field
-          label={gettext("Feed")}
-          value={@security.feed}
-        />
-        <.overview_field
-          label={gettext("Latest quote feed")}
-          value={@security.latest_feed}
-        />
+      <form id="overview-details-form" phx-submit="save_security_details" class="overview-form">
+        <div class="overview-grid">
+          <label class="overview-edit-field">
+            <span><%= gettext("Name") %></span>
+            <input name="security[name]" value={@security.name} required />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("ISIN") %></span>
+            <input name="security[isin]" value={@security.isin} class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("WKN") %></span>
+            <input name="security[wkn]" value={@security.wkn} class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("Ticker") %></span>
+            <input name="security[ticker_symbol]" value={@security.ticker_symbol} class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("Exchange") %></span>
+            <input name="security[exchange_code]" value={@security.exchange_code} class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("Currency") %></span>
+            <input name="security[currency_code]" value={@security.currency_code} maxlength="3" class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("Asset class") %></span>
+            <select name="security[asset_class]">
+              <option value=""><%= gettext("Automatic") %></option>
+              <%= for {label, code} <- AssetClasses.options() do %>
+                <option value={code} selected={@security.asset_class == code}><%= label %></option>
+              <% end %>
+            </select>
+          </label>
+        </div>
+        <button type="submit" class="button"><%= gettext("Save changes") %></button>
+      </form>
+
+      <dl class="overview-grid overview-grid--readonly">
+        <.overview_field label={gettext("Feed")} value={@security.feed} />
+        <.overview_field label={gettext("Latest quote feed")} value={@security.latest_feed} />
         <%= if @security.is_retired do %>
           <div class="overview-field overview-field--full">
             <dt><%= gettext("Status") %></dt>
@@ -1187,9 +1210,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
     <% end %>
     """
   end
-
-  defp asset_class_label(nil), do: nil
-  defp asset_class_label(code) when is_binary(code), do: AssetClasses.label(code)
 
   defp signed_percent_or_dash(value) do
     case decimal_for_display(value) do
@@ -1725,6 +1745,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
           {:error, _changeset} ->
             {:noreply, assign(socket, :flash_message, gettext("Could not save notes."))}
+        end
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("save_security_details", %{"security" => params}, socket) do
+    case socket.assigns.selected_security do
+      %Security{} = security ->
+        case Catalog.update_security(security, params) do
+          {:ok, updated} ->
+            {:noreply,
+             socket
+             |> assign(:selected_security, updated)
+             |> load_detail_data()
+             |> load_securities()
+             |> assign(:flash_message, gettext("Security updated."))}
+
+          {:error, _changeset} ->
+            {:noreply, assign(socket, :flash_message, gettext("Could not save changes."))}
         end
 
       _ ->
