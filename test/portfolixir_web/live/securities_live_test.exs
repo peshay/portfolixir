@@ -708,6 +708,37 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       end
     end
 
+    test "classifications tab assigns the security to a custom category",
+         %{conn: conn, apple: apple} do
+      {:ok, classification} =
+        Portfolixir.Classifications.create_classification(%{name: "Strategy"})
+
+      {:ok, category} =
+        Portfolixir.Classifications.create_category(%{
+          classification_id: classification.id,
+          name: "Core"
+        })
+
+      {:ok, view, html} = live(conn, "/securities/#{apple.id}?tab=classifications")
+
+      assert html =~ "Strategy"
+      assert html =~ "Core"
+
+      view
+      |> element("form.sc-form")
+      |> render_change(%{
+        "classification_id" => "#{classification.id}",
+        "category_id" => "#{category.id}"
+      })
+
+      assignments =
+        Portfolixir.Classifications.list_trees()
+        |> Enum.find(&(&1.classification.id == classification.id))
+        |> Map.fetch!(:assignments)
+
+      assert assignments == [%{security_id: apple.id, category_id: category.id}]
+    end
+
     test "overview tab is active by default and chart content is hidden",
          %{conn: conn, apple: apple} do
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
