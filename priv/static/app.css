@@ -3574,3 +3574,15 @@ details[open] > .cat-summary::before {
   background: none;
   cursor: pointer;
 }
+
+/* Inline "new category" creation in the security classifications tab */
+.sc-new-category {
+  display: flex;
+  gap: 0.4rem;
+  flex: 1 1 100%;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+.sc-new-category input[name="name"] {
+  flex: 1 1 10rem;
+}

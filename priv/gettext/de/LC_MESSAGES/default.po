@@ -1937,3 +1937,12 @@ msgstr "Beschreibung"
 
 msgid "optional"
 msgstr "optional"
+
+msgid "➕ New category…"
+msgstr "➕ Neue Kategorie…"
+
+msgid "New category name"
+msgstr "Name der neuen Kategorie"
+
+msgid "Create & assign"
+msgstr "Anlegen & zuordnen"
