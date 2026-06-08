@@ -1815,3 +1815,203 @@ msgstr "Im Bestand"
 #, elixir-autogen, elixir-format
 msgid "Not held"
 msgstr "Ohne Bestand"
+
+## --- Classifications UI (added) ---
+msgid "Add"
+msgstr "Hinzufügen"
+
+msgid "Built-in"
+msgstr "Vordefiniert"
+
+msgid "Built-in classifications cannot be edited"
+msgstr "Vordefinierte Klassifizierungen können nicht bearbeitet werden"
+
+msgid "Category created"
+msgstr "Kategorie angelegt"
+
+msgid "Category deleted"
+msgstr "Kategorie gelöscht"
+
+msgid "Category not found"
+msgstr "Kategorie nicht gefunden"
+
+msgid "Classification not found"
+msgstr "Klassifizierung nicht gefunden"
+
+msgid "Clear"
+msgstr "Aufheben"
+
+msgid "Color"
+msgstr "Farbe"
+
+msgid "Create classification"
+msgstr "Klassifizierung anlegen"
+
+msgid "Delete category"
+msgstr "Kategorie löschen"
+
+msgid "Delete classification"
+msgstr "Klassifizierung löschen"
+
+msgid "Delete this category?"
+msgstr "Diese Kategorie löschen?"
+
+msgid "Delete this classification and all its categories?"
+msgstr "Diese Klassifizierung und alle ihre Kategorien löschen?"
+
+msgid "Everything is sorted."
+msgstr "Alles ist einsortiert."
+
+msgid "Move to category"
+msgstr "In Kategorie verschieben"
+
+msgid "New category"
+msgstr "Neue Kategorie"
+
+msgid "New classification"
+msgstr "Neue Klassifizierung"
+
+msgid "No categories yet."
+msgstr "Noch keine Kategorien."
+
+msgid "Not found"
+msgstr "Nicht gefunden"
+
+msgid "Organise securities by dragging them between categories"
+msgstr "Wertpapiere per Drag-and-drop zwischen Kategorien einsortieren"
+
+msgid "Parent"
+msgstr "Übergeordnet"
+
+msgid "Pick a classification on the left, or create a new one."
+msgstr "Wähle links eine Klassifizierung oder lege eine neue an."
+
+msgid "Something went wrong"
+msgstr "Etwas ist schiefgelaufen"
+
+msgid "Target category"
+msgstr "Zielkategorie"
+
+msgid "That category belongs to another tree"
+msgstr "Diese Kategorie gehört zu einem anderen Baum"
+
+msgid "Tip: click rows to select several, then drag or use the toolbar to move them together."
+msgstr "Tipp: Klicke Zeilen an, um mehrere auszuwählen, und ziehe sie dann oder nutze die Leiste, um sie gemeinsam zu verschieben."
+
+msgid "Unassign"
+msgstr "Zuordnung entfernen"
+
+msgid "Unsorted"
+msgstr "Nicht zugeordnet"
+
+msgid "selected"
+msgstr "ausgewählt"
+
+msgid "— Top level —"
+msgstr "— Oberste Ebene —"
+
+msgid "Moved %{count} security"
+msgid_plural "Moved %{count} securities"
+msgstr[0] "%{count} Wertpapier verschoben"
+msgstr[1] "%{count} Wertpapiere verschoben"
+
+msgid "Unassigned %{count} security"
+msgid_plural "Unassigned %{count} securities"
+msgstr[0] "Zuordnung von %{count} Wertpapier entfernt"
+msgstr[1] "Zuordnung von %{count} Wertpapieren entfernt"
+
+msgid "— Unassigned —"
+msgstr "— Nicht zugeordnet —"
+
+msgid "No classifications yet."
+msgstr "Noch keine Klassifizierungen."
+
+msgid "Manage classifications"
+msgstr "Klassifizierungen verwalten"
+
+msgid "Set how this security is classified in each custom tree. Built-in trees are filled in automatically."
+msgstr "Lege fest, wie dieses Wertpapier in jedem eigenen Baum klassifiziert wird. Vordefinierte Bäume werden automatisch befüllt."
+
+msgid "Description"
+msgstr "Beschreibung"
+
+msgid "optional"
+msgstr "optional"
+
+msgid "➕ New category…"
+msgstr "➕ Neue Kategorie…"
+
+msgid "New category name"
+msgstr "Name der neuen Kategorie"
+
+msgid "Create & assign"
+msgstr "Anlegen & zuordnen"
+
+msgid "Search securities in this tree…"
+msgstr "Wertpapiere in diesem Baum suchen…"
+
+msgid "No securities match your search."
+msgstr "Keine Wertpapiere passen zur Suche."
+
+msgid "Automatic"
+msgstr "Automatisch"
+
+msgid "Security updated."
+msgstr "Wertpapier aktualisiert."
+
+msgid "Could not save changes."
+msgstr "Änderungen konnten nicht gespeichert werden."
+
+msgid "Edit category"
+msgstr "Kategorie bearbeiten"
+
+msgid "Done"
+msgstr "Fertig"
+
+msgid "Category updated"
+msgstr "Kategorie aktualisiert"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Warrant"
+msgstr "Optionsschein"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Knock-out product"
+msgstr "Knock-out-Produkt"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Factor certificate"
+msgstr "Faktor-Zertifikat"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Discount certificate"
+msgstr "Discount-Zertifikat"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Bonus certificate"
+msgstr "Bonus-Zertifikat"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Express certificate"
+msgstr "Express-Zertifikat"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Reverse convertible"
+msgstr "Aktienanleihe"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Leverage products"
+msgstr "Hebelprodukte"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Investment products"
+msgstr "Anlageprodukte"

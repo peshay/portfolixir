@@ -1,11 +1,34 @@
 defmodule PortfolixirWeb.Api.V1.CashAccountController do
   use PortfolixirWeb, :controller
 
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, _params) do
-    json(conn, %{data: Enum.map(Portfolios.list_cash_accounts(), &JSON.cash_account/1)})
+    balances = Ledger.cash_balances()
+
+    data =
+      Portfolios.list_cash_accounts()
+      |> Enum.map(fn account ->
+        balance = Map.get(balances, account.id, Decimal.new("0"))
+
+        account
+        |> JSON.cash_account()
+        |> Map.put(:balance, JSON.decimal(balance))
+      end)
+
+    json(conn, %{data: data})
+  end
+
+  def show(conn, %{"id" => id}) do
+    with {:ok, cid} <- parse_id(id),
+         %CashAccount{} = account <- Portfolios.get_cash_account(cid) do
+      json(conn, %{data: JSON.cash_account(account)})
+    else
+      _ -> not_found(conn)
+    end
   end
 
   def create(conn, params) do
@@ -18,9 +41,65 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
         |> json(%{data: JSON.cash_account(account)})
 
       {:error, changeset} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{errors: JSON.errors(changeset)})
+        unprocessable(conn, JSON.errors(changeset))
     end
+  end
+
+  def update(conn, %{"id" => id} = params) do
+    # Never let an update move an account into a different portfolio.
+    attrs = params |> Map.get("cash_account", %{}) |> Map.drop(["portfolio_id"])
+
+    with {:ok, cid} <- parse_id(id),
+         %CashAccount{} = account <- Portfolios.get_cash_account(cid),
+         {:ok, updated} <- Portfolios.update_cash_account(account, attrs) do
+      json(conn, %{data: JSON.cash_account(updated)})
+    else
+      nil -> not_found(conn)
+      :error -> not_found(conn)
+      {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+    end
+  end
+
+  def delete(conn, %{"id" => id}) do
+    with {:ok, cid} <- parse_id(id),
+         %CashAccount{} = account <- Portfolios.get_cash_account(cid) do
+      case Portfolios.delete_cash_account(account) do
+        {:ok, _} -> send_resp(conn, :no_content, "")
+        {:error, :referenced} -> conflict(conn)
+        {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+      end
+    else
+      nil -> not_found(conn)
+      :error -> not_found(conn)
+    end
+  end
+
+  defp parse_id(value) when is_integer(value), do: {:ok, value}
+
+  defp parse_id(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {id, ""} -> {:ok, id}
+      _ -> :error
+    end
+  end
+
+  defp parse_id(_value), do: :error
+
+  defp unprocessable(conn, errors) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{errors: errors})
+  end
+
+  defp not_found(conn) do
+    conn
+    |> put_status(:not_found)
+    |> json(%{errors: %{detail: "not found"}})
+  end
+
+  defp conflict(conn) do
+    conn
+    |> put_status(:conflict)
+    |> json(%{errors: %{detail: "cash account is referenced by existing records"}})
   end
 end

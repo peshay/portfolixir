@@ -34,5 +34,5 @@ already in force in the codebase.
 | [0003](0003-decimal-for-money.html) | Decimal for all financial values | Accepted |
 | [0004](0004-holdings-derived-from-transactions.html) | Holdings and trades derived from transaction history | Accepted |
 | [0005](0005-quote-provider-split.html) | Split quote providers: search vs. history | Accepted |
-| [0006](0006-classifications-with-target-weights.html) | Classifications with target weights | Proposed |
+| [0006](0006-classifications-with-target-weights.html) | Classifications (taxonomies) with built-in derived trees | Accepted |
 | [0007](0007-currency-conversion-with-exchange-rates.html) | Currency conversion with exchange rates | Accepted |

@@ -23,6 +23,8 @@ defmodule Portfolixir.Catalog do
     * `:query` – substring match on name/ticker/isin/wkn (case-insensitive)
     * `:filters` – list of `{field_key, op, value}` tuples
     * `:sort` – `{field_key, :asc | :desc}`, default `{:name, :asc}`
+    * `:limit` – cap the number of rows returned (for pagination)
+    * `:offset` – skip this many rows (for pagination)
   """
   def list_securities(opts \\ []) when is_list(opts) do
     sort = opts[:sort] || {:name, :asc}
@@ -33,8 +35,16 @@ defmodule Portfolixir.Catalog do
     |> apply_filters(opts[:filters] || [])
     |> apply_holding_status(opts[:holding_status])
     |> apply_sort(db_sort_or_default(sort))
+    |> apply_limit(opts[:limit])
+    |> apply_offset(opts[:offset])
     |> Repo.all()
   end
+
+  defp apply_limit(query, nil), do: query
+  defp apply_limit(query, value) when is_integer(value), do: limit(query, ^value)
+
+  defp apply_offset(query, nil), do: query
+  defp apply_offset(query, value) when is_integer(value), do: offset(query, ^value)
 
   @doc """
   Like `list_securities/1` but returns `%SecurityWithMetrics{}` wrappers,
@@ -220,6 +230,23 @@ defmodule Portfolixir.Catalog do
 
   def change_security(%Security{} = security, attrs \\ %{}) do
     Security.changeset(security, attrs)
+  end
+
+  @doc """
+  Sets the persisted `asset_class` on many securities in one statement. `code`
+  must be a valid asset-class code (callers pass a built-in category key), or
+  `nil` to clear it back to "automatic" (inferred on read). Returns the count of
+  rows updated.
+  """
+  def set_asset_class(security_ids, code) when is_list(security_ids) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    {count, _} =
+      Security
+      |> where([s], s.id in ^security_ids)
+      |> Repo.update_all(set: [asset_class: code, updated_at: now])
+
+    count
   end
 
   @doc """
