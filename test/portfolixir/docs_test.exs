@@ -78,7 +78,7 @@ defmodule Portfolixir.DocsTest do
     for expected <- [
           "Create securities, one portfolio, and linked cash/depot accounts.",
           "Record manual buy and sell transactions.",
-          "Review derived holdings and stored quote history.",
+          "Review derived holdings, cash balances, and stored quote history.",
           "Open a security detail chart from local quote history.",
           "Use `/api/v1` and the MCP companion"
         ] do
