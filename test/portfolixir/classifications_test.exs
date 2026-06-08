@@ -262,6 +262,9 @@ defmodule Portfolixir.ClassificationsTest do
     assert infer("DZ BANK Faktor 4x Long") == "factor_certificate"
     assert infer("Aktienanleihe auf BMW AG") == "reverse_convertible"
     assert infer("Discount-Zertifikat auf SAP") == "discount_certificate"
+    assert infer("HVB DiscC SAP 100") == "discount_certificate"
+    assert infer("DiscP BASF 40") == "discount_certificate"
+    assert infer("SG Call 15000 DAX") == "warrant"
 
     # Ordinary equities are never misread as certificates.
     refute infer("American Express Co.") == "express_certificate"

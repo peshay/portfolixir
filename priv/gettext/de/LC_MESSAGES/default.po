@@ -1970,3 +1970,48 @@ msgstr "Fertig"
 
 msgid "Category updated"
 msgstr "Kategorie aktualisiert"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Warrant"
+msgstr "Optionsschein"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Knock-out product"
+msgstr "Knock-out-Produkt"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Factor certificate"
+msgstr "Faktor-Zertifikat"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Discount certificate"
+msgstr "Discount-Zertifikat"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Bonus certificate"
+msgstr "Bonus-Zertifikat"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Express certificate"
+msgstr "Express-Zertifikat"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Reverse convertible"
+msgstr "Aktienanleihe"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Leverage products"
+msgstr "Hebelprodukte"
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Investment products"
+msgstr "Anlageprodukte"
