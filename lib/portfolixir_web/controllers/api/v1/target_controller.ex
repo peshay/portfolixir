@@ -70,6 +70,10 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   defp render_error(conn, :category_mismatch),
     do: unprocessable(conn, %{detail: "category does not belong to the classification"})
 
+  defp render_error(conn, :invalid_entry),
+    do:
+      unprocessable(conn, %{targets: ["must be a list of {category_id, target_weight} objects"]})
+
   defp parse_id(value) when is_integer(value), do: {:ok, value}
 
   defp parse_id(value) when is_binary(value) do

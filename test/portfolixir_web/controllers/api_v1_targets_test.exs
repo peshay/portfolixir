@@ -153,4 +153,16 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
 
     assert deleted == %{"data" => %{"deleted" => 1}}
   end
+
+  test "rejects a malformed targets list with 422 instead of crashing", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = setup_world()
+
+    response =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+        "classification_id" => classification.id,
+        "targets" => [1]
+      })
+
+    assert %{"errors" => %{"targets" => [_ | _]}} = json_response(response, 422)
+  end
 end
