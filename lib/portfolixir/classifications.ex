@@ -103,6 +103,47 @@ defmodule Portfolixir.Classifications do
     |> Repo.all()
   end
 
+  @doc """
+  Lists one classification's categories, ordered the same way as the trees.
+
+  Works for built-in and custom classifications alike; built-in categories are
+  seeded rows, so callers should `ensure_builtins/0` (or go through a function
+  that does, like `security_category_map/1`) before relying on them existing.
+  """
+  def list_categories(classification_id) when is_integer(classification_id) do
+    classification_id
+    |> categories_query()
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns `%{security_id => category_id}` for one classification: the derived
+  assignments for a built-in tree, or the stored assignments for a custom tree.
+
+  Built-in trees are seeded first so a built-in classification id resolves.
+  Returns `{:error, :not_found}` when the classification does not exist.
+  """
+  def security_category_map(classification_id) when is_integer(classification_id) do
+    ensure_builtins()
+
+    case Repo.get(Classification, classification_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Classification{} = classification ->
+        classification = Repo.preload(classification, categories: ordered_categories())
+
+        map =
+          classification
+          |> assignments_for(Catalog.list_securities())
+          |> Map.new(fn %{security_id: security_id, category_id: category_id} ->
+            {security_id, category_id}
+          end)
+
+        {:ok, map}
+    end
+  end
+
   def get_classification(id) when is_integer(id), do: Repo.get(Classification, id)
 
   def get_classification_by_key(key) when is_binary(key) do
@@ -409,6 +450,13 @@ defmodule Portfolixir.Classifications do
 
   defp ordered_categories do
     from(c in Category, order_by: [asc: c.position, asc: c.id])
+  end
+
+  defp categories_query(classification_id) do
+    from(c in Category,
+      where: c.classification_id == ^classification_id,
+      order_by: [asc: c.position, asc: c.id]
+    )
   end
 
   defp fetch_classification(attrs) do

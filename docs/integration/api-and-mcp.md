@@ -192,6 +192,27 @@ Example account payloads:
   accounts, and `total_with_cash` is `total_value + total_cash`. An account whose
   currency has no rate path to the base is reported `valued: false` and excluded
   from `total_cash`, mirroring how unpriceable positions are handled.
+- `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
+  target weights (the SOLL side of the allocation). Optional `classification_id`
+  scopes the list to one tree. Unknown portfolios return `404 Not Found`.
+- `PUT /api/v1/portfolios/:portfolio_id/targets` upserts target weights for one
+  classification. The body is `{"classification_id": id, "targets": [{"category_id":
+  id, "target_weight": "0.25"}]}`. Each `target_weight` is a string fraction in
+  `[0, 1]`; targets need not sum to `1`. Only the supplied categories are
+  changed. A category from another tree returns `422 Unprocessable Entity`, and an
+  unknown classification returns `404 Not Found`.
+- `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` removes a
+  portfolio's target weight for one category and returns `{deleted}` (the number
+  of rows removed).
+- `GET /api/v1/portfolios/:portfolio_id/allocation` returns the SOLL/IST
+  breakdown for one classification (required `classification_id` query param; a
+  missing one returns `422 Unprocessable Entity`). For each category it reports
+  `market_value`, `actual_weight` (its share of `total_value`), `target_weight`,
+  `drift_weight` (`target_weight - actual_weight`), and `drift_value` (the drift
+  restated in the base currency). Securities held but not assigned in the tree are
+  summed into `unassigned`. Weights mirror the valuation: shares of the valued
+  positions' total, cash excluded. Unknown portfolios or classifications return
+  `404 Not Found`.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
   period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter
@@ -308,3 +329,7 @@ in MCP schemas are strings.
 - `portfolixir.classifications.assign_bulk`
 - `portfolixir.classifications.unassign`
 - `portfolixir.trades.list`
+- `portfolixir.targets.list`
+- `portfolixir.targets.set`
+- `portfolixir.targets.delete`
+- `portfolixir.portfolios.allocation`
