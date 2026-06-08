@@ -22,9 +22,34 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
-  def list_transactions do
-    Repo.all(ordered_transactions() |> preload([:security, :cash_account, :securities_account]))
+  def list_transactions(opts \\ []) when is_list(opts) do
+    ordered_transactions()
+    |> filter_transactions(opts)
+    |> preload([:security, :cash_account, :securities_account])
+    |> Repo.all()
   end
+
+  defp filter_transactions(query, opts) do
+    query
+    |> filter_transaction_eq(:portfolio_id, opts[:portfolio_id])
+    |> filter_transaction_eq(:security_id, opts[:security_id])
+    |> filter_transaction_from(opts[:from])
+    |> filter_transaction_to(opts[:to])
+  end
+
+  defp filter_transaction_eq(query, _field, nil), do: query
+
+  defp filter_transaction_eq(query, :portfolio_id, id),
+    do: where(query, [t], t.portfolio_id == ^id)
+
+  defp filter_transaction_eq(query, :security_id, id),
+    do: where(query, [t], t.security_id == ^id)
+
+  defp filter_transaction_from(query, nil), do: query
+  defp filter_transaction_from(query, %Date{} = from), do: where(query, [t], t.date >= ^from)
+
+  defp filter_transaction_to(query, nil), do: query
+  defp filter_transaction_to(query, %Date{} = to), do: where(query, [t], t.date <= ^to)
 
   def list_transactions_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
     Repo.all(
@@ -44,6 +69,83 @@ defmodule Portfolixir.Ledger do
       )
     )
   end
+
+  @doc """
+  Returns the current cash balance of each cash account, keyed by
+  `cash_account_id`, derived on read from the stored transactions (balances are
+  not persisted; see ADR-0004).
+
+  Amounts are stored as positive magnitudes and the transaction `type` implies
+  the direction of the cash flow. Each balance is in its own account's currency;
+  no FX conversion is applied here. Pass `:portfolio_id` to scope the calculation
+  to one portfolio. Accounts with no cash-affecting transaction are omitted and
+  should be treated as a zero balance by callers.
+  """
+  def cash_balances(opts \\ []) when is_list(opts) do
+    Transaction
+    |> scope_portfolio(opts[:portfolio_id])
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn transaction, balances ->
+      transaction
+      |> cash_effects()
+      |> Enum.reduce(balances, fn {account_id, delta}, acc ->
+        add_cash_delta(acc, account_id, delta)
+      end)
+    end)
+  end
+
+  defp scope_portfolio(query, nil), do: query
+
+  defp scope_portfolio(query, portfolio_id) when is_integer(portfolio_id),
+    do: where(query, [t], t.portfolio_id == ^portfolio_id)
+
+  # Per-kind cash effects as `{cash_account_id, signed_delta}` tuples. Stored
+  # amounts are positive magnitudes; the sign here comes from the kind.
+  defp cash_effects(%Transaction{type: type} = t)
+       when type in ["deposit", "dividend", "interest", "tax_refund"],
+       do: [{t.cash_account_id, gross_amount(t)}]
+
+  defp cash_effects(%Transaction{type: type} = t)
+       when type in ["removal", "fee", "tax"],
+       do: [{t.cash_account_id, Decimal.negate(gross_amount(t))}]
+
+  defp cash_effects(%Transaction{type: "sell"} = t),
+    do: [{t.cash_account_id, sell_proceeds(t)}]
+
+  defp cash_effects(%Transaction{type: "buy"} = t),
+    do: [{t.cash_account_id, Decimal.negate(buy_cost(t))}]
+
+  defp cash_effects(%Transaction{type: "cash_transfer"} = t) do
+    amount = gross_amount(t)
+    [{t.cash_account_id, Decimal.negate(amount)}, {t.counter_cash_account_id, amount}]
+  end
+
+  # Deliveries and security transfers move shares, not cash.
+  defp cash_effects(%Transaction{}), do: []
+
+  defp add_cash_delta(balances, nil, _delta), do: balances
+
+  defp add_cash_delta(balances, account_id, delta),
+    do: Map.update(balances, account_id, delta, &Decimal.add(&1, delta))
+
+  defp gross_amount(%Transaction{gross_amount: %Decimal{} = amount}), do: amount
+  defp gross_amount(%Transaction{}), do: Decimal.new("0")
+
+  # buy `gross_amount` is inclusive of fees/taxes; sell `gross_amount` is already
+  # net of them. When it was not recorded, reconstruct from quantity*price.
+  defp buy_cost(%Transaction{gross_amount: %Decimal{} = amount}), do: amount
+  defp buy_cost(%Transaction{} = t), do: Decimal.add(base_amount(t), fees_and_taxes(t))
+
+  defp sell_proceeds(%Transaction{gross_amount: %Decimal{} = amount}), do: amount
+  defp sell_proceeds(%Transaction{} = t), do: Decimal.sub(base_amount(t), fees_and_taxes(t))
+
+  defp base_amount(%Transaction{quantity: %Decimal{} = q, price: %Decimal{} = p}),
+    do: Decimal.mult(q, p)
+
+  defp base_amount(%Transaction{}), do: Decimal.new("0")
+
+  defp fees_and_taxes(%Transaction{fees: fees, taxes: taxes}),
+    do: Decimal.add(fees || Decimal.new("0"), taxes || Decimal.new("0"))
 
   @doc """
   Lists FIFO-matched trades for a security: closed round-trips, open
@@ -209,6 +311,16 @@ defmodule Portfolixir.Ledger do
       |> Repo.insert()
     end
   end
+
+  def get_transaction(id) when is_integer(id), do: Repo.get(Transaction, id)
+
+  def update_transaction(%Transaction{} = transaction, attrs) when is_map(attrs) do
+    transaction
+    |> Transaction.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_transaction(%Transaction{} = transaction), do: Repo.delete(transaction)
 
   defp maybe_derive_linked_cash_account(attrs) do
     case get_attr(attrs, :type) do

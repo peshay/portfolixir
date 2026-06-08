@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
   alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.Classifications
   alias Portfolixir.Ledger
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Components.SecurityChart
@@ -23,7 +24,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
 
-  @tabs ~w(overview chart transactions trades quotes holdings)
+  @tabs ~w(overview chart transactions trades quotes holdings classifications)
   @default_tab "overview"
   @holding_statuses ~w(all held not_held)
   @default_holding_status "all"
@@ -58,6 +59,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_holdings, [])
      |> assign(:detail_latest, nil)
      |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
+     |> assign(:detail_classifications, [])
+     |> assign(:detail_new_category_for, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
@@ -624,7 +627,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
-      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings) do %>
+      <%= if @detail_tab == "classifications" do %>
+        <.classifications_tab_panel
+          security={@selected_security}
+          classifications={@detail_classifications}
+          new_category_for={@detail_new_category_for}
+        />
+      <% end %>
+
+      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings classifications) do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -650,25 +661,48 @@ defmodule PortfolixirWeb.SecuritiesLive do
       role="tabpanel"
       class="detail-tab-panel detail-tab-panel--overview"
     >
-      <dl class="overview-grid">
-        <.overview_field label={gettext("Name")} value={@security.name} />
-        <.overview_field label={gettext("ISIN")} value={@security.isin} mono />
-        <.overview_field label={gettext("WKN")} value={@security.wkn} mono />
-        <.overview_field label={gettext("Ticker")} value={@security.ticker_symbol} mono />
-        <.overview_field label={gettext("Exchange")} value={@security.exchange_code} mono />
-        <.overview_field label={gettext("Currency")} value={@security.currency_code} mono />
-        <.overview_field
-          label={gettext("Asset class")}
-          value={asset_class_label(Security.effective_asset_class(@security))}
-        />
-        <.overview_field
-          label={gettext("Feed")}
-          value={@security.feed}
-        />
-        <.overview_field
-          label={gettext("Latest quote feed")}
-          value={@security.latest_feed}
-        />
+      <form id="overview-details-form" phx-submit="save_security_details" class="overview-form">
+        <div class="overview-grid">
+          <label class="overview-edit-field">
+            <span><%= gettext("Name") %></span>
+            <input name="security[name]" value={@security.name} required />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("ISIN") %></span>
+            <input name="security[isin]" value={@security.isin} class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("WKN") %></span>
+            <input name="security[wkn]" value={@security.wkn} class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("Ticker") %></span>
+            <input name="security[ticker_symbol]" value={@security.ticker_symbol} class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("Exchange") %></span>
+            <input name="security[exchange_code]" value={@security.exchange_code} class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("Currency") %></span>
+            <input name="security[currency_code]" value={@security.currency_code} maxlength="3" class="mono" />
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("Asset class") %></span>
+            <select name="security[asset_class]">
+              <option value=""><%= gettext("Automatic") %></option>
+              <%= for {label, code} <- AssetClasses.options() do %>
+                <option value={code} selected={@security.asset_class == code}><%= label %></option>
+              <% end %>
+            </select>
+          </label>
+        </div>
+        <button type="submit" class="button"><%= gettext("Save changes") %></button>
+      </form>
+
+      <dl class="overview-grid overview-grid--readonly">
+        <.overview_field label={gettext("Feed")} value={@security.feed} />
+        <.overview_field label={gettext("Latest quote feed")} value={@security.latest_feed} />
         <%= if @security.is_retired do %>
           <div class="overview-field overview-field--full">
             <dt><%= gettext("Status") %></dt>
@@ -988,6 +1022,84 @@ defmodule PortfolixirWeb.SecuritiesLive do
     """
   end
 
+  attr(:security, :map, required: true)
+  attr(:classifications, :list, required: true)
+  attr(:new_category_for, :integer, default: nil)
+
+  defp classifications_tab_panel(assigns) do
+    ~H"""
+    <section
+      id="detail-tab-panel-classifications"
+      role="tabpanel"
+      class="detail-tab-panel detail-tab-panel--classifications"
+    >
+      <p class="detail-tab-hint">
+        <%= gettext("Set how this security is classified in each custom tree. Built-in trees are filled in automatically.") %>
+      </p>
+
+      <ul class="security-classifications">
+        <%= for entry <- @classifications do %>
+          <li class="security-classification">
+            <div class="sc-head">
+              <span class="sc-name"><%= entry.classification.name %></span>
+              <%= unless entry.editable do %>
+                <span class="badge"><%= gettext("Built-in") %></span>
+              <% end %>
+            </div>
+            <%= if entry.editable do %>
+              <form phx-change="set_security_classification" class="sc-form">
+                <input type="hidden" name="classification_id" value={entry.classification.id} />
+                <select name="category_id" aria-label={entry.classification.name}>
+                  <option value="" selected={is_nil(entry.selected_category_id)}>
+                    <%= gettext("— Unassigned —") %>
+                  </option>
+                  <%= for {category, depth} <- entry.categories do %>
+                    <option
+                      value={category.id}
+                      selected={entry.selected_category_id == category.id}
+                    >
+                      <%= classification_indent(depth) %><%= category.name %>
+                    </option>
+                  <% end %>
+                  <option value="__new__"><%= gettext("➕ New category…") %></option>
+                </select>
+              </form>
+              <%= if @new_category_for == entry.classification.id do %>
+                <form phx-submit="create_and_assign_category" class="sc-new-category">
+                  <input type="hidden" name="classification_id" value={entry.classification.id} />
+                  <input name="name" placeholder={gettext("New category name")} required />
+                  <button type="submit" class="button"><%= gettext("Create & assign") %></button>
+                  <button type="button" phx-click="cancel_new_category">
+                    <%= gettext("Cancel") %>
+                  </button>
+                </form>
+              <% end %>
+            <% else %>
+              <span class="sc-value"><%= builtin_category_name(entry) %></span>
+            <% end %>
+          </li>
+        <% end %>
+        <%= if @classifications == [] do %>
+          <li class="detail-tab-empty"><%= gettext("No classifications yet.") %></li>
+        <% end %>
+      </ul>
+
+      <p class="detail-tab-hint">
+        <.link navigate="/classifications"><%= gettext("Manage classifications") %></.link>
+      </p>
+    </section>
+    """
+  end
+
+  defp classification_indent(0), do: ""
+  defp classification_indent(depth), do: String.duplicate("— ", depth)
+
+  defp builtin_category_name(entry) do
+    Enum.find_value(entry.categories, fn {category, _depth} ->
+      category.id == entry.selected_category_id && category.name
+    end) || gettext("— Unassigned —")
+  end
+
   attr(:quotes, :list, required: true)
   attr(:currency_code, :string, default: nil)
   attr(:range, :string, default: nil)
@@ -1098,9 +1210,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
     <% end %>
     """
   end
-
-  defp asset_class_label(nil), do: nil
-  defp asset_class_label(code) when is_binary(code), do: AssetClasses.label(code)
 
   defp signed_percent_or_dash(value) do
     case decimal_for_display(value) do
@@ -1219,7 +1328,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {"transactions", gettext("Transactions")},
       {"trades", gettext("Trades")},
       {"quotes", gettext("Quotes")},
-      {"holdings", gettext("Holdings")}
+      {"holdings", gettext("Holdings")},
+      {"classifications", gettext("Classifications")}
     ]
   end
 
@@ -1582,6 +1692,46 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, update(socket, :detail_fullscreen?, &(!&1))}
   end
 
+  def handle_event(
+        "set_security_classification",
+        %{"classification_id" => classification_id} = params,
+        %{assigns: %{selected_security: %Security{id: id}}} = socket
+      ) do
+    case Integer.parse(classification_id) do
+      {cid, ""} ->
+        {:noreply, choose_security_category(socket, id, cid, params["category_id"])}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("set_security_classification", _params, socket), do: {:noreply, socket}
+
+  def handle_event(
+        "create_and_assign_category",
+        %{"classification_id" => classification_id, "name" => name},
+        %{assigns: %{selected_security: %Security{id: id}}} = socket
+      ) do
+    with {cid, ""} <- Integer.parse(classification_id),
+         {:ok, category} <-
+           Classifications.create_category(%{"classification_id" => cid, "name" => name}),
+         {:ok, _} <- Classifications.assign_security(id, cid, category.id) do
+      {:noreply,
+       socket
+       |> assign(:detail_new_category_for, nil)
+       |> assign(:detail_classifications, load_security_classifications(id))}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("create_and_assign_category", _params, socket), do: {:noreply, socket}
+
+  def handle_event("cancel_new_category", _params, socket) do
+    {:noreply, assign(socket, :detail_new_category_for, nil)}
+  end
+
   def handle_event("save_detail_note", %{"security" => %{"note" => note}}, socket) do
     case socket.assigns.selected_security do
       %Security{} = security ->
@@ -1595,6 +1745,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
           {:error, _changeset} ->
             {:noreply, assign(socket, :flash_message, gettext("Could not save notes."))}
+        end
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("save_security_details", %{"security" => params}, socket) do
+    case socket.assigns.selected_security do
+      %Security{} = security ->
+        case Catalog.update_security(security, params) do
+          {:ok, updated} ->
+            {:noreply,
+             socket
+             |> assign(:selected_security, updated)
+             |> load_detail_data()
+             |> load_securities()
+             |> assign(:flash_message, gettext("Security updated."))}
+
+          {:error, _changeset} ->
+            {:noreply, assign(socket, :flash_message, gettext("Could not save changes."))}
         end
 
       _ ->
@@ -1977,6 +2148,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_holdings, [])
     |> assign(:detail_latest, nil)
     |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
+    |> assign(:detail_classifications, [])
+    |> assign(:detail_new_category_for, nil)
   end
 
   defp load_detail_data(%{assigns: %{selected_security: nil}} = socket), do: socket
@@ -2019,6 +2192,63 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_holdings, Ledger.holdings_for_security(id))
     |> assign(:detail_latest, Quotes.latest(id))
     |> assign(:detail_metrics, metrics)
+    |> assign(:detail_classifications, load_security_classifications(id))
+  end
+
+  defp load_security_classifications(security_id) do
+    Classifications.list_trees()
+    |> Enum.map(fn tree ->
+      selected =
+        Enum.find_value(tree.assignments, fn assignment ->
+          assignment.security_id == security_id && assignment.category_id
+        end)
+
+      %{
+        classification: tree.classification,
+        editable: not tree.classification.built_in,
+        categories: flat_categories(tree.categories),
+        selected_category_id: selected
+      }
+    end)
+  end
+
+  defp flat_categories(categories) do
+    grouped = Enum.group_by(categories, & &1.parent_id)
+    flat_categories_level(grouped, nil, 0)
+  end
+
+  defp flat_categories_level(grouped, parent_id, depth) do
+    grouped
+    |> Map.get(parent_id, [])
+    |> Enum.flat_map(fn category ->
+      [{category, depth} | flat_categories_level(grouped, category.id, depth + 1)]
+    end)
+  end
+
+  defp choose_security_category(socket, security_id, classification_id, "__new__") do
+    socket
+    |> assign(:detail_new_category_for, classification_id)
+    |> assign(:detail_classifications, load_security_classifications(security_id))
+  end
+
+  defp choose_security_category(socket, security_id, classification_id, category_id) do
+    apply_classification_change(security_id, classification_id, category_id)
+
+    socket
+    |> assign(:detail_new_category_for, nil)
+    |> assign(:detail_classifications, load_security_classifications(security_id))
+  end
+
+  defp apply_classification_change(security_id, classification_id, category_id)
+       when category_id in [nil, ""] do
+    Classifications.unassign_security(security_id, classification_id)
+  end
+
+  defp apply_classification_change(security_id, classification_id, category_id) do
+    case Integer.parse(category_id) do
+      {category, ""} -> Classifications.assign_security(security_id, classification_id, category)
+      _ -> {:error, :invalid}
+    end
   end
 
   defp range_to_dates(range, security_id) do

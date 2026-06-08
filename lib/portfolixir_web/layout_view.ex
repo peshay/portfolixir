@@ -577,6 +577,195 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            Hooks.ClassificationDnD = {
+              mounted: function () {
+                var self = this;
+                var el = this.el;
+                var selected = {};
+                var anchor = null;
+                var anchorList = null;
+
+                function rows() { return el.querySelectorAll("[data-drag-security]"); }
+                function selectedIds() {
+                  var ids = [];
+                  for (var k in selected) { if (selected[k]) ids.push(parseInt(k, 10)); }
+                  return ids;
+                }
+                function clearSelection() { selected = {}; anchor = null; anchorList = null; }
+                function classificationId() {
+                  return parseInt(el.getAttribute("data-classification"), 10);
+                }
+                function prune() {
+                  var present = {};
+                  var r = rows();
+                  for (var i = 0; i < r.length; i++) {
+                    present[r[i].getAttribute("data-drag-security")] = true;
+                  }
+                  for (var k in selected) { if (!present[k]) delete selected[k]; }
+                }
+                function refresh() {
+                  var r = rows();
+                  for (var i = 0; i < r.length; i++) {
+                    var id = r[i].getAttribute("data-drag-security");
+                    if (selected[id]) r[i].classList.add("is-selected");
+                    else r[i].classList.remove("is-selected");
+                  }
+                  var count = selectedIds().length;
+                  var bar = el.querySelector("[data-select-toolbar]");
+                  if (bar) {
+                    var label = bar.querySelector("[data-selected-count]");
+                    if (label) label.textContent = String(count);
+                    if (count > 0) bar.removeAttribute("hidden");
+                    else bar.setAttribute("hidden", "");
+                  }
+                }
+                function selectRange(list, fromId, toId) {
+                  var r = list.querySelectorAll("[data-drag-security]");
+                  var ids = [];
+                  for (var i = 0; i < r.length; i++) {
+                    ids.push(r[i].getAttribute("data-drag-security"));
+                  }
+                  var a = ids.indexOf(String(fromId));
+                  var b = ids.indexOf(String(toId));
+                  if (a === -1 || b === -1) { selected[toId] = true; return; }
+                  var lo = Math.min(a, b);
+                  var hi = Math.max(a, b);
+                  for (var j = lo; j <= hi; j++) selected[ids[j]] = true;
+                }
+                function dispatch(zone, ids) {
+                  var cid = parseInt(zone.getAttribute("data-classification"), 10);
+                  if (zone.getAttribute("data-drop-kind") === "unassign") {
+                    self.pushEvent("unassign_many", { security_ids: ids, classification_id: cid });
+                  } else {
+                    self.pushEvent("assign_securities", {
+                      security_ids: ids,
+                      classification_id: cid,
+                      category_id: parseInt(zone.getAttribute("data-category"), 10)
+                    });
+                  }
+                }
+
+                this._refreshState = function () { prune(); refresh(); };
+
+                this._onClick = function (event) {
+                  if (!event.target.closest) return;
+                  if (event.target.closest("[data-no-toggle]")) {
+                    // Keep summary action buttons from toggling the <details> folder.
+                    event.preventDefault();
+                  }
+                  if (event.target.closest("[data-move-selected]")) {
+                    var sel = el.querySelector("[data-move-target]");
+                    var categoryId = sel ? parseInt(sel.value, 10) : NaN;
+                    var ids = selectedIds();
+                    if (ids.length && !isNaN(categoryId)) {
+                      self.pushEvent("assign_securities", {
+                        security_ids: ids,
+                        classification_id: classificationId(),
+                        category_id: categoryId
+                      });
+                      clearSelection();
+                      refresh();
+                    }
+                    return;
+                  }
+                  if (event.target.closest("[data-unassign-selected]")) {
+                    var uids = selectedIds();
+                    if (uids.length) {
+                      self.pushEvent("unassign_many", {
+                        security_ids: uids,
+                        classification_id: classificationId()
+                      });
+                      clearSelection();
+                      refresh();
+                    }
+                    return;
+                  }
+                  if (event.target.closest("[data-clear-selection]")) {
+                    clearSelection();
+                    refresh();
+                    return;
+                  }
+
+                  var row = event.target.closest("[data-drag-security]");
+                  if (!row || !el.contains(row)) return;
+                  if (event.target.closest("a, input, select")) return;
+                  var rid = row.getAttribute("data-drag-security");
+                  var list = row.parentNode;
+                  if (event.shiftKey && anchor && anchorList === list) {
+                    selectRange(list, anchor, rid);
+                  } else {
+                    if (selected[rid]) delete selected[rid];
+                    else selected[rid] = true;
+                    anchor = rid;
+                    anchorList = list;
+                  }
+                  refresh();
+                };
+
+                this._onDragStart = function (event) {
+                  var row = event.target.closest
+                    ? event.target.closest("[data-drag-security]")
+                    : null;
+                  if (!row) return;
+                  var rid = row.getAttribute("data-drag-security");
+                  if (!selected[rid]) {
+                    selected[rid] = true;
+                    anchor = rid;
+                    anchorList = row.parentNode;
+                    refresh();
+                  }
+                  event.dataTransfer.setData("text/plain", selectedIds().join(","));
+                  event.dataTransfer.effectAllowed = "move";
+                };
+                this._onDragOver = function (event) {
+                  var zone = event.target.closest
+                    ? event.target.closest("[data-dropzone]")
+                    : null;
+                  if (!zone) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  zone.classList.add("is-dropping");
+                };
+                this._onDragLeave = function (event) {
+                  var zone = event.target.closest
+                    ? event.target.closest("[data-dropzone]")
+                    : null;
+                  if (zone) zone.classList.remove("is-dropping");
+                };
+                this._onDrop = function (event) {
+                  var zone = event.target.closest
+                    ? event.target.closest("[data-dropzone]")
+                    : null;
+                  if (!zone) return;
+                  event.preventDefault();
+                  zone.classList.remove("is-dropping");
+                  var ids = selectedIds();
+                  if (!ids.length) return;
+                  dispatch(zone, ids);
+                  clearSelection();
+                  refresh();
+                };
+
+                el.addEventListener("click", this._onClick);
+                el.addEventListener("dragstart", this._onDragStart);
+                el.addEventListener("dragover", this._onDragOver);
+                el.addEventListener("dragleave", this._onDragLeave);
+                el.addEventListener("drop", this._onDrop);
+                refresh();
+              },
+              updated: function () {
+                if (this._refreshState) this._refreshState();
+              },
+              destroyed: function () {
+                var el = this.el;
+                el.removeEventListener("click", this._onClick);
+                el.removeEventListener("dragstart", this._onDragStart);
+                el.removeEventListener("dragover", this._onDragOver);
+                el.removeEventListener("dragleave", this._onDragLeave);
+                el.removeEventListener("drop", this._onDrop);
+              }
+            };
+
             var liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
               hooks: Hooks,
               params: { _csrf_token: csrfToken }

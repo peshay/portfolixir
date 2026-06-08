@@ -36,10 +36,16 @@ that successful delete response.
 ## Securities
 
 - `GET /api/v1/securities` lists securities. Optional query params: `query`,
-  `sort`, `direction`, and holding_status (`all`, `held`, or `not_held`).
+  `sort`, `direction`, holding_status (`all`, `held`, or `not_held`), and
+  `limit`/`offset` for pagination (both non-negative integers). Use these to
+  page large catalogs instead of fetching the whole table at once.
 - `POST /api/v1/securities` creates a security with a `security` object.
-  `asset_class` is a stable string code such as `equity`, `etf`, `crypto`,
-  `bond`, or `government_bond`.
+  `asset_class` is a stable string code: `equity`, `etf`, `fund`,
+  `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus the
+  certificate/leverage codes `warrant`, `knock_out`, `factor_certificate`,
+  `discount_certificate`, `bonus_certificate`, `express_certificate`,
+  `reverse_convertible`. Leave it empty to let the class be inferred from the
+  name/ISIN/ticker on read.
 - `GET /api/v1/securities/:id` returns one security.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
 - `DELETE /api/v1/securities/:id` deletes a security when no dependent
@@ -100,12 +106,27 @@ Example quote sync response:
 
 - `GET /api/v1/portfolios` lists portfolios.
 - `POST /api/v1/portfolios` creates a portfolio with a `portfolio` object.
-- `GET /api/v1/cash_accounts` lists cash accounts.
+- `GET /api/v1/cash_accounts` lists cash accounts. Each carries a `balance`
+  (decimal string, in the account's own currency) derived on read from the
+  ledger: amounts are stored as positive magnitudes and the transaction `type`
+  implies the direction (deposits, dividends, interest, tax refunds and sells
+  add cash; removals, fees, taxes and buys remove it; a cash transfer debits its
+  account and credits the counter account).
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
   object.
+- `GET /api/v1/cash_accounts/:id` returns one cash account.
+- `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
+  `currency_code`, `notes`); `portfolio_id` cannot be changed.
+- `DELETE /api/v1/cash_accounts/:id` deletes a cash account, or returns
+  `409 Conflict` when a transaction or securities account still references it.
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
 - `POST /api/v1/securities_accounts` creates a depot/securities account with a
   `securities_account` object.
+- `GET /api/v1/securities_accounts/:id` returns one securities account.
+- `PATCH /api/v1/securities_accounts/:id` updates a securities account
+  (`name`, `notes`, `cash_account_id`); `portfolio_id` cannot be changed.
+- `DELETE /api/v1/securities_accounts/:id` deletes a securities account, or
+  returns `409 Conflict` when a transaction still references it.
 
 Example account payloads:
 
@@ -140,11 +161,19 @@ Example account payloads:
 
 ## Transactions and Holdings
 
-- `GET /api/v1/transactions` lists manual transactions.
+- `GET /api/v1/transactions` lists transactions. Optional filters: `from`/`to`
+  (ISO dates, inclusive), `portfolio_id`, `security_id`. Invalid filters return
+  `422 Unprocessable Entity` with the offending field.
 - `POST /api/v1/transactions` creates a manual buy or sell transaction with a
   `transaction` object.
+- `GET /api/v1/transactions/:id` returns one transaction.
+- `PATCH /api/v1/transactions/:id` updates a transaction (e.g. to fix a
+  mis-imported booking); the per-kind validation still applies.
+- `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
+  holdings are derived, correcting or removing the transaction fixes them too.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
-  portfolio; unknown portfolios return `404 Not Found`.
+  portfolio; unknown portfolios return `404 Not Found`. Optional filters:
+  `security_id`, `securities_account_id`.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` returns a live valuation of a
   portfolio: each held position priced from its latest quote close, a
   `total_value`, and each valued position's `weight` (its share of the total).
@@ -157,9 +186,17 @@ Example account payloads:
   Weights are raw shares (`market_value / total_value`) emitted at full Decimal
   precision; because they are normalized ratios they need not sum to exactly
   `1` (round for display). Market values and `total_value` are exact.
+  The valuation also carries cash: `cash_balances` lists each cash account
+  (`balance` in its own currency, plus `base_value`/`valued` after converting to
+  the base currency), `total_cash` is the base-currency sum of the valued cash
+  accounts, and `total_with_cash` is `total_value + total_cash`. An account whose
+  currency has no rate path to the base is reported `valued: false` and excluded
+  from `total_cash`, mirroring how unpriceable positions are handled.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
-  period in days) and any orphan sells.
+  period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter
+  each leg by its own date: open lots by open date, closed round-trips by close
+  date, orphan sells by sell date.
 
 ## Exchange Rates
 
@@ -169,6 +206,46 @@ Example account payloads:
 - `POST /api/v1/exchange_rates/sync` fetches the latest rates from the configured
   provider (ECB daily reference rates by default) and returns `{provider,
   status, upserted}`. A provider failure returns `502 Bad Gateway`.
+
+## Classifications
+
+Classification trees organise securities like folders. Built-in trees
+(`asset_class`, `currency`) are derived automatically and their structure is
+locked; editing the structure of a built-in tree returns `422 Unprocessable
+Entity`. The **asset-class** tree's membership, however, is just a view of each
+security's `asset_class` field: in the UI you can drag a security between its
+categories (which sets that field), and the same effect is achieved over the API
+with `PATCH /api/v1/securities/:id` (`{"security": {"asset_class": "etf"}}`) or
+the `securities.update` MCP tool. Set it to empty/`null` for "automatic", which
+re-infers the class from the security's name/ISIN/ticker on read. The currency
+tree stays intrinsic and cannot be reassigned.
+
+- `GET /api/v1/classifications` lists every classification as a tree with its
+  `categories` and `assignments` (`{security_id, category_id}`). Built-in trees
+  carry `built_in: true` and a `key`.
+- `POST /api/v1/classifications` creates a custom classification from a
+  `classification` object (`name`, optional `position`, `description`).
+- `PATCH /api/v1/classifications/:id` updates a custom classification's
+  `classification` object (`name`, `position`, `description` — all optional).
+- `DELETE /api/v1/classifications/:id` deletes a custom classification and
+  cascades its categories and assignments.
+- `POST /api/v1/classifications/:classification_id/categories` adds a `category`
+  (`name`, optional `color`, `description`, `parent_id`, `position`) to a custom
+  classification.
+- `PATCH /api/v1/classifications/:classification_id/categories/:id` patches a
+  `category` (`name`, `color`, `description`, `parent_id`, `position` — all
+  optional). The category's `classification_id` cannot be changed this way.
+- `DELETE /api/v1/classifications/:classification_id/categories/:id` deletes a
+  category and cascades its child categories and assignments.
+- `PUT /api/v1/classifications/:classification_id/assignments` assigns a security
+  to a category (`security_id`, `category_id`), replacing any existing assignment
+  for that security in the classification. The response carries a `status` of
+  `created`, `moved`, or `unchanged` plus `previous_category_id`.
+- `PUT /api/v1/classifications/:classification_id/assignments/bulk` assigns many
+  securities to one category in a single call (`category_id`, `security_ids`),
+  returning `{assigned, category_id, security_ids}`.
+- `DELETE /api/v1/classifications/:classification_id/assignments/:security_id`
+  removes a security's assignment from the classification.
 
 Example transaction payload:
 
@@ -196,6 +273,8 @@ in MCP schemas are strings.
 
 - `portfolixir.securities.list`
 - `portfolixir.securities.create`
+- `portfolixir.securities.update`
+- `portfolixir.securities.delete`
 - `portfolixir.securities.search_online`
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
@@ -204,12 +283,28 @@ in MCP schemas are strings.
 - `portfolixir.portfolios.create`
 - `portfolixir.cash_accounts.list`
 - `portfolixir.cash_accounts.create`
+- `portfolixir.cash_accounts.update`
+- `portfolixir.cash_accounts.delete`
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
+- `portfolixir.securities_accounts.update`
+- `portfolixir.securities_accounts.delete`
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
+- `portfolixir.transactions.update`
+- `portfolixir.transactions.delete`
 - `portfolixir.holdings.list`
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`
+- `portfolixir.classifications.list`
+- `portfolixir.classifications.create`
+- `portfolixir.classifications.categories.create`
+- `portfolixir.classifications.update`
+- `portfolixir.classifications.delete`
+- `portfolixir.classifications.categories.update`
+- `portfolixir.classifications.categories.delete`
+- `portfolixir.classifications.assign`
+- `portfolixir.classifications.assign_bulk`
+- `portfolixir.classifications.unassign`
 - `portfolixir.trades.list`

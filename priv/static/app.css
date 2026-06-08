@@ -3175,3 +3175,573 @@ img.security-logo {
   gap: 0.5rem;
   justify-content: center;
 }
+
+/* Classifications workspace */
+.classification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.classification-tree {
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.85rem;
+  background: var(--color-surface, var(--color-bg));
+}
+.classification-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.classification-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.classification-tree .badge {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--color-accent-soft, var(--color-border));
+  color: var(--color-accent, var(--color-text));
+}
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+}
+.category-form {
+  margin-bottom: 0.6rem;
+}
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.dnd-dropzone {
+  border: 1px dashed var(--color-border);
+  border-radius: 0.6rem;
+  padding: 0.5rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.dnd-dropzone.is-builtin {
+  border-style: solid;
+  opacity: 0.95;
+}
+.dnd-dropzone.is-dropping {
+  border-color: var(--color-accent-violet, #7c3aed);
+  background: var(--color-accent-soft, rgba(124, 58, 237, 0.08));
+}
+.category-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.cat-swatch {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--color-border);
+  display: inline-block;
+}
+.cat-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.cat-securities {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.dnd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  font-size: 0.8rem;
+  cursor: grab;
+}
+.dnd-chip.is-member {
+  cursor: default;
+}
+.dnd-chip small {
+  color: var(--color-text-muted, #6b7280);
+}
+.chip-remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-danger, #dc2626);
+  padding: 0;
+}
+.securities-palette {
+  margin-top: 1rem;
+}
+.palette-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+  margin: 0.2rem 0 0;
+}
+
+/* Classifications — PP-style master/detail */
+.nav-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 0.4rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--color-text-muted, #6b7280);
+}
+.nav-add:hover {
+  background: var(--color-accent-soft, rgba(124, 58, 237, 0.12));
+  color: var(--color-accent, #7c3aed);
+}
+.classifications-detail .detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.classifications-detail .detail-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+.tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+}
+.cat-node {
+  border: 1px solid var(--color-border);
+  border-radius: 0.6rem;
+  padding: 0.35rem 0.5rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.cat-node.is-dropping {
+  border-color: var(--color-accent-violet, #7c3aed);
+  background: var(--color-accent-soft, rgba(124, 58, 237, 0.08));
+}
+.cat-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  list-style: none;
+}
+.cat-summary::-webkit-details-marker {
+  display: none;
+}
+.cat-summary::before {
+  content: "▸";
+  font-size: 0.7rem;
+  color: var(--color-text-muted, #6b7280);
+  transition: transform 0.15s ease;
+}
+details[open] > .cat-summary::before {
+  transform: rotate(90deg);
+}
+.cat-swatch.is-empty {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+}
+.cat-body {
+  padding: 0.4rem 0 0.2rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.unsorted-node {
+  margin-top: 0.75rem;
+  border-style: dashed;
+}
+.dnd-chip.is-draggable {
+  cursor: grab;
+}
+.dnd-chip.is-draggable:active {
+  cursor: grabbing;
+}
+.empty-state {
+  text-align: center;
+}
+.button,
+.button-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.button-danger {
+  color: var(--color-danger, #dc2626);
+  border-color: var(--color-danger, #dc2626);
+  background: transparent;
+}
+
+/* Classifications: multiselect folder-list */
+.classifications-detail .cat-securities {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.dnd-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 0.35rem;
+  font-size: 0.85rem;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.dnd-row.is-draggable {
+  cursor: grab;
+}
+.dnd-row + .dnd-row {
+  border-top: 1px solid var(--color-border-subtle, rgba(127, 127, 127, 0.16));
+}
+.dnd-row:hover {
+  background: var(--color-surface-hover, rgba(127, 127, 127, 0.08));
+}
+.dnd-row.is-selected {
+  background: var(--color-accent-soft, rgba(124, 58, 237, 0.16));
+  box-shadow: inset 3px 0 0 var(--color-accent-violet, #7c3aed);
+}
+.dnd-row .row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dnd-row .row-ccy {
+  flex: 0 0 auto;
+  color: var(--color-text-muted, #6b7280);
+}
+.select-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.65rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface, var(--color-bg));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.select-toolbar[hidden] {
+  display: none;
+}
+.select-toolbar .select-count {
+  margin-right: auto;
+}
+.select-toolbar select {
+  max-width: 16rem;
+}
+.multiselect-hint {
+  margin: 0.25rem 0 0.5rem;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Security detail: classifications tab */
+.security-classifications {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.security-classification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.security-classification .sc-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.security-classification .sc-name {
+  font-weight: 600;
+}
+.security-classification .sc-form {
+  margin: 0;
+  flex: 1 1 12rem;
+  display: flex;
+  justify-content: flex-end;
+}
+.security-classification .sc-form select {
+  width: 100%;
+  max-width: 18rem;
+}
+.security-classification .sc-value {
+  color: var(--color-text-muted, #6b7280);
+}
+.detail-tab-panel--classifications .detail-tab-hint {
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.85rem;
+}
+
+/* Classification category descriptions */
+.cat-description {
+  margin: 0.1rem 0 0.35rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.category-form__description {
+  flex: 1 1 100%;
+}
+.category-form__description input {
+  width: 100%;
+}
+
+/* Recolor control inside a category */
+.recolor-form {
+  margin: 0 0 0.35rem;
+}
+.recolor-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.recolor-label input[type="color"] {
+  width: 1.6rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  background: none;
+  cursor: pointer;
+}
+
+/* Inline "new category" creation in the security classifications tab */
+.sc-new-category {
+  display: flex;
+  gap: 0.4rem;
+  flex: 1 1 100%;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+.sc-new-category input[name="name"] {
+  flex: 1 1 10rem;
+}
+
+/* Classification tree search */
+.tree-search {
+  margin: 0.5rem 0 0.75rem;
+}
+.tree-search input[type="search"] {
+  width: 100%;
+  max-width: 28rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background: var(--color-bg);
+  color: inherit;
+}
+
+/* Editable overview (inline security master-data editor) */
+.overview-form > .button {
+  margin-top: 0.7rem;
+}
+.overview-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.overview-edit-field > span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #6b7280);
+}
+.overview-edit-field input,
+.overview-edit-field select {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+}
+.overview-grid--readonly {
+  margin-top: 0.9rem;
+}
+
+/* Compact, editable category rows (PP-style density) */
+.cat-node {
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.45rem;
+}
+.cat-summary {
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+.cat-summary .cat-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+.cat-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  overflow: hidden;
+}
+.cat-description-inline {
+  font-weight: 400;
+  font-size: 0.74rem;
+  color: var(--color-text-muted, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat-count {
+  margin-left: 0;
+  font-size: 0.72rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.cat-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+.icon-mini {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.12rem 0.3rem;
+  border-radius: 0.3rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.icon-mini:hover {
+  background: var(--color-surface-hover, rgba(127, 127, 127, 0.14));
+  color: inherit;
+}
+.cat-body {
+  padding: 0.25rem 0 0.15rem 0.9rem;
+  gap: 0.25rem;
+}
+.color-mini {
+  width: 1.5rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  background: none;
+  cursor: pointer;
+}
+.cat-edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0;
+}
+.cat-edit-form input[name="category[name]"] {
+  flex: 0 1 12rem;
+}
+.cat-edit-form input[name="category[description]"] {
+  flex: 1 1 14rem;
+}
+
+/* Mobile: keep the classification detail header from overflowing sideways */
+.classifications-detail .detail-head {
+  flex-wrap: wrap;
+}
+.classifications-detail .detail-head h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Mobile: stop the workspace grid from blowing out horizontally.
+   The page is a single-column grid with an implicit `auto` track, so any
+   child wider than the viewport (e.g. the "parent category" <select>, whose
+   intrinsic width follows its longest option) stretches the whole track and
+   drags every card past the viewport, causing horizontal page scroll. Clamp
+   the track to the container width and let form controls shrink/wrap. */
+.workspace-page {
+  grid-template-columns: minmax(0, 1fr);
+  /* Never let a stray over-wide child (long ETF/security names, selects)
+     scroll the whole page sideways. `clip` (unlike auto/hidden) does not
+     create a scroll container, so the sticky select-toolbar keeps working,
+     and inner tables with their own overflow-x:auto are unaffected. */
+  overflow-x: clip;
+}
+.classifications-detail :is(.inline-form, .cat-edit-form) :is(select, input) {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Ensure security rows stay inside the clamped column. */
+.classifications-detail .dnd-row {
+  min-width: 0;
+  align-items: flex-start;
+}
+/* Long ETF/security names should wrap onto multiple lines instead of
+   running out of the card (the default nowrap+ellipsis was overflowing). */
+.classifications-detail .dnd-row .row-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}

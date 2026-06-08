@@ -5,12 +5,13 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.Api.V1.JSON
 
-  def index(conn, %{"portfolio_id" => portfolio_id}) do
+  def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, id} <- parse_id(portfolio_id),
          portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id) do
       holdings =
         id
         |> Ledger.positions_for_portfolio()
+        |> filter_positions(params)
         |> Enum.map(&JSON.holding(&1, id))
 
       json(conn, %{data: holdings})
@@ -23,12 +24,37 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
     end
   end
 
+  # Optional in-memory filters on the derived positions, each keyed
+  # `{{securities_account_id, security_id}, quantity}`.
+  defp filter_positions(positions, params) do
+    security_id = optional_id(params["security_id"])
+    account_id = optional_id(params["securities_account_id"])
+
+    positions
+    |> filter_by(fn {{_account, security}, _qty} -> security end, security_id)
+    |> filter_by(fn {{account, _security}, _qty} -> account end, account_id)
+  end
+
+  defp filter_by(positions, _selector, nil), do: positions
+
+  defp filter_by(positions, selector, value),
+    do: Enum.filter(positions, fn position -> selector.(position) == value end)
+
+  defp optional_id(value) do
+    case parse_id(value) do
+      {:ok, id} -> id
+      _ -> nil
+    end
+  end
+
   defp parse_id(value) when is_binary(value) do
     case Integer.parse(value) do
       {id, ""} -> {:ok, id}
       _ -> :error
     end
   end
+
+  defp parse_id(_value), do: :error
 
   defp not_found(conn) do
     conn

@@ -708,6 +708,66 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       end
     end
 
+    test "classifications tab assigns the security to a custom category",
+         %{conn: conn, apple: apple} do
+      {:ok, classification} =
+        Portfolixir.Classifications.create_classification(%{name: "Strategy"})
+
+      {:ok, category} =
+        Portfolixir.Classifications.create_category(%{
+          classification_id: classification.id,
+          name: "Core"
+        })
+
+      {:ok, view, html} = live(conn, "/securities/#{apple.id}?tab=classifications")
+
+      assert html =~ "Strategy"
+      assert html =~ "Core"
+
+      view
+      |> element("form.sc-form")
+      |> render_change(%{
+        "classification_id" => "#{classification.id}",
+        "category_id" => "#{category.id}"
+      })
+
+      assignments =
+        Portfolixir.Classifications.list_trees()
+        |> Enum.find(&(&1.classification.id == classification.id))
+        |> Map.fetch!(:assignments)
+
+      assert assignments == [%{security_id: apple.id, category_id: category.id}]
+    end
+
+    test "classifications tab creates a category inline and assigns the security",
+         %{conn: conn, apple: apple} do
+      {:ok, classification} =
+        Portfolixir.Classifications.create_classification(%{name: "Strategy"})
+
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=classifications")
+
+      view
+      |> element("form.sc-form")
+      |> render_change(%{
+        "classification_id" => "#{classification.id}",
+        "category_id" => "__new__"
+      })
+
+      assert has_element?(view, "form.sc-new-category")
+
+      view
+      |> form("form.sc-new-category", %{"name" => "Core"})
+      |> render_submit()
+
+      tree =
+        Portfolixir.Classifications.list_trees()
+        |> Enum.find(&(&1.classification.id == classification.id))
+
+      assert [category] = tree.categories
+      assert category.name == "Core"
+      assert tree.assignments == [%{security_id: apple.id, category_id: category.id}]
+    end
+
     test "overview tab is active by default and chart content is hidden",
          %{conn: conn, apple: apple} do
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
@@ -1114,6 +1174,21 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       |> render_submit()
 
       assert Catalog.get_security(apple.id).note == "Long-term core position."
+    end
+
+    test "saving the details form persists master data via Catalog.update_security/2",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      view
+      |> form("#overview-details-form", %{
+        "security" => %{"name" => "Apple Inc. (edited)", "ticker_symbol" => "AAPL2"}
+      })
+      |> render_submit()
+
+      updated = Catalog.get_security(apple.id)
+      assert updated.name == "Apple Inc. (edited)"
+      assert updated.ticker_symbol == "AAPL2"
     end
   end
 
