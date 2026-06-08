@@ -31,9 +31,13 @@ companion that wraps that API.
 
 - Create securities, one portfolio, and linked cash/depot accounts.
 - Record manual buy and sell transactions.
-- Review derived holdings and stored quote history.
+- Review derived holdings, cash balances, and stored quote history.
+- Organise securities into classification trees (custom, plus built-in
+  asset-class and currency trees); the asset-class tree is an editable taxonomy
+  seeded from an inferred default and corrected by dragging.
 - Open a security detail chart from local quote history.
-- Use `/api/v1` and the MCP companion for the same supported local actions.
+- Use `/api/v1` and the MCP companion for the same supported local actions,
+  including update/delete and live portfolio valuation with cash.
 
 ## Quick start
 

@@ -9,6 +9,11 @@ defmodule PortfolixirWeb.AppShell do
   slot(:inner_block, required: true)
 
   def shell(assigns) do
+    assigns =
+      assign_new(assigns, :classifications, fn ->
+        Portfolixir.Classifications.list_classifications()
+      end)
+
     ~H"""
     <div id="app-shell" class="app-shell">
       <input
@@ -29,6 +34,9 @@ defmodule PortfolixirWeb.AppShell do
 
         <nav class="primary-nav" aria-label={gettext("Primary navigation")}>
           <%= for group <- nav_groups() do %>
+            <%= if group[:kind] == :classifications do %>
+              <.classifications_nav classifications={@classifications} current_path={@current_path} />
+            <% else %>
             <div class={["nav-group", group.title == nil && "nav-group-unlabeled"]}>
               <%= if group.title do %>
                 <div class="nav-group-head"><span><%= group.title %></span></div>
@@ -61,6 +69,7 @@ defmodule PortfolixirWeb.AppShell do
                 <% end %>
               <% end %>
             </div>
+            <% end %>
           <% end %>
         </nav>
       </aside>
@@ -192,6 +201,47 @@ defmodule PortfolixirWeb.AppShell do
     """
   end
 
+  defp classifications_nav(assigns) do
+    ~H"""
+    <div class="nav-group">
+      <div class="nav-group-head">
+        <span><%= gettext("Classifications") %></span>
+        <.link
+          navigate="/classifications/new"
+          class="nav-add"
+          aria-label={gettext("New classification")}
+          title={gettext("New classification")}
+        >+</.link>
+      </div>
+
+      <%= for classification <- @classifications do %>
+        <.link
+          id={"nav-classification-#{classification.id}"}
+          navigate={"/classifications/#{classification.id}"}
+          class={[
+            "nav-link",
+            @current_path == "/classifications/#{classification.id}" && "is-active"
+          ]}
+          aria-current={
+            if @current_path == "/classifications/#{classification.id}", do: "page", else: nil
+          }
+        >
+          <span class="nav-marker" aria-hidden="true"></span>
+          <span class="nav-ico" aria-hidden="true"><%= nav_icon(:tag) %></span>
+          <span class="nav-label"><%= classification.name %></span>
+        </.link>
+      <% end %>
+
+      <%= if @classifications == [] do %>
+        <.link navigate="/classifications/new" class="nav-link is-disabled">
+          <span class="nav-marker" aria-hidden="true"></span>
+          <span class="nav-label"><%= gettext("Add your first") %></span>
+        </.link>
+      <% end %>
+    </div>
+    """
+  end
+
   defp nav_groups do
     [
       %{
@@ -304,32 +354,8 @@ defmodule PortfolixirWeb.AppShell do
       },
       %{
         title: gettext("Classifications"),
-        items: [
-          %{
-            id: "nav-classifications-asset-class",
-            label: gettext("Asset class"),
-            disabled: true,
-            icon: :tag
-          },
-          %{
-            id: "nav-classifications-regions",
-            label: gettext("Regions"),
-            disabled: true,
-            icon: :globe
-          },
-          %{
-            id: "nav-classifications-industries",
-            label: gettext("Industries"),
-            disabled: true,
-            icon: :building
-          },
-          %{
-            id: "nav-classifications-strategies",
-            label: gettext("Strategies"),
-            disabled: true,
-            icon: :compass
-          }
-        ]
+        kind: :classifications,
+        items: []
       },
       %{
         title: gettext("General"),
@@ -360,6 +386,9 @@ defmodule PortfolixirWeb.AppShell do
 
   defp nav_current?(path, %{section: :imports}),
     do: String.starts_with?(path, "/imports")
+
+  defp nav_current?(path, %{section: :classifications}),
+    do: String.starts_with?(path, "/classifications")
 
   defp nav_current?(_path, _item), do: false
 
