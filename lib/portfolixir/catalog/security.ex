@@ -141,11 +141,23 @@ defmodule Portfolixir.Catalog.Security do
       government_bond_name?(name) -> "government_bond"
       etf_name?(name) -> "etf"
       crypto_name?(name) or crypto_ticker?(ticker_symbol) -> "crypto"
+      commodity_name?(name) -> "commodity"
       # Certificate/leverage products are checked before equities because their
       # names often also carry an issuer suffix (e.g. "Aktienanleihe … AG").
       true -> derivative_class(name) || equity_or_nil(name)
     end
   end
+
+  # Physically-backed precious-metal products (e.g. EUWAX/Xetra Gold). Kept
+  # specific so mining equities like "Barrick Gold Corp" are not caught.
+  defp commodity_name?(name) when is_binary(name) do
+    Regex.match?(
+      ~r/EUWAX\s*Gold|Xetra[\s-]?Gold|Physical\s+(Gold|Silver|Platinum|Palladium)|\bGold\s+Bullion\b/i,
+      name
+    )
+  end
+
+  defp commodity_name?(_), do: false
 
   defp equity_or_nil(name) do
     if equity_name?(name) and not structured_product_name?(name), do: "equity", else: nil
@@ -174,7 +186,7 @@ defmodule Portfolixir.Catalog.Security do
 
   defp knockout_name?(name) do
     Regex.match?(
-      ~r/\bTurbo\b|Knock[\s-]?Out|\bKO\b|Mini[\s-]?Future|\bO\.End\b|Open[\s-]?End[\s-]?Turbo|\bWAVE\b|Unlimited\s+Turbo/i,
+      ~r/\bTurbo[LS]?\b|Knock[\s-]?Out|\bKO\b|Mini[\s-]?Future|\bO\.End\b|Open[\s-]?End[\s-]?Turbo|\bWAVE\b|Unlimited\s+Turbo/i,
       name
     )
   end
