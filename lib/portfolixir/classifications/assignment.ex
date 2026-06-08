@@ -3,8 +3,10 @@ defmodule Portfolixir.Classifications.Assignment do
   Places one security into one category of a classification.
 
   Uniqueness is `(security_id, classification_id)`: a security sits in at most
-  one category per classification. Splitting a security across categories is a
-  weights concern, deferred (see ADR-0006).
+  one category per classification. Target weights per category now exist
+  (`Portfolixir.Portfolios.Targets` and `Portfolixir.Portfolios.Allocation`, see
+  ADR-0008); splitting a single security across several categories with partial
+  weights remains out of scope.
   """
 
   use Ecto.Schema

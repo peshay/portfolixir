@@ -32,9 +32,15 @@ companion that wraps that API.
 - Create securities, one portfolio, and linked cash/depot accounts.
 - Record manual buy and sell transactions.
 - Review derived holdings, cash balances, and stored quote history.
+- See each holding's moving-average cost basis and unrealized P&L.
 - Organise securities into classification trees (custom, plus built-in
   asset-class and currency trees); the asset-class tree is an editable taxonomy
   seeded from an inferred default and corrected by dragging.
+- Set per-category target weights and read a SOLL/IST allocation breakdown with
+  per-category drift.
+- Value multi-currency portfolios by converting through stored exchange rates.
+- Import a Portfolio Performance CSV or JSON export: drag in the file, preview
+  the records, then apply them atomically.
 - Open a security detail chart from local quote history.
 - Use `/api/v1` and the MCP companion for the same supported local actions,
   including update/delete and live portfolio valuation with cash.
