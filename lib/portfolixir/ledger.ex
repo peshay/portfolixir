@@ -33,6 +33,7 @@ defmodule Portfolixir.Ledger do
     query
     |> filter_transaction_eq(:portfolio_id, opts[:portfolio_id])
     |> filter_transaction_eq(:security_id, opts[:security_id])
+    |> filter_transaction_eq(:securities_account_id, opts[:securities_account_id])
     |> filter_transaction_from(opts[:from])
     |> filter_transaction_to(opts[:to])
   end
@@ -44,6 +45,9 @@ defmodule Portfolixir.Ledger do
 
   defp filter_transaction_eq(query, :security_id, id),
     do: where(query, [t], t.security_id == ^id)
+
+  defp filter_transaction_eq(query, :securities_account_id, id),
+    do: where(query, [t], t.securities_account_id == ^id)
 
   defp filter_transaction_from(query, nil), do: query
   defp filter_transaction_from(query, %Date{} = from), do: where(query, [t], t.date >= ^from)

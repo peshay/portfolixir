@@ -723,20 +723,22 @@ const toolDefinitions: ToolDefinition[] = [
     idSchema,
     idZ
   ),
-  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id.", {
+  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id.", {
     type: "object",
     additionalProperties: false,
     properties: {
       from: { type: "string", format: "date" },
       to: { type: "string", format: "date" },
       portfolio_id: { type: "integer", minimum: 1 },
-      security_id: { type: "integer", minimum: 1 }
+      security_id: { type: "integer", minimum: 1 },
+      securities_account_id: { type: "integer", minimum: 1 }
     }
   }, z.object({
     from: optionalString(),
     to: optionalString(),
     portfolio_id: z.number().int().positive().optional(),
-    security_id: z.number().int().positive().optional()
+    security_id: z.number().int().positive().optional(),
+    securities_account_id: z.number().int().positive().optional()
   })),
   tool("portfolixir.transactions.create", "Create transaction", "Create a manual buy or sell transaction.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking).", transactionUpdateSchema, transactionUpdateZ),
@@ -905,7 +907,13 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.transactions.list":
       return client.request(
         "GET",
-        withQuery("/api/v1/transactions", args, ["from", "to", "portfolio_id", "security_id"])
+        withQuery("/api/v1/transactions", args, [
+          "from",
+          "to",
+          "portfolio_id",
+          "security_id",
+          "securities_account_id"
+        ])
       );
     case "portfolixir.transactions.create":
       return client.request("POST", "/api/v1/transactions", { transaction: args.transaction });
