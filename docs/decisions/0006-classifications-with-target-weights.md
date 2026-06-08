@@ -61,15 +61,24 @@ taxonomy trees plus auto-managed built-in trees.
   one category per classification (splitting a security across categories is a
   weights concern, deferred).
 
-**Built-in classifications (auto-managed, structure locked):**
+**Built-in classifications (auto-managed structure, asset class re-assignable):**
 
 - Portfolixir seeds and maintains built-in trees for **asset class** (from
   `Security.effective_asset_class/1`) and **currency** (from `currency_code`).
   Their categories mirror the curated code lists; their assignments are derived
   from each security and re-synced whenever a security is created or changed.
-- They are fully visible like any classification, but their structure and
-  assignments are not hand-editable through the API/UI — a maintainer who wants
-  a different cut creates a custom classification instead.
+- The **asset-class** tree models a DDV-style hierarchy: the flat classes plus a
+  **Leverage products** group (warrant, knock-out, factor certificate) and an
+  **Investment products** group (discount/bonus/express certificate, reverse
+  convertible). The category structure (names/keys/hierarchy) is curated and not
+  hand-editable, but **membership is**: dragging a security between its
+  categories — or `PATCH`-ing the security — sets the security's `asset_class`
+  field, which the derived tree then reflects. A first guess is inferred from the
+  name/ISIN/ticker on create; the maintainer corrects it by dragging. So the
+  asset class behaves like an editable taxonomy seeded with a default, matching
+  how Portfolio Performance treats it.
+- The **currency** tree is intrinsic (a security's currency is a fact, not a
+  judgement) and stays fully read-only.
 
 **Surfaces:**
 
@@ -89,7 +98,9 @@ taxonomy trees plus auto-managed built-in trees.
   free-form configuration.
 - New schema arrives: `classifications`, `classification_categories`, and
   `security_category_assignments`. The flat `asset_class` field stays as the
-  source for the built-in asset-class tree and is not removed.
+  source for the built-in asset-class tree (not removed) and is now also written
+  by reassigning a security within that tree, so no extra stored assignments are
+  needed for the asset-class cut.
 - **Target and actual weights (SOLL/IST) are out of scope here** and will be
   added in a follow-up ADR on top of this structure, so categories carry no
   weight yet.
