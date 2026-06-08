@@ -34,8 +34,42 @@ defmodule Portfolixir.Classifications do
     "crypto" => "#f59e0b",
     "commodity" => "#b45309",
     "index" => "#475569",
+    "leverage_products" => "#7e22ce",
+    "warrant" => "#a855f7",
+    "knock_out" => "#d946ef",
+    "factor_certificate" => "#ec4899",
+    "investment_products" => "#0f766e",
+    "discount_certificate" => "#14b8a6",
+    "bonus_certificate" => "#22c55e",
+    "express_certificate" => "#0ea5e9",
+    "reverse_convertible" => "#fb7185",
     "other" => "#6b7280"
   }
+
+  # Built-in asset-class tree (DDV-style): the flat classes plus a Leverage and
+  # an Investment group with their certificate sub-types, as `{key, parent_key}`.
+  # The group keys are NOT valid security asset_class codes — they only group
+  # their children, which are the real codes a security can hold.
+  @asset_class_tree [
+    {"equity", nil},
+    {"etf", nil},
+    {"fund", nil},
+    {"government_bond", nil},
+    {"bond", nil},
+    {"crypto", nil},
+    {"commodity", nil},
+    {"index", nil},
+    {"leverage_products", nil},
+    {"warrant", "leverage_products"},
+    {"knock_out", "leverage_products"},
+    {"factor_certificate", "leverage_products"},
+    {"investment_products", nil},
+    {"discount_certificate", "investment_products"},
+    {"bonus_certificate", "investment_products"},
+    {"express_certificate", "investment_products"},
+    {"reverse_convertible", "investment_products"},
+    {"other", nil}
+  ]
 
   # -- read -----------------------------------------------------------------
 
@@ -260,14 +294,16 @@ defmodule Portfolixir.Classifications do
     :ok
   end
 
+  # Each spec is `{key, label, color, parent_key}`; parents are listed before
+  # their children so parent ids resolve in a single pass.
   defp builtin_asset_class_categories do
-    Enum.map(AssetClasses.options(), fn {label, code} ->
-      {code, label, Map.get(@asset_class_colors, code)}
+    Enum.map(@asset_class_tree, fn {key, parent_key} ->
+      {key, AssetClasses.label(key), Map.get(@asset_class_colors, key), parent_key}
     end)
   end
 
   defp builtin_currency_categories do
-    Enum.map(Currencies.options(), fn {label, code} -> {code, label, nil} end)
+    Enum.map(Currencies.options(), fn {label, code} -> {code, label, nil, nil} end)
   end
 
   defp ensure_builtin(key, name, categories) do
@@ -304,27 +340,45 @@ defmodule Portfolixir.Classifications do
 
     categories
     |> Enum.with_index()
-    |> Enum.each(fn {{code, label, color}, index} ->
-      case Map.get(existing, code) do
-        nil ->
-          %Category{}
-          |> Category.builtin_changeset(%{
-            classification_id: classification.id,
-            key: code,
-            name: label,
-            color: color,
-            position: index
-          })
-          |> Repo.insert(on_conflict: :nothing, conflict_target: [:classification_id, :key])
+    |> Enum.reduce(existing, fn {{key, label, color, parent_key}, index}, seen ->
+      parent_id =
+        case parent_key && Map.get(seen, parent_key) do
+          %Category{id: id} -> id
+          _ -> nil
+        end
 
-        %Category{color: nil} = category when not is_nil(color) ->
-          # Backfill a default color, but never overwrite a user-chosen one.
-          category |> Ecto.Changeset.change(color: color) |> Repo.update()
-
-        _ ->
-          :ok
-      end
+      category = seed_category(classification, seen, key, label, color, index, parent_id)
+      Map.put(seen, key, category)
     end)
+
+    :ok
+  end
+
+  defp seed_category(classification, seen, key, label, color, index, parent_id) do
+    case Map.get(seen, key) do
+      nil ->
+        %Category{}
+        |> Category.builtin_changeset(%{
+          classification_id: classification.id,
+          key: key,
+          name: label,
+          color: color,
+          position: index,
+          parent_id: parent_id
+        })
+        |> Repo.insert(on_conflict: :nothing, conflict_target: [:classification_id, :key])
+
+        # Re-fetch the canonical row so its id is available for child parents.
+        Repo.get_by(Category, classification_id: classification.id, key: key)
+
+      %Category{color: nil} = category when not is_nil(color) ->
+        # Backfill a default color, but never overwrite a user-chosen one.
+        {:ok, updated} = category |> Ecto.Changeset.change(color: color) |> Repo.update()
+        updated
+
+      category ->
+        category
+    end
   end
 
   # -- internals ------------------------------------------------------------

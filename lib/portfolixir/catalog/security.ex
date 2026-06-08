@@ -141,9 +141,39 @@ defmodule Portfolixir.Catalog.Security do
       government_bond_name?(name) -> "government_bond"
       etf_name?(name) -> "etf"
       crypto_name?(name) or crypto_ticker?(ticker_symbol) -> "crypto"
-      equity_name?(name) and not structured_product_name?(name) -> "equity"
+      # Certificate/leverage products are checked before equities because their
+      # names often also carry an issuer suffix (e.g. "Aktienanleihe … AG").
+      true -> derivative_class(name) || equity_or_nil(name)
+    end
+  end
+
+  defp equity_or_nil(name) do
+    if equity_name?(name) and not structured_product_name?(name), do: "equity", else: nil
+  end
+
+  # Conservative mapping of structured/leverage products (DDV taxonomy) to a leaf
+  # asset-class code. Only matches derivative-specific tokens so ordinary equities
+  # (e.g. "American Express") are never misread as certificates.
+  defp derivative_class(name) when is_binary(name) do
+    cond do
+      knockout_name?(name) -> "knock_out"
+      Regex.match?(~r/\bOptionsschein\b|\bWarrant\b/i, name) -> "warrant"
+      Regex.match?(~r/\bFaktor\b/i, name) -> "factor_certificate"
+      Regex.match?(~r/Aktienanleihe|Reverse[\s-]?Convertible/i, name) -> "reverse_convertible"
+      Regex.match?(~r/Discount[\s-]?(Zertifikat|Cap)/i, name) -> "discount_certificate"
+      Regex.match?(~r/Bonus[\s-]?(Zertifikat|Cap)/i, name) -> "bonus_certificate"
+      Regex.match?(~r/Express[\s-]?Zertifikat/i, name) -> "express_certificate"
       true -> nil
     end
+  end
+
+  defp derivative_class(_), do: nil
+
+  defp knockout_name?(name) do
+    Regex.match?(
+      ~r/\bTurbo\b|Knock[\s-]?Out|\bKO\b|Mini[\s-]?Future|\bO\.End\b|Open[\s-]?End[\s-]?Turbo|\bWAVE\b|Unlimited\s+Turbo/i,
+      name
+    )
   end
 
   defp government_bond_name?(name) when is_binary(name) do

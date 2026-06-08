@@ -40,8 +40,12 @@ that successful delete response.
   `limit`/`offset` for pagination (both non-negative integers). Use these to
   page large catalogs instead of fetching the whole table at once.
 - `POST /api/v1/securities` creates a security with a `security` object.
-  `asset_class` is a stable string code such as `equity`, `etf`, `crypto`,
-  `bond`, or `government_bond`.
+  `asset_class` is a stable string code: `equity`, `etf`, `fund`,
+  `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus the
+  certificate/leverage codes `warrant`, `knock_out`, `factor_certificate`,
+  `discount_certificate`, `bonus_certificate`, `express_certificate`,
+  `reverse_convertible`. Leave it empty to let the class be inferred from the
+  name/ISIN/ticker on read.
 - `GET /api/v1/securities/:id` returns one security.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
 - `DELETE /api/v1/securities/:id` deletes a security when no dependent
