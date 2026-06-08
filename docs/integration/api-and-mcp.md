@@ -110,9 +110,19 @@ Example quote sync response:
   account and credits the counter account).
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
   object.
+- `GET /api/v1/cash_accounts/:id` returns one cash account.
+- `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
+  `currency_code`, `notes`); `portfolio_id` cannot be changed.
+- `DELETE /api/v1/cash_accounts/:id` deletes a cash account, or returns
+  `409 Conflict` when a transaction or securities account still references it.
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
 - `POST /api/v1/securities_accounts` creates a depot/securities account with a
   `securities_account` object.
+- `GET /api/v1/securities_accounts/:id` returns one securities account.
+- `PATCH /api/v1/securities_accounts/:id` updates a securities account
+  (`name`, `notes`, `cash_account_id`); `portfolio_id` cannot be changed.
+- `DELETE /api/v1/securities_accounts/:id` deletes a securities account, or
+  returns `409 Conflict` when a transaction still references it.
 
 Example account payloads:
 
@@ -147,11 +157,19 @@ Example account payloads:
 
 ## Transactions and Holdings
 
-- `GET /api/v1/transactions` lists manual transactions.
+- `GET /api/v1/transactions` lists transactions. Optional filters: `from`/`to`
+  (ISO dates, inclusive), `portfolio_id`, `security_id`. Invalid filters return
+  `422 Unprocessable Entity` with the offending field.
 - `POST /api/v1/transactions` creates a manual buy or sell transaction with a
   `transaction` object.
+- `GET /api/v1/transactions/:id` returns one transaction.
+- `PATCH /api/v1/transactions/:id` updates a transaction (e.g. to fix a
+  mis-imported booking); the per-kind validation still applies.
+- `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
+  holdings are derived, correcting or removing the transaction fixes them too.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
-  portfolio; unknown portfolios return `404 Not Found`.
+  portfolio; unknown portfolios return `404 Not Found`. Optional filters:
+  `security_id`, `securities_account_id`.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` returns a live valuation of a
   portfolio: each held position priced from its latest quote close, a
   `total_value`, and each valued position's `weight` (its share of the total).
@@ -172,7 +190,9 @@ Example account payloads:
   from `total_cash`, mirroring how unpriceable positions are handled.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
-  period in days) and any orphan sells.
+  period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter
+  each leg by its own date: open lots by open date, closed round-trips by close
+  date, orphan sells by sell date.
 
 ## Exchange Rates
 
@@ -242,6 +262,8 @@ in MCP schemas are strings.
 
 - `portfolixir.securities.list`
 - `portfolixir.securities.create`
+- `portfolixir.securities.update`
+- `portfolixir.securities.delete`
 - `portfolixir.securities.search_online`
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
@@ -250,10 +272,16 @@ in MCP schemas are strings.
 - `portfolixir.portfolios.create`
 - `portfolixir.cash_accounts.list`
 - `portfolixir.cash_accounts.create`
+- `portfolixir.cash_accounts.update`
+- `portfolixir.cash_accounts.delete`
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
+- `portfolixir.securities_accounts.update`
+- `portfolixir.securities_accounts.delete`
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
+- `portfolixir.transactions.update`
+- `portfolixir.transactions.delete`
 - `portfolixir.holdings.list`
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`

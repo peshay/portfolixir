@@ -12,6 +12,8 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(names, [
       "portfolixir.securities.list",
       "portfolixir.securities.create",
+      "portfolixir.securities.update",
+      "portfolixir.securities.delete",
       "portfolixir.securities.search_online",
       "portfolixir.quotes.sync",
       "portfolixir.quotes.list",
@@ -20,10 +22,16 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.portfolios.create",
       "portfolixir.cash_accounts.list",
       "portfolixir.cash_accounts.create",
+      "portfolixir.cash_accounts.update",
+      "portfolixir.cash_accounts.delete",
       "portfolixir.securities_accounts.list",
       "portfolixir.securities_accounts.create",
+      "portfolixir.securities_accounts.update",
+      "portfolixir.securities_accounts.delete",
       "portfolixir.transactions.list",
       "portfolixir.transactions.create",
+      "portfolixir.transactions.update",
+      "portfolixir.transactions.delete",
       "portfolixir.holdings.list",
       "portfolixir.portfolios.valuation",
       "portfolixir.exchange_rates.list",
@@ -378,6 +386,85 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].method, "PUT");
     assert.equal(requests[0].path, "/api/v1/classifications/3/assignments/bulk");
     assert.deepEqual(requests[0].body, { category_id: 9, security_ids: [1, 2, 7] });
+  });
+
+  it("routes update/delete tools to PATCH/DELETE on the right paths", async () => {
+    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined
+        });
+        return new Response(JSON.stringify({ data: { id: 1 } }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+    });
+
+    await callTool(client, "portfolixir.transactions.update", {
+      id: 7,
+      transaction: { notes: "corrected" }
+    });
+    await callTool(client, "portfolixir.transactions.delete", { id: 7 });
+    await callTool(client, "portfolixir.cash_accounts.update", {
+      id: 3,
+      cash_account: { name: "Renamed" }
+    });
+    await callTool(client, "portfolixir.securities_accounts.delete", { id: 4 });
+    await callTool(client, "portfolixir.securities.update", { id: 9, security: { note: "x" } });
+
+    assert.deepEqual(requests[0], {
+      method: "PATCH",
+      path: "/api/v1/transactions/7",
+      body: { transaction: { notes: "corrected" } }
+    });
+    assert.deepEqual(requests[1], { method: "DELETE", path: "/api/v1/transactions/7", body: undefined });
+    assert.deepEqual(requests[2], {
+      method: "PATCH",
+      path: "/api/v1/cash_accounts/3",
+      body: { cash_account: { name: "Renamed" } }
+    });
+    assert.deepEqual(requests[3], {
+      method: "DELETE",
+      path: "/api/v1/securities_accounts/4",
+      body: undefined
+    });
+    assert.equal(requests[4].method, "PATCH");
+    assert.equal(requests[4].path, "/api/v1/securities/9");
+  });
+
+  it("passes list filters through as query params", async () => {
+    const requests: Array<{ method: string; path: string }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
+        return new Response(JSON.stringify({ data: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+    });
+
+    await callTool(client, "portfolixir.transactions.list", {
+      from: "2026-01-01",
+      to: "2026-03-31",
+      portfolio_id: 3
+    });
+    await callTool(client, "portfolixir.holdings.list", { portfolio_id: 3, security_id: 9 });
+    await callTool(client, "portfolixir.trades.list", { security_id: 9, from: "2026-01-01" });
+
+    assert.equal(requests[0].path, "/api/v1/transactions?from=2026-01-01&to=2026-03-31&portfolio_id=3");
+    assert.equal(requests[1].path, "/api/v1/portfolios/3/holdings?security_id=9");
+    assert.equal(requests[2].path, "/api/v1/securities/9/trades?from=2026-01-01");
   });
 
   it("maps invalid tool names and upstream API errors to clear failures", async () => {
