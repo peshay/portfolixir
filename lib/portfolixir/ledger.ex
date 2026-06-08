@@ -178,6 +178,104 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  Returns the current holdings of a whole portfolio, one row per
+  (depot, security), enriched with a moving-average cost basis and the
+  unrealised P&L against each security's latest known quote close.
+
+  Like `holdings_for_security/2`, the cost basis is price-based (it follows
+  `moving_average/1`, so fees and taxes are not folded into the unit cost) and
+  every monetary figure is in the security's own currency — no FX conversion is
+  applied here (that is the job of `Portfolixir.Portfolios.Valuation`). A holding
+  whose security has no quote is returned with `nil` price, market value and
+  P&L, so a missing price never distorts the rest of the list.
+
+  Pass `:prices` (`%{security_id => Decimal}`) to inject comparison prices for
+  tests; missing securities fall back to `Catalog.Quotes.latest/1`.
+  """
+  def holdings_for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
+    prices = Keyword.get(opts, :prices, %{})
+
+    portfolio_id
+    |> portfolio_trades()
+    |> Enum.group_by(fn tx -> {tx.securities_account_id, tx.security_id} end)
+    |> Enum.map(fn {{account_id, security_id}, txs} ->
+      build_holding_row(account_id, security_id, txs, holding_price(security_id, prices))
+    end)
+    |> Enum.reject(&Decimal.equal?(&1.quantity, 0))
+    |> Enum.sort_by(&{&1.security_id, &1.securities_account_id})
+  end
+
+  # Buy/sell transactions of one portfolio in chronological order, with the
+  # security preloaded so each holding can carry its name and currency. Ordering
+  # ascending is required for the moving-average fold to be correct.
+  defp portfolio_trades(portfolio_id) do
+    Repo.all(
+      from(transaction in Transaction,
+        where: transaction.portfolio_id == ^portfolio_id and transaction.type in ["buy", "sell"],
+        order_by: [asc: transaction.date, asc: transaction.id],
+        preload: [:security]
+      )
+    )
+  end
+
+  defp build_holding_row(account_id, security_id, txs, latest_price) do
+    summary = moving_average(txs)
+    security = List.first(txs).security
+
+    base = %{
+      securities_account_id: account_id,
+      security_id: security_id,
+      security_name: security && security.name,
+      currency_code: security && security.currency_code,
+      quantity: summary.quantity,
+      avg_cost: summary.avg_cost,
+      cost_basis: Decimal.mult(summary.quantity, summary.avg_cost)
+    }
+
+    put_holding_valuation(base, latest_price)
+  end
+
+  defp put_holding_valuation(row, nil) do
+    Map.merge(row, %{
+      latest_price: nil,
+      market_value: nil,
+      unrealized_pnl_abs: nil,
+      unrealized_pnl_pct: nil
+    })
+  end
+
+  defp put_holding_valuation(row, %Decimal{} = latest_price) do
+    market_value = Decimal.mult(row.quantity, latest_price)
+    abs_pnl = Decimal.sub(market_value, row.cost_basis)
+
+    pct_pnl =
+      if Decimal.equal?(row.cost_basis, 0),
+        do: Decimal.new(0),
+        else: Decimal.div(abs_pnl, row.cost_basis)
+
+    Map.merge(row, %{
+      latest_price: latest_price,
+      market_value: market_value,
+      unrealized_pnl_abs: abs_pnl,
+      unrealized_pnl_pct: pct_pnl
+    })
+  end
+
+  defp holding_price(security_id, prices) do
+    case Map.get(prices, security_id) do
+      %Decimal{} = price -> price
+      _ -> holding_latest_close(security_id)
+    end
+  end
+
+  defp holding_latest_close(security_id) do
+    case Quotes.latest(security_id) do
+      %{close: %Decimal{} = close} -> close
+      _ -> nil
+    end
+  end
+
+  @doc """
   Returns the current holdings of a single security, split by
   (portfolio, depot). Computes a moving-average cost basis from the
   chronological buy/sell stream within each grouping.

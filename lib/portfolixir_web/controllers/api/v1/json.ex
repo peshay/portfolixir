@@ -182,12 +182,20 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  def holding({{securities_account_id, security_id}, quantity}, portfolio_id) do
+  def holding(holding, portfolio_id) do
     %{
       portfolio_id: portfolio_id,
-      securities_account_id: securities_account_id,
-      security_id: security_id,
-      quantity: decimal(quantity)
+      securities_account_id: holding.securities_account_id,
+      security_id: holding.security_id,
+      security_name: holding.security_name,
+      currency_code: holding.currency_code,
+      quantity: decimal(holding.quantity),
+      avg_cost: decimal(holding.avg_cost),
+      cost_basis: decimal(holding.cost_basis),
+      latest_price: decimal(holding.latest_price),
+      market_value: decimal(holding.market_value),
+      unrealized_pnl_abs: decimal(holding.unrealized_pnl_abs),
+      unrealized_pnl_pct: decimal(holding.unrealized_pnl_pct)
     }
   end
 

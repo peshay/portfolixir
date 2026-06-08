@@ -172,8 +172,15 @@ Example account payloads:
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
   holdings are derived, correcting or removing the transaction fixes them too.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
-  portfolio; unknown portfolios return `404 Not Found`. Optional filters:
-  `security_id`, `securities_account_id`.
+  portfolio, one row per (depot, security). Each row carries `quantity`, a
+  moving-average `avg_cost` and `cost_basis` (price-based, so fees and taxes are
+  not folded into the unit cost), the `latest_price`, `market_value`, and
+  `unrealized_pnl_abs`/`unrealized_pnl_pct` against that price, plus
+  `security_name` and `currency_code`. All monetary figures are in the security's
+  own currency (no FX conversion — see the valuation for base-currency totals); a
+  holding whose security has no quote returns `null` price, market value and P&L.
+  Unknown portfolios return `404 Not Found`. Optional filters: `security_id`,
+  `securities_account_id`.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` returns a live valuation of a
   portfolio: each held position priced from its latest quote close, a
   `total_value`, and each valued position's `weight` (its share of the total).

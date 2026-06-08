@@ -741,7 +741,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.transactions.create", "Create transaction", "Create a manual buy or sell transaction.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking).", transactionUpdateSchema, transactionUpdateZ),
   tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction.", idSchema, idZ),
-  tool("portfolixir.holdings.list", "List holdings", "List derived holdings for a portfolio. Optional filters: security_id, securities_account_id.", {
+  tool("portfolixir.holdings.list", "List holdings", "List derived holdings for a portfolio, each with moving-average cost basis, latest price, market value and unrealized P&L (in the security's currency). Optional filters: security_id, securities_account_id.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
