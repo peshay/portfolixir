@@ -172,10 +172,6 @@ defmodule Portfolixir.Classifications do
   def delete_classification(%Classification{built_in: true}), do: {:error, :builtin_locked}
   def delete_classification(%Classification{} = classification), do: Repo.delete(classification)
 
-  def change_classification(%Classification{} = classification, attrs \\ %{}) do
-    Classification.changeset(classification, attrs)
-  end
-
   # -- custom categories ----------------------------------------------------
 
   def create_category(attrs) when is_map(attrs) do

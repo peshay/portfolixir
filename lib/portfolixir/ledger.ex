@@ -431,10 +431,6 @@ defmodule Portfolixir.Ledger do
     end
   end
 
-  def change_transaction(%Transaction{} = transaction, attrs \\ %{}) do
-    Transaction.changeset(transaction, attrs)
-  end
-
   def positions_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
     portfolio_id
     |> list_transactions_for_portfolio()
