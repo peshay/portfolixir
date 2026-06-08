@@ -162,8 +162,8 @@ Example account payloads:
 ## Transactions and Holdings
 
 - `GET /api/v1/transactions` lists transactions. Optional filters: `from`/`to`
-  (ISO dates, inclusive), `portfolio_id`, `security_id`. Invalid filters return
-  `422 Unprocessable Entity` with the offending field.
+  (ISO dates, inclusive), `portfolio_id`, `security_id`, `securities_account_id`.
+  Invalid filters return `422 Unprocessable Entity` with the offending field.
 - `POST /api/v1/transactions` creates a manual buy or sell transaction with a
   `transaction` object.
 - `GET /api/v1/transactions/:id` returns one transaction.

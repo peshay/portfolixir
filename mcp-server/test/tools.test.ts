@@ -461,12 +461,16 @@ describe("Portfolixir MCP tools", () => {
     await callTool(client, "portfolixir.transactions.list", {
       from: "2026-01-01",
       to: "2026-03-31",
-      portfolio_id: 3
+      portfolio_id: 3,
+      securities_account_id: 7
     });
     await callTool(client, "portfolixir.holdings.list", { portfolio_id: 3, security_id: 9 });
     await callTool(client, "portfolixir.trades.list", { security_id: 9, from: "2026-01-01" });
 
-    assert.equal(requests[0].path, "/api/v1/transactions?from=2026-01-01&to=2026-03-31&portfolio_id=3");
+    assert.equal(
+      requests[0].path,
+      "/api/v1/transactions?from=2026-01-01&to=2026-03-31&portfolio_id=3&securities_account_id=7"
+    );
     assert.equal(requests[1].path, "/api/v1/portfolios/3/holdings?security_id=9");
     assert.equal(requests[2].path, "/api/v1/securities/9/trades?from=2026-01-01");
   });
