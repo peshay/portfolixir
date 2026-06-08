@@ -206,8 +206,15 @@ Example account payloads:
 ## Classifications
 
 Classification trees organise securities like folders. Built-in trees
-(`asset_class`, `currency`) are derived automatically and locked; custom trees
-are editable. Editing a built-in tree returns `422 Unprocessable Entity`.
+(`asset_class`, `currency`) are derived automatically and their structure is
+locked; editing the structure of a built-in tree returns `422 Unprocessable
+Entity`. The **asset-class** tree's membership, however, is just a view of each
+security's `asset_class` field: in the UI you can drag a security between its
+categories (which sets that field), and the same effect is achieved over the API
+with `PATCH /api/v1/securities/:id` (`{"security": {"asset_class": "etf"}}`) or
+the `securities.update` MCP tool. Set it to empty/`null` for "automatic", which
+re-infers the class from the security's name/ISIN/ticker on read. The currency
+tree stays intrinsic and cannot be reassigned.
 
 - `GET /api/v1/classifications` lists every classification as a tree with its
   `categories` and `assignments` (`{security_id, category_id}`). Built-in trees

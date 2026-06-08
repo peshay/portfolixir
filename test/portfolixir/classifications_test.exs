@@ -196,4 +196,39 @@ defmodule Portfolixir.ClassificationsTest do
 
     assert blank.description == nil
   end
+
+  # User story:
+  # As a maintainer fixing asset classes,
+  # I want dragging a security in the built-in asset-class tree to set its class,
+  # so that wrong or missing classes are correctable, like in Portfolio Performance.
+  test "reclassifying in the asset-class tree edits the security's asset_class" do
+    Classifications.ensure_builtins()
+
+    {:ok, security} =
+      Catalog.create_security(%{name: "Opaque Holding XYZ", currency_code: "EUR"})
+
+    trees = Classifications.list_trees()
+    asset_class = Enum.find(trees, &(&1.classification.key == "asset_class"))
+    etf = Enum.find(asset_class.categories, &(&1.key == "etf"))
+
+    assert {:ok, 1} = Classifications.reclassify_securities([security.id], etf.id)
+    assert Catalog.get_security(security.id).asset_class == "etf"
+
+    # The derived asset-class assignment now reflects the edit.
+    refreshed =
+      Classifications.list_trees()
+      |> Enum.find(&(&1.classification.key == "asset_class"))
+
+    assert %{security_id: security.id, category_id: etf.id} in refreshed.assignments
+
+    # Dragging to "Unsorted" resets it to automatic (inferred on read).
+    assert {:ok, 1} = Classifications.reset_asset_class([security.id])
+    assert Catalog.get_security(security.id).asset_class == nil
+
+    # The currency tree is intrinsic and cannot be reassigned this way.
+    currency = Enum.find(trees, &(&1.classification.key == "currency"))
+
+    assert {:error, :not_reclassifiable} =
+             Classifications.reclassify_securities([security.id], hd(currency.categories).id)
+  end
 end
