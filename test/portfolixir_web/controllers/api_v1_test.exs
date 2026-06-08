@@ -604,6 +604,237 @@ defmodule PortfolixirWeb.ApiV1Test do
   end
 
   # User story:
+  # As an API/MCP client correcting a mis-imported booking,
+  # I want to filter, patch and delete transactions,
+  # so that I can fix the ledger instead of only appending to it.
+  test "filters, updates and deletes transactions", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{name: "ETF", currency_code: "EUR", asset_class: "etf"})
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, deposit} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        type: "deposit",
+        date: ~D[2026-01-01],
+        gross_amount: "1000",
+        currency_code: "EUR"
+      })
+
+    {:ok, buy} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-01],
+        quantity: "4",
+        price: "10",
+        currency_code: "EUR"
+      })
+
+    by_date =
+      conn
+      |> api_conn()
+      |> get("/api/v1/transactions?from=2026-02-01")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert Enum.map(by_date, & &1["id"]) == [buy.id]
+
+    by_security =
+      conn
+      |> api_conn()
+      |> get("/api/v1/transactions?security_id=#{security.id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert Enum.map(by_security, & &1["id"]) == [buy.id]
+
+    bad =
+      conn
+      |> api_conn()
+      |> get("/api/v1/transactions?from=nope")
+      |> json_response(422)
+
+    assert bad["errors"]["from"] == ["is invalid"]
+
+    updated =
+      conn
+      |> patch_json("/api/v1/transactions/#{deposit.id}", %{
+        "transaction" => %{"notes" => "opening balance"}
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert updated["notes"] == "opening balance"
+
+    deleted = conn |> api_conn() |> delete("/api/v1/transactions/#{buy.id}")
+    assert response(deleted, 204) == ""
+    assert Ledger.get_transaction(buy.id) == nil
+  end
+
+  # User story:
+  # As an API/MCP client cleaning up account setup,
+  # I want to rename accounts and be stopped from deleting ones still in use,
+  # so that I never orphan a referenced transaction.
+  test "updates accounts and refuses to delete referenced ones", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(%{name: "ETF", currency_code: "EUR", asset_class: "etf"})
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-02],
+        quantity: "1",
+        price: "10",
+        currency_code: "EUR"
+      })
+
+    renamed_cash =
+      conn
+      |> patch_json("/api/v1/cash_accounts/#{cash.id}", %{"cash_account" => %{"name" => "Main"}})
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert renamed_cash["name"] == "Main"
+
+    renamed_depot =
+      conn
+      |> patch_json("/api/v1/securities_accounts/#{depot.id}", %{
+        "securities_account" => %{"name" => "Main Depot"}
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert renamed_depot["name"] == "Main Depot"
+
+    assert conn
+           |> api_conn()
+           |> delete("/api/v1/securities_accounts/#{depot.id}")
+           |> json_response(409) ==
+             %{"errors" => %{"detail" => "securities account is referenced by existing records"}}
+
+    assert conn
+           |> api_conn()
+           |> delete("/api/v1/cash_accounts/#{cash.id}")
+           |> json_response(409) ==
+             %{"errors" => %{"detail" => "cash account is referenced by existing records"}}
+
+    {:ok, spare} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Spare",
+        currency_code: "EUR"
+      })
+
+    deleted = conn |> api_conn() |> delete("/api/v1/cash_accounts/#{spare.id}")
+    assert response(deleted, 204) == ""
+    assert Portfolios.get_cash_account(spare.id) == nil
+  end
+
+  # User story:
+  # As an API/MCP client inspecting a large portfolio,
+  # I want to filter holdings by security,
+  # so that I do not fetch every position to read one.
+  test "filters holdings by security", %{conn: conn} do
+    {:ok, s1} =
+      Catalog.create_security(%{name: "A", currency_code: "EUR", asset_class: "etf"})
+
+    {:ok, s2} =
+      Catalog.create_security(%{name: "B", currency_code: "EUR", asset_class: "etf"})
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    for security <- [s1, s2] do
+      {:ok, _} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-01-02],
+          quantity: "1",
+          price: "10",
+          currency_code: "EUR"
+        })
+    end
+
+    all =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/holdings")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert length(all) == 2
+
+    filtered =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/holdings?security_id=#{s1.id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert Enum.map(filtered, & &1["security_id"]) == [s1.id]
+  end
+
+  # User story:
   # As an API client (and the LLM behind it),
   # I want to refresh and read exchange rates,
   # so that multi-currency valuations convert into the portfolio base currency.

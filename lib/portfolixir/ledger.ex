@@ -22,9 +22,34 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
-  def list_transactions do
-    Repo.all(ordered_transactions() |> preload([:security, :cash_account, :securities_account]))
+  def list_transactions(opts \\ []) when is_list(opts) do
+    ordered_transactions()
+    |> filter_transactions(opts)
+    |> preload([:security, :cash_account, :securities_account])
+    |> Repo.all()
   end
+
+  defp filter_transactions(query, opts) do
+    query
+    |> filter_transaction_eq(:portfolio_id, opts[:portfolio_id])
+    |> filter_transaction_eq(:security_id, opts[:security_id])
+    |> filter_transaction_from(opts[:from])
+    |> filter_transaction_to(opts[:to])
+  end
+
+  defp filter_transaction_eq(query, _field, nil), do: query
+
+  defp filter_transaction_eq(query, :portfolio_id, id),
+    do: where(query, [t], t.portfolio_id == ^id)
+
+  defp filter_transaction_eq(query, :security_id, id),
+    do: where(query, [t], t.security_id == ^id)
+
+  defp filter_transaction_from(query, nil), do: query
+  defp filter_transaction_from(query, %Date{} = from), do: where(query, [t], t.date >= ^from)
+
+  defp filter_transaction_to(query, nil), do: query
+  defp filter_transaction_to(query, %Date{} = to), do: where(query, [t], t.date <= ^to)
 
   def list_transactions_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
     Repo.all(
@@ -286,6 +311,16 @@ defmodule Portfolixir.Ledger do
       |> Repo.insert()
     end
   end
+
+  def get_transaction(id) when is_integer(id), do: Repo.get(Transaction, id)
+
+  def update_transaction(%Transaction{} = transaction, attrs) when is_map(attrs) do
+    transaction
+    |> Transaction.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_transaction(%Transaction{} = transaction), do: Repo.delete(transaction)
 
   defp maybe_derive_linked_cash_account(attrs) do
     case get_attr(attrs, :type) do

@@ -3,6 +3,7 @@ defmodule Portfolixir.Portfolios do
 
   import Ecto.Query
 
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
@@ -61,6 +62,35 @@ defmodule Portfolixir.Portfolios do
     CashAccount.changeset(cash_account, attrs)
   end
 
+  def get_cash_account(id) when is_integer(id), do: Repo.get(CashAccount, id)
+
+  def update_cash_account(%CashAccount{} = cash_account, attrs) when is_map(attrs) do
+    cash_account
+    |> CashAccount.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a cash account. All account FKs are `on_delete: :restrict`, so an
+  account still referenced by a transaction or a securities account cannot be
+  removed; this returns `{:error, :referenced}` instead of raising.
+  """
+  def delete_cash_account(%CashAccount{} = cash_account) do
+    if cash_account_referenced?(cash_account.id) do
+      {:error, :referenced}
+    else
+      Repo.delete(cash_account)
+    end
+  end
+
+  defp cash_account_referenced?(id) do
+    Repo.exists?(
+      from(t in Transaction,
+        where: t.cash_account_id == ^id or t.counter_cash_account_id == ^id
+      )
+    ) or Repo.exists?(from(s in SecuritiesAccount, where: s.cash_account_id == ^id))
+  end
+
   def list_securities_accounts do
     Repo.all(
       from(account in SecuritiesAccount,
@@ -92,5 +122,44 @@ defmodule Portfolixir.Portfolios do
 
   def change_securities_account(%SecuritiesAccount{} = securities_account, attrs \\ %{}) do
     SecuritiesAccount.changeset(securities_account, attrs)
+  end
+
+  def get_securities_account(id) when is_integer(id) do
+    case Repo.get(SecuritiesAccount, id) do
+      nil -> nil
+      account -> Repo.preload(account, :cash_account)
+    end
+  end
+
+  def update_securities_account(%SecuritiesAccount{} = securities_account, attrs)
+      when is_map(attrs) do
+    securities_account
+    |> SecuritiesAccount.changeset(attrs)
+    |> Repo.update()
+    |> case do
+      {:ok, updated} -> {:ok, Repo.preload(updated, :cash_account, force: true)}
+      other -> other
+    end
+  end
+
+  @doc """
+  Deletes a securities account. Its FKs are `on_delete: :restrict`, so an account
+  still referenced by a transaction cannot be removed; this returns
+  `{:error, :referenced}` instead of raising.
+  """
+  def delete_securities_account(%SecuritiesAccount{} = securities_account) do
+    if securities_account_referenced?(securities_account.id) do
+      {:error, :referenced}
+    else
+      Repo.delete(securities_account)
+    end
+  end
+
+  defp securities_account_referenced?(id) do
+    Repo.exists?(
+      from(t in Transaction,
+        where: t.securities_account_id == ^id or t.counter_securities_account_id == ^id
+      )
+    )
   end
 end
