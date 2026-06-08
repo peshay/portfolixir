@@ -471,7 +471,19 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  # Asset-class tree: a "move" edits each security's asset_class field.
+  def handle_event("unassign_many", params, socket) do
+    with {:ok, ids} <- coerce_ids(params["security_ids"]),
+         {:ok, classification_id} <- coerce_id(params["classification_id"]) do
+      do_unassign(socket, ids, classification_id)
+    else
+      :error -> {:noreply, socket}
+    end
+  end
+
+  # -- move / reclassify dispatch -------------------------------------------
+
+  # Asset-class tree: a "move" edits each security's asset_class field; other
+  # trees write the stored assignment.
   defp do_assign(%{assigns: %{tree: %{reclassify: true}}} = socket, ids, _cid, category_id) do
     case Classifications.reclassify_securities(ids, category_id) do
       {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload()}
@@ -483,15 +495,6 @@ defmodule PortfolixirWeb.ClassificationsLive do
     case Classifications.assign_securities(ids, classification_id, category_id) do
       {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload()}
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
-    end
-  end
-
-  def handle_event("unassign_many", params, socket) do
-    with {:ok, ids} <- coerce_ids(params["security_ids"]),
-         {:ok, classification_id} <- coerce_id(params["classification_id"]) do
-      do_unassign(socket, ids, classification_id)
-    else
-      :error -> {:noreply, socket}
     end
   end
 
