@@ -10,8 +10,8 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
          portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id) do
       holdings =
         id
-        |> Ledger.positions_for_portfolio()
-        |> filter_positions(params)
+        |> Ledger.holdings_for_portfolio()
+        |> filter_holdings(params)
         |> Enum.map(&JSON.holding(&1, id))
 
       json(conn, %{data: holdings})
@@ -24,21 +24,20 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
     end
   end
 
-  # Optional in-memory filters on the derived positions, each keyed
-  # `{{securities_account_id, security_id}, quantity}`.
-  defp filter_positions(positions, params) do
+  # Optional in-memory filters on the enriched holdings.
+  defp filter_holdings(holdings, params) do
     security_id = optional_id(params["security_id"])
     account_id = optional_id(params["securities_account_id"])
 
-    positions
-    |> filter_by(fn {{_account, security}, _qty} -> security end, security_id)
-    |> filter_by(fn {{account, _security}, _qty} -> account end, account_id)
+    holdings
+    |> filter_by(& &1.security_id, security_id)
+    |> filter_by(& &1.securities_account_id, account_id)
   end
 
-  defp filter_by(positions, _selector, nil), do: positions
+  defp filter_by(holdings, _selector, nil), do: holdings
 
-  defp filter_by(positions, selector, value),
-    do: Enum.filter(positions, fn position -> selector.(position) == value end)
+  defp filter_by(holdings, selector, value),
+    do: Enum.filter(holdings, fn holding -> selector.(holding) == value end)
 
   defp optional_id(value) do
     case parse_id(value) do
