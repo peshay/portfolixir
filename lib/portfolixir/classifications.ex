@@ -220,6 +220,37 @@ defmodule Portfolixir.Classifications do
     {:ok, count}
   end
 
+  # -- asset-class reclassification -----------------------------------------
+
+  @doc """
+  Moves securities within the built-in **asset class** tree by setting each
+  security's persisted `asset_class` to the target category's code. Unlike the
+  stored custom-tree assignments, the asset-class tree is derived from the
+  security field, so a "move" here edits the security (see ADR-0006). Only the
+  `asset_class` built-in tree is reclassifiable; the currency tree is intrinsic.
+  """
+  def reclassify_securities(security_ids, category_id) when is_list(security_ids) do
+    with %Category{} = category <- Repo.get(Category, category_id),
+         {:ok, classification} <- fetch_classification_by_id(category.classification_id),
+         :ok <- ensure_asset_class(classification) do
+      {:ok, Catalog.set_asset_class(security_ids, category.key)}
+    else
+      nil -> {:error, :category_not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Resets the given securities' `asset_class` to automatic (inferred on read),
+  i.e. dragging them to the asset-class tree's "Unsorted" bucket.
+  """
+  def reset_asset_class(security_ids) when is_list(security_ids) do
+    {:ok, Catalog.set_asset_class(security_ids, nil)}
+  end
+
+  defp ensure_asset_class(%Classification{key: "asset_class"}), do: :ok
+  defp ensure_asset_class(%Classification{}), do: {:error, :not_reclassifiable}
+
   # -- built-in seeding ------------------------------------------------------
 
   @doc "Idempotently seeds the built-in classification trees. Returns :ok."

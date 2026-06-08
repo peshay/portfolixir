@@ -233,6 +233,23 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc """
+  Sets the persisted `asset_class` on many securities in one statement. `code`
+  must be a valid asset-class code (callers pass a built-in category key), or
+  `nil` to clear it back to "automatic" (inferred on read). Returns the count of
+  rows updated.
+  """
+  def set_asset_class(security_ids, code) when is_list(security_ids) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    {count, _} =
+      Security
+      |> where([s], s.id in ^security_ids)
+      |> Repo.update_all(set: [asset_class: code, updated_at: now])
+
+    count
+  end
+
+  @doc """
   Finds an existing security that matches the search result (provider+online_id,
   ISIN, or ticker+currency) without inserting. Returns `{:exists, security}`
   when found, `:not_found` otherwise.

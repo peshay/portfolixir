@@ -139,7 +139,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </label>
             <button type="submit"><%= gettext("Add") %></button>
           </form>
+        <% end %>
 
+        <%= if @tree.assignable do %>
           <div class="select-toolbar" data-select-toolbar hidden>
             <span class="select-count">
               <strong data-selected-count>0</strong> <%= gettext("selected") %>
@@ -160,9 +162,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </button>
             <button type="button" data-clear-selection><%= gettext("Clear") %></button>
           </div>
-        <% end %>
 
-        <%= if @tree.editable do %>
           <p class="hint multiselect-hint">
             <%= gettext("Tip: click rows to select several, then drag or use the toolbar to move them together.") %>
           </p>
@@ -174,6 +174,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
               node={node}
               classification_id={@tree.classification.id}
               editable={@tree.editable}
+              assignable={@tree.assignable}
               editing_id={@editing_id}
             />
           <% end %>
@@ -195,9 +196,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <ul class="cat-securities">
               <%= for security <- @tree.unsorted do %>
                 <li
-                  class={["dnd-row", @tree.editable && "is-draggable"]}
-                  draggable={if @tree.editable, do: "true", else: nil}
-                  data-drag-security={if @tree.editable, do: security.id, else: nil}
+                  class={["dnd-row", @tree.assignable && "is-draggable"]}
+                  draggable={if @tree.assignable, do: "true", else: nil}
+                  data-drag-security={if @tree.assignable, do: security.id, else: nil}
                 >
                   <span class="row-name"><%= security.name %></span>
                   <small class="row-ccy"><%= security.currency_code %></small>
@@ -254,7 +255,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp category_node(assigns) do
     ~H"""
-    <details class="cat-node" open {category_attrs(@editable, @classification_id, @node.category.id)}>
+    <details class="cat-node" open {category_attrs(@assignable, @classification_id, @node.category.id)}>
       <summary class="cat-summary">
         <span class="cat-swatch" style={swatch(@node.category.color)} aria-hidden="true"></span>
         <span class="cat-name">
@@ -330,9 +331,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <ul class="cat-securities">
           <%= for security <- @node.securities do %>
             <li
-              class={["dnd-row", @editable && "is-draggable"]}
-              draggable={if @editable, do: "true", else: nil}
-              data-drag-security={if @editable, do: security.id, else: nil}
+              class={["dnd-row", @assignable && "is-draggable"]}
+              draggable={if @assignable, do: "true", else: nil}
+              data-drag-security={if @assignable, do: security.id, else: nil}
             >
               <span class="row-name"><%= security.name %></span>
               <small class="row-ccy"><%= security.currency_code %></small>
@@ -344,6 +345,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             node={child}
             classification_id={@classification_id}
             editable={@editable}
+            assignable={@assignable}
             editing_id={@editing_id}
           />
         <% end %>
@@ -462,23 +464,46 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("assign_securities", params, socket) do
     with {:ok, ids} <- coerce_ids(params["security_ids"]),
          {:ok, classification_id} <- coerce_id(params["classification_id"]),
-         {:ok, category_id} <- coerce_id(params["category_id"]),
-         {:ok, count} <- Classifications.assign_securities(ids, classification_id, category_id) do
-      {:noreply, socket |> success(moved_message(count)) |> reload()}
+         {:ok, category_id} <- coerce_id(params["category_id"]) do
+      do_assign(socket, ids, classification_id, category_id)
     else
-      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
       :error -> {:noreply, socket}
+    end
+  end
+
+  # Asset-class tree: a "move" edits each security's asset_class field.
+  defp do_assign(%{assigns: %{tree: %{reclassify: true}}} = socket, ids, _cid, category_id) do
+    case Classifications.reclassify_securities(ids, category_id) do
+      {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload()}
+      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
+    end
+  end
+
+  defp do_assign(socket, ids, classification_id, category_id) do
+    case Classifications.assign_securities(ids, classification_id, category_id) do
+      {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload()}
+      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
     end
   end
 
   def handle_event("unassign_many", params, socket) do
     with {:ok, ids} <- coerce_ids(params["security_ids"]),
          {:ok, classification_id} <- coerce_id(params["classification_id"]) do
-      {:ok, count} = Classifications.unassign_securities(ids, classification_id)
-      {:noreply, socket |> success(unassigned_message(count)) |> reload()}
+      do_unassign(socket, ids, classification_id)
     else
       :error -> {:noreply, socket}
     end
+  end
+
+  # Asset-class tree: "unassign" resets each security's asset_class to automatic.
+  defp do_unassign(%{assigns: %{tree: %{reclassify: true}}} = socket, ids, _classification_id) do
+    {:ok, count} = Classifications.reset_asset_class(ids)
+    {:noreply, socket |> success(unassigned_message(count)) |> reload()}
+  end
+
+  defp do_unassign(socket, ids, classification_id) do
+    {:ok, count} = Classifications.unassign_securities(ids, classification_id)
+    {:noreply, socket |> success(unassigned_message(count)) |> reload()}
   end
 
   # -- data loading ---------------------------------------------------------
@@ -526,9 +551,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
     grouped = Enum.group_by(tree.categories, & &1.parent_id)
     nodes = build_nodes(grouped, nil, by_category)
 
+    # The built-in "asset class" tree is derived from each security's asset_class
+    # field; we still let users drag securities between its categories, which
+    # edits that field. Other built-in trees (currency) stay read-only.
+    reclassify? = tree.classification.key == "asset_class"
+
     %{
       classification: tree.classification,
       editable: not tree.classification.built_in,
+      assignable: not tree.classification.built_in or reclassify?,
+      reclassify: reclassify?,
       nodes: if(needle == "", do: nodes, else: prune_nodes(nodes)),
       flat: flatten(tree.categories),
       unsorted: unsorted,
@@ -597,9 +629,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
     ]
   end
 
-  defp unsorted_attrs(%{editable: false}), do: []
-
-  defp unsorted_attrs(%{editable: true, classification: %{id: id}}) do
+  defp unsorted_attrs(%{assignable: true, classification: %{id: id}}) do
     [
       {"data-dropzone", ""},
       {"data-drop-kind", "unassign"},
@@ -607,7 +637,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
     ]
   end
 
-  defp workspace_attrs(%{editable: true, classification: %{id: id}}),
+  defp unsorted_attrs(_tree), do: []
+
+  defp workspace_attrs(%{assignable: true, classification: %{id: id}}),
     do: [{"data-classification", id}]
 
   defp workspace_attrs(_tree), do: []
@@ -658,6 +690,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp error_message(:category_mismatch), do: gettext("That category belongs to another tree")
   defp error_message(:not_found), do: gettext("Not found")
   defp error_message(:category_not_found), do: gettext("Category not found")
+  defp error_message(:not_reclassifiable), do: gettext("This tree cannot be reassigned")
   defp error_message(%Ecto.Changeset{} = changeset), do: changeset_error(changeset)
   defp error_message(_other), do: gettext("Something went wrong")
 
