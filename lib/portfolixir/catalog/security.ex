@@ -157,12 +157,15 @@ defmodule Portfolixir.Catalog.Security do
   defp derivative_class(name) when is_binary(name) do
     cond do
       knockout_name?(name) -> "knock_out"
+      Regex.match?(~r/\bDisc[CP]|Discount[\s-]?(Zertifikat|Cap)/i, name) -> "discount_certificate"
       Regex.match?(~r/\bOptionsschein\b|\bWarrant\b/i, name) -> "warrant"
       Regex.match?(~r/\bFaktor\b/i, name) -> "factor_certificate"
       Regex.match?(~r/Aktienanleihe|Reverse[\s-]?Convertible/i, name) -> "reverse_convertible"
-      Regex.match?(~r/Discount[\s-]?(Zertifikat|Cap)/i, name) -> "discount_certificate"
       Regex.match?(~r/Bonus[\s-]?(Zertifikat|Cap)/i, name) -> "bonus_certificate"
       Regex.match?(~r/Express[\s-]?Zertifikat/i, name) -> "express_certificate"
+      # Bare Call/Put is broker shorthand for a warrant; checked last so e.g.
+      # "Turbo Call" is a knock-out and "DiscC" a discount certificate.
+      Regex.match?(~r/\b(Call|Put)\b/i, name) -> "warrant"
       true -> nil
     end
   end

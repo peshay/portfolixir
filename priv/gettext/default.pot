@@ -1815,3 +1815,48 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Not held"
 msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Warrant"
+msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Knock-out product"
+msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Factor certificate"
+msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Discount certificate"
+msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Bonus certificate"
+msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Express certificate"
+msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Reverse convertible"
+msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Leverage products"
+msgstr ""
+
+#: lib/portfolixir/catalog/asset_classes.ex
+#, elixir-autogen, elixir-format
+msgid "Investment products"
+msgstr ""
