@@ -109,4 +109,13 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     assert Targets.list_targets(portfolio.id) == []
     assert {:ok, 0} = Targets.delete_target(portfolio.id, core.id)
   end
+
+  test "rejects a non-map target entry instead of crashing" do
+    %{portfolio: portfolio, classification: classification} = setup_world()
+
+    assert {:error, :invalid_entry} =
+             Targets.set_targets(portfolio.id, classification.id, [1])
+
+    assert Targets.list_targets(portfolio.id) == []
+  end
 end

@@ -44,6 +44,7 @@ defmodule Portfolixir.Portfolios.Targets do
   def set_targets(portfolio_id, classification_id, entries)
       when is_integer(portfolio_id) and is_integer(classification_id) and is_list(entries) do
     with {:ok, _classification} <- fetch_classification(classification_id),
+         :ok <- ensure_entries_are_maps(entries),
          :ok <- ensure_categories(classification_id, entries) do
       Repo.transaction(fn ->
         Enum.map(entries, fn entry ->
@@ -77,6 +78,12 @@ defmodule Portfolixir.Portfolios.Targets do
       nil -> {:error, :not_found}
       classification -> {:ok, classification}
     end
+  end
+
+  # Each entry must be an object; a bare scalar (e.g. `targets: [1]`) is rejected
+  # here so it surfaces as a 422 instead of crashing on `entry["category_id"]`.
+  defp ensure_entries_are_maps(entries) do
+    if Enum.all?(entries, &is_map/1), do: :ok, else: {:error, :invalid_entry}
   end
 
   defp ensure_categories(classification_id, entries) do
