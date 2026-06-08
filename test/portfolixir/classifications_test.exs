@@ -25,6 +25,11 @@ defmodule Portfolixir.ClassificationsTest do
     Enum.find(tree.categories, &(&1.key == key))
   end
 
+  defp infer(name) do
+    {:ok, security} = Catalog.create_security(%{name: name, currency_code: "EUR"})
+    security.asset_class
+  end
+
   test "seeds built-in trees and derives assignments from security data" do
     security = security!(%{currency_code: "USD", asset_class: "equity"})
 
@@ -230,5 +235,36 @@ defmodule Portfolixir.ClassificationsTest do
 
     assert {:error, :not_reclassifiable} =
              Classifications.reclassify_securities([security.id], hd(currency.categories).id)
+  end
+
+  test "seeds the certificate/leverage groups as a hierarchy" do
+    asset = Classifications.list_trees() |> tree("asset_class")
+
+    leverage = category(asset, "leverage_products")
+    investment = category(asset, "investment_products")
+
+    assert leverage.parent_id == nil
+    assert category(asset, "warrant").parent_id == leverage.id
+    assert category(asset, "knock_out").parent_id == leverage.id
+    assert category(asset, "factor_certificate").parent_id == leverage.id
+    assert category(asset, "discount_certificate").parent_id == investment.id
+    assert category(asset, "reverse_convertible").parent_id == investment.id
+
+    # Re-seeding stays idempotent: no duplicate categories.
+    Classifications.ensure_builtins()
+    categories = Classifications.list_trees() |> tree("asset_class") |> Map.fetch!(:categories)
+    assert Enum.count(categories, &(&1.key == "warrant")) == 1
+  end
+
+  test "infers certificate and leverage asset classes from the security name" do
+    assert infer("HVB Turbo Long DAX O.End") == "knock_out"
+    assert infer("Optionsschein Call auf BMW") == "warrant"
+    assert infer("DZ BANK Faktor 4x Long") == "factor_certificate"
+    assert infer("Aktienanleihe auf BMW AG") == "reverse_convertible"
+    assert infer("Discount-Zertifikat auf SAP") == "discount_certificate"
+
+    # Ordinary equities are never misread as certificates.
+    refute infer("American Express Co.") == "express_certificate"
+    assert infer("Apple Inc.") == "equity"
   end
 end
