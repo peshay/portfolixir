@@ -46,7 +46,11 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.classifications.assign",
       "portfolixir.classifications.assign_bulk",
       "portfolixir.classifications.unassign",
-      "portfolixir.trades.list"
+      "portfolixir.trades.list",
+      "portfolixir.targets.list",
+      "portfolixir.targets.set",
+      "portfolixir.targets.delete",
+      "portfolixir.portfolios.allocation"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -465,6 +469,83 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/transactions?from=2026-01-01&to=2026-03-31&portfolio_id=3");
     assert.equal(requests[1].path, "/api/v1/portfolios/3/holdings?security_id=9");
     assert.equal(requests[2].path, "/api/v1/securities/9/trades?from=2026-01-01");
+  });
+
+  it("routes target weight tools to the portfolio targets endpoints", async () => {
+    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined
+        });
+        return new Response(JSON.stringify({ data: { targets: [] } }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+    });
+
+    await callTool(client, "portfolixir.targets.list", { portfolio_id: 3, classification_id: 5 });
+    await callTool(client, "portfolixir.targets.set", {
+      portfolio_id: 3,
+      classification_id: 5,
+      targets: [{ category_id: 9, target_weight: "0.25" }]
+    });
+    await callTool(client, "portfolixir.targets.delete", { portfolio_id: 3, category_id: 9 });
+
+    assert.deepEqual(requests[0], {
+      method: "GET",
+      path: "/api/v1/portfolios/3/targets?classification_id=5",
+      body: undefined
+    });
+    assert.deepEqual(requests[1], {
+      method: "PUT",
+      path: "/api/v1/portfolios/3/targets",
+      body: { classification_id: 5, targets: [{ category_id: 9, target_weight: "0.25" }] }
+    });
+    assert.deepEqual(requests[2], {
+      method: "DELETE",
+      path: "/api/v1/portfolios/3/targets/9",
+      body: undefined
+    });
+  });
+
+  it("issues a GET to /allocation for portfolixir.portfolios.allocation", async () => {
+    const requests: Array<{ method: string; path: string }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
+        return new Response(
+          JSON.stringify({
+            data: {
+              portfolio_id: 3,
+              classification_id: 5,
+              categories: [
+                { category_id: 9, actual_weight: "0.4", target_weight: "0.25", drift_weight: "-0.15" }
+              ]
+            }
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.portfolios.allocation", {
+      portfolio_id: 3,
+      classification_id: 5
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/allocation?classification_id=5");
+    assert.match(result.content[0].text, /-0\.15/);
   });
 
   it("maps invalid tool names and upstream API errors to clear failures", async () => {
