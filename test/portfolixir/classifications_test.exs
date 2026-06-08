@@ -265,6 +265,8 @@ defmodule Portfolixir.ClassificationsTest do
     assert infer("HVB DiscC SAP 100") == "discount_certificate"
     assert infer("DiscP BASF 40") == "discount_certificate"
     assert infer("SG Call 15000 DAX") == "warrant"
+    assert infer("BNP Paribas Em.-u.Handelsg.mbH TurboL 17.01.23 CrudeOil 58") == "knock_out"
+    assert infer("Boerse Stuttgart Commodities EUWAX Gold II 2017(17/Und)") == "commodity"
 
     # Ordinary equities are never misread as certificates.
     refute infer("American Express Co.") == "express_certificate"
