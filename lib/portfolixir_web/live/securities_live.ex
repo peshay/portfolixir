@@ -6,8 +6,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
-  alias Portfolixir.Catalog.QuoteSync
+  alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
@@ -2023,7 +2024,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     sec_id = sec.id
 
     Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
-      result = Portfolixir.Catalog.LogoLookup.run(sec)
+      result = LogoLookup.run(sec)
       send(parent, {:logo_update_done, sec_id, result})
     end)
 

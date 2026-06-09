@@ -4,12 +4,12 @@ defmodule Portfolixir.Catalog do
   import Ecto.Query
   require Logger
 
+  alias Portfolixir.Catalog.LogoDiscovery
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
-  alias Portfolixir.Catalog.LogoDiscovery
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Ledger.Transaction

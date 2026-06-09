@@ -1,4 +1,5 @@
 defmodule PortfolixirWeb.Securities.ColumnPicker do
+  @moduledoc "Popover for choosing which columns the securities list shows."
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 

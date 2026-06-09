@@ -50,11 +50,9 @@ defmodule Portfolixir.Imports.Decimals do
   def parse(value) when is_integer(value), do: {:ok, Decimal.new(value)}
 
   def parse(value) when is_binary(value) do
-    try do
-      {:ok, Decimal.new(String.trim(value))}
-    rescue
-      Decimal.Error -> {:error, {:invalid_decimal, value}}
-    end
+    {:ok, Decimal.new(String.trim(value))}
+  rescue
+    Decimal.Error -> {:error, {:invalid_decimal, value}}
   end
 
   def parse(other), do: {:error, {:invalid_decimal, other}}

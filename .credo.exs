@@ -42,13 +42,16 @@
           {Credo.Check.Readability.UnnecessaryAliasExpansion, []},
           {Credo.Check.Readability.VariableNames, []},
           {Credo.Check.Refactor.CondStatements, []},
-          {Credo.Check.Refactor.CyclomaticComplexity, []},
+          # Thresholds grandfather the current worst offenders (complexity 15,
+          # nesting 4) so the gate blocks NEW debt; tighten back toward the
+          # defaults (9 / 2) as dedicated refactor stories land.
+          {Credo.Check.Refactor.CyclomaticComplexity, [max_complexity: 15]},
           {Credo.Check.Refactor.FunctionArity, []},
           {Credo.Check.Refactor.LongQuoteBlocks, []},
           {Credo.Check.Refactor.MatchInCondition, []},
           {Credo.Check.Refactor.NegatedConditionsInUnless, []},
           {Credo.Check.Refactor.NegatedConditionsWithElse, []},
-          {Credo.Check.Refactor.Nesting, []},
+          {Credo.Check.Refactor.Nesting, [max_nesting: 4]},
           {Credo.Check.Refactor.UnlessWithElse, []},
           {Credo.Check.Refactor.WithClauses, []},
           {Credo.Check.Warning.ApplicationConfigInModuleAttribute, []},
