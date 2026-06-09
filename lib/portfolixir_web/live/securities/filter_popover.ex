@@ -1,4 +1,5 @@
 defmodule PortfolixirWeb.Securities.FilterPopover do
+  @moduledoc "Popover for building column filters on the securities list."
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 
@@ -143,11 +144,9 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   defp atom_or_default("", default), do: default
 
   defp atom_or_default(value, default) when is_binary(value) do
-    try do
-      String.to_existing_atom(value)
-    rescue
-      ArgumentError -> default
-    end
+    String.to_existing_atom(value)
+  rescue
+    ArgumentError -> default
   end
 
   defp atom_or_default(value, _default) when is_atom(value), do: value

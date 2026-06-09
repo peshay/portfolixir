@@ -18,6 +18,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.SearchResult do
 
   alias Portfolixir.Catalog.SecuritySearch.Market
 
+  @type t :: %__MODULE__{}
+
   @enforce_keys [:provider, :name]
   defstruct [
     :provider,

@@ -26,6 +26,9 @@ defmodule Portfolixir.Catalog.LogoStore do
 
   @spec download_and_store(Security.t(), String.t(), atom(), keyword()) ::
           {:ok, Security.t()} | {:error, term()}
+  # storage_dir comes from app config/opts and the filename from the security
+  # id plus a validated extension — no user-controlled path segments.
+  # sobelow_skip ["Traversal.FileModule"]
   def download_and_store(%Security{} = security, url, source, opts \\ [])
       when is_binary(url) and is_atom(source) do
     max_bytes = Keyword.get(opts, :max_bytes, @default_max_bytes)
