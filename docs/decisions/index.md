@@ -37,3 +37,4 @@ already in force in the codebase.
 | [0006](0006-classifications-with-target-weights.html) | Classifications (taxonomies) with built-in derived trees | Accepted |
 | [0007](0007-currency-conversion-with-exchange-rates.html) | Currency conversion with exchange rates | Accepted |
 | [0008](0008-target-weights-and-allocation.html) | Target weights and SOLL/IST allocation | Accepted |
+| [0009](0009-cash-as-balance-snapshots.html) | Cash as balance snapshots, not a mirrored ledger | Accepted |
