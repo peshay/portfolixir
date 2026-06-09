@@ -206,6 +206,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       total_value: decimal(valuation.total_value),
       total_cash: decimal(valuation.total_cash),
       total_with_cash: decimal(valuation.total_with_cash),
+      cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
       positions: Enum.map(positions, &valuation_position/1),
       cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
