@@ -136,8 +136,9 @@ that belongs to investing needs no separate upkeep.
 For external accounts (a current account, savings, a business account), the goal
 is visibility without bookkeeping. Instead of mirroring every booking, you **set
 an account's balance directly** — type the figure your banking app shows as a
-dated **snapshot** (`POST /api/v1/cash_accounts/:id/balance`, or the
-`cash_accounts.set_balance` MCP tool). The balance then anchors to that amount,
+dated **snapshot** (the set-balance form on the Portfolio page,
+`POST /api/v1/cash_accounts/:id/balance`, or the `cash_accounts.set_balance`
+MCP tool). The balance then anchors to that amount,
 and only bookings dated strictly after the snapshot change it; so moving money
 between your own accounts needs no transfer entry — you just restate each
 balance now and then. The amount may be negative (an overdraft), and the same
@@ -150,6 +151,19 @@ Still planned: a per-account flag to mark which accounts count toward the cash
 quote (so a business account can be visible without distorting your private
 quote).
 
+## Portfolio Page
+
+The **Portfolio** entry in the navigation opens the portfolio overview: the
+total value including cash, the cash quote, and the TTWROR for a selectable
+period (year-to-date, one/three/five years, or since the first transaction)
+with the cumulative performance chart. Below it, the **allocation donut** shows
+each category's value-weighted share in its category colour — pick any
+classification tree from the selector — and the drift table compares the
+actual weight against the stored target per category, restating the drift in
+the base currency. The cash section lists each account's balance and carries
+the **set-balance form**: type the balance your bank shows and the snapshot is
+recorded without booking individual transactions.
+
 ## Performance (TTWROR)
 
 Portfolixir reports the **true time-weighted rate of return** the way Portfolio
@@ -159,8 +173,9 @@ balance-snapshot jumps) is neutralised, and the daily returns are chained. The
 result measures how well the **investments** performed, regardless of when cash
 moved — dividends, interest, fees and taxes count as part of the return.
 
-Performance is available per period — year-to-date, one, three, or five years,
-or since the first transaction — over the API
+Performance is shown on the Portfolio page and available per period —
+year-to-date, one, three, or five years, or since the first transaction —
+over the API
 (`GET /api/v1/portfolios/:id/performance`) and the
 `portfolixir.portfolios.performance` MCP tool, optionally with the full daily
 valuation series for charting. The method and its trade-offs are recorded in

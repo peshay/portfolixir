@@ -2015,3 +2015,87 @@ msgstr "Hebelprodukte"
 #, elixir-autogen, elixir-format
 msgid "Investment products"
 msgstr "Anlageprodukte"
+
+msgid "Create one portfolio first to see value, performance and allocation."
+msgstr "Lege zuerst ein Portfolio an, um Wert, Performance und Allokation zu sehen."
+
+msgid "Value, performance and allocation"
+msgstr "Wert, Performance und Allokation"
+
+msgid "Portfolio key figures"
+msgstr "Portfolio-Kennzahlen"
+
+msgid "Total incl. cash"
+msgstr "Gesamt inkl. Cash"
+
+msgid "Cash"
+msgstr "Cash"
+
+msgid "cash quote"
+msgstr "Cashquote"
+
+msgid "TTWROR"
+msgstr "TTWROR"
+
+msgid "Period"
+msgstr "Zeitraum"
+
+msgid "True time-weighted return; deposits and withdrawals are neutralised."
+msgstr "Echte zeitgewichtete Rendite; Ein- und Auszahlungen sind neutralisiert."
+
+msgid "Cumulative TTWROR over time"
+msgstr "Kumulierte TTWROR über die Zeit"
+
+msgid "Allocation"
+msgstr "Allokation"
+
+msgid "Classification"
+msgstr "Klassifizierung"
+
+msgid "Category"
+msgstr "Kategorie"
+
+msgid "Actual"
+msgstr "Ist"
+
+msgid "Target"
+msgstr "Soll"
+
+msgid "Drift"
+msgstr "Drift"
+
+msgid "Unassigned"
+msgstr "Nicht zugeordnet"
+
+msgid "Account"
+msgstr "Konto"
+
+msgid "Balance"
+msgstr "Saldo"
+
+msgid "Set balance"
+msgstr "Saldo setzen"
+
+msgid "State the balance your bank shows; only later bookings adjust it."
+msgstr "Trage den Saldo ein, den deine Bank anzeigt; nur spätere Buchungen verändern ihn."
+
+msgid "Balance updated"
+msgstr "Saldo aktualisiert"
+
+msgid "Account not found"
+msgstr "Konto nicht gefunden"
+
+msgid "YTD"
+msgstr "YTD"
+
+msgid "1Y"
+msgstr "1J"
+
+msgid "3Y"
+msgstr "3J"
+
+msgid "5Y"
+msgstr "5J"
+
+msgid "Max"
+msgstr "Max"

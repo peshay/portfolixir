@@ -265,6 +265,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     %{
       category_id: category.category_id,
       name: category.name,
+      color: category.color,
       market_value: decimal(category.market_value),
       actual_weight: decimal(category.actual_weight),
       target_weight: decimal(category.target_weight),
