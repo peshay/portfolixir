@@ -19,6 +19,7 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.TradeMatcher
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
@@ -84,18 +85,65 @@ defmodule Portfolixir.Ledger do
   no FX conversion is applied here. Pass `:portfolio_id` to scope the calculation
   to one portfolio. Accounts with no cash-affecting transaction are omitted and
   should be treated as a zero balance by callers.
+
+  A `balance_adjustment` (see ADR-0009) is an absolute-balance snapshot, not a
+  delta: it anchors the account to a stated balance as of its date, and only
+  bookings dated strictly after it adjust the result. This lets an external
+  account be kept current by stating its balance now and then, without mirroring
+  every booking. An anchored account always appears in the result (even with no
+  later bookings).
   """
   def cash_balances(opts \\ []) when is_list(opts) do
-    Transaction
-    |> scope_portfolio(opts[:portfolio_id])
-    |> Repo.all()
-    |> Enum.reduce(%{}, fn transaction, balances ->
+    transactions =
+      Transaction
+      |> scope_portfolio(opts[:portfolio_id])
+      |> Repo.all()
+
+    anchors = latest_anchors(transactions)
+
+    Enum.reduce(transactions, seed_balances(anchors), fn transaction, balances ->
       transaction
       |> cash_effects()
       |> Enum.reduce(balances, fn {account_id, delta}, acc ->
-        add_cash_delta(acc, account_id, delta)
+        apply_cash_delta(acc, anchors, account_id, transaction.date, delta)
       end)
     end)
+  end
+
+  # The latest balance snapshot per cash account, as
+  # `%{cash_account_id => %{date:, amount:}}`. Snapshots are dated absolute
+  # balances; the most recent one (by date, then id) wins.
+  defp latest_anchors(transactions) do
+    transactions
+    |> Enum.filter(&(&1.type == "balance_adjustment"))
+    |> Enum.group_by(& &1.cash_account_id)
+    |> Map.new(fn {account_id, snapshots} ->
+      latest = Enum.max_by(snapshots, &{Date.to_erl(&1.date), &1.id})
+      {account_id, %{date: latest.date, amount: gross_amount(latest)}}
+    end)
+  end
+
+  defp seed_balances(anchors) do
+    Map.new(anchors, fn {account_id, %{amount: amount}} -> {account_id, amount} end)
+  end
+
+  # A snapshot anchors the balance: only bookings dated strictly after it adjust
+  # an anchored account; bookings on or before its date are already reflected in
+  # the stated balance. Unanchored accounts sum every booking, as before.
+  defp apply_cash_delta(balances, _anchors, nil, _date, _delta), do: balances
+
+  defp apply_cash_delta(balances, anchors, account_id, date, delta) do
+    case Map.get(anchors, account_id) do
+      %{date: anchor_date} ->
+        if Date.compare(date, anchor_date) == :gt do
+          add_cash_delta(balances, account_id, delta)
+        else
+          balances
+        end
+
+      nil ->
+        add_cash_delta(balances, account_id, delta)
+    end
   end
 
   defp scope_portfolio(query, nil), do: query
@@ -412,6 +460,26 @@ defmodule Portfolixir.Ledger do
       |> Transaction.changeset(attrs)
       |> Repo.insert()
     end
+  end
+
+  @doc """
+  Records an absolute cash-balance snapshot for one cash account (see ADR-0009).
+
+  Stores a `balance_adjustment` transaction anchoring the account to `amount`
+  (the absolute balance, which may be negative) as of `date`. The portfolio and
+  currency are taken from the cash account. Returns `{:ok, transaction}` or
+  `{:error, changeset}`.
+  """
+  def set_cash_balance(%CashAccount{} = cash_account, attrs) when is_map(attrs) do
+    create_transaction(%{
+      type: "balance_adjustment",
+      portfolio_id: cash_account.portfolio_id,
+      cash_account_id: cash_account.id,
+      currency_code: cash_account.currency_code,
+      date: get_attr(attrs, :date),
+      gross_amount: get_attr(attrs, :amount),
+      notes: get_attr(attrs, :notes)
+    })
   end
 
   def get_transaction(id) when is_integer(id), do: Repo.get(Transaction, id)

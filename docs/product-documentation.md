@@ -134,14 +134,21 @@ interest, fees and taxes move it as you record those transactions, so the cash
 that belongs to investing needs no separate upkeep.
 
 For external accounts (a current account, savings, a business account), the goal
-is visibility without bookkeeping. The planned approach — recorded in
-[ADR-0009](decisions/0009-cash-as-balance-snapshots.html) — is to let you **set an
-account's balance directly** (type the figure your banking app shows, as a dated
-snapshot) instead of mirroring every booking, and to **flag which accounts count
-toward the cash quote**. Moving money between your own accounts then needs no
-transfer entry, and the same model can later be filled automatically over the API
-— without turning Portfolixir into a banking app. The cash quote is available
-today; the balance snapshot and the per-account flag arrive as follow-up steps.
+is visibility without bookkeeping. Instead of mirroring every booking, you **set
+an account's balance directly** — type the figure your banking app shows as a
+dated **snapshot** (`POST /api/v1/cash_accounts/:id/balance`, or the
+`cash_accounts.set_balance` MCP tool). The balance then anchors to that amount,
+and only bookings dated strictly after the snapshot change it; so moving money
+between your own accounts needs no transfer entry — you just restate each
+balance now and then. The amount may be negative (an overdraft), and the same
+snapshot can later be filled automatically over the API (a script or a read-only
+bank export) — without turning Portfolixir into a banking app. This follows the
+design recorded in
+[ADR-0009](decisions/0009-cash-as-balance-snapshots.html).
+
+Still planned: a per-account flag to mark which accounts count toward the cash
+quote (so a business account can be visible without distorting your private
+quote).
 
 ## Imports
 
