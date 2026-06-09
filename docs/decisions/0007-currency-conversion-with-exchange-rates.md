@@ -13,8 +13,7 @@ description: Decision to add a dated exchange-rate store, an ECB sync provider, 
 
 Portfolixir stores a `currency_code` on every security, cash account and
 transaction, and a `base_currency_code` on every portfolio, but it has no
-exchange rates and no conversion. The read-time valuation
-([ADR-0006](0006-classifications-with-target-weights.html)) therefore sums raw
+exchange rates and no conversion. The read-time valuation therefore sums raw
 quote closes as if every holding shared one currency: 100 USD of one position
 plus 100 EUR of another is reported as `200` with 50/50 weights. For a tool
 whose whole point is precise, auditable numbers (Decimal everywhere,
@@ -87,8 +86,10 @@ explicit, testable layer rather than overloaded onto the securities table.
 - EUR is the storage hub. Supporting a non-EUR-derived pair, or sources beyond
   ECB, means adding rows/providers but not changing the conversion algorithm.
 - `GBX` is handled as `GBP × 100`; no other pseudo-currencies are assumed.
-- Cash-account balances are not part of the security valuation yet, so their
-  conversion is out of scope here and follows when cash enters the valuation.
+- Cash-account balances were not part of the valuation when this ADR was
+  written; they have since been folded in: `Portfolixir.Portfolios.Valuation`
+  reports `total_cash` and `total_with_cash`, converting each cash account to the
+  portfolio base currency through this same hub-and-triangulation path.
 - The Portfolio Performance importer can later capture per-transaction exchange
   rates into this store; today it still discards them, which this ADR does not
   change.

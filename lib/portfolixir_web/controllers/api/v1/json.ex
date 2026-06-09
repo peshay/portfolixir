@@ -10,7 +10,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Ledger.Transaction
-  alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount}
+  alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount, Target}
 
   def security(%Security{} = security) do
     %{
@@ -182,12 +182,20 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  def holding({{securities_account_id, security_id}, quantity}, portfolio_id) do
+  def holding(holding, portfolio_id) do
     %{
       portfolio_id: portfolio_id,
-      securities_account_id: securities_account_id,
-      security_id: security_id,
-      quantity: decimal(quantity)
+      securities_account_id: holding.securities_account_id,
+      security_id: holding.security_id,
+      security_name: holding.security_name,
+      currency_code: holding.currency_code,
+      quantity: decimal(holding.quantity),
+      avg_cost: decimal(holding.avg_cost),
+      cost_basis: decimal(holding.cost_basis),
+      latest_price: decimal(holding.latest_price),
+      market_value: decimal(holding.market_value),
+      unrealized_pnl_abs: decimal(holding.unrealized_pnl_abs),
+      unrealized_pnl_pct: decimal(holding.unrealized_pnl_pct)
     }
   end
 
@@ -227,6 +235,49 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       market_value: decimal(position.market_value),
       weight: decimal(position.weight),
       valued: position.valued
+    }
+  end
+
+  def target(%Target{} = target) do
+    %{
+      portfolio_id: target.portfolio_id,
+      classification_id: target.classification_id,
+      category_id: target.category_id,
+      target_weight: decimal(target.target_weight)
+    }
+  end
+
+  def allocation(allocation) do
+    %{
+      portfolio_id: allocation.portfolio_id,
+      classification_id: allocation.classification_id,
+      classification_name: allocation.classification_name,
+      base_currency: allocation.base_currency,
+      total_value: decimal(allocation.total_value),
+      unvalued_count: allocation.unvalued_count,
+      categories: Enum.map(allocation.categories, &allocation_category/1),
+      unassigned: allocation_unassigned(allocation.unassigned)
+    }
+  end
+
+  defp allocation_category(category) do
+    %{
+      category_id: category.category_id,
+      name: category.name,
+      market_value: decimal(category.market_value),
+      actual_weight: decimal(category.actual_weight),
+      target_weight: decimal(category.target_weight),
+      drift_weight: decimal(category.drift_weight),
+      drift_value: decimal(category.drift_value)
+    }
+  end
+
+  defp allocation_unassigned(nil), do: nil
+
+  defp allocation_unassigned(unassigned) do
+    %{
+      market_value: decimal(unassigned.market_value),
+      actual_weight: decimal(unassigned.actual_weight)
     }
   end
 

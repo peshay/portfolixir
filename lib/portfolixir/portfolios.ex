@@ -31,10 +31,6 @@ defmodule Portfolixir.Portfolios do
     |> Repo.insert()
   end
 
-  def change_portfolio(%Portfolio{} = portfolio, attrs \\ %{}) do
-    Portfolio.changeset(portfolio, attrs)
-  end
-
   def list_cash_accounts do
     Repo.all(from(account in CashAccount, order_by: [asc: account.name, asc: account.id]))
   end
@@ -56,10 +52,6 @@ defmodule Portfolixir.Portfolios do
     %CashAccount{}
     |> CashAccount.changeset(attrs)
     |> Repo.insert()
-  end
-
-  def change_cash_account(%CashAccount{} = cash_account, attrs \\ %{}) do
-    CashAccount.changeset(cash_account, attrs)
   end
 
   def get_cash_account(id) when is_integer(id), do: Repo.get(CashAccount, id)
@@ -118,10 +110,6 @@ defmodule Portfolixir.Portfolios do
     %SecuritiesAccount{}
     |> SecuritiesAccount.changeset(attrs)
     |> Repo.insert()
-  end
-
-  def change_securities_account(%SecuritiesAccount{} = securities_account, attrs \\ %{}) do
-    SecuritiesAccount.changeset(securities_account, attrs)
   end
 
   def get_securities_account(id) when is_integer(id) do

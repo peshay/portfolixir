@@ -24,6 +24,12 @@ tracking. Keep the product focused on auditable local records:
    preview the records that would be created (transactions, missing
    securities, missing portfolios/depots/cash accounts) with user-driven
    mapping, then apply atomically with content-hash idempotency.
+10. Organise securities into classification trees: custom trees plus
+    built-in asset-class and currency trees derived from security data.
+11. Value multi-currency portfolios by converting positions and cash
+    balances through stored exchange rates (EUR hub).
+12. Store per-category target weights and report the SOLL/IST allocation
+    breakdown with per-category drift.
 
 New functionality must stay small, reviewed, locally tested, and documented.
 

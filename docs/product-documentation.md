@@ -14,7 +14,11 @@ single portfolio workflow. It is intentionally narrow:
 - Manual creation of securities, portfolio, accounts, and transactions.
 - Bulk import of Portfolio Performance CSV/JSON v1 transaction exports through
   a preview-and-apply workflow.
-- Holdings are derived from transaction history.
+- Holdings are derived from transaction history, with cost basis and unrealized
+  profit/loss.
+- Classification trees organise securities; per-category target weights drive a
+  SOLL/IST allocation breakdown with drift.
+- Multi-currency portfolios are valued through stored exchange rates.
 - Security prices are stored as quote history and shown in a security detail chart.
 - Supported functions are available through the UI, JSON API, and MCP companion.
 - No broker sync, bank sync, trading engine, payment flow, order flow, rebalancing,
@@ -22,7 +26,7 @@ single portfolio workflow. It is intentionally narrow:
 
 ## Product Modules
 
-The codebase is split into three local domain modules plus the web layer:
+The codebase is split into local domain modules plus the web layer:
 
 - `Portfolixir.Catalog`
   - Securities and quote entities
@@ -31,9 +35,14 @@ The codebase is split into three local domain modules plus the web layer:
   - Portfolios
   - Cash accounts
   - Depots
+  - Target weights and SOLL/IST allocation
 - `Portfolixir.Ledger`
   - Manual buy/sell transactions
   - Holdings calculation from immutable history
+- `Portfolixir.Classifications`
+  - Custom and built-in classification trees and assignments
+- `Portfolixir.Fx`
+  - Exchange rates and multi-currency conversion
 - `PortfolixirWeb`
   - Routes, pages, LiveViews, and JSON API
 - `mcp-server/`
@@ -82,7 +91,35 @@ Transactions are explicit and auditable. A transaction defines:
 ### Holdings Calculation
 
 Current holdings are not entered manually. They are derived from all
-transactions over time, so the state is reproducible and traceable.
+transactions over time, so the state is reproducible and traceable. Each holding
+also carries a moving-average cost basis and the unrealized profit/loss
+(absolute and percentage) against the latest stored price, in the security's own
+currency.
+
+## Classifications, Targets, and Allocation
+
+Securities can be organised into **classification trees**. Custom trees are
+free-form folders with colours; built-in trees for **asset class** and
+**currency** are derived from each security and always present. The asset-class
+tree is an editable taxonomy: a security's class is seeded from an inferred
+default and corrected by dragging it between categories.
+
+Each portfolio can store a **target weight** per category (a fraction of the
+portfolio, for example 25%). The **allocation** breakdown then compares, per
+category, the actual weight (its share of the valued positions) against the
+stored target and reports the **drift** — both as a weight and as a base-currency
+amount, i.e. how much to buy or sell to reach the target. Securities held but not
+assigned in the chosen tree are summed into an unassigned bucket. Only the
+targets are stored; the actual side is derived from the live valuation on read.
+
+## Exchange Rates and Valuation
+
+Portfolios can hold securities and cash in several currencies. Exchange rates are
+stored against a EUR hub (with European Central Bank sync), and other pairs are
+triangulated through it. The live portfolio valuation converts each position's
+market value and each cash balance into the portfolio base currency; a position
+with no quote or no rate path to the base currency is reported as unvalued, so a
+missing price or rate never distorts the total or the weights.
 
 ## Imports
 

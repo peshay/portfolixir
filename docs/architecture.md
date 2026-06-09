@@ -98,8 +98,12 @@ The OTP application supervises (`lib/portfolixir/application.ex`):
 - `Portfolixir.Repo` — Ecto/PostgreSQL access.
 - `Phoenix.PubSub` — in-process messaging.
 - `Task.Supervisor` (`LogoSupervisor`) — background logo fetches.
+- `Portfolixir.Catalog.LogoDiscovery` — background queue that discovers missing
+  security logos.
 - `Portfolixir.Catalog.QuoteSync` — scheduler that pulls daily closes on a
   configurable interval.
+- `Portfolixir.Fx.RateSync` — opt-in scheduler that refreshes exchange rates
+  (ECB) on a configurable interval.
 - `PortfolixirWeb.Endpoint` — HTTP, LiveView, and JSON API.
 
 ### Level 2 — domain contexts
@@ -107,8 +111,10 @@ The OTP application supervises (`lib/portfolixir/application.ex`):
 | Context | Responsibility | Key modules |
 | --- | --- | --- |
 | `Portfolixir.Catalog` | Securities, quote history, quote sync, online search, logos | `security`, `quotes`, `quote_sync` (Yahoo), `security_search` (CoinGecko, Portfolio Performance) |
-| `Portfolixir.Portfolios` | Portfolios, cash accounts, depots | `portfolio`, `cash_account`, `securities_account` |
-| `Portfolixir.Ledger` | Manual transactions, derived holdings, FIFO trades | `transaction`, `positions`, `trade_matcher` |
+| `Portfolixir.Portfolios` | Portfolios, cash accounts, depots, valuation, target weights and allocation | `portfolio`, `cash_account`, `securities_account`, `valuation`, `target`, `targets`, `allocation` |
+| `Portfolixir.Ledger` | Manual transactions, derived holdings (with cost basis and P&L), FIFO trades | `transaction`, `positions`, `trade_matcher` |
+| `Portfolixir.Classifications` | Custom and built-in (asset-class, currency) classification trees and assignments | `classification`, `category`, `assignment` |
+| `Portfolixir.Fx` | Exchange rates and multi-currency conversion (EUR hub) | `exchange_rate`, `fx`, `rate_sync` (ECB) |
 | `Portfolixir.Imports` | Portfolio Performance CSV/JSON v1 import (parse, preview, apply) | `portfolio_performance` (csv/json parsers), `preview`, `applier`, `mapping` |
 | `PortfolixirWeb` | LiveViews, JSON API controllers, auth plug, components | `live/*`, `controllers/api/v1/*`, `plugs/api_auth_plug` |
 | `mcp-server/` | TypeScript MCP companion wrapping `/api/v1` | `server.ts`, `tools.ts`, `api-client.ts`, `http.ts` |
