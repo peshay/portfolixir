@@ -110,6 +110,7 @@ defmodule PortfolixirWeb.Router do
     post("/cash_accounts", CashAccountController, :create)
     get("/cash_accounts/:id", CashAccountController, :show)
     patch("/cash_accounts/:id", CashAccountController, :update)
+    post("/cash_accounts/:id/balance", CashAccountController, :set_balance)
     delete("/cash_accounts/:id", CashAccountController, :delete)
 
     get("/securities_accounts", SecuritiesAccountController, :index)

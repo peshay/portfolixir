@@ -640,6 +640,25 @@ const allocationZ = z.object({
   classification_id: z.number().int().positive()
 });
 
+const cashBalanceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "date", "amount"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    date: { type: "string", format: "date" },
+    amount: { type: "string" },
+    notes: { type: "string" }
+  }
+};
+
+const cashBalanceZ = z.object({
+  id: z.number().int().positive(),
+  date: z.string(),
+  amount: z.string(),
+  notes: optionalString()
+});
+
 const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.list", "List securities", "List local securities. Use limit/offset to page large catalogs and keep responses small.", {
     type: "object",
@@ -822,6 +841,13 @@ const toolDefinitions: ToolDefinition[] = [
     "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category, in one call.",
     allocationSchema,
     allocationZ
+  ),
+  tool(
+    "portfolixir.cash_accounts.set_balance",
+    "Set cash balance",
+    "Record an absolute cash-balance snapshot for one account (the current balance as of a date), instead of mirroring every booking. amount is a Decimal string and may be negative.",
+    cashBalanceSchema,
+    cashBalanceZ
   )
 ];
 
@@ -1008,6 +1034,12 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/allocation`, args, ["classification_id"])
       );
+    case "portfolixir.cash_accounts.set_balance":
+      return client.request("POST", `/api/v1/cash_accounts/${args.id}/balance`, {
+        date: args.date,
+        amount: args.amount,
+        notes: args.notes
+      });
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);
   }
