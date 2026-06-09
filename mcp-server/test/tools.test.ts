@@ -51,7 +51,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.targets.set",
       "portfolixir.targets.delete",
       "portfolixir.portfolios.allocation",
-      "portfolixir.cash_accounts.set_balance"
+      "portfolixir.cash_accounts.set_balance",
+      "portfolixir.portfolios.performance"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -583,6 +584,32 @@ describe("Portfolixir MCP tools", () => {
       path: "/api/v1/cash_accounts/3/balance",
       body: { date: "2026-06-01", amount: "4250.00" }
     });
+  });
+
+  it("issues a GET to /performance for portfolixir.portfolios.performance", async () => {
+    const requests: Array<{ method: string; path: string }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
+        return new Response(
+          JSON.stringify({ data: { portfolio_id: 3, period: "ytd", ttwror: "0.0825" } }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.portfolios.performance", {
+      portfolio_id: 3,
+      period: "ytd",
+      series: true
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/performance?period=ytd&series=true");
+    assert.match(result.content[0].text, /0\.0825/);
   });
 
   it("maps invalid tool names and upstream API errors to clear failures", async () => {

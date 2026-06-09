@@ -150,6 +150,22 @@ Still planned: a per-account flag to mark which accounts count toward the cash
 quote (so a business account can be visible without distorting your private
 quote).
 
+## Performance (TTWROR)
+
+Portfolixir reports the **true time-weighted rate of return** the way Portfolio
+Performance does: the portfolio is valued every day from the first transaction
+onward, money you put in or take out (deposits, removals, deliveries, and
+balance-snapshot jumps) is neutralised, and the daily returns are chained. The
+result measures how well the **investments** performed, regardless of when cash
+moved — dividends, interest, fees and taxes count as part of the return.
+
+Performance is available per period — year-to-date, one, three, or five years,
+or since the first transaction — over the API
+(`GET /api/v1/portfolios/:id/performance`) and the
+`portfolixir.portfolios.performance` MCP tool, optionally with the full daily
+valuation series for charting. The method and its trade-offs are recorded in
+[ADR-0010](decisions/0010-ttwror-performance-series.html).
+
 ## Imports
 
 The Imports page accepts Portfolio Performance transaction exports in CSV or
