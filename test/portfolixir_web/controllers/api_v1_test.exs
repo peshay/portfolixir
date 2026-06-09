@@ -2,8 +2,8 @@ defmodule PortfolixirWeb.ApiV1Test do
   use PortfolixirWeb.ConnCase
 
   alias Portfolixir.Catalog
-  alias Portfolixir.Catalog.QuoteSync.Fake, as: QuoteSyncFake
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.QuoteSync.Fake, as: QuoteSyncFake
   alias Portfolixir.Fx.RateSync.Fake, as: FxRateFake
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios

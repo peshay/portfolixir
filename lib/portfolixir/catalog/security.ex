@@ -8,6 +8,8 @@ defmodule Portfolixir.Catalog.Security do
 
   @providers ~w(portfolio_performance coingecko manual)
 
+  @type t :: %__MODULE__{}
+
   schema "securities" do
     field(:name, :string)
     field(:ticker_symbol, :string)

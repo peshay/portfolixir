@@ -111,6 +111,9 @@ defmodule Portfolixir.Catalog.Quotes do
   """
   def attach_metrics([]), do: []
 
+  # The SQL is a literal with positional parameters only ($1..$3); nothing is
+  # interpolated into the query string.
+  # sobelow_skip ["SQL.Query"]
   def attach_metrics(securities) when is_list(securities) do
     ids = Enum.map(securities, & &1.id)
     today = Date.utc_today()
