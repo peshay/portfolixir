@@ -211,6 +211,18 @@ Example account payloads:
   there is nothing to value yet). An account whose currency has no rate path to
   the base is reported `valued: false` and excluded from `total_cash`, mirroring
   how unpriceable positions are handled.
+- `GET /api/v1/portfolios/:portfolio_id/performance` returns the portfolio's
+  **true time-weighted rate of return (TTWROR)**, computed the Portfolio
+  Performance way: the portfolio is valued daily (quotes on or before each day,
+  converted at that day's rates, plus cash), external flows — deposits,
+  removals, deliveries, and balance-snapshot jumps — are neutralised, and daily
+  returns chain geometrically (see ADR-0010). Optional query params: `period`
+  (`ytd`, `1y`, `3y`, `5y`, `max` — default `max`; an unknown period returns
+  `422 Unprocessable Entity`) and `series=true` to include the daily points
+  (`date`, `value`, `flow`, `cumulative_ttwror`). The response carries
+  `ttwror`, `start_date`/`end_date`, `start_value`/`end_value` and
+  `net_external_flows` as Decimal strings. Unknown portfolios return
+  `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
   target weights (the SOLL side of the allocation). Optional `classification_id`
   scopes the list to one tree. Unknown portfolios return `404 Not Found`.
@@ -353,3 +365,4 @@ in MCP schemas are strings.
 - `portfolixir.targets.set`
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
+- `portfolixir.portfolios.performance`

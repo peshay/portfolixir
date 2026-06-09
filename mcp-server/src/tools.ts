@@ -659,6 +659,23 @@ const cashBalanceZ = z.object({
   notes: optionalString()
 });
 
+const performanceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    series: { type: "boolean" }
+  }
+};
+
+const performanceZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
+  series: z.boolean().optional()
+});
+
 const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.list", "List securities", "List local securities. Use limit/offset to page large catalogs and keep responses small.", {
     type: "object",
@@ -848,6 +865,13 @@ const toolDefinitions: ToolDefinition[] = [
     "Record an absolute cash-balance snapshot for one account (the current balance as of a date), instead of mirroring every booking. amount is a Decimal string and may be negative.",
     cashBalanceSchema,
     cashBalanceZ
+  ),
+  tool(
+    "portfolixir.portfolios.performance",
+    "Portfolio performance (TTWROR)",
+    "True time-weighted rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max), with external cash flows neutralised the Portfolio Performance way. Set series=true to include the daily valuation series.",
+    performanceSchema,
+    performanceZ
   )
 ];
 
@@ -1040,6 +1064,14 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         amount: args.amount,
         notes: args.notes
       });
+    case "portfolixir.portfolios.performance":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/performance`, args, [
+          "period",
+          "series"
+        ])
+      );
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);
   }
