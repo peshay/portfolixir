@@ -121,6 +121,28 @@ market value and each cash balance into the portfolio base currency; a position
 with no quote or no rate path to the base currency is reported as unvalued, so a
 missing price or rate never distorts the total or the weights.
 
+## Cash and cash quote
+
+Cash is part of the portfolio, not an afterthought. Each portfolio has one or
+more cash accounts, and the live valuation reports the **total cash**, the
+**total including cash**, and the **cash quote** — cash as a share of the whole
+portfolio (`total_cash / total_with_cash`) — so you can see your liquidity and
+dry powder at a glance, converted into the portfolio base currency.
+
+A depot's settlement cash stays up to date on its own: buys, sells, dividends,
+interest, fees and taxes move it as you record those transactions, so the cash
+that belongs to investing needs no separate upkeep.
+
+For external accounts (a current account, savings, a business account), the goal
+is visibility without bookkeeping. The planned approach — recorded in
+[ADR-0009](decisions/0009-cash-as-balance-snapshots.html) — is to let you **set an
+account's balance directly** (type the figure your banking app shows, as a dated
+snapshot) instead of mirroring every booking, and to **flag which accounts count
+toward the cash quote**. Moving money between your own accounts then needs no
+transfer entry, and the same model can later be filled automatically over the API
+— without turning Portfolixir into a banking app. The cash quote is available
+today; the balance snapshot and the per-account flag arrive as follow-up steps.
+
 ## Imports
 
 The Imports page accepts Portfolio Performance transaction exports in CSV or
