@@ -1602,7 +1602,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp display_value(_key, value), do: to_string(value)
 
   defp safe_to_string({:safe, iodata}), do: IO.iodata_to_binary(iodata)
-  defp safe_to_string(other) when is_binary(other), do: other
 
   defp chip_label(%{key: key, op: op, value: value}) do
     field = SecurityFields.get(key)
