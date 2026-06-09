@@ -238,7 +238,7 @@ Example account payloads:
 - `GET /api/v1/portfolios/:portfolio_id/allocation` returns the SOLL/IST
   breakdown for one classification (required `classification_id` query param; a
   missing one returns `422 Unprocessable Entity`). For each category it reports
-  `market_value`, `actual_weight` (its share of `total_value`), `target_weight`,
+  `color`, `market_value`, `actual_weight` (its share of `total_value`), `target_weight`,
   `drift_weight` (`target_weight - actual_weight`), and `drift_value` (the drift
   restated in the base currency). Securities held but not assigned in the tree are
   summed into `unassigned`. Weights mirror the valuation: shares of the valued

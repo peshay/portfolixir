@@ -106,6 +106,7 @@ defmodule Portfolixir.Portfolios.Allocation do
     %{
       category_id: category.id,
       name: category.name,
+      color: category.color,
       market_value: market_value,
       actual_weight: actual,
       target_weight: target_weight,
