@@ -62,6 +62,10 @@ defmodule PortfolixirWeb.Router do
     post("/portfolios", PortfolioController, :create)
     get("/portfolios/:portfolio_id/holdings", HoldingController, :index)
     get("/portfolios/:portfolio_id/valuation", ValuationController, :index)
+    get("/portfolios/:portfolio_id/allocation", AllocationController, :index)
+    get("/portfolios/:portfolio_id/targets", TargetController, :index)
+    put("/portfolios/:portfolio_id/targets", TargetController, :set)
+    delete("/portfolios/:portfolio_id/targets/:category_id", TargetController, :delete)
 
     get("/exchange_rates", ExchangeRateController, :index)
     post("/exchange_rates/sync", ExchangeRateController, :sync)

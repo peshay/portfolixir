@@ -11,24 +11,29 @@ Portfolixir currently focuses on:
 - portfolios;
 - cash accounts;
 - securities accounts linked to cash accounts;
-- manual buy and sell transactions;
-- derived holdings;
+- manual buy and sell transactions, plus the broader Portfolio Performance
+  transaction kinds needed to round-trip an imported history;
+- derived holdings, including moving-average cost basis and unrealized P&L;
 - stored quote history;
 - security detail price chart;
+- classification trees (custom, plus built-in asset-class and currency trees);
+- per-category target weights and SOLL/IST allocation with drift;
+- multi-currency valuation through stored exchange rates;
+- Portfolio Performance CSV/JSON v1 transaction import (preview, then apply);
 - JSON API access for supported app functions;
 - MCP companion tools that wrap the JSON API.
 
 Out of scope unless a reviewed story explicitly changes it:
 
-- PDF import;
-- CSV import;
-- document intake;
+- document intake other than the Portfolio Performance CSV/JSON v1 export (broker
+  PDFs, binary `.portfolio` workspaces, Portfolio Performance XML);
 - broker sync;
 - bank sync;
 - trading, payment, order, or rebalance behavior;
 - LLM features;
 - advanced reports;
-- advanced classifications.
+- advanced classifications (e.g. splitting one security across categories with
+  partial weights).
 
 ## Local Setup
 

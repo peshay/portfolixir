@@ -169,15 +169,6 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc false
-  def enrich_missing_logo_ids_async(ids) when is_list(ids) do
-    if logo_enrichment_enabled?() do
-      LogoDiscovery.enqueue_security_ids(ids)
-    end
-
-    :ok
-  end
-
-  @doc false
   def enqueue_missing_security_logos_async do
     LogoDiscovery.enqueue_missing_security_logos()
   end
@@ -226,10 +217,6 @@ defmodule Portfolixir.Catalog do
     security
     |> Security.delete_changeset()
     |> Repo.delete()
-  end
-
-  def change_security(%Security{} = security, attrs \\ %{}) do
-    Security.changeset(security, attrs)
   end
 
   @doc """
