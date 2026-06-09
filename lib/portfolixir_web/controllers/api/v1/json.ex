@@ -282,6 +282,35 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def performance(result, include_series? \\ false) do
+    base = %{
+      portfolio_id: result.portfolio_id,
+      period: result.period,
+      base_currency: result.base_currency,
+      start_date: date(result.start_date),
+      end_date: date(result.end_date),
+      start_value: decimal(result.start_value),
+      end_value: decimal(result.end_value),
+      net_external_flows: decimal(result.net_external_flows),
+      ttwror: decimal(result.ttwror)
+    }
+
+    if include_series? do
+      Map.put(base, :series, Enum.map(result.series, &performance_point/1))
+    else
+      base
+    end
+  end
+
+  defp performance_point(point) do
+    %{
+      date: date(point.date),
+      value: decimal(point.value),
+      flow: decimal(point.flow),
+      cumulative_ttwror: decimal(point.cumulative_ttwror)
+    }
+  end
+
   def classification_tree(%{classification: classification} = tree) do
     classification
     |> classification()
