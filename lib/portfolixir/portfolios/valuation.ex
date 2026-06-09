@@ -52,17 +52,30 @@ defmodule Portfolixir.Portfolios.Valuation do
       |> Enum.sort_by(& &1.security_id)
 
     cash = cash_for(portfolio_id, base_currency)
+    total_with_cash = Decimal.add(total, cash.total)
 
     %{
       portfolio_id: portfolio_id,
       base_currency: base_currency,
       total_value: total,
       total_cash: cash.total,
-      total_with_cash: Decimal.add(total, cash.total),
+      total_with_cash: total_with_cash,
+      cash_quote: cash_quote(cash.total, total_with_cash),
       cash_balances: cash.balances,
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued))
     }
+  end
+
+  # Cash as a share of the whole portfolio (`total_cash / total_with_cash`), the
+  # "Cashquote". Reported alongside the totals so callers do not have to divide
+  # the two themselves; `0` when there is nothing to value yet.
+  defp cash_quote(%Decimal{} = cash, %Decimal{} = total_with_cash) do
+    if Decimal.equal?(total_with_cash, @zero) do
+      @zero
+    else
+      Decimal.div(cash, total_with_cash)
+    end
   end
 
   # Per-account cash balances (in account currency) plus their sum converted to

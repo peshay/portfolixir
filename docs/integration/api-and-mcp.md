@@ -196,9 +196,11 @@ Example account payloads:
   The valuation also carries cash: `cash_balances` lists each cash account
   (`balance` in its own currency, plus `base_value`/`valued` after converting to
   the base currency), `total_cash` is the base-currency sum of the valued cash
-  accounts, and `total_with_cash` is `total_value + total_cash`. An account whose
-  currency has no rate path to the base is reported `valued: false` and excluded
-  from `total_cash`, mirroring how unpriceable positions are handled.
+  accounts, and `total_with_cash` is `total_value + total_cash`. `cash_quote` is
+  the cash share of the whole portfolio (`total_cash / total_with_cash`, `0` when
+  there is nothing to value yet). An account whose currency has no rate path to
+  the base is reported `valued: false` and excluded from `total_cash`, mirroring
+  how unpriceable positions are handled.
 - `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
   target weights (the SOLL side of the allocation). Optional `classification_id`
   scopes the list to one tree. Unknown portfolios return `404 Not Found`.
