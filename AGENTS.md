@@ -61,7 +61,7 @@ Use a small modular Phoenix monolith plus a thin MCP API companion:
 ```text
 Portfolixir.Catalog      # securities and security quotes
 Portfolixir.Portfolios   # portfolios, cash accounts, depots
-Portfolixir.Ledger       # transactions (13 PP kinds) and holdings
+Portfolixir.Ledger       # transactions (13 PP kinds + balance snapshot) and holdings
 PortfolixirWeb           # LiveViews, router, JSON API, components
 mcp-server/              # TypeScript MCP server wrapping the JSON API only
 ```
