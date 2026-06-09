@@ -21,7 +21,8 @@ defmodule Portfolixir.Ledger.Transaction do
     "cash_transfer",
     "inbound_delivery",
     "outbound_delivery",
-    "security_transfer"
+    "security_transfer",
+    "balance_adjustment"
   ]
 
   schema "transactions" do
@@ -104,6 +105,7 @@ defmodule Portfolixir.Ledger.Transaction do
     |> check_constraint(:type, name: :transactions_cash_transfer_required_fields_check)
     |> check_constraint(:type, name: :transactions_delivery_required_fields_check)
     |> check_constraint(:type, name: :transactions_security_transfer_required_fields_check)
+    |> check_constraint(:type, name: :transactions_balance_adjustment_required_fields_check)
     |> unique_constraint(:import_hash, name: :transactions_import_hash_unique_index)
   end
 
@@ -131,6 +133,11 @@ defmodule Portfolixir.Ledger.Transaction do
         |> validate_required([:security_id, :cash_account_id, :gross_amount])
 
       kind when kind in ["interest", "deposit", "removal"] ->
+        changeset
+        |> validate_required([:cash_account_id, :gross_amount])
+
+      # gross_amount is the absolute balance, so it may be negative (overdraft).
+      "balance_adjustment" ->
         changeset
         |> validate_required([:cash_account_id, :gross_amount])
 

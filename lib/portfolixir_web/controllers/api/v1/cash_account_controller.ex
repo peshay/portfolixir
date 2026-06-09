@@ -74,6 +74,27 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
     end
   end
 
+  @doc """
+  Records an absolute cash-balance snapshot for one account (ADR-0009): the
+  current balance as of `date`, without mirroring every booking. Body:
+  `{"date": "2026-06-01", "amount": "4250.00"}` (`notes` optional).
+  """
+  def set_balance(conn, %{"id" => id} = params) do
+    attrs = Map.take(params, ["date", "amount", "notes"])
+
+    with {:ok, cid} <- parse_id(id),
+         %CashAccount{} = account <- Portfolios.get_cash_account(cid),
+         {:ok, transaction} <- Ledger.set_cash_balance(account, attrs) do
+      conn
+      |> put_status(:created)
+      |> json(%{data: JSON.transaction(transaction)})
+    else
+      nil -> not_found(conn)
+      :error -> not_found(conn)
+      {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+    end
+  end
+
   defp parse_id(value) when is_integer(value), do: {:ok, value}
 
   defp parse_id(value) when is_binary(value) do

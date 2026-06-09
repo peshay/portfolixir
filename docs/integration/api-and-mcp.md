@@ -111,7 +111,17 @@ Example quote sync response:
   ledger: amounts are stored as positive magnitudes and the transaction `type`
   implies the direction (deposits, dividends, interest, tax refunds and sells
   add cash; removals, fees, taxes and buys remove it; a cash transfer debits its
-  account and credits the counter account).
+  account and credits the counter account). A `balance_adjustment` snapshot (see
+  below) anchors the balance to a stated absolute amount as of its date, after
+  which only later bookings adjust it.
+- `POST /api/v1/cash_accounts/:id/balance` records an absolute **balance
+  snapshot** for one account (ADR-0009): the current balance as of a date,
+  instead of mirroring every booking. Body `{"date": "2026-06-01", "amount":
+  "4250.00"}` (`notes` optional); `amount` is a decimal string and may be
+  negative (an overdraft). It stores a `balance_adjustment` transaction and
+  returns it. The balance then anchors to that amount and only bookings dated
+  strictly after the snapshot change it, so moving money between your own
+  accounts needs no transfer entry. Unknown accounts return `404 Not Found`.
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
   object.
 - `GET /api/v1/cash_accounts/:id` returns one cash account.
@@ -315,6 +325,7 @@ in MCP schemas are strings.
 - `portfolixir.cash_accounts.create`
 - `portfolixir.cash_accounts.update`
 - `portfolixir.cash_accounts.delete`
+- `portfolixir.cash_accounts.set_balance`
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
 - `portfolixir.securities_accounts.update`
