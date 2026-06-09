@@ -176,6 +176,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
               editable={@tree.editable}
               assignable={@tree.assignable}
               editing_id={@editing_id}
+              filtering={@tree.filtering?}
             />
           <% end %>
           <%= if @tree.nodes == [] and not @tree.filtering? do %>
@@ -186,7 +187,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <% end %>
         </section>
 
-        <details class="cat-node unsorted-node" open {unsorted_attrs(@tree)}>
+        <details class="cat-node unsorted-node" open={@tree.filtering?} {unsorted_attrs(@tree)}>
           <summary class="cat-summary">
             <span class="cat-swatch is-empty" aria-hidden="true"></span>
             <span class="cat-name"><%= gettext("Unsorted") %></span>
@@ -200,7 +201,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
                   draggable={if @tree.assignable, do: "true", else: nil}
                   data-drag-security={if @tree.assignable, do: security.id, else: nil}
                 >
-                  <span class="row-name"><%= security.name %></span>
+                  <span class="row-name" title={security.name}><%= security.name %></span>
+                  <%= if security.ticker_symbol not in [nil, ""] do %>
+                    <small class="row-ticker"><%= security.ticker_symbol %></small>
+                  <% end %>
                   <small class="row-ccy"><%= security.currency_code %></small>
                 </li>
               <% end %>
@@ -255,7 +259,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp category_node(assigns) do
     ~H"""
-    <details class="cat-node" open {category_attrs(@assignable, @classification_id, @node.category.id)}>
+    <details class="cat-node" open={@filtering} {category_attrs(@assignable, @classification_id, @node.category.id)}>
       <summary class="cat-summary">
         <span class="cat-swatch" style={swatch(@node.category.color)} aria-hidden="true"></span>
         <span class="cat-name">
@@ -335,7 +339,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
               draggable={if @assignable, do: "true", else: nil}
               data-drag-security={if @assignable, do: security.id, else: nil}
             >
-              <span class="row-name"><%= security.name %></span>
+              <span class="row-name" title={security.name}><%= security.name %></span>
+              <%= if security.ticker_symbol not in [nil, ""] do %>
+                <small class="row-ticker"><%= security.ticker_symbol %></small>
+              <% end %>
               <small class="row-ccy"><%= security.currency_code %></small>
             </li>
           <% end %>
@@ -347,6 +354,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             editable={@editable}
             assignable={@assignable}
             editing_id={@editing_id}
+            filtering={@filtering}
           />
         <% end %>
       </div>

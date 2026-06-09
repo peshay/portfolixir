@@ -230,6 +230,10 @@ The detail pane shows a server-rendered SVG price chart with:
 - The securities list uses a full-width workspace instead of generic panel
   chrome; the toolbar remains pinned to the workspace top and the table uses
   the full horizontal width below it.
+- In a classification tree, categories are collapsed by default (click a
+  category to expand it); searching expands the matching categories. Long
+  security names are truncated to one line with the full name on hover, and the
+  ticker is shown next to the name.
 - Theme: system, light, and dark modes are supported.
 - Accent: violet, teal, and coral logo accent choices are supported.
 - Language: first load follows the browser language when it is English or

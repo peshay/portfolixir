@@ -3735,13 +3735,19 @@ details[open] > .cat-summary::before {
 /* Ensure security rows stay inside the clamped column. */
 .classifications-detail .dnd-row {
   min-width: 0;
-  align-items: flex-start;
 }
-/* Long ETF/security names should wrap onto multiple lines instead of
-   running out of the card (the default nowrap+ellipsis was overflowing). */
+/* Long ETF/security names truncate with an ellipsis on a single line so rows
+   stay compact; the full name is available via the row's title tooltip. */
 .classifications-detail .dnd-row .row-name {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.classifications-detail .row-ticker {
+  flex: 0 0 auto;
+  font-variant: small-caps;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted, #6b7280);
 }
