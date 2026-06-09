@@ -70,13 +70,16 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     with {:ok, from} <- date_param(params, "from", :from),
          {:ok, to} <- date_param(params, "to", :to),
          {:ok, portfolio_id} <- int_param(params, "portfolio_id", :portfolio_id),
-         {:ok, security_id} <- int_param(params, "security_id", :security_id) do
+         {:ok, security_id} <- int_param(params, "security_id", :security_id),
+         {:ok, securities_account_id} <-
+           int_param(params, "securities_account_id", :securities_account_id) do
       opts =
         []
         |> put_present(:from, from)
         |> put_present(:to, to)
         |> put_present(:portfolio_id, portfolio_id)
         |> put_present(:security_id, security_id)
+        |> put_present(:securities_account_id, securities_account_id)
 
       {:ok, opts}
     end

@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0006: Classifications (taxonomies) with built-in derived trees"
-description: Decision to add hierarchical classification trees, including auto-managed built-in classifications derived from security data, with target weights deferred to a later decision.
+description: Decision to add hierarchical classification trees, including auto-managed built-in classifications derived from security data. Target weights were added later in ADR-0008.
 ---
 
 # ADR-0006: Classifications (taxonomies) with built-in derived trees
@@ -26,9 +26,10 @@ first-class. Two needs shape the design:
   set automatically, yet appear alongside user trees like any other
   classification. If a maintainer disagrees with a derived grouping, they build
   their own classification in parallel rather than fighting the built-in one.
-- The structure (trees, categories, colours, assignments) is the feature now;
-  **target/actual weights are explicitly deferred** to a later ADR so this stays
-  a tractable first step.
+- The structure (trees, categories, colours, assignments) is the feature here;
+  **target/actual weights are deferred** to a later ADR so this stays a tractable
+  first step. (They were since added in
+  [ADR-0008](0008-target-weights-and-allocation.html).)
 
 Constraints that apply:
 
@@ -58,8 +59,9 @@ taxonomy trees plus auto-managed built-in trees.
   keep built-in trees in sync).
 - **Assignment** — places one security in one category of a classification.
   Uniqueness is `(security_id, classification_id)`: a security sits in at most
-  one category per classification (splitting a security across categories is a
-  weights concern, deferred).
+  one category per classification (splitting a single security across categories
+  with partial weights stays out of scope; per-category target weights arrived in
+  [ADR-0008](0008-target-weights-and-allocation.html)).
 
 **Built-in classifications (auto-managed structure, asset class re-assignable):**
 
@@ -101,9 +103,9 @@ taxonomy trees plus auto-managed built-in trees.
   source for the built-in asset-class tree (not removed) and is now also written
   by reassigning a security within that tree, so no extra stored assignments are
   needed for the asset-class cut.
-- **Target and actual weights (SOLL/IST) are out of scope here** and will be
-  added in a follow-up ADR on top of this structure, so categories carry no
-  weight yet.
+- **Target and actual weights (SOLL/IST) are out of scope here** and were added
+  in a follow-up, [ADR-0008](0008-target-weights-and-allocation.html), on top of
+  this structure; at the time of this decision categories carried no weight.
 - Region/industry built-ins (e.g. from the ISIN country prefix) are deliberately
   left for a later batch; only asset class and currency ship as built-ins first.
 - More surface to keep consistent across context, API, MCP, LiveView, tests,

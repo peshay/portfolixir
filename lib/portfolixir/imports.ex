@@ -15,8 +15,8 @@ defmodule Portfolixir.Imports do
       Preview.unique_securities(preview)
       Preview.unique_pp_account_pairs(preview)
 
-      # Story 5 will add Imports.apply/2 to turn a preview + mapping
-      # into committed rows via Ecto.Multi with idempotency hashing.
+      # Imports.apply/2 turns a preview plus mapping into committed rows via
+      # Ecto.Multi, using content-hash idempotency so re-runs skip duplicates.
   """
 
   alias Portfolixir.Imports.Applier
