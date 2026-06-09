@@ -53,6 +53,36 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert html =~ "Delete classification"
   end
 
+  # User story:
+  # As a maintainer with many securities in a tree,
+  # I want categories collapsed by default, long names truncated with a tooltip,
+  # and the ticker shown, so the view is not one long wall of expanded rows.
+  test "collapses categories by default, expands on search, shows ticker + tooltip", %{conn: conn} do
+    security = security!(%{name: "Some Very Long ETF Name UCITS Acc", ticker_symbol: "VLN"})
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+
+    {:ok, _} = Classifications.assign_security(security.id, classification.id, category.id)
+
+    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+
+    # Categories start collapsed (no `open` attribute on the cat-node details).
+    refute html =~ ~r/<details class="cat-node" open/
+    # The ticker is shown and the full name is available via a title tooltip.
+    assert html =~ "VLN"
+    assert html =~ ~s(title="Some Very Long ETF Name UCITS Acc")
+
+    # Searching expands matching categories so results stay visible.
+    filtered =
+      view
+      |> form(".tree-search", %{"query" => "Long"})
+      |> render_change()
+
+    assert filtered =~ ~r/<details class="cat-node" open/
+  end
+
   test "assigns and unassigns a security via the drag events", %{conn: conn} do
     security = security!()
     {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
