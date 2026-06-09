@@ -62,6 +62,7 @@ defmodule PortfolixirWeb.Router do
     post("/portfolios", PortfolioController, :create)
     get("/portfolios/:portfolio_id/holdings", HoldingController, :index)
     get("/portfolios/:portfolio_id/valuation", ValuationController, :index)
+    get("/portfolios/:portfolio_id/performance", PerformanceController, :index)
     get("/portfolios/:portfolio_id/allocation", AllocationController, :index)
     get("/portfolios/:portfolio_id/targets", TargetController, :index)
     put("/portfolios/:portfolio_id/targets", TargetController, :set)
