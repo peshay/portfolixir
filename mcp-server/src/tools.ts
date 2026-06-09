@@ -560,6 +560,86 @@ const securitiesAccountUpdateZ = z.object({
   })
 });
 
+const targetsListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    classification_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const targetsListZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  classification_id: z.number().int().positive().optional()
+});
+
+const targetsSetSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id", "classification_id", "targets"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    classification_id: { type: "integer", minimum: 1 },
+    targets: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["category_id", "target_weight"],
+        properties: {
+          category_id: { type: "integer", minimum: 1 },
+          target_weight: { type: "string" }
+        },
+        additionalProperties: false
+      }
+    }
+  }
+};
+
+const targetsSetZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  classification_id: z.number().int().positive(),
+  targets: z
+    .array(
+      z.object({
+        category_id: z.number().int().positive(),
+        target_weight: z.string()
+      })
+    )
+    .min(1)
+});
+
+const targetsDeleteSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id", "category_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    category_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const targetsDeleteZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  category_id: z.number().int().positive()
+});
+
+const allocationSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id", "classification_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    classification_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const allocationZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  classification_id: z.number().int().positive()
+});
+
 const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.list", "List securities", "List local securities. Use limit/offset to page large catalogs and keep responses small.", {
     type: "object",
@@ -643,25 +723,27 @@ const toolDefinitions: ToolDefinition[] = [
     idSchema,
     idZ
   ),
-  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id.", {
+  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id.", {
     type: "object",
     additionalProperties: false,
     properties: {
       from: { type: "string", format: "date" },
       to: { type: "string", format: "date" },
       portfolio_id: { type: "integer", minimum: 1 },
-      security_id: { type: "integer", minimum: 1 }
+      security_id: { type: "integer", minimum: 1 },
+      securities_account_id: { type: "integer", minimum: 1 }
     }
   }, z.object({
     from: optionalString(),
     to: optionalString(),
     portfolio_id: z.number().int().positive().optional(),
-    security_id: z.number().int().positive().optional()
+    security_id: z.number().int().positive().optional(),
+    securities_account_id: z.number().int().positive().optional()
   })),
   tool("portfolixir.transactions.create", "Create transaction", "Create a manual buy or sell transaction.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking).", transactionUpdateSchema, transactionUpdateZ),
   tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction.", idSchema, idZ),
-  tool("portfolixir.holdings.list", "List holdings", "List derived holdings for a portfolio. Optional filters: security_id, securities_account_id.", {
+  tool("portfolixir.holdings.list", "List holdings", "List derived holdings for a portfolio, each with moving-average cost basis, latest price, market value and unrealized P&L (in the security's currency). Optional filters: security_id, securities_account_id.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
@@ -712,6 +794,34 @@ const toolDefinitions: ToolDefinition[] = [
       from: optionalString(),
       to: optionalString()
     })
+  ),
+  tool(
+    "portfolixir.targets.list",
+    "List target weights",
+    "List a portfolio's stored target weights (SOLL). Optional classification_id scopes to one tree.",
+    targetsListSchema,
+    targetsListZ
+  ),
+  tool(
+    "portfolixir.targets.set",
+    "Set target weights",
+    "Upsert target weights for one portfolio and classification. Each target_weight is a string fraction in [0,1].",
+    targetsSetSchema,
+    targetsSetZ
+  ),
+  tool(
+    "portfolixir.targets.delete",
+    "Delete target weight",
+    "Remove a portfolio's target weight for one category.",
+    targetsDeleteSchema,
+    targetsDeleteZ
+  ),
+  tool(
+    "portfolixir.portfolios.allocation",
+    "Portfolio allocation drift",
+    "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category, in one call.",
+    allocationSchema,
+    allocationZ
   )
 ];
 
@@ -797,7 +907,13 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.transactions.list":
       return client.request(
         "GET",
-        withQuery("/api/v1/transactions", args, ["from", "to", "portfolio_id", "security_id"])
+        withQuery("/api/v1/transactions", args, [
+          "from",
+          "to",
+          "portfolio_id",
+          "security_id",
+          "securities_account_id"
+        ])
       );
     case "portfolixir.transactions.create":
       return client.request("POST", "/api/v1/transactions", { transaction: args.transaction });
@@ -871,6 +987,26 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request(
         "GET",
         withQuery(`/api/v1/securities/${args.security_id}/trades`, args, ["from", "to"])
+      );
+    case "portfolixir.targets.list":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/targets`, args, ["classification_id"])
+      );
+    case "portfolixir.targets.set":
+      return client.request("PUT", `/api/v1/portfolios/${args.portfolio_id}/targets`, {
+        classification_id: args.classification_id,
+        targets: args.targets
+      });
+    case "portfolixir.targets.delete":
+      return client.request(
+        "DELETE",
+        `/api/v1/portfolios/${args.portfolio_id}/targets/${args.category_id}`
+      );
+    case "portfolixir.portfolios.allocation":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/allocation`, args, ["classification_id"])
       );
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);

@@ -61,6 +61,7 @@ npm start --prefix mcp-server
 - This setup uses the root `docker-compose.yml`.
 - The MCP companion wraps the local JSON API and does not access the database
   directly.
-- This setup does not configure broker sync, bank sync, imports, document
-  intake, trading, payments, orders, rebalancing, or LLM features.
+- This setup does not configure broker sync, bank sync, document intake (beyond
+  the Portfolio Performance CSV/JSON import), trading, payments, orders,
+  rebalancing, or LLM features.
 - Public docs are published with GitHub Pages at `portfolixir.app`.
