@@ -60,9 +60,11 @@ ledger.
   `cash_quote = total_cash / total_with_cash` next to the existing totals, so the
   figure does not have to be re-derived by every caller.
 
-Delivery is incremental: the **cash quote** ships first (it is computable from
-the totals that already exist); the **balance-snapshot** kind and the
-**counts-toward** flag follow as their own small stories.
+Delivery is incremental: the **cash quote** shipped first (computable from the
+totals that already exist), then the **balance-snapshot** kind (the
+`balance_adjustment` transaction, `POST /api/v1/cash_accounts/:id/balance`, and
+the anchored balance derivation). The **counts-toward** flag follows as its own
+small story.
 
 ## Consequences
 
