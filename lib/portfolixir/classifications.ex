@@ -375,18 +375,19 @@ defmodule Portfolixir.Classifications do
       |> Repo.all()
       |> Map.new(&{&1.key, &1})
 
-    categories
-    |> Enum.with_index()
-    |> Enum.reduce(existing, fn {{key, label, color, parent_key}, index}, seen ->
-      parent_id =
-        case parent_key && Map.get(seen, parent_key) do
-          %Category{id: id} -> id
-          _ -> nil
-        end
+    _seen =
+      categories
+      |> Enum.with_index()
+      |> Enum.reduce(existing, fn {{key, label, color, parent_key}, index}, seen ->
+        parent_id =
+          case parent_key && Map.get(seen, parent_key) do
+            %Category{id: id} -> id
+            _ -> nil
+          end
 
-      category = seed_category(classification, seen, key, label, color, index, parent_id)
-      Map.put(seen, key, category)
-    end)
+        category = seed_category(classification, seen, key, label, color, index, parent_id)
+        Map.put(seen, key, category)
+      end)
 
     :ok
   end

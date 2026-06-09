@@ -1,5 +1,8 @@
 defmodule PortfolixirWeb.ConnCase do
+  @moduledoc "Case template for controller and LiveView tests (SQL sandbox)."
   use ExUnit.CaseTemplate
+
+  alias Ecto.Adapters.SQL.Sandbox
 
   using do
     quote do
@@ -11,10 +14,10 @@ defmodule PortfolixirWeb.ConnCase do
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Portfolixir.Repo)
+    :ok = Sandbox.checkout(Portfolixir.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(Portfolixir.Repo, {:shared, self()})
+      Sandbox.mode(Portfolixir.Repo, {:shared, self()})
     end
 
     conn = Phoenix.ConnTest.build_conn()
