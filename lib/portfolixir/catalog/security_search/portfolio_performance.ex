@@ -176,8 +176,6 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
     )
   end
 
-  defp government_bond_description?(_), do: false
-
   # PP descriptions are usually upper-case (`APPLE INC`). Reduce to Title Case
   # for nicer display while leaving acronyms intact (e.g. `ETF`, `S&P`).
   defp titleize(string) when is_binary(string) do
@@ -186,8 +184,6 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
     |> Enum.map(&titleize_word/1)
     |> Enum.join(" ")
   end
-
-  defp titleize(other), do: other
 
   # Words that should always stay upper-case (legal-form suffixes, indices, etc.)
   @preserve_acronyms ~w(AG SA NV PLC GmbH LLC LP LLP ETF ETN ETP ETC REIT UCITS USD EUR GBP CHF JPY)

@@ -82,7 +82,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cover/excoveralls.json
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
   quality:
     runs-on: ubuntu-latest
@@ -104,16 +104,17 @@ jobs:
       - name: Compile (warnings as errors)
         run: mix compile --warnings-as-errors
 
-      # Credo, Sobelow and Dialyzer are introduced as report-only for now:
-      # findings show up in the logs but do not fail CI. Tighten by removing
-      # the continue-on-error flags once the existing findings are addressed.
+      # Credo, Sobelow and Dialyzer are blocking quality gates. Sobelow skips
+      # are per-function `# sobelow_skip` annotations with a written reason;
+      # Config.CSP and Config.HTTPS are ignored deliberately: TLS is the
+      # operator's reverse-proxy concern for a self-hosted app, and a CSP
+      # needs nonce support for the inline theme/LiveView boot scripts first
+      # (tracked as a follow-up story).
       - name: Credo
-        continue-on-error: true
         run: mix credo --strict
 
       - name: Sobelow (security)
-        continue-on-error: true
-        run: mix sobelow --exit
+        run: mix sobelow --skip --exit --ignore Config.CSP,Config.HTTPS
 
       - name: Restore PLT cache
         uses: actions/cache@v4
@@ -126,9 +127,7 @@ jobs:
 
       - name: Build PLT
         if: steps.plt-cache.outputs.cache-hit != 'true'
-        continue-on-error: true
         run: mix dialyzer --plt
 
       - name: Dialyzer
-        continue-on-error: true
-        run: mix dialyzer --format github
+        run: mix dialyzer --format short
