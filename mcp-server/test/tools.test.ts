@@ -50,7 +50,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.targets.list",
       "portfolixir.targets.set",
       "portfolixir.targets.delete",
-      "portfolixir.portfolios.allocation"
+      "portfolixir.portfolios.allocation",
+      "portfolixir.cash_accounts.set_balance"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -550,6 +551,38 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].method, "GET");
     assert.equal(requests[0].path, "/api/v1/portfolios/3/allocation?classification_id=5");
     assert.match(result.content[0].text, /-0\.15/);
+  });
+
+  it("routes cash_accounts.set_balance to POST /cash_accounts/:id/balance", async () => {
+    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
+    const client = createApiClient({
+      baseUrl: "http://portfolixir.test",
+      token: "api-token",
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        requests.push({
+          method: init?.method ?? "GET",
+          path: `${parsed.pathname}${parsed.search}`,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined
+        });
+        return new Response(JSON.stringify({ data: { id: 12, type: "balance_adjustment" } }), {
+          status: 201,
+          headers: { "content-type": "application/json" }
+        });
+      }
+    });
+
+    await callTool(client, "portfolixir.cash_accounts.set_balance", {
+      id: 3,
+      date: "2026-06-01",
+      amount: "4250.00"
+    });
+
+    assert.deepEqual(requests[0], {
+      method: "POST",
+      path: "/api/v1/cash_accounts/3/balance",
+      body: { date: "2026-06-01", amount: "4250.00" }
+    });
   });
 
   it("maps invalid tool names and upstream API errors to clear failures", async () => {
