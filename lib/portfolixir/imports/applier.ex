@@ -49,6 +49,8 @@ defmodule Portfolixir.Imports.Applier do
               created_transactions: 0,
               skipped_duplicates: 0,
               skipped_entries: []
+
+    @type t :: %__MODULE__{}
   end
 
   @type portfolio_choice ::

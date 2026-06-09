@@ -1,4 +1,5 @@
 defmodule PortfolixirWeb do
+  @moduledoc "Entrypoint macros for controllers, LiveViews, and components."
   def controller do
     quote do
       use Phoenix.Controller, formats: [:json]

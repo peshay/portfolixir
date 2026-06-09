@@ -1,4 +1,5 @@
 defmodule PortfolixirWeb.AppShell do
+  @moduledoc "Application shell: top bar, navigation, and page chrome."
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 

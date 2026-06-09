@@ -169,6 +169,9 @@ defmodule Portfolixir.Catalog.SecurityFields do
     ]
   end
 
+  # Only ever called with the compile-time field literals defined above, so
+  # the atom space is fixed — no external input reaches String.to_atom/1.
+  # sobelow_skip ["DOS.StringToAtom"]
   defp build(key_spec, type, source_kind, group, opts) do
     {key, source} =
       case key_spec do

@@ -1,4 +1,5 @@
 defmodule Portfolixir.Application do
+  @moduledoc false
   use Application
 
   @impl true

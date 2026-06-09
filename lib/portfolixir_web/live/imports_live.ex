@@ -395,6 +395,9 @@ defmodule PortfolixirWeb.ImportsLive do
     {:noreply, push_event(socket, "copy-to-clipboard", %{text: text})}
   end
 
+  # The path comes from LiveView's own managed upload temp file, not from
+  # user input, so there is no traversal surface here.
+  # sobelow_skip ["Traversal.FileModule"]
   defp handle_upload_progress(:pp_file, entry, socket) do
     if entry.done? do
       [{body, filename}] =
@@ -487,10 +490,9 @@ defmodule PortfolixirWeb.ImportsLive do
         default_cash_pp = Mapping.default_cash_for_depot(preview, pp_name)
 
         cash_value =
-          cond do
-            default_cash_pp && default_cash_pp in cash_pp_names -> "pp:#{default_cash_pp}"
-            true -> ""
-          end
+          if default_cash_pp && default_cash_pp in cash_pp_names,
+            do: "pp:#{default_cash_pp}",
+            else: ""
 
         {pp_name, %{"target" => target, "cash" => cash_value}}
       end)

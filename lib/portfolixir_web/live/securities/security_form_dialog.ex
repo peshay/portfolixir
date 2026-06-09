@@ -1,4 +1,5 @@
 defmodule PortfolixirWeb.Securities.SecurityFormDialog do
+  @moduledoc "Modal dialog for creating and editing a security."
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 

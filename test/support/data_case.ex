@@ -1,5 +1,8 @@
 defmodule Portfolixir.DataCase do
+  @moduledoc "Case template for context and schema tests (SQL sandbox)."
   use ExUnit.CaseTemplate
+
+  alias Ecto.Adapters.SQL.Sandbox
 
   using do
     quote do
@@ -13,10 +16,10 @@ defmodule Portfolixir.DataCase do
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Portfolixir.Repo)
+    :ok = Sandbox.checkout(Portfolixir.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(Portfolixir.Repo, {:shared, self()})
+      Sandbox.mode(Portfolixir.Repo, {:shared, self()})
     end
 
     :ok

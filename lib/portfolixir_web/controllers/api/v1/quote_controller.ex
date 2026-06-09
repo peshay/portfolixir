@@ -2,8 +2,8 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Catalog
-  alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.QuoteSync
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, %{"security_id" => security_id} = params) do

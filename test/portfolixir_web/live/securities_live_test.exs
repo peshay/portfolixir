@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
@@ -914,7 +915,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
           }
         end
 
-      {:ok, _} = Portfolixir.Catalog.Quotes.upsert_many(security.id, rows)
+      {:ok, _} = Quotes.upsert_many(security.id, rows)
 
       {:ok, security: security, today: today}
     end
@@ -1150,7 +1151,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       today = Date.utc_today()
 
       {:ok, _} =
-        Portfolixir.Catalog.Quotes.upsert_many(apple.id, [
+        Quotes.upsert_many(apple.id, [
           %{date: Date.add(today, -400), close: "100.00", source: "manual"},
           %{date: Date.add(today, -45), close: "120.00", source: "manual"},
           %{date: today, close: "150.00", source: "manual"}
@@ -1307,7 +1308,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, _} =
-        Portfolixir.Catalog.Quotes.upsert_many(security.id, [
+        Quotes.upsert_many(security.id, [
           %{date: Date.utc_today(), close: "150.00", source: "manual"}
         ])
 
@@ -1365,7 +1366,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       today = Date.utc_today()
 
       {:ok, _} =
-        Portfolixir.Catalog.Quotes.upsert_many(security.id, [
+        Quotes.upsert_many(security.id, [
           %{date: today, close: "150.00", source: "manual"},
           %{date: Date.add(today, -3), close: "148.00", source: "manual"},
           %{date: Date.add(today, -10), close: "120.00", source: "manual"}
@@ -1405,7 +1406,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, _} =
-        Portfolixir.Catalog.Quotes.upsert_many(security.id, [
+        Quotes.upsert_many(security.id, [
           %{date: Date.utc_today(), close: "150.00", source: "manual"}
         ])
 
