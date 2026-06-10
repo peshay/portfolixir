@@ -196,10 +196,13 @@ Example account payloads:
   `total_value`, and each valued position's `weight` (its share of the total).
   Each position's market value is converted into the portfolio
   `base_currency` (top-level field) from stored exchange rates; per-position
-  `security_currency` shows the native currency. A position with no quote **or**
-  no exchange-rate path to the base currency is returned with `valued: false`
-  and `null` market value and weight, so a missing price or rate never distorts
-  the total. Unknown portfolios return `404 Not Found`.
+  `security_currency` shows the native currency. A security without any quote
+  is priced at the latest own trade price (`price_source: "trade"`, counted in
+  the top-level `trade_priced_count`); a quoted position carries
+  `price_source: "quote"`. A position with neither price **or** no
+  exchange-rate path to the base currency is returned with `valued: false`,
+  `price_source: null` and `null` market value and weight, so a missing price
+  or rate never distorts the total. Unknown portfolios return `404 Not Found`.
   Weights are raw shares (`market_value / total_value`) emitted at full Decimal
   precision; because they are normalized ratios they need not sum to exactly
   `1` (round for display). Market values and `total_value` are exact.
@@ -220,8 +223,11 @@ Example account payloads:
   (`ytd`, `1y`, `3y`, `5y`, `max` — default `max`; an unknown period returns
   `422 Unprocessable Entity`) and `series=true` to include the daily points
   (`date`, `value`, `flow`, `cumulative_ttwror`). The response carries
-  `ttwror`, `start_date`/`end_date`, `start_value`/`end_value` and
-  `net_external_flows` as Decimal strings. Unknown portfolios return
+  `ttwror`, `start_date`/`end_date`, `start_value`/`end_value`,
+  `net_external_flows` as Decimal strings, and `suspect_dates` — dates of
+  bookings older than 1970 (import typos) whose effects were applied on the
+  first plausible day. Securities without quotes are priced at the latest own
+  trade price (see the valuation endpoint). Unknown portfolios return
   `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
   target weights (the SOLL side of the allocation). Optional `classification_id`
@@ -238,12 +244,24 @@ Example account payloads:
 - `GET /api/v1/portfolios/:portfolio_id/allocation` returns the SOLL/IST
   breakdown for one classification (required `classification_id` query param; a
   missing one returns `422 Unprocessable Entity`). For each category it reports
-  `market_value`, `actual_weight` (its share of `total_value`), `target_weight`,
-  `drift_weight` (`target_weight - actual_weight`), and `drift_value` (the drift
-  restated in the base currency). Securities held but not assigned in the tree are
-  summed into `unassigned`. Weights mirror the valuation: shares of the valued
-  positions' total, cash excluded. Unknown portfolios or classifications return
-  `404 Not Found`.
+  `parent_id` and `depth` (the categories form a tree), `color`,
+  `own_market_value` (positions assigned directly to it), `market_value` (its
+  whole subtree rolled up), `actual_weight` (the rolled-up share of
+  `total_value`), `target_weight`, `drift_weight`
+  (`target_weight - actual_weight`), and `drift_value` (the drift restated in
+  the base currency). A position assigned to a child counts toward that child
+  **and every ancestor**, so a parent category with a target is compared
+  against its subtree rather than showing 0%; the rows come back in tree order
+  (parent before its children). Because parents aggregate their children, the
+  per-category `actual_weight` values intentionally do not sum to 1 across
+  levels — only the leaves plus `unassigned` do. Each category (and
+  `unassigned`) also carries `positions`: the per-security breakdown of its
+  **own** (directly assigned) value — `security_id`, `security_name`,
+  `market_value`, `weight` — largest first, securities merged across depots;
+  this is what the sunburst's outermost ring renders. Securities held but not
+  assigned in the tree are summed into `unassigned`. Weights mirror the
+  valuation: shares of the valued positions' total, cash excluded. Unknown
+  portfolios or classifications return `404 Not Found`.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
   period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter

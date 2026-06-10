@@ -91,10 +91,14 @@ Transactions are explicit and auditable. A transaction defines:
 ### Holdings Calculation
 
 Current holdings are not entered manually. They are derived from all
-transactions over time, so the state is reproducible and traceable. Each holding
-also carries a moving-average cost basis and the unrealized profit/loss
-(absolute and percentage) against the latest stored price, in the security's own
-currency.
+transactions over time, so the state is reproducible and traceable. Held
+quantities move with buys and sells, with inbound/outbound **deliveries**
+(shares entering or leaving without a cash leg, e.g. a depot transfer from
+another bank), and with **security transfers** between your own depots. Each
+holding also carries a moving-average cost basis and the unrealized
+profit/loss (absolute and percentage) against the latest stored price, in the
+security's own currency; cost basis and P&L consider only priced buy/sell
+trades, since a delivery carries no own cost.
 
 ## Classifications, Targets, and Allocation
 
@@ -112,14 +116,32 @@ amount, i.e. how much to buy or sell to reach the target. Securities held but no
 assigned in the chosen tree are summed into an unassigned bucket. Only the
 targets are stored; the actual side is derived from the live valuation on read.
 
+Classification trees are **hierarchical**, and the allocation rolls them up: a
+position assigned to a sub-category counts toward that sub-category **and every
+parent above it**. So if *Growth* holds a 50% target and you only assign
+holdings to its sub-categories (*Tech*, *Emerging*, …), *Growth*'s actual
+weight is their sum — not 0% — and its drift is measured against that sum. The
+drift table lists categories in tree order with sub-categories indented under
+their parent; because each parent already includes its children, the displayed
+actual percentages add up to 100% only across the leaves (plus unassigned),
+not across every level.
+
 ## Exchange Rates and Valuation
 
 Portfolios can hold securities and cash in several currencies. Exchange rates are
 stored against a EUR hub (with European Central Bank sync), and other pairs are
 triangulated through it. The live portfolio valuation converts each position's
-market value and each cash balance into the portfolio base currency; a position
-with no quote or no rate path to the base currency is reported as unvalued, so a
-missing price or rate never distorts the total or the weights.
+market value and each cash balance into the portfolio base currency.
+
+A security without any quote yet is priced at your **latest own trade price**
+— a buy or sell is a price observation, exactly how Portfolio Performance
+seeds prices from bookings — so a freshly imported portfolio is not valued at
+zero while quotes are still being fetched. Such positions carry
+`price_source: "trade"` in the API and are counted in `trade_priced_count`;
+the Portfolio page flags them as a data-quality hint. A position with neither
+a quote nor a trade price, or with no rate path to the base currency, is
+reported as unvalued, so a missing price or rate never silently distorts the
+total or the weights.
 
 ## Cash and cash quote
 
@@ -136,8 +158,9 @@ that belongs to investing needs no separate upkeep.
 For external accounts (a current account, savings, a business account), the goal
 is visibility without bookkeeping. Instead of mirroring every booking, you **set
 an account's balance directly** — type the figure your banking app shows as a
-dated **snapshot** (`POST /api/v1/cash_accounts/:id/balance`, or the
-`cash_accounts.set_balance` MCP tool). The balance then anchors to that amount,
+dated **snapshot** (the set-balance form on the Portfolio page,
+`POST /api/v1/cash_accounts/:id/balance`, or the `cash_accounts.set_balance`
+MCP tool). The balance then anchors to that amount,
 and only bookings dated strictly after the snapshot change it; so moving money
 between your own accounts needs no transfer entry — you just restate each
 balance now and then. The amount may be negative (an overdraft), and the same
@@ -150,6 +173,42 @@ Still planned: a per-account flag to mark which accounts count toward the cash
 quote (so a business account can be visible without distorting your private
 quote).
 
+## Portfolio Page
+
+The **Portfolio** entry in the navigation opens the portfolio overview: the
+total value including cash, the cash quote, and the TTWROR for a selectable
+period (year-to-date, one/three/five years, or since the first transaction)
+with the cumulative performance chart. Below it, the **allocation sunburst**
+shows the classification as concentric rings — the inner ring is the top-level
+categories, each outer ring breaks one level down with sub-category arcs nested
+inside their parent, and the **outermost ring shows the individual positions**
+as shaded arcs of their category's colour (the Portfolio Performance style) —
+with a grey slice for unassigned holdings. Like PP the slices carry no
+in-chart text: hovering a slice shows its name, share and value as a tooltip,
+and a slice can be **tapped** to echo the same below the chart (the mobile
+substitute for hover). The chart scales to the available width. Pick any
+classification tree from the selector. The drift table beneath it lists every category in tree
+order with **sub-categories indented** under their parent, comparing the
+rolled-up actual weight against the stored target and restating the drift in
+the base currency. The cash section lists each account's balance and carries
+the **set-balance form**: type the balance your bank shows and the snapshot is
+recorded without booking individual transactions.
+
+The page paints immediately and computes its figures **asynchronously**; each
+section fills in when its data is ready. The expensive daily performance walk
+runs once and is cached on the page — switching the period re-chains the
+cached series, so the period buttons respond instantly. The chart is
+downsampled to a bounded number of points, so a decade of daily history stays
+light in the browser. Money and percentages follow the chosen language
+(German `1.234.567,89`, English `1,234,567.89`; money always with two
+decimals).
+
+A **data-quality panel** appears above the chart when something would
+otherwise silently skew the figures: positions valued at their last trade
+price because no quote exists yet, positions with no price at all (excluded
+from the totals, listed by name), and bookings with implausible dates (before
+1970) that were applied on the first plausible day instead.
+
 ## Performance (TTWROR)
 
 Portfolixir reports the **true time-weighted rate of return** the way Portfolio
@@ -159,8 +218,9 @@ balance-snapshot jumps) is neutralised, and the daily returns are chained. The
 result measures how well the **investments** performed, regardless of when cash
 moved — dividends, interest, fees and taxes count as part of the return.
 
-Performance is available per period — year-to-date, one, three, or five years,
-or since the first transaction — over the API
+Performance is shown on the Portfolio page and available per period —
+year-to-date, one, three, or five years, or since the first transaction —
+over the API
 (`GET /api/v1/portfolios/:id/performance`) and the
 `portfolixir.portfolios.performance` MCP tool, optionally with the full daily
 valuation series for charting. The method and its trade-offs are recorded in
@@ -177,6 +237,13 @@ Parser warnings appear in a scrollable box with a copy button. The copied text
 uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
+
+Rows with **implausible dates** (before 1900, e.g. a `0217-12-05` typo for
+2017) are rejected per row with a clear message instead of poisoning every
+derived metric — fix the booking in the source and re-import; the content
+hashes keep the re-run free of duplicates. After an import, quote and logo
+enrichment for the created securities runs as one throttled background job,
+so the app stays responsive while hundreds of securities are synced.
 
 ## Quotes and Charts
 

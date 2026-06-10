@@ -21,6 +21,11 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   #   (target - actual), both as a weight and restated in the base currency.
   # - A category with a target but no holdings still appears (drift = target).
   # - Securities held but unassigned in the tree are summed into `unassigned`.
+  # - A parent category rolls up the value of its whole subtree: a position
+  #   assigned to a child counts toward the child AND every ancestor, so a
+  #   parent with a target is compared against its children's sum (not 0%).
+  # - Rows come back in tree order (parent before children) tagged with depth,
+  #   and each carries its own (direct) value next to the rolled-up value.
 
   defp setup_world do
     {:ok, portfolio} =
@@ -151,13 +156,94 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     assert Decimal.equal?(defensive_row.target_weight, Decimal.new("0.1"))
     assert Decimal.equal?(Decimal.round(defensive_row.drift_value, 2), Decimal.new("150"))
 
-    # The loose security is summed into the unassigned bucket.
+    # The loose security is summed into the unassigned bucket, with its
+    # per-position breakdown attached.
     assert Decimal.equal?(allocation.unassigned.market_value, Decimal.new("300"))
+    assert [%{security_name: "Loose Equity"}] = allocation.unassigned.positions
 
     assert Decimal.equal?(
              Decimal.round(allocation.unassigned.actual_weight, 4),
              Decimal.new("0.2")
            )
+  end
+
+  test "rolls subcategory values up into their parent and tags depth" do
+    world = setup_world()
+    %{classification: classification, core: growth} = world
+
+    # Growth (target 50%) is a parent with two children; nothing is assigned to
+    # Growth directly, only to its children — its IST must be their sum, not 0%.
+    {:ok, tech} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Tech",
+        parent_id: growth.id
+      })
+
+    {:ok, emerging} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Emerging",
+        parent_id: growth.id
+      })
+
+    tech_security = create_security!("Tech Co.", "TECH")
+    emerging_security = create_security!("Emerging Co.", "EMRG")
+
+    {:ok, _} = Classifications.assign_security(tech_security.id, classification.id, tech.id)
+
+    {:ok, _} =
+      Classifications.assign_security(emerging_security.id, classification.id, emerging.id)
+
+    buy!(world, tech_security, "10", "60")
+    buy!(world, emerging_security, "10", "40")
+
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, classification.id, [
+        %{"category_id" => growth.id, "target_weight" => "0.5"}
+      ])
+
+    prices = %{
+      tech_security.id => Decimal.new("60"),
+      emerging_security.id => Decimal.new("40")
+    }
+
+    {:ok, allocation} =
+      Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+    # Total: 600 + 400 = 1000.
+    assert Decimal.equal?(allocation.total_value, Decimal.new("1000"))
+
+    growth_row = fetch_category(allocation, growth.id)
+    # Rolled-up: 600 + 400 = 1000 -> 100% IST, even though nothing is assigned
+    # to Growth directly (own value 0).
+    assert growth_row.depth == 0
+    assert Decimal.equal?(growth_row.own_market_value, Decimal.new("0"))
+    assert Decimal.equal?(growth_row.market_value, Decimal.new("1000"))
+    assert Decimal.equal?(growth_row.actual_weight, Decimal.new("1"))
+    assert Decimal.equal?(growth_row.target_weight, Decimal.new("0.5"))
+    # Over target by 0.5 -> sell 500 EUR to reach it.
+    assert Decimal.equal?(Decimal.round(growth_row.drift_value, 2), Decimal.new("-500"))
+
+    tech_row = fetch_category(allocation, tech.id)
+    assert tech_row.depth == 1
+    assert tech_row.parent_id == growth.id
+    assert Decimal.equal?(tech_row.own_market_value, Decimal.new("600"))
+    assert Decimal.equal?(tech_row.market_value, Decimal.new("600"))
+    assert Decimal.equal?(tech_row.actual_weight, Decimal.new("0.6"))
+
+    # The per-position breakdown behind a category's own value (sunburst ring).
+    assert [tech_position] = tech_row.positions
+    assert tech_position.security_name == "Tech Co."
+    assert Decimal.equal?(tech_position.market_value, Decimal.new("600"))
+    assert Decimal.equal?(tech_position.weight, Decimal.new("0.6"))
+    assert fetch_category(allocation, growth.id).positions == []
+
+    # Tree order: the parent comes before its children.
+    ids = Enum.map(allocation.categories, & &1.category_id)
+
+    assert Enum.find_index(ids, &(&1 == growth.id)) <
+             Enum.find_index(ids, &(&1 == tech.id))
   end
 
   test "returns not_found for an unknown classification" do
