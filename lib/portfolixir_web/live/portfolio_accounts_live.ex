@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.AppShell
 
   @portfolio_form %{"name" => "", "base_currency_code" => "EUR", "notes" => ""}
@@ -111,7 +112,19 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
               <h3><%= gettext("Cash accounts") %></h3>
               <ul id="cash-account-list">
                 <%= for account <- @cash_accounts do %>
-                  <li><%= account.name %> (<%= account.currency_code %>)</li>
+                  <li>
+                    <%= account.name %> (<%= account.currency_code %>)
+                    <label class="cash-quote-toggle">
+                      <input
+                        type="checkbox"
+                        id={"cash-quote-toggle-#{account.id}"}
+                        phx-click="toggle_cash_quote"
+                        phx-value-id={account.id}
+                        checked={account.counts_toward_cash_quote}
+                      />
+                      <span><%= gettext("Counts toward cash quote") %></span>
+                    </label>
+                  </li>
                 <% end %>
               </ul>
             </article>
@@ -190,6 +203,24 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
       {:error, changeset} ->
         {:noreply, failure(socket, changeset_error(changeset))}
+    end
+  end
+
+  def handle_event("toggle_cash_quote", %{"id" => id}, socket) do
+    with {account_id, ""} <- Integer.parse(id),
+         %CashAccount{} = account <- Portfolios.get_cash_account(account_id),
+         %{id: portfolio_id} <- socket.assigns.current_portfolio,
+         true <- account.portfolio_id == portfolio_id,
+         {:ok, _updated} <-
+           Portfolios.update_cash_account(account, %{
+             counts_toward_cash_quote: !account.counts_toward_cash_quote
+           }) do
+      {:noreply,
+       socket
+       |> success(gettext("Cash account updated"))
+       |> load_state()}
+    else
+      _ -> {:noreply, failure(socket, gettext("Could not update cash account"))}
     end
   end
 
