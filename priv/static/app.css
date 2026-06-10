@@ -920,6 +920,31 @@ label span {
   font-weight: 680;
 }
 
+/* Compact inline toggle next to a list entry (cash-account list): opt out of
+   the full-width form-input sizing and the stacked label grid above. */
+.cash-quote-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.cash-quote-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  margin: 0;
+  flex: 0 0 14px;
+  accent-color: var(--color-accent);
+}
+
+.cash-quote-toggle span {
+  font-size: 12px;
+  font-weight: 540;
+}
+
 input,
 select,
 textarea {
