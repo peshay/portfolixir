@@ -196,10 +196,13 @@ Example account payloads:
   `total_value`, and each valued position's `weight` (its share of the total).
   Each position's market value is converted into the portfolio
   `base_currency` (top-level field) from stored exchange rates; per-position
-  `security_currency` shows the native currency. A position with no quote **or**
-  no exchange-rate path to the base currency is returned with `valued: false`
-  and `null` market value and weight, so a missing price or rate never distorts
-  the total. Unknown portfolios return `404 Not Found`.
+  `security_currency` shows the native currency. A security without any quote
+  is priced at the latest own trade price (`price_source: "trade"`, counted in
+  the top-level `trade_priced_count`); a quoted position carries
+  `price_source: "quote"`. A position with neither price **or** no
+  exchange-rate path to the base currency is returned with `valued: false`,
+  `price_source: null` and `null` market value and weight, so a missing price
+  or rate never distorts the total. Unknown portfolios return `404 Not Found`.
   Weights are raw shares (`market_value / total_value`) emitted at full Decimal
   precision; because they are normalized ratios they need not sum to exactly
   `1` (round for display). Market values and `total_value` are exact.
@@ -220,8 +223,11 @@ Example account payloads:
   (`ytd`, `1y`, `3y`, `5y`, `max` — default `max`; an unknown period returns
   `422 Unprocessable Entity`) and `series=true` to include the daily points
   (`date`, `value`, `flow`, `cumulative_ttwror`). The response carries
-  `ttwror`, `start_date`/`end_date`, `start_value`/`end_value` and
-  `net_external_flows` as Decimal strings. Unknown portfolios return
+  `ttwror`, `start_date`/`end_date`, `start_value`/`end_value`,
+  `net_external_flows` as Decimal strings, and `suspect_dates` — dates of
+  bookings older than 1970 (import typos) whose effects were applied on the
+  first plausible day. Securities without quotes are priced at the latest own
+  trade price (see the valuation endpoint). Unknown portfolios return
   `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
   target weights (the SOLL side of the allocation). Optional `classification_id`

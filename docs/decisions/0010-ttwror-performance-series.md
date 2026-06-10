@@ -69,3 +69,30 @@ geometrically, the way Portfolio Performance computes TTWROR.
   how the live valuation treats unpriceable positions.
 - The money-weighted return (IRR), which PP shows next to TTWROR, is a natural
   follow-up on the same series and stays out of scope here.
+
+## Amendment (2026-06-10): real-world import hardening
+
+Validating the page against a real Portfolio Performance export (2,755
+bookings over nine years) surfaced three failure modes; the engine now guards
+against all three without changing the method:
+
+- **Trade-price fallback.** A security with no quote was valued at zero, so
+  every buy looked like instant value destruction and the chained TTWROR
+  exploded to absurd values. A buy or sell *is* a price observation — exactly
+  how Portfolio Performance seeds prices from bookings — so the engine (and
+  the live valuation) now price quoteless securities at the latest own trade
+  price. A quote wins over a trade on the same day; positions valued this way
+  are flagged (`price_source: :trade`) and counted, never silent.
+- **Implausible dates.** One booking dated `0217-12-05` (a typo for 2017)
+  made the daily walk span ~660,000 days. Bookings dated before 1970 are now
+  applied on the first plausible day and reported as `suspect_dates`; the
+  importers additionally reject such rows per-row with a clear message, so
+  the fix happens in the source and re-import stays idempotent.
+- **Zero-or-negative return base.** `r_d` is only chained when
+  `V_{d−1} + F_d > 0`; otherwise the day contributes no return instead of
+  dividing by a meaningless base.
+
+Performance work in the same change, contract untouched: the expensive daily
+walk (`analysis/2`) is computed once and every period is a pure `summarise/2`
+over it; quotes, own trade prices and FX-rate series are preloaded so the walk
+issues no per-day queries.

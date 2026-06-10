@@ -154,6 +154,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
       {:ok, entry}
     else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
       {:error, reason} -> {:error, inspect(reason)}
     end
   end
@@ -162,8 +163,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   defp parse_date(value) when is_binary(value) do
     case Date.from_iso8601(value) do
-      {:ok, _date} = ok -> ok
-      {:error, _} = err -> err
+      {:ok, %Date{year: year}} when year < 1900 ->
+        {:error,
+         "implausible date #{value} (before 1900) — fix the booking in the source and re-import"}
+
+      {:ok, _date} = ok ->
+        ok
+
+      {:error, _} = err ->
+        err
     end
   end
 

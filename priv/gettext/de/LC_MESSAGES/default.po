@@ -2099,3 +2099,21 @@ msgstr "5J"
 
 msgid "Max"
 msgstr "Max"
+
+msgid "Calculating…"
+msgstr "Berechne…"
+
+msgid "Couldn't load the portfolio figures."
+msgstr "Die Portfolio-Kennzahlen konnten nicht geladen werden."
+
+msgid "Data quality"
+msgstr "Datenqualität"
+
+msgid "%{count} held positions have no current quote and are valued at their last trade price."
+msgstr "%{count} gehaltene Positionen haben keinen aktuellen Kurs und sind zum letzten Handelspreis bewertet."
+
+msgid "%{count} held positions have no price at all and are missing from the totals:"
+msgstr "%{count} gehaltene Positionen haben gar keinen Preis und fehlen in den Summen:"
+
+msgid "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import."
+msgstr "Buchungen mit Datum vor 1970 (%{dates}) werden am ersten plausiblen Tag angewendet — korrigiere die Daten in der Quelle und importiere erneut."

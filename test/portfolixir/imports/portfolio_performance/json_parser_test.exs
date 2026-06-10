@@ -167,6 +167,34 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
     test "reports invalid JSON" do
       assert {:error, {:invalid_json, _}} = JsonParser.parse("{not-json")
     end
+
+    # User story:
+    # As a local portfolio maintainer with a date typo in my PP export
+    # (a real export contained "0217-12-05" instead of 2017-12-05),
+    # I want the row rejected with a clear per-row error,
+    # so that one bad booking cannot poison every derived metric and I can
+    # fix the source and re-import idempotently.
+    test "rejects bookings with implausible dates (before 1900) per row" do
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            %{
+              type: "REMOVAL",
+              account: "Fidor",
+              date: "0217-12-05",
+              currency: "EUR",
+              amount: 1346.47
+            }
+          ]
+        })
+
+      assert {:ok, %Preview{entries: [], errors: [%{row: 1, message: message}]}} =
+               JsonParser.parse(body)
+
+      assert message =~ "implausible date 0217-12-05"
+      assert message =~ "re-import"
+    end
   end
 
   test "an entry struct exposes the expected fields" do
