@@ -128,8 +128,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "18.5"
     # TTWROR: 1000 -> 1080 with the deposit neutralised = 8%.
     assert html =~ "8.0"
-    # Donut slice in the category colour, legend and drift row.
-    assert html =~ ~s(stroke="#2563eb")
+    # Sunburst slice in the category colour, legend and drift row.
+    assert html =~ ~s(fill="#2563eb")
     assert html =~ "Core"
     assert html =~ "100.0"
     assert html =~ "60.0"
@@ -183,14 +183,15 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Two rings: the parent ring and the child ring at different radii.
     assert html =~ ~s(class="donut sunburst")
-    assert html =~ ~s(stroke="#10b981")
+    assert html =~ ~s(fill="#10b981")
     # The outermost ring carries the individual positions as shaded arcs
     # (PP style): the security name appears as a tooltip title.
-    assert html =~ ~s(stroke-opacity)
+    assert html =~ ~s(fill-opacity)
     assert html =~ "Tech ETF"
     assert html =~ "World ETF"
-    # Segments big enough to read get an in-chart label.
+    # Slices big enough to read get a curved in-chart label.
     assert html =~ ~s(class="sunburst-label")
+    assert html =~ "textPath"
     # Child row carries the nested class and the sub-category name.
     assert html =~ "is-child"
     assert html =~ "Core Tech"
