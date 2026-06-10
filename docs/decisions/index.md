@@ -39,3 +39,4 @@ already in force in the codebase.
 | [0008](0008-target-weights-and-allocation.html) | Target weights and SOLL/IST allocation | Accepted |
 | [0009](0009-cash-as-balance-snapshots.html) | Cash as balance snapshots, not a mirrored ledger | Accepted |
 | [0010](0010-ttwror-performance-series.html) | Daily valuation series and TTWROR | Accepted |
+| [0011](0011-unified-ledger-projection.html) | Unified ledger projection (single per-kind reducer) | Accepted |
