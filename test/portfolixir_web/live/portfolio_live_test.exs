@@ -189,9 +189,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ ~s(fill-opacity)
     assert html =~ "Tech ETF"
     assert html =~ "World ETF"
-    # Slices big enough to read get a curved in-chart label.
+    # Slices big enough to read get a curved in-chart label. LiveViewTest
+    # re-serialises through Floki, which lowercases SVG tag names, so match
+    # case-insensitively (the wire HTML keeps textPath).
     assert html =~ ~s(class="sunburst-label")
-    assert html =~ "textPath"
+    assert String.downcase(html) =~ "textpath"
     # Child row carries the nested class and the sub-category name.
     assert html =~ "is-child"
     assert html =~ "Core Tech"
