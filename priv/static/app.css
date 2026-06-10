@@ -3807,7 +3807,7 @@ details[open] > .cat-summary::before {
   stroke-width: 18;
 }
 .donut.sunburst {
-  width: min(340px, 100%);
+  width: 100%;
   height: auto;
   aspect-ratio: 1;
 }
@@ -3823,22 +3823,31 @@ details[open] > .cat-summary::before {
   filter: brightness(1.15);
 }
 .sunburst-pane {
+  /* Fixed width so the detail line's text length never resizes the chart. */
+  width: 340px;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  align-items: flex-start;
 }
-.sunburst-detail {
+.sunburst-detail,
+.sunburst-pane > .hint {
+  /* Reserve room for up to two wrapped lines so the chart never shifts. */
   margin: 0;
+  min-height: 2.4rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 0.4rem;
+  overflow-wrap: anywhere;
 }
 .sunburst-detail .cat-swatch {
   display: inline-block;
   width: 0.7rem;
   height: 0.7rem;
   border-radius: 2px;
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
 }
 .drift-table tr.is-child td:first-child {
   color: var(--color-text-muted, #6b7280);
