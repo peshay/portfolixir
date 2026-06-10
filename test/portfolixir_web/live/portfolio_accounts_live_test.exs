@@ -15,6 +15,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
   # - Each listed cash account shows a counts-toward-cash-quote toggle,
   #   checked by default.
   # - Clicking the toggle flips the stored flag and the rendered state.
+  # - The toggle renders compact and inline with the account name instead of
+  #   inheriting the full-width form-input styling.
   test "toggles whether a cash account counts toward the cash quote", %{conn: conn} do
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{name: "Mein Depot", base_currency_code: "EUR"})
@@ -41,5 +43,16 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     assert Portfolios.get_cash_account(cash.id).counts_toward_cash_quote == true
     assert view |> element(toggle) |> render() =~ "checked"
+  end
+
+  test "renders the cash-quote toggle compact instead of as a full-width form input" do
+    app_css = File.read!("priv/static/app.css")
+
+    # Inline next to the account name, not stacked by the global label grid...
+    assert app_css =~ ~r/\.cash-quote-toggle\s*\{[^}]*display:\s*inline-flex/s
+
+    # ...and the checkbox must not inherit the 100%-width / 34px form sizing.
+    assert app_css =~ ~r/\.cash-quote-toggle input\[type="checkbox"\]\s*\{[^}]*width:\s*14px/s
+    assert app_css =~ ~r/\.cash-quote-toggle input\[type="checkbox"\]\s*\{[^}]*min-height:\s*0/s
   end
 end
