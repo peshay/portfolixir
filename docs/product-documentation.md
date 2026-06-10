@@ -183,8 +183,11 @@ shows the classification as concentric rings — the inner ring is the top-level
 categories, each outer ring breaks one level down with sub-category arcs nested
 inside their parent, and the **outermost ring shows the individual positions**
 as shaded arcs of their category's colour (the Portfolio Performance style) —
-with a grey slice for unassigned holdings and the position name as a tooltip.
-Pick any classification tree from the selector. The drift table beneath it lists every category in tree
+with a grey slice for unassigned holdings. Slices big enough to read carry
+their name in the chart; every slice shows a tooltip on hover and can be
+**tapped** — the selected slice's name, share and value appear below the
+chart, which is the mobile substitute for hover. The chart scales to the
+available width. Pick any classification tree from the selector. The drift table beneath it lists every category in tree
 order with **sub-categories indented** under their parent, comparing the
 rolled-up actual weight against the stored target and restating the drift in
 the base currency. The cash section lists each account's balance and carries

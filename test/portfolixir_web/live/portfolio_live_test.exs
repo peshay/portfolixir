@@ -189,9 +189,44 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ ~s(stroke-opacity)
     assert html =~ "Tech ETF"
     assert html =~ "World ETF"
+    # Segments big enough to read get an in-chart label.
+    assert html =~ ~s(class="sunburst-label")
     # Child row carries the nested class and the sub-category name.
     assert html =~ "is-child"
     assert html =~ "Core Tech"
+  end
+
+  test "tapping a slice echoes its details below the chart (mobile hover)", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    assert html =~ "Tap or hover a slice for details."
+
+    html =
+      render_click(view, "select_segment", %{
+        "name" => "Core",
+        "percent" => "100.0",
+        "value" => "880.00",
+        "color" => "#2563eb"
+      })
+
+    assert html =~ ~s(class="sunburst-detail")
+    assert html =~ "Core"
+    assert html =~ "880.00"
+    refute html =~ "Tap or hover a slice for details."
+
+    # A non-hex colour cannot reach the style attribute.
+    html =
+      render_click(view, "select_segment", %{
+        "name" => "X",
+        "percent" => "1.0",
+        "value" => "1.00",
+        "color" => "red;background:url(x)"
+      })
+
+    refute html =~ "url(x)"
   end
 
   test "switches the performance period from the cached analysis", %{conn: conn} do

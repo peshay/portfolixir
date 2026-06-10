@@ -2117,3 +2117,6 @@ msgstr "%{count} gehaltene Positionen haben gar keinen Preis und fehlen in den S
 
 msgid "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import."
 msgstr "Buchungen mit Datum vor 1970 (%{dates}) werden am ersten plausiblen Tag angewendet — korrigiere die Daten in der Quelle und importiere erneut."
+
+msgid "Tap or hover a slice for details."
+msgstr "Tippe auf ein Segment oder fahre mit der Maus darüber für Details."

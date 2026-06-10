@@ -55,6 +55,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:allocation, nil)
           |> assign(:analysis, nil)
           |> assign(:performance, nil)
+          |> assign(:selected_segment, nil)
           |> start_loading()
 
         {:ok, socket}
@@ -230,7 +231,19 @@ defmodule PortfolixirWeb.PortfolioLive do
 
           <%= if @allocation do %>
             <div class="donut-wrap">
-              <.allocation_sunburst rings={sunburst_rings(@allocation)} />
+              <div class="sunburst-pane">
+                <.allocation_sunburst rings={sunburst_rings(@allocation)} />
+                <p :if={@selected_segment} class="sunburst-detail" role="status">
+                  <span class="cat-swatch" style={"background:#{@selected_segment.color}"}></span>
+                  <strong><%= @selected_segment.name %></strong>
+                  · <%= @selected_segment.percent %>%
+                  · <%= @selected_segment.value %>
+                  <%= if @valuation, do: @valuation.base_currency %>
+                </p>
+                <p :if={is_nil(@selected_segment)} class="hint">
+                  <%= gettext("Tap or hover a slice for details.") %>
+                </p>
+              </div>
               <ul class="donut-legend">
                 <%= for segment <- legend_segments(@allocation) do %>
                   <li>
@@ -414,8 +427,10 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # Concentric rings: the innermost is the top-level categories, each further
   # ring breaks one level down (Portfolio Performance's sunburst), with a child
-  # arc nested inside its parent's angular span. The track circle of each ring
-  # is the parent's own (unclassified) remainder shown as a gap.
+  # arc nested inside its parent's angular span. Segments big enough to read
+  # carry a tangential label; every segment shows a hover tooltip and is
+  # tappable — `select_segment` echoes the slice below the chart, which is the
+  # mobile substitute for hover.
   defp allocation_sunburst(assigns) do
     ~H"""
     <svg class="donut sunburst" viewBox="0 0 140 140" role="img" aria-label={gettext("Allocation")}>
@@ -440,12 +455,29 @@ defmodule PortfolixirWeb.PortfolioLive do
               stroke-width={ring.stroke}
               stroke-dasharray={"#{segment.length} #{ring.circumference}"}
               stroke-dashoffset={-segment.offset}
+              phx-click="select_segment"
+              phx-value-name={segment.name}
+              phx-value-percent={segment.percent}
+              phx-value-value={segment.value}
+              phx-value-color={segment.color}
             >
               <title><%= segment.name %> · <%= segment.percent %>%</title>
             </circle>
           <% end %>
         <% end %>
       </g>
+      <%= for ring <- @rings, segment <- ring.segments, segment.label do %>
+        <text
+          x={segment.label_x}
+          y={segment.label_y}
+          transform={"rotate(#{segment.label_rotation} #{segment.label_x} #{segment.label_y})"}
+          text-anchor="middle"
+          dominant-baseline="middle"
+          class="sunburst-label"
+        >
+          <%= segment.label %>
+        </text>
+      <% end %>
     </svg>
     """
   end
@@ -472,11 +504,28 @@ defmodule PortfolixirWeb.PortfolioLive do
   def handle_event("select_classification", %{"classification_id" => id}, socket) do
     case coerce_id(id) do
       {:ok, classification_id} ->
-        {:noreply, socket |> assign(:classification_id, classification_id) |> load_allocation()}
+        {:noreply,
+         socket
+         |> assign(:classification_id, classification_id)
+         |> assign(:selected_segment, nil)
+         |> load_allocation()}
 
       :error ->
         {:noreply, socket}
     end
+  end
+
+  # The mobile substitute for hover: tapping a slice echoes it below the chart.
+  # Values are display strings straight from our own render; HEEx escapes them.
+  def handle_event("select_segment", params, socket) do
+    segment = %{
+      name: to_string(params["name"] || ""),
+      percent: to_string(params["percent"] || ""),
+      value: to_string(params["value"] || ""),
+      color: safe_color(params["color"])
+    }
+
+    {:noreply, assign(socket, :selected_segment, segment)}
   end
 
   def handle_event("set_balance", %{"balance" => params}, socket) do
@@ -561,7 +610,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         radius: Float.round(radius, 2),
         stroke: Float.round(ring_width * 0.82, 2),
         circumference: Float.round(circumference, 2),
-        segments: Enum.map(ring_nodes, &ring_segment(&1, circumference))
+        segments: Enum.map(ring_nodes, &ring_segment(&1, radius, circumference))
       }
     end)
   end
@@ -590,7 +639,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp unassigned_node(nil, _roots), do: []
 
-  defp unassigned_node(%{actual_weight: weight}, roots) do
+  defp unassigned_node(%{actual_weight: weight, market_value: value}, roots) do
     fraction = Decimal.to_float(weight)
     last_root_end = roots |> Enum.map(& &1.fraction_end) |> Enum.max(fn -> 0.0 end)
 
@@ -599,6 +648,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         name: gettext("Unsorted"),
         color: @unassigned_color,
         percent: Format.percent(weight),
+        value: Format.money(value),
         depth: 0,
         opacity: 1.0,
         positions: [],
@@ -617,6 +667,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           name: row.name,
           color: row.color || @fallback_color,
           percent: Format.percent(row.actual_weight),
+          value: Format.money(row.market_value),
           depth: depth,
           opacity: 1.0,
           category_id: row.category_id,
@@ -666,6 +717,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           name: position.security_name || "?",
           color: color,
           percent: Format.percent(position.weight),
+          value: Format.money(position.market_value),
           depth: depth,
           opacity: Enum.at([0.9, 0.6, 0.42], rem(index, 3)),
           fraction_start: offset,
@@ -678,17 +730,54 @@ defmodule PortfolixirWeb.PortfolioLive do
     nodes
   end
 
-  defp ring_segment(node, circumference) do
+  # Arc length (in viewBox units) a segment needs before it gets an in-chart
+  # label, and the average character width at the label font size — segments
+  # too small for ~5 characters stay tooltip/tap-only, like PP.
+  @label_min_arc 14.0
+  @label_char_width 2.6
+
+  defp ring_segment(node, radius, circumference) do
     length = (node.fraction_end - node.fraction_start) * circumference
 
     %{
       name: node.name,
       color: node.color,
       percent: node.percent,
+      value: node.value,
       opacity: node.opacity,
       length: Float.round(max(length, 0.0), 2),
       offset: Float.round(node.fraction_start * circumference, 2)
     }
+    |> put_label(node, radius, length)
+  end
+
+  # Tangential label at the segment's mid-angle, flipped on the left half so it
+  # stays readable; truncated to what the arc can fit.
+  defp put_label(segment, node, radius, arc_length) do
+    if arc_length >= @label_min_arc do
+      mid = (node.fraction_start + node.fraction_end) / 2
+      theta = mid * 2 * :math.pi() - :math.pi() / 2
+      rotation = mid * 360.0
+      rotation = if rotation > 90.0 and rotation < 270.0, do: rotation - 180.0, else: rotation
+      max_chars = trunc(arc_length / @label_char_width)
+
+      Map.merge(segment, %{
+        label: truncate_label(node.name, max_chars),
+        label_x: Float.round(70 + radius * :math.cos(theta), 2),
+        label_y: Float.round(70 + radius * :math.sin(theta), 2),
+        label_rotation: Float.round(rotation, 1)
+      })
+    else
+      Map.merge(segment, %{label: nil, label_x: nil, label_y: nil, label_rotation: nil})
+    end
+  end
+
+  defp truncate_label(name, max_chars) do
+    if String.length(name) <= max_chars do
+      name
+    else
+      String.slice(name, 0, max(max_chars - 1, 1)) <> "…"
+    end
   end
 
   # The legend lists the top-level categories (plus unassigned) only, so it
@@ -781,6 +870,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp coerce_id(_value), do: :error
+
+  # The colour lands in a style attribute, so only a literal hex colour from
+  # our own render is accepted — anything else falls back to neutral grey.
+  defp safe_color(value) when is_binary(value) do
+    if value =~ ~r/^#[0-9a-fA-F]{6}$/, do: value, else: @fallback_color
+  end
+
+  defp safe_color(_value), do: @fallback_color
 
   defp changeset_error(changeset) do
     changeset.errors
