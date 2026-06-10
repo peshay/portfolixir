@@ -116,6 +116,16 @@ amount, i.e. how much to buy or sell to reach the target. Securities held but no
 assigned in the chosen tree are summed into an unassigned bucket. Only the
 targets are stored; the actual side is derived from the live valuation on read.
 
+Classification trees are **hierarchical**, and the allocation rolls them up: a
+position assigned to a sub-category counts toward that sub-category **and every
+parent above it**. So if *Growth* holds a 50% target and you only assign
+holdings to its sub-categories (*Tech*, *Emerging*, …), *Growth*'s actual
+weight is their sum — not 0% — and its drift is measured against that sum. The
+drift table lists categories in tree order with sub-categories indented under
+their parent; because each parent already includes its children, the displayed
+actual percentages add up to 100% only across the leaves (plus unassigned),
+not across every level.
+
 ## Exchange Rates and Valuation
 
 Portfolios can hold securities and cash in several currencies. Exchange rates are
@@ -168,10 +178,14 @@ quote).
 The **Portfolio** entry in the navigation opens the portfolio overview: the
 total value including cash, the cash quote, and the TTWROR for a selectable
 period (year-to-date, one/three/five years, or since the first transaction)
-with the cumulative performance chart. Below it, the **allocation donut** shows
-each category's value-weighted share in its category colour — pick any
-classification tree from the selector — and the drift table compares the
-actual weight against the stored target per category, restating the drift in
+with the cumulative performance chart. Below it, the **allocation sunburst**
+shows the classification as concentric rings — the inner ring is the top-level
+categories, each outer ring breaks one level down with sub-category arcs nested
+inside their parent (the Portfolio Performance style) — in the category
+colours, with a grey slice for unassigned holdings. Pick any classification
+tree from the selector. The drift table beneath it lists every category in tree
+order with **sub-categories indented** under their parent, comparing the
+rolled-up actual weight against the stored target and restating the drift in
 the base currency. The cash section lists each account's balance and carries
 the **set-balance form**: type the balance your bank shows and the snapshot is
 recorded without booking individual transactions.

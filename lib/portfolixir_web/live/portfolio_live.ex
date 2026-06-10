@@ -24,8 +24,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
 
-  @donut_radius 48
-  @donut_circumference 2 * :math.pi() * @donut_radius
   @unassigned_color "#9ca3af"
   @fallback_color "#6b7280"
   @chart_max_points 400
@@ -232,9 +230,9 @@ defmodule PortfolixirWeb.PortfolioLive do
 
           <%= if @allocation do %>
             <div class="donut-wrap">
-              <.allocation_donut segments={donut_segments(@allocation)} />
+              <.allocation_sunburst rings={sunburst_rings(@allocation)} />
               <ul class="donut-legend">
-                <%= for segment <- donut_segments(@allocation) do %>
+                <%= for segment <- legend_segments(@allocation) do %>
                   <li>
                     <span class="cat-swatch" style={"background:#{segment.color}"} aria-hidden="true">
                     </span>
@@ -257,14 +255,33 @@ defmodule PortfolixirWeb.PortfolioLive do
               </thead>
               <tbody>
                 <%= for row <- @allocation.categories do %>
-                  <tr>
-                    <td><%= row.name %></td>
+                  <tr class={row.depth > 0 && "is-child"}>
+                    <td style={"padding-left:#{0.75 + row.depth * 1.25}rem"}>
+                      <span
+                        :if={row.color}
+                        class="cat-swatch"
+                        style={"background:#{row.color}"}
+                        aria-hidden="true"
+                      >
+                      </span>
+                      <%= row.name %>
+                    </td>
                     <td><%= Format.money(row.market_value) %></td>
                     <td><%= Format.percent(row.actual_weight) %>%</td>
-                    <td><%= Format.percent(row.target_weight) %>%</td>
                     <td>
-                      <%= Format.money(row.drift_value) %>
-                      <%= if @valuation, do: @valuation.base_currency %>
+                      <%= if Decimal.equal?(row.target_weight, 0) do %>
+                        —
+                      <% else %>
+                        <%= Format.percent(row.target_weight) %>%
+                      <% end %>
+                    </td>
+                    <td>
+                      <%= if Decimal.equal?(row.target_weight, 0) do %>
+                        —
+                      <% else %>
+                        <%= Format.money(row.drift_value) %>
+                        <%= if @valuation, do: @valuation.base_currency %>
+                      <% end %>
                     </td>
                   </tr>
                 <% end %>
@@ -395,24 +412,37 @@ defmodule PortfolixirWeb.PortfolioLive do
     """
   end
 
-  defp allocation_donut(assigns) do
-    assigns = assign(assigns, circumference: @donut_circumference, radius: @donut_radius)
-
+  # Concentric rings: the innermost is the top-level categories, each further
+  # ring breaks one level down (Portfolio Performance's sunburst), with a child
+  # arc nested inside its parent's angular span. The track circle of each ring
+  # is the parent's own (unclassified) remainder shown as a gap.
+  defp allocation_sunburst(assigns) do
     ~H"""
-    <svg class="donut" viewBox="0 0 120 120" role="img" aria-label={gettext("Allocation")}>
-      <g transform="rotate(-90 60 60)">
-        <circle cx="60" cy="60" r={@radius} class="donut-track" fill="none" />
-        <%= for segment <- @segments do %>
+    <svg class="donut sunburst" viewBox="0 0 140 140" role="img" aria-label={gettext("Allocation")}>
+      <g transform="rotate(-90 70 70)">
+        <%= for ring <- @rings do %>
           <circle
-            cx="60"
-            cy="60"
-            r={@radius}
+            cx="70"
+            cy="70"
+            r={ring.radius}
+            class="donut-track"
+            stroke-width={ring.stroke}
             fill="none"
-            stroke={segment.color}
-            stroke-width="18"
-            stroke-dasharray={"#{segment.length} #{@circumference}"}
-            stroke-dashoffset={-segment.offset}
           />
+          <%= for segment <- ring.segments do %>
+            <circle
+              cx="70"
+              cy="70"
+              r={ring.radius}
+              fill="none"
+              stroke={segment.color}
+              stroke-width={ring.stroke}
+              stroke-dasharray={"#{segment.length} #{ring.circumference}"}
+              stroke-dashoffset={-segment.offset}
+            >
+              <title><%= segment.name %> · <%= segment.percent %>%</title>
+            </circle>
+          <% end %>
         <% end %>
       </g>
     </svg>
@@ -502,49 +532,141 @@ defmodule PortfolixirWeb.PortfolioLive do
     (custom || asset_class).id
   end
 
-  # -- donut geometry ----------------------------------------------------------
+  # -- sunburst geometry -------------------------------------------------------
 
-  # Value-weighted slices: each category's share of the valued positions, plus
-  # one grey slice for unassigned holdings. Zero-value rows are skipped.
-  defp donut_segments(allocation) do
-    rows =
-      allocation.categories
-      |> Enum.map(fn row ->
-        %{name: row.name, color: row.color || @fallback_color, weight: row.actual_weight}
-      end)
-      |> append_unassigned(allocation.unassigned)
-      |> Enum.reject(&(Decimal.compare(&1.weight, 0) != :gt))
+  @sunburst_inner 22
+  @sunburst_outer 66
 
-    {segments, _offset} = Enum.map_reduce(rows, 0.0, &donut_segment/2)
-    segments
+  # Builds one ring per tree depth. The innermost ring is the top-level
+  # categories; each deeper ring nests its children inside the parent's angular
+  # span (value-weighted on the rolled-up subtree). Unassigned holdings get a
+  # grey slice on the inner ring so it reads as a complete circle. Ring widths
+  # are derived from the actual depth so any tree fits the viewBox.
+  defp sunburst_rings(allocation) do
+    nodes = sunburst_nodes(allocation)
+    max_depth = nodes |> Enum.map(& &1.depth) |> Enum.max(fn -> 0 end)
+    ring_width = (@sunburst_outer - @sunburst_inner) / (max_depth + 1)
+
+    nodes
+    |> Enum.group_by(& &1.depth)
+    |> Enum.sort_by(fn {depth, _} -> depth end)
+    |> Enum.map(fn {depth, ring_nodes} ->
+      radius = @sunburst_inner + ring_width * (depth + 0.5)
+      circumference = 2 * :math.pi() * radius
+
+      %{
+        radius: Float.round(radius, 2),
+        stroke: Float.round(ring_width * 0.82, 2),
+        circumference: Float.round(circumference, 2),
+        segments: Enum.map(ring_nodes, &ring_segment(&1, circumference))
+      }
+    end)
   end
 
-  defp append_unassigned(rows, nil), do: rows
+  # Lays out each category's arc within its parent's start offset, recursing the
+  # kept tree so children sit under their parent; the unassigned remainder is a
+  # top-level grey node. Offsets are kept as a fraction of the full turn so each
+  # ring scales them to its own circumference.
+  defp sunburst_nodes(allocation) do
+    by_parent = Enum.group_by(allocation.categories, & &1.parent_id)
+    roots = layout_level(Map.get(by_parent, nil, []), by_parent, 0.0, 0)
 
-  defp append_unassigned(rows, unassigned) do
-    rows ++
-      [
-        %{
-          name: gettext("Unsorted"),
-          color: @unassigned_color,
-          weight: unassigned.actual_weight
+    unassigned =
+      case allocation.unassigned do
+        nil ->
+          []
+
+        %{actual_weight: weight} ->
+          fraction = Decimal.to_float(weight)
+          last_root_end = roots |> Enum.map(& &1.fraction_end) |> Enum.max(fn -> 0.0 end)
+
+          [
+            %{
+              name: gettext("Unsorted"),
+              color: @unassigned_color,
+              percent: Format.percent(weight),
+              depth: 0,
+              fraction_start: last_root_end,
+              fraction_end: last_root_end + fraction
+            }
+          ]
+      end
+
+    roots ++ layout_children(roots, by_parent) ++ unassigned
+  end
+
+  defp layout_level(rows, _by_parent, start_fraction, depth) do
+    {nodes, _} =
+      Enum.map_reduce(rows, start_fraction, fn row, offset ->
+        fraction = Decimal.to_float(row.actual_weight)
+
+        node = %{
+          name: row.name,
+          color: row.color || @fallback_color,
+          percent: Format.percent(row.actual_weight),
+          depth: depth,
+          category_id: row.category_id,
+          fraction_start: offset,
+          fraction_end: offset + fraction
         }
-      ]
+
+        {node, offset + fraction}
+      end)
+
+    nodes
   end
 
-  defp donut_segment(row, offset) do
-    fraction = Decimal.to_float(row.weight)
-    length = Float.round(fraction * @donut_circumference, 2)
+  defp layout_children(parent_nodes, by_parent) do
+    Enum.flat_map(parent_nodes, fn parent ->
+      children_rows = Map.get(by_parent, parent.category_id, [])
 
-    segment = %{
-      name: row.name,
-      color: row.color,
-      percent: Format.percent(row.weight),
-      length: length,
-      offset: Float.round(offset, 2)
+      child_nodes =
+        layout_level(children_rows, by_parent, parent.fraction_start, parent.depth + 1)
+
+      child_nodes ++ layout_children(child_nodes, by_parent)
+    end)
+  end
+
+  defp ring_segment(node, circumference) do
+    length = (node.fraction_end - node.fraction_start) * circumference
+
+    %{
+      name: node.name,
+      color: node.color,
+      percent: node.percent,
+      length: Float.round(max(length, 0.0), 2),
+      offset: Float.round(node.fraction_start * circumference, 2)
     }
+  end
 
-    {segment, offset + length}
+  # The legend lists the top-level categories (plus unassigned) only, so it
+  # stays readable when a tree has many leaves.
+  defp legend_segments(allocation) do
+    roots =
+      allocation.categories
+      |> Enum.filter(&(&1.depth == 0 and Decimal.compare(&1.actual_weight, 0) == :gt))
+      |> Enum.map(fn row ->
+        %{
+          name: row.name,
+          color: row.color || @fallback_color,
+          percent: Format.percent(row.actual_weight)
+        }
+      end)
+
+    case allocation.unassigned do
+      nil ->
+        roots
+
+      %{actual_weight: weight} ->
+        roots ++
+          [
+            %{
+              name: gettext("Unsorted"),
+              color: @unassigned_color,
+              percent: Format.percent(weight)
+            }
+          ]
+    end
   end
 
   # -- performance chart geometry ----------------------------------------------

@@ -3806,6 +3806,21 @@ details[open] > .cat-summary::before {
   stroke: var(--color-surface-hover, rgba(127, 127, 127, 0.12));
   stroke-width: 18;
 }
+.sunburst .donut-track {
+  /* Per-ring stroke-width is set inline; the sunburst nests several rings. */
+  stroke-width: inherit;
+}
+.drift-table tr.is-child td:first-child {
+  color: var(--color-text-muted, #6b7280);
+}
+.drift-table td .cat-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  margin-right: 0.4rem;
+  vertical-align: baseline;
+}
 .donut-legend {
   list-style: none;
   margin: 0;

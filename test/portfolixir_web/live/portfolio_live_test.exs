@@ -106,7 +106,13 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
 
-    %{portfolio: portfolio, cash: cash, depot: depot, classification: classification}
+    %{
+      portfolio: portfolio,
+      cash: cash,
+      depot: depot,
+      classification: classification,
+      core: core
+    }
   end
 
   test "loads the figures asynchronously and shows totals, donut and drift", %{conn: conn} do
@@ -129,6 +135,58 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "60.0"
     # Drift: (0.6 - 1.0) * 880 = -352.
     assert html =~ "-352.00"
+  end
+
+  test "renders a nested sunburst and an indented, rolled-up child row", %{conn: conn} do
+    world = seed_world()
+
+    # Add a sub-category under Core and assign a second holding to it; Core's
+    # IST must roll the child up, and the child row must render indented.
+    {:ok, sub} =
+      Classifications.create_category(%{
+        classification_id: world.classification.id,
+        name: "Core Tech",
+        color: "#10b981",
+        parent_id: world.core.id
+      })
+
+    {:ok, second} =
+      Catalog.create_security(%{
+        name: "Tech ETF",
+        ticker_symbol: "TEC",
+        currency_code: "EUR",
+        asset_class: "etf"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: second.id,
+        type: "buy",
+        date: Date.add(Date.utc_today(), -10),
+        quantity: "2",
+        price: "50",
+        fees: "0",
+        taxes: "0",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Quotes.upsert_many(second.id, [%{date: Date.utc_today(), close: "50", source: "manual"}])
+
+    {:ok, _} = Classifications.assign_security(second.id, world.classification.id, sub.id)
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # Two rings: the parent ring and the child ring at different radii.
+    assert html =~ ~s(class="donut sunburst")
+    assert html =~ ~s(stroke="#10b981")
+    # Child row carries the nested class and the sub-category name.
+    assert html =~ "is-child"
+    assert html =~ "Core Tech"
   end
 
   test "switches the performance period from the cached analysis", %{conn: conn} do
