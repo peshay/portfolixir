@@ -75,7 +75,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       total_value: total,
       total_cash: cash.total,
       total_with_cash: total_with_cash,
-      cash_quote: cash_quote(cash.total, total_with_cash),
+      cash_quote: cash_quote(cash.counting_total, Decimal.add(total, cash.counting_total)),
       cash_balances: cash.balances,
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued)),
@@ -83,21 +83,25 @@ defmodule Portfolixir.Portfolios.Valuation do
     }
   end
 
-  # Cash as a share of the whole portfolio (`total_cash / total_with_cash`), the
-  # "Cashquote". Reported alongside the totals so callers do not have to divide
-  # the two themselves; `0` when there is nothing to value yet.
-  defp cash_quote(%Decimal{} = cash, %Decimal{} = total_with_cash) do
-    if Decimal.equal?(total_with_cash, @zero) do
+  # Cash as a share of the whole portfolio, the "Cashquote". Only accounts
+  # flagged `counts_toward_cash_quote` enter the quote — numerator and
+  # denominator are computed as if the other accounts did not exist, so a
+  # reference-only business account never distorts the private quote (see
+  # ADR-0009). Reported alongside the totals so callers do not have to divide
+  # themselves; `0` when there is nothing to value yet.
+  defp cash_quote(%Decimal{} = counting_cash, %Decimal{} = counting_total) do
+    if Decimal.equal?(counting_total, @zero) do
       @zero
     else
-      Decimal.div(cash, total_with_cash)
+      Decimal.div(counting_cash, counting_total)
     end
   end
 
   # Per-account cash balances (in account currency) plus their sum converted to
   # the portfolio base currency. An account whose currency has no rate path to
   # the base is reported unvalued and left out of `total_cash`, mirroring how
-  # unpriceable positions are handled.
+  # unpriceable positions are handled. `total` spans all valued accounts;
+  # `counting_total` only those that count toward the cash quote.
   defp cash_for(portfolio_id, base_currency) do
     balances = Ledger.cash_balances(portfolio_id: portfolio_id)
 
@@ -114,17 +118,21 @@ defmodule Portfolixir.Portfolios.Valuation do
           currency: account.currency_code,
           balance: balance,
           base_value: base_value,
-          valued: valued?
+          valued: valued?,
+          counts_toward_cash_quote: account.counts_toward_cash_quote
         }
       end)
       |> Enum.sort_by(& &1.cash_account_id)
 
-    total =
-      entries
-      |> Enum.filter(& &1.valued)
-      |> Enum.reduce(@zero, fn entry, acc -> Decimal.add(acc, entry.base_value) end)
+    valued = Enum.filter(entries, & &1.valued)
+    total = sum_base_values(valued)
+    counting_total = valued |> Enum.filter(& &1.counts_toward_cash_quote) |> sum_base_values()
 
-    %{balances: entries, total: total}
+    %{balances: entries, total: total, counting_total: counting_total}
+  end
+
+  defp sum_base_values(entries) do
+    Enum.reduce(entries, @zero, fn entry, acc -> Decimal.add(acc, entry.base_value) end)
   end
 
   defp convert_cash(%Decimal{} = balance, from, base) when is_binary(from) and is_binary(base) do

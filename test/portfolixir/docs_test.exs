@@ -298,6 +298,27 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
+  # As a local integrator with a business account,
+  # I want the docs to document the counts-toward-cash-quote flag,
+  # so that I can exclude an account from the cash quote over the API or MCP
+  # without reading source files.
+  #
+  # Acceptance criteria:
+  # - The API and MCP page documents counts_toward_cash_quote on cash accounts
+  #   and its effect on the valuation's cash_quote.
+  # - The product handbook describes the flag instead of listing it as planned.
+  test "docs document the counts-toward-cash-quote flag" do
+    api_docs = File.read!("docs/integration/api-and-mcp.md")
+    product_docs = File.read!("docs/product-documentation.md")
+
+    assert api_docs =~ "counts_toward_cash_quote"
+    assert api_docs =~ "cash_quote"
+
+    assert product_docs =~ "counts toward the cash quote"
+    refute product_docs =~ "Still planned: a per-account flag"
+  end
+
+  # User story:
   # As a public reader of the Portfolixir docs,
   # I want the documentation page to use the same Portfolixir theme accents as the app,
   # so that the project identity is consistent across app and docs.
