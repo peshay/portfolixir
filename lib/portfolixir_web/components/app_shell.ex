@@ -254,6 +254,13 @@ defmodule PortfolixirWeb.AppShell do
             label: gettext("Dashboard"),
             section: :dashboard,
             icon: :dashboard
+          },
+          %{
+            id: "nav-portfolio",
+            href: "/portfolio",
+            label: gettext("Portfolio"),
+            section: :portfolio,
+            icon: :chart_line
           }
         ]
       },
@@ -379,6 +386,7 @@ defmodule PortfolixirWeb.AppShell do
   end
 
   defp nav_current?("/", %{section: :dashboard}), do: true
+  defp nav_current?(path, %{section: :portfolio}), do: path == "/portfolio"
   defp nav_current?(path, %{section: :securities}), do: String.starts_with?(path, "/securities")
   defp nav_current?(path, %{section: :portfolios}), do: String.starts_with?(path, "/portfolios")
 

@@ -66,6 +66,25 @@ defmodule Portfolixir.Fx do
     |> Repo.one()
   end
 
+  @doc """
+  All EUR-hub rates for `quote_currency` from `from` onward, ascending by date.
+
+  Used by read-time engines (e.g. the daily performance walk) to preload a
+  currency's whole rate series once and convert in memory instead of issuing
+  one lookup query per day.
+  """
+  def series(quote_currency, %Date{} = from) do
+    base_quote(@hub, quote_currency)
+    |> where([r], r.date >= ^from)
+    |> order_by([r], asc: r.date)
+    |> Repo.all()
+  end
+
+  @doc "Most recent EUR-hub rate for `quote_currency` on or before `date`, or nil."
+  def hub_rate_before(quote_currency, %Date{} = date) do
+    at_or_before(@hub, quote_currency, date)
+  end
+
   @doc "All stored rates, most recent first."
   def list_rates do
     Repo.all(
