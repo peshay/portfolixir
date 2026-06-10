@@ -232,7 +232,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           <%= if @allocation do %>
             <div class="donut-wrap">
               <div class="sunburst-pane">
-                <.allocation_sunburst rings={sunburst_rings(@allocation)} />
+                <.allocation_sunburst segments={sunburst_segments(@allocation)} />
                 <p :if={@selected_segment} class="sunburst-detail" role="status">
                   <span class="cat-swatch" style={"background:#{@selected_segment.color}"}></span>
                   <strong><%= @selected_segment.name %></strong>
@@ -425,57 +425,37 @@ defmodule PortfolixirWeb.PortfolioLive do
     """
   end
 
-  # Concentric rings: the innermost is the top-level categories, each further
-  # ring breaks one level down (Portfolio Performance's sunburst), with a child
-  # arc nested inside its parent's angular span. Segments big enough to read
-  # carry a tangential label; every segment shows a hover tooltip and is
-  # tappable — `select_segment` echoes the slice below the chart, which is the
-  # mobile substitute for hover.
+  # Concentric rings of annular-sector paths: the innermost ring is the
+  # top-level categories, each further ring breaks one level down, the
+  # outermost ring shows the individual positions (Portfolio Performance's
+  # sunburst). Labels curve along their arc via textPath. Every slice shows a
+  # hover tooltip and is tappable — `select_segment` echoes the slice below
+  # the chart, which is the mobile substitute for hover.
   defp allocation_sunburst(assigns) do
     ~H"""
     <svg class="donut sunburst" viewBox="0 0 140 140" role="img" aria-label={gettext("Allocation")}>
-      <g transform="rotate(-90 70 70)">
-        <%= for ring <- @rings do %>
-          <circle
-            cx="70"
-            cy="70"
-            r={ring.radius}
-            class="donut-track"
-            stroke-width={ring.stroke}
-            fill="none"
-          />
-          <%= for segment <- ring.segments do %>
-            <circle
-              cx="70"
-              cy="70"
-              r={ring.radius}
-              fill="none"
-              stroke={segment.color}
-              stroke-opacity={segment.opacity}
-              stroke-width={ring.stroke}
-              stroke-dasharray={"#{segment.length} #{ring.circumference}"}
-              stroke-dashoffset={-segment.offset}
-              phx-click="select_segment"
-              phx-value-name={segment.name}
-              phx-value-percent={segment.percent}
-              phx-value-value={segment.value}
-              phx-value-color={segment.color}
-            >
-              <title><%= segment.name %> · <%= segment.percent %>%</title>
-            </circle>
-          <% end %>
-        <% end %>
-      </g>
-      <%= for ring <- @rings, segment <- ring.segments, segment.label do %>
-        <text
-          x={segment.label_x}
-          y={segment.label_y}
-          transform={"rotate(#{segment.label_rotation} #{segment.label_x} #{segment.label_y})"}
-          text-anchor="middle"
-          dominant-baseline="middle"
-          class="sunburst-label"
+      <circle cx="70" cy="70" r="20" class="donut-center" />
+      <%= for segment <- @segments do %>
+        <path
+          d={segment.path}
+          fill={segment.color}
+          fill-opacity={segment.opacity}
+          class="sunburst-seg"
+          phx-click="select_segment"
+          phx-value-name={segment.name}
+          phx-value-percent={segment.percent}
+          phx-value-value={segment.value}
+          phx-value-color={segment.color}
         >
-          <%= segment.label %>
+          <title><%= segment.name %> · <%= segment.percent %>%</title>
+        </path>
+      <% end %>
+      <%= for segment <- @segments, segment.label do %>
+        <path id={segment.id} d={segment.label_path} fill="none" />
+        <text class="sunburst-label" dominant-baseline="central">
+          <textPath href={"##{segment.id}"} startOffset="50%" text-anchor="middle">
+            <%= segment.label %>
+          </textPath>
         </text>
       <% end %>
     </svg>
@@ -587,32 +567,19 @@ defmodule PortfolixirWeb.PortfolioLive do
   @sunburst_inner 22
   @sunburst_outer 66
 
-  # Builds one ring per tree depth plus one outermost ring with the individual
-  # positions (the Portfolio Performance layout). The innermost ring is the
-  # top-level categories; each deeper ring nests its children inside the
-  # parent's angular span (value-weighted on the rolled-up subtree); securities
-  # render as shades of their category's colour. Unassigned holdings get a grey
-  # slice so it reads as a complete circle. Ring widths are derived from the
-  # actual depth so any tree fits the viewBox.
-  defp sunburst_rings(allocation) do
+  # One annular-sector path per node, ring radii derived from the actual tree
+  # depth (categories per level, individual positions outermost) so any tree
+  # fits the viewBox. Zero-size slices (a category kept only for its target)
+  # render nothing.
+  defp sunburst_segments(allocation) do
     nodes = sunburst_nodes(allocation)
     max_depth = nodes |> Enum.map(& &1.depth) |> Enum.max(fn -> 0 end)
     ring_width = (@sunburst_outer - @sunburst_inner) / (max_depth + 1)
 
     nodes
-    |> Enum.group_by(& &1.depth)
-    |> Enum.sort_by(fn {depth, _} -> depth end)
-    |> Enum.map(fn {depth, ring_nodes} ->
-      radius = @sunburst_inner + ring_width * (depth + 0.5)
-      circumference = 2 * :math.pi() * radius
-
-      %{
-        radius: Float.round(radius, 2),
-        stroke: Float.round(ring_width * 0.82, 2),
-        circumference: Float.round(circumference, 2),
-        segments: Enum.map(ring_nodes, &ring_segment(&1, radius, circumference))
-      }
-    end)
+    |> Enum.reject(&(&1.fraction_end - &1.fraction_start < 0.0005))
+    |> Enum.with_index()
+    |> Enum.map(fn {node, index} -> sector_segment(node, index, ring_width) end)
   end
 
   # Lays out each category's arc within its parent's start offset, recursing the
@@ -650,7 +617,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         percent: Format.percent(weight),
         value: Format.money(value),
         depth: 0,
-        opacity: 1.0,
+        opacity: "1.0",
         positions: [],
         fraction_start: last_root_end,
         fraction_end: last_root_end + fraction
@@ -669,7 +636,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           percent: Format.percent(row.actual_weight),
           value: Format.money(row.market_value),
           depth: depth,
-          opacity: 1.0,
+          opacity: "1.0",
           category_id: row.category_id,
           positions: row.positions,
           fraction_start: offset,
@@ -719,7 +686,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           percent: Format.percent(position.weight),
           value: Format.money(position.market_value),
           depth: depth,
-          opacity: Enum.at([0.9, 0.6, 0.42], rem(index, 3)),
+          opacity: Enum.at(["1.0", "0.72", "0.5"], rem(index, 3)),
           fraction_start: offset,
           fraction_end: offset + fraction
         }
@@ -730,47 +697,85 @@ defmodule PortfolixirWeb.PortfolioLive do
     nodes
   end
 
-  # Arc length (in viewBox units) a segment needs before it gets an in-chart
-  # label, and the average character width at the label font size — segments
+  # Arc length (in viewBox units) a slice needs before it gets an in-chart
+  # label, and the average character width at the label font size — slices
   # too small for ~5 characters stay tooltip/tap-only, like PP.
-  @label_min_arc 14.0
+  @label_min_arc 13.0
   @label_char_width 2.6
+  # Radial padding between rings, so the slices read as separated bands.
+  @ring_gap 0.6
 
-  defp ring_segment(node, radius, circumference) do
-    length = (node.fraction_end - node.fraction_start) * circumference
+  defp sector_segment(node, index, ring_width) do
+    r_in = @sunburst_inner + node.depth * ring_width + @ring_gap
+    r_out = @sunburst_inner + (node.depth + 1) * ring_width - @ring_gap
+    r_mid = (r_in + r_out) / 2
+    arc_length = (node.fraction_end - node.fraction_start) * 2 * :math.pi() * r_mid
 
     %{
+      id: "sunburst-seg-#{index}",
       name: node.name,
       color: node.color,
       percent: node.percent,
       value: node.value,
       opacity: node.opacity,
-      length: Float.round(max(length, 0.0), 2),
-      offset: Float.round(node.fraction_start * circumference, 2)
+      path: sector_path(r_in, r_out, node.fraction_start, node.fraction_end)
     }
-    |> put_label(node, radius, length)
+    |> put_label(node, r_mid, arc_length)
   end
 
-  # Tangential label at the segment's mid-angle, flipped on the left half so it
-  # stays readable; truncated to what the arc can fit.
-  defp put_label(segment, node, radius, arc_length) do
+  # Annular sector: outer arc forward, line inward, inner arc back. A slice of
+  # (almost) the full turn keeps a visible notch so the arc endpoints stay
+  # distinct after rounding — equal endpoints make SVG drop the arc entirely.
+  defp sector_path(r_in, r_out, f0, f1) do
+    f1 = min(f1, f0 + 0.9985)
+    large = if f1 - f0 > 0.5, do: 1, else: 0
+    {x0o, y0o} = polar(r_out, f0)
+    {x1o, y1o} = polar(r_out, f1)
+    {x0i, y0i} = polar(r_in, f0)
+    {x1i, y1i} = polar(r_in, f1)
+
+    "M #{x0o} #{y0o} " <>
+      "A #{r2(r_out)} #{r2(r_out)} 0 #{large} 1 #{x1o} #{y1o} " <>
+      "L #{x1i} #{y1i} " <>
+      "A #{r2(r_in)} #{r2(r_in)} 0 #{large} 0 #{x0i} #{y0i} Z"
+  end
+
+  # The label curves along a hidden mid-radius arc (textPath). On the bottom
+  # half the arc runs reversed so the text never stands on its head.
+  defp put_label(segment, node, r_mid, arc_length) do
     if arc_length >= @label_min_arc do
-      mid = (node.fraction_start + node.fraction_end) / 2
-      theta = mid * 2 * :math.pi() - :math.pi() / 2
-      rotation = mid * 360.0
-      rotation = if rotation > 90.0 and rotation < 270.0, do: rotation - 180.0, else: rotation
       max_chars = trunc(arc_length / @label_char_width)
 
       Map.merge(segment, %{
         label: truncate_label(node.name, max_chars),
-        label_x: Float.round(70 + radius * :math.cos(theta), 2),
-        label_y: Float.round(70 + radius * :math.sin(theta), 2),
-        label_rotation: Float.round(rotation, 1)
+        label_path: label_path(r_mid, node.fraction_start, node.fraction_end)
       })
     else
-      Map.merge(segment, %{label: nil, label_x: nil, label_y: nil, label_rotation: nil})
+      Map.merge(segment, %{label: nil, label_path: nil})
     end
   end
+
+  defp label_path(r_mid, f0, f1) do
+    f1 = min(f1, f0 + 0.9985)
+    mid = (f0 + f1) / 2
+    large = if f1 - f0 > 0.5, do: 1, else: 0
+    {x0, y0} = polar(r_mid, f0)
+    {x1, y1} = polar(r_mid, f1)
+
+    if mid > 0.25 and mid < 0.75 do
+      "M #{x1} #{y1} A #{r2(r_mid)} #{r2(r_mid)} 0 #{large} 0 #{x0} #{y0}"
+    else
+      "M #{x0} #{y0} A #{r2(r_mid)} #{r2(r_mid)} 0 #{large} 1 #{x1} #{y1}"
+    end
+  end
+
+  # Fraction of the full turn (0 = twelve o'clock, clockwise) to a point.
+  defp polar(radius, fraction) do
+    theta = fraction * 2 * :math.pi() - :math.pi() / 2
+    {r2(70 + radius * :math.cos(theta)), r2(70 + radius * :math.sin(theta))}
+  end
+
+  defp r2(value), do: Float.round(value * 1.0, 2)
 
   defp truncate_label(name, max_chars) do
     if String.length(name) <= max_chars do
