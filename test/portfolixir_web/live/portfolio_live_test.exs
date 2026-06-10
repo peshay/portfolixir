@@ -184,6 +184,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Two rings: the parent ring and the child ring at different radii.
     assert html =~ ~s(class="donut sunburst")
     assert html =~ ~s(stroke="#10b981")
+    # The outermost ring carries the individual positions as shaded arcs
+    # (PP style): the security name appears as a tooltip title.
+    assert html =~ ~s(stroke-opacity)
+    assert html =~ "Tech ETF"
+    assert html =~ "World ETF"
     # Child row carries the nested class and the sub-category name.
     assert html =~ "is-child"
     assert html =~ "Core Tech"

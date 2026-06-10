@@ -61,7 +61,14 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   defp build(valuation, classification, categories, security_categories, targets) do
     total = valuation.total_value
-    {own_value_by_category, unassigned_value} = group_positions(valuation, security_categories)
+
+    {positions_by_category, unassigned_positions} =
+      group_positions(valuation, security_categories)
+
+    own_value_by_category =
+      Map.new(positions_by_category, fn {category_id, positions} ->
+        {category_id, sum_values(positions)}
+      end)
 
     children_by_parent = Enum.group_by(categories, & &1.parent_id)
     rolled = rolled_values(categories, children_by_parent, own_value_by_category)
@@ -78,6 +85,7 @@ defmodule Portfolixir.Portfolios.Allocation do
           Map.get(own_value_by_category, category.id, @zero),
           Map.get(rolled, category.id, @zero),
           Map.get(targets, category.id),
+          position_entries(Map.get(positions_by_category, category.id, []), total),
           total
         )
       end)
@@ -90,29 +98,47 @@ defmodule Portfolixir.Portfolios.Allocation do
       total_value: total,
       unvalued_count: valuation.unvalued_count,
       categories: rows,
-      unassigned: unassigned(unassigned_value, total)
+      unassigned: unassigned(unassigned_positions, total)
     }
   end
 
-  # Sums each valued position's market value into the category it is directly
-  # assigned to, collecting positions with no assignment into the unassigned pot.
+  # Groups each valued position under the category it is directly assigned to,
+  # collecting positions with no assignment into the unassigned pot.
   defp group_positions(valuation, security_categories) do
     valuation.positions
     |> Enum.filter(& &1.valued)
-    |> Enum.reduce({%{}, @zero}, fn position, {by_category, unassigned} ->
+    |> Enum.reduce({%{}, []}, fn position, {by_category, unassigned} ->
       case Map.get(security_categories, position.security_id) do
         nil ->
-          {by_category, Decimal.add(unassigned, position.market_value)}
+          {by_category, [position | unassigned]}
 
         category_id ->
-          {Map.update(
-             by_category,
-             category_id,
-             position.market_value,
-             &Decimal.add(&1, position.market_value)
-           ), unassigned}
+          {Map.update(by_category, category_id, [position], &[position | &1]), unassigned}
       end
     end)
+  end
+
+  defp sum_values(positions) do
+    Enum.reduce(positions, @zero, &Decimal.add(&2, &1.market_value))
+  end
+
+  # One entry per security (a security held in several depots is merged),
+  # largest first — the per-position breakdown behind a category's own value,
+  # e.g. the outermost sunburst ring.
+  defp position_entries(positions, total) do
+    positions
+    |> Enum.group_by(&{&1.security_id, &1.security_name})
+    |> Enum.map(fn {{security_id, security_name}, grouped} ->
+      value = sum_values(grouped)
+
+      %{
+        security_id: security_id,
+        security_name: security_name,
+        market_value: value,
+        weight: weight(value, total)
+      }
+    end)
+    |> Enum.sort_by(& &1.market_value, {:desc, Decimal})
   end
 
   # Rolled-up value per category = own value + every descendant's own value.
@@ -197,7 +223,7 @@ defmodule Portfolixir.Portfolios.Allocation do
     end)
   end
 
-  defp row(category, depth, own_value, rolled_value, target, total) do
+  defp row(category, depth, own_value, rolled_value, target, positions, total) do
     actual = weight(rolled_value, total)
     target_weight = target || @zero
     drift_weight = Decimal.sub(target_weight, actual)
@@ -213,13 +239,20 @@ defmodule Portfolixir.Portfolios.Allocation do
       actual_weight: actual,
       target_weight: target_weight,
       drift_weight: drift_weight,
-      drift_value: Decimal.mult(drift_weight, total)
+      drift_value: Decimal.mult(drift_weight, total),
+      positions: positions
     }
   end
 
-  defp unassigned(value, total) do
+  defp unassigned(positions, total) do
+    value = sum_values(positions)
+
     if positive?(value) do
-      %{market_value: value, actual_weight: weight(value, total)}
+      %{
+        market_value: value,
+        actual_weight: weight(value, total),
+        positions: position_entries(positions, total)
+      }
     else
       nil
     end

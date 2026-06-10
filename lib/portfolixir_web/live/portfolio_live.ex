@@ -436,6 +436,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               r={ring.radius}
               fill="none"
               stroke={segment.color}
+              stroke-opacity={segment.opacity}
               stroke-width={ring.stroke}
               stroke-dasharray={"#{segment.length} #{ring.circumference}"}
               stroke-dashoffset={-segment.offset}
@@ -537,11 +538,13 @@ defmodule PortfolixirWeb.PortfolioLive do
   @sunburst_inner 22
   @sunburst_outer 66
 
-  # Builds one ring per tree depth. The innermost ring is the top-level
-  # categories; each deeper ring nests its children inside the parent's angular
-  # span (value-weighted on the rolled-up subtree). Unassigned holdings get a
-  # grey slice on the inner ring so it reads as a complete circle. Ring widths
-  # are derived from the actual depth so any tree fits the viewBox.
+  # Builds one ring per tree depth plus one outermost ring with the individual
+  # positions (the Portfolio Performance layout). The innermost ring is the
+  # top-level categories; each deeper ring nests its children inside the
+  # parent's angular span (value-weighted on the rolled-up subtree); securities
+  # render as shades of their category's colour. Unassigned holdings get a grey
+  # slice so it reads as a complete circle. Ring widths are derived from the
+  # actual depth so any tree fits the viewBox.
   defp sunburst_rings(allocation) do
     nodes = sunburst_nodes(allocation)
     max_depth = nodes |> Enum.map(& &1.depth) |> Enum.max(fn -> 0 end)
@@ -565,37 +568,47 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # Lays out each category's arc within its parent's start offset, recursing the
   # kept tree so children sit under their parent; the unassigned remainder is a
-  # top-level grey node. Offsets are kept as a fraction of the full turn so each
+  # top-level grey node. A category's directly-held securities sit in the
+  # trailing part of its span (children occupy the leading part), all on one
+  # outermost ring. Offsets are kept as a fraction of the full turn so each
   # ring scales them to its own circumference.
   defp sunburst_nodes(allocation) do
     by_parent = Enum.group_by(allocation.categories, & &1.parent_id)
-    roots = layout_level(Map.get(by_parent, nil, []), by_parent, 0.0, 0)
+    roots = layout_level(Map.get(by_parent, nil, []), 0.0, 0)
+    category_nodes = roots ++ layout_children(roots, by_parent)
+    unassigned_node = unassigned_node(allocation.unassigned, roots)
 
-    unassigned =
-      case allocation.unassigned do
-        nil ->
-          []
+    max_depth = category_nodes |> Enum.map(& &1.depth) |> Enum.max(fn -> 0 end)
+    security_depth = max_depth + 1
 
-        %{actual_weight: weight} ->
-          fraction = Decimal.to_float(weight)
-          last_root_end = roots |> Enum.map(& &1.fraction_end) |> Enum.max(fn -> 0.0 end)
+    securities =
+      security_nodes(category_nodes, security_depth) ++
+        unassigned_security_nodes(allocation.unassigned, unassigned_node, security_depth)
 
-          [
-            %{
-              name: gettext("Unsorted"),
-              color: @unassigned_color,
-              percent: Format.percent(weight),
-              depth: 0,
-              fraction_start: last_root_end,
-              fraction_end: last_root_end + fraction
-            }
-          ]
-      end
-
-    roots ++ layout_children(roots, by_parent) ++ unassigned
+    category_nodes ++ unassigned_node ++ securities
   end
 
-  defp layout_level(rows, _by_parent, start_fraction, depth) do
+  defp unassigned_node(nil, _roots), do: []
+
+  defp unassigned_node(%{actual_weight: weight}, roots) do
+    fraction = Decimal.to_float(weight)
+    last_root_end = roots |> Enum.map(& &1.fraction_end) |> Enum.max(fn -> 0.0 end)
+
+    [
+      %{
+        name: gettext("Unsorted"),
+        color: @unassigned_color,
+        percent: Format.percent(weight),
+        depth: 0,
+        opacity: 1.0,
+        positions: [],
+        fraction_start: last_root_end,
+        fraction_end: last_root_end + fraction
+      }
+    ]
+  end
+
+  defp layout_level(rows, start_fraction, depth) do
     {nodes, _} =
       Enum.map_reduce(rows, start_fraction, fn row, offset ->
         fraction = Decimal.to_float(row.actual_weight)
@@ -605,7 +618,9 @@ defmodule PortfolixirWeb.PortfolioLive do
           color: row.color || @fallback_color,
           percent: Format.percent(row.actual_weight),
           depth: depth,
+          opacity: 1.0,
           category_id: row.category_id,
+          positions: row.positions,
           fraction_start: offset,
           fraction_end: offset + fraction
         }
@@ -619,12 +634,48 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp layout_children(parent_nodes, by_parent) do
     Enum.flat_map(parent_nodes, fn parent ->
       children_rows = Map.get(by_parent, parent.category_id, [])
-
-      child_nodes =
-        layout_level(children_rows, by_parent, parent.fraction_start, parent.depth + 1)
-
+      child_nodes = layout_level(children_rows, parent.fraction_start, parent.depth + 1)
       child_nodes ++ layout_children(child_nodes, by_parent)
     end)
+  end
+
+  # The PP-style outermost ring: each category's direct positions, placed in
+  # the trailing remainder of the category's span (its children occupy the
+  # leading part), shaded by cycling opacity on the category colour.
+  defp security_nodes(category_nodes, depth) do
+    Enum.flat_map(category_nodes, fn node ->
+      own_fraction = node.positions |> Enum.map(&Decimal.to_float(&1.weight)) |> Enum.sum()
+      layout_positions(node.positions, node.fraction_end - own_fraction, node.color, depth)
+    end)
+  end
+
+  defp unassigned_security_nodes(nil, _nodes, _depth), do: []
+
+  defp unassigned_security_nodes(%{positions: positions}, [node], depth) do
+    layout_positions(positions, node.fraction_start, @unassigned_color, depth)
+  end
+
+  defp layout_positions(positions, start_fraction, color, depth) do
+    {nodes, _} =
+      positions
+      |> Enum.with_index()
+      |> Enum.map_reduce(start_fraction, fn {position, index}, offset ->
+        fraction = Decimal.to_float(position.weight)
+
+        node = %{
+          name: position.security_name || "?",
+          color: color,
+          percent: Format.percent(position.weight),
+          depth: depth,
+          opacity: Enum.at([0.9, 0.6, 0.42], rem(index, 3)),
+          fraction_start: offset,
+          fraction_end: offset + fraction
+        }
+
+        {node, offset + fraction}
+      end)
+
+    nodes
   end
 
   defp ring_segment(node, circumference) do
@@ -634,6 +685,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       name: node.name,
       color: node.color,
       percent: node.percent,
+      opacity: node.opacity,
       length: Float.round(max(length, 0.0), 2),
       offset: Float.round(node.fraction_start * circumference, 2)
     }

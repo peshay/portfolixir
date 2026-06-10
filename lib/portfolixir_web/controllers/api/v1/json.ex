@@ -275,7 +275,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       actual_weight: decimal(category.actual_weight),
       target_weight: decimal(category.target_weight),
       drift_weight: decimal(category.drift_weight),
-      drift_value: decimal(category.drift_value)
+      drift_value: decimal(category.drift_value),
+      positions: Enum.map(category.positions, &allocation_position/1)
+    }
+  end
+
+  defp allocation_position(position) do
+    %{
+      security_id: position.security_id,
+      security_name: position.security_name,
+      market_value: decimal(position.market_value),
+      weight: decimal(position.weight)
     }
   end
 
@@ -284,7 +294,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   defp allocation_unassigned(unassigned) do
     %{
       market_value: decimal(unassigned.market_value),
-      actual_weight: decimal(unassigned.actual_weight)
+      actual_weight: decimal(unassigned.actual_weight),
+      positions: Enum.map(unassigned.positions, &allocation_position/1)
     }
   end
 
