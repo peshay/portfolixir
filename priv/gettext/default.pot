@@ -1962,3 +1962,6 @@ msgstr ""
 
 msgid "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import."
 msgstr ""
+
+msgid "Tap or hover a slice for details."
+msgstr ""
