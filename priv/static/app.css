@@ -3822,14 +3822,6 @@ details[open] > .cat-summary::before {
 .sunburst-seg:hover {
   filter: brightness(1.15);
 }
-.sunburst-label {
-  font-size: 4.3px;
-  fill: #fff;
-  stroke: rgba(0, 0, 0, 0.45);
-  stroke-width: 0.5px;
-  paint-order: stroke;
-  pointer-events: none;
-}
 .sunburst-pane {
   display: flex;
   flex-direction: column;

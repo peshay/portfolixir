@@ -428,7 +428,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Concentric rings of annular-sector paths: the innermost ring is the
   # top-level categories, each further ring breaks one level down, the
   # outermost ring shows the individual positions (Portfolio Performance's
-  # sunburst). Labels curve along their arc via textPath. Every slice shows a
+  # sunburst). Like PP the slices carry no in-chart text; every slice shows a
   # hover tooltip and is tappable — `select_segment` echoes the slice below
   # the chart, which is the mobile substitute for hover.
   defp allocation_sunburst(assigns) do
@@ -449,14 +449,6 @@ defmodule PortfolixirWeb.PortfolioLive do
         >
           <title><%= segment.name %> · <%= segment.percent %>%</title>
         </path>
-      <% end %>
-      <%= for segment <- @segments, segment.label do %>
-        <path id={segment.id} d={segment.label_path} fill="none" />
-        <text class="sunburst-label" dominant-baseline="central">
-          <textPath href={"##{segment.id}"} startOffset="50%" text-anchor="middle">
-            <%= segment.label %>
-          </textPath>
-        </text>
       <% end %>
     </svg>
     """
@@ -578,8 +570,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     nodes
     |> Enum.reject(&(&1.fraction_end - &1.fraction_start < 0.0005))
-    |> Enum.with_index()
-    |> Enum.map(fn {node, index} -> sector_segment(node, index, ring_width) end)
+    |> Enum.map(&sector_segment(&1, ring_width))
   end
 
   # Lays out each category's arc within its parent's start offset, recursing the
@@ -697,22 +688,14 @@ defmodule PortfolixirWeb.PortfolioLive do
     nodes
   end
 
-  # Arc length (in viewBox units) a slice needs before it gets an in-chart
-  # label, and the average character width at the label font size — slices
-  # too small for ~5 characters stay tooltip/tap-only, like PP.
-  @label_min_arc 13.0
-  @label_char_width 2.6
   # Radial padding between rings, so the slices read as separated bands.
   @ring_gap 0.6
 
-  defp sector_segment(node, index, ring_width) do
+  defp sector_segment(node, ring_width) do
     r_in = @sunburst_inner + node.depth * ring_width + @ring_gap
     r_out = @sunburst_inner + (node.depth + 1) * ring_width - @ring_gap
-    r_mid = (r_in + r_out) / 2
-    arc_length = (node.fraction_end - node.fraction_start) * 2 * :math.pi() * r_mid
 
     %{
-      id: "sunburst-seg-#{index}",
       name: node.name,
       color: node.color,
       percent: node.percent,
@@ -720,7 +703,6 @@ defmodule PortfolixirWeb.PortfolioLive do
       opacity: node.opacity,
       path: sector_path(r_in, r_out, node.fraction_start, node.fraction_end)
     }
-    |> put_label(node, r_mid, arc_length)
   end
 
   # Annular sector: outer arc forward, line inward, inner arc back. A slice of
@@ -740,35 +722,6 @@ defmodule PortfolixirWeb.PortfolioLive do
       "A #{r2(r_in)} #{r2(r_in)} 0 #{large} 0 #{x0i} #{y0i} Z"
   end
 
-  # The label curves along a hidden mid-radius arc (textPath). On the bottom
-  # half the arc runs reversed so the text never stands on its head.
-  defp put_label(segment, node, r_mid, arc_length) do
-    if arc_length >= @label_min_arc do
-      max_chars = trunc(arc_length / @label_char_width)
-
-      Map.merge(segment, %{
-        label: truncate_label(node.name, max_chars),
-        label_path: label_path(r_mid, node.fraction_start, node.fraction_end)
-      })
-    else
-      Map.merge(segment, %{label: nil, label_path: nil})
-    end
-  end
-
-  defp label_path(r_mid, f0, f1) do
-    f1 = min(f1, f0 + 0.9985)
-    mid = (f0 + f1) / 2
-    large = if f1 - f0 > 0.5, do: 1, else: 0
-    {x0, y0} = polar(r_mid, f0)
-    {x1, y1} = polar(r_mid, f1)
-
-    if mid > 0.25 and mid < 0.75 do
-      "M #{x1} #{y1} A #{r2(r_mid)} #{r2(r_mid)} 0 #{large} 0 #{x0} #{y0}"
-    else
-      "M #{x0} #{y0} A #{r2(r_mid)} #{r2(r_mid)} 0 #{large} 1 #{x1} #{y1}"
-    end
-  end
-
   # Fraction of the full turn (0 = twelve o'clock, clockwise) to a point.
   defp polar(radius, fraction) do
     theta = fraction * 2 * :math.pi() - :math.pi() / 2
@@ -776,14 +729,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp r2(value), do: Float.round(value * 1.0, 2)
-
-  defp truncate_label(name, max_chars) do
-    if String.length(name) <= max_chars do
-      name
-    else
-      String.slice(name, 0, max(max_chars - 1, 1)) <> "…"
-    end
-  end
 
   # The legend lists the top-level categories (plus unassigned) only, so it
   # stays readable when a tree has many leaves.
