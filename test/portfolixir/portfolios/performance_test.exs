@@ -20,6 +20,14 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
   # - Dividends count as return.
   # - Periods (ytd/1y/3y/5y/max) chain only the days inside the period,
   #   starting from the value just before the period.
+  # - A security without quotes is priced at the latest own trade price until
+  #   a quote exists, so imported portfolios are not valued at zero.
+  # - Bookings with implausible dates (before 1970, e.g. a 0217 import typo)
+  #   are applied on the first plausible day instead of walking centuries,
+  #   and are reported as suspect_dates.
+  # - A day with a zero-or-negative return base contributes no return.
+  # - analysis/2 + summarise/2 equals for_portfolio/2, so the UI can cache
+  #   the daily walk and switch periods without recomputing.
 
   defp setup_world do
     {:ok, portfolio} = Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
@@ -177,5 +185,101 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
 
     assert {:error, :invalid_period} =
              Performance.for_portfolio(world.portfolio.id, period: "2w")
+  end
+
+  test "prices an unquoted security at the latest own trade price" do
+    world = setup_world()
+
+    # No quote exists: the buy itself is the price observation, so the
+    # position is worth its cost and the chain shows no phantom loss.
+    deposit!(world, "1000", ~D[2026-01-01])
+    buy!(world, "10", "100", ~D[2026-01-01])
+
+    {:ok, flat} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-05])
+
+    assert Decimal.equal?(flat.end_value, Decimal.new("1000"))
+    assert Decimal.equal?(flat.ttwror, Decimal.new("0"))
+
+    # Once a quote appears it wins over the stale trade price.
+    quote!(world, "120", ~D[2026-01-10])
+
+    {:ok, quoted} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10])
+
+    assert Decimal.equal?(quoted.end_value, Decimal.new("1200"))
+    assert rounded(quoted.ttwror, 6) |> Decimal.equal?(Decimal.new("0.2"))
+  end
+
+  test "applies implausibly dated bookings on the first plausible day" do
+    world = setup_world()
+
+    # A PP export typo: year 0217 instead of 2017. Walking from year 0217
+    # would mean ~660,000 daily steps — the walk must start at the first
+    # plausible booking instead, with the ancient cash effect preserved.
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "removal",
+        date: ~D[0217-12-05],
+        gross_amount: "300",
+        currency_code: "EUR"
+      })
+
+    deposit!(world, "1000", ~D[2026-01-01])
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10])
+
+    assert result.start_date == ~D[2026-01-01]
+    assert length(result.series) == 10
+    assert result.suspect_dates == [~D[0217-12-05]]
+    # Both flows land on the first day: 1000 in, 300 out, no return.
+    assert Decimal.equal?(result.end_value, Decimal.new("700"))
+    assert Decimal.equal?(result.net_external_flows, Decimal.new("700"))
+    assert Decimal.equal?(result.ttwror, Decimal.new("0"))
+  end
+
+  test "a day with a zero-or-negative return base contributes no return" do
+    world = setup_world()
+
+    deposit!(world, "100", ~D[2026-01-01])
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "removal",
+        date: ~D[2026-01-02],
+        gross_amount: "200",
+        currency_code: "EUR"
+      })
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-05])
+
+    # Overdrawn data (value -100) must not explode the chain.
+    assert Decimal.equal?(result.end_value, Decimal.new("-100"))
+    assert Decimal.equal?(result.ttwror, Decimal.new("0"))
+  end
+
+  test "analysis plus summarise equals for_portfolio for every period" do
+    world = setup_world()
+
+    deposit!(world, "1000", ~D[2025-12-01])
+    buy!(world, "10", "100", ~D[2025-12-01])
+    quote!(world, "100", ~D[2025-12-01])
+    quote!(world, "110", ~D[2025-12-31])
+    quote!(world, "121", ~D[2026-01-20])
+
+    analysis = Performance.analysis(world.portfolio.id, today: ~D[2026-01-20])
+
+    for period <- Performance.periods() do
+      {:ok, from_analysis} = Performance.summarise(analysis, period)
+
+      {:ok, direct} =
+        Performance.for_portfolio(world.portfolio.id, period: period, today: ~D[2026-01-20])
+
+      assert from_analysis == direct
+    end
+
+    assert {:error, :invalid_period} = Performance.summarise(analysis, "2w")
   end
 end

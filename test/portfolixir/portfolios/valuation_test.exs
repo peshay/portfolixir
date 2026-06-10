@@ -18,8 +18,12 @@ defmodule Portfolixir.Portfolios.ValuationTest do
   # - Each held position carries a market value (quantity x latest close).
   # - The portfolio total equals the sum of the valued positions' market values.
   # - Actual weights of the valued positions sum to 1.
-  # - A held position without any quote is reported as unvalued (nil market
-  #   value and weight) and does not break the total or the weights.
+  # - A held position without a quote falls back to the latest own trade price
+  #   (price_source :trade), like Portfolio Performance seeds prices from
+  #   bookings, so a freshly imported portfolio is not valued at zero.
+  # - A held position with neither quote nor trade price is reported as
+  #   unvalued (nil market value and weight) and does not break the total or
+  #   the weights.
 
   defp setup_world do
     {:ok, portfolio} =
@@ -86,32 +90,57 @@ defmodule Portfolixir.Portfolios.ValuationTest do
     equity = create_security!("Apple Inc.", "AAPL", "equity")
     etf = create_security!("World ETF", "EUNL", "etf")
     no_quote = create_security!("Quiet Co.", "QUIET", "equity")
+    no_price = create_security!("Delivered Co.", "DLVR", "equity")
 
     buy!(world, equity, "10", "80")
     buy!(world, etf, "5", "150")
-    buy!(world, no_quote, "3", "50")
+    buy!(world, no_quote, "10", "50")
+
+    # Held via delivery only: no quote and no own trade price exists.
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: no_price.id,
+        type: "inbound_delivery",
+        date: ~D[2026-01-02],
+        quantity: "7",
+        currency_code: "EUR"
+      })
 
     put_quote!(equity, "100")
     put_quote!(etf, "200")
 
     valuation = Valuation.for_portfolio(world.portfolio.id)
 
-    assert Decimal.equal?(valuation.total_value, Decimal.new("2000"))
+    # 1000 (quote) + 1000 (quote) + 500 (latest trade price fallback).
+    assert Decimal.equal?(valuation.total_value, Decimal.new("2500"))
 
     by_security = Map.new(valuation.positions, &{&1.security_id, &1})
 
     equity_row = by_security[equity.id]
     etf_row = by_security[etf.id]
-    unvalued_row = by_security[no_quote.id]
+    trade_row = by_security[no_quote.id]
+    unvalued_row = by_security[no_price.id]
 
     assert Decimal.equal?(equity_row.market_value, Decimal.new("1000"))
-    assert Decimal.equal?(equity_row.weight, Decimal.new("0.5"))
+    assert Decimal.equal?(equity_row.weight, Decimal.new("0.4"))
+    assert equity_row.price_source == :quote
     assert Decimal.equal?(etf_row.market_value, Decimal.new("1000"))
-    assert Decimal.equal?(etf_row.weight, Decimal.new("0.5"))
+    assert Decimal.equal?(etf_row.weight, Decimal.new("0.4"))
+
+    assert trade_row.valued
+    assert trade_row.price_source == :trade
+    assert Decimal.equal?(trade_row.market_value, Decimal.new("500"))
+    assert Decimal.equal?(trade_row.weight, Decimal.new("0.2"))
 
     refute unvalued_row.valued
+    assert is_nil(unvalued_row.price_source)
     assert is_nil(unvalued_row.market_value)
     assert is_nil(unvalued_row.weight)
+
+    assert valuation.trade_priced_count == 1
+    assert valuation.unvalued_count == 1
 
     valued_weights =
       valuation.positions
