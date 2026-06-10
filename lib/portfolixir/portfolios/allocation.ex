@@ -187,7 +187,9 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   # Depth-first preorder (parent before children), each level kept in the
   # categories' own position order, tagging every node with its depth.
-  defp preorder(children_by_parent, parent_id \\ nil, depth \\ 0) do
+  defp preorder(children_by_parent), do: preorder(children_by_parent, nil, 0)
+
+  defp preorder(children_by_parent, parent_id, depth) do
     children_by_parent
     |> Map.get(parent_id, [])
     |> Enum.flat_map(fn category ->
