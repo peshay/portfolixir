@@ -3,6 +3,10 @@
 Keep changes small, tested first, and aligned with the local portfolio tracking
 workflow.
 
+All repository artifacts — issues, pull requests, commit messages, ADRs, code
+comments, and documentation — are written in English. Translated end-user
+documentation keeps English as the source baseline.
+
 ## Active Scope
 
 Portfolixir currently focuses on:
