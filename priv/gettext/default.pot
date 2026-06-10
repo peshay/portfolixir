@@ -1944,3 +1944,21 @@ msgstr ""
 
 msgid "Max"
 msgstr ""
+
+msgid "Calculating…"
+msgstr ""
+
+msgid "Couldn't load the portfolio figures."
+msgstr ""
+
+msgid "Data quality"
+msgstr ""
+
+msgid "%{count} held positions have no current quote and are valued at their last trade price."
+msgstr ""
+
+msgid "%{count} held positions have no price at all and are missing from the totals:"
+msgstr ""
+
+msgid "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import."
+msgstr ""

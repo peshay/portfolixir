@@ -163,8 +163,23 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc false
+  # One supervised task syncs the batch sequentially. Spawning a task per
+  # security (a large import creates hundreds) floods the provider and
+  # exhausts the DB connection pool — page loads right after an import then
+  # time out with 500s. Logos already queue through the LogoDiscovery server.
   def enrich_security_ids_async(ids) when is_list(ids) do
-    Enum.each(ids, &enrich_security_async/1)
+    if quote_enrichment_enabled?() and ids != [] do
+      Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
+        Enum.each(ids, fn id ->
+          case get_security(id) do
+            %Security{} = security -> QuoteSync.sync_security(security)
+            nil -> :ok
+          end
+        end)
+      end)
+    end
+
+    if logo_enrichment_enabled?(), do: LogoDiscovery.enqueue_security_ids(ids)
     :ok
   end
 

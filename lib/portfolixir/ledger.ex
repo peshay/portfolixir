@@ -7,10 +7,10 @@ defmodule Portfolixir.Ledger do
   plus the cash-, dividend-, fee-, tax- and transfer-flavoured events
   required to ingest external exports.
 
-  Holdings (`positions_for_portfolio/1`, `holdings_for_security/2`) and
-  the FIFO trade matcher consider only the `buy`/`sell` kinds; the other
-  kinds change cash balance or move shares without re-pricing existing
-  lots.
+  Position quantities (`positions_for_portfolio/1`) move with trades,
+  deliveries and security transfers; the moving-average holdings view and
+  the FIFO trade matcher consider only the priced `buy`/`sell` kinds — the
+  remaining kinds change cash balance without re-pricing existing lots.
   """
 
   import Ecto.Query
@@ -503,6 +503,27 @@ defmodule Portfolixir.Ledger do
     portfolio_id
     |> list_transactions_for_portfolio()
     |> Positions.calculate()
+  end
+
+  @doc """
+  The most recent own trade price per security in one portfolio.
+
+  A buy or sell is a price observation; the valuation and the performance
+  walk fall back to it when a security has no quote yet (Portfolio
+  Performance seeds prices from bookings the same way). Returns
+  `%{security_id => %{price: Decimal, currency: String.t(), date: Date.t()}}`.
+  """
+  def latest_trade_prices(portfolio_id) when is_integer(portfolio_id) do
+    Repo.all(
+      from(t in Transaction,
+        where:
+          t.portfolio_id == ^portfolio_id and t.type in ["buy", "sell"] and not is_nil(t.price),
+        order_by: [asc: t.security_id, desc: t.date, desc: t.id],
+        distinct: t.security_id,
+        select: {t.security_id, %{price: t.price, currency: t.currency_code, date: t.date}}
+      )
+    )
+    |> Map.new()
   end
 
   defp ordered_transactions do

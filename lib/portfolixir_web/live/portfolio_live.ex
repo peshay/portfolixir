@@ -4,6 +4,13 @@ defmodule PortfolixirWeb.PortfolioLive do
   periods, the value-weighted allocation donut with SOLL/IST drift, and a
   set-balance form for cash snapshots (ADR-0009/0010). All figures come from
   the same derived reads the API exposes.
+
+  The heavy reads run as async assigns after the socket connects: the page
+  paints immediately and each section fills in when its data arrives. The
+  daily performance walk is computed once (`Performance.analysis/2`) and
+  cached on the socket — switching periods is a pure re-chain of that series,
+  so the buttons respond instantly. The chart is downsampled to a bounded
+  number of points before it hits the DOM.
   """
 
   use PortfolixirWeb, :live_view
@@ -15,11 +22,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Format
 
   @donut_radius 48
   @donut_circumference 2 * :math.pi() * @donut_radius
   @unassigned_color "#9ca3af"
   @fallback_color "#6b7280"
+  @chart_max_points 400
+  @unpriced_names_shown 6
 
   @impl true
   def mount(_params, _session, socket) do
@@ -43,12 +53,73 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:classifications, classifications)
           |> assign(:period, "max")
           |> assign(:classification_id, default_classification_id(classifications))
-          |> reload_valuation()
-          |> reload_performance()
-          |> reload_allocation()
+          |> assign(:valuation, nil)
+          |> assign(:allocation, nil)
+          |> assign(:analysis, nil)
+          |> assign(:performance, nil)
+          |> start_loading()
 
         {:ok, socket}
     end
+  end
+
+  # The dead render ships skeletons only; the expensive reads start once the
+  # socket is connected, so the page paints fast and is computed exactly once.
+  defp start_loading(socket) do
+    if connected?(socket) do
+      socket
+      |> load_overview()
+      |> load_performance()
+    else
+      socket
+    end
+  end
+
+  defp load_overview(socket) do
+    portfolio_id = socket.assigns.portfolio.id
+    classification_id = socket.assigns.classification_id
+
+    start_async(socket, :overview, fn ->
+      valuation = Valuation.for_portfolio(portfolio_id)
+      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id)
+      {valuation, allocation}
+    end)
+  end
+
+  defp load_allocation(socket) do
+    portfolio_id = socket.assigns.portfolio.id
+    classification_id = socket.assigns.classification_id
+
+    start_async(socket, :allocation, fn ->
+      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id)
+      allocation
+    end)
+  end
+
+  defp load_performance(socket) do
+    portfolio_id = socket.assigns.portfolio.id
+
+    start_async(socket, :performance, fn ->
+      Performance.analysis(portfolio_id)
+    end)
+  end
+
+  @impl true
+  def handle_async(:overview, {:ok, {valuation, allocation}}, socket) do
+    {:noreply, assign(socket, valuation: valuation, allocation: allocation)}
+  end
+
+  def handle_async(:allocation, {:ok, allocation}, socket) do
+    {:noreply, assign(socket, :allocation, allocation)}
+  end
+
+  def handle_async(:performance, {:ok, analysis}, socket) do
+    {:ok, performance} = Performance.summarise(analysis, socket.assigns.period)
+    {:noreply, assign(socket, analysis: analysis, performance: performance)}
+  end
+
+  def handle_async(_name, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, :error, gettext("Couldn't load the portfolio figures."))}
   end
 
   @impl true
@@ -84,24 +155,34 @@ defmodule PortfolixirWeb.PortfolioLive do
         <section class="workspace-section grid" aria-label={gettext("Portfolio key figures")}>
           <article id="kpi-total" class="stat">
             <span><%= gettext("Total incl. cash") %></span>
-            <strong><%= money(@valuation.total_with_cash) %> <%= @valuation.base_currency %></strong>
+            <strong :if={@valuation}>
+              <%= Format.money(@valuation.total_with_cash) %> <%= @valuation.base_currency %>
+            </strong>
+            <strong :if={is_nil(@valuation)}>…</strong>
           </article>
           <article id="kpi-securities" class="stat">
             <span><%= gettext("Securities") %></span>
-            <strong><%= money(@valuation.total_value) %> <%= @valuation.base_currency %></strong>
+            <strong :if={@valuation}>
+              <%= Format.money(@valuation.total_value) %> <%= @valuation.base_currency %>
+            </strong>
+            <strong :if={is_nil(@valuation)}>…</strong>
           </article>
           <article id="kpi-cash" class="stat">
             <span><%= gettext("Cash") %> · <%= gettext("cash quote") %></span>
-            <strong>
-              <%= money(@valuation.total_cash) %> <%= @valuation.base_currency %>
-              · <%= percent(@valuation.cash_quote) %>%
+            <strong :if={@valuation}>
+              <%= Format.money(@valuation.total_cash) %> <%= @valuation.base_currency %>
+              · <%= Format.percent(@valuation.cash_quote) %>%
             </strong>
+            <strong :if={is_nil(@valuation)}>…</strong>
           </article>
           <article id="kpi-ttwror" class="stat">
             <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
-            <strong><%= percent(@performance.ttwror) %>%</strong>
+            <strong :if={@performance}><%= Format.percent(@performance.ttwror) %>%</strong>
+            <strong :if={is_nil(@performance)}>…</strong>
           </article>
         </section>
+
+        <.data_quality valuation={@valuation} analysis={@analysis} />
 
         <section id="portfolio-performance" class="workspace-section">
           <header class="section-head">
@@ -119,13 +200,17 @@ defmodule PortfolixirWeb.PortfolioLive do
               <% end %>
             </div>
           </header>
-          <.performance_chart series={@performance.series} />
-          <p class="hint">
-            <%= gettext("True time-weighted return; deposits and withdrawals are neutralised.") %>
-            <%= if @performance.start_date do %>
-              <%= @performance.start_date %> – <%= @performance.end_date %>
-            <% end %>
-          </p>
+          <%= if @performance do %>
+            <.performance_chart series={downsample(@performance.series)} />
+            <p class="hint">
+              <%= gettext("True time-weighted return; deposits and withdrawals are neutralised.") %>
+              <%= if @performance.start_date do %>
+                <%= @performance.start_date %> – <%= @performance.end_date %>
+              <% end %>
+            </p>
+          <% else %>
+            <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
+          <% end %>
         </section>
 
         <section id="portfolio-allocation" class="workspace-section">
@@ -145,94 +230,105 @@ defmodule PortfolixirWeb.PortfolioLive do
             </form>
           </header>
 
-          <div class="donut-wrap">
-            <.allocation_donut segments={donut_segments(@allocation)} />
-            <ul class="donut-legend">
-              <%= for segment <- donut_segments(@allocation) do %>
-                <li>
-                  <span class="cat-swatch" style={"background:#{segment.color}"} aria-hidden="true">
-                  </span>
-                  <span class="legend-name"><%= segment.name %></span>
-                  <span class="legend-value"><%= segment.percent %>%</span>
-                </li>
-              <% end %>
-            </ul>
-          </div>
+          <%= if @allocation do %>
+            <div class="donut-wrap">
+              <.allocation_donut segments={donut_segments(@allocation)} />
+              <ul class="donut-legend">
+                <%= for segment <- donut_segments(@allocation) do %>
+                  <li>
+                    <span class="cat-swatch" style={"background:#{segment.color}"} aria-hidden="true">
+                    </span>
+                    <span class="legend-name"><%= segment.name %></span>
+                    <span class="legend-value"><%= segment.percent %>%</span>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
 
-          <table class="drift-table">
-            <thead>
-              <tr>
-                <th><%= gettext("Category") %></th>
-                <th><%= gettext("Value") %></th>
-                <th><%= gettext("Actual") %></th>
-                <th><%= gettext("Target") %></th>
-                <th><%= gettext("Drift") %></th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for row <- @allocation.categories do %>
+            <table class="drift-table">
+              <thead>
                 <tr>
-                  <td><%= row.name %></td>
-                  <td><%= money(row.market_value) %></td>
-                  <td><%= percent(row.actual_weight) %>%</td>
-                  <td><%= percent(row.target_weight) %>%</td>
-                  <td><%= money(row.drift_value) %> <%= @valuation.base_currency %></td>
+                  <th><%= gettext("Category") %></th>
+                  <th><%= gettext("Value") %></th>
+                  <th><%= gettext("Actual") %></th>
+                  <th><%= gettext("Target") %></th>
+                  <th><%= gettext("Drift") %></th>
                 </tr>
-              <% end %>
-              <%= if @allocation.unassigned do %>
-                <tr class="is-muted">
-                  <td><%= gettext("Unassigned") %></td>
-                  <td><%= money(@allocation.unassigned.market_value) %></td>
-                  <td><%= percent(@allocation.unassigned.actual_weight) %>%</td>
-                  <td>—</td>
-                  <td>—</td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <%= for row <- @allocation.categories do %>
+                  <tr>
+                    <td><%= row.name %></td>
+                    <td><%= Format.money(row.market_value) %></td>
+                    <td><%= Format.percent(row.actual_weight) %>%</td>
+                    <td><%= Format.percent(row.target_weight) %>%</td>
+                    <td>
+                      <%= Format.money(row.drift_value) %>
+                      <%= if @valuation, do: @valuation.base_currency %>
+                    </td>
+                  </tr>
+                <% end %>
+                <%= if @allocation.unassigned do %>
+                  <tr class="is-muted">
+                    <td><%= gettext("Unassigned") %></td>
+                    <td><%= Format.money(@allocation.unassigned.market_value) %></td>
+                    <td><%= Format.percent(@allocation.unassigned.actual_weight) %>%</td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% else %>
+            <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
+          <% end %>
         </section>
 
         <section id="portfolio-cash" class="workspace-section">
           <h2><%= gettext("Cash accounts") %></h2>
-          <table class="cash-table">
-            <thead>
-              <tr>
-                <th><%= gettext("Account") %></th>
-                <th><%= gettext("Balance") %></th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for cash <- @valuation.cash_balances do %>
+          <%= if @valuation do %>
+            <table class="cash-table">
+              <thead>
                 <tr>
-                  <td><%= cash.name %></td>
-                  <td><%= money(cash.balance) %> <%= cash.currency %></td>
+                  <th><%= gettext("Account") %></th>
+                  <th><%= gettext("Balance") %></th>
                 </tr>
-              <% end %>
-            </tbody>
-          </table>
-
-          <form phx-submit="set_balance" class="inline-form balance-form">
-            <label>
-              <span><%= gettext("Account") %></span>
-              <select name="balance[cash_account_id]">
+              </thead>
+              <tbody>
                 <%= for cash <- @valuation.cash_balances do %>
-                  <option value={cash.cash_account_id}><%= cash.name %></option>
+                  <tr>
+                    <td><%= cash.name %></td>
+                    <td><%= Format.money(cash.balance) %> <%= cash.currency %></td>
+                  </tr>
                 <% end %>
-              </select>
-            </label>
-            <label>
-              <span><%= gettext("Date") %></span>
-              <input type="date" name="balance[date]" value={Date.to_iso8601(Date.utc_today())} />
-            </label>
-            <label>
-              <span><%= gettext("Balance") %></span>
-              <input name="balance[amount]" inputmode="decimal" required placeholder="4250.00" />
-            </label>
-            <button type="submit"><%= gettext("Set balance") %></button>
-          </form>
-          <p class="hint">
-            <%= gettext("State the balance your bank shows; only later bookings adjust it.") %>
-          </p>
+              </tbody>
+            </table>
+
+            <form phx-submit="set_balance" class="inline-form balance-form">
+              <label>
+                <span><%= gettext("Account") %></span>
+                <select name="balance[cash_account_id]">
+                  <%= for cash <- @valuation.cash_balances do %>
+                    <option value={cash.cash_account_id}><%= cash.name %></option>
+                  <% end %>
+                </select>
+              </label>
+              <label>
+                <span><%= gettext("Date") %></span>
+                <input type="date" name="balance[date]" value={Date.to_iso8601(Date.utc_today())} />
+              </label>
+              <label>
+                <span><%= gettext("Balance") %></span>
+                <input name="balance[amount]" inputmode="decimal" required placeholder="4250.00" />
+              </label>
+              <button type="submit"><%= gettext("Set balance") %></button>
+            </form>
+            <p class="hint">
+              <%= gettext("State the balance your bank shows; only later bookings adjust it.") %>
+            </p>
+          <% else %>
+            <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
+          <% end %>
         </section>
       </div>
     </AppShell.shell>
@@ -240,6 +336,47 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   # -- components -------------------------------------------------------------
+
+  # Surfaces why the totals can deviate from the user's expectation: positions
+  # valued at a stale trade price, positions with no price at all, and
+  # bookings whose dates are implausible (import typos like 0217-12-05).
+  defp data_quality(assigns) do
+    assigns =
+      assigns
+      |> assign(:unpriced, unpriced_names(assigns.valuation))
+      |> assign(:trade_priced, trade_priced_count(assigns.valuation))
+      |> assign(:suspect_dates, suspect_dates(assigns.analysis))
+
+    ~H"""
+    <section
+      :if={@unpriced != [] or @trade_priced > 0 or @suspect_dates != []}
+      id="portfolio-data-quality"
+      class="workspace-section data-quality"
+    >
+      <h2><%= gettext("Data quality") %></h2>
+      <ul>
+        <li :if={@trade_priced > 0}>
+          <%= gettext(
+            "%{count} held positions have no current quote and are valued at their last trade price.",
+            count: @trade_priced
+          ) %>
+        </li>
+        <li :if={@unpriced != []}>
+          <%= gettext("%{count} held positions have no price at all and are missing from the totals:",
+            count: length(@unpriced)
+          ) %>
+          <%= Enum.join(@unpriced, ", ") %>
+        </li>
+        <li :if={@suspect_dates != []}>
+          <%= gettext(
+            "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import.",
+            dates: Enum.map_join(@suspect_dates, ", ", &Date.to_iso8601/1)
+          ) %>
+        </li>
+      </ul>
+    </section>
+    """
+  end
 
   defp performance_chart(assigns) do
     assigns = assign(assigns, :zero_y, chart_geometry(assigns.series).zero_y)
@@ -286,17 +423,25 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   @impl true
   def handle_event("select_period", %{"period" => period}, socket) do
-    if period in Performance.periods() do
-      {:noreply, socket |> assign(:period, period) |> reload_performance()}
-    else
-      {:noreply, socket}
+    cond do
+      period not in Performance.periods() ->
+        {:noreply, socket}
+
+      # The analysis is cached — re-chaining a period is pure and instant.
+      socket.assigns.analysis ->
+        {:ok, performance} = Performance.summarise(socket.assigns.analysis, period)
+        {:noreply, assign(socket, period: period, performance: performance)}
+
+      # Still computing; the async completion summarises the chosen period.
+      true ->
+        {:noreply, assign(socket, :period, period)}
     end
   end
 
   def handle_event("select_classification", %{"classification_id" => id}, socket) do
     case coerce_id(id) do
       {:ok, classification_id} ->
-        {:noreply, socket |> assign(:classification_id, classification_id) |> reload_allocation()}
+        {:noreply, socket |> assign(:classification_id, classification_id) |> load_allocation()}
 
       :error ->
         {:noreply, socket}
@@ -311,9 +456,10 @@ defmodule PortfolixirWeb.PortfolioLive do
       {:noreply,
        socket
        |> assign(success: gettext("Balance updated"), error: nil)
-       |> reload_valuation()
-       |> reload_performance()
-       |> reload_allocation()}
+       |> assign(:analysis, nil)
+       |> assign(:performance, nil)
+       |> load_overview()
+       |> load_performance()}
     else
       {:error, changeset} ->
         {:noreply, assign(socket, error: changeset_error(changeset), success: nil)}
@@ -323,28 +469,30 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
-  # -- data loading -----------------------------------------------------------
+  # -- data quality helpers ----------------------------------------------------
 
-  defp reload_valuation(socket) do
-    assign(socket, :valuation, Valuation.for_portfolio(socket.assigns.portfolio.id))
+  defp unpriced_names(nil), do: []
+
+  defp unpriced_names(valuation) do
+    valuation.positions
+    |> Enum.reject(& &1.valued)
+    |> Enum.map(&(&1.security_name || gettext("Unsorted")))
+    |> Enum.uniq()
+    |> shorten_list()
   end
 
-  defp reload_performance(socket) do
-    {:ok, performance} =
-      Performance.for_portfolio(socket.assigns.portfolio.id, period: socket.assigns.period)
+  defp shorten_list(names) when length(names) <= @unpriced_names_shown, do: names
 
-    assign(socket, :performance, performance)
+  defp shorten_list(names) do
+    {shown, rest} = Enum.split(names, @unpriced_names_shown)
+    shown ++ ["+#{length(rest)}"]
   end
 
-  defp reload_allocation(socket) do
-    {:ok, allocation} =
-      Allocation.for_portfolio(
-        socket.assigns.portfolio.id,
-        socket.assigns.classification_id
-      )
+  defp trade_priced_count(nil), do: 0
+  defp trade_priced_count(valuation), do: valuation.trade_priced_count
 
-    assign(socket, :allocation, allocation)
-  end
+  defp suspect_dates(nil), do: []
+  defp suspect_dates(analysis), do: analysis.suspect_dates
 
   # Prefer the first custom tree (the user's own strategy); otherwise fall back
   # to the built-in asset-class tree, which always exists after seeding.
@@ -391,7 +539,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     segment = %{
       name: row.name,
       color: row.color,
-      percent: percent(row.weight),
+      percent: Format.percent(row.weight),
       length: length,
       offset: Float.round(offset, 2)
     }
@@ -400,6 +548,18 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   # -- performance chart geometry ----------------------------------------------
+
+  # Long histories produce thousands of daily points; the polyline never needs
+  # more than the chart can show, so sample evenly and always keep the last.
+  defp downsample(series) when length(series) <= @chart_max_points, do: series
+
+  defp downsample(series) do
+    step = series |> length() |> Kernel./(@chart_max_points) |> Float.ceil() |> trunc()
+    sampled = Enum.take_every(series, step)
+    last = List.last(series)
+
+    if List.last(sampled) == last, do: sampled, else: sampled ++ [last]
+  end
 
   defp chart_geometry([]), do: %{min: -0.01, max: 0.01, zero_y: 90.0}
 
@@ -431,15 +591,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     end)
   end
 
-  # -- formatting ---------------------------------------------------------------
-
-  defp money(decimal) do
-    decimal |> Decimal.round(2) |> Decimal.to_string(:normal)
-  end
-
-  defp percent(decimal) do
-    decimal |> Decimal.mult(100) |> Decimal.round(1) |> Decimal.to_string(:normal)
-  end
+  # -- misc ---------------------------------------------------------------------
 
   defp period_label("ytd"), do: gettext("YTD")
   defp period_label("1y"), do: gettext("1Y")

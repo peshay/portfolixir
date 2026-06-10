@@ -91,10 +91,14 @@ Transactions are explicit and auditable. A transaction defines:
 ### Holdings Calculation
 
 Current holdings are not entered manually. They are derived from all
-transactions over time, so the state is reproducible and traceable. Each holding
-also carries a moving-average cost basis and the unrealized profit/loss
-(absolute and percentage) against the latest stored price, in the security's own
-currency.
+transactions over time, so the state is reproducible and traceable. Held
+quantities move with buys and sells, with inbound/outbound **deliveries**
+(shares entering or leaving without a cash leg, e.g. a depot transfer from
+another bank), and with **security transfers** between your own depots. Each
+holding also carries a moving-average cost basis and the unrealized
+profit/loss (absolute and percentage) against the latest stored price, in the
+security's own currency; cost basis and P&L consider only priced buy/sell
+trades, since a delivery carries no own cost.
 
 ## Classifications, Targets, and Allocation
 
@@ -117,9 +121,17 @@ targets are stored; the actual side is derived from the live valuation on read.
 Portfolios can hold securities and cash in several currencies. Exchange rates are
 stored against a EUR hub (with European Central Bank sync), and other pairs are
 triangulated through it. The live portfolio valuation converts each position's
-market value and each cash balance into the portfolio base currency; a position
-with no quote or no rate path to the base currency is reported as unvalued, so a
-missing price or rate never distorts the total or the weights.
+market value and each cash balance into the portfolio base currency.
+
+A security without any quote yet is priced at your **latest own trade price**
+— a buy or sell is a price observation, exactly how Portfolio Performance
+seeds prices from bookings — so a freshly imported portfolio is not valued at
+zero while quotes are still being fetched. Such positions carry
+`price_source: "trade"` in the API and are counted in `trade_priced_count`;
+the Portfolio page flags them as a data-quality hint. A position with neither
+a quote nor a trade price, or with no rate path to the base currency, is
+reported as unvalued, so a missing price or rate never silently distorts the
+total or the weights.
 
 ## Cash and cash quote
 
@@ -164,6 +176,21 @@ the base currency. The cash section lists each account's balance and carries
 the **set-balance form**: type the balance your bank shows and the snapshot is
 recorded without booking individual transactions.
 
+The page paints immediately and computes its figures **asynchronously**; each
+section fills in when its data is ready. The expensive daily performance walk
+runs once and is cached on the page — switching the period re-chains the
+cached series, so the period buttons respond instantly. The chart is
+downsampled to a bounded number of points, so a decade of daily history stays
+light in the browser. Money and percentages follow the chosen language
+(German `1.234.567,89`, English `1,234,567.89`; money always with two
+decimals).
+
+A **data-quality panel** appears above the chart when something would
+otherwise silently skew the figures: positions valued at their last trade
+price because no quote exists yet, positions with no price at all (excluded
+from the totals, listed by name), and bookings with implausible dates (before
+1970) that were applied on the first plausible day instead.
+
 ## Performance (TTWROR)
 
 Portfolixir reports the **true time-weighted rate of return** the way Portfolio
@@ -192,6 +219,13 @@ Parser warnings appear in a scrollable box with a copy button. The copied text
 uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
+
+Rows with **implausible dates** (before 1900, e.g. a `0217-12-05` typo for
+2017) are rejected per row with a clear message instead of poisoning every
+derived metric — fix the booking in the source and re-import; the content
+hashes keep the re-run free of duplicates. After an import, quote and logo
+enrichment for the created securities runs as one throttled background job,
+so the app stays responsive while hundreds of securities are synced.
 
 ## Quotes and Charts
 

@@ -208,6 +208,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       total_with_cash: decimal(valuation.total_with_cash),
       cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
+      trade_priced_count: valuation.trade_priced_count,
       positions: Enum.map(positions, &valuation_position/1),
       cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
     }
@@ -233,6 +234,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       security_currency: position.security_currency,
       quantity: decimal(position.quantity),
       latest_price: decimal(position.latest_price),
+      price_source: position.price_source,
       market_value: decimal(position.market_value),
       weight: decimal(position.weight),
       valued: position.valued
@@ -293,7 +295,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       start_value: decimal(result.start_value),
       end_value: decimal(result.end_value),
       net_external_flows: decimal(result.net_external_flows),
-      ttwror: decimal(result.ttwror)
+      ttwror: decimal(result.ttwror),
+      suspect_dates: Enum.map(result.suspect_dates, &date/1)
     }
 
     if include_series? do

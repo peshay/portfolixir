@@ -179,6 +179,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
       {:ok, entry}
     else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
       {:error, reason} -> {:error, inspect(reason)}
     end
   end
@@ -207,12 +208,12 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   defp parse_datetime(value) when is_binary(value) do
     case String.split(value, " ", parts: 2) do
       [date_part] ->
-        with {:ok, date} <- Date.from_iso8601(String.trim(date_part)) do
+        with {:ok, date} <- parse_plausible_date(date_part) do
           {:ok, {date, nil}}
         end
 
       [date_part, time_part] ->
-        with {:ok, date} <- Date.from_iso8601(String.trim(date_part)) do
+        with {:ok, date} <- parse_plausible_date(date_part) do
           time =
             case Time.from_iso8601(String.trim(time_part)) do
               {:ok, %Time{hour: 0, minute: 0, second: 0}} -> nil
@@ -222,6 +223,17 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
           {:ok, {date, time}}
         end
+    end
+  end
+
+  defp parse_plausible_date(value) do
+    case Date.from_iso8601(String.trim(value)) do
+      {:ok, %Date{year: year}} when year < 1900 ->
+        {:error,
+         "implausible date #{String.trim(value)} (before 1900) — fix the booking in the source and re-import"}
+
+      other ->
+        other
     end
   end
 
