@@ -68,8 +68,8 @@ defmodule Portfolixir.Portfolios.Allocation do
     kept = kept_categories(categories, rolled, targets)
 
     rows =
-      categories
-      |> preorder(children_by_parent)
+      children_by_parent
+      |> preorder()
       |> Enum.filter(fn {category, _depth} -> MapSet.member?(kept, category.id) end)
       |> Enum.map(fn {category, depth} ->
         row(
