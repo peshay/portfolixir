@@ -1,0 +1,163 @@
+defmodule Portfolixir.Ledger.Projection do
+  @moduledoc """
+  The single per-kind reducer (ADR-0011): one canonical place stating what
+  each booking kind does to the ledger's read models.
+
+  `effects/1` maps a transaction to its effect — signed cash legs (or an
+  absolute balance anchor, see ADR-0009), signed quantity legs, and whether
+  the booking is an **external flow** for performance purposes (money or
+  securities entering/leaving the portfolio, as opposed to internal movement
+  or return). Cash balances, positions and the performance daily walk are
+  generic folds over these effects; none of them dispatches on the kind.
+
+  Adding a booking kind therefore means adding one `effects/1` clause here
+  (plus its `Portfolixir.Ledger.Transaction` validation). A kind the
+  projection has not been taught raises, so it cannot silently drift through
+  one read model and not another.
+
+  Deliberately *not* fed from here: the moving-average holdings view and the
+  FIFO trade matcher. Those are cost-basis views that consider only the
+  priced `buy`/`sell` kinds by definition — they filter to two kinds rather
+  than interpreting all of them.
+  """
+
+  @zero Decimal.new("0")
+
+  @typedoc """
+  The canonical effect of one transaction.
+
+    * `:cash` — `{cash_account_id, {:add, delta} | {:set, absolute}}` legs in
+      the account's own currency. Stored amounts are positive magnitudes; the
+      sign of a delta comes from the kind. `{:set, absolute}` anchors the
+      account to a stated balance (a `balance_adjustment` snapshot).
+    * `:quantities` — `{securities_account_id, security_id, signed_delta}`
+      legs moving held shares.
+    * `:external` — whether the applied effects are external flows that a
+      time-weighted return must neutralise.
+  """
+  @type effect :: %{
+          cash: [{term(), {:add | :set, Decimal.t()}}],
+          quantities: [{term(), term(), Decimal.t()}],
+          external: boolean()
+        }
+
+  @doc """
+  The canonical effect of one transaction. Raises `FunctionClauseError` for a
+  kind the projection has not been taught.
+  """
+  @spec effects(map()) :: effect()
+  def effects(%{type: "deposit"} = tx),
+    do: effect(cash: [{tx.cash_account_id, {:add, gross(tx)}}], external: true)
+
+  def effects(%{type: "removal"} = tx),
+    do: effect(cash: [{tx.cash_account_id, {:add, Decimal.negate(gross(tx))}}], external: true)
+
+  def effects(%{type: type} = tx) when type in ["dividend", "interest", "tax_refund"],
+    do: effect(cash: [{tx.cash_account_id, {:add, gross(tx)}}])
+
+  def effects(%{type: type} = tx) when type in ["fee", "tax"],
+    do: effect(cash: [{tx.cash_account_id, {:add, Decimal.negate(gross(tx))}}])
+
+  def effects(%{type: "buy"} = tx) do
+    effect(
+      cash: [{tx.cash_account_id, {:add, Decimal.negate(buy_cost(tx))}}],
+      quantities: [{tx.securities_account_id, tx.security_id, tx.quantity}]
+    )
+  end
+
+  def effects(%{type: "sell"} = tx) do
+    effect(
+      cash: [{tx.cash_account_id, {:add, sell_proceeds(tx)}}],
+      quantities: [{tx.securities_account_id, tx.security_id, Decimal.negate(tx.quantity)}]
+    )
+  end
+
+  def effects(%{type: "cash_transfer"} = tx) do
+    amount = gross(tx)
+
+    effect(
+      cash: [
+        {tx.cash_account_id, {:add, Decimal.negate(amount)}},
+        {tx.counter_cash_account_id, {:add, amount}}
+      ]
+    )
+  end
+
+  def effects(%{type: "inbound_delivery"} = tx) do
+    effect(
+      quantities: [{tx.securities_account_id, tx.security_id, tx.quantity}],
+      external: true
+    )
+  end
+
+  def effects(%{type: "outbound_delivery"} = tx) do
+    effect(
+      quantities: [{tx.securities_account_id, tx.security_id, Decimal.negate(tx.quantity)}],
+      external: true
+    )
+  end
+
+  def effects(%{type: "security_transfer"} = tx) do
+    effect(
+      quantities: [
+        {tx.securities_account_id, tx.security_id, Decimal.negate(tx.quantity)},
+        {tx.counter_securities_account_id, tx.security_id, tx.quantity}
+      ]
+    )
+  end
+
+  # The stated balance replaces the derived one as of its date (ADR-0009); the
+  # residual jump is money that moved outside the recorded bookings.
+  def effects(%{type: "balance_adjustment"} = tx),
+    do: effect(cash: [{tx.cash_account_id, {:set, gross(tx)}}], external: true)
+
+  defp effect(parts), do: Map.merge(%{cash: [], quantities: [], external: false}, Map.new(parts))
+
+  @doc """
+  Replay order within one day: a balance snapshot states the balance
+  *including* the rest of its day, so it applies after the day's other
+  bookings. Sort by `{intra_day_order(tx), tx.id}` within a day.
+  """
+  @spec intra_day_order(map()) :: 0 | 1
+  def intra_day_order(%{type: "balance_adjustment"}), do: 1
+  def intra_day_order(%{type: _other}), do: 0
+
+  @doc """
+  Folds transactions into `%{cash_account_id => balance}`, each balance in
+  its own account's currency. Transactions are replayed chronologically with
+  snapshots last within their day; an `{:set, absolute}` leg replaces the
+  account's balance, so only bookings after the latest snapshot adjust it and
+  the latest snapshot wins. Legs without a cash account are skipped.
+  """
+  @spec cash_balances([map()]) :: %{term() => Decimal.t()}
+  def cash_balances(transactions) when is_list(transactions) do
+    transactions
+    |> Enum.sort_by(&{Date.to_erl(&1.date), intra_day_order(&1), &1.id})
+    |> Enum.reduce(%{}, fn transaction, balances ->
+      Enum.reduce(effects(transaction).cash, balances, &apply_cash_leg/2)
+    end)
+  end
+
+  defp apply_cash_leg({nil, _amount}, balances), do: balances
+
+  defp apply_cash_leg({account_id, {:add, delta}}, balances),
+    do: Map.update(balances, account_id, delta, &Decimal.add(&1, delta))
+
+  defp apply_cash_leg({account_id, {:set, absolute}}, balances),
+    do: Map.put(balances, account_id, absolute)
+
+  defp gross(%{gross_amount: %Decimal{} = amount}), do: amount
+  defp gross(_tx), do: @zero
+
+  # A buy's `gross_amount` is inclusive of fees/taxes; a sell's is already net
+  # of them. When it was not recorded, reconstruct from quantity * price.
+  defp buy_cost(%{gross_amount: %Decimal{} = amount}), do: amount
+  defp buy_cost(tx), do: tx.quantity |> Decimal.mult(tx.price) |> Decimal.add(fees_and_taxes(tx))
+
+  defp sell_proceeds(%{gross_amount: %Decimal{} = amount}), do: amount
+
+  defp sell_proceeds(tx),
+    do: tx.quantity |> Decimal.mult(tx.price) |> Decimal.sub(fees_and_taxes(tx))
+
+  defp fees_and_taxes(tx), do: Decimal.add(tx.fees || @zero, tx.taxes || @zero)
+end

@@ -17,6 +17,7 @@ defmodule Portfolixir.Ledger do
 
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger.Positions
+  alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.TradeMatcher
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
@@ -81,10 +82,11 @@ defmodule Portfolixir.Ledger do
   not persisted; see ADR-0004).
 
   Amounts are stored as positive magnitudes and the transaction `type` implies
-  the direction of the cash flow. Each balance is in its own account's currency;
-  no FX conversion is applied here. Pass `:portfolio_id` to scope the calculation
-  to one portfolio. Accounts with no cash-affecting transaction are omitted and
-  should be treated as a zero balance by callers.
+  the direction of the cash flow; the per-kind semantics live in
+  `Portfolixir.Ledger.Projection` (ADR-0011). Each balance is in its own
+  account's currency; no FX conversion is applied here. Pass `:portfolio_id` to
+  scope the calculation to one portfolio. Accounts with no cash-affecting
+  transaction are omitted and should be treated as a zero balance by callers.
 
   A `balance_adjustment` (see ADR-0009) is an absolute-balance snapshot, not a
   delta: it anchors the account to a stated balance as of its date, and only
@@ -94,110 +96,16 @@ defmodule Portfolixir.Ledger do
   later bookings).
   """
   def cash_balances(opts \\ []) when is_list(opts) do
-    transactions =
-      Transaction
-      |> scope_portfolio(opts[:portfolio_id])
-      |> Repo.all()
-
-    anchors = latest_anchors(transactions)
-
-    Enum.reduce(transactions, seed_balances(anchors), fn transaction, balances ->
-      transaction
-      |> cash_effects()
-      |> Enum.reduce(balances, fn {account_id, delta}, acc ->
-        apply_cash_delta(acc, anchors, account_id, transaction.date, delta)
-      end)
-    end)
-  end
-
-  # The latest balance snapshot per cash account, as
-  # `%{cash_account_id => %{date:, amount:}}`. Snapshots are dated absolute
-  # balances; the most recent one (by date, then id) wins.
-  defp latest_anchors(transactions) do
-    transactions
-    |> Enum.filter(&(&1.type == "balance_adjustment"))
-    |> Enum.group_by(& &1.cash_account_id)
-    |> Map.new(fn {account_id, snapshots} ->
-      latest = Enum.max_by(snapshots, &{Date.to_erl(&1.date), &1.id})
-      {account_id, %{date: latest.date, amount: gross_amount(latest)}}
-    end)
-  end
-
-  defp seed_balances(anchors) do
-    Map.new(anchors, fn {account_id, %{amount: amount}} -> {account_id, amount} end)
-  end
-
-  # A snapshot anchors the balance: only bookings dated strictly after it adjust
-  # an anchored account; bookings on or before its date are already reflected in
-  # the stated balance. Unanchored accounts sum every booking, as before.
-  defp apply_cash_delta(balances, _anchors, nil, _date, _delta), do: balances
-
-  defp apply_cash_delta(balances, anchors, account_id, date, delta) do
-    case Map.get(anchors, account_id) do
-      %{date: anchor_date} ->
-        if Date.compare(date, anchor_date) == :gt do
-          add_cash_delta(balances, account_id, delta)
-        else
-          balances
-        end
-
-      nil ->
-        add_cash_delta(balances, account_id, delta)
-    end
+    Transaction
+    |> scope_portfolio(opts[:portfolio_id])
+    |> Repo.all()
+    |> Projection.cash_balances()
   end
 
   defp scope_portfolio(query, nil), do: query
 
   defp scope_portfolio(query, portfolio_id) when is_integer(portfolio_id),
     do: where(query, [t], t.portfolio_id == ^portfolio_id)
-
-  # Per-kind cash effects as `{cash_account_id, signed_delta}` tuples. Stored
-  # amounts are positive magnitudes; the sign here comes from the kind.
-  defp cash_effects(%Transaction{type: type} = t)
-       when type in ["deposit", "dividend", "interest", "tax_refund"],
-       do: [{t.cash_account_id, gross_amount(t)}]
-
-  defp cash_effects(%Transaction{type: type} = t)
-       when type in ["removal", "fee", "tax"],
-       do: [{t.cash_account_id, Decimal.negate(gross_amount(t))}]
-
-  defp cash_effects(%Transaction{type: "sell"} = t),
-    do: [{t.cash_account_id, sell_proceeds(t)}]
-
-  defp cash_effects(%Transaction{type: "buy"} = t),
-    do: [{t.cash_account_id, Decimal.negate(buy_cost(t))}]
-
-  defp cash_effects(%Transaction{type: "cash_transfer"} = t) do
-    amount = gross_amount(t)
-    [{t.cash_account_id, Decimal.negate(amount)}, {t.counter_cash_account_id, amount}]
-  end
-
-  # Deliveries and security transfers move shares, not cash.
-  defp cash_effects(%Transaction{}), do: []
-
-  defp add_cash_delta(balances, nil, _delta), do: balances
-
-  defp add_cash_delta(balances, account_id, delta),
-    do: Map.update(balances, account_id, delta, &Decimal.add(&1, delta))
-
-  defp gross_amount(%Transaction{gross_amount: %Decimal{} = amount}), do: amount
-  defp gross_amount(%Transaction{}), do: Decimal.new("0")
-
-  # buy `gross_amount` is inclusive of fees/taxes; sell `gross_amount` is already
-  # net of them. When it was not recorded, reconstruct from quantity*price.
-  defp buy_cost(%Transaction{gross_amount: %Decimal{} = amount}), do: amount
-  defp buy_cost(%Transaction{} = t), do: Decimal.add(base_amount(t), fees_and_taxes(t))
-
-  defp sell_proceeds(%Transaction{gross_amount: %Decimal{} = amount}), do: amount
-  defp sell_proceeds(%Transaction{} = t), do: Decimal.sub(base_amount(t), fees_and_taxes(t))
-
-  defp base_amount(%Transaction{quantity: %Decimal{} = q, price: %Decimal{} = p}),
-    do: Decimal.mult(q, p)
-
-  defp base_amount(%Transaction{}), do: Decimal.new("0")
-
-  defp fees_and_taxes(%Transaction{fees: fees, taxes: taxes}),
-    do: Decimal.add(fees || Decimal.new("0"), taxes || Decimal.new("0"))
 
   @doc """
   Lists FIFO-matched trades for a security: closed round-trips, open
