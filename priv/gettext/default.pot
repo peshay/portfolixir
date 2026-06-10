@@ -1860,3 +1860,108 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Investment products"
 msgstr ""
+
+msgid "Create one portfolio first to see value, performance and allocation."
+msgstr ""
+
+msgid "Value, performance and allocation"
+msgstr ""
+
+msgid "Portfolio key figures"
+msgstr ""
+
+msgid "Total incl. cash"
+msgstr ""
+
+msgid "Cash"
+msgstr ""
+
+msgid "cash quote"
+msgstr ""
+
+msgid "TTWROR"
+msgstr ""
+
+msgid "Period"
+msgstr ""
+
+msgid "True time-weighted return; deposits and withdrawals are neutralised."
+msgstr ""
+
+msgid "Cumulative TTWROR over time"
+msgstr ""
+
+msgid "Allocation"
+msgstr ""
+
+msgid "Classification"
+msgstr ""
+
+msgid "Category"
+msgstr ""
+
+msgid "Actual"
+msgstr ""
+
+msgid "Target"
+msgstr ""
+
+msgid "Drift"
+msgstr ""
+
+msgid "Unassigned"
+msgstr ""
+
+msgid "Account"
+msgstr ""
+
+msgid "Balance"
+msgstr ""
+
+msgid "Set balance"
+msgstr ""
+
+msgid "State the balance your bank shows; only later bookings adjust it."
+msgstr ""
+
+msgid "Balance updated"
+msgstr ""
+
+msgid "Account not found"
+msgstr ""
+
+msgid "YTD"
+msgstr ""
+
+msgid "1Y"
+msgstr ""
+
+msgid "3Y"
+msgstr ""
+
+msgid "5Y"
+msgstr ""
+
+msgid "Max"
+msgstr ""
+
+msgid "Calculating…"
+msgstr ""
+
+msgid "Couldn't load the portfolio figures."
+msgstr ""
+
+msgid "Data quality"
+msgstr ""
+
+msgid "%{count} held positions have no current quote and are valued at their last trade price."
+msgstr ""
+
+msgid "%{count} held positions have no price at all and are missing from the totals:"
+msgstr ""
+
+msgid "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import."
+msgstr ""
+
+msgid "Tap or hover a slice for details."
+msgstr ""
