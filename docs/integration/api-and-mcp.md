@@ -244,12 +244,20 @@ Example account payloads:
 - `GET /api/v1/portfolios/:portfolio_id/allocation` returns the SOLL/IST
   breakdown for one classification (required `classification_id` query param; a
   missing one returns `422 Unprocessable Entity`). For each category it reports
-  `color`, `market_value`, `actual_weight` (its share of `total_value`), `target_weight`,
-  `drift_weight` (`target_weight - actual_weight`), and `drift_value` (the drift
-  restated in the base currency). Securities held but not assigned in the tree are
-  summed into `unassigned`. Weights mirror the valuation: shares of the valued
-  positions' total, cash excluded. Unknown portfolios or classifications return
-  `404 Not Found`.
+  `parent_id` and `depth` (the categories form a tree), `color`,
+  `own_market_value` (positions assigned directly to it), `market_value` (its
+  whole subtree rolled up), `actual_weight` (the rolled-up share of
+  `total_value`), `target_weight`, `drift_weight`
+  (`target_weight - actual_weight`), and `drift_value` (the drift restated in
+  the base currency). A position assigned to a child counts toward that child
+  **and every ancestor**, so a parent category with a target is compared
+  against its subtree rather than showing 0%; the rows come back in tree order
+  (parent before its children). Because parents aggregate their children, the
+  per-category `actual_weight` values intentionally do not sum to 1 across
+  levels — only the leaves plus `unassigned` do. Securities held but not
+  assigned in the tree are summed into `unassigned`. Weights mirror the
+  valuation: shares of the valued positions' total, cash excluded. Unknown
+  portfolios or classifications return `404 Not Found`.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
   period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter

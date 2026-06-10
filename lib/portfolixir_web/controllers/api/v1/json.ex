@@ -266,8 +266,11 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   defp allocation_category(category) do
     %{
       category_id: category.category_id,
+      parent_id: category.parent_id,
+      depth: category.depth,
       name: category.name,
       color: category.color,
+      own_market_value: decimal(category.own_market_value),
       market_value: decimal(category.market_value),
       actual_weight: decimal(category.actual_weight),
       target_weight: decimal(category.target_weight),
