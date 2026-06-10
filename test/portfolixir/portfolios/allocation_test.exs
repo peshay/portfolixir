@@ -156,8 +156,10 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     assert Decimal.equal?(defensive_row.target_weight, Decimal.new("0.1"))
     assert Decimal.equal?(Decimal.round(defensive_row.drift_value, 2), Decimal.new("150"))
 
-    # The loose security is summed into the unassigned bucket.
+    # The loose security is summed into the unassigned bucket, with its
+    # per-position breakdown attached.
     assert Decimal.equal?(allocation.unassigned.market_value, Decimal.new("300"))
+    assert [%{security_name: "Loose Equity"}] = allocation.unassigned.positions
 
     assert Decimal.equal?(
              Decimal.round(allocation.unassigned.actual_weight, 4),
@@ -229,6 +231,13 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     assert Decimal.equal?(tech_row.own_market_value, Decimal.new("600"))
     assert Decimal.equal?(tech_row.market_value, Decimal.new("600"))
     assert Decimal.equal?(tech_row.actual_weight, Decimal.new("0.6"))
+
+    # The per-position breakdown behind a category's own value (sunburst ring).
+    assert [tech_position] = tech_row.positions
+    assert tech_position.security_name == "Tech Co."
+    assert Decimal.equal?(tech_position.market_value, Decimal.new("600"))
+    assert Decimal.equal?(tech_position.weight, Decimal.new("0.6"))
+    assert fetch_category(allocation, growth.id).positions == []
 
     # Tree order: the parent comes before its children.
     ids = Enum.map(allocation.categories, & &1.category_id)

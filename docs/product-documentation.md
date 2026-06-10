@@ -181,9 +181,10 @@ period (year-to-date, one/three/five years, or since the first transaction)
 with the cumulative performance chart. Below it, the **allocation sunburst**
 shows the classification as concentric rings — the inner ring is the top-level
 categories, each outer ring breaks one level down with sub-category arcs nested
-inside their parent (the Portfolio Performance style) — in the category
-colours, with a grey slice for unassigned holdings. Pick any classification
-tree from the selector. The drift table beneath it lists every category in tree
+inside their parent, and the **outermost ring shows the individual positions**
+as shaded arcs of their category's colour (the Portfolio Performance style) —
+with a grey slice for unassigned holdings and the position name as a tooltip.
+Pick any classification tree from the selector. The drift table beneath it lists every category in tree
 order with **sub-categories indented** under their parent, comparing the
 rolled-up actual weight against the stored target and restating the drift in
 the base currency. The cash section lists each account's balance and carries

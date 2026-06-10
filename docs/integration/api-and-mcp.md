@@ -254,7 +254,11 @@ Example account payloads:
   against its subtree rather than showing 0%; the rows come back in tree order
   (parent before its children). Because parents aggregate their children, the
   per-category `actual_weight` values intentionally do not sum to 1 across
-  levels — only the leaves plus `unassigned` do. Securities held but not
+  levels — only the leaves plus `unassigned` do. Each category (and
+  `unassigned`) also carries `positions`: the per-security breakdown of its
+  **own** (directly assigned) value — `security_id`, `security_name`,
+  `market_value`, `weight` — largest first, securities merged across depots;
+  this is what the sunburst's outermost ring renders. Securities held but not
   assigned in the tree are summed into `unassigned`. Weights mirror the
   valuation: shares of the valued positions' total, cash excluded. Unknown
   portfolios or classifications return `404 Not Found`.
