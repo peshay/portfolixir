@@ -326,8 +326,13 @@ defmodule PortfolixirWeb.PortfolioLive do
               </thead>
               <tbody>
                 <%= for cash <- @valuation.cash_balances do %>
-                  <tr>
-                    <td><%= cash.name %></td>
+                  <tr class={if cash.counts_toward_cash_quote, do: nil, else: "is-muted"}>
+                    <td>
+                      <%= cash.name %>
+                      <%= if not cash.counts_toward_cash_quote do %>
+                        <span class="hint"><%= gettext("not in cash quote") %></span>
+                      <% end %>
+                    </td>
                     <td><%= Format.money(cash.balance) %> <%= cash.currency %></td>
                   </tr>
                 <% end %>
