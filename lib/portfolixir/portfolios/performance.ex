@@ -16,7 +16,9 @@ defmodule Portfolixir.Portfolios.Performance do
   where `F_d` is the day's net external flow, assumed at the start of the day.
   Dividends, interest, fees and taxes are internal (they are return); buys,
   sells and transfers between own accounts only move money around inside the
-  portfolio. Nothing is stored — like holdings and the valuation, the series
+  portfolio. What each booking kind does — and whether it is external — comes
+  from the single per-kind reducer `Portfolixir.Ledger.Projection`
+  (ADR-0011). Nothing is stored — like holdings and the valuation, the series
   is derived on read (ADR-0004, ADR-0010).
 
   Pricing falls back to the **latest own trade price** when a security has no
@@ -44,6 +46,7 @@ defmodule Portfolixir.Portfolios.Performance do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
 
   @zero Decimal.new("0")
@@ -249,7 +252,7 @@ defmodule Portfolixir.Portfolios.Performance do
   # A balance snapshot states the balance *including* the rest of its day, so
   # it is applied after the day's other bookings (mirrors Ledger.cash_balances).
   defp sort_within_day(transactions) do
-    Enum.sort_by(transactions, &{&1.type == "balance_adjustment", &1.id})
+    Enum.sort_by(transactions, &{Projection.intra_day_order(&1), &1.id})
   end
 
   defp apply_transactions(transactions, state, context) do
@@ -259,78 +262,61 @@ defmodule Portfolixir.Portfolios.Performance do
     end)
   end
 
-  # -- per-kind effects: {new_state, external_flow_in_base} -------------------
+  # -- canonical effects (ADR-0011): {new_state, external_flow_in_base} -------
 
-  defp apply_transaction(%{type: "deposit"} = tx, state, context) do
-    amount = gross(tx)
-    {add_cash(state, tx.cash_account_id, amount), cash_to_base(amount, tx, context)}
+  # Applies the transaction's effect from the single per-kind reducer. When
+  # the projection marks the booking external, the applied cash deltas (for a
+  # balance snapshot: the residual jump — money that appeared or left outside
+  # the recorded bookings) and the market value of the moved quantities count
+  # as the day's external flow, converted to the base currency.
+  defp apply_transaction(tx, state, context) do
+    effect = Projection.effects(tx)
+    {state, cash_flow} = apply_cash_legs(effect.cash, tx, state, context, effect.external)
+    {state, qty_flow} = apply_quantity_legs(effect.quantities, state, context, effect.external)
+    {state, Decimal.add(cash_flow, qty_flow)}
   end
 
-  defp apply_transaction(%{type: "removal"} = tx, state, context) do
-    amount = Decimal.negate(gross(tx))
-    {add_cash(state, tx.cash_account_id, amount), cash_to_base(amount, tx, context)}
+  defp apply_cash_legs(legs, tx, state, context, external?) do
+    Enum.reduce(legs, {state, @zero}, fn {account_id, _op} = leg, {state, flow} ->
+      {state, applied} = apply_cash_leg(leg, state)
+
+      flow =
+        if external? do
+          currency = Map.get(context.currencies, account_id, tx.currency_code)
+          Decimal.add(flow, to_base(applied, currency, context))
+        else
+          flow
+        end
+
+      {state, flow}
+    end)
   end
 
-  defp apply_transaction(%{type: type} = tx, state, _context)
-       when type in ["dividend", "interest", "tax_refund"] do
-    {add_cash(state, tx.cash_account_id, gross(tx)), @zero}
+  defp apply_cash_leg({nil, _amount}, state), do: {state, @zero}
+
+  defp apply_cash_leg({account_id, {:add, delta}}, state),
+    do: {add_cash(state, account_id, delta), delta}
+
+  # The stated balance replaces the derived one.
+  defp apply_cash_leg({account_id, {:set, absolute}}, state) do
+    jump = Decimal.sub(absolute, Map.get(state.cash, account_id, @zero))
+    {add_cash(state, account_id, jump), jump}
   end
 
-  defp apply_transaction(%{type: type} = tx, state, _context) when type in ["fee", "tax"] do
-    {add_cash(state, tx.cash_account_id, Decimal.negate(gross(tx))), @zero}
+  # Quantities are tracked per security, so the two legs of a security
+  # transfer net out at portfolio level.
+  defp apply_quantity_legs(legs, state, context, external?) do
+    Enum.reduce(legs, {state, @zero}, fn {_account_id, security_id, delta}, {state, flow} ->
+      flow =
+        if external? do
+          Decimal.add(flow, security_value(security_id, delta, context))
+        else
+          flow
+        end
+
+      {add_qty(state, security_id, delta), flow}
+    end)
   end
-
-  defp apply_transaction(%{type: "buy"} = tx, state, _context) do
-    state =
-      state
-      |> add_qty(tx.security_id, tx.quantity)
-      |> add_cash(tx.cash_account_id, Decimal.negate(buy_cost(tx)))
-
-    {state, @zero}
-  end
-
-  defp apply_transaction(%{type: "sell"} = tx, state, _context) do
-    state =
-      state
-      |> add_qty(tx.security_id, Decimal.negate(tx.quantity))
-      |> add_cash(tx.cash_account_id, sell_proceeds(tx))
-
-    {state, @zero}
-  end
-
-  defp apply_transaction(%{type: "cash_transfer"} = tx, state, _context) do
-    amount = gross(tx)
-
-    state =
-      state
-      |> add_cash(tx.cash_account_id, Decimal.negate(amount))
-      |> add_cash(tx.counter_cash_account_id, amount)
-
-    {state, @zero}
-  end
-
-  defp apply_transaction(%{type: "inbound_delivery"} = tx, state, context) do
-    state = add_qty(state, tx.security_id, tx.quantity)
-    {state, security_value(tx.security_id, tx.quantity, context)}
-  end
-
-  defp apply_transaction(%{type: "outbound_delivery"} = tx, state, context) do
-    state = add_qty(state, tx.security_id, Decimal.negate(tx.quantity))
-    {state, Decimal.negate(security_value(tx.security_id, tx.quantity, context))}
-  end
-
-  # Same security, same portfolio — quantities net out at portfolio level.
-  defp apply_transaction(%{type: "security_transfer"}, state, _context), do: {state, @zero}
-
-  # The stated balance replaces the derived one; the residual jump is money
-  # that appeared or left outside the recorded bookings, i.e. an external flow.
-  defp apply_transaction(%{type: "balance_adjustment"} = tx, state, context) do
-    previous = Map.get(state.cash, tx.cash_account_id, @zero)
-    jump = Decimal.sub(gross(tx), previous)
-    {add_cash(state, tx.cash_account_id, jump), cash_to_base(jump, tx, context)}
-  end
-
-  defp apply_transaction(_tx, state, _context), do: {state, @zero}
 
   # Sold-out positions are dropped so the daily valuation only touches what
   # is actually held — with long histories most securities are closed.
@@ -352,24 +338,6 @@ defmodule Portfolixir.Portfolios.Performance do
   defp add_cash(state, account_id, delta) do
     %{state | cash: Map.update(state.cash, account_id, delta, &Decimal.add(&1, delta))}
   end
-
-  defp cash_to_base(amount, tx, context) do
-    currency = Map.get(context.currencies, tx.cash_account_id, tx.currency_code)
-    to_base(amount, currency, context)
-  end
-
-  defp gross(%{gross_amount: %Decimal{} = amount}), do: amount
-  defp gross(_tx), do: @zero
-
-  defp buy_cost(%{gross_amount: %Decimal{} = amount}), do: amount
-  defp buy_cost(tx), do: tx.quantity |> Decimal.mult(tx.price) |> Decimal.add(fees_and_taxes(tx))
-
-  defp sell_proceeds(%{gross_amount: %Decimal{} = amount}), do: amount
-
-  defp sell_proceeds(tx),
-    do: tx.quantity |> Decimal.mult(tx.price) |> Decimal.sub(fees_and_taxes(tx))
-
-  defp fees_and_taxes(tx), do: Decimal.add(tx.fees || @zero, tx.taxes || @zero)
 
   # -- pricing ----------------------------------------------------------------
 
