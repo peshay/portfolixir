@@ -2,7 +2,7 @@
 project_name: 'portfolixir'
 user_name: 'Andi'
 date: '2026-06-11'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules', 'workflow_rules']
 existing_patterns_found: 14
 ---
 
@@ -228,3 +228,33 @@ suite (at most one smoke test, later, non-blocking); live-provider tests in
 CI; performance/load gates; SBOM (no reader yet — revisit with audit tooling);
 API/MCP parity gate (stays a PR-review checklist item); `mix xref` cycle gate
 (add when the first real cycle appears).
+
+### Development Workflow Rules
+
+AGENTS.md is the binding contract (branch naming `agent/<provider>/<topic>`,
+Model/Thinking-level commit footer — enforced by pre-commit —, required local
+checks, story workflow, scope lock). On top:
+
+- **Conventional commits with scope** (`feat(cash):`, `refactor(ledger):`,
+  `chore(deps):`) — applies to commits AND PR titles.
+- **PRs are squash-merged onto `main`** (`required_linear_history` is enforced;
+  the PR title becomes the main commit — write it as a conventional-commit
+  line). Direct pushes and force-pushes to `main` are blocked.
+- **Merge blockers agents must expect:** required status check `test` with
+  `strict: true` (branch must be up to date with `main` — rebase when main
+  moves) and `required_conversation_resolution` (every PR conversation must be
+  resolved). **Only the maintainer merges** — agents never merge their own PRs.
+- **CI = three jobs:** `pre-commit` (Python 3.12), `test` (postgres:18
+  service, `MIX_ENV=test mix coveralls.json` → Codecov), `quality` (Credo,
+  Sobelow, Dialyzer with version-keyed PLT cache). Run all locally before
+  pushing; `mix coveralls` needs running PostgreSQL.
+- **PR bodies carry evidence per iteration step** (AGENTS.md AI Authoring
+  Contract): story → tests-first proof → minimal implementation → API/MCP
+  coverage review → docs → security pass.
+- **Architecture changes need an ADR** (`docs/decisions/NNNN-*.md`, next free
+  number; supersede instead of editing) — landed in the same PR as the change
+  (see ADR-0009 / PR #324).
+- **BMad artifacts under `_bmad-output/` are committed** — they are part of
+  the story record, not local state.
+- **Cross-references are cheap, use them:** issues (`#314`), ADRs
+  (`ADR-0009`) in commits, PR bodies, and code comments.
