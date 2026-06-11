@@ -2,7 +2,7 @@
 project_name: 'portfolixir'
 user_name: 'Andi'
 date: '2026-06-11'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules']
 existing_patterns_found: 14
 ---
 
@@ -161,3 +161,70 @@ that, the repo-specific mechanics:
   never delete or skip it.
 - **Exact Decimal expectations:** `Decimal.equal?/2` or exact serialized
   strings — never float tolerance/delta assertions on money.
+
+### Code Quality & Style Rules
+
+CI-enforced formatting/linting is covered in the Language Rules preamble.
+What agents must know beyond "run the gates":
+
+- **Credo thresholds are grandfathered, not targets:** `max_complexity: 15` /
+  `max_nesting: 4` baseline the current worst offenders; new code aims at the
+  defaults (9 / 2). Ratchet per touched file — never raise a threshold.
+  Lowering the baseline is tracked in issue #314.
+- **Dialyzer has no ignore file — keep it at zero;** the first ignore entry is
+  the beginning of the end. **Sobelow ignores are deliberate and documented:**
+  `--ignore Config.CSP,Config.HTTPS` (TLS is the operator's reverse-proxy
+  concern; CSP needs nonce support first — follow-up tracked in #314), and
+  per-function `# sobelow_skip` annotations require a written reason. Never
+  add a skip without one.
+- **Pre-commit hooks modify files** (whitespace/EOF/line-ending fixers) —
+  re-stage and re-commit. The `llm-commit-footer` hook rejects commits without
+  the `Model:`/`Thinking level:` footer.
+- **Repository language is English** for ALL artifacts — commits, PRs, issues,
+  ADRs, docs, code comments (repo contract, PR #341).
+- **`docs/` is a published Jekyll site** (GitHub Pages): pages need YAML
+  frontmatter, internal links use `.html` (not `.md`), `docs_test.exs` asserts
+  on required files. User-visible changes update `product-documentation.md`.
+- **Coverage runs via Codecov** (`mix coveralls.json` → codecov-action,
+  `fail_ci_if_error: true`). There is deliberately **no 100% goal** (decided
+  2026-06-11, supersedes the earlier #314 comment): targets ratchet up per
+  issue #314 toward ~90%+ on changed lines. Tests must assert exact behavior —
+  assertion-free "line-touching" tests are a review reject, regardless of
+  coverage effect.
+
+### Quality Gate Roadmap (agreed 2026-06; all CI gates verified green on 2026-06-11)
+
+Gates land ONLY as dedicated stories — this roadmap is a record of decisions,
+not an invitation to add gates opportunistically inside feature work.
+Renovate/Dependabot PRs are reviewed like any dep-update PR, never auto-merged.
+
+1. **`mix compile --warnings-as-errors`** in CI — catches the classic agent
+   artifacts (unused vars, unreachable patterns, deprecated calls).
+2. **Coverage ratchet, not 100%:** raise Codecov targets incrementally
+   (#314); raising the ratchet is part of periodic maintenance PRs. Target
+   ~90%+ on changed lines. Rationale: 100% forces agents into coverage gaming.
+3. **Dependency hygiene:** `mix hex.audit` + `mix deps.audit` (mix_audit) +
+   `npm audit --audit-level=high` (mcp-server) in CI; Renovate/Dependabot as
+   housekeeping; `mix deps.unlock --check-unused` (must run AFTER `deps.get` —
+   false-positives on unfetched deps). Known debt: 2 moderate npm
+   vulnerabilities in mcp-server (below the `high` gate) — fix in the first
+   dependency-update PR.
+4. **Migration roundtrip in CI:** `ecto.migrate && ecto.rollback --all &&
+   ecto.migrate` — self-hosted users upgrade their own DBs; irreversible
+   migrations are support cases.
+5. **Invariant gates (cheap meta-tests):** no `:float` in schemas/migrations
+   (Decimal-only persistence); no DB-driver deps in `mcp-server/package.json`
+   (ADR-0002); context-boundary enforcement (evaluate `boundary` library vs.
+   web-layer `Repo.` scan — currently convention only, biggest unguarded
+   invariant).
+6. **Domain-correctness tests (highest ROI):** golden-master corpus for PP
+   import parity (synthetic PP files + checked-in Decimal-exact expected
+   outputs); StreamData property tests for ledger/money invariants
+   (bookings sum to zero, no rounding drift).
+
+Deliberately NOT adopted: 100% coverage gate; mutation testing as gate
+(instead: occasional manual mutation session on the money domain); E2E browser
+suite (at most one smoke test, later, non-blocking); live-provider tests in
+CI; performance/load gates; SBOM (no reader yet — revisit with audit tooling);
+API/MCP parity gate (stays a PR-review checklist item); `mix xref` cycle gate
+(add when the first real cycle appears).
