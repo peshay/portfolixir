@@ -69,6 +69,20 @@ describe("Portfolixir MCP tools", () => {
       "all"
     ]);
 
+    const cashAccountCreate = tools.find((tool) => tool.name === "portfolixir.cash_accounts.create");
+    assert.equal(
+      cashAccountCreate?.inputSchema.properties.cash_account.properties.counts_toward_cash_quote
+        .type,
+      "boolean"
+    );
+
+    const cashAccountUpdate = tools.find((tool) => tool.name === "portfolixir.cash_accounts.update");
+    assert.equal(
+      cashAccountUpdate?.inputSchema.properties.cash_account.properties.counts_toward_cash_quote
+        .type,
+      "boolean"
+    );
+
     const securitiesCreate = tools.find((tool) => tool.name === "portfolixir.securities.create");
     assert.equal(
       securitiesCreate?.inputSchema.properties.security.properties.asset_class.type,
@@ -420,7 +434,7 @@ describe("Portfolixir MCP tools", () => {
     await callTool(client, "portfolixir.transactions.delete", { id: 7 });
     await callTool(client, "portfolixir.cash_accounts.update", {
       id: 3,
-      cash_account: { name: "Renamed" }
+      cash_account: { name: "Renamed", counts_toward_cash_quote: false }
     });
     await callTool(client, "portfolixir.securities_accounts.delete", { id: 4 });
     await callTool(client, "portfolixir.securities.update", { id: 9, security: { note: "x" } });
@@ -434,7 +448,7 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(requests[2], {
       method: "PATCH",
       path: "/api/v1/cash_accounts/3",
-      body: { cash_account: { name: "Renamed" } }
+      body: { cash_account: { name: "Renamed", counts_toward_cash_quote: false } }
     });
     assert.deepEqual(requests[3], {
       method: "DELETE",

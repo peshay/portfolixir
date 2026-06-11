@@ -205,8 +205,8 @@ total or the weights.
 Cash is part of the portfolio, not an afterthought. Each portfolio has one or
 more cash accounts, and the live valuation reports the **total cash**, the
 **total including cash**, and the **cash quote** — cash as a share of the whole
-portfolio (`total_cash / total_with_cash`) — so you can see your liquidity and
-dry powder at a glance, converted into the portfolio base currency.
+portfolio — so you can see your liquidity and dry powder at a glance, converted
+into the portfolio base currency.
 
 A depot's settlement cash stays up to date on its own: buys, sells, dividends,
 interest, fees and taxes move it as you record those transactions, so the cash
@@ -226,9 +226,13 @@ bank export) — without turning Portfolixir into a banking app. This follows th
 design recorded in
 [ADR-0009](decisions/0009-cash-as-balance-snapshots.html).
 
-Still planned: a per-account flag to mark which accounts count toward the cash
-quote (so a business account can be visible without distorting your private
-quote).
+Each cash account carries a flag for whether it counts toward the cash quote
+(on by default; the toggle sits next to the account on the Portfolios page,
+and the API/MCP field is `counts_toward_cash_quote`). An account switched off —
+a business account, say — stays listed with its balance and inside the total
+cash, but the quote is computed as if it did not exist, so it never distorts
+your private quote. The Portfolio page marks such accounts as "not in cash
+quote".
 
 ## Portfolio Page
 

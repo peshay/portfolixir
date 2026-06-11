@@ -123,10 +123,14 @@ Example quote sync response:
   strictly after the snapshot change it, so moving money between your own
   accounts needs no transfer entry. Unknown accounts return `404 Not Found`.
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
-  object.
+  object. The optional boolean `counts_toward_cash_quote` (default `true`)
+  controls whether the account enters the valuation's `cash_quote`; set it to
+  `false` for a reference-only account (e.g. a business account) that should
+  stay visible without distorting the private quote.
 - `GET /api/v1/cash_accounts/:id` returns one cash account.
 - `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
-  `currency_code`, `notes`); `portfolio_id` cannot be changed.
+  `currency_code`, `notes`, `counts_toward_cash_quote`); `portfolio_id` cannot
+  be changed.
 - `DELETE /api/v1/cash_accounts/:id` deletes a cash account, or returns
   `409 Conflict` when a transaction or securities account still references it.
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
@@ -208,12 +212,16 @@ Example account payloads:
   `1` (round for display). Market values and `total_value` are exact.
   The valuation also carries cash: `cash_balances` lists each cash account
   (`balance` in its own currency, plus `base_value`/`valued` after converting to
-  the base currency), `total_cash` is the base-currency sum of the valued cash
-  accounts, and `total_with_cash` is `total_value + total_cash`. `cash_quote` is
-  the cash share of the whole portfolio (`total_cash / total_with_cash`, `0` when
-  there is nothing to value yet). An account whose currency has no rate path to
-  the base is reported `valued: false` and excluded from `total_cash`, mirroring
-  how unpriceable positions are handled.
+  the base currency, and its `counts_toward_cash_quote` flag), `total_cash` is
+  the base-currency sum of the valued cash accounts, and `total_with_cash` is
+  `total_value + total_cash`. `cash_quote` is the cash share of the portfolio
+  computed over the accounts whose `counts_toward_cash_quote` is `true`, as if
+  the other accounts did not exist (`counting_cash / (total_value +
+  counting_cash)`, `0` when there is nothing to value yet) — so a reference-only
+  business account stays listed and inside `total_cash` without distorting the
+  quote. An account whose currency has no rate path to the base is reported
+  `valued: false` and excluded from `total_cash`, mirroring how unpriceable
+  positions are handled.
 - `GET /api/v1/portfolios/:portfolio_id/performance` returns the portfolio's
   **true time-weighted rate of return (TTWROR)**, computed the Portfolio
   Performance way: the portfolio is valued daily (quotes on or before each day,
