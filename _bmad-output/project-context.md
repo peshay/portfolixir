@@ -2,7 +2,7 @@
 project_name: 'portfolixir'
 user_name: 'Andi'
 date: '2026-06-11'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules']
 existing_patterns_found: 14
 ---
 
@@ -126,3 +126,38 @@ the gates. The rules below cause **silent failures** no gate catches:
 - LiveComponent dialog: `live/securities/security_form_dialog.ex`
 - API controller + presenter: `controllers/api/v1/security_controller.ex` + `json.ex`
 - MCP tool definition: `mcp-server/src/tools.ts` (`tool(...)` helper)
+
+### Testing Rules
+
+AGENTS.md defines the binding test contract (user-story comment above each
+functional test, DataCase/ConnCase split, TDD order, no network calls). Beyond
+that, the repo-specific mechanics:
+
+- **Fake providers, not mocks** (no Mox in this repo): external integrations
+  are behaviours with a Fake in `test/support/{fx,quote_sync,security_search}/`,
+  registered via `config/test.exs`; set responses with `Fake.put_response/2`.
+  Fakes hold **per-process** state (`Process.put`) — visible only in the
+  process that set them.
+- **`async: false` is needed exactly when** (a) the test starts a supervised
+  process that touches the DB (`start_supervised` GenServers — a separate
+  process needs the shared sandbox mode), or (b) tests share filesystem state
+  (logo store under `priv/static/security_logos`). The failure signature of a
+  missing `async: false` is `DBConnection.OwnershipError` — fix the mode,
+  don't "fix" the test.
+- **Background syncs are off in test** (`enabled?: false`); HTTP edges are
+  stubbed with Req's `plug:` option — canonical helper: `plug_stub` in
+  `catalog/logo_lookup_test.exs`.
+- **API auth in tests:** bearer token fixed to `test-api-token`
+  (`config/test.exs`) for ConnCase API tests.
+- **Import fixtures are files, not builders:**
+  `test/support/fixtures/portfolio_performance/` holds valid AND deliberately
+  invalid samples — extending the import means adding both kinds. All other
+  test data is built inline through public context functions; there is no
+  central fixtures module — keep it that way.
+- **Meta-tests guard repo invariants:** `ci_test.exs`, `docs_test.exs`,
+  `workflow_docs_test.exs`, `localization_test.exs` assert on CI workflow
+  content, doc files, and locale completeness. Changes to `.github/`, docs, or
+  UI strings can fail these — update the meta-test together with the change;
+  never delete or skip it.
+- **Exact Decimal expectations:** `Decimal.equal?/2` or exact serialized
+  strings — never float tolerance/delta assertions on money.
