@@ -1500,6 +1500,75 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
   end
 
+  # User story:
+  # As a local portfolio maintainer,
+  # I want to quickly assign an asset class to unclassified securities inline,
+  # so that I can close classification gaps without leaving the securities list.
+  #
+  # Acceptance criteria:
+  # - The asset_class column renders a <select> for securities where
+  #   effective_asset_class is nil (no stored class, no heuristic match).
+  # - Changing the select saves the class and removes the select (shows a badge).
+  # - The "is unclassified" filter operator limits the list to truly unclassified rows.
+  describe "quick-assign asset class" do
+    test "renders select form for unclassified security", %{conn: conn} do
+      {:ok, _classified} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {:ok, _unclassified} =
+        Catalog.create_security(%{
+          name: "Amazon",
+          currency_code: "USD"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      assert has_element?(view, "form.quick-assign-form select[name='asset_class']")
+      assert has_element?(view, "span.badge", "Equity")
+    end
+
+    test "changing the select saves the asset class", %{conn: conn} do
+      {:ok, security} =
+        Catalog.create_security(%{
+          name: "Amazon",
+          currency_code: "USD"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+      assert has_element?(view, "form.quick-assign-form")
+
+      view
+      |> element("form.quick-assign-form")
+      |> render_change(%{"asset_class" => "equity", "id" => to_string(security.id)})
+
+      refute has_element?(view, "form.quick-assign-form")
+      assert has_element?(view, "span.badge", "Equity")
+
+      updated = Portfolixir.Catalog.get_security(security.id)
+      assert updated.asset_class == "equity"
+    end
+
+    test "selecting empty value is a no-op", %{conn: conn} do
+      {:ok, _} =
+        Catalog.create_security(%{
+          name: "Amazon",
+          currency_code: "USD"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      view
+      |> element("form.quick-assign-form")
+      |> render_change(%{"asset_class" => ""})
+
+      assert has_element?(view, "form.quick-assign-form")
+    end
+  end
+
   describe "filter popover" do
     test "filter on asset_class adds a chip and narrows the list", %{conn: conn} do
       {:ok, _} =
@@ -1537,6 +1606,38 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       view |> element("#filter-chips .chip-remove") |> render_click()
       refute has_element?(view, "#filter-chips")
       assert has_element?(view, "td", "Apple Inc.")
+    end
+
+    test "is_nil filter on asset_class shows only unclassified securities", %{conn: conn} do
+      {:ok, _classified} =
+        Catalog.create_security(%{
+          name: "Apple Inc.",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {:ok, _unclassified} =
+        Catalog.create_security(%{
+          name: "Amazon",
+          currency_code: "USD"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+      assert has_element?(view, "td", "Apple Inc.")
+      assert has_element?(view, "td", "Amazon")
+
+      view |> element("#toggle-filter-popover") |> render_click()
+
+      view
+      |> element("#filter-popover form")
+      |> render_submit(%{
+        "field" => "asset_class",
+        "operator" => "is_nil"
+      })
+
+      assert has_element?(view, "#filter-chips .chip")
+      refute has_element?(view, "td", "Apple Inc.")
+      assert has_element?(view, "td", "Amazon")
     end
   end
 
