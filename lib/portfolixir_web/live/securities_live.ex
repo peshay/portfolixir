@@ -1442,6 +1442,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp sort_marker({key, :desc}, key), do: " ↓"
   defp sort_marker(_, _), do: ""
 
+  # options_html is constructed entirely from AssetClasses.options() (compile-time
+  # constants) with every value passed through html_escape/1 — no user input.
+  # sobelow_skip ["XSS.Raw"]
   defp render_cell(%Field{key: :asset_class} = field, row) do
     case SecurityFields.value(field, row) do
       nil ->
