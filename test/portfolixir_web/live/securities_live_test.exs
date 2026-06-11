@@ -1567,6 +1567,22 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert has_element?(view, "form.quick-assign-form")
     end
+
+    test "invalid security id is silently ignored", %{conn: conn} do
+      {:ok, _} =
+        Catalog.create_security(%{
+          name: "Amazon",
+          currency_code: "USD"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      view
+      |> element("form.quick-assign-form")
+      |> render_change(%{"asset_class" => "equity", "id" => "0"})
+
+      assert has_element?(view, "form.quick-assign-form")
+    end
   end
 
   describe "filter popover" do
@@ -1606,6 +1622,18 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       view |> element("#filter-chips .chip-remove") |> render_click()
       refute has_element?(view, "#filter-chips")
       assert has_element?(view, "td", "Apple Inc.")
+    end
+
+    test "filter popover renders is_nil operator for asset_class field", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/securities")
+      view |> element("#toggle-filter-popover") |> render_click()
+
+      html =
+        view
+        |> element("#filter-popover form")
+        |> render_change(%{"field" => "asset_class"})
+
+      assert html =~ "is_nil"
     end
 
     test "is_nil filter on asset_class shows only unclassified securities", %{conn: conn} do
