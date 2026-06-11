@@ -2,7 +2,7 @@
 project_name: 'portfolixir'
 user_name: 'Andi'
 date: '2026-06-11'
-sections_completed: ['technology_stack']
+sections_completed: ['technology_stack', 'language_rules']
 existing_patterns_found: 14
 ---
 
@@ -52,4 +52,37 @@ do not assume. Policy: track latest stable (see Dependency Update Policy below).
 
 ## Critical Implementation Rules
 
-_Documented after discovery phase_
+### Language-Specific Rules (Elixir)
+
+Style that CI already enforces (mix format; Credo strict: alias order, nesting,
+line length 120, mandatory substantive @moduledoc) is not repeated here — run
+the gates. The rules below cause **silent failures** no gate catches:
+
+- **Decimal discipline:**
+  - Never `==`/`<`/`>` on Decimals — use `Decimal.compare/2` / `Decimal.equal?/2`
+    (`Decimal.new("1.0") == Decimal.new("1")` is `false`). Sort with
+    `Enum.sort(list, Decimal)`, not via float conversion.
+  - `Decimal.new/1` raises on floats — `Decimal.from_float/1` only at
+    display/chart boundaries, never for persisted values.
+  - API/JSON: explicit `Decimal.to_string(:normal)` (see `api/v1/json.ex`) —
+    never rely on Jason's numeric Decimal encoding; the contract requires
+    strings, `:normal` avoids scientific notation.
+  - Migrations: decimal columns carry explicit `precision`/`scale`
+    (money/quotes: 20,6; volume: 30,6) — never a bare `:decimal`.
+- **Atoms from input:** `String.to_existing_atom/1` for anything user/API-
+  supplied. `String.to_atom/1` only where the atom space is provably fixed —
+  with a comment saying so (see `catalog/security_fields.ex`).
+- **Day-granular domain time:** ledger and quotes use `:date` fields, not
+  datetimes. Do not introduce DateTime/timezone semantics into domain data.
+- **Gettext workflow:** user-facing strings go through `gettext` (single `de`
+  locale; enforced by `localization_test.exs`). After adding strings run
+  `mix gettext.extract --merge` and translate in `priv/gettext/de/`.
+- **Error idiom:** tagged tuples (`{:ok, _}`/`{:error, changeset}`) for
+  create/update/delete; `get_*!` bang variants for fetch-or-404. Web layers
+  translate both to user feedback.
+- **Tests default `async: true`** on `DataCase` (sandbox-safe) unless the test
+  touches shared state; `ConnCase` tests typically run sync.
+- **Meta-rule:** match the existing style of the file you touch (guards vs
+  `@spec` at public boundaries, small pattern-matched `defp` clauses over
+  `if`/`cond` chains, `import` only `Ecto.Query` in contexts /
+  `Ecto.Changeset` in schemas).
