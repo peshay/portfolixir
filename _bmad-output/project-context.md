@@ -2,7 +2,7 @@
 project_name: 'portfolixir'
 user_name: 'Andi'
 date: '2026-06-11'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules', 'workflow_rules']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules', 'workflow_rules', 'dont_miss_rules']
 existing_patterns_found: 14
 ---
 
@@ -216,11 +216,14 @@ Renovate/Dependabot PRs are reviewed like any dep-update PR, never auto-merged.
    (Decimal-only persistence); no DB-driver deps in `mcp-server/package.json`
    (ADR-0002); context-boundary enforcement (evaluate `boundary` library vs.
    web-layer `Repo.` scan — currently convention only, biggest unguarded
-   invariant).
+   invariant); no catch-all clause in `Ledger.Projection.effects/1` (AST
+   meta-test — preserves crash-by-design for unknown kinds); migration-diff
+   check against `main` (applied migrations are never edited).
 6. **Domain-correctness tests (highest ROI):** golden-master corpus for PP
    import parity (synthetic PP files + checked-in Decimal-exact expected
    outputs); StreamData property tests for ledger/money invariants
-   (bookings sum to zero, no rounding drift).
+   (bookings sum to zero, no rounding drift; import idempotency:
+   `import(x); import(x) == import(x)`).
 
 Deliberately NOT adopted: 100% coverage gate; mutation testing as gate
 (instead: occasional manual mutation session on the money domain); E2E browser
@@ -258,3 +261,47 @@ checks, story workflow, scope lock). On top:
   the story record, not local state.
 - **Cross-references are cheap, use them:** issues (`#314`), ADRs
   (`ADR-0009`) in commits, PR bodies, and code comments.
+
+### Critical Don't-Miss Rules
+
+The expensive mistakes — rule, failure symptom, and source location each.
+AGENTS.md "Hard Rules"/"Security Boundaries" apply verbatim on top.
+
+1. **Holdings are never stored** — derived from transactions (ADR-0004;
+   no holdings table exists). Wrong holdings ⇒ fix projection or data,
+   never add a table/cache.
+2. **`Ledger.Projection.effects/1` owns ALL booking semantics** (ADR-0011)
+   and is **pure** — no Repo/clock/config inside the reducer. The kind set is
+   closed (`Transaction.kinds/0`: 13 PP kinds + `balance_adjustment` — note:
+   ADR-0009's "snapshot" concept is spelled `balance_adjustment` in data).
+   Unknown kinds raise BY DESIGN — a defensive `_ ->` fallback turns
+   crash-by-design into silent corruption. New kind = one `effects/1` clause
+   + `Transaction` validation, nothing else.
+3. **Amounts are positive magnitudes — the sign comes from the kind**
+   (changeset guards: `ledger/transaction.ex` `validate_number ... > 0`).
+   Single exception: `balance_adjustment.gross_amount` is an absolute balance,
+   may be negative (overdraft). PP exports with signed values are normalized
+   at import, never stored signed.
+4. **Cost-basis views filter to priced `buy`/`sell` only**
+   (`ledger/trade_matcher.ex`, moving-average holdings): transfers and
+   deliveries move quantity, not cost basis. Symptom: avg-cost test "breaks"
+   after importing a delivery ⇒ by design, not a bug.
+5. **Cash = balance snapshots, not a mirrored ledger** (ADR-0009): `{:set,
+   absolute}` anchors beat same-day `{:add}` legs. Same-day ordering is
+   deterministic: `sort_by {date, intra_day_order, id}` (`projection.ex:135`)
+   — never reorder. Symptom: cash balance off while ledger looks right ⇒
+   check anchor ordering, not the reducer.
+6. **Transactions are written only through `Ledger`/`Imports` public
+   functions** — read models never write back; financial fields never via
+   `Repo.update_all`/raw SQL. Editing IS allowed (`update_transaction/2`,
+   `delete_transaction/1`): auditability = reproducibility from inputs, not
+   append-only immutability — do not build soft-delete workarounds.
+7. **FX always triangulates through the EUR hub** (ADR-0007, `fx.ex`; ECB
+   semantics `1 EUR = rate`). Never store or compute direct cross rates.
+8. **Import idempotency is content-hash based** (`import_hash`): re-applying
+   the same PP export is a no-op. Every import-path change must preserve this.
+9. **Never edit an applied migration** — additive migrations only.
+
+Known open invariant gaps (follow-up issues, do NOT invent behavior):
+currency mismatch between transaction and account is not yet validated;
+no written rounding policy exists (single `Decimal.round` in trade_matcher).
