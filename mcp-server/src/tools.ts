@@ -71,7 +71,8 @@ const cashAccountZ = z.object({
     portfolio_id: z.number().int().positive(),
     name: z.string(),
     currency_code: z.string(),
-    notes: optionalString()
+    notes: optionalString(),
+    counts_toward_cash_quote: z.boolean().optional()
   })
 });
 
@@ -166,7 +167,8 @@ const cashAccountSchema = objectWith("cash_account", {
     portfolio_id: { type: "integer", minimum: 1 },
     name: { type: "string" },
     currency_code: { type: "string" },
-    notes: { type: "string" }
+    notes: { type: "string" },
+    counts_toward_cash_quote: { type: "boolean" }
   }
 });
 
@@ -519,7 +521,8 @@ const cashAccountUpdateSchema = {
       properties: {
         name: { type: "string" },
         currency_code: { type: "string" },
-        notes: { type: "string" }
+        notes: { type: "string" },
+        counts_toward_cash_quote: { type: "boolean" }
       }
     }
   }
@@ -530,7 +533,8 @@ const cashAccountUpdateZ = z.object({
   cash_account: z.object({
     name: optionalString(),
     currency_code: optionalString(),
-    notes: optionalString()
+    notes: optionalString(),
+    counts_toward_cash_quote: z.boolean().optional()
   })
 });
 
@@ -728,8 +732,20 @@ const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio.", portfolioSchema, portfolioZ),
   tool("portfolixir.cash_accounts.list", "List cash accounts", "List cash accounts with their current balance.", emptyObjectSchema, emptyObjectZ),
-  tool("portfolixir.cash_accounts.create", "Create cash account", "Create a cash account.", cashAccountSchema, cashAccountZ),
-  tool("portfolixir.cash_accounts.update", "Update cash account", "Patch a cash account's name, currency or notes.", cashAccountUpdateSchema, cashAccountUpdateZ),
+  tool(
+    "portfolixir.cash_accounts.create",
+    "Create cash account",
+    "Create a cash account. Set counts_toward_cash_quote=false to keep it visible without it entering the cash quote.",
+    cashAccountSchema,
+    cashAccountZ
+  ),
+  tool(
+    "portfolixir.cash_accounts.update",
+    "Update cash account",
+    "Patch a cash account's name, currency, notes or counts_toward_cash_quote flag.",
+    cashAccountUpdateSchema,
+    cashAccountUpdateZ
+  ),
   tool("portfolixir.cash_accounts.delete", "Delete cash account", "Delete a cash account when no transactions or depots reference it.", idSchema, idZ),
   tool(
     "portfolixir.securities_accounts.list",

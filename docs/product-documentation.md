@@ -68,6 +68,63 @@ Integration details for `/api/v1` and `mcp-server/` are documented separately in
 Each security is a first-class object with stable identity fields and market metadata.
 They are the basis for all transaction and holdings calculations.
 
+### Asset class inference
+
+Every security carries an **asset class** field. Its value is determined at
+read time by `Security.effective_asset_class/1`: if the stored value is
+non-nil it is returned as-is; otherwise the name, ISIN, and ticker are
+inspected in priority order:
+
+1. **government_bond** — ISIN country-code prefix in the two-letter list of known
+   government-bond issuers (DE, US, GB, FR, IT, ES, JP, …).
+2. **etf** — name contains `ETF`, `UCITS ETF`, or an exact ISIN starting with
+   `IE00` combined with a known fund-issuer prefix.
+3. **crypto** — name matches a known coin name (Bitcoin, Ethereum, Ripple, Cardano,
+   Solana, Dogecoin, Avalanche, Tron, …) or ticker matches a known crypto symbol
+   (BTC, ETH, XRP, ADA, SOL, DOGE, AVAX, TRX, …).
+4. **commodity** — name is an exact bare metal name: Gold, Silber, Silver, Platin,
+   Platinum. (Compound names like "Barrick Gold Corp" are not matched here and
+   pass through to equity.)
+5. **derivative** — name contains `Knock-Out`, `Zertifikat`, or `Turbo` (including
+   single-letter suffixes such as TurboP, TurboC, TurboA).
+6. **knock_out** — name contains `Turbo` (any single-letter suffix), `Knockout`,
+   or `KO` pattern. In practice the Turbo check is shared with the derivative
+   branch; the `knock_out` class is stored explicitly when the user corrects the
+   inference.
+7. **equity** — name contains a legal-form suffix (Corporation, Company, Co.,
+   Aktiengesellschaft, AG, S.A., S.p.A., A/S, ASA, KGaA, Azioni, Acciones,
+   Aktier, Ltd., PLC, Inc., GmbH, NV, SA) or a depositary-receipt marker
+   (ADR, GDR, Sp.ADR, Depos. Receipts, INH.ON, Registered Part. Shares).
+8. **fund** — name starts with or contains a known fund-issuer prefix (iShares,
+   Vanguard, Lyxor, Amundi, AIS-AM, Xtrackers, SPDR, Invesco, WisdomTree,
+   VanEck, Fidelity, Deka) but did not match the ETF pattern above.
+9. **nil** — no heuristic fired; the security is considered unclassified.
+
+Because inference runs at read time, improving a heuristic in the code
+retroactively reclassifies all matching securities without a data migration.
+
+#### Finding and fixing unclassified securities
+
+The securities list accepts an **"is unclassified"** filter on the asset-class
+column (`operator: :is_nil`). It returns all rows where the stored value is nil
+and `effective_asset_class` also returned nil — i.e. the heuristics have no
+confident match. For each such row the asset-class cell shows an inline
+**quick-assign** dropdown so you can set the class directly from the list
+without opening the security detail page.
+
+A stored class is a permanent override: once set it is returned by
+`effective_asset_class` regardless of what the heuristics would produce, so the
+quick-assign choice survives any future heuristic changes.
+
+#### Letter-spaced names from Portfolio Performance
+
+Portfolio Performance sometimes exports names with a space between every
+character — e.g. `I b e r d r o l a S . A . A c c i o n e s`. The JSON
+parser detects this pattern (majority of whitespace-separated tokens are
+single characters, minimum four tokens) and collapses the tokens before
+heuristics run, so legal-form suffixes are reliably detected even from such
+exports.
+
 ## Portfolios and Accounts
 
 The portfolio owns one working set of account models:
@@ -148,8 +205,8 @@ total or the weights.
 Cash is part of the portfolio, not an afterthought. Each portfolio has one or
 more cash accounts, and the live valuation reports the **total cash**, the
 **total including cash**, and the **cash quote** — cash as a share of the whole
-portfolio (`total_cash / total_with_cash`) — so you can see your liquidity and
-dry powder at a glance, converted into the portfolio base currency.
+portfolio — so you can see your liquidity and dry powder at a glance, converted
+into the portfolio base currency.
 
 A depot's settlement cash stays up to date on its own: buys, sells, dividends,
 interest, fees and taxes move it as you record those transactions, so the cash
@@ -169,9 +226,13 @@ bank export) — without turning Portfolixir into a banking app. This follows th
 design recorded in
 [ADR-0009](decisions/0009-cash-as-balance-snapshots.html).
 
-Still planned: a per-account flag to mark which accounts count toward the cash
-quote (so a business account can be visible without distorting your private
-quote).
+Each cash account carries a flag for whether it counts toward the cash quote
+(on by default; the toggle sits next to the account on the Portfolios page,
+and the API/MCP field is `counts_toward_cash_quote`). An account switched off —
+a business account, say — stays listed with its balance and inside the total
+cash, but the quote is computed as if it did not exist, so it never distorts
+your private quote. The Portfolio page marks such accounts as "not in cash
+quote".
 
 ## Portfolio Page
 

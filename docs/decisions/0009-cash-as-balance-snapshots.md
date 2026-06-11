@@ -53,9 +53,11 @@ ledger.
   **cash truth comes from the snapshot**, not from deriving the account out of
   trades — so an account that is both a depot settlement account and a daily
   current account does not have to be reconciled by hand.
-- **"Counts toward the portfolio" flag.** Each cash account can be marked as
-  counting toward the portfolio total and cash quote, or as reference-only — so a
-  business account can be visible without distorting the private cash quote.
+- **"Counts toward the cash quote" flag.** Each cash account can be marked as
+  counting toward the cash quote (`counts_toward_cash_quote`, default on), or as
+  reference-only — so a business account can be visible without distorting the
+  private cash quote. A reference-only account stays listed and inside the total
+  cash; only the quote is computed as if it did not exist.
 - **Cash quote in the valuation.** The valuation reports
   `cash_quote = total_cash / total_with_cash` next to the existing totals, so the
   figure does not have to be re-derived by every caller.
@@ -63,7 +65,7 @@ ledger.
 Delivery is incremental: the **cash quote** shipped first (computable from the
 totals that already exist), then the **balance-snapshot** kind (the
 `balance_adjustment` transaction, `POST /api/v1/cash_accounts/:id/balance`, and
-the anchored balance derivation). The **counts-toward** flag follows as its own
+the anchored balance derivation), then the **counts-toward** flag as its own
 small story.
 
 ## Consequences
