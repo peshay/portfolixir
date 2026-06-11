@@ -1442,6 +1442,37 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp sort_marker({key, :desc}, key), do: " ↓"
   defp sort_marker(_, _), do: ""
 
+  # options_html is constructed entirely from AssetClasses.options() (compile-time
+  # constants) with every value passed through html_escape/1 — no user input.
+  # sobelow_skip ["XSS.Raw"]
+  defp render_cell(%Field{key: :asset_class} = field, row) do
+    case SecurityFields.value(field, row) do
+      nil ->
+        sec_id = to_string(security_id(row))
+
+        options_html =
+          AssetClasses.options()
+          |> Enum.map_join("", fn {label, code} ->
+            escaped_code = Phoenix.HTML.html_escape(code) |> safe_to_string()
+            escaped_label = Phoenix.HTML.html_escape(label) |> safe_to_string()
+            ~s(<option value="#{escaped_code}">#{escaped_label}</option>)
+          end)
+
+        Phoenix.HTML.raw(
+          ~s[<form phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" onclick="event.stopPropagation()" class="quick-assign-form">] <>
+            ~s[<select name="asset_class" class="quick-assign-select">] <>
+            ~s[<option value="">—</option>] <>
+            options_html <>
+            ~s[</select></form>]
+        )
+
+      value ->
+        Phoenix.HTML.raw(
+          ~s(<span class="badge">#{Phoenix.HTML.html_escape(AssetClasses.label(value)) |> safe_to_string()}</span>)
+        )
+    end
+  end
+
   defp render_cell(%Field{render_hint: :badge, key: key} = field, security) do
     case SecurityFields.value(field, security) do
       nil ->
@@ -1468,7 +1499,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp render_cell(%Field{render_hint: :checkbox} = field, security) do
     case SecurityFields.value(field, security) do
-      true -> "✓"
+      true -> <<0xE2, 0x9C, 0x93>>
       _ -> ""
     end
   end
@@ -1617,6 +1648,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp operator_label(:lt), do: "<"
   defp operator_label(:is_true), do: "= true"
   defp operator_label(:is_false), do: "= false"
+  defp operator_label(:is_nil), do: gettext("is unclassified")
   defp operator_label(other), do: to_string(other)
 
   defp format_value(_key, true), do: ""
@@ -1770,6 +1802,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
       _ ->
         {:noreply, socket}
+    end
+  end
+
+  def handle_event("quick_assign_asset_class", %{"asset_class" => ""}, socket),
+    do: {:noreply, socket}
+
+  def handle_event(
+        "quick_assign_asset_class",
+        %{"id" => id_str, "asset_class" => class},
+        socket
+      ) do
+    with {id, ""} <- Integer.parse(to_string(id_str)),
+         %Security{} = security <- Catalog.get_security(id),
+         {:ok, _} <- Catalog.update_security(security, %{asset_class: class}) do
+      {:noreply,
+       socket
+       |> load_securities()
+       |> assign(:flash_message, gettext("Asset class saved."))}
+    else
+      _ -> {:noreply, socket}
     end
   end
 
