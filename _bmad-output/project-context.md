@@ -2,7 +2,7 @@
 project_name: 'portfolixir'
 user_name: 'Andi'
 date: '2026-06-11'
-sections_completed: ['technology_stack', 'language_rules']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules']
 existing_patterns_found: 14
 ---
 
@@ -86,3 +86,43 @@ the gates. The rules below cause **silent failures** no gate catches:
   `@spec` at public boundaries, small pattern-matched `defp` clauses over
   `if`/`cond` chains, `import` only `Ecto.Query` in contexts /
   `Ecto.Changeset` in schemas).
+
+### Framework-Specific Rules (Phoenix / LiveView / MCP)
+
+- **No CoreComponents:** `<.input>`, `<.button>`, `<.modal>` etc. do not exist.
+  Function components: `app_shell`, `security_chart` only — build plain HEEx
+  with the existing CSS classes from `priv/static/app.css`.
+- **No `.heex` template files:** LiveViews render via inline `render/1` with
+  `~H`, kept as large single-module files. Dialogs/pickers are extracted as
+  **LiveComponents in a per-view subdirectory** (`live/securities/…`) — follow
+  that split, do not create templates/views.
+- **State is plain assigns, not streams** — `stream/3` is used once in the
+  whole app; `to_form/1` for forms. Do not introduce streams by default.
+- **New live routes** go inside the existing
+  `live_session :browser, on_mount: PortfolixirWeb.LiveLocale` block
+  (sets Gettext locale from session; `en`/`de`, fallback `en`).
+- **JSON API pattern:** controllers call contexts, shape responses through the
+  single shared presenter `Api.V1.JSON`, respond `json(conn, %{data: …})` /
+  `%{errors: %{…}}` + status. No Phoenix.View, no per-controller JSON module,
+  no `action_fallback` — do not introduce them.
+- **Not-found idiom per layer:** API controllers use non-bang `get_*` +
+  `not_found(conn)` (404 JSON); LiveViews use `get_*!` (crash → error page).
+- **API routes** live under `/api/v1` behind `ApiAuthPlug` (bearer token from
+  `:api_token` app env / `PORTFOLIXIR_API_TOKEN`). Only `/health` is public.
+- **Web layer never touches `Repo`** (verified: zero `Repo.` calls in
+  `lib/portfolixir_web/`) — always go through contexts. Bypassing them skips
+  domain invariants (ledger projection, import idempotency) and silently breaks
+  the auditability guarantee.
+- **MCP companion:** tools in `mcp-server/src/tools.ts`, named
+  `portfolixir.<resource>.<verb>`, each with BOTH a hand-written JSON Schema
+  (`additionalProperties: false`) and a zod validator; calls go through
+  `api-client.ts` to the JSON API only (ADR-0002). Financial values stay
+  strings end-to-end. Every new API endpoint needs a matching MCP tool, or an
+  explicit n/a note in the PR.
+
+**Exemplar files** (read the matching one before implementing):
+
+- small canonical LiveView: `live/transaction_management_live.ex`
+- LiveComponent dialog: `live/securities/security_form_dialog.ex`
+- API controller + presenter: `controllers/api/v1/security_controller.ex` + `json.ex`
+- MCP tool definition: `mcp-server/src/tools.ts` (`tool(...)` helper)
