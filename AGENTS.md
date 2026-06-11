@@ -53,6 +53,10 @@ New functionality must stay small, reviewed, locally tested, and documented.
 - Do not add advanced reports or advanced classifications.
 - Do not claim production readiness.
 - Public files must be normal readable multiline files.
+- Write every repository artifact in English: issues, PR titles and
+  descriptions, commit messages, ADRs, code comments, and documentation.
+  Translated end-user documentation (the EN/DE docs site) keeps English
+  as the source baseline.
 
 ## Active Architecture
 
