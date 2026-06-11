@@ -225,12 +225,29 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   defp parse_security(%{} = sec) do
     %{
-      name: present_string(Map.get(sec, "name")),
+      name: present_string(Map.get(sec, "name")) |> normalize_letter_spacing(),
       isin: present_string(Map.get(sec, "isin")) |> normalize_isin(),
       wkn: present_string(Map.get(sec, "wkn")),
       ticker: present_string(Map.get(sec, "ticker")),
       currency: normalize_currency(Map.get(sec, "currency"))
     }
+  end
+
+  # PP sometimes exports letter-spaced names: "I b e r d r o l a S . A . A c c i o n e s".
+  # When the strict majority of whitespace-separated tokens are single characters
+  # (at least 4 tokens to avoid collapsing short abbreviations like "A G"),
+  # collapse them by joining without spaces so heuristics can match legal suffixes.
+  defp normalize_letter_spacing(nil), do: nil
+
+  defp normalize_letter_spacing(name) when is_binary(name) do
+    tokens = String.split(name, ~r/\s+/, trim: true)
+    single_count = Enum.count(tokens, fn t -> String.length(t) == 1 end)
+
+    if length(tokens) >= 4 and single_count * 2 > length(tokens) do
+      Enum.join(tokens, "")
+    else
+      name
+    end
   end
 
   defp normalize_currency(value) when is_binary(value) do

@@ -62,7 +62,7 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
             </select>
           </label>
 
-          <%= if @operator not in [:is_true, :is_false] do %>
+          <%= if @operator not in [:is_true, :is_false, :is_nil] do %>
             <label>
               <span><%= gettext("Value") %></span>
               <%= if @field.type == :enum do %>
@@ -122,7 +122,7 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   defp build_filter(nil, _op, _value), do: :error
   defp build_filter(_key, nil, _value), do: :error
 
-  defp build_filter(key, op, _value) when op in [:is_true, :is_false] do
+  defp build_filter(key, op, _value) when op in [:is_true, :is_false, :is_nil] do
     if SecurityFields.valid_filter?(key, op, true) do
       {:ok, %{key: key, op: op, value: op == :is_true}}
     else
@@ -184,5 +184,6 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   defp operator_label(:lt), do: gettext("less than")
   defp operator_label(:is_true), do: gettext("is true")
   defp operator_label(:is_false), do: gettext("is false")
+  defp operator_label(:is_nil), do: gettext("is unclassified")
   defp operator_label(other), do: to_string(other)
 end
