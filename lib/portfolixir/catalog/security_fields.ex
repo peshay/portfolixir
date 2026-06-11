@@ -67,7 +67,8 @@ defmodule Portfolixir.Catalog.SecurityFields do
         default_visible?: true,
         label: "Asset class",
         render_hint: :badge,
-        enum_values: AssetClasses.codes()
+        enum_values: AssetClasses.codes(),
+        operators: [:eq, :neq, :is_nil]
       ),
       build(:is_retired, :boolean, :column, :stammdaten,
         label: "Retired",

@@ -482,6 +482,9 @@ defmodule Portfolixir.Catalog do
   defp add_filter(query, %Field{source: :column, key: key}, :is_false, _),
     do: from(s in query, where: field(s, ^key) == false)
 
+  defp add_filter(query, %Field{source: :column, key: key}, :is_nil, _),
+    do: from(s in query, where: is_nil(field(s, ^key)))
+
   defp add_filter(query, %Field{source: {:attributes, jsonb_key}}, :eq, value),
     do:
       from(s in query,
