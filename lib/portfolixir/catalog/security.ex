@@ -138,6 +138,10 @@ defmodule Portfolixir.Catalog.Security do
     end
   end
 
+  # Decided against a default "ISIN + ticker present → equity" rule:
+  # funds without "ETF" in their name (e.g. "AIS-AM.MSCI EM A. EOC") share the
+  # same ISIN+ticker structure as equities and are a frequent false-positive.
+  # The fund_or_nil/1 fallback handles these without overfitting.
   defp infer_asset_class_code(name, _isin, ticker_symbol) do
     cond do
       government_bond_name?(name) -> "government_bond"
@@ -146,15 +150,16 @@ defmodule Portfolixir.Catalog.Security do
       commodity_name?(name) -> "commodity"
       # Certificate/leverage products are checked before equities because their
       # names often also carry an issuer suffix (e.g. "Aktienanleihe … AG").
-      true -> derivative_class(name) || equity_or_nil(name)
+      true -> derivative_class(name) || equity_or_nil(name) || fund_or_nil(name)
     end
   end
 
-  # Physically-backed precious-metal products (e.g. EUWAX/Xetra Gold). Kept
-  # specific so mining equities like "Barrick Gold Corp" are not caught.
+  # Physically-backed precious-metal products (e.g. EUWAX/Xetra Gold) and
+  # bare precious-metal holdings (e.g. a "Gold" position on bitcoin.de). The
+  # bare-name branch is exact-match only so "Barrick Gold Corp" stays equity.
   defp commodity_name?(name) when is_binary(name) do
     Regex.match?(
-      ~r/EUWAX\s*Gold|Xetra[\s-]?Gold|Physical\s+(Gold|Silver|Platinum|Palladium)|\bGold\s+Bullion\b/i,
+      ~r/EUWAX\s*Gold|Xetra[\s-]?Gold|Physical\s+(Gold|Silver|Platinum|Palladium)|\bGold\s+Bullion\b|^(Gold|Silber|Silver|Platin(?:um)?)$/i,
       name
     )
   end
@@ -163,6 +168,10 @@ defmodule Portfolixir.Catalog.Security do
 
   defp equity_or_nil(name) do
     if equity_name?(name) and not structured_product_name?(name), do: "equity", else: nil
+  end
+
+  defp fund_or_nil(name) do
+    if fund_name?(name), do: "fund", else: nil
   end
 
   # Conservative mapping of structured/leverage products (DDV taxonomy) to a leaf
@@ -188,7 +197,7 @@ defmodule Portfolixir.Catalog.Security do
 
   defp knockout_name?(name) do
     Regex.match?(
-      ~r/\bTurbo[LS]?\b|Knock[\s-]?Out|\bKO\b|Mini[\s-]?Future|\bO\.End\b|Open[\s-]?End[\s-]?Turbo|\bWAVE\b|Unlimited\s+Turbo/i,
+      ~r/\bTurbo[A-Z]?\b|Knock[\s-]?Out|\bKO\b|Mini[\s-]?Future|\bO\.End\b|Open[\s-]?End[\s-]?Turbo|\bWAVE\b|Unlimited\s+Turbo/i,
       name
     )
   end
@@ -210,7 +219,7 @@ defmodule Portfolixir.Catalog.Security do
 
   defp crypto_name?(name) when is_binary(name) do
     Regex.match?(
-      ~r/^\s*(bitcoin|ethereum|ether|solana|cardano|polkadot|litecoin|chainlink|ripple|xrp)\s*$/i,
+      ~r/^\s*(bitcoin|ethereum|ether|solana|cardano|polkadot|litecoin|chainlink|ripple|xrp|dogecoin|avalanche|tron)\s*$/i,
       name
     )
   end
@@ -218,14 +227,14 @@ defmodule Portfolixir.Catalog.Security do
   defp crypto_name?(_), do: false
 
   defp crypto_ticker?(ticker) when is_binary(ticker) do
-    Regex.match?(~r/^(BTC|ETH|SOL|ADA|DOT|LTC|LINK|XRP)([-.][A-Z]{3})?$/i, ticker)
+    Regex.match?(~r/^(BTC|ETH|SOL|ADA|DOT|LTC|LINK|XRP|DOGE|AVAX|TRX)([-.][A-Z]{3})?$/i, ticker)
   end
 
   defp crypto_ticker?(_), do: false
 
   defp structured_product_name?(name) when is_binary(name) do
     Regex.match?(
-      ~r/(Turbo[LS]?|Disc[CP]?|Discount|Call|Put|Optionsschein|Zertifikat|O\.End|Em\.-u\.Handelsg\.mbH)/i,
+      ~r/(Turbo[A-Z]?|Disc[CP]?|Discount|Call|Put|Optionsschein|Zertifikat|O\.End|Em\.-u\.Handelsg\.mbH)/i,
       name
     )
   end
@@ -234,12 +243,25 @@ defmodule Portfolixir.Catalog.Security do
 
   defp equity_name?(name) when is_binary(name) do
     Regex.match?(
-      ~r/(Registered Shares|Reg\.?\s*Shares|Inhaber-Aktien|Namens-Aktien|Vorzugsaktien|Actions|Aandelen|Common Stock|\bInc\.?\b|\bCorp\.?\b|\bLtd\.?\b|\bAG\b|\bSE\b|\bPLC\b|S\.?A\.?|SA\/NV)/i,
+      ~r/(Registered\s+Shares?|Registered\s+Part\.?\s*Shares?|Reg\.?\s*Shares?|Inhaber-Aktien|Namens-Aktien|Vorzugsaktien|Actions|Aandelen|Common\s+Stock|\bInc\.?\b|\bCorp\.?\b|\bCorporation\b|\bCompany\b|\bCo\.|\bLtd\.?\b|\bAG\b|\bSE\b|\bPLC\b|S\.p\.A\.|S\.?A\.?|SA\/NV|\bAktiengesellschaft\b|\bA\/S\b|\bASA\b|\bKGaA\b|\bAzioni\b|\bAcciones\b|\bAktier\b|\b(?:Sp\.)?ADR(?:s)?\b|\bGDR(?:s)?\b|Depos\.?\s*Receipts?|\bINH\.ON\b)/i,
       name
     )
   end
 
   defp equity_name?(_), do: false
+
+  # Known fund-issuer prefixes (sourced from LogoLookup.@issuer_logo_titles).
+  # Only reached when no ETF token and no equity suffix was found, so false
+  # positives for pure bank equities (UBS AG, BNP Paribas SA) are filtered
+  # out by equity_or_nil first.
+  defp fund_name?(name) when is_binary(name) do
+    Regex.match?(
+      ~r/\biShares\b|\bVanguard\b|\bLyxor\b|\b(?:AIS-?AM|Amundi)\b|\bXtrackers\b|\bSPDR\b|\bInvesco\b|\bWisdomTree\b|\bVanEck\b|\bFidelity\b|\bDeka\b/i,
+      name
+    )
+  end
+
+  defp fund_name?(_), do: false
 
   defp normalize_text(changeset, field, fun) do
     update_change(changeset, field, fn

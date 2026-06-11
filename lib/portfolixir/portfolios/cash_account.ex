@@ -8,6 +8,7 @@ defmodule Portfolixir.Portfolios.CashAccount do
     field(:name, :string)
     field(:currency_code, :string)
     field(:notes, :string)
+    field(:counts_toward_cash_quote, :boolean, default: true)
 
     belongs_to(:portfolio, Portfolio)
 
@@ -16,9 +17,9 @@ defmodule Portfolixir.Portfolios.CashAccount do
 
   def changeset(cash_account, attrs) do
     cash_account
-    |> cast(attrs, [:portfolio_id, :name, :currency_code, :notes])
+    |> cast(attrs, [:portfolio_id, :name, :currency_code, :notes, :counts_toward_cash_quote])
     |> normalize_currency_code()
-    |> validate_required([:portfolio_id, :name, :currency_code])
+    |> validate_required([:portfolio_id, :name, :currency_code, :counts_toward_cash_quote])
     |> validate_length(:currency_code, is: 3)
     |> assoc_constraint(:portfolio)
   end

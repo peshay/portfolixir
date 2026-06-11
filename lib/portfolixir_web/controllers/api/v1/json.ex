@@ -70,6 +70,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       name: account.name,
       currency_code: account.currency_code,
       notes: account.notes,
+      counts_toward_cash_quote: account.counts_toward_cash_quote,
       inserted_at: timestamp(account.inserted_at),
       updated_at: timestamp(account.updated_at)
     }
@@ -221,7 +222,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       currency: cash.currency,
       balance: decimal(cash.balance),
       base_value: decimal(cash.base_value),
-      valued: cash.valued
+      valued: cash.valued,
+      counts_toward_cash_quote: cash.counts_toward_cash_quote
     }
   end
 

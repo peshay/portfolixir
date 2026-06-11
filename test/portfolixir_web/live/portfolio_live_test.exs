@@ -267,6 +267,50 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "1,380.00"
   end
 
+  # User story:
+  # As a local portfolio maintainer with a business account,
+  # I want the Portfolio page to mark cash accounts excluded from the cash
+  # quote,
+  # so that I see the account and its balance without it distorting my
+  # private quote.
+  #
+  # Acceptance criteria:
+  # - An excluded account stays listed in the cash section with its balance.
+  # - The excluded account's row is marked as not counting toward the quote.
+  # - The cash-quote KPI ignores the excluded account's balance.
+  test "marks accounts excluded from the cash quote but keeps them listed", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, business} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: world.portfolio.id,
+        name: "Business Account",
+        currency_code: "EUR",
+        counts_toward_cash_quote: false
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: business.id,
+        type: "deposit",
+        date: Date.add(Date.utc_today(), -5),
+        gross_amount: "500",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # Totals include the business cash (880 + 200 + 500 = 1,580)...
+    assert html =~ "1,580.00"
+    # ...but the cash quote stays 200 / 1,080 = 18.5%.
+    assert html =~ "18.5"
+
+    assert html =~ "Business Account"
+    assert html =~ "not in cash quote"
+  end
+
   test "surfaces trade-priced and unpriced positions as data-quality hints", %{conn: conn} do
     world = seed_world()
 
