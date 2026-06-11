@@ -214,6 +214,30 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
       assert entry.security.name == "IberdrolaS.A.Acciones"
     end
 
+    test "handles missing security name (nil) without error" do
+      body = %{
+        "version" => 1,
+        "transactions" => [
+          %{
+            "type" => "PURCHASE",
+            "date" => "2024-01-15",
+            "currency" => "EUR",
+            "amount" => 500.0,
+            "shares" => 10.0,
+            "security" => %{
+              "isin" => "ES0144580Y14",
+              "currency" => "EUR"
+            }
+          }
+        ]
+      }
+
+      {:ok, preview} = JsonParser.parse(Jason.encode!(body))
+
+      [entry] = preview.entries
+      assert is_nil(entry.security.name)
+    end
+
     test "does not collapse short or normal names" do
       body = %{
         "version" => 1,
