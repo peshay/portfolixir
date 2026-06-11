@@ -2,7 +2,11 @@
 project_name: 'portfolixir'
 user_name: 'Andi'
 date: '2026-06-11'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules', 'workflow_rules', 'dont_miss_rules']
+sections_completed:
+  ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules', 'workflow_rules', 'anti_patterns']
+status: 'complete'
+rule_count: 60
+optimized_for_llm: true
 existing_patterns_found: 14
 ---
 
@@ -302,6 +306,28 @@ AGENTS.md "Hard Rules"/"Security Boundaries" apply verbatim on top.
    the same PP export is a no-op. Every import-path change must preserve this.
 9. **Never edit an applied migration** — additive migrations only.
 
-Known open invariant gaps (follow-up issues, do NOT invent behavior):
-currency mismatch between transaction and account is not yet validated;
-no written rounding policy exists (single `Decimal.round` in trade_matcher).
+Known open invariant gaps (do NOT invent behavior — tracked as issues):
+currency mismatch between transaction and account is not yet validated (#343);
+no written rounding policy exists yet (#344).
+
+---
+
+## Usage Guidelines
+
+**For AI Agents:**
+
+- Read this file before implementing any code; read the matching exemplar
+  file (Framework Rules section) before writing in that layer.
+- Follow ALL rules exactly as documented. When in doubt, prefer the more
+  restrictive option — and AGENTS.md always wins on conflict.
+- Claims here were verified against the codebase on 2026-06-11; if code and
+  this file disagree, flag it in the PR instead of silently picking one.
+
+**For Humans:**
+
+- Keep this file lean and focused on agent needs — rules CI already enforces
+  do not belong here.
+- Update when the stack, gates, or domain invariants change; review
+  periodically and remove rules that became obvious or mechanically enforced.
+
+Last Updated: 2026-06-11
