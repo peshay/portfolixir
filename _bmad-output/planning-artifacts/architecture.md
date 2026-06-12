@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4]
+stepsCompleted: [1, 2, 3, 4, 5, 6]
 inputDocuments:
   - '_bmad-output/planning-artifacts/prds/prd-portfolixir-2026-06-12/prd.md'
   - '_bmad-output/planning-artifacts/prds/prd-portfolixir-2026-06-12/addendum.md'
@@ -529,3 +529,352 @@ decisions (docker-compose, three-job CI, env-based config) — not re-decided.
   D11 idempotency makes agent retries safe before agents get write grants.
 - D10 depends on #344 (D3) for its boundary rounding and on D3's provenance rule for
   its oracle cases.
+
+## Implementation Patterns & Consistency Rules
+
+Baseline rule: existing conventions are binding and are NOT restated here —
+project-context.md (60 rules) plus the named exemplar files define naming, test
+placement, presenter usage, LiveView style, error idioms, and MCP tool authoring.
+The patterns below (P1–P12) cover only the NEW seams introduced by D1–D11, where
+implementing agents could still legitimately diverge. Patterns carry stable IDs so
+stories can reference them ("follow P9").
+
+### Routing Table — read this first
+
+| What you are building | Pattern | Read BEFORE writing code |
+|---|---|---|
+| Any context write function | P1, P2, P9 | `lib/portfolixir/ledger.ex` (write idioms) |
+| A new analytics computation | P3, P4, P10 | `lib/portfolixir/ledger/projection.ex` |
+| Anything what-if/scenario | P5 | `lib/portfolixir/ledger/projection.ex` |
+| A new API endpoint | P6, P7, P8 | `lib/portfolixir_web/controllers/api/v1/security_controller.ex` + `json.ex` |
+| A new MCP tool | P12 | `mcp-server/src/tools.ts` |
+| API/analytics tests | P11 | `test/` meta-test exemplars (`ci_test.exs`) |
+| A LiveView page/section | (existing rules) | `lib/portfolixir_web/live/transaction_management_live.ex` |
+
+A CI meta-test asserts every exemplar file referenced here still exists.
+
+### P1 — Audit journal mechanics
+
+- Table `audit_journal`, context `Portfolixir.Journal`, schema `Journal.Entry`.
+  Columns: `actor_type`, `actor_label`, `operation`, `resource_type`, `resource_id`,
+  `before`/`after` (JSONB), `scenario_id` (nullable), `inserted_at`. No `updated_at`.
+- `operation` is a closed enum: `"create" | "update" | "delete" | "upsert"`
+  (upsert exists because `on_conflict` writes cannot deterministically report
+  create-vs-update).
+- `resource_type` is a closed list of stable STRING codes (e.g. `"transaction"`,
+  `"cash_account"`) — never module names (codes survive refactors).
+- **Single entry point:** `Journal.record/3` takes an `Ecto.Multi`, returns an
+  `Ecto.Multi` — it appends the journal step. `before` = the changeset's `data`
+  serialized; `after` = built in a function step from the Multi results. No journal
+  insert exists outside this module.
+- **Serialization:** one module, `Journal.Serializer`, owns the JSONB encoding —
+  Decimals as strings (Jason's default would emit numbers), dates as ISO strings.
+- **Completeness is mechanical, not conventional:** journaled tables carry a guard
+  trigger requiring a transaction-local session variable
+  (`SET LOCAL portfolixir.journal_actor = …`) that only `Journal.record/3` and the
+  allowlisted non-journaled paths set. A raw `Repo.update` on a journaled table
+  fails loudly. The allowlist of non-journaled write paths (quote/FX sync
+  schedulers — market-data ingestion only) is one module guarded by a meta-test:
+  the exception set is closed, never grown silently.
+- Bulk imports journal **per-record** entries (a 5k-row import = 5k entries),
+  actor = `import_session`.
+
+### P2 — Actor struct and the write classifier
+
+- `Portfolixir.Actor` (top-level), fields `type` + `label`. `type` is the closed
+  taxonomy:
+
+  ```elixir
+  :owner_ui | :api_token_rw | :api_token_ro | :import_session | :system_job
+  ```
+
+  Phase-3 sync extends this list only via an amendment to this document (expected:
+  per-provider actor types).
+- The actor is always the FIRST positional argument of public context write
+  functions: `Ledger.create_transaction(actor, attrs)`.
+- **Write classifier (for the AST gate):** a "write function" is any public context
+  function that transitively reaches `Repo.insert/update/delete/insert_all/
+  update_all/delete_all` or `Repo.transaction` with a writing Multi — name prefixes
+  are NOT the classifier. Pre-existing functions are grandfathered in an explicit
+  list that only shrinks (same mechanism as Credo baselines).
+
+### P3 — Engines (pure core)
+
+- `Portfolixir.Engines.<Name>` (e.g. `Engines.Irr`, `Engines.Benchmark`,
+  `Engines.Scenario`). Entry point `run/2`: `run(%Engines.<Name>.Input{}, as_of)`
+  with `as_of :: Date`. Shared structs live in `Engines.Types`.
+- Existing pure modules (`Ledger.Projection`) stay where they are; the purity gate
+  holds an explicit module list seeded with them.
+- **Purity gate = dependency whitelist, not call blacklist:** engine modules may
+  reference only `Portfolixir.Engines.*` and an explicit allowed-module list
+  (`Enum`, `Map`, `List`, `Stream`, `String`, `Integer`, `Date`, `Decimal`,
+  `Kernel` minus IO). Additionally a function-level deny list inside engines:
+  `Date.utc_today/0`, `DateTime.now/utc_now`, `System.*_time`, `:rand`, `IO`.
+  Documented per-module exception: `Engines.Xirr` may use `:math`/`Float`
+  (the D10 float island).
+- Failure contract: tagged tuples with documented atoms
+  (`{:error, :no_convergence}`) — engines never raise for data-shaped failures.
+- Engines assume valid input; validation happens in the loaders (P4).
+
+### P4 — Dataset loaders (shell)
+
+- `Portfolixir.EngineData.<Name>`, paired 1:1 with its engine. Repo allowed here;
+  loaders build AND validate the engine's `Input` struct.
+- `Date.utc_today()` is computed only at the shell boundary
+  (controller/LiveView/scheduler) and passed down — never inside loaders' pure
+  helpers, never inside engines.
+
+### P5 — Scenario isolation
+
+- All what-if tables carry the `scenario_` prefix (`scenarios`,
+  `scenario_transactions`). A meta-test asserts every `Portfolixir.Scenarios.*`
+  schema maps to a `scenario_`-prefixed table.
+- A test-env Ecto-telemetry guard asserts query sources per context: live-context
+  queries never touch `scenario_` tables; scenario-context queries never write
+  non-`scenario_` tables. (The D2 read/write isolation invariants are the
+  property-level complement.)
+
+### P6 — Route scopes
+
+- Router pipelines `:api_read` and `:api_write` are the D4 scope classification.
+  Every `/api/v1` route passes through exactly one — a fail-closed meta-test
+  rejects unclassified routes. Market-data sync triggers are `:api_read`;
+  financial-record writes are `:api_write`.
+
+### P7 — Analytics meta envelope
+
+- Fixed keys, additive top-level `meta` object:
+
+  ```json
+  "meta": {
+    "method": "ttwror",
+    "as_of": "2026-06-12",
+    "currency": "EUR",
+    "basis": "eur_hub_rates",
+    "flags": ["trade_priced_positions"],
+    "gaps": [{"code": "missing_quote", "detail": "security 42"}]
+  }
+  ```
+
+- `flags` and `gaps[].code` come from closed enums defined in ONE module:
+  `PortfolixirWeb.Api.V1.Meta`. Adding a value happens there + in the contract
+  fixture — nowhere else; an unknown value is a test failure. `gaps[].detail` is
+  OPTIONAL and is omitted when absent — never `null` (fixture determinism).
+
+### P8 — Idempotency (writes)
+
+- Optional standard `Idempotency-Key` request header on financial write endpoints.
+- Scope: uniqueness per `(token, key)`, enforced by a DB unique constraint (races
+  resolve in the database, not in app logic). The request body hash is stored;
+  same key + different body → `422`. Replay returns the STORED original response
+  (byte-identical, not recomputed) plus the response header
+  `Idempotency-Replay: true`. Retention: 24 h.
+
+  ```text
+  POST /api/v1/transactions          POST /api/v1/transactions   (retry)
+  Idempotency-Key: abc-123      →    Idempotency-Key: abc-123
+  201 {data: …}                      201 {data: …}  + Idempotency-Replay: true
+  ```
+
+### P9 — The write path (one shape, every context)
+
+1. Build the changeset (per-kind validation as today).
+2. Open an `Ecto.Multi` with the business operation.
+3. Pipe through `Journal.record(multi, actor, opts)`.
+4. `Repo.transaction/1`.
+5. Return the tagged tuple (`{:ok, _} | {:error, changeset}`).
+
+No context write happens outside this shape once the context is journaled.
+
+### P10 — The engine call path (one shape, every analytic)
+
+1. Shell (controller/LiveView) computes `as_of` and authorization.
+2. `EngineData.<Name>` loads and validates the `Input` struct.
+3. `Engines.<Name>.run(input, as_of)` computes (pure).
+4. Presenter wraps the result + `meta` (P7).
+
+LiveViews and API controllers share loader + engine — computation is never
+duplicated in a view. Engine outputs are plain structs/maps of Decimals and Dates;
+formatting, strings, and gettext live in the presentation layer only.
+
+### P11 — Test discipline for degraded data and fixtures
+
+- ConnTest helper pair `assert_ok_clean/1` and `assert_ok_degraded/2
+  (expected gaps)`; a meta-test forbids bare `json_response(conn, 200)` assertions
+  in analytics endpoint tests — silent degradation must be asserted, not ignored.
+- Contract-fixture generation (D5) is deterministic by spec: frozen clock,
+  deterministic IDs, canonical JSON key ordering — regeneration produces diffs only
+  on real contract changes.
+- Volume fixtures (D9): generator under `test/support/volume/`, fixed committed
+  seed.
+
+### P12 — MCP tools and mix tasks
+
+- MCP tools continue `portfolixir.<resource>.<verb>`; analytics are reads
+  (`portfolixir.portfolios.irr`, `portfolixir.portfolios.briefing`).
+- Mix tasks are namespaced: `mix portfolixir.contract.gen` (fixture regeneration),
+  `mix portfolixir.perf` (D9 operator measurement). Never bare task names.
+
+### Enforcement — rule-to-test mapping
+
+| Pattern | CI gate (meta-test) |
+|---|---|
+| P1 journal completeness | guard-trigger test + completeness property test |
+| P1 non-journaled allowlist | `journal_allowlist_test.exs` |
+| P2 actor on writes | `write_actor_test.exs` (AST, classifier above) |
+| P3 engine purity | `engine_purity_test.exs` (whitelist + deny list) |
+| P5 scenario prefix | `scenario_schema_test.exs` + telemetry query guard |
+| P6 route scopes | `route_scope_test.exs` (fail-closed) |
+| P7 closed enums | enum module + contract fixtures |
+| P11 assertion discipline | analytics-test meta-check |
+| Routing-table exemplars | exemplar-existence meta-test |
+
+Pattern changes are PR-visible amendments to this document — never silent drift.
+
+### Anti-patterns
+
+| Forbidden | Instead |
+|---|---|
+| Actor via process dictionary | Actor struct as first argument (P2) |
+| Journal insert outside `Portfolixir.Journal` | `Journal.record/3` in the Multi (P1, P9) |
+| `Repo`/clock/HTTP inside `Portfolixir.Engines.*` | Loaders load (P4), shell passes `as_of` (P10) |
+| Computation duplicated in a LiveView | Call the shared loader + engine (P10) |
+| Ad-hoc flag/gap strings | Extend the enum module + fixture (P7) |
+| Floats in financial code | Decimal everywhere; only `Engines.Xirr` is the documented float island (P3/D10) |
+| New endpoint without scope, MCP mirror, fixture | Classify (P6), mirror or explicit n/a, add fixture (D5) |
+| Bare 200 assertions on analytics endpoints | `assert_ok_clean` / `assert_ok_degraded` (P11) |
+
+## Project Structure & Boundaries
+
+The existing repository structure is authoritative and unchanged. This section maps
+only the NEW components (D1–D11) into it. Paths not listed here follow the existing
+conventions. The gated XML import (FR-5) moves INTO the existing `imports/` context
+— it is not a new boundary.
+
+### New/Extended Directory Structure (delta tree)
+
+    lib/portfolixir/
+    ├── actor.ex                        # P2 — standalone value module (no context)
+    ├── journal.ex                      # P1 — context, Journal.record/3 (Multi)
+    ├── journal/
+    │   ├── entry.ex                    #   schema (audit_journal)
+    │   ├── serializer.ex               #   single JSONB encoder (Decimal→string)
+    │   └── allowlist.ex                #   closed list of non-journaled write paths
+    ├── engines/                        # P3 — pure core (whitelist-gated)
+    │   ├── types.ex                    #   shared structs
+    │   ├── irr.ex                      #   Decimal orchestration + Input struct
+    │   ├── xirr.ex                     #   documented float island (root finding)
+    │   ├── benchmark.ex                #   FR-9 (incl. after-cost/after-tax dimension)
+    │   ├── income.ex                   #   FR-10
+    │   └── scenario.ex                 #   FR-27 overlay series (pure; persistence
+    │                                   #   lives in the scenarios/ context)
+    ├── engine_data/                    # P4 — shell loaders, paired 1:1
+    │   ├── series.ex                   #   shared series/query helpers (quote, FX,
+    │   │                               #   transaction scopes — at_or_before etc.)
+    │   ├── irr.ex
+    │   ├── benchmark.ex
+    │   ├── income.ex
+    │   └── scenario.ex
+    ├── scenarios.ex                    # P5 — context module (CRUD, persistence)
+    ├── scenarios/
+    │   ├── scenario.ex                 #   schema (scenario_ tables)
+    │   └── scenario_transaction.ex
+    ├── exports/
+    │   └── portfolio_performance.ex    # FR-29 export — serializer = importer's
+    │                                   # mirror (grep for module collisions first;
+    │                                   # backup half = docs/backup-restore.md)
+    ├── idempotency.ex                  # P8 — context module (plug delegates here;
+    ├── idempotency/                    #   web layer never touches Repo)
+    │   └── key.ex                      #   schema, unique (token, key)
+    ├── sync/                           # Phase 3 ONLY — created by its first story
+    │                                   # after the scope-gate ADR (planned boundary)
+    └── pensions/                       # Phase 4 ONLY — after the discovery story
+                                        # (planned boundary)
+
+    lib/portfolixir_web/
+    ├── controllers/api/v1/meta.ex      # P7 — closed flag/gap enums, beside json.ex.
+    │                                   # PROJECTS domain enums, never defines them;
+    │                                   # contract.gen asserts envelope ≡ schema enums
+    ├── controllers/api/v1/briefing_controller.ex  # D7 aggregate (only new controller)
+    ├── plugs/idempotency.ex            # P8 — delegates to Portfolixir.Idempotency
+    └── router.ex                       # P6 — :api_read / :api_write pipelines
+
+    New analytics actions (e.g. GET /portfolios/:id/irr) live in the EXISTING
+    resource controllers beside their siblings (performance, valuation). ALL new
+    actions render through the single presenter
+    lib/portfolixir_web/controllers/api/v1/json.ex — no per-controller JSON modules
+    (no briefing_json.ex).
+
+    lib/mix/tasks/
+    ├── portfolixir.contract.gen.ex     # D5 — deterministic fixture regeneration
+    └── portfolixir.perf.ex             # D9 — operator measurement (one command)
+
+    priv/repo/migrations/
+    ├── *_create_audit_journal.exs      # + append-only & guard triggers (P1).
+    │                                   # Triggers are raw SQL — the test DB must be
+    │                                   # built via migrations (no schema-dump path)
+    ├── *_create_idempotency_keys.exs   # unique (token, key)
+    └── *_create_scenario_tables.exs    # scenario_ prefix (P5)
+
+    test/
+    ├── engine_purity_test.exs          # P3 gate (whitelist + deny list, Xirr
+    │                                   #   exception encoded explicitly)
+    ├── write_actor_test.exs            # P2 gate (classifier + grandfather list)
+    ├── route_scope_test.exs            # P6 gate (fail-closed)
+    ├── boundary_test.exs               # NEW gate: web layer never references Repo
+    │                                   #   (was convention-only; FR-28 prerequisite)
+    ├── portfolixir/journal/allowlist_test.exs   # mirror path (module unit test)
+    ├── portfolixir/scenarios/          # mirror path incl. schema/prefix test
+    └── support/
+        ├── volume/                     # D9 generator + committed seed
+        ├── fixtures/contract/          # D5 generated+committed fixtures; CI
+        │                               #   freshness check (regenerate, diff, fail);
+        │                               #   TS reads via ONE config constant
+        ├── fixtures/golden/            # analytics oracles, provenance per file (D3)
+        └── fixtures/scenarios/         # scenario test fixtures (day one)
+
+    mcp-server/src/tools.ts             # new tools mirror new endpoints (P12)
+    docs/backup-restore.md              # FR-29 backup half (published site —
+                                        # docs_test.exs ripple applies)
+
+### Requirements-to-Structure Mapping
+
+| FR category | Lands in |
+|---|---|
+| A — Ledger & integrity (FR-1–4, 28) | `journal/`, `actor.ex`, existing contexts (actor refactor) |
+| B — Import & reconciliation (FR-5–7, 29) | existing `imports/` (XML behind gate ADR), `exports/`, `docs/backup-restore.md` |
+| C — Analytics engine (FR-8–12) | `engines/` + `engine_data/` + actions in existing API controllers |
+| D — LLM/MCP surface (FR-13–16) | `controllers/api/v1/meta.ex`, presenter, `mcp-server/`, contract fixtures |
+| E — Read-only sync (FR-17–21) | `sync/` — Phase 3, created only after the scope-gate ADR |
+| F — Product types (FR-22–25) | `catalog/` extensions, `pensions/` — Phase 4, after discovery |
+| G — Planning & simulation (FR-26–27) | `scenarios/`, `engines/scenario.ex` (+ retirement engine later) |
+
+### Architectural Boundaries
+
+- **Dependency direction (unchanged + extended):** web/MCP → contexts → Repo.
+  New: contexts → `Journal` (write path); shell/`engine_data/` → `engines/`
+  (never the reverse; input types live in `Engines.Types`); `engines/` → nothing
+  impure (P3 whitelist).
+- **Web→Repo abstinence is now a gate**, not a convention: `boundary_test.exs`
+  scans `lib/portfolixir_web/` for `Repo` references (closes the open invariant
+  named in project-context.md and required by FR-28).
+- **Journal boundary:** the only module touching `audit_journal` is
+  `Portfolixir.Journal`; DB guard triggers enforce it below the app layer.
+- **Scenario boundary:** the `scenarios` context persists; the scenario engine only
+  computes. Scenarios write only `scenario_` tables; live contexts never read
+  `scenario_` tables (telemetry guard, P5).
+- **MCP boundary (ADR-0002, unchanged):** `mcp-server/` speaks only to `/api/v1`;
+  its only repo coupling is the read-only contract-fixture path (one constant).
+- **Enum source of truth:** domain schemas own enums; `Api.V1.Meta` projects them;
+  the fixture generator asserts equality — drift is a CI failure.
+- **Gated boundaries:** `sync/` and `pensions/` are planned boundaries — creating
+  files there requires the respective scope-gate ADR / discovery story first.
+
+### Data Flow (one line each)
+
+- Write: UI/API/MCP → context (actor-first, P9) → Multi + Journal → PostgreSQL.
+- Analytic: shell → loader (P4) → engine (P3) → presenter + meta (P7) → UI/API/MCP.
+- Scenario: loader (live read) → scenario engine → `scenarios` context persists to
+  `scenario_` tables / overlay response — never the real ledger.
+- Export: `exports/` reads via contexts → PP-format file; backup = documented
+  dump/restore (FR-29 split).
