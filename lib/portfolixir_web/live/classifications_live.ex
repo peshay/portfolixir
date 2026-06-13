@@ -3,7 +3,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
+  alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Format
+
+  @zero Decimal.new("0")
 
   @impl true
   def mount(_params, _session, socket) do
@@ -17,7 +21,31 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:tree, nil)
      |> assign(:query, "")
      |> assign(:editing_id, nil)
-     |> assign(:current_path, "/classifications")}
+     |> assign(:current_only, true)
+     |> assign(:holdings, nil)
+     |> assign(:current_path, "/classifications")
+     |> start_holdings()}
+  end
+
+  # The per-security holdings/valuation is loaded once, asynchronously, after
+  # the socket connects (mirrors the Portfolio page): one ledger read plus the
+  # shared quote/FX path, joined onto the tree in memory rather than queried
+  # per node (issue #334).
+  defp start_holdings(socket) do
+    if connected?(socket) do
+      start_async(socket, :holdings, fn -> Valuation.holdings_by_security() end)
+    else
+      socket
+    end
+  end
+
+  @impl true
+  def handle_async(:holdings, {:ok, holdings}, socket) do
+    {:noreply, socket |> assign(:holdings, holdings) |> reload()}
+  end
+
+  def handle_async(:holdings, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, :error, gettext("Couldn't load current holdings."))}
   end
 
   @impl true
@@ -113,6 +141,20 @@ defmodule PortfolixirWeb.ClassificationsLive do
           />
         </form>
 
+        <form phx-change="toggle_current_only" class="tree-toggle" onsubmit="return false">
+          <input type="hidden" name="current_only" value="false" />
+          <label class="current-only-label">
+            <input
+              type="checkbox"
+              name="current_only"
+              value="true"
+              checked={@tree.current_only}
+              data-role="current-only-toggle"
+            />
+            <span><%= gettext("Current positions only") %></span>
+          </label>
+        </form>
+
         <%= if @tree.editable do %>
           <form phx-submit="create_category" class="inline-form category-form">
             <input type="hidden" name="category[classification_id]" value={@tree.classification.id} />
@@ -196,17 +238,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <div class="cat-body">
             <ul class="cat-securities">
               <%= for security <- @tree.unsorted do %>
-                <li
-                  class={["dnd-row", @tree.assignable && "is-draggable"]}
-                  draggable={if @tree.assignable, do: "true", else: nil}
-                  data-drag-security={if @tree.assignable, do: security.id, else: nil}
-                >
-                  <span class="row-name" title={security.name}><%= security.name %></span>
-                  <%= if security.ticker_symbol not in [nil, ""] do %>
-                    <small class="row-ticker"><%= security.ticker_symbol %></small>
-                  <% end %>
-                  <small class="row-ccy"><%= security.currency_code %></small>
-                </li>
+                <.security_row security={security} assignable={@tree.assignable} />
               <% end %>
               <%= if @tree.unsorted == [] do %>
                 <li class="hint"><%= gettext("Everything is sorted.") %></li>
@@ -257,6 +289,32 @@ defmodule PortfolixirWeb.ClassificationsLive do
     """
   end
 
+  # One assigned/unsorted security row, with its current quantity and EUR market
+  # value joined in (issue #334). Shared by the category and Unsorted lists so
+  # the markup lives in one place (SonarCloud copy-paste, issue #368).
+  defp security_row(assigns) do
+    ~H"""
+    <li
+      class={["dnd-row", @assignable && "is-draggable"]}
+      draggable={if @assignable, do: "true", else: nil}
+      data-drag-security={if @assignable, do: @security.id, else: nil}
+      data-role="security-row"
+    >
+      <span class="row-name" title={@security.name}><%= @security.name %></span>
+      <%= if @security.ticker_symbol not in [nil, ""] do %>
+        <small class="row-ticker"><%= @security.ticker_symbol %></small>
+      <% end %>
+      <small class="row-ccy"><%= @security.currency_code %></small>
+      <span class="row-quantity" data-role="security-quantity">
+        <%= Format.money(@security.quantity) %>
+      </span>
+      <span class="row-value" data-role="security-value">
+        <%= Format.money(@security.market_value) %>
+      </span>
+    </li>
+    """
+  end
+
   defp category_node(assigns) do
     ~H"""
     <details class="cat-node" open={@filtering} {category_attrs(@assignable, @classification_id, @node.category.id)}>
@@ -269,6 +327,21 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <% end %>
         </span>
         <span class="cat-count" title={gettext("Securities in this category and its sub-categories")}><%= total_count(@node) %></span>
+        <span
+          class="cat-positions"
+          data-role="category-positions"
+          title={gettext("Visible positions in this category and its sub-categories")}
+        ><%= total_count(@node) %></span>
+        <span class="cat-value" data-role="category-value" title={gettext("EUR value of the visible positions")}>
+          <%= Format.money(visible_value(@node)) %>
+        </span>
+        <%= if hidden_count(@node) > 0 do %>
+          <span
+            class="cat-without-holdings"
+            data-role="without-holdings"
+            title={gettext("Assigned securities you no longer hold, hidden by the filter")}
+          >+<%= hidden_count(@node) %> <%= gettext("without holdings") %></span>
+        <% end %>
         <span class="cat-actions" data-no-toggle>
           <button
             type="button"
@@ -334,17 +407,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <% end %>
         <ul class="cat-securities">
           <%= for security <- @node.securities do %>
-            <li
-              class={["dnd-row", @assignable && "is-draggable"]}
-              draggable={if @assignable, do: "true", else: nil}
-              data-drag-security={if @assignable, do: security.id, else: nil}
-            >
-              <span class="row-name" title={security.name}><%= security.name %></span>
-              <%= if security.ticker_symbol not in [nil, ""] do %>
-                <small class="row-ticker"><%= security.ticker_symbol %></small>
-              <% end %>
-              <small class="row-ccy"><%= security.currency_code %></small>
-            </li>
+            <.security_row security={security} assignable={@assignable} />
           <% end %>
         </ul>
         <%= for child <- @node.children do %>
@@ -446,6 +509,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
     {:noreply, socket |> assign(:query, query) |> reload()}
   end
 
+  def handle_event("toggle_current_only", params, socket) do
+    current_only? = params["current_only"] == "true"
+    {:noreply, socket |> assign(:current_only, current_only?) |> reload()}
+  end
+
   def handle_event("assign_security", params, socket) do
     with {:ok, security_id} <- coerce_id(params["security_id"]),
          {:ok, classification_id} <- coerce_id(params["classification_id"]),
@@ -526,16 +594,29 @@ defmodule PortfolixirWeb.ClassificationsLive do
     tree = Enum.find(Classifications.list_trees(), &(&1.classification.id == classification_id))
 
     if tree do
-      assign(socket, selected_id: classification_id, tree: build_view(tree, socket.assigns.query))
+      view =
+        build_view(tree, socket.assigns.query, socket.assigns.holdings,
+          current_only: socket.assigns.current_only
+        )
+
+      assign(socket, selected_id: classification_id, tree: view)
     else
       assign(socket, selected_id: nil, tree: nil)
     end
   end
 
-  defp build_view(tree, query) do
+  defp build_view(tree, query, holdings, opts) do
     needle = query |> to_string() |> String.trim() |> String.downcase()
+    current_only? = Keyword.fetch!(opts, :current_only)
+    # An active search always reveals matching securities so results stay
+    # visible, even ones the "current positions only" toggle would normally hide.
+    hide_sold? = current_only? and needle == ""
     securities = Catalog.list_securities()
     securities_by_id = Map.new(securities, &{&1.id, &1})
+
+    decorate = fn security ->
+      decorate_security(security, holdings)
+    end
 
     by_category =
       tree.assignments
@@ -546,9 +627,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
           |> Enum.map(&Map.get(securities_by_id, &1))
           |> Enum.reject(&is_nil/1)
           |> Enum.filter(&matches?(&1, needle))
+          |> Enum.map(decorate)
           |> Enum.sort_by(& &1.name)
 
-        {category_id, members}
+        {category_id, split_members(members, hide_sold?)}
       end)
 
     assigned_ids = MapSet.new(tree.assignments, & &1.security_id)
@@ -557,6 +639,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       securities
       |> Enum.reject(&MapSet.member?(assigned_ids, &1.id))
       |> Enum.filter(&matches?(&1, needle))
+      |> Enum.map(decorate)
       |> Enum.sort_by(& &1.name)
 
     grouped = Enum.group_by(tree.categories, & &1.parent_id)
@@ -576,7 +659,47 @@ defmodule PortfolixirWeb.ClassificationsLive do
       flat: flatten(tree.categories),
       unsorted: unsorted,
       query: query,
-      filtering?: needle != ""
+      filtering?: needle != "",
+      current_only: current_only?
+    }
+  end
+
+  # Splits a category's decorated, matching securities into the ones to show and
+  # a count of the zero-holding ones hidden by the "current positions only"
+  # toggle. With the toggle off everything is visible and nothing is hidden.
+  defp split_members(members, false), do: %{securities: members, hidden: 0}
+
+  defp split_members(members, true) do
+    {held, sold} = Enum.split_with(members, & &1.held?)
+    %{securities: held, hidden: length(sold)}
+  end
+
+  # Joins the global per-security holdings/valuation onto a plain row map. Before
+  # the async load completes (`holdings == nil`) quantity/value are unknown and
+  # the row is treated as held so nothing is hidden prematurely.
+  defp decorate_security(security, nil) do
+    row(security, quantity: nil, market_value: nil, held?: true)
+  end
+
+  defp decorate_security(security, holdings) do
+    case Map.get(holdings, security.id) do
+      %{quantity: quantity, market_value: market_value} ->
+        row(security, quantity: quantity, market_value: market_value, held?: true)
+
+      nil ->
+        row(security, quantity: @zero, market_value: nil, held?: false)
+    end
+  end
+
+  defp row(security, fields) do
+    %{
+      id: security.id,
+      name: security.name,
+      ticker_symbol: security.ticker_symbol,
+      currency_code: security.currency_code,
+      quantity: Keyword.fetch!(fields, :quantity),
+      market_value: Keyword.fetch!(fields, :market_value),
+      held?: Keyword.fetch!(fields, :held?)
     }
   end
 
@@ -600,9 +723,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
     grouped
     |> Map.get(parent_id, [])
     |> Enum.map(fn category ->
+      %{securities: securities, hidden: hidden} =
+        Map.get(by_category, category.id, %{securities: [], hidden: 0})
+
       %{
         category: category,
-        securities: Map.get(by_category, category.id, []),
+        securities: securities,
+        hidden: hidden,
         children: build_nodes(grouped, category.id, by_category)
       }
     end)
@@ -611,6 +738,29 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # Securities directly in this node plus everything in its sub-categories.
   defp total_count(node) do
     length(node.securities) + Enum.sum(Enum.map(node.children, &total_count/1))
+  end
+
+  # Zero-holding securities hidden in this node and every sub-category, so the
+  # "+N without holdings" counter never silently drops a branch's legacy
+  # positions (issue #334).
+  defp hidden_count(node) do
+    node.hidden + Enum.sum(Enum.map(node.children, &hidden_count/1))
+  end
+
+  # EUR value of the VISIBLE securities directly in this node and below; an
+  # unvalued holding contributes nothing rather than distorting the total.
+  defp visible_value(node) do
+    direct =
+      Enum.reduce(node.securities, @zero, fn security, acc ->
+        case security.market_value do
+          %Decimal{} = value -> Decimal.add(acc, value)
+          _ -> acc
+        end
+      end)
+
+    Enum.reduce(node.children, direct, fn child, acc ->
+      Decimal.add(acc, visible_value(child))
+    end)
   end
 
   # Flat, depth-tagged list of categories for the parent <select>.
