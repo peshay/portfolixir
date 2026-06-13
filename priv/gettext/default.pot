@@ -1905,6 +1905,11 @@ msgstr ""
 msgid "TTWROR"
 msgstr ""
 
+#: lib/portfolixir_web/live/portfolio_live.ex:183
+#, elixir-autogen
+msgid "IRR"
+msgstr ""
+
 #: lib/portfolixir_web/live/portfolio_live.ex:189
 #, elixir-autogen
 msgid "Period"

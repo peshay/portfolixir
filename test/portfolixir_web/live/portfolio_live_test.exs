@@ -20,8 +20,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # Acceptance criteria:
   # - The page paints immediately; the heavy figures load asynchronously and
   #   fill in (no blocking dead render, no double computation).
-  # - The page shows total incl. cash, the cash quote, and the period TTWROR,
-  #   formatted for the locale (en: 1,080.00).
+  # - The page shows total incl. cash, the cash quote, the period TTWROR and
+  #   the money-weighted IRR, formatted for the locale (en: 1,080.00).
   # - The donut renders one slice per category in the category colour, and the
   #   drift table compares actual vs. target.
   # - Switching the period re-chains the cached daily series instantly.
@@ -128,6 +128,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "18.5"
     # TTWROR: 1000 -> 1080 with the deposit neutralised = 8%.
     assert html =~ "8.0"
+    # The money-weighted IRR KPI renders next to the TTWROR KPI.
+    assert html =~ ~s(id="kpi-irr")
+    assert html =~ "IRR"
     # Sunburst slice in the category colour, legend and drift row.
     assert html =~ ~s(fill="#2563eb")
     assert html =~ "Core"
