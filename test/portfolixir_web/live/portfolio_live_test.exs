@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
+  alias Portfolixir.WorldFixtures
 
   # User story:
   # As a local portfolio maintainer,
@@ -32,64 +33,18 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # - Without a portfolio the page points to creating one.
 
   defp seed_world do
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Mein Depot", base_currency_code: "EUR"})
+    %{portfolio: portfolio, cash: cash} =
+      world = WorldFixtures.base_world(name: "Mein Depot", cash_name: "Giro", depot_name: "Depot")
 
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Giro",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Depot"
-      })
-
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "World ETF",
-        ticker_symbol: "WLD",
-        currency_code: "EUR",
-        asset_class: "etf"
-      })
+    security = WorldFixtures.create_security!(name: "World ETF", ticker: "WLD")
 
     today = Date.utc_today()
     start = Date.add(today, -10)
 
-    {:ok, _} =
-      Ledger.create_transaction(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        type: "deposit",
-        date: start,
-        gross_amount: "1000",
-        currency_code: "EUR"
-      })
+    WorldFixtures.deposit!(world, "1000", start)
+    WorldFixtures.buy!(world, security, quantity: "8", price: "100", date: start)
 
-    {:ok, _} =
-      Ledger.create_transaction(%{
-        portfolio_id: portfolio.id,
-        securities_account_id: depot.id,
-        cash_account_id: cash.id,
-        security_id: security.id,
-        type: "buy",
-        date: start,
-        quantity: "8",
-        price: "100",
-        fees: "0",
-        taxes: "0",
-        currency_code: "EUR"
-      })
-
-    {:ok, _} =
-      Quotes.upsert_many(security.id, [
-        %{date: start, close: "100", source: "manual"},
-        %{date: today, close: "110", source: "manual"}
-      ])
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
 
     {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
 
@@ -107,13 +62,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
 
-    %{
-      portfolio: portfolio,
-      cash: cash,
-      depot: depot,
-      classification: classification,
-      core: core
-    }
+    Map.merge(world, %{classification: classification, core: core})
   end
 
   test "loads the figures asynchronously and shows totals, donut and drift", %{conn: conn} do
