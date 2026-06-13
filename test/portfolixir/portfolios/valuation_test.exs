@@ -2,7 +2,14 @@ defmodule Portfolixir.Portfolios.ValuationTest do
   use Portfolixir.DataCase, async: true
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, create_security!: 1, buy!: 3, put_quote!: 3]
+    only: [
+      base_world: 0,
+      create_security!: 1,
+      buy!: 3,
+      sell!: 3,
+      deposit!: 3,
+      put_quote!: 3
+    ]
 
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Valuation
@@ -110,5 +117,65 @@ defmodule Portfolixir.Portfolios.ValuationTest do
     [row] = valuation.positions
     assert Decimal.equal?(row.market_value, Decimal.new("100"))
     assert Decimal.equal?(valuation.total_value, Decimal.new("100"))
+  end
+
+  # User story:
+  # As a maintainer reviewing a classification tree (issue #334),
+  # I want one global per-security view of current quantity and EUR market value,
+  # so the tree can show holdings/value per security without an N+1 query per
+  # node and can hide securities I no longer hold.
+  #
+  # Acceptance criteria:
+  # - Held securities map to their summed quantity and EUR market value.
+  # - A held security with no quote and no trade price is reported unvalued
+  #   (nil market value) rather than distorting the result.
+  # - Fully sold securities are absent from the map.
+  test "holdings_by_security reports quantity and EUR value per held security" do
+    world = base_world()
+    held = equity!("Apple Inc.", "AAPL")
+    unvalued = equity!("Delivered Co.", "DLVR")
+    sold = equity!("Gone Co.", "GONE")
+
+    deposit!(world, "10000", ~D[2026-01-01])
+    buy!(world, held, quantity: "10", price: "80")
+    buy!(world, sold, quantity: "4", price: "50")
+    sell!(world, sold, quantity: "4", price: "60", date: ~D[2026-01-03])
+
+    # Held with neither quote nor own trade price: an inbound delivery only.
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: unvalued.id,
+        type: "inbound_delivery",
+        date: ~D[2026-01-02],
+        quantity: "7",
+        currency_code: "EUR"
+      })
+
+    june_quote!(held, "100")
+
+    holdings = Valuation.holdings_by_security()
+
+    assert Decimal.equal?(holdings[held.id].quantity, Decimal.new("10"))
+    assert Decimal.equal?(holdings[held.id].market_value, Decimal.new("1000"))
+    assert holdings[held.id].valued
+
+    assert Decimal.equal?(holdings[unvalued.id].quantity, Decimal.new("7"))
+    refute holdings[unvalued.id].valued
+    assert is_nil(holdings[unvalued.id].market_value)
+
+    refute Map.has_key?(holdings, sold.id)
+  end
+
+  test "holdings_by_security accepts injected prices without touching quotes" do
+    world = base_world()
+    security = equity!("Apple Inc.", "AAPL")
+    deposit!(world, "10000", ~D[2026-01-01])
+    buy!(world, security, quantity: "4", price: "10")
+
+    holdings = Valuation.holdings_by_security(prices: %{security.id => Decimal.new("25")})
+
+    assert Decimal.equal?(holdings[security.id].market_value, Decimal.new("100"))
   end
 end
