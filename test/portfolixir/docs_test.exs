@@ -337,6 +337,29 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
+  # As a local integrator holding a store-of-value position,
+  # I want the docs to document the excluded-from-allocation-targets flag,
+  # so that I can keep a security (e.g. Bitcoin) out of the allocation steering
+  # basis over the API or MCP without reading source files.
+  #
+  # Acceptance criteria:
+  # - The API and MCP page documents excluded_from_allocation_targets on
+  #   securities and the allocation's excluded block.
+  # - The product handbook describes the flag and the "outside the steering
+  #   basis" block.
+  test "docs document the excluded-from-allocation-targets flag" do
+    api_docs = File.read!("docs/integration/api-and-mcp.md")
+    product_docs = File.read!("docs/product-documentation.md")
+
+    assert api_docs =~ "excluded_from_allocation_targets"
+    assert api_docs =~ "steering basis"
+    assert api_docs =~ "`excluded`"
+
+    assert product_docs =~ "excluded from allocation targets"
+    assert product_docs =~ "Outside the steering basis"
+  end
+
+  # User story:
   # As a public reader of the Portfolixir docs,
   # I want the documentation page to use the same Portfolixir theme accents as the app,
   # so that the project identity is consistent across app and docs.

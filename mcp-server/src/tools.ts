@@ -43,6 +43,7 @@ const securityZ = z.object({
     feed_url: optionalString(),
     provider: optionalString(),
     online_id: optionalString(),
+    excluded_from_allocation_targets: z.boolean().optional(),
     attributes: z.record(z.unknown()).optional()
   })
 });
@@ -124,6 +125,7 @@ const securitySchema = objectWith("security", {
     feed_url: { type: "string" },
     provider: { type: "string" },
     online_id: { type: "string" },
+    excluded_from_allocation_targets: { type: "boolean" },
     attributes: { type: "object", additionalProperties: true }
   }
 });
@@ -402,6 +404,7 @@ const securityUpdateSchema = {
         feed_url: { type: "string" },
         provider: { type: "string" },
         online_id: { type: "string" },
+        excluded_from_allocation_targets: { type: "boolean" },
         attributes: { type: "object", additionalProperties: true }
       }
     }
@@ -423,6 +426,7 @@ const securityUpdateZ = z.object({
     feed_url: optionalString(),
     provider: optionalString(),
     online_id: optionalString(),
+    excluded_from_allocation_targets: z.boolean().optional(),
     attributes: z.record(z.unknown()).optional()
   })
 });
@@ -700,8 +704,8 @@ const toolDefinitions: ToolDefinition[] = [
     limit: z.number().int().min(0).optional(),
     offset: z.number().int().min(0).optional()
   })),
-  tool("portfolixir.securities.create", "Create security", "Create a local security.", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data.", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.create", "Create security", "Create a local security. Set excluded_from_allocation_targets=true to keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift.", securitySchema, securityZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data, including excluded_from_allocation_targets (keeps the position visible in totals/performance but out of the allocation steering basis and drift).", securityUpdateSchema, securityUpdateZ),
   tool("portfolixir.securities.delete", "Delete security", "Delete a local security when no transactions or quotes reference it.", idSchema, idZ),
   tool("portfolixir.securities.search_online", "Search online securities", "Search configured online security providers.", {
     type: "object",

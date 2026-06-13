@@ -28,6 +28,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       latest_feed: security.latest_feed,
       latest_feed_url: security.latest_feed_url,
       is_retired: security.is_retired,
+      excluded_from_allocation_targets: security.excluded_from_allocation_targets,
       online_id: security.online_id,
       provider: security.provider,
       attributes: security.attributes || %{},
@@ -261,7 +262,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       total_value: decimal(allocation.total_value),
       unvalued_count: allocation.unvalued_count,
       categories: Enum.map(allocation.categories, &allocation_category/1),
-      unassigned: allocation_unassigned(allocation.unassigned)
+      unassigned: allocation_unassigned(allocation.unassigned),
+      excluded: allocation_excluded(allocation.excluded)
     }
   end
 
@@ -298,6 +300,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       market_value: decimal(unassigned.market_value),
       actual_weight: decimal(unassigned.actual_weight),
       positions: Enum.map(unassigned.positions, &allocation_position/1)
+    }
+  end
+
+  defp allocation_excluded(nil), do: nil
+
+  defp allocation_excluded(excluded) do
+    %{
+      market_value: decimal(excluded.market_value),
+      positions: Enum.map(excluded.positions, &allocation_position/1)
     }
   end
 
