@@ -2,7 +2,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
   use PortfolixirWeb.ConnCase
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, create_security!: 1, buy!: 3, put_quote!: 3]
+    only: [base_world: 0, create_security!: 1, buy!: 3, put_quote!: 3, deposit!: 3]
 
   alias Portfolixir.Classifications
 
@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
 
   defp get_json(conn, path), do: conn |> api_conn() |> get(path)
   defp put_json(conn, path, body), do: conn |> api_conn() |> put(path, Jason.encode!(body))
+  defp patch_json(conn, path, body), do: conn |> api_conn() |> patch(path, Jason.encode!(body))
   defp delete_json(conn, path), do: conn |> api_conn() |> delete(path)
 
   defp setup_world do
@@ -30,6 +31,9 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     security = create_security!(name: "Core Equity", ticker: "CORE", asset_class: "equity")
     {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
 
+    # Fund the cash account so the buy leaves it at zero: counting cash is 0, so
+    # the allocation basis here is securities only (issue #335).
+    deposit!(world, "1000", ~D[2026-01-01])
     buy!(world, security, quantity: "10", price: "100")
     put_quote!(security, ~D[2026-06-01], "120")
 
@@ -79,6 +83,56 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert category["target_weight"] == "0.8"
     assert category["drift_weight"] == "-0.2"
     assert category["drift_value"] == "-240"
+
+    # The allocation carries a cash row (here cash is 0) and the Σ top level.
+    assert data["cash"]["market_value"] == "0"
+    assert data["cash"]["actual_weight"] == "0"
+    assert data["cash"]["target_weight"] == "0"
+    assert data["top_level_target_sum"] == "0.8"
+  end
+
+  # User story:
+  # As an API client (and the LLM I connect over MCP) steering a cash quote,
+  # I want to set the portfolio's cash target and read the allocation cash row,
+  # so that cash is part of the same SOLL/IST basis as the categories.
+  #
+  # Acceptance criteria:
+  # - PATCH /portfolios/:id sets cash_target_weight; it is returned and feeds the
+  #   allocation cash row and the Σ top level.
+  # - The 100% basis is securities + counting cash, so a category percentage
+  #   shrinks once cash is present.
+  test "sets the cash target and reports it in the allocation cash row", %{conn: conn} do
+    world = setup_world()
+    %{portfolio: portfolio, classification: classification} = world
+
+    # Add 120 EUR of counting cash on top of the (funded) 1200 EUR of securities:
+    # basis becomes 1320; the core category is 1200/1320 and cash is 120/1320.
+    deposit!(world, "120", ~D[2026-06-02])
+
+    patched =
+      patch_json(conn, "/api/v1/portfolios/#{portfolio.id}", %{
+        "portfolio" => %{"cash_target_weight" => "0.05"}
+      })
+
+    assert %{"data" => updated} = json_response(patched, 200)
+    assert updated["cash_target_weight"] == "0.05"
+
+    data =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/allocation?classification_id=#{classification.id}"
+      )
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert data["total_value"] == "1320"
+    assert data["cash"]["market_value"] == "120"
+    assert data["cash"]["target_weight"] == "0.05"
+    assert data["top_level_target_sum"] == "0.05"
+
+    [category] = data["categories"]
+    # Shrunk from 1 (securities-only) to 1200/1320 once cash joins the basis.
+    refute category["actual_weight"] == "1"
   end
 
   test "requires classification_id for the allocation endpoint", %{conn: conn} do

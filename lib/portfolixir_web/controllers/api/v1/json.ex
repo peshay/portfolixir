@@ -59,6 +59,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       name: portfolio.name,
       base_currency_code: portfolio.base_currency_code,
       notes: portfolio.notes,
+      cash_target_weight: decimal(portfolio.cash_target_weight),
       inserted_at: timestamp(portfolio.inserted_at),
       updated_at: timestamp(portfolio.updated_at)
     }
@@ -262,8 +263,20 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       total_value: decimal(allocation.total_value),
       unvalued_count: allocation.unvalued_count,
       categories: Enum.map(allocation.categories, &allocation_category/1),
+      cash: allocation_cash(allocation.cash),
+      top_level_target_sum: decimal(allocation.top_level_target_sum),
       unassigned: allocation_unassigned(allocation.unassigned),
       excluded: allocation_excluded(allocation.excluded)
+    }
+  end
+
+  defp allocation_cash(cash) do
+    %{
+      market_value: decimal(cash.market_value),
+      actual_weight: decimal(cash.actual_weight),
+      target_weight: decimal(cash.target_weight),
+      drift_weight: decimal(cash.drift_weight),
+      drift_value: decimal(cash.drift_value)
     }
   end
 
