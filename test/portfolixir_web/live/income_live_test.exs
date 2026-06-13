@@ -76,6 +76,23 @@ defmodule PortfolixirWeb.IncomeLiveTest do
 
     assert detail_html =~ "income-detail"
     assert detail_html =~ "Payer Inc"
+
+    # Closing the drilldown hides the detail section again.
+    closed_html =
+      view
+      |> element("[phx-click='clear_year']")
+      |> render_click()
+
+    refute closed_html =~ "income-detail"
+  end
+
+  test "shows an empty state when the portfolio has no income yet", %{conn: conn} do
+    WorldFixtures.base_world(name: "Empty Depot", currency: "EUR")
+
+    {:ok, _view, html} = live(conn, "/income")
+
+    assert html =~ "income-annual"
+    assert html =~ "No dividends or interest booked yet."
   end
 
   test "points to creating a portfolio when none exists", %{conn: conn} do

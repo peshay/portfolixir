@@ -123,6 +123,24 @@ defmodule Portfolixir.Portfolios.IncomeTest do
     assert Decimal.equal?(years[2025].dividends_total, Decimal.new("100"))
   end
 
+  test "falls back to parity and flags an unconvertible booking when no rate exists" do
+    # No EUR/GBP rate is stored, so the GBP dividend cannot be converted.
+    world = WorldFixtures.base_world(currency: "EUR", cash_currency: "GBP")
+    security = WorldFixtures.create_security!(name: "UK Payer", ticker: "UKP", currency: "GBP")
+
+    dividend!(world, security, date: ~D[2025-05-01], net: "100", tax: "0", currency: "GBP")
+
+    income = Income.for_portfolio(world.portfolio.id)
+
+    assert income.unconverted_count == 1
+    # Converted at parity (no rate), so the GBP amount carries through unchanged.
+    row = Enum.find(income.positions, &(&1.security_id == security.id))
+    assert Decimal.equal?(row.gross, Decimal.new("100"))
+
+    [detail] = Enum.filter(income.transactions, &(&1.year == 2025))
+    refute detail.converted
+  end
+
   test "lists per-transaction detail for a year drilldown" do
     world = WorldFixtures.base_world(currency: "EUR")
     security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
