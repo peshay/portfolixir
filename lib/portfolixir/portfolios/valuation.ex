@@ -29,6 +29,41 @@ defmodule Portfolixir.Portfolios.Valuation do
   alias Portfolixir.Portfolios
 
   @zero Decimal.new("0")
+  @hub "EUR"
+
+  @doc """
+  Holdings and EUR-hub market value per security across **all** portfolios.
+
+  Computes the global per-security quantity and its current market value once
+  (a single ledger read plus the shared quote/trade-price/FX path), so a view
+  that joins valuation onto a security tree never queries per node. Each
+  security id maps to `%{quantity: Decimal, market_value: Decimal | nil,
+  valued: boolean}`; `market_value` is `nil` (and `valued` false) when the
+  security has neither a quote nor a trade price, or no exchange-rate path to
+  the EUR hub. Securities not currently held are absent from the map.
+
+  Options (for tests):
+    * `:prices` – `%{security_id => Decimal}` native price overrides; missing
+      securities fall back to `Catalog.Quotes.latest/1`.
+  """
+  def holdings_by_security(opts \\ []) do
+    prices = Keyword.get(opts, :prices, %{})
+    trade_prices = Ledger.latest_trade_prices()
+
+    Ledger.positions_by_security()
+    |> Map.new(fn {security_id, quantity} ->
+      {security_id, value_security(security_id, quantity, {prices, trade_prices})}
+    end)
+  end
+
+  defp value_security(security_id, quantity, price_maps) do
+    security = Catalog.get_security(security_id)
+    security_currency = security && security.currency_code
+    {price, price_currency, _source} = price_for(security_id, price_maps, security_currency)
+    {market_value, valued?} = market_value(quantity, price, price_currency, @hub)
+
+    %{quantity: quantity, market_value: market_value, valued: valued?}
+  end
 
   @doc """
   Returns the live valuation for one portfolio, in the portfolio base currency.
