@@ -341,6 +341,25 @@ over the API
 valuation series for charting. The method and its trade-offs are recorded in
 [ADR-0010](decisions/0010-ttwror-performance-series.html).
 
+## Income (dividends and interest)
+
+The **Income** page is the retrospective income report: the dividends and
+interest already booked in your ledger, with no external data or forecast. It
+shows an **annual overview** — a year × month matrix split into a *Dividends* and
+an *Interest* series, each year with a totals column — and a **per-position
+table** with, for each security, the gross paid, the withheld tax, the net, the
+number of payments and the date of the last one. A dividend's **gross** is the
+net cash credited plus the withheld tax recorded on the transaction; interest
+(Portfolio Performance INTEREST: account interest or bond coupons) carries no
+withholding and is tracked as its own series next to dividends. Clicking a year
+opens the per-transaction detail for that year.
+
+Amounts are reported in the portfolio's base currency, converted through the
+EUR hub at each booking date's stored rate (the same conversion the valuation
+uses); the original currency stays visible on each row. The report is also
+available over the API (`GET /api/v1/portfolios/:id/income`) and the
+`portfolixir.portfolios.income` MCP tool.
+
 ## Imports
 
 The Imports page accepts Portfolio Performance transaction exports in CSV or
@@ -454,11 +473,11 @@ The detail pane shows a server-rendered SVG price chart with:
   securities currently visible in it and its sub-categories, so the totals
   follow the toggle.
 - The sidebar lists only routes that exist plus the few planned features that
-  have an open issue behind them. Three entries are shown disabled with a "Soon"
-  pill: **Watchlist**, **Dividends**, and **Returns & risk**. Allocation,
-  holdings, and performance are not separate menu entries — the **Portfolio**
-  page already covers asset allocation (the sunburst), holdings, and TTWROR
-  performance.
+  have an open issue behind them. Two entries are shown disabled with a "Soon"
+  pill: **Watchlist** and **Returns & risk**. The **Income** report is a live
+  entry (received dividends and interest). Allocation, holdings, and performance
+  are not separate menu entries — the **Portfolio** page already covers asset
+  allocation (the sunburst), holdings, and TTWROR performance.
 - Theme: system, light, and dark modes are supported.
 - Accent: violet, teal, and coral logo accent choices are supported.
 - Language: first load follows the browser language when it is English or
