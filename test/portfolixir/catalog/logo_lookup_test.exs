@@ -715,13 +715,11 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
 
       stub =
         plug_stub(fn conn ->
-          cond do
-            conn.request_path =~ "/w/rest.php/v1/search/page" ->
-              Agent.update(captured, fn _ -> URI.decode_query(conn.query_string)["q"] end)
-              json_response(conn, 200, %{"pages" => []})
-
-            true ->
-              Plug.Conn.send_resp(conn, 404, "not found")
+          if conn.request_path =~ "/w/rest.php/v1/search/page" do
+            Agent.update(captured, fn _ -> URI.decode_query(conn.query_string)["q"] end)
+            json_response(conn, 200, %{"pages" => []})
+          else
+            Plug.Conn.send_resp(conn, 404, "not found")
           end
         end)
 
