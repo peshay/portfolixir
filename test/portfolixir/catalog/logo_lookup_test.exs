@@ -665,4 +665,74 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
                LogoLookup.find_url(security, req: stub)
     end
   end
+
+  describe "find_url/2 search resilience" do
+    # User story:
+    # As a maintainer, I want companies whose Wikipedia article lives under a
+    # different title than their brokerage name (BMW vs "Bayerische Motoren
+    # Werke", Goldwind vs "Xinjiang Goldwind") to still get a logo — the search
+    # accepts the first company-like result regardless of title word overlap.
+    test "search accepts a company under a differently-titled article" do
+      stub =
+        plug_stub(fn conn ->
+          cond do
+            conn.request_path =~ "/w/rest.php/v1/search/page" ->
+              json_response(conn, 200, %{
+                "pages" => [
+                  %{
+                    "key" => "BMW",
+                    "title" => "BMW",
+                    "description" => "German multinational manufacturer of vehicles"
+                  }
+                ]
+              })
+
+            conn.request_path =~ "/api/rest_v1/page/summary/BMW" ->
+              json_response(conn, 200, %{
+                "originalimage" => %{"source" => "https://wikipedia/BMW.png"}
+              })
+
+            conn.request_path =~ "/api/rest_v1/page/summary/" ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+
+            true ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+          end
+        end)
+
+      security = %Security{
+        provider: "manual",
+        asset_class: "equity",
+        name: "Bayerische Motoren Werke AG Vorzugsaktien o.St. EO 1"
+      }
+
+      assert {:ok, "https://wikipedia/BMW.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+    end
+
+    test "the search query strips ADR, holdings and class-letter noise" do
+      {:ok, captured} = Agent.start_link(fn -> nil end)
+
+      stub =
+        plug_stub(fn conn ->
+          cond do
+            conn.request_path =~ "/w/rest.php/v1/search/page" ->
+              Agent.update(captured, fn _ -> URI.decode_query(conn.query_string)["q"] end)
+              json_response(conn, 200, %{"pages" => []})
+
+            true ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+          end
+        end)
+
+      security = %Security{
+        provider: "manual",
+        asset_class: "equity",
+        name: "AMC ENTERTAINMENT HLDGS A"
+      }
+
+      assert :skip = LogoLookup.find_url(security, req: stub)
+      assert Agent.get(captured, & &1) == "AMC ENTERTAINMENT"
+    end
+  end
 end

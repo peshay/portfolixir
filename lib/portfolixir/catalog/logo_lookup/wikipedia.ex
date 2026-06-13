@@ -23,13 +23,15 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   @wikidata_endpoint "https://www.wikidata.org/wiki/Special:EntityData"
   @commons_file_redirect "https://commons.wikimedia.org/wiki/Special:Redirect/file/"
 
-  # A candidate is only accepted when its description/excerpt looks like a
-  # company or fund and does NOT look like an unrelated topic (a fruit, a
-  # genus, a film, …). This keeps the search from making false matches such
-  # as "Apple" -> the fruit worse than the deterministic title lookup.
-  @company_signal ~r/\b(compan(y|ies)|corporation|corporate|multinational|conglomerate|manufacturer|holding|bank|insurer|insurance|technolog|software|retailer|automaker|automotive|pharmaceutic|biotechnolog|enterprise|brand|airline|fund|asset management|investment|exchange[- ]traded|etf|brewer|producer|energy|telecommunication|semiconductor)\b/i
+  # A candidate is accepted when its description/excerpt looks like a company
+  # or fund and does NOT look like an unrelated topic (a fruit, a genus, a
+  # film, …). We deliberately do NOT require the candidate title to share
+  # words with the query: Wikipedia ranks the best match first, and many
+  # companies live under a different title than their brokerage name (e.g.
+  # "Bayerische Motoren Werke" -> "BMW", "Xinjiang Goldwind" -> "Goldwind").
+  # The company/non-company guard is what keeps "Apple" -> the fruit out.
+  @company_signal ~r/\b(compan(y|ies)|corporation|corporate|multinational|conglomerate|manufacturer|holding|bank|insurer|insurance|technolog|software|retailer|automaker|automotive|pharmaceutic|biotechnolog|enterprise|brand|airline|fund|asset management|investment|exchange[- ]traded|etf|brewer|producer|energy|telecommunication|semiconductor|maker|developer)\b/i
   @non_company_signal ~r/\b(genus|species|fruit|plant|tree|flower|river|mountain|volcano|village|municipality|film|movie|song|album|novel|video game|given name|surname|family name|disambiguation|deity|mytholog|footballer|actress|actor|singer|painter|island|lake)\b/i
-  @stop_tokens ~w(the of and for inc corp corporation ltd limited ag se plc co company group holding nv sa class shares)
 
   @spec lookup(String.t(), keyword()) ::
           {:ok, String.t()} | :not_found | {:error, term()}
@@ -67,7 +69,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
     case Req.get(req, url: @search_endpoint, params: [q: query, limit: 5]) do
       {:ok, %Req.Response{status: 200, body: %{"pages" => pages}}} when is_list(pages) ->
         pages
-        |> Enum.filter(&plausible_match?(&1, query))
+        |> Enum.filter(&company_like?/1)
         |> first_candidate_image(opts)
 
       {:ok, %Req.Response{status: status}} when status in [200, 404] ->
@@ -90,37 +92,15 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
     end
   end
 
-  defp plausible_match?(%{"title" => title} = page, query) when is_binary(title) do
-    text = "#{page["description"] || ""} #{page["excerpt"] || ""}"
-    similar_title?(title, query) and looks_like_company?(text)
+  defp company_like?(page) when is_map(page) do
+    is_binary(page["title"]) and
+      looks_like_company?("#{page["description"] || ""} #{page["excerpt"] || ""}")
   end
 
-  defp plausible_match?(_page, _query), do: false
+  defp company_like?(_page), do: false
 
   defp looks_like_company?(text) do
     Regex.match?(@company_signal, text) and not Regex.match?(@non_company_signal, text)
-  end
-
-  defp similar_title?(title, query) do
-    title_tokens = MapSet.new(tokenize(title))
-    query_tokens = tokenize(query)
-    query_set = MapSet.new(query_tokens)
-
-    if MapSet.size(title_tokens) == 0 or MapSet.size(query_set) == 0 do
-      false
-    else
-      common = MapSet.size(MapSet.intersection(title_tokens, query_set))
-      common > 0 and common / MapSet.size(query_set) >= 0.34
-    end
-  end
-
-  defp tokenize(string) do
-    string
-    |> String.downcase()
-    |> String.replace(~r/\(.*?\)/, " ")
-    |> String.replace(~r/[^a-z0-9 ]/u, " ")
-    |> String.split(~r/\s+/, trim: true)
-    |> Enum.reject(&(&1 in @stop_tokens))
   end
 
   defp build_req(opts) do
