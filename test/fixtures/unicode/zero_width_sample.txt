@@ -1,0 +1,1 @@
+hidden​zero width space for scanner self-test
