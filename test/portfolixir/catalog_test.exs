@@ -25,7 +25,36 @@ defmodule Portfolixir.CatalogTest do
       assert security.currency_code == "USD"
       assert security.asset_class == "equity"
       assert security.is_retired == false
+      assert security.excluded_from_allocation_targets == false
       assert security.attributes == %{}
+    end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want to flag a security as excluded from allocation targets,
+    # so that it stays in my totals but out of the allocation steering basis.
+    #
+    # Acceptance criteria:
+    # - The flag defaults to false and is settable via the changeset.
+    # - excluded_from_allocation_target_ids/0 returns only the flagged ids.
+    test "casts excluded_from_allocation_targets and lists flagged ids" do
+      assert {:ok, plain} =
+               Catalog.create_security(%{name: "Plain", currency_code: "EUR"})
+
+      assert {:ok, excluded} =
+               Catalog.create_security(%{
+                 name: "Bitcoin",
+                 currency_code: "EUR",
+                 asset_class: "crypto",
+                 excluded_from_allocation_targets: true
+               })
+
+      assert plain.excluded_from_allocation_targets == false
+      assert excluded.excluded_from_allocation_targets == true
+
+      ids = Catalog.excluded_from_allocation_target_ids()
+      assert MapSet.member?(ids, excluded.id)
+      refute MapSet.member?(ids, plain.id)
     end
 
     test "rejects an unknown asset class" do
