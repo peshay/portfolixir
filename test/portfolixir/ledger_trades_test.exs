@@ -1,10 +1,9 @@
 defmodule Portfolixir.LedgerTradesTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
-  alias Portfolixir.Catalog.Quotes
+  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1, put_quote!: 3]
+
   alias Portfolixir.Ledger
-  alias Portfolixir.Portfolios
 
   # User story:
   # As a local portfolio maintainer,
@@ -14,43 +13,22 @@ defmodule Portfolixir.LedgerTradesTest do
   # current open exposure without doing the maths by hand.
 
   defp setup_world do
-    {:ok, security} =
-      Catalog.create_security(%{
+    security =
+      create_security!(
         name: "Apple Inc.",
-        ticker_symbol: "AAPL",
+        ticker: "AAPL",
         isin: "US0378331005",
-        currency_code: "USD",
+        currency: "USD",
         asset_class: "equity"
-      })
+      )
 
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+    # The trades fixture books USD transactions (the security trades in USD),
+    # so its cash account is USD to keep the booking currency and the linked
+    # cash account consistent (issue #343), even though the portfolio base is
+    # EUR.
+    world = base_world(currency: "EUR", cash_currency: "USD")
 
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Local Cash",
-        # The trades fixture books USD transactions (the security trades in
-        # USD), so its cash account is USD to keep the booking currency and
-        # the linked cash account consistent (issue #343).
-        currency_code: "USD"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Main Depot"
-      })
-
-    %{security: security, portfolio: portfolio, cash: cash, depot: depot}
-  end
-
-  defp put_quote!(security, date, close) do
-    {:ok, _} =
-      Quotes.upsert_many(security.id, [
-        %{date: date, close: close, source: "manual"}
-      ])
+    Map.put(world, :security, security)
   end
 
   defp create_tx!(%{security: s, portfolio: p, depot: d, cash: c}, type, date, qty, price) do

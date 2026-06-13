@@ -1,7 +1,8 @@
 defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
+  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1]
+
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
@@ -17,23 +18,11 @@ defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
   # - A holding whose security has no price is returned with nil price and P&L.
 
   defp setup_world do
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+    %{portfolio: portfolio, cash: cash, depot: depot_one} =
+      base_world(depot_name: "Depot One")
 
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Local Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot_one} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Depot One"
-      })
-
+    # A second depot on the same cash account, so the per-(depot, security)
+    # row aggregation can be exercised across two depots.
     {:ok, depot_two} =
       Portfolios.create_securities_account(%{
         portfolio_id: portfolio.id,
@@ -44,17 +33,8 @@ defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
     %{portfolio: portfolio, cash: cash, depot_one: depot_one, depot_two: depot_two}
   end
 
-  defp create_security!(name, ticker) do
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: name,
-        ticker_symbol: ticker,
-        currency_code: "EUR",
-        asset_class: "equity"
-      })
-
-    security
-  end
+  defp equity!(name, ticker),
+    do: create_security!(name: name, ticker: ticker, asset_class: "equity")
 
   defp trade!(world, depot, security, type, qty, price, date) do
     {:ok, _tx} =
@@ -84,9 +64,9 @@ defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
     world = setup_world()
     %{depot_one: depot_one, depot_two: depot_two} = world
 
-    a = create_security!("Sec A", "AAA")
-    b = create_security!("Sec B", "BBB")
-    c = create_security!("Sec C", "CCC")
+    a = equity!("Sec A", "AAA")
+    b = equity!("Sec B", "BBB")
+    c = equity!("Sec C", "CCC")
 
     # Sec A in depot one: two buys at different prices, then a partial sell.
     trade!(world, depot_one, a, "buy", "10", "100", ~D[2026-01-02])

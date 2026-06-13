@@ -1,11 +1,10 @@
 defmodule PortfolixirWeb.ApiV1TargetsTest do
   use PortfolixirWeb.ConnCase
 
-  alias Portfolixir.Catalog
-  alias Portfolixir.Catalog.Quotes
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 0, create_security!: 1, buy!: 3, put_quote!: 3]
+
   alias Portfolixir.Classifications
-  alias Portfolixir.Ledger
-  alias Portfolixir.Portfolios
 
   @auth {"authorization", "Bearer test-api-token"}
 
@@ -21,57 +20,20 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
   defp delete_json(conn, path), do: conn |> api_conn() |> delete(path)
 
   defp setup_world do
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
-
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Local Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Main Depot"
-      })
+    world = base_world()
 
     {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
 
     {:ok, core} =
       Classifications.create_category(%{classification_id: classification.id, name: "Core"})
 
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "Core Equity",
-        ticker_symbol: "CORE",
-        currency_code: "EUR",
-        asset_class: "equity"
-      })
-
+    security = create_security!(name: "Core Equity", ticker: "CORE", asset_class: "equity")
     {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
 
-    {:ok, _} =
-      Ledger.create_transaction(%{
-        portfolio_id: portfolio.id,
-        securities_account_id: depot.id,
-        cash_account_id: cash.id,
-        security_id: security.id,
-        type: "buy",
-        date: ~D[2026-01-02],
-        quantity: "10",
-        price: "100",
-        fees: "0",
-        taxes: "0",
-        currency_code: "EUR"
-      })
+    buy!(world, security, quantity: "10", price: "100")
+    put_quote!(security, ~D[2026-06-01], "120")
 
-    {:ok, _} =
-      Quotes.upsert_many(security.id, [%{date: ~D[2026-06-01], close: "120", source: "manual"}])
-
-    %{portfolio: portfolio, classification: classification, core: core}
+    Map.merge(world, %{classification: classification, core: core})
   end
 
   # User story:

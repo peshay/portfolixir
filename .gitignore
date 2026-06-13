@@ -31,6 +31,7 @@ erl_crash.dump
 # Generated local/CI artifacts
 /sbom/*.cdx.json
 /.playwright-mcp/
+/report/
 
 # Worktree-local docker overrides (not part of the project compose contract)
 /docker-compose.local.yml
