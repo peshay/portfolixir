@@ -496,6 +496,9 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
 
             conn.request_path =~ "/api/rest_v1/page/summary/" ->
               Plug.Conn.send_resp(conn, 404, "not found")
+
+            true ->
+              Plug.Conn.send_resp(conn, 404, "not found")
           end
         end)
 
@@ -517,6 +520,9 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
 
             conn.request_path =~ "/api/rest_v1/page/summary/" ->
               Plug.Conn.send_resp(conn, 404, "not found")
+
+            true ->
+              Plug.Conn.send_resp(conn, 404, "not found")
           end
         end)
 
@@ -528,6 +534,77 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
 
       assert :skip = LogoLookup.find_url(security, req: stub)
       assert Agent.get(captured, & &1) == "VESTAS WIND SYS"
+    end
+  end
+
+  describe "find_url/2 companieslogo fallback and issuer logos" do
+    test "equity falls back to companieslogo when Wikipedia has nothing" do
+      stub =
+        plug_stub(fn conn ->
+          cond do
+            conn.request_path =~ "/w/rest.php/v1/search/page" ->
+              json_response(conn, 200, %{"pages" => []})
+
+            conn.request_path =~ "/api/rest_v1/page/summary/" ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+
+            conn.request_path =~ "/baozun/logo/" ->
+              conn
+              |> Plug.Conn.put_resp_content_type("text/html")
+              |> Plug.Conn.send_resp(
+                200,
+                ~s(<meta property="og:image" content="https://logos/baozun.png">)
+              )
+
+            true ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+          end
+        end)
+
+      security = %Security{provider: "manual", asset_class: "equity", name: "Baozun"}
+
+      assert {:ok, "https://logos/baozun.png", :companieslogo} =
+               LogoLookup.find_url(security, req: stub)
+    end
+
+    # User story:
+    # As a maintainer holding leverage certificates (BNP Paribas, Morgan
+    # Stanley, …), I want the issuer's logo on the row instead of bare
+    # initials, since the product itself has no logo.
+    test "a leverage product resolves its issuer's logo" do
+      stub =
+        plug_stub(fn conn ->
+          assert conn.request_path =~ "/api/rest_v1/page/summary/BNP"
+
+          json_response(conn, 200, %{
+            "originalimage" => %{"source" => "https://wikipedia/BNP_Paribas.png"}
+          })
+        end)
+
+      security = %Security{
+        provider: "portfolio_performance",
+        asset_class: "knock_out",
+        name: "BNP Paribas Issuance B.V. Call Turbo o.End DAX"
+      }
+
+      assert {:ok, "https://wikipedia/BNP_Paribas.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+    end
+
+    test "a leverage product with no recognizable issuer skips without HTTP" do
+      stub = plug_stub(fn _conn -> flunk("must not hit the network without an issuer") end)
+
+      security = %Security{provider: "manual", asset_class: "warrant", name: "Generic Turbo XYZ"}
+
+      assert :skip = LogoLookup.find_url(security, req: stub)
+    end
+
+    test "candidate?/1 covers equities, crypto and issuer-backed derivatives only" do
+      assert LogoLookup.candidate?(%Security{asset_class: "equity", name: "Anything"})
+      assert LogoLookup.candidate?(%Security{asset_class: "crypto", name: "Bitcoin"})
+      assert LogoLookup.candidate?(%Security{asset_class: "knock_out", name: "BNP Paribas Turbo"})
+      refute LogoLookup.candidate?(%Security{asset_class: "warrant", name: "Generic Turbo"})
+      refute LogoLookup.candidate?(%Security{asset_class: "government_bond", name: "Bund 2030"})
     end
   end
 end
