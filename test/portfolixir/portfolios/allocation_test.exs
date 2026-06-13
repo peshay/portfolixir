@@ -1,10 +1,9 @@
 defmodule Portfolixir.Portfolios.AllocationTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
+  import Portfolixir.WorldFixtures, only: [base_world: 0, create_security!: 1, buy!: 3]
+
   alias Portfolixir.Classifications
-  alias Portfolixir.Ledger
-  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Targets
 
@@ -28,22 +27,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   #   and each carries its own (direct) value next to the rolled-up value.
 
   defp setup_world do
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
-
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Local Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Main Depot"
-      })
+    world = base_world()
 
     {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
 
@@ -56,45 +40,18 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     {:ok, defensive} =
       Classifications.create_category(%{classification_id: classification.id, name: "Defensive"})
 
-    %{
-      portfolio: portfolio,
-      cash: cash,
-      depot: depot,
+    Map.merge(world, %{
       classification: classification,
       core: core,
       satellite: satellite,
       defensive: defensive
-    }
+    })
   end
 
-  defp create_security!(name, ticker) do
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: name,
-        ticker_symbol: ticker,
-        currency_code: "EUR",
-        asset_class: "equity"
-      })
+  defp equity!(name, ticker),
+    do: create_security!(name: name, ticker: ticker, asset_class: "equity")
 
-    security
-  end
-
-  defp buy!(%{portfolio: p, depot: d, cash: c}, security, qty, price) do
-    {:ok, _tx} =
-      Ledger.create_transaction(%{
-        portfolio_id: p.id,
-        securities_account_id: d.id,
-        cash_account_id: c.id,
-        security_id: security.id,
-        type: "buy",
-        date: ~D[2026-01-02],
-        quantity: qty,
-        price: price,
-        fees: "0",
-        taxes: "0",
-        currency_code: "EUR"
-      })
-  end
+  defp buy!(world, security, qty, price), do: buy!(world, security, quantity: qty, price: price)
 
   defp fetch_category(allocation, category_id) do
     Enum.find(allocation.categories, &(&1.category_id == category_id))
@@ -106,9 +63,9 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     %{classification: classification, core: core, satellite: satellite, defensive: defensive} =
       world
 
-    core_security = create_security!("Core Equity", "CORE")
-    satellite_security = create_security!("Satellite Equity", "SAT")
-    unassigned_security = create_security!("Loose Equity", "LOOSE")
+    core_security = equity!("Core Equity", "CORE")
+    satellite_security = equity!("Satellite Equity", "SAT")
+    unassigned_security = equity!("Loose Equity", "LOOSE")
 
     {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
 
@@ -187,8 +144,8 @@ defmodule Portfolixir.Portfolios.AllocationTest do
         parent_id: growth.id
       })
 
-    tech_security = create_security!("Tech Co.", "TECH")
-    emerging_security = create_security!("Emerging Co.", "EMRG")
+    tech_security = equity!("Tech Co.", "TECH")
+    emerging_security = equity!("Emerging Co.", "EMRG")
 
     {:ok, _} = Classifications.assign_security(tech_security.id, classification.id, tech.id)
 
