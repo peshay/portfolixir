@@ -494,4 +494,54 @@ defmodule Portfolixir.Imports.ApplierTest do
       assert Portfolios.list_securities_accounts_for_portfolio(portfolio.id) == []
     end
   end
+
+  # User story:
+  # As a local portfolio maintainer importing Portfolio Performance history,
+  # I want the import to reject a record whose currency does not match the
+  # currency of the existing cash account it resolves to,
+  # so that a USD booking is never silently folded into my EUR cash
+  # account and corrupts the balance.
+  #
+  # Acceptance criteria:
+  # - A mismatched record fails the apply with a readable currency error.
+  # - The whole import rolls back; no rows leak through.
+  describe "apply/2 currency consistency" do
+    alias Portfolixir.Imports.Entry
+    alias Portfolixir.Imports.Preview
+
+    test "rejects a record whose currency differs from the resolved cash account" do
+      portfolio = setup_portfolio()
+
+      {:ok, _eur_cash} =
+        Portfolios.create_cash_account(%{
+          portfolio_id: portfolio.id,
+          name: "EUR-Cash",
+          currency_code: "EUR"
+        })
+
+      preview = %Preview{
+        format: :json,
+        entries: [
+          %Entry{
+            source_row: 1,
+            kind: "deposit",
+            date: ~D[2024-04-01],
+            currency_code: "USD",
+            gross_amount: Decimal.new("100.00"),
+            fees: Decimal.new("0"),
+            taxes: Decimal.new("0"),
+            pp_account_name: "EUR-Cash"
+          }
+        ]
+      }
+
+      assert {:error, reason} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+      assert {:insert_failed, %Ecto.Changeset{} = changeset} = reason.reason
+
+      assert %{currency_code: ["must match the linked cash account currency (EUR)"]} =
+               errors_on(changeset)
+
+      assert Ledger.list_transactions_for_portfolio(portfolio.id) == []
+    end
+  end
 end
