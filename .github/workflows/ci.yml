@@ -170,7 +170,7 @@ jobs:
       - name: Reject edits or deletions of existing migrations
         run: |
           base="origin/${{ github.base_ref }}"
-          git fetch origin "${{ github.base_ref }}" --depth=0
+          git fetch origin "${{ github.base_ref }}"
           changed="$(git diff --diff-filter=MD --name-only "$base"...HEAD -- priv/repo/migrations/)"
           if [ -n "$changed" ]; then
             echo "Applied migrations are immutable; the following existing files were modified or deleted:"
