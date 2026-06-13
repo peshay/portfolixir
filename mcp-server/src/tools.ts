@@ -685,6 +685,19 @@ const cashBalanceZ = z.object({
   notes: optionalString()
 });
 
+const incomeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const incomeZ = z.object({
+  portfolio_id: z.number().int().positive()
+});
+
 const performanceSchema = {
   type: "object",
   additionalProperties: false,
@@ -912,6 +925,13 @@ const toolDefinitions: ToolDefinition[] = [
     cashBalanceZ
   ),
   tool(
+    "portfolixir.portfolios.income",
+    "Portfolio income (dividends + interest)",
+    "Retrospective income report for a portfolio from booked dividend and interest transactions (no forecast): an annual year x month matrix split into dividends and interest with a yearly total, a per-position table (security, gross, withheld tax, net, payment count, last payment) and the per-transaction detail for a year drilldown. Gross is net plus the dividend's withheld tax; all amounts are Decimal strings in the portfolio base currency, converted via the EUR hub at each booking date's stored rate, with the original currency retained.",
+    incomeSchema,
+    incomeZ
+  ),
+  tool(
     "portfolixir.portfolios.performance",
     "Portfolio performance (TTWROR + IRR)",
     "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). Set series=true to include the daily valuation series.",
@@ -1113,6 +1133,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         amount: args.amount,
         notes: args.notes
       });
+    case "portfolixir.portfolios.income":
+      return client.request("GET", `/api/v1/portfolios/${args.portfolio_id}/income`);
     case "portfolixir.portfolios.performance":
       return client.request(
         "GET",

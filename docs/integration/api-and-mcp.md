@@ -248,6 +248,26 @@ Example account payloads:
   converge). Securities without quotes are priced at the latest own trade
   price (see the valuation endpoint). Unknown portfolios return
   `404 Not Found`.
+- `GET /api/v1/portfolios/:portfolio_id/income` returns the **retrospective
+  income report**: the dividends and interest already booked in the ledger,
+  aggregated three ways (no forecast — the dividend calendar is a separate
+  feature). `annual` is a list of years (newest first), each with `months` (a
+  map keyed by month number `"1"`–`"12"`, each carrying `dividends` and
+  `interest`), and per-year `dividends_total`, `interest_total` and `total`.
+  `positions` is the per-position table: `security_id`, `security_name`,
+  `security_currency` (the original booking currency), `gross`, `tax` (the
+  withheld tax, from the dividend's TAX units stored on the transaction), `net`
+  (`gross - tax`), `payment_count` and `last_payment`. `transactions` is the
+  per-transaction detail for a year drilldown (`kind`, `date`, `year`,
+  `security_id`/`security_name`, `currency`, the native `native_gross`/
+  `native_tax`/`native_net`, the base-currency `gross`/`tax`/`net`, and
+  `converted`). A dividend's gross is its net cash (`gross_amount`) plus the
+  withheld tax; interest carries no withholding. All amounts are Decimal strings
+  in the portfolio's `base_currency`, converted via the EUR hub at each
+  booking date's stored rate (the same mechanics as the valuation endpoint), with
+  the original currency retained; `unconverted_count` counts bookings with no
+  rate path (converted at parity), and `conversion_note` states the basis.
+  Unknown portfolios return `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
   target weights (the SOLL side of the allocation). Optional `classification_id`
   scopes the list to one tree. Unknown portfolios return `404 Not Found`.
@@ -426,4 +446,5 @@ in MCP schemas are strings.
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.set_cash_target`
+- `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`

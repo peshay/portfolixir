@@ -421,6 +421,33 @@ defmodule Portfolixir.DocsTest do
     assert docs_css =~ ".docs-shell"
   end
 
+  # User story:
+  # As a local integrator reviewing received income,
+  # I want the docs to document the income report endpoint and tool,
+  # so that I can read the dividends and interest aggregation over the API or
+  # MCP without reading source files.
+  #
+  # Acceptance criteria:
+  # - The API and MCP page documents the income endpoint, its annual matrix,
+  #   per-position rows (gross, withheld tax, net), and the EUR-hub conversion.
+  # - The product handbook describes the Income report (dividends and interest)
+  #   and no longer lists Dividends as a planned "Soon" entry.
+  test "docs document the income report endpoint and tool" do
+    api_docs = File.read!("docs/integration/api-and-mcp.md")
+    normalized_api_docs = String.replace(api_docs, ~r/\s+/, " ")
+    product_docs = File.read!("docs/product-documentation.md")
+
+    assert api_docs =~ "GET /api/v1/portfolios/:portfolio_id/income"
+    assert api_docs =~ "portfolixir.portfolios.income"
+    assert normalized_api_docs =~ "retrospective income report"
+    assert normalized_api_docs =~ "the withheld tax, from the dividend's TAX units"
+    assert normalized_api_docs =~ "converted via the EUR hub"
+
+    assert product_docs =~ "## Income (dividends and interest)"
+    assert product_docs =~ "`portfolixir.portfolios.income`"
+    refute product_docs =~ "**Watchlist**, **Dividends**, and **Returns & risk**"
+  end
+
   defp api_routes_from_router do
     router = File.read!("lib/portfolixir_web/router.ex")
 
