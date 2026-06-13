@@ -116,7 +116,13 @@ defmodule Portfolixir.Catalog.LogoLookup do
     case Security.effective_asset_class(security) do
       "crypto" -> crypto_by_mapping(security, opts)
       class when class in @derivative_classes -> issuer_logo(security, opts)
-      _ -> company_logo(security, opts)
+      class when class in @equity_classes -> company_logo(security, opts)
+      # PP names without a recognizable legal form (e.g. "Amazon", "Microsoft",
+      # "Zalando", "XINJIANG GOLDWIND") infer no asset class but are still
+      # companies — try a company logo. Commodities/bonds/indices keep their
+      # flag/initials fallback.
+      nil -> company_logo(security, opts)
+      _ -> :skip
     end
   end
 
@@ -124,9 +130,14 @@ defmodule Portfolixir.Catalog.LogoLookup do
 
   @doc """
   Whether the background discovery should try to fetch a logo for this
-  security: equities/ETFs/funds/crypto always, structured/leverage products
-  only when their issuer (BNP Paribas, Morgan Stanley, …) is recognizable.
-  Everything else keeps its initials/flag fallback.
+  security. Mirrors what `find_url/2` will actually attempt: equities/ETFs/
+  funds/crypto always; structured/leverage products only when their issuer
+  (BNP Paribas, Morgan Stanley, …) is recognizable; and imported (Portfolio
+  Performance) securities whose name infers no asset class — these are plain
+  equities the broker export did not tag (e.g. "Amazon", "Zalando"), which
+  previously were silently skipped by the background queue while the manual
+  "Update logo" action found them. Commodities, bonds and indices keep their
+  flag/initials fallback.
   """
   @spec candidate?(Security.t()) :: boolean()
   def candidate?(%Security{} = security) do
@@ -134,11 +145,18 @@ defmodule Portfolixir.Catalog.LogoLookup do
       class when class in @equity_classes -> true
       "crypto" -> true
       class when class in @derivative_classes -> detect_issuer(security.name) != nil
+      nil -> unclassified_company?(security)
       _ -> false
     end
   end
 
   def candidate?(_), do: false
+
+  defp unclassified_company?(%Security{provider: "portfolio_performance", name: name})
+       when is_binary(name) and name != "",
+       do: true
+
+  defp unclassified_company?(_), do: false
 
   defp crypto_by_mapping(%Security{} = security, opts) do
     case CryptoMap.coin_id(security) do

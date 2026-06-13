@@ -607,6 +607,54 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       refute LogoLookup.candidate?(%Security{asset_class: "government_bond", name: "Bund 2030"})
     end
 
+    # User story:
+    # As a maintainer, imported companies whose PP name carries no legal form
+    # ("Amazon", "Zalando", "XINJIANG GOLDWIND") infer no asset class but are
+    # still companies — background discovery must try them, like the manual
+    # "Update logo" already does. Commodities/bonds stay flag/initials.
+    test "candidate?/1 includes untagged imported equities, not commodities/bonds" do
+      assert LogoLookup.candidate?(%Security{provider: "portfolio_performance", name: "Zalando"})
+
+      assert LogoLookup.candidate?(%Security{
+               provider: "portfolio_performance",
+               name: "XINJIANG GOLDWIND"
+             })
+
+      # Only for imported rows — a manual untagged row is not auto-discovered.
+      refute LogoLookup.candidate?(%Security{provider: "manual", name: "Zalando"})
+
+      # Imported commodities/bonds keep their flag/initials fallback.
+      refute LogoLookup.candidate?(%Security{
+               provider: "portfolio_performance",
+               asset_class: "commodity",
+               name: "Gold"
+             })
+
+      refute LogoLookup.candidate?(%Security{
+               provider: "portfolio_performance",
+               asset_class: "government_bond",
+               name: "Anleihe USA 20/50"
+             })
+    end
+
+    test "an untagged imported equity still resolves a company logo" do
+      stub =
+        plug_stub(fn conn ->
+          if conn.request_path =~ "/api/rest_v1/page/summary/" do
+            json_response(conn, 200, %{
+              "originalimage" => %{"source" => "https://wikipedia/Zalando.png"}
+            })
+          else
+            Plug.Conn.send_resp(conn, 404, "not found")
+          end
+        end)
+
+      security = %Security{provider: "portfolio_performance", asset_class: nil, name: "Zalando"}
+
+      assert {:ok, "https://wikipedia/Zalando.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+    end
+
     test "equity falls back to companieslogo after a Wikipedia transport error" do
       stub =
         plug_stub(fn conn ->
