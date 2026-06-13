@@ -439,6 +439,20 @@ The detail pane shows a server-rendered SVG price chart with:
   category to expand it); searching expands the matching categories. Long
   security names are truncated to one line with the full name on hover, and the
   ticker is shown next to the name.
+- Each assigned security shows its **current quantity** (summed across every
+  securities account of every portfolio) and its **current market value** in
+  the EUR hub, valued from the latest quote (falling back to the latest own
+  trade price, like the portfolio valuation). Holdings and values are loaded
+  **once** for the whole tree after the page connects, so a large tree never
+  triggers a query per row.
+- A **Current positions only** toggle is on by default. It hides securities you
+  no longer hold (zero current quantity) so legacy or fully sold assignments do
+  not clutter the tree. Nothing is silently dropped: each category shows a
+  **+N without holdings** counter for the hidden securities, and turning the
+  toggle off reveals them again.
+- Each category row aggregates the **value** and the **position count** of the
+  securities currently visible in it and its sub-categories, so the totals
+  follow the toggle.
 - The sidebar lists only routes that exist plus the few planned features that
   have an open issue behind them. Three entries are shown disabled with a "Soon"
   pill: **Watchlist**, **Dividends**, and **Returns & risk**. Allocation,

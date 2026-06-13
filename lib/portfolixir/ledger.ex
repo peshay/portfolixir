@@ -456,6 +456,43 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  Currently held quantity per security, summed across every securities account
+  of every portfolio.
+
+  Derived on read from all transactions (ADR-0004) in one pass, so callers that
+  need a global per-security view (e.g. the classification tree) avoid an
+  N+1 query per node. Returns `%{security_id => Decimal}`; securities that net
+  to zero are omitted by `Positions.calculate/1`.
+  """
+  def positions_by_security do
+    list_transactions()
+    |> Positions.calculate()
+    |> Enum.reduce(%{}, fn {{_account_id, security_id}, quantity}, acc ->
+      Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
+    end)
+  end
+
+  @doc """
+  The most recent own trade price per security across all portfolios.
+
+  Like `latest_trade_prices/1` but global: the classification view values
+  positions held in any portfolio, so the price fallback must not be scoped to
+  one portfolio. Returns
+  `%{security_id => %{price: Decimal, currency: String.t(), date: Date.t()}}`.
+  """
+  def latest_trade_prices do
+    Repo.all(
+      from(t in Transaction,
+        where: t.type in ["buy", "sell"] and not is_nil(t.price),
+        order_by: [asc: t.security_id, desc: t.date, desc: t.id],
+        distinct: t.security_id,
+        select: {t.security_id, %{price: t.price, currency: t.currency_code, date: t.date}}
+      )
+    )
+    |> Map.new()
+  end
+
+  @doc """
   The most recent own trade price per security in one portfolio.
 
   A buy or sell is a price observation; the valuation and the performance
