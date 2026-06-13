@@ -6,6 +6,13 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
   time, reloads the row before doing network work, and skips securities that
   already have a stored `logo_path` or whose visible fallback is not a remote
   logo.
+
+  To avoid hammering the upstream logo sources (Wikipedia/Wikidata/CoinGecko/
+  companieslogo) with a burst of hundreds of requests right after a large
+  import — which gets rate-limited and leaves most rows without a logo — the
+  queue waits `:logo_discovery_drain_ms` between items. A periodic rescan
+  (`:logo_discovery_refresh_ms`) re-attempts any still-missing candidates so
+  transient failures and newly imported securities get picked up over time.
   """
 
   use GenServer
@@ -15,6 +22,9 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
   alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Repo
+
+  @default_drain_ms 300
+  @default_refresh_ms :timer.hours(6)
 
   # -- public API ------------------------------------------------------------
 
@@ -62,7 +72,11 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
 
   @impl true
   def init(_opts) do
-    if enabled?(), do: send(self(), :enqueue_missing)
+    if enabled?() do
+      send(self(), :enqueue_missing)
+      schedule_periodic_refresh()
+    end
+
     {:ok, %{queue: :queue.new(), queued: MapSet.new(), scheduled?: false}}
   end
 
@@ -122,6 +136,21 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
     {:noreply, state}
   end
 
+  @impl true
+  def handle_info(:periodic_refresh, state) do
+    state =
+      if enabled?() do
+        missing_logo_candidate_ids()
+        |> Enum.reduce(state, &put_queued/2)
+        |> schedule_drain()
+      else
+        state
+      end
+
+    schedule_periodic_refresh()
+    {:noreply, state}
+  end
+
   # -- queue internals -------------------------------------------------------
 
   defp put_queued(id, state) do
@@ -138,8 +167,15 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
     if :queue.is_empty(state.queue) do
       state
     else
-      send(self(), :drain)
+      Process.send_after(self(), :drain, drain_ms())
       %{state | scheduled?: true}
+    end
+  end
+
+  defp schedule_periodic_refresh do
+    case refresh_ms() do
+      ms when is_integer(ms) and ms > 0 -> Process.send_after(self(), :periodic_refresh, ms)
+      _ -> :ok
     end
   end
 
@@ -147,7 +183,7 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
     if enabled?() do
       case Repo.get(Security, id) do
         %Security{} = security ->
-          if missing_logo?(security) and logo_candidate?(security) do
+          if should_discover?(security) do
             case LogoLookup.run(security, logo_lookup_opts()) do
               {:ok, _security} ->
                 :ok
@@ -172,18 +208,29 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
       Logger.warning("logo discovery exited for ##{id}: #{inspect({kind, reason})}")
   end
 
+  defp should_discover?(%Security{} = security) do
+    missing_logo?(security) and logo_candidate?(security) and not logo_locked?(security)
+  end
+
   defp missing_logo?(%Security{attributes: attributes}) do
     not is_binary(get_in(attributes || %{}, ["logo_path"]))
   end
 
+  # A user who set a manual logo or explicitly removed one locks the security
+  # so background discovery leaves their choice untouched.
+  defp logo_locked?(%Security{attributes: attributes}) do
+    get_in(attributes || %{}, ["logo_locked"]) == true
+  end
+
   defp logo_candidate?(%Security{} = security) do
-    Security.effective_asset_class(security) in ~w(equity etf fund crypto)
+    LogoLookup.candidate?(security)
   end
 
   defp missing_logo_candidate_ids do
     Security
     |> where([s], is_nil(fragment("? ->> ?", s.attributes, ^"logo_path")))
     |> Repo.all()
+    |> Enum.reject(&logo_locked?/1)
     |> Enum.filter(&logo_candidate?/1)
     |> Enum.map(& &1.id)
   end
@@ -194,6 +241,14 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
 
   defp logo_lookup_opts do
     Application.get_env(:portfolixir, :logo_discovery_opts, [])
+  end
+
+  defp drain_ms do
+    Application.get_env(:portfolixir, :logo_discovery_drain_ms, @default_drain_ms)
+  end
+
+  defp refresh_ms do
+    Application.get_env(:portfolixir, :logo_discovery_refresh_ms, @default_refresh_ms)
   end
 
   defp safe_cast(name, message) do
