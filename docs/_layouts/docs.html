@@ -28,6 +28,23 @@
           </picture>
         </a>
 
+        <div class="docs-lang-switch" role="group" aria-label="Documentation language">
+          <a
+            class="docs-lang-link{% if page.lang == 'de' %}{% else %} is-active{% endif %}"
+            href="{{ page.lang_en | default: page.url | relative_url }}"
+            hreflang="en"
+            lang="en"
+            data-lang="en"
+          >EN</a>
+          <a
+            class="docs-lang-link{% if page.lang == 'de' %} is-active{% endif %}"
+            href="{{ page.lang_de | default: page.url | relative_url }}"
+            hreflang="de"
+            lang="de"
+            data-lang="de"
+          >DE</a>
+        </div>
+
         <nav class="docs-nav" aria-label="Documentation">
           {% for group in site.data.navigation %}
             <section class="docs-nav-group" aria-labelledby="docs-nav-{{ forloop.index }}">
@@ -65,6 +82,22 @@
               <img src="{{ '/assets/logo-light.svg' | relative_url }}" alt="Portfolixir" class="docs-logo">
             </picture>
           </a>
+          <div class="docs-lang-switch docs-lang-switch-mobile" role="group" aria-label="Documentation language">
+            <a
+              class="docs-lang-link{% if page.lang == 'de' %}{% else %} is-active{% endif %}"
+              href="{{ page.lang_en | default: page.url | relative_url }}"
+              hreflang="en"
+              lang="en"
+              data-lang="en"
+            >EN</a>
+            <a
+              class="docs-lang-link{% if page.lang == 'de' %} is-active{% endif %}"
+              href="{{ page.lang_de | default: page.url | relative_url }}"
+              hreflang="de"
+              lang="de"
+              data-lang="de"
+            >DE</a>
+          </div>
           <nav class="docs-mobile-nav" aria-label="Documentation sections">
             <details>
               <summary>Documentation</summary>
@@ -103,5 +136,53 @@
         </footer>
       </div>
     </div>
+
+    <script>
+      (function () {
+        var STORAGE_KEY = "portfolixir-docs-lang";
+        var pageLang = "{{ page.lang | default: 'en' }}";
+        var enUrl = "{{ page.lang_en | default: page.url | relative_url }}";
+        var deUrl = "{{ page.lang_de | default: page.url | relative_url }}";
+
+        function store(value) {
+          try {
+            window.localStorage.setItem(STORAGE_KEY, value);
+          } catch (error) {
+            /* storage unavailable; selection simply does not persist */
+          }
+        }
+
+        function read() {
+          try {
+            return window.localStorage.getItem(STORAGE_KEY);
+          } catch (error) {
+            return null;
+          }
+        }
+
+        // Persist an explicit choice when a language link is clicked.
+        var links = document.querySelectorAll(".docs-lang-link");
+        for (var i = 0; i < links.length; i++) {
+          links[i].addEventListener("click", function (event) {
+            store(event.currentTarget.getAttribute("data-lang"));
+          });
+        }
+
+        // Determine the preferred language: a stored choice wins; otherwise
+        // fall back to the browser language (German only, English is baseline).
+        var preferred = read();
+        if (!preferred) {
+          var browser = (navigator.language || navigator.userLanguage || "en").toLowerCase();
+          preferred = browser.indexOf("de") === 0 ? "de" : "en";
+        }
+
+        // Redirect to the counterpart once, only when it exists and differs.
+        if (preferred === "de" && pageLang !== "de" && deUrl && deUrl !== window.location.pathname) {
+          window.location.replace(deUrl);
+        } else if (preferred === "en" && pageLang !== "en" && enUrl && enUrl !== window.location.pathname) {
+          window.location.replace(enUrl);
+        }
+      })();
+    </script>
   </body>
 </html>

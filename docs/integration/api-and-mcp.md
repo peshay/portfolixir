@@ -2,6 +2,9 @@
 layout: docs
 title: API and MCP
 description: Portfolixir JSON API and MCP companion reference.
+lang: en
+lang_en: /integration/api-and-mcp.html
+lang_de: /de/integration/api-and-mcp.html
 ---
 
 # API and MCP
