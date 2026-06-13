@@ -96,3 +96,25 @@ Performance work in the same change, contract untouched: the expensive daily
 walk (`analysis/2`) is computed once and every period is a pure `summarise/2`
 over it; quotes, own trade prices and FX-rate series are preloaded so the walk
 issues no per-day queries.
+
+## Amendment (2026-06-13): money-weighted return (IRR)
+
+The IRR follow-up noted above is now implemented on the same series, additive
+to the contract. `summarise/2` carries an `irr` field next to `ttwror`: the
+single annualised rate solving `NPV(r) = Σ cf/(1+r)^(days/365) = 0` over the
+period's dated external flows plus the terminal value, with the initial value
+as the first outflow (the cashflow signs follow the series `flow` convention,
+where a positive `flow` is money entering the portfolio, i.e. an investor
+contribution / negative cashflow). It is surfaced on the performance endpoint,
+the MCP tool and the Portfolio page next to TTWROR.
+
+The root-find uses **bisection** on a bracket that must show a sign change of
+`NPV`; it is derivative-free and deterministic. Fractional exponentiation is
+impractical in pure `Decimal`, so the solver converts the cashflow amounts to
+floats **only at its numeric boundary** and returns the rate as a `Decimal`
+rounded to six places. This does not violate the Decimal rule (ADR-0003): the
+IRR is a derived, displayed ratio, not a persisted financial value, and the
+cashflows themselves stay `Decimal`. Degenerate inputs — fewer than two flows,
+all flows the same sign, no sign change across the bracket, or non-convergence
+within the iteration budget — return `nil` (`null` over the API), never an
+error.

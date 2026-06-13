@@ -245,9 +245,9 @@ quote".
 ## Portfolio Page
 
 The **Portfolio** entry in the navigation opens the portfolio overview: the
-total value including cash, the cash quote, and the TTWROR for a selectable
-period (year-to-date, one/three/five years, or since the first transaction)
-with the cumulative performance chart. Below it, the **allocation sunburst**
+total value including cash, the cash quote, and both the TTWROR and the
+money-weighted **IRR** for a selectable period (year-to-date, one/three/five
+years, or since the first transaction) with the cumulative performance chart. Below it, the **allocation sunburst**
 shows the classification as concentric rings — the inner ring is the top-level
 categories, each outer ring breaks one level down with sub-category arcs nested
 inside their parent, and the **outermost ring shows the individual positions**
@@ -286,6 +286,14 @@ onward, money you put in or take out (deposits, removals, deliveries, and
 balance-snapshot jumps) is neutralised, and the daily returns are chained. The
 result measures how well the **investments** performed, regardless of when cash
 moved — dividends, interest, fees and taxes count as part of the return.
+
+Next to it Portfolixir shows the **money-weighted return (IRR)** — the single
+annualised rate that discounts the period's dated deposits, withdrawals and the
+terminal value back to zero, the figure Portfolio Performance shows beside
+TTWROR. Where TTWROR ignores the timing of your cash, the IRR reflects it, so
+the two read differently when money moved at good or bad moments. The IRR shows
+`—` when there is no rate to compute (no flows of both signs, or the solver does
+not converge).
 
 Performance is shown on the Portfolio page and available per period —
 year-to-date, one, three, or five years, or since the first transaction —
