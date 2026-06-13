@@ -252,7 +252,7 @@ defmodule Portfolixir.Catalog.Security do
 
   defp equity_name?(_), do: false
 
-  # Known fund-issuer prefixes (sourced from LogoLookup.@issuer_logo_titles).
+  # Known fund-issuer prefixes (kept in sync with LogoLookup's issuer list).
   # Only reached when no ETF token and no equity suffix was found, so false
   # positives for pure bank equities (UBS AG, BNP Paribas SA) are filtered
   # out by equity_or_nil first.
