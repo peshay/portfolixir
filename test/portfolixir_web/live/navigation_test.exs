@@ -39,6 +39,39 @@ defmodule PortfolixirWeb.NavigationTest do
 
   # User story:
   # As a local portfolio maintainer,
+  # I want the sidebar to keep only the "Soon" entries that have an open issue
+  # behind them and drop the rest,
+  # so that the navigation promises only work that is actually planned.
+  #
+  # Acceptance criteria:
+  # - Watchlist, Dividends, and Returns & risk remain as disabled "Soon" entries.
+  # - Savings plans, Grouped accounts, Asset allocation, Holdings, Performance,
+  #   Currencies, and Settings are no longer rendered.
+  # - The kept entries still expose the shared "Soon" pill.
+  test "sidebar keeps only the issue-backed Soon entries and drops the rest", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+
+    for kept_id <- ["nav-watchlist", "nav-dividends", "nav-returns-risk"] do
+      assert has_element?(view, "##{kept_id}.is-disabled[aria-disabled='true']")
+    end
+
+    assert has_element?(view, "#nav-watchlist .nav-pill", "Soon")
+
+    for removed_id <- [
+          "nav-savings-plans",
+          "nav-grouped-accounts",
+          "nav-asset-allocation",
+          "nav-holdings",
+          "nav-performance",
+          "nav-currencies",
+          "nav-settings"
+        ] do
+      refute has_element?(view, "##{removed_id}")
+    end
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
   # I want a responsive Portfolixir design shell with matching light and dark themes,
   # so that the local workflow has a coherent app frame on desktop, tablet, and phone.
   #
