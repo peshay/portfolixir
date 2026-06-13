@@ -5,11 +5,15 @@ defmodule Portfolixir.Catalog.LogoLookup do
   the relative path on the security's `attributes` map.
 
   Strategies:
-    * `asset_class = "crypto"` with `provider = "coingecko"` and a
-      non-empty `online_id` -> CoinGecko `/coins/{id}` -> `image.large`.
-    * `asset_class in ~w(equity etf fund)` -> Wikipedia REST. ETFs/funds
-      try known issuer titles (iShares, Vanguard, Lyxor, …) before the
-      individual fund name.
+    * `asset_class = "crypto"` -> CoinGecko. `provider = "coingecko"` uses the
+      stored `online_id`; PP-imported cryptos resolve a coin id from their
+      ticker/name via `CryptoMap`.
+    * `asset_class in ~w(equity etf fund)` -> Wikipedia REST (deterministic
+      titles + a validated name search), then companieslogo.com as a fallback.
+      ETFs/funds try known issuer titles (iShares, Vanguard, Lyxor, …) first.
+    * structured/leverage products (warrant, knock-out, certificates) have no
+      own logo, but get their *issuer's* logo (BNP Paribas, Morgan Stanley, …)
+      when the issuer is recognizable in the name.
     * anything else -> `:skip`.
 
   The `:req` option is forwarded to both the lookup adapters and the
@@ -18,6 +22,7 @@ defmodule Portfolixir.Catalog.LogoLookup do
 
   require Logger
 
+  alias Portfolixir.Catalog.LogoLookup.CompaniesLogo
   alias Portfolixir.Catalog.LogoLookup.CryptoMap
   alias Portfolixir.Catalog.LogoLookup.Wikipedia
   alias Portfolixir.Catalog.LogoStore
@@ -25,23 +30,58 @@ defmodule Portfolixir.Catalog.LogoLookup do
   alias Portfolixir.Catalog.SecuritySearch.CoinGecko
 
   @equity_classes ~w(equity etf fund)
-  @issuer_logo_titles [
-    {~r/\biShares\b/i, ["iShares"]},
-    {~r/\bVanguard\b/i, ["The Vanguard Group"]},
-    {~r/\bLyxor\b/i, ["Lyxor Asset Management", "Lyxor"]},
-    {~r/\b(AIS-?AM|Amundi)\b/i, ["Amundi"]},
-    {~r/\b(Xtrackers|DWS)\b/i, ["DWS Group", "Xtrackers"]},
-    {~r/\b(SPDR|State Street)\b/i, ["State Street Global Advisors"]},
-    {~r/\bInvesco\b/i, ["Invesco"]},
-    {~r/\bWisdomTree\b/i, ["WisdomTree Investments"]},
-    {~r/\bVanEck\b/i, ["VanEck"]},
-    {~r/\bUBS\b/i, ["UBS"]},
-    {~r/\bBNP\s+Paribas\b|\bBNPP\b/i, ["BNP Paribas"]},
-    {~r/\bHSBC\b/i, ["HSBC"]},
-    {~r/\bFranklin\b/i, ["Franklin Templeton Investments"]},
-    {~r/\bJPMorgan\b|\bJPM\b/i, ["JPMorgan Chase"]},
-    {~r/\bFidelity\b/i, ["Fidelity Investments"]},
-    {~r/\bDeka\b/i, ["DekaBank"]}
+  # Structured/leverage products: no own logo, but they carry an issuer
+  # (BNP Paribas, Morgan Stanley, …) whose logo is shown instead.
+  @derivative_classes ~w(
+    warrant knock_out factor_certificate discount_certificate
+    bonus_certificate express_certificate reverse_convertible
+  )
+
+  # Issuer detection for ETF/fund providers AND structured-product issuers.
+  # `titles` feed the Wikipedia/Wikidata logo lookup; `slug` is the
+  # companieslogo.com fallback slug; `name` is the display issuer.
+  @issuers [
+    {~r/\biShares\b/i, %{name: "iShares", titles: ["iShares"], slug: "ishares"}},
+    {~r/\bVanguard\b/i, %{name: "Vanguard", titles: ["The Vanguard Group"], slug: "vanguard"}},
+    {~r/\bLyxor\b/i,
+     %{name: "Lyxor", titles: ["Lyxor Asset Management", "Lyxor"], slug: "lyxor"}},
+    {~r/\b(AIS-?AM|Amundi)\b/i, %{name: "Amundi", titles: ["Amundi"], slug: "amundi"}},
+    {~r/\b(Xtrackers|DWS)\b/i,
+     %{name: "Xtrackers", titles: ["DWS Group", "Xtrackers"], slug: "dws"}},
+    {~r/\b(SPDR|State\s+Street)\b/i,
+     %{name: "State Street", titles: ["State Street Global Advisors"], slug: "state-street"}},
+    {~r/\bInvesco\b/i, %{name: "Invesco", titles: ["Invesco"], slug: "invesco"}},
+    {~r/\bWisdomTree\b/i,
+     %{name: "WisdomTree", titles: ["WisdomTree Investments"], slug: "wisdomtree"}},
+    {~r/\bVanEck\b/i, %{name: "VanEck", titles: ["VanEck"], slug: "vaneck"}},
+    {~r/\bFranklin\b/i,
+     %{
+       name: "Franklin Templeton",
+       titles: ["Franklin Templeton Investments"],
+       slug: "franklin-templeton"
+     }},
+    {~r/\bFidelity\b/i, %{name: "Fidelity", titles: ["Fidelity Investments"], slug: "fidelity"}},
+    {~r/\bDeka\b/i, %{name: "Deka", titles: ["DekaBank"], slug: "dekabank"}},
+    {~r/\bBNP\s+Paribas\b|\bBNPP?\b/i,
+     %{name: "BNP Paribas", titles: ["BNP Paribas"], slug: "bnp-paribas"}},
+    {~r/\bMorgan\s+Stanley\b/i,
+     %{name: "Morgan Stanley", titles: ["Morgan Stanley"], slug: "morgan-stanley"}},
+    {~r/\bGoldman\s+Sachs\b/i,
+     %{name: "Goldman Sachs", titles: ["Goldman Sachs"], slug: "goldman-sachs"}},
+    {~r/\bSoci[ée]t[ée]\s+G[ée]n[ée]rale\b|\bSocGen\b/i,
+     %{name: "Société Générale", titles: ["Société Générale"], slug: "societe-generale"}},
+    {~r/\bDeutsche\s+Bank\b/i,
+     %{name: "Deutsche Bank", titles: ["Deutsche Bank"], slug: "deutsche-bank"}},
+    {~r/\bCommerzbank\b/i, %{name: "Commerzbank", titles: ["Commerzbank"], slug: "commerzbank"}},
+    {~r/\bUBS\b/i, %{name: "UBS", titles: ["UBS"], slug: "ubs"}},
+    {~r/\bHSBC\b/i, %{name: "HSBC", titles: ["HSBC"], slug: "hsbc"}},
+    {~r/\bJ\.?P\.?\s*Morgan\b|\bJPM\b/i,
+     %{name: "JPMorgan", titles: ["JPMorgan Chase"], slug: "jpmorgan-chase"}},
+    {~r/\bCitigroup\b|\bCitibank\b|\bCiti\b/i,
+     %{name: "Citigroup", titles: ["Citigroup"], slug: "citigroup"}},
+    {~r/\bBarclays\b/i, %{name: "Barclays", titles: ["Barclays"], slug: "barclays"}},
+    {~r/\bVontobel\b/i, %{name: "Vontobel", titles: ["Vontobel"], slug: "vontobel"}},
+    {~r/\bDZ\s*BANK\b/i, %{name: "DZ Bank", titles: ["DZ Bank"], slug: "dz-bank"}}
   ]
 
   @spec find_url(Security.t(), keyword()) ::
@@ -63,18 +103,42 @@ defmodule Portfolixir.Catalog.LogoLookup do
 
   def find_url(%Security{asset_class: class, name: name} = security, opts)
       when class in @equity_classes and is_binary(name) and name != "" do
-    wikipedia_by_security(security, opts)
+    company_logo(security, opts)
+  end
+
+  def find_url(%Security{asset_class: class, name: name} = security, opts)
+      when class in @derivative_classes and is_binary(name) and name != "" do
+    issuer_logo(security, opts)
   end
 
   def find_url(%Security{provider: "portfolio_performance", name: name} = security, opts)
       when is_binary(name) and name != "" do
     case Security.effective_asset_class(security) do
       "crypto" -> crypto_by_mapping(security, opts)
-      _ -> wikipedia_by_security(security, opts)
+      class when class in @derivative_classes -> issuer_logo(security, opts)
+      _ -> company_logo(security, opts)
     end
   end
 
   def find_url(%Security{}, _opts), do: :skip
+
+  @doc """
+  Whether the background discovery should try to fetch a logo for this
+  security: equities/ETFs/funds/crypto always, structured/leverage products
+  only when their issuer (BNP Paribas, Morgan Stanley, …) is recognizable.
+  Everything else keeps its initials/flag fallback.
+  """
+  @spec candidate?(Security.t()) :: boolean()
+  def candidate?(%Security{} = security) do
+    case Security.effective_asset_class(security) do
+      class when class in @equity_classes -> true
+      "crypto" -> true
+      class when class in @derivative_classes -> detect_issuer(security.name) != nil
+      _ -> false
+    end
+  end
+
+  def candidate?(_), do: false
 
   defp crypto_by_mapping(%Security{} = security, opts) do
     case CryptoMap.coin_id(security) do
@@ -90,6 +154,67 @@ defmodule Portfolixir.Catalog.LogoLookup do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # Equity/ETF/fund: Wikipedia (deterministic titles + search) first, then
+  # companieslogo.com as a fallback (by issuer for ETFs, else by company name).
+  defp company_logo(%Security{} = security, opts) do
+    case wikipedia_by_security(security, opts) do
+      {:ok, _url, _source} = ok -> ok
+      :skip -> companies_logo_fallback(security, opts)
+      {:error, reason} -> companies_logo_or_error(security, opts, reason)
+    end
+  end
+
+  # Structured/leverage products themselves have no logo; show the issuer's.
+  defp issuer_logo(%Security{name: name} = _security, opts) do
+    case detect_issuer(name) do
+      nil ->
+        :skip
+
+      issuer ->
+        case lookup_wikipedia_variants(issuer.titles, opts) do
+          {:ok, url} -> {:ok, url, :wikipedia}
+          :not_found -> companies_logo_by_slug(issuer.slug, opts)
+          {:error, reason} -> companies_logo_slug_or_error(issuer.slug, opts, reason)
+        end
+    end
+  end
+
+  defp companies_logo_fallback(%Security{name: name}, opts) do
+    case detect_issuer(name) do
+      %{slug: slug} -> companies_logo_by_slug(slug, opts)
+      nil -> companies_logo_by_slug(name, opts)
+    end
+  end
+
+  defp companies_logo_by_slug(name_or_slug, opts) do
+    case CompaniesLogo.fetch_image_url(name_or_slug, opts) do
+      {:ok, url} -> {:ok, url, :companieslogo}
+      _ -> :skip
+    end
+  end
+
+  defp companies_logo_or_error(%Security{} = security, opts, reason) do
+    case companies_logo_fallback(security, opts) do
+      :skip -> {:error, reason}
+      other -> other
+    end
+  end
+
+  defp companies_logo_slug_or_error(slug, opts, reason) do
+    case companies_logo_by_slug(slug, opts) do
+      :skip -> {:error, reason}
+      other -> other
+    end
+  end
+
+  defp detect_issuer(name) when is_binary(name) do
+    Enum.find_value(@issuers, fn {regex, issuer} ->
+      if Regex.match?(regex, name), do: issuer
+    end)
+  end
+
+  defp detect_issuer(_name), do: nil
 
   defp wikipedia_by_security(%Security{} = security, opts) do
     case lookup_wikipedia_variants(wikipedia_title_candidates(security), opts) do
@@ -156,9 +281,10 @@ defmodule Portfolixir.Catalog.LogoLookup do
   end
 
   defp issuer_logo_titles(name) do
-    Enum.find_value(@issuer_logo_titles, [], fn {regex, titles} ->
-      if Regex.match?(regex, name), do: titles
-    end)
+    case detect_issuer(name) do
+      %{titles: titles} -> titles
+      nil -> []
+    end
   end
 
   defp wikipedia_title_variants(name) do
