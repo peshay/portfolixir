@@ -31,6 +31,24 @@ defmodule Portfolixir.Portfolios do
     |> Repo.insert()
   end
 
+  def update_portfolio(%Portfolio{} = portfolio, attrs) when is_map(attrs) do
+    portfolio
+    |> Portfolio.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Sets (or clears) a portfolio's cash target weight, the SOLL share of cash in
+  the allocation's 100% basis (securities + counting cash, see issue #335).
+
+  `weight` is a fraction in `[0, 1]` or `nil` to stop steering a cash quote.
+  Returns `{:ok, %Portfolio{}}` or `{:error, %Ecto.Changeset{}}` (a weight out
+  of range).
+  """
+  def set_cash_target(%Portfolio{} = portfolio, weight) do
+    update_portfolio(portfolio, %{cash_target_weight: weight})
+  end
+
   def list_cash_accounts do
     Repo.all(from(account in CashAccount, order_by: [asc: account.name, asc: account.id]))
   end

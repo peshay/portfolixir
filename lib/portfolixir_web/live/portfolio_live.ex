@@ -27,6 +27,9 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   @unassigned_color "#9ca3af"
   @fallback_color "#6b7280"
+  # Neutral cash colour, distinct from the category palette and the grey
+  # unassigned/excluded shades, for the cash segment in the basis (issue #335).
+  @cash_color "#0ea5e9"
   @chart_max_points 400
   @unpriced_names_shown 6
 
@@ -323,6 +326,34 @@ defmodule PortfolixirWeb.PortfolioLive do
                     </td>
                   </tr>
                 <% end %>
+                <tr id="allocation-cash" data-role="allocation-cash">
+                  <td>
+                    <span
+                      class="cat-swatch"
+                      style={"background:#{cash_color()}"}
+                      aria-hidden="true"
+                    >
+                    </span>
+                    <%= gettext("Cash") %>
+                  </td>
+                  <td><%= Format.money(@allocation.cash.market_value) %></td>
+                  <td><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
+                  <td>
+                    <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                      —
+                    <% else %>
+                      <%= Format.percent(@allocation.cash.target_weight) %>%
+                    <% end %>
+                  </td>
+                  <td>
+                    <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                      —
+                    <% else %>
+                      <%= Format.money(@allocation.cash.drift_value) %>
+                      <%= if @valuation, do: @valuation.base_currency %>
+                    <% end %>
+                  </td>
+                </tr>
                 <%= if @allocation.unassigned do %>
                   <tr class="is-muted">
                     <td><%= gettext("Unassigned") %></td>
@@ -626,6 +657,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     roots = layout_level(Map.get(by_parent, nil, []), 0.0, 0)
     category_nodes = roots ++ layout_children(roots, by_parent)
     unassigned_node = unassigned_node(allocation.unassigned, roots)
+    cash_node = cash_node(allocation.cash, roots ++ unassigned_node)
 
     max_depth = category_nodes |> Enum.map(& &1.depth) |> Enum.max(fn -> 0 end)
     security_depth = max_depth + 1
@@ -634,8 +666,36 @@ defmodule PortfolixirWeb.PortfolioLive do
       security_nodes(category_nodes, security_depth) ++
         unassigned_security_nodes(allocation.unassigned, unassigned_node, security_depth)
 
-    category_nodes ++ unassigned_node ++ securities
+    category_nodes ++ unassigned_node ++ cash_node ++ securities
   end
+
+  # The cash segment: a top-level slice in its own neutral colour for the cash
+  # that counts toward the basis (issue #335), placed after the categories and
+  # the unassigned remainder. Rendered only when there is counting cash.
+  defp cash_node(%{market_value: value, actual_weight: weight}, preceding) do
+    fraction = Decimal.to_float(weight)
+    last_end = preceding |> Enum.map(& &1.fraction_end) |> Enum.max(fn -> 0.0 end)
+
+    if fraction > 0.0 do
+      [
+        %{
+          name: gettext("Cash"),
+          color: @cash_color,
+          percent: Format.percent(weight),
+          value: Format.money(value),
+          depth: 0,
+          opacity: "1.0",
+          positions: [],
+          fraction_start: last_end,
+          fraction_end: last_end + fraction
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp cash_node(_cash, _preceding), do: []
 
   defp unassigned_node(nil, _roots), do: []
 
@@ -786,19 +846,39 @@ defmodule PortfolixirWeb.PortfolioLive do
         }
       end)
 
-    case allocation.unassigned do
-      nil ->
-        roots
+    with_unassigned =
+      case allocation.unassigned do
+        nil ->
+          roots
 
+        %{actual_weight: weight} ->
+          roots ++
+            [
+              %{
+                name: gettext("Unsorted"),
+                color: @unassigned_color,
+                percent: Format.percent(weight)
+              }
+            ]
+      end
+
+    case allocation.cash do
       %{actual_weight: weight} ->
-        roots ++
-          [
-            %{
-              name: gettext("Unsorted"),
-              color: @unassigned_color,
-              percent: Format.percent(weight)
-            }
-          ]
+        if Decimal.compare(weight, 0) == :gt do
+          with_unassigned ++
+            [
+              %{
+                name: gettext("Cash"),
+                color: @cash_color,
+                percent: Format.percent(weight)
+              }
+            ]
+        else
+          with_unassigned
+        end
+
+      _ ->
+        with_unassigned
     end
   end
 
@@ -859,6 +939,9 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   # -- misc ---------------------------------------------------------------------
+
+  # The neutral cash colour, exposed for the template's cash row swatch.
+  defp cash_color, do: @cash_color
 
   defp period_label("ytd"), do: gettext("YTD")
   defp period_label("1y"), do: gettext("1Y")
