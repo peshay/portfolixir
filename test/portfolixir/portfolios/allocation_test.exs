@@ -366,4 +366,19 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     world = setup_world()
     assert {:error, :not_found} = Allocation.for_portfolio(world.portfolio.id, 999_999)
   end
+
+  # An unknown portfolio still resolves the (existing) classification, so the
+  # cash target lookup falls back to nil rather than raising: there is no stored
+  # cash_target_weight to steer when the portfolio does not exist (issue #335).
+  test "falls back to a nil cash target for an unknown portfolio id" do
+    world = setup_world()
+
+    {:ok, allocation} =
+      Allocation.for_portfolio(999_999, world.classification.id, prices: %{})
+
+    # No portfolio, no positions, no cash: the basis is zero and the cash row's
+    # target defaults to zero (the nil cash target maps to a 0 weight).
+    assert Decimal.equal?(allocation.total_value, Decimal.new("0"))
+    assert Decimal.equal?(allocation.cash.target_weight, Decimal.new("0"))
+  end
 end

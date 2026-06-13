@@ -96,6 +96,86 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "Cash"
   end
 
+  # User story:
+  # As a local portfolio maintainer who steers a cash quote (issue #335),
+  # I want the cash row to show its SOLL target and drift (not a dash) when a
+  # cash target is set, and the sunburst to carry a neutral cash segment,
+  # so that I can read how far the actual cash share is from my target.
+  #
+  # Acceptance criteria:
+  # - With a cash target set, the cash row renders the target percent and a
+  #   drift amount in the base currency (the non-zero-target branch), not "—".
+  # - The sunburst carries the neutral cash colour for the cash segment.
+  test "renders the cash row target and drift when a cash target is set", %{conn: conn} do
+    world = seed_world()
+
+    # Steer a 10% cash quote: actual cash 200/1080 = 18.5% vs. 10% target.
+    {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.10"))
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    cash_row = view |> element(~s([data-role="allocation-cash"])) |> render()
+    # The non-zero-target branch: the target percent renders instead of a dash.
+    assert cash_row =~ "10.0"
+    # The drift cell renders an amount in the base currency, not a dash.
+    assert cash_row =~ "EUR"
+    refute cash_row =~ "—"
+
+    # The neutral cash colour is used for the cash segment / swatch.
+    assert html =~ "#0ea5e9"
+  end
+
+  # User story:
+  # As a local portfolio maintainer with no spare cash counting toward the quote,
+  # I want the allocation to omit the cash sunburst segment (and legend entry)
+  # while still showing the cash row at zero,
+  # so that an empty cash quote does not draw a phantom slice (issue #335).
+  #
+  # Acceptance criteria:
+  # - With zero counting cash, the cash row still renders at a 0 value.
+  # - The cash row shows the dash for target and drift (the zero-target branch).
+  test "omits the cash sunburst segment when there is no counting cash", %{conn: conn} do
+    %{portfolio: portfolio} =
+      world = WorldFixtures.base_world(name: "No Cash Depot")
+
+    security = WorldFixtures.create_security!(name: "Solo ETF", ticker: "SOLO")
+
+    today = Date.utc_today()
+    start = Date.add(today, -10)
+
+    # Deposit exactly the buy cost so the cash account ends at zero: counting
+    # cash is 0, so the sunburst carries no cash segment.
+    WorldFixtures.deposit!(world, "800", start)
+    WorldFixtures.buy!(world, security, quantity: "8", price: "100", date: start)
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
+
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, core} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Core",
+        color: "#2563eb"
+      })
+
+    {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
+
+    {:ok, _} =
+      Targets.set_targets(portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "1.0"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # The cash row still renders, at zero value and with the dash (zero-target
+    # branch); there is no counting cash to steer.
+    cash_row = view |> element(~s([data-role="allocation-cash"])) |> render()
+    assert cash_row =~ "0.00"
+    assert cash_row =~ "—"
+  end
+
   test "renders a nested sunburst and an indented, rolled-up child row", %{conn: conn} do
     world = seed_world()
 
