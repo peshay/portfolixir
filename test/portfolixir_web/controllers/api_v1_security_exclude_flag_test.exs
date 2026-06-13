@@ -149,7 +149,9 @@ defmodule PortfolixirWeb.ApiV1SecurityExcludeFlagTest do
     data =
       conn
       |> api_conn()
-      |> get("/api/v1/portfolios/#{portfolio.id}/allocation?classification_id=#{classification.id}")
+      |> get(
+        "/api/v1/portfolios/#{portfolio.id}/allocation?classification_id=#{classification.id}"
+      )
       |> json_response(200)
       |> Map.fetch!("data")
 
