@@ -291,9 +291,11 @@ categories, each outer ring breaks one level down with sub-category arcs nested
 inside their parent, and the **outermost ring shows the individual positions**
 as shaded arcs of their category's colour (the Portfolio Performance style) —
 with a grey slice for unassigned holdings. Like PP the slices carry no
-in-chart text: hovering a slice shows its name, share and value as a tooltip,
+in-chart text: hovering a slice shows its name, share and value in an
+**instant custom tooltip** that follows the pointer (no browser hover delay),
 and a slice can be **tapped** to echo the same below the chart (the mobile
-substitute for hover). The chart scales to the available width. Pick any
+substitute for hover). With JavaScript disabled the slices fall back to the
+native browser tooltip. The chart scales to the available width. Pick any
 classification tree from the selector. The drift table beneath it lists every category in tree
 order with **sub-categories indented** under their parent, comparing the
 rolled-up actual weight against the stored target and restating the drift in

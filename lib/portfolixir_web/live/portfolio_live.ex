@@ -501,12 +501,21 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Concentric rings of annular-sector paths: the innermost ring is the
   # top-level categories, each further ring breaks one level down, the
   # outermost ring shows the individual positions (Portfolio Performance's
-  # sunburst). Like PP the slices carry no in-chart text; every slice shows a
-  # hover tooltip and is tappable — `select_segment` echoes the slice below
-  # the chart, which is the mobile substitute for hover.
+  # sunburst). Like PP the slices carry no in-chart text. Each slice exposes
+  # data-label/data-value/data-percent that the SunburstTooltip JS hook reads
+  # to show an instant custom tooltip on hover (the native <title> stays as a
+  # no-JS fallback). Slices are also tappable — `select_segment` echoes the
+  # slice below the chart, which is the mobile substitute for hover.
   defp allocation_sunburst(assigns) do
     ~H"""
-    <svg class="donut sunburst" viewBox="0 0 140 140" role="img" aria-label={gettext("Allocation")}>
+    <svg
+      id="allocation-sunburst"
+      class="donut sunburst"
+      viewBox="0 0 140 140"
+      role="img"
+      aria-label={gettext("Allocation")}
+      phx-hook="SunburstTooltip"
+    >
       <circle cx="70" cy="70" r="20" class="donut-center" />
       <%= for segment <- @segments do %>
         <path
@@ -514,6 +523,9 @@ defmodule PortfolixirWeb.PortfolioLive do
           fill={segment.color}
           fill-opacity={segment.opacity}
           class="sunburst-seg"
+          data-label={segment.name}
+          data-percent={segment.percent}
+          data-value={segment.value}
           phx-click="select_segment"
           phx-value-name={segment.name}
           phx-value-percent={segment.percent}
