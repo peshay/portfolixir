@@ -29,51 +29,46 @@ defmodule Portfolixir.WorldFixtures do
   Options:
 
     * `:name` - portfolio name (default `"Local Portfolio"`)
-    * `:currency` - base/cash currency code (default `"EUR"`)
+    * `:currency` - base currency code (default `"EUR"`)
+    * `:cash_currency` - cash account currency (default: `:currency`), for the
+      few tests that book a portfolio whose cash account trades in another
+      currency than the portfolio base
     * `:cash_name` - cash account name (default `"Local Cash"`)
     * `:depot_name` - securities account name (default `"Main Depot"`)
   """
   def base_world(opts \\ []) do
     name = Keyword.get(opts, :name, "Local Portfolio")
     currency = Keyword.get(opts, :currency, "EUR")
-    cash_name = Keyword.get(opts, :cash_name, "Local Cash")
-    depot_name = Keyword.get(opts, :depot_name, "Main Depot")
 
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{name: name, base_currency_code: currency})
 
-    %{cash: cash, depot: depot} = add_depot(portfolio, currency, cash_name, depot_name)
+    %{cash: cash, depot: depot} = add_depot(portfolio, opts)
 
     %{portfolio: portfolio, cash: cash, depot: depot}
   end
 
   @doc """
-  Creates an extra cash account plus securities depot for `portfolio`.
+  Creates a cash account plus a securities depot for `portfolio`.
 
   Returns `%{cash: cash, depot: depot}`. Useful for tests that need a second
   depot (e.g. security transfers between own depots).
 
-  Options: `:currency`, `:cash_name`, `:depot_name`.
+  Options: `:currency` (default `"EUR"`), `:cash_currency` (default:
+  `:currency`), `:cash_name` (default `"Local Cash"`), `:depot_name`
+  (default `"Main Depot"`).
   """
-  def add_depot(portfolio, currency_or_opts \\ [], cash_name \\ nil, depot_name \\ nil)
-
-  def add_depot(portfolio, opts, _cash_name, _depot_name) when is_list(opts) do
+  def add_depot(portfolio, opts \\ []) do
     currency = Keyword.get(opts, :currency, "EUR")
+    cash_currency = Keyword.get(opts, :cash_currency, currency)
     cash_name = Keyword.get(opts, :cash_name, "Local Cash")
     depot_name = Keyword.get(opts, :depot_name, "Main Depot")
-    build_depot(portfolio, currency, cash_name, depot_name)
-  end
 
-  def add_depot(portfolio, currency, cash_name, depot_name) when is_binary(currency) do
-    build_depot(portfolio, currency, cash_name, depot_name)
-  end
-
-  defp build_depot(portfolio, currency, cash_name, depot_name) do
     {:ok, cash} =
       Portfolios.create_cash_account(%{
         portfolio_id: portfolio.id,
         name: cash_name,
-        currency_code: currency
+        currency_code: cash_currency
       })
 
     {:ok, depot} =
@@ -92,7 +87,7 @@ defmodule Portfolixir.WorldFixtures do
   Options:
 
     * `:name` (default `"World ETF"`)
-    * `:ticker` (default `"WLD"`)
+    * `:ticker` (default `"WLD"`; pass `nil` to omit the ticker entirely)
     * `:currency` (default `"EUR"`)
     * `:asset_class` (default `"etf"`)
     * `:isin` (optional)
@@ -101,10 +96,10 @@ defmodule Portfolixir.WorldFixtures do
     attrs =
       %{
         name: Keyword.get(opts, :name, "World ETF"),
-        ticker_symbol: Keyword.get(opts, :ticker, "WLD"),
         currency_code: Keyword.get(opts, :currency, "EUR"),
         asset_class: Keyword.get(opts, :asset_class, "etf")
       }
+      |> maybe_put(:ticker_symbol, Keyword.get(opts, :ticker, "WLD"))
       |> maybe_put(:isin, Keyword.get(opts, :isin))
 
     {:ok, security} = Catalog.create_security(attrs)
