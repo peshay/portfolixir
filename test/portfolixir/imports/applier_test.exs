@@ -544,4 +544,66 @@ defmodule Portfolixir.Imports.ApplierTest do
       assert Ledger.list_transactions_for_portfolio(portfolio.id) == []
     end
   end
+
+  # User story:
+  # As a maintainer importing a PP export that holds a foreign-currency cash
+  # account (e.g. a USD savings account), I want the mapping import to create
+  # that account in its own currency, so its bookings are not rejected by the
+  # cash-account currency-consistency check.
+  describe "apply/2 infers created cash account currency (#369)" do
+    alias Portfolixir.Imports.Entry
+    alias Portfolixir.Imports.Preview
+
+    test "creates a new cash account in the currency of its bookings" do
+      preview = %Preview{
+        format: :json,
+        entries: [
+          %Entry{
+            source_row: 1,
+            kind: "deposit",
+            date: ~D[2025-06-08],
+            currency_code: "USD",
+            gross_amount: Decimal.new("19235.74"),
+            fees: Decimal.new("0"),
+            taxes: Decimal.new("0"),
+            pp_account_name: "Bunq Savings USD"
+          },
+          %Entry{
+            source_row: 2,
+            kind: "deposit",
+            date: ~D[2025-06-08],
+            currency_code: "EUR",
+            gross_amount: Decimal.new("100.00"),
+            fees: Decimal.new("0"),
+            taxes: Decimal.new("0"),
+            pp_account_name: "Giro EUR"
+          }
+        ]
+      }
+
+      params = %{
+        portfolio: {:create, %{name: "FX-Import", base_currency_code: "EUR"}},
+        cash_accounts: %{
+          "Bunq Savings USD" => {:create, "Bunq Savings USD"},
+          "Giro EUR" => {:create, "Giro EUR"}
+        },
+        depots: %{}
+      }
+
+      assert {:ok, %Result{created_cash_accounts: 2}} = Imports.apply(preview, params)
+
+      portfolio = Portfolios.list_portfolios() |> Enum.find(&(&1.name == "FX-Import"))
+
+      currencies =
+        portfolio.id
+        |> Portfolios.list_cash_accounts_for_portfolio()
+        |> Map.new(fn c -> {c.name, c.currency_code} end)
+
+      assert currencies["Bunq Savings USD"] == "USD"
+      assert currencies["Giro EUR"] == "EUR"
+
+      # Both deposits were accepted (USD matched the created USD account).
+      assert length(Ledger.list_transactions_for_portfolio(portfolio.id)) == 2
+    end
+  end
 end
