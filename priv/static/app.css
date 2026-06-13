@@ -3918,6 +3918,17 @@ details[open] > .cat-summary::before {
 .drift-table tr.is-muted td {
   color: var(--color-text-muted, #6b7280);
 }
+.target-sum {
+  margin: 0.75rem 0 0;
+}
+.hint.target-consistency {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85em;
+}
+.hint.is-target-mismatch {
+  color: var(--color-warning);
+}
 .balance-form {
   margin-top: 1rem;
 }

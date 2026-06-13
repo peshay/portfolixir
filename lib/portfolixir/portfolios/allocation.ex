@@ -24,6 +24,21 @@ defmodule Portfolixir.Portfolios.Allocation do
   (negative) to reach the target. Because parents aggregate their children,
   the displayed IST percentages intentionally do not sum to 100% across levels
   — only the leaves (plus unassigned) do.
+
+  ## Target consistency (advisory)
+
+  Targets can be set freely at any level, so the SOLL side is not forced to be
+  internally consistent. To make divergence visible without enforcing it, the
+  breakdown carries two derived, display-only figures:
+
+  - Each row exposes `child_target_sum`: the sum of the **direct** children's
+    target weights, or `nil` when no direct child carries a target. The UI
+    compares it against the row's own `target_weight`.
+  - The breakdown exposes `top_level_target_sum`: the sum of the **root**
+    categories' target weights, compared by the UI against `100%` (`1`).
+
+  Both are pure read-time hints; nothing here blocks saving targets, and the
+  comparison the UI draws uses exact `Decimal.equal?/2`.
   """
 
   alias Portfolixir.Classifications
@@ -73,6 +88,7 @@ defmodule Portfolixir.Portfolios.Allocation do
     children_by_parent = Enum.group_by(categories, & &1.parent_id)
     rolled = rolled_values(categories, children_by_parent, own_value_by_category)
     kept = kept_categories(categories, rolled, targets)
+    child_target_sums = child_target_sums(children_by_parent, targets)
 
     rows =
       children_by_parent
@@ -85,6 +101,7 @@ defmodule Portfolixir.Portfolios.Allocation do
           Map.get(own_value_by_category, category.id, @zero),
           Map.get(rolled, category.id, @zero),
           Map.get(targets, category.id),
+          Map.get(child_target_sums, category.id),
           position_entries(Map.get(positions_by_category, category.id, []), total),
           total
         )
@@ -98,8 +115,41 @@ defmodule Portfolixir.Portfolios.Allocation do
       total_value: total,
       unvalued_count: valuation.unvalued_count,
       categories: rows,
+      top_level_target_sum: top_level_target_sum(children_by_parent, targets),
       unassigned: unassigned(unassigned_positions, total)
     }
+  end
+
+  # Sum of the direct children's target weights per parent, or absent when no
+  # direct child carries a target — so the UI only hints where a comparison is
+  # meaningful. Advisory only; never used to validate or block saving targets.
+  defp child_target_sums(children_by_parent, targets) do
+    children_by_parent
+    |> Map.delete(nil)
+    |> Enum.reduce(%{}, fn {parent_id, children}, acc ->
+      case sum_targets(children, targets) do
+        nil -> acc
+        sum -> Map.put(acc, parent_id, sum)
+      end
+    end)
+  end
+
+  # Sum of the root categories' target weights, used for the "Σ top level"
+  # header hint compared against 100%. Returns zero when no root has a target.
+  defp top_level_target_sum(children_by_parent, targets) do
+    roots = Map.get(children_by_parent, nil, [])
+    sum_targets(roots, targets) || @zero
+  end
+
+  # Adds the target weights of the categories that actually carry one. Returns
+  # nil when none of them do, so callers can tell "no targets" from "sum is 0".
+  defp sum_targets(categories, targets) do
+    Enum.reduce(categories, nil, fn category, acc ->
+      case Map.get(targets, category.id) do
+        nil -> acc
+        weight -> Decimal.add(acc || @zero, weight)
+      end
+    end)
   end
 
   # Groups each valued position under the category it is directly assigned to,
@@ -223,7 +273,7 @@ defmodule Portfolixir.Portfolios.Allocation do
     end)
   end
 
-  defp row(category, depth, own_value, rolled_value, target, positions, total) do
+  defp row(category, depth, own_value, rolled_value, target, child_target_sum, positions, total) do
     actual = weight(rolled_value, total)
     target_weight = target || @zero
     drift_weight = Decimal.sub(target_weight, actual)
@@ -240,6 +290,7 @@ defmodule Portfolixir.Portfolios.Allocation do
       target_weight: target_weight,
       drift_weight: drift_weight,
       drift_value: Decimal.mult(drift_weight, total),
+      child_target_sum: child_target_sum,
       positions: positions
     }
   end
