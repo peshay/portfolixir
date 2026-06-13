@@ -181,6 +181,16 @@ amount, i.e. how much to buy or sell to reach the target. Securities held but no
 assigned in the chosen tree are summed into an unassigned bucket. Only the
 targets are stored; the actual side is derived from the live valuation on read.
 
+A security can be flagged **excluded from allocation targets** (the toggle in
+security management; the API/MCP field is `excluded_from_allocation_targets`).
+An excluded position — for example a Bitcoin held as a long-term store of value
+rather than part of the steered mix — still counts in the total value, holdings,
+and performance, but it is left **out of the allocation steering basis** (the
+100%) and the drift table. So switching one on raises every other category's
+actual percentage consistently without changing the total. The excluded
+positions do not disappear: the drift table shows them in a separate
+*Outside the steering basis* row with their summed value.
+
 Classification trees are **hierarchical**, and the allocation rolls them up: a
 position assigned to a sub-category counts toward that sub-category **and every
 parent above it**. So if *Growth* holds a 50% target and you only assign
