@@ -19,12 +19,17 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   Weights are shares of the **steering basis**: the valued positions' total
   market value *minus* any position whose security is flagged
-  `excluded_from_allocation_targets` (see ADR-0013). Those flagged positions
-  stay in `Portfolixir.Portfolios.Valuation`'s totals and in performance, but
-  are kept out of the 100% here so the target mix is not diluted by, say, a
-  Bitcoin held as a store of value. They surface as a separate `excluded` block
-  (`market_value` plus per-security `positions`) rather than disappearing. Cash
-  is reported in the valuation, not here. Drift is
+  `excluded_from_allocation_targets` (see ADR-0013), *plus* the cash that counts
+  toward the cash quote (accounts flagged `counts_toward_cash_quote`, ADR-0009).
+  Those flagged-excluded positions stay in `Portfolixir.Portfolios.Valuation`'s
+  totals and in performance, but are kept out of the 100% here so the target mix
+  is not diluted by, say, a Bitcoin held as a store of value. They surface as a
+  separate `excluded` block (`market_value` plus per-security `positions`)
+  rather than disappearing. Cash, by contrast, is now **part** of the basis: a
+  maintainer who steers a cash quote (e.g. ~5%) gets a dedicated `cash` row
+  (actual share, target from the portfolio's `cash_target_weight`, drift) in the
+  same drift logic, and every category percentage shrinks accordingly once cash
+  joins the 100% (issue #335). Drift is
   `target_weight - actual_weight` per category; `drift_value` restates that drift
   as an amount in the base currency, i.e. how much to buy (positive) or sell
   (negative) to reach the target. Because parents aggregate their children,
@@ -41,7 +46,8 @@ defmodule Portfolixir.Portfolios.Allocation do
     target weights, or `nil` when no direct child carries a target. The UI
     compares it against the row's own `target_weight`.
   - The breakdown exposes `top_level_target_sum`: the sum of the **root**
-    categories' target weights, compared by the UI against `100%` (`1`).
+    categories' target weights **plus the cash target**, compared by the UI
+    against `100%` (`1`) — so the Σ check reflects categories + cash vs 100%.
 
   Both are pure read-time hints; nothing here blocks saving targets, and the
   comparison the UI draws uses exact `Decimal.equal?/2`.
@@ -49,6 +55,7 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
+  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
 
@@ -72,6 +79,7 @@ defmodule Portfolixir.Portfolios.Allocation do
         categories = Classifications.list_categories(classification_id)
         valuation = Valuation.for_portfolio(portfolio_id, opts)
         excluded_ids = Catalog.excluded_from_allocation_target_ids()
+        cash_target = cash_target_for(portfolio_id)
 
         targets =
           portfolio_id
@@ -79,21 +87,51 @@ defmodule Portfolixir.Portfolios.Allocation do
           |> Map.new(&{&1.category_id, &1.target_weight})
 
         {:ok,
-         build(valuation, classification, categories, security_categories, targets, excluded_ids)}
+         build(
+           valuation,
+           classification,
+           categories,
+           security_categories,
+           targets,
+           excluded_ids,
+           cash_target
+         )}
     end
   end
 
-  defp build(valuation, classification, categories, security_categories, targets, excluded_ids) do
+  # The portfolio's stored cash target weight (the SOLL cash share), or nil when
+  # the maintainer does not steer a cash quote (issue #335).
+  defp cash_target_for(portfolio_id) do
+    case Portfolios.get_portfolio(portfolio_id) do
+      %{cash_target_weight: weight} -> weight
+      _ -> nil
+    end
+  end
+
+  defp build(
+         valuation,
+         classification,
+         categories,
+         security_categories,
+         targets,
+         excluded_ids,
+         cash_target
+       ) do
     {steering_positions, excluded_positions} = split_excluded(valuation, excluded_ids)
 
-    # The steering basis (the 100%) deliberately leaves out flagged positions
-    # (e.g. a Bitcoin treated as a store of value, not part of the target mix):
-    # category percentages, target/actual/drift and the sunburst are all shares
-    # of this basis. Excluded positions still show in the valuation's totals and
-    # performance; here they surface in a separate `excluded` block instead of
-    # vanishing. See ADR-0013.
+    # The steering basis (the 100%) is securities (minus flagged-excluded
+    # positions, ADR-0013) PLUS the cash that counts toward the cash quote
+    # (accounts flagged `counts_toward_cash_quote`, ADR-0009). Cash is part of
+    # the target mix: a maintainer who steers ~5% cash wants it tracked in the
+    # same drift logic, so its weight enters the same 100% as the categories
+    # (issue #335). Category percentages, target/actual/drift, the Σ header and
+    # the sunburst are all shares of this basis. Excluded positions still show
+    # in the valuation's totals and performance; here they surface in a separate
+    # `excluded` block instead of vanishing.
     excluded_value = sum_values(excluded_positions)
-    total = Decimal.sub(valuation.total_value, excluded_value)
+    securities_value = Decimal.sub(valuation.total_value, excluded_value)
+    counting_cash = valuation.counting_cash
+    total = Decimal.add(securities_value, counting_cash)
 
     {positions_by_category, unassigned_positions} =
       group_positions(steering_positions, security_categories)
@@ -133,9 +171,31 @@ defmodule Portfolixir.Portfolios.Allocation do
       total_value: total,
       unvalued_count: valuation.unvalued_count,
       categories: rows,
-      top_level_target_sum: top_level_target_sum(children_by_parent, targets),
+      cash: cash_row(counting_cash, cash_target, total),
+      top_level_target_sum:
+        Decimal.add(top_level_target_sum(children_by_parent, targets), cash_target || @zero),
       unassigned: unassigned(unassigned_positions, total),
       excluded: excluded(excluded_positions, excluded_value)
+    }
+  end
+
+  # The cash row sits in the same drift logic as the categories: its actual
+  # weight is the counting cash as a share of the steering basis (so it shrinks
+  # the categories' shares once cash joins the 100%), its target is the
+  # portfolio's stored cash target, and the drift is `target - actual`, restated
+  # in the base currency like every category drift. Always present so the UI/API
+  # can render the row even when there is no cash yet or no cash target set.
+  defp cash_row(counting_cash, cash_target, total) do
+    actual = weight(counting_cash, total)
+    target_weight = cash_target || @zero
+    drift_weight = Decimal.sub(target_weight, actual)
+
+    %{
+      market_value: counting_cash,
+      actual_weight: actual,
+      target_weight: target_weight,
+      drift_weight: drift_weight,
+      drift_value: Decimal.mult(drift_weight, total)
     }
   end
 
@@ -165,7 +225,8 @@ defmodule Portfolixir.Portfolios.Allocation do
   end
 
   # Sum of the root categories' target weights, used for the "Σ top level"
-  # header hint compared against 100%. Returns zero when no root has a target.
+  # header hint compared against 100% (the caller adds the cash target on top).
+  # Returns zero when no root has a target.
   defp top_level_target_sum(children_by_parent, targets) do
     roots = Map.get(children_by_parent, nil, [])
     sum_targets(roots, targets) || @zero

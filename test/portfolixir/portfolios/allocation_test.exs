@@ -1,9 +1,11 @@
 defmodule Portfolixir.Portfolios.AllocationTest do
   use Portfolixir.DataCase, async: true
 
-  import Portfolixir.WorldFixtures, only: [base_world: 0, create_security!: 1, buy!: 3]
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 0, create_security!: 1, buy!: 3, deposit!: 3]
 
   alias Portfolixir.Classifications
+  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Targets
 
@@ -71,6 +73,11 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
     {:ok, _} =
       Classifications.assign_security(satellite_security.id, classification.id, satellite.id)
+
+    # Fund the cash account so the buys leave it at zero: counting cash is 0, so
+    # the basis here is securities only (the cash-in-basis case is covered by the
+    # dedicated test below). See issue #335.
+    deposit!(world, "1500", ~D[2026-01-01])
 
     buy!(world, core_security, "10", "80")
     buy!(world, satellite_security, "10", "40")
@@ -151,6 +158,9 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
     {:ok, _} =
       Classifications.assign_security(emerging_security.id, classification.id, emerging.id)
+
+    # Fund the cash account so the buys leave it at zero (basis = securities).
+    deposit!(world, "1000", ~D[2026-01-01])
 
     buy!(world, tech_security, "10", "60")
     buy!(world, emerging_security, "10", "40")
@@ -261,6 +271,93 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       Allocation.for_portfolio(world.portfolio.id, world.classification.id, prices: %{})
 
     assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0"))
+  end
+
+  # User story:
+  # As a local portfolio maintainer who steers a cash quote (e.g. ~5%),
+  # I want cash tracked inside the same SOLL/IST drift logic as my categories,
+  # so that the allocation's 100% basis is securities + counting cash, a "Cash"
+  # row reports its actual/target/drift, and the category percentages shrink once
+  # cash joins the basis.
+  #
+  # Acceptance criteria:
+  # - The 100% basis = securities (minus excluded) + counting cash.
+  # - A `cash` row reports actual (counting cash share), target (the portfolio's
+  #   cash_target_weight) and drift (target - actual), restated in base currency.
+  # - Category percentages are shares of the larger basis (they shrink vs. a
+  #   securities-only basis).
+  # - The Σ header (top_level_target_sum) includes the cash target.
+  test "treats counting cash as part of the allocation basis with its own row" do
+    world = setup_world()
+    %{classification: classification, core: core, satellite: satellite} = world
+
+    core_security = equity!("Core Equity", "CORE")
+    satellite_security = equity!("Satellite Equity", "SAT")
+
+    {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+    {:ok, _} =
+      Classifications.assign_security(satellite_security.id, classification.id, satellite.id)
+
+    # Securities worth 600 + 320 = 920; cash 80 -> 100% basis = 1000.
+    buy!(world, core_security, "10", "60")
+    buy!(world, satellite_security, "8", "40")
+    deposit!(world, "80", ~D[2026-01-01])
+
+    {:ok, _} = Targets.set_targets(world.portfolio.id, classification.id, [
+      %{"category_id" => core.id, "target_weight" => "0.6"},
+      %{"category_id" => satellite.id, "target_weight" => "0.35"}
+    ])
+
+    {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.05"))
+
+    prices = %{
+      core_security.id => Decimal.new("60"),
+      satellite_security.id => Decimal.new("40")
+    }
+
+    {:ok, allocation} =
+      Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+    # The 100% basis is securities (920) + counting cash (80) = 1000.
+    assert Decimal.equal?(allocation.total_value, Decimal.new("1000"))
+
+    # The cash row: actual 80/1000 = 0.08 (8%), target 0.05 (5%); drift
+    # target - actual = -0.03 (cash is 3 pp over target), restated as -30 EUR
+    # (i.e. reduce cash by 30 to hit the 5% target).
+    assert Decimal.equal?(allocation.cash.market_value, Decimal.new("80"))
+    assert Decimal.equal?(allocation.cash.actual_weight, Decimal.new("0.08"))
+    assert Decimal.equal?(allocation.cash.target_weight, Decimal.new("0.05"))
+    assert Decimal.equal?(allocation.cash.drift_weight, Decimal.new("-0.03"))
+    assert Decimal.equal?(Decimal.round(allocation.cash.drift_value, 2), Decimal.new("-30"))
+
+    # Category percentages shrink once cash joins the basis: Core is 600/1000 =
+    # 0.60, NOT 600/920 = 0.6522 (the securities-only basis).
+    core_row = fetch_category(allocation, core.id)
+    assert Decimal.equal?(core_row.market_value, Decimal.new("600"))
+    assert Decimal.equal?(core_row.actual_weight, Decimal.new("0.6"))
+    refute Decimal.equal?(Decimal.round(core_row.actual_weight, 4), Decimal.new("0.6522"))
+
+    satellite_row = fetch_category(allocation, satellite.id)
+    assert Decimal.equal?(satellite_row.market_value, Decimal.new("320"))
+    assert Decimal.equal?(satellite_row.actual_weight, Decimal.new("0.32"))
+
+    # The Σ header includes the cash target: 0.6 + 0.35 + 0.05 = 1.0.
+    assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("1.0"))
+  end
+
+  test "cash row uses a zero target when no cash target is set" do
+    world = setup_world()
+
+    deposit!(world, "100", ~D[2026-01-01])
+
+    {:ok, allocation} =
+      Allocation.for_portfolio(world.portfolio.id, world.classification.id, prices: %{})
+
+    # 100% basis is just the cash (no securities): cash actual is the whole basis.
+    assert Decimal.equal?(allocation.cash.market_value, Decimal.new("100"))
+    assert Decimal.equal?(allocation.cash.actual_weight, Decimal.new("1"))
+    assert Decimal.equal?(allocation.cash.target_weight, Decimal.new("0"))
   end
 
   test "returns not_found for an unknown classification" do
