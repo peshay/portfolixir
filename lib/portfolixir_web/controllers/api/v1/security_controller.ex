@@ -78,6 +78,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   defp list_opts(params) do
     with {:ok, sort} <- sort_param(params),
          {:ok, holding_status} <- holding_status_param(params),
+         {:ok, logo_status} <- logo_status_param(params),
          {:ok, limit} <- int_param(params, "limit", :limit),
          {:ok, offset} <- int_param(params, "offset", :offset) do
       opts =
@@ -85,12 +86,21 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         |> put_if_present(:query, params["query"])
         |> put_if_present(:sort, sort)
         |> put_if_present(:holding_status, holding_status)
+        |> put_if_present(:logo_status, logo_status)
         |> put_if_present(:limit, limit)
         |> put_if_present(:offset, offset)
 
       {:ok, opts}
     end
   end
+
+  defp logo_status_param(%{"logo_status" => status}) when status in ["missing", "present"] do
+    {:ok, status}
+  end
+
+  defp logo_status_param(%{"logo_status" => ""}), do: {:ok, nil}
+  defp logo_status_param(%{"logo_status" => _}), do: {:error, :logo_status}
+  defp logo_status_param(_params), do: {:ok, nil}
 
   defp int_param(params, key, field) do
     case Map.get(params, key) do

@@ -37,6 +37,18 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def logo_status(%Security{} = security) do
+    status = Portfolixir.Catalog.logo_status(security)
+
+    %{
+      security_id: security.id,
+      path: status.path,
+      source: status.source,
+      has_logo: status.has_logo,
+      locked: status.locked
+    }
+  end
+
   def search_result(%SearchResult{} = result) do
     %{
       provider: provider(result.provider),

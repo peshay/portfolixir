@@ -46,3 +46,7 @@ config :portfolixir, Portfolixir.Fx.RateSync,
 # outbound HTTP calls. Tests that need it call LogoLookup.run/2 directly
 # with a Req plug stub.
 config :portfolixir, :enable_logo_discovery, false
+# Drain immediately and never auto-rescan in tests, so the discovery suite is
+# fast and deterministic (the queue is driven explicitly).
+config :portfolixir, :logo_discovery_drain_ms, 0
+config :portfolixir, :logo_discovery_refresh_ms, 0

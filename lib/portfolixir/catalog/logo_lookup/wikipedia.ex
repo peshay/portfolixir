@@ -19,8 +19,19 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   """
 
   @endpoint "https://en.wikipedia.org/api/rest_v1/page/summary"
+  @search_endpoint "https://en.wikipedia.org/w/rest.php/v1/search/page"
   @wikidata_endpoint "https://www.wikidata.org/wiki/Special:EntityData"
   @commons_file_redirect "https://commons.wikimedia.org/wiki/Special:Redirect/file/"
+
+  # A candidate is accepted when its description/excerpt looks like a company
+  # or fund and does NOT look like an unrelated topic (a fruit, a genus, a
+  # film, …). We deliberately do NOT require the candidate title to share
+  # words with the query: Wikipedia ranks the best match first, and many
+  # companies live under a different title than their brokerage name (e.g.
+  # "Bayerische Motoren Werke" -> "BMW", "Xinjiang Goldwind" -> "Goldwind").
+  # The company/non-company guard is what keeps "Apple" -> the fruit out.
+  @company_signal ~r/\b(compan(y|ies)|corporation|corporate|multinational|conglomerate|manufacturer|holding|bank|insurer|insurance|technolog|software|retailer|automaker|automotive|pharmaceutic|biotechnolog|enterprise|brand|airline|fund|asset management|investment|exchange[- ]traded|etf|brewer|producer|energy|telecommunication|semiconductor|maker|developer)\b/i
+  @non_company_signal ~r/\b(genus|species|fruit|plant|tree|flower|river|mountain|volcano|village|municipality|film|movie|song|album|novel|video game|given name|surname|family name|disambiguation|deity|mytholog|footballer|actress|actor|singer|painter|island|lake)\b/i
 
   @spec lookup(String.t(), keyword()) ::
           {:ok, String.t()} | :not_found | {:error, term()}
@@ -41,6 +52,55 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  @doc """
+  Searches Wikipedia for a company/fund by name and returns the image of the
+  first candidate that passes conservative validation.
+
+  Returns `{:ok, url}`, `:not_found` (no usable candidate), or
+  `{:error, reason}` for HTTP/transport failures on the search request.
+  """
+  @spec search_logo(String.t(), keyword()) ::
+          {:ok, String.t()} | :not_found | {:error, term()}
+  def search_logo(query, opts \\ []) when is_binary(query) do
+    req = build_req(opts)
+
+    case Req.get(req, url: @search_endpoint, params: [q: query, limit: 5]) do
+      {:ok, %Req.Response{status: 200, body: %{"pages" => pages}}} when is_list(pages) ->
+        pages
+        |> Enum.filter(&company_like?/1)
+        |> first_candidate_image(opts)
+
+      {:ok, %Req.Response{status: status}} when status in [200, 404] ->
+        :not_found
+
+      {:ok, %Req.Response{status: status}} ->
+        {:error, {:http_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp first_candidate_image([], _opts), do: :not_found
+
+  defp first_candidate_image([page | rest], opts) do
+    case lookup(page["key"] || page["title"], opts) do
+      {:ok, url} -> {:ok, url}
+      _ -> first_candidate_image(rest, opts)
+    end
+  end
+
+  defp company_like?(page) when is_map(page) do
+    is_binary(page["title"]) and
+      looks_like_company?("#{page["description"] || ""} #{page["excerpt"] || ""}")
+  end
+
+  defp company_like?(_page), do: false
+
+  defp looks_like_company?(text) do
+    Regex.match?(@company_signal, text) and not Regex.match?(@non_company_signal, text)
   end
 
   defp build_req(opts) do

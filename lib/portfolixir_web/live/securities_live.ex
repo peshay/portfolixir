@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Catalog.LogoLookup
+  alias Portfolixir.Catalog.LogoStore
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
@@ -19,6 +20,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Securities.ColumnPicker
   alias PortfolixirWeb.Securities.FilterPopover
+  alias PortfolixirWeb.Securities.LogoOverrideDialog
   alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
 
@@ -32,6 +34,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    # Background logo discovery stores logos asynchronously; subscribe so a
+    # freshly resolved logo replaces the initials/flag placeholder live.
+    if connected?(socket), do: LogoStore.subscribe()
+
     {:ok,
      socket
      |> assign(:query, "")
@@ -65,6 +71,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
+     |> assign(:logo_dialog_security, nil)
      |> load_securities()}
   end
 
@@ -362,6 +369,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
       <%= if @delete_blocked do %>
         <RowContextMenu.delete_blocked_dialog security={@delete_blocked} />
+      <% end %>
+
+      <%= if @logo_dialog_security do %>
+        <LogoOverrideDialog.dialog security={@logo_dialog_security} />
       <% end %>
     </AppShell.shell>
     """
@@ -1961,6 +1972,32 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :delete_blocked, nil)}
   end
 
+  def handle_event("close_logo_dialog", _params, socket) do
+    {:noreply, assign(socket, :logo_dialog_security, nil)}
+  end
+
+  def handle_event("save_logo_url", %{"logo" => %{"url" => url}}, socket) do
+    case socket.assigns.logo_dialog_security do
+      %Security{} = sec -> store_logo_url(socket, sec, String.trim(to_string(url)))
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("remove_logo_override", %{"id" => id_str}, socket) do
+    with {id, ""} <- Integer.parse(to_string(id_str)),
+         %Security{} = sec <- Catalog.get_security(id),
+         {:ok, _updated} <- Catalog.remove_logo(sec, logo_opts()) do
+      {:noreply,
+       socket
+       |> assign(:logo_dialog_security, nil)
+       |> assign(:flash_message, gettext("Logo removed"))
+       |> load_securities()
+       |> load_detail_data()}
+    else
+      _ -> {:noreply, assign(socket, :flash_message, gettext("Could not remove logo"))}
+    end
+  end
+
   def handle_event("row_action", %{"action" => action, "id" => id_str}, socket) do
     with {id, ""} <- Integer.parse(to_string(id_str)),
          %Security{} = sec <- Catalog.get_security(id) do
@@ -2082,7 +2119,89 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :flash_message, gettext("Looking up logo…"))}
   end
 
+  defp dispatch_row_action(socket, "manage_logo", %Security{} = sec) do
+    {:noreply, assign(socket, :logo_dialog_security, sec)}
+  end
+
   defp dispatch_row_action(socket, _action, _sec), do: {:noreply, socket}
+
+  defp refresh_logo_dialog(socket) do
+    case socket.assigns[:logo_dialog_security] do
+      %Security{id: id} -> assign(socket, :logo_dialog_security, Catalog.get_security(id))
+      _ -> socket
+    end
+  end
+
+  # Patch a single security's logo into the current view after a PubSub
+  # broadcast. Loads the fresh row only when the id is actually on screen
+  # (in the list, selected, or open in the logo dialog) to avoid a needless
+  # query for every drained logo of securities the user is not looking at.
+  defp apply_logo_update(socket, id) do
+    in_list? = Enum.any?(socket.assigns.securities, &(security_id(&1) == id))
+    selected? = match?(%Security{id: ^id}, socket.assigns.selected_security)
+    in_dialog? = match?(%Security{id: ^id}, socket.assigns[:logo_dialog_security])
+
+    if in_list? or selected? or in_dialog? do
+      case Catalog.get_security(id) do
+        %Security{} = fresh ->
+          patch_logo_into_view(socket, fresh, in_list?, selected?, in_dialog?)
+
+        nil ->
+          socket
+      end
+    else
+      socket
+    end
+  end
+
+  defp patch_logo_into_view(socket, %Security{} = fresh, in_list?, selected?, in_dialog?) do
+    socket
+    |> then(fn s -> if in_list?, do: replace_row_attributes(s, fresh), else: s end)
+    |> then(fn s -> if selected?, do: assign(s, :selected_security, fresh), else: s end)
+    |> then(fn s -> if in_dialog?, do: assign(s, :logo_dialog_security, fresh), else: s end)
+  end
+
+  # Only the logo lives in `attributes`; swap that in so the row keeps its
+  # already-computed metrics instead of triggering a full re-query.
+  defp replace_row_attributes(socket, %Security{id: id, attributes: attributes}) do
+    securities =
+      Enum.map(socket.assigns.securities, fn row ->
+        if security_id(row) == id, do: put_row_attributes(row, attributes), else: row
+      end)
+
+    assign(socket, :securities, securities)
+  end
+
+  defp put_row_attributes(%SecurityWithMetrics{security: security} = row, attributes) do
+    %{row | security: %{security | attributes: attributes}}
+  end
+
+  defp put_row_attributes(%Security{} = security, attributes) do
+    %{security | attributes: attributes}
+  end
+
+  defp store_logo_url(socket, _sec, "") do
+    {:noreply, assign(socket, :flash_message, gettext("Enter an image URL first."))}
+  end
+
+  defp store_logo_url(socket, sec, url) do
+    flash =
+      case Catalog.set_logo_override(sec, url, logo_opts()) do
+        {:ok, _updated} -> gettext("Logo updated")
+        {:error, _reason} -> gettext("Could not load that image")
+      end
+
+    {:noreply,
+     socket
+     |> assign(:logo_dialog_security, nil)
+     |> assign(:flash_message, flash)
+     |> load_securities()
+     |> load_detail_data()}
+  end
+
+  # Manual logo operations reuse the same storage dir (and, in tests, the same
+  # Req stub) the background discovery worker is configured with.
+  defp logo_opts, do: Application.get_env(:portfolixir, :logo_discovery_opts, [])
 
   defp safe_column_atom(key) when is_binary(key) do
     field = Enum.find(SecurityFields.all(), &(Atom.to_string(&1.key) == key))
@@ -2166,8 +2285,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:flash_message, flash)
+     |> refresh_logo_dialog()
      |> load_securities()
      |> load_detail_data()}
+  end
+
+  # Broadcast from LogoStore when a logo was stored/replaced/removed (manual
+  # action elsewhere, or the background discovery queue). Patch only the
+  # affected row/selection in place so a bulk import draining hundreds of
+  # logos does not re-run the whole metrics query on every tick.
+  def handle_info({:security_logo_updated, id}, socket) do
+    {:noreply, apply_logo_update(socket, id)}
   end
 
   def handle_info(:sync_done, socket) do
