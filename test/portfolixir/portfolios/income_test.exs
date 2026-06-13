@@ -102,7 +102,13 @@ defmodule Portfolixir.Portfolios.IncomeTest do
     # 1 EUR = 1.25 USD on the booking date.
     {:ok, _} =
       Fx.upsert_many([
-        %{base_currency: "EUR", quote_currency: "USD", date: ~D[2025-04-01], rate: "1.25"}
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2025-04-01],
+          rate: "1.25",
+          source: "manual"
+        }
       ])
 
     world = WorldFixtures.base_world(currency: "EUR", cash_currency: "USD")
