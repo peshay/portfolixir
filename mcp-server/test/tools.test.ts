@@ -54,6 +54,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.portfolios.allocation",
       "portfolixir.portfolios.set_cash_target",
       "portfolixir.cash_accounts.set_balance",
+      "portfolixir.portfolios.income",
       "portfolixir.portfolios.performance"
     ]);
 
@@ -179,6 +180,25 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/portfolios/3/valuation");
     assert.equal(requests[0].token, "Bearer api-token");
     assert.match(result.content[0].text, /0\.5/);
+  });
+
+  it("issues a GET to /income for portfolixir.portfolios.income", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        portfolio_id: 3,
+        base_currency: "EUR",
+        annual: [{ year: 2025, dividends_total: "200", interest_total: "15", total: "215" }],
+        positions: [{ security_id: 9, gross: "200", tax: "30", net: "170" }],
+        transactions: []
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.portfolios.income", { portfolio_id: 3 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/income");
+    assert.equal(requests[0].token, "Bearer api-token");
+    assert.match(result.content[0].text, /170/);
   });
 
   it("issues a POST to /exchange_rates/sync for portfolixir.exchange_rates.sync", async () => {
