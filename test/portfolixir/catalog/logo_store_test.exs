@@ -203,4 +203,70 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
     refute File.exists?(Path.join(tmp, "#{sec.id}.png"))
     refute Repo.get!(Security, sec.id).attributes["logo_path"]
   end
+
+  # User story:
+  # As a maintainer watching the securities list during a large import, I want
+  # freshly discovered logos to replace the initials placeholder without a page
+  # reload. LogoStore broadcasts on the "security_logos" topic after every
+  # store/remove so subscribed LiveViews can patch the affected row.
+  describe "PubSub broadcast" do
+    test "download_and_store broadcasts the updated security id",
+         %{tmp: tmp, security: sec} do
+      :ok = LogoStore.subscribe()
+
+      assert {:ok, _updated} =
+               LogoStore.download_and_store(
+                 sec,
+                 "https://example.test/logo.png",
+                 :wikipedia,
+                 req: png_stub(@png),
+                 storage_dir: tmp
+               )
+
+      assert_receive {:security_logo_updated, id}
+      assert id == sec.id
+    end
+
+    test "store_manual_bytes broadcasts", %{tmp: tmp, security: sec} do
+      :ok = LogoStore.subscribe()
+
+      assert {:ok, _updated} =
+               LogoStore.store_manual_bytes(sec, @png, "image/png", storage_dir: tmp)
+
+      assert_receive {:security_logo_updated, id}
+      assert id == sec.id
+    end
+
+    test "remove_logo broadcasts", %{tmp: tmp, security: sec} do
+      {:ok, with_logo} =
+        LogoStore.download_and_store(
+          sec,
+          "https://example.test/logo.png",
+          :wikipedia,
+          req: png_stub(@png),
+          storage_dir: tmp
+        )
+
+      :ok = LogoStore.subscribe()
+      assert {:ok, _removed} = LogoStore.remove_logo(with_logo, storage_dir: tmp)
+
+      assert_receive {:security_logo_updated, id}
+      assert id == sec.id
+    end
+
+    test "a failed download does not broadcast", %{tmp: tmp, security: sec} do
+      :ok = LogoStore.subscribe()
+
+      assert {:error, _} =
+               LogoStore.download_and_store(
+                 sec,
+                 "https://example.test/logo.png",
+                 :wikipedia,
+                 req: [plug: fn conn -> Plug.Conn.send_resp(conn, 503, "down") end],
+                 storage_dir: tmp
+               )
+
+      refute_receive {:security_logo_updated, _id}
+    end
+  end
 end

@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Catalog.LogoLookup
+  alias Portfolixir.Catalog.LogoStore
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
@@ -33,6 +34,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    # Background logo discovery stores logos asynchronously; subscribe so a
+    # freshly resolved logo replaces the initials/flag placeholder live.
+    if connected?(socket), do: LogoStore.subscribe()
+
     {:ok,
      socket
      |> assign(:query, "")
@@ -2127,6 +2132,54 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  # Patch a single security's logo into the current view after a PubSub
+  # broadcast. Loads the fresh row only when the id is actually on screen
+  # (in the list, selected, or open in the logo dialog) to avoid a needless
+  # query for every drained logo of securities the user is not looking at.
+  defp apply_logo_update(socket, id) do
+    in_list? = Enum.any?(socket.assigns.securities, &(security_id(&1) == id))
+    selected? = match?(%Security{id: ^id}, socket.assigns.selected_security)
+    in_dialog? = match?(%Security{id: ^id}, socket.assigns[:logo_dialog_security])
+
+    if in_list? or selected? or in_dialog? do
+      case Catalog.get_security(id) do
+        %Security{} = fresh ->
+          patch_logo_into_view(socket, fresh, in_list?, selected?, in_dialog?)
+
+        nil ->
+          socket
+      end
+    else
+      socket
+    end
+  end
+
+  defp patch_logo_into_view(socket, %Security{} = fresh, in_list?, selected?, in_dialog?) do
+    socket
+    |> then(fn s -> if in_list?, do: replace_row_attributes(s, fresh), else: s end)
+    |> then(fn s -> if selected?, do: assign(s, :selected_security, fresh), else: s end)
+    |> then(fn s -> if in_dialog?, do: assign(s, :logo_dialog_security, fresh), else: s end)
+  end
+
+  # Only the logo lives in `attributes`; swap that in so the row keeps its
+  # already-computed metrics instead of triggering a full re-query.
+  defp replace_row_attributes(socket, %Security{id: id, attributes: attributes}) do
+    securities =
+      Enum.map(socket.assigns.securities, fn row ->
+        if security_id(row) == id, do: put_row_attributes(row, attributes), else: row
+      end)
+
+    assign(socket, :securities, securities)
+  end
+
+  defp put_row_attributes(%SecurityWithMetrics{security: security} = row, attributes) do
+    %{row | security: %{security | attributes: attributes}}
+  end
+
+  defp put_row_attributes(%Security{} = security, attributes) do
+    %{security | attributes: attributes}
+  end
+
   defp store_logo_url(socket, _sec, "") do
     {:noreply, assign(socket, :flash_message, gettext("Enter an image URL first."))}
   end
@@ -2235,6 +2288,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> refresh_logo_dialog()
      |> load_securities()
      |> load_detail_data()}
+  end
+
+  # Broadcast from LogoStore when a logo was stored/replaced/removed (manual
+  # action elsewhere, or the background discovery queue). Patch only the
+  # affected row/selection in place so a bulk import draining hundreds of
+  # logos does not re-run the whole metrics query on every tick.
+  def handle_info({:security_logo_updated, id}, socket) do
+    {:noreply, apply_logo_update(socket, id)}
   end
 
   def handle_info(:sync_done, socket) do

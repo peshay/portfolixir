@@ -41,12 +41,21 @@ defmodule Portfolixir.Catalog.LogoLookup do
   # `titles` feed the Wikipedia/Wikidata logo lookup; `slug` is the
   # companieslogo.com fallback slug; `name` is the display issuer.
   @issuers [
-    {~r/\biShares\b/i, %{name: "iShares", titles: ["iShares"], slug: "ishares"}},
+    # Broker exports abbreviate the big ETF houses ("iShsII-", "Gl.X ETF-",
+    # "Amu.", "MUL-Am", "Xtr.(IE)") — the patterns accept those spellings too,
+    # otherwise the issuer (and thus the logo) is never detected.
+    {~r/\biShares\b|\biShs\b|\biShs(?=[IVX])/i,
+     %{name: "iShares", titles: ["iShares"], slug: "ishares"}},
     {~r/\bVanguard\b/i, %{name: "Vanguard", titles: ["The Vanguard Group"], slug: "vanguard"}},
     {~r/\bLyxor\b/i,
      %{name: "Lyxor", titles: ["Lyxor Asset Management", "Lyxor"], slug: "lyxor"}},
-    {~r/\b(AIS-?AM|Amundi)\b/i, %{name: "Amundi", titles: ["Amundi"], slug: "amundi"}},
-    {~r/\b(Xtrackers|DWS)\b/i,
+    {~r/\b(?:AIS-?AM|Amundi)\b|\bAmu\.|\bMUL-Am/i,
+     %{name: "Amundi", titles: ["Amundi"], slug: "amundi"}},
+    {~r/\bGl(?:obal|bl)?\.?\s*X\b/i,
+     %{name: "Global X", titles: ["Global X ETFs"], slug: "globalxetfs"}},
+    {~r/\bL\s*&\s*G\b|\bLegal\s*&\s*General\b|\bLGIM\b/i,
+     %{name: "Legal & General", titles: ["Legal & General"], slug: "legal-general"}},
+    {~r/\b(?:Xtrackers|DWS)\b|\bXtr\./i,
      %{name: "Xtrackers", titles: ["DWS Group", "Xtrackers"], slug: "dws"}},
     {~r/\b(SPDR|State\s+Street)\b/i,
      %{name: "State Street", titles: ["State Street Global Advisors"], slug: "state-street"}},
@@ -68,7 +77,9 @@ defmodule Portfolixir.Catalog.LogoLookup do
      %{name: "Morgan Stanley", titles: ["Morgan Stanley"], slug: "morgan-stanley"}},
     {~r/\bGoldman\s+Sachs\b/i,
      %{name: "Goldman Sachs", titles: ["Goldman Sachs"], slug: "goldman-sachs"}},
-    {~r/\bSoci[ée]t[ée]\s+G[ée]n[ée]rale\b|\bSocGen\b/i,
+    # /u is required: without it the accented [ée] character classes never
+    # match "Société Générale", so SG-issued knock-outs silently get no logo.
+    {~r/\bSoci[ée]t[ée]\s+G[ée]n[ée]rale\b|\bSocGen\b/iu,
      %{name: "Société Générale", titles: ["Société Générale"], slug: "societe-generale"}},
     {~r/\bDeutsche\s+Bank\b/i,
      %{name: "Deutsche Bank", titles: ["Deutsche Bank"], slug: "deutsche-bank"}},
@@ -277,25 +288,14 @@ defmodule Portfolixir.Catalog.LogoLookup do
     end)
   end
 
-  defp wikipedia_title_candidates(%Security{asset_class: class, name: name})
-       when class in ["etf", "fund"] do
-    name
-    |> issuer_logo_titles()
-    |> Kernel.++(wikipedia_title_variants(name))
+  # Issuer titles go first whenever the name carries a known house (iShares,
+  # Amundi, Global X, BNP, …). This covers issuer ETFs that infer as "equity"
+  # because they carry "Registered Shares" and no "ETF" token (e.g. "WisdomTree
+  # …U.E.", "Xtr.(IE) - MSCI World Quality Registered Shares"). For a plain
+  # company with no issuer keyword this is [] and behaves as before.
+  defp wikipedia_title_candidates(%Security{name: name}) do
+    (issuer_logo_titles(name) ++ wikipedia_title_variants(name))
     |> Enum.uniq()
-  end
-
-  defp wikipedia_title_candidates(%Security{name: name} = security) do
-    case Security.effective_asset_class(security) do
-      class when class in ["etf", "fund"] ->
-        name
-        |> issuer_logo_titles()
-        |> Kernel.++(wikipedia_title_variants(name))
-        |> Enum.uniq()
-
-      _ ->
-        wikipedia_title_variants(name)
-    end
   end
 
   defp issuer_logo_titles(name) do

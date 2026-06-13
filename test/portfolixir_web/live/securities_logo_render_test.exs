@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.LogoStore
 
   # 1x1 PNG
   @png <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8,
@@ -159,6 +160,45 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
 
     assert html =~ ~s(security-logo--lg)
     assert html =~ ~s(src="/security_logos/#{sec.id}.png")
+  end
+
+  # User story:
+  # As a maintainer watching the list during an import, a logo found by the
+  # background discovery queue should replace the initials placeholder live,
+  # without me reloading the page. LogoStore broadcasts on store; the LiveView
+  # patches the affected row in place.
+  test "a logo discovered after mount appears live via PubSub", %{conn: conn} do
+    tmp =
+      Path.join(System.tmp_dir!(), "portfolixir-logo-live-#{System.unique_integer([:positive])}")
+
+    on_exit(fn -> File.rm_rf(tmp) end)
+
+    {:ok, sec} =
+      Catalog.create_security(%{
+        name: "Baozun",
+        currency_code: "USD",
+        provider: "manual",
+        asset_class: "equity"
+      })
+
+    {:ok, view, html} = live(conn, "/securities")
+
+    # Initially only the initials fallback is shown.
+    assert html =~ ~s(security-logo--initial)
+    refute html =~ ~s(src="/security_logos/#{sec.id}.png")
+
+    # Background discovery stores a logo and broadcasts.
+    {:ok, _updated} =
+      LogoStore.download_and_store(
+        sec,
+        "https://example.test/logo.png",
+        :wikipedia,
+        req: png_stub(),
+        storage_dir: tmp
+      )
+
+    # The subscribed LiveView patches the row in place — no reload.
+    assert render(view) =~ ~s(src="/security_logos/#{sec.id}.png")
   end
 
   # User story:
