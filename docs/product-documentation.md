@@ -2,6 +2,9 @@
 layout: docs
 title: Product Documentation
 description: Portfolixir app handbook for current local portfolio tracking behavior.
+lang: en
+lang_en: /product-documentation.html
+lang_de: /de/product-documentation.html
 ---
 
 # Product Documentation

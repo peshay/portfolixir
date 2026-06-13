@@ -127,6 +127,38 @@ a:hover {
   height: auto;
 }
 
+.docs-lang-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-muted);
+}
+
+.docs-lang-link {
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.docs-lang-link:hover {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.docs-lang-link.is-active {
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent-violet-soft) 80%, transparent);
+}
+
+.docs-lang-switch-mobile {
+  display: none;
+}
+
 .docs-nav {
   display: flex;
   flex-direction: column;
@@ -306,13 +338,17 @@ pre code {
     top: 0;
     z-index: 10;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
+    grid-template-columns: minmax(0, 1fr) auto minmax(160px, 240px);
     gap: 12px;
     align-items: center;
     padding: 12px 20px;
     border-bottom: 1px solid var(--color-border);
     background: color-mix(in srgb, var(--color-panel) 94%, transparent);
     backdrop-filter: blur(12px);
+  }
+
+  .docs-lang-switch-mobile {
+    display: inline-flex;
   }
 
   .docs-topbar-brand {
@@ -409,7 +445,7 @@ pre code {
 
 @media (max-width: 560px) {
   .docs-topbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   h1 {
