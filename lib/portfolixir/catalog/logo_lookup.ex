@@ -347,19 +347,28 @@ defmodule Portfolixir.Catalog.LogoLookup do
   end
 
   # Strips broker-export noise so the company/fund name can be matched or
-  # searched: trailing nominal-value tokens ("DK -,20", "EO -,01"), "o.N."
-  # (ohne Nennwert), share-class words, and hyphen runs from spellings like
-  # "NOVO-NORDISK".
+  # searched: parentheticals and depositary-receipt/ratio markers
+  # ("(Spons.ADRs)/4"), trailing nominal-value tokens ("DK -,20", "DL -,01",
+  # "LS-,025"), "o.N."/"o.St.", share-class words and class-letter suffixes,
+  # "HLDGS", and hyphen runs from spellings like "NOVO-NORDISK".
   defp strip_broker_artifacts(name) do
     name
+    |> String.replace(~r/\([^)]*\)/, " ")
+    |> String.replace(~r{/\s*\d+}, " ")
+    |> String.replace(~r/\b(Spons\.?|Sponsored)?\s*(ADRs?|GDRs?)\b/i, "")
     |> String.replace(
-      ~r/\s+(EO|DK|SK|NK|HK|SF|YE|US|CT|GBP|EUR|USD|CHF|JPY|SEK|NOK|DKK|HKD)\s*-?\s*[,.]?\s*\d[\d.,\s]*$/i,
+      ~r/\s+(EO|DL|DM|DK|SK|NK|HK|SF|YE|US|CT|LS|GBP|EUR|USD|CHF|JPY|SEK|NOK|DKK|HKD)\s*-?\s*[,.]?\s*\d[\d.,\s]*$/i,
       ""
     )
     |> String.replace(~r/\bo\.?\s*N\.?\s*$/i, "")
+    |> String.replace(~r/\bo\.?\s*St\.?\b/i, "")
     |> String.replace(~r/\b(Inhaber|Namens|Vorzugs|Stamm)[- ]?Akt(ien|\.)?\b/i, "")
+    |> String.replace(~r/\bVorz\.?\b/i, "")
     |> String.replace(~r/\bRegistered\s+(Part\.?\s*)?Shares?\b/i, "")
     |> String.replace(~r/\bReg\.?\s*Sh(s|ares?)?\b/i, "")
+    |> String.replace(~r/\bHldgs?\.?\b/i, "")
+    |> String.replace(~r/\bNew\s*$/i, "")
+    |> String.replace(~r/\s+(?:Cl\.?\s*|Class\s*|Ser\.?\s*|Series\s*)?[A-H]\s*$/, "")
     |> String.replace(~r/-+/, " ")
     |> String.replace(~r/\s{2,}/, " ")
     |> String.trim()
