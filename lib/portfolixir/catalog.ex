@@ -5,6 +5,8 @@ defmodule Portfolixir.Catalog do
   require Logger
 
   alias Portfolixir.Catalog.LogoDiscovery
+  alias Portfolixir.Catalog.LogoLookup
+  alias Portfolixir.Catalog.LogoStore
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
@@ -34,6 +36,7 @@ defmodule Portfolixir.Catalog do
     |> apply_query(opts[:query])
     |> apply_filters(opts[:filters] || [])
     |> apply_holding_status(opts[:holding_status])
+    |> apply_logo_status(opts[:logo_status])
     |> apply_sort(db_sort_or_default(sort))
     |> apply_limit(opts[:limit])
     |> apply_offset(opts[:offset])
@@ -54,6 +57,28 @@ defmodule Portfolixir.Catalog do
     |> Repo.all()
     |> MapSet.new()
   end
+
+  # `:logo_status` narrows the list by logo state, used by the "securities
+  # without logo" overview. `:missing` excludes both stored logos and rows the
+  # user explicitly locked to "no logo".
+  defp apply_logo_status(query, status) when status in [:missing, "missing"] do
+    from(s in query,
+      where:
+        fragment(
+          "(? ->> ?) IS NULL AND coalesce(? ->> ?, 'false') <> 'true'",
+          s.attributes,
+          ^"logo_path",
+          s.attributes,
+          ^"logo_locked"
+        )
+    )
+  end
+
+  defp apply_logo_status(query, status) when status in [:present, "present"] do
+    from(s in query, where: not is_nil(fragment("? ->> ?", s.attributes, ^"logo_path")))
+  end
+
+  defp apply_logo_status(query, _status), do: query
 
   defp apply_limit(query, nil), do: query
   defp apply_limit(query, value) when is_integer(value), do: limit(query, ^value)
@@ -255,6 +280,51 @@ defmodule Portfolixir.Catalog do
     security
     |> Security.delete_changeset()
     |> Repo.delete()
+  end
+
+  @doc """
+  Reports the logo state of a security for the API/UI.
+
+  Returns a map with the stored `path`, the resolving `source` (e.g.
+  `"coingecko"`, `"wikipedia"`, `"manual"`), whether a logo is present and
+  whether the choice is `locked` (manual override or explicit removal).
+  """
+  def logo_status(%Security{attributes: attributes}) do
+    attrs = attributes || %{}
+    path = attrs["logo_path"]
+
+    %{
+      path: path,
+      source: attrs["logo_source"],
+      has_logo: is_binary(path),
+      locked: attrs["logo_locked"] == true
+    }
+  end
+
+  @doc """
+  Sets a manual logo override from an image URL. Locks the security so
+  background discovery never replaces the manual choice.
+  """
+  def set_logo_override(%Security{} = security, url, opts \\ []) when is_binary(url) do
+    LogoStore.store_manual_override(security, url, opts)
+  end
+
+  @doc "Removes a security's logo and records an explicit \"no logo\" decision."
+  def remove_logo(%Security{} = security, opts \\ []) do
+    LogoStore.remove_logo(security, opts)
+  end
+
+  @doc """
+  Re-runs automatic logo discovery for a single security synchronously,
+  bypassing the background queue. Used by the "search again" action. A locked
+  security is left untouched.
+  """
+  def rediscover_logo(%Security{} = security, opts \\ []) do
+    if logo_status(security).locked do
+      :skip
+    else
+      LogoLookup.run(security, opts)
+    end
   end
 
   @doc """

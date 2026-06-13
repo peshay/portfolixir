@@ -39,7 +39,9 @@ that successful delete response.
 ## Securities
 
 - `GET /api/v1/securities` lists securities. Optional query params: `query`,
-  `sort`, `direction`, holding_status (`all`, `held`, or `not_held`), and
+  `sort`, `direction`, holding_status (`all`, `held`, or `not_held`),
+  `logo_status` (`missing` or `present` — `missing` powers the "securities
+  without a logo" overview and excludes rows explicitly set to no logo), and
   `limit`/`offset` for pagination (both non-negative integers). Use these to
   page large catalogs instead of fetching the whole table at once.
 - `POST /api/v1/securities` creates a security with a `security` object.
@@ -61,6 +63,28 @@ that successful delete response.
   `409 Conflict`.
 - `GET /api/v1/securities/search` searches configured online security providers.
   Query params: `query`; optional `type` with `security` or `crypto`.
+
+### Logos
+
+Each security can carry a logo, resolved automatically (CoinGecko for crypto,
+Wikipedia for equities/ETFs/funds) or set manually. A manual logo, or an
+explicit "no logo", *locks* the security so background discovery never
+overwrites the choice.
+
+- `GET /api/v1/securities/:security_id/logo` returns the logo status:
+  `{ "data": { "security_id", "path", "source", "has_logo", "locked" } }`.
+  `source` is one of `coingecko`, `wikipedia`, or `manual`.
+- `PUT /api/v1/securities/:security_id/logo` sets a manual logo from an image
+  URL (`{ "logo": { "url": "https://…" } }` or `{ "url": "https://…" }`). The
+  image is downloaded once, validated (png/jpg/jpeg/webp, max 256 KiB) and
+  stored locally; the security is locked to the manual choice. A missing URL
+  returns `422`.
+- `DELETE /api/v1/securities/:security_id/logo` removes the logo and records an
+  explicit "no logo" decision (the row falls back to its initials/flag), also
+  locking it against discovery.
+- `POST /api/v1/securities/:security_id/logo/discover` re-runs automatic
+  discovery ("search again"). The response includes a `result` of `updated`,
+  `no_source`, or `failed`. Locked securities are left untouched.
 
 Example create payload:
 

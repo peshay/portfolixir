@@ -178,4 +178,49 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
       File.rm_rf(tmp)
     end
   end
+
+  # User story:
+  # As a maintainer who deliberately removed a logo (or set a manual one),
+  # I want background discovery to leave that security alone, so my choice
+  # is never silently overwritten on the next scan.
+  test "background queue skips securities locked to a manual/no-logo choice" do
+    prior_enabled = Application.get_env(:portfolixir, :enable_logo_discovery, false)
+    prior_opts = Application.get_env(:portfolixir, :logo_discovery_opts, [])
+
+    tmp =
+      Path.join(
+        System.tmp_dir!(),
+        "portfolixir-logo-locked-#{System.unique_integer([:positive])}"
+      )
+
+    Application.put_env(:portfolixir, :enable_logo_discovery, false)
+
+    {:ok, candidate} =
+      Catalog.create_security(%{
+        name: "Apple Inc.",
+        currency_code: "USD",
+        provider: "portfolio_performance",
+        feed: "PORTFOLIO_PERFORMANCE"
+      })
+
+    # Lock it to "no logo" — this is the state set by removing a logo.
+    {:ok, locked} = Catalog.remove_logo(candidate, storage_dir: tmp)
+    assert locked.attributes["logo_locked"] == true
+
+    Application.put_env(:portfolixir, :enable_logo_discovery, true)
+    Application.put_env(:portfolixir, :logo_discovery_opts, req: logo_stub(), storage_dir: tmp)
+
+    try do
+      assert :ok = LogoDiscovery.enqueue_missing_security_logos()
+      # Give the queue a chance to (not) act.
+      Process.sleep(200)
+
+      refute Catalog.get_security!(candidate.id).attributes["logo_path"]
+      refute File.exists?(Path.join(tmp, "#{candidate.id}.png"))
+    after
+      Application.put_env(:portfolixir, :enable_logo_discovery, prior_enabled)
+      Application.put_env(:portfolixir, :logo_discovery_opts, prior_opts)
+      File.rm_rf(tmp)
+    end
+  end
 end

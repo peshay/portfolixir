@@ -54,6 +54,11 @@ defmodule PortfolixirWeb.Router do
     patch("/securities/:id", SecurityController, :update)
     delete("/securities/:id", SecurityController, :delete)
 
+    get("/securities/:security_id/logo", LogoController, :show)
+    put("/securities/:security_id/logo", LogoController, :update)
+    delete("/securities/:security_id/logo", LogoController, :delete)
+    post("/securities/:security_id/logo/discover", LogoController, :discover)
+
     get("/securities/:security_id/quotes", QuoteController, :index)
     put("/securities/:security_id/quotes", QuoteController, :upsert)
     post("/securities/:security_id/sync_quotes", QuoteController, :sync)
