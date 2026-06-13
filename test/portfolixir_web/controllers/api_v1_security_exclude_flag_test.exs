@@ -1,11 +1,9 @@
 defmodule PortfolixirWeb.ApiV1SecurityExcludeFlagTest do
   use PortfolixirWeb.ConnCase
 
-  alias Portfolixir.Catalog
+  import Portfolixir.AllocationExcludeFixtures
+
   alias Portfolixir.Classifications
-  alias Portfolixir.Ledger
-  alias Portfolixir.Portfolios
-  alias Portfolixir.Catalog.Quotes
 
   @auth {"authorization", "Bearer test-api-token"}
 
@@ -82,69 +80,17 @@ defmodule PortfolixirWeb.ApiV1SecurityExcludeFlagTest do
     assert shown["excluded_from_allocation_targets"] == false
 
     # Build an allocation with the flagged Bitcoin out of the basis.
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
-
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Local Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Main Depot"
-      })
-
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
-
-    {:ok, equities} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Equities"})
-
-    {:ok, crypto} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Crypto"})
+    %{portfolio: portfolio, classification: classification, equities: equities, crypto: crypto} =
+      world = exclude_world()
 
     {:ok, _} = Classifications.assign_security(created["id"], classification.id, equities.id)
     {:ok, _} = Classifications.assign_security(bitcoin["id"], classification.id, crypto.id)
 
-    {:ok, _} =
-      Ledger.create_transaction(%{
-        portfolio_id: portfolio.id,
-        securities_account_id: depot.id,
-        cash_account_id: cash.id,
-        security_id: created["id"],
-        type: "buy",
-        date: ~D[2026-01-02],
-        quantity: "6",
-        price: "100",
-        fees: "0",
-        taxes: "0",
-        currency_code: "EUR"
-      })
+    buy!(world, created["id"], "6", "100")
+    buy!(world, bitcoin["id"], "4", "100")
 
-    {:ok, _} =
-      Ledger.create_transaction(%{
-        portfolio_id: portfolio.id,
-        securities_account_id: depot.id,
-        cash_account_id: cash.id,
-        security_id: bitcoin["id"],
-        type: "buy",
-        date: ~D[2026-01-02],
-        quantity: "4",
-        price: "100",
-        fees: "0",
-        taxes: "0",
-        currency_code: "EUR"
-      })
-
-    {:ok, _} =
-      Quotes.upsert_many(created["id"], [%{date: ~D[2026-06-01], close: "100", source: "manual"}])
-
-    {:ok, _} =
-      Quotes.upsert_many(bitcoin["id"], [%{date: ~D[2026-06-01], close: "100", source: "manual"}])
+    manual_quote!(created["id"], "100", ~D[2026-06-01])
+    manual_quote!(bitcoin["id"], "100", ~D[2026-06-01])
 
     data =
       conn
