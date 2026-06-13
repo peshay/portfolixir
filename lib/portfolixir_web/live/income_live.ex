@@ -154,7 +154,7 @@ defmodule PortfolixirWeb.IncomeLive do
                   <tr>
                     <td><%= tx.date %></td>
                     <td><%= kind_label(tx.kind) %></td>
-                    <td><%= tx.security_name || gettext("—") %></td>
+                    <td><%= tx.security_name || gettext("Interest") %></td>
                     <td class="num"><%= money(tx.gross) %></td>
                     <td class="num"><%= money(tx.tax) %></td>
                     <td class="num"><%= money(tx.net) %></td>
