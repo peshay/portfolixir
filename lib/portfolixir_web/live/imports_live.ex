@@ -676,7 +676,27 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp parse_error_message(other), do: inspect(other)
 
+  # A per-row insert rejection (e.g. a currency that does not match the
+  # resolved cash account, issue #343) carries the rejecting changeset.
+  # Surface its validation messages instead of an opaque struct dump so the
+  # preview tells the user exactly which row and rule failed.
+  defp apply_error_message(%{row: row, reason: {:insert_failed, %Ecto.Changeset{} = changeset}}) do
+    gettext("Row %{row}: %{errors}", row: row || "?", errors: changeset_error_text(changeset))
+  end
+
   defp apply_error_message(reason), do: inspect(reason)
+
+  defp changeset_error_text(%Ecto.Changeset{} = changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
+      Enum.reduce(opts, message, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.map_join("; ", fn {field, messages} ->
+      "#{field} #{Enum.join(messages, ", ")}"
+    end)
+  end
 
   defp parser_warning_text(errors) do
     errors

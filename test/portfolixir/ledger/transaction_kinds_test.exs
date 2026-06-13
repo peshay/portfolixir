@@ -400,6 +400,152 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
     end
   end
 
+  # User story:
+  # As a local portfolio maintainer,
+  # I want the ledger to reject a transaction whose currency does not
+  # match the currency of its linked cash account (and, for a cash
+  # transfer, the counter cash account),
+  # so that a USD booking can never be silently folded into a EUR cash
+  # projection and corrupt my balances.
+  #
+  # Acceptance criteria:
+  # - A transaction whose currency_code equals the linked cash account's
+  #   currency is accepted.
+  # - A transaction whose currency_code differs from the linked cash
+  #   account's currency is rejected with a clear error on
+  #   :currency_code.
+  # - A cash_transfer is rejected when its currency differs from either
+  #   the source or the counter cash account currency.
+  # - The check is pure validation; no FX conversion of stored amounts.
+  describe "currency consistency with linked cash accounts" do
+    test "accepts a transaction whose currency matches the cash account" do
+      w = setup_world()
+
+      attrs =
+        Map.merge(base(w), %{
+          type: "deposit",
+          cash_account_id: w.cash.id,
+          gross_amount: Decimal.new("100.00"),
+          currency_code: "EUR"
+        })
+
+      assert {:ok, %Transaction{currency_code: "EUR"}} = Ledger.create_transaction(attrs)
+    end
+
+    test "rejects a transaction whose currency differs from the cash account" do
+      w = setup_world()
+
+      attrs =
+        Map.merge(base(w), %{
+          type: "deposit",
+          cash_account_id: w.cash.id,
+          gross_amount: Decimal.new("100.00"),
+          currency_code: "USD"
+        })
+
+      assert {:error, changeset} = Ledger.create_transaction(attrs)
+
+      assert %{currency_code: ["must match the linked cash account currency (EUR)"]} =
+               errors_on(changeset)
+    end
+
+    test "rejects a buy whose currency differs from the cash account" do
+      w = setup_world()
+
+      attrs =
+        Map.merge(base(w), %{
+          type: "buy",
+          security_id: w.security.id,
+          securities_account_id: w.depot.id,
+          cash_account_id: w.cash.id,
+          quantity: Decimal.new("10"),
+          price: Decimal.new("150.25"),
+          gross_amount: Decimal.new("1502.50"),
+          currency_code: "USD"
+        })
+
+      assert {:error, changeset} = Ledger.create_transaction(attrs)
+
+      assert %{currency_code: ["must match the linked cash account currency (EUR)"]} =
+               errors_on(changeset)
+    end
+
+    test "accepts a cash_transfer matching both source and counter accounts" do
+      w = setup_world()
+
+      attrs =
+        Map.merge(base(w), %{
+          type: "cash_transfer",
+          cash_account_id: w.cash.id,
+          counter_cash_account_id: w.cash_b.id,
+          gross_amount: Decimal.new("500.00"),
+          currency_code: "EUR"
+        })
+
+      assert {:ok, %Transaction{type: "cash_transfer"}} = Ledger.create_transaction(attrs)
+    end
+
+    test "rejects a cash_transfer whose counter account has a different currency" do
+      w = setup_world()
+
+      {:ok, cash_usd} =
+        Portfolios.create_cash_account(%{
+          portfolio_id: w.portfolio.id,
+          name: "USD Cash",
+          currency_code: "USD"
+        })
+
+      attrs =
+        Map.merge(base(w), %{
+          type: "cash_transfer",
+          cash_account_id: w.cash.id,
+          counter_cash_account_id: cash_usd.id,
+          gross_amount: Decimal.new("500.00"),
+          currency_code: "EUR"
+        })
+
+      assert {:error, changeset} = Ledger.create_transaction(attrs)
+
+      assert %{counter_cash_account_id: ["must match the transaction currency (EUR)"]} =
+               errors_on(changeset)
+    end
+
+    test "rejects updating a transaction to a mismatched currency" do
+      w = setup_world()
+
+      {:ok, transaction} =
+        Ledger.create_transaction(
+          Map.merge(base(w), %{
+            type: "deposit",
+            cash_account_id: w.cash.id,
+            gross_amount: Decimal.new("100.00"),
+            currency_code: "EUR"
+          })
+        )
+
+      assert {:error, changeset} =
+               Ledger.update_transaction(transaction, %{currency_code: "USD"})
+
+      assert %{currency_code: ["must match the linked cash account currency (EUR)"]} =
+               errors_on(changeset)
+    end
+
+    test "allows kinds without a cash leg regardless of currency" do
+      w = setup_world()
+
+      attrs =
+        Map.merge(base(w), %{
+          type: "inbound_delivery",
+          security_id: w.security.id,
+          securities_account_id: w.depot.id,
+          quantity: Decimal.new("10"),
+          currency_code: "USD"
+        })
+
+      assert {:ok, %Transaction{type: "inbound_delivery"}} = Ledger.create_transaction(attrs)
+    end
+  end
+
   describe "type validation" do
     test "rejects an unknown kind" do
       w = setup_world()
