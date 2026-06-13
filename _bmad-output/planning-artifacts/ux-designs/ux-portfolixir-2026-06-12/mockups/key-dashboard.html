@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolixir — key screen: Dashboard (analysis home)</title>
+<style>
+/* ============================================================
+   KEY SCREEN MOCK — Dashboard (analysis home), canonical state
+   Light mode · violet accent · desktop ~1280px · fully offline
+
+   Governing spine sections:
+   - DESIGN.md › Colors (accent system: violet active; semantic
+     positive/danger never re-key; brand gradient stops appear
+     ONLY in the .stat top hairline; surface ramp bg → bg-elevated
+     → bg-muted; text/text-muted only carry content)
+   - DESIGN.md › Components: {components.hero}, {components.stat-card},
+     {components.panel}, {components.nav-link-active}, {components.button},
+     {components.chart-frame}, {components.pill}
+   - DESIGN.md › Typography: stat-value, stat-label, topbar-title,
+     nav-group-head, nav-label, body, chart-axis, mono-data
+   - DESIGN.md › Layout & Spacing: sidebar-width 220px, topbar 52px,
+     section-pad / panel-pad clamps
+   - EXPERIENCE.md › Information Architecture: nav model (grouped
+     sidebar; "Soon" items HIDDEN per decision log 2026-06-13 #3 —
+     Reports and General groups vanish entirely); Classifications
+     nav group is dynamic with the + affordance
+   - EXPERIENCE.md › Component Patterns: App shell row, Hero row
+     (€/% toggle, aria-pressed, period pills), Metric cards row
+     (owner-confirmed set: cash quote, TTWROR vs. period, top drift
+     category, transactions recency — each card navigates to its
+     owning surface)
+   - EXPERIENCE.md › State Patterns: Cold load (server-rendered,
+     complete frame); Stale data / freshness (basis date stated —
+     here fresh, so no warning tone)
+   - EXPERIENCE.md › Voice and Tone: explanatory ⓘ definitions
+     (title-attr stand-in, offline), basis stated ("As of 12 Jun
+     2026 · EUR"), no exclamation marks
+   - EXPERIENCE.md › Accessibility Floor: color independence —
+     every gain/loss and drift value carries an explicit +/− sign
+   - .decision-log.md 2026-06-13: hero €/% toggle; card set
+     confirmed; Soon hidden
+   - Flow 1 (Morning briefing) steps 2–3: this is the frame the operator
+     sees after the one-shot build has settled (static final frame
+     here; motion is polish only and lives in DESIGN.md Motion)
+   ============================================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  /* DESIGN.md frontmatter colors — light mode, violet accent active */
+  --accent: #7c3aed;
+  --accent-soft: #ede9fe;
+  --positive: #047857;
+  --danger: #dc2626;
+  --warning: #b45309;
+  --bg: #f6f7fa;
+  --bg-elevated: #ffffff;
+  --bg-muted: #eef1f6;
+  --sidebar: #fbfaff;
+  --chart-surface: #ffffff;
+  --border: #e4e8ef;
+  --border-strong: #cdd4df;
+  --hover: #f0f3f8;
+  --selected: #ede9fe;
+  --text: #0e141b;
+  --text-muted: #5a6577;
+  --text-subtle: #94a0b4; /* decoration only — never content */
+  --brand-v1: #a78bfa; --brand-t1: #2dd4bf; --brand-c1: #fdba74;
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-full: 9999px;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
+  --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
+  --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
+  --shadow-sidebar: 0 20px 60px rgb(15 23 42 / 0.16);
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+}
+
+html { background: #dfe3ea; }
+body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  padding: 36px 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* ---- Browser frame (mock chrome, not product) ---- */
+.browser {
+  width: 1280px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgb(15 23 42 / 0.25);
+  background: var(--bg);
+}
+.browser-chrome {
+  display: flex; align-items: center; gap: 10px;
+  background: #e9ecf2; border-bottom: 1px solid #d4d9e2;
+  padding: 9px 14px;
+}
+.browser-dots { display: flex; gap: 6px; }
+.browser-dots span { width: 11px; height: 11px; border-radius: 50%; }
+.browser-dots span:nth-child(1) { background: #f87171; }
+.browser-dots span:nth-child(2) { background: #fbbf24; }
+.browser-dots span:nth-child(3) { background: #34d399; }
+.browser-url {
+  flex: 1; max-width: 420px; margin: 0 auto;
+  background: #f7f8fb; border: 1px solid #d4d9e2; border-radius: 6px;
+  font-size: 11px; color: var(--text-muted); text-align: center;
+  padding: 4px 12px;
+}
+
+/* ---- App shell (DESIGN: App shell · EXPERIENCE: App shell row) ---- */
+.app-shell { display: flex; min-height: 800px; background: var(--bg); }
+/* body backdrop: radial accent glow, top-left (DESIGN Brand & Style) */
+.app-main {
+  flex: 1; min-width: 0;
+  background:
+    radial-gradient(900px 420px at 0% 0%, rgb(124 58 237 / 0.055), transparent 60%),
+    var(--bg);
+}
+
+/* Sidebar — 220px, near-white violet-tinted surface with sheen */
+.app-sidebar {
+  width: 220px; flex: 0 0 220px;
+  background: linear-gradient(180deg, rgb(124 58 237 / 0.035), transparent 220px), var(--sidebar);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow-sidebar);
+  padding: 14px 12px 18px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.brand {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 8px 14px; text-decoration: none; color: var(--text);
+}
+.brand-mark {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--brand-v1), var(--brand-t1) 55%, var(--brand-c1));
+}
+.brand-word { font-size: 14px; font-weight: 760; letter-spacing: -0.01em; }
+
+.nav-group { padding: 8px 0 2px; }
+.nav-group-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-muted);
+  padding: 4px 10px 6px;
+}
+.nav-group-add {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--bg-elevated);
+  color: var(--text-muted); text-decoration: none;
+  font-size: 12px; font-weight: 650; line-height: 1;
+}
+.nav-link {
+  position: relative;
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 10px 7px 18px;
+  border: 1px solid transparent; border-radius: var(--r-md);
+  font-size: 12.5px; color: var(--text-muted); text-decoration: none;
+}
+.nav-link svg { width: 15px; height: 15px; flex: 0 0 auto; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.nav-link:hover { background: var(--hover); color: var(--text); }
+/* Active link: accent-soft gradient wash, accent border at 26%, 6px dot + halo */
+.nav-link[aria-current="page"] {
+  background: linear-gradient(90deg, var(--accent-soft), transparent 80%);
+  border-color: rgb(124 58 237 / 0.26);
+  color: var(--text); font-weight: 650;
+}
+.nav-link[aria-current="page"]::before {
+  content: ""; position: absolute; left: 7px; top: 50%;
+  width: 6px; height: 6px; margin-top: -3px; border-radius: var(--r-full);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgb(124 58 237 / 0.18);
+}
+.swatch-dot { width: 8px; height: 8px; border-radius: 3px; flex: 0 0 auto; }
+
+/* Top bar — sticky, translucent, blur-backed */
+.topbar {
+  height: 52px;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 clamp(18px, 2.4vw, 28px);
+  background: rgb(255 255 255 / 0.88);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+}
+.sidebar-toggle {
+  display: inline-flex; flex-direction: column; gap: 3px;
+  padding: 8px 6px; border-radius: var(--r-sm); cursor: pointer;
+}
+.sidebar-toggle span { width: 15px; height: 1.6px; background: var(--text-muted); border-radius: 2px; }
+.topbar-titles { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.topbar-title { font-size: 15px; font-weight: 760; line-height: 1.15; }
+.topbar-subtitle { font-size: 11.5px; color: var(--text-muted); }
+.topbar-controls { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.ctrl-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 30px; padding: 0 9px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--r-md); box-shadow: var(--shadow-sm);
+  color: var(--text-muted); cursor: pointer; font: inherit; font-size: 12px;
+}
+.ctrl-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.accent-dots { display: inline-flex; gap: 4px; align-items: center; }
+.accent-dots i { width: 9px; height: 9px; border-radius: 50%; }
+.accent-dots .a-violet { background: #7c3aed; box-shadow: 0 0 0 2px rgb(124 58 237 / 0.25); }
+.accent-dots .a-teal { background: #0f766e; }
+.accent-dots .a-coral { background: #e11d48; }
+/* Locale pills — delta applied: ≥11px text (DESIGN Components, top-bar delta) */
+.locale-switcher { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-full); background: var(--bg-elevated); padding: 2px; }
+.locale-pill {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 3px 9px; border-radius: var(--r-full);
+  color: var(--text-muted); text-decoration: none;
+}
+.locale-pill[aria-current="true"] { background: var(--accent-soft); color: var(--accent); }
+
+/* ---- Workspace ---- */
+.workspace { padding: clamp(18px, 2.4vw, 28px); }
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 452px;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* Hero (DESIGN {components.hero} · EXPERIENCE Hero row) */
+.panel {
+  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-panel);
+  padding: clamp(18px, 3vw, 26px);
+}
+.hero-label {
+  font-size: 12px; font-weight: 650; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.hero-value {
+  font-size: 30px; font-weight: 700; line-height: 1; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  margin-top: 8px;
+}
+.hero-basis {
+  font-size: 12px; font-weight: 650; letter-spacing: 0.04em;
+  color: var(--text-muted); margin-top: 7px;
+}
+.hero-delta {
+  margin-top: 5px; font-size: 13px; font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--positive);
+}
+.chart-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin: 16px 0 10px;
+}
+.chart-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elevated); padding: 2px; box-shadow: var(--shadow-sm); }
+.chart-toggle button {
+  font: inherit; font-size: 12px; font-weight: 650; cursor: pointer;
+  min-height: 26px; padding: 0 12px;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-muted);
+}
+.chart-toggle button[aria-pressed="true"] {
+  background: var(--accent-soft); border-color: rgb(124 58 237 / 0.26);
+  color: var(--accent);
+}
+.period-buttons { display: inline-flex; gap: 5px; }
+.button-mini {
+  font: inherit; font-size: 11.5px; font-weight: 650; cursor: pointer;
+  min-height: 26px; padding: 0 10px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--r-md); color: var(--text-muted); box-shadow: var(--shadow-sm);
+}
+.button-mini[aria-pressed="true"] {
+  background: var(--accent-soft); border-color: rgb(124 58 237 / 0.26);
+  color: var(--accent);
+}
+.chart-frame {
+  background: var(--chart-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  aspect-ratio: 3 / 1;
+  overflow: hidden;
+}
+.chart-frame svg { display: block; width: 100%; height: 100%; }
+.chart-axis-text { font-family: var(--font-mono); font-size: 9px; fill: var(--text-muted); }
+
+/* Stat cards (DESIGN {components.stat-card} · EXPERIENCE Metric cards row) */
+.stat-grid { display: grid; grid-template-columns: repeat(2, minmax(218px, 1fr)); gap: 16px; }
+.stat {
+  position: relative; display: block; text-decoration: none;
+  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-panel);
+  padding: 18px 18px 16px;
+  overflow: hidden;
+  color: var(--text);
+}
+/* the ONLY place all three logo colors coexist (DESIGN Colors) */
+.stat::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: linear-gradient(90deg, var(--brand-v1), var(--brand-t1) 55%, var(--brand-c1));
+}
+.stat:hover { background: var(--hover); }
+.stat-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 650; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.info-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1px solid var(--border-strong); background: var(--bg-elevated);
+  font-size: 9px; font-weight: 650; color: var(--text-muted);
+  text-transform: none; letter-spacing: 0; cursor: help;
+}
+.stat-value {
+  font-size: 30px; font-weight: 700; line-height: 1; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  margin-top: 12px;
+}
+/* gain/loss & drift never wear the accent (DESIGN Colors, binding) */
+.stat-value.is-positive { color: var(--positive); }
+.stat-value.is-negative { color: var(--danger); }
+.stat-sub {
+  margin-top: 9px; font-size: 12px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.stat-sub .sign-pos { color: var(--positive); font-weight: 650; }
+.num { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="browser">
+  <div class="browser-chrome">
+    <div class="browser-dots"><span></span><span></span><span></span></div>
+    <div class="browser-url">portfolixir.local/</div>
+  </div>
+
+  <div class="app-shell">
+
+    <!-- Sidebar: "Soon" items hidden (decision 2026-06-13 #3) —
+         Watchlist, Grouped accounts, Savings plans, the whole Reports
+         group and the whole General group are absent until they ship. -->
+    <aside class="app-sidebar" aria-label="Application navigation">
+      <a class="brand" href="/"><span class="brand-mark"></span><span class="brand-word">Portfolixir</span></a>
+
+      <nav aria-label="Primary navigation">
+        <div class="nav-group">
+          <a class="nav-link" href="/" aria-current="page">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>
+            <span>Dashboard</span>
+          </a>
+          <a class="nav-link" href="/portfolio">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><polyline points="1.5,12.5 5.5,8 8.5,10.5 14.5,3.5"/></svg>
+            <span>Portfolio</span>
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-head"><span>Securities</span></div>
+          <a class="nav-link" href="/securities">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,1.5 14.5,5 8,8.5 1.5,5"/><polyline points="1.5,8 8,11.5 14.5,8"/><polyline points="1.5,11 8,14.5 14.5,11"/></svg>
+            <span>Securities</span>
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-head"><span>Master data</span></div>
+          <a class="nav-link" href="/portfolios">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="4.5" width="13" height="9" rx="1.5"/><path d="M5.5 4.5V3a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 10.5 3v1.5"/></svg>
+            <span>Portfolios</span>
+          </a>
+          <a class="nav-link" href="/transactions">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>
+            <span>All transactions</span>
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-head"><span>Tools</span></div>
+          <a class="nav-link" href="/imports">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10.5V2"/><polyline points="4.5,5.5 8,2 11.5,5.5"/><path d="M2 10.5V13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2.5"/></svg>
+            <span>Imports</span>
+          </a>
+        </div>
+
+        <!-- Dynamic group: one entry per classification tree + the
+             "+" affordance (EXPERIENCE IA · App shell row) -->
+        <div class="nav-group">
+          <div class="nav-group-head">
+            <span>Classifications</span>
+            <a class="nav-group-add" href="/classifications/new" aria-label="New classification" title="New classification">+</a>
+          </div>
+          <a class="nav-link" href="/classifications/asset-classes">
+            <span class="swatch-dot" style="background:#7c3aed" aria-hidden="true"></span>
+            <span>Asset classes</span>
+          </a>
+          <a class="nav-link" href="/classifications/regions">
+            <span class="swatch-dot" style="background:#0ea5e9" aria-hidden="true"></span>
+            <span>Regions</span>
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <div class="app-main">
+
+      <!-- Top bar: title/subtitle + theme · accent · locale cluster.
+           Subtitle states the active scope (EXPERIENCE Accessibility
+           Floor: every portfolio-bearing surface states its scope). -->
+      <header class="topbar">
+        <span class="sidebar-toggle" role="button" aria-expanded="true" aria-label="Navigation sidebar" tabindex="0"><span></span><span></span><span></span></span>
+        <div class="topbar-titles">
+          <div class="topbar-title">Dashboard</div>
+          <div class="topbar-subtitle">Own portfolio · EUR</div>
+        </div>
+        <div class="topbar-controls" aria-label="Display preferences">
+          <button class="ctrl-btn" title="Theme: light" aria-label="Theme">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.2v1.8M8 13v1.8M1.2 8H3M13 8h1.8M3.2 3.2l1.3 1.3M11.5 11.5l1.3 1.3M12.8 3.2l-1.3 1.3M4.5 11.5l-1.3 1.3"/></svg>
+          </button>
+          <button class="ctrl-btn" title="Accent color: violet" aria-label="Accent color">
+            <span class="accent-dots" aria-hidden="true"><i class="a-violet"></i><i class="a-teal"></i><i class="a-coral"></i></span>
+          </button>
+          <nav class="locale-switcher" aria-label="Language">
+            <a class="locale-pill" href="?locale=en" aria-current="true">EN</a>
+            <a class="locale-pill" href="?locale=de">DE</a>
+          </nav>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <div class="dash-grid">
+
+          <!-- HERO (top-left, the one fixed element of the home):
+               headline total + as-of basis line above the curve;
+               €/% toggle + period pills on the chart toolbar row.
+               Static final frame of the one-shot build. -->
+          <section class="panel" aria-label="Total portfolio value and performance">
+            <div class="hero-label">Total portfolio value</div>
+            <div class="hero-value num">€487.231,52</div>
+            <div class="hero-basis">As of 12 Jun 2026 · EUR</div>
+            <div class="hero-delta num">+€37.842,11 (+8,4 %) over the selected period</div>
+
+            <div class="chart-toolbar">
+              <div class="chart-toggle" role="group" aria-label="Chart series">
+                <button type="button" aria-pressed="true">€ Value</button>
+                <button type="button" aria-pressed="false">% TTWROR</button>
+              </div>
+              <div class="period-buttons" role="group" aria-label="Period">
+                <button class="button-mini" type="button" aria-pressed="false">1M</button>
+                <button class="button-mini" type="button" aria-pressed="false">3M</button>
+                <button class="button-mini" type="button" aria-pressed="false">YTD</button>
+                <button class="button-mini" type="button" aria-pressed="true">1Y</button>
+                <button class="button-mini" type="button" aria-pressed="false">Max</button>
+              </div>
+            </div>
+
+            <!-- Server-rendered SVG, 3:1 frame, accent line 1.6px,
+                 14% accent area fill, 9px mono axes (data also
+                 reachable as a table per Accessibility Floor) -->
+            <div class="chart-frame">
+              <svg viewBox="0 0 960 320" role="img" aria-label="Portfolio value, 12 Jun 2025 to 12 Jun 2026: €449.389 rising to €487.232">
+                <!-- gridlines -->
+                <g stroke="#eef1f6" stroke-width="1">
+                  <line x1="0" y1="60" x2="960" y2="60"/>
+                  <line x1="0" y1="125" x2="960" y2="125"/>
+                  <line x1="0" y1="190" x2="960" y2="190"/>
+                  <line x1="0" y1="255" x2="960" y2="255"/>
+                </g>
+                <!-- area fill: accent at 14% -->
+                <path d="M0,252 L60,246 L120,255 L180,232 L240,238 L300,210 L360,218 L420,196 L480,205 L540,172 L600,180 L660,150 L720,162 L780,128 L840,110 L900,96 L960,84 L960,320 L0,320 Z"
+                      fill="#7c3aed" fill-opacity="0.14"/>
+                <!-- quote line: accent, 1.6px -->
+                <path d="M0,252 L60,246 L120,255 L180,232 L240,238 L300,210 L360,218 L420,196 L480,205 L540,172 L600,180 L660,150 L720,162 L780,128 L840,110 L900,96 L960,84"
+                      fill="none" stroke="#7c3aed" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+                <!-- buy markers: ▲ shape-coded, never hue alone -->
+                <path d="M540,164 l5,8 h-10 z" fill="#047857" stroke="#ffffff" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                <path d="M840,102 l5,8 h-10 z" fill="#047857" stroke="#ffffff" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                <!-- y axis (9px mono) -->
+                <g class="chart-axis-text" text-anchor="start">
+                  <text x="8" y="56">€500K</text>
+                  <text x="8" y="121">€480K</text>
+                  <text x="8" y="186">€460K</text>
+                  <text x="8" y="251">€440K</text>
+                </g>
+                <!-- x axis (9px mono) -->
+                <g class="chart-axis-text" text-anchor="middle">
+                  <text x="60" y="312">Jun 25</text>
+                  <text x="280" y="312">Sep 25</text>
+                  <text x="500" y="312">Dec 25</text>
+                  <text x="720" y="312">Mar 26</text>
+                  <text x="920" y="312">Jun 26</text>
+                </g>
+              </svg>
+            </div>
+          </section>
+
+          <!-- METRIC CARDS — owner-confirmed set (decision 2026-06-13 #2):
+               cash quote · TTWROR vs. period · top drift category ·
+               transactions recency. Flat, reorderable collection; each
+               card navigates to its owning surface. Gradient hairline on
+               top is the sole three-color brand moment. -->
+          <section class="stat-grid" aria-label="Key metrics">
+
+            <a class="stat" href="/portfolio">
+              <span class="stat-label">Cash quote
+                <span class="info-dot" role="button" tabindex="0" title="Cash quote — share of the total portfolio value held as uninvested cash across all accounts.">i</span>
+              </span>
+              <span class="stat-value num">6,2 %</span>
+              <span class="stat-sub">€30.214 uninvested · target 5 % (<span class="sign-pos">+1,2 pp</span>)</span>
+            </a>
+
+            <a class="stat" href="/portfolio">
+              <span class="stat-label">TTWROR · 1Y
+                <span class="info-dot" role="button" tabindex="0" title="TTWROR — time-weighted return; ignores when money was added, measures only how investments performed.">i</span>
+              </span>
+              <span class="stat-value is-positive num">+8,4 %</span>
+              <span class="stat-sub">Time-weighted · As of 12 Jun 2026</span>
+            </a>
+
+            <a class="stat" href="/portfolio">
+              <span class="stat-label">Top drift
+                <span class="info-dot" role="button" tabindex="0" title="SOLL/IST drift — the gap between a category's target weight (SOLL) and its actual weight (IST).">i</span>
+              </span>
+              <span class="stat-value is-positive num">+4,2 pp</span>
+              <span class="stat-sub">Aktien USA over target · SOLL 30 % · IST 34,2 %</span>
+            </a>
+
+            <a class="stat" href="/transactions">
+              <span class="stat-label">Last transaction</span>
+              <span class="stat-value num">3 days</span>
+              <span class="stat-sub">Buy · 0,0150 Bitcoin · 9 Jun 2026</span>
+            </a>
+
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

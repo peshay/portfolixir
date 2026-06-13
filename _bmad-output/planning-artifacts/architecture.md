@@ -1,5 +1,8 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5, 6]
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
+lastStep: 8
+status: 'complete'
+completedAt: '2026-06-12'
 inputDocuments:
   - '_bmad-output/planning-artifacts/prds/prd-portfolixir-2026-06-12/prd.md'
   - '_bmad-output/planning-artifacts/prds/prd-portfolixir-2026-06-12/addendum.md'
@@ -343,7 +346,7 @@ rule an implementing agent must follow has a meta-test that fails when it is bro
 
 **Deferred Decisions (explicit, with rationale):**
 - Phase-3 credential encryption — behind the scope gate, its own ADR
-- Rounding-policy *content* — its own story/ADR (#344, owner: Andi); only sequencing
+- Rounding-policy *content* — its own story/ADR (#344, owner: maintainer); only sequencing
   and required content scope are fixed here
 - Pension data model details and **versioned pension constants** (Rentenwert changes
   yearly) — the FR-24/25 discovery story
@@ -402,7 +405,7 @@ rule an implementing agent must follow has a meta-test that fails when it is bro
   key. The seam IS the purity: cacheable = pure function of (datasets, as_of).
 
 **D3 — Rounding sequencing and oracle provenance.**
-Issue #344 (owner: Andi) is decided **before** the golden-master corpus is scaled and
+Issue #344 (owner: maintainer) is decided **before** the golden-master corpus is scaled and
 before FR-29 export acceptance criteria are frozen. The policy must name the Decimal
 rounding mode AND the application locus (per-operation vs. display-only). **Oracle
 provenance rule:** every golden-master expectation carries an independent source (PP
@@ -450,7 +453,7 @@ fabricated number.
 **D7 — MCP tool taxonomy.**
 The companion stays a thin 1:1 wrapper (ADR-0002 untouched). Consolidation happens
 API-side: a small number of aggregate analytics endpoints (briefing-style reads)
-designed against the **golden question set** — a planning artifact (owner: Andi,
+designed against the **golden question set** — a planning artifact (owner: maintainer,
 stored under `_bmad-output/planning-artifacts/`) listing the real questions the
 operator answers in spreadsheets today. The question set is a prerequisite of the
 aggregate-endpoint stories. Tool-count growth is controlled at the API design level,
@@ -878,3 +881,300 @@ conventions. The gated XML import (FR-5) moves INTO the existing `imports/` cont
   `scenario_` tables / overlay response — never the real ledger.
 - Export: `exports/` reads via contexts → PP-format file; backup = documented
   dump/restore (FR-29 split).
+
+## Architecture Validation Results
+
+Validation was hardened in two rounds: a five-method elicitation pass
+(self-consistency, inversion, critical challenge, assumption audit, cascading
+failure) and an independent three-agent implementation review (architect, test
+architect, implementing engineer as separate subagents). Findings that sharpen
+or amend D/P content are recorded as Binding Spec Amendments below.
+
+### Coherence Validation ✅
+
+**Decision Compatibility:**
+D1–D11 were checked pairwise against each other and against the 12 accepted ADRs;
+no contradictions found. The load-bearing combinations hold up: D1 (journal in the
+same DB transaction) + D2 (pure engines) keep journaling strictly in the shell —
+engines compute, the shell writes and journals. D10's float island is the single,
+explicitly encoded exception to the Decimal discipline (P3 carries it as a named
+per-module exception, not a loophole). D6's 200-plus-gap-markers refusal contract
+is additive to the existing `Api.V1.JSON` shape, so no existing consumer breaks.
+D4 (scopes), D1 (actor taxonomy), and D11 (idempotency) form one coherent
+write-safety story and ride the same refactor. No new technology versions are
+introduced anywhere — version truth stays in `mix.lock`/`package-lock.json`/CI,
+which is itself a recorded decision. One detail resolved during validation: the
+`idempotency_keys` table is operational state, not financial data — it is NOT
+journaled and does not carry the P1 guard trigger (it never appears in the
+journal allowlist because the allowlist governs only journaled-table writers).
+
+**Pattern Consistency:**
+Every pattern P1–P12 traces back to at least one decision D1–D11, and every
+decision that constrains implementation has at least one pattern operationalizing
+it. Naming is uniform: closed taxonomies everywhere (actor types, operation enum,
+resource-type codes, flag/gap vocabularies, engine whitelist) — the same
+closed-set philosophy as ADR-0011's kind set, applied consistently to every new
+seam. The routing table gives implementing agents a deterministic entry point per
+task type, and the exemplar-existence meta-test keeps it from rotting.
+
+**Structure Alignment:**
+The delta tree maps every new component to a concrete path inside the existing
+modular-monolith layout; dependency direction (web/MCP → contexts → Repo,
+shell → engines, engines → nothing impure) extends the existing one-way rule
+without exception. Gated boundaries (`sync/`, `pensions/`) are declared as
+planned-but-empty, which prevents premature scaffolding. Scenario isolation is
+structural (table prefix + telemetry guard + property tests), not conventional.
+
+### Requirements Coverage Validation ✅
+
+**Functional Requirements Coverage (29 FRs, 7 categories):**
+
+| Category | Coverage |
+|---|---|
+| A — Ledger & integrity (FR-1–4, 28) | FR-1 is the existing spine + the FR-1 carve-out concern (CC-10) for stored entitlements; FR-2 via existing validation + #343 (tracked); FR-3 via D3 sequencing (#344 content deliberately deferred, owner named); FR-4 named as explicit single-portfolio-debt workstream; FR-28 fully designed (D1, P1, P2, P9) |
+| B — Import & reconciliation (FR-5–7, 29) | FR-5 behind scope-gate ADR incl. idref-resolver note; FR-6/7 existing, preserved by D11 + journal; FR-29 split into backup (docs) + PP export (`exports/`), losslessness gated on #344, PP-in-the-middle named as not CI-automatable |
+| C — Analytics engine (FR-8–12) | Engines/loaders architecture (D2, P3, P4, P10); FR-8 IRR via D10; FR-9 incl. after-cost/after-tax delta and shared scenario/series engine (CC-8); FR-10/11 as engine + existing allocation extensions; FR-12 wording behind its gate |
+| D — LLM/MCP surface (FR-13–16) | D5 contract fixtures, D6 envelope, D7 taxonomy, P7, P12; parity becomes mechanical instead of PR-review convention |
+| E — Read-only sync (FR-17–21) | Phase-3 planned boundary behind scope-gate ADR; provider-behaviour pattern, credential encryption deferred to its own ADR — deliberate, not missing |
+| F — Product types (FR-22–25) | Phase-4 planned boundary; each FR preceded by discovery story; pension-constants versioning named (CC-10) |
+| G — Planning & simulation (FR-26–27) | `scenarios/` context + scenario engine + isolation invariants (P5, D2); FR-26 retirement engine joins the same engine family after its discovery story |
+
+All six user journeys map onto covered FRs (UJ-1/3 → C+D, UJ-2 → B, UJ-4 → F+G,
+UJ-5 → G, UJ-6 → FR-4 workstream). All three success metrics have their
+architectural enablers (1 → FR-29 split + PP-parity harness, 2 → D5/D6/D7,
+3 → Phase-4/5 boundaries + discovery stories).
+
+**Non-Functional Requirements Coverage:**
+NFR-1/2 are the document's prime directives (D1, D3, oracle provenance,
+read-path provenance via D6). NFR-3 is operationalized by the enforcement
+mapping — every architectural rule has a named CI gate. NFR-4 is extended by D4
+(graduated scopes, fail-closed). NFR-5/6/7 are unchanged brownfield decisions.
+NFR-8 gets a measurement apparatus plus an explicit caching trigger (D9) instead
+of an unverifiable target.
+
+### Implementation Readiness Validation ✅
+
+**Decision Completeness:**
+All 11 decisions are documented with rationale, scope, and named residual risks;
+deferred decisions are listed explicitly with their trigger conditions and owners
+— nothing is silently open. No-new-versions is itself the recorded versioning
+policy for this brownfield repo.
+
+**Structure Completeness:**
+Delta tree covers every new module, migration, test gate, mix task, and doc file
+down to file level, including mirror test paths and fixture locations. Existing
+structure is referenced, not restated — consistent with the baseline rule.
+
+**Pattern Completeness:**
+The routing table plus P1–P12 plus the anti-pattern table close the known
+divergence points. Mechanically gated: P1, P2, P3, P5, P6, P7, P11 (meta-tests
+per the enforcement mapping) and P8 (DB unique constraint). Convention-guided:
+P4 (loader pairing), P9/P10 (call shapes), P12 (naming) — named as accepted
+residual convention, mitigated by the routing table and exemplar files.
+
+### Gap Analysis Results
+
+**Critical Gaps:** none. No architectural decision required for Phase-1/2
+implementation is missing or unowned.
+
+**Important Gaps (sequenced, with owners — not blocking the document):**
+
+1. **PRD amendment for FR-9** (after-cost/after-tax dimension + tax-depth OQ) is
+   recommended in this document but not yet applied to the PRD. Owner: maintainer.
+   Risk if skipped: epics inherit the flattering pre-cost wording.
+2. **Golden question set** does not exist yet; it is the declared prerequisite of
+   the D7 aggregate-endpoint stories (Phase 2). Owner: maintainer.
+3. **#344 rounding policy** remains the single sequencing blocker — and not only
+   for golden-master scaling and FR-29 acceptance criteria: D10's boundary
+   rounding depends on it, making #344 a critical-path item for the FIRST
+   Phase-2 analytics story (IRR, #316). Owner: maintainer. The architecture is
+   deliberately complete without its content.
+4. **P2 write-classifier feasibility spike:** the classifier requires detecting
+   that a public function transitively reaches `Repo.*` writes — call-graph
+   analysis, not plain AST pattern-matching, and static analysis (AST or
+   `mix xref`) systematically misses writes hidden in closures
+   (`Ecto.Multi.run/3` anonymous functions), producing silent false negatives.
+   The spike must therefore combine a static gate with a runtime check in the
+   test env (telemetry on every Repo write asserting actor presence). Spike
+   lands before the actor refactor starts; named fallback: explicit annotation
+   plus grandfather list, recorded as the weaker guarantee if chosen. This is
+   the technically riskiest meta-test in the document, and D1's completeness
+   guarantee leans on it — it is a prerequisite, not a backlog item.
+
+**Nice-to-Have Gaps:**
+
+- A worked end-to-end example of one engine story (loader + engine + envelope +
+  fixtures) would help the first implementing agent; the routing table plus
+  exemplar files mitigate this.
+- The FR-4 single-portfolio-debt workstream has no pattern of its own — it lives
+  in existing contexts under existing conventions; first story should confirm.
+
+### Binding Spec Amendments (from validation)
+
+The following amendments sharpen D/P content and are binding — stories reference
+them like patterns. They originate from the three-agent implementation review.
+
+1. **Guard-trigger arming is per-context, not big-bang (amends P1/D1 sequencing).**
+   Each context's journaled tables are armed by their own migration as soon as
+   that context is fully actor-first. Refactor order is leaf-first:
+   Catalog/Fx → Portfolios/Classifications → Ledger → Imports. A meta-test
+   couples the two mechanically: if a context's grandfather list is empty but
+   its tables are not armed, CI fails. Writes before arming are a documented
+   audit-trail gap (consistent with the no-backfill decision).
+2. **Sandbox semantics (P1).** The guard trigger reads
+   `current_setting('portfolixir.journal_actor', true)` (missing_ok — absence
+   must raise the defined guard exception, not
+   `unrecognized configuration parameter`). `Journal.record/3` prepends the
+   `SET LOCAL` step via `Ecto.Multi.prepend/2` AND resets the variable in a
+   final step — under the Ecto sandbox a test's outer transaction would
+   otherwise keep the variable alive past the business transaction (false
+   negatives). Guard-trigger tests run `async: false` outside the sandbox
+   (dedicated tag, real commit + cleanup).
+3. **Test fixtures go through real actor-first context writes (P1/P2).** No
+   test entry in the journal allowlist, no GUC-setting test helper — anything
+   else re-opens the bypass P2 exists to close.
+4. **`Journal.record/3` semantics (P1).** The caller declares what to journal:
+   arg 3 is opts carrying `resource_type` and the named Multi steps to journal.
+   `before` comes from changeset `data`; `after` is built in a `Multi.run` step
+   placed after the named business steps. No Multi introspection magic.
+5. **P8 idempotency mechanics.** Body comparison: SHA-256 over the raw request
+   body (custom `:body_reader` in `Plug.Parsers`). Replay restores status,
+   body, and an explicit header allowlist (`content-type`, plus
+   `Idempotency-Replay: true`) — never request-scoped headers. Concurrency:
+   reserve-first (`pending` row insert; the unique constraint decides);
+   a concurrent request hitting a `pending` key gets `409` + `Retry-After`.
+   Only final responses (2xx/4xx) are stored; a 5xx frees the key.
+6. **D5 determinism is specified, not hoped for.** Canonical serialization
+   (sorted JSON keys), frozen clock, fixed seed data — and a meta-test that
+   runs the generator twice and asserts byte-identical output. Without this,
+   the freshness check flakes, gets demoted, and D5 becomes theater.
+7. **Meta-enforcement gate.** In an agent-edited repo, every enforcement
+   artifact the agent can edit is soft. PRs that change enforcement artifacts
+   (contract fixtures, purity whitelist, grandfather/allowlists, golden
+   masters) together with code require an explicit marker; CI fails on silent
+   co-modification. Stale grandfather entries (entries that no longer match a
+   violation) fail the test — shrink is forced, not hoped for.
+8. **Golden-master tolerance policy (amends D3).** Decimal-exact expectations
+   everywhere except the XIRR float island, which carries a documented
+   per-metric epsilon. PP cross-checks require a documented convention mapping
+   (day-count, rounding) — otherwise deviations are convention mismatches, not
+   bugs, and the oracle is no oracle. A meta-test asserts every golden fixture
+   carries a provenance reference (committed derivation artifact).
+9. **FR-27 write-isolation gate is schema-driven (amends D2/P5).** The
+   zero-writes assertion enumerates tables from `information_schema` with a
+   `scenario_` allowlist — everything is protected by default; a hardcoded
+   table list would rot. The read-isolation property compares the FULL
+   envelope (including flags/gaps), with caching ruled out as a trivializer.
+10. **D9 additions.** The CI perf smoke gets an explicit promotion criterion
+    (non-blocking → blocking after N runs under a variance threshold; median
+    over repetitions). The generated dataset's checksum is committed and
+    asserted — StreamData seed stability across versions is not guaranteed.
+11. **Restore/DR procedure (P1).** `docs/backup-restore.md` documents restore
+    against the journal triggers (`session_replication_role = replica`) — the
+    first disaster recovery must not be the discovery. Partitioning is named
+    as the intended answer to journal growth (pre-empting a future ADR debate).
+12. **P11 inverted to whitelist; serializer mapping pinned.** Analytics test
+    directories allow ONLY the two assert helpers (blacklisting
+    `json_response(conn, 200)` is bypassable via helper indirection).
+    `Journal.Serializer` carries an explicit type-mapping table (Decimal,
+    Date, atoms, nested structs) with a fallback `raise` on unmapped types.
+
+### Validation Issues Addressed
+
+- **Idempotency-table journaling status** was undefined → resolved as a binding
+  clarification amending P1/P8: `idempotency_keys` is operational state, not
+  financial data — NOT journaled, carries no guard trigger, never appears in
+  the journal allowlist (which governs only journaled-table writers).
+- **Journal activation order** was initially specified as big-bang arming after
+  the last context refactor → superseded by Amendment 1 (per-context arming
+  with mechanical coupling), on convergent architect + engineer review findings:
+  big-bang leaves the longest unprotected window and hides process state
+  outside the code.
+- **FR-26 engine placement** was implicit → confirmed: retirement engine joins
+  `Portfolixir.Engines.*` after its discovery story; no structural change needed.
+- No contradictions between decisions, patterns, and structure were found.
+
+### Architecture Completeness Checklist
+
+**Requirements Analysis**
+
+- [x] Project context thoroughly analyzed
+- [x] Scale and complexity assessed
+- [x] Technical constraints identified
+- [x] Cross-cutting concerns mapped
+
+**Architectural Decisions**
+
+- [x] Critical decisions documented with versions (brownfield: version truth
+      deliberately delegated to lockfiles/CI — a recorded decision, not an omission)
+- [x] Technology stack fully specified
+- [x] Integration patterns defined
+- [x] Performance considerations addressed
+
+**Implementation Patterns**
+
+- [x] Naming conventions established
+- [x] Structure patterns defined
+- [x] Communication patterns specified
+- [x] Process patterns documented
+
+**Project Structure**
+
+- [x] Complete directory structure defined
+- [x] Component boundaries established
+- [x] Integration points mapped
+- [x] Requirements to structure mapping complete
+
+### Architecture Readiness Assessment
+
+**Overall Status:** READY FOR IMPLEMENTATION
+
+**Confidence Level:** Medium-High — high in the design, medium in its
+enforceability until the named spec amendments land. The verdict was
+independently re-derived three ways (checklist-driven, blocker-driven,
+risk-driven) with consistent outcome, then stress-tested by a five-method
+elicitation and an independent three-agent implementation review; all three
+reviewers converged on READY-with-conditions. Phase-2 analytics start is
+explicitly conditional on #344 and the P2 feasibility spike. Named residual:
+D9's numeric per-operation budgets are deliberately TBD in the D9 story — the
+apparatus is decided, the numbers are not.
+
+**Key Strengths:**
+
+- Fail-closed mechanical enforcement: every rule an agent must follow has a
+  meta-test that fails when broken — matching NFR-3's "owner does not read code"
+  reality.
+- One seam, three payoffs: the pure-engine architecture (D2) simultaneously
+  delivers FR-27 isolation, the future caching seam, and property-testability.
+- Honest verification posture: oracle provenance, PP-parity harness, and the
+  named limits (PP roundtrip not CI-automatable) prevent self-ratifying tests.
+- Closed-taxonomy discipline applied uniformly to every new vocabulary.
+- The meta-enforcement gate (Amendment 7) closes the loop the whole concept
+  hangs on: enforcement artifacts themselves cannot drift silently.
+
+**Areas for Future Enhancement:**
+
+- Phase-3 sync architecture (provider adapters, credential encryption, OAuth2/
+  PhotoTAN) — deliberately deferred behind the scope-gate ADR.
+- Pension data model + versioned external constants — the FR-24/25 discovery story.
+- Caching implementation — trigger condition defined in D9; ADR due when it fires.
+- Escalation from JSON fixtures to OpenAPI codegen if fixture maintenance becomes
+  the bottleneck (named in D5).
+
+### Implementation Handoff
+
+**AI Agent Guidelines:**
+
+- Follow all architectural decisions exactly as documented
+- Use implementation patterns consistently across all components
+- Respect project structure and boundaries — and the Binding Spec Amendments,
+  which override the unamended pattern text where they touch the same mechanism
+- Refer to this document for all architectural questions
+
+**First Implementation Priority:**
+No initialization step (brownfield). Per the dependency-ordered sequence:
+D2 pure-core rule (engine namespace + AST purity gate) and the D9 volume
+generator land first — they are the foundations every engine story needs;
+the P2 feasibility spike (Gap 4) runs before the actor refactor begins.
+In parallel, the operator items: PRD FR-9 amendment, #344 decision, golden
+question set.
