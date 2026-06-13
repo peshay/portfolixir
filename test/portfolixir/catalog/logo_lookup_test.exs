@@ -599,6 +599,31 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       assert :skip = LogoLookup.find_url(security, req: stub)
     end
 
+    # Regression: the Société Générale issuer pattern needs the /u flag, or the
+    # accented [ée] character classes never match the real broker spelling and
+    # every SG knock-out silently gets no logo.
+    test "an accented Société Générale knock-out resolves the issuer logo" do
+      stub =
+        plug_stub(fn conn ->
+          assert conn.request_path =~ "/api/rest_v1/page/summary/"
+
+          json_response(conn, 200, %{
+            "originalimage" => %{"source" => "https://wikipedia/SocGen.png"}
+          })
+        end)
+
+      security = %Security{
+        provider: "portfolio_performance",
+        asset_class: "knock_out",
+        name: "Société Générale Effekten GmbH MiniL O.End DAX 14881,465523"
+      }
+
+      assert {:ok, "https://wikipedia/SocGen.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+
+      assert LogoLookup.candidate?(security)
+    end
+
     test "candidate?/1 covers equities, crypto and issuer-backed derivatives only" do
       assert LogoLookup.candidate?(%Security{asset_class: "equity", name: "Anything"})
       assert LogoLookup.candidate?(%Security{asset_class: "crypto", name: "Bitcoin"})
@@ -679,6 +704,44 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
 
       assert {:ok, "https://logos/baozun.png", :companieslogo} =
                LogoLookup.find_url(security, req: stub)
+    end
+
+    # Broker exports abbreviate the big ETF houses; the issuer (and thus its
+    # logo) must still be detected. The stub returns an image *only* for the
+    # issuer's Wikipedia title, so a pass proves the abbreviation was mapped to
+    # the issuer rather than resolved by the raw fund name.
+    test "abbreviated ETF-issuer spellings resolve the issuer logo" do
+      cases = [
+        {"iShsII-Gl.Clean Ener.Tra.U.ETF Reg. Shs USD Acc. oN", "iShares", "etf"},
+        {"Amu.S&P Wld Inds Screened UETF Reg.Shs UCITS ETF Acc o.N.", "Amundi", "etf"},
+        {"MUL-Am.MSCI Smart Mobil.Filt. UCITS ETF USD Acc.oN", "Amundi", "etf"},
+        {"Gl.X-Eur.DEFENCE TECH ETF Reg.Shs EUR Acc. oN", "Global", "etf"},
+        {"Glbl X ETFs-DEFENCE TECH ETF Reg.Shs EUR Acc. oN", "Global", "etf"},
+        {"Xtr.(IE) - MSCI World Quality Registered Shares 1C USD o.N.", "DWS", "equity"},
+        {"L&G Health.Tech.& Innov.U.ETF Reg.Shs USD Dis. o.N.", "Legal", "etf"},
+        # Issuer ETFs that infer as "equity" (carry "Registered Shares", no ETF
+        # token) must still reach the issuer logo via the Wikipedia title path.
+        {"WisdomTree Battery Soluti.U.E. Registered Shares USD Acc.o.N.", "WisdomTree", "equity"}
+      ]
+
+      for {name, issuer_title_fragment, class} <- cases do
+        stub =
+          plug_stub(fn conn ->
+            if conn.request_path =~ "/api/rest_v1/page/summary/" and
+                 conn.request_path =~ issuer_title_fragment do
+              json_response(conn, 200, %{
+                "originalimage" => %{"source" => "https://wikipedia/#{issuer_title_fragment}.png"}
+              })
+            else
+              Plug.Conn.send_resp(conn, 404, "not found")
+            end
+          end)
+
+        security = %Security{provider: "portfolio_performance", asset_class: class, name: name}
+        expected = "https://wikipedia/#{issuer_title_fragment}.png"
+
+        assert {:ok, ^expected, :wikipedia} = LogoLookup.find_url(security, req: stub)
+      end
     end
 
     test "issuer logo falls back to companieslogo when the issuer page has no image" do

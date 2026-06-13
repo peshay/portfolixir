@@ -16,6 +16,9 @@ defmodule Portfolixir.Catalog.LogoStore do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
 
+  @pubsub Portfolixir.PubSub
+  @topic "security_logos"
+
   @default_max_bytes 256 * 1024
   @allowed_content_types %{
     "image/png" => "png",
@@ -23,6 +26,14 @@ defmodule Portfolixir.Catalog.LogoStore do
     "image/jpg" => "jpg",
     "image/webp" => "webp"
   }
+
+  @doc """
+  Topic on which `{:security_logo_updated, security_id}` messages are
+  broadcast whenever a logo is stored, replaced or removed. LiveViews
+  subscribe so freshly discovered logos appear without a page reload.
+  """
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe, do: Phoenix.PubSub.subscribe(@pubsub, @topic)
 
   @spec download_and_store(Security.t(), String.t(), atom(), keyword()) ::
           {:ok, Security.t()} | {:error, term()}
@@ -42,6 +53,7 @@ defmodule Portfolixir.Catalog.LogoStore do
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, response.body),
          {:ok, updated} <- update_security_attributes(security, ext, source, opts) do
+      broadcast_logo_change(updated.id)
       {:ok, updated}
     end
   end
@@ -78,6 +90,7 @@ defmodule Portfolixir.Catalog.LogoStore do
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, body),
          {:ok, updated} <- update_security_attributes(security, ext, :manual, lock: true) do
+      broadcast_logo_change(updated.id)
       {:ok, updated}
     end
   end
@@ -106,7 +119,18 @@ defmodule Portfolixir.Catalog.LogoStore do
         |> Map.put("logo_locked", true)
     }
 
-    Catalog.update_security(security, attrs)
+    case Catalog.update_security(security, attrs) do
+      {:ok, updated} ->
+        broadcast_logo_change(updated.id)
+        {:ok, updated}
+
+      other ->
+        other
+    end
+  end
+
+  defp broadcast_logo_change(security_id) do
+    Phoenix.PubSub.broadcast(@pubsub, @topic, {:security_logo_updated, security_id})
   end
 
   # storage_dir comes from app config/opts and the filename is the security id
