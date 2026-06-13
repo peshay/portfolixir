@@ -648,6 +648,24 @@ const allocationZ = z.object({
   classification_id: z.number().int().positive()
 });
 
+// The cash target is the SOLL cash share of the allocation's 100% basis
+// (securities + counting cash, issue #335): a string fraction in [0, 1], or
+// null to stop steering a cash quote.
+const cashTargetSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    cash_target_weight: { type: ["string", "null"] }
+  }
+};
+
+const cashTargetZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  cash_target_weight: z.union([z.string(), z.null()]).optional()
+});
+
 const cashBalanceSchema = {
   type: "object",
   additionalProperties: false,
@@ -875,9 +893,16 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.allocation",
     "Portfolio allocation drift",
-    "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category, in one call.",
+    "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category plus a cash row, in one call. The 100% basis is securities + counting cash.",
     allocationSchema,
     allocationZ
+  ),
+  tool(
+    "portfolixir.portfolios.set_cash_target",
+    "Set cash target weight",
+    "Set (or clear with null) a portfolio's cash target weight, the SOLL cash share of the allocation's 100% basis (securities + counting cash). A string fraction in [0,1].",
+    cashTargetSchema,
+    cashTargetZ
   ),
   tool(
     "portfolixir.cash_accounts.set_balance",
@@ -1078,6 +1103,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/allocation`, args, ["classification_id"])
       );
+    case "portfolixir.portfolios.set_cash_target":
+      return client.request("PATCH", `/api/v1/portfolios/${args.portfolio_id}`, {
+        portfolio: { cash_target_weight: args.cash_target_weight ?? null }
+      });
     case "portfolixir.cash_accounts.set_balance":
       return client.request("POST", `/api/v1/cash_accounts/${args.id}/balance`, {
         date: args.date,

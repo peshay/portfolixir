@@ -84,10 +84,96 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Sunburst slice in the category colour, legend and drift row.
     assert html =~ ~s(fill="#2563eb")
     assert html =~ "Core"
-    assert html =~ "100.0"
+    # Cash now joins the allocation's 100% basis (securities 880 + counting cash
+    # 200 = 1080), so Core's actual share is 880/1080 = 81.5%, not 100%, and the
+    # cash row reports the 200 EUR / 18.5% share (issue #335).
+    assert html =~ "81.5"
     assert html =~ "60.0"
-    # Drift: (0.6 - 1.0) * 880 = -352.
-    assert html =~ "-352.00"
+    # Drift: 0.6 * 1080 - 880 = -232.
+    assert html =~ "-232.00"
+    # The dedicated cash row in the drift table.
+    assert html =~ ~s(data-role="allocation-cash")
+    assert html =~ "Cash"
+  end
+
+  # User story:
+  # As a local portfolio maintainer who steers a cash quote (issue #335),
+  # I want the cash row to show its SOLL target and drift (not a dash) when a
+  # cash target is set, and the sunburst to carry a neutral cash segment,
+  # so that I can read how far the actual cash share is from my target.
+  #
+  # Acceptance criteria:
+  # - With a cash target set, the cash row renders the target percent and a
+  #   drift amount in the base currency (the non-zero-target branch), not "—".
+  # - The sunburst carries the neutral cash colour for the cash segment.
+  test "renders the cash row target and drift when a cash target is set", %{conn: conn} do
+    world = seed_world()
+
+    # Steer a 10% cash quote: actual cash 200/1080 = 18.5% vs. 10% target.
+    {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.10"))
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    cash_row = view |> element(~s([data-role="allocation-cash"])) |> render()
+    # The non-zero-target branch: the target percent renders instead of a dash.
+    assert cash_row =~ "10.0"
+    # The drift cell renders an amount in the base currency, not a dash.
+    assert cash_row =~ "EUR"
+    refute cash_row =~ "—"
+
+    # The neutral cash colour is used for the cash segment / swatch.
+    assert html =~ "#0ea5e9"
+  end
+
+  # User story:
+  # As a local portfolio maintainer with no spare cash counting toward the quote,
+  # I want the allocation to omit the cash sunburst segment (and legend entry)
+  # while still showing the cash row at zero,
+  # so that an empty cash quote does not draw a phantom slice (issue #335).
+  #
+  # Acceptance criteria:
+  # - With zero counting cash, the cash row still renders at a 0 value.
+  # - The cash row shows the dash for target and drift (the zero-target branch).
+  test "omits the cash sunburst segment when there is no counting cash", %{conn: conn} do
+    %{portfolio: portfolio} =
+      world = WorldFixtures.base_world(name: "No Cash Depot")
+
+    security = WorldFixtures.create_security!(name: "Solo ETF", ticker: "SOLO")
+
+    today = Date.utc_today()
+    start = Date.add(today, -10)
+
+    # Deposit exactly the buy cost so the cash account ends at zero: counting
+    # cash is 0, so the sunburst carries no cash segment.
+    WorldFixtures.deposit!(world, "800", start)
+    WorldFixtures.buy!(world, security, quantity: "8", price: "100", date: start)
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
+
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, core} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Core",
+        color: "#2563eb"
+      })
+
+    {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
+
+    {:ok, _} =
+      Targets.set_targets(portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "1.0"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # The cash row still renders, at zero value and with the dash (zero-target
+    # branch); there is no counting cash to steer.
+    cash_row = view |> element(~s([data-role="allocation-cash"])) |> render()
+    assert cash_row =~ "0.00"
+    assert cash_row =~ "—"
   end
 
   test "renders a nested sunburst and an indented, rolled-up child row", %{conn: conn} do
@@ -457,6 +543,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         excluded_from_allocation_targets: true
       })
 
+    # Fund the Bitcoin buy so the cash account stays at its 200 EUR balance (no
+    # overdraft) — counting cash then enters the allocation basis cleanly.
+    WorldFixtures.deposit!(world, "400", Date.add(Date.utc_today(), -6))
     buy!(world, bitcoin.id, "4", "100", Date.add(Date.utc_today(), -5))
     manual_quote!(bitcoin.id, "100")
 
@@ -467,12 +556,14 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert excluded =~ "Outside the steering basis"
     assert excluded =~ "400.00"
 
-    # Core (880) is the whole steering basis now (Bitcoin's 400 is out): 100%.
-    assert html =~ "100.0"
-    # The Bitcoin buy is funded from cash (200 - 400 = -200), converting cash
-    # into a holding, so the total is unchanged: ETF 880 + BTC 400 - 200 cash =
-    # 1,080. The exclude flag changes only the steering basis, not the total.
-    assert html =~ "1,080.00"
+    # The steering basis excludes Bitcoin (400) but now INCLUDES the counting
+    # cash (200): basis = ETF 880 + cash 200 = 1080, so Core is 880/1080 = 81.5%
+    # and the cash row is 200/1080 = 18.5% (issues #329 + #335 together).
+    assert html =~ "81.5"
+    assert html =~ ~s(data-role="allocation-cash")
+    # The total is unchanged by the exclude flag: ETF 880 + BTC 400 + cash 200
+    # (200 start + 400 deposit - 400 Bitcoin buy) = 1,480.
+    assert html =~ "1,480.00"
   end
 
   test "points to portfolio creation when none exists", %{conn: conn} do

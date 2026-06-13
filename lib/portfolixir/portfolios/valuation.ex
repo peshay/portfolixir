@@ -74,6 +74,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       base_currency: base_currency,
       total_value: total,
       total_cash: cash.total,
+      counting_cash: cash.counting_total,
       total_with_cash: total_with_cash,
       cash_quote: cash_quote(cash.counting_total, Decimal.add(total, cash.counting_total)),
       cash_balances: cash.balances,

@@ -1334,4 +1334,69 @@ defmodule PortfolixirWeb.ApiV1Test do
 
     assert not_found == %{"errors" => %{"detail" => "not found"}}
   end
+
+  # User story:
+  # As a local portfolio maintainer steering a cash quote (issue #335),
+  # I want to set a portfolio's cash target weight through the API,
+  # so that non-browser clients and the MCP companion can manage the SOLL cash
+  # share like the UI.
+  #
+  # Acceptance criteria:
+  # - PATCH /api/v1/portfolios/:portfolio_id with a valid cash_target_weight in
+  #   [0, 1] returns 200 and the stored value as a decimal string.
+  # - An out-of-range cash_target_weight returns 422 with a field error.
+  # - A non-numeric cash_target_weight returns 422 with a field error.
+  # - A syntactically valid but unknown portfolio id returns the normal 404 JSON.
+  # - A non-numeric portfolio id in the path returns the normal 404 JSON.
+  test "patches a portfolio's cash target weight and reports errors", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "Cash Target Portfolio", base_currency_code: "EUR"})
+
+    updated =
+      conn
+      |> patch_json("/api/v1/portfolios/#{portfolio.id}", %{
+        "portfolio" => %{"cash_target_weight" => "0.05"}
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert updated["id"] == portfolio.id
+    assert updated["cash_target_weight"] == "0.05"
+
+    out_of_range =
+      conn
+      |> patch_json("/api/v1/portfolios/#{portfolio.id}", %{
+        "portfolio" => %{"cash_target_weight" => "2"}
+      })
+      |> json_response(422)
+
+    assert %{"errors" => %{"cash_target_weight" => [_]}} = out_of_range
+
+    not_a_number =
+      conn
+      |> patch_json("/api/v1/portfolios/#{portfolio.id}", %{
+        "portfolio" => %{"cash_target_weight" => "not-a-number"}
+      })
+      |> json_response(422)
+
+    assert %{"errors" => %{"cash_target_weight" => [_]}} = not_a_number
+
+    missing =
+      conn
+      |> patch_json("/api/v1/portfolios/999999", %{
+        "portfolio" => %{"cash_target_weight" => "0.05"}
+      })
+      |> json_response(404)
+
+    assert missing == %{"errors" => %{"detail" => "not found"}}
+
+    invalid_id =
+      conn
+      |> patch_json("/api/v1/portfolios/not-an-id", %{
+        "portfolio" => %{"cash_target_weight" => "0.05"}
+      })
+      |> json_response(404)
+
+    assert invalid_id == %{"errors" => %{"detail" => "not found"}}
+  end
 end

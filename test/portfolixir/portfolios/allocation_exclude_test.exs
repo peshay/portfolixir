@@ -52,6 +52,11 @@ defmodule Portfolixir.Portfolios.AllocationExcludeTest do
     {:ok, _} = Classifications.assign_security(equity.id, classification.id, equities.id)
     {:ok, _} = Classifications.assign_security(bitcoin.id, classification.id, crypto.id)
 
+    # Fund the cash account so the buys leave it at zero: counting cash is 0, so
+    # the allocation's basis here is the securities value alone (the cash-in-basis
+    # behaviour is exercised in AllocationTest). See issue #335.
+    deposit!(world, "1000")
+
     # 600 EUR equity + 400 EUR Bitcoin = 1000 EUR valued positions.
     buy!(world, equity.id, "6", "100")
     buy!(world, bitcoin.id, "4", "100")
