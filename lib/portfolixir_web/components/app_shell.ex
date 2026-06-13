@@ -522,5 +522,9 @@ defmodule PortfolixirWeb.AppShell do
   defp icon_paths(:minimize),
     do: ~s(<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>)
 
+  defp icon_paths(:image),
+    do:
+      ~s(<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>)
+
   defp icon_paths(_), do: ~s(<circle cx="12" cy="12" r="5"/>)
 end
