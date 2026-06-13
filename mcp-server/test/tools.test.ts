@@ -88,6 +88,28 @@ describe("Portfolixir MCP tools", () => {
       securitiesCreate?.inputSchema.properties.security.properties.asset_class.type,
       "string"
     );
+    assert.equal(
+      securitiesCreate?.inputSchema.properties.security.properties
+        .excluded_from_allocation_targets.type,
+      "boolean"
+    );
+    assert.doesNotThrow(() =>
+      securitiesCreate?.zodSchema.parse({
+        security: {
+          name: "Bitcoin",
+          currency_code: "EUR",
+          asset_class: "crypto",
+          excluded_from_allocation_targets: true
+        }
+      })
+    );
+
+    const securitiesUpdate = tools.find((tool) => tool.name === "portfolixir.securities.update");
+    assert.equal(
+      securitiesUpdate?.inputSchema.properties.security.properties
+        .excluded_from_allocation_targets.type,
+      "boolean"
+    );
     assert.doesNotThrow(() =>
       securitiesCreate?.zodSchema.parse({
         security: {
