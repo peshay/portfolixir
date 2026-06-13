@@ -30,6 +30,7 @@ defmodule PortfolixirWeb.Router do
       live("/securities/:id", SecuritiesLive)
       live("/portfolios", PortfolioAccountsLive)
       live("/transactions", TransactionManagementLive)
+      live("/income", IncomeLive)
       live("/imports", ImportsLive)
       live("/classifications", ClassificationsLive, :index)
       live("/classifications/new", ClassificationsLive, :new)
