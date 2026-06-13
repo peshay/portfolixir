@@ -1905,6 +1905,11 @@ msgstr "Cashquote"
 msgid "TTWROR"
 msgstr "TTWROR"
 
+#: lib/portfolixir_web/live/portfolio_live.ex:183
+#, elixir-autogen
+msgid "IRR"
+msgstr "IRR"
+
 #: lib/portfolixir_web/live/portfolio_live.ex:189
 #, elixir-autogen
 msgid "Period"
