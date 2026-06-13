@@ -219,5 +219,4 @@ defmodule PortfolixirWeb.IncomeLive do
 
   defp kind_label("dividend"), do: gettext("Dividend")
   defp kind_label("interest"), do: gettext("Interest")
-  defp kind_label(other), do: other
 end
