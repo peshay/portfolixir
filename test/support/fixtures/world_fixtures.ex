@@ -142,6 +142,33 @@ defmodule Portfolixir.WorldFixtures do
   end
 
   @doc """
+  Records a sell of `security` from `world`'s depot, crediting its cash account.
+
+  Mirrors `buy!/3`: `security` may be a struct, a struct id or the string id
+  returned over the API. Options match `buy!/3` (`:quantity` default `"1"`,
+  `:price` default `"100"`, `:date` default `~D[2026-01-02]`, `:fees`/`:taxes`
+  default `"0"`, `:currency` default `"EUR"`).
+  """
+  def sell!(%{portfolio: portfolio, depot: depot, cash: cash}, security, opts \\ []) do
+    {:ok, tx} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security_id(security),
+        type: "sell",
+        date: Keyword.get(opts, :date, ~D[2026-01-02]),
+        quantity: Keyword.get(opts, :quantity, "1"),
+        price: Keyword.get(opts, :price, "100"),
+        fees: Keyword.get(opts, :fees, "0"),
+        taxes: Keyword.get(opts, :taxes, "0"),
+        currency_code: Keyword.get(opts, :currency, "EUR")
+      })
+
+    tx
+  end
+
+  @doc """
   Records a deposit of `amount` into `world`'s cash account on `date`.
   """
   def deposit!(%{portfolio: portfolio, cash: cash}, amount, date, opts \\ []) do
