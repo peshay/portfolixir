@@ -366,6 +366,7 @@ defmodule Portfolixir.Ledger do
     with {:ok, attrs} <- maybe_derive_linked_cash_account(attrs) do
       %Transaction{}
       |> Transaction.changeset(attrs)
+      |> validate_cash_account_currency()
       |> Repo.insert()
     end
   end
@@ -395,10 +396,51 @@ defmodule Portfolixir.Ledger do
   def update_transaction(%Transaction{} = transaction, attrs) when is_map(attrs) do
     transaction
     |> Transaction.changeset(attrs)
+    |> validate_cash_account_currency()
     |> Repo.update()
   end
 
   def delete_transaction(%Transaction{} = transaction), do: Repo.delete(transaction)
+
+  # Cross-record currency check (issue #343): a transaction is booked in
+  # its cash account's currency, so its `currency_code` must equal the
+  # linked cash account's currency and, for a `cash_transfer`, the counter
+  # cash account's currency too. The cash account currencies are not on the
+  # changeset, so they are loaded here (mirroring
+  # `derive_linked_cash_account/1`) and handed to the pure validator on the
+  # schema. This is validation only: no stored amount is FX-converted
+  # (ADR-0007 FX derivation stays out of scope). A changeset that is
+  # already invalid is left untouched so the currency error never masks a
+  # more fundamental one.
+  defp validate_cash_account_currency(%Ecto.Changeset{valid?: false} = changeset),
+    do: changeset
+
+  defp validate_cash_account_currency(%Ecto.Changeset{} = changeset) do
+    cash_account_id = Ecto.Changeset.get_field(changeset, :cash_account_id)
+    counter_cash_account_id = Ecto.Changeset.get_field(changeset, :counter_cash_account_id)
+    currencies = cash_account_currencies([cash_account_id, counter_cash_account_id])
+
+    Transaction.validate_cash_account_currency(changeset, currencies)
+  end
+
+  defp cash_account_currencies(ids) do
+    ids
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> case do
+      [] ->
+        %{}
+
+      present ->
+        Repo.all(
+          from(c in CashAccount,
+            where: c.id in ^present,
+            select: {c.id, c.currency_code}
+          )
+        )
+        |> Map.new()
+    end
+  end
 
   defp maybe_derive_linked_cash_account(attrs) do
     case get_attr(attrs, :type) do

@@ -145,6 +145,14 @@ Transactions are explicit and auditable. A transaction defines:
 - unit price (Decimal)
 - optional taxes, fees, and notes
 
+A transaction is booked in the currency of its linked cash account. Its
+currency must match that cash account's currency (and, for a cash transfer,
+the counter cash account's currency too); a mismatched booking is rejected
+rather than silently converted. Record the booking against a cash account in
+the same currency, or add one. No exchange-rate conversion of stored amounts
+happens here — exchange rates are only applied when valuing a portfolio in its
+base currency.
+
 ### Holdings Calculation
 
 Current holdings are not entered manually. They are derived from all

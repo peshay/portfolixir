@@ -53,6 +53,70 @@ defmodule Portfolixir.Ledger.Transaction do
   def manual_trade_types, do: @manual_trade_types
   def kinds, do: @kinds
 
+  @doc """
+  Enforces currency consistency between a transaction and its linked cash
+  accounts (issue #343).
+
+  A transaction is booked in its cash account's currency (as in Portfolio
+  Performance), so its `currency_code` must equal the linked cash account's
+  currency. For a `cash_transfer` the counter cash account's currency must
+  match too — a transfer carries a single amount in one currency and only
+  ever moves money between same-currency accounts here.
+
+  `cash_currencies` is a `%{cash_account_id => currency_code}` map supplied
+  by the caller (the context loads it from the database); accounts missing
+  from the map are skipped so a stale or not-yet-persisted reference is left
+  to the existing `assoc_constraint`. This is pure validation: no stored
+  amount is FX-converted.
+  """
+  @spec validate_cash_account_currency(Ecto.Changeset.t(), %{optional(term()) => String.t()}) ::
+          Ecto.Changeset.t()
+  def validate_cash_account_currency(changeset, cash_currencies) when is_map(cash_currencies) do
+    currency_code = get_field(changeset, :currency_code)
+
+    changeset
+    |> check_account_currency(:cash_account_id, currency_code, cash_currencies)
+    |> check_counter_account_currency(currency_code, cash_currencies)
+  end
+
+  defp check_account_currency(changeset, field, currency_code, cash_currencies) do
+    account_id = get_field(changeset, field)
+
+    case Map.get(cash_currencies, account_id) do
+      nil ->
+        changeset
+
+      account_currency when account_currency == currency_code ->
+        changeset
+
+      account_currency ->
+        add_error(
+          changeset,
+          :currency_code,
+          "must match the linked cash account currency (#{account_currency})"
+        )
+    end
+  end
+
+  defp check_counter_account_currency(changeset, currency_code, cash_currencies) do
+    counter_id = get_field(changeset, :counter_cash_account_id)
+
+    case Map.get(cash_currencies, counter_id) do
+      nil ->
+        changeset
+
+      counter_currency when counter_currency == currency_code ->
+        changeset
+
+      _counter_currency ->
+        add_error(
+          changeset,
+          :counter_cash_account_id,
+          "must match the transaction currency (#{currency_code})"
+        )
+    end
+  end
+
   def changeset(transaction, attrs) do
     transaction
     |> cast(attrs, [
