@@ -299,10 +299,11 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     {:ok, _} =
       Classifications.assign_security(satellite_security.id, classification.id, satellite.id)
 
-    # Securities worth 600 + 320 = 920; cash 80 -> 100% basis = 1000.
+    # Securities worth 600 + 320 = 920; deposit 1000 then spend 920 on the buys
+    # leaves 80 cash -> 100% basis = securities 920 + cash 80 = 1000.
+    deposit!(world, "1000", ~D[2026-01-01])
     buy!(world, core_security, "10", "60")
     buy!(world, satellite_security, "8", "40")
-    deposit!(world, "80", ~D[2026-01-01])
 
     {:ok, _} =
       Targets.set_targets(world.portfolio.id, classification.id, [
