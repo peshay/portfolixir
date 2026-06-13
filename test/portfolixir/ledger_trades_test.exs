@@ -30,7 +30,10 @@ defmodule Portfolixir.LedgerTradesTest do
       Portfolios.create_cash_account(%{
         portfolio_id: portfolio.id,
         name: "Local Cash",
-        currency_code: "EUR"
+        # The trades fixture books USD transactions (the security trades in
+        # USD), so its cash account is USD to keep the booking currency and
+        # the linked cash account consistent (issue #343).
+        currency_code: "USD"
       })
 
     {:ok, depot} =
