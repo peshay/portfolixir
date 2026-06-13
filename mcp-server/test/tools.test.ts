@@ -93,16 +93,6 @@ describe("Portfolixir MCP tools", () => {
         .excluded_from_allocation_targets.type,
       "boolean"
     );
-    assert.doesNotThrow(() =>
-      securitiesCreate?.zodSchema.parse({
-        security: {
-          name: "Bitcoin",
-          currency_code: "EUR",
-          asset_class: "crypto",
-          excluded_from_allocation_targets: true
-        }
-      })
-    );
 
     const securitiesUpdate = tools.find((tool) => tool.name === "portfolixir.securities.update");
     assert.equal(
@@ -115,7 +105,8 @@ describe("Portfolixir MCP tools", () => {
         security: {
           name: "Synthetic Government Bond",
           currency_code: "EUR",
-          asset_class: "government_bond"
+          asset_class: "government_bond",
+          excluded_from_allocation_targets: true
         }
       })
     );
