@@ -230,6 +230,119 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     refute html =~ "url(x)"
   end
 
+  # User story:
+  # As a local portfolio maintainer setting target weights across a
+  # hierarchical classification tree,
+  # I want subtle consistency hints showing whether my sub-category targets add
+  # up to their parent's target and whether the top-level targets add up to
+  # 100%,
+  # so that I can spot diverging targets at a glance without the app blocking me
+  # from saving freely chosen weights.
+  #
+  # Acceptance criteria:
+  # - The allocation header shows "Σ target top level: Z%", highlighted when
+  #   Z ≠ 100%.
+  # - A parent category with child targets shows "subcategories: X% of Y%",
+  #   shown yellow when X ≠ Y.
+  # - The hints are advisory only; the target save path stays unchanged.
+  test "shows top-level and parent target consistency hints when targets diverge",
+       %{conn: conn} do
+    world = seed_world()
+
+    # Core has a 60% target (top level sum = 60% ≠ 100% → header highlighted).
+    {:ok, tech} =
+      Classifications.create_category(%{
+        classification_id: world.classification.id,
+        name: "Core Tech",
+        color: "#10b981",
+        parent_id: world.core.id
+      })
+
+    {:ok, bonds} =
+      Classifications.create_category(%{
+        classification_id: world.classification.id,
+        name: "Core Bonds",
+        color: "#f59e0b",
+        parent_id: world.core.id
+      })
+
+    # Children target 0.3 + 0.2 = 0.5 ≠ Core's 0.6 → parent hint yellow.
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, world.classification.id, [
+        %{"category_id" => tech.id, "target_weight" => "0.3"},
+        %{"category_id" => bonds.id, "target_weight" => "0.2"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # Top-level Σ hint, highlighted because 60% ≠ 100%.
+    top = view |> element(~s([data-role="target-sum-top-level"])) |> render()
+    assert top =~ "60.0"
+    assert top =~ "is-target-mismatch"
+
+    # Parent hint under Core: subcategories 50% of 60%, yellow.
+    parent = view |> element(~s([data-role="target-consistency-hint"])) |> render()
+    assert parent =~ "50.0"
+    assert parent =~ "60.0"
+    assert parent =~ "is-target-mismatch"
+    assert html =~ "subcategories"
+  end
+
+  # User story (consistency, continued):
+  # When the targets are consistent (children sum to the parent and the top
+  # level sums to 100%) the hints carry no highlight.
+  #
+  # Acceptance criteria:
+  # - With consistent targets the header hint shows 100% without the mismatch
+  #   class.
+  # - A parent whose children sum to its target shows the hint without the
+  #   mismatch class.
+  test "shows consistent target hints without highlight when targets add up",
+       %{conn: conn} do
+    world = seed_world()
+
+    # Reset Core to a full 100% target so the top level sums to 100%.
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, world.classification.id, [
+        %{"category_id" => world.core.id, "target_weight" => "1.0"}
+      ])
+
+    {:ok, tech} =
+      Classifications.create_category(%{
+        classification_id: world.classification.id,
+        name: "Core Tech",
+        color: "#10b981",
+        parent_id: world.core.id
+      })
+
+    {:ok, bonds} =
+      Classifications.create_category(%{
+        classification_id: world.classification.id,
+        name: "Core Bonds",
+        color: "#f59e0b",
+        parent_id: world.core.id
+      })
+
+    # Children target 0.6 + 0.4 = 1.0 = Core's 1.0 → consistent.
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, world.classification.id, [
+        %{"category_id" => tech.id, "target_weight" => "0.6"},
+        %{"category_id" => bonds.id, "target_weight" => "0.4"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    top = view |> element(~s([data-role="target-sum-top-level"])) |> render()
+    assert top =~ "100.0"
+    refute top =~ "is-target-mismatch"
+
+    parent = view |> element(~s([data-role="target-consistency-hint"])) |> render()
+    assert parent =~ "100.0"
+    refute parent =~ "is-target-mismatch"
+  end
+
   test "switches the performance period from the cached analysis", %{conn: conn} do
     seed_world()
 
