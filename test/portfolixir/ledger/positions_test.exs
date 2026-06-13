@@ -1,7 +1,8 @@
 defmodule Portfolixir.Ledger.PositionsTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
+  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1]
+
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
@@ -19,22 +20,11 @@ defmodule Portfolixir.Ledger.PositionsTest do
   # - Buy/sell arithmetic is unchanged.
 
   defp setup_world do
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+    %{portfolio: portfolio, cash: cash, depot: depot_a} =
+      world = base_world(name: "P", cash_name: "Cash", depot_name: "Depot A")
 
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot_a} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Depot A"
-      })
-
+    # A second depot sharing the same cash account, so a security transfer can
+    # move quantity between two own depots without a cash leg.
     {:ok, depot_b} =
       Portfolios.create_securities_account(%{
         portfolio_id: portfolio.id,
@@ -42,15 +32,11 @@ defmodule Portfolixir.Ledger.PositionsTest do
         name: "Depot B"
       })
 
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "Moved Co.",
-        ticker_symbol: "MOVE",
-        currency_code: "EUR",
-        asset_class: "equity"
-      })
+    security = create_security!(name: "Moved Co.", ticker: "MOVE", asset_class: "equity")
 
-    %{portfolio: portfolio, cash: cash, depot_a: depot_a, depot_b: depot_b, security: security}
+    world
+    |> Map.drop([:depot])
+    |> Map.merge(%{depot_a: depot_a, depot_b: depot_b, security: security})
   end
 
   defp delivery!(w, kind, depot, qty, date) do
