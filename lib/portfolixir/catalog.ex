@@ -40,6 +40,21 @@ defmodule Portfolixir.Catalog do
     |> Repo.all()
   end
 
+  @doc """
+  Returns the set of security ids flagged `excluded_from_allocation_targets`.
+
+  Used by `Portfolixir.Portfolios.Allocation` to keep flagged positions out of
+  the steering basis (the 100%) while leaving valuation and performance
+  untouched. A `MapSet` so the allocation can test membership cheaply.
+  """
+  def excluded_from_allocation_target_ids do
+    Security
+    |> where([s], s.excluded_from_allocation_targets == true)
+    |> select([s], s.id)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
   defp apply_limit(query, nil), do: query
   defp apply_limit(query, value) when is_integer(value), do: limit(query, ^value)
 
@@ -75,13 +90,21 @@ defmodule Portfolixir.Catalog do
   unchanged. Returns the number of rows updated.
   """
   def backfill_inferred_asset_classes do
+    # Schema-snapshot safe: select only the columns asset-class inference reads
+    # and update via update_all. This data backfill is invoked from historical
+    # migrations, so it must never SELECT or write columns that did not yet
+    # exist at that point in history (e.g. columns added by later migrations).
     Security
     |> where([s], is_nil(s.asset_class))
+    |> select([s], %{id: s.id, name: s.name, isin: s.isin, ticker_symbol: s.ticker_symbol})
     |> Repo.all()
-    |> Enum.reduce(0, fn security, updated ->
-      case Security.effective_asset_class(security) do
+    |> Enum.reduce(0, fn attrs, updated ->
+      case Security.effective_asset_class(struct(Security, attrs)) do
         class when is_binary(class) ->
-          security |> Ecto.Changeset.change(asset_class: class) |> Repo.update!()
+          Security
+          |> where([s], s.id == ^attrs.id)
+          |> Repo.update_all(set: [asset_class: class])
+
           updated + 1
 
         _ ->

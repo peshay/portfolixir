@@ -41,3 +41,4 @@ already in force in the codebase.
 | [0010](0010-ttwror-performance-series.html) | Daily valuation series and TTWROR | Accepted |
 | [0011](0011-unified-ledger-projection.html) | Unified ledger projection (single per-kind reducer) | Accepted |
 | [0012](0012-asset-class-inference-at-read-time.html) | Asset class inference at read time | Accepted |
+| [0013](0013-exclude-securities-from-allocation-targets.html) | Exclude flagged securities from the allocation steering basis | Accepted |

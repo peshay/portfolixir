@@ -61,7 +61,9 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       "asset_class" => Security.effective_asset_class(security) || "",
       "feed" => security.feed || "",
       "feed_url" => security.feed_url || "",
-      "note" => security.note || ""
+      "note" => security.note || "",
+      "excluded_from_allocation_targets" =>
+        if(security.excluded_from_allocation_targets, do: "true", else: "false")
     }
   end
 
@@ -310,6 +312,17 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
           errors={@errors}
         />
       </div>
+
+      <label class="full-width allocation-exclude-toggle">
+        <input type="hidden" name="security[excluded_from_allocation_targets]" value="false" />
+        <input
+          type="checkbox"
+          name="security[excluded_from_allocation_targets]"
+          value="true"
+          checked={@form["excluded_from_allocation_targets"] == "true"}
+        />
+        <span><%= gettext("Exclude from allocation targets") %></span>
+      </label>
 
       <label class="full-width">
         <span><%= gettext("Note") %></span>
@@ -615,7 +628,8 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       "asset_class" => base[:asset_class] || "",
       "feed" => base[:feed] || "",
       "feed_url" => base[:feed_url] || "",
-      "note" => ""
+      "note" => "",
+      "excluded_from_allocation_targets" => "false"
     }
   end
 

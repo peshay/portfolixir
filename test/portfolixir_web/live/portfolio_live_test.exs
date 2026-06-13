@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
+  import Portfolixir.AllocationExcludeFixtures, only: [buy!: 5, manual_quote!: 2]
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
@@ -481,6 +482,48 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "valued at their last trade price"
     assert html =~ "no price at all"
     assert html =~ "Delivered Co."
+  end
+
+  # User story:
+  # As a local portfolio maintainer holding a store-of-value position,
+  # I want the Portfolio page to mark a security excluded from allocation
+  # targets,
+  # so that it stays in my totals but is shown outside the allocation steering
+  # basis instead of distorting the drift table.
+  #
+  # Acceptance criteria:
+  # - The excluded position is rendered in a separate "Outside the steering
+  #   basis" block with its summed value.
+  # - The remaining category's actual weight rises to 100% of the steered part.
+  # - The total portfolio value is unchanged by the flag.
+  test "renders an excluded allocation block outside the steering basis", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, bitcoin} =
+      Catalog.create_security(%{
+        name: "Bitcoin",
+        ticker_symbol: "BTC",
+        currency_code: "EUR",
+        asset_class: "crypto",
+        excluded_from_allocation_targets: true
+      })
+
+    buy!(world, bitcoin.id, "4", "100", Date.add(Date.utc_today(), -5))
+    manual_quote!(bitcoin.id, "100")
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    excluded = view |> element(~s([data-role="allocation-excluded"])) |> render()
+    assert excluded =~ "Outside the steering basis"
+    assert excluded =~ "400.00"
+
+    # Core (880) is the whole steering basis now (Bitcoin's 400 is out): 100%.
+    assert html =~ "100.0"
+    # The Bitcoin buy is funded from cash (200 - 400 = -200), converting cash
+    # into a holding, so the total is unchanged: ETF 880 + BTC 400 - 200 cash =
+    # 1,080. The exclude flag changes only the steering basis, not the total.
+    assert html =~ "1,080.00"
   end
 
   test "points to portfolio creation when none exists", %{conn: conn} do
