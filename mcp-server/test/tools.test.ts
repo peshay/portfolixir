@@ -52,6 +52,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.targets.set",
       "portfolixir.targets.delete",
       "portfolixir.portfolios.allocation",
+      "portfolixir.portfolios.set_cash_target",
       "portfolixir.cash_accounts.set_balance",
       "portfolixir.portfolios.performance"
     ]);
@@ -364,6 +365,27 @@ describe("Portfolixir MCP tools", () => {
       body: undefined,
       token: "Bearer api-token"
     });
+  });
+
+  it("routes set_cash_target to PATCH /portfolios/:id with the cash target weight", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { id: 3, cash_target_weight: "0.05" }
+    });
+
+    await callTool(client, "portfolixir.portfolios.set_cash_target", {
+      portfolio_id: 3,
+      cash_target_weight: "0.05"
+    });
+    await callTool(client, "portfolixir.portfolios.set_cash_target", { portfolio_id: 3 });
+
+    assert.deepEqual(requests[0], {
+      method: "PATCH",
+      path: "/api/v1/portfolios/3",
+      body: { portfolio: { cash_target_weight: "0.05" } },
+      token: "Bearer api-token"
+    });
+    // Omitting the weight clears the cash target.
+    assert.deepEqual(requests[1].body, { portfolio: { cash_target_weight: null } });
   });
 
   it("issues a GET to /allocation for portfolixir.portfolios.allocation", async () => {

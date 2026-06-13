@@ -280,13 +280,30 @@ Example account payloads:
   this is what the sunburst's outermost ring renders. Securities held but not
   assigned in the tree are summed into `unassigned`. Weights are shares of the
   **steering basis**: the valued positions' total minus any security flagged
-  `excluded_from_allocation_targets`, cash excluded. `total_value` here is that
-  steering basis (not the full valuation). Flagged positions do not vanish: they
-  surface in a separate `excluded` object (`market_value` plus per-security
+  `excluded_from_allocation_targets`, **plus the cash that counts toward the
+  cash quote** (accounts whose `counts_toward_cash_quote` is `true`). `total_value`
+  here is that steering basis (not the full valuation). The response carries a
+  `cash` object — `market_value` (the counting cash), `actual_weight` (its share
+  of `total_value`), `target_weight` (the portfolio's `cash_target_weight`, or
+  `0` when unset), `drift_weight` (`target_weight - actual_weight`) and
+  `drift_value` (restated in the base currency) — so cash is steered in the same
+  drift logic as the categories. Because cash is part of the 100% basis, the
+  category percentages shrink accordingly once cash is present. The
+  `top_level_target_sum` is the sum of the root categories' targets **plus the
+  cash target**, compared against `1`. Flagged-excluded positions do not vanish:
+  they surface in a separate `excluded` object (`market_value` plus per-security
   `positions`, or `null` when nothing is excluded), so they stay visible while
   the percentages and drift describe only the steered part. The valuation and
   performance endpoints are unaffected by the flag. Unknown portfolios or
   classifications return `404 Not Found`.
+- `PATCH /api/v1/portfolios/:portfolio_id` patches a portfolio's master data.
+  The body is `{"portfolio": {...}}`. Use it to set the SOLL cash share with
+  `cash_target_weight` — a string fraction in `[0, 1]` (e.g. `"0.05"` for 5%),
+  or `null` to stop steering a cash quote. The cash target feeds the allocation's
+  `cash` row and the `top_level_target_sum`. Out-of-range weights return `422
+  Unprocessable Entity`; unknown portfolios return `404 Not Found`. The
+  `cash_target_weight` is also included in the portfolio objects returned by
+  `GET`/`POST /api/v1/portfolios`.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
   period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter
@@ -408,4 +425,5 @@ in MCP schemas are strings.
 - `portfolixir.targets.set`
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
+- `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.performance`

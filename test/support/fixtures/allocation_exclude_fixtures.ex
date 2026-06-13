@@ -89,6 +89,24 @@ defmodule Portfolixir.AllocationExcludeFixtures do
   end
 
   @doc """
+  Records a deposit of `amount` EUR into the world's cash account on `date`
+  (default: `~D[2026-01-01]`), so a test can fund the account before buying.
+  """
+  def deposit!(%{portfolio: portfolio, cash: cash}, amount, date \\ ~D[2026-01-01]) do
+    {:ok, tx} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        type: "deposit",
+        date: date,
+        gross_amount: amount,
+        currency_code: "EUR"
+      })
+
+    tx
+  end
+
+  @doc """
   Stores a single manual `close` quote for `security_id` on `date`
   (default: today).
   """

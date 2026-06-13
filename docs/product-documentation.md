@@ -211,13 +211,23 @@ hints** — read-only, never blocking a save:
   targets and Y is the parent's own target. It turns **yellow** when X and Y
   differ.
 - The allocation header shows *Σ target top level: Z%* — the sum of the
-  top-level categories' targets — highlighted when Z is not 100%.
+  top-level categories' targets **plus the cash target** — highlighted when Z is
+  not 100%.
 
 Equality is checked exactly (to the stored weight precision), so a hint only
 highlights when the numbers genuinely differ. The hints are guidance only; the
-target save path is unchanged and never rejects freely chosen weights. (A cash
-target is not yet part of this Σ; cash in the allocation is tracked
-separately.)
+target save path is unchanged and never rejects freely chosen weights.
+
+**Cash is part of the allocation.** A portfolio can store a **cash target**
+(`cash_target_weight`, e.g. 5%) — the SOLL share of cash inside the same 100%
+basis as the categories. With a cash target set, the allocation's 100% basis is
+**securities (minus excluded) + the cash that counts toward the cash quote**
+(the accounts flagged *counts toward the cash quote*). The drift table then shows
+a dedicated **Cash** row in its own neutral colour with the cash actual, target
+and drift, the sunburst gains a cash segment, and every category percentage
+shrinks accordingly once cash joins the basis. Set the cash target over the API
+(`PATCH /api/v1/portfolios/:id`) or MCP (`portfolixir.portfolios.set_cash_target`),
+or clear it with `null` to stop steering a cash quote.
 
 ## Exchange Rates and Valuation
 
