@@ -483,6 +483,61 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "Delivered Co."
   end
 
+  # User story:
+  # As a local portfolio maintainer holding a store-of-value position,
+  # I want the Portfolio page to mark a security excluded from allocation
+  # targets,
+  # so that it stays in my totals but is shown outside the allocation steering
+  # basis instead of distorting the drift table.
+  #
+  # Acceptance criteria:
+  # - The excluded position is rendered in a separate "Outside the steering
+  #   basis" block with its summed value.
+  # - The remaining category's actual weight rises to 100% of the steered part.
+  # - The total portfolio value is unchanged by the flag.
+  test "renders an excluded allocation block outside the steering basis", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, bitcoin} =
+      Catalog.create_security(%{
+        name: "Bitcoin",
+        ticker_symbol: "BTC",
+        currency_code: "EUR",
+        asset_class: "crypto",
+        excluded_from_allocation_targets: true
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: bitcoin.id,
+        type: "buy",
+        date: Date.add(Date.utc_today(), -5),
+        quantity: "4",
+        price: "100",
+        fees: "0",
+        taxes: "0",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Quotes.upsert_many(bitcoin.id, [%{date: Date.utc_today(), close: "100", source: "manual"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    excluded = view |> element(~s([data-role="allocation-excluded"])) |> render()
+    assert excluded =~ "Outside the steering basis"
+    assert excluded =~ "400.00"
+
+    # Core (880) is the whole steering basis now (Bitcoin's 400 is out): 100%.
+    assert html =~ "100.0"
+    # Total still includes the excluded Bitcoin: 880 + 400 + 200 cash = 1,480.
+    assert html =~ "1,480.00"
+  end
+
   test "points to portfolio creation when none exists", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/portfolio")
 
