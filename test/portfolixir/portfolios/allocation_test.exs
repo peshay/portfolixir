@@ -304,10 +304,11 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, satellite_security, "8", "40")
     deposit!(world, "80", ~D[2026-01-01])
 
-    {:ok, _} = Targets.set_targets(world.portfolio.id, classification.id, [
-      %{"category_id" => core.id, "target_weight" => "0.6"},
-      %{"category_id" => satellite.id, "target_weight" => "0.35"}
-    ])
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"},
+        %{"category_id" => satellite.id, "target_weight" => "0.35"}
+      ])
 
     {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.05"))
 
