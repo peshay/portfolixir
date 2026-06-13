@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolixir — key screen: Classifications tree (decluttered exemplar)</title>
+<style>
+/* ============================================================
+   KEY SCREEN MOCK — Classifications tree detail ("Asset classes"),
+   the decluttering exemplar. Two sections in one file:
+     1. Canonical state — the tree IS the surface: search on top,
+        category rows with swatches, counts, SOLL/IST weights;
+        NO always-open form; Unsorted bucket pinned at the end.
+     2. Load-bearing alternate state — the compact "New category"
+        form disclosed open via the + affordance (cropped frame).
+   Multiselect toolbar is intentionally NOT rendered: it appears
+   only when a selection exists (EXPERIENCE Classification tree
+   row — "toolbar appears only with an active selection").
+   Light mode · violet accent · desktop ~1280px · fully offline
+
+   Governing spine sections:
+   - DESIGN.md › Colors (surface ramp; semantic positive/danger for
+     over/underweight, never the accent; text/text-muted carry content)
+   - DESIGN.md › Components: {components.panel}, {components.input}
+     (focus: accent border + 3px ring at 18%), {components.button}
+     (+ .button-primary), Drag-and-drop rows (.dnd-row), Data tables
+     (muted 12px heads on bg-muted), {components.pill}
+   - DESIGN.md › Do's and Don'ts: "Put forms behind disclosure" —
+     this screen is the named anti-pattern fixed
+   - EXPERIENCE.md › Information Architecture: progressive-disclosure
+     principle + "Classifications is the exemplar" paragraph (binding
+     composition source for this mock)
+   - EXPERIENCE.md › Component Patterns: Classification tree row
+     (<details> nodes, row checkboxes feeding the selection toolbar,
+     search filters live, Unsorted pinned at the end), Forms behind
+     disclosure row (default closed; opened by `+`; Esc/cancel closes
+     and returns focus to the trigger; focus moves to the first field)
+   - EXPERIENCE.md › State Patterns: Filter/search — no matches
+     (controls stay visible — not shown; canonical state has matches)
+   - EXPERIENCE.md › Interaction Primitives: `+` for create, kebab
+     (⋮) for per-node edit/recolor/delete, drag as accelerator only
+   - EXPERIENCE.md › Voice and Tone: explanatory ⓘ (SOLL/IST),
+     calm sentences, no exclamation marks
+   - EXPERIENCE.md › Accessibility Floor: color independence —
+     drift values carry explicit +/− signs
+   - Flow 2 (Data maintenance) steps 4–6: tree-as-surface, the two
+     freshly imported securities sitting in Unsorted, the three-
+     second disclosed form
+   - .decision-log.md 2026-06-12 gap answer #2: Classifications is
+     the worst-rated screen and the decluttering exemplar
+   ============================================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --accent: #7c3aed;
+  --accent-soft: #ede9fe;
+  --positive: #047857;
+  --danger: #dc2626;
+  --bg: #f6f7fa;
+  --bg-elevated: #ffffff;
+  --bg-muted: #eef1f6;
+  --sidebar: #fbfaff;
+  --border: #e4e8ef;
+  --border-strong: #cdd4df;
+  --hover: #f0f3f8;
+  --selected: #ede9fe;
+  --text: #0e141b;
+  --text-muted: #5a6577;
+  --text-subtle: #94a0b4; /* decoration only — never content */
+  --brand-v1: #a78bfa; --brand-t1: #2dd4bf; --brand-c1: #fdba74;
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-full: 9999px;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
+  --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
+  --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
+  --shadow-sidebar: 0 20px 60px rgb(15 23 42 / 0.16);
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+}
+
+html { background: #dfe3ea; }
+body {
+  font-family: var(--font-sans);
+  font-size: 13px; line-height: 1.4; color: var(--text);
+  padding: 36px 0 48px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+
+/* ---- Browser frame (mock chrome, not product) ---- */
+.browser { width: 1280px; border-radius: 10px; overflow: hidden; box-shadow: 0 30px 80px rgb(15 23 42 / 0.25); background: var(--bg); }
+.browser-chrome { display: flex; align-items: center; gap: 10px; background: #e9ecf2; border-bottom: 1px solid #d4d9e2; padding: 9px 14px; }
+.browser-dots { display: flex; gap: 6px; }
+.browser-dots span { width: 11px; height: 11px; border-radius: 50%; }
+.browser-dots span:nth-child(1) { background: #f87171; }
+.browser-dots span:nth-child(2) { background: #fbbf24; }
+.browser-dots span:nth-child(3) { background: #34d399; }
+.browser-url { flex: 1; max-width: 420px; margin: 0 auto; background: #f7f8fb; border: 1px solid #d4d9e2; border-radius: 6px; font-size: 11px; color: var(--text-muted); text-align: center; padding: 4px 12px; }
+
+/* annotation band between the two sections (mock metadata, not product) */
+.mock-note {
+  width: 1280px; font-size: 12px; color: #3d4654;
+  background: #eef1f6; border: 1px dashed #b9c2d0; border-radius: 8px;
+  padding: 8px 14px;
+}
+
+/* ---- App shell ---- */
+.app-shell { display: flex; min-height: 780px; background: var(--bg); }
+.app-main { flex: 1; min-width: 0; background: radial-gradient(900px 420px at 0% 0%, rgb(124 58 237 / 0.055), transparent 60%), var(--bg); }
+.app-sidebar {
+  width: 220px; flex: 0 0 220px;
+  background: linear-gradient(180deg, rgb(124 58 237 / 0.035), transparent 220px), var(--sidebar);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow-sidebar);
+  padding: 14px 12px 18px;
+}
+.brand { display: flex; align-items: center; gap: 9px; padding: 6px 8px 14px; text-decoration: none; color: var(--text); }
+.brand-mark { width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(135deg, var(--brand-v1), var(--brand-t1) 55%, var(--brand-c1)); }
+.brand-word { font-size: 14px; font-weight: 760; letter-spacing: -0.01em; }
+.nav-group { padding: 8px 0 2px; }
+.nav-group-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); padding: 4px 10px 6px;
+}
+.nav-group-add { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-muted); text-decoration: none; font-size: 12px; font-weight: 650; line-height: 1; }
+.nav-link {
+  position: relative; display: flex; align-items: center; gap: 9px;
+  padding: 7px 10px 7px 18px; border: 1px solid transparent; border-radius: var(--r-md);
+  font-size: 12.5px; color: var(--text-muted); text-decoration: none;
+}
+.nav-link svg { width: 15px; height: 15px; flex: 0 0 auto; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.nav-link:hover { background: var(--hover); color: var(--text); }
+.nav-link[aria-current="page"] {
+  background: linear-gradient(90deg, var(--accent-soft), transparent 80%);
+  border-color: rgb(124 58 237 / 0.26); color: var(--text); font-weight: 650;
+}
+.nav-link[aria-current="page"]::before {
+  content: ""; position: absolute; left: 7px; top: 50%;
+  width: 6px; height: 6px; margin-top: -3px; border-radius: var(--r-full);
+  background: var(--accent); box-shadow: 0 0 0 3px rgb(124 58 237 / 0.18);
+}
+.swatch-dot { width: 8px; height: 8px; border-radius: 3px; flex: 0 0 auto; }
+
+/* Top bar */
+.topbar {
+  height: 52px; display: flex; align-items: center; gap: 14px;
+  padding: 0 clamp(18px, 2.4vw, 28px);
+  background: rgb(255 255 255 / 0.88); backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border); position: sticky; top: 0;
+}
+.sidebar-toggle { display: inline-flex; flex-direction: column; gap: 3px; padding: 8px 6px; border-radius: var(--r-sm); cursor: pointer; }
+.sidebar-toggle span { width: 15px; height: 1.6px; background: var(--text-muted); border-radius: 2px; }
+.topbar-titles { display: flex; flex-direction: column; gap: 1px; }
+.topbar-title { font-size: 15px; font-weight: 760; line-height: 1.15; }
+.topbar-subtitle { font-size: 11.5px; color: var(--text-muted); }
+.topbar-controls { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.ctrl-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; padding: 0 9px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-sm); color: var(--text-muted); cursor: pointer; font: inherit; font-size: 12px; }
+.ctrl-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.accent-dots { display: inline-flex; gap: 4px; align-items: center; }
+.accent-dots i { width: 9px; height: 9px; border-radius: 50%; }
+.accent-dots .a-violet { background: #7c3aed; box-shadow: 0 0 0 2px rgb(124 58 237 / 0.25); }
+.accent-dots .a-teal { background: #0f766e; }
+.accent-dots .a-coral { background: #e11d48; }
+.locale-switcher { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-full); background: var(--bg-elevated); padding: 2px; }
+.locale-pill { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 3px 9px; border-radius: var(--r-full); color: var(--text-muted); text-decoration: none; }
+.locale-pill[aria-current="true"] { background: var(--accent-soft); color: var(--accent); }
+
+/* ---- Workspace: the tree IS the surface ---- */
+.workspace { padding: clamp(18px, 2.4vw, 28px); }
+
+.tree-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.search-field { position: relative; flex: 1; max-width: 420px; }
+.search-field svg {
+  position: absolute; left: 10px; top: 50%; margin-top: -7px;
+  width: 14px; height: 14px; stroke: var(--text-subtle); fill: none; stroke-width: 1.6;
+}
+.search-field input {
+  width: 100%; min-height: 34px; padding: 0 12px 0 32px;
+  font: inherit; color: var(--text);
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.search-field input::placeholder { color: var(--text-muted); }
+.button {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 34px; padding: 0 13px; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 650; color: var(--text);
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--r-md); box-shadow: var(--shadow-sm);
+}
+.button .plus { font-weight: 700; color: var(--text-muted); }
+.button[aria-expanded="true"] {
+  background: var(--accent-soft); border-color: rgb(124 58 237 / 0.26); color: var(--accent);
+}
+.button[aria-expanded="true"] .plus { color: var(--accent); }
+.button-primary { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+
+/* Tree panel */
+.panel {
+  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-panel); overflow: hidden;
+}
+.tree-head {
+  display: grid; grid-template-columns: 1fr 110px 90px 90px 96px 40px;
+  gap: 10px; align-items: center;
+  padding: 8px 16px 8px 18px;
+  background: var(--bg-muted); border-bottom: 1px solid var(--border);
+  font-size: 12px; font-weight: 740; color: var(--text-muted);
+}
+.tree-head .col-num { text-align: right; }
+.info-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; margin-left: 4px; border-radius: 50%;
+  border: 1px solid var(--border-strong); background: var(--bg-elevated);
+  font-size: 9px; font-weight: 650; color: var(--text-muted); cursor: help;
+}
+
+details.tree-node { border-bottom: 1px solid var(--border); }
+details.tree-node:last-child { border-bottom: 0; }
+.node-row {
+  display: grid; grid-template-columns: 1fr 110px 90px 90px 96px 40px;
+  gap: 10px; align-items: center;
+  padding: 9px 16px 9px 12px;
+  cursor: pointer; list-style: none;
+}
+.node-row::-webkit-details-marker { display: none; }
+.node-row:hover { background: color-mix(in srgb, var(--accent-soft) 42%, transparent); }
+.node-main { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.caret { width: 12px; flex: 0 0 auto; color: var(--text-subtle); font-size: 10px; transition: transform 160ms ease; }
+details[open] > .node-row .caret { transform: rotate(90deg); }
+.row-check { width: 13px; height: 13px; accent-color: var(--accent); flex: 0 0 auto; }
+.cat-swatch { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+.cat-name { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-count { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.col-num { text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.col-soll, .col-ist { color: var(--text-muted); }
+.drift-pos { color: var(--positive); font-weight: 650; }
+.drift-neg { color: var(--danger); font-weight: 650; }
+.drift-none { color: var(--text-muted); }
+.kebab {
+  justify-self: end;
+  width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; font-size: 14px; color: var(--text-muted); cursor: pointer;
+  background: transparent; border: 1px solid transparent; border-radius: var(--r-sm);
+}
+.kebab:hover { background: var(--bg-elevated); border-color: var(--border); }
+
+/* Child security rows (.dnd-row): checkbox + grip + name + ISIN + weight */
+.node-children { background: rgb(238 241 246 / 0.45); border-top: 1px solid var(--border); }
+.dnd-row {
+  display: grid; grid-template-columns: 1fr 200px 96px 40px;
+  gap: 10px; align-items: center;
+  padding: 7px 16px 7px 44px;
+  border-bottom: 1px solid rgb(228 232 239 / 0.7);
+  font-size: 12.5px;
+}
+.dnd-row:last-child { border-bottom: 0; }
+.dnd-row:hover { background: color-mix(in srgb, var(--accent-soft) 42%, transparent); }
+.dnd-main { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.grip { color: var(--text-subtle); font-size: 11px; letter-spacing: 1px; cursor: grab; }
+.sec-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-isin { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+
+/* Pinned Unsorted bucket */
+details.tree-node.unsorted { background: rgb(246 247 250 / 0.7); }
+.unsorted .cat-swatch { background: transparent; border: 1.5px dashed var(--border-strong); }
+.pin-pill {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 2px 8px; border-radius: var(--r-full);
+  background: var(--bg-muted); border: 1px solid var(--border); color: var(--text-muted);
+}
+.unsorted-hint { padding: 0 16px 10px 44px; font-size: 12px; color: var(--text-muted); }
+
+/* ---- Section 2: disclosed "New category" form (alternate state) ---- */
+.disclosure-wrap { position: relative; }
+.new-cat-form {
+  margin-top: 8px; max-width: 460px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--r-md); box-shadow: var(--shadow-md);
+  padding: 16px;
+}
+.form-grid { display: grid; gap: 12px; }
+.field label { display: block; font-size: 12px; font-weight: 650; margin-bottom: 4px; }
+.field label .optional { font-weight: 540; color: var(--text-muted); }
+.field input[type="text"], .field select {
+  width: 100%; min-height: 34px; padding: 0 10px;
+  font: inherit; color: var(--text);
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--r-md);
+}
+/* focus: solid 2px accent outline (the indicator) + 3px soft ring at 18% (decoration) */
+.field input.is-focused {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent); outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgb(124 58 237 / 0.18);
+}
+.color-row { display: flex; gap: 8px; }
+.color-chip {
+  width: 22px; height: 22px; border-radius: var(--r-sm); cursor: pointer;
+  border: 1px solid rgb(14 20 27 / 0.12);
+}
+.color-chip.is-selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+.form-actions { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.form-hint { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+     SECTION 1 — CANONICAL STATE
+     The tree is the surface. Search serves reading and stays on top;
+     the New-category form is collapsed behind the + affordance; the
+     multiselect toolbar is NOT rendered because no selection exists
+     (it appears only with an active selection — EXPERIENCE
+     Classification tree row). Unsorted bucket pinned at the end with
+     the two securities from the last import (Flow 2 step 4).
+     ================================================================ -->
+<div class="browser">
+  <div class="browser-chrome">
+    <div class="browser-dots"><span></span><span></span><span></span></div>
+    <div class="browser-url">portfolixir.local/classifications/asset-classes</div>
+  </div>
+
+  <div class="app-shell">
+    <aside class="app-sidebar" aria-label="Application navigation">
+      <a class="brand" href="/"><span class="brand-mark"></span><span class="brand-word">Portfolixir</span></a>
+      <nav aria-label="Primary navigation">
+        <div class="nav-group">
+          <a class="nav-link" href="/">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>
+            <span>Dashboard</span>
+          </a>
+          <a class="nav-link" href="/portfolio">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><polyline points="1.5,12.5 5.5,8 8.5,10.5 14.5,3.5"/></svg>
+            <span>Portfolio</span>
+          </a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head"><span>Securities</span></div>
+          <a class="nav-link" href="/securities">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,1.5 14.5,5 8,8.5 1.5,5"/><polyline points="1.5,8 8,11.5 14.5,8"/><polyline points="1.5,11 8,14.5 14.5,11"/></svg>
+            <span>Securities</span>
+          </a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head"><span>Master data</span></div>
+          <a class="nav-link" href="/portfolios">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="4.5" width="13" height="9" rx="1.5"/><path d="M5.5 4.5V3a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 10.5 3v1.5"/></svg>
+            <span>Portfolios</span>
+          </a>
+          <a class="nav-link" href="/transactions">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>
+            <span>All transactions</span>
+          </a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head"><span>Tools</span></div>
+          <a class="nav-link" href="/imports">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10.5V2"/><polyline points="4.5,5.5 8,2 11.5,5.5"/><path d="M2 10.5V13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2.5"/></svg>
+            <span>Imports</span>
+          </a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head">
+            <span>Classifications</span>
+            <a class="nav-group-add" href="/classifications/new" aria-label="New classification" title="New classification">+</a>
+          </div>
+          <a class="nav-link" href="/classifications/asset-classes" aria-current="page">
+            <span class="swatch-dot" style="background:#7c3aed" aria-hidden="true"></span>
+            <span>Asset classes</span>
+          </a>
+          <a class="nav-link" href="/classifications/regions">
+            <span class="swatch-dot" style="background:#0ea5e9" aria-hidden="true"></span>
+            <span>Regions</span>
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <span class="sidebar-toggle" role="button" aria-expanded="true" aria-label="Navigation sidebar" tabindex="0"><span></span><span></span><span></span></span>
+        <div class="topbar-titles">
+          <div class="topbar-title">Asset classes</div>
+          <div class="topbar-subtitle">Classification · 6 categories · 41 securities · Own portfolio</div>
+        </div>
+        <div class="topbar-controls" aria-label="Display preferences">
+          <button class="ctrl-btn" title="Theme: light" aria-label="Theme">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.2v1.8M8 13v1.8M1.2 8H3M13 8h1.8M3.2 3.2l1.3 1.3M11.5 11.5l1.3 1.3M12.8 3.2l-1.3 1.3M4.5 11.5l-1.3 1.3"/></svg>
+          </button>
+          <button class="ctrl-btn" title="Accent color: violet" aria-label="Accent color">
+            <span class="accent-dots" aria-hidden="true"><i class="a-violet"></i><i class="a-teal"></i><i class="a-coral"></i></span>
+          </button>
+          <nav class="locale-switcher" aria-label="Language">
+            <a class="locale-pill" href="?locale=en" aria-current="true">EN</a>
+            <a class="locale-pill" href="?locale=de">DE</a>
+          </nav>
+        </div>
+      </header>
+
+      <main class="workspace">
+
+        <!-- Toolbar: search (serves reading, stays) + the single create
+             affordance. NO always-open form anywhere on this surface.
+             MULTISELECT TOOLBAR NOT SHOWN: it is rendered only while a
+             selection exists; with zero rows checked there is nothing
+             here — that absence is the point of the exemplar. -->
+        <div class="tree-toolbar">
+          <div class="search-field">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+            <input type="search" placeholder="Search categories and securities" aria-label="Search this tree">
+          </div>
+          <button class="button" type="button" aria-expanded="false">
+            <span class="plus" aria-hidden="true">+</span> New category
+          </button>
+        </div>
+
+        <section class="panel" aria-label="Asset classes tree">
+          <div class="tree-head">
+            <div>Category</div>
+            <div class="col-num">Securities</div>
+            <div class="col-num">SOLL
+              <span class="info-dot" role="button" tabindex="0" title="SOLL/IST — target weight (SOLL) vs. actual weight (IST) of each category in the portfolio.">i</span>
+            </div>
+            <div class="col-num">IST</div>
+            <div class="col-num">Drift</div>
+            <div></div>
+          </div>
+
+          <details class="tree-node">
+            <summary class="node-row">
+              <div class="node-main">
+                <span class="caret" aria-hidden="true">▶</span>
+                <input class="row-check" type="checkbox" aria-label="Select Aktien Welt">
+                <span class="cat-swatch" style="background:#6366f1" aria-hidden="true"></span>
+                <span class="cat-name">Aktien Welt</span>
+              </div>
+              <div class="col-num col-count">14</div>
+              <div class="col-num col-soll">40,0 %</div>
+              <div class="col-num col-ist">36,4 %</div>
+              <div class="col-num drift-neg">−3,6 pp</div>
+              <button class="kebab" type="button" aria-label="Category actions: Aktien Welt">⋮</button>
+            </summary>
+          </details>
+
+          <details class="tree-node">
+            <summary class="node-row">
+              <div class="node-main">
+                <span class="caret" aria-hidden="true">▶</span>
+                <input class="row-check" type="checkbox" aria-label="Select Aktien USA">
+                <span class="cat-swatch" style="background:#0ea5e9" aria-hidden="true"></span>
+                <span class="cat-name">Aktien USA</span>
+              </div>
+              <div class="col-num col-count">9</div>
+              <div class="col-num col-soll">30,0 %</div>
+              <div class="col-num col-ist">34,2 %</div>
+              <div class="col-num drift-pos">+4,2 pp</div>
+              <button class="kebab" type="button" aria-label="Category actions: Aktien USA">⋮</button>
+            </summary>
+          </details>
+
+          <details class="tree-node">
+            <summary class="node-row">
+              <div class="node-main">
+                <span class="caret" aria-hidden="true">▶</span>
+                <input class="row-check" type="checkbox" aria-label="Select Aktien Europa">
+                <span class="cat-swatch" style="background:#10b981" aria-hidden="true"></span>
+                <span class="cat-name">Aktien Europa</span>
+              </div>
+              <div class="col-num col-count">7</div>
+              <div class="col-num col-soll">10,0 %</div>
+              <div class="col-num col-ist">9,1 %</div>
+              <div class="col-num drift-neg">−0,9 pp</div>
+              <button class="kebab" type="button" aria-label="Category actions: Aktien Europa">⋮</button>
+            </summary>
+          </details>
+
+          <details class="tree-node">
+            <summary class="node-row">
+              <div class="node-main">
+                <span class="caret" aria-hidden="true">▶</span>
+                <input class="row-check" type="checkbox" aria-label="Select Anleihen EUR">
+                <span class="cat-swatch" style="background:#a855f7" aria-hidden="true"></span>
+                <span class="cat-name">Anleihen EUR</span>
+              </div>
+              <div class="col-num col-count">4</div>
+              <div class="col-num col-soll">10,0 %</div>
+              <div class="col-num col-ist">7,7 %</div>
+              <div class="col-num drift-neg">−2,3 pp</div>
+              <button class="kebab" type="button" aria-label="Category actions: Anleihen EUR">⋮</button>
+            </summary>
+          </details>
+
+          <!-- Expanded node: child .dnd-rows (drag is a desktop accelerator;
+               checkboxes are the universal selection path) -->
+          <details class="tree-node" open>
+            <summary class="node-row">
+              <div class="node-main">
+                <span class="caret" aria-hidden="true">▶</span>
+                <input class="row-check" type="checkbox" aria-label="Select Krypto">
+                <span class="cat-swatch" style="background:#f59e0b" aria-hidden="true"></span>
+                <span class="cat-name">Krypto</span>
+              </div>
+              <div class="col-num col-count">2</div>
+              <div class="col-num col-soll">5,0 %</div>
+              <div class="col-num col-ist">6,4 %</div>
+              <div class="col-num drift-pos">+1,4 pp</div>
+              <button class="kebab" type="button" aria-label="Category actions: Krypto">⋮</button>
+            </summary>
+            <div class="node-children">
+              <div class="dnd-row" draggable="true">
+                <div class="dnd-main">
+                  <input class="row-check" type="checkbox" aria-label="Select Bitcoin">
+                  <span class="grip" aria-hidden="true">⠿</span>
+                  <span class="sec-name">ETC Group Physical Bitcoin</span>
+                </div>
+                <div class="sec-isin">DE000A27Z304</div>
+                <div class="col-num">5,1 %</div>
+                <button class="kebab" type="button" aria-label="Security actions: ETC Group Physical Bitcoin">⋮</button>
+              </div>
+              <div class="dnd-row" draggable="true">
+                <div class="dnd-main">
+                  <input class="row-check" type="checkbox" aria-label="Select Ethereum ETP">
+                  <span class="grip" aria-hidden="true">⠿</span>
+                  <span class="sec-name">21Shares Ethereum Staking ETP</span>
+                </div>
+                <div class="sec-isin">CH0454664001</div>
+                <div class="col-num">1,3 %</div>
+                <button class="kebab" type="button" aria-label="Security actions: 21Shares Ethereum Staking ETP">⋮</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="tree-node">
+            <summary class="node-row">
+              <div class="node-main">
+                <span class="caret" aria-hidden="true">▶</span>
+                <input class="row-check" type="checkbox" aria-label="Select Cash">
+                <span class="cat-swatch" style="background:#64748b" aria-hidden="true"></span>
+                <span class="cat-name">Cash</span>
+              </div>
+              <div class="col-num col-count">3</div>
+              <div class="col-num col-soll">5,0 %</div>
+              <div class="col-num col-ist">6,2 %</div>
+              <div class="col-num drift-pos">+1,2 pp</div>
+              <button class="kebab" type="button" aria-label="Category actions: Cash">⋮</button>
+            </summary>
+          </details>
+
+          <!-- Pinned Unsorted bucket — always last; holds the two
+               securities flagged by the last import (Flow 2 step 4) -->
+          <details class="tree-node unsorted" open>
+            <summary class="node-row">
+              <div class="node-main">
+                <span class="caret" aria-hidden="true">▶</span>
+                <input class="row-check" type="checkbox" aria-label="Select Unsorted">
+                <span class="cat-swatch" aria-hidden="true"></span>
+                <span class="cat-name">Unsorted</span>
+                <span class="pin-pill">Pinned</span>
+              </div>
+              <div class="col-num col-count">2</div>
+              <div class="col-num drift-none">—</div>
+              <div class="col-num drift-none">—</div>
+              <div class="col-num drift-none">—</div>
+              <button class="kebab" type="button" aria-label="Bucket actions: Unsorted">⋮</button>
+            </summary>
+            <div class="node-children">
+              <div class="unsorted-hint">Securities not yet assigned to a category. Select rows and move them, or drag them onto a category.</div>
+              <div class="dnd-row" draggable="true">
+                <div class="dnd-main">
+                  <input class="row-check" type="checkbox" aria-label="Select NVIDIA Corp.">
+                  <span class="grip" aria-hidden="true">⠿</span>
+                  <span class="sec-name">NVIDIA Corp.</span>
+                </div>
+                <div class="sec-isin">US67066G1040</div>
+                <div class="col-num drift-none">—</div>
+                <button class="kebab" type="button" aria-label="Security actions: NVIDIA Corp.">⋮</button>
+              </div>
+              <div class="dnd-row" draggable="true">
+                <div class="dnd-main">
+                  <input class="row-check" type="checkbox" aria-label="Select Xtrackers MSCI Emerging Markets">
+                  <span class="grip" aria-hidden="true">⠿</span>
+                  <span class="sec-name">Xtrackers MSCI Emerging Markets UCITS ETF</span>
+                </div>
+                <div class="sec-isin">IE00BTJRMP35</div>
+                <div class="col-num drift-none">—</div>
+                <button class="kebab" type="button" aria-label="Security actions: Xtrackers MSCI Emerging Markets UCITS ETF">⋮</button>
+              </div>
+            </div>
+          </details>
+        </section>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     SECTION 2 — LOAD-BEARING ALTERNATE STATE
+     The compact "New category" form, disclosed open via the +
+     affordance (EXPERIENCE Forms-behind-disclosure row; Flow 2
+     step 6: "the screen that used to greet him with a wall of
+     inputs now only ever shows them for the three seconds he wants
+     them"). Cropped to the workspace region; the shell is unchanged.
+     ================================================================ -->
+<div class="mock-note">
+  Alternate state — "New category" disclosed via the + affordance. One disclosure level; Esc or Cancel closes it and returns focus to the trigger; focus starts on the first field. Cropped frame: sidebar and top bar are identical to the canonical state above.
+</div>
+
+<div class="browser">
+  <div class="browser-chrome">
+    <div class="browser-dots"><span></span><span></span><span></span></div>
+    <div class="browser-url">portfolixir.local/classifications/asset-classes</div>
+  </div>
+
+  <div class="app-main" style="min-height:0;">
+    <main class="workspace">
+      <div class="tree-toolbar">
+        <div class="search-field">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+          <input type="search" placeholder="Search categories and securities" aria-label="Search this tree">
+        </div>
+        <div class="disclosure-wrap">
+          <button class="button" type="button" aria-expanded="true">
+            <span class="plus" aria-hidden="true">+</span> New category
+          </button>
+        </div>
+      </div>
+
+      <!-- The disclosed form: compact, one level, directly tied to its
+           trigger. {components.input} focus anatomy on the first field. -->
+      <form class="new-cat-form" aria-label="New category">
+        <div class="form-grid">
+          <div class="field">
+            <label for="cat-name">Name</label>
+            <input class="is-focused" id="cat-name" type="text" value="Crypto ETPs">
+          </div>
+          <div class="field">
+            <label for="cat-parent">Parent</label>
+            <select id="cat-parent">
+              <option selected>Asset classes (top level)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Color</label>
+            <div class="color-row" role="radiogroup" aria-label="Category color">
+              <span class="color-chip" style="background:#6366f1" role="radio" aria-checked="false" tabindex="0" title="Indigo"></span>
+              <span class="color-chip" style="background:#0ea5e9" role="radio" aria-checked="false" tabindex="0" title="Sky"></span>
+              <span class="color-chip" style="background:#10b981" role="radio" aria-checked="false" tabindex="0" title="Green"></span>
+              <span class="color-chip is-selected" style="background:#f59e0b" role="radio" aria-checked="true" tabindex="0" title="Amber"></span>
+              <span class="color-chip" style="background:#e11d48" role="radio" aria-checked="false" tabindex="0" title="Rose"></span>
+              <span class="color-chip" style="background:#64748b" role="radio" aria-checked="false" tabindex="0" title="Slate"></span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="cat-desc">Description <span class="optional">(optional)</span></label>
+            <input id="cat-desc" type="text" placeholder="What belongs in this category">
+          </div>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit">Create category</button>
+            <button class="button" type="button">Cancel</button>
+            <span class="form-hint">Esc closes without saving.</span>
+          </div>
+        </div>
+      </form>
+
+      <!-- First rows of the tree remain visible beneath the disclosure —
+           the surface is still the tree. -->
+      <section class="panel" aria-label="Asset classes tree" style="margin-top:14px;">
+        <div class="tree-head">
+          <div>Category</div>
+          <div class="col-num">Securities</div>
+          <div class="col-num">SOLL
+            <span class="info-dot" role="button" tabindex="0" title="SOLL/IST — target weight (SOLL) vs. actual weight (IST) of each category in the portfolio.">i</span>
+          </div>
+          <div class="col-num">IST</div>
+          <div class="col-num">Drift</div>
+          <div></div>
+        </div>
+        <details class="tree-node">
+          <summary class="node-row">
+            <div class="node-main">
+              <span class="caret" aria-hidden="true">▶</span>
+              <input class="row-check" type="checkbox" aria-label="Select Aktien Welt">
+              <span class="cat-swatch" style="background:#6366f1" aria-hidden="true"></span>
+              <span class="cat-name">Aktien Welt</span>
+            </div>
+            <div class="col-num col-count">14</div>
+            <div class="col-num col-soll">40,0 %</div>
+            <div class="col-num col-ist">36,4 %</div>
+            <div class="col-num drift-neg">−3,6 pp</div>
+            <button class="kebab" type="button" aria-label="Category actions: Aktien Welt">⋮</button>
+          </summary>
+        </details>
+        <details class="tree-node">
+          <summary class="node-row">
+            <div class="node-main">
+              <span class="caret" aria-hidden="true">▶</span>
+              <input class="row-check" type="checkbox" aria-label="Select Aktien USA">
+              <span class="cat-swatch" style="background:#0ea5e9" aria-hidden="true"></span>
+              <span class="cat-name">Aktien USA</span>
+            </div>
+            <div class="col-num col-count">9</div>
+            <div class="col-num col-soll">30,0 %</div>
+            <div class="col-num col-ist">34,2 %</div>
+            <div class="col-num drift-pos">+4,2 pp</div>
+            <button class="kebab" type="button" aria-label="Category actions: Aktien USA">⋮</button>
+          </summary>
+        </details>
+      </section>
+    </main>
+  </div>
+</div>
+
+</body>
+</html>
