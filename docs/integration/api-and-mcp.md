@@ -263,7 +263,7 @@ Example account payloads:
   `native_tax`/`native_net`, the base-currency `gross`/`tax`/`net`, and
   `converted`). A dividend's gross is its net cash (`gross_amount`) plus the
   withheld tax; interest carries no withholding. All amounts are Decimal strings
-  in the portfolio's `base_currency`, converted via the **EUR hub** at each
+  in the portfolio's `base_currency`, converted via the EUR hub at each
   booking date's stored rate (the same mechanics as the valuation endpoint), with
   the original currency retained; `unconverted_count` counts bookings with no
   rate path (converted at parity), and `conversion_note` states the basis.

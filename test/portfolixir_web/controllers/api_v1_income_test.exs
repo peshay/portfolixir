@@ -41,7 +41,13 @@ defmodule PortfolixirWeb.ApiV1IncomeTest do
   test "returns the income report with Decimal strings", %{conn: conn} do
     {:ok, _} =
       Fx.upsert_many([
-        %{base_currency: "EUR", quote_currency: "USD", date: ~D[2025-04-01], rate: "1.25"}
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2025-04-01],
+          rate: "1.25",
+          source: "manual"
+        }
       ])
 
     world = WorldFixtures.base_world(currency: "EUR")
