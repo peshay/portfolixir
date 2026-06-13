@@ -44,16 +44,22 @@ defmodule PortfolixirWeb.NavigationTest do
   # so that the navigation promises only work that is actually planned.
   #
   # Acceptance criteria:
-  # - Watchlist, Dividends, and Returns & risk remain as disabled "Soon" entries.
+  # - Watchlist and Returns & risk remain as disabled "Soon" entries.
+  # - The income report (issue #331) is now a live "Income" link, no longer a
+  #   "Soon" entry.
   # - Savings plans, Grouped accounts, Asset allocation, Holdings, Performance,
   #   Currencies, and Settings are no longer rendered.
   # - The kept entries still expose the shared "Soon" pill.
   test "sidebar keeps only the issue-backed Soon entries and drops the rest", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
-    for kept_id <- ["nav-watchlist", "nav-dividends", "nav-returns-risk"] do
+    for kept_id <- ["nav-watchlist", "nav-returns-risk"] do
       assert has_element?(view, "##{kept_id}.is-disabled[aria-disabled='true']")
     end
+
+    # The income report shipped (#331): the entry is a live link, not "Soon".
+    assert has_element?(view, "#nav-dividends[href='/income']")
+    refute has_element?(view, "#nav-dividends.is-disabled")
 
     assert has_element?(view, "#nav-watchlist .nav-pill", "Soon")
 
