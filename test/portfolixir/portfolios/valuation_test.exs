@@ -1,10 +1,10 @@
 defmodule Portfolixir.Portfolios.ValuationTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
-  alias Portfolixir.Catalog.Quotes
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 0, create_security!: 1, buy!: 3, put_quote!: 3]
+
   alias Portfolixir.Ledger
-  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Valuation
 
   # User story:
@@ -25,76 +25,24 @@ defmodule Portfolixir.Portfolios.ValuationTest do
   #   unvalued (nil market value and weight) and does not break the total or
   #   the weights.
 
-  defp setup_world do
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+  defp equity!(name, ticker),
+    do: create_security!(name: name, ticker: ticker, asset_class: "equity")
 
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Local Cash",
-        currency_code: "EUR"
-      })
+  defp etf!(name, ticker), do: create_security!(name: name, ticker: ticker, asset_class: "etf")
 
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Main Depot"
-      })
-
-    %{portfolio: portfolio, cash: cash, depot: depot}
-  end
-
-  defp create_security!(name, ticker, asset_class) do
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: name,
-        ticker_symbol: ticker,
-        currency_code: "EUR",
-        asset_class: asset_class
-      })
-
-    security
-  end
-
-  defp buy!(%{portfolio: p, depot: d, cash: c}, security, qty, price) do
-    {:ok, tx} =
-      Ledger.create_transaction(%{
-        portfolio_id: p.id,
-        securities_account_id: d.id,
-        cash_account_id: c.id,
-        security_id: security.id,
-        type: "buy",
-        date: ~D[2026-01-02],
-        quantity: qty,
-        price: price,
-        fees: "0",
-        taxes: "0",
-        currency_code: "EUR"
-      })
-
-    tx
-  end
-
-  defp put_quote!(security, close) do
-    {:ok, _} =
-      Quotes.upsert_many(security.id, [
-        %{date: ~D[2026-06-01], close: close, source: "manual"}
-      ])
-  end
+  defp june_quote!(security, close), do: put_quote!(security, ~D[2026-06-01], close)
 
   test "prices held positions, totals them, and weights each share of the total" do
-    world = setup_world()
+    world = base_world()
 
-    equity = create_security!("Apple Inc.", "AAPL", "equity")
-    etf = create_security!("World ETF", "EUNL", "etf")
-    no_quote = create_security!("Quiet Co.", "QUIET", "equity")
-    no_price = create_security!("Delivered Co.", "DLVR", "equity")
+    equity = equity!("Apple Inc.", "AAPL")
+    etf = etf!("World ETF", "EUNL")
+    no_quote = equity!("Quiet Co.", "QUIET")
+    no_price = equity!("Delivered Co.", "DLVR")
 
-    buy!(world, equity, "10", "80")
-    buy!(world, etf, "5", "150")
-    buy!(world, no_quote, "10", "50")
+    buy!(world, equity, quantity: "10", price: "80")
+    buy!(world, etf, quantity: "5", price: "150")
+    buy!(world, no_quote, quantity: "10", price: "50")
 
     # Held via delivery only: no quote and no own trade price exists.
     {:ok, _} =
@@ -108,8 +56,8 @@ defmodule Portfolixir.Portfolios.ValuationTest do
         currency_code: "EUR"
       })
 
-    put_quote!(equity, "100")
-    put_quote!(etf, "200")
+    june_quote!(equity, "100")
+    june_quote!(etf, "200")
 
     valuation = Valuation.for_portfolio(world.portfolio.id)
 
@@ -152,9 +100,9 @@ defmodule Portfolixir.Portfolios.ValuationTest do
   end
 
   test "injects prices for tests without touching quote history" do
-    world = setup_world()
-    security = create_security!("Apple Inc.", "AAPL", "equity")
-    buy!(world, security, "4", "10")
+    world = base_world()
+    security = equity!("Apple Inc.", "AAPL")
+    buy!(world, security, quantity: "4", price: "10")
 
     valuation =
       Valuation.for_portfolio(world.portfolio.id, prices: %{security.id => Decimal.new("25")})

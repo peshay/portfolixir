@@ -1,6 +1,8 @@
 defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
   use Portfolixir.DataCase, async: true
 
+  import Portfolixir.WorldFixtures, only: [base_world: 0]
+
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -16,26 +18,7 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
   # - cash_quote is total_cash / total_with_cash.
   # - An empty portfolio (nothing to value) reports a cash_quote of 0.
 
-  defp setup_world do
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
-
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Local Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Main Depot"
-      })
-
-    %{portfolio: portfolio, cash: cash, depot: depot}
-  end
+  defp setup_world, do: base_world()
 
   test "reports the cash quote as cash over total including cash" do
     %{portfolio: portfolio, cash: cash, depot: depot} = setup_world()

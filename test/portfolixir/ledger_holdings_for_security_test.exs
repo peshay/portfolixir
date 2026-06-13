@@ -1,10 +1,10 @@
 defmodule Portfolixir.LedgerHoldingsForSecurityTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
+  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1]
+
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger
-  alias Portfolixir.Portfolios
 
   # User story:
   # As a local portfolio maintainer,
@@ -15,47 +15,24 @@ defmodule Portfolixir.LedgerHoldingsForSecurityTest do
   # holdings summary.
 
   defp setup_world do
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "Apple Inc.",
-        ticker_symbol: "AAPL",
-        currency_code: "USD",
-        asset_class: "equity"
-      })
+    security =
+      create_security!(name: "Apple Inc.", ticker: "AAPL", currency: "USD", asset_class: "equity")
 
-    {:ok, portfolio_a} =
-      Portfolios.create_portfolio(%{name: "Personal", base_currency_code: "USD"})
+    %{portfolio: portfolio_a, cash: cash_a, depot: depot_a} =
+      base_world(
+        name: "Personal",
+        currency: "USD",
+        cash_name: "Personal Cash",
+        depot_name: "Personal Depot"
+      )
 
-    {:ok, cash_a} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio_a.id,
-        name: "Personal Cash",
-        currency_code: "USD"
-      })
-
-    {:ok, depot_a} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio_a.id,
-        cash_account_id: cash_a.id,
-        name: "Personal Depot"
-      })
-
-    {:ok, portfolio_b} =
-      Portfolios.create_portfolio(%{name: "Joint", base_currency_code: "USD"})
-
-    {:ok, cash_b} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio_b.id,
-        name: "Joint Cash",
-        currency_code: "USD"
-      })
-
-    {:ok, depot_b} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio_b.id,
-        cash_account_id: cash_b.id,
-        name: "Joint Depot"
-      })
+    %{portfolio: portfolio_b, cash: cash_b, depot: depot_b} =
+      base_world(
+        name: "Joint",
+        currency: "USD",
+        cash_name: "Joint Cash",
+        depot_name: "Joint Depot"
+      )
 
     %{
       security: security,
