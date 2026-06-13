@@ -1227,7 +1227,10 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         Portfolios.create_cash_account(%{
           portfolio_id: portfolio.id,
           name: "Local Cash",
-          currency_code: "EUR"
+          # The security trades in USD and every booking below is USD, so the
+          # linked cash account is USD to keep the booking currency and the
+          # cash account consistent (issue #343).
+          currency_code: "USD"
         })
 
       {:ok, depot} =

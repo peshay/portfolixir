@@ -553,6 +553,7 @@ defmodule Portfolixir.Imports.Applier do
     else
       %Transaction{}
       |> Transaction.changeset(attrs)
+      |> Transaction.validate_cash_account_currency(cash_currencies_for(attrs))
       |> Repo.insert()
       |> case do
         {:ok, %Transaction{}} ->
@@ -561,6 +562,26 @@ defmodule Portfolixir.Imports.Applier do
         {:error, %Ecto.Changeset{} = changeset} ->
           {:error, %{row: entry.source_row, reason: {:insert_failed, changeset}}}
       end
+    end
+  end
+
+  # The currency consistency rule (issue #343) is enforced on every insert
+  # path; the applier inserts changesets directly rather than going through
+  # `Ledger.create_transaction/1`, so it loads the linked cash account
+  # currencies and runs the same pure validator. An auto-created cash
+  # account is created with the entry's currency, so only an existing
+  # account with a different currency can trip this.
+  defp cash_currencies_for(attrs) do
+    [attrs[:cash_account_id], attrs[:counter_cash_account_id]]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> case do
+      [] ->
+        %{}
+
+      ids ->
+        Repo.all(from(c in CashAccount, where: c.id in ^ids, select: {c.id, c.currency_code}))
+        |> Map.new()
     end
   end
 
