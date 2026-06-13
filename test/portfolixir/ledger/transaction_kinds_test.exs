@@ -5,6 +5,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
 
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios
 
   # User story:
   # As a local portfolio maintainer importing my Portfolio Performance

@@ -33,7 +33,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # - Without a portfolio the page points to creating one.
 
   defp seed_world do
-    %{portfolio: portfolio, cash: cash} =
+    %{portfolio: portfolio} =
       world = WorldFixtures.base_world(name: "Mein Depot", cash_name: "Giro", depot_name: "Depot")
 
     security = WorldFixtures.create_security!(name: "World ETF", ticker: "WLD")
