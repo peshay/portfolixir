@@ -191,6 +191,24 @@ their parent; because each parent already includes its children, the displayed
 actual percentages add up to 100% only across the leaves (plus unassigned),
 not across every level.
 
+Targets stay **loose on purpose**: you can set a weight at the top level and at
+sub-levels without the app forcing them to add up. To keep that freedom while
+making divergence visible, the Portfolio page shows two **advisory consistency
+hints** — read-only, never blocking a save:
+
+- A subtle line under each parent that has child targets reads
+  *subcategories: X% of Y%*, where X is the sum of the direct children's
+  targets and Y is the parent's own target. It turns **yellow** when X and Y
+  differ.
+- The allocation header shows *Σ target top level: Z%* — the sum of the
+  top-level categories' targets — highlighted when Z is not 100%.
+
+Equality is checked exactly (to the stored weight precision), so a hint only
+highlights when the numbers genuinely differ. The hints are guidance only; the
+target save path is unchanged and never rejects freely chosen weights. (A cash
+target is not yet part of this Σ; cash in the allocation is tracked
+separately.)
+
 ## Exchange Rates and Valuation
 
 Portfolios can hold securities and cash in several currencies. Exchange rates are
