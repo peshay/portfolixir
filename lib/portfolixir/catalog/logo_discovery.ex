@@ -147,7 +147,7 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
     if enabled?() do
       case Repo.get(Security, id) do
         %Security{} = security ->
-          if missing_logo?(security) and logo_candidate?(security) do
+          if should_discover?(security) do
             case LogoLookup.run(security, logo_lookup_opts()) do
               {:ok, _security} ->
                 :ok
@@ -172,8 +172,18 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
       Logger.warning("logo discovery exited for ##{id}: #{inspect({kind, reason})}")
   end
 
+  defp should_discover?(%Security{} = security) do
+    missing_logo?(security) and logo_candidate?(security) and not logo_locked?(security)
+  end
+
   defp missing_logo?(%Security{attributes: attributes}) do
     not is_binary(get_in(attributes || %{}, ["logo_path"]))
+  end
+
+  # A user who set a manual logo or explicitly removed one locks the security
+  # so background discovery leaves their choice untouched.
+  defp logo_locked?(%Security{attributes: attributes}) do
+    get_in(attributes || %{}, ["logo_locked"]) == true
   end
 
   defp logo_candidate?(%Security{} = security) do
@@ -184,6 +194,7 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
     Security
     |> where([s], is_nil(fragment("? ->> ?", s.attributes, ^"logo_path")))
     |> Repo.all()
+    |> Enum.reject(&logo_locked?/1)
     |> Enum.filter(&logo_candidate?/1)
     |> Enum.map(& &1.id)
   end

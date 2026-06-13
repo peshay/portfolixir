@@ -18,6 +18,7 @@ defmodule Portfolixir.Catalog.LogoLookup do
 
   require Logger
 
+  alias Portfolixir.Catalog.LogoLookup.CryptoMap
   alias Portfolixir.Catalog.LogoLookup.Wikipedia
   alias Portfolixir.Catalog.LogoStore
   alias Portfolixir.Catalog.Security
@@ -50,11 +51,14 @@ defmodule Portfolixir.Catalog.LogoLookup do
         opts
       )
       when is_binary(id) and id != "" do
-    case CoinGecko.fetch_image_url(id, opts) do
-      {:ok, url} -> {:ok, url, :coingecko}
-      :not_found -> :skip
-      {:error, reason} -> {:error, reason}
-    end
+    coingecko_by_id(id, opts)
+  end
+
+  # Cryptos imported from Portfolio Performance carry no CoinGecko `online_id`,
+  # so the ticker/name is mapped to a coin id and the logo is fetched from
+  # CoinGecko anyway. Unknown coins yield `:skip` without a network call.
+  def find_url(%Security{asset_class: "crypto"} = security, opts) do
+    crypto_by_mapping(security, opts)
   end
 
   def find_url(%Security{asset_class: class, name: name} = security, opts)
@@ -64,16 +68,53 @@ defmodule Portfolixir.Catalog.LogoLookup do
 
   def find_url(%Security{provider: "portfolio_performance", name: name} = security, opts)
       when is_binary(name) and name != "" do
-    wikipedia_by_security(security, opts)
+    case Security.effective_asset_class(security) do
+      "crypto" -> crypto_by_mapping(security, opts)
+      _ -> wikipedia_by_security(security, opts)
+    end
   end
 
   def find_url(%Security{}, _opts), do: :skip
 
+  defp crypto_by_mapping(%Security{} = security, opts) do
+    case CryptoMap.coin_id(security) do
+      nil -> :skip
+      id -> coingecko_by_id(id, opts)
+    end
+  end
+
+  defp coingecko_by_id(id, opts) do
+    case CoinGecko.fetch_image_url(id, opts) do
+      {:ok, url} -> {:ok, url, :coingecko}
+      :not_found -> :skip
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   defp wikipedia_by_security(%Security{} = security, opts) do
     case lookup_wikipedia_variants(wikipedia_title_candidates(security), opts) do
       {:ok, url} -> {:ok, url, :wikipedia}
-      :not_found -> :skip
+      :not_found -> wikipedia_by_search(security, opts)
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Last resort when none of the deterministic title variants resolved: search
+  # Wikipedia for the cleaned-up company/fund name. The search adapter only
+  # returns an image when a candidate passes conservative validation (entity
+  # looks like a company/fund and the title is similar to the query), so this
+  # does not make false matches like "Apple" -> fruit worse than today.
+  defp wikipedia_by_search(%Security{} = security, opts) do
+    case search_name(security) do
+      query when byte_size(query) >= 3 ->
+        case Wikipedia.search_logo(query, opts) do
+          {:ok, url} -> {:ok, url, :wikipedia}
+          :not_found -> :skip
+          {:error, reason} -> {:error, reason}
+        end
+
+      _ ->
+        :skip
     end
   end
 
@@ -131,9 +172,20 @@ defmodule Portfolixir.Catalog.LogoLookup do
         ["#{trimmed} (company)", trimmed, normalized]
       end
 
-    variants
+    # Broker-mangled names ("VESTAS WIND SYS. DK -,20") get a cleaned title as a
+    # low-priority extra shot, appended last so it never reorders the existing
+    # deterministic variants.
+    (variants ++ [broker_clean_title(trimmed)])
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.uniq()
+  end
+
+  defp broker_clean_title(trimmed) do
+    stripped = strip_broker_artifacts(trimmed)
+
+    if stripped != "" and String.downcase(stripped) != String.downcase(trimmed) do
+      normalize_wikipedia_company_title(stripped)
+    end
   end
 
   defp normalize_wikipedia_company_title(name) do
@@ -167,6 +219,38 @@ defmodule Portfolixir.Catalog.LogoLookup do
       name
     )
   end
+
+  # Strips broker-export noise so the company/fund name can be matched or
+  # searched: trailing nominal-value tokens ("DK -,20", "EO -,01"), "o.N."
+  # (ohne Nennwert), share-class words, and hyphen runs from spellings like
+  # "NOVO-NORDISK".
+  defp strip_broker_artifacts(name) do
+    name
+    |> String.replace(
+      ~r/\s+(EO|DK|SK|NK|HK|SF|YE|US|CT|GBP|EUR|USD|CHF|JPY|SEK|NOK|DKK|HKD)\s*-?\s*[,.]?\s*\d[\d.,\s]*$/i,
+      ""
+    )
+    |> String.replace(~r/\bo\.?\s*N\.?\s*$/i, "")
+    |> String.replace(~r/\b(Inhaber|Namens|Vorzugs|Stamm)[- ]?Akt(ien|\.)?\b/i, "")
+    |> String.replace(~r/\bRegistered\s+(Part\.?\s*)?Shares?\b/i, "")
+    |> String.replace(~r/\bReg\.?\s*Sh(s|ares?)?\b/i, "")
+    |> String.replace(~r/-+/, " ")
+    |> String.replace(~r/\s{2,}/, " ")
+    |> String.trim()
+    |> String.replace(~r/[\s.]+$/, "")
+    |> String.trim()
+  end
+
+  defp search_name(%Security{name: name}) when is_binary(name) do
+    trimmed = String.trim(name)
+
+    case strip_broker_artifacts(trimmed) do
+      "" -> trimmed
+      stripped -> stripped
+    end
+  end
+
+  defp search_name(_), do: ""
 
   @doc """
   Runs the full pipeline: discovery + download + persist.

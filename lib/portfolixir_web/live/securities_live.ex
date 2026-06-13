@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Securities.ColumnPicker
   alias PortfolixirWeb.Securities.FilterPopover
+  alias PortfolixirWeb.Securities.LogoOverrideDialog
   alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
 
@@ -65,6 +66,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
+     |> assign(:logo_dialog_security, nil)
      |> load_securities()}
   end
 
@@ -362,6 +364,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
       <%= if @delete_blocked do %>
         <RowContextMenu.delete_blocked_dialog security={@delete_blocked} />
+      <% end %>
+
+      <%= if @logo_dialog_security do %>
+        <LogoOverrideDialog.dialog security={@logo_dialog_security} />
       <% end %>
     </AppShell.shell>
     """
@@ -1961,6 +1967,32 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :delete_blocked, nil)}
   end
 
+  def handle_event("close_logo_dialog", _params, socket) do
+    {:noreply, assign(socket, :logo_dialog_security, nil)}
+  end
+
+  def handle_event("save_logo_url", %{"logo" => %{"url" => url}}, socket) do
+    case socket.assigns.logo_dialog_security do
+      %Security{} = sec -> store_logo_url(socket, sec, String.trim(to_string(url)))
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("remove_logo_override", %{"id" => id_str}, socket) do
+    with {id, ""} <- Integer.parse(to_string(id_str)),
+         %Security{} = sec <- Catalog.get_security(id),
+         {:ok, _updated} <- Catalog.remove_logo(sec) do
+      {:noreply,
+       socket
+       |> assign(:logo_dialog_security, nil)
+       |> assign(:flash_message, gettext("Logo removed"))
+       |> load_securities()
+       |> load_detail_data()}
+    else
+      _ -> {:noreply, assign(socket, :flash_message, gettext("Could not remove logo"))}
+    end
+  end
+
   def handle_event("row_action", %{"action" => action, "id" => id_str}, socket) do
     with {id, ""} <- Integer.parse(to_string(id_str)),
          %Security{} = sec <- Catalog.get_security(id) do
@@ -2082,7 +2114,37 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :flash_message, gettext("Looking up logo…"))}
   end
 
+  defp dispatch_row_action(socket, "manage_logo", %Security{} = sec) do
+    {:noreply, assign(socket, :logo_dialog_security, sec)}
+  end
+
   defp dispatch_row_action(socket, _action, _sec), do: {:noreply, socket}
+
+  defp refresh_logo_dialog(socket) do
+    case socket.assigns[:logo_dialog_security] do
+      %Security{id: id} -> assign(socket, :logo_dialog_security, Catalog.get_security(id))
+      _ -> socket
+    end
+  end
+
+  defp store_logo_url(socket, _sec, "") do
+    {:noreply, assign(socket, :flash_message, gettext("Enter an image URL first."))}
+  end
+
+  defp store_logo_url(socket, sec, url) do
+    flash =
+      case Catalog.set_logo_override(sec, url) do
+        {:ok, _updated} -> gettext("Logo updated")
+        {:error, _reason} -> gettext("Could not load that image")
+      end
+
+    {:noreply,
+     socket
+     |> assign(:logo_dialog_security, nil)
+     |> assign(:flash_message, flash)
+     |> load_securities()
+     |> load_detail_data()}
+  end
 
   defp safe_column_atom(key) when is_binary(key) do
     field = Enum.find(SecurityFields.all(), &(Atom.to_string(&1.key) == key))
@@ -2166,6 +2228,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:flash_message, flash)
+     |> refresh_logo_dialog()
      |> load_securities()
      |> load_detail_data()}
   end

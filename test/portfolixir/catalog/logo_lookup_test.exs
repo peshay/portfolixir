@@ -404,4 +404,130 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       assert {:error, _} = LogoLookup.find_url(security, req: stub)
     end
   end
+
+  describe "find_url/2 crypto mapping" do
+    # User story:
+    # As a maintainer importing cryptos from Portfolio Performance (provider
+    # "portfolio_performance", no CoinGecko online_id), I want their ticker
+    # mapped to a CoinGecko coin id so the logo is fetched anyway.
+    test "PP-imported crypto resolves its CoinGecko id from the ticker" do
+      stub =
+        plug_stub(fn conn ->
+          assert conn.request_path =~ "/coins/bitcoin"
+
+          json_response(conn, 200, %{"image" => %{"large" => "https://coingecko/btc.png"}})
+        end)
+
+      security = %Security{
+        provider: "portfolio_performance",
+        asset_class: "crypto",
+        ticker_symbol: "BTC",
+        name: "Bitcoin"
+      }
+
+      assert {:ok, "https://coingecko/btc.png", :coingecko} =
+               LogoLookup.find_url(security, req: stub)
+    end
+
+    test "crypto outside the curated map skips without a network call" do
+      stub = plug_stub(fn _conn -> flunk("must not hit the network for unknown coins") end)
+
+      security = %Security{
+        provider: "portfolio_performance",
+        asset_class: "crypto",
+        ticker_symbol: "ZZZ",
+        name: "Mystery Coin"
+      }
+
+      assert :skip = LogoLookup.find_url(security, req: stub)
+    end
+  end
+
+  describe "find_url/2 Wikipedia search fallback" do
+    # User story:
+    # As a maintainer with broker-spelled names ("GILEAD SCIENCES") that don't
+    # resolve to an exact Wikipedia title, I want a name search to recover the
+    # logo, without ever matching an unrelated topic.
+    test "searches Wikipedia when no deterministic title resolves" do
+      stub =
+        plug_stub(fn conn ->
+          cond do
+            conn.request_path =~ "/w/rest.php/v1/search/page" ->
+              json_response(conn, 200, %{
+                "pages" => [
+                  %{
+                    "key" => "Gilead_Sciences",
+                    "title" => "Gilead Sciences",
+                    "description" => "American biotechnology company"
+                  }
+                ]
+              })
+
+            conn.request_path =~ "/api/rest_v1/page/summary/Gilead_Sciences" ->
+              json_response(conn, 200, %{
+                "originalimage" => %{"source" => "https://wikipedia/Gilead.png"}
+              })
+
+            conn.request_path =~ "/api/rest_v1/page/summary/" ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+          end
+        end)
+
+      security = %Security{provider: "manual", asset_class: "equity", name: "GILEAD SCIENCES"}
+
+      assert {:ok, "https://wikipedia/Gilead.png", :wikipedia} =
+               LogoLookup.find_url(security, req: stub)
+    end
+
+    test "search ignores candidates that do not look like a company" do
+      stub =
+        plug_stub(fn conn ->
+          cond do
+            conn.request_path =~ "/w/rest.php/v1/search/page" ->
+              json_response(conn, 200, %{
+                "pages" => [
+                  %{
+                    "key" => "Pomegranate",
+                    "title" => "Pomegranate",
+                    "description" => "A fruit-bearing shrub"
+                  }
+                ]
+              })
+
+            conn.request_path =~ "/api/rest_v1/page/summary/" ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+          end
+        end)
+
+      security = %Security{provider: "manual", asset_class: "equity", name: "Pomegranate"}
+
+      assert :skip = LogoLookup.find_url(security, req: stub)
+    end
+
+    test "the search query strips broker nominal/share noise" do
+      {:ok, captured} = Agent.start_link(fn -> nil end)
+
+      stub =
+        plug_stub(fn conn ->
+          cond do
+            conn.request_path =~ "/w/rest.php/v1/search/page" ->
+              q = URI.decode_query(conn.query_string)["q"]
+              Agent.update(captured, fn _ -> q end)
+              json_response(conn, 200, %{"pages" => []})
+
+            conn.request_path =~ "/api/rest_v1/page/summary/" ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+          end
+        end)
+
+      security = %Security{
+        provider: "manual",
+        asset_class: "equity",
+        name: "VESTAS WIND SYS. DK -,20"
+      }
+
+      assert :skip = LogoLookup.find_url(security, req: stub)
+      assert Agent.get(captured, & &1) == "VESTAS WIND SYS"
+    end
+  end
 end
