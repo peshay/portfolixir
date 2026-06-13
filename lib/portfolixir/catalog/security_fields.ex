@@ -74,6 +74,10 @@ defmodule Portfolixir.Catalog.SecurityFields do
         label: "Retired",
         render_hint: :checkbox
       ),
+      build(:excluded_from_allocation_targets, :boolean, :column, :stammdaten,
+        label: "Excluded from allocation targets",
+        render_hint: :checkbox
+      ),
       # Derived from quote history (see Portfolixir.Catalog.Quotes.attach_metrics/1).
       # Not filterable in v1 — sorting client-side after enrichment.
       build(:latest_price, :decimal, :metric, :kurse,
