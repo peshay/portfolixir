@@ -884,8 +884,8 @@ const toolDefinitions: ToolDefinition[] = [
   ),
   tool(
     "portfolixir.portfolios.performance",
-    "Portfolio performance (TTWROR)",
-    "True time-weighted rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max), with external cash flows neutralised the Portfolio Performance way. Set series=true to include the daily valuation series.",
+    "Portfolio performance (TTWROR + IRR)",
+    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). Set series=true to include the daily valuation series.",
     performanceSchema,
     performanceZ
   )
