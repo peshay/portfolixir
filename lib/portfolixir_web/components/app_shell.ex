@@ -324,11 +324,14 @@ defmodule PortfolixirWeb.AppShell do
             disabled: true,
             icon: :chart_bar
           },
-          # "Soon": ships with open issue #331 (income report).
+          # The income report (issue #331). Labelled "Income" rather than
+          # "Dividends" because it also reports interest (PP INTEREST: account
+          # interest and bond coupons), not only dividends.
           %{
             id: "nav-dividends",
-            label: gettext("Dividends"),
-            disabled: true,
+            href: "/income",
+            label: gettext("Income"),
+            section: :income,
             icon: :coins
           }
         ]
@@ -351,6 +354,9 @@ defmodule PortfolixirWeb.AppShell do
 
   defp nav_current?(path, %{section: :imports}),
     do: String.starts_with?(path, "/imports")
+
+  defp nav_current?(path, %{section: :income}),
+    do: String.starts_with?(path, "/income")
 
   defp nav_current?(path, %{section: :classifications}),
     do: String.starts_with?(path, "/classifications")
