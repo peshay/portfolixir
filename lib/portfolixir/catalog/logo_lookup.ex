@@ -376,8 +376,6 @@ defmodule Portfolixir.Catalog.LogoLookup do
     end
   end
 
-  defp search_name(_), do: ""
-
   @doc """
   Runs the full pipeline: discovery + download + persist.
 
