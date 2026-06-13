@@ -1,0 +1,20 @@
+# Unicode allowlist for scripts/check_invisible_unicode.py
+#
+# This file pins legitimate exceptions to the invisible/bidi Unicode gate.
+# Format (one entry per line):
+#
+#     <path-glob> <U+XXXX> # written reason (mandatory)
+#
+#   * <path-glob> is matched against the repo-relative path with fnmatch
+#     (e.g. "test/fixtures/unicode/*" or "docs/foo.md").
+#   * <U+XXXX> is the specific allowed code point in hex.
+#   * Everything after "#" is the mandatory human reason. An entry without a
+#     reason is rejected as a configuration error.
+#
+# Blank lines and lines starting with "#" are comments.
+
+# The scanner's own negative-test fixtures deliberately embed forbidden
+# characters so the unit tests can prove the gate fires. They must never be
+# treated as a real violation by the repo-wide gate.
+test/fixtures/unicode/bidi_sample.txt U+202E # test fixture: deliberate RIGHT-TO-LEFT OVERRIDE used to verify the scanner flags Trojan Source bidi controls
+test/fixtures/unicode/zero_width_sample.txt U+200B # test fixture: deliberate ZERO WIDTH SPACE used to verify the scanner flags zero-width characters
