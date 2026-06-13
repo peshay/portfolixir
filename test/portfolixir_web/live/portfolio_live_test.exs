@@ -520,8 +520,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Core (880) is the whole steering basis now (Bitcoin's 400 is out): 100%.
     assert html =~ "100.0"
-    # Total still includes the excluded Bitcoin: 880 + 400 + 200 cash = 1,480.
-    assert html =~ "1,480.00"
+    # The Bitcoin buy is funded from cash (200 - 400 = -200), converting cash
+    # into a holding, so the total is unchanged: ETF 880 + BTC 400 - 200 cash =
+    # 1,080. The exclude flag changes only the steering basis, not the total.
+    assert html =~ "1,080.00"
   end
 
   test "points to portfolio creation when none exists", %{conn: conn} do
