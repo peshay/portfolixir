@@ -84,10 +84,16 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Sunburst slice in the category colour, legend and drift row.
     assert html =~ ~s(fill="#2563eb")
     assert html =~ "Core"
-    assert html =~ "100.0"
+    # Cash now joins the allocation's 100% basis (securities 880 + counting cash
+    # 200 = 1080), so Core's actual share is 880/1080 = 81.5%, not 100%, and the
+    # cash row reports the 200 EUR / 18.5% share (issue #335).
+    assert html =~ "81.5"
     assert html =~ "60.0"
-    # Drift: (0.6 - 1.0) * 880 = -352.
-    assert html =~ "-352.00"
+    # Drift: 0.6 * 1080 - 880 = -232.
+    assert html =~ "-232.00"
+    # The dedicated cash row in the drift table.
+    assert html =~ ~s(data-role="allocation-cash")
+    assert html =~ "Cash"
   end
 
   test "renders a nested sunburst and an indented, rolled-up child row", %{conn: conn} do
@@ -457,6 +463,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         excluded_from_allocation_targets: true
       })
 
+    # Fund the Bitcoin buy so the cash account stays at its 200 EUR balance (no
+    # overdraft) — counting cash then enters the allocation basis cleanly.
+    WorldFixtures.deposit!(world, "400", Date.add(Date.utc_today(), -6))
     buy!(world, bitcoin.id, "4", "100", Date.add(Date.utc_today(), -5))
     manual_quote!(bitcoin.id, "100")
 
@@ -467,12 +476,14 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert excluded =~ "Outside the steering basis"
     assert excluded =~ "400.00"
 
-    # Core (880) is the whole steering basis now (Bitcoin's 400 is out): 100%.
-    assert html =~ "100.0"
-    # The Bitcoin buy is funded from cash (200 - 400 = -200), converting cash
-    # into a holding, so the total is unchanged: ETF 880 + BTC 400 - 200 cash =
-    # 1,080. The exclude flag changes only the steering basis, not the total.
-    assert html =~ "1,080.00"
+    # The steering basis excludes Bitcoin (400) but now INCLUDES the counting
+    # cash (200): basis = ETF 880 + cash 200 = 1080, so Core is 880/1080 = 81.5%
+    # and the cash row is 200/1080 = 18.5% (issues #329 + #335 together).
+    assert html =~ "81.5"
+    assert html =~ ~s(data-role="allocation-cash")
+    # The total is unchanged by the exclude flag: ETF 880 + BTC 400 + cash 200
+    # (200 start + 400 deposit - 400 Bitcoin buy) = 1,480.
+    assert html =~ "1,480.00"
   end
 
   test "points to portfolio creation when none exists", %{conn: conn} do

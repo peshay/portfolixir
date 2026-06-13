@@ -86,6 +86,9 @@ defmodule PortfolixirWeb.ApiV1SecurityExcludeFlagTest do
     {:ok, _} = Classifications.assign_security(created["id"], classification.id, equities.id)
     {:ok, _} = Classifications.assign_security(bitcoin["id"], classification.id, crypto.id)
 
+    # Fund the buys so the cash account stays at zero: counting cash is 0, so the
+    # steering basis here is securities only (issue #335).
+    deposit!(world, "1000")
     buy!(world, created["id"], "6", "100")
     buy!(world, bitcoin["id"], "4", "100")
 
