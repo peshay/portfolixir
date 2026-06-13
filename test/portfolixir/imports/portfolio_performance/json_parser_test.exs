@@ -181,7 +181,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
           transactions: [
             %{
               type: "REMOVAL",
-              account: "Fidor",
+              account: "Girokonto",
               date: "0217-12-05",
               currency: "EUR",
               amount: 1346.47
