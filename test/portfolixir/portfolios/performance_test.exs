@@ -1,11 +1,12 @@
 defmodule Portfolixir.Portfolios.PerformanceTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
-  alias Portfolixir.Catalog.Quotes
+  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1, deposit!: 3]
+
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.WorldFixtures
 
   # User story:
   # As a local portfolio maintainer (and the LLM I connect over MCP),
@@ -30,65 +31,17 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
   #   the daily walk and switch periods without recomputing.
 
   defp setup_world do
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
-
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Depot"
-      })
-
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "Index Fund",
-        ticker_symbol: "IDX",
-        currency_code: "EUR",
-        asset_class: "etf"
-      })
-
-    %{portfolio: portfolio, cash: cash, depot: depot, security: security}
-  end
-
-  defp deposit!(world, amount, date) do
-    {:ok, _} =
-      Ledger.create_transaction(%{
-        portfolio_id: world.portfolio.id,
-        cash_account_id: world.cash.id,
-        type: "deposit",
-        date: date,
-        gross_amount: amount,
-        currency_code: "EUR"
-      })
+    world = base_world(name: "P", cash_name: "Cash", depot_name: "Depot")
+    security = create_security!(name: "Index Fund", ticker: "IDX", asset_class: "etf")
+    Map.put(world, :security, security)
   end
 
   defp buy!(world, qty, price, date) do
-    {:ok, _} =
-      Ledger.create_transaction(%{
-        portfolio_id: world.portfolio.id,
-        securities_account_id: world.depot.id,
-        cash_account_id: world.cash.id,
-        security_id: world.security.id,
-        type: "buy",
-        date: date,
-        quantity: qty,
-        price: price,
-        fees: "0",
-        taxes: "0",
-        currency_code: "EUR"
-      })
+    WorldFixtures.buy!(world, world.security, quantity: qty, price: price, date: date)
   end
 
   defp quote!(world, close, date) do
-    {:ok, _} =
-      Quotes.upsert_many(world.security.id, [%{date: date, close: close, source: "manual"}])
+    WorldFixtures.put_quote!(world.security, date, close)
   end
 
   defp rounded(decimal, places), do: Decimal.round(decimal, places)

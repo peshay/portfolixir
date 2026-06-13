@@ -1,7 +1,8 @@
 defmodule Portfolixir.Ledger.CashBalancesTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
+  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1]
+
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
@@ -11,38 +12,17 @@ defmodule Portfolixir.Ledger.CashBalancesTest do
   # so that I can reason about cash quote and floors without storing balances.
 
   defp setup_world do
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "Test Security",
-        currency_code: "EUR",
-        asset_class: "equity"
-      })
-
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Test Portfolio", base_currency_code: "EUR"})
-
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Depot"
-      })
+    world = base_world(name: "Test Portfolio", cash_name: "Cash", depot_name: "Depot")
+    security = create_security!(name: "Test Security", ticker: nil, asset_class: "equity")
 
     {:ok, cash_b} =
       Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
+        portfolio_id: world.portfolio.id,
         name: "Cash 2",
         currency_code: "EUR"
       })
 
-    %{security: security, portfolio: portfolio, cash: cash, depot: depot, cash_b: cash_b}
+    Map.merge(world, %{security: security, cash_b: cash_b})
   end
 
   defp create!(w, attrs) do

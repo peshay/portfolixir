@@ -1,7 +1,8 @@
 defmodule Portfolixir.Ledger.TransactionKindsTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
+  import Portfolixir.WorldFixtures, only: [base_world: 1, add_depot: 2, create_security!: 1]
+
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
@@ -24,53 +25,13 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
   # - `import_hash` is unique across the table when present.
 
   defp setup_world do
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "Test Security",
-        ticker_symbol: "TST",
-        currency_code: "EUR",
-        asset_class: "equity"
-      })
+    world = base_world(name: "Test Portfolio", cash_name: "Test Cash", depot_name: "Test Depot")
+    security = create_security!(name: "Test Security", ticker: "TST", asset_class: "equity")
 
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Test Portfolio", base_currency_code: "EUR"})
+    %{cash: cash_b, depot: depot_b} =
+      add_depot(world.portfolio, cash_name: "Test Cash 2", depot_name: "Test Depot 2")
 
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Test Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Test Depot"
-      })
-
-    {:ok, cash_b} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Test Cash 2",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot_b} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash_b.id,
-        name: "Test Depot 2"
-      })
-
-    %{
-      security: security,
-      portfolio: portfolio,
-      cash: cash,
-      depot: depot,
-      cash_b: cash_b,
-      depot_b: depot_b
-    }
+    Map.merge(world, %{security: security, cash_b: cash_b, depot_b: depot_b})
   end
 
   defp base(w) do
