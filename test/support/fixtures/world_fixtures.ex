@@ -202,6 +202,12 @@ defmodule Portfolixir.WorldFixtures do
     quotes
   end
 
+  @doc """
+  Resolves a security struct, struct id or string id to its id, for tests that
+  book non-trade kinds (e.g. dividends) against a security directly.
+  """
+  def security_id_for(security), do: security_id(security)
+
   defp security_id(%{id: id}), do: id
   defp security_id(id), do: id
 end

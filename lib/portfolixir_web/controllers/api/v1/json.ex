@@ -325,6 +325,63 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def income(income) do
+    %{
+      portfolio_id: income.portfolio_id,
+      base_currency: income.base_currency,
+      conversion_note: income.conversion_note,
+      unconverted_count: income.unconverted_count,
+      annual: Enum.map(income.annual, &income_year/1),
+      positions: Enum.map(income.positions, &income_position/1),
+      transactions: Enum.map(income.transactions, &income_transaction/1)
+    }
+  end
+
+  defp income_year(year) do
+    %{
+      year: year.year,
+      dividends_total: decimal(year.dividends_total),
+      interest_total: decimal(year.interest_total),
+      total: decimal(year.total),
+      months:
+        Map.new(year.months, fn {month, series} ->
+          {Integer.to_string(month),
+           %{dividends: decimal(series.dividends), interest: decimal(series.interest)}}
+        end)
+    }
+  end
+
+  defp income_position(position) do
+    %{
+      security_id: position.security_id,
+      security_name: position.security_name,
+      security_currency: position.security_currency,
+      gross: decimal(position.gross),
+      tax: decimal(position.tax),
+      net: decimal(position.net),
+      payment_count: position.payment_count,
+      last_payment: date(position.last_payment)
+    }
+  end
+
+  defp income_transaction(transaction) do
+    %{
+      kind: transaction.kind,
+      date: date(transaction.date),
+      year: transaction.year,
+      security_id: transaction.security_id,
+      security_name: transaction.security_name,
+      currency: transaction.currency,
+      native_gross: decimal(transaction.native_gross),
+      native_tax: decimal(transaction.native_tax),
+      native_net: decimal(transaction.native_net),
+      gross: decimal(transaction.gross),
+      tax: decimal(transaction.tax),
+      net: decimal(transaction.net),
+      converted: transaction.converted
+    }
+  end
+
   def performance(result, include_series? \\ false) do
     base = %{
       portfolio_id: result.portfolio_id,
