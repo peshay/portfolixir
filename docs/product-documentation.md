@@ -406,9 +406,18 @@ Quote sources in this iteration:
   Performance for stocks/ETFs/funds and CoinGecko for crypto.
 - New securities start background quote/logo enrichment when configured.
   Logo discovery runs through a single background queue, scans missing
-  logo candidates on startup, and is also triggered after imports.
+  logo candidates on startup, is also triggered after imports, and runs a
+  periodic rescan, so large imports fill in over time. The queue is throttled
+  (one request every few hundred ms) to stay under the upstream rate limits
+  instead of firing a burst that mostly fails. Per security, sources are tried in order: CoinGecko
+  (crypto), Wikipedia/Wikidata (equities/ETFs/funds), then companieslogo.com
+  as a fallback.
   ETF logo discovery tries known issuer names before the individual fund name
   (for example iShares, Vanguard, Lyxor, Amundi, Xtrackers, SPDR, Invesco).
+  Structured/leverage products (warrants, knock-outs, certificates) carry no
+  own logo but show their issuer's logo (BNP Paribas, Morgan Stanley, Société
+  Générale, …) when the issuer is recognizable. A manual override (image URL)
+  always wins and locks the security against background discovery.
   Government bonds use the `government_bond` asset class for ISIN country flag fallbacks.
 - Quote-history fetch uses Yahoo Finance for both. Two reasons:
   - PP's own API exposes only search, no price history.

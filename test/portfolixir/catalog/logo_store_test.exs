@@ -140,4 +140,133 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
 
     refute Repo.get!(Security, sec.id).attributes["logo_path"]
   end
+
+  # User story:
+  # As a maintainer whose security has no automatic logo (an exotic title),
+  # I want to paste an image URL and have it stick, so background discovery
+  # never overwrites my manual choice.
+  test "store_manual_override downloads, marks the source manual and locks",
+       %{tmp: tmp, security: sec} do
+    assert {:ok, updated} =
+             LogoStore.store_manual_override(
+               sec,
+               "https://example.test/logo.png",
+               req: png_stub(@png),
+               storage_dir: tmp
+             )
+
+    assert updated.attributes["logo_path"] == "/security_logos/#{sec.id}.png"
+    assert updated.attributes["logo_source"] == "manual"
+    assert updated.attributes["logo_locked"] == true
+    assert File.exists?(Path.join(tmp, "#{sec.id}.png"))
+  end
+
+  test "store_manual_bytes writes validated upload bytes and locks",
+       %{tmp: tmp, security: sec} do
+    assert {:ok, updated} =
+             LogoStore.store_manual_bytes(sec, @png, "image/png", storage_dir: tmp)
+
+    assert updated.attributes["logo_source"] == "manual"
+    assert updated.attributes["logo_locked"] == true
+    assert File.read!(Path.join(tmp, "#{sec.id}.png")) == @png
+  end
+
+  test "store_manual_bytes refuses content types outside the allowlist",
+       %{tmp: tmp, security: sec} do
+    assert {:error, :unsupported_content_type} =
+             LogoStore.store_manual_bytes(sec, "<html/>", "text/html", storage_dir: tmp)
+
+    refute Repo.get!(Security, sec.id).attributes["logo_locked"]
+  end
+
+  # User story:
+  # As a maintainer, I want to remove a wrong/unwanted logo and have the row
+  # fall back to initials, with discovery leaving it alone afterwards.
+  test "remove_logo deletes the file, clears the path/source and locks",
+       %{tmp: tmp, security: sec} do
+    {:ok, with_logo} =
+      LogoStore.download_and_store(
+        sec,
+        "https://example.test/logo.png",
+        :wikipedia,
+        req: png_stub(@png),
+        storage_dir: tmp
+      )
+
+    assert File.exists?(Path.join(tmp, "#{sec.id}.png"))
+
+    assert {:ok, removed} = LogoStore.remove_logo(with_logo, storage_dir: tmp)
+
+    refute removed.attributes["logo_path"]
+    refute removed.attributes["logo_source"]
+    assert removed.attributes["logo_locked"] == true
+    refute File.exists?(Path.join(tmp, "#{sec.id}.png"))
+    refute Repo.get!(Security, sec.id).attributes["logo_path"]
+  end
+
+  # User story:
+  # As a maintainer watching the securities list during a large import, I want
+  # freshly discovered logos to replace the initials placeholder without a page
+  # reload. LogoStore broadcasts on the "security_logos" topic after every
+  # store/remove so subscribed LiveViews can patch the affected row.
+  describe "PubSub broadcast" do
+    test "download_and_store broadcasts the updated security id",
+         %{tmp: tmp, security: sec} do
+      :ok = LogoStore.subscribe()
+
+      assert {:ok, _updated} =
+               LogoStore.download_and_store(
+                 sec,
+                 "https://example.test/logo.png",
+                 :wikipedia,
+                 req: png_stub(@png),
+                 storage_dir: tmp
+               )
+
+      assert_receive {:security_logo_updated, id}
+      assert id == sec.id
+    end
+
+    test "store_manual_bytes broadcasts", %{tmp: tmp, security: sec} do
+      :ok = LogoStore.subscribe()
+
+      assert {:ok, _updated} =
+               LogoStore.store_manual_bytes(sec, @png, "image/png", storage_dir: tmp)
+
+      assert_receive {:security_logo_updated, id}
+      assert id == sec.id
+    end
+
+    test "remove_logo broadcasts", %{tmp: tmp, security: sec} do
+      {:ok, with_logo} =
+        LogoStore.download_and_store(
+          sec,
+          "https://example.test/logo.png",
+          :wikipedia,
+          req: png_stub(@png),
+          storage_dir: tmp
+        )
+
+      :ok = LogoStore.subscribe()
+      assert {:ok, _removed} = LogoStore.remove_logo(with_logo, storage_dir: tmp)
+
+      assert_receive {:security_logo_updated, id}
+      assert id == sec.id
+    end
+
+    test "a failed download does not broadcast", %{tmp: tmp, security: sec} do
+      :ok = LogoStore.subscribe()
+
+      assert {:error, _} =
+               LogoStore.download_and_store(
+                 sec,
+                 "https://example.test/logo.png",
+                 :wikipedia,
+                 req: [plug: fn conn -> Plug.Conn.send_resp(conn, 503, "down") end],
+                 storage_dir: tmp
+               )
+
+      refute_receive {:security_logo_updated, _id}
+    end
+  end
 end
