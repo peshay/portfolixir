@@ -608,6 +608,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp build_view(tree, query, holdings, opts) do
     needle = query |> to_string() |> String.trim() |> String.downcase()
     current_only? = Keyword.fetch!(opts, :current_only)
+    # An active search always reveals matching securities so results stay
+    # visible, even ones the "current positions only" toggle would normally hide.
+    hide_sold? = current_only? and needle == ""
     securities = Catalog.list_securities()
     securities_by_id = Map.new(securities, &{&1.id, &1})
 
@@ -627,7 +630,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           |> Enum.map(decorate)
           |> Enum.sort_by(& &1.name)
 
-        {category_id, split_members(members, current_only?)}
+        {category_id, split_members(members, hide_sold?)}
       end)
 
     assigned_ids = MapSet.new(tree.assignments, & &1.security_id)

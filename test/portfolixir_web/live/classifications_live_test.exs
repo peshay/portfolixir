@@ -250,7 +250,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     buy!(world, sold, quantity: "5", price: "50", date: ~D[2026-01-02])
     sell!(world, sold, quantity: "5", price: "60", date: ~D[2026-01-03])
 
-    # Price the active position via a quote: 10 * 110 = 1.100,00 EUR.
+    # Price the active position via a quote: 10 * 110 = 1,100.00 EUR.
     put_quote!(active, ~D[2026-01-05], "110")
 
     {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
@@ -270,14 +270,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # quantity and EUR market value; the sold position is hidden.
     assert html =~ "Active ETF"
     assert html =~ "10"
-    assert html =~ "1.100,00"
+    assert html =~ "1,100.00"
     refute html =~ "Sold ETF"
 
     # The per-category counter discloses the hidden zero-holding security.
     assert html =~ ~r/data-role="without-holdings"[^>]*>\s*\+1/
 
     # The category aggregates the value and count of the VISIBLE securities.
-    assert html =~ ~r/data-role="category-value"[^>]*>\s*1\.100,00/
+    assert html =~ ~r/data-role="category-value"[^>]*>\s*1,100\.00/
     assert html =~ ~r/data-role="category-positions"[^>]*>\s*1\b/
 
     # Toggling "current positions only" OFF reveals the sold position too.
@@ -290,8 +290,8 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert shown =~ "Sold ETF"
 
     # With every position visible, the "+N without holdings" counter is gone and
-    # the category now aggregates both positions (1.100,00 + 0,00 sold = still
-    # 1.100,00 in value, but two visible positions).
+    # the category now aggregates both positions (1,100.00 + 0.00 sold = still
+    # 1,100.00 in value, but two visible positions).
     refute shown =~ ~r/data-role="without-holdings"/
     assert shown =~ ~r/data-role="category-positions"[^>]*>\s*2\b/
   end
