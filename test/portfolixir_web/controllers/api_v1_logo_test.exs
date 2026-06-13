@@ -121,4 +121,36 @@ defmodule PortfolixirWeb.ApiV1LogoTest do
     conn = conn |> api_conn() |> get("/api/v1/securities/0/logo")
     assert json_response(conn, 404) == %{"errors" => %{"detail" => "not found"}}
   end
+
+  test "POST .../logo/discover runs discovery and reports a result", %{
+    conn: conn,
+    security: security
+  } do
+    conn = conn |> api_conn() |> post("/api/v1/securities/#{security.id}/logo/discover")
+
+    assert %{"data" => %{"security_id" => _, "result" => result}} = json_response(conn, 200)
+    assert result in ["updated", "no_source", "failed"]
+  end
+
+  test "PUT with an unsupported image type is rejected", %{conn: conn, security: security} do
+    html_stub = [
+      plug: fn c ->
+        c
+        |> Plug.Conn.put_resp_content_type("text/html")
+        |> Plug.Conn.send_resp(200, "<html/>")
+      end
+    ]
+
+    Application.put_env(:portfolixir, :logo_discovery_opts, req: html_stub)
+
+    conn =
+      conn
+      |> api_conn()
+      |> put(
+        "/api/v1/securities/#{security.id}/logo",
+        Jason.encode!(%{"logo" => %{"url" => "https://example.test/page.html"}})
+      )
+
+    assert %{"errors" => %{"logo" => [_ | _]}} = json_response(conn, 422)
+  end
 end

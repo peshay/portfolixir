@@ -606,5 +606,63 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       refute LogoLookup.candidate?(%Security{asset_class: "warrant", name: "Generic Turbo"})
       refute LogoLookup.candidate?(%Security{asset_class: "government_bond", name: "Bund 2030"})
     end
+
+    test "equity falls back to companieslogo after a Wikipedia transport error" do
+      stub =
+        plug_stub(fn conn ->
+          cond do
+            conn.request_path =~ "/api/rest_v1/page/summary/" ->
+              Plug.Conn.send_resp(conn, 500, "boom")
+
+            conn.request_path =~ "/baozun/logo/" ->
+              conn
+              |> Plug.Conn.put_resp_content_type("text/html")
+              |> Plug.Conn.send_resp(
+                200,
+                ~s(<meta property="og:image" content="https://logos/baozun.png">)
+              )
+
+            true ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+          end
+        end)
+
+      security = %Security{provider: "manual", asset_class: "equity", name: "Baozun"}
+
+      assert {:ok, "https://logos/baozun.png", :companieslogo} =
+               LogoLookup.find_url(security, req: stub)
+    end
+
+    test "issuer logo falls back to companieslogo when the issuer page has no image" do
+      stub =
+        plug_stub(fn conn ->
+          cond do
+            conn.request_path =~ "/api/rest_v1/page/summary/" ->
+              conn
+              |> Plug.Conn.put_resp_content_type("application/json")
+              |> Plug.Conn.send_resp(200, Jason.encode!(%{"title" => "BNP"}))
+
+            conn.request_path =~ "/bnp-paribas/logo/" ->
+              conn
+              |> Plug.Conn.put_resp_content_type("text/html")
+              |> Plug.Conn.send_resp(
+                200,
+                ~s(<meta property="og:image" content="https://logos/bnp.png">)
+              )
+
+            true ->
+              Plug.Conn.send_resp(conn, 404, "not found")
+          end
+        end)
+
+      security = %Security{
+        provider: "manual",
+        asset_class: "warrant",
+        name: "BNP Paribas Turbo Call"
+      }
+
+      assert {:ok, "https://logos/bnp.png", :companieslogo} =
+               LogoLookup.find_url(security, req: stub)
+    end
   end
 end
