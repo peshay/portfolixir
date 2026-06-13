@@ -1,10 +1,10 @@
 defmodule Portfolixir.Portfolios.AllocationExcludeTest do
   use Portfolixir.DataCase, async: true
 
+  import Portfolixir.AllocationExcludeFixtures
+
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
-  alias Portfolixir.Ledger
-  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Valuation
 
@@ -23,42 +23,6 @@ defmodule Portfolixir.Portfolios.AllocationExcludeTest do
   #   position is excluded — the flag only affects the allocation view.
   # - The excluded value appears in a separately labeled `excluded` block.
 
-  defp setup_world do
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
-
-    {:ok, cash} =
-      Portfolios.create_cash_account(%{
-        portfolio_id: portfolio.id,
-        name: "Local Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, depot} =
-      Portfolios.create_securities_account(%{
-        portfolio_id: portfolio.id,
-        cash_account_id: cash.id,
-        name: "Main Depot"
-      })
-
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
-
-    {:ok, equities} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Equities"})
-
-    {:ok, crypto} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Crypto"})
-
-    %{
-      portfolio: portfolio,
-      cash: cash,
-      depot: depot,
-      classification: classification,
-      equities: equities,
-      crypto: crypto
-    }
-  end
-
   defp create_security!(name, ticker, asset_class) do
     {:ok, security} =
       Catalog.create_security(%{
@@ -71,29 +35,15 @@ defmodule Portfolixir.Portfolios.AllocationExcludeTest do
     security
   end
 
-  defp buy!(%{portfolio: p, depot: d, cash: c}, security, qty, price) do
-    {:ok, _tx} =
-      Ledger.create_transaction(%{
-        portfolio_id: p.id,
-        securities_account_id: d.id,
-        cash_account_id: c.id,
-        security_id: security.id,
-        type: "buy",
-        date: ~D[2026-01-02],
-        quantity: qty,
-        price: price,
-        fees: "0",
-        taxes: "0",
-        currency_code: "EUR"
-      })
-  end
-
   defp fetch_category(allocation, category_id) do
     Enum.find(allocation.categories, &(&1.category_id == category_id))
   end
 
-  test "excludes a flagged Bitcoin position from the steering basis while keeping the total" do
-    world = setup_world()
+  # Seeds the equity + Bitcoin positions (600 EUR equity, 400 EUR Bitcoin) used
+  # by every test here and returns the world plus the two securities and the
+  # price map keyed by their ids.
+  defp seed_positions do
+    world = exclude_world()
     %{classification: classification, equities: equities, crypto: crypto} = world
 
     equity = create_security!("Core Equity", "CORE", "equity")
@@ -103,10 +53,17 @@ defmodule Portfolixir.Portfolios.AllocationExcludeTest do
     {:ok, _} = Classifications.assign_security(bitcoin.id, classification.id, crypto.id)
 
     # 600 EUR equity + 400 EUR Bitcoin = 1000 EUR valued positions.
-    buy!(world, equity, "6", "100")
-    buy!(world, bitcoin, "4", "100")
+    buy!(world, equity.id, "6", "100")
+    buy!(world, bitcoin.id, "4", "100")
 
     prices = %{equity.id => Decimal.new("100"), bitcoin.id => Decimal.new("100")}
+
+    %{world: world, equity: equity, bitcoin: bitcoin, prices: prices}
+  end
+
+  test "excludes a flagged Bitcoin position from the steering basis while keeping the total" do
+    %{world: world, bitcoin: bitcoin, prices: prices} = seed_positions()
+    %{classification: classification, equities: equities, crypto: crypto} = world
     opts = [prices: prices]
 
     {:ok, before} = Allocation.for_portfolio(world.portfolio.id, classification.id, opts)
@@ -143,19 +100,7 @@ defmodule Portfolixir.Portfolios.AllocationExcludeTest do
   end
 
   test "the exclusion flag does not change the valuation total or performance basis" do
-    world = setup_world()
-    %{classification: classification, equities: equities, crypto: crypto} = world
-
-    equity = create_security!("Core Equity", "CORE", "equity")
-    bitcoin = create_security!("Bitcoin", "BTC", "crypto")
-
-    {:ok, _} = Classifications.assign_security(equity.id, classification.id, equities.id)
-    {:ok, _} = Classifications.assign_security(bitcoin.id, classification.id, crypto.id)
-
-    buy!(world, equity, "6", "100")
-    buy!(world, bitcoin, "4", "100")
-
-    prices = %{equity.id => Decimal.new("100"), bitcoin.id => Decimal.new("100")}
+    %{world: world, bitcoin: bitcoin, prices: prices} = seed_positions()
 
     valuation_before = Valuation.for_portfolio(world.portfolio.id, prices: prices)
 

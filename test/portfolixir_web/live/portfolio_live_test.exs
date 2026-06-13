@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
+  import Portfolixir.AllocationExcludeFixtures, only: [buy!: 5, manual_quote!: 2]
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
@@ -507,23 +508,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         excluded_from_allocation_targets: true
       })
 
-    {:ok, _} =
-      Ledger.create_transaction(%{
-        portfolio_id: world.portfolio.id,
-        securities_account_id: world.depot.id,
-        cash_account_id: world.cash.id,
-        security_id: bitcoin.id,
-        type: "buy",
-        date: Date.add(Date.utc_today(), -5),
-        quantity: "4",
-        price: "100",
-        fees: "0",
-        taxes: "0",
-        currency_code: "EUR"
-      })
-
-    {:ok, _} =
-      Quotes.upsert_many(bitcoin.id, [%{date: Date.utc_today(), close: "100", source: "manual"}])
+    buy!(world, bitcoin.id, "4", "100", Date.add(Date.utc_today(), -5))
+    manual_quote!(bitcoin.id, "100")
 
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
