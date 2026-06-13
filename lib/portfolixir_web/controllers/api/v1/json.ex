@@ -312,6 +312,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       end_value: decimal(result.end_value),
       net_external_flows: decimal(result.net_external_flows),
       ttwror: decimal(result.ttwror),
+      irr: decimal(result.irr),
       suspect_dates: Enum.map(result.suspect_dates, &date/1)
     }
 
