@@ -1,7 +1,8 @@
 defmodule PortfolixirWeb.PortfolioLive do
   @moduledoc """
-  Portfolio overview: live value and cash quote, TTWROR over selectable
-  periods, the value-weighted allocation donut with SOLL/IST drift, and a
+  Portfolio overview: live value and cash quote, TTWROR and money-weighted
+  IRR over selectable periods, the value-weighted allocation donut with
+  SOLL/IST drift, and a
   set-balance form for cash snapshots (ADR-0009/0010). All figures come from
   the same derived reads the API exposes.
 
@@ -177,6 +178,14 @@ defmodule PortfolixirWeb.PortfolioLive do
           <article id="kpi-ttwror" class="stat">
             <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
             <strong :if={@performance}><%= Format.percent(@performance.ttwror) %>%</strong>
+            <strong :if={is_nil(@performance)}>…</strong>
+          </article>
+          <article id="kpi-irr" class="stat">
+            <span><%= gettext("IRR") %> (<%= period_label(@period) %>)</span>
+            <strong :if={@performance && @performance.irr}>
+              <%= Format.percent(@performance.irr) %>%
+            </strong>
+            <strong :if={@performance && is_nil(@performance.irr)}>—</strong>
             <strong :if={is_nil(@performance)}>…</strong>
           </article>
         </section>

@@ -48,6 +48,7 @@ defmodule Portfolixir.Portfolios.Performance do
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Performance.IRR
 
   @zero Decimal.new("0")
   @one Decimal.new("1")
@@ -66,8 +67,9 @@ defmodule Portfolixir.Portfolios.Performance do
     * `:today` — end date override (for tests); defaults to `Date.utc_today()`.
 
   Returns `{:ok, result}` or `{:error, :invalid_period}`. The result carries
-  `ttwror`, `start_value`/`end_value`, `net_external_flows`, and the daily
-  `series` of `%{date, value, flow, cumulative_ttwror}` for the period.
+  `ttwror`, the money-weighted `irr` (`Decimal.t() | nil`),
+  `start_value`/`end_value`, `net_external_flows`, and the daily `series` of
+  `%{date, value, flow, cumulative_ttwror}` for the period.
   """
   def for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     period = Keyword.get(opts, :period, "max")
@@ -136,7 +138,7 @@ defmodule Portfolixir.Portfolios.Performance do
 
     series = Enum.reverse(points)
 
-    %{
+    summary = %{
       portfolio_id: analysis.portfolio_id,
       period: period,
       base_currency: analysis.base_currency,
@@ -149,6 +151,8 @@ defmodule Portfolixir.Portfolios.Performance do
       suspect_dates: analysis.suspect_dates,
       series: series
     }
+
+    Map.put(summary, :irr, IRR.for_summary(summary))
   end
 
   defp empty_analysis(portfolio_id, today, base, suspects) do
@@ -173,6 +177,7 @@ defmodule Portfolixir.Portfolios.Performance do
       end_value: @zero,
       net_external_flows: @zero,
       ttwror: @zero,
+      irr: nil,
       suspect_dates: analysis.suspect_dates,
       series: []
     }

@@ -118,6 +118,46 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
 
     last = List.last(result.series)
     assert Decimal.equal?(last.cumulative_ttwror, result.ttwror)
+
+    # The money-weighted return (IRR) is solved from the same dated flows and
+    # terminal value; with two contributions and a gain it is a positive rate.
+    assert %Decimal{} = result.irr
+    assert Decimal.compare(result.irr, Decimal.new("0")) == :gt
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want a money-weighted return (IRR) next to the TTWROR,
+  # so that I can also judge the timing of my own deposits and withdrawals.
+  #
+  # Acceptance criteria:
+  # - A single deposit invested for a full year that ends 10% higher yields an
+  #   IRR of 10%, computed from the same series and external flows.
+  # - A portfolio with no flows to weight has no IRR (nil), never a crash.
+  test "computes a money-weighted IRR over a full-year holding" do
+    world = setup_world()
+
+    start = ~D[2025-06-13]
+    today = ~D[2026-06-13]
+
+    deposit!(world, "1000", start)
+    buy!(world, "10", "100", start)
+    quote!(world, "100", start)
+    quote!(world, "110", today)
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: today)
+
+    assert Decimal.equal?(result.end_value, Decimal.new("1100"))
+    assert rounded(result.irr, 6) |> Decimal.equal?(Decimal.new("0.1"))
+  end
+
+  test "has no IRR for an empty portfolio" do
+    world = setup_world()
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-20])
+
+    assert result.series == []
+    assert result.irr == nil
   end
 
   test "a balance snapshot's jump is an external flow, not return" do

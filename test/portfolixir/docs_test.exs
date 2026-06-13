@@ -269,6 +269,24 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
+  # As an API or MCP client,
+  # I want the integration docs to document the money-weighted IRR field on the
+  # performance endpoint,
+  # so that I can read and interpret it without inspecting source.
+  #
+  # Acceptance criteria:
+  # - The API and MCP page documents the irr field, its money-weighted meaning,
+  #   that it is a Decimal string or null, and when no rate exists.
+  test "docs document the money-weighted IRR on the performance endpoint" do
+    api_docs = File.read!("docs/integration/api-and-mcp.md")
+    normalized_api_docs = String.replace(api_docs, ~r/\s+/, " ")
+
+    assert api_docs =~ "`irr`"
+    assert normalized_api_docs =~ "money-weighted return"
+    assert normalized_api_docs =~ "Decimal string, or `null` when no rate exists"
+  end
+
+  # User story:
   # As a local portfolio maintainer configuring quote history,
   # I want the docs to state the researched boundaries for bonds and leveraged products,
   # so that I know which existing providers may help without expecting new adapters or API keys.

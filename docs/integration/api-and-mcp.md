@@ -234,8 +234,14 @@ Example account payloads:
   `ttwror`, `start_date`/`end_date`, `start_value`/`end_value`,
   `net_external_flows` as Decimal strings, and `suspect_dates` — dates of
   bookings older than 1970 (import typos) whose effects were applied on the
-  first plausible day. Securities without quotes are priced at the latest own
-  trade price (see the valuation endpoint). Unknown portfolios return
+  first plausible day. Alongside `ttwror` the response also carries the
+  **money-weighted return** `irr` — the single annualised rate that discounts
+  the period's dated external flows and terminal value back to zero
+  (`NPV(r) = Σ cf/(1+r)^(days/365) = 0`), the figure Portfolio Performance
+  shows next to TTWROR. It is a Decimal string, or `null` when no rate exists
+  (fewer than two flows, all flows the same sign, or the solver does not
+  converge). Securities without quotes are priced at the latest own trade
+  price (see the valuation endpoint). Unknown portfolios return
   `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
   target weights (the SOLL side of the allocation). Optional `classification_id`
