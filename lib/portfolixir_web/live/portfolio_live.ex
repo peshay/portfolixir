@@ -239,6 +239,13 @@ defmodule PortfolixirWeb.PortfolioLive do
           </header>
 
           <%= if @allocation do %>
+            <p
+              class={["hint", "target-sum", target_mismatch?(@allocation.top_level_target_sum, 1) && "is-target-mismatch"]}
+              data-role="target-sum-top-level"
+            >
+              <%= gettext("Σ target top level:") %>
+              <%= Format.percent(@allocation.top_level_target_sum) %>%
+            </p>
             <div class="donut-wrap">
               <div class="sunburst-pane">
                 <.allocation_sunburst segments={sunburst_segments(@allocation)} />
@@ -287,6 +294,15 @@ defmodule PortfolixirWeb.PortfolioLive do
                       >
                       </span>
                       <%= row.name %>
+                      <span
+                        :if={row.child_target_sum}
+                        class={["hint", "target-consistency", target_mismatch?(row.child_target_sum, row.target_weight) && "is-target-mismatch"]}
+                        data-role="target-consistency-hint"
+                      >
+                        <%= gettext("subcategories:") %>
+                        <%= Format.percent(row.child_target_sum) %>% <%= gettext("of") %>
+                        <%= Format.percent(row.target_weight) %>%
+                      </span>
                     </td>
                     <td><%= Format.money(row.market_value) %></td>
                     <td><%= Format.percent(row.actual_weight) %>%</td>
@@ -772,6 +788,18 @@ defmodule PortfolixirWeb.PortfolioLive do
             }
           ]
     end
+  end
+
+  # Advisory target-consistency check: the children sum vs. the parent target,
+  # or the top-level sum vs. 100% (`1`). Exact `Decimal.equal?/2` comparison —
+  # a free-form weight is only flagged when it does not match to the stored
+  # precision. Display-only; it never blocks saving targets.
+  defp target_mismatch?(sum, %Decimal{} = expected) do
+    not Decimal.equal?(sum, expected)
+  end
+
+  defp target_mismatch?(sum, expected) when is_integer(expected) do
+    not Decimal.equal?(sum, Decimal.new(expected))
   end
 
   # -- performance chart geometry ----------------------------------------------
