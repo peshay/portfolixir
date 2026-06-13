@@ -127,7 +127,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     test "rejects bookings with implausible dates (before 1900) per row" do
       body = """
       Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
-      0217-12-05 00:00:00;Entnahme;;;;1.346,47;;;1.346,47;Fidor;;;
+      0217-12-05 00:00:00;Entnahme;;;;1.346,47;;;1.346,47;Girokonto;;;
       """
 
       assert {:ok, %Preview{entries: [], errors: errors}} = CsvParser.parse(body)
