@@ -393,6 +393,12 @@ The detail pane shows a server-rendered SVG price chart with:
   category to expand it); searching expands the matching categories. Long
   security names are truncated to one line with the full name on hover, and the
   ticker is shown next to the name.
+- The sidebar lists only routes that exist plus the few planned features that
+  have an open issue behind them. Three entries are shown disabled with a "Soon"
+  pill: **Watchlist**, **Dividends**, and **Returns & risk**. Allocation,
+  holdings, and performance are not separate menu entries — the **Portfolio**
+  page already covers asset allocation (the sunburst), holdings, and TTWROR
+  performance.
 - Theme: system, light, and dark modes are supported.
 - Accent: violet, teal, and coral logo accent choices are supported.
 - Language: first load follows the browser language when it is English or
@@ -409,3 +415,12 @@ The detail pane shows a server-rendered SVG price chart with:
 - No broker PDFs, binary Portfolio Performance workspaces, bank sync, broker
   sync, or document intake beyond the Portfolio Performance CSV/JSON v1
   transaction export workflow.
+
+Savings plans are deliberately not supported. A savings plan only describes an
+*intended* recurring contribution, and its target values inevitably diverge from
+the real executions a broker performs — typically by cent-level differences in
+price, fee, and quantity. Portfolixir treats the imported, real transactions as
+the single source of truth for holdings and performance, so modelling separate
+savings-plan targets would add a parallel set of numbers that never quite
+matches reality. Recurring contributions are therefore captured simply as the
+transactions they actually produced.

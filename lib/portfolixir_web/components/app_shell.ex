@@ -274,6 +274,7 @@ defmodule PortfolixirWeb.AppShell do
             section: :securities,
             icon: :layers
           },
+          # "Soon": covered by open issue #320 (watchlist).
           %{
             id: "nav-watchlist",
             label: gettext("Watchlist"),
@@ -291,18 +292,6 @@ defmodule PortfolixirWeb.AppShell do
             label: gettext("Portfolios"),
             section: :portfolios,
             icon: :briefcase
-          },
-          %{
-            id: "nav-grouped-accounts",
-            label: gettext("Grouped accounts"),
-            disabled: true,
-            icon: :folder
-          },
-          %{
-            id: "nav-savings-plans",
-            label: gettext("Savings plans"),
-            disabled: true,
-            icon: :calc
           },
           %{
             id: "nav-transactions",
@@ -328,30 +317,14 @@ defmodule PortfolixirWeb.AppShell do
       %{
         title: gettext("Reports"),
         items: [
-          %{
-            id: "nav-asset-allocation",
-            label: gettext("Asset allocation"),
-            disabled: true,
-            icon: :pie
-          },
-          %{
-            id: "nav-holdings",
-            label: gettext("Holdings"),
-            disabled: true,
-            icon: :briefcase
-          },
-          %{
-            id: "nav-performance",
-            label: gettext("Performance"),
-            disabled: true,
-            icon: :chart_line
-          },
+          # "Soon": ships with open issue #316 (IRR returns and risk).
           %{
             id: "nav-returns-risk",
             label: gettext("Returns & risk"),
             disabled: true,
             icon: :chart_bar
           },
+          # "Soon": ships with open issue #331 (income report).
           %{
             id: "nav-dividends",
             label: gettext("Dividends"),
@@ -364,23 +337,6 @@ defmodule PortfolixirWeb.AppShell do
         title: gettext("Classifications"),
         kind: :classifications,
         items: []
-      },
-      %{
-        title: gettext("General"),
-        items: [
-          %{
-            id: "nav-currencies",
-            label: gettext("Currencies"),
-            disabled: true,
-            icon: :coins
-          },
-          %{
-            id: "nav-settings",
-            label: gettext("Settings"),
-            disabled: true,
-            icon: :settings
-          }
-        ]
       }
     ]
   end
