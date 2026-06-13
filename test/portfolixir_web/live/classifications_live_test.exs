@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
   import Phoenix.LiveViewTest
 
+  import Portfolixir.WorldFixtures
+
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
 
@@ -221,6 +223,77 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     reloaded = Classifications.get_category(category.id)
     assert reloaded.name == "Core holdings"
     assert reloaded.description == "Buy and hold"
+  end
+
+  # User story:
+  # As a portfolio maintainer reviewing a classification tree,
+  # I want each assigned security to show its current quantity and market value
+  # and, by default, to hide securities I no longer hold (with a per-category
+  # "+N without holdings" counter), so legacy/sold positions don't clutter the
+  # view and the category totals reflect what I actually own.
+  #
+  # Acceptance criteria:
+  # - Each assigned security shows current quantity (summed across all
+  #   securities accounts) and current EUR market value.
+  # - A "current positions only" toggle (default ON) hides zero-holding
+  #   securities; a per-category counter shows "+N without holdings".
+  # - Category rows aggregate value and position count of the VISIBLE
+  #   securities.
+  test "shows holdings/value, hides sold positions by default, toggles to show all", %{conn: conn} do
+    world = base_world()
+    active = create_security!(name: "Active ETF", ticker: "ACT", currency: "EUR")
+    sold = create_security!(name: "Sold ETF", ticker: "SLD", currency: "EUR")
+
+    # Fund the cash account, then build one active and one fully sold position.
+    deposit!(world, "10000", ~D[2026-01-01])
+    buy!(world, active, quantity: "10", price: "100", date: ~D[2026-01-02])
+    buy!(world, sold, quantity: "5", price: "50", date: ~D[2026-01-02])
+    sell!(world, sold, quantity: "5", price: "60", date: ~D[2026-01-03])
+
+    # Price the active position via a quote: 10 * 110 = 1.100,00 EUR.
+    put_quote!(active, ~D[2026-01-05], "110")
+
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+
+    {:ok, _} = Classifications.assign_security(active.id, classification.id, category.id)
+    {:ok, _} = Classifications.assign_security(sold.id, classification.id, category.id)
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    # The async holdings load completes; render the up-to-date DOM.
+    html = render(view)
+
+    # Default (current positions only ON): the active position is shown with its
+    # quantity and EUR market value; the sold position is hidden.
+    assert html =~ "Active ETF"
+    assert html =~ "10"
+    assert html =~ "1.100,00"
+    refute html =~ "Sold ETF"
+
+    # The per-category counter discloses the hidden zero-holding security.
+    assert html =~ ~r/data-role="without-holdings"[^>]*>\s*\+1/
+
+    # The category aggregates the value and count of the VISIBLE securities.
+    assert html =~ ~r/data-role="category-value"[^>]*>\s*1\.100,00/
+    assert html =~ ~r/data-role="category-positions"[^>]*>\s*1\b/
+
+    # Toggling "current positions only" OFF reveals the sold position too.
+    shown =
+      view
+      |> element("form[phx-change='toggle_current_only']")
+      |> render_change(%{"current_only" => "false"})
+
+    assert shown =~ "Active ETF"
+    assert shown =~ "Sold ETF"
+
+    # With every position visible, the "+N without holdings" counter is gone and
+    # the category now aggregates both positions (1.100,00 + 0,00 sold = still
+    # 1.100,00 in value, but two visible positions).
+    refute shown =~ ~r/data-role="without-holdings"/
+    assert shown =~ ~r/data-role="category-positions"[^>]*>\s*2\b/
   end
 
   defp assignments(classification_id) do
