@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UX Design Validation: portfolixir</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    --muted: #78716c;
+
+    --verdict-strong: #16a34a;
+    --verdict-adequate: #65a30d;
+    --verdict-thin: #d97706;
+    --verdict-broken: #dc2626;
+
+    --sev-low: #64748b;
+    --sev-medium: #ca8a04;
+    --sev-high: #ea580c;
+    --sev-critical: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  header.report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .title h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .title .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .synthesis {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--muted);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 24px;
+    font-size: 15.5px;
+  }
+  .synthesis p { margin: 0 0 10px; }
+  .synthesis p:last-child { margin-bottom: 0; }
+
+  .dimension-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .dim-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .dim-card .dim-name { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .dim-card .dim-verdict { font-size: 14px; font-weight: 600; }
+
+  section.dimension, section.reviewer-section { margin-bottom: 14px; }
+  section.dimension details, section.reviewer-section details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  section summary {
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section summary::-webkit-details-marker { display: none; }
+  section summary::before {
+    content: "▸";
+    display: inline-block;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+  section details[open] summary::before { transform: rotate(90deg); }
+  section summary h2 {
+    display: inline;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    flex: 1;
+  }
+  .verdict-pill {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: white;
+  }
+  .verdict-strong { background: var(--verdict-strong); }
+  .verdict-adequate { background: var(--verdict-adequate); }
+  .verdict-thin { background: var(--verdict-thin); }
+  .verdict-broken { background: var(--verdict-broken); }
+
+  .dim-body { padding: 4px 20px 18px; }
+  .dim-judgment { color: var(--text); font-size: 14.5px; }
+  .dim-judgment p { margin: 0 0 10px; }
+
+  .findings-list { padding: 0 20px 4px; }
+  article.finding {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  article.finding:first-child { border-top: none; }
+  article.finding header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .badge {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .badge-sev-low { background: rgba(100, 116, 139, 0.12); color: var(--sev-low); }
+  .badge-sev-medium { background: rgba(202, 138, 4, 0.14); color: var(--sev-medium); }
+  .badge-sev-high { background: rgba(234, 88, 12, 0.14); color: var(--sev-high); }
+  .badge-sev-critical { background: rgba(220, 38, 38, 0.14); color: var(--sev-critical); }
+  .badge-disposition { background: rgba(22, 163, 74, 0.12); color: var(--verdict-strong); text-transform: none; letter-spacing: 0; }
+  .finding-title { margin: 0; font-size: 15px; font-weight: 500; flex: 1; min-width: 200px; }
+  .finding-location { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--muted); }
+  .finding-note, .finding-fix { margin-top: 6px; font-size: 14px; }
+  .finding-fix strong { color: var(--muted); font-weight: 500; }
+
+  .reviewer-source {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  .mechanical {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 24px;
+    font-size: 14px;
+  }
+  .mechanical h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .mechanical ul { margin: 0; padding-left: 20px; }
+  .mechanical li { margin-bottom: 4px; color: var(--text); }
+
+  footer.report-footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  footer .meta { display: flex; gap: 24px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+  <div class="container">
+
+    <header class="report-header">
+      <div class="title">
+        <h1>portfolixir — UX Design Validation Report</h1>
+        <div class="subtitle">_bmad-output/planning-artifacts/ux-designs/ux-portfolixir-2026-06-12/DESIGN.md · EXPERIENCE.md</div>
+      </div>
+    </header>
+
+    <div class="synthesis">
+      <p>A disciplined, extraction-grounded spine pair: every token reference in both files resolves, flow names mirror the PRD verbatim, scope exclusions are stated where a consumer will look, and the decision log's binding choices (paradigm, motion, touch targets, hidden "Soon" items, €/% hero toggle) are all committed in the spine. Two gaps would actually block a downstream consumer: the Hero — the centerpiece of the redesigned dashboard — has a behavioral contract but no visual spec in DESIGN.md.Components, and no contrast targets are stated anywhere despite EXPERIENCE explicitly delegating contrast to DESIGN.md. Everything else is name-drift and small state holes that a careful implementer could survive but shouldn't have to guess through.</p>
+      <p>The accessibility lens shifts that picture: the spine is unusually accessibility-literate for a planning artifact — reduced-motion gating, 44px coarse-pointer targets, drag-with-fallback, Esc/focus-return rules, and semantic landmarks all stated as binding — but it carries two systemic gaps the rubric's contrast finding only hinted at. First, a contrast hole in the light-mode text ramp and the coral accent/tx-buy tokens (text-subtle at 2.47:1 fails every use; buy markers at 2.54:1 fail the 3:1 graphics bar). Second, the absence of any non-color-channel requirement for the app's most important semantics — gain/loss, drift, buy/sell, staleness — in a finance tool whose entire point is signed numbers. Both were cheap to fix at spec level and would have been expensive to retrofit.</p>
+      <p>Disposition (reviewer gate, 2026-06-13): all critical, high, and medium findings were fixed in both spines; trivial lows applied; three lows accepted as-is per reviewer; two items deferred — basis-date source to architecture, scope switcher to #327.</p>
+    </div>
+
+    <div class="dimension-summary">
+      <div class="dim-card">
+        <div class="dim-name">Flow coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-strong)">strong</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Token completeness</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Component coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">State coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Visual reference coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-strong)">strong</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Bloat &amp; overspecification</div>
+        <div class="dim-verdict" style="color: var(--verdict-strong)">strong</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Inheritance discipline</div>
+        <div class="dim-verdict" style="color: var(--verdict-strong)">strong</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Shape fit</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+    </div>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Flow coverage</h2>
+          <span class="verdict-pill verdict-strong">strong</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Extracted PRD journeys UJ-1 through UJ-6 and matched against EXPERIENCE.md Key Flows. UJ-1 → Flow 1 (5 steps, climax at step 5, failure path), UJ-2 → Flow 2 (6 steps, climax at step 6, failure path), UJ-6 → Flow 3 (5 steps, climax at step 5, failure path). All three name protagonist Alex (fictional persona), mirror PRD journey titles verbatim, and carry an explicit Climax beat. Exclusions are stated in the spine itself: UJ-4/UJ-5 named as future-phase analytics deliberately absent; UJ-3 named as agent-side with its UI counterpart identified as the same drift table Flow 1 reads. The blanket [ASSUMPTION] on step detail is the documented Fast-path consequence and is honestly labeled.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">UJ-3 disposition lives only in the preamble paragraph</h3>
+              <span class="finding-location">EXPERIENCE.md, Key Flows preamble</span>
+            </header>
+            <div class="finding-note">A consumer scanning flow headings sees three flows and must read prose to learn UJ-3 is intentionally folded into Flow 1's drift table.</div>
+            <div class="finding-fix"><strong>Fix:</strong> None required; optionally add a one-line "UJ-3 — covered by Flow 1 step 4" stub heading so the mapping is scannable. <em>(Applied, 2026-06-13.)</em></div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Flow 1 climax depends on a single basis-date source no surface states</h3>
+              <span class="finding-location">EXPERIENCE.md, Flow 1 / State Patterns (stale-data row)</span>
+            </header>
+            <div class="finding-note">"The number the agent spoke and the number on the screen are the same number, with the same basis date" depends on UI and MCP sharing one basis-date source (FR-13); the spine asserts it but no surface states where "as of" originates.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Keep the existing open-question note; architecture must close it. <em>(Deferred to architecture, 2026-06-13.)</em></div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Token completeness</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Extracted all <code>{path.to.token}</code> references from both files (DESIGN prose: ~35 distinct; DESIGN components frontmatter: ~20; EXPERIENCE prose: 8) and resolved each against DESIGN.md frontmatter. All references resolve — no broken paths in either file. All color tokens carry concrete values; light/dark pairs exist for accents, semantics, surfaces, and the full text ramp. What's missing is the contrast layer and two internal contradictions.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">No contrast targets stated for load-bearing combinations</h3>
+              <span class="finding-location">EXPERIENCE.md §Accessibility Floor · DESIGN.md §Colors / Do's and Don'ts</span>
+              <span class="badge badge-disposition">Fixed in spine, 2026-06-13</span>
+            </header>
+            <div class="finding-note">13px {colors.text-muted} on {colors.bg}, accent stat values on {colors.bg-elevated}, {colors.warning} stale timestamps, and 9px chart-axis mono have no stated contrast targets — yet EXPERIENCE.md Accessibility Floor says "contrast and color rules live in DESIGN.md". The delegation chain dead-ends; an implementer or auditor has no AA/AAA commitment to verify against.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a short contrast block to DESIGN.md Colors (e.g. body text ≥ 4.5:1 on all surfaces in both modes; accent-on-elevated verified per variant; decide and state whether chart-axis is exempt as decorative).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">`selected` is a fixed violet hex but prose says selected rows re-key with the active accent</h3>
+              <span class="finding-location">DESIGN.md frontmatter line 47 vs. §Brand &amp; Style / §Colors</span>
+            </header>
+            <div class="finding-note">`selected: '#ede9fe'` contradicts "Each has a `-soft` companion used for selected rows." A consumer flattening tokens ships violet selected-rows under the teal accent.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Either document `selected` as an alias of the active `accent-*-soft` (value = violet default) or remove the literal and reference the accent indirection.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Two different answers for the chart background</h3>
+              <span class="finding-location">DESIGN.md frontmatter lines 43/57 vs. line 156</span>
+            </header>
+            <div class="finding-note">`chart-surface` / `chart-surface-dark` (`#ffffff` / `#131a23`) are defined but never referenced; `components.chart-frame.background` uses `{colors.bg}` (`#f6f7fa`) instead.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Point chart-frame at `{colors.chart-surface}` or delete the unused pair.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">`tx-buy` / `tx-sell` have no `-dark` pairs</h3>
+              <span class="finding-location">DESIGN.md frontmatter lines 36–37</span>
+            </header>
+            <div class="finding-note">Breaks the otherwise-complete "dark is a full token set" convention. The white marker stroke probably saves them, but say so.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add dark pairs or a one-line "same value both modes; white stroke carries separation" note. <em>(Applied, 2026-06-13.)</em></div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">`accent-*-soft-dark` values use rgb() functional notation; spec says hex strings</h3>
+              <span class="finding-location">DESIGN.md frontmatter · design-md-spec.md, colors row</span>
+            </header>
+            <div class="finding-note">Resolvable by any consumer, but a strict parser keying on '#' will choke.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Keep if alpha is essential, but note the deviation deliberately. <em>(Applied, 2026-06-13.)</em></div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Several component-token values are prose, not references</h3>
+              <span class="finding-location">DESIGN.md frontmatter lines 130–154</span>
+            </header>
+            <div class="finding-note">`value-color: 'accent (active variant)'`, `shadow: 'shadow-panel'`, nav-link-active's `'accent-soft'`. The `--color-accent` indirection is explained in Colors prose and shadows have no frontmatter home in the spec — defensible, but these cells don't machine-resolve.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Acceptable as-is; consider a <code># resolves via [data-accent]</code> comment so the non-resolvability reads as intent. <em>(Accepted as-is, 2026-06-13.)</em></div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Component coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Cross-referenced every component named in EXPERIENCE.md Component Patterns (8 rows) and flows against DESIGN.md Components (12 inventory entries), and vice versa. Strong overlap with real rules on both sides — behavioral rows are genuinely behavioral (debounce values, focus-return, toggle busy states), visual entries are genuinely anatomical. Two asymmetric holes.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Hero (total value + curve) has a behavioral row but no visual spec</h3>
+              <span class="finding-location">EXPERIENCE.md Component Patterns "Hero" · DESIGN.md §Components</span>
+              <span class="badge badge-disposition">Fixed in spine, 2026-06-13</span>
+            </header>
+            <div class="finding-note">The "one fixed element of the home," carrying the owner-decided €/% toggle, has a full behavioral row in EXPERIENCE.md but no entry in DESIGN.md Components and no frontmatter component tokens. Which typography role the headline number uses, what the €/% toggle looks like, and how hero + curve + period pills compose are all unspecified. This is the highest-traffic new surface of the run; a story-dev invents the dashboard centerpiece.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a `hero` entry to DESIGN.md Components (and frontmatter `components.hero`) naming the headline type role, toggle anatomy, and curve frame relationship.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Allocation visuals have visual identity but no behavioral row</h3>
+              <span class="finding-location">DESIGN.md §Components "Allocation visuals" · EXPERIENCE.md Component Patterns</span>
+            </header>
+            <div class="finding-note">Donut, sunburst, and drift table appear in Flow 1's climax, but EXPERIENCE.md never says whether sunburst segments respond to hover/tap, whether the legend filters, or whether the drift table sorts.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add one behavioral row, even if it's "read-only visuals, no segment interaction; drift table follows the Tables row."</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Flow 3 scope switcher has neither visual nor behavioral spec</h3>
+              <span class="finding-location">EXPERIENCE.md Flow 3 step 1</span>
+            </header>
+            <div class="finding-note">Honestly tagged [ASSUMPTION] with #327 named as in-flight. Downstream is blocked on UJ-6 until #327 lands — acceptable, but the dependency should be visible to sprint planning.</div>
+            <div class="finding-fix"><strong>Fix:</strong> None in this run; carry as an open question. <em>(Deferred — #327 dependency, 2026-06-13.)</em></div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Classification tree node anatomy only glancingly visual in DESIGN</h3>
+              <span class="finding-location">DESIGN.md §Components "Drag-and-drop rows"</span>
+            </header>
+            <div class="finding-note">Category swatch, count, and pinned Unsorted bucket styling are behavioral in EXPERIENCE but barely visual in DESIGN ("drift tables with category swatches"; dnd-row chips).</div>
+            <div class="finding-fix"><strong>Fix:</strong> One sentence on node anatomy in the DESIGN inventory.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>State coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Walked all seven IA surfaces against the State Patterns table. Covered: cold load (server-rendered, no-skeleton rationale stated), action-pending busy states, empty-no-data, per-surface empties with the one-sentence-plus-action rule, validation and action-failure errors, stale-data treatment with its open question honestly flagged, and not-found inside the shell. Focus states live in Accessibility Floor. The generic rows legitimately blanket Portfolios, Transactions, and Securities lists.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">No "search/filter returned nothing" state distinct from empty</h3>
+              <span class="finding-location">EXPERIENCE.md Component Patterns "Classification tree" · State Patterns</span>
+            </header>
+            <div class="finding-note">Classifications live search "auto-expands matches" but its zero-match rendering is unstated, and Transactions has no filtered-to-nothing treatment. Both Quill and Drift examples carry this state explicitly.</div>
+            <div class="finding-fix"><strong>Fix:</strong> One State Patterns row: "Filter/search no matches — keep controls visible, 'No matches for X.', never the empty-surface message."</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Import failure states beyond the duplicate-file no-op are unspecified</h3>
+              <span class="finding-location">EXPERIENCE.md Component Patterns "Import pipeline"</span>
+            </header>
+            <div class="finding-note">Unparseable file and rejected preview presumably fall to the generic `.alert-error` banner row, but the import pipeline is the surface where errors matter most.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Extend the pipeline row: "parse/validation failure ends at preview with `.alert-error`; nothing applied." <em>(Applied, 2026-06-13.)</em></div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Not-found row hides parameterized routes behind "etc."</h3>
+              <span class="finding-location">EXPERIENCE.md State Patterns "Not found"</span>
+            </header>
+            <div class="finding-note">Only `/classifications/:id etc.` is enumerated — `/securities/:id` and `/portfolios` children are inside "etc.", which invites drift.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Spell out the two parameterized routes. <em>(Applied, 2026-06-13.)</em></div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Visual reference coverage</h2>
+          <span class="verdict-pill verdict-strong">strong</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Expected-empty, consistent. `imports/` exists and is empty; `mockups/` and `wireframes/` do not exist; `.working/` contains only research, correctly hidden from the deliverable set. Both example spines carry composition-reference pointers; this pair has none — correct, since mocks come later in this run, and no dangling links were planted speculatively (good discipline: zero broken file references).</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">IA section will need the composition-reference pointer when mockups land</h3>
+              <span class="finding-location">EXPERIENCE.md §Information Architecture, after the nav-model paragraph</span>
+            </header>
+            <div class="finding-note">When mockups land, the IA section should gain the pointer with the "spine wins on conflict" clause per the example pattern.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Deferred to the mockup step; noting the expected insertion point.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Bloat &amp; overspecification</h2>
+          <span class="verdict-pill verdict-strong">strong</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Both files are tight. DESIGN.md is extraction-honest: it lists only spacing constants that actually exist and explicitly refuses to invent a spacing scale or heading ramp — the correct altitude, pushing invention to the redesign stories rather than fabricating tokens. EXPERIENCE.md's 13 [ASSUMPTION] tags are the documented Fast-path posture, not hedging. No section pads, no restated PRD content, no speculative component inventory. The one near-overspecification — Motion's mechanism lane — explicitly cedes the final call to architecture, which keeps it on the right side of the line.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">DESIGN.md §Components doubles as a CSS-class concordance</h3>
+              <span class="finding-location">DESIGN.md §Components</span>
+            </header>
+            <div class="finding-note">For a brownfield extraction this is value, not bloat — it's the map from spec to existing code — but entries like "Import surfaces — drop zone, progress, stat cards, warning boxes" are inventory lines, not specs.</div>
+            <div class="finding-fix"><strong>Fix:</strong> None; flag so nobody mistakes inventory-grade entries for full visual specs. <em>(Accepted as-is, 2026-06-13.)</em></div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Inheritance discipline</h2>
+          <span class="verdict-pill verdict-strong">strong</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>All five EXPERIENCE `sources` paths verified on disk. UJ names verbatim from PRD §3, checked character-for-character on all three flow titles. All eight EXPERIENCE token references resolve to DESIGN frontmatter by exact name. FR references (FR-2, FR-4, FR-6/7, FR-13, FR-28) all exist in the PRD. Decision-log decisions all landed in the spine: paradigm blockquote, motion-as-polish, hidden Soon items, ≥44px coarse-pointer targets, €/% hero toggle, confirmed card set, IST-only IA with #321 cited.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Component naming drifts between the files</h3>
+              <span class="finding-location">EXPERIENCE.md Component Patterns vs. DESIGN.md §Components</span>
+            </header>
+            <div class="finding-note">"Metric cards" ↔ "Stat card"; "Tables" ↔ "Data tables"; "Import pipeline" ↔ "Import surfaces"; "Classification tree" ↔ "Drag-and-drop rows … classifications tree". Each pair is cross-linked in prose, so a human resolves it — but mechanical source-extraction keyed on names produces four misses.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Align names, or add the counterpart name in parentheses on each side.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Shape fit</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>DESIGN.md: all eight canonical body sections present in locked order, frontmatter carries the required keys per spec. EXPERIENCE.md: all default sections present; Inspiration &amp; Anti-patterns omitted, defensible because the lifted/rejected decisions are recorded in the paradigm blockquote, State Patterns, and the decision log. Responsive &amp; Platform trigger check: Portfolixir is a three-surface product and the section is absent — but responsive content exists and is findable across four sections in two files. Defensible, not ideal.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Responsive behavior is scattered across four sections in two files</h3>
+              <span class="finding-location">DESIGN.md §Layout &amp; Spacing · EXPERIENCE.md IA / Component Patterns / Accessibility Floor</span>
+            </header>
+            <div class="finding-note">The breakpoint table (900/720/560) lives only in DESIGN.md (a visual-identity file) while the behaviors it triggers (off-canvas sidebar, bottom sheets, single-column dialogs) are experience facts. A story-dev implementing the 720px bottom-sheet conversion must collate three places.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a compact Responsive &amp; Platform section (or table) to EXPERIENCE.md consolidating breakpoint → behavior, pointing to DESIGN for the pixel values.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Motion rides as a subsection under Do's and Don'ts</h3>
+              <span class="finding-location">DESIGN.md end · design-md-spec.md body list</span>
+            </header>
+            <div class="finding-note">Outside the spec's eight canonical sections. The content fully earns its place, but the decision log assigned "perceived behavior" to the UX spine and EXPERIENCE rows defer to "DESIGN.md Motion" — the pair's own division of labor is inverted here. It works because the cross-reference resolves.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Acceptable as-is; if touched again, move perceived motion behavior into EXPERIENCE and leave only mechanism/aesthetic constraints in DESIGN. <em>(Accepted as-is, 2026-06-13.)</em></div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="reviewer-section">
+      <details>
+        <summary>
+          <h2>Accessibility review</h2>
+          <span class="reviewer-source">review-accessibility.md</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Benchmark: WCAG 2.2 AA, applied pragmatically for a solo self-hosted tool. The spine is unusually accessibility-literate for a planning artifact — reduced-motion gating, 44px coarse-pointer targets, drag-with-fallback, Esc/focus-return rules, and semantic landmarks are all stated as binding. The two systemic gaps are (1) a contrast hole in the light-mode text ramp and the coral accent/tx-buy tokens, and (2) the absence of any non-color-channel requirement for the app's most important semantics (gain/loss, drift, buy/sell, staleness) in a finance tool whose entire point is signed numbers. Both are cheap to fix at spec level and expensive to retrofit later; several accessibility-floor items are also [ASSUMPTION]-tagged and must be promoted to binding before implementation treats them as optional. A full computed contrast table for both modes is in review-accessibility.md.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">`text-subtle` fails contrast in light mode</h3>
+              <span class="finding-location">DESIGN.md §Colors</span>
+              <span class="badge badge-disposition">Fixed in spine, 2026-06-13</span>
+            </header>
+            <div class="finding-note">2.47:1 on `bg`, 2.64:1 on `bg-elevated`; dark `bg-elevated` only 3.03:1. DESIGN.md labels it "tertiary/disabled" — "tertiary" is a license to use it for real content (as-of dates, hints, table meta), where it fails both 4.5:1 and even the 3:1 large-text bar.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Restrict `text-subtle` to disabled states and pure decoration explicitly ("never for conveying content"), and either darken the light value (~#6e7a8e reaches ≈4.5:1) or route all readable tertiary content to `text-muted` (5.50:1, passes).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">No non-color channel for gain/loss, drift, buy/sell, or staleness</h3>
+              <span class="finding-location">EXPERIENCE.md Flow 1 step 4 / State Patterns · DESIGN.md buy/sell markers · WCAG 1.4.1</span>
+              <span class="badge badge-disposition">Fixed in spine, 2026-06-13</span>
+            </header>
+            <div class="finding-note">Flow 1's overweights/underweights in {colors.positive}/{colors.danger}, the stale timestamp's {colors.warning} tone shift, and the identically-shaped buy/sell circles all encode meaning in hue alone — in a finance tool whose entire point is signed numbers.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Binding Accessibility Floor line: signed values always render an explicit "+/−" (or ▲/▼), buy/sell markers differ in shape (▲ buy / ▼ sell) not just fill, and the stale state carries a text/icon cue alongside the warning tone.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">`tx-buy` on the light chart surface is 2.54:1 — below the 3:1 graphics minimum</h3>
+              <span class="finding-location">DESIGN.md tx-buy #10b981 / chart-surface #ffffff · WCAG 1.4.11</span>
+              <span class="badge badge-disposition">Fixed in spine, 2026-06-13</span>
+            </header>
+            <div class="finding-note">The white stroke ring doesn't rescue the fill. (`tx-sell` 3.76:1 passes; both pass in dark mode.)</div>
+            <div class="finding-fix"><strong>Fix:</strong> Darken light-mode buy markers (e.g. reuse `positive` #047857, 5.48:1) or give markers a `border-strong`-level outline plus the shape channel above.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Modal spec has no focus-trap / aria-modal / inert-background requirement</h3>
+              <span class="finding-location">EXPERIENCE.md Component Patterns "Forms behind disclosure"</span>
+              <span class="badge badge-disposition">Fixed in spine, 2026-06-13</span>
+            </header>
+            <div class="finding-note">Esc-close and focus-return-to-trigger are specified (good, concrete), but nothing keeps focus inside `.modal` or marks the page inert — without a bundler this must be planned as a deliberate small hook, or it won't happen.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Modal opens → focus moves to first field / dialog heading, `role="dialog" aria-modal="true"`, focus trapped (hand-written hook or native <code>&lt;dialog&gt;</code> with <code>showModal()</code>, which gives trap + Esc for free and fits the no-bundler constraint).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Two accessibility-floor guarantees are [ASSUMPTION]-tagged</h3>
+              <span class="finding-location">EXPERIENCE.md §Accessibility Floor</span>
+              <span class="badge badge-disposition">Fixed in spine, 2026-06-13</span>
+            </header>
+            <div class="finding-note">"Data behind any chart is always also reachable as a table" and "`lang` follows the active locale" are the load-bearing mitigations for the 9px chart axis and de/en screen-reader pronunciation; as assumptions, implementers may drop them.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Promote both to binding (the chart-table rule is also the only thing that makes <code>role="img"</code> + single <code>aria-label</code> an acceptable chart strategy).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Coral accent fails as normal-size text in light mode</h3>
+              <span class="finding-location">DESIGN.md accent-coral 4.38:1 on bg, 3.91:1 on coral-soft</span>
+            </header>
+            <div class="finding-note">Relevant because `.alert-success` uses accent-soft and active-nav washes carry accent-tinted content. 30px stat values are large text (3:1 bar) and pass; body-size accent text does not. Violet (5.32) and teal (5.11) already pass.</div>
+            <div class="finding-fix"><strong>Fix:</strong> DESIGN rule: accent may color text only at large size (≥ 24px / 19px bold) or non-text indicators; any body-size accent text in light mode needs a darkened text-grade coral (e.g. #be123c ≈ 5.2:1).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Reduced-motion gating over-rotates on spinners</h3>
+              <span class="finding-location">EXPERIENCE.md motion rules vs. "no information exists only in motion"</span>
+            </header>
+            <div class="finding-note">The busy spinner IS information (pending state); hiding it behind `no-preference` leaves reduced-motion users with no feedback during chart-toggle loads.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Exempt loading indication — under `reduce`, swap the spinner for a non-animated cue; keep `phx-click-loading` visible either way.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">CSS-only sidebar toggle cannot update aria-expanded</h3>
+              <span class="finding-location">EXPERIENCE.md "Sidebar state … is a pure CSS toggle"</span>
+            </header>
+            <div class="finding-note">A checkbox-hack control can be focusable with a visible ring, but its expanded/collapsed state and accessible name can't change without JS. The off-canvas (&lt;900px) variant additionally needs Esc-close and focus handling — currently unspecified.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Specify either a real <code>&lt;input type="checkbox"&gt;</code> with a state-neutral name, or a 5-line hook toggling `aria-expanded` on a <code>&lt;button&gt;</code>; spell out the off-canvas Esc/focus behavior.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">&lt;details&gt; theme/accent menus assert JS coordination without assigning a mechanism</h3>
+              <span class="finding-location">EXPERIENCE.md Interaction Primitives</span>
+            </header>
+            <div class="finding-note">Esc-close and "one open disclosure at a time per region" both require JS the spine doesn't assign. Also unstated: these are disclosure widgets, not ARIA menus — fine, but say so, so nobody adds `role="menu"` without arrow-key support.</div>
+            <div class="finding-fix"><strong>Fix:</strong> One sentence: "implemented as native <code>&lt;details&gt;</code> disclosure semantics (no role=menu); a shared hand-written hook provides Esc-close and mutual exclusivity."</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">ⓘ metric tooltips have no keyboard/touch access spec</h3>
+              <span class="finding-location">EXPERIENCE.md Voice and Tone examples · WCAG 1.4.13</span>
+            </header>
+            <div class="finding-note">"Hover-only affordances on touch surfaces" are banned in Interaction Primitives, but the Voice-and-Tone examples only say "tooltip/hover definition" — no dismissible/hoverable/persistent behavior.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Require the ⓘ to be a focusable element whose definition appears on focus and tap, dismisses on Esc, and doesn't vanish while hovered.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Form error association is visual-only</h3>
+              <span class="finding-location">EXPERIENCE.md State Patterns ".field-error at the field"</span>
+            </header>
+            <div class="finding-note">No `aria-describedby`/`aria-invalid`/error-summary-focus requirement.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Each error text programmatically linked via `aria-describedby`, the field gets `aria-invalid="true"`, and on failed submit focus moves to the first invalid field or the `.alert-error` (`role="alert"` or `aria-live`).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Focus indicator may be too faint</h3>
+              <span class="finding-location">DESIGN.md {components.input.focus} · EXPERIENCE.md Accessibility Floor · WCAG 2.4.13 / 1.4.11</span>
+            </header>
+            <div class="finding-note">An 18%-opacity accent ring composites to well under 3:1 against adjacent colors; on inputs the full-accent border carries it, but on nav links/rows/buttons the soft ring alone won't.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Specify a solid 2px full-accent outline (+ optional soft halo) as the universal focus style; coral's solid value passes 3:1 as a non-text indicator.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Keyboard path for multi-select + drag in Classifications is incomplete</h3>
+              <span class="finding-location">EXPERIENCE.md Component Patterns "Classification tree"</span>
+            </header>
+            <div class="finding-note">Drag has a non-drag equivalent (move-to-category select — good), but how rows enter multi-selection without a pointer is unspecified, and HTML5/pointer drag generally won't fire on touch, making the toolbar the de-facto iPad/iPhone path.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Specify checkbox-based (or Space-toggles) row selection feeding the same toolbar; state that on coarse pointers select+toolbar is the primary mechanism, drag desktop-only.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Tiny load-bearing type: 9px chart axis and 9.5px locale pills</h3>
+              <span class="finding-location">DESIGN.md typography · EXPERIENCE.md locale switcher</span>
+            </header>
+            <div class="finding-note">Axis labels are real data (mitigated only by the chart-table rule — see the [ASSUMPTION] finding); the EN/DE locale switcher is an always-used interactive control at the smallest type in the system. 10.5px nav-group heads and 12px labels are structural/short and acceptable.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Bump locale-switcher text to ≥ 11px; keep 9px axes only on condition the table equivalent is binding; confirm both scale under 200% zoom (px values do — just don't cap zoom).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">aria-live page-title region: politeness level unspecified</h3>
+              <span class="finding-location">EXPERIENCE.md Accessibility Floor</span>
+            </header>
+            <div class="finding-note">Assertive would interrupt on every patch.</div>
+            <div class="finding-fix"><strong>Fix:</strong> State `aria-live="polite"` and that only the title text node changes, so navigation announces exactly once. <em>(Applied, 2026-06-13.)</em></div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Chart toggles and period pills lack pressed-state semantics</h3>
+              <span class="finding-location">EXPERIENCE.md Component Patterns / DESIGN.md .chart-toggle</span>
+            </header>
+            <div class="finding-note">State conveyed by accent color alone ties into the color-independence finding.</div>
+            <div class="finding-fix"><strong>Fix:</strong> One line: `.chart-toggle` uses `aria-pressed`; period pills use `aria-pressed` or radio-group semantics. <em>(Applied, 2026-06-13.)</em></div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Scope switch leans on the rebuild animation as a change cue</h3>
+              <span class="finding-location">EXPERIENCE.md Flow 3</span>
+            </header>
+            <div class="finding-note">The spine itself notes "the scope label, not the motion, carries the meaning" — correct, but the label's placement/prominence is unspecified and under `prefers-reduced-motion` it is the only cue.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Require the scope name in the page subtitle or hero basis line on every portfolio-bearing surface, and announce scope changes via the existing live region. <em>(Applied, 2026-06-13.)</em></div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">`text-soft` (3.48:1 light) only [ASSUMPTION]-flagged as decorative</h3>
+              <span class="finding-location">DESIGN.md §Colors</span>
+            </header>
+            <div class="finding-note">Already flagged as "decorative-tertiary, not semantic" via [ASSUMPTION]; dark-mode value (10.41) is fine.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Promote to a hard rule ("never body copy") so the 3.48 ratio never meets real text.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <div class="mechanical">
+      <h3>Mechanical notes</h3>
+      <ul>
+        <li>All <code>{path.to.token}</code> references in both files resolve against DESIGN.md frontmatter — zero broken token refs (verified individually, including nested <code>{components.input.focus}</code>, <code>{typography.body.fontFamily}</code>, <code>{spacing.panel-pad}</code>).</li>
+        <li>All five EXPERIENCE <code>sources</code> paths exist on disk. DESIGN.md carries no sources block — consistent with the three DESIGN examples; extraction provenance is stated in its opening blockquote.</li>
+        <li>Name inconsistencies (cross-file component labels): Metric cards/Stat card, Tables/Data tables, Import pipeline/Import surfaces, Classification tree/Drag-and-drop rows. All human-resolvable via in-prose cross-links.</li>
+        <li>Internal token contradictions: <code>selected</code> (fixed violet) vs. accent-soft re-keying prose; <code>chart-surface</code> defined-but-unused vs. <code>chart-frame.background: {colors.bg}</code>.</li>
+        <li>Unreferenced tokens: <code>chart-surface</code>, <code>chart-surface-dark</code>, <code>border-strong</code>, <code>border-strong-dark</code>, <code>hover</code>, <code>hover-dark</code> — extraction-real CSS variables, harmless to keep.</li>
+        <li>Cross-document section references resolve (EXPERIENCE → "DESIGN.md Motion", "DESIGN.md.Components"; DESIGN stat-card → "EXPERIENCE.md Component Patterns"). PRD references (UJ titles, §2 persona, FR-2/4/6/7/13) verified in prd.md.</li>
+        <li>Frontmatter completeness: DESIGN has spec-required <code>name</code> + <code>description</code> plus the BMad wrapper keys — additive, no conflict. Both files <code>status: draft</code>; the 2026-06-13 reviewer-gate fixes are now dispositioned, so status can advance.</li>
+      </ul>
+    </div>
+
+    <footer class="report-footer">
+      <div class="meta">
+        <span>Rubric: review-rubric.md</span>
+        <span>Reviewers: review-accessibility.md</span>
+        <span>Generated: 2026-06-13</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
