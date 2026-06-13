@@ -94,6 +94,8 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
     assert data["ttwror"] == "0.1"
     assert data["end_value"] == "1100"
     assert data["net_external_flows"] == "1000"
+    # The money-weighted IRR is exposed as a Decimal string alongside TTWROR.
+    assert is_binary(data["irr"])
     refute Map.has_key?(data, "series")
 
     with_series =
@@ -105,6 +107,95 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
 
     assert length(with_series["series"]) == 11
     assert List.last(with_series["series"])["cumulative_ttwror"] == "0.1"
+  end
+
+  # User story:
+  # As an API client (and the LLM I connect over MCP),
+  # I want the money-weighted return (IRR) in the same performance response,
+  # so that I can compare it to the TTWROR without a second tool.
+  #
+  # Acceptance criteria:
+  # - A single deposit invested for a full year that ends 10% higher returns
+  #   irr "0.1" as a Decimal string.
+  # - A portfolio with no flows to weight returns irr null, never an error.
+  test "returns the money-weighted IRR as a Decimal string", %{conn: conn} do
+    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(%{
+        name: "Index Fund",
+        ticker_symbol: "IDX",
+        currency_code: "EUR",
+        asset_class: "etf"
+      })
+
+    today = Date.utc_today()
+    start = Date.add(today, -365)
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        type: "deposit",
+        date: start,
+        gross_amount: "1000",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: start,
+        quantity: "10",
+        price: "100",
+        fees: "0",
+        taxes: "0",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Quotes.upsert_many(security.id, [
+        %{date: start, close: "100", source: "manual"},
+        %{date: today, close: "110", source: "manual"}
+      ])
+
+    data =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/performance")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert data["irr"] == "0.1"
+
+    {:ok, empty} = Portfolios.create_portfolio(%{name: "Empty", base_currency_code: "EUR"})
+
+    empty_data =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{empty.id}/performance")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert empty_data["irr"] == nil
   end
 
   test "rejects an unknown period and an unknown portfolio", %{conn: conn} do

@@ -97,6 +97,9 @@ describe("Portfolixir MCP tools", () => {
         }
       })
     );
+
+    const performance = tools.find((tool) => tool.name === "portfolixir.portfolios.performance");
+    assert.match(performance?.description ?? "", /irr/i);
   });
 
   it("calls the Phoenix API with bearer auth and returns structured content", async () => {
@@ -609,7 +612,9 @@ describe("Portfolixir MCP tools", () => {
         const parsed = new URL(url);
         requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
         return new Response(
-          JSON.stringify({ data: { portfolio_id: 3, period: "ytd", ttwror: "0.0825" } }),
+          JSON.stringify({
+            data: { portfolio_id: 3, period: "ytd", ttwror: "0.0825", irr: "0.0791" }
+          }),
           { status: 200, headers: { "content-type": "application/json" } }
         );
       }
@@ -624,6 +629,9 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].method, "GET");
     assert.equal(requests[0].path, "/api/v1/portfolios/3/performance?period=ytd&series=true");
     assert.match(result.content[0].text, /0\.0825/);
+    // The money-weighted IRR is surfaced alongside TTWROR, unchanged.
+    assert.match(result.content[0].text, /0\.0791/);
+    assert.equal((result.structuredContent as any).data.irr, "0.0791");
   });
 
   it("maps invalid tool names and upstream API errors to clear failures", async () => {
