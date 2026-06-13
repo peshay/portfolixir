@@ -109,6 +109,9 @@ defmodule Portfolixir.Catalog.LogoStore do
     Catalog.update_security(security, attrs)
   end
 
+  # storage_dir comes from app config/opts and the filename is the security id
+  # plus a validated extension — no user-controlled path segments.
+  # sobelow_skip ["Traversal.FileModule"]
   defp delete_existing_logo_file(%Security{id: id}, storage_dir) do
     @allowed_content_types
     |> Map.values()
