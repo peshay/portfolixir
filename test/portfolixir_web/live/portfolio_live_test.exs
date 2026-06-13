@@ -267,6 +267,34 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   end
 
   # User story:
+  # As a local portfolio maintainer hovering the allocation sunburst,
+  # I want an instant custom tooltip with the slice's name, value and
+  # percentage,
+  # so that I see the details immediately rather than after the browser's
+  # native <title> delay.
+  #
+  # Acceptance criteria:
+  # - The sunburst container carries the SunburstTooltip JS hook so the client
+  #   can render an instant tooltip on hover.
+  # - Each slice is server-rendered with stable data-label, data-value and
+  #   data-percent attributes the hook reads, and keeps a native <title> as a
+  #   no-JS fallback.
+  test "the sunburst carries the tooltip hook and per-slice data attributes", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # The container opts into the instant-tooltip hook.
+    assert html =~ ~s(phx-hook="SunburstTooltip")
+    # Slices carry the data the hook reads, plus the native <title> fallback.
+    assert html =~ ~s(data-label="Core")
+    assert html =~ ~s(data-percent=)
+    assert html =~ ~s(data-value=)
+    assert html =~ "<title>"
+  end
+
+  # User story:
   # As a local portfolio maintainer setting target weights across a
   # hierarchical classification tree,
   # I want subtle consistency hints showing whether my sub-category targets add

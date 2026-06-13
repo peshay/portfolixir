@@ -3847,6 +3847,32 @@ details[open] > .cat-summary::before {
 .sunburst-seg:hover {
   filter: brightness(1.15);
 }
+/* Instant custom hover tooltip rendered by the SunburstTooltip JS hook.
+   Fixed to the pointer; hidden by default. The native <title> is the
+   no-JS fallback. */
+.sunburst-tooltip {
+  position: fixed;
+  z-index: 50;
+  max-width: 16rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-elevated, #ffffff);
+  color: var(--color-text);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.12));
+  pointer-events: none;
+}
+.sunburst-tooltip[hidden] {
+  display: none;
+}
+.sunburst-tooltip__name {
+  font-weight: 600;
+}
+.sunburst-tooltip__meta {
+  color: var(--color-text-muted);
+}
 .sunburst-pane {
   /* Fixed width so the detail line's text length never resizes the chart. */
   width: 340px;
