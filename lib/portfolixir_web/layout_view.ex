@@ -520,6 +520,106 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // Instant custom hover tooltip for the allocation sunburst. The
+            // native SVG <title> has a browser-imposed delay; this hook reads
+            // each slice's data-label/data-value/data-percent attributes and
+            // shows a div immediately on hover. The <title> stays in the
+            // markup as a no-JS fallback. Position is fixed to the pointer so
+            // it works regardless of the chart's layout context.
+            Hooks.SunburstTooltip = {
+              mounted: function () {
+                this.tooltip = document.createElement("div");
+                this.tooltip.className = "sunburst-tooltip";
+                this.tooltip.hidden = true;
+                this.tooltip.setAttribute("role", "status");
+                document.body.appendChild(this.tooltip);
+
+                var self = this;
+                this.onOver = function (event) { self.handleOver(event); };
+                this.onMove = function (event) { self.handleMove(event); };
+                this.onOut = function (event) { self.handleOut(event); };
+
+                this.el.addEventListener("mouseover", this.onOver);
+                this.el.addEventListener("mousemove", this.onMove);
+                this.el.addEventListener("mouseout", this.onOut);
+              },
+              updated: function () {
+                this.hide();
+              },
+              destroyed: function () {
+                this.el.removeEventListener("mouseover", this.onOver);
+                this.el.removeEventListener("mousemove", this.onMove);
+                this.el.removeEventListener("mouseout", this.onOut);
+                if (this.tooltip && this.tooltip.parentNode) {
+                  this.tooltip.parentNode.removeChild(this.tooltip);
+                }
+              },
+              segmentFrom: function (target) {
+                if (!target || !target.closest) return null;
+                return target.closest(".sunburst-seg");
+              },
+              handleOver: function (event) {
+                var seg = this.segmentFrom(event.target);
+                if (!seg) return;
+                this.render(seg);
+                this.position(event.clientX, event.clientY);
+              },
+              handleMove: function (event) {
+                var seg = this.segmentFrom(event.target);
+                if (!seg) {
+                  this.hide();
+                  return;
+                }
+                if (this.tooltip.hidden) this.render(seg);
+                this.position(event.clientX, event.clientY);
+              },
+              handleOut: function (event) {
+                // Hide only when the pointer leaves the slice entirely, not
+                // when moving between child nodes of the same <path>.
+                var to = event.relatedTarget;
+                if (to && this.segmentFrom(to)) return;
+                this.hide();
+              },
+              render: function (seg) {
+                var label = seg.getAttribute("data-label") || "";
+                var value = seg.getAttribute("data-value") || "";
+                var percent = seg.getAttribute("data-percent") || "";
+                this.tooltip.textContent = "";
+
+                var name = document.createElement("div");
+                name.className = "sunburst-tooltip__name";
+                name.textContent = label;
+                this.tooltip.appendChild(name);
+
+                var meta = document.createElement("div");
+                meta.className = "sunburst-tooltip__meta";
+                meta.textContent = percent + "%" + (value ? " · " + value : "");
+                this.tooltip.appendChild(meta);
+
+                this.tooltip.hidden = false;
+              },
+              position: function (clientX, clientY) {
+                var pad = 12;
+                var tipWidth = this.tooltip.offsetWidth || 120;
+                var tipHeight = this.tooltip.offsetHeight || 32;
+                var x = clientX + pad;
+                var y = clientY + pad;
+                if (x + tipWidth + pad > window.innerWidth) {
+                  x = clientX - tipWidth - pad;
+                }
+                if (x < pad) x = pad;
+                if (y + tipHeight + pad > window.innerHeight) {
+                  y = clientY - tipHeight - pad;
+                }
+                if (y < pad) y = pad;
+                this.tooltip.style.left = x + "px";
+                this.tooltip.style.top = y + "px";
+              },
+              hide: function () {
+                if (this.tooltip) this.tooltip.hidden = true;
+              }
+            };
+
             Hooks.PPImportDrop = {
               mounted: function () {
                 var container = this.el;
