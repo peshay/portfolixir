@@ -1981,7 +1981,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("remove_logo_override", %{"id" => id_str}, socket) do
     with {id, ""} <- Integer.parse(to_string(id_str)),
          %Security{} = sec <- Catalog.get_security(id),
-         {:ok, _updated} <- Catalog.remove_logo(sec) do
+         {:ok, _updated} <- Catalog.remove_logo(sec, logo_opts()) do
       {:noreply,
        socket
        |> assign(:logo_dialog_security, nil)
@@ -2133,7 +2133,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp store_logo_url(socket, sec, url) do
     flash =
-      case Catalog.set_logo_override(sec, url) do
+      case Catalog.set_logo_override(sec, url, logo_opts()) do
         {:ok, _updated} -> gettext("Logo updated")
         {:error, _reason} -> gettext("Could not load that image")
       end
@@ -2145,6 +2145,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> load_securities()
      |> load_detail_data()}
   end
+
+  # Manual logo operations reuse the same storage dir (and, in tests, the same
+  # Req stub) the background discovery worker is configured with.
+  defp logo_opts, do: Application.get_env(:portfolixir, :logo_discovery_opts, [])
 
   defp safe_column_atom(key) when is_binary(key) do
     field = Enum.find(SecurityFields.all(), &(Atom.to_string(&1.key) == key))
