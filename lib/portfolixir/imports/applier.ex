@@ -84,11 +84,18 @@ defmodule Portfolixir.Imports.Applier do
   def apply(%Preview{entries: entries}, %{portfolio: _, cash_accounts: _, depots: _} = params) do
     default_currency = Map.get(params, :default_currency_code, "EUR")
     flat_entries = Entry.flatten(entries)
+    cash_currencies = cash_currencies_by_pp_name(flat_entries)
 
     Repo.transaction(fn ->
       with {:ok, portfolio_id, result} <- resolve_portfolio(params.portfolio, %Result{}),
            {:ok, cash_by_pp_name, result} <-
-             resolve_mapped_cash(params.cash_accounts, portfolio_id, default_currency, result),
+             resolve_mapped_cash(
+               params.cash_accounts,
+               portfolio_id,
+               cash_currencies,
+               default_currency,
+               result
+             ),
            {:ok, depot_by_pp_name, result} <-
              resolve_mapped_depots(params.depots, portfolio_id, cash_by_pp_name, result) do
         state = %{
@@ -170,10 +177,38 @@ defmodule Portfolixir.Imports.Applier do
 
   defp resolve_portfolio(other, _result), do: {:error, {:invalid_portfolio_choice, other}}
 
-  defp resolve_mapped_cash(mapping, portfolio_id, default_currency, %Result{} = result) do
+  # A newly-created cash account takes the currency of the bookings assigned to
+  # that PP account (Portfolio Performance accounts are single-currency), so a
+  # USD account is not created as the default EUR and then rejected by the
+  # transaction currency-consistency check. Falls back to the default when no
+  # booking reveals a currency. Mirrors the auto-resolve path's `create_cash/3`.
+  defp cash_currencies_by_pp_name(flat_entries) do
+    Enum.reduce(flat_entries, %{}, fn entry, acc ->
+      acc
+      |> put_account_currency(entry.pp_account_name, entry.currency_code)
+      |> put_account_currency(entry.pp_counter_account_name, entry.currency_code)
+    end)
+  end
+
+  defp put_account_currency(acc, name, currency)
+       when is_binary(name) and is_binary(currency) do
+    Map.put_new(acc, name, currency)
+  end
+
+  defp put_account_currency(acc, _name, _currency), do: acc
+
+  defp resolve_mapped_cash(
+         mapping,
+         portfolio_id,
+         cash_currencies,
+         default_currency,
+         %Result{} = result
+       ) do
     Enum.reduce_while(mapping, {:ok, %{}, result}, fn {pp_name, choice},
                                                       {:ok, acc, %Result{} = res} ->
-      case resolve_cash_choice(pp_name, choice, portfolio_id, default_currency) do
+      ccy = Map.get(cash_currencies, pp_name, default_currency)
+
+      case resolve_cash_choice(pp_name, choice, portfolio_id, ccy) do
         {:ok, id, ^choice} ->
           {:cont, {:ok, Map.put(acc, pp_name, id), res}}
 
