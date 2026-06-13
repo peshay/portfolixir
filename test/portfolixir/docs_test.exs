@@ -448,6 +448,80 @@ defmodule Portfolixir.DocsTest do
     refute product_docs =~ "**Watchlist**, **Dividends**, and **Returns & risk**"
   end
 
+  # User story:
+  # As a German-speaking reader of the Portfolixir docs,
+  # I want the core product handbook and the API/MCP reference available in
+  # German alongside English with a language switcher,
+  # so that I can read the documented surface in my own language and switch back
+  # to the English baseline at will.
+  #
+  # Acceptance criteria:
+  # - The English baseline pages stay in place and carry the EN/DE counterpart
+  #   front matter used by the switcher.
+  # - German counterparts exist under docs/de/ with the docs layout and DE
+  #   front matter, and document the key surface (income endpoint/tool, the
+  #   cash/allocation flags) in German.
+  # - The shared layout renders a dependency-free language switcher that defaults
+  #   to the browser language and persists the choice.
+  # - The decision is recorded in ADR-0014 and listed in the ADR index.
+  test "core docs are available in English and German with a language switcher" do
+    en_product = File.read!("docs/product-documentation.md")
+    en_api = File.read!("docs/integration/api-and-mcp.md")
+
+    for baseline <- [en_product, en_api] do
+      assert baseline =~ ~r/\A---\nlayout: docs\n/
+      assert baseline =~ "lang: en"
+      assert baseline =~ "lang_en:"
+      assert baseline =~ "lang_de:"
+    end
+
+    assert File.exists?("docs/de/product-documentation.md")
+    assert File.exists?("docs/de/integration/api-and-mcp.md")
+
+    de_product = File.read!("docs/de/product-documentation.md")
+    de_api = File.read!("docs/de/integration/api-and-mcp.md")
+
+    for page <- [de_product, de_api] do
+      assert page =~ ~r/\A---\nlayout: docs\n/
+      assert page =~ "lang: de"
+      assert page =~ "lang_en:"
+      assert page =~ "lang_de:"
+    end
+
+    # The documented API/MCP surface stays identical (untranslated identifiers).
+    for surface <- [
+          "GET /api/v1/portfolios/:portfolio_id/income",
+          "portfolixir.portfolios.income",
+          "counts_toward_cash_quote",
+          "excluded_from_allocation_targets",
+          "cash_target_weight"
+        ] do
+      assert en_api =~ surface
+      assert de_api =~ surface
+    end
+
+    # German prose is actually present (not an English copy).
+    assert de_product =~ "Produktdokumentation"
+    assert de_product =~ "Bestände"
+    assert de_api =~ "Authentifizierung"
+    assert de_api =~ "Wertpapiere"
+
+    # The shared layout carries the dependency-free switcher and its behavior.
+    layout = File.read!("docs/_layouts/docs.html")
+    assert layout =~ "docs-lang-switch"
+    assert layout =~ "data-lang=\"en\""
+    assert layout =~ "data-lang=\"de\""
+    assert layout =~ "localStorage"
+    assert layout =~ "navigator.language"
+    assert layout =~ "portfolixir-docs-lang"
+
+    # The decision is recorded.
+    adr = File.read!("docs/decisions/0014-bilingual-docs-site.md")
+    assert adr =~ "ADR-0014"
+    assert adr =~ "Status:** Accepted"
+    assert File.read!("docs/decisions/index.md") =~ "0014-bilingual-docs-site.html"
+  end
+
   defp api_routes_from_router do
     router = File.read!("lib/portfolixir_web/router.ex")
 
