@@ -101,8 +101,25 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      - name: Check for unused dependencies
+        run: mix deps.unlock --check-unused
+
       - name: Compile (warnings as errors)
-        run: mix compile --warnings-as-errors
+        run: mix compile --force --warnings-as-errors
+
+      - name: Audit retired Hex packages
+        run: mix hex.audit
+
+      # `mix deps.audit` (mix_audit) is intentionally NOT wired in here yet: the
+      # current dependency tree carries active HIGH-severity advisories
+      # (cowlib, cowboy, plug_cowboy, postgrex). Enabling the gate now would
+      # either fail CI or require ignoring HIGH advisories, both undesirable.
+      # The gate is enabled together with the required upgrades in a dedicated
+      # follow-up issue. The mix_audit dependency is already declared so the
+      # follow-up only adds the CI step + version bumps.
+
+      - name: Audit MCP server dependencies (npm)
+        run: npm audit --audit-level=high --prefix mcp-server
 
       # Credo, Sobelow and Dialyzer are blocking quality gates. Sobelow skips
       # are per-function `# sobelow_skip` annotations with a written reason;
@@ -131,3 +148,52 @@ jobs:
 
       - name: Dialyzer
         run: mix dialyzer --format short
+
+  migration-roundtrip:
+    runs-on: ubuntu-latest
+    needs: pre-commit
+
+    services:
+      db:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: portfolixir_test
+          PGDATA: /var/lib/postgresql/18/docker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.3'
+          otp-version: '27'
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Create database
+        run: MIX_ENV=test mix ecto.create
+
+      # A full `mix ecto.rollback --all` is not used: an early historical
+      # migration (ExtendTransactionsForPpImport) is deliberately irreversible
+      # (it drops a constraint with no inverse), and applied migrations are
+      # treated as immutable, so they cannot be retrofitted with down/0. This
+      # job instead verifies that the most recent migration is reversible
+      # (migrate -> rollback one step -> migrate), which is the regression that
+      # actually matters for new PRs.
+      - name: Migrate, roll back latest, migrate again
+        run: |
+          MIX_ENV=test mix ecto.migrate
+          MIX_ENV=test mix ecto.rollback
+          MIX_ENV=test mix ecto.migrate
