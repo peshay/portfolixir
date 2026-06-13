@@ -54,8 +54,8 @@ defmodule Portfolixir.Portfolios.Income do
       Keyword.get_lazy(opts, :base_currency, fn -> base_currency_for(portfolio_id) end)
 
     entries =
-      portfolio_id
-      |> Ledger.list_transactions(portfolio_id: portfolio_id)
+      [portfolio_id: portfolio_id]
+      |> Ledger.list_transactions()
       |> Enum.filter(&(&1.type in ["dividend", "interest"]))
       |> Enum.map(&entry(&1, base_currency))
 
