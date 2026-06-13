@@ -246,6 +246,66 @@ defmodule Portfolixir.Portfolios.AllocationTest do
              Enum.find_index(ids, &(&1 == tech.id))
   end
 
+  # User story:
+  # As a local portfolio maintainer setting targets at several levels,
+  # I want the breakdown to carry advisory consistency figures (sum of a
+  # parent's child targets, and the sum of the top-level targets),
+  # so that the UI can hint at divergence without enforcing it.
+  #
+  # Acceptance criteria:
+  # - Each row exposes `child_target_sum`: the sum of its direct children's
+  #   targets, or nil when no direct child carries a target.
+  # - The breakdown exposes `top_level_target_sum`: the sum of the root
+  #   categories' targets (zero when none have a target).
+  test "exposes advisory child and top-level target sums" do
+    world = setup_world()
+    %{classification: classification, core: core, satellite: satellite} = world
+
+    {:ok, tech} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Tech",
+        parent_id: core.id
+      })
+
+    {:ok, emerging} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Emerging",
+        parent_id: core.id
+      })
+
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"},
+        %{"category_id" => satellite.id, "target_weight" => "0.3"},
+        %{"category_id" => tech.id, "target_weight" => "0.3"},
+        %{"category_id" => emerging.id, "target_weight" => "0.2"}
+      ])
+
+    {:ok, allocation} =
+      Allocation.for_portfolio(world.portfolio.id, classification.id, prices: %{})
+
+    core_row = fetch_category(allocation, core.id)
+    # Children 0.3 + 0.2 = 0.5 (≠ Core's own 0.6 → the UI flags this).
+    assert Decimal.equal?(core_row.child_target_sum, Decimal.new("0.5"))
+
+    # Satellite has no children with targets, so no comparison is offered.
+    assert fetch_category(allocation, satellite.id).child_target_sum == nil
+
+    # Top-level sum is Core 0.6 + Satellite 0.3 = 0.9 (≠ 1 → header flags it).
+    assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0.9"))
+  end
+
+  test "returns a zero top-level target sum when no root carries a target" do
+    world = setup_world()
+
+    {:ok, allocation} =
+      Allocation.for_portfolio(world.portfolio.id, world.classification.id, prices: %{})
+
+    assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0"))
+  end
+
   test "returns not_found for an unknown classification" do
     world = setup_world()
     assert {:error, :not_found} = Allocation.for_portfolio(world.portfolio.id, 999_999)
