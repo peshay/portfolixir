@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { createApiClient } from "../src/api-client.js";
 import { callTool, listTools } from "../src/tools.js";
+import { createRecordingClient } from "./support/recording-client.js";
 
 describe("Portfolixir MCP tools", () => {
   it("lists API-wrapper tools with string decimal schemas", () => {
@@ -116,24 +117,8 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("calls the Phoenix API with bearer auth and returns structured content", async () => {
-    const requests: Array<{ method: string; path: string; body?: unknown; token: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          body: init?.body ? JSON.parse(String(init.body)) : undefined,
-          token: String(init?.headers?.["authorization"])
-        });
-
-        return new Response(JSON.stringify({ data: [{ id: 7, name: "Synthetic" }] }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
-      }
+    const { client, requests } = createRecordingClient({
+      data: [{ id: 7, name: "Synthetic" }]
     });
 
     const result = await callTool(client, "portfolixir.securities.list", {
@@ -154,35 +139,18 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("issues a GET to /trades for portfolixir.trades.list", async () => {
-    const requests: Array<{ method: string; path: string; token: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          token: String(init?.headers?.["authorization"])
-        });
-
-        return new Response(
-          JSON.stringify({
-            data: {
-              open_lots: [],
-              closed_trades: [
-                {
-                  open_date: "2026-01-10",
-                  close_date: "2026-04-10",
-                  quantity: "10",
-                  realized_pnl_abs: "500"
-                }
-              ],
-              orphan_sells: []
-            }
-          }),
-          { status: 200, headers: { "content-type": "application/json" } }
-        );
+    const { client, requests } = createRecordingClient({
+      data: {
+        open_lots: [],
+        closed_trades: [
+          {
+            open_date: "2026-01-10",
+            close_date: "2026-04-10",
+            quantity: "10",
+            realized_pnl_abs: "500"
+          }
+        ],
+        orphan_sells: []
       }
     });
 
@@ -195,29 +163,12 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("issues a GET to /valuation for portfolixir.portfolios.valuation", async () => {
-    const requests: Array<{ method: string; path: string; token: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          token: String(init?.headers?.["authorization"])
-        });
-
-        return new Response(
-          JSON.stringify({
-            data: {
-              portfolio_id: 3,
-              total_value: "2000",
-              unvalued_count: 0,
-              positions: [{ security_id: 9, market_value: "1000", weight: "0.5", valued: true }]
-            }
-          }),
-          { status: 200, headers: { "content-type": "application/json" } }
-        );
+    const { client, requests } = createRecordingClient({
+      data: {
+        portfolio_id: 3,
+        total_value: "2000",
+        unvalued_count: 0,
+        positions: [{ security_id: 9, market_value: "1000", weight: "0.5", valued: true }]
       }
     });
 
@@ -230,24 +181,8 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("issues a POST to /exchange_rates/sync for portfolixir.exchange_rates.sync", async () => {
-    const requests: Array<{ method: string; path: string; body?: unknown; token: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          body: init?.body ? JSON.parse(String(init.body)) : undefined,
-          token: String(init?.headers?.["authorization"])
-        });
-
-        return new Response(
-          JSON.stringify({ data: { provider: "ecb", status: "ok", upserted: 25 } }),
-          { status: 200, headers: { "content-type": "application/json" } }
-        );
-      }
+    const { client, requests } = createRecordingClient({
+      data: { provider: "ecb", status: "ok", upserted: 25 }
     });
 
     const result = await callTool(client, "portfolixir.exchange_rates.sync", {});
@@ -259,23 +194,8 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("routes classification assignment to PUT /assignments with the body", async () => {
-    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          body: init?.body ? JSON.parse(String(init.body)) : undefined
-        });
-
-        return new Response(
-          JSON.stringify({ data: { security_id: 7, classification_id: 3, category_id: 9 } }),
-          { status: 200, headers: { "content-type": "application/json" } }
-        );
-      }
+    const { client, requests } = createRecordingClient({
+      data: { security_id: 7, classification_id: 3, category_id: 9 }
     });
 
     const result = await callTool(client, "portfolixir.classifications.assign", {
@@ -291,24 +211,8 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("passes richer quote sync status responses through unchanged", async () => {
-    const requests: Array<{ method: string; path: string; body?: unknown; token: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          body: init?.body ? JSON.parse(String(init.body)) : undefined,
-          token: String(init?.headers?.["authorization"])
-        });
-
-        return new Response(
-          JSON.stringify({ data: { status: "skipped", reason: "missing_ticker" } }),
-          { status: 200, headers: { "content-type": "application/json" } }
-        );
-      }
+    const { client, requests } = createRecordingClient({
+      data: { status: "skipped", reason: "missing_ticker" }
     });
 
     const result = await callTool(client, "portfolixir.quotes.sync", { security_id: 42 });
@@ -323,19 +227,7 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("pages securities.list via limit/offset query params", async () => {
-    const requests: Array<{ method: string; path: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
-        return new Response(JSON.stringify({ data: [] }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
-      }
-    });
+    const { client, requests } = createRecordingClient({ data: [] });
 
     await callTool(client, "portfolixir.securities.list", { query: "etf", limit: 50, offset: 100 });
 
@@ -344,23 +236,7 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("routes category update to PATCH /categories/:id with the body", async () => {
-    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          body: init?.body ? JSON.parse(String(init.body)) : undefined
-        });
-        return new Response(JSON.stringify({ data: { id: 5 } }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
-      }
-    });
+    const { client, requests } = createRecordingClient({ data: { id: 5 } });
 
     await callTool(client, "portfolixir.classifications.categories.update", {
       classification_id: 3,
@@ -374,19 +250,7 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("routes classification delete to DELETE /classifications/:id", async () => {
-    const requests: Array<{ method: string; path: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
-        return new Response(JSON.stringify({ data: { deleted: true } }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
-      }
-    });
+    const { client, requests } = createRecordingClient({ data: { deleted: true } });
 
     await callTool(client, "portfolixir.classifications.delete", { id: 4 });
 
@@ -395,23 +259,7 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("routes bulk assign to PUT /assignments/bulk with the body", async () => {
-    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          body: init?.body ? JSON.parse(String(init.body)) : undefined
-        });
-        return new Response(JSON.stringify({ data: { assigned: 3 } }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
-      }
-    });
+    const { client, requests } = createRecordingClient({ data: { assigned: 3 } });
 
     await callTool(client, "portfolixir.classifications.assign_bulk", {
       classification_id: 3,
@@ -425,23 +273,7 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("routes update/delete tools to PATCH/DELETE on the right paths", async () => {
-    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          body: init?.body ? JSON.parse(String(init.body)) : undefined
-        });
-        return new Response(JSON.stringify({ data: { id: 1 } }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
-      }
-    });
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
 
     await callTool(client, "portfolixir.transactions.update", {
       id: 7,
@@ -458,37 +290,33 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(requests[0], {
       method: "PATCH",
       path: "/api/v1/transactions/7",
-      body: { transaction: { notes: "corrected" } }
+      body: { transaction: { notes: "corrected" } },
+      token: "Bearer api-token"
     });
-    assert.deepEqual(requests[1], { method: "DELETE", path: "/api/v1/transactions/7", body: undefined });
+    assert.deepEqual(requests[1], {
+      method: "DELETE",
+      path: "/api/v1/transactions/7",
+      body: undefined,
+      token: "Bearer api-token"
+    });
     assert.deepEqual(requests[2], {
       method: "PATCH",
       path: "/api/v1/cash_accounts/3",
-      body: { cash_account: { name: "Renamed", counts_toward_cash_quote: false } }
+      body: { cash_account: { name: "Renamed", counts_toward_cash_quote: false } },
+      token: "Bearer api-token"
     });
     assert.deepEqual(requests[3], {
       method: "DELETE",
       path: "/api/v1/securities_accounts/4",
-      body: undefined
+      body: undefined,
+      token: "Bearer api-token"
     });
     assert.equal(requests[4].method, "PATCH");
     assert.equal(requests[4].path, "/api/v1/securities/9");
   });
 
   it("passes list filters through as query params", async () => {
-    const requests: Array<{ method: string; path: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
-        return new Response(JSON.stringify({ data: [] }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
-      }
-    });
+    const { client, requests } = createRecordingClient({ data: [] });
 
     await callTool(client, "portfolixir.transactions.list", {
       from: "2026-01-01",
@@ -508,23 +336,7 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("routes target weight tools to the portfolio targets endpoints", async () => {
-    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          body: init?.body ? JSON.parse(String(init.body)) : undefined
-        });
-        return new Response(JSON.stringify({ data: { targets: [] } }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
-      }
-    });
+    const { client, requests } = createRecordingClient({ data: { targets: [] } });
 
     await callTool(client, "portfolixir.targets.list", { portfolio_id: 3, classification_id: 5 });
     await callTool(client, "portfolixir.targets.set", {
@@ -537,40 +349,31 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(requests[0], {
       method: "GET",
       path: "/api/v1/portfolios/3/targets?classification_id=5",
-      body: undefined
+      body: undefined,
+      token: "Bearer api-token"
     });
     assert.deepEqual(requests[1], {
       method: "PUT",
       path: "/api/v1/portfolios/3/targets",
-      body: { classification_id: 5, targets: [{ category_id: 9, target_weight: "0.25" }] }
+      body: { classification_id: 5, targets: [{ category_id: 9, target_weight: "0.25" }] },
+      token: "Bearer api-token"
     });
     assert.deepEqual(requests[2], {
       method: "DELETE",
       path: "/api/v1/portfolios/3/targets/9",
-      body: undefined
+      body: undefined,
+      token: "Bearer api-token"
     });
   });
 
   it("issues a GET to /allocation for portfolixir.portfolios.allocation", async () => {
-    const requests: Array<{ method: string; path: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
-        return new Response(
-          JSON.stringify({
-            data: {
-              portfolio_id: 3,
-              classification_id: 5,
-              categories: [
-                { category_id: 9, actual_weight: "0.4", target_weight: "0.25", drift_weight: "-0.15" }
-              ]
-            }
-          }),
-          { status: 200, headers: { "content-type": "application/json" } }
-        );
+    const { client, requests } = createRecordingClient({
+      data: {
+        portfolio_id: 3,
+        classification_id: 5,
+        categories: [
+          { category_id: 9, actual_weight: "0.4", target_weight: "0.25", drift_weight: "-0.15" }
+        ]
       }
     });
 
@@ -585,22 +388,9 @@ describe("Portfolixir MCP tools", () => {
   });
 
   it("routes cash_accounts.set_balance to POST /cash_accounts/:id/balance", async () => {
-    const requests: Array<{ method: string; path: string; body?: unknown }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({
-          method: init?.method ?? "GET",
-          path: `${parsed.pathname}${parsed.search}`,
-          body: init?.body ? JSON.parse(String(init.body)) : undefined
-        });
-        return new Response(JSON.stringify({ data: { id: 12, type: "balance_adjustment" } }), {
-          status: 201,
-          headers: { "content-type": "application/json" }
-        });
-      }
+    const { client, requests } = createRecordingClient({
+      data: { id: 12, type: "balance_adjustment" },
+      status: 201
     });
 
     await callTool(client, "portfolixir.cash_accounts.set_balance", {
@@ -612,25 +402,14 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(requests[0], {
       method: "POST",
       path: "/api/v1/cash_accounts/3/balance",
-      body: { date: "2026-06-01", amount: "4250.00" }
+      body: { date: "2026-06-01", amount: "4250.00" },
+      token: "Bearer api-token"
     });
   });
 
   it("issues a GET to /performance for portfolixir.portfolios.performance", async () => {
-    const requests: Array<{ method: string; path: string }> = [];
-    const client = createApiClient({
-      baseUrl: "http://portfolixir.test",
-      token: "api-token",
-      fetch: async (url, init) => {
-        const parsed = new URL(url);
-        requests.push({ method: init?.method ?? "GET", path: `${parsed.pathname}${parsed.search}` });
-        return new Response(
-          JSON.stringify({
-            data: { portfolio_id: 3, period: "ytd", ttwror: "0.0825", irr: "0.0791" }
-          }),
-          { status: 200, headers: { "content-type": "application/json" } }
-        );
-      }
+    const { client, requests } = createRecordingClient({
+      data: { portfolio_id: 3, period: "ytd", ttwror: "0.0825", irr: "0.0791" }
     });
 
     const result = await callTool(client, "portfolixir.portfolios.performance", {
