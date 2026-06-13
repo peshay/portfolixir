@@ -1,7 +1,8 @@
 defmodule Portfolixir.Portfolios.ValuationFxTest do
   use Portfolixir.DataCase, async: true
 
-  alias Portfolixir.Catalog
+  import Portfolixir.WorldFixtures, only: [create_security!: 1]
+
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -56,17 +57,8 @@ defmodule Portfolixir.Portfolios.ValuationFxTest do
     end
   end
 
-  defp security!(name, ticker, currency) do
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: name,
-        ticker_symbol: ticker,
-        currency_code: currency,
-        asset_class: "equity"
-      })
-
-    security
-  end
+  defp security!(name, ticker, currency),
+    do: create_security!(name: name, ticker: ticker, currency: currency, asset_class: "equity")
 
   defp buy!(world, security, qty, price) do
     {world, %{depot: depot, cash: cash}} =
