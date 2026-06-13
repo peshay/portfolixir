@@ -45,9 +45,14 @@ that successful delete response.
   certificate/leverage codes `warrant`, `knock_out`, `factor_certificate`,
   `discount_certificate`, `bonus_certificate`, `express_certificate`,
   `reverse_convertible`. Leave it empty to let the class be inferred from the
-  name/ISIN/ticker on read.
+  name/ISIN/ticker on read. The optional boolean
+  `excluded_from_allocation_targets` (default `false`) keeps a position out of
+  the allocation steering basis (the 100%) and the drift table while leaving it
+  in the valuation totals and performance — e.g. a Bitcoin held as a store of
+  value; excluded positions surface in the allocation's `excluded` block.
 - `GET /api/v1/securities/:id` returns one security.
-- `PATCH /api/v1/securities/:id` updates a security with a `security` object.
+- `PATCH /api/v1/securities/:id` updates a security with a `security` object
+  (including `excluded_from_allocation_targets`).
 - `DELETE /api/v1/securities/:id` deletes a security when no dependent
   transactions or quote history reference it; referenced securities return
   `409 Conflict`.
@@ -273,9 +278,15 @@ Example account payloads:
   **own** (directly assigned) value — `security_id`, `security_name`,
   `market_value`, `weight` — largest first, securities merged across depots;
   this is what the sunburst's outermost ring renders. Securities held but not
-  assigned in the tree are summed into `unassigned`. Weights mirror the
-  valuation: shares of the valued positions' total, cash excluded. Unknown
-  portfolios or classifications return `404 Not Found`.
+  assigned in the tree are summed into `unassigned`. Weights are shares of the
+  **steering basis**: the valued positions' total minus any security flagged
+  `excluded_from_allocation_targets`, cash excluded. `total_value` here is that
+  steering basis (not the full valuation). Flagged positions do not vanish: they
+  surface in a separate `excluded` object (`market_value` plus per-security
+  `positions`, or `null` when nothing is excluded), so they stay visible while
+  the percentages and drift describe only the steered part. The valuation and
+  performance endpoints are unaffected by the flag. Unknown portfolios or
+  classifications return `404 Not Found`.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
   period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter
