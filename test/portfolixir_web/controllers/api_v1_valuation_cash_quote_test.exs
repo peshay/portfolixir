@@ -21,6 +21,8 @@ defmodule PortfolixirWeb.ApiV1ValuationCashQuoteTest do
   #
   # Acceptance criteria:
   # - GET /api/v1/portfolios/:id/valuation returns cash_quote as a Decimal string.
+  # - The same response exposes counting_cash (the cash entering the quote) as a
+  #   Decimal string, so the consumer can reconstruct the quote itself.
   test "valuation endpoint returns the cash quote", %{conn: conn} do
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
@@ -84,5 +86,10 @@ defmodule PortfolixirWeb.ApiV1ValuationCashQuoteTest do
 
     assert data["total_with_cash"] == "1000"
     assert data["cash_quote"] == "0.2"
+
+    # counting_cash is the cash that enters the quote, as a Decimal string, so
+    # the consumer can recompute cash_quote = counting_cash / (total + counting_cash).
+    assert data["counting_cash"] == "200"
+    assert is_binary(data["counting_cash"])
   end
 end
