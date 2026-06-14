@@ -65,6 +65,8 @@ defmodule PortfolixirWeb.Router do
 
     get("/securities/:security_id/trades", TradeController, :index)
 
+    get("/holdings/by_security", HoldingsBySecurityController, :index)
+
     get("/portfolios", PortfolioController, :index)
     post("/portfolios", PortfolioController, :create)
     patch("/portfolios/:portfolio_id", PortfolioController, :update)
