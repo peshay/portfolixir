@@ -830,7 +830,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.transactions.create", "Create transaction", "Create a manual buy or sell transaction.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking).", transactionUpdateSchema, transactionUpdateZ),
   tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction.", idSchema, idZ),
-  tool("portfolixir.holdings.list", "List holdings", "List derived holdings for a portfolio, each with moving-average cost basis, latest price, market value and unrealized P&L (in the security's currency). Optional filters: security_id, securities_account_id.", {
+  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings in each security's own currency (no FX conversion), with moving-average cost basis, latest price, market value and unrealized P&L. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
@@ -845,7 +845,7 @@ const toolDefinitions: ToolDefinition[] = [
     securities_account_id: z.number().int().positive().optional()
   })),
   tool("portfolixir.holdings.by_security", "Holdings by security (global EUR)", "Global per-security valuation across ALL portfolios: each held security's total quantity and current market value converted to the EUR hub, with a valued flag (false when a quote, trade price or EUR rate path is missing). Self-describing: currency EUR, an as_of read date and a note; market_value is a Decimal string. Differs from portfolixir.holdings.list (per-portfolio holdings in the security's own currency, no FX) and from portfolixir.portfolios.valuation (one portfolio's totals/weights in its base currency).", emptyObjectSchema, emptyObjectZ),
-  tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, total, and actual weights per position.", {
+  tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, actual weights per position, plus the base-currency portfolio total, cash balances and the cash quote (use this, not holdings.list, for base-currency totals). The valued/price_source flags mark stale or unpriceable positions.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
@@ -866,7 +866,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.trades.list",
     "List trades",
-    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells. Optional from/to (ISO dates) filter each leg by its own date.",
+    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells, with realized P&L per FIFO-matched round-trip. For unrealized P&L on current positions use portfolixir.holdings.list. Optional from/to (ISO dates) filter each leg by its own date.",
     {
       type: "object",
       additionalProperties: false,
