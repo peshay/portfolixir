@@ -42,7 +42,7 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
       })
 
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Index Fund",
         ticker_symbol: "IDX",
         currency_code: "EUR",
@@ -136,7 +136,7 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
       })
 
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Index Fund",
         ticker_symbol: "IDX",
         currency_code: "EUR",

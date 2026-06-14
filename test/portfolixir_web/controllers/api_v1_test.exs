@@ -88,7 +88,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - Invalid holding_status values return a field-specific 422 error.
   test "lists securities with a derived holding_status filter", %{conn: conn} do
     {:ok, held} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Held API ETF",
         ticker_symbol: "HAPI",
         currency_code: "EUR",
@@ -96,7 +96,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, flat} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Flat API ETF",
         ticker_symbol: "FAPI",
         currency_code: "EUR",
@@ -104,7 +104,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, _never} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Never API ETF",
         ticker_symbol: "NAPI",
         currency_code: "EUR",
@@ -308,7 +308,7 @@ defmodule PortfolixirWeb.ApiV1Test do
     assert [%{"name" => "Apple Inc.", "provider" => "portfolio_performance"}] = search
 
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Manual Sync",
         currency_code: "USD",
         provider: "manual"
@@ -371,7 +371,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - The response remains under the existing `data` envelope.
   test "quote sync API reports skipped status and reason", %{conn: conn} do
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "No Adapter Security",
         currency_code: "USD",
         provider: "manual"
@@ -410,7 +410,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - The quote history row is preserved.
   test "delete returns conflict when quote history references the security", %{conn: conn} do
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Quoted Security",
         currency_code: "EUR",
         provider: "manual"
@@ -462,7 +462,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - A missing portfolio returns the normal 404 JSON shape.
   test "values a portfolio and returns decimal-string weights", %{conn: conn} do
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Synthetic ETF",
         ticker_symbol: "SYN",
         currency_code: "EUR",
@@ -536,7 +536,11 @@ defmodule PortfolixirWeb.ApiV1Test do
   # so that I can compute cash quote and floors directly.
   test "reports cash balances per account and in the valuation", %{conn: conn} do
     {:ok, security} =
-      Catalog.create_security(%{name: "ETF", currency_code: "EUR", asset_class: "etf"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "ETF",
+        currency_code: "EUR",
+        asset_class: "etf"
+      })
 
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{name: "Cash Portfolio", base_currency_code: "EUR"})
@@ -609,7 +613,11 @@ defmodule PortfolixirWeb.ApiV1Test do
   # so that I can fix the ledger instead of only appending to it.
   test "filters, updates and deletes transactions", %{conn: conn} do
     {:ok, security} =
-      Catalog.create_security(%{name: "ETF", currency_code: "EUR", asset_class: "etf"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "ETF",
+        currency_code: "EUR",
+        asset_class: "etf"
+      })
 
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
@@ -698,7 +706,11 @@ defmodule PortfolixirWeb.ApiV1Test do
   # so that I never orphan a referenced transaction.
   test "updates accounts and refuses to delete referenced ones", %{conn: conn} do
     {:ok, security} =
-      Catalog.create_security(%{name: "ETF", currency_code: "EUR", asset_class: "etf"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "ETF",
+        currency_code: "EUR",
+        asset_class: "etf"
+      })
 
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
@@ -778,10 +790,18 @@ defmodule PortfolixirWeb.ApiV1Test do
   # so that I do not fetch every position to read one.
   test "filters holdings by security", %{conn: conn} do
     {:ok, s1} =
-      Catalog.create_security(%{name: "A", currency_code: "EUR", asset_class: "etf"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "A",
+        currency_code: "EUR",
+        asset_class: "etf"
+      })
 
     {:ok, s2} =
-      Catalog.create_security(%{name: "B", currency_code: "EUR", asset_class: "etf"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "B",
+        currency_code: "EUR",
+        asset_class: "etf"
+      })
 
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
@@ -893,7 +913,11 @@ defmodule PortfolixirWeb.ApiV1Test do
   # built-in asset-class and currency trees.
   test "lists built-in classifications and manages custom trees", %{conn: conn} do
     {:ok, security} =
-      Catalog.create_security(%{name: "Apple", currency_code: "USD", asset_class: "equity"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Apple",
+        currency_code: "USD",
+        asset_class: "equity"
+      })
 
     trees =
       conn
@@ -952,10 +976,18 @@ defmodule PortfolixirWeb.ApiV1Test do
   # securities, so that I can maintain trees in place rather than only create.
   test "updates, bulk-assigns and deletes custom classification trees", %{conn: conn} do
     {:ok, s1} =
-      Catalog.create_security(%{name: "Alpha", currency_code: "EUR", asset_class: "equity"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Alpha",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
 
     {:ok, s2} =
-      Catalog.create_security(%{name: "Beta", currency_code: "EUR", asset_class: "equity"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Beta",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
 
     classification =
       conn
@@ -1067,7 +1099,8 @@ defmodule PortfolixirWeb.ApiV1Test do
   # so that responses stay small instead of dumping the whole table.
   test "paginates the securities list with limit and offset", %{conn: conn} do
     for name <- ["Aaa", "Bbb", "Ccc"] do
-      {:ok, _} = Catalog.create_security(%{name: name, currency_code: "EUR"})
+      {:ok, _} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{name: name, currency_code: "EUR"})
     end
 
     page1 =
@@ -1108,7 +1141,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - The existing security is not treated as missing when only date params are invalid.
   test "quote list returns field errors for invalid date filters", %{conn: conn} do
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Date Filter Security",
         currency_code: "EUR",
         provider: "manual"
@@ -1143,7 +1176,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - Invalid external action inputs are rejected without creating atoms.
   test "updates deletes and reports structured validation errors", %{conn: conn} do
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Old Name",
         currency_code: "EUR",
         provider: "manual"
@@ -1193,7 +1226,7 @@ defmodule PortfolixirWeb.ApiV1Test do
     assert missing_quote_target == %{"errors" => %{"detail" => "not found"}}
 
     {:ok, protected_security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Referenced Security",
         currency_code: "EUR",
         provider: "manual"
@@ -1257,7 +1290,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - Unknown ids return 404.
   test "exposes FIFO trades through GET /api/v1/securities/:id/trades", %{conn: _conn} do
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Apple Inc.",
         ticker_symbol: "AAPL",
         currency_code: "USD",

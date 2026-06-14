@@ -48,7 +48,7 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
 
   defp security_fixture(attrs) do
     base = Enum.into(attrs, %{name: "Sec", currency_code: "USD", provider: "manual"})
-    {:ok, sec} = Catalog.create_security(base)
+    {:ok, sec} = Catalog.create_security(Portfolixir.Actor.owner_ui(), base)
     sec
   end
 

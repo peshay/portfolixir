@@ -47,6 +47,14 @@ defmodule Portfolixir.Actor do
   @spec owner_ui() :: t()
   def owner_ui, do: %__MODULE__{type: :owner_ui}
 
+  @doc "A read-write API/MCP token; `label` identifies the token if known."
+  @spec api_token_rw(String.t() | nil) :: t()
+  def api_token_rw(label \\ nil), do: %__MODULE__{type: :api_token_rw, label: label}
+
+  @doc "A read-only API/MCP token; `label` identifies the token if known."
+  @spec api_token_ro(String.t() | nil) :: t()
+  def api_token_ro(label \\ nil), do: %__MODULE__{type: :api_token_ro, label: label}
+
   @doc "A bulk import session; `label` identifies the source file/run."
   @spec import_session(String.t() | nil) :: t()
   def import_session(label \\ nil), do: %__MODULE__{type: :import_session, label: label}

@@ -40,7 +40,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
         ] do
       test "classifies #{description} as equity" do
         assert {:ok, security} =
-                 Catalog.create_security(%{
+                 Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                    name: unquote(name),
                    currency_code: "EUR"
                  })
@@ -60,7 +60,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
         ] do
       test "classifies #{description} as equity" do
         assert {:ok, security} =
-                 Catalog.create_security(%{
+                 Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                    name: unquote(name),
                    ticker_symbol: unquote(ticker),
                    currency_code: "USD"
@@ -75,7 +75,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
   describe "equity heuristics — abbreviated share-class designations" do
     test "classifies INH.ON suffix as equity" do
       assert {:ok, security} =
-               Catalog.create_security(%{
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                  name: "IBU-TEC ADV.MATER. INH.ON",
                  currency_code: "EUR"
                })
@@ -92,7 +92,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
         ] do
       test "classifies '#{name}' as knock_out" do
         assert {:ok, security} =
-                 Catalog.create_security(%{
+                 Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                    name: unquote(name),
                    currency_code: "EUR"
                  })
@@ -119,6 +119,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
         assert {:ok, security} =
                  Catalog.create_security(
+                   Portfolixir.Actor.owner_ui(),
                    Map.reject(
                      %{name: name, ticker_symbol: ticker, currency_code: "USD"},
                      fn {_k, v} -> is_nil(v) end
@@ -135,7 +136,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
     for name <- ["Gold", "Silber", "Silver", "Platin", "Platinum"] do
       test "classifies exact name '#{name}' as commodity" do
         assert {:ok, security} =
-                 Catalog.create_security(%{
+                 Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                    name: unquote(name),
                    currency_code: "EUR"
                  })
@@ -147,7 +148,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
     test "does not classify 'Barrick Gold Corp' as commodity" do
       assert {:ok, security} =
-               Catalog.create_security(%{
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                  name: "Barrick Gold Corp",
                  currency_code: "CAD"
                })
@@ -167,7 +168,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
         ] do
       test "classifies '#{description}' as fund" do
         assert {:ok, security} =
-                 Catalog.create_security(%{
+                 Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                    name: unquote(name),
                    currency_code: "EUR"
                  })
@@ -179,7 +180,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
     test "still classifies an iShares UCITS ETF as etf (not downgraded to fund)" do
       assert {:ok, security} =
-               Catalog.create_security(%{
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                  name: "iShares Core MSCI World UCITS ETF",
                  currency_code: "USD"
                })

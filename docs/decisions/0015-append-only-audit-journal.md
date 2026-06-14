@@ -168,6 +168,25 @@ versa), CI fails. This ADR and the journal infrastructure
 function, `Journal`, `Actor`, `Journal.Serializer`, `Journal.Allowlist`) land
 first; arming no table, they cannot break existing writes.
 
+### Rollout status
+
+- **Slice 0 — infrastructure (landed):** `audit_journal` table, append-only and
+  guard-trigger functions, `Journal`, `Actor`, `Journal.Serializer`,
+  `Journal.Allowlist`; no business table armed.
+- **Slice 1 — Catalog/Fx (landed):** `Catalog`'s security writes
+  (`create`/`update`/`delete`/`set_asset_class` and the search-result writers)
+  are actor-first and routed through `Journal.record/3`; the `securities` table
+  is armed by its own migration. `Fx`'s only write (`upsert_many` → market-data
+  `exchange_rates`) stays allowlisted. The journal read surface ships as
+  `GET /api/v1/journal` and the matching `portfolixir.journal.list` MCP tool.
+  Logo writes (operational, on `securities`) are journaled under a fixed
+  `system_job` actor; the migration-only `backfill_inferred_asset_classes/0`
+  keeps its arity (immutable migrations) and is excluded from the actor gate.
+  Meta-tests landed: append-only, allowlist, and the AST write-actor gate with a
+  shrink-only grandfather list coupling arming to conversion.
+- **Next slices:** Portfolios/Classifications → Ledger → Imports, one context per
+  iteration, each arming its tables as it becomes actor-first.
+
 ## Consequences
 
 - **Every change to financial data becomes attributable and reversible by

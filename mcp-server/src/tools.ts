@@ -715,6 +715,37 @@ const performanceZ = z.object({
   series: z.boolean().optional()
 });
 
+const journalActorTypes = [
+  "owner_ui",
+  "api_token_rw",
+  "api_token_ro",
+  "import_session",
+  "system_job"
+] as const;
+const journalOperations = ["create", "update", "delete", "upsert"] as const;
+
+const journalListSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    resource_type: { type: "string" },
+    resource_id: { type: "string" },
+    actor_type: { type: "string", enum: [...journalActorTypes] },
+    operation: { type: "string", enum: [...journalOperations] },
+    include_scenarios: { type: "boolean" },
+    limit: { type: "integer", minimum: 1 }
+  }
+};
+
+const journalListZ = z.object({
+  resource_type: optionalString(),
+  resource_id: optionalString(),
+  actor_type: z.enum(journalActorTypes).optional(),
+  operation: z.enum(journalOperations).optional(),
+  include_scenarios: z.boolean().optional(),
+  limit: z.number().int().min(1).optional()
+});
+
 const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.list", "List securities", "List local securities. Use limit/offset to page large catalogs and keep responses small.", {
     type: "object",
@@ -937,6 +968,13 @@ const toolDefinitions: ToolDefinition[] = [
     "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). Set series=true to include the daily valuation series.",
     performanceSchema,
     performanceZ
+  ),
+  tool(
+    "portfolixir.journal.list",
+    "List audit journal",
+    "List append-only audit-journal entries (FR-28), newest first: who (actor_type/label), what (operation on resource_type/resource_id) and the before/after snapshots of every financial write, including deletions. Optional filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. The response echoes as_of, the filters applied and the ordering.",
+    journalListSchema,
+    journalListZ
   )
 ];
 
@@ -1141,6 +1179,18 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/performance`, args, [
           "period",
           "series"
+        ])
+      );
+    case "portfolixir.journal.list":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/journal", args, [
+          "resource_type",
+          "resource_id",
+          "actor_type",
+          "operation",
+          "include_scenarios",
+          "limit"
         ])
       );
     default:

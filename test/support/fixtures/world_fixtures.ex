@@ -16,6 +16,7 @@ defmodule Portfolixir.WorldFixtures do
   forking the builder.
   """
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger
@@ -102,7 +103,7 @@ defmodule Portfolixir.WorldFixtures do
       |> maybe_put(:ticker_symbol, Keyword.get(opts, :ticker, "WLD"))
       |> maybe_put(:isin, Keyword.get(opts, :isin))
 
-    {:ok, security} = Catalog.create_security(attrs)
+    {:ok, security} = Catalog.create_security(Actor.owner_ui(), attrs)
     security
   end
 

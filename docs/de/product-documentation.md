@@ -521,6 +521,19 @@ Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 - Theme, Akzent und Sprache sind Nutzerpräferenzen und beeinflussen gespeicherte
   Finanzwerte nicht.
 
+## Audit-Journal
+
+Jede Änderung an Finanzdaten wird in einem append-only Audit-Journal in derselben
+Datenbanktransaktion wie die Änderung selbst festgehalten, sodass jedes Anlegen,
+Bearbeiten oder Löschen zurechenbar (wer und wann) und durch Einsicht
+nachvollziehbar bleibt (Werte vorher/nachher) — das Sicherheitsnetz dafür, einen
+Agenten über die API/MCP schreiben zu lassen. Marktdaten-Synchronisierung (Kurse
+und Wechselkurse) ist betrieblich und wird nicht journalisiert. Das Journal ist
+über `GET /api/v1/journal` und das passende MCP-Tool `portfolixir.journal.list`
+abfragbar (siehe [API und MCP](integration/api-and-mcp.html)). Es deckt derzeit
+Wertpapier-Stammdaten ab; die übrigen Schreibbereiche folgen nacheinander. Eine
+eigene Ansicht in der App ist als Folgeschritt geplant.
+
 ## Heutige Nicht-Ziele
 
 - Kein automatischer Handel und keine Orderausführung.

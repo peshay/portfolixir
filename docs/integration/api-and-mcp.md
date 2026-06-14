@@ -425,6 +425,28 @@ Example transaction payload:
 }
 ```
 
+## Audit Journal
+
+Every financial write (create, update, delete) is recorded in an append-only
+audit journal in the same database transaction as the write itself, so any
+change — including deletions — stays attributable and reversible by inspection.
+Market-data ingestion (quote and exchange-rate sync) is operational data and is
+deliberately **not** journaled.
+
+- `GET /api/v1/journal` lists journal entries, newest first. Each entry carries
+  `actor_type` (`owner_ui`, `api_token_rw`, `api_token_ro`, `import_session`,
+  `system_job`) and an optional `actor_label`, the `operation`
+  (`create`, `update`, `delete`, `upsert`), the `resource_type`/`resource_id`
+  it touched, and the `before`/`after` snapshots (Decimal values are strings).
+  Optional filters: `resource_type`, `resource_id`, `actor_type`, `operation`,
+  `limit` (default 100, max 1000) and `include_scenarios` (`true` to include
+  persisted what-if writes; real writes only by default). The response is
+  self-describing: a `meta` object echoes the `as_of` instant, the `order`
+  (`inserted_at:desc,id:desc`), the `count` and the `filters` applied.
+
+The journal currently covers the Catalog/Fx contexts (security master-data
+writes); the remaining write contexts are armed in sequence.
+
 ## MCP Tools
 
 The MCP companion exposes the same local contract as tool calls. Decimal inputs
@@ -475,3 +497,4 @@ in MCP schemas are strings.
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`
+- `portfolixir.journal.list`

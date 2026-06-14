@@ -500,6 +500,19 @@ The detail pane shows a server-rendered SVG price chart with:
 - Theme, accent, and language are user preferences and do not affect stored
   financial values.
 
+## Audit Journal
+
+Every change to financial data is recorded in an append-only audit journal in the
+same database transaction as the change itself, so any create, edit, or deletion
+stays attributable (who and when) and reversible by inspection (before/after
+values) — the safety net for letting an agent write data through the API/MCP.
+Market-data sync (quotes and exchange rates) is operational and is not journaled.
+The journal is queryable through `GET /api/v1/journal` and the matching
+`portfolixir.journal.list` MCP tool (see
+[API and MCP](integration/api-and-mcp.html)). It currently covers security
+master-data writes; the remaining write areas are covered in sequence. A
+dedicated in-app viewer is a planned follow-up.
+
 ## Non-goals today
 
 - No automatic trading or order execution.

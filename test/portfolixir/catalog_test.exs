@@ -14,7 +14,7 @@ defmodule Portfolixir.CatalogTest do
   describe "create_security/1" do
     test "creates with required fields and normalises codes" do
       assert {:ok, security} =
-               Catalog.create_security(%{
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                  name: "Apple Inc.",
                  ticker_symbol: "aapl",
                  currency_code: "usd",
@@ -39,10 +39,13 @@ defmodule Portfolixir.CatalogTest do
     # - excluded_from_allocation_target_ids/0 returns only the flagged ids.
     test "casts excluded_from_allocation_targets and lists flagged ids" do
       assert {:ok, plain} =
-               Catalog.create_security(%{name: "Plain", currency_code: "EUR"})
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+                 name: "Plain",
+                 currency_code: "EUR"
+               })
 
       assert {:ok, excluded} =
-               Catalog.create_security(%{
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                  name: "Bitcoin",
                  currency_code: "EUR",
                  asset_class: "crypto",
@@ -59,7 +62,7 @@ defmodule Portfolixir.CatalogTest do
 
     test "rejects an unknown asset class" do
       assert {:error, changeset} =
-               Catalog.create_security(%{
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                  name: "Foo",
                  currency_code: "EUR",
                  asset_class: "yacht"
@@ -80,7 +83,7 @@ defmodule Portfolixir.CatalogTest do
     # - The ISIN is still normalized independently of the inferred type.
     test "accepts and infers government bond asset class" do
       assert {:ok, explicit} =
-               Catalog.create_security(%{
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                  name: "German Federal Bond",
                  isin: "de0001102614",
                  currency_code: "EUR",
@@ -91,7 +94,7 @@ defmodule Portfolixir.CatalogTest do
       assert explicit.isin == "DE0001102614"
 
       assert {:ok, inferred} =
-               Catalog.create_security(%{
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                  name: "Bundesrepublik Deutschland Bundesanleihe 2034",
                  isin: "DE000BU2Z023",
                  currency_code: "EUR"
@@ -114,7 +117,7 @@ defmodule Portfolixir.CatalogTest do
 
       for {name, isin, expected_class} <- examples do
         assert {:ok, security} =
-                 Catalog.create_security(%{
+                 Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                    name: name,
                    isin: isin,
                    currency_code: "EUR",
@@ -171,7 +174,7 @@ defmodule Portfolixir.CatalogTest do
 
       try do
         assert {:ok, security} =
-                 Catalog.create_security(%{
+                 Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                    name: "Automatic Logo Inc.",
                    currency_code: "USD",
                    asset_class: "equity"
@@ -193,7 +196,7 @@ defmodule Portfolixir.CatalogTest do
   describe "list_securities/1" do
     setup do
       {:ok, a} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           isin: "US0378331005",
@@ -202,7 +205,7 @@ defmodule Portfolixir.CatalogTest do
         })
 
       {:ok, b} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Bitcoin",
           ticker_symbol: "BTC",
           currency_code: "EUR",
@@ -211,7 +214,7 @@ defmodule Portfolixir.CatalogTest do
         })
 
       {:ok, c} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Caterpillar",
           ticker_symbol: "CAT",
           currency_code: "USD",
@@ -348,7 +351,9 @@ defmodule Portfolixir.CatalogTest do
         markets: []
       }
 
-      assert {:ok, security} = Catalog.create_from_search_result(result)
+      assert {:ok, security} =
+               Catalog.create_from_search_result(Portfolixir.Actor.owner_ui(), result)
+
       assert security.provider == "portfolio_performance"
       assert security.online_id == "uuid-1"
       assert security.feed == "PORTFOLIO_PERFORMANCE"
@@ -366,14 +371,18 @@ defmodule Portfolixir.CatalogTest do
         markets: []
       }
 
-      assert {:ok, _existing} = Catalog.create_from_search_result(result)
-      assert {:conflict, conflict} = Catalog.create_from_search_result(result)
+      assert {:ok, _existing} =
+               Catalog.create_from_search_result(Portfolixir.Actor.owner_ui(), result)
+
+      assert {:conflict, conflict} =
+               Catalog.create_from_search_result(Portfolixir.Actor.owner_ui(), result)
+
       assert conflict.online_id == "uuid-dup"
     end
 
     test "returns :conflict on ISIN match without online_id" do
       {:ok, _existing} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Foo SA",
           ticker_symbol: "FOO",
           currency_code: "EUR",
@@ -392,14 +401,15 @@ defmodule Portfolixir.CatalogTest do
         markets: []
       }
 
-      assert {:conflict, _} = Catalog.create_from_search_result(result)
+      assert {:conflict, _} =
+               Catalog.create_from_search_result(Portfolixir.Actor.owner_ui(), result)
     end
   end
 
   describe "merge_search_result/3" do
     test "updates online fields and merges attributes without clobbering note" do
       {:ok, existing} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Foo",
           ticker_symbol: "FOO",
           currency_code: "EUR",
@@ -421,7 +431,14 @@ defmodule Portfolixir.CatalogTest do
         markets: [%Market{symbol: "FOO", currency_code: "EUR", exchange_name: "Xetra"}]
       }
 
-      assert {:ok, updated} = Catalog.merge_search_result(existing, result, hd(result.markets))
+      assert {:ok, updated} =
+               Catalog.merge_search_result(
+                 Portfolixir.Actor.owner_ui(),
+                 existing,
+                 result,
+                 hd(result.markets)
+               )
+
       assert updated.note == "user note"
       assert updated.online_id == "uuid-merge"
       assert updated.attributes["local"] == "keep"
@@ -447,7 +464,7 @@ defmodule Portfolixir.CatalogTest do
       assert is_nil(legacy.asset_class)
       assert [] == Catalog.list_securities(filters: etf_filter)
 
-      assert 1 == Catalog.backfill_inferred_asset_classes()
+      assert 1 == backfill_as_migration()
 
       assert Repo.get!(Security, legacy.id).asset_class == "etf"
       assert [%{id: id}] = Catalog.list_securities(filters: etf_filter)
@@ -456,7 +473,7 @@ defmodule Portfolixir.CatalogTest do
 
     test "leaves explicit and non-inferable asset classes unchanged" do
       {:ok, explicit} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           currency_code: "USD",
@@ -466,7 +483,7 @@ defmodule Portfolixir.CatalogTest do
       mystery = legacy_security_without_asset_class("Mystery Holding 2030")
       assert is_nil(Security.effective_asset_class(mystery))
 
-      assert 0 == Catalog.backfill_inferred_asset_classes()
+      assert 0 == backfill_as_migration()
 
       assert Repo.get!(Security, explicit.id).asset_class == "equity"
       assert is_nil(Repo.get!(Security, mystery.id).asset_class)
@@ -474,19 +491,37 @@ defmodule Portfolixir.CatalogTest do
   end
 
   # Simulates a security imported before asset-class inference: a persisted row
-  # whose name implies a class but whose asset_class column is nil. Bypasses
-  # Security.changeset/2 (which would infer on write) via a raw change.
+  # whose name implies a class but whose asset_class column is nil. Created
+  # through the journaled actor-first writes (the `securities` table is
+  # guard-armed, FR-28): `create_security/2` infers and persists a class on
+  # write, then `set_asset_class/3` clears it back to nil — reproducing the
+  # legacy state without a raw, un-journaled `Repo.update`.
   defp legacy_security_without_asset_class(name) do
-    {:ok, security} =
-      Catalog.create_security(%{
-        name: "Seed #{System.unique_integer([:positive])}",
-        currency_code: "EUR",
-        asset_class: "equity"
-      })
+    actor = Portfolixir.Actor.owner_ui()
 
-    security
-    |> Ecto.Changeset.change(%{name: name, asset_class: nil})
-    |> Repo.update!()
+    {:ok, security} =
+      Catalog.create_security(actor, %{name: name, currency_code: "EUR"})
+
+    Catalog.set_asset_class(actor, [security.id], nil)
+    Catalog.get_security!(security.id)
+  end
+
+  # `backfill_inferred_asset_classes/0` is a migration-only data backfill that
+  # writes `securities` via un-journaled `update_all`. Real migrations run before
+  # the `securities` guard trigger is armed (FR-28); to exercise the backfill's
+  # inference logic against the already-armed test database we replay the
+  # migration environment with the documented escape hatch
+  # (`session_replication_role = replica`, ADR-0015), then restore it.
+  defp backfill_as_migration do
+    {:ok, count} =
+      Repo.transaction(fn ->
+        Repo.query!("SET LOCAL session_replication_role = replica")
+        count = Catalog.backfill_inferred_asset_classes()
+        Repo.query!("SET LOCAL session_replication_role = DEFAULT")
+        count
+      end)
+
+    count
   end
 
   defp create_trade_accounts do

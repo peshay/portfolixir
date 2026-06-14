@@ -356,7 +356,7 @@ defmodule Portfolixir.Imports.ApplierTest do
       preview: preview
     } do
       {:ok, existing} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           isin: "US0378331005",
           ticker_symbol: "AAPL",

@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Fx.ExchangeRate
+  alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount, Target}
 
@@ -484,6 +485,21 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     %{provider: to_string(provider), status: to_string(status), upserted: upserted}
   end
 
+  def journal_entry(%JournalEntry{} = entry) do
+    %{
+      id: entry.id,
+      actor_type: to_string(entry.actor_type),
+      actor_label: entry.actor_label,
+      operation: to_string(entry.operation),
+      resource_type: entry.resource_type,
+      resource_id: entry.resource_id,
+      before: entry.before,
+      after: entry.after,
+      scenario_id: entry.scenario_id,
+      inserted_at: datetime(entry.inserted_at)
+    }
+  end
+
   def errors(%Changeset{} = changeset) do
     Changeset.traverse_errors(changeset, fn {message, opts} ->
       Enum.reduce(opts, message, fn {key, value}, acc ->
@@ -507,6 +523,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   def timestamp(nil), do: nil
   def timestamp(%NaiveDateTime{} = timestamp), do: NaiveDateTime.to_iso8601(timestamp)
+
+  def datetime(nil), do: nil
+  def datetime(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
 
   defp provider(nil), do: nil
   defp provider(provider) when is_atom(provider), do: Atom.to_string(provider)

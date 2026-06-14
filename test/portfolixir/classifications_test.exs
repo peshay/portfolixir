@@ -13,7 +13,10 @@ defmodule Portfolixir.ClassificationsTest do
 
   defp security!(attrs) do
     base = %{name: "Apple", ticker_symbol: "AAPL", currency_code: "USD", asset_class: "equity"}
-    {:ok, security} = Catalog.create_security(Map.merge(base, attrs))
+
+    {:ok, security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), Map.merge(base, attrs))
+
     security
   end
 
@@ -26,7 +29,9 @@ defmodule Portfolixir.ClassificationsTest do
   end
 
   defp infer(name) do
-    {:ok, security} = Catalog.create_security(%{name: name, currency_code: "EUR"})
+    {:ok, security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{name: name, currency_code: "EUR"})
+
     security.asset_class
   end
 
@@ -210,7 +215,10 @@ defmodule Portfolixir.ClassificationsTest do
     Classifications.ensure_builtins()
 
     {:ok, security} =
-      Catalog.create_security(%{name: "Opaque Holding XYZ", currency_code: "EUR"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Opaque Holding XYZ",
+        currency_code: "EUR"
+      })
 
     trees = Classifications.list_trees()
     asset_class = Enum.find(trees, &(&1.classification.key == "asset_class"))

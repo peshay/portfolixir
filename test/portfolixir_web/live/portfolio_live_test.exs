@@ -190,7 +190,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, second} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Tech ETF",
         ticker_symbol: "TEC",
         currency_code: "EUR",
@@ -496,7 +496,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Bought but never quoted: valued at the trade price, flagged stale.
     {:ok, unquoted} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Quiet Co.",
         ticker_symbol: "QUIET",
         currency_code: "EUR",
@@ -520,7 +520,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Delivered without any price observation: cannot be valued at all.
     {:ok, unpriced} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Delivered Co.",
         ticker_symbol: "DLVR",
         currency_code: "EUR",
@@ -563,7 +563,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     world = seed_world()
 
     {:ok, bitcoin} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Bitcoin",
         ticker_symbol: "BTC",
         currency_code: "EUR",
