@@ -34,6 +34,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.transactions.update",
       "portfolixir.transactions.delete",
       "portfolixir.holdings.list",
+      "portfolixir.holdings.by_security",
       "portfolixir.portfolios.valuation",
       "portfolixir.exchange_rates.list",
       "portfolixir.exchange_rates.sync",
@@ -180,6 +181,24 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/portfolios/3/valuation");
     assert.equal(requests[0].token, "Bearer api-token");
     assert.match(result.content[0].text, /0\.5/);
+  });
+
+  it("issues a GET to /holdings/by_security for portfolixir.holdings.by_security", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        currency: "EUR",
+        as_of: "2026-06-14",
+        note: "converted to the EUR hub",
+        holdings: [{ security_id: 9, quantity: "10", market_value: "1000", valued: true }]
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.holdings.by_security", {});
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/holdings/by_security");
+    assert.equal(requests[0].token, "Bearer api-token");
+    assert.match(result.content[0].text, /1000/);
   });
 
   it("issues a GET to /income for portfolixir.portfolios.income", async () => {

@@ -210,9 +210,28 @@ Beispiel-Payloads für Konten:
   gegen diesen Preis, plus `security_name` und `currency_code`. Alle monetären
   Größen sind in der eigenen Währung des Wertpapiers (keine FX-Umrechnung — siehe
   die Bewertung für Summen in Basiswährung); ein Bestand, dessen Wertpapier keinen
-  Kurs hat, liefert `null` für Preis, Marktwert und G/V. Unbekannte Portfolios
-  liefern `404 Not Found`. Optionale Filter: `security_id`,
-  `securities_account_id`.
+  Kurs hat, liefert `null` für Preis, Marktwert und G/V. Die Antwort ist
+  selbstbeschreibend (FR-13): sie trägt `currency_basis: "security_currency"`
+  (sodass ein Client nie annehmen muss, ob FX angewendet wurde) und ein
+  `as_of`-Datum. Bestände werden beim Lesen abgeleitet, ohne gespeicherten
+  Snapshot, daher ist `as_of` das Lesedatum. Unbekannte Portfolios liefern
+  `404 Not Found`. Optionale Filter: `security_id`, `securities_account_id`.
+- `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
+  Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
+  gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
+  aktuellem `market_value`, umgerechnet in den **EUR-Hub**, plus ein
+  `valued`-Flag. `valued` ist `false` (und `market_value` ist `null`), wenn das
+  Wertpapier weder einen Kurs noch einen Handelspreis hat oder kein
+  Wechselkurspfad nach EUR existiert, sodass ein fehlender Kurs oder Kurs einen
+  Wert nie stillschweigend verfälscht. Die Zeilen sind nach `security_id`
+  sortiert. Die Antwort ist selbstbeschreibend: ein `currency` auf oberster
+  Ebene mit `"EUR"`, ein `as_of`-Lesedatum (der Bericht wird beim Lesen
+  abgeleitet, daher ist `as_of` das heutige Datum, kein gespeicherter
+  Zeitpunkt) und ein `note`, das die Hub-Umrechnung beschreibt. Dies ist das
+  portfolioübergreifende Gegenstück in Basiswährung zur Bestandsliste eines
+  einzelnen Portfolios (die in der eigenen Währung jedes Wertpapiers ohne FX
+  bleibt); für Summen und Gewichte eines Portfolios nutze stattdessen den
+  Bewertungs-Endpunkt.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` liefert eine Live-Bewertung
   eines Portfolios: jede gehaltene Position bepreist aus ihrem letzten
   Kurs-Schlusswert, ein `total_value` und das `weight` jeder bewerteten Position
@@ -242,7 +261,11 @@ Beispiel-Payloads für Konten:
   ein Konsument die `cash_quote` selbst rekonstruieren kann. Ein Konto, dessen Währung
   keinen Kurspfad zur Basis hat, wird `valued: false` gemeldet und aus
   `total_cash` ausgeschlossen, spiegelnd, wie unbepreisbare Positionen behandelt
-  werden.
+  werden. Die Antwort ist selbstbeschreibend (FR-13): sie trägt ein
+  `as_of`-Datum (das Lesedatum — die Bewertung wird live ohne gespeicherten
+  Snapshot berechnet) und eine `valuation_note`, die angibt, dass Summen in
+  `base_currency` über den EUR-Hub vorliegen und dass die je Position geführten
+  Felder `price_source` und `valued` die Preis-Aktualität anzeigen.
 - `GET /api/v1/portfolios/:portfolio_id/performance` liefert die **echte
   zeitgewichtete Rendite (TTWROR)** des Portfolios, berechnet auf die
   Portfolio-Performance-Art: das Portfolio wird täglich bewertet (Kurse am oder vor
@@ -352,7 +375,9 @@ Beispiel-Payloads für Konten:
   `GET`/`POST /api/v1/portfolios` zurückgegebenen Portfolio-Objekten enthalten.
 - `GET /api/v1/securities/:security_id/trades` liefert FIFO-gematchte Trades eines
   Wertpapiers: offene Lots, geschlossene Round-Trips (mit realisiertem G/V und
-  Haltedauer in Tagen) und etwaige verwaiste Verkäufe. Optionales `from`/`to`
+  Haltedauer in Tagen) und etwaige verwaiste Verkäufe. Die Antwort ist
+  selbstbeschreibend (FR-13): sie trägt `method: "fifo"`, sodass ein Client nie
+  annehmen muss, wie Lots gegen Verkäufe gepaart wurden. Optionales `from`/`to`
   (ISO-Daten) filtert jedes Bein nach seinem eigenen Datum: offene Lots nach
   Eröffnungsdatum, geschlossene Round-Trips nach Schlussdatum, verwaiste Verkäufe
   nach Verkaufsdatum.
@@ -457,6 +482,7 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.transactions.update`
 - `portfolixir.transactions.delete`
 - `portfolixir.holdings.list`
+- `portfolixir.holdings.by_security`
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`
