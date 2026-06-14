@@ -225,8 +225,11 @@ Example account payloads:
   `security_name` and `currency_code`. All monetary figures are in the security's
   own currency (no FX conversion — see the valuation for base-currency totals); a
   holding whose security has no quote returns `null` price, market value and P&L.
-  Unknown portfolios return `404 Not Found`. Optional filters: `security_id`,
-  `securities_account_id`.
+  The response is self-describing (FR-13): it carries `currency_basis:
+  "security_currency"` (so a client never has to assume whether FX was applied)
+  and an `as_of` date. Holdings are derived on read with no stored snapshot, so
+  `as_of` is the read date. Unknown portfolios return `404 Not Found`. Optional
+  filters: `security_id`, `securities_account_id`.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
@@ -267,6 +270,11 @@ Example account payloads:
   quote. An account whose currency has no rate path to the base is reported
   `valued: false` and excluded from `total_cash`, mirroring how unpriceable
   positions are handled.
+  The response is self-describing (FR-13): it carries an `as_of` date (the read
+  date — the valuation is computed live with no stored snapshot) and a
+  `valuation_note` stating that totals are in `base_currency` via the EUR hub and
+  that the per-position `price_source` and `valued` fields indicate price
+  staleness.
 - `GET /api/v1/portfolios/:portfolio_id/performance` returns the portfolio's
   **true time-weighted rate of return (TTWROR)**, computed the Portfolio
   Performance way: the portfolio is valued daily (quotes on or before each day,
@@ -366,9 +374,11 @@ Example account payloads:
   `GET`/`POST /api/v1/portfolios`.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
-  period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter
-  each leg by its own date: open lots by open date, closed round-trips by close
-  date, orphan sells by sell date.
+  period in days) and any orphan sells. The response is self-describing (FR-13):
+  it carries `method: "fifo"`, so a client never has to assume how lots were
+  paired against sells. Optional `from`/`to` (ISO dates) filter each leg by its
+  own date: open lots by open date, closed round-trips by close date, orphan
+  sells by sell date.
 
 ## Exchange Rates
 
