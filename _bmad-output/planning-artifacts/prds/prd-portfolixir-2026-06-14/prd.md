@@ -1,6 +1,6 @@
 ---
 title: "Portfolixir PRD — FX-Correct Settlement & Risk/Concentration Endpoint"
-status: draft
+status: final
 created: 2026-06-14
 updated: 2026-06-14
 ---
@@ -89,10 +89,10 @@ end-to-end.
 ### Feature 1 — FX-Honest Settlement & Position P&L (FR-B Phase 1, a+b)
 
 - **FR1.** A transaction can be booked **in the security's own currency** with a
-  **stored settlement FX rate** capturing the cash account's settlement currency
-  and the rate applied. The booking records both legs honestly (security-currency
-  amount + settlement-currency cash movement), rather than forcing the whole
-  transaction into the account's currency.
+  **stored settlement FX rate**. The persisted booking exposes: the
+  security-currency amount, the settlement-currency cash amount, and the stored
+  settlement FX rate (Decimal strings) — rather than forcing the whole transaction
+  into the account's currency. A test can assert all three fields on the stored row.
 - **FR2.** Per-position cost basis and P&L are computed **in the security's own
   currency** (moving-average avg-cost in native currency), eliminating phantom P&L
   from the FX spread. The day-one foreign-currency position reads ~0% on zero real
@@ -109,10 +109,11 @@ end-to-end.
 
 - **FR5.** Each cash account carries a **`liquidity_role`** ∈ {`free_cash`,
   `credit_line`, `reserve`}, settable via API/MCP. `free_cash` is the default.
-- **FR6.** The **cash quote / deployable cash** counts only `free_cash` accounts
-  with balance ≥ 0. `credit_line` accounts never count as free liquidity (type beats
-  sign); `reserve` accounts are excluded and shown as a labelled overlay. Today's
-  ~5.33% cash artefact disappears.
+- **FR6.** **Deployable cash** is defined as the sum of the balances of `free_cash`
+  accounts whose balance ≥ 0, converted to base currency (EUR) via the EUR hub.
+  `credit_line` accounts never count as free liquidity (type beats sign); `reserve`
+  accounts are excluded and shown as a labelled overlay. This computation rule is the
+  definition; today's ~5.33% cash artefact disappearing is one worked example of it.
 - **FR7.** A **drawn credit_line (negative balance)** is treated as a liability that
   reduces net worth. **Unused credit headroom is not liquidity**; it may optionally
   be surfaced separately as "available leverage", explicitly outside the cash quote.
@@ -121,15 +122,24 @@ end-to-end.
 
 - **FR8.** A **single MCP call** returns the portfolio's risk lens over the
   **steerable basis** (excludes positions flagged `excluded_from_allocation_targets`):
-  **single-name concentration Top-N** and **HHI**.
-- **FR9.** The same call reports **asset-class cap violations** against
-  **configurable caps** (per asset class).
+  - **Single-name concentration Top-N** — default **N = 10**, overridable per call;
+    each entry carries the security, its weight (% of steerable basis as a Decimal
+    string), and a severity (`ok` / `warn` / `hard`) per FR10.
+  - **HHI** — Herfindahl-Hirschman Index on the steerable single-name weights,
+    reported on the **0–10000** scale (sum of squared percentage weights). The call
+    returns the raw value plus a band: `low` < 1500, `moderate` 1500–2500,
+    `concentrated` > 2500 (bands overridable per call). A `concentrated` HHI counts
+    as a surfaced breach for SM4.
+- **FR9.** The same call reports **asset-class cap violations**. Caps are
+  **configurable per asset class** (no shipped defaults — a cap is opt-in config).
+  Each violation record carries: asset class, current weight (%), configured cap (%),
+  and overage (current − cap, in percentage points). Only classes over their cap are
+  returned.
 - **FR10.** Concentration evaluation is **instrument-type-aware** with shipped
   **defaults, overridable per call**: single stock WARN > 7% / HARD > 10%; an ETF is
-  exempt from the single-name rule (or held to its own high threshold ~25%+) so a
-  World-core ETF at 20% reads as target, not risk. **ETF detection reuses the
-  existing asset-class signal** (ETF is already a distinct asset class) — no new
-  per-security field.
+  held to its own higher default threshold WARN > 25% (no HARD) so a World-core ETF
+  at 20% reads as target, not risk. **ETF detection reuses the existing asset-class
+  signal** (ETF is already a distinct asset class) — no new per-security field.
 - **Out of MVP (explicit):** drawdown/volatility per position/portfolio (needs
   quote-history time-series math) → FR-D Slice B. Category/theme-leaf drift flags
   (> 3pp over target / > 150% of target) overlap allocation steering → **deferred to
@@ -149,6 +159,27 @@ end-to-end.
   valuation + classifications — same inputs yield the same output, no hidden state.
 - **NFR5 — Auditability.** Bookings are written only through `Ledger`/`Imports`
   public functions; holdings/P&L remain derived, never stored (ADR-0004).
+
+## Glossary
+
+- **Deployable cash** (= *cash quote numerator*, *free liquidity*): the canonical
+  figure from FR6 — Σ balances of `free_cash` accounts with balance ≥ 0, in EUR via
+  the EUR hub. The terms "deployable depot cash" / "deployable depot liquidity" /
+  "real settlement balance" all refer to this single figure; use **deployable cash**.
+- **`liquidity_role`**: per-account classification ∈ {`free_cash`, `credit_line`,
+  `reserve`} (FR5). `free_cash` = counts toward deployable cash when ≥ 0;
+  `credit_line` = Lombard/Dispo/Margin, never free liquidity; `reserve` = earmarked,
+  excluded from deployable cash, shown as overlay.
+- **Steerable basis**: the position set used for concentration/targets — the whole
+  portfolio minus positions flagged `excluded_from_allocation_targets` (e.g. crypto,
+  third-party depots).
+- **`excluded_from_allocation_targets`**: existing per-security flag keeping a
+  position in totals/performance but out of the steerable basis.
+- **HHI**: Herfindahl-Hirschman Index over steerable single-name weights, 0–10000
+  scale (FR8).
+- **Settlement FX rate**: the FX rate stored with a transaction (FR1) linking the
+  security currency to the cash account's settlement currency; always triangulated
+  through the EUR hub (NFR3).
 
 ## Out of Scope (this PRD)
 
