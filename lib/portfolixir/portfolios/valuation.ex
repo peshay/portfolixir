@@ -56,6 +56,39 @@ defmodule Portfolixir.Portfolios.Valuation do
     end)
   end
 
+  @doc """
+  Self-describing wrapper over `holdings_by_security/1` for the JSON API and MCP.
+
+  Returns the global per-security valuation as a flat list sorted by
+  `security_id` (each row keeps `security_id`, `quantity`, `market_value` and
+  the `valued` flag), wrapped with the fixed hub `currency` (`"EUR"`), an
+  `as_of` read date and a `note`. The map-keyed `holdings_by_security/1` stays
+  the LiveView contract; this shape is what crosses the API boundary.
+
+  `as_of` is the read date (`Date.utc_today/0`): the valuation is derived on
+  read from the latest quote/trade price and FX rate, so there is no single
+  stored snapshot date to report.
+
+  Options are forwarded to `holdings_by_security/1` (e.g. `:prices` for tests).
+  """
+  def holdings_by_security_report(opts \\ []) do
+    holdings =
+      opts
+      |> holdings_by_security()
+      |> Enum.map(fn {security_id, valuation} ->
+        Map.put(valuation, :security_id, security_id)
+      end)
+      |> Enum.sort_by(& &1.security_id)
+
+    %{currency: @hub, as_of: Date.utc_today(), note: report_note(), holdings: holdings}
+  end
+
+  defp report_note do
+    "Each held security's global quantity and market value converted to the " <>
+      "EUR hub at the latest stored rate; valued is false when a quote, trade " <>
+      "price or rate path to EUR is missing."
+  end
+
   defp value_security(security_id, quantity, price_maps) do
     security = Catalog.get_security(security_id)
     security_currency = security && security.currency_code

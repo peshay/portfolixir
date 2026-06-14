@@ -844,6 +844,7 @@ const toolDefinitions: ToolDefinition[] = [
     security_id: z.number().int().positive().optional(),
     securities_account_id: z.number().int().positive().optional()
   })),
+  tool("portfolixir.holdings.by_security", "Holdings by security (global EUR)", "Global per-security valuation across ALL portfolios: each held security's total quantity and current market value converted to the EUR hub, with a valued flag (false when a quote, trade price or EUR rate path is missing). Self-describing: currency EUR, an as_of read date and a note; market_value is a Decimal string. Differs from portfolixir.holdings.list (per-portfolio holdings in the security's own currency, no FX) and from portfolixir.portfolios.valuation (one portfolio's totals/weights in its base currency).", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, total, and actual weights per position.", {
     type: "object",
     additionalProperties: false,
@@ -1046,6 +1047,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "securities_account_id"
         ])
       );
+    case "portfolixir.holdings.by_security":
+      return client.request("GET", "/api/v1/holdings/by_security");
     case "portfolixir.portfolios.valuation":
       return client.request("GET", `/api/v1/portfolios/${args.portfolio_id}/valuation`);
     case "portfolixir.exchange_rates.list":
