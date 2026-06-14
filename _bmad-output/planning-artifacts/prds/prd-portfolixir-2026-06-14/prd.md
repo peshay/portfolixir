@@ -125,15 +125,16 @@ end-to-end.
 - **FR9.** The same call reports **asset-class cap violations** against
   **configurable caps** (per asset class).
 - **FR10.** Concentration evaluation is **instrument-type-aware** with shipped
-  **defaults, overridable per call**: single stock WARN > 7% / HARD > 10%; a
-  broad/diversified ETF is exempt from the single-name rule (or held to its own high
-  threshold ~25%+) so a World-core ETF at 20% reads as target, not risk.
+  **defaults, overridable per call**: single stock WARN > 7% / HARD > 10%; an ETF is
+  exempt from the single-name rule (or held to its own high threshold ~25%+) so a
+  World-core ETF at 20% reads as target, not risk. **ETF detection reuses the
+  existing asset-class signal** (ETF is already a distinct asset class) — no new
+  per-security field.
 - **Out of MVP (explicit):** drawdown/volatility per position/portfolio (needs
   quote-history time-series math) → FR-D Slice B. Category/theme-leaf drift flags
-  (> 3pp over target / > 150% of target) overlap allocation steering → **proposed
-  deferral to FR-C**, not this endpoint. `[OPEN-A]`
-- `[OPEN-B]` **Broad/diversified ETF detection** (FR10) needs a data signal — asset
-  class, an instrument sub-type, or a per-security flag. Source TBD.
+  (> 3pp over target / > 150% of target) overlap allocation steering → **deferred to
+  FR-C**. Risk-overlap/correlation matrix and region/sector look-through → future,
+  data-source-gated (see `addendum.md`).
 
 ## Cross-Cutting NFRs
 
