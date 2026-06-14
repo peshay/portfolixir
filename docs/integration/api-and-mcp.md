@@ -251,7 +251,9 @@ Example account payloads:
   the other accounts did not exist (`counting_cash / (total_value +
   counting_cash)`, `0` when there is nothing to value yet) — so a reference-only
   business account stays listed and inside `total_cash` without distorting the
-  quote. An account whose currency has no rate path to the base is reported
+  quote. The response also emits `counting_cash` (Decimal string) — the cash that
+  enters the quote — so a consumer can reconstruct `cash_quote` itself. An
+  account whose currency has no rate path to the base is reported
   `valued: false` and excluded from `total_cash`, mirroring how unpriceable
   positions are handled.
 - `GET /api/v1/portfolios/:portfolio_id/performance` returns the portfolio's
@@ -315,7 +317,10 @@ Example account payloads:
   whole subtree rolled up), `actual_weight` (the rolled-up share of
   `total_value`), `target_weight`, `drift_weight`
   (`target_weight - actual_weight`), and `drift_value` (the drift restated in
-  the base currency). A position assigned to a child counts toward that child
+  the base currency). Each row also carries `child_target_sum` (Decimal string):
+  the advisory sum of its **direct** children's targets, or `null` when no direct
+  child carries a target — a target-consistency hint the UI can flag against the
+  row's own `target_weight`. A position assigned to a child counts toward that child
   **and every ancestor**, so a parent category with a target is compared
   against its subtree rather than showing 0%; the rows come back in tree order
   (parent before its children). Because parents aggregate their children, the

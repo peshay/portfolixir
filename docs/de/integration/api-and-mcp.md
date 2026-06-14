@@ -237,7 +237,9 @@ Beispiel-Payloads für Konten:
   `counts_toward_cash_quote` `true` ist, als gäbe es die anderen Konten nicht
   (`counting_cash / (total_value + counting_cash)`, `0`, wenn noch nichts zu
   bewerten ist) — sodass ein reines Referenz-Geschäftskonto gelistet und in
-  `total_cash` bleibt, ohne die Quote zu verzerren. Ein Konto, dessen Währung
+  `total_cash` bleibt, ohne die Quote zu verzerren. Die Antwort liefert außerdem
+  `counting_cash` (Decimal-String) — das Cash, das in die Quote eingeht — sodass
+  ein Konsument die `cash_quote` selbst rekonstruieren kann. Ein Konto, dessen Währung
   keinen Kurspfad zur Basis hat, wird `valued: false` gemeldet und aus
   `total_cash` ausgeschlossen, spiegelnd, wie unbepreisbare Positionen behandelt
   werden.
@@ -306,7 +308,11 @@ Beispiel-Payloads für Konten:
   zugeordnete Positionen), `market_value` (ihr ganzer aufgerollter Teilbaum),
   `actual_weight` (der aufgerollte Anteil an `total_value`), `target_weight`,
   `drift_weight` (`target_weight - actual_weight`) und `drift_value` (die Drift in
-  Basiswährung neu ausgewiesen). Eine einem Kind zugeordnete Position zählt zu
+  Basiswährung neu ausgewiesen). Jede Zeile trägt zudem `child_target_sum`
+  (Decimal-String): die beratende Summe der Ziele ihrer **direkten** Kinder, oder
+  `null`, wenn kein direktes Kind ein Ziel trägt — ein Konsistenzhinweis, den die
+  UI gegen das eigene `target_weight` der Zeile abgleichen kann. Eine einem Kind
+  zugeordnete Position zählt zu
   diesem Kind **und jedem Vorfahren**, sodass eine übergeordnete Kategorie mit Ziel
   gegen ihren Teilbaum verglichen wird, statt 0 % zu zeigen; die Zeilen kommen in
   Baumreihenfolge zurück (Eltern vor ihren Kindern). Da Eltern ihre Kinder
