@@ -514,6 +514,15 @@ defmodule PortfolixirWeb.ApiV1Test do
     assert valuation["total_value"] == "100"
     assert valuation["unvalued_count"] == 0
 
+    # FR-13: the valuation is self-describing about its read date and that totals
+    # are in base_currency via the EUR hub, with staleness shown per position.
+    assert valuation["as_of"] == Date.to_iso8601(Date.utc_today())
+    assert valuation["base_currency"] == "EUR"
+    assert valuation["valuation_note"] =~ "base_currency"
+    assert valuation["valuation_note"] =~ "EUR hub"
+    assert valuation["valuation_note"] =~ "price_source"
+    assert valuation["valuation_note"] =~ "valued"
+
     assert [position] = valuation["positions"]
     assert position["security_id"] == security.id
     assert position["market_value"] == "100"
@@ -1317,8 +1326,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       |> get("/api/v1/securities/#{security.id}/trades")
       |> json_response(200)
 
-    assert %{"data" => %{"open_lots" => [_], "closed_trades" => [closed], "orphan_sells" => []}} =
-             response
+    assert %{
+             "data" => %{
+               "method" => "fifo",
+               "open_lots" => [_],
+               "closed_trades" => [closed],
+               "orphan_sells" => []
+             }
+           } = response
 
     # Decimals are strings, not floats
     assert is_binary(closed["realized_pnl_abs"])
