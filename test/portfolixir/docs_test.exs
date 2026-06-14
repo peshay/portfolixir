@@ -449,6 +449,33 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
+  # As a local integrator (and the LLM I connect over MCP),
+  # I want the docs to document the global per-security EUR valuation endpoint
+  # and tool, so that I can read every held security's hub value over the API or
+  # MCP without reading source files.
+  #
+  # Acceptance criteria:
+  # - The API and MCP page documents the by_security endpoint and tool, the EUR
+  #   hub currency, the as_of read date, the note and the valued flag.
+  # - The documented surface appears in both the English and German pages.
+  test "docs document the global per-security EUR valuation endpoint and tool" do
+    en_api = File.read!("docs/integration/api-and-mcp.md")
+    de_api = File.read!("docs/de/integration/api-and-mcp.md")
+
+    for page <- [en_api, de_api] do
+      assert page =~ "GET /api/v1/holdings/by_security"
+      assert page =~ "portfolixir.holdings.by_security"
+      assert page =~ "EUR"
+      assert page =~ "as_of"
+      assert page =~ "valued"
+    end
+
+    en_normalized = String.replace(en_api, ~r/\s+/, " ")
+    assert en_normalized =~ "global per-security"
+    assert en_normalized =~ "EUR hub"
+  end
+
+  # User story:
   # As a German-speaking reader of the Portfolixir docs,
   # I want the core product handbook and the API/MCP reference available in
   # German alongside English with a language switcher,
@@ -492,6 +519,8 @@ defmodule Portfolixir.DocsTest do
     for surface <- [
           "GET /api/v1/portfolios/:portfolio_id/income",
           "portfolixir.portfolios.income",
+          "GET /api/v1/holdings/by_security",
+          "portfolixir.holdings.by_security",
           "counts_toward_cash_quote",
           "excluded_from_allocation_targets",
           "cash_target_weight"
