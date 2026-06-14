@@ -216,6 +216,22 @@ Beispiel-Payloads für Konten:
   `as_of`-Datum. Bestände werden beim Lesen abgeleitet, ohne gespeicherten
   Snapshot, daher ist `as_of` das Lesedatum. Unbekannte Portfolios liefern
   `404 Not Found`. Optionale Filter: `security_id`, `securities_account_id`.
+- `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
+  Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
+  gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
+  aktuellem `market_value`, umgerechnet in den **EUR-Hub**, plus ein
+  `valued`-Flag. `valued` ist `false` (und `market_value` ist `null`), wenn das
+  Wertpapier weder einen Kurs noch einen Handelspreis hat oder kein
+  Wechselkurspfad nach EUR existiert, sodass ein fehlender Kurs oder Kurs einen
+  Wert nie stillschweigend verfälscht. Die Zeilen sind nach `security_id`
+  sortiert. Die Antwort ist selbstbeschreibend: ein `currency` auf oberster
+  Ebene mit `"EUR"`, ein `as_of`-Lesedatum (der Bericht wird beim Lesen
+  abgeleitet, daher ist `as_of` das heutige Datum, kein gespeicherter
+  Zeitpunkt) und ein `note`, das die Hub-Umrechnung beschreibt. Dies ist das
+  portfolioübergreifende Gegenstück in Basiswährung zur Bestandsliste eines
+  einzelnen Portfolios (die in der eigenen Währung jedes Wertpapiers ohne FX
+  bleibt); für Summen und Gewichte eines Portfolios nutze stattdessen den
+  Bewertungs-Endpunkt.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` liefert eine Live-Bewertung
   eines Portfolios: jede gehaltene Position bepreist aus ihrem letzten
   Kurs-Schlusswert, ein `total_value` und das `weight` jeder bewerteten Position
@@ -460,6 +476,7 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.transactions.update`
 - `portfolixir.transactions.delete`
 - `portfolixir.holdings.list`
+- `portfolixir.holdings.by_security`
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`

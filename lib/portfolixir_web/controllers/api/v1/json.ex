@@ -228,6 +228,24 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def holdings_by_security(%{holdings: holdings} = report) do
+    %{
+      currency: report.currency,
+      as_of: date(report.as_of),
+      note: report.note,
+      holdings: Enum.map(holdings, &holdings_by_security_row/1)
+    }
+  end
+
+  defp holdings_by_security_row(row) do
+    %{
+      security_id: row.security_id,
+      quantity: decimal(row.quantity),
+      market_value: decimal(row.market_value),
+      valued: row.valued
+    }
+  end
+
   def valuation(%{positions: positions} = valuation) do
     %{
       portfolio_id: valuation.portfolio_id,
