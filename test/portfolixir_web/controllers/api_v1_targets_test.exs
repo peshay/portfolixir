@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     only: [base_world: 0, create_security!: 1, buy!: 3, put_quote!: 3, deposit!: 3]
 
   alias Portfolixir.Classifications
+  alias Portfolixir.Portfolios.Targets
 
   @auth {"authorization", "Bearer test-api-token"}
 
@@ -124,7 +125,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
       })
 
     {:ok, _} =
-      Portfolixir.Portfolios.Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"},
         %{"category_id" => tech.id, "target_weight" => "0.3"},
         %{"category_id" => emerging.id, "target_weight" => "0.2"}
