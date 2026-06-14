@@ -257,6 +257,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       valuation_note: valuation_note(valuation.base_currency),
       total_value: decimal(valuation.total_value),
       total_cash: decimal(valuation.total_cash),
+      counting_cash: decimal(valuation.counting_cash),
       total_with_cash: decimal(valuation.total_with_cash),
       cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
@@ -348,6 +349,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       target_weight: decimal(category.target_weight),
       drift_weight: decimal(category.drift_weight),
       drift_value: decimal(category.drift_value),
+      child_target_sum: decimal(category.child_target_sum),
       positions: Enum.map(category.positions, &allocation_position/1)
     }
   end
