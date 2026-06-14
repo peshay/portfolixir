@@ -43,3 +43,4 @@ already in force in the codebase.
 | [0012](0012-asset-class-inference-at-read-time.html) | Asset class inference at read time | Accepted |
 | [0013](0013-exclude-securities-from-allocation-targets.html) | Exclude flagged securities from the allocation steering basis | Accepted |
 | [0014](0014-bilingual-docs-site.html) | Bilingual docs site (EN baseline, DE alongside) without a custom Pages build | Accepted |
+| [0015](0015-cross-currency-settlement-fx-rate.html) | Cross-currency transaction settlement with a stored FX rate | Accepted |
