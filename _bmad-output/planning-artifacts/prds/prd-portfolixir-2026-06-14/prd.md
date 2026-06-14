@@ -82,4 +82,76 @@ re-check the basics behind a call.
 
 ## Features & Requirements
 
-> _In progress — drafted next in the coaching session._
+FRs carry globally stable IDs. Every new API endpoint or field ships with a
+matching MCP tool/field (ADR-0002); financial values stay Decimal strings
+end-to-end.
+
+### Feature 1 — FX-Honest Settlement & Position P&L (FR-B Phase 1, a+b)
+
+- **FR1.** A transaction can be booked **in the security's own currency** with a
+  **stored settlement FX rate** capturing the cash account's settlement currency
+  and the rate applied. The booking records both legs honestly (security-currency
+  amount + settlement-currency cash movement), rather than forcing the whole
+  transaction into the account's currency.
+- **FR2.** Per-position cost basis and P&L are computed **in the security's own
+  currency** (moving-average avg-cost in native currency), eliminating phantom P&L
+  from the FX spread. The day-one foreign-currency position reads ~0% on zero real
+  movement, not +15.4%.
+- **FR3.** **Currency-mismatch guard (closes #343).** When a transaction's currency
+  differs from its cash account's currency, a settlement FX rate is **required**;
+  the system validates the pair instead of silently storing a mismatched avg_cost.
+- **FR4.** **FX-availability precondition.** FX-corrected P&L is served only when at
+  least one usable FX rate exists for the pair. When none exists, the position is
+  marked **unpriceable/unvalued** (explicit flag) — never reported with a wrong
+  number. (Reuses existing `valued`/`price_source` flag idiom.)
+
+### Feature 2 — Truthful Liquidity (FR-B Phase 1, c)
+
+- **FR5.** Each cash account carries a **`liquidity_role`** ∈ {`free_cash`,
+  `credit_line`, `reserve`}, settable via API/MCP. `free_cash` is the default.
+- **FR6.** The **cash quote / deployable cash** counts only `free_cash` accounts
+  with balance ≥ 0. `credit_line` accounts never count as free liquidity (type beats
+  sign); `reserve` accounts are excluded and shown as a labelled overlay. Today's
+  ~5.33% cash artefact disappears.
+- **FR7.** A **drawn credit_line (negative balance)** is treated as a liability that
+  reduces net worth. **Unused credit headroom is not liquidity**; it may optionally
+  be surfaced separately as "available leverage", explicitly outside the cash quote.
+
+### Feature 3 — Risk & Concentration Endpoint (FR-D Slice A)
+
+- **FR8.** A **single MCP call** returns the portfolio's risk lens over the
+  **steerable basis** (excludes positions flagged `excluded_from_allocation_targets`):
+  **single-name concentration Top-N** and **HHI**.
+- **FR9.** The same call reports **asset-class cap violations** against
+  **configurable caps** (per asset class).
+- **FR10.** Concentration evaluation is **instrument-type-aware** with shipped
+  **defaults, overridable per call**: single stock WARN > 7% / HARD > 10%; a
+  broad/diversified ETF is exempt from the single-name rule (or held to its own high
+  threshold ~25%+) so a World-core ETF at 20% reads as target, not risk.
+- **Out of MVP (explicit):** drawdown/volatility per position/portfolio (needs
+  quote-history time-series math) → FR-D Slice B. Category/theme-leaf drift flags
+  (> 3pp over target / > 150% of target) overlap allocation steering → **proposed
+  deferral to FR-C**, not this endpoint. `[OPEN-A]`
+- `[OPEN-B]` **Broad/diversified ETF detection** (FR10) needs a data signal — asset
+  class, an instrument sub-type, or a per-security flag. Source TBD.
+
+## Cross-Cutting NFRs
+
+- **NFR1 — MCP parity (ADR-0002).** Every new endpoint/field above has a matching
+  MCP tool or field; the agent reaches all of this via MCP only.
+- **NFR2 — Decimal discipline.** All money, quantities, prices and FX rates are
+  Decimal, serialized as `:normal` strings end-to-end; no float P&L, no tolerance
+  assertions (ADR-0003).
+- **NFR3 — FX hub preserved.** FX always triangulates through the EUR hub
+  (ADR-0007); settlement rates are stored, never computed as direct cross rates.
+- **NFR4 — Determinism.** The risk endpoint is a pure derivation from current
+  valuation + classifications — same inputs yield the same output, no hidden state.
+- **NFR5 — Auditability.** Bookings are written only through `Ledger`/`Imports`
+  public functions; holdings/P&L remain derived, never stored (ADR-0004).
+
+## Out of Scope (this PRD)
+
+- FX auto-sync scheduler (FR-B Phase 2) — fast-follow.
+- Drawdown / volatility (FR-D Slice B).
+- FR-A forward-event calendar; FR-C custom-strategy classification & region/sector
+  auto-tagging (sequenced after this slice).
