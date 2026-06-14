@@ -135,6 +135,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   def trades(%{open_lots: lots, closed_trades: closed, orphan_sells: orphans}) do
     %{
+      # FR-13: state the matching method so a consumer never has to assume how
+      # lots were paired against sells. Trades are matched first-in, first-out.
+      method: "fifo",
       open_lots: Enum.map(lots, &open_lot/1),
       closed_trades: Enum.map(closed, &closed_trade/1),
       orphan_sells: Enum.map(orphans, &orphan_sell/1)
@@ -197,6 +200,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def holdings(holdings, portfolio_id) when is_list(holdings) do
+    %{
+      # FR-13: state the currency basis and read date so a consumer knows the
+      # rows carry no FX conversion (see the valuation for base-currency totals).
+      # There is no stored snapshot, so `as_of` documents the read date.
+      currency_basis: "security_currency",
+      as_of: date(Date.utc_today()),
+      data: Enum.map(holdings, &holding(&1, portfolio_id))
+    }
+  end
+
   def holding(holding, portfolio_id) do
     %{
       portfolio_id: portfolio_id,
@@ -214,12 +228,36 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def holdings_by_security(%{holdings: holdings} = report) do
+    %{
+      currency: report.currency,
+      as_of: date(report.as_of),
+      note: report.note,
+      holdings: Enum.map(holdings, &holdings_by_security_row/1)
+    }
+  end
+
+  defp holdings_by_security_row(row) do
+    %{
+      security_id: row.security_id,
+      quantity: decimal(row.quantity),
+      market_value: decimal(row.market_value),
+      valued: row.valued
+    }
+  end
+
   def valuation(%{positions: positions} = valuation) do
     %{
       portfolio_id: valuation.portfolio_id,
       base_currency: valuation.base_currency,
+      # FR-13: describe the read date and the chosen basis so a consumer never
+      # has to assume how totals were built. There is no stored snapshot, so
+      # `as_of` documents the read date (mirrors the income report).
+      as_of: date(Date.utc_today()),
+      valuation_note: valuation_note(valuation.base_currency),
       total_value: decimal(valuation.total_value),
       total_cash: decimal(valuation.total_cash),
+      counting_cash: decimal(valuation.counting_cash),
       total_with_cash: decimal(valuation.total_with_cash),
       cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
@@ -227,6 +265,12 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       positions: Enum.map(positions, &valuation_position/1),
       cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
     }
+  end
+
+  defp valuation_note(base_currency) do
+    "Totals are in #{base_currency} (base_currency), converted via the EUR " <>
+      "hub at each position's stored rate; `price_source` and `valued` " <>
+      "indicate per-position price staleness."
   end
 
   defp valuation_cash(cash) do
@@ -305,6 +349,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       target_weight: decimal(category.target_weight),
       drift_weight: decimal(category.drift_weight),
       drift_value: decimal(category.drift_value),
+      child_target_sum: decimal(category.child_target_sum),
       positions: Enum.map(category.positions, &allocation_position/1)
     }
   end
