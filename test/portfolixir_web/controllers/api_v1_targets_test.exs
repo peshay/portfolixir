@@ -89,6 +89,66 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert data["cash"]["actual_weight"] == "0"
     assert data["cash"]["target_weight"] == "0"
     assert data["top_level_target_sum"] == "0.8"
+
+    # Core has no children carrying a target, so its advisory child_target_sum is
+    # null (issue #378): the consumer can tell "no comparison offered" apart from
+    # "the children sum to zero".
+    assert category["child_target_sum"] == nil
+  end
+
+  # User story:
+  # As an API client (and the LLM I connect over MCP),
+  # I want each allocation row to carry the advisory sum of its direct children's
+  # targets (child_target_sum) as a Decimal string,
+  # so that I can flag target-tree inconsistency without recomputing it.
+  #
+  # Acceptance criteria:
+  # - A parent row whose direct children carry targets exposes child_target_sum
+  #   as a Decimal string (the sum of those children's targets).
+  # - A row without child targets exposes child_target_sum as null.
+  test "exposes the advisory child_target_sum per allocation row", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    {:ok, tech} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Tech",
+        parent_id: core.id
+      })
+
+    {:ok, emerging} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Emerging",
+        parent_id: core.id
+      })
+
+    {:ok, _} =
+      Portfolixir.Portfolios.Targets.set_targets(portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"},
+        %{"category_id" => tech.id, "target_weight" => "0.3"},
+        %{"category_id" => emerging.id, "target_weight" => "0.2"}
+      ])
+
+    data =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/allocation?classification_id=#{classification.id}"
+      )
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    rows = Map.new(data["categories"], &{&1["category_id"], &1})
+
+    # Core's direct children (Tech 0.3 + Emerging 0.2) sum to 0.5, rendered as a
+    # Decimal string.
+    core_row = rows[core.id]
+    assert core_row["child_target_sum"] == "0.5"
+    assert is_binary(core_row["child_target_sum"])
+
+    # The leaf children have no targeted children of their own, so null.
+    assert rows[tech.id]["child_target_sum"] == nil
+    assert rows[emerging.id]["child_target_sum"] == nil
   end
 
   # User story:
