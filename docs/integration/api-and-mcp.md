@@ -225,8 +225,24 @@ Example account payloads:
   `security_name` and `currency_code`. All monetary figures are in the security's
   own currency (no FX conversion — see the valuation for base-currency totals); a
   holding whose security has no quote returns `null` price, market value and P&L.
-  Unknown portfolios return `404 Not Found`. Optional filters: `security_id`,
-  `securities_account_id`.
+  The response is self-describing (FR-13): it carries `currency_basis:
+  "security_currency"` (so a client never has to assume whether FX was applied)
+  and an `as_of` date. Holdings are derived on read with no stored snapshot, so
+  `as_of` is the read date. Unknown portfolios return `404 Not Found`. Optional
+  filters: `security_id`, `securities_account_id`.
+- `GET /api/v1/holdings/by_security` returns the **global per-security
+  valuation** across **all** portfolios: one `holdings` row per currently held
+  security with its `security_id` (an integer), total `quantity`, and current
+  `market_value` converted to the **EUR hub**, plus a `valued` flag. `valued`
+  is `false` (and `market_value` is `null`) when the security has neither a
+  quote nor a trade price, or no exchange-rate path to EUR, so a missing quote
+  or rate never silently distorts a value. Rows are sorted by `security_id`.
+  The response is self-describing: a top-level `currency` of `"EUR"`, an
+  `as_of` read date (the report is derived on read, so `as_of` is today's date,
+  not a stored snapshot), and a `note` describing the hub conversion. This is
+  the cross-portfolio, base-currency counterpart to the per-portfolio holdings
+  list (which stays in each security's own currency with no FX); for one
+  portfolio's totals and weights use the valuation endpoint instead.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` returns a live valuation of a
   portfolio: each held position priced from its latest quote close, a
   `total_value`, and each valued position's `weight` (its share of the total).
@@ -251,9 +267,16 @@ Example account payloads:
   the other accounts did not exist (`counting_cash / (total_value +
   counting_cash)`, `0` when there is nothing to value yet) — so a reference-only
   business account stays listed and inside `total_cash` without distorting the
-  quote. An account whose currency has no rate path to the base is reported
+  quote. The response also emits `counting_cash` (Decimal string) — the cash that
+  enters the quote — so a consumer can reconstruct `cash_quote` itself. An
+  account whose currency has no rate path to the base is reported
   `valued: false` and excluded from `total_cash`, mirroring how unpriceable
   positions are handled.
+  The response is self-describing (FR-13): it carries an `as_of` date (the read
+  date — the valuation is computed live with no stored snapshot) and a
+  `valuation_note` stating that totals are in `base_currency` via the EUR hub and
+  that the per-position `price_source` and `valued` fields indicate price
+  staleness.
 - `GET /api/v1/portfolios/:portfolio_id/performance` returns the portfolio's
   **true time-weighted rate of return (TTWROR)**, computed the Portfolio
   Performance way: the portfolio is valued daily (quotes on or before each day,
@@ -315,7 +338,10 @@ Example account payloads:
   whole subtree rolled up), `actual_weight` (the rolled-up share of
   `total_value`), `target_weight`, `drift_weight`
   (`target_weight - actual_weight`), and `drift_value` (the drift restated in
-  the base currency). A position assigned to a child counts toward that child
+  the base currency). Each row also carries `child_target_sum` (Decimal string):
+  the advisory sum of its **direct** children's targets, or `null` when no direct
+  child carries a target — a target-consistency hint the UI can flag against the
+  row's own `target_weight`. A position assigned to a child counts toward that child
   **and every ancestor**, so a parent category with a target is compared
   against its subtree rather than showing 0%; the rows come back in tree order
   (parent before its children). Because parents aggregate their children, the
@@ -353,9 +379,11 @@ Example account payloads:
   `GET`/`POST /api/v1/portfolios`.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
-  period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter
-  each leg by its own date: open lots by open date, closed round-trips by close
-  date, orphan sells by sell date.
+  period in days) and any orphan sells. The response is self-describing (FR-13):
+  it carries `method: "fifo"`, so a client never has to assume how lots were
+  paired against sells. Optional `from`/`to` (ISO dates) filter each leg by its
+  own date: open lots by open date, closed round-trips by close date, orphan
+  sells by sell date.
 
 ## Exchange Rates
 
@@ -454,6 +482,7 @@ in MCP schemas are strings.
 - `portfolixir.transactions.update`
 - `portfolixir.transactions.delete`
 - `portfolixir.holdings.list`
+- `portfolixir.holdings.by_security`
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`
