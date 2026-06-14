@@ -178,4 +178,54 @@ defmodule Portfolixir.Portfolios.ValuationTest do
 
     assert Decimal.equal?(holdings[security.id].market_value, Decimal.new("100"))
   end
+
+  # User story:
+  # As an API client (and the LLM I connect over MCP),
+  # I want the global per-security EUR valuation as a self-describing report,
+  # so that I can read every held security's hub value without a LiveView.
+  #
+  # Acceptance criteria:
+  # - The report carries currency "EUR", a read-date as_of, and a note.
+  # - holdings is a list sorted by security_id with quantity, market_value and
+  #   the valued flag, valued positions priced in the EUR hub.
+  # - An unvalued security (no quote, no trade price) is listed valued: false.
+  test "holdings_by_security_report wraps the global view self-describingly" do
+    world = base_world()
+    held = equity!("Apple Inc.", "AAPL")
+    unvalued = equity!("Delivered Co.", "DLVR")
+
+    deposit!(world, "10000", ~D[2026-01-01])
+    buy!(world, held, quantity: "10", price: "80")
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: unvalued.id,
+        type: "inbound_delivery",
+        date: ~D[2026-01-02],
+        quantity: "7",
+        currency_code: "EUR"
+      })
+
+    june_quote!(held, "100")
+
+    report = Valuation.holdings_by_security_report()
+
+    assert report.currency == "EUR"
+    assert report.as_of == Date.utc_today()
+    assert report.note =~ "EUR"
+
+    assert report.holdings == Enum.sort_by(report.holdings, & &1.security_id)
+
+    held_row = Enum.find(report.holdings, &(&1.security_id == held.id))
+    assert Decimal.equal?(held_row.quantity, Decimal.new("10"))
+    assert Decimal.equal?(held_row.market_value, Decimal.new("1000"))
+    assert held_row.valued
+
+    unvalued_row = Enum.find(report.holdings, &(&1.security_id == unvalued.id))
+    assert Decimal.equal?(unvalued_row.quantity, Decimal.new("7"))
+    refute unvalued_row.valued
+    assert is_nil(unvalued_row.market_value)
+  end
 end
