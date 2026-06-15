@@ -32,11 +32,11 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
          {:ok, etf} <- etf_thresholds_param(params) do
       opts =
         []
-        |> put_present(:top_n, top_n)
-        |> put_present(:asset_class_caps, caps)
-        |> put_present(:hhi_bands, bands)
-        |> put_present(:stock_thresholds, stock)
-        |> put_present(:etf_thresholds, etf)
+        |> put_opt(:top_n, top_n)
+        |> put_opt(:asset_class_caps, caps)
+        |> put_opt(:hhi_bands, bands)
+        |> put_opt(:stock_thresholds, stock)
+        |> put_opt(:etf_thresholds, etf)
 
       {:ok, opts}
     end
@@ -143,6 +143,11 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
 
   defp put_present(map, _key, nil), do: map
   defp put_present(map, key, value), do: Map.put(map, key, value)
+
+  # Keyword-list variant for the `Risk.for_portfolio/2` option list (the lens
+  # consumes a keyword list, not a map). Absent (`nil`) overrides are dropped.
+  defp put_opt(opts, _key, nil), do: opts
+  defp put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp parse_id(value) when is_binary(value) do
     case Integer.parse(value) do
