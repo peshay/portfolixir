@@ -363,21 +363,23 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
 
   # User story:
   # As a local portfolio maintainer,
-  # I want the ledger to reject a transaction whose currency does not
-  # match the currency of its linked cash account (and, for a cash
-  # transfer, the counter cash account),
-  # so that a USD booking can never be silently folded into a EUR cash
-  # projection and corrupt my balances.
+  # I want the ledger to handle a transaction whose currency differs from
+  # its linked cash account as a cross-currency settlement (issue #388,
+  # ADR-0015) — requiring a stored settlement FX rate — rather than
+  # rejecting it outright as under #343, while a cash transfer still only
+  # moves money between same-currency accounts,
+  # so that a USD security bought through a EUR account is bookable without
+  # ever silently folding a USD amount into a EUR cash projection.
   #
   # Acceptance criteria:
   # - A transaction whose currency_code equals the linked cash account's
-  #   currency is accepted.
+  #   currency is accepted with no FX fields.
   # - A transaction whose currency_code differs from the linked cash
-  #   account's currency is rejected with a clear error on
-  #   :currency_code.
-  # - A cash_transfer is rejected when its currency differs from either
-  #   the source or the counter cash account currency.
-  # - The check is pure validation; no FX conversion of stored amounts.
+  #   account's currency requires a settlement FX rate; without one (and
+  #   with no amounts to derive it) it is rejected on :settlement_fx_rate.
+  # - A cash_transfer is rejected when its currency differs from the
+  #   counter cash account currency.
+  # - The check is pure validation; no FX conversion of stored amounts here.
   describe "currency consistency with linked cash accounts" do
     test "accepts a transaction whose currency matches the cash account" do
       w = setup_world()
@@ -393,7 +395,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
       assert {:ok, %Transaction{currency_code: "EUR"}} = Ledger.create_transaction(attrs)
     end
 
-    test "rejects a transaction whose currency differs from the cash account" do
+    test "rejects a mismatched-currency transaction with no settlement FX rate" do
       w = setup_world()
 
       attrs =
@@ -406,11 +408,11 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
 
       assert {:error, changeset} = Ledger.create_transaction(attrs)
 
-      assert %{currency_code: ["must match the linked cash account currency (EUR)"]} =
+      assert %{settlement_fx_rate: ["is required for a cross-currency settlement"]} =
                errors_on(changeset)
     end
 
-    test "rejects a buy whose currency differs from the cash account" do
+    test "rejects a mismatched-currency buy with no settlement FX rate" do
       w = setup_world()
 
       attrs =
@@ -427,7 +429,48 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
 
       assert {:error, changeset} = Ledger.create_transaction(attrs)
 
-      assert %{currency_code: ["must match the linked cash account currency (EUR)"]} =
+      assert %{settlement_fx_rate: ["is required for a cross-currency settlement"]} =
+               errors_on(changeset)
+    end
+
+    test "accepts a mismatched-currency buy when a settlement FX rate is supplied" do
+      w = setup_world()
+
+      attrs =
+        Map.merge(base(w), %{
+          type: "buy",
+          security_id: w.security.id,
+          securities_account_id: w.depot.id,
+          cash_account_id: w.cash.id,
+          quantity: Decimal.new("10"),
+          price: Decimal.new("150.25"),
+          gross_amount: Decimal.new("1366.82"),
+          currency_code: "USD",
+          settlement_fx_rate: Decimal.new("0.909091")
+        })
+
+      assert {:ok, %Transaction{currency_code: "USD"}} = Ledger.create_transaction(attrs)
+    end
+
+    test "rejects a mismatched-currency buy with a non-positive settlement FX rate" do
+      w = setup_world()
+
+      attrs =
+        Map.merge(base(w), %{
+          type: "buy",
+          security_id: w.security.id,
+          securities_account_id: w.depot.id,
+          cash_account_id: w.cash.id,
+          quantity: Decimal.new("10"),
+          price: Decimal.new("150.25"),
+          gross_amount: Decimal.new("1502.50"),
+          currency_code: "USD",
+          settlement_fx_rate: Decimal.new("0")
+        })
+
+      assert {:error, changeset} = Ledger.create_transaction(attrs)
+
+      assert %{settlement_fx_rate: ["must be greater than 0 for a cross-currency settlement"]} =
                errors_on(changeset)
     end
 
@@ -471,7 +514,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
                errors_on(changeset)
     end
 
-    test "rejects updating a transaction to a mismatched currency" do
+    test "rejects updating to a mismatched currency without a settlement FX rate" do
       w = setup_world()
 
       {:ok, transaction} =
@@ -487,7 +530,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
       assert {:error, changeset} =
                Ledger.update_transaction(transaction, %{currency_code: "USD"})
 
-      assert %{currency_code: ["must match the linked cash account currency (EUR)"]} =
+      assert %{settlement_fx_rate: ["is required for a cross-currency settlement"]} =
                errors_on(changeset)
     end
 
