@@ -176,4 +176,163 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
 
     assert body["errors"]["detail"] == "not found"
   end
+
+  test "hhi_bands override reclassifies the HHI band", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get(
+        "/api/v1/portfolios/#{world.portfolio.id}/risk" <>
+          "?hhi_bands[low]=5000&hhi_bands[high]=6000"
+      )
+      |> json_response(200)
+
+    # HHI 4382 now falls below the raised low cutoff of 5000.
+    assert body["data"]["hhi"]["value"] == "4382"
+    assert body["data"]["hhi"]["band"] == "low"
+  end
+
+  test "stock_thresholds override reclassifies single-name severity", %{conn: conn} do
+    world = risk_world()
+
+    weights =
+      conn
+      |> api_conn()
+      |> get(
+        "/api/v1/portfolios/#{world.portfolio.id}/risk" <>
+          "?stock_thresholds[warn]=50&stock_thresholds[hard]=70"
+      )
+      |> json_response(200)
+      |> get_in(["data", "top_holdings"])
+      |> Map.new(&{&1["security_id"], &1})
+
+    # 60% now sits between the raised warn(50)/hard(70) cutoffs -> warn, not hard.
+    assert weights[world.stock_big.id]["severity"] == "warn"
+    assert weights[world.stock_mid.id]["severity"] == "ok"
+  end
+
+  test "etf_thresholds override reclassifies ETF severity", %{conn: conn} do
+    world = risk_world()
+
+    weights =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?etf_thresholds[warn]=50")
+      |> json_response(200)
+      |> get_in(["data", "top_holdings"])
+      |> Map.new(&{&1["security_id"], &1})
+
+    # The 26% ETF drops below the raised warn cutoff of 50 -> ok.
+    assert weights[world.big_etf.id]["severity"] == "ok"
+  end
+
+  test "rejects a malformed asset-class cap with 422", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?asset_class_caps[equity]=abc")
+      |> json_response(422)
+
+    assert body["errors"]["asset_class_caps"] == ["is invalid"]
+  end
+
+  test "rejects a negative asset-class cap with 422", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?asset_class_caps[equity]=-5")
+      |> json_response(422)
+
+    assert body["errors"]["asset_class_caps"] == ["is invalid"]
+  end
+
+  test "rejects a non-map asset_class_caps with 422", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?asset_class_caps=5")
+      |> json_response(422)
+
+    assert body["errors"]["asset_class_caps"] == ["is invalid"]
+  end
+
+  test "rejects malformed hhi_bands with 422", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?hhi_bands[low]=abc")
+      |> json_response(422)
+
+    assert body["errors"]["hhi_bands"] == ["is invalid"]
+  end
+
+  test "rejects a non-map hhi_bands with 422", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?hhi_bands=5")
+      |> json_response(422)
+
+    assert body["errors"]["hhi_bands"] == ["is invalid"]
+  end
+
+  test "rejects malformed stock_thresholds with 422", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?stock_thresholds[hard]=abc")
+      |> json_response(422)
+
+    assert body["errors"]["stock_thresholds"] == ["is invalid"]
+  end
+
+  test "rejects a non-map stock_thresholds with 422", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?stock_thresholds=5")
+      |> json_response(422)
+
+    assert body["errors"]["stock_thresholds"] == ["is invalid"]
+  end
+
+  test "rejects malformed etf_thresholds with 422", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?etf_thresholds[warn]=abc")
+      |> json_response(422)
+
+    assert body["errors"]["etf_thresholds"] == ["is invalid"]
+  end
+
+  test "rejects a non-map etf_thresholds with 422", %{conn: conn} do
+    world = risk_world()
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk?etf_thresholds=5")
+      |> json_response(422)
+
+    assert body["errors"]["etf_thresholds"] == ["is invalid"]
+  end
 end
