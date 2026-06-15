@@ -2382,3 +2382,207 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "➕ New category…"
 msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:249
+#, elixir-autogen
+msgid "Σ target top level:"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:305
+#, elixir-autogen
+msgid "subcategories:"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:306
+#, elixir-autogen
+msgid "of"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:369
+#, elixir-autogen
+msgid "Outside the steering basis"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:370
+#, elixir-autogen
+msgid "not in allocation targets"
+msgstr ""
+
+#: lib/portfolixir_web/components/app_shell.ex:333
+#: lib/portfolixir_web/live/income_live.ex:57
+#: lib/portfolixir_web/live/income_live.ex:60
+#: lib/portfolixir_web/live/income_live.ex:75
+#, elixir-autogen
+msgid "Income"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:76
+#, elixir-autogen
+msgid "Received dividends and interest"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:61
+#, elixir-autogen
+msgid "Create one portfolio first to see received dividends and interest."
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:84
+#, elixir-autogen
+msgid "Annual overview"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:86
+#: lib/portfolixir_web/live/income_live.ex:172
+#, elixir-autogen
+msgid "No dividends or interest booked yet."
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:91
+#, elixir-autogen
+msgid "Year"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:92
+#, elixir-autogen
+msgid "Series"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:135
+#, elixir-autogen, elixir-format
+msgid "Payments in %{year}"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:148
+#, elixir-autogen
+msgid "Net"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:180
+#, elixir-autogen
+msgid "Withheld tax"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:182
+#, elixir-autogen
+msgid "Payments"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:183
+#, elixir-autogen
+msgid "Last payment"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:170
+#, elixir-autogen
+msgid "Per position"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:27
+#, elixir-autogen, elixir-format
+msgid "Manage logo"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:43
+#, elixir-autogen, elixir-format
+msgid "A manual logo is set (discovery will not overwrite it)."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:45
+#, elixir-autogen, elixir-format
+msgid "This security is set to have no logo."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:47
+#, elixir-autogen, elixir-format
+msgid "Current logo source: %{source}"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:49
+#, elixir-autogen, elixir-format
+msgid "No logo found yet."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:53
+#, elixir-autogen, elixir-format
+msgid "Image URL"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:57
+#, elixir-autogen, elixir-format
+msgid "Save URL"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:64
+#, elixir-autogen, elixir-format
+msgid "Search again"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:72
+#, elixir-autogen, elixir-format
+msgid "Remove logo"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:1834
+#, elixir-autogen, elixir-format
+msgid "Asset class saved."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:2192
+#, elixir-autogen, elixir-format
+msgid "Could not load that image"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:1998
+#, elixir-autogen, elixir-format
+msgid "Could not remove logo"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:2185
+#, elixir-autogen, elixir-format
+msgid "Enter an image URL first."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:1994
+#, elixir-autogen, elixir-format
+msgid "Logo removed"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:1663
+#, elixir-autogen, elixir-format
+msgid "is unclassified"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:684
+#, elixir-autogen, elixir-format
+msgid "Row %{row}: %{errors}"
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:342
+#, elixir-autogen, elixir-format
+msgid "Assigned securities you no longer hold, hidden by the filter"
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:48
+#, elixir-autogen, elixir-format
+msgid "Couldn't load current holdings."
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:154
+#, elixir-autogen, elixir-format
+msgid "Current positions only"
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:335
+#, elixir-autogen, elixir-format
+msgid "EUR value of the visible positions"
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:333
+#, elixir-autogen, elixir-format
+msgid "Visible positions in this category and its sub-categories"
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:343
+#, elixir-autogen, elixir-format
+msgid "without holdings"
+msgstr ""
