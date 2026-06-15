@@ -53,6 +53,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.targets.set",
       "portfolixir.targets.delete",
       "portfolixir.portfolios.allocation",
+      "portfolixir.portfolios.risk",
       "portfolixir.portfolios.set_cash_target",
       "portfolixir.cash_accounts.set_balance",
       "portfolixir.portfolios.income",
@@ -446,6 +447,45 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].method, "GET");
     assert.equal(requests[0].path, "/api/v1/portfolios/3/allocation?classification_id=5");
     assert.match(result.content[0].text, /-0\.15/);
+  });
+
+  it("issues a GET to /risk for portfolixir.portfolios.risk", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        portfolio_id: 3,
+        steerable_basis: "1000",
+        top_holdings: [{ security_id: 9, weight: "60", severity: "hard" }],
+        hhi: { value: "4382", band: "concentrated" },
+        asset_class_violations: []
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.portfolios.risk", { portfolio_id: 3 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/risk");
+    assert.equal(requests[0].token, "Bearer api-token");
+    assert.match(result.content[0].text, /concentrated/);
+    assert.match(result.content[0].text, /hard/);
+  });
+
+  it("encodes risk overrides (top_n, caps, bands) as bracketed query params", async () => {
+    const { client, requests } = createRecordingClient({ data: { top_holdings: [] } });
+
+    await callTool(client, "portfolixir.portfolios.risk", {
+      portfolio_id: 3,
+      top_n: 5,
+      asset_class_caps: { equity: "50", etf: "30" },
+      hhi_bands: { low: "1500", high: "5000" },
+      etf_thresholds: { warn: "25" }
+    });
+
+    assert.equal(
+      requests[0].path,
+      "/api/v1/portfolios/3/risk?top_n=5&asset_class_caps%5Bequity%5D=50" +
+        "&asset_class_caps%5Betf%5D=30&hhi_bands%5Blow%5D=1500&hhi_bands%5Bhigh%5D=5000" +
+        "&etf_thresholds%5Bwarn%5D=25"
+    );
   });
 
   it("routes cash_accounts.set_balance to POST /cash_accounts/:id/balance", async () => {

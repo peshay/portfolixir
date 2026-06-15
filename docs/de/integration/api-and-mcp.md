@@ -365,6 +365,41 @@ Beispiel-Payloads für Konten:
   die Drift nur den gesteuerten Teil beschreiben. Die Bewertungs- und
   Performance-Endpunkte sind vom Flag unbeeinflusst. Unbekannte Portfolios oder
   Klassifizierungen liefern `404 Not Found`.
+- `GET /api/v1/portfolios/:portfolio_id/risk` liefert eine
+  **Risiko-/Konzentrationssicht** für ein Portfolio über die **Steuerbasis** (der
+  Gesamtwert der bewerteten Positionen abzüglich jedes als
+  `excluded_from_allocation_targets` markierten Wertpapiers — dieselbe Basis wie
+  die Allocation-Drift). Ein über mehrere Depots gehaltenes Wertpapier wird zu
+  einer Einzeltitel-Position zusammengeführt. Gewichte, Caps und der HHI liegen
+  alle auf einer **0-100-Prozentskala** (Decimal-Strings, volle Präzision, keine
+  Rundung):
+  - `steerable_basis` ist die Basis, deren Anteil die Gewichte sind, und
+    `base_currency` die Basiswährung des Portfolios.
+  - `top_holdings` sind die größten Einzeltitel-Positionen, größte zuerst,
+    Standard **N = 10** (überschreibbar mit dem `top_n`-Query-Parameter). Jeder
+    Eintrag trägt `security_id`, `security_name`, `asset_class`, `market_value`,
+    `weight` und einen `severity` (`ok`/`warn`/`hard`). Der `severity` ist
+    **instrumententyp-abhängig**: eine Einzelaktie warnt über `7` und wird hart
+    über `10`; ein **ETF** (die Anlageklasse `etf`) warnt über `25` und wird nie
+    hart. Überschreibe die Standardwerte mit den Query-Parametern
+    `stock_thresholds[warn]`/`stock_thresholds[hard]` und `etf_thresholds[warn]`.
+  - `hhi` trägt den Herfindahl-Hirschman-Index der Einzeltitel-Gewichte (`value`
+    = Summe der quadrierten Prozentgewichte, auf der `0-10000`-Skala) plus ein
+    `band`: `low` (`< 1500`), `moderate` (`[1500, 2500]`) oder `concentrated`
+    (`> 2500`). Überschreibe die Schwellen mit `hhi_bands[low]` und
+    `hhi_bands[high]`.
+  - `asset_class_violations` sind **opt-in** Anlageklassen-Cap-Verletzungen: es
+    gibt keine voreingestellten Standardwerte, Caps werden pro Aufruf mit dem
+    Query-Parameter `asset_class_caps[<asset_class>]` (ein Prozentwert, z. B.
+    `asset_class_caps[equity]=50`) konfiguriert. Nur Klassen, deren aktuelles
+    Prozentgewicht den Cap übersteigt, kommen zurück, je mit `asset_class`,
+    `current_weight`, `cap` und `overage` (aktuell − Cap, in Prozentpunkten).
+
+  Die Sicht ist eine reine Lese-Ableitung der Live-Bewertung und der
+  Anlageklassen-Klassifizierung — nichts wird gespeichert, sie ist also
+  deterministisch beim Lesen. Eine ungültige Überschreibung (z. B. ein
+  nicht-positiver `top_n`) liefert `422 Unprocessable Entity`; unbekannte
+  Portfolios liefern `404 Not Found`.
 - `PATCH /api/v1/portfolios/:portfolio_id` patcht die Stammdaten eines Portfolios.
   Der Body ist `{"portfolio": {...}}`. Nutze es, um den SOLL-Cash-Anteil mit
   `cash_target_weight` zu setzen — einem String-Bruch in `[0, 1]` (z. B. `"0.05"`
@@ -501,6 +536,7 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.targets.set`
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
+- `portfolixir.portfolios.risk`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`
