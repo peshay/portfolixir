@@ -285,6 +285,78 @@ defmodule PortfolixirWeb.ApiV1Test do
   end
 
   # User story:
+  # As an API/MCP client booking a USD security through a EUR cash account,
+  # I want to create a cross-currency buy with the settlement FX fields,
+  # so that the security-currency cost basis and the EUR cash settlement are
+  # both recorded (issue #388, ADR-0015), instead of the booking being
+  # rejected as a currency mismatch.
+  #
+  # Acceptance criteria:
+  # - The buy is created (201) with currency_code = the security currency.
+  # - security_amount, settlement_amount and settlement_fx_rate round-trip as
+  #   Decimal strings.
+  # - A mismatch with no FX rate and no amounts to derive one is rejected (422).
+  test "creates a cross-currency buy with settlement FX fields", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "FX Portfolio", base_currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "EUR Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(%{name: "US Equity", currency_code: "USD", asset_class: "equity"})
+
+    attrs = %{
+      "portfolio_id" => portfolio.id,
+      "securities_account_id" => depot.id,
+      "security_id" => security.id,
+      "type" => "buy",
+      "date" => "2026-04-01",
+      "quantity" => "10",
+      "price" => "200.00",
+      "currency_code" => "USD",
+      "security_amount" => "2000.00",
+      "settlement_amount" => "1818.181818",
+      "settlement_fx_rate" => "0.909091",
+      "gross_amount" => "1818.181818"
+    }
+
+    transaction =
+      conn
+      |> post_json("/api/v1/transactions", %{"transaction" => attrs})
+      |> json_response(201)
+      |> Map.fetch!("data")
+
+    assert transaction["currency_code"] == "USD"
+    assert transaction["security_amount"] == "2000"
+    assert transaction["settlement_amount"] == "1818.181818"
+    assert transaction["settlement_fx_rate"] == "0.909091"
+
+    errors =
+      conn
+      |> post_json("/api/v1/transactions", %{
+        "transaction" =>
+          attrs
+          |> Map.drop(["security_amount", "settlement_amount", "settlement_fx_rate"])
+      })
+      |> json_response(422)
+      |> Map.fetch!("errors")
+
+    assert errors["settlement_fx_rate"] == ["is required for a cross-currency settlement"]
+  end
+
+  # User story:
   # As a local portfolio maintainer,
   # I want online security search and quote maintenance exposed through the API,
   # so that MCP can wrap these actions without adding a second domain layer.
