@@ -103,6 +103,24 @@ defmodule Portfolixir.JournalTest do
     assert Enum.sort(bulk.after["security_ids"]) == Enum.sort([a.id, b.id])
   end
 
+  test "update_security rejects an invalid changeset and journals nothing" do
+    actor = Actor.owner_ui()
+    {:ok, security} = Catalog.create_security(actor, valid_attrs())
+    before = Journal.list_entries(resource_type: "security")
+
+    assert {:error, %Ecto.Changeset{}} =
+             Catalog.update_security(actor, security, %{asset_class: "not_a_real_class"})
+
+    assert Journal.list_entries(resource_type: "security") == before
+  end
+
+  test "set_asset_class/3 on an empty id list is a no-op (returns 0, journals nothing)" do
+    actor = Actor.owner_ui()
+    before = Journal.list_entries()
+    assert Catalog.set_asset_class(actor, [], "etf") == 0
+    assert Journal.list_entries() == before
+  end
+
   test "market-data writes (quotes) are not journaled (allowlist)" do
     actor = Actor.owner_ui()
     {:ok, security} = Catalog.create_security(actor, valid_attrs())

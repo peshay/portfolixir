@@ -79,4 +79,37 @@ defmodule PortfolixirWeb.ApiV1JournalTest do
     conn = conn |> api_conn() |> get("/api/v1/journal", %{"operation" => "frobnicate"})
     assert %{"errors" => %{"operation" => _}} = json_response(conn, 422)
   end
+
+  test "applies and echoes the actor_type and limit filters", %{conn: conn} do
+    # One write via the API (api_token_rw) and one via the context (owner_ui).
+    conn
+    |> api_conn()
+    |> post(
+      "/api/v1/securities",
+      Jason.encode!(%{security: %{name: "Api Co", currency_code: "EUR"}})
+    )
+
+    {:ok, _} = Catalog.create_security(Actor.owner_ui(), %{name: "Ui Co", currency_code: "EUR"})
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/journal", %{"actor_type" => "owner_ui", "limit" => "1"})
+      |> json_response(200)
+
+    assert [entry] = body["data"]
+    assert entry["actor_type"] == "owner_ui"
+    assert body["meta"]["filters"]["actor_type"] == "owner_ui"
+    assert body["meta"]["filters"]["limit"] == 1
+  end
+
+  test "rejects a non-integer limit with 422", %{conn: conn} do
+    conn = conn |> api_conn() |> get("/api/v1/journal", %{"limit" => "lots"})
+    assert %{"errors" => %{"limit" => _}} = json_response(conn, 422)
+  end
+
+  test "rejects an unknown actor_type filter with 422", %{conn: conn} do
+    conn = conn |> api_conn() |> get("/api/v1/journal", %{"actor_type" => "ghost"})
+    assert %{"errors" => %{"actor_type" => _}} = json_response(conn, 422)
+  end
 end
