@@ -25,7 +25,7 @@ defmodule Portfolixir.Portfolios.AllocationExcludeTest do
 
   defp create_security!(name, ticker, asset_class) do
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: name,
         ticker_symbol: ticker,
         currency_code: "EUR",
@@ -79,7 +79,10 @@ defmodule Portfolixir.Portfolios.AllocationExcludeTest do
     assert Decimal.equal?(fetch_category(before, crypto.id).actual_weight, Decimal.new("0.4"))
     assert before.excluded == nil
 
-    {:ok, _} = Catalog.update_security(bitcoin, %{excluded_from_allocation_targets: true})
+    {:ok, _} =
+      Catalog.update_security(Portfolixir.Actor.owner_ui(), bitcoin, %{
+        excluded_from_allocation_targets: true
+      })
 
     {:ok, after_excl} = Allocation.for_portfolio(world.portfolio.id, classification.id, opts)
 
@@ -109,7 +112,10 @@ defmodule Portfolixir.Portfolios.AllocationExcludeTest do
 
     valuation_before = Valuation.for_portfolio(world.portfolio.id, prices: prices)
 
-    {:ok, _} = Catalog.update_security(bitcoin, %{excluded_from_allocation_targets: true})
+    {:ok, _} =
+      Catalog.update_security(Portfolixir.Actor.owner_ui(), bitcoin, %{
+        excluded_from_allocation_targets: true
+      })
 
     valuation_after = Valuation.for_portfolio(world.portfolio.id, prices: prices)
 

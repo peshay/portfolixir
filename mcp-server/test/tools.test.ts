@@ -57,7 +57,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.portfolios.set_cash_target",
       "portfolixir.cash_accounts.set_balance",
       "portfolixir.portfolios.income",
-      "portfolixir.portfolios.performance"
+      "portfolixir.portfolios.performance",
+      "portfolixir.journal.list"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -536,6 +537,28 @@ describe("Portfolixir MCP tools", () => {
     // The money-weighted IRR is surfaced alongside TTWROR, unchanged.
     assert.match(result.content[0].text, /0\.0791/);
     assert.equal((result.structuredContent as any).data.irr, "0.0791");
+  });
+
+  it("issues a GET to /journal with filters for portfolixir.journal.list", async () => {
+    const { client, requests } = createRecordingClient({
+      data: [
+        { id: 1, resource_type: "security", operation: "create", actor_type: "owner_ui" }
+      ],
+      meta: { as_of: "2026-06-14T00:00:00Z", order: "inserted_at:desc,id:desc", count: 1 }
+    });
+
+    const result = await callTool(client, "portfolixir.journal.list", {
+      resource_type: "security",
+      operation: "create",
+      limit: 50
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(
+      requests[0].path,
+      "/api/v1/journal?resource_type=security&operation=create&limit=50"
+    );
+    assert.equal((result.structuredContent as any).data[0].resource_type, "security");
   });
 
   it("maps invalid tool names and upstream API errors to clear failures", async () => {

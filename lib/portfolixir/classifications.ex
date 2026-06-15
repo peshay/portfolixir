@@ -12,6 +12,7 @@ defmodule Portfolixir.Classifications do
 
   import Ecto.Query
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Currencies
@@ -304,7 +305,9 @@ defmodule Portfolixir.Classifications do
     with %Category{} = category <- Repo.get(Category, category_id),
          {:ok, classification} <- fetch_classification_by_id(category.classification_id),
          :ok <- ensure_asset_class(classification) do
-      {:ok, Catalog.set_asset_class(security_ids, category.key)}
+      # FR-28 transitional: a fixed owner actor until Classifications is made
+      # actor-first (leaf-first slice 2); the journal still attributes the write.
+      {:ok, Catalog.set_asset_class(Actor.owner_ui(), security_ids, category.key)}
     else
       nil -> {:error, :category_not_found}
       {:error, reason} -> {:error, reason}
@@ -316,7 +319,7 @@ defmodule Portfolixir.Classifications do
   i.e. dragging them to the asset-class tree's "Unsorted" bucket.
   """
   def reset_asset_class(security_ids) when is_list(security_ids) do
-    {:ok, Catalog.set_asset_class(security_ids, nil)}
+    {:ok, Catalog.set_asset_class(Actor.owner_ui(), security_ids, nil)}
   end
 
   defp ensure_asset_class(%Classification{key: "asset_class"}), do: :ok

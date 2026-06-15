@@ -18,7 +18,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
     # - Stored quote history is listed in date order and exposes the latest quote.
     test "creates a security, portfolio, linked accounts, buy/sell transactions, holdings, and quotes" do
       assert {:ok, security} =
-               Catalog.create_security(%{
+               Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                  name: "Synthetic Global ETF",
                  ticker_symbol: "SYN",
                  currency_code: "EUR",
@@ -185,7 +185,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
 
   defp create_minimal_trade_setup(prefix) do
     assert {:ok, security} =
-             Catalog.create_security(%{
+             Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
                name: "#{prefix} Synthetic ETF",
                ticker_symbol: String.slice(prefix, 0, 3) |> String.upcase(),
                currency_code: "EUR"

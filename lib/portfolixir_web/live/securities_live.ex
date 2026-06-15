@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   require Logger
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
@@ -1778,7 +1779,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("save_detail_note", %{"security" => %{"note" => note}}, socket) do
     case socket.assigns.selected_security do
       %Security{} = security ->
-        case Catalog.update_security(security, %{"note" => note}) do
+        case Catalog.update_security(Actor.owner_ui(), security, %{"note" => note}) do
           {:ok, updated} ->
             {:noreply,
              socket
@@ -1798,7 +1799,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("save_security_details", %{"security" => params}, socket) do
     case socket.assigns.selected_security do
       %Security{} = security ->
-        case Catalog.update_security(security, params) do
+        case Catalog.update_security(Actor.owner_ui(), security, params) do
           {:ok, updated} ->
             {:noreply,
              socket
@@ -1826,7 +1827,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       ) do
     with {id, ""} <- Integer.parse(to_string(id_str)),
          %Security{} = security <- Catalog.get_security(id),
-         {:ok, _} <- Catalog.update_security(security, %{asset_class: class}) do
+         {:ok, _} <- Catalog.update_security(Actor.owner_ui(), security, %{asset_class: class}) do
       {:noreply,
        socket
        |> load_securities()
@@ -2051,7 +2052,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp dispatch_row_action(socket, "retire", %Security{} = sec) do
-    case Catalog.update_security(sec, %{is_retired: !sec.is_retired}) do
+    case Catalog.update_security(Actor.owner_ui(), sec, %{is_retired: !sec.is_retired}) do
       {:ok, _updated} ->
         flash =
           if sec.is_retired,
@@ -2094,7 +2095,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp dispatch_row_action(socket, "copy_ticker", _sec), do: {:noreply, socket}
 
   defp dispatch_row_action(socket, "delete", %Security{} = sec) do
-    case Catalog.delete_security(sec) do
+    case Catalog.delete_security(Actor.owner_ui(), sec) do
       {:ok, _} ->
         {:noreply,
          socket

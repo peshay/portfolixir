@@ -20,7 +20,7 @@ defmodule Portfolixir.Catalog.QuotesTest do
     base =
       Enum.into(attrs, %{name: "Test Security", currency_code: "USD"})
 
-    {:ok, security} = Catalog.create_security(base)
+    {:ok, security} = Catalog.create_security(Portfolixir.Actor.owner_ui(), base)
     security
   end
 
