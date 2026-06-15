@@ -170,26 +170,44 @@ defmodule PortfolixirWeb.PortfolioLive do
             </strong>
             <strong :if={is_nil(@valuation)}>…</strong>
           </article>
-          <article id="kpi-cash" class="stat">
+          <article id="kpi-cash" class="stat" role="group" aria-describedby="tip-cash-quote">
             <span><%= gettext("Cash") %> · <%= gettext("cash quote") %></span>
             <strong :if={@valuation}>
               <%= Format.money(@valuation.total_cash) %> <%= @valuation.base_currency %>
               · <%= Format.percent(@valuation.cash_quote) %>%
             </strong>
             <strong :if={is_nil(@valuation)}>…</strong>
+            <details class="metric-tooltip">
+              <summary aria-label={gettext("Cash quote info")}>ⓘ</summary>
+              <p id="tip-cash-quote" role="tooltip">
+                <%= gettext("Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded.") %>
+              </p>
+            </details>
           </article>
-          <article id="kpi-ttwror" class="stat">
+          <article id="kpi-ttwror" class="stat" role="group" aria-describedby="tip-ttwror">
             <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
             <strong :if={@performance}><%= Format.percent(@performance.ttwror) %>%</strong>
             <strong :if={is_nil(@performance)}>…</strong>
+            <details class="metric-tooltip">
+              <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
+              <p id="tip-ttwror" role="tooltip">
+                <%= gettext("TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts.") %>
+              </p>
+            </details>
           </article>
-          <article id="kpi-irr" class="stat">
+          <article id="kpi-irr" class="stat" role="group" aria-describedby="tip-irr">
             <span><%= gettext("IRR") %> (<%= period_label(@period) %>)</span>
             <strong :if={@performance && @performance.irr}>
               <%= Format.percent(@performance.irr) %>%
             </strong>
             <strong :if={@performance && is_nil(@performance.irr)}>—</strong>
             <strong :if={is_nil(@performance)}>…</strong>
+            <details class="metric-tooltip">
+              <summary aria-label={gettext("IRR info")}>ⓘ</summary>
+              <p id="tip-irr" role="tooltip">
+                <%= gettext("IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period.") %>
+              </p>
+            </details>
           </article>
         </section>
 
@@ -275,14 +293,22 @@ defmodule PortfolixirWeb.PortfolioLive do
               </ul>
             </div>
 
-            <table class="drift-table">
+            <table class="drift-table" aria-describedby="tip-soll-ist">
               <thead>
                 <tr>
                   <th><%= gettext("Category") %></th>
                   <th><%= gettext("Value") %></th>
                   <th><%= gettext("Actual") %></th>
                   <th><%= gettext("Target") %></th>
-                  <th><%= gettext("Drift") %></th>
+                  <th>
+                    <%= gettext("Drift") %>
+                    <details class="metric-tooltip">
+                      <summary aria-label={gettext("SOLL-IST drift info")}>ⓘ</summary>
+                      <p id="tip-soll-ist" role="tooltip">
+                        <%= gettext("SOLL-IST: target weight vs. actual weight (drift). Drift is the amount needed to reach the target allocation.") %>
+                      </p>
+                    </details>
+                  </th>
                 </tr>
               </thead>
               <tbody>
