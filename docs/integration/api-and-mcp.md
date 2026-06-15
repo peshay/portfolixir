@@ -369,6 +369,38 @@ Example account payloads:
   the percentages and drift describe only the steered part. The valuation and
   performance endpoints are unaffected by the flag. Unknown portfolios or
   classifications return `404 Not Found`.
+- `GET /api/v1/portfolios/:portfolio_id/risk` returns a **risk/concentration
+  lens** for one portfolio over the **steerable basis** (the valued positions'
+  total minus any security flagged `excluded_from_allocation_targets`, the same
+  basis the allocation drift uses). A security held across several depots is
+  merged into one single-name exposure. Weights, caps and the HHI are all on a
+  **0-100 percentage scale** (Decimal strings, full precision, no rounding):
+  - `steerable_basis` is the basis the weights are a share of, and
+    `base_currency` the portfolio's base currency.
+  - `top_holdings` is the largest single-name exposures, largest first, default
+    **N = 10** (override with the `top_n` query param). Each entry carries
+    `security_id`, `security_name`, `asset_class`, `market_value`, `weight` and a
+    `severity` (`ok`/`warn`/`hard`). The severity is **instrument-type aware**: a
+    single stock warns above `7` and goes hard above `10`; an **ETF** (the `etf`
+    asset class) warns above `25` and never goes hard. Override the defaults with
+    the `stock_thresholds[warn]`/`stock_thresholds[hard]` and
+    `etf_thresholds[warn]` query params.
+  - `hhi` carries the Herfindahl-Hirschman Index of the single-name weights
+    (`value` = the sum of the squared percentage weights, on the `0-10000`
+    scale) plus a `band`: `low` (`< 1500`), `moderate` (`[1500, 2500]`) or
+    `concentrated` (`> 2500`). Override the cutoffs with the `hhi_bands[low]` and
+    `hhi_bands[high]` query params.
+  - `asset_class_violations` are **opt-in** asset-class cap violations: there are
+    no shipped defaults, so caps are configured per call with the
+    `asset_class_caps[<asset_class>]` query param (a percentage, e.g.
+    `asset_class_caps[equity]=50`). Only classes whose current percentage weight
+    exceeds the cap come back, each with `asset_class`, `current_weight`, `cap`
+    and `overage` (current − cap, in percentage points).
+
+  The lens is a pure read-time derivation of the live valuation and the
+  securities' asset classification — nothing is stored, so it is deterministic on
+  read. A malformed override (e.g. a non-positive `top_n`) returns `422
+  Unprocessable Entity`; unknown portfolios return `404 Not Found`.
 - `PATCH /api/v1/portfolios/:portfolio_id` patches a portfolio's master data.
   The body is `{"portfolio": {...}}`. Use it to set the SOLL cash share with
   `cash_target_weight` — a string fraction in `[0, 1]` (e.g. `"0.05"` for 5%),
@@ -501,6 +533,7 @@ in MCP schemas are strings.
 - `portfolixir.targets.set`
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
+- `portfolixir.portfolios.risk`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`

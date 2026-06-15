@@ -633,6 +633,60 @@ const targetsDeleteZ = z.object({
   category_id: z.number().int().positive()
 });
 
+// A map of asset_class -> percentage cap string (e.g. {"equity": "50"}). Caps
+// are opt-in (FR9): no defaults ship, so an absent map means no cap violations.
+const decimalMapSchema = {
+  type: "object",
+  additionalProperties: { type: "string" }
+};
+
+const warnHardSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    warn: { type: "string" },
+    hard: { type: "string" }
+  }
+};
+
+const riskSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    top_n: { type: "integer", minimum: 1 },
+    asset_class_caps: decimalMapSchema,
+    hhi_bands: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        low: { type: "string" },
+        high: { type: "string" }
+      }
+    },
+    stock_thresholds: warnHardSchema,
+    etf_thresholds: {
+      type: "object",
+      additionalProperties: false,
+      properties: { warn: { type: "string" } }
+    }
+  }
+};
+
+const riskZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  top_n: z.number().int().positive().optional(),
+  asset_class_caps: z.record(z.string()).optional(),
+  hhi_bands: z
+    .object({ low: optionalString(), high: optionalString() })
+    .optional(),
+  stock_thresholds: z
+    .object({ warn: optionalString(), hard: optionalString() })
+    .optional(),
+  etf_thresholds: z.object({ warn: optionalString() }).optional()
+});
+
 const allocationSchema = {
   type: "object",
   additionalProperties: false,
@@ -912,6 +966,13 @@ const toolDefinitions: ToolDefinition[] = [
     allocationZ
   ),
   tool(
+    "portfolixir.portfolios.risk",
+    "Portfolio risk/concentration lens",
+    "Risk/concentration lens for a portfolio over the steerable basis (valued positions minus those flagged excluded_from_allocation_targets): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call.",
+    riskSchema,
+    riskZ
+  ),
+  tool(
     "portfolixir.portfolios.set_cash_target",
     "Set cash target weight",
     "Set (or clear with null) a portfolio's cash target weight, the SOLL cash share of the allocation's 100% basis (securities + counting cash). A string fraction in [0,1].",
@@ -1126,6 +1187,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/allocation`, args, ["classification_id"])
       );
+    case "portfolixir.portfolios.risk":
+      return client.request("GET", riskPath(args));
     case "portfolixir.portfolios.set_cash_target":
       return client.request("PATCH", `/api/v1/portfolios/${args.portfolio_id}`, {
         portfolio: { cash_target_weight: args.cash_target_weight ?? null }
@@ -1168,6 +1231,43 @@ function objectWith(property: string, schema: JsonSchema): JsonSchema {
     required: [property],
     properties: { [property]: schema }
   };
+}
+
+// Encodes the risk lens overrides as a query string. Phoenix decodes
+// bracketed params (`asset_class_caps[equity]=50`, `hhi_bands[low]=1500`) into
+// nested maps, which is what the RiskController reads; the scalar `top_n` stays
+// flat. Absent overrides are simply omitted so the shipped defaults apply.
+function riskPath(args: Record<string, any>): string {
+  const params = new URLSearchParams();
+
+  if (args.top_n !== undefined && args.top_n !== null) {
+    params.set("top_n", String(args.top_n));
+  }
+
+  appendNested(params, "asset_class_caps", args.asset_class_caps);
+  appendNested(params, "hhi_bands", args.hhi_bands);
+  appendNested(params, "stock_thresholds", args.stock_thresholds);
+  appendNested(params, "etf_thresholds", args.etf_thresholds);
+
+  const query = params.toString();
+  const path = `/api/v1/portfolios/${args.portfolio_id}/risk`;
+  return query === "" ? path : `${path}?${query}`;
+}
+
+function appendNested(
+  params: URLSearchParams,
+  key: string,
+  value: Record<string, any> | undefined | null
+): void {
+  if (value === undefined || value === null) {
+    return;
+  }
+
+  for (const [inner, raw] of Object.entries(value)) {
+    if (raw !== undefined && raw !== null && raw !== "") {
+      params.set(`${key}[${inner}]`, String(raw));
+    }
+  }
 }
 
 function withQuery(path: string, args: Record<string, any>, keys: string[]): string {
