@@ -34,6 +34,15 @@ defmodule Portfolixir.Ledger.Transaction do
     field(:taxes, :decimal, default: Decimal.new("0"))
     field(:gross_amount, :decimal)
     field(:currency_code, :string)
+    # Cross-currency settlement (issue #388, ADR-0015). For a trade booked in
+    # the security's own currency but settled through a different-currency cash
+    # account, these carry the three linked figures: the trade amount in the
+    # security currency, the cash amount in the settlement (account) currency,
+    # and the settlement FX rate (settlement units per 1 security unit). All
+    # three are nil for same-currency bookings.
+    field(:security_amount, :decimal)
+    field(:settlement_amount, :decimal)
+    field(:settlement_fx_rate, :decimal)
     field(:notes, :string)
     field(:import_hash, :string)
 
@@ -55,19 +64,26 @@ defmodule Portfolixir.Ledger.Transaction do
 
   @doc """
   Enforces currency consistency between a transaction and its linked cash
-  accounts (issue #343).
+  accounts (issue #343, revised by issue #388 / ADR-0015).
 
-  A transaction is booked in its cash account's currency (as in Portfolio
-  Performance), so its `currency_code` must equal the linked cash account's
-  currency. For a `cash_transfer` the counter cash account's currency must
-  match too — a transfer carries a single amount in one currency and only
-  ever moves money between same-currency accounts here.
+  A transaction is booked in its security's own currency. When that currency
+  equals the linked cash account's currency the booking settles natively and
+  carries no FX fields. When it differs (e.g. a USD security bought through a
+  EUR account) the booking is a **cross-currency settlement**: instead of
+  rejecting it (the original #343 policy) we require a stored
+  `settlement_fx_rate` so per-position cost basis stays in the security
+  currency while the cash leg settles in the account currency. The rate is
+  part of the transaction data — never looked up inside the pure reducer.
+
+  For a `cash_transfer` the counter cash account's currency must still match —
+  a transfer carries a single amount in one currency and only ever moves money
+  between same-currency accounts here.
 
   `cash_currencies` is a `%{cash_account_id => currency_code}` map supplied
   by the caller (the context loads it from the database); accounts missing
   from the map are skipped so a stale or not-yet-persisted reference is left
   to the existing `assoc_constraint`. This is pure validation: no stored
-  amount is FX-converted.
+  amount is FX-converted here.
   """
   @spec validate_cash_account_currency(Ecto.Changeset.t(), %{optional(term()) => String.t()}) ::
           Ecto.Changeset.t()
@@ -79,21 +95,36 @@ defmodule Portfolixir.Ledger.Transaction do
     |> check_counter_account_currency(currency_code, cash_currencies)
   end
 
+  # A currency mismatch is no longer a rejection (ADR-0015): it requires a
+  # stored settlement FX rate so the cross-currency settlement is auditable.
   defp check_account_currency(changeset, field, currency_code, cash_currencies) do
     account_id = get_field(changeset, field)
 
     case Map.get(cash_currencies, account_id) do
-      nil ->
-        changeset
+      nil -> changeset
+      account_currency when account_currency == currency_code -> changeset
+      _account_currency -> require_settlement_fx_rate(changeset)
+    end
+  end
 
-      account_currency when account_currency == currency_code ->
-        changeset
+  defp require_settlement_fx_rate(changeset) do
+    case get_field(changeset, :settlement_fx_rate) do
+      %Decimal{} = rate ->
+        if Decimal.compare(rate, 0) == :gt do
+          changeset
+        else
+          add_error(
+            changeset,
+            :settlement_fx_rate,
+            "must be greater than 0 for a cross-currency settlement"
+          )
+        end
 
-      account_currency ->
+      _missing ->
         add_error(
           changeset,
-          :currency_code,
-          "must match the linked cash account currency (#{account_currency})"
+          :settlement_fx_rate,
+          "is required for a cross-currency settlement"
         )
     end
   end
@@ -134,6 +165,9 @@ defmodule Portfolixir.Ledger.Transaction do
       :taxes,
       :gross_amount,
       :currency_code,
+      :security_amount,
+      :settlement_amount,
+      :settlement_fx_rate,
       :notes,
       :import_hash
     ])
