@@ -1429,7 +1429,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       panel = element(view, "#detail-tab-panel-holdings") |> render()
       assert panel =~ "Local Portfolio"
       assert panel =~ "Main Depot"
-      assert panel =~ "1500"
+      assert panel =~ "1,500.00"
       # 10 * (150 - 100) = +500 unrealised P&L
       assert panel =~ "+500"
     end
@@ -1680,6 +1680,128 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert has_element?(view, "#filter-chips .chip")
       refute has_element?(view, "td", "Apple Inc.")
       assert has_element?(view, "td", "Amazon")
+    end
+  end
+
+  # User story:
+  # As a portfolio maintainer whose UI locale is German (de),
+  # I want the security detail pane (transactions tab, holdings tab, trades tab,
+  # and the detail header price) to render Decimal values with the DE locale
+  # separators (thousands dot, decimal comma), so that "1.234,50" appears where
+  # an EN user would see "1,234.50" — consistent with the portfolio view.
+  #
+  # Acceptance criteria:
+  # - A price of 1234.50 in the transactions tab renders as "1.234,50" for DE
+  #   and "1,234.50" for EN.
+  # - The holdings tab current value formats correctly for both locales.
+  # - The detail header latest price formats correctly for both locales.
+  describe "locale-aware number formatting in securities detail" do
+    setup do
+      {:ok, security} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Format Test Security",
+          ticker_symbol: "FMT",
+          isin: "DE000FMT0001",
+          currency_code: "EUR",
+          asset_class: "equity"
+        })
+
+      {:ok, portfolio} =
+        Portfolios.create_portfolio(%{name: "Format Portfolio", base_currency_code: "EUR"})
+
+      {:ok, cash} =
+        Portfolios.create_cash_account(%{
+          portfolio_id: portfolio.id,
+          name: "Format Cash",
+          currency_code: "EUR"
+        })
+
+      {:ok, depot} =
+        Portfolios.create_securities_account(%{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          name: "Format Depot"
+        })
+
+      {:ok, security: security, portfolio: portfolio, cash: cash, depot: depot}
+    end
+
+    test "transactions tab renders price in DE locale as 1.234,50 and EN locale as 1,234.50",
+         %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
+      {:ok, _} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-01-10],
+          quantity: Decimal.new("1"),
+          price: Decimal.new("1234.50"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          currency_code: "EUR"
+        })
+
+      de_conn = put_req_header(conn, "accept-language", "de")
+      {:ok, de_view, _} = live(de_conn, "/securities/#{security.id}?tab=transactions")
+      de_panel = element(de_view, "#detail-tab-panel-transactions") |> render()
+      assert de_panel =~ "1.234,50"
+      refute de_panel =~ "1,234.50"
+
+      en_conn = put_req_header(conn, "accept-language", "en")
+      {:ok, en_view, _} = live(en_conn, "/securities/#{security.id}?tab=transactions")
+      en_panel = element(en_view, "#detail-tab-panel-transactions") |> render()
+      assert en_panel =~ "1,234.50"
+      refute en_panel =~ "1.234,50"
+    end
+
+    test "holdings tab renders current value in DE locale as 1.234,50 and EN as 1,234.50",
+         %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
+      {:ok, _} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-01-10],
+          quantity: Decimal.new("1"),
+          price: Decimal.new("100.00"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          currency_code: "EUR"
+        })
+
+      {:ok, _} =
+        Quotes.upsert_many(security.id, [
+          %{date: Date.utc_today(), close: "1234.50", source: "manual"}
+        ])
+
+      de_conn = put_req_header(conn, "accept-language", "de")
+      {:ok, de_view, _} = live(de_conn, "/securities/#{security.id}?tab=holdings")
+      de_panel = element(de_view, "#detail-tab-panel-holdings") |> render()
+      assert de_panel =~ "1.234,50"
+      refute de_panel =~ "1,234.50"
+
+      en_conn = put_req_header(conn, "accept-language", "en")
+      {:ok, en_view, _} = live(en_conn, "/securities/#{security.id}?tab=holdings")
+      en_panel = element(en_view, "#detail-tab-panel-holdings") |> render()
+      assert en_panel =~ "1,234.50"
+      refute en_panel =~ "1.234,50"
+    end
+
+    test "detail header latest price uses DE locale separators",
+         %{conn: conn, security: security} do
+      {:ok, _} =
+        Quotes.upsert_many(security.id, [
+          %{date: Date.utc_today(), close: "1234.50", source: "manual"}
+        ])
+
+      de_conn = put_req_header(conn, "accept-language", "de")
+      {:ok, de_view, _} = live(de_conn, "/securities/#{security.id}")
+      de_html = render(de_view)
+      assert de_html =~ "1.234,50"
     end
   end
 
