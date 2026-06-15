@@ -402,6 +402,31 @@ defmodule PortfolixirWeb.ImportsLive do
     end
   end
 
+  def handle_event("reset", _params, socket) do
+    PreviewStore.delete(socket.assigns.session_token)
+
+    {:noreply,
+     socket
+     |> assign(:stage, :idle)
+     |> assign(:preview, nil)
+     |> assign(:applying, false)
+     |> assign(:result, nil)
+     |> assign(:error, nil)
+     |> assign(:mapping, blank_mapping())
+     |> reload_lookups()}
+  end
+
+  def handle_event("copy_parser_warnings", _params, socket) do
+    text =
+      socket.assigns.preview
+      |> case do
+        %Preview{errors: errors} -> parser_warning_text(errors)
+        _ -> ""
+      end
+
+    {:noreply, push_event(socket, "copy-to-clipboard", %{text: text})}
+  end
+
   @impl true
   def handle_async(:apply_import, {:ok, {:ok, result}}, socket) do
     PreviewStore.delete(socket.assigns.session_token)
@@ -427,31 +452,6 @@ defmodule PortfolixirWeb.ImportsLive do
      socket
      |> assign(:applying, false)
      |> assign(:error, gettext("Import failed unexpectedly. Please try again."))}
-  end
-
-  def handle_event("reset", _params, socket) do
-    PreviewStore.delete(socket.assigns.session_token)
-
-    {:noreply,
-     socket
-     |> assign(:stage, :idle)
-     |> assign(:preview, nil)
-     |> assign(:applying, false)
-     |> assign(:result, nil)
-     |> assign(:error, nil)
-     |> assign(:mapping, blank_mapping())
-     |> reload_lookups()}
-  end
-
-  def handle_event("copy_parser_warnings", _params, socket) do
-    text =
-      socket.assigns.preview
-      |> case do
-        %Preview{errors: errors} -> parser_warning_text(errors)
-        _ -> ""
-      end
-
-    {:noreply, push_event(socket, "copy-to-clipboard", %{text: text})}
   end
 
   # The path comes from LiveView's own managed upload temp file, not from
