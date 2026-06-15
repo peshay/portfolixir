@@ -31,6 +31,7 @@ defmodule PortfolixirWeb.ImportsLive do
       |> assign(:session_token, session_token)
       |> assign(:stage, stage)
       |> assign(:preview, preview)
+      |> assign(:applying, false)
       |> assign(:result, nil)
       |> assign(:error, nil)
       |> reload_lookups()
@@ -286,9 +287,19 @@ defmodule PortfolixirWeb.ImportsLive do
         </p>
 
         <div class="actions">
-          <button type="submit" id="pp-import-confirm" class="button-primary"
-                  disabled={not mapping_complete?(assigns)}>
-            <%= gettext("Confirm import") %>
+          <button
+            type="submit"
+            id="pp-import-confirm"
+            class="button-primary"
+            phx-disable-with={gettext("Importing…")}
+            disabled={not mapping_complete?(assigns) or @applying}
+          >
+            <%= if @applying do %>
+              <span class="import-spinner" aria-hidden="true"></span>
+              <%= gettext("Importing…") %>
+            <% else %>
+              <%= gettext("Confirm import") %>
+            <% end %>
           </button>
           <button type="button" phx-click="reset"><%= gettext("Discard") %></button>
         </div>
@@ -368,30 +379,54 @@ defmodule PortfolixirWeb.ImportsLive do
     {:noreply, assign(socket, :mapping, mapping)}
   end
 
+  def handle_event("apply", _params, socket) when socket.assigns.applying do
+    {:noreply, socket}
+  end
+
   def handle_event("apply", params, socket) do
     mapping = mapping_from_params(params, socket.assigns.mapping)
     socket = assign(socket, :mapping, mapping)
 
     case build_apply_params(mapping, socket.assigns) do
       {:ok, applier_params} ->
-        case Imports.apply(socket.assigns.preview, applier_params) do
-          {:ok, result} ->
-            PreviewStore.delete(socket.assigns.session_token)
+        preview = socket.assigns.preview
 
-            {:noreply,
-             socket
-             |> assign(:stage, :done)
-             |> assign(:result, result)
-             |> assign(:error, nil)
-             |> reload_lookups()}
-
-          {:error, reason} ->
-            {:noreply, assign(socket, :error, apply_error_message(reason))}
-        end
+        {:noreply,
+         socket
+         |> assign(:applying, true)
+         |> assign(:error, nil)
+         |> start_async(:apply_import, fn -> Imports.apply(preview, applier_params) end)}
 
       {:error, message} ->
         {:noreply, assign(socket, :error, message)}
     end
+  end
+
+  @impl true
+  def handle_async(:apply_import, {:ok, {:ok, result}}, socket) do
+    PreviewStore.delete(socket.assigns.session_token)
+
+    {:noreply,
+     socket
+     |> assign(:applying, false)
+     |> assign(:stage, :done)
+     |> assign(:result, result)
+     |> assign(:error, nil)
+     |> reload_lookups()}
+  end
+
+  def handle_async(:apply_import, {:ok, {:error, reason}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:applying, false)
+     |> assign(:error, apply_error_message(reason))}
+  end
+
+  def handle_async(:apply_import, {:exit, _reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:applying, false)
+     |> assign(:error, gettext("Import failed unexpectedly. Please try again."))}
   end
 
   def handle_event("reset", _params, socket) do
@@ -401,6 +436,7 @@ defmodule PortfolixirWeb.ImportsLive do
      socket
      |> assign(:stage, :idle)
      |> assign(:preview, nil)
+     |> assign(:applying, false)
      |> assign(:result, nil)
      |> assign(:error, nil)
      |> assign(:mapping, blank_mapping())

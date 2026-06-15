@@ -1582,6 +1582,16 @@ msgstr ""
 msgid "Import complete"
 msgstr ""
 
+#: lib/portfolixir_web/live/imports_live.ex:435
+#, elixir-autogen, elixir-format
+msgid "Import failed unexpectedly. Please try again."
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:304
+#, elixir-autogen, elixir-format
+msgid "Importing…"
+msgstr ""
+
 #: lib/portfolixir_web/components/app_shell.ex:322
 #: lib/portfolixir_web/live/imports_live.ex:38
 #, elixir-autogen, elixir-format
