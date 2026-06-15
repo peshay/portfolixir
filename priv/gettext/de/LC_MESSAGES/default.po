@@ -2064,7 +2064,7 @@ msgstr "Hinzufügen"
 #: lib/portfolixir_web/components/app_shell.ex:239
 #, elixir-autogen, elixir-format
 msgid "Add your first"
-msgstr ""
+msgstr "Erstes anlegen"
 
 #: lib/portfolixir_web/live/securities_live.ex:694
 #, elixir-autogen, elixir-format
@@ -2286,7 +2286,7 @@ msgstr "Wertpapiere in diesem Baum suchen…"
 #: lib/portfolixir_web/live/classifications_live.ex:271
 #, elixir-autogen, elixir-format
 msgid "Securities in this category and its sub-categories"
-msgstr ""
+msgstr "Wertpapiere in dieser Kategorie und ihren Unterkategorien"
 
 #: lib/portfolixir_web/live/securities_live.ex:1765
 #, elixir-autogen, elixir-format
@@ -2316,7 +2316,7 @@ msgstr "Diese Kategorie gehört zu einem anderen Baum"
 #: lib/portfolixir_web/live/classifications_live.ex:704
 #, elixir-autogen, elixir-format
 msgid "This tree cannot be reassigned"
-msgstr ""
+msgstr "Dieser Baum kann nicht neu zugewiesen werden"
 
 #: lib/portfolixir_web/live/classifications_live.ex:167
 #, elixir-autogen, elixir-format
@@ -2383,3 +2383,207 @@ msgstr "— Nicht zugeordnet —"
 #, elixir-autogen, elixir-format
 msgid "➕ New category…"
 msgstr "➕ Neue Kategorie…"
+
+#: lib/portfolixir_web/live/portfolio_live.ex:249
+#, elixir-autogen
+msgid "Σ target top level:"
+msgstr "Σ Soll oberste Ebene:"
+
+#: lib/portfolixir_web/live/portfolio_live.ex:305
+#, elixir-autogen
+msgid "subcategories:"
+msgstr "Unterkategorien:"
+
+#: lib/portfolixir_web/live/portfolio_live.ex:306
+#, elixir-autogen
+msgid "of"
+msgstr "von"
+
+#: lib/portfolixir_web/live/portfolio_live.ex:369
+#, elixir-autogen
+msgid "Outside the steering basis"
+msgstr "Außerhalb der Steuerungsbasis"
+
+#: lib/portfolixir_web/live/portfolio_live.ex:370
+#, elixir-autogen
+msgid "not in allocation targets"
+msgstr "nicht in den Allokationszielen"
+
+#: lib/portfolixir_web/components/app_shell.ex:333
+#: lib/portfolixir_web/live/income_live.ex:57
+#: lib/portfolixir_web/live/income_live.ex:60
+#: lib/portfolixir_web/live/income_live.ex:75
+#, elixir-autogen
+msgid "Income"
+msgstr "Erträge"
+
+#: lib/portfolixir_web/live/income_live.ex:76
+#, elixir-autogen
+msgid "Received dividends and interest"
+msgstr "Erhaltene Dividenden und Zinsen"
+
+#: lib/portfolixir_web/live/income_live.ex:61
+#, elixir-autogen
+msgid "Create one portfolio first to see received dividends and interest."
+msgstr "Lege zuerst ein Portfolio an, um erhaltene Dividenden und Zinsen zu sehen."
+
+#: lib/portfolixir_web/live/income_live.ex:84
+#, elixir-autogen
+msgid "Annual overview"
+msgstr "Jahresübersicht"
+
+#: lib/portfolixir_web/live/income_live.ex:86
+#: lib/portfolixir_web/live/income_live.ex:172
+#, elixir-autogen
+msgid "No dividends or interest booked yet."
+msgstr "Noch keine Dividenden oder Zinsen gebucht."
+
+#: lib/portfolixir_web/live/income_live.ex:91
+#, elixir-autogen
+msgid "Year"
+msgstr "Jahr"
+
+#: lib/portfolixir_web/live/income_live.ex:92
+#, elixir-autogen
+msgid "Series"
+msgstr "Reihe"
+
+#: lib/portfolixir_web/live/income_live.ex:135
+#, elixir-autogen, elixir-format
+msgid "Payments in %{year}"
+msgstr "Zahlungen in %{year}"
+
+#: lib/portfolixir_web/live/income_live.ex:148
+#, elixir-autogen
+msgid "Net"
+msgstr "Netto"
+
+#: lib/portfolixir_web/live/income_live.ex:180
+#, elixir-autogen
+msgid "Withheld tax"
+msgstr "Einbehaltene Steuer"
+
+#: lib/portfolixir_web/live/income_live.ex:182
+#, elixir-autogen
+msgid "Payments"
+msgstr "Zahlungen"
+
+#: lib/portfolixir_web/live/income_live.ex:183
+#, elixir-autogen
+msgid "Last payment"
+msgstr "Letzte Zahlung"
+
+#: lib/portfolixir_web/live/income_live.ex:170
+#, elixir-autogen
+msgid "Per position"
+msgstr "Je Position"
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:27
+#, elixir-autogen, elixir-format
+msgid "Manage logo"
+msgstr "Logo verwalten"
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:43
+#, elixir-autogen, elixir-format
+msgid "A manual logo is set (discovery will not overwrite it)."
+msgstr "Ein manuelles Logo ist gesetzt (automatische Suche überschreibt es nicht)."
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:45
+#, elixir-autogen, elixir-format
+msgid "This security is set to have no logo."
+msgstr "Für dieses Wertpapier ist kein Logo gesetzt."
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:47
+#, elixir-autogen, elixir-format
+msgid "Current logo source: %{source}"
+msgstr "Aktuelle Logo-Quelle: %{source}"
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:49
+#, elixir-autogen, elixir-format
+msgid "No logo found yet."
+msgstr "Noch kein Logo gefunden."
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:53
+#, elixir-autogen, elixir-format
+msgid "Image URL"
+msgstr "Bild-URL"
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:57
+#, elixir-autogen, elixir-format
+msgid "Save URL"
+msgstr "URL speichern"
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:64
+#, elixir-autogen, elixir-format
+msgid "Search again"
+msgstr "Erneut suchen"
+
+#: lib/portfolixir_web/live/securities/logo_override_dialog.ex:72
+#, elixir-autogen, elixir-format
+msgid "Remove logo"
+msgstr "Logo entfernen"
+
+#: lib/portfolixir_web/live/securities_live.ex:1834
+#, elixir-autogen, elixir-format
+msgid "Asset class saved."
+msgstr "Anlageklasse gespeichert."
+
+#: lib/portfolixir_web/live/securities_live.ex:2192
+#, elixir-autogen, elixir-format
+msgid "Could not load that image"
+msgstr "Bild konnte nicht geladen werden"
+
+#: lib/portfolixir_web/live/securities_live.ex:1998
+#, elixir-autogen, elixir-format
+msgid "Could not remove logo"
+msgstr "Logo konnte nicht entfernt werden"
+
+#: lib/portfolixir_web/live/securities_live.ex:2185
+#, elixir-autogen, elixir-format
+msgid "Enter an image URL first."
+msgstr "Bitte zuerst eine Bild-URL eingeben."
+
+#: lib/portfolixir_web/live/securities_live.ex:1994
+#, elixir-autogen, elixir-format
+msgid "Logo removed"
+msgstr "Logo entfernt"
+
+#: lib/portfolixir_web/live/securities_live.ex:1663
+#, elixir-autogen, elixir-format
+msgid "is unclassified"
+msgstr "ist nicht klassifiziert"
+
+#: lib/portfolixir_web/live/imports_live.ex:684
+#, elixir-autogen, elixir-format
+msgid "Row %{row}: %{errors}"
+msgstr "Zeile %{row}: %{errors}"
+
+#: lib/portfolixir_web/live/classifications_live.ex:342
+#, elixir-autogen, elixir-format
+msgid "Assigned securities you no longer hold, hidden by the filter"
+msgstr "Zugeordnete Wertpapiere ohne aktuellen Bestand, durch Filter ausgeblendet"
+
+#: lib/portfolixir_web/live/classifications_live.ex:48
+#, elixir-autogen, elixir-format
+msgid "Couldn't load current holdings."
+msgstr "Aktuelle Bestände konnten nicht geladen werden."
+
+#: lib/portfolixir_web/live/classifications_live.ex:154
+#, elixir-autogen, elixir-format
+msgid "Current positions only"
+msgstr "Nur aktuelle Positionen"
+
+#: lib/portfolixir_web/live/classifications_live.ex:335
+#, elixir-autogen, elixir-format
+msgid "EUR value of the visible positions"
+msgstr "EUR-Wert der sichtbaren Positionen"
+
+#: lib/portfolixir_web/live/classifications_live.ex:333
+#, elixir-autogen, elixir-format
+msgid "Visible positions in this category and its sub-categories"
+msgstr "Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien"
+
+#: lib/portfolixir_web/live/classifications_live.ex:343
+#, elixir-autogen, elixir-format
+msgid "without holdings"
+msgstr "ohne Bestand"
