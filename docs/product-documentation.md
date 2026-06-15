@@ -224,8 +224,8 @@ target save path is unchanged and never rejects freely chosen weights.
 **Cash is part of the allocation.** A portfolio can store a **cash target**
 (`cash_target_weight`, e.g. 5%) — the SOLL share of cash inside the same 100%
 basis as the categories. With a cash target set, the allocation's 100% basis is
-**securities (minus excluded) + the cash that counts toward the cash quote**
-(the accounts flagged *counts toward the cash quote*). The drift table then shows
+**securities (minus excluded) + the deployable cash** (free-cash accounts with a
+non-negative balance). The drift table then shows
 a dedicated **Cash** row in its own neutral colour with the cash actual, target
 and drift, the sunburst gains a cash segment, and every category percentage
 shrinks accordingly once cash joins the basis. Set the cash target over the API
@@ -275,13 +275,18 @@ bank export) — without turning Portfolixir into a banking app. This follows th
 design recorded in
 [ADR-0009](decisions/0009-cash-as-balance-snapshots.html).
 
-Each cash account carries a flag for whether it counts toward the cash quote
-(on by default; the toggle sits next to the account on the Portfolios page,
-and the API/MCP field is `counts_toward_cash_quote`). An account switched off —
-a business account, say — stays listed with its balance and inside the total
-cash, but the quote is computed as if it did not exist, so it never distorts
-your private quote. The Portfolio page marks such accounts as "not in cash
-quote".
+Each cash account carries a **liquidity role** (the selector sits next to the
+account on the Portfolios page; the API/MCP field is `liquidity_role`). It is
+one of three values: **free cash** (the default — genuine deployable cash),
+**credit line** (an overdraft or Lombard facility, whose negative balance is a
+liability and whose unused headroom is never liquidity), or **reserve** (a
+visible but excluded bucket, e.g. a business account). Only free-cash accounts
+with a non-negative balance count as deployable cash and enter the cash quote;
+a credit line never counts (even when its balance is positive — type beats
+sign), and a reserve is always excluded. Every account still shows in the total
+cash, so a drawn credit line correctly reduces your net worth, but the quote is
+computed over deployable cash only and never reports fake liquidity. The
+Portfolio page mutes non-deployable rows and labels them with their role.
 
 ## Portfolio Page
 
