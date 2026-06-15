@@ -155,13 +155,17 @@ Example quote sync response:
   strictly after the snapshot change it, so moving money between your own
   accounts needs no transfer entry. Unknown accounts return `404 Not Found`.
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
-  object. The optional boolean `counts_toward_cash_quote` (default `true`)
-  controls whether the account enters the valuation's `cash_quote`; set it to
-  `false` for a reference-only account (e.g. a business account) that should
-  stay visible without distorting the private quote.
+  object. The optional `liquidity_role` (default `free_cash`) classifies the
+  account: `free_cash` is genuine deployable cash; `credit_line` is an
+  overdraft/Lombard facility whose negative balance is a liability and whose
+  unused headroom is never liquidity (it never enters deployable cash, even
+  with a positive balance — type beats sign); `reserve` is a visible-but-
+  excluded bucket (e.g. a business account). Only `free_cash` accounts with a
+  non-negative balance contribute to the valuation's deployable cash and its
+  `cash_quote`. An unknown value is rejected with `422 Unprocessable Entity`.
 - `GET /api/v1/cash_accounts/:id` returns one cash account.
 - `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
-  `currency_code`, `notes`, `counts_toward_cash_quote`); `portfolio_id` cannot
+  `currency_code`, `notes`, `liquidity_role`); `portfolio_id` cannot
   be changed.
 - `DELETE /api/v1/cash_accounts/:id` deletes a cash account, or returns
   `409 Conflict` when a transaction or securities account still references it.
@@ -260,14 +264,16 @@ Example account payloads:
   `1` (round for display). Market values and `total_value` are exact.
   The valuation also carries cash: `cash_balances` lists each cash account
   (`balance` in its own currency, plus `base_value`/`valued` after converting to
-  the base currency, and its `counts_toward_cash_quote` flag), `total_cash` is
-  the base-currency sum of the valued cash accounts, and `total_with_cash` is
-  `total_value + total_cash`. `cash_quote` is the cash share of the portfolio
-  computed over the accounts whose `counts_toward_cash_quote` is `true`, as if
-  the other accounts did not exist (`counting_cash / (total_value +
-  counting_cash)`, `0` when there is nothing to value yet) — so a reference-only
-  business account stays listed and inside `total_cash` without distorting the
-  quote. The response also emits `counting_cash` (Decimal string) — the cash that
+  the base currency, its `liquidity_role`, and a `deployable` flag), `total_cash`
+  is the base-currency sum of the valued cash accounts (so a drawn credit line's
+  negative balance still reduces it), and `total_with_cash` is
+  `total_value + total_cash`. `cash_quote` is the deployable-cash share of the
+  portfolio: deployable cash is the sum of `free_cash` accounts with a
+  non-negative balance (`deployable: true`), and the quote is computed as if the
+  other accounts did not exist (`counting_cash / (total_value + counting_cash)`,
+  `0` when there is nothing to value yet) — so a reserve account or a credit line
+  stays listed and inside `total_cash` without ever reporting fake liquidity. The
+  response also emits `counting_cash` (Decimal string) — the deployable cash that
   enters the quote — so a consumer can reconstruct `cash_quote` itself. An
   account whose currency has no rate path to the base is reported
   `valued: false` and excluded from `total_cash`, mirroring how unpriceable
@@ -353,8 +359,8 @@ Example account payloads:
   this is what the sunburst's outermost ring renders. Securities held but not
   assigned in the tree are summed into `unassigned`. Weights are shares of the
   **steering basis**: the valued positions' total minus any security flagged
-  `excluded_from_allocation_targets`, **plus the cash that counts toward the
-  cash quote** (accounts whose `counts_toward_cash_quote` is `true`). `total_value`
+  `excluded_from_allocation_targets`, **plus the deployable cash** (`free_cash`
+  accounts with a non-negative balance). `total_value`
   here is that steering basis (not the full valuation). The response carries a
   `cash` object — `market_value` (the counting cash), `actual_weight` (its share
   of `total_value`), `target_weight` (the portfolio's `cash_target_weight`, or

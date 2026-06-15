@@ -2134,10 +2134,25 @@ msgstr "Änderungen konnten nicht gespeichert werden."
 msgid "Could not update cash account"
 msgstr "Verrechnungskonto konnte nicht aktualisiert werden"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:125
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:139
 #, elixir-autogen, elixir-format
-msgid "Counts toward cash quote"
-msgstr "Zählt zur Cashquote"
+msgid "Liquidity role"
+msgstr "Liquiditätsrolle"
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:126
+#, elixir-autogen, elixir-format
+msgid "Free cash"
+msgstr "Verfügbares Cash"
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:132
+#, elixir-autogen, elixir-format
+msgid "Credit line"
+msgstr "Kreditlinie"
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:135
+#, elixir-autogen, elixir-format
+msgid "Reserve"
+msgstr "Reserve"
 
 #: lib/portfolixir_web/live/securities_live.ex:1072
 #, elixir-autogen, elixir-format
@@ -2328,10 +2343,20 @@ msgstr[1] "Zuordnung von %{count} Wertpapieren entfernt"
 msgid "Unsorted"
 msgstr "Nicht zugeordnet"
 
-#: lib/portfolixir_web/live/portfolio_live.ex:333
+#: lib/portfolixir_web/live/portfolio_live.ex:964
 #, elixir-autogen, elixir-format
 msgid "not in cash quote"
 msgstr "nicht in der Cashquote"
+
+#: lib/portfolixir_web/live/portfolio_live.ex:962
+#, elixir-autogen, elixir-format
+msgid "credit line"
+msgstr "Kreditlinie"
+
+#: lib/portfolixir_web/live/portfolio_live.ex:963
+#, elixir-autogen, elixir-format
+msgid "reserve"
+msgstr "Reserve"
 
 #: lib/portfolixir_web/live/classifications_live.ex:137
 #, elixir-autogen, elixir-format

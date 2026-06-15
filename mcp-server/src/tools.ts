@@ -67,13 +67,15 @@ const portfolioZ = z.object({
   })
 });
 
+const liquidityRoleZ = z.enum(["free_cash", "credit_line", "reserve"]);
+
 const cashAccountZ = z.object({
   cash_account: z.object({
     portfolio_id: z.number().int().positive(),
     name: z.string(),
     currency_code: z.string(),
     notes: optionalString(),
-    counts_toward_cash_quote: z.boolean().optional()
+    liquidity_role: liquidityRoleZ.optional()
   })
 });
 
@@ -170,7 +172,7 @@ const cashAccountSchema = objectWith("cash_account", {
     name: { type: "string" },
     currency_code: { type: "string" },
     notes: { type: "string" },
-    counts_toward_cash_quote: { type: "boolean" }
+    liquidity_role: { type: "string", enum: ["free_cash", "credit_line", "reserve"] }
   }
 });
 
@@ -526,7 +528,7 @@ const cashAccountUpdateSchema = {
         name: { type: "string" },
         currency_code: { type: "string" },
         notes: { type: "string" },
-        counts_toward_cash_quote: { type: "boolean" }
+        liquidity_role: { type: "string", enum: ["free_cash", "credit_line", "reserve"] }
       }
     }
   }
@@ -538,7 +540,7 @@ const cashAccountUpdateZ = z.object({
     name: optionalString(),
     currency_code: optionalString(),
     notes: optionalString(),
-    counts_toward_cash_quote: z.boolean().optional()
+    liquidity_role: liquidityRoleZ.optional()
   })
 });
 
@@ -824,14 +826,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.cash_accounts.create",
     "Create cash account",
-    "Create a cash account. Set counts_toward_cash_quote=false to keep it visible without it entering the cash quote.",
+    "Create a cash account. liquidity_role is free_cash (default, deployable cash), credit_line (overdraft/Lombard, never deployable), or reserve (visible but excluded from the cash quote).",
     cashAccountSchema,
     cashAccountZ
   ),
   tool(
     "portfolixir.cash_accounts.update",
     "Update cash account",
-    "Patch a cash account's name, currency, notes or counts_toward_cash_quote flag.",
+    "Patch a cash account's name, currency, notes or liquidity_role (free_cash, credit_line, reserve).",
     cashAccountUpdateSchema,
     cashAccountUpdateZ
   ),

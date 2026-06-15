@@ -56,19 +56,21 @@ defmodule Portfolixir.WorldFixtures do
 
   Options: `:currency` (default `"EUR"`), `:cash_currency` (default:
   `:currency`), `:cash_name` (default `"Local Cash"`), `:depot_name`
-  (default `"Main Depot"`).
+  (default `"Main Depot"`), `:liquidity_role` (default `"free_cash"`).
   """
   def add_depot(portfolio, opts \\ []) do
     currency = Keyword.get(opts, :currency, "EUR")
     cash_currency = Keyword.get(opts, :cash_currency, currency)
     cash_name = Keyword.get(opts, :cash_name, "Local Cash")
     depot_name = Keyword.get(opts, :depot_name, "Main Depot")
+    liquidity_role = Keyword.get(opts, :liquidity_role, "free_cash")
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
         portfolio_id: portfolio.id,
         name: cash_name,
-        currency_code: cash_currency
+        currency_code: cash_currency,
+        liquidity_role: liquidity_role
       })
 
     {:ok, depot} =
