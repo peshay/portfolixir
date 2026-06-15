@@ -17,7 +17,10 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
   defp security!(attrs \\ %{}) do
     base = %{name: "Apple", currency_code: "USD", asset_class: "equity"}
-    {:ok, security} = Catalog.create_security(Map.merge(base, attrs))
+
+    {:ok, security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), Map.merge(base, attrs))
+
     security
   end
 

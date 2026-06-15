@@ -47,6 +47,8 @@ defmodule PortfolixirWeb.Router do
   scope "/api/v1", PortfolixirWeb.Api.V1 do
     pipe_through(:api_auth)
 
+    get("/journal", JournalController, :index)
+
     get("/securities/search", SecuritySearchController, :index)
     get("/securities", SecurityController, :index)
     post("/securities", SecurityController, :create)

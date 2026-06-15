@@ -37,7 +37,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
       provider: "manual"
     }
 
-    {:ok, sec} = Catalog.create_security(Map.merge(base, overrides))
+    {:ok, sec} = Catalog.create_security(Portfolixir.Actor.owner_ui(), Map.merge(base, overrides))
     sec
   end
 

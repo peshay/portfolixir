@@ -77,7 +77,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     test "search filters the list", %{conn: conn} do
       {:ok, _} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           currency_code: "USD",
@@ -85,7 +85,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, _} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Bitcoin",
           ticker_symbol: "BTC",
           currency_code: "EUR",
@@ -115,7 +115,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     # - Ohne Bestand shows sold-out and never-held securities.
     test "holding status toolbar filters the securities list", %{conn: conn} do
       {:ok, held} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Active ETF",
           ticker_symbol: "HELD",
           currency_code: "EUR",
@@ -123,7 +123,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, flat} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Sold Out ETF",
           ticker_symbol: "FLAT",
           currency_code: "EUR",
@@ -131,7 +131,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, _never} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Never Held ETF",
           ticker_symbol: "NEVR",
           currency_code: "EUR",
@@ -249,7 +249,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # so that I can fix a value (e.g. switch the quote feed) without
       # having to find a separate edit screen.
       {:ok, existing} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           isin: "US0378331005",
@@ -299,7 +299,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "in conflict mode, Merge online fields applies the user's form edits on top",
          %{conn: conn} do
       {:ok, existing} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           isin: "US0378331005",
@@ -342,7 +342,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     test "duplicate insert surfaces a conflict banner instead of an exception", %{conn: conn} do
       {:ok, _existing} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           isin: "US0378331005",
@@ -427,7 +427,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     setup do
       {:ok, apple} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           isin: "US0378331005",
@@ -487,7 +487,11 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # The handler must guarantee `:sync_done` delivery (try/after) so
       # the busy flag clears even when QuoteSync.sync_all/0 raises.
       {:ok, _sec} =
-        Catalog.create_security(%{name: "Crashy", currency_code: "USD", provider: "manual"})
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Crashy",
+          currency_code: "USD",
+          provider: "manual"
+        })
 
       prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
 
@@ -533,7 +537,11 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # - The flash does not say "Prices synced." when every security was skipped.
       # - The status mentions skipped work.
       {:ok, _sec} =
-        Catalog.create_security(%{name: "No Adapter", currency_code: "USD", provider: "manual"})
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "No Adapter",
+          currency_code: "USD",
+          provider: "manual"
+        })
 
       prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
 
@@ -685,7 +693,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     setup do
       {:ok, apple} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           isin: "US0378331005",
@@ -896,7 +904,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     setup do
       {:ok, security} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           currency_code: "USD",
@@ -1040,7 +1048,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     setup do
       {:ok, apple} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           currency_code: "USD",
@@ -1110,7 +1118,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     setup do
       {:ok, apple} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           isin: "US0378331005",
@@ -1139,7 +1147,10 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     test "shows the retired badge when the security is retired",
          %{conn: conn, apple: apple} do
-      {:ok, _} = Portfolixir.Catalog.update_security(apple, %{is_retired: true})
+      {:ok, _} =
+        Portfolixir.Catalog.update_security(Portfolixir.Actor.owner_ui(), apple, %{
+          is_retired: true
+        })
 
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
 
@@ -1212,7 +1223,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     setup do
       {:ok, security} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           isin: "US0378331005",
@@ -1516,14 +1527,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   describe "quick-assign asset class" do
     test "renders select form for unclassified security", %{conn: conn} do
       {:ok, _classified} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           currency_code: "USD",
           asset_class: "equity"
         })
 
       {:ok, _unclassified} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Amazon",
           currency_code: "USD"
         })
@@ -1536,7 +1547,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     test "changing the select saves the asset class", %{conn: conn} do
       {:ok, security} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Amazon",
           currency_code: "USD"
         })
@@ -1557,7 +1568,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     test "selecting empty value is a no-op", %{conn: conn} do
       {:ok, _} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Amazon",
           currency_code: "USD"
         })
@@ -1573,7 +1584,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     test "invalid security id is silently ignored", %{conn: conn} do
       {:ok, _} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Amazon",
           currency_code: "USD"
         })
@@ -1591,7 +1602,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   describe "filter popover" do
     test "filter on asset_class adds a chip and narrows the list", %{conn: conn} do
       {:ok, _} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           ticker_symbol: "AAPL",
           currency_code: "USD",
@@ -1599,7 +1610,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, _} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Bitcoin",
           ticker_symbol: "BTC",
           currency_code: "EUR",
@@ -1641,14 +1652,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     test "is_nil filter on asset_class shows only unclassified securities", %{conn: conn} do
       {:ok, _classified} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Apple Inc.",
           currency_code: "USD",
           asset_class: "equity"
         })
 
       {:ok, _unclassified} =
-        Catalog.create_security(%{
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
           name: "Amazon",
           currency_code: "USD"
         })

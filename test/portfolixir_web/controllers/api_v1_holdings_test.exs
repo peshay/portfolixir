@@ -41,7 +41,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
       })
 
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Core Equity",
         ticker_symbol: "CORE",
         currency_code: "EUR",

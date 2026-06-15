@@ -351,7 +351,7 @@ defmodule PortfolixirWeb.NavigationTest do
       })
 
     {:ok, _security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Synthetic Global ETF",
         ticker_symbol: "SYN",
         currency_code: "EUR"

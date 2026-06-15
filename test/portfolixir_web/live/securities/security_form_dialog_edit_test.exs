@@ -24,7 +24,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
 
   defp create_security! do
     {:ok, sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Apple Inc.",
         ticker_symbol: "AAPL",
         isin: "US0378331005",
@@ -70,7 +70,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
 
   test "prefills inferred asset class for imported securities with blank stored asset_class" do
     {:ok, sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Placeholder",
         isin: "US912810SN90",
         currency_code: "USD",
@@ -79,7 +79,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
       })
 
     {:ok, sec} =
-      Catalog.update_security(sec, %{
+      Catalog.update_security(Portfolixir.Actor.owner_ui(), sec, %{
         name: "Anleihe USA 20/50",
         asset_class: nil
       })

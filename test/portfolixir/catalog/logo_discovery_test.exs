@@ -76,7 +76,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
     Application.put_env(:portfolixir, :enable_logo_discovery, false)
 
     {:ok, apple} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Apple Inc.",
         currency_code: "USD",
         provider: "portfolio_performance",
@@ -84,7 +84,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
       })
 
     {:ok, etf} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "iShares Core MSCI World UCITS ETF",
         currency_code: "EUR",
         provider: "portfolio_performance",
@@ -92,7 +92,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
       })
 
     {:ok, bond} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Anleihe USA 20/50",
         isin: "US912810SN90",
         currency_code: "USD",
@@ -152,7 +152,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
     Application.put_env(:portfolixir, :enable_logo_discovery, false)
 
     {:ok, security} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Tesla, Inc.",
         currency_code: "USD",
         provider: "portfolio_performance",
@@ -196,7 +196,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
     Application.put_env(:portfolixir, :enable_logo_discovery, false)
 
     {:ok, candidate} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Apple Inc.",
         currency_code: "USD",
         provider: "portfolio_performance",

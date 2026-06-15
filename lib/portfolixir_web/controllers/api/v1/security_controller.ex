@@ -36,7 +36,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   def create(conn, params) do
     attrs = Map.get(params, "security", %{})
 
-    case Catalog.create_security(attrs) do
+    case Catalog.create_security(conn.assigns.actor, attrs) do
       {:ok, security} ->
         conn
         |> put_status(:created)
@@ -51,7 +51,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     attrs = Map.get(params, "security", %{})
 
     with security when not is_nil(security) <- Catalog.get_security(id),
-         {:ok, updated} <- Catalog.update_security(security, attrs) do
+         {:ok, updated} <- Catalog.update_security(conn.assigns.actor, security, attrs) do
       json(conn, %{data: JSON.security(updated)})
     else
       nil -> not_found(conn)
@@ -65,7 +65,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         not_found(conn)
 
       security ->
-        case Catalog.delete_security(security) do
+        case Catalog.delete_security(conn.assigns.actor, security) do
           {:ok, _} ->
             send_resp(conn, :no_content, "")
 

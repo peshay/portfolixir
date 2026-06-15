@@ -4,6 +4,8 @@ defmodule Portfolixir.Catalog do
   import Ecto.Query
   require Logger
 
+  alias Ecto.Multi
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog.LogoDiscovery
   alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.LogoStore
@@ -14,6 +16,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.SecurityFields.Field
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
@@ -113,6 +116,13 @@ defmodule Portfolixir.Catalog do
 
   Rows with an explicit class, or where inference yields nothing, are left
   unchanged. Returns the number of rows updated.
+
+  FR-28 note: this is a **migration-only** data backfill invoked from immutable
+  historical migrations (which run before the `securities` guard trigger is
+  armed), so its arity cannot change and it carries no `actor`. The audit
+  journal's no-bypass meta-test excludes it as a migration helper, not as a
+  grandfathered context writer. Calling it at runtime against the armed table
+  fails the guard loudly — by design.
   """
   def backfill_inferred_asset_classes do
     # Schema-snapshot safe: select only the columns asset-class inference reads
@@ -199,14 +209,24 @@ defmodule Portfolixir.Catalog do
 
   def get_security(_id), do: nil
 
-  def create_security(attrs) when is_map(attrs) do
-    case %Security{} |> Security.changeset(attrs) |> Repo.insert() do
-      {:ok, security} = ok ->
-        maybe_enrich_security(security)
-        ok
+  @doc """
+  Creates a security on behalf of `actor` (FR-28). The insert and its audit
+  journal entry commit in one transaction (ADR-0017, P9); the security table is
+  guard-armed, so this is the only sanctioned create path.
+  """
+  def create_security(%Actor{} = actor, attrs) when is_map(attrs) do
+    multi =
+      Multi.new()
+      |> Multi.insert(:security, Security.changeset(%Security{}, attrs))
+      |> Journal.record(actor, resource_type: "security", operation: :create, source: :security)
 
-      other ->
-        other
+    case Repo.transaction(multi) do
+      {:ok, %{security: security}} ->
+        maybe_enrich_security(security)
+        {:ok, security}
+
+      {:error, :security, %Ecto.Changeset{} = changeset, _changes} ->
+        {:error, changeset}
     end
   end
 
@@ -270,16 +290,47 @@ defmodule Portfolixir.Catalog do
     Application.get_env(:portfolixir, :enable_logo_discovery, false)
   end
 
-  def update_security(%Security{} = security, attrs) when is_map(attrs) do
-    security
-    |> Security.changeset(attrs)
-    |> Repo.update()
+  @doc """
+  Updates a security on behalf of `actor` (FR-28). The update and its audit
+  journal entry (with the pre-image as `before`) commit in one transaction.
+  """
+  def update_security(%Actor{} = actor, %Security{} = security, attrs) when is_map(attrs) do
+    multi =
+      Multi.new()
+      |> Multi.update(:security, Security.changeset(security, attrs))
+      |> Journal.record(actor,
+        resource_type: "security",
+        operation: :update,
+        source: :security,
+        before: security
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{security: updated}} -> {:ok, updated}
+      {:error, :security, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+    end
   end
 
-  def delete_security(%Security{} = security) do
-    security
-    |> Security.delete_changeset()
-    |> Repo.delete()
+  @doc """
+  Deletes a security on behalf of `actor` (FR-28). The deletion is journaled
+  with the full `before` snapshot, so a removed security stays traceable in the
+  audit journal.
+  """
+  def delete_security(%Actor{} = actor, %Security{} = security) do
+    multi =
+      Multi.new()
+      |> Multi.delete(:security, Security.delete_changeset(security))
+      |> Journal.record(actor,
+        resource_type: "security",
+        operation: :delete,
+        source: :security,
+        before: security
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{security: deleted}} -> {:ok, deleted}
+      {:error, :security, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+    end
   end
 
   @doc """
@@ -328,19 +379,38 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc """
-  Sets the persisted `asset_class` on many securities in one statement. `code`
-  must be a valid asset-class code (callers pass a built-in category key), or
-  `nil` to clear it back to "automatic" (inferred on read). Returns the count of
-  rows updated.
+  Sets the persisted `asset_class` on many securities in one statement on behalf
+  of `actor` (FR-28). `code` must be a valid asset-class code (callers pass a
+  built-in category key), or `nil` to clear it back to "automatic" (inferred on
+  read). Returns the count of rows updated.
+
+  This bulk reclassification is journaled as a single aggregate `update` entry
+  on `resource_type: "security"` (resource_id `nil`) carrying the affected ids —
+  the guard-armed `securities` table still requires the actor on every row, so
+  the whole `update_all` runs inside one actor-set transaction (ADR-0017).
   """
-  def set_asset_class(security_ids, code) when is_list(security_ids) do
+  def set_asset_class(%Actor{} = _actor, [], _code), do: 0
+
+  def set_asset_class(%Actor{} = actor, security_ids, code) when is_list(security_ids) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
-    {count, _} =
-      Security
-      |> where([s], s.id in ^security_ids)
-      |> Repo.update_all(set: [asset_class: code, updated_at: now])
+    multi =
+      Multi.new()
+      |> Multi.update_all(
+        :bulk,
+        from(s in Security, where: s.id in ^security_ids),
+        set: [asset_class: code, updated_at: now]
+      )
+      |> Multi.run(:bulk_record, fn _repo, %{bulk: {count, _}} ->
+        {:ok, %{id: nil, asset_class: code, security_ids: security_ids, updated_count: count}}
+      end)
+      |> Journal.record(actor,
+        resource_type: "security",
+        operation: :update,
+        source: :bulk_record
+      )
 
+    {:ok, %{bulk: {count, _}}} = Repo.transaction(multi)
     count
   end
 
@@ -386,13 +456,18 @@ defmodule Portfolixir.Catalog do
   returns `{:conflict, existing_security}` so the UI can ask the user whether
   to open the existing record or merge the online fields.
   """
-  def create_from_search_result(%SearchResult{} = result, market \\ nil, overrides \\ %{}) do
+  def create_from_search_result(
+        %Actor{} = actor,
+        %SearchResult{} = result,
+        market \\ nil,
+        overrides \\ %{}
+      ) do
     attrs = result |> SearchResult.to_security_attrs(market) |> Map.merge(overrides)
 
     with nil <- lookup_by_provider(attrs),
          nil <- lookup_by_isin(attrs),
          nil <- lookup_by_ticker(attrs) do
-      create_security(attrs)
+      create_security(actor, attrs)
     else
       %Security{} = existing -> {:conflict, existing}
     end
@@ -402,9 +477,15 @@ defmodule Portfolixir.Catalog do
   Merges online fields from a search result into an existing security. Keeps
   user-edited fields (`note`) and merges `attributes` rather than replacing.
   """
-  def merge_search_result(existing, result, market \\ nil, overrides \\ %{})
+  def merge_search_result(actor, existing, result, market \\ nil, overrides \\ %{})
 
-  def merge_search_result(%Security{} = existing, %SearchResult{} = result, market, overrides) do
+  def merge_search_result(
+        %Actor{} = actor,
+        %Security{} = existing,
+        %SearchResult{} = result,
+        market,
+        overrides
+      ) do
     incoming = SearchResult.to_security_attrs(result, market)
 
     merged_attributes =
@@ -416,7 +497,7 @@ defmodule Portfolixir.Catalog do
       |> Map.put(:attributes, merged_attributes)
       |> Map.merge(normalize_overrides(overrides))
 
-    update_security(existing, attrs)
+    update_security(actor, existing, attrs)
   end
 
   defp normalize_overrides(overrides) when is_map(overrides) do
