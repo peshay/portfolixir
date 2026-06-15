@@ -85,7 +85,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       name: account.name,
       currency_code: account.currency_code,
       notes: account.notes,
-      counts_toward_cash_quote: account.counts_toward_cash_quote,
+      liquidity_role: account.liquidity_role,
       inserted_at: timestamp(account.inserted_at),
       updated_at: timestamp(account.updated_at)
     }
@@ -127,6 +127,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       fees: decimal(transaction.fees),
       taxes: decimal(transaction.taxes),
       currency_code: transaction.currency_code,
+      security_amount: decimal(transaction.security_amount),
+      settlement_amount: decimal(transaction.settlement_amount),
+      settlement_fx_rate: decimal(transaction.settlement_fx_rate),
       notes: transaction.notes,
       import_hash: transaction.import_hash,
       inserted_at: timestamp(transaction.inserted_at),
@@ -136,6 +139,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   def trades(%{open_lots: lots, closed_trades: closed, orphan_sells: orphans}) do
     %{
+      # FR-13: state the matching method so a consumer never has to assume how
+      # lots were paired against sells. Trades are matched first-in, first-out.
+      method: "fifo",
       open_lots: Enum.map(lots, &open_lot/1),
       closed_trades: Enum.map(closed, &closed_trade/1),
       orphan_sells: Enum.map(orphans, &orphan_sell/1)
@@ -198,6 +204,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def holdings(holdings, portfolio_id) when is_list(holdings) do
+    %{
+      # FR-13: state the currency basis and read date so a consumer knows the
+      # rows carry no FX conversion (see the valuation for base-currency totals).
+      # There is no stored snapshot, so `as_of` documents the read date.
+      currency_basis: "security_currency",
+      as_of: date(Date.utc_today()),
+      data: Enum.map(holdings, &holding(&1, portfolio_id))
+    }
+  end
+
   def holding(holding, portfolio_id) do
     %{
       portfolio_id: portfolio_id,
@@ -215,12 +232,36 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def holdings_by_security(%{holdings: holdings} = report) do
+    %{
+      currency: report.currency,
+      as_of: date(report.as_of),
+      note: report.note,
+      holdings: Enum.map(holdings, &holdings_by_security_row/1)
+    }
+  end
+
+  defp holdings_by_security_row(row) do
+    %{
+      security_id: row.security_id,
+      quantity: decimal(row.quantity),
+      market_value: decimal(row.market_value),
+      valued: row.valued
+    }
+  end
+
   def valuation(%{positions: positions} = valuation) do
     %{
       portfolio_id: valuation.portfolio_id,
       base_currency: valuation.base_currency,
+      # FR-13: describe the read date and the chosen basis so a consumer never
+      # has to assume how totals were built. There is no stored snapshot, so
+      # `as_of` documents the read date (mirrors the income report).
+      as_of: date(Date.utc_today()),
+      valuation_note: valuation_note(valuation.base_currency),
       total_value: decimal(valuation.total_value),
       total_cash: decimal(valuation.total_cash),
+      counting_cash: decimal(valuation.counting_cash),
       total_with_cash: decimal(valuation.total_with_cash),
       cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
@@ -228,6 +269,12 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       positions: Enum.map(positions, &valuation_position/1),
       cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
     }
+  end
+
+  defp valuation_note(base_currency) do
+    "Totals are in #{base_currency} (base_currency), converted via the EUR " <>
+      "hub at each position's stored rate; `price_source` and `valued` " <>
+      "indicate per-position price staleness."
   end
 
   defp valuation_cash(cash) do
@@ -238,7 +285,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       balance: decimal(cash.balance),
       base_value: decimal(cash.base_value),
       valued: cash.valued,
-      counts_toward_cash_quote: cash.counts_toward_cash_quote
+      liquidity_role: cash.liquidity_role,
+      deployable: cash.deployable
     }
   end
 
@@ -306,6 +354,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       target_weight: decimal(category.target_weight),
       drift_weight: decimal(category.drift_weight),
       drift_value: decimal(category.drift_value),
+      child_target_sum: decimal(category.child_target_sum),
       positions: Enum.map(category.positions, &allocation_position/1)
     }
   end
@@ -335,6 +384,54 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     %{
       market_value: decimal(excluded.market_value),
       positions: Enum.map(excluded.positions, &allocation_position/1)
+    }
+  end
+
+  def risk(risk) do
+    %{
+      portfolio_id: risk.portfolio_id,
+      base_currency: risk.base_currency,
+      # FR-13: `as_of` documents the read date; the lens is derived on read from
+      # the live valuation, so there is no stored snapshot date to report. The
+      # note states the basis so a consumer never has to assume what the weights
+      # and HHI are a share of.
+      as_of: date(Date.utc_today()),
+      risk_note: risk_note(),
+      steerable_basis: decimal(risk.steerable_basis),
+      top_holdings: Enum.map(risk.top_holdings, &risk_holding/1),
+      hhi: risk_hhi(risk.hhi),
+      asset_class_violations: Enum.map(risk.asset_class_violations, &risk_violation/1)
+    }
+  end
+
+  defp risk_note do
+    "Weights, caps and HHI are on a 0-100 percentage scale over the steerable " <>
+      "basis (valued positions minus those flagged " <>
+      "excluded_from_allocation_targets); a security held across depots is " <>
+      "merged into one single-name exposure."
+  end
+
+  defp risk_holding(holding) do
+    %{
+      security_id: holding.security_id,
+      security_name: holding.security_name,
+      asset_class: holding.asset_class,
+      market_value: decimal(holding.market_value),
+      weight: decimal(holding.weight),
+      severity: holding.severity
+    }
+  end
+
+  defp risk_hhi(hhi) do
+    %{value: decimal(hhi.value), band: hhi.band}
+  end
+
+  defp risk_violation(violation) do
+    %{
+      asset_class: violation.asset_class,
+      current_weight: decimal(violation.current_weight),
+      cap: decimal(violation.cap),
+      overage: decimal(violation.overage)
     }
   end
 

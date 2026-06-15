@@ -316,23 +316,23 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
-  # As a local integrator with a business account,
-  # I want the docs to document the counts-toward-cash-quote flag,
-  # so that I can exclude an account from the cash quote over the API or MCP
-  # without reading source files.
+  # As a local integrator with overdraft/reserve accounts,
+  # I want the docs to document the cash-account liquidity_role,
+  # so that I can classify an account (free cash, credit line, reserve) over the
+  # API or MCP without reading source files.
   #
   # Acceptance criteria:
-  # - The API and MCP page documents counts_toward_cash_quote on cash accounts
-  #   and its effect on the valuation's cash_quote.
-  # - The product handbook describes the flag instead of listing it as planned.
-  test "docs document the counts-toward-cash-quote flag" do
+  # - The API and MCP page documents liquidity_role on cash accounts and its
+  #   effect on the valuation's deployable cash and cash_quote.
+  # - The product handbook describes the role instead of listing it as planned.
+  test "docs document the cash-account liquidity_role" do
     api_docs = File.read!("docs/integration/api-and-mcp.md")
     product_docs = File.read!("docs/product-documentation.md")
 
-    assert api_docs =~ "counts_toward_cash_quote"
+    assert api_docs =~ "liquidity_role"
     assert api_docs =~ "cash_quote"
 
-    assert product_docs =~ "counts toward the cash quote"
+    assert product_docs =~ "liquidity role"
     refute product_docs =~ "Still planned: a per-account flag"
   end
 
@@ -377,7 +377,7 @@ defmodule Portfolixir.DocsTest do
 
     assert api_docs =~ "cash_target_weight"
     assert normalized_api_docs =~ "carries a `cash` object"
-    assert normalized_api_docs =~ "plus the cash that counts toward the cash quote"
+    assert normalized_api_docs =~ "plus the deployable cash"
 
     assert product_docs =~ "cash target"
   end
@@ -449,6 +449,33 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
+  # As a local integrator (and the LLM I connect over MCP),
+  # I want the docs to document the global per-security EUR valuation endpoint
+  # and tool, so that I can read every held security's hub value over the API or
+  # MCP without reading source files.
+  #
+  # Acceptance criteria:
+  # - The API and MCP page documents the by_security endpoint and tool, the EUR
+  #   hub currency, the as_of read date, the note and the valued flag.
+  # - The documented surface appears in both the English and German pages.
+  test "docs document the global per-security EUR valuation endpoint and tool" do
+    en_api = File.read!("docs/integration/api-and-mcp.md")
+    de_api = File.read!("docs/de/integration/api-and-mcp.md")
+
+    for page <- [en_api, de_api] do
+      assert page =~ "GET /api/v1/holdings/by_security"
+      assert page =~ "portfolixir.holdings.by_security"
+      assert page =~ "EUR"
+      assert page =~ "as_of"
+      assert page =~ "valued"
+    end
+
+    en_normalized = String.replace(en_api, ~r/\s+/, " ")
+    assert en_normalized =~ "global per-security"
+    assert en_normalized =~ "EUR hub"
+  end
+
+  # User story:
   # As a German-speaking reader of the Portfolixir docs,
   # I want the core product handbook and the API/MCP reference available in
   # German alongside English with a language switcher,
@@ -492,7 +519,9 @@ defmodule Portfolixir.DocsTest do
     for surface <- [
           "GET /api/v1/portfolios/:portfolio_id/income",
           "portfolixir.portfolios.income",
-          "counts_toward_cash_quote",
+          "GET /api/v1/holdings/by_security",
+          "portfolixir.holdings.by_security",
+          "liquidity_role",
           "excluded_from_allocation_targets",
           "cash_target_weight"
         ] do

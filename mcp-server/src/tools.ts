@@ -67,13 +67,15 @@ const portfolioZ = z.object({
   })
 });
 
+const liquidityRoleZ = z.enum(["free_cash", "credit_line", "reserve"]);
+
 const cashAccountZ = z.object({
   cash_account: z.object({
     portfolio_id: z.number().int().positive(),
     name: z.string(),
     currency_code: z.string(),
     notes: optionalString(),
-    counts_toward_cash_quote: z.boolean().optional()
+    liquidity_role: liquidityRoleZ.optional()
   })
 });
 
@@ -98,6 +100,9 @@ const transactionZ = z.object({
     fees: optionalString(),
     taxes: optionalString(),
     currency_code: z.string(),
+    security_amount: optionalString(),
+    settlement_amount: optionalString(),
+    settlement_fx_rate: optionalString(),
     notes: optionalString()
   })
 });
@@ -170,7 +175,7 @@ const cashAccountSchema = objectWith("cash_account", {
     name: { type: "string" },
     currency_code: { type: "string" },
     notes: { type: "string" },
-    counts_toward_cash_quote: { type: "boolean" }
+    liquidity_role: { type: "string", enum: ["free_cash", "credit_line", "reserve"] }
   }
 });
 
@@ -208,6 +213,9 @@ const transactionSchema = objectWith("transaction", {
     fees: { type: "string" },
     taxes: { type: "string" },
     currency_code: { type: "string" },
+    security_amount: { type: "string" },
+    settlement_amount: { type: "string" },
+    settlement_fx_rate: { type: "string" },
     notes: { type: "string" }
   }
 });
@@ -471,6 +479,9 @@ const transactionUpdateSchema = {
         fees: { type: "string" },
         taxes: { type: "string" },
         currency_code: { type: "string" },
+        security_amount: { type: "string" },
+        settlement_amount: { type: "string" },
+        settlement_fx_rate: { type: "string" },
         notes: { type: "string" }
       }
     }
@@ -510,6 +521,9 @@ const transactionUpdateZ = z.object({
     fees: optionalString(),
     taxes: optionalString(),
     currency_code: optionalString(),
+    security_amount: optionalString(),
+    settlement_amount: optionalString(),
+    settlement_fx_rate: optionalString(),
     notes: optionalString()
   })
 });
@@ -526,7 +540,7 @@ const cashAccountUpdateSchema = {
         name: { type: "string" },
         currency_code: { type: "string" },
         notes: { type: "string" },
-        counts_toward_cash_quote: { type: "boolean" }
+        liquidity_role: { type: "string", enum: ["free_cash", "credit_line", "reserve"] }
       }
     }
   }
@@ -538,7 +552,7 @@ const cashAccountUpdateZ = z.object({
     name: optionalString(),
     currency_code: optionalString(),
     notes: optionalString(),
-    counts_toward_cash_quote: z.boolean().optional()
+    liquidity_role: liquidityRoleZ.optional()
   })
 });
 
@@ -631,6 +645,60 @@ const targetsDeleteSchema = {
 const targetsDeleteZ = z.object({
   portfolio_id: z.number().int().positive(),
   category_id: z.number().int().positive()
+});
+
+// A map of asset_class -> percentage cap string (e.g. {"equity": "50"}). Caps
+// are opt-in (FR9): no defaults ship, so an absent map means no cap violations.
+const decimalMapSchema = {
+  type: "object",
+  additionalProperties: { type: "string" }
+};
+
+const warnHardSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    warn: { type: "string" },
+    hard: { type: "string" }
+  }
+};
+
+const riskSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    top_n: { type: "integer", minimum: 1 },
+    asset_class_caps: decimalMapSchema,
+    hhi_bands: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        low: { type: "string" },
+        high: { type: "string" }
+      }
+    },
+    stock_thresholds: warnHardSchema,
+    etf_thresholds: {
+      type: "object",
+      additionalProperties: false,
+      properties: { warn: { type: "string" } }
+    }
+  }
+};
+
+const riskZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  top_n: z.number().int().positive().optional(),
+  asset_class_caps: z.record(z.string()).optional(),
+  hhi_bands: z
+    .object({ low: optionalString(), high: optionalString() })
+    .optional(),
+  stock_thresholds: z
+    .object({ warn: optionalString(), hard: optionalString() })
+    .optional(),
+  etf_thresholds: z.object({ warn: optionalString() }).optional()
 });
 
 const allocationSchema = {
@@ -801,14 +869,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.cash_accounts.create",
     "Create cash account",
-    "Create a cash account. Set counts_toward_cash_quote=false to keep it visible without it entering the cash quote.",
+    "Create a cash account. liquidity_role is free_cash (default, deployable cash), credit_line (overdraft/Lombard, never deployable), or reserve (visible but excluded from the cash quote).",
     cashAccountSchema,
     cashAccountZ
   ),
   tool(
     "portfolixir.cash_accounts.update",
     "Update cash account",
-    "Patch a cash account's name, currency, notes or counts_toward_cash_quote flag.",
+    "Patch a cash account's name, currency, notes or liquidity_role (free_cash, credit_line, reserve).",
     cashAccountUpdateSchema,
     cashAccountUpdateZ
   ),
@@ -858,10 +926,10 @@ const toolDefinitions: ToolDefinition[] = [
     security_id: z.number().int().positive().optional(),
     securities_account_id: z.number().int().positive().optional()
   })),
-  tool("portfolixir.transactions.create", "Create transaction", "Create a manual buy or sell transaction.", transactionSchema, transactionZ),
+  tool("portfolixir.transactions.create", "Create transaction", "Create a manual buy or sell transaction. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking).", transactionUpdateSchema, transactionUpdateZ),
   tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction.", idSchema, idZ),
-  tool("portfolixir.holdings.list", "List holdings", "List derived holdings for a portfolio, each with moving-average cost basis, latest price, market value and unrealized P&L (in the security's currency). Optional filters: security_id, securities_account_id.", {
+  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings in each security's own currency (no FX conversion), with moving-average cost basis, latest price, market value and unrealized P&L. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
@@ -875,7 +943,8 @@ const toolDefinitions: ToolDefinition[] = [
     security_id: z.number().int().positive().optional(),
     securities_account_id: z.number().int().positive().optional()
   })),
-  tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, total, and actual weights per position.", {
+  tool("portfolixir.holdings.by_security", "Holdings by security (global EUR)", "Global per-security valuation across ALL portfolios: each held security's total quantity and current market value converted to the EUR hub, with a valued flag (false when a quote, trade price or EUR rate path is missing). Self-describing: currency EUR, an as_of read date and a note; market_value is a Decimal string. Differs from portfolixir.holdings.list (per-portfolio holdings in the security's own currency, no FX) and from portfolixir.portfolios.valuation (one portfolio's totals/weights in its base currency).", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, actual weights per position, plus the base-currency portfolio total, cash balances and the cash quote (use this, not holdings.list, for base-currency totals). The valued/price_source flags mark stale or unpriceable positions.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
@@ -896,7 +965,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.trades.list",
     "List trades",
-    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells. Optional from/to (ISO dates) filter each leg by its own date.",
+    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells, with realized P&L per FIFO-matched round-trip. For unrealized P&L on current positions use portfolixir.holdings.list. Optional from/to (ISO dates) filter each leg by its own date.",
     {
       type: "object",
       additionalProperties: false,
@@ -940,6 +1009,13 @@ const toolDefinitions: ToolDefinition[] = [
     "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category plus a cash row, in one call. The 100% basis is securities + counting cash.",
     allocationSchema,
     allocationZ
+  ),
+  tool(
+    "portfolixir.portfolios.risk",
+    "Portfolio risk/concentration lens",
+    "Risk/concentration lens for a portfolio over the steerable basis (valued positions minus those flagged excluded_from_allocation_targets): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call.",
+    riskSchema,
+    riskZ
   ),
   tool(
     "portfolixir.portfolios.set_cash_target",
@@ -1084,6 +1160,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "securities_account_id"
         ])
       );
+    case "portfolixir.holdings.by_security":
+      return client.request("GET", "/api/v1/holdings/by_security");
     case "portfolixir.portfolios.valuation":
       return client.request("GET", `/api/v1/portfolios/${args.portfolio_id}/valuation`);
     case "portfolixir.exchange_rates.list":
@@ -1161,6 +1239,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/allocation`, args, ["classification_id"])
       );
+    case "portfolixir.portfolios.risk":
+      return client.request("GET", riskPath(args));
     case "portfolixir.portfolios.set_cash_target":
       return client.request("PATCH", `/api/v1/portfolios/${args.portfolio_id}`, {
         portfolio: { cash_target_weight: args.cash_target_weight ?? null }
@@ -1215,6 +1295,43 @@ function objectWith(property: string, schema: JsonSchema): JsonSchema {
     required: [property],
     properties: { [property]: schema }
   };
+}
+
+// Encodes the risk lens overrides as a query string. Phoenix decodes
+// bracketed params (`asset_class_caps[equity]=50`, `hhi_bands[low]=1500`) into
+// nested maps, which is what the RiskController reads; the scalar `top_n` stays
+// flat. Absent overrides are simply omitted so the shipped defaults apply.
+function riskPath(args: Record<string, any>): string {
+  const params = new URLSearchParams();
+
+  if (args.top_n !== undefined && args.top_n !== null) {
+    params.set("top_n", String(args.top_n));
+  }
+
+  appendNested(params, "asset_class_caps", args.asset_class_caps);
+  appendNested(params, "hhi_bands", args.hhi_bands);
+  appendNested(params, "stock_thresholds", args.stock_thresholds);
+  appendNested(params, "etf_thresholds", args.etf_thresholds);
+
+  const query = params.toString();
+  const path = `/api/v1/portfolios/${args.portfolio_id}/risk`;
+  return query === "" ? path : `${path}?${query}`;
+}
+
+function appendNested(
+  params: URLSearchParams,
+  key: string,
+  value: Record<string, any> | undefined | null
+): void {
+  if (value === undefined || value === null) {
+    return;
+  }
+
+  for (const [inner, raw] of Object.entries(value)) {
+    if (raw !== undefined && raw !== null && raw !== "") {
+      params.set(`${key}[${inner}]`, String(raw));
+    }
+  }
 }
 
 function withQuery(path: string, args: Record<string, any>, keys: string[]): string {

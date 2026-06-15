@@ -1,6 +1,6 @@
 defmodule Portfolixir.Repo.Migrations.CreateAuditJournal do
   @moduledoc """
-  Append-only audit journal (ADR-0015, FR-28).
+  Append-only audit journal (ADR-0016, FR-28).
 
   Creates the `audit_journal` table, protects it against UPDATE/DELETE/TRUNCATE
   at the database level, and defines the reusable guard-trigger function used to

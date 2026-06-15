@@ -1,6 +1,6 @@
 defmodule PortfolixirWeb.Api.V1.JournalController do
   @moduledoc """
-  Read surface for the append-only audit journal (FR-28, ADR-0015).
+  Read surface for the append-only audit journal (FR-28, ADR-0016).
 
   Lists journal entries newest-first with optional filters. The response is
   self-describing (FR-13): it echoes the `as_of` instant, the filters actually

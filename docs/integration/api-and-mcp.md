@@ -155,13 +155,17 @@ Example quote sync response:
   strictly after the snapshot change it, so moving money between your own
   accounts needs no transfer entry. Unknown accounts return `404 Not Found`.
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
-  object. The optional boolean `counts_toward_cash_quote` (default `true`)
-  controls whether the account enters the valuation's `cash_quote`; set it to
-  `false` for a reference-only account (e.g. a business account) that should
-  stay visible without distorting the private quote.
+  object. The optional `liquidity_role` (default `free_cash`) classifies the
+  account: `free_cash` is genuine deployable cash; `credit_line` is an
+  overdraft/Lombard facility whose negative balance is a liability and whose
+  unused headroom is never liquidity (it never enters deployable cash, even
+  with a positive balance — type beats sign); `reserve` is a visible-but-
+  excluded bucket (e.g. a business account). Only `free_cash` accounts with a
+  non-negative balance contribute to the valuation's deployable cash and its
+  `cash_quote`. An unknown value is rejected with `422 Unprocessable Entity`.
 - `GET /api/v1/cash_accounts/:id` returns one cash account.
 - `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
-  `currency_code`, `notes`, `counts_toward_cash_quote`); `portfolio_id` cannot
+  `currency_code`, `notes`, `liquidity_role`); `portfolio_id` cannot
   be changed.
 - `DELETE /api/v1/cash_accounts/:id` deletes a cash account, or returns
   `409 Conflict` when a transaction or securities account still references it.
@@ -211,7 +215,17 @@ Example account payloads:
   (ISO dates, inclusive), `portfolio_id`, `security_id`, `securities_account_id`.
   Invalid filters return `422 Unprocessable Entity` with the offending field.
 - `POST /api/v1/transactions` creates a manual buy or sell transaction with a
-  `transaction` object.
+  `transaction` object. A security settled through a different-currency cash
+  account (for example a USD security bought through a EUR account) is booked in
+  the security's own currency and carries the cross-currency settlement fields
+  `security_amount` (trade amount in the security currency), `settlement_amount`
+  (cash amount debited or credited in the account currency) and
+  `settlement_fx_rate` (account-currency units per one unit of the security
+  currency). When the rate is omitted but both amounts are supplied it is derived
+  as `settlement_amount / security_amount` (the broker's actual rate); a currency
+  mismatch with no rate and no amounts to derive one is rejected. Cost basis stays
+  in the security currency so per-position P&L is FX-honest. All three are Decimal
+  strings and `null` for same-currency bookings.
 - `GET /api/v1/transactions/:id` returns one transaction.
 - `PATCH /api/v1/transactions/:id` updates a transaction (e.g. to fix a
   mis-imported booking); the per-kind validation still applies.
@@ -225,8 +239,24 @@ Example account payloads:
   `security_name` and `currency_code`. All monetary figures are in the security's
   own currency (no FX conversion — see the valuation for base-currency totals); a
   holding whose security has no quote returns `null` price, market value and P&L.
-  Unknown portfolios return `404 Not Found`. Optional filters: `security_id`,
-  `securities_account_id`.
+  The response is self-describing (FR-13): it carries `currency_basis:
+  "security_currency"` (so a client never has to assume whether FX was applied)
+  and an `as_of` date. Holdings are derived on read with no stored snapshot, so
+  `as_of` is the read date. Unknown portfolios return `404 Not Found`. Optional
+  filters: `security_id`, `securities_account_id`.
+- `GET /api/v1/holdings/by_security` returns the **global per-security
+  valuation** across **all** portfolios: one `holdings` row per currently held
+  security with its `security_id` (an integer), total `quantity`, and current
+  `market_value` converted to the **EUR hub**, plus a `valued` flag. `valued`
+  is `false` (and `market_value` is `null`) when the security has neither a
+  quote nor a trade price, or no exchange-rate path to EUR, so a missing quote
+  or rate never silently distorts a value. Rows are sorted by `security_id`.
+  The response is self-describing: a top-level `currency` of `"EUR"`, an
+  `as_of` read date (the report is derived on read, so `as_of` is today's date,
+  not a stored snapshot), and a `note` describing the hub conversion. This is
+  the cross-portfolio, base-currency counterpart to the per-portfolio holdings
+  list (which stays in each security's own currency with no FX); for one
+  portfolio's totals and weights use the valuation endpoint instead.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` returns a live valuation of a
   portfolio: each held position priced from its latest quote close, a
   `total_value`, and each valued position's `weight` (its share of the total).
@@ -244,16 +274,25 @@ Example account payloads:
   `1` (round for display). Market values and `total_value` are exact.
   The valuation also carries cash: `cash_balances` lists each cash account
   (`balance` in its own currency, plus `base_value`/`valued` after converting to
-  the base currency, and its `counts_toward_cash_quote` flag), `total_cash` is
-  the base-currency sum of the valued cash accounts, and `total_with_cash` is
-  `total_value + total_cash`. `cash_quote` is the cash share of the portfolio
-  computed over the accounts whose `counts_toward_cash_quote` is `true`, as if
-  the other accounts did not exist (`counting_cash / (total_value +
-  counting_cash)`, `0` when there is nothing to value yet) — so a reference-only
-  business account stays listed and inside `total_cash` without distorting the
-  quote. An account whose currency has no rate path to the base is reported
+  the base currency, its `liquidity_role`, and a `deployable` flag), `total_cash`
+  is the base-currency sum of the valued cash accounts (so a drawn credit line's
+  negative balance still reduces it), and `total_with_cash` is
+  `total_value + total_cash`. `cash_quote` is the deployable-cash share of the
+  portfolio: deployable cash is the sum of `free_cash` accounts with a
+  non-negative balance (`deployable: true`), and the quote is computed as if the
+  other accounts did not exist (`counting_cash / (total_value + counting_cash)`,
+  `0` when there is nothing to value yet) — so a reserve account or a credit line
+  stays listed and inside `total_cash` without ever reporting fake liquidity. The
+  response also emits `counting_cash` (Decimal string) — the deployable cash that
+  enters the quote — so a consumer can reconstruct `cash_quote` itself. An
+  account whose currency has no rate path to the base is reported
   `valued: false` and excluded from `total_cash`, mirroring how unpriceable
   positions are handled.
+  The response is self-describing (FR-13): it carries an `as_of` date (the read
+  date — the valuation is computed live with no stored snapshot) and a
+  `valuation_note` stating that totals are in `base_currency` via the EUR hub and
+  that the per-position `price_source` and `valued` fields indicate price
+  staleness.
 - `GET /api/v1/portfolios/:portfolio_id/performance` returns the portfolio's
   **true time-weighted rate of return (TTWROR)**, computed the Portfolio
   Performance way: the portfolio is valued daily (quotes on or before each day,
@@ -315,7 +354,10 @@ Example account payloads:
   whole subtree rolled up), `actual_weight` (the rolled-up share of
   `total_value`), `target_weight`, `drift_weight`
   (`target_weight - actual_weight`), and `drift_value` (the drift restated in
-  the base currency). A position assigned to a child counts toward that child
+  the base currency). Each row also carries `child_target_sum` (Decimal string):
+  the advisory sum of its **direct** children's targets, or `null` when no direct
+  child carries a target — a target-consistency hint the UI can flag against the
+  row's own `target_weight`. A position assigned to a child counts toward that child
   **and every ancestor**, so a parent category with a target is compared
   against its subtree rather than showing 0%; the rows come back in tree order
   (parent before its children). Because parents aggregate their children, the
@@ -327,8 +369,8 @@ Example account payloads:
   this is what the sunburst's outermost ring renders. Securities held but not
   assigned in the tree are summed into `unassigned`. Weights are shares of the
   **steering basis**: the valued positions' total minus any security flagged
-  `excluded_from_allocation_targets`, **plus the cash that counts toward the
-  cash quote** (accounts whose `counts_toward_cash_quote` is `true`). `total_value`
+  `excluded_from_allocation_targets`, **plus the deployable cash** (`free_cash`
+  accounts with a non-negative balance). `total_value`
   here is that steering basis (not the full valuation). The response carries a
   `cash` object — `market_value` (the counting cash), `actual_weight` (its share
   of `total_value`), `target_weight` (the portfolio's `cash_target_weight`, or
@@ -343,6 +385,38 @@ Example account payloads:
   the percentages and drift describe only the steered part. The valuation and
   performance endpoints are unaffected by the flag. Unknown portfolios or
   classifications return `404 Not Found`.
+- `GET /api/v1/portfolios/:portfolio_id/risk` returns a **risk/concentration
+  lens** for one portfolio over the **steerable basis** (the valued positions'
+  total minus any security flagged `excluded_from_allocation_targets`, the same
+  basis the allocation drift uses). A security held across several depots is
+  merged into one single-name exposure. Weights, caps and the HHI are all on a
+  **0-100 percentage scale** (Decimal strings, full precision, no rounding):
+  - `steerable_basis` is the basis the weights are a share of, and
+    `base_currency` the portfolio's base currency.
+  - `top_holdings` is the largest single-name exposures, largest first, default
+    **N = 10** (override with the `top_n` query param). Each entry carries
+    `security_id`, `security_name`, `asset_class`, `market_value`, `weight` and a
+    `severity` (`ok`/`warn`/`hard`). The severity is **instrument-type aware**: a
+    single stock warns above `7` and goes hard above `10`; an **ETF** (the `etf`
+    asset class) warns above `25` and never goes hard. Override the defaults with
+    the `stock_thresholds[warn]`/`stock_thresholds[hard]` and
+    `etf_thresholds[warn]` query params.
+  - `hhi` carries the Herfindahl-Hirschman Index of the single-name weights
+    (`value` = the sum of the squared percentage weights, on the `0-10000`
+    scale) plus a `band`: `low` (`< 1500`), `moderate` (`[1500, 2500]`) or
+    `concentrated` (`> 2500`). Override the cutoffs with the `hhi_bands[low]` and
+    `hhi_bands[high]` query params.
+  - `asset_class_violations` are **opt-in** asset-class cap violations: there are
+    no shipped defaults, so caps are configured per call with the
+    `asset_class_caps[<asset_class>]` query param (a percentage, e.g.
+    `asset_class_caps[equity]=50`). Only classes whose current percentage weight
+    exceeds the cap come back, each with `asset_class`, `current_weight`, `cap`
+    and `overage` (current − cap, in percentage points).
+
+  The lens is a pure read-time derivation of the live valuation and the
+  securities' asset classification — nothing is stored, so it is deterministic on
+  read. A malformed override (e.g. a non-positive `top_n`) returns `422
+  Unprocessable Entity`; unknown portfolios return `404 Not Found`.
 - `PATCH /api/v1/portfolios/:portfolio_id` patches a portfolio's master data.
   The body is `{"portfolio": {...}}`. Use it to set the SOLL cash share with
   `cash_target_weight` — a string fraction in `[0, 1]` (e.g. `"0.05"` for 5%),
@@ -353,9 +427,11 @@ Example account payloads:
   `GET`/`POST /api/v1/portfolios`.
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
-  period in days) and any orphan sells. Optional `from`/`to` (ISO dates) filter
-  each leg by its own date: open lots by open date, closed round-trips by close
-  date, orphan sells by sell date.
+  period in days) and any orphan sells. The response is self-describing (FR-13):
+  it carries `method: "fifo"`, so a client never has to assume how lots were
+  paired against sells. Optional `from`/`to` (ISO dates) filter each leg by its
+  own date: open lots by open date, closed round-trips by close date, orphan
+  sells by sell date.
 
 ## Exchange Rates
 
@@ -476,6 +552,7 @@ in MCP schemas are strings.
 - `portfolixir.transactions.update`
 - `portfolixir.transactions.delete`
 - `portfolixir.holdings.list`
+- `portfolixir.holdings.by_security`
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`
@@ -494,6 +571,7 @@ in MCP schemas are strings.
 - `portfolixir.targets.set`
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
+- `portfolixir.portfolios.risk`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`

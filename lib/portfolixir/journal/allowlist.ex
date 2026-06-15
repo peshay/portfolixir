@@ -1,7 +1,7 @@
 defmodule Portfolixir.Journal.Allowlist do
   @moduledoc """
   The closed set of write paths that are deliberately **not** journaled
-  (ADR-0015, FR-28).
+  (ADR-0016, FR-28).
 
   Market-data ingestion (quote sync, FX-rate sync) writes operational, machine-
   refreshed data — not financial records a human or agent authored — so it is

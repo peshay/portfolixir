@@ -6,18 +6,18 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
   alias Portfolixir.Portfolios
 
   # User story:
-  # As a local portfolio maintainer with a business account,
-  # I want a toggle on the cash-account management page for whether an
-  # account counts toward the cash quote,
-  # so that I can exclude a business account without the API.
+  # As a local portfolio maintainer with overdraft/reserve accounts,
+  # I want a per-account liquidity-role selector on the cash-account page,
+  # so that I can classify an account (free cash, credit line, reserve) without
+  # the API.
   #
   # Acceptance criteria:
-  # - Each listed cash account shows a counts-toward-cash-quote toggle,
-  #   checked by default.
-  # - Clicking the toggle flips the stored flag and the rendered state.
-  # - The toggle renders compact and inline with the account name instead of
+  # - Each listed cash account shows a liquidity-role selector defaulting to
+  #   free_cash.
+  # - Changing the selector stores the new role and updates the rendered state.
+  # - The selector renders compact and inline with the account name instead of
   #   inheriting the full-width form-input styling.
-  test "toggles whether a cash account counts toward the cash quote", %{conn: conn} do
+  test "sets a cash account's liquidity role", %{conn: conn} do
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{name: "Mein Depot", base_currency_code: "EUR"})
 
@@ -30,19 +30,22 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     {:ok, view, _html} = live(conn, "/portfolios")
 
-    toggle = "#cash-quote-toggle-#{cash.id}"
+    selector = "#liquidity-role-#{cash.id}"
 
-    assert view |> element(toggle) |> render() =~ "checked"
+    assert Portfolios.get_cash_account(cash.id).liquidity_role == "free_cash"
 
-    view |> element(toggle) |> render_click()
+    view
+    |> element(selector)
+    |> render_change(%{"id" => cash.id, "liquidity_role" => "reserve"})
 
-    assert Portfolios.get_cash_account(cash.id).counts_toward_cash_quote == false
-    refute view |> element(toggle) |> render() =~ "checked"
+    assert Portfolios.get_cash_account(cash.id).liquidity_role == "reserve"
+    assert view |> element(selector) |> render() =~ ~r/value="reserve" selected/
 
-    view |> element(toggle) |> render_click()
+    view
+    |> element(selector)
+    |> render_change(%{"id" => cash.id, "liquidity_role" => "credit_line"})
 
-    assert Portfolios.get_cash_account(cash.id).counts_toward_cash_quote == true
-    assert view |> element(toggle) |> render() =~ "checked"
+    assert Portfolios.get_cash_account(cash.id).liquidity_role == "credit_line"
   end
 
   test "renders the cash-quote toggle compact instead of as a full-width form input" do

@@ -1,6 +1,6 @@
 defmodule Portfolixir.Journal.Entry do
   @moduledoc """
-  One append-only audit-journal row (ADR-0015, FR-28).
+  One append-only audit-journal row (ADR-0016, FR-28).
 
   An entry records a single committed financial write: who (`actor_type` /
   `actor_label`), what (`operation` on `resource_type`/`resource_id`), and the

@@ -5,7 +5,7 @@ defmodule Portfolixir.Journal.AllowlistTest do
   # As a maintainer guarding the audit journal's completeness,
   # I want the set of write paths exempt from journaling to be a closed list
   # that can only shrink, and to match the tables actually left un-armed,
-  # so that a new write path cannot silently escape the audit trail (ADR-0015).
+  # so that a new write path cannot silently escape the audit trail (ADR-0016).
 
   alias Portfolixir.Journal.Allowlist
 

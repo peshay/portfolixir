@@ -138,13 +138,18 @@ Beispiel-Antwort für Kurssynchronisierung:
   verändern ihn, sodass Geld zwischen deinen eigenen Konten zu verschieben keine
   Übertragungsbuchung braucht. Unbekannte Konten liefern `404 Not Found`.
 - `POST /api/v1/cash_accounts` legt ein Geldkonto mit einem `cash_account`-Objekt
-  an. Das optionale Boolean `counts_toward_cash_quote` (Standard `true`) steuert,
-  ob das Konto in die `cash_quote` der Bewertung eingeht; setze es auf `false` für
-  ein reines Referenzkonto (z. B. ein Geschäftskonto), das sichtbar bleiben soll,
-  ohne die private Quote zu verzerren.
+  an. Das optionale `liquidity_role` (Standard `free_cash`) klassifiziert das
+  Konto: `free_cash` ist echtes verfügbares Cash; `credit_line` ist eine
+  Überziehungs-/Lombard-Linie, deren negativer Saldo eine Verbindlichkeit ist und
+  deren ungenutzter Rahmen nie Liquidität ist (sie zählt nie zum verfügbaren
+  Cash, auch nicht mit positivem Saldo — der Typ schlägt das Vorzeichen);
+  `reserve` ist ein sichtbarer, aber ausgeschlossener Topf. Nur `free_cash`-Konten
+  mit nicht-negativem Saldo gehen in das verfügbare Cash der Bewertung und ihre
+  `cash_quote` ein. Ein unbekannter Wert wird mit `422 Unprocessable Entity`
+  abgelehnt.
 - `GET /api/v1/cash_accounts/:id` liefert ein Geldkonto.
 - `PATCH /api/v1/cash_accounts/:id` aktualisiert ein Geldkonto (`name`,
-  `currency_code`, `notes`, `counts_toward_cash_quote`); `portfolio_id` kann nicht
+  `currency_code`, `notes`, `liquidity_role`); `portfolio_id` kann nicht
   geändert werden.
 - `DELETE /api/v1/cash_accounts/:id` löscht ein Geldkonto oder liefert
   `409 Conflict`, wenn eine Transaktion oder ein Wertpapierkonto noch darauf
@@ -195,7 +200,18 @@ Beispiel-Payloads für Konten:
   (ISO-Daten, inklusive), `portfolio_id`, `security_id`, `securities_account_id`.
   Ungültige Filter liefern `422 Unprocessable Entity` mit dem betreffenden Feld.
 - `POST /api/v1/transactions` legt eine manuelle Kauf- oder Verkauftransaktion mit
-  einem `transaction`-Objekt an.
+  einem `transaction`-Objekt an. Ein Wertpapier, das über ein Geldkonto in einer
+  anderen Währung abgerechnet wird (zum Beispiel ein USD-Wertpapier über ein
+  EUR-Konto), wird in der eigenen Währung des Wertpapiers gebucht und trägt die
+  Felder zur währungsübergreifenden Abrechnung: `security_amount` (Handelsbetrag in
+  der Wertpapierwährung), `settlement_amount` (im Geldkonto in Kontowährung
+  belasteter oder gutgeschriebener Betrag) und `settlement_fx_rate` (Einheiten der
+  Kontowährung je einer Einheit der Wertpapierwährung). Fehlt der Kurs, werden
+  jedoch beide Beträge geliefert, wird er als `settlement_amount / security_amount`
+  abgeleitet (der tatsächliche Kurs des Brokers); eine Währungsabweichung ohne Kurs
+  und ohne Beträge zur Ableitung wird abgelehnt. Die Einstandsbasis bleibt in der
+  Wertpapierwährung, sodass die positionsbezogene G/V währungsehrlich ist. Alle
+  drei sind Decimal-Strings und bei Buchungen in gleicher Währung `null`.
 - `GET /api/v1/transactions/:id` liefert eine Transaktion.
 - `PATCH /api/v1/transactions/:id` aktualisiert eine Transaktion (z. B. um eine
   falsch importierte Buchung zu korrigieren); die Validierung je Art gilt weiter.
@@ -210,9 +226,28 @@ Beispiel-Payloads für Konten:
   gegen diesen Preis, plus `security_name` und `currency_code`. Alle monetären
   Größen sind in der eigenen Währung des Wertpapiers (keine FX-Umrechnung — siehe
   die Bewertung für Summen in Basiswährung); ein Bestand, dessen Wertpapier keinen
-  Kurs hat, liefert `null` für Preis, Marktwert und G/V. Unbekannte Portfolios
-  liefern `404 Not Found`. Optionale Filter: `security_id`,
-  `securities_account_id`.
+  Kurs hat, liefert `null` für Preis, Marktwert und G/V. Die Antwort ist
+  selbstbeschreibend (FR-13): sie trägt `currency_basis: "security_currency"`
+  (sodass ein Client nie annehmen muss, ob FX angewendet wurde) und ein
+  `as_of`-Datum. Bestände werden beim Lesen abgeleitet, ohne gespeicherten
+  Snapshot, daher ist `as_of` das Lesedatum. Unbekannte Portfolios liefern
+  `404 Not Found`. Optionale Filter: `security_id`, `securities_account_id`.
+- `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
+  Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
+  gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
+  aktuellem `market_value`, umgerechnet in den **EUR-Hub**, plus ein
+  `valued`-Flag. `valued` ist `false` (und `market_value` ist `null`), wenn das
+  Wertpapier weder einen Kurs noch einen Handelspreis hat oder kein
+  Wechselkurspfad nach EUR existiert, sodass ein fehlender Kurs oder Kurs einen
+  Wert nie stillschweigend verfälscht. Die Zeilen sind nach `security_id`
+  sortiert. Die Antwort ist selbstbeschreibend: ein `currency` auf oberster
+  Ebene mit `"EUR"`, ein `as_of`-Lesedatum (der Bericht wird beim Lesen
+  abgeleitet, daher ist `as_of` das heutige Datum, kein gespeicherter
+  Zeitpunkt) und ein `note`, das die Hub-Umrechnung beschreibt. Dies ist das
+  portfolioübergreifende Gegenstück in Basiswährung zur Bestandsliste eines
+  einzelnen Portfolios (die in der eigenen Währung jedes Wertpapiers ohne FX
+  bleibt); für Summen und Gewichte eines Portfolios nutze stattdessen den
+  Bewertungs-Endpunkt.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` liefert eine Live-Bewertung
   eines Portfolios: jede gehaltene Position bepreist aus ihrem letzten
   Kurs-Schlusswert, ein `total_value` und das `weight` jeder bewerteten Position
@@ -230,17 +265,26 @@ Beispiel-Payloads für Konten:
   müssen sie sich nicht exakt zu `1` summieren (für die Anzeige runden).
   Marktwerte und `total_value` sind exakt. Die Bewertung trägt auch Cash:
   `cash_balances` listet jedes Geldkonto (`balance` in eigener Währung, plus
-  `base_value`/`valued` nach Umrechnung in die Basiswährung, und sein
-  `counts_toward_cash_quote`-Flag), `total_cash` ist die Basiswährungssumme der
-  bewerteten Geldkonten, und `total_with_cash` ist `total_value + total_cash`.
-  `cash_quote` ist der Cash-Anteil des Portfolios, berechnet über die Konten, deren
-  `counts_toward_cash_quote` `true` ist, als gäbe es die anderen Konten nicht
-  (`counting_cash / (total_value + counting_cash)`, `0`, wenn noch nichts zu
-  bewerten ist) — sodass ein reines Referenz-Geschäftskonto gelistet und in
-  `total_cash` bleibt, ohne die Quote zu verzerren. Ein Konto, dessen Währung
+  `base_value`/`valued` nach Umrechnung in die Basiswährung, sein
+  `liquidity_role` und ein `deployable`-Flag), `total_cash` ist die
+  Basiswährungssumme der bewerteten Geldkonten (sodass der negative Saldo einer
+  gezogenen Kreditlinie ihn weiterhin mindert), und `total_with_cash` ist
+  `total_value + total_cash`. `cash_quote` ist der Anteil des verfügbaren Cash am
+  Portfolio: verfügbares Cash ist die Summe der `free_cash`-Konten mit
+  nicht-negativem Saldo (`deployable: true`), und die Quote wird berechnet, als
+  gäbe es die anderen Konten nicht (`counting_cash / (total_value +
+  counting_cash)`, `0`, wenn noch nichts zu bewerten ist) — sodass ein
+  Reserve-Konto oder eine Kreditlinie gelistet und in `total_cash` bleibt, ohne
+  je Schein-Liquidität zu melden. Die Antwort liefert außerdem
+  `counting_cash` (Decimal-String) — das verfügbare Cash, das in die Quote eingeht — sodass
+  ein Konsument die `cash_quote` selbst rekonstruieren kann. Ein Konto, dessen Währung
   keinen Kurspfad zur Basis hat, wird `valued: false` gemeldet und aus
   `total_cash` ausgeschlossen, spiegelnd, wie unbepreisbare Positionen behandelt
-  werden.
+  werden. Die Antwort ist selbstbeschreibend (FR-13): sie trägt ein
+  `as_of`-Datum (das Lesedatum — die Bewertung wird live ohne gespeicherten
+  Snapshot berechnet) und eine `valuation_note`, die angibt, dass Summen in
+  `base_currency` über den EUR-Hub vorliegen und dass die je Position geführten
+  Felder `price_source` und `valued` die Preis-Aktualität anzeigen.
 - `GET /api/v1/portfolios/:portfolio_id/performance` liefert die **echte
   zeitgewichtete Rendite (TTWROR)** des Portfolios, berechnet auf die
   Portfolio-Performance-Art: das Portfolio wird täglich bewertet (Kurse am oder vor
@@ -306,7 +350,11 @@ Beispiel-Payloads für Konten:
   zugeordnete Positionen), `market_value` (ihr ganzer aufgerollter Teilbaum),
   `actual_weight` (der aufgerollte Anteil an `total_value`), `target_weight`,
   `drift_weight` (`target_weight - actual_weight`) und `drift_value` (die Drift in
-  Basiswährung neu ausgewiesen). Eine einem Kind zugeordnete Position zählt zu
+  Basiswährung neu ausgewiesen). Jede Zeile trägt zudem `child_target_sum`
+  (Decimal-String): die beratende Summe der Ziele ihrer **direkten** Kinder, oder
+  `null`, wenn kein direktes Kind ein Ziel trägt — ein Konsistenzhinweis, den die
+  UI gegen das eigene `target_weight` der Zeile abgleichen kann. Eine einem Kind
+  zugeordnete Position zählt zu
   diesem Kind **und jedem Vorfahren**, sodass eine übergeordnete Kategorie mit Ziel
   gegen ihren Teilbaum verglichen wird, statt 0 % zu zeigen; die Zeilen kommen in
   Baumreihenfolge zurück (Eltern vor ihren Kindern). Da Eltern ihre Kinder
@@ -319,8 +367,8 @@ Beispiel-Payloads für Konten:
   Gehaltene, aber im Baum nicht zugeordnete Wertpapiere werden in `unassigned`
   summiert. Gewichte sind Anteile der **Steuerbasis**: der Gesamtwert der
   bewerteten Positionen abzüglich jedes als `excluded_from_allocation_targets`
-  markierten Wertpapiers, **plus das Cash, das zur Cash-Quote zählt** (Konten,
-  deren `counts_toward_cash_quote` `true` ist). `total_value` ist hier diese
+  markierten Wertpapiers, **plus das verfügbare Cash** (`free_cash`-Konten mit
+  nicht-negativem Saldo). `total_value` ist hier diese
   Steuerbasis (nicht die volle Bewertung). Die Antwort trägt ein `cash`-Objekt —
   `market_value` (das zählende Cash), `actual_weight` (sein Anteil an
   `total_value`), `target_weight` (das `cash_target_weight` des Portfolios oder
@@ -336,6 +384,41 @@ Beispiel-Payloads für Konten:
   die Drift nur den gesteuerten Teil beschreiben. Die Bewertungs- und
   Performance-Endpunkte sind vom Flag unbeeinflusst. Unbekannte Portfolios oder
   Klassifizierungen liefern `404 Not Found`.
+- `GET /api/v1/portfolios/:portfolio_id/risk` liefert eine
+  **Risiko-/Konzentrationssicht** für ein Portfolio über die **Steuerbasis** (der
+  Gesamtwert der bewerteten Positionen abzüglich jedes als
+  `excluded_from_allocation_targets` markierten Wertpapiers — dieselbe Basis wie
+  die Allocation-Drift). Ein über mehrere Depots gehaltenes Wertpapier wird zu
+  einer Einzeltitel-Position zusammengeführt. Gewichte, Caps und der HHI liegen
+  alle auf einer **0-100-Prozentskala** (Decimal-Strings, volle Präzision, keine
+  Rundung):
+  - `steerable_basis` ist die Basis, deren Anteil die Gewichte sind, und
+    `base_currency` die Basiswährung des Portfolios.
+  - `top_holdings` sind die größten Einzeltitel-Positionen, größte zuerst,
+    Standard **N = 10** (überschreibbar mit dem `top_n`-Query-Parameter). Jeder
+    Eintrag trägt `security_id`, `security_name`, `asset_class`, `market_value`,
+    `weight` und einen `severity` (`ok`/`warn`/`hard`). Der `severity` ist
+    **instrumententyp-abhängig**: eine Einzelaktie warnt über `7` und wird hart
+    über `10`; ein **ETF** (die Anlageklasse `etf`) warnt über `25` und wird nie
+    hart. Überschreibe die Standardwerte mit den Query-Parametern
+    `stock_thresholds[warn]`/`stock_thresholds[hard]` und `etf_thresholds[warn]`.
+  - `hhi` trägt den Herfindahl-Hirschman-Index der Einzeltitel-Gewichte (`value`
+    = Summe der quadrierten Prozentgewichte, auf der `0-10000`-Skala) plus ein
+    `band`: `low` (`< 1500`), `moderate` (`[1500, 2500]`) oder `concentrated`
+    (`> 2500`). Überschreibe die Schwellen mit `hhi_bands[low]` und
+    `hhi_bands[high]`.
+  - `asset_class_violations` sind **opt-in** Anlageklassen-Cap-Verletzungen: es
+    gibt keine voreingestellten Standardwerte, Caps werden pro Aufruf mit dem
+    Query-Parameter `asset_class_caps[<asset_class>]` (ein Prozentwert, z. B.
+    `asset_class_caps[equity]=50`) konfiguriert. Nur Klassen, deren aktuelles
+    Prozentgewicht den Cap übersteigt, kommen zurück, je mit `asset_class`,
+    `current_weight`, `cap` und `overage` (aktuell − Cap, in Prozentpunkten).
+
+  Die Sicht ist eine reine Lese-Ableitung der Live-Bewertung und der
+  Anlageklassen-Klassifizierung — nichts wird gespeichert, sie ist also
+  deterministisch beim Lesen. Eine ungültige Überschreibung (z. B. ein
+  nicht-positiver `top_n`) liefert `422 Unprocessable Entity`; unbekannte
+  Portfolios liefern `404 Not Found`.
 - `PATCH /api/v1/portfolios/:portfolio_id` patcht die Stammdaten eines Portfolios.
   Der Body ist `{"portfolio": {...}}`. Nutze es, um den SOLL-Cash-Anteil mit
   `cash_target_weight` zu setzen — einem String-Bruch in `[0, 1]` (z. B. `"0.05"`
@@ -346,7 +429,9 @@ Beispiel-Payloads für Konten:
   `GET`/`POST /api/v1/portfolios` zurückgegebenen Portfolio-Objekten enthalten.
 - `GET /api/v1/securities/:security_id/trades` liefert FIFO-gematchte Trades eines
   Wertpapiers: offene Lots, geschlossene Round-Trips (mit realisiertem G/V und
-  Haltedauer in Tagen) und etwaige verwaiste Verkäufe. Optionales `from`/`to`
+  Haltedauer in Tagen) und etwaige verwaiste Verkäufe. Die Antwort ist
+  selbstbeschreibend (FR-13): sie trägt `method: "fifo"`, sodass ein Client nie
+  annehmen muss, wie Lots gegen Verkäufe gepaart wurden. Optionales `from`/`to`
   (ISO-Daten) filtert jedes Bein nach seinem eigenen Datum: offene Lots nach
   Eröffnungsdatum, geschlossene Round-Trips nach Schlussdatum, verwaiste Verkäufe
   nach Verkaufsdatum.
@@ -475,6 +560,7 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.transactions.update`
 - `portfolixir.transactions.delete`
 - `portfolixir.holdings.list`
+- `portfolixir.holdings.by_security`
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`
@@ -493,6 +579,7 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.targets.set`
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
+- `portfolixir.portfolios.risk`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`

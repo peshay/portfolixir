@@ -34,6 +34,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.transactions.update",
       "portfolixir.transactions.delete",
       "portfolixir.holdings.list",
+      "portfolixir.holdings.by_security",
       "portfolixir.portfolios.valuation",
       "portfolixir.exchange_rates.list",
       "portfolixir.exchange_rates.sync",
@@ -52,6 +53,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.targets.set",
       "portfolixir.targets.delete",
       "portfolixir.portfolios.allocation",
+      "portfolixir.portfolios.risk",
       "portfolixir.portfolios.set_cash_target",
       "portfolixir.cash_accounts.set_balance",
       "portfolixir.portfolios.income",
@@ -65,6 +67,19 @@ describe("Portfolixir MCP tools", () => {
       "string"
     );
     assert.equal(transactionCreate?.inputSchema.properties.transaction.properties.price.type, "string");
+    // Cross-currency settlement fields are exposed as Decimal strings (#388, ADR-0015).
+    assert.equal(
+      transactionCreate?.inputSchema.properties.transaction.properties.security_amount.type,
+      "string"
+    );
+    assert.equal(
+      transactionCreate?.inputSchema.properties.transaction.properties.settlement_amount.type,
+      "string"
+    );
+    assert.equal(
+      transactionCreate?.inputSchema.properties.transaction.properties.settlement_fx_rate.type,
+      "string"
+    );
 
     const securitiesList = tools.find((tool) => tool.name === "portfolixir.securities.list");
     assert.deepEqual(securitiesList?.inputSchema.properties.holding_status.enum, [
@@ -74,17 +89,15 @@ describe("Portfolixir MCP tools", () => {
     ]);
 
     const cashAccountCreate = tools.find((tool) => tool.name === "portfolixir.cash_accounts.create");
-    assert.equal(
-      cashAccountCreate?.inputSchema.properties.cash_account.properties.counts_toward_cash_quote
-        .type,
-      "boolean"
+    assert.deepEqual(
+      cashAccountCreate?.inputSchema.properties.cash_account.properties.liquidity_role.enum,
+      ["free_cash", "credit_line", "reserve"]
     );
 
     const cashAccountUpdate = tools.find((tool) => tool.name === "portfolixir.cash_accounts.update");
-    assert.equal(
-      cashAccountUpdate?.inputSchema.properties.cash_account.properties.counts_toward_cash_quote
-        .type,
-      "boolean"
+    assert.deepEqual(
+      cashAccountUpdate?.inputSchema.properties.cash_account.properties.liquidity_role.enum,
+      ["free_cash", "credit_line", "reserve"]
     );
 
     const securitiesCreate = tools.find((tool) => tool.name === "portfolixir.securities.create");
@@ -181,6 +194,24 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/portfolios/3/valuation");
     assert.equal(requests[0].token, "Bearer api-token");
     assert.match(result.content[0].text, /0\.5/);
+  });
+
+  it("issues a GET to /holdings/by_security for portfolixir.holdings.by_security", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        currency: "EUR",
+        as_of: "2026-06-14",
+        note: "converted to the EUR hub",
+        holdings: [{ security_id: 9, quantity: "10", market_value: "1000", valued: true }]
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.holdings.by_security", {});
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/holdings/by_security");
+    assert.equal(requests[0].token, "Bearer api-token");
+    assert.match(result.content[0].text, /1000/);
   });
 
   it("issues a GET to /income for portfolixir.portfolios.income", async () => {
@@ -304,7 +335,7 @@ describe("Portfolixir MCP tools", () => {
     await callTool(client, "portfolixir.transactions.delete", { id: 7 });
     await callTool(client, "portfolixir.cash_accounts.update", {
       id: 3,
-      cash_account: { name: "Renamed", counts_toward_cash_quote: false }
+      cash_account: { name: "Renamed", liquidity_role: "reserve" }
     });
     await callTool(client, "portfolixir.securities_accounts.delete", { id: 4 });
     await callTool(client, "portfolixir.securities.update", { id: 9, security: { note: "x" } });
@@ -324,7 +355,7 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(requests[2], {
       method: "PATCH",
       path: "/api/v1/cash_accounts/3",
-      body: { cash_account: { name: "Renamed", counts_toward_cash_quote: false } },
+      body: { cash_account: { name: "Renamed", liquidity_role: "reserve" } },
       token: "Bearer api-token"
     });
     assert.deepEqual(requests[3], {
@@ -428,6 +459,45 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].method, "GET");
     assert.equal(requests[0].path, "/api/v1/portfolios/3/allocation?classification_id=5");
     assert.match(result.content[0].text, /-0\.15/);
+  });
+
+  it("issues a GET to /risk for portfolixir.portfolios.risk", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        portfolio_id: 3,
+        steerable_basis: "1000",
+        top_holdings: [{ security_id: 9, weight: "60", severity: "hard" }],
+        hhi: { value: "4382", band: "concentrated" },
+        asset_class_violations: []
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.portfolios.risk", { portfolio_id: 3 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/risk");
+    assert.equal(requests[0].token, "Bearer api-token");
+    assert.match(result.content[0].text, /concentrated/);
+    assert.match(result.content[0].text, /hard/);
+  });
+
+  it("encodes risk overrides (top_n, caps, bands) as bracketed query params", async () => {
+    const { client, requests } = createRecordingClient({ data: { top_holdings: [] } });
+
+    await callTool(client, "portfolixir.portfolios.risk", {
+      portfolio_id: 3,
+      top_n: 5,
+      asset_class_caps: { equity: "50", etf: "30" },
+      hhi_bands: { low: "1500", high: "5000" },
+      etf_thresholds: { warn: "25" }
+    });
+
+    assert.equal(
+      requests[0].path,
+      "/api/v1/portfolios/3/risk?top_n=5&asset_class_caps%5Bequity%5D=50" +
+        "&asset_class_caps%5Betf%5D=30&hhi_bands%5Blow%5D=1500&hhi_bands%5Bhigh%5D=5000" +
+        "&etf_thresholds%5Bwarn%5D=25"
+    );
   });
 
   it("routes cash_accounts.set_balance to POST /cash_accounts/:id/balance", async () => {

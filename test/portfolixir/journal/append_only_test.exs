@@ -2,7 +2,7 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
   # Runs OUTSIDE the Ecto SQL sandbox (real commits) so the database triggers
   # behave exactly as in production: the sandbox's outer transaction would
   # otherwise keep the transaction-local journal-actor GUC alive past a business
-  # transaction and hide a missing-actor bug (ADR-0015, architecture amendment 2).
+  # transaction and hide a missing-actor bug (ADR-0016, architecture amendment 2).
   # async: false — these tests own their connection and clean up explicitly.
   use ExUnit.Case, async: false
 
@@ -86,7 +86,7 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
   end
 
   # Cleanup uses the documented escape hatch (session_replication_role = replica,
-  # ADR-0015) — the only sanctioned way to remove rows from the append-only table.
+  # ADR-0016) — the only sanctioned way to remove rows from the append-only table.
   defp cleanup_journal(marker),
     do: delete_unguarded("DELETE FROM audit_journal WHERE resource_type = $1", [marker])
 

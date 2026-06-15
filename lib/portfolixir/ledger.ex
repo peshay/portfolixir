@@ -365,7 +365,7 @@ defmodule Portfolixir.Ledger do
   def create_transaction(attrs) when is_map(attrs) do
     with {:ok, attrs} <- maybe_derive_linked_cash_account(attrs) do
       %Transaction{}
-      |> Transaction.changeset(attrs)
+      |> Transaction.changeset(derive_settlement_fx_rate(attrs))
       |> validate_cash_account_currency()
       |> Repo.insert()
     end
@@ -395,7 +395,7 @@ defmodule Portfolixir.Ledger do
 
   def update_transaction(%Transaction{} = transaction, attrs) when is_map(attrs) do
     transaction
-    |> Transaction.changeset(attrs)
+    |> Transaction.changeset(derive_settlement_fx_rate(attrs))
     |> validate_cash_account_currency()
     |> Repo.update()
   end
@@ -439,6 +439,41 @@ defmodule Portfolixir.Ledger do
           )
         )
         |> Map.new()
+    end
+  end
+
+  # Cross-currency settlement (issue #388, ADR-0015): when the broker confirms
+  # both legs (security-currency trade amount and settlement-currency cash
+  # amount) but no explicit rate, derive the settlement FX rate as
+  # settlement_amount / security_amount, the broker's actual rate. This is the
+  # most accurate source; it is never a direct cross rate (it relates the two
+  # amounts the broker already provided). An explicitly supplied rate wins.
+  # Derivation runs at full Decimal precision; the 20,6 column stores it at the
+  # column scale. Pure arithmetic — the reducer never looks a rate up.
+  defp derive_settlement_fx_rate(attrs) do
+    with nil <- decimal_attr(attrs, :settlement_fx_rate),
+         %Decimal{} = security_amount <- decimal_attr(attrs, :security_amount),
+         %Decimal{} = settlement_amount <- decimal_attr(attrs, :settlement_amount),
+         false <- Decimal.equal?(security_amount, 0) do
+      rate = settlement_amount |> Decimal.div(security_amount) |> Decimal.round(6)
+      put_attr(attrs, :settlement_fx_rate, rate)
+    else
+      _no_derivation -> attrs
+    end
+  end
+
+  defp decimal_attr(attrs, field) do
+    case get_attr(attrs, field) do
+      %Decimal{} = value -> value
+      value when is_binary(value) -> parse_decimal(value)
+      _other -> nil
+    end
+  end
+
+  defp parse_decimal(value) do
+    case Decimal.parse(value) do
+      {decimal, ""} -> decimal
+      _invalid -> nil
     end
   end
 

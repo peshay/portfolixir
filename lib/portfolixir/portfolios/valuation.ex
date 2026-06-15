@@ -56,6 +56,39 @@ defmodule Portfolixir.Portfolios.Valuation do
     end)
   end
 
+  @doc """
+  Self-describing wrapper over `holdings_by_security/1` for the JSON API and MCP.
+
+  Returns the global per-security valuation as a flat list sorted by
+  `security_id` (each row keeps `security_id`, `quantity`, `market_value` and
+  the `valued` flag), wrapped with the fixed hub `currency` (`"EUR"`), an
+  `as_of` read date and a `note`. The map-keyed `holdings_by_security/1` stays
+  the LiveView contract; this shape is what crosses the API boundary.
+
+  `as_of` is the read date (`Date.utc_today/0`): the valuation is derived on
+  read from the latest quote/trade price and FX rate, so there is no single
+  stored snapshot date to report.
+
+  Options are forwarded to `holdings_by_security/1` (e.g. `:prices` for tests).
+  """
+  def holdings_by_security_report(opts \\ []) do
+    holdings =
+      opts
+      |> holdings_by_security()
+      |> Enum.map(fn {security_id, valuation} ->
+        Map.put(valuation, :security_id, security_id)
+      end)
+      |> Enum.sort_by(& &1.security_id)
+
+    %{currency: @hub, as_of: Date.utc_today(), note: report_note(), holdings: holdings}
+  end
+
+  defp report_note do
+    "Each held security's global quantity and market value converted to the " <>
+      "EUR hub at the latest stored rate; valued is false when a quote, trade " <>
+      "price or rate path to EUR is missing."
+  end
+
   defp value_security(security_id, quantity, price_maps) do
     security = Catalog.get_security(security_id)
     security_currency = security && security.currency_code
@@ -119,12 +152,12 @@ defmodule Portfolixir.Portfolios.Valuation do
     }
   end
 
-  # Cash as a share of the whole portfolio, the "Cashquote". Only accounts
-  # flagged `counts_toward_cash_quote` enter the quote — numerator and
-  # denominator are computed as if the other accounts did not exist, so a
-  # reference-only business account never distorts the private quote (see
-  # ADR-0009). Reported alongside the totals so callers do not have to divide
-  # themselves; `0` when there is nothing to value yet.
+  # Cash as a share of the whole portfolio, the "Cashquote". Only deployable
+  # cash enters the quote (free_cash accounts with a non-negative balance, FR6) —
+  # numerator and denominator are computed as if the other accounts did not
+  # exist, so a reserve account or a drawn credit line never inflates the
+  # private quote (see ADR-0009). Reported alongside the totals so callers do
+  # not have to divide themselves; `0` when there is nothing to value yet.
   defp cash_quote(%Decimal{} = counting_cash, %Decimal{} = counting_total) do
     if Decimal.equal?(counting_total, @zero) do
       @zero
@@ -136,8 +169,9 @@ defmodule Portfolixir.Portfolios.Valuation do
   # Per-account cash balances (in account currency) plus their sum converted to
   # the portfolio base currency. An account whose currency has no rate path to
   # the base is reported unvalued and left out of `total_cash`, mirroring how
-  # unpriceable positions are handled. `total` spans all valued accounts;
-  # `counting_total` only those that count toward the cash quote.
+  # unpriceable positions are handled. `total` spans all valued accounts (so a
+  # drawn credit line's negative balance still reduces net worth, FR7);
+  # `counting_total` is the deployable cash only (FR6).
   defp cash_for(portfolio_id, base_currency) do
     balances = Ledger.cash_balances(portfolio_id: portfolio_id)
 
@@ -155,17 +189,28 @@ defmodule Portfolixir.Portfolios.Valuation do
           balance: balance,
           base_value: base_value,
           valued: valued?,
-          counts_toward_cash_quote: account.counts_toward_cash_quote
+          liquidity_role: account.liquidity_role,
+          deployable: deployable?(account.liquidity_role, balance)
         }
       end)
       |> Enum.sort_by(& &1.cash_account_id)
 
     valued = Enum.filter(entries, & &1.valued)
     total = sum_base_values(valued)
-    counting_total = valued |> Enum.filter(& &1.counts_toward_cash_quote) |> sum_base_values()
+    counting_total = valued |> Enum.filter(& &1.deployable) |> sum_base_values()
 
     %{balances: entries, total: total, counting_total: counting_total}
   end
+
+  # FR6/FR7: deployable cash is genuine spendable cash only. A `free_cash`
+  # account counts when its balance is non-negative; an overdrawn `free_cash`
+  # account contributes nothing to deployable cash. `credit_line` never counts
+  # (type beats sign — even a positive balance is not free cash, and a drawn
+  # negative balance is a liability, not headroom). `reserve` is excluded.
+  defp deployable?("free_cash", %Decimal{} = balance),
+    do: Decimal.compare(balance, @zero) != :lt
+
+  defp deployable?(_role, _balance), do: false
 
   defp sum_base_values(entries) do
     Enum.reduce(entries, @zero, fn entry, acc -> Decimal.add(acc, entry.base_value) end)

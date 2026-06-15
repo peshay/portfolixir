@@ -18,7 +18,7 @@ defmodule Portfolixir.Catalog.LogoStore do
   alias Portfolixir.Catalog.Security
 
   # Logo bytes are operational, machine-discovered assets that happen to live on
-  # the guard-armed `securities` table (ADR-0015). They are journaled like any
+  # the guard-armed `securities` table (ADR-0016). They are journaled like any
   # other security write, attributed to a fixed system actor rather than threaded
   # from the UI/API caller — logos are not financial records authored by a user.
   @logo_actor Actor.system_job("logo")

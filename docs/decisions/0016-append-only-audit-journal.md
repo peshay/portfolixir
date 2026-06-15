@@ -1,10 +1,10 @@
 ---
 layout: docs
-title: "ADR-0015: Append-only audit journal for financial writes"
+title: "ADR-0016: Append-only audit journal for financial writes"
 description: Decision to record every financial write across UI, API and MCP in an append-only journal written in the same database transaction as the business write.
 ---
 
-# ADR-0015: Append-only audit journal for financial writes
+# ADR-0016: Append-only audit journal for financial writes
 
 - **Status:** Accepted
 - **Date:** 2026-06-14

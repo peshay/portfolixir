@@ -12,9 +12,8 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
         id
         |> Ledger.holdings_for_portfolio()
         |> filter_holdings(params)
-        |> Enum.map(&JSON.holding(&1, id))
 
-      json(conn, %{data: holdings})
+      json(conn, JSON.holdings(holdings, id))
     else
       :error ->
         not_found(conn)

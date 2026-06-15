@@ -1,6 +1,6 @@
 defmodule Portfolixir.Journal do
   @moduledoc """
-  Append-only audit journal for financial writes (ADR-0015, FR-28).
+  Append-only audit journal for financial writes (ADR-0016, FR-28).
 
   This is the **only** module that writes `audit_journal`. A context routes a
   financial write through `record/3`, which appends the journal insert to the

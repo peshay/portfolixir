@@ -7,7 +7,7 @@ defmodule Portfolixir.WriteActorTest do
   # gains/keeps a Repo write without taking an `Actor` first argument, unless it
   # is explicitly grandfathered (a list that only shrinks),
   # so that no write path can bypass attribution as the refactor proceeds
-  # (P2, ADR-0015, architecture amendment 1).
+  # (P2, ADR-0016, architecture amendment 1).
   #
   # Scope: the classifier inspects each context's PUBLIC API module. Writers in
   # internal sub-modules reached through the context API are backstopped at
@@ -32,7 +32,7 @@ defmodule Portfolixir.WriteActorTest do
   # not grandfathered.
   @migration_helpers MapSet.new([{Portfolixir.Catalog, :backfill_inferred_asset_classes, 0}])
 
-  # Writers of allowlisted market-data tables (never journaled, ADR-0015).
+  # Writers of allowlisted market-data tables (never journaled, ADR-0016).
   @allowlisted_writers MapSet.new([{Portfolixir.Fx, :upsert_many, 1}])
 
   # Pre-existing public context writers not yet actor-first (later leaf-first

@@ -66,12 +66,18 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
     {:ok, _} =
       Quotes.upsert_many(security.id, [%{date: ~D[2026-06-01], close: "120", source: "manual"}])
 
-    data =
+    response =
       conn
       |> api_conn()
       |> get("/api/v1/portfolios/#{portfolio.id}/holdings")
       |> json_response(200)
-      |> Map.fetch!("data")
+
+    # FR-13: the response is self-describing about its currency basis and read
+    # date, so a consumer never has to assume whether FX was applied.
+    assert response["currency_basis"] == "security_currency"
+    assert response["as_of"] == Date.to_iso8601(Date.utc_today())
+
+    data = Map.fetch!(response, "data")
 
     assert [holding] = data
     assert holding["security_id"] == security.id

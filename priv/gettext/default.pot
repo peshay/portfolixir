@@ -2133,9 +2133,24 @@ msgstr ""
 msgid "Could not update cash account"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:125
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:139
 #, elixir-autogen, elixir-format
-msgid "Counts toward cash quote"
+msgid "Liquidity role"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:126
+#, elixir-autogen, elixir-format
+msgid "Free cash"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:132
+#, elixir-autogen, elixir-format
+msgid "Credit line"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:135
+#, elixir-autogen, elixir-format
+msgid "Reserve"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities_live.ex:1072
@@ -2327,9 +2342,19 @@ msgstr[1] ""
 msgid "Unsorted"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:333
+#: lib/portfolixir_web/live/portfolio_live.ex:964
 #, elixir-autogen, elixir-format
 msgid "not in cash quote"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:962
+#, elixir-autogen, elixir-format
+msgid "credit line"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:963
+#, elixir-autogen, elixir-format
+msgid "reserve"
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:137
