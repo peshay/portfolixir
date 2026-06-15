@@ -12,6 +12,7 @@ defmodule Portfolixir.Application do
       {Portfolixir.Catalog.QuoteSync,
        Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])},
       {Portfolixir.Fx.RateSync, Application.get_env(:portfolixir, Portfolixir.Fx.RateSync, [])},
+      Portfolixir.Imports.PreviewStore,
       PortfolixirWeb.Endpoint
     ]
 
