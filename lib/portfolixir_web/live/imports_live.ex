@@ -4,21 +4,38 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
 
   @max_upload_bytes 20_000_000
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
+    # Restore in-progress preview across locale-driven remounts.
+    # Locale switches change the session's "locale" key and trigger a LiveView
+    # remount via live_session :browser / LiveLocale on_mount.  Storing the
+    # parsed preview in PreviewStore (keyed by the CSRF token, which is stable
+    # across locale changes within the same browser session) lets us jump
+    # straight back to the :preview step so the user does not have to re-upload.
+    session_token = Map.get(session, "_csrf_token", "")
+
+    {stage, preview, mapping} =
+      case PreviewStore.get(session_token) do
+        {stored_preview, stored_mapping} -> {:preview, stored_preview, stored_mapping}
+        nil -> {:idle, nil, blank_mapping()}
+      end
+
     socket =
       socket
-      |> assign(:stage, :idle)
-      |> assign(:preview, nil)
+      |> assign(:session_token, session_token)
+      |> assign(:stage, stage)
+      |> assign(:preview, preview)
       |> assign(:result, nil)
       |> assign(:error, nil)
       |> reload_lookups()
-      |> assign(:mapping, blank_mapping())
+      |> assign(:mapping, mapping)
+      |> maybe_assign_preview_pp_names(preview)
       |> allow_upload(:pp_file,
         accept: ~w(.csv .json application/json text/csv text/plain),
         max_entries: 1,
@@ -346,7 +363,9 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_event("parse", _params, socket), do: {:noreply, socket}
 
   def handle_event("mapping_changed", params, socket) do
-    {:noreply, assign(socket, :mapping, mapping_from_params(params, socket.assigns.mapping))}
+    mapping = mapping_from_params(params, socket.assigns.mapping)
+    PreviewStore.put(socket.assigns.session_token, socket.assigns.preview, mapping)
+    {:noreply, assign(socket, :mapping, mapping)}
   end
 
   def handle_event("apply", params, socket) do
@@ -357,6 +376,8 @@ defmodule PortfolixirWeb.ImportsLive do
       {:ok, applier_params} ->
         case Imports.apply(socket.assigns.preview, applier_params) do
           {:ok, result} ->
+            PreviewStore.delete(socket.assigns.session_token)
+
             {:noreply,
              socket
              |> assign(:stage, :done)
@@ -374,6 +395,8 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   def handle_event("reset", _params, socket) do
+    PreviewStore.delete(socket.assigns.session_token)
+
     {:noreply,
      socket
      |> assign(:stage, :idle)
@@ -416,6 +439,8 @@ defmodule PortfolixirWeb.ImportsLive do
             |> assign_preview_pp_names(preview)
             |> assign(:mapping, initial_mapping_for(preview, socket))
 
+          PreviewStore.put(socket.assigns.session_token, preview, socket.assigns.mapping)
+
           {:noreply, socket}
 
         {:error, reason} ->
@@ -446,6 +471,9 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign(:cash_pp_names, Mapping.unique_cash_pp_names(preview))
     |> assign(:depot_pp_names, Mapping.unique_depot_pp_names(preview))
   end
+
+  defp maybe_assign_preview_pp_names(socket, nil), do: socket
+  defp maybe_assign_preview_pp_names(socket, preview), do: assign_preview_pp_names(socket, preview)
 
   defp blank_mapping do
     %{

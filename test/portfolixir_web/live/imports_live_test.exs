@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
@@ -209,6 +210,88 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
     assert html =~ "Import complete"
     assert length(Ledger.list_transactions_for_portfolio(portfolio.id)) == 13
+  end
+
+  # User story:
+  # As a local portfolio maintainer mid-way through mapping an import,
+  # I want to switch the UI language without losing my uploaded preview or mapping,
+  # so that I can continue on the confirmation step in my preferred language
+  # without re-uploading the file.
+  #
+  # Acceptance criteria:
+  # - After upload and preview, switching locale (simulated as a remount with a
+  #   different locale in the session) keeps the stage at :preview.
+  # - The parsed preview data (entry count, format) is still present.
+  # - The user-defined mapping is preserved on remount.
+  test "switching locale after upload preserves preview and mapping across remount",
+       %{conn: conn} do
+    _portfolio = setup_portfolio()
+
+    # Locale switches happen inside the same browser session.  We give the
+    # session a fixed CSRF token so both LiveView mounts share the same
+    # PreviewStore key, mirroring what happens in production where the
+    # browser cookie holds the session across a remount.
+    session_token = "test-session-for-locale-switch"
+    conn = init_test_session(conn, %{"_csrf_token" => session_token})
+
+    # First mount — upload and advance to preview.
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    html = render(view)
+    assert html =~ "Preview"
+    assert html =~ "Buy"
+
+    # Change the mapping so we can verify it is preserved after remount.
+    view
+    |> element("form#pp-import-apply")
+    |> render_change(%{
+      "portfolio_choice" => "create",
+      "portfolio_name" => "My Preserved Portfolio",
+      "portfolio_currency" => "EUR",
+      "cash" => %{"Test-Cash" => "create:Test-Cash", "Test-Cash-2" => "create:Test-Cash-2"},
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    })
+
+    # Verify PreviewStore holds the entry under our session token.
+    assert {_preview, mapping} = PreviewStore.get(session_token)
+    assert mapping.portfolio_name == "My Preserved Portfolio"
+
+    # Simulate locale switch: remount the LiveView on the same session.
+    # In production the live_session :browser re-runs LiveLocale.on_mount which
+    # calls mount/3 fresh.  Here we re-call live/2 with the same session conn.
+    {:ok, view2, html2} = live(conn, "/imports")
+
+    # The user should land back on the preview step, not the empty upload form.
+    assert html2 =~ "Preview"
+    assert html2 =~ "Buy"
+
+    # The mapping portfolio name should still be present.
+    assert render(view2) =~ "My Preserved Portfolio"
+
+    # Cleanup: verify the store entry is deleted after a successful import.
+    html3 =
+      view2
+      |> element("form#pp-import-apply")
+      |> render_submit(%{
+        "portfolio_choice" => "create",
+        "portfolio_name" => "My Preserved Portfolio",
+        "portfolio_currency" => "EUR",
+        "cash" => %{
+          "Test-Cash" => "create:Test-Cash",
+          "Test-Cash-2" => "create:Test-Cash-2"
+        },
+        "depot" => %{
+          "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+          "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+        }
+      })
+
+    assert html3 =~ "Import complete"
+    assert PreviewStore.get(session_token) == nil
   end
 
   defp setup_portfolio do
