@@ -200,7 +200,18 @@ Beispiel-Payloads für Konten:
   (ISO-Daten, inklusive), `portfolio_id`, `security_id`, `securities_account_id`.
   Ungültige Filter liefern `422 Unprocessable Entity` mit dem betreffenden Feld.
 - `POST /api/v1/transactions` legt eine manuelle Kauf- oder Verkauftransaktion mit
-  einem `transaction`-Objekt an.
+  einem `transaction`-Objekt an. Ein Wertpapier, das über ein Geldkonto in einer
+  anderen Währung abgerechnet wird (zum Beispiel ein USD-Wertpapier über ein
+  EUR-Konto), wird in der eigenen Währung des Wertpapiers gebucht und trägt die
+  Felder zur währungsübergreifenden Abrechnung: `security_amount` (Handelsbetrag in
+  der Wertpapierwährung), `settlement_amount` (im Geldkonto in Kontowährung
+  belasteter oder gutgeschriebener Betrag) und `settlement_fx_rate` (Einheiten der
+  Kontowährung je einer Einheit der Wertpapierwährung). Fehlt der Kurs, werden
+  jedoch beide Beträge geliefert, wird er als `settlement_amount / security_amount`
+  abgeleitet (der tatsächliche Kurs des Brokers); eine Währungsabweichung ohne Kurs
+  und ohne Beträge zur Ableitung wird abgelehnt. Die Einstandsbasis bleibt in der
+  Wertpapierwährung, sodass die positionsbezogene G/V währungsehrlich ist. Alle
+  drei sind Decimal-Strings und bei Buchungen in gleicher Währung `null`.
 - `GET /api/v1/transactions/:id` liefert eine Transaktion.
 - `PATCH /api/v1/transactions/:id` aktualisiert eine Transaktion (z. B. um eine
   falsch importierte Buchung zu korrigieren); die Validierung je Art gilt weiter.
