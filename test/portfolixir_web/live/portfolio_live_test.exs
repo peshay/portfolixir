@@ -652,4 +652,60 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     assert html =~ "Create one portfolio"
   end
+
+  # User story:
+  # As a local portfolio maintainer reading the KPI cards,
+  # I want focusable ⓘ info tooltips next to TTWROR, IRR, SOLL-IST (drift) and
+  # cash quote,
+  # so that I can understand what each metric measures without leaving the page
+  # (WCAG 1.4.13: content is dismissible, hoverable, and persistent).
+  #
+  # Acceptance criteria:
+  # - An ⓘ affordance (summary inside a details element) is rendered next to
+  #   TTWROR, IRR, the drift table heading (SOLL-IST), and cash quote.
+  # - Each tooltip body carries the explanatory text describing the metric's
+  #   basis (time-weighted / annualized / target vs actual / cash ratio).
+  # - The details element carries role="group" so screen readers announce the
+  #   association, and aria-describedby links the KPI label to the tooltip body.
+  # - All copy is delivered through gettext so it switches locale with the page.
+  test "renders focusable info tooltips for TTWROR, IRR, SOLL-IST and cash quote",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # TTWROR tooltip: basis must state "selected period", not annualized.
+    ttwror_kpi = view |> element(~s(#kpi-ttwror)) |> render()
+    assert ttwror_kpi =~ "ⓘ"
+    assert ttwror_kpi =~ "selected period"
+    assert ttwror_kpi =~ ~s(role="group")
+    assert ttwror_kpi =~ "aria-describedby"
+
+    # IRR tooltip: basis must state "annualized".
+    irr_kpi = view |> element(~s(#kpi-irr)) |> render()
+    assert irr_kpi =~ "ⓘ"
+    assert irr_kpi =~ "annualized"
+    assert irr_kpi =~ ~s(role="group")
+    assert irr_kpi =~ "aria-describedby"
+
+    # Cash-quote tooltip: formula must mention deployable cash.
+    cash_kpi = view |> element(~s(#kpi-cash)) |> render()
+    assert cash_kpi =~ "ⓘ"
+    assert cash_kpi =~ "deployable cash"
+    assert cash_kpi =~ ~s(role="group")
+    assert cash_kpi =~ "aria-describedby"
+
+    # SOLL-IST tooltip on the drift table: mentions target and actual weights.
+    drift_section = view |> element(~s(#portfolio-allocation)) |> render()
+    assert drift_section =~ "ⓘ"
+    assert drift_section =~ "target"
+    assert drift_section =~ "actual"
+    assert drift_section =~ "drift"
+
+    # Tooltip content is present in the rendered HTML (not hidden server-side).
+    assert html =~ "time-weighted return"
+    assert html =~ "money-weighted"
+    assert html =~ "deployable cash"
+  end
 end
