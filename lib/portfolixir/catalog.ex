@@ -211,7 +211,7 @@ defmodule Portfolixir.Catalog do
 
   @doc """
   Creates a security on behalf of `actor` (FR-28). The insert and its audit
-  journal entry commit in one transaction (ADR-0016, P9); the security table is
+  journal entry commit in one transaction (ADR-0017, P9); the security table is
   guard-armed, so this is the only sanctioned create path.
   """
   def create_security(%Actor{} = actor, attrs) when is_map(attrs) do
@@ -387,7 +387,7 @@ defmodule Portfolixir.Catalog do
   This bulk reclassification is journaled as a single aggregate `update` entry
   on `resource_type: "security"` (resource_id `nil`) carrying the affected ids —
   the guard-armed `securities` table still requires the actor on every row, so
-  the whole `update_all` runs inside one actor-set transaction (ADR-0016).
+  the whole `update_all` runs inside one actor-set transaction (ADR-0017).
   """
   def set_asset_class(%Actor{} = _actor, [], _code), do: 0
 

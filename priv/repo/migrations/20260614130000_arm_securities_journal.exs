@@ -1,6 +1,6 @@
 defmodule Portfolixir.Repo.Migrations.ArmSecuritiesJournal do
   @moduledoc """
-  Arms the `securities` table for the append-only audit journal (ADR-0016,
+  Arms the `securities` table for the append-only audit journal (ADR-0017,
   FR-28), first slice of the leaf-first rollout (Catalog/Fx).
 
   Attaches the reusable `portfolixir_require_journal_actor` guard trigger

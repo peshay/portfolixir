@@ -3,7 +3,7 @@ defmodule Portfolixir.Journal.SerializerTest do
 
   alias Portfolixir.Journal.Serializer
 
-  # ADR-0016: Decimals encode as strings (Jason's default would emit floats and
+  # ADR-0017: Decimals encode as strings (Jason's default would emit floats and
   # lose precision); dates as ISO strings; an unmapped type raises so a new field
   # cannot be silently dropped from the audit record.
 

@@ -5,7 +5,7 @@ defmodule Portfolixir.JournalTest do
   # As an operator who let an agent write financial data,
   # I want every committed security write recorded in the append-only journal,
   # so that any create, edit or deletion is attributable and reversible by
-  # inspection (FR-28 / NFR-2, ADR-0016, first slice: Catalog).
+  # inspection (FR-28 / NFR-2, ADR-0017, first slice: Catalog).
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog

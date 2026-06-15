@@ -511,7 +511,7 @@ defmodule Portfolixir.CatalogTest do
   # the `securities` guard trigger is armed (FR-28); to exercise the backfill's
   # inference logic against the already-armed test database we replay the
   # migration environment with the documented escape hatch
-  # (`session_replication_role = replica`, ADR-0016), then restore it.
+  # (`session_replication_role = replica`, ADR-0017), then restore it.
   defp backfill_as_migration do
     {:ok, count} =
       Repo.transaction(fn ->

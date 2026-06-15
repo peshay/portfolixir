@@ -44,4 +44,5 @@ already in force in the codebase.
 | [0013](0013-exclude-securities-from-allocation-targets.html) | Exclude flagged securities from the allocation steering basis | Accepted |
 | [0014](0014-bilingual-docs-site.html) | Bilingual docs site (EN baseline, DE alongside) without a custom Pages build | Accepted |
 | [0015](0015-cross-currency-settlement-fx-rate.html) | Cross-currency transaction settlement with a stored FX rate | Accepted |
-| [0016](0016-append-only-audit-journal.html) | Append-only audit journal for financial writes | Accepted |
+| [0016](0016-rounding-policy.html) | Rounding policy — full precision in compute, round only at the human display | Accepted |
+| [0017](0017-append-only-audit-journal.html) | Append-only audit journal for financial writes | Accepted |

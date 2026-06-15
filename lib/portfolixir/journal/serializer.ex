@@ -1,7 +1,7 @@
 defmodule Portfolixir.Journal.Serializer do
   @moduledoc """
   JSONB-safe encoding of `before`/`after` snapshots for the audit journal
-  (ADR-0016, FR-28).
+  (ADR-0017, FR-28).
 
   Owns the one type-mapping table for journal payloads. Decimals are encoded as
   **strings** (Jason would emit them as floats and lose precision), and dates as

@@ -1,10 +1,10 @@
 defmodule Portfolixir.Actor do
   @moduledoc """
-  Who performed a financial write (ADR-0016, FR-28).
+  Who performed a financial write (ADR-0017, FR-28).
 
   An `Actor` is the first positional argument of every public context write
   function. The `type` is a closed taxonomy; extending it is an amendment to
-  ADR-0016, not an ad-hoc addition. `label` is optional free-form attribution
+  ADR-0017, not an ad-hoc addition. `label` is optional free-form attribution
   (e.g. the API-token identity or the import session id) recorded alongside the
   type in the audit journal.
 
