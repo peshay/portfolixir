@@ -300,6 +300,33 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert PreviewStore.get(session_token) == nil
   end
 
+  # User story:
+  # As a local portfolio maintainer who accidentally uploads a file
+  # from an incompatible Portfolio Performance version,
+  # I want the imports page to surface a readable error message,
+  # so that I understand why the upload was rejected without seeing
+  # an opaque internal error.
+  #
+  # Acceptance criteria:
+  # - Uploading a JSON file with an unsupported version shows an error alert.
+  # - The view stays on the idle stage (no preview is rendered).
+  test "uploading an unsupported PP version shows a parse error and stays idle",
+       %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+
+    upload_payload(
+      view,
+      "invalid_version.json",
+      File.read!(Path.join(@fixtures, "invalid_version.json")),
+      "application/json"
+    )
+
+    html = render(view)
+    assert html =~ "Unsupported PP JSON version"
+    assert has_element?(view, "p.alert-error")
+    refute html =~ "Preview"
+  end
+
   defp setup_portfolio do
     {:ok, p} =
       Portfolios.create_portfolio(%{name: "PP Import Target", base_currency_code: "EUR"})
