@@ -491,6 +491,58 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "reserve"
   end
 
+  # User story:
+  # As a local portfolio maintainer with a credit line and an overdrawn account,
+  # I want each non-deployable cash row labelled with its reason,
+  # so that I can tell a drawn/standing credit line and an overdrawn account
+  # apart from genuine deployable cash.
+  #
+  # Acceptance criteria:
+  # - A credit_line account is labelled "credit line" (never deployable, even
+  #   when its balance is positive — type beats sign).
+  # - An overdrawn free_cash account is labelled "not in cash quote".
+  test "labels non-deployable cash rows by their liquidity role", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, lombard} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: world.portfolio.id,
+        name: "Lombard Loan",
+        currency_code: "EUR",
+        liquidity_role: "credit_line"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: lombard.id,
+        type: "deposit",
+        date: Date.add(Date.utc_today(), -5),
+        gross_amount: "100",
+        currency_code: "EUR"
+      })
+
+    {:ok, overdrawn} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: world.portfolio.id,
+        name: "Overdrawn Giro",
+        currency_code: "EUR",
+        liquidity_role: "free_cash"
+      })
+
+    {:ok, _} = Ledger.set_cash_balance(overdrawn, %{date: Date.add(Date.utc_today(), -5), amount: "-50"})
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # A positive credit line is still non-deployable (type beats sign).
+    assert html =~ "Lombard Loan"
+    assert html =~ "credit line"
+    # An overdrawn free_cash account renders the catch-all hint.
+    assert html =~ "Overdrawn Giro"
+    assert html =~ "not in cash quote"
+  end
+
   test "surfaces trade-priced and unpriced positions as data-quality hints", %{conn: conn} do
     world = seed_world()
 
