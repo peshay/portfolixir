@@ -473,7 +473,9 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp maybe_assign_preview_pp_names(socket, nil), do: socket
-  defp maybe_assign_preview_pp_names(socket, preview), do: assign_preview_pp_names(socket, preview)
+
+  defp maybe_assign_preview_pp_names(socket, preview),
+    do: assign_preview_pp_names(socket, preview)
 
   defp blank_mapping do
     %{
