@@ -6,6 +6,7 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Valuation
 
   # User story:
@@ -107,6 +108,7 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
   test "liquidity_role defaults to free_cash, can be set, and rejects unknown values" do
     %{cash: cash} = setup_world()
 
+    assert CashAccount.liquidity_roles() == ~w(free_cash credit_line reserve)
     assert cash.liquidity_role == "free_cash"
 
     assert {:ok, updated} =
