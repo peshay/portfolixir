@@ -33,7 +33,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
 
   test "renders an img tag when the security has a logo_path", %{conn: conn} do
     {:ok, sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Apple Inc.",
         currency_code: "USD",
         provider: "manual",
@@ -41,7 +41,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
       })
 
     {:ok, _updated} =
-      Catalog.update_security(sec, %{
+      Catalog.update_security(Portfolixir.Actor.owner_ui(), sec, %{
         attributes: %{
           "logo_path" => "/security_logos/#{sec.id}.png",
           "logo_source" => "wikipedia"
@@ -58,7 +58,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
   test "renders the initial-letter fallback when no logo_path is set",
        %{conn: conn} do
     {:ok, _sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Apple Inc.",
         currency_code: "USD",
         provider: "manual",
@@ -76,7 +76,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
   test "renders a bond country flag fallback from the ISIN country code",
        %{conn: conn} do
     {:ok, _sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "German Federal Bond",
         isin: "DE0001102614",
         currency_code: "EUR",
@@ -95,7 +95,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
   test "renders a government bond country flag fallback from the ISIN country code",
        %{conn: conn} do
     {:ok, _sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "United States Treasury Note",
         isin: "US91282CFB28",
         currency_code: "USD",
@@ -114,7 +114,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
   test "renders an inferred imported state-bond flag when asset_class is still blank",
        %{conn: conn} do
     {:ok, sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Placeholder",
         isin: "US912810SN90",
         currency_code: "USD",
@@ -123,7 +123,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
       })
 
     {:ok, _sec} =
-      Catalog.update_security(sec, %{
+      Catalog.update_security(Portfolixir.Actor.owner_ui(), sec, %{
         name: "Anleihe USA 20/50",
         asset_class: nil
       })
@@ -139,7 +139,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
   test "renders the logo in the detail-pane header when a security is selected",
        %{conn: conn} do
     {:ok, sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Bitcoin",
         currency_code: "EUR",
         provider: "coingecko",
@@ -148,7 +148,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
       })
 
     {:ok, _updated} =
-      Catalog.update_security(sec, %{
+      Catalog.update_security(Portfolixir.Actor.owner_ui(), sec, %{
         attributes: %{
           "logo_path" => "/security_logos/#{sec.id}.png",
           "logo_source" => "coingecko"
@@ -174,7 +174,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
     on_exit(fn -> File.rm_rf(tmp) end)
 
     {:ok, sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Baozun",
         currency_code: "USD",
         provider: "manual",
@@ -221,7 +221,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
     end)
 
     {:ok, sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Baozun",
         currency_code: "USD",
         provider: "manual",

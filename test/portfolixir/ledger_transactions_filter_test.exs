@@ -41,7 +41,11 @@ defmodule Portfolixir.LedgerTransactionsFilterTest do
       })
 
     {:ok, security} =
-      Catalog.create_security(%{name: "Sec", currency_code: "EUR", asset_class: "equity"})
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Sec",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
 
     for depot <- [depot_one, depot_two, depot_one] do
       {:ok, _} =

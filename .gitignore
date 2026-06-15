@@ -58,3 +58,6 @@ __pycache__/
 # Claude Code local state
 .claude/worktrees/
 .claude/settings.local.json
+
+# Dialyzer PLTs (machine/version-specific build artifacts; CI caches separately)
+/priv/plts/

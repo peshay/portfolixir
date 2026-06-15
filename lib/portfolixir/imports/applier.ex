@@ -27,6 +27,7 @@ defmodule Portfolixir.Imports.Applier do
   (Story 4 UI), per-entry depot/cash override per pp-account-pair.
   """
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports.Entry
@@ -394,7 +395,7 @@ defmodule Portfolixir.Imports.Applier do
       feed: "PORTFOLIO_PERFORMANCE"
     }
 
-    case Catalog.create_security(attrs) do
+    case Catalog.create_security(Actor.import_session(), attrs) do
       {:ok, security} ->
         state =
           state

@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Phoenix.LiveView.JS
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Currencies
@@ -528,7 +529,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       socket.assigns.editing ->
         attrs = to_overrides(params)
 
-        case Catalog.update_security(socket.assigns.editing, attrs) do
+        case Catalog.update_security(Actor.owner_ui(), socket.assigns.editing, attrs) do
           {:ok, security} ->
             notify_parent(socket, {:updated, security})
             {:noreply, socket}
@@ -541,7 +542,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
         existing = socket.assigns.conflict
         attrs = to_overrides(params)
 
-        case Catalog.update_security(existing, attrs) do
+        case Catalog.update_security(Actor.owner_ui(), existing, attrs) do
           {:ok, security} ->
             notify_parent(socket, {:updated, security})
             {:noreply, socket}
@@ -555,7 +556,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
         market = socket.assigns.selected_market
         overrides = to_overrides(params)
 
-        case Catalog.create_from_search_result(result, market, overrides) do
+        case Catalog.create_from_search_result(Actor.owner_ui(), result, market, overrides) do
           {:ok, security} ->
             notify_parent(socket, {:created, security})
             {:noreply, socket}
@@ -575,7 +576,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     market = socket.assigns.selected_market
     form_overrides = to_overrides(socket.assigns.form)
 
-    case Catalog.merge_search_result(existing, result, market, form_overrides) do
+    case Catalog.merge_search_result(Actor.owner_ui(), existing, result, market, form_overrides) do
       {:ok, security} ->
         notify_parent(socket, {:updated, security})
         {:noreply, socket}

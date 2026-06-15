@@ -11,7 +11,9 @@ defmodule PortfolixirWeb.ApiAuthPlug do
     provided_token = bearer_token(conn)
 
     if valid_token?(provided_token, configured_token) do
-      conn
+      # The single configured bearer token is read-write (FR-28 / ADR-0017).
+      # A future read-only token (D4) assigns :api_token_ro here instead.
+      assign(conn, :actor, Portfolixir.Actor.api_token_rw())
     else
       conn
       |> put_status(:unauthorized)
