@@ -377,6 +377,11 @@ JSON v1 format. Files are parsed into a preview before any records are saved.
 The preview shows translated transaction-kind labels, the records that would be
 created, and account/depot mappings for missing targets.
 
+The parsed preview and account mapping are preserved in memory across language
+switches. If you switch the UI language while reviewing an import, the app
+returns you to the confirmation step with your mapping intact — no re-upload
+required.
+
 Parser warnings appear in a scrollable box with a copy button. The copied text
 uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
