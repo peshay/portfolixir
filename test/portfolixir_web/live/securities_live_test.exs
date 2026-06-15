@@ -1429,7 +1429,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       panel = element(view, "#detail-tab-panel-holdings") |> render()
       assert panel =~ "Local Portfolio"
       assert panel =~ "Main Depot"
-      assert panel =~ "1500"
+      assert panel =~ "1,500.00"
       # 10 * (150 - 100) = +500 unrealised P&L
       assert panel =~ "+500"
     end
