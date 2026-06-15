@@ -2586,3 +2586,43 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "without holdings"
 msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Cash quote info"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "TTWROR info"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "IRR info"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "SOLL-IST drift info"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "SOLL-IST: target weight vs. actual weight (drift). Drift is the amount needed to reach the target allocation."
+msgstr ""
