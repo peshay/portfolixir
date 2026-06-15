@@ -377,7 +377,7 @@ defmodule Portfolixir.DocsTest do
 
     assert api_docs =~ "cash_target_weight"
     assert normalized_api_docs =~ "carries a `cash` object"
-    assert normalized_api_docs =~ "plus the cash that counts toward the cash quote"
+    assert normalized_api_docs =~ "plus the deployable cash"
 
     assert product_docs =~ "cash target"
   end
