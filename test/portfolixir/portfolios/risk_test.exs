@@ -131,6 +131,7 @@ defmodule Portfolixir.Portfolios.RiskTest do
     assert length(default.top_holdings) == 4
 
     limited = Risk.for_portfolio(world.portfolio.id, prices: prices, top_n: 2)
+
     assert Enum.map(limited.top_holdings, & &1.security_id) == [
              world.stock_big.id,
              world.big_etf.id
