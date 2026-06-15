@@ -530,7 +530,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         liquidity_role: "free_cash"
       })
 
-    {:ok, _} = Ledger.set_cash_balance(overdrawn, %{date: Date.add(Date.utc_today(), -5), amount: "-50"})
+    {:ok, _} =
+      Ledger.set_cash_balance(overdrawn, %{date: Date.add(Date.utc_today(), -5), amount: "-50"})
 
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
