@@ -173,14 +173,6 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     {:ok, view, _html} = live(conn, "/imports")
     upload_sample(view)
 
-    # Before submit: confirm button is enabled and has the phx-disable-with attr.
-    assert has_element?(
-             view,
-             "#pp-import-confirm[phx-disable-with='Importing…']"
-           )
-
-    refute has_element?(view, "#pp-import-confirm[disabled]")
-
     submit_params = %{
       "portfolio_choice" => "create",
       "portfolio_name" => "PP Import Target",
@@ -194,6 +186,20 @@ defmodule PortfolixirWeb.ImportsLiveTest do
         "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
       }
     }
+
+    # Complete the mapping via phx-change so the confirm button becomes enabled.
+    # The auto-detected initial mapping leaves Test-Depot-2 without a linked cash
+    # account (no account field on SECURITY_TRANSFER rows), so we must supply the
+    # full mapping before checking the enabled/disabled state.
+    view |> element("form#pp-import-apply") |> render_change(submit_params)
+
+    # Before submit: confirm button is enabled and carries phx-disable-with.
+    assert has_element?(
+             view,
+             "#pp-import-confirm[phx-disable-with='Importing…']"
+           )
+
+    refute has_element?(view, "#pp-import-confirm[disabled]")
 
     # Trigger submit; the handler sets :applying and starts the async task.
     # render_submit returns the intermediate (applying) HTML before the task finishes.
