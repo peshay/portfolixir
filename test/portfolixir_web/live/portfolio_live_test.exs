@@ -448,16 +448,16 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   end
 
   # User story:
-  # As a local portfolio maintainer with a business account,
+  # As a local portfolio maintainer with a reserve account,
   # I want the Portfolio page to mark cash accounts excluded from the cash
   # quote,
   # so that I see the account and its balance without it distorting my
-  # private quote.
+  # deployable cash.
   #
   # Acceptance criteria:
-  # - An excluded account stays listed in the cash section with its balance.
-  # - The excluded account's row is marked as not counting toward the quote.
-  # - The cash-quote KPI ignores the excluded account's balance.
+  # - A reserve account stays listed in the cash section with its balance.
+  # - The reserve account's row is marked as not counting toward the quote.
+  # - The cash-quote KPI ignores the reserve account's balance.
   test "marks accounts excluded from the cash quote but keeps them listed", %{conn: conn} do
     world = seed_world()
 
@@ -466,7 +466,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         portfolio_id: world.portfolio.id,
         name: "Business Account",
         currency_code: "EUR",
-        counts_toward_cash_quote: false
+        liquidity_role: "reserve"
       })
 
     {:ok, _} =
@@ -488,7 +488,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "18.5"
 
     assert html =~ "Business Account"
-    assert html =~ "not in cash quote"
+    assert html =~ "reserve"
   end
 
   test "surfaces trade-priced and unpriced positions as data-quality hints", %{conn: conn} do
