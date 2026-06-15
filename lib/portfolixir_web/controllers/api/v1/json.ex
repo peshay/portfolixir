@@ -382,6 +382,54 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def risk(risk) do
+    %{
+      portfolio_id: risk.portfolio_id,
+      base_currency: risk.base_currency,
+      # FR-13: `as_of` documents the read date; the lens is derived on read from
+      # the live valuation, so there is no stored snapshot date to report. The
+      # note states the basis so a consumer never has to assume what the weights
+      # and HHI are a share of.
+      as_of: date(Date.utc_today()),
+      risk_note: risk_note(),
+      steerable_basis: decimal(risk.steerable_basis),
+      top_holdings: Enum.map(risk.top_holdings, &risk_holding/1),
+      hhi: risk_hhi(risk.hhi),
+      asset_class_violations: Enum.map(risk.asset_class_violations, &risk_violation/1)
+    }
+  end
+
+  defp risk_note do
+    "Weights, caps and HHI are on a 0-100 percentage scale over the steerable " <>
+      "basis (valued positions minus those flagged " <>
+      "excluded_from_allocation_targets); a security held across depots is " <>
+      "merged into one single-name exposure."
+  end
+
+  defp risk_holding(holding) do
+    %{
+      security_id: holding.security_id,
+      security_name: holding.security_name,
+      asset_class: holding.asset_class,
+      market_value: decimal(holding.market_value),
+      weight: decimal(holding.weight),
+      severity: holding.severity
+    }
+  end
+
+  defp risk_hhi(hhi) do
+    %{value: decimal(hhi.value), band: hhi.band}
+  end
+
+  defp risk_violation(violation) do
+    %{
+      asset_class: violation.asset_class,
+      current_weight: decimal(violation.current_weight),
+      cap: decimal(violation.cap),
+      overage: decimal(violation.overage)
+    }
+  end
+
   def income(income) do
     %{
       portfolio_id: income.portfolio_id,
