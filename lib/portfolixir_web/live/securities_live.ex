@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Ledger
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Components.SecurityChart
+  alias PortfolixirWeb.Format
   alias PortfolixirWeb.Securities.ColumnPicker
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
@@ -406,7 +407,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               |> Enum.reject(&(&1 in [nil, ""]))
               |> Enum.join(" · ") %>
             <%= if @detail_latest do %>
-              · <%= gettext("Latest") %> <%= format_decimal(@detail_latest.close, 2) %>
+              · <%= gettext("Latest") %> <%= Format.decimal(@detail_latest.close, 2) %>
               (<%= Date.to_iso8601(@detail_latest.date) %>)
             <% end %>
           </p>
@@ -729,7 +730,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <dt><%= gettext("Latest price") %></dt>
           <dd>
             <%= if @metrics[:latest_price] do %>
-              <%= format_decimal(@metrics.latest_price, 2) %>
+              <%= Format.decimal(@metrics.latest_price, 2) %>
               <small class="overview-metric__unit"><%= @security.currency_code %></small>
               <%= if @metrics[:latest_price_date] do %>
                 <small class="overview-metric__sub">
@@ -817,14 +818,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       <%= tx_type_label(tx.type) %>
                     </span>
                   </td>
-                  <td class="num"><%= format_decimal(tx.quantity, 4) %></td>
+                  <td class="num"><%= Format.decimal(tx.quantity, 4) %></td>
                   <td class="num">
-                    <%= format_decimal(tx.price, 2) %>
+                    <%= Format.decimal(tx.price, 2) %>
                     <small><%= tx.currency_code %></small>
                   </td>
-                  <td class="num"><%= format_decimal(tx.fees, 2) %></td>
-                  <td class="num"><%= format_decimal(tx.taxes, 2) %></td>
-                  <td class="num"><%= format_decimal(tx_gross(tx), 2) %></td>
+                  <td class="num"><%= Format.decimal(tx.fees, 2) %></td>
+                  <td class="num"><%= Format.decimal(tx.taxes, 2) %></td>
+                  <td class="num"><%= Format.decimal(tx_gross(tx), 2) %></td>
                   <td><%= portfolio_name(tx) %></td>
                   <td><%= depot_name(tx) %></td>
                   <td><%= tx.notes %></td>
@@ -872,11 +873,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <%= for lot <- @trades.open_lots do %>
                 <tr>
                   <td><%= Date.to_iso8601(lot.open_date) %></td>
-                  <td class="num"><%= format_decimal(lot.quantity, 4) %></td>
-                  <td class="num"><%= format_decimal(lot.buy_price, 2) %></td>
+                  <td class="num"><%= Format.decimal(lot.quantity, 4) %></td>
+                  <td class="num"><%= Format.decimal(lot.buy_price, 2) %></td>
                   <td class="num">
                     <%= if lot.latest_price do %>
-                      <%= format_decimal(lot.latest_price, 2) %>
+                      <%= Format.decimal(lot.latest_price, 2) %>
                     <% else %>
                       —
                     <% end %>
@@ -915,9 +916,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <tr>
                   <td><%= Date.to_iso8601(trade.open_date) %></td>
                   <td><%= Date.to_iso8601(trade.close_date) %></td>
-                  <td class="num"><%= format_decimal(trade.quantity, 4) %></td>
-                  <td class="num"><%= format_decimal(trade.avg_buy_price, 2) %></td>
-                  <td class="num"><%= format_decimal(trade.avg_sell_price, 2) %></td>
+                  <td class="num"><%= Format.decimal(trade.quantity, 4) %></td>
+                  <td class="num"><%= Format.decimal(trade.avg_buy_price, 2) %></td>
+                  <td class="num"><%= Format.decimal(trade.avg_sell_price, 2) %></td>
                   <td class="num"><%= trade.holding_period_days %></td>
                   <td class={["num", pnl_class(trade.realized_pnl_abs)]}>
                     <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %>
@@ -993,14 +994,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <tr>
                   <td><%= h.portfolio && h.portfolio.name %></td>
                   <td><%= h.depot && h.depot.name %></td>
-                  <td class="num"><%= format_decimal(h.quantity, 4) %></td>
+                  <td class="num"><%= Format.decimal(h.quantity, 4) %></td>
                   <td class="num">
-                    <%= format_decimal(h.avg_cost, 2) %>
+                    <%= Format.decimal(h.avg_cost, 2) %>
                     <small><%= @currency_code %></small>
                   </td>
                   <td class="num">
                     <%= if h.current_value do %>
-                      <%= format_decimal(h.current_value, 2) %>
+                      <%= Format.decimal(h.current_value, 2) %>
                       <small><%= @currency_code %></small>
                     <% else %>
                       —
@@ -1019,7 +1020,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <tr class="totals-row">
                 <td colspan="4"><%= gettext("Total") %></td>
                 <td class="num">
-                  <%= format_decimal(@totals.value, 2) %>
+                  <%= Format.decimal(@totals.value, 2) %>
                   <small><%= @currency_code %></small>
                 </td>
                 <td class={["num", pnl_class(@total_pnl)]}>
@@ -1149,7 +1150,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <tr>
                   <td><%= Date.to_iso8601(q.date) %></td>
                   <td class="num">
-                    <%= format_decimal(q.close, 2) %>
+                    <%= Format.decimal(q.close, 2) %>
                     <small><%= @currency_code %></small>
                   </td>
                   <td><span class="badge quote-source"><%= quote_source_label(q.source) %></span></td>
@@ -1184,7 +1185,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp signed_decimal_or_dash(value, places), do: format_signed_decimal(value, places)
+  defp signed_decimal_or_dash(value, places) do
+    Format.signed_decimal(decimal_for_display(value), places)
+  end
 
   defp tx_type_label("buy"), do: gettext("Buy")
   defp tx_type_label("sell"), do: gettext("Sell")
@@ -1232,7 +1235,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       fractional ->
         fractional
         |> Decimal.mult(Decimal.new(100))
-        |> format_signed_decimal(2)
+        |> Format.signed_decimal(2)
         |> Kernel.<>(" %")
     end
   end
@@ -1519,7 +1522,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp render_cell(%Field{render_hint: :money} = field, security) do
     case SecurityFields.value(field, security) do
       nil -> ""
-      value -> format_decimal(value, 2)
+      value -> Format.decimal(decimal_for_display(value), 2)
     end
   end
 
@@ -1529,7 +1532,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         ""
 
       value ->
-        formatted = format_signed_decimal(value, 2)
+        formatted = Format.signed_decimal(decimal_for_display(value), 2)
 
         Phoenix.HTML.raw(
           ~s(<span class="#{decimal_class(value)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
@@ -1550,7 +1553,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           decimal ->
             # value is a fractional decimal (0.05 → +5.00 %)
             as_percent = Decimal.mult(decimal, Decimal.new(100))
-            formatted = format_signed_decimal(as_percent, 2) <> " %"
+            formatted = Format.signed_decimal(as_percent, 2) <> " %"
 
             Phoenix.HTML.raw(
               ~s(<span class="#{decimal_class(decimal)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
@@ -1571,33 +1574,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
     case SecurityFields.value(field, security) do
       nil -> ""
       value -> display_value(field.key, value)
-    end
-  end
-
-  defp format_decimal(value, places) do
-    case decimal_for_display(value) do
-      nil ->
-        "—"
-
-      decimal ->
-        decimal
-        |> Decimal.round(places)
-        |> Decimal.to_string(:normal)
-    end
-  end
-
-  defp format_signed_decimal(value, places) do
-    case decimal_for_display(value) do
-      nil ->
-        "—"
-
-      decimal ->
-        rounded = Decimal.round(decimal, places)
-
-        case Decimal.compare(rounded, 0) do
-          :gt -> "+" <> Decimal.to_string(rounded, :normal)
-          _ -> Decimal.to_string(rounded, :normal)
-        end
     end
   end
 
