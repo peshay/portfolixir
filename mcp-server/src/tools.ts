@@ -100,6 +100,9 @@ const transactionZ = z.object({
     fees: optionalString(),
     taxes: optionalString(),
     currency_code: z.string(),
+    security_amount: optionalString(),
+    settlement_amount: optionalString(),
+    settlement_fx_rate: optionalString(),
     notes: optionalString()
   })
 });
@@ -210,6 +213,9 @@ const transactionSchema = objectWith("transaction", {
     fees: { type: "string" },
     taxes: { type: "string" },
     currency_code: { type: "string" },
+    security_amount: { type: "string" },
+    settlement_amount: { type: "string" },
+    settlement_fx_rate: { type: "string" },
     notes: { type: "string" }
   }
 });
@@ -473,6 +479,9 @@ const transactionUpdateSchema = {
         fees: { type: "string" },
         taxes: { type: "string" },
         currency_code: { type: "string" },
+        security_amount: { type: "string" },
+        settlement_amount: { type: "string" },
+        settlement_fx_rate: { type: "string" },
         notes: { type: "string" }
       }
     }
@@ -512,6 +521,9 @@ const transactionUpdateZ = z.object({
     fees: optionalString(),
     taxes: optionalString(),
     currency_code: optionalString(),
+    security_amount: optionalString(),
+    settlement_amount: optionalString(),
+    settlement_fx_rate: optionalString(),
     notes: optionalString()
   })
 });
@@ -883,7 +895,7 @@ const toolDefinitions: ToolDefinition[] = [
     security_id: z.number().int().positive().optional(),
     securities_account_id: z.number().int().positive().optional()
   })),
-  tool("portfolixir.transactions.create", "Create transaction", "Create a manual buy or sell transaction.", transactionSchema, transactionZ),
+  tool("portfolixir.transactions.create", "Create transaction", "Create a manual buy or sell transaction. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking).", transactionUpdateSchema, transactionUpdateZ),
   tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction.", idSchema, idZ),
   tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings in each security's own currency (no FX conversion), with moving-average cost basis, latest price, market value and unrealized P&L. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
