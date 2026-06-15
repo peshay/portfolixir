@@ -316,23 +316,23 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
-  # As a local integrator with a business account,
-  # I want the docs to document the counts-toward-cash-quote flag,
-  # so that I can exclude an account from the cash quote over the API or MCP
-  # without reading source files.
+  # As a local integrator with overdraft/reserve accounts,
+  # I want the docs to document the cash-account liquidity_role,
+  # so that I can classify an account (free cash, credit line, reserve) over the
+  # API or MCP without reading source files.
   #
   # Acceptance criteria:
-  # - The API and MCP page documents counts_toward_cash_quote on cash accounts
-  #   and its effect on the valuation's cash_quote.
-  # - The product handbook describes the flag instead of listing it as planned.
-  test "docs document the counts-toward-cash-quote flag" do
+  # - The API and MCP page documents liquidity_role on cash accounts and its
+  #   effect on the valuation's deployable cash and cash_quote.
+  # - The product handbook describes the role instead of listing it as planned.
+  test "docs document the cash-account liquidity_role" do
     api_docs = File.read!("docs/integration/api-and-mcp.md")
     product_docs = File.read!("docs/product-documentation.md")
 
-    assert api_docs =~ "counts_toward_cash_quote"
+    assert api_docs =~ "liquidity_role"
     assert api_docs =~ "cash_quote"
 
-    assert product_docs =~ "counts toward the cash quote"
+    assert product_docs =~ "liquidity role"
     refute product_docs =~ "Still planned: a per-account flag"
   end
 
@@ -377,7 +377,7 @@ defmodule Portfolixir.DocsTest do
 
     assert api_docs =~ "cash_target_weight"
     assert normalized_api_docs =~ "carries a `cash` object"
-    assert normalized_api_docs =~ "plus the cash that counts toward the cash quote"
+    assert normalized_api_docs =~ "plus the deployable cash"
 
     assert product_docs =~ "cash target"
   end
@@ -521,7 +521,7 @@ defmodule Portfolixir.DocsTest do
           "portfolixir.portfolios.income",
           "GET /api/v1/holdings/by_security",
           "portfolixir.holdings.by_security",
-          "counts_toward_cash_quote",
+          "liquidity_role",
           "excluded_from_allocation_targets",
           "cash_target_weight"
         ] do

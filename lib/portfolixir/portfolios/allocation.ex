@@ -19,8 +19,8 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   Weights are shares of the **steering basis**: the valued positions' total
   market value *minus* any position whose security is flagged
-  `excluded_from_allocation_targets` (see ADR-0013), *plus* the cash that counts
-  toward the cash quote (accounts flagged `counts_toward_cash_quote`, ADR-0009).
+  `excluded_from_allocation_targets` (see ADR-0013), *plus* the deployable cash
+  (`free_cash` accounts with a non-negative balance, FR6; ADR-0009).
   Those flagged-excluded positions stay in `Portfolixir.Portfolios.Valuation`'s
   totals and in performance, but are kept out of the 100% here so the target mix
   is not diluted by, say, a Bitcoin held as a store of value. They surface as a
@@ -120,8 +120,8 @@ defmodule Portfolixir.Portfolios.Allocation do
     {steering_positions, excluded_positions} = split_excluded(valuation, excluded_ids)
 
     # The steering basis (the 100%) is securities (minus flagged-excluded
-    # positions, ADR-0013) PLUS the cash that counts toward the cash quote
-    # (accounts flagged `counts_toward_cash_quote`, ADR-0009). Cash is part of
+    # positions, ADR-0013) PLUS the deployable cash (`free_cash` accounts with a
+    # non-negative balance, FR6; ADR-0009). Cash is part of
     # the target mix: a maintainer who steers ~5% cash wants it tracked in the
     # same drift logic, so its weight enters the same 100% as the categories
     # (issue #335). Category percentages, target/actual/drift, the Σ header and

@@ -138,13 +138,18 @@ Beispiel-Antwort für Kurssynchronisierung:
   verändern ihn, sodass Geld zwischen deinen eigenen Konten zu verschieben keine
   Übertragungsbuchung braucht. Unbekannte Konten liefern `404 Not Found`.
 - `POST /api/v1/cash_accounts` legt ein Geldkonto mit einem `cash_account`-Objekt
-  an. Das optionale Boolean `counts_toward_cash_quote` (Standard `true`) steuert,
-  ob das Konto in die `cash_quote` der Bewertung eingeht; setze es auf `false` für
-  ein reines Referenzkonto (z. B. ein Geschäftskonto), das sichtbar bleiben soll,
-  ohne die private Quote zu verzerren.
+  an. Das optionale `liquidity_role` (Standard `free_cash`) klassifiziert das
+  Konto: `free_cash` ist echtes verfügbares Cash; `credit_line` ist eine
+  Überziehungs-/Lombard-Linie, deren negativer Saldo eine Verbindlichkeit ist und
+  deren ungenutzter Rahmen nie Liquidität ist (sie zählt nie zum verfügbaren
+  Cash, auch nicht mit positivem Saldo — der Typ schlägt das Vorzeichen);
+  `reserve` ist ein sichtbarer, aber ausgeschlossener Topf. Nur `free_cash`-Konten
+  mit nicht-negativem Saldo gehen in das verfügbare Cash der Bewertung und ihre
+  `cash_quote` ein. Ein unbekannter Wert wird mit `422 Unprocessable Entity`
+  abgelehnt.
 - `GET /api/v1/cash_accounts/:id` liefert ein Geldkonto.
 - `PATCH /api/v1/cash_accounts/:id` aktualisiert ein Geldkonto (`name`,
-  `currency_code`, `notes`, `counts_toward_cash_quote`); `portfolio_id` kann nicht
+  `currency_code`, `notes`, `liquidity_role`); `portfolio_id` kann nicht
   geändert werden.
 - `DELETE /api/v1/cash_accounts/:id` löscht ein Geldkonto oder liefert
   `409 Conflict`, wenn eine Transaktion oder ein Wertpapierkonto noch darauf
@@ -249,15 +254,18 @@ Beispiel-Payloads für Konten:
   müssen sie sich nicht exakt zu `1` summieren (für die Anzeige runden).
   Marktwerte und `total_value` sind exakt. Die Bewertung trägt auch Cash:
   `cash_balances` listet jedes Geldkonto (`balance` in eigener Währung, plus
-  `base_value`/`valued` nach Umrechnung in die Basiswährung, und sein
-  `counts_toward_cash_quote`-Flag), `total_cash` ist die Basiswährungssumme der
-  bewerteten Geldkonten, und `total_with_cash` ist `total_value + total_cash`.
-  `cash_quote` ist der Cash-Anteil des Portfolios, berechnet über die Konten, deren
-  `counts_toward_cash_quote` `true` ist, als gäbe es die anderen Konten nicht
-  (`counting_cash / (total_value + counting_cash)`, `0`, wenn noch nichts zu
-  bewerten ist) — sodass ein reines Referenz-Geschäftskonto gelistet und in
-  `total_cash` bleibt, ohne die Quote zu verzerren. Die Antwort liefert außerdem
-  `counting_cash` (Decimal-String) — das Cash, das in die Quote eingeht — sodass
+  `base_value`/`valued` nach Umrechnung in die Basiswährung, sein
+  `liquidity_role` und ein `deployable`-Flag), `total_cash` ist die
+  Basiswährungssumme der bewerteten Geldkonten (sodass der negative Saldo einer
+  gezogenen Kreditlinie ihn weiterhin mindert), und `total_with_cash` ist
+  `total_value + total_cash`. `cash_quote` ist der Anteil des verfügbaren Cash am
+  Portfolio: verfügbares Cash ist die Summe der `free_cash`-Konten mit
+  nicht-negativem Saldo (`deployable: true`), und die Quote wird berechnet, als
+  gäbe es die anderen Konten nicht (`counting_cash / (total_value +
+  counting_cash)`, `0`, wenn noch nichts zu bewerten ist) — sodass ein
+  Reserve-Konto oder eine Kreditlinie gelistet und in `total_cash` bleibt, ohne
+  je Schein-Liquidität zu melden. Die Antwort liefert außerdem
+  `counting_cash` (Decimal-String) — das verfügbare Cash, das in die Quote eingeht — sodass
   ein Konsument die `cash_quote` selbst rekonstruieren kann. Ein Konto, dessen Währung
   keinen Kurspfad zur Basis hat, wird `valued: false` gemeldet und aus
   `total_cash` ausgeschlossen, spiegelnd, wie unbepreisbare Positionen behandelt
@@ -348,8 +356,8 @@ Beispiel-Payloads für Konten:
   Gehaltene, aber im Baum nicht zugeordnete Wertpapiere werden in `unassigned`
   summiert. Gewichte sind Anteile der **Steuerbasis**: der Gesamtwert der
   bewerteten Positionen abzüglich jedes als `excluded_from_allocation_targets`
-  markierten Wertpapiers, **plus das Cash, das zur Cash-Quote zählt** (Konten,
-  deren `counts_toward_cash_quote` `true` ist). `total_value` ist hier diese
+  markierten Wertpapiers, **plus das verfügbare Cash** (`free_cash`-Konten mit
+  nicht-negativem Saldo). `total_value` ist hier diese
   Steuerbasis (nicht die volle Bewertung). Die Antwort trägt ein `cash`-Objekt —
   `market_value` (das zählende Cash), `actual_weight` (sein Anteil an
   `total_value`), `target_weight` (das `cash_target_weight` des Portfolios oder
