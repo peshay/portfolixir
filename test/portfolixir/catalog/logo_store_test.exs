@@ -32,7 +32,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
     on_exit(fn -> File.rm_rf!(tmp) end)
 
     {:ok, sec} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Apple Inc.",
         currency_code: "USD",
         provider: "manual",

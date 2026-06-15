@@ -22,7 +22,9 @@ defmodule Portfolixir.Catalog.QuotesMetricsTest do
   #   prior available date (PP behaviour).
 
   defp security_fixture(name, currency \\ "USD") do
-    {:ok, sec} = Catalog.create_security(%{name: name, currency_code: currency})
+    {:ok, sec} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{name: name, currency_code: currency})
+
     sec
   end
 

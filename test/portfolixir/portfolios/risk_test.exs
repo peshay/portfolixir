@@ -47,7 +47,7 @@ defmodule Portfolixir.Portfolios.RiskTest do
     big_etf = etf!("Big World ETF", "WRLD")
 
     {:ok, crypto} =
-      Catalog.create_security(%{
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Store Of Value",
         currency_code: "EUR",
         asset_class: "crypto",

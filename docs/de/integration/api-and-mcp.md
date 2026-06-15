@@ -507,6 +507,30 @@ Beispiel-Payload für eine Transaktion:
 }
 ```
 
+## Audit-Journal
+
+Jeder finanzielle Schreibvorgang (Anlegen, Ändern, Löschen) wird in einem
+append-only Audit-Journal in derselben Datenbanktransaktion wie der Schreibvorgang
+selbst festgehalten, sodass jede Änderung — auch Löschungen — nachvollziehbar und
+zurechenbar bleibt. Marktdaten-Synchronisierung (Kurse und Wechselkurse) ist
+betriebliche Datenpflege und wird bewusst **nicht** journalisiert.
+
+- `GET /api/v1/journal` listet Journal-Einträge, neueste zuerst. Jeder Eintrag
+  trägt `actor_type` (`owner_ui`, `api_token_rw`, `api_token_ro`,
+  `import_session`, `system_job`) und ein optionales `actor_label`, die
+  `operation` (`create`, `update`, `delete`, `upsert`), den betroffenen
+  `resource_type`/`resource_id` sowie die `before`/`after`-Schnappschüsse
+  (Decimal-Werte sind Strings). Optionale Filter: `resource_type`,
+  `resource_id`, `actor_type`, `operation`, `limit` (Standard 100, max. 1000)
+  und `include_scenarios` (`true`, um persistierte Was-wäre-wenn-Schreibvorgänge
+  einzuschließen; standardmäßig nur echte Schreibvorgänge). Die Antwort ist
+  selbstbeschreibend: ein `meta`-Objekt nennt den `as_of`-Zeitpunkt, die
+  Sortierung `order` (`inserted_at:desc,id:desc`), die Anzahl `count` und die
+  angewandten `filters`.
+
+Das Journal deckt derzeit die Kontexte Catalog/Fx ab (Wertpapier-Stammdaten);
+die übrigen Schreibkontexte werden nacheinander scharfgeschaltet.
+
 ## MCP-Tools
 
 Der MCP-Begleitdienst stellt denselben lokalen Kontrakt als Tool-Aufrufe bereit.
@@ -559,3 +583,4 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`
+- `portfolixir.journal.list`
