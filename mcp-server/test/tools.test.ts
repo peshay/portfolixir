@@ -66,6 +66,19 @@ describe("Portfolixir MCP tools", () => {
       "string"
     );
     assert.equal(transactionCreate?.inputSchema.properties.transaction.properties.price.type, "string");
+    // Cross-currency settlement fields are exposed as Decimal strings (#388, ADR-0015).
+    assert.equal(
+      transactionCreate?.inputSchema.properties.transaction.properties.security_amount.type,
+      "string"
+    );
+    assert.equal(
+      transactionCreate?.inputSchema.properties.transaction.properties.settlement_amount.type,
+      "string"
+    );
+    assert.equal(
+      transactionCreate?.inputSchema.properties.transaction.properties.settlement_fx_rate.type,
+      "string"
+    );
 
     const securitiesList = tools.find((tool) => tool.name === "portfolixir.securities.list");
     assert.deepEqual(securitiesList?.inputSchema.properties.holding_status.enum, [
