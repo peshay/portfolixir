@@ -43,6 +43,46 @@ defmodule PortfolixirWeb.Format do
 
   def percent(_value, _locale), do: "—"
 
+  @doc """
+  Formats a Decimal with the given number of decimal places, applying locale
+  separators. E.g. `Decimal.new("1234.5")` with `places: 2` → `"1.234,50"` (de)
+  or `"1,234.50"` (en). Non-numbers render as an em dash.
+  """
+  def decimal(value, places, locale \\ nil)
+
+  def decimal(%Decimal{} = value, places, locale) do
+    value
+    |> Decimal.round(places)
+    |> Decimal.to_string(:normal)
+    |> localize(locale || current_locale())
+  end
+
+  def decimal(_value, _places, _locale), do: "—"
+
+  @doc """
+  Formats a Decimal with the given number of decimal places, prepending a `+`
+  sign for positive values. Applies locale separators. Non-numbers render as
+  an em dash.
+  """
+  def signed_decimal(value, places, locale \\ nil)
+
+  def signed_decimal(%Decimal{} = value, places, locale) do
+    eff_locale = locale || current_locale()
+    rounded = Decimal.round(value, places)
+
+    formatted =
+      rounded
+      |> Decimal.to_string(:normal)
+      |> localize(eff_locale)
+
+    case Decimal.compare(rounded, 0) do
+      :gt -> "+" <> formatted
+      _ -> formatted
+    end
+  end
+
+  def signed_decimal(_value, _places, _locale), do: "—"
+
   defp current_locale, do: Gettext.get_locale(PortfolixirWeb.Gettext)
 
   defp localize(plain, locale) do
