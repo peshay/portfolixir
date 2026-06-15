@@ -215,7 +215,17 @@ Example account payloads:
   (ISO dates, inclusive), `portfolio_id`, `security_id`, `securities_account_id`.
   Invalid filters return `422 Unprocessable Entity` with the offending field.
 - `POST /api/v1/transactions` creates a manual buy or sell transaction with a
-  `transaction` object.
+  `transaction` object. A security settled through a different-currency cash
+  account (for example a USD security bought through a EUR account) is booked in
+  the security's own currency and carries the cross-currency settlement fields
+  `security_amount` (trade amount in the security currency), `settlement_amount`
+  (cash amount debited or credited in the account currency) and
+  `settlement_fx_rate` (account-currency units per one unit of the security
+  currency). When the rate is omitted but both amounts are supplied it is derived
+  as `settlement_amount / security_amount` (the broker's actual rate); a currency
+  mismatch with no rate and no amounts to derive one is rejected. Cost basis stays
+  in the security currency so per-position P&L is FX-honest. All three are Decimal
+  strings and `null` for same-currency bookings.
 - `GET /api/v1/transactions/:id` returns one transaction.
 - `PATCH /api/v1/transactions/:id` updates a transaction (e.g. to fix a
   mis-imported booking); the per-kind validation still applies.
