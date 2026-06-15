@@ -394,11 +394,11 @@ defmodule PortfolixirWeb.PortfolioLive do
               </thead>
               <tbody>
                 <%= for cash <- @valuation.cash_balances do %>
-                  <tr class={if cash.counts_toward_cash_quote, do: nil, else: "is-muted"}>
+                  <tr class={if cash.deployable, do: nil, else: "is-muted"}>
                     <td>
                       <%= cash.name %>
-                      <%= if not cash.counts_toward_cash_quote do %>
-                        <span class="hint"><%= gettext("not in cash quote") %></span>
+                      <%= if not cash.deployable do %>
+                        <span class="hint"><%= liquidity_role_hint(cash.liquidity_role) %></span>
                       <% end %>
                     </td>
                     <td><%= Format.money(cash.balance) %> <%= cash.currency %></td>
@@ -954,6 +954,13 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The neutral cash colour, exposed for the template's cash row swatch.
   defp cash_color, do: @cash_color
+
+  # Why a non-deployable cash row is left out of the cash quote (FR6/FR7): a
+  # reserve or credit line never contributes, and an overdrawn free_cash account
+  # has no spendable balance.
+  defp liquidity_role_hint("credit_line"), do: gettext("credit line")
+  defp liquidity_role_hint("reserve"), do: gettext("reserve")
+  defp liquidity_role_hint(_role), do: gettext("not in cash quote")
 
   defp period_label("ytd"), do: gettext("YTD")
   defp period_label("1y"), do: gettext("1Y")

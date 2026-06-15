@@ -294,12 +294,19 @@ befüllt werden (ein Skript oder ein nur lesender Bankexport) — ohne Portfolix
 eine Banking-App zu verwandeln. Dies folgt dem in
 [ADR-0009](/decisions/0009-cash-as-balance-snapshots.html) festgehaltenen Entwurf.
 
-Jedes Geldkonto trägt einen Schalter dafür, ob es zur Cash-Quote zählt
-(standardmäßig an; der Schalter sitzt neben dem Konto auf der Portfolios-Seite,
-und das API/MCP-Feld ist `counts_toward_cash_quote`). Ein abgeschaltetes Konto —
-etwa ein Geschäftskonto — bleibt mit seinem Saldo gelistet und im gesamten Cash,
-aber die Quote wird berechnet, als gäbe es es nicht, sodass es deine private Quote
-nie verzerrt. Die Portfolio-Seite markiert solche Konten als „not in cash quote".
+Jedes Geldkonto trägt eine **Liquiditätsrolle** (`liquidity_role`; der Selektor
+sitzt neben dem Konto auf der Portfolios-Seite). Sie ist einer von drei Werten:
+**free cash** (Standard — echtes verfügbares Cash), **credit line** (eine
+Überziehungs- oder Lombard-Linie, deren negativer Saldo eine Verbindlichkeit ist
+und deren ungenutzter Rahmen nie Liquidität ist) oder **reserve** (ein
+sichtbarer, aber ausgeschlossener Topf, z. B. ein Geschäftskonto). Nur
+free-cash-Konten mit nicht-negativem Saldo zählen als verfügbares Cash und gehen
+in die Cash-Quote ein; eine Kreditlinie zählt nie (auch bei positivem Saldo —
+der Typ schlägt das Vorzeichen), und eine Reserve ist immer ausgeschlossen. Jedes
+Konto bleibt im gesamten Cash, sodass eine gezogene Kreditlinie dein
+Nettovermögen korrekt mindert, aber die Quote wird nur über das verfügbare Cash
+berechnet und meldet nie Schein-Liquidität. Die Portfolio-Seite dämpft nicht
+verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 
 ## Portfolio-Seite
 

@@ -115,14 +115,26 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                   <li>
                     <%= account.name %> (<%= account.currency_code %>)
                     <label class="cash-quote-toggle">
-                      <input
-                        type="checkbox"
-                        id={"cash-quote-toggle-#{account.id}"}
-                        phx-click="toggle_cash_quote"
+                      <select
+                        id={"liquidity-role-#{account.id}"}
+                        phx-change="set_liquidity_role"
                         phx-value-id={account.id}
-                        checked={account.counts_toward_cash_quote}
-                      />
-                      <span><%= gettext("Counts toward cash quote") %></span>
+                        name="liquidity_role"
+                      >
+                        <option value="free_cash" selected={account.liquidity_role == "free_cash"}>
+                          <%= gettext("Free cash") %>
+                        </option>
+                        <option
+                          value="credit_line"
+                          selected={account.liquidity_role == "credit_line"}
+                        >
+                          <%= gettext("Credit line") %>
+                        </option>
+                        <option value="reserve" selected={account.liquidity_role == "reserve"}>
+                          <%= gettext("Reserve") %>
+                        </option>
+                      </select>
+                      <span><%= gettext("Liquidity role") %></span>
                     </label>
                   </li>
                 <% end %>
@@ -206,15 +218,13 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     end
   end
 
-  def handle_event("toggle_cash_quote", %{"id" => id}, socket) do
+  def handle_event("set_liquidity_role", %{"id" => id, "liquidity_role" => role}, socket) do
     with {account_id, ""} <- Integer.parse(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(account_id),
          %{id: portfolio_id} <- socket.assigns.current_portfolio,
          true <- account.portfolio_id == portfolio_id,
          {:ok, _updated} <-
-           Portfolios.update_cash_account(account, %{
-             counts_toward_cash_quote: !account.counts_toward_cash_quote
-           }) do
+           Portfolios.update_cash_account(account, %{liquidity_role: role}) do
       {:noreply,
        socket
        |> success(gettext("Cash account updated"))
