@@ -231,7 +231,13 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # session a fixed CSRF token so both LiveView mounts share the same
     # PreviewStore key, mirroring what happens in production where the
     # browser cookie holds the session across a remount.
-    session_token = "test-session-for-locale-switch"
+    #
+    # The token must be exactly 24 chars of base64url (18 raw bytes) so that
+    # Plug.CSRFProtection.dump_state_from_session/1 considers it valid and
+    # leaves it intact.  An invalid-length token causes CSRF protection to
+    # generate a fresh random token in its before_send hook, overwriting the
+    # seeded value and breaking the key we expect to read from PreviewStore.
+    session_token = "AAAAAAAAAAAAAAAAAAAAAAAA"
     conn = init_test_session(conn, %{"_csrf_token" => session_token})
 
     # First mount — upload and advance to preview.
