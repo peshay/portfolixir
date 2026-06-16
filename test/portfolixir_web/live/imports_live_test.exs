@@ -205,8 +205,11 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # render_submit returns the intermediate (applying) HTML before the task finishes.
     applying_html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
 
+    # The returned HTML reflects the applying state: button text changes and disabled is set.
+    # We assert on applying_html (not `view`) because the async task may complete before
+    # has_element? queries live state, making the button no longer disabled.
     assert applying_html =~ "Importing…"
-    assert has_element?(view, "#pp-import-confirm[disabled]")
+    assert applying_html =~ ~r/id="pp-import-confirm"[^>]*disabled/
 
     # Wait for the async :apply_import task to complete and handle_async to fire.
     done_html = render_async(view)
