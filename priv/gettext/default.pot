@@ -140,6 +140,11 @@ msgstr ""
 msgid "Display preferences"
 msgstr ""
 
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen
+msgid "Dismiss"
+msgstr ""
+
 #: lib/portfolixir_web/components/app_shell.ex:429
 #, elixir-autogen
 msgid "English"
