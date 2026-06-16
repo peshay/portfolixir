@@ -2647,3 +2647,28 @@ msgstr "Info SOLL-IST-Abweichung"
 #, elixir-autogen
 msgid "SOLL-IST: target weight vs. actual weight (drift). Drift is the amount needed to reach the target allocation."
 msgstr "SOLL-IST: Zielgewicht vs. Istgewicht (Abweichung). Die Abweichung gibt an, wie viel fehlt, um die Zielallokation zu erreichen."
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Sync exchange rates"
+msgstr "Wechselkurse synchronisieren"
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Syncing…"
+msgstr "Synchronisiere…"
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Fetch the latest exchange rates so foreign-currency cash is valued in the totals."
+msgstr "Holt die aktuellen Wechselkurse, damit Fremdwährungs-Cash in den Summen bewertet wird."
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Exchange rates synced (%{count} updated). Recalculating figures…"
+msgstr "Wechselkurse synchronisiert (%{count} aktualisiert). Berechne Kennzahlen neu…"
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Couldn't reach the exchange-rate provider. Please check the connection and try again."
+msgstr "Wechselkurs-Anbieter nicht erreichbar. Bitte Verbindung prüfen und erneut versuchen."

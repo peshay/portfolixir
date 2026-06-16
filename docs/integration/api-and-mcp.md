@@ -374,17 +374,24 @@ Example account payloads:
   here is that steering basis (not the full valuation). The response carries a
   `cash` object — `market_value` (the counting cash), `actual_weight` (its share
   of `total_value`), `target_weight` (the portfolio's `cash_target_weight`, or
-  `0` when unset), `drift_weight` (`target_weight - actual_weight`) and
-  `drift_value` (restated in the base currency) — so cash is steered in the same
-  drift logic as the categories. Because cash is part of the 100% basis, the
-  category percentages shrink accordingly once cash is present. The
-  `top_level_target_sum` is the sum of the root categories' targets **plus the
-  cash target**, compared against `1`. Flagged-excluded positions do not vanish:
-  they surface in a separate `excluded` object (`market_value` plus per-security
-  `positions`, or `null` when nothing is excluded), so they stay visible while
-  the percentages and drift describe only the steered part. The valuation and
-  performance endpoints are unaffected by the flag. Unknown portfolios or
-  classifications return `404 Not Found`.
+  `0` when unset), `drift_weight` (`target_weight - actual_weight`),
+  `drift_value` (restated in the base currency), and `distributed` (boolean) —
+  so cash is steered in the same drift logic as the categories. When the active
+  classification is the built-in **currency** tree, each cash account's
+  deployable balance is attributed to its own currency-code category instead of
+  appearing as a separate cash row: EUR cash flows into the EUR category, USD
+  cash into USD, and so on. In that case `cash.distributed` is `true` and
+  consumers should omit the separate cash row; for all other classifications
+  `distributed` is `false` and the cash row behaves as before. Because cash is
+  part of the 100% basis, the category percentages shrink accordingly once cash
+  is present. The `top_level_target_sum` is the sum of the root categories'
+  targets **plus the cash target** (except for the currency classification where
+  cash is distributed into categories), compared against `1`. Flagged-excluded
+  positions do not vanish: they surface in a separate `excluded` object
+  (`market_value` plus per-security `positions`, or `null` when nothing is
+  excluded), so they stay visible while the percentages and drift describe only
+  the steered part. The valuation and performance endpoints are unaffected by the
+  flag. Unknown portfolios or classifications return `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` returns a **risk/concentration
   lens** for one portfolio over the **steerable basis** (the valued positions'
   total minus any security flagged `excluded_from_allocation_targets`, the same
