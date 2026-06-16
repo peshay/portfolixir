@@ -493,18 +493,20 @@ defmodule PortfolixirWeb.PortfolioLive do
   # -- components -------------------------------------------------------------
 
   # Surfaces why the totals can deviate from the user's expectation: positions
-  # valued at a stale trade price, positions with no price at all, and
-  # bookings whose dates are implausible (import typos like 0217-12-05).
+  # valued at a stale trade price, positions with no price at all, bookings
+  # whose dates are implausible (import typos like 0217-12-05), and cash
+  # accounts excluded because no FX rate to the base currency exists.
   defp data_quality(assigns) do
     assigns =
       assigns
       |> assign(:unpriced, unpriced_names(assigns.valuation))
       |> assign(:trade_priced, trade_priced_count(assigns.valuation))
       |> assign(:suspect_dates, suspect_dates(assigns.analysis))
+      |> assign(:unvalued_cash, unvalued_cash(assigns.valuation))
 
     ~H"""
     <section
-      :if={@unpriced != [] or @trade_priced > 0 or @suspect_dates != []}
+      :if={@unpriced != [] or @trade_priced > 0 or @suspect_dates != [] or @unvalued_cash != []}
       id="portfolio-data-quality"
       class="workspace-section data-quality"
     >
@@ -526,6 +528,14 @@ defmodule PortfolixirWeb.PortfolioLive do
           <%= gettext(
             "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import.",
             dates: Enum.map_join(@suspect_dates, ", ", &Date.to_iso8601/1)
+          ) %>
+        </li>
+        <li :if={@unvalued_cash != []}>
+          <%= gettext(
+            "%{count} cash account(s) are not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include them.",
+            count: length(@unvalued_cash),
+            base: @valuation.base_currency,
+            names: Enum.map_join(@unvalued_cash, ", ", &"#{&1.name} (#{&1.currency})")
           ) %>
         </li>
       </ul>
@@ -684,6 +694,14 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp suspect_dates(nil), do: []
   defp suspect_dates(analysis), do: analysis.suspect_dates
+
+  # Returns cash balance entries (name + currency) whose FX rate to the
+  # portfolio base currency is missing — they are excluded from the totals.
+  defp unvalued_cash(nil), do: []
+
+  defp unvalued_cash(valuation) do
+    Enum.filter(valuation.cash_balances, &(not &1.valued))
+  end
 
   # Prefer the first custom tree (the user's own strategy); otherwise fall back
   # to the built-in asset-class tree, which always exists after seeding.
