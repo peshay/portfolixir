@@ -647,6 +647,44 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "1,480.00"
   end
 
+  # User story:
+  # As a local portfolio maintainer reading the allocation/drift table,
+  # I want numeric columns right-aligned with tabular figures,
+  # so that digit places, decimal separators and signs align vertically,
+  # and I want negative drift values coloured red while keeping the − sign,
+  # so that overweight categories are visually distinct without relying on
+  # colour alone (UX-DR7 / WCAG 1.4.1).
+  #
+  # Acceptance criteria:
+  # - Numeric cells (value, actual %, target %, drift) carry the "num" class.
+  # - A drift cell with a negative value carries the "is-negative" class.
+  # - The − sign character is still present in a negative drift cell (not
+  #   stripped or replaced), so the information is available without colour.
+  test "drift table numeric cells are right-aligned and negative drift is coloured red",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # Drift for Core: 0.6 * 1080 − 880 = −232.00 → negative.
+    # The first body row is Core; select the whole drift table to inspect it.
+    drift_table = view |> element(".drift-table") |> render()
+
+    # Numeric header cells carry the "num" class for right-align/tabular-nums.
+    assert drift_table =~ ~s(th class="num")
+
+    # Numeric data cells carry the "num" class.
+    assert drift_table =~ ~s(td class="num")
+
+    # The negative drift cell carries both "num" and "is-negative".
+    assert drift_table =~ ~s(is-negative)
+
+    # The − sign character is present in the rendered output (colour is not
+    # the only indicator — UX-DR7).
+    assert drift_table =~ "-232.00"
+  end
+
   test "points to portfolio creation when none exists", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/portfolio")
 
