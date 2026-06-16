@@ -122,7 +122,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   def handle_async(_name, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, :error, gettext("Couldn't load the portfolio figures."))}
+    {:noreply, assign(socket, error: gettext("Couldn't load the portfolio figures."))}
   end
 
   @impl true
@@ -238,7 +238,13 @@ defmodule PortfolixirWeb.PortfolioLive do
               <% end %>
             </p>
           <% else %>
-            <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
+            <div
+              class="section-skeleton"
+              data-role="performance-skeleton"
+              role="status"
+              aria-label={gettext("Calculating…")}
+            >
+            </div>
           <% end %>
         </section>
 
@@ -261,7 +267,11 @@ defmodule PortfolixirWeb.PortfolioLive do
 
           <%= if @allocation do %>
             <p
-              class={["hint", "target-sum", target_mismatch?(@allocation.top_level_target_sum, 1) && "is-target-mismatch"]}
+              class={[
+                "hint",
+                "target-sum",
+                target_mismatch?(@allocation.top_level_target_sum, 1) && "is-target-mismatch"
+              ]}
               data-role="target-sum-top-level"
             >
               <%= gettext("Σ target top level:") %>
@@ -404,7 +414,13 @@ defmodule PortfolixirWeb.PortfolioLive do
               </tbody>
             </table>
           <% else %>
-            <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
+            <div
+              class="section-skeleton section-skeleton--allocation"
+              data-role="allocation-skeleton"
+              role="status"
+              aria-label={gettext("Calculating…")}
+            >
+            </div>
           <% end %>
         </section>
 
@@ -450,7 +466,9 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <span><%= gettext("Balance") %></span>
                 <input name="balance[amount]" inputmode="decimal" required placeholder="4250.00" />
               </label>
-              <button type="submit"><%= gettext("Set balance") %></button>
+              <button type="submit" phx-disable-with={gettext("Updating…")}>
+                <%= gettext("Set balance") %>
+              </button>
             </form>
             <p class="hint">
               <%= gettext("State the balance your bank shows; only later bookings adjust it.") %>
@@ -619,8 +637,6 @@ defmodule PortfolixirWeb.PortfolioLive do
       {:noreply,
        socket
        |> assign(success: gettext("Balance updated"), error: nil)
-       |> assign(:analysis, nil)
-       |> assign(:performance, nil)
        |> load_overview()
        |> load_performance()}
     else
