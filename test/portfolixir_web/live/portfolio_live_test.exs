@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Classifications
+  alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
@@ -865,5 +866,83 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     view |> element(".status-toast__dismiss") |> render_click()
 
     refute has_element?(view, ".status-toast")
+  end
+
+  # User story:
+  # As a local portfolio maintainer tracking currency exposure,
+  # I want the Currency classification view to show EUR cash inside the EUR
+  # bucket and USD cash inside the USD bucket (not as a separate currency-less
+  # "Cash" lump),
+  # so that the sunburst and drift table reflect my actual currency exposure.
+  #
+  # Acceptance criteria:
+  # - Switching to the Currency classification shows EUR cash in the EUR row.
+  # - USD cash (after FX conversion) appears in the USD row.
+  # - No currency-less "Cash" row is shown in the Currency view.
+  # - The asset-class view still shows a separate Cash row (issue #335).
+  # - The total basis (total_value) is identical for both classification views.
+  test "currency allocation view attributes cash to its currency bucket (issue #407)",
+       %{conn: conn} do
+    %{portfolio: portfolio} =
+      world = WorldFixtures.base_world(name: "FX Portfolio", cash_name: "EUR Giro")
+
+    # Seed EUR/USD rate so the USD account can be valued.
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          rate: "1.1",
+          date: Date.utc_today(),
+          source: "test"
+        }
+      ])
+
+    {:ok, usd_cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "USD Giro",
+        currency_code: "USD"
+      })
+
+    # Deposit 200 EUR into EUR account and set 110 USD (= 100 EUR) in USD account.
+    WorldFixtures.deposit!(world, "200", Date.utc_today())
+
+    {:ok, _} =
+      Ledger.set_cash_balance(usd_cash, %{
+        date: Date.utc_today(),
+        amount: "110"
+      })
+
+    Classifications.ensure_builtins()
+    classifications = Classifications.list_classifications()
+    currency_cl = Enum.find(classifications, &(&1.key == "currency"))
+    asset_cl = Enum.find(classifications, &(&1.key == "asset_class"))
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # Switch to the Currency classification.
+    view
+    |> form("#portfolio-allocation form", %{"classification_id" => to_string(currency_cl.id)})
+    |> render_change()
+
+    html = render_async(view)
+
+    # EUR cash (200 EUR) attributed to the EUR category row in the drift table.
+    assert html =~ "EUR"
+    # No currency-less cash row with data-role="allocation-cash" in currency view.
+    refute has_element?(view, ~s([data-role="allocation-cash"]))
+
+    # Switch back to the asset-class classification.
+    view
+    |> form("#portfolio-allocation form", %{"classification_id" => to_string(asset_cl.id)})
+    |> render_change()
+
+    asset_html = render_async(view)
+
+    # In the asset-class view the separate Cash row is still present (issue #335).
+    assert asset_html =~ ~s(data-role="allocation-cash")
+    assert asset_html =~ "Cash"
   end
 end

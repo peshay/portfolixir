@@ -232,6 +232,17 @@ shrinks accordingly once cash joins the basis. Set the cash target over the API
 (`PATCH /api/v1/portfolios/:id`) or MCP (`portfolixir.portfolios.set_cash_target`),
 or clear it with `null` to stop steering a cash quote.
 
+**Currency allocation: cash by currency.** When the active classification is
+the built-in **Currency** tree, each cash account's balance is attributed to its
+own currency bucket instead of appearing as a separate "Cash" lump: EUR cash
+flows into the EUR category, USD cash into USD, and so on. Foreign-currency
+balances are converted to the base currency via the EUR hub before being added,
+so the percentages stay in the portfolio base currency. The total basis
+(securities + deployable cash) is unchanged — only the *attribution* of cash to
+a currency category changes. This gives a complete view of currency exposure
+including cash without a separate row. The asset-class view is unaffected:
+it keeps cash as its own **Cash** steering row.
+
 ## Exchange Rates and Valuation
 
 Portfolios can hold securities and cash in several currencies. Exchange rates are
