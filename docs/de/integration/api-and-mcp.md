@@ -372,18 +372,24 @@ Beispiel-Payloads für Konten:
   Steuerbasis (nicht die volle Bewertung). Die Antwort trägt ein `cash`-Objekt —
   `market_value` (das zählende Cash), `actual_weight` (sein Anteil an
   `total_value`), `target_weight` (das `cash_target_weight` des Portfolios oder
-  `0`, wenn nicht gesetzt), `drift_weight` (`target_weight - actual_weight`) und
-  `drift_value` (in Basiswährung neu ausgewiesen) — sodass Cash in derselben
-  Drift-Logik wie die Kategorien gesteuert wird. Da Cash Teil der 100 %-Basis ist,
-  schrumpfen die Kategorie-Prozentsätze entsprechend, sobald Cash vorhanden ist.
-  Der `top_level_target_sum` ist die Summe der Ziele der Wurzelkategorien **plus
-  das Cash-Ziel**, verglichen mit `1`. Als ausgeschlossen markierte Positionen
-  verschwinden nicht: sie erscheinen in einem separaten `excluded`-Objekt
-  (`market_value` plus `positions` je Wertpapier oder `null`, wenn nichts
-  ausgeschlossen ist), sodass sie sichtbar bleiben, während die Prozentsätze und
-  die Drift nur den gesteuerten Teil beschreiben. Die Bewertungs- und
-  Performance-Endpunkte sind vom Flag unbeeinflusst. Unbekannte Portfolios oder
-  Klassifizierungen liefern `404 Not Found`.
+  `0`, wenn nicht gesetzt), `drift_weight` (`target_weight - actual_weight`),
+  `drift_value` (in Basiswährung neu ausgewiesen) und `distributed` (Boolean) —
+  sodass Cash in derselben Drift-Logik wie die Kategorien gesteuert wird. Ist die
+  aktive Klassifizierung der eingebaute **Währungs**-Baum, wird das Cash jedes
+  Geldkontos seiner eigenen Währungskategorie zugeordnet statt als eigene
+  Cash-Zeile zu erscheinen (EUR-Cash → EUR-Kategorie, USD-Cash → USD usw.); in
+  diesem Fall ist `cash.distributed` `true` und Konsumenten sollten die separate
+  Cash-Zeile weglassen. Da Cash Teil der 100 %-Basis ist, schrumpfen die
+  Kategorie-Prozentsätze entsprechend, sobald Cash vorhanden ist. Der
+  `top_level_target_sum` ist die Summe der Ziele der Wurzelkategorien **plus das
+  Cash-Ziel** (außer im Währungs-Baum, wo Cash in Kategorien verteilt wird),
+  verglichen mit `1`. Als ausgeschlossen markierte Positionen verschwinden nicht:
+  sie erscheinen in einem separaten `excluded`-Objekt (`market_value` plus
+  `positions` je Wertpapier oder `null`, wenn nichts ausgeschlossen ist), sodass
+  sie sichtbar bleiben, während die Prozentsätze und die Drift nur den gesteuerten
+  Teil beschreiben. Die Bewertungs- und Performance-Endpunkte sind vom Flag
+  unbeeinflusst. Unbekannte Portfolios oder Klassifizierungen liefern `404 Not
+  Found`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` liefert eine
   **Risiko-/Konzentrationssicht** für ein Portfolio über die **Steuerbasis** (der
   Gesamtwert der bewerteten Positionen abzüglich jedes als

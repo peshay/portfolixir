@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Classifications
+  alias Portfolixir.Fx.RateSync
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
@@ -365,37 +366,42 @@ defmodule PortfolixirWeb.PortfolioLive do
                     </td>
                   </tr>
                 <% end %>
-                <tr id="allocation-cash" data-role="allocation-cash">
-                  <td>
-                    <span
-                      class="cat-swatch"
-                      style={"background:#{cash_color()}"}
-                      aria-hidden="true"
-                    >
-                    </span>
-                    <%= gettext("Cash") %>
-                  </td>
-                  <td class="num"><%= Format.money(@allocation.cash.market_value) %></td>
-                  <td class="num"><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
-                  <td class="num">
-                    <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
-                      —
-                    <% else %>
-                      <%= Format.percent(@allocation.cash.target_weight) %>%
-                    <% end %>
-                  </td>
-                  <td class={[
-                    "num",
-                    Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
-                  ]}>
-                    <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
-                      —
-                    <% else %>
-                      <%= Format.money(@allocation.cash.drift_value) %>
-                      <%= if @valuation, do: @valuation.base_currency %>
-                    <% end %>
-                  </td>
-                </tr>
+                <%!-- In the currency classification cash is distributed into
+                     currency buckets (issue #407), so the separate Cash row
+                     is suppressed. All other classifications keep it. --%>
+                <%= unless @allocation.cash.distributed do %>
+                  <tr id="allocation-cash" data-role="allocation-cash">
+                    <td>
+                      <span
+                        class="cat-swatch"
+                        style={"background:#{cash_color()}"}
+                        aria-hidden="true"
+                      >
+                      </span>
+                      <%= gettext("Cash") %>
+                    </td>
+                    <td class="num"><%= Format.money(@allocation.cash.market_value) %></td>
+                    <td class="num"><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
+                    <td class="num">
+                      <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                        —
+                      <% else %>
+                        <%= Format.percent(@allocation.cash.target_weight) %>%
+                      <% end %>
+                    </td>
+                    <td class={[
+                      "num",
+                      Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
+                    ]}>
+                      <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                        —
+                      <% else %>
+                        <%= Format.money(@allocation.cash.drift_value) %>
+                        <%= if @valuation, do: @valuation.base_currency %>
+                      <% end %>
+                    </td>
+                  </tr>
+                <% end %>
                 <%= if @allocation.unassigned do %>
                   <tr class="is-muted">
                     <td><%= gettext("Unassigned") %></td>
@@ -481,6 +487,15 @@ defmodule PortfolixirWeb.PortfolioLive do
             <p class="hint">
               <%= gettext("State the balance your bank shows; only later bookings adjust it.") %>
             </p>
+
+            <div class="cash-actions">
+              <button type="button" phx-click="sync_rates" phx-disable-with={gettext("Syncing…")}>
+                <%= gettext("Sync exchange rates") %>
+              </button>
+              <p class="hint">
+                <%= gettext("Fetch the latest exchange rates so foreign-currency cash is valued in the totals.") %>
+              </p>
+            </div>
           <% else %>
             <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
           <% end %>
@@ -656,8 +671,35 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
+  def handle_event("sync_rates", _params, socket) do
+    case RateSync.sync() do
+      {:ok, %{upserted: count}} ->
+        {:noreply,
+         socket
+         |> assign(success: rates_synced_message(count), error: nil)
+         |> load_overview()
+         |> load_performance()}
+
+      {:error, _reason} ->
+        {:noreply, assign(socket, error: rate_sync_error_message(), success: nil)}
+    end
+  end
+
   def handle_event("dismiss_toast", _params, socket) do
     {:noreply, assign(socket, error: nil, success: nil)}
+  end
+
+  # On-demand exchange-rate sync (issue #432): the rate provider only refreshes
+  # on a 12 h timer, so a foreign-currency cash account stays unvalued until a
+  # rate arrives. This lets the user pull rates now and re-value the figures.
+  defp rates_synced_message(count) do
+    gettext("Exchange rates synced (%{count} updated). Recalculating figures…", count: count)
+  end
+
+  defp rate_sync_error_message do
+    gettext(
+      "Couldn't reach the exchange-rate provider. Please check the connection and try again."
+    )
   end
 
   # -- data quality helpers ----------------------------------------------------
@@ -737,8 +779,9 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The cash segment: a top-level slice in its own neutral colour for the cash
   # that counts toward the basis (issue #335), placed after the categories and
-  # the unassigned remainder. Rendered only when there is counting cash.
-  defp cash_node(%{market_value: value, actual_weight: weight}, preceding) do
+  # the unassigned remainder. Rendered only when there is counting cash and the
+  # cash has not already been distributed into currency buckets (issue #407).
+  defp cash_node(%{market_value: value, actual_weight: weight, distributed: false}, preceding) do
     fraction = Decimal.to_float(weight)
     last_end = preceding |> Enum.map(& &1.fraction_end) |> Enum.max(fn -> 0.0 end)
 
@@ -760,6 +803,9 @@ defmodule PortfolixirWeb.PortfolioLive do
       []
     end
   end
+
+  # Cash distributed into currency buckets — no separate sunburst node (issue #407).
+  defp cash_node(%{distributed: true}, _preceding), do: []
 
   defp cash_node(_cash, _preceding), do: []
 
@@ -928,8 +974,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             ]
       end
 
+    # Cash distributed into currency buckets (issue #407): no separate Cash
+    # legend entry; the currency category slices already include the cash.
     case allocation.cash do
-      %{actual_weight: weight} ->
+      %{actual_weight: weight, distributed: false} ->
         if Decimal.compare(weight, 0) == :gt do
           with_unassigned ++
             [

@@ -337,7 +337,11 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       actual_weight: decimal(cash.actual_weight),
       target_weight: decimal(cash.target_weight),
       drift_weight: decimal(cash.drift_weight),
-      drift_value: decimal(cash.drift_value)
+      drift_value: decimal(cash.drift_value),
+      # true when cash is distributed into currency buckets (issue #407):
+      # the currency classification attributes cash to its currency category,
+      # so consumers should render no separate Cash row in that view.
+      distributed: Map.get(cash, :distributed, false)
     }
   end
 
