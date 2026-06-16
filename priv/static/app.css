@@ -4045,3 +4045,30 @@ details[open] > .cat-summary::before {
     font-size: 0.85rem;
   }
 }
+
+/* Import confirm: inline spinner shown while Imports.apply/2 runs async */
+.import-spinner {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 0.4em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 999px;
+  animation: import-spin 0.7s linear infinite;
+  vertical-align: -0.1em;
+}
+
+@keyframes import-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .import-spinner {
+    animation: none;
+    border-top-color: currentColor;
+    opacity: 0.5;
+  }
+}

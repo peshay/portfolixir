@@ -157,6 +157,65 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     refute app_css =~ ".kind-chip[data-family="
   end
 
+  # User story:
+  # As a local portfolio maintainer confirming a bulk import,
+  # I want the confirm button to show a busy state immediately on click
+  # and become disabled, so that I get instant feedback that the import
+  # is running and cannot accidentally submit twice.
+  #
+  # Acceptance criteria:
+  # - The confirm button carries phx-disable-with="Importing…".
+  # - After submit, the button is disabled and the view shows "Importing…".
+  # - After the async apply completes, the view renders the :done stage.
+  # - A second submit while applying is a no-op (double-submit guard).
+  test "confirm button has phx-disable-with and shows busy state while applying, then done",
+       %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    submit_params = %{
+      "portfolio_choice" => "create",
+      "portfolio_name" => "PP Import Target",
+      "portfolio_currency" => "EUR",
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    }
+
+    # Complete the mapping via phx-change so the confirm button becomes enabled.
+    # The auto-detected initial mapping leaves Test-Depot-2 without a linked cash
+    # account (no account field on SECURITY_TRANSFER rows), so we must supply the
+    # full mapping before checking the enabled/disabled state.
+    view |> element("form#pp-import-apply") |> render_change(submit_params)
+
+    # Before submit: confirm button is enabled and carries phx-disable-with.
+    assert has_element?(
+             view,
+             "#pp-import-confirm[phx-disable-with='Importing…']"
+           )
+
+    refute has_element?(view, "#pp-import-confirm[disabled]")
+
+    # Trigger submit; the handler sets :applying and starts the async task.
+    # render_submit returns the intermediate (applying) HTML before the task finishes.
+    applying_html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+
+    assert applying_html =~ "Importing…"
+    assert has_element?(view, "#pp-import-confirm[disabled]")
+
+    # Wait for the async :apply_import task to complete and handle_async to fire.
+    done_html = render_async(view)
+
+    assert done_html =~ "Import complete"
+    assert done_html =~ "Created transactions: 13"
+    assert done_html =~ "Skipped duplicates: 0"
+  end
+
   test "confirming with create-new portfolio + auto-mapped accounts creates ledger rows",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, "/imports")
@@ -176,7 +235,8 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     }
 
-    html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    html = render_async(view)
 
     assert html =~ "Import complete"
     assert html =~ "Created transactions: 13"
@@ -206,7 +266,8 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     }
 
-    html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    html = render_async(view)
 
     assert html =~ "Import complete"
     assert length(Ledger.list_transactions_for_portfolio(portfolio.id)) == 13
@@ -279,22 +340,23 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert render(view2) =~ "My Preserved Portfolio"
 
     # Cleanup: verify the store entry is deleted after a successful import.
-    html3 =
-      view2
-      |> element("form#pp-import-apply")
-      |> render_submit(%{
-        "portfolio_choice" => "create",
-        "portfolio_name" => "My Preserved Portfolio",
-        "portfolio_currency" => "EUR",
-        "cash" => %{
-          "Test-Cash" => "create:Test-Cash",
-          "Test-Cash-2" => "create:Test-Cash-2"
-        },
-        "depot" => %{
-          "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
-          "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
-        }
-      })
+    view2
+    |> element("form#pp-import-apply")
+    |> render_submit(%{
+      "portfolio_choice" => "create",
+      "portfolio_name" => "My Preserved Portfolio",
+      "portfolio_currency" => "EUR",
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    })
+
+    html3 = render_async(view2)
 
     assert html3 =~ "Import complete"
     assert PreviewStore.get(session_token) == nil
@@ -325,6 +387,79 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~ "Unsupported PP JSON version"
     assert has_element?(view, "p.alert-error")
     refute html =~ "Preview"
+  end
+
+  # User story:
+  # As a local portfolio maintainer whose import fails due to a
+  # currency mismatch between the imported transactions and an existing
+  # cash account, I want the imports page to surface a readable error
+  # message and re-enable the confirm button so that I can correct the
+  # mapping and retry, without losing my progress.
+  #
+  # Acceptance criteria:
+  # - After async apply returns {:error, reason}, the page stays on the
+  #   :preview stage (not :done).
+  # - An error alert is rendered with the per-row validation message.
+  # - The confirm button is re-enabled (applying resets to false).
+  test "async import error surfaces message and re-enables confirm button",
+       %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "Error Test Portfolio", base_currency_code: "EUR"})
+
+    # Create a USD cash account with the same PP name as in sample.json.
+    # The sample's first transaction is a EUR buy through "Test-Cash", so
+    # mapping it to this USD account triggers the settlement_fx_rate
+    # validation failure — the applier returns {:error, reason} for the
+    # row and Imports.apply/2 returns {:ok, {:error, reason}}.
+    {:ok, usd_cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "Test-Cash",
+        currency_code: "USD"
+      })
+
+    {:ok, usd_depot} =
+      Portfolios.create_securities_account(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: usd_cash.id,
+        name: "Test-Depot"
+      })
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    submit_params = %{
+      "portfolio_choice" => "existing:#{portfolio.id}",
+      "cash" => %{
+        "Test-Cash" => "existing:#{usd_cash.id}",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{
+          "target" => "existing:#{usd_depot.id}",
+          "cash" => "existing:#{usd_cash.id}"
+        },
+        "Test-Depot-2" => %{
+          "target" => "create:Test-Depot-2",
+          "cash" => "pp:Test-Cash-2"
+        }
+      }
+    }
+
+    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    html = render_async(view)
+
+    # The import must not have succeeded — we stay on preview, not done.
+    refute html =~ "Import complete"
+    refute html =~ "Created transactions"
+
+    # An error alert must be visible with the changeset message.
+    assert has_element?(view, "p.alert-error")
+    assert html =~ "Row"
+    assert html =~ "settlement_fx_rate"
+
+    # The confirm button must be re-enabled (applying reset to false).
+    refute has_element?(view, "#pp-import-confirm[disabled]")
   end
 
   defp setup_portfolio do
