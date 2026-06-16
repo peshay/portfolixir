@@ -50,6 +50,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:open_popover, nil)
      |> assign(:dialog_open?, false)
      |> assign(:flash_message, nil)
+     |> assign(:flash_kind, :success)
      |> assign(:sync_running?, false)
      |> assign(:selected_security, nil)
      |> assign(:detail_tab, @default_tab)
@@ -230,7 +231,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <% end %>
 
         <%= if @flash_message do %>
-          <p class="alert-success" role="status" id="securities-flash"><%= @flash_message %></p>
+          <AppShell.status_toast kind={@flash_kind} message={@flash_message} />
         <% end %>
 
         <div
@@ -1705,6 +1706,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:sync_running?, true)
+     |> assign(:flash_kind, :success)
      |> assign(:flash_message, gettext("Syncing prices…"))}
   end
 
@@ -1761,10 +1763,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
              socket
              |> assign(:selected_security, updated)
              |> load_securities()
+             |> assign(:flash_kind, :success)
              |> assign(:flash_message, gettext("Notes saved."))}
 
           {:error, _changeset} ->
-            {:noreply, assign(socket, :flash_message, gettext("Could not save notes."))}
+            {:noreply,
+             socket
+             |> assign(:flash_kind, :error)
+             |> assign(:flash_message, gettext("Could not save notes."))}
         end
 
       _ ->
@@ -1782,10 +1788,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
              |> assign(:selected_security, updated)
              |> load_detail_data()
              |> load_securities()
+             |> assign(:flash_kind, :success)
              |> assign(:flash_message, gettext("Security updated."))}
 
           {:error, _changeset} ->
-            {:noreply, assign(socket, :flash_message, gettext("Could not save changes."))}
+            {:noreply,
+             socket
+             |> assign(:flash_kind, :error)
+             |> assign(:flash_message, gettext("Could not save changes."))}
         end
 
       _ ->
@@ -1807,6 +1817,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:noreply,
        socket
        |> load_securities()
+       |> assign(:flash_kind, :success)
        |> assign(:flash_message, gettext("Asset class saved."))}
     else
       _ -> {:noreply, socket}
@@ -1895,6 +1906,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, update(socket, :detail_show_transactions?, &(!&1))}
   end
 
+  def handle_event("dismiss_toast", _params, socket) do
+    {:noreply, assign(socket, flash_message: nil)}
+  end
+
   def handle_event("remove_filter", %{"idx" => idx}, socket) do
     idx = String.to_integer(idx)
     filters = List.delete_at(socket.assigns.filters, idx)
@@ -1967,11 +1982,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:noreply,
        socket
        |> assign(:logo_dialog_security, nil)
+       |> assign(:flash_kind, :success)
        |> assign(:flash_message, gettext("Logo removed"))
        |> load_securities()
        |> load_detail_data()}
     else
-      _ -> {:noreply, assign(socket, :flash_message, gettext("Could not remove logo"))}
+      _ ->
+        {:noreply,
+         socket
+         |> assign(:flash_kind, :error)
+         |> assign(:flash_message, gettext("Could not remove logo"))}
     end
   end
 
@@ -2024,6 +2044,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:sync_running?, true)
+     |> assign(:flash_kind, :success)
      |> assign(:flash_message, gettext("Syncing %{name}…", name: sec.name))}
   end
 
@@ -2037,12 +2058,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
         {:noreply,
          socket
+         |> assign(:flash_kind, :success)
          |> assign(:flash_message, flash)
          |> assign(:delete_blocked, nil)
          |> load_securities()}
 
       {:error, _changeset} ->
-        {:noreply, assign(socket, :flash_message, gettext("Could not change status."))}
+        {:noreply,
+         socket
+         |> assign(:flash_kind, :error)
+         |> assign(:flash_message, gettext("Could not change status."))}
     end
   end
 
@@ -2055,6 +2080,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> push_event("copy-to-clipboard", %{text: isin})
+     |> assign(:flash_kind, :success)
      |> assign(:flash_message, gettext("ISIN copied"))}
   end
 
@@ -2065,6 +2091,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> push_event("copy-to-clipboard", %{text: t})
+     |> assign(:flash_kind, :success)
      |> assign(:flash_message, gettext("Ticker copied"))}
   end
 
@@ -2075,6 +2102,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, _} ->
         {:noreply,
          socket
+         |> assign(:flash_kind, :success)
          |> assign(:flash_message, gettext("Deleted %{name}", name: sec.name))
          |> assign(:delete_blocked, nil)
          |> load_securities()}
@@ -2093,7 +2121,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       send(parent, {:logo_update_done, sec_id, result})
     end)
 
-    {:noreply, assign(socket, :flash_message, gettext("Looking up logo…"))}
+    {:noreply,
+     socket
+     |> assign(:flash_kind, :success)
+     |> assign(:flash_message, gettext("Looking up logo…"))}
   end
 
   defp dispatch_row_action(socket, "manage_logo", %Security{} = sec) do
@@ -2158,19 +2189,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp store_logo_url(socket, _sec, "") do
-    {:noreply, assign(socket, :flash_message, gettext("Enter an image URL first."))}
+    {:noreply,
+     socket
+     |> assign(:flash_kind, :error)
+     |> assign(:flash_message, gettext("Enter an image URL first."))}
   end
 
   defp store_logo_url(socket, sec, url) do
-    flash =
+    {kind, flash} =
       case Catalog.set_logo_override(sec, url, logo_opts()) do
-        {:ok, _updated} -> gettext("Logo updated")
-        {:error, _reason} -> gettext("Could not load that image")
+        {:ok, _updated} -> {:success, gettext("Logo updated")}
+        {:error, _reason} -> {:error, gettext("Could not load that image")}
       end
 
     {:noreply,
      socket
      |> assign(:logo_dialog_security, nil)
+     |> assign(:flash_kind, kind)
      |> assign(:flash_message, flash)
      |> load_securities()
      |> load_detail_data()}
@@ -2231,6 +2266,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, false)
      |> assign(:editing_security, nil)
+     |> assign(:flash_kind, :success)
      |> assign(:flash_message, gettext("Created %{name}", name: security.name))
      |> load_securities()}
   end
@@ -2240,6 +2276,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, false)
      |> assign(:editing_security, nil)
+     |> assign(:flash_kind, :success)
      |> assign(:flash_message, gettext("Updated %{name}", name: security.name))
      |> load_securities()}
   end
@@ -2252,15 +2289,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_info({:logo_update_done, _sec_id, result}, socket) do
-    flash =
+    {kind, flash} =
       case result do
-        {:ok, _security} -> gettext("Logo updated")
-        :skip -> gettext("No logo source available")
-        {:error, _reason} -> gettext("Logo lookup failed")
+        {:ok, _security} -> {:success, gettext("Logo updated")}
+        :skip -> {:success, gettext("No logo source available")}
+        {:error, _reason} -> {:error, gettext("Logo lookup failed")}
       end
 
     {:noreply,
      socket
+     |> assign(:flash_kind, kind)
      |> assign(:flash_message, flash)
      |> refresh_logo_dialog()
      |> load_securities()
@@ -2283,6 +2321,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:sync_running?, false)
+     |> assign(:flash_kind, :success)
      |> assign(:flash_message, sync_flash(result))
      |> load_securities()
      |> load_detail_data()}
