@@ -1988,7 +1988,12 @@ msgstr "Saldo"
 msgid "Set balance"
 msgstr "Saldo setzen"
 
-#: lib/portfolixir_web/live/portfolio_live.ex:362
+#: lib/portfolixir_web/live/portfolio_live.ex:360
+#, elixir-autogen
+msgid "Updating…"
+msgstr "Aktualisiere…"
+
+#: lib/portfolixir_web/live/portfolio_live.ex:363
 #, elixir-autogen
 msgid "State the balance your bank shows; only later bookings adjust it."
 msgstr "Trage den Saldo ein, den deine Bank anzeigt; nur spätere Buchungen verändern ihn."
