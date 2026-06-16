@@ -708,4 +708,82 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "money-weighted"
     assert html =~ "deployable cash"
   end
+
+  # User story:
+  # As a local portfolio maintainer clicking "Set balance",
+  # I want the page to show stable placeholders while the overview and
+  # performance sections reload, and the "Set balance" button to indicate
+  # it is working immediately after I click it,
+  # so that the page does not jump and I can tell my click was registered
+  # (issue #402).
+  #
+  # Acceptance criteria:
+  # - Before the async data arrives the performance section shows a skeleton
+  #   placeholder (data-role="performance-skeleton") that reserves height.
+  # - Before the async data arrives the allocation section shows a skeleton
+  #   placeholder (data-role="allocation-skeleton") that reserves height.
+  # - After async data arrives the skeletons are replaced by real content.
+  # - The "Set balance" button carries phx-disable-with so the browser
+  #   disables it and shows a working label immediately on submit.
+  test "shows section skeletons while async is pending and real content after",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, html} = live(conn, "/portfolio")
+
+    # Dead render (not connected): both sections show a skeleton placeholder
+    # rather than content, so the initial paint has stable height.
+    assert html =~ ~s(data-role="performance-skeleton")
+    assert html =~ ~s(data-role="allocation-skeleton")
+
+    # After async completes the skeletons are gone and real content is present.
+    full_html = render_async(view)
+
+    refute full_html =~ ~s(data-role="performance-skeleton")
+    refute full_html =~ ~s(data-role="allocation-skeleton")
+    assert full_html =~ ~s(class="perf-chart")
+    assert full_html =~ ~s(class="drift-table")
+  end
+
+  test "Set balance button carries phx-disable-with for immediate working state",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    button_html = view |> element("#portfolio-cash button[type=submit]") |> render()
+    assert button_html =~ "phx-disable-with"
+  end
+
+  test "skeletons appear again after set_balance and disappear after reload",
+       %{conn: conn} do
+    %{cash: cash} = seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # Submit the balance form — the synchronous reply fires before the async
+    # jobs complete, so the performance and allocation skeletons reappear.
+    html_after_submit =
+      view
+      |> form("#portfolio-cash form", %{
+        "balance" => %{
+          "cash_account_id" => to_string(cash.id),
+          "date" => Date.to_iso8601(Date.utc_today()),
+          "amount" => "500"
+        }
+      })
+      |> render_submit()
+
+    assert html_after_submit =~ ~s(data-role="performance-skeleton")
+    assert html_after_submit =~ ~s(data-role="allocation-skeleton")
+
+    # After the async jobs finish the skeletons are replaced by updated content.
+    full_html = render_async(view)
+
+    refute full_html =~ ~s(data-role="performance-skeleton")
+    refute full_html =~ ~s(data-role="allocation-skeleton")
+    assert full_html =~ "1,380.00"
+  end
 end
