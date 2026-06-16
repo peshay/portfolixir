@@ -31,19 +31,23 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     {:ok, view, _html} = live(conn, "/portfolios")
 
     selector = "#liquidity-role-#{cash.id}"
+    form = "#liquidity-role-form-#{cash.id}"
 
     assert Portfolios.get_cash_account(cash.id).liquidity_role == "free_cash"
 
+    # Drive the form the way the browser does: the account id is carried by the
+    # form's hidden input, not hand-fed here. A form-less select did not
+    # serialize this, so the role silently failed to persist (#433).
     view
-    |> element(selector)
-    |> render_change(%{"id" => cash.id, "liquidity_role" => "reserve"})
+    |> element(form)
+    |> render_change(%{"liquidity_role" => "reserve"})
 
     assert Portfolios.get_cash_account(cash.id).liquidity_role == "reserve"
     assert view |> element(selector) |> render() =~ ~r/value="reserve" selected/
 
     view
-    |> element(selector)
-    |> render_change(%{"id" => cash.id, "liquidity_role" => "credit_line"})
+    |> element(form)
+    |> render_change(%{"liquidity_role" => "credit_line"})
 
     assert Portfolios.get_cash_account(cash.id).liquidity_role == "credit_line"
   end
