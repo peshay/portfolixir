@@ -60,8 +60,6 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:analysis, nil)
           |> assign(:performance, nil)
           |> assign(:selected_segment, nil)
-          |> assign(:overview_loading?, false)
-          |> assign(:performance_loading?, false)
           |> start_loading()
 
         {:ok, socket}
@@ -73,8 +71,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp start_loading(socket) do
     if connected?(socket) do
       socket
-      |> assign(:overview_loading?, true)
-      |> assign(:performance_loading?, true)
       |> load_overview()
       |> load_performance()
     else
@@ -113,12 +109,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   @impl true
   def handle_async(:overview, {:ok, {valuation, allocation}}, socket) do
-    {:noreply,
-     assign(socket,
-       valuation: valuation,
-       allocation: allocation,
-       overview_loading?: false
-     )}
+    {:noreply, assign(socket, valuation: valuation, allocation: allocation)}
   end
 
   def handle_async(:allocation, {:ok, allocation}, socket) do
@@ -127,22 +118,11 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_async(:performance, {:ok, analysis}, socket) do
     {:ok, performance} = Performance.summarise(analysis, socket.assigns.period)
-
-    {:noreply,
-     assign(socket,
-       analysis: analysis,
-       performance: performance,
-       performance_loading?: false
-     )}
+    {:noreply, assign(socket, analysis: analysis, performance: performance)}
   end
 
   def handle_async(_name, {:exit, _reason}, socket) do
-    {:noreply,
-     assign(socket,
-       error: gettext("Couldn't load the portfolio figures."),
-       overview_loading?: false,
-       performance_loading?: false
-     )}
+    {:noreply, assign(socket, error: gettext("Couldn't load the portfolio figures."))}
   end
 
   @impl true
@@ -249,7 +229,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               <% end %>
             </div>
           </header>
-          <%= if @performance && not @performance_loading? do %>
+          <%= if @performance do %>
             <.performance_chart series={downsample(@performance.series)} />
             <p class="hint">
               <%= gettext("True time-weighted return; deposits and withdrawals are neutralised.") %>
@@ -285,7 +265,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             </form>
           </header>
 
-          <%= if @allocation && not @overview_loading? do %>
+          <%= if @allocation do %>
             <p
               class={[
                 "hint",
@@ -656,14 +636,7 @@ defmodule PortfolixirWeb.PortfolioLive do
          {:ok, _tx} <- Ledger.set_cash_balance(account, params) do
       {:noreply,
        socket
-       |> assign(
-         success: gettext("Balance updated"),
-         error: nil,
-         analysis: nil,
-         performance: nil,
-         overview_loading?: true,
-         performance_loading?: true
-       )
+       |> assign(success: gettext("Balance updated"), error: nil)
        |> load_overview()
        |> load_performance()}
     else

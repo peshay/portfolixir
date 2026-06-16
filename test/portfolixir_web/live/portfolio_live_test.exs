@@ -756,15 +756,15 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert button_html =~ "phx-disable-with"
   end
 
-  test "skeletons appear again after set_balance and disappear after reload",
+  test "figures stay visible during set_balance refresh and update in place after async",
        %{conn: conn} do
     %{cash: cash} = seed_world()
 
     {:ok, view, _html} = live(conn, "/portfolio")
     render_async(view)
 
-    # Submit the balance form — the synchronous reply fires before the async
-    # jobs complete, so the performance and allocation skeletons reappear.
+    # Submit the balance form — figures stay rendered in place (no skeleton).
+    # The existing content is visible immediately; no layout shift occurs.
     html_after_submit =
       view
       |> form("#portfolio-cash form", %{
@@ -776,10 +776,12 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
       |> render_submit()
 
-    assert html_after_submit =~ ~s(data-role="performance-skeleton")
-    assert html_after_submit =~ ~s(data-role="allocation-skeleton")
+    refute html_after_submit =~ ~s(data-role="performance-skeleton")
+    refute html_after_submit =~ ~s(data-role="allocation-skeleton")
+    assert html_after_submit =~ ~s(class="perf-chart")
+    assert html_after_submit =~ ~s(class="drift-table")
 
-    # After the async jobs finish the skeletons are replaced by updated content.
+    # After the async jobs finish the updated totals are swapped in place.
     full_html = render_async(view)
 
     refute full_html =~ ~s(data-role="performance-skeleton")
