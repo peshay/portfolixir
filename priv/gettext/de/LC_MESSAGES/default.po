@@ -1582,6 +1582,16 @@ msgstr "Weitere Datei importieren"
 msgid "Import complete"
 msgstr "Import abgeschlossen"
 
+#: lib/portfolixir_web/live/imports_live.ex:435
+#, elixir-autogen, elixir-format
+msgid "Import failed unexpectedly. Please try again."
+msgstr "Import unerwartet fehlgeschlagen. Bitte erneut versuchen."
+
+#: lib/portfolixir_web/live/imports_live.ex:304
+#, elixir-autogen, elixir-format
+msgid "Importing…"
+msgstr "Wird importiert…"
+
 #: lib/portfolixir_web/components/app_shell.ex:322
 #: lib/portfolixir_web/live/imports_live.ex:38
 #, elixir-autogen, elixir-format
