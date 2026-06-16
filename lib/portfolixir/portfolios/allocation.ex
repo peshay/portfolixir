@@ -244,7 +244,7 @@ defmodule Portfolixir.Portfolios.Allocation do
   # For the built-in currency classification (issue #407), `distributed: true`
   # is added to signal to the UI that cash has been attributed to currency
   # buckets and no separate Cash row should be rendered.
-  defp cash_row(counting_cash, cash_target, total, distributed? \\ false) do
+  defp cash_row(counting_cash, cash_target, total, distributed?) do
     actual = weight(counting_cash, total)
     target_weight = cash_target || @zero
     drift_weight = Decimal.sub(target_weight, actual)
