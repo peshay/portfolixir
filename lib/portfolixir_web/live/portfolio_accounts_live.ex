@@ -115,25 +115,23 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                   <li>
                     <%= account.name %> (<%= account.currency_code %>)
                     <label class="cash-quote-toggle">
-                      <select
-                        id={"liquidity-role-#{account.id}"}
-                        phx-change="set_liquidity_role"
-                        phx-value-id={account.id}
-                        name="liquidity_role"
-                      >
-                        <option value="free_cash" selected={account.liquidity_role == "free_cash"}>
-                          <%= gettext("Free cash") %>
-                        </option>
-                        <option
-                          value="credit_line"
-                          selected={account.liquidity_role == "credit_line"}
-                        >
-                          <%= gettext("Credit line") %>
-                        </option>
-                        <option value="reserve" selected={account.liquidity_role == "reserve"}>
-                          <%= gettext("Reserve") %>
-                        </option>
-                      </select>
+                      <form id={"liquidity-role-form-#{account.id}"} phx-change="set_liquidity_role">
+                        <input type="hidden" name="id" value={account.id} />
+                        <select id={"liquidity-role-#{account.id}"} name="liquidity_role">
+                          <option value="free_cash" selected={account.liquidity_role == "free_cash"}>
+                            <%= gettext("Free cash") %>
+                          </option>
+                          <option
+                            value="credit_line"
+                            selected={account.liquidity_role == "credit_line"}
+                          >
+                            <%= gettext("Credit line") %>
+                          </option>
+                          <option value="reserve" selected={account.liquidity_role == "reserve"}>
+                            <%= gettext("Reserve") %>
+                          </option>
+                        </select>
+                      </form>
                       <span><%= gettext("Liquidity role") %></span>
                     </label>
                   </li>
