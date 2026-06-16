@@ -551,6 +551,34 @@ defmodule Portfolixir.DocsTest do
     assert File.read!("docs/decisions/index.md") =~ "0014-bilingual-docs-site.html"
   end
 
+  # User story:
+  # As a local portfolio maintainer tracking currency exposure,
+  # I want the docs to document that the Currency allocation view attributes
+  # cash to its currency bucket (EUR cash → EUR, USD cash → USD),
+  # so that I understand the behaviour without reading source code (issue #407).
+  #
+  # Acceptance criteria:
+  # - The product handbook describes that cash is attributed to currency
+  #   buckets in the Currency classification view.
+  # - The API/MCP page documents the `distributed` field on the cash object.
+  # - The German product handbook also carries the description.
+  test "docs document currency allocation cash attribution (issue #407)" do
+    product_docs = File.read!("docs/product-documentation.md")
+    api_docs = File.read!("docs/integration/api-and-mcp.md")
+    de_product = File.read!("docs/de/product-documentation.md")
+    de_api = File.read!("docs/de/integration/api-and-mcp.md")
+
+    assert product_docs =~ "Currency allocation: cash by currency"
+    assert product_docs =~ "currency bucket"
+    assert product_docs =~ "asset-class view is unaffected"
+
+    assert api_docs =~ "distributed"
+    assert api_docs =~ "currency classification"
+
+    assert de_product =~ "Währungsallokation"
+    assert de_api =~ "distributed"
+  end
+
   defp api_routes_from_router do
     router = File.read!("lib/portfolixir_web/router.ex")
 
