@@ -140,6 +140,11 @@ msgstr "Depots"
 msgid "Display preferences"
 msgstr "Anzeigeeinstellungen"
 
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen
+msgid "Dismiss"
+msgstr "Schließen"
+
 #: lib/portfolixir_web/components/app_shell.ex:429
 #, elixir-autogen
 msgid "English"
