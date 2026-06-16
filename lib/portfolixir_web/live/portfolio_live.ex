@@ -365,37 +365,42 @@ defmodule PortfolixirWeb.PortfolioLive do
                     </td>
                   </tr>
                 <% end %>
-                <tr id="allocation-cash" data-role="allocation-cash">
-                  <td>
-                    <span
-                      class="cat-swatch"
-                      style={"background:#{cash_color()}"}
-                      aria-hidden="true"
-                    >
-                    </span>
-                    <%= gettext("Cash") %>
-                  </td>
-                  <td class="num"><%= Format.money(@allocation.cash.market_value) %></td>
-                  <td class="num"><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
-                  <td class="num">
-                    <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
-                      —
-                    <% else %>
-                      <%= Format.percent(@allocation.cash.target_weight) %>%
-                    <% end %>
-                  </td>
-                  <td class={[
-                    "num",
-                    Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
-                  ]}>
-                    <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
-                      —
-                    <% else %>
-                      <%= Format.money(@allocation.cash.drift_value) %>
-                      <%= if @valuation, do: @valuation.base_currency %>
-                    <% end %>
-                  </td>
-                </tr>
+                <%!-- In the currency classification cash is distributed into
+                     currency buckets (issue #407), so the separate Cash row
+                     is suppressed. All other classifications keep it. --%>
+                <%= unless @allocation.cash.distributed do %>
+                  <tr id="allocation-cash" data-role="allocation-cash">
+                    <td>
+                      <span
+                        class="cat-swatch"
+                        style={"background:#{cash_color()}"}
+                        aria-hidden="true"
+                      >
+                      </span>
+                      <%= gettext("Cash") %>
+                    </td>
+                    <td class="num"><%= Format.money(@allocation.cash.market_value) %></td>
+                    <td class="num"><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
+                    <td class="num">
+                      <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                        —
+                      <% else %>
+                        <%= Format.percent(@allocation.cash.target_weight) %>%
+                      <% end %>
+                    </td>
+                    <td class={[
+                      "num",
+                      Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
+                    ]}>
+                      <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                        —
+                      <% else %>
+                        <%= Format.money(@allocation.cash.drift_value) %>
+                        <%= if @valuation, do: @valuation.base_currency %>
+                      <% end %>
+                    </td>
+                  </tr>
+                <% end %>
                 <%= if @allocation.unassigned do %>
                   <tr class="is-muted">
                     <td><%= gettext("Unassigned") %></td>
@@ -737,8 +742,9 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The cash segment: a top-level slice in its own neutral colour for the cash
   # that counts toward the basis (issue #335), placed after the categories and
-  # the unassigned remainder. Rendered only when there is counting cash.
-  defp cash_node(%{market_value: value, actual_weight: weight}, preceding) do
+  # the unassigned remainder. Rendered only when there is counting cash and the
+  # cash has not already been distributed into currency buckets (issue #407).
+  defp cash_node(%{market_value: value, actual_weight: weight, distributed: false}, preceding) do
     fraction = Decimal.to_float(weight)
     last_end = preceding |> Enum.map(& &1.fraction_end) |> Enum.max(fn -> 0.0 end)
 
@@ -760,6 +766,9 @@ defmodule PortfolixirWeb.PortfolioLive do
       []
     end
   end
+
+  # Cash distributed into currency buckets — no separate sunburst node (issue #407).
+  defp cash_node(%{distributed: true}, _preceding), do: []
 
   defp cash_node(_cash, _preceding), do: []
 
@@ -928,8 +937,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             ]
       end
 
+    # Cash distributed into currency buckets (issue #407): no separate Cash
+    # legend entry; the currency category slices already include the cash.
     case allocation.cash do
-      %{actual_weight: weight} ->
+      %{actual_weight: weight, distributed: false} ->
         if Decimal.compare(weight, 0) == :gt do
           with_unassigned ++
             [

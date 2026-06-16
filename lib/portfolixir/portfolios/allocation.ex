@@ -36,6 +36,20 @@ defmodule Portfolixir.Portfolios.Allocation do
   the displayed IST percentages intentionally do not sum to 100% across levels
   — only the leaves (plus unassigned) do.
 
+  ## Currency classification: cash by currency (issue #407)
+
+  When the active classification is the built-in **currency** tree, each cash
+  account's deployable balance is attributed to its own `currency_code` bucket
+  instead of appearing as a separate currency-less "Cash" row. EUR cash flows
+  into the EUR category, USD cash into USD, and so on; foreign-currency balances
+  are converted to the base currency via the EUR hub before being added (same
+  `base_value` the valuation already computes). This gives a complete picture of
+  currency exposure — securities and cash together — without changing the steering
+  basis or totals. The `cash` field in the result carries `distributed: true` so
+  the UI knows not to render a separate Cash row for this view. All other
+  classifications (asset-class, custom) are unaffected: they keep the separate
+  Cash row as before.
+
   ## Target consistency (advisory)
 
   Targets can be set freely at any level, so the SOLL side is not forced to be
@@ -137,9 +151,11 @@ defmodule Portfolixir.Portfolios.Allocation do
       group_positions(steering_positions, security_categories)
 
     own_value_by_category =
-      Map.new(positions_by_category, fn {category_id, positions} ->
+      positions_by_category
+      |> Map.new(fn {category_id, positions} ->
         {category_id, sum_values(positions)}
       end)
+      |> merge_currency_cash(classification, categories, valuation.cash_balances)
 
     children_by_parent = Enum.group_by(categories, & &1.parent_id)
     rolled = rolled_values(categories, children_by_parent, own_value_by_category)
@@ -163,6 +179,8 @@ defmodule Portfolixir.Portfolios.Allocation do
         )
       end)
 
+    distribute_cash? = classification.key == "currency"
+
     %{
       portfolio_id: valuation.portfolio_id,
       classification_id: classification.id,
@@ -171,12 +189,49 @@ defmodule Portfolixir.Portfolios.Allocation do
       total_value: total,
       unvalued_count: valuation.unvalued_count,
       categories: rows,
-      cash: cash_row(counting_cash, cash_target, total),
+      cash: cash_row(counting_cash, cash_target, total, distribute_cash?),
       top_level_target_sum:
-        Decimal.add(top_level_target_sum(children_by_parent, targets), cash_target || @zero),
+        top_level_target_sum_for(children_by_parent, targets, cash_target, distribute_cash?),
       unassigned: unassigned(unassigned_positions, total),
       excluded: excluded(excluded_positions, excluded_value)
     }
+  end
+
+  # When cash is distributed into currency buckets (issue #407), the cash target
+  # is not added to the top-level sum — cash is already inside the categories.
+  # For all other classifications, the cash target is added as before (#335).
+  defp top_level_target_sum_for(children_by_parent, targets, _cash_target, true) do
+    top_level_target_sum(children_by_parent, targets)
+  end
+
+  defp top_level_target_sum_for(children_by_parent, targets, cash_target, false) do
+    Decimal.add(top_level_target_sum(children_by_parent, targets), cash_target || @zero)
+  end
+
+  # For the built-in currency classification, cash accounts' deployable balances
+  # are attributed to their currency's category (EUR cash → EUR bucket, USD → USD,
+  # etc.) rather than appearing as a separate row. The base_value (already
+  # converted to the portfolio base currency by Valuation.cash_for/2 via the EUR
+  # hub) is added directly, so multi-currency cash is correctly represented in the
+  # base-currency basis without a second FX call here. Issue #407; only the
+  # currency classification is affected — all other classifications are unchanged.
+  defp merge_currency_cash(own_value_by_category, %{key: "currency"}, categories, balances) do
+    category_by_key = Map.new(categories, &{&1.key, &1.id})
+
+    Enum.reduce(balances, own_value_by_category, fn entry, acc ->
+      with true <- entry.deployable,
+           true <- entry.valued,
+           %Decimal{} = base_value <- entry.base_value,
+           {:ok, category_id} <- Map.fetch(category_by_key, entry.currency) do
+        Map.update(acc, category_id, base_value, &Decimal.add(&1, base_value))
+      else
+        _ -> acc
+      end
+    end)
+  end
+
+  defp merge_currency_cash(own_value_by_category, _classification, _categories, _balances) do
+    own_value_by_category
   end
 
   # The cash row sits in the same drift logic as the categories: its actual
@@ -185,7 +240,11 @@ defmodule Portfolixir.Portfolios.Allocation do
   # portfolio's stored cash target, and the drift is `target - actual`, restated
   # in the base currency like every category drift. Always present so the UI/API
   # can render the row even when there is no cash yet or no cash target set.
-  defp cash_row(counting_cash, cash_target, total) do
+  #
+  # For the built-in currency classification (issue #407), `distributed: true`
+  # is added to signal to the UI that cash has been attributed to currency
+  # buckets and no separate Cash row should be rendered.
+  defp cash_row(counting_cash, cash_target, total, distributed? \\ false) do
     actual = weight(counting_cash, total)
     target_weight = cash_target || @zero
     drift_weight = Decimal.sub(target_weight, actual)
@@ -195,7 +254,8 @@ defmodule Portfolixir.Portfolios.Allocation do
       actual_weight: actual,
       target_weight: target_weight,
       drift_weight: drift_weight,
-      drift_value: Decimal.mult(drift_weight, total)
+      drift_value: Decimal.mult(drift_weight, total),
+      distributed: distributed?
     }
   end
 
