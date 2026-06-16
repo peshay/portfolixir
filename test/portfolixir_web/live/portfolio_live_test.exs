@@ -13,6 +13,17 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.WorldFixtures
 
+  # An exchange-rate provider that always fails, to drive the sync error path
+  # from the LiveView process (the per-process Fake can't be primed there).
+  defmodule UnreachableFx do
+    @moduledoc false
+    @behaviour Portfolixir.Fx.RateSync.Provider
+    @impl true
+    def id, do: :unreachable
+    @impl true
+    def fetch(_opts), do: {:error, :unreachable}
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want one Portfolio page showing value, cash quote, TTWROR and the
@@ -446,6 +457,52 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Cash 500 + securities 880 = 1380.
     assert html =~ "500.00"
     assert html =~ "1,380.00"
+  end
+
+  # User story:
+  # As a local portfolio maintainer with a foreign-currency cash account,
+  # I want a button to refresh exchange rates from the portfolio page,
+  # so that I can pull a missing rate and have the cash valued without leaving
+  # the app or waiting for the 12 h background sync (issue #432).
+  #
+  # Acceptance criteria:
+  # - A "Sync exchange rates" button is shown in the cash section.
+  # - Clicking it runs the sync and confirms with a status toast.
+  test "syncs exchange rates on demand from the cash section", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    assert html =~ "Sync exchange rates"
+
+    toast =
+      view
+      |> element("#portfolio-cash button", "Sync exchange rates")
+      |> render_click()
+
+    assert toast =~ "Exchange rates synced"
+
+    # Drain the figure reloads the sync kicks off.
+    render_async(view)
+  end
+
+  test "shows an error toast when the exchange-rate sync fails", %{conn: conn} do
+    seed_world()
+
+    previous = Application.get_env(:portfolixir, Portfolixir.Fx.RateSync)
+    Application.put_env(:portfolixir, Portfolixir.Fx.RateSync, provider: UnreachableFx)
+    on_exit(fn -> Application.put_env(:portfolixir, Portfolixir.Fx.RateSync, previous) end)
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    toast =
+      view
+      |> element("#portfolio-cash button", "Sync exchange rates")
+      |> render_click()
+
+    assert toast =~ "reach the exchange-rate provider"
   end
 
   # User story:

@@ -2646,3 +2646,28 @@ msgstr ""
 #, elixir-autogen
 msgid "SOLL-IST: target weight vs. actual weight (drift). Drift is the amount needed to reach the target allocation."
 msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Sync exchange rates"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Syncing…"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Fetch the latest exchange rates so foreign-currency cash is valued in the totals."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Exchange rates synced (%{count} updated). Recalculating figures…"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex
+#, elixir-autogen
+msgid "Couldn't reach the exchange-rate provider. Please check the connection and try again."
+msgstr ""
