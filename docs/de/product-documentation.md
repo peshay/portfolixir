@@ -249,6 +249,15 @@ Setze das Cash-Ziel über die API (`PATCH /api/v1/portfolios/:id`) oder MCP
 (`portfolixir.portfolios.set_cash_target`), oder lösche es mit `null`, um die
 Steuerung einer Cash-Quote zu beenden.
 
+**Währungsallokation: Cash nach Währung.** Ist die aktive Klassifizierung der
+eingebaute **Währungs**-Baum, wird das Cash jedes Geldkontos seiner eigenen
+Währungskategorie zugeordnet statt als separate „Cash"-Zeile zu erscheinen: EUR-Cash
+fließt in die EUR-Kategorie, USD-Cash in USD usw. Fremdwährungs-Salden werden vor
+der Addition über den EUR-Hub in die Basiswährung umgerechnet, sodass die Prozentsätze
+in der Portfolio-Basiswährung bleiben. Die Gesamtbasis (Wertpapiere + verfügbares Cash)
+bleibt unverändert — nur die *Zuordnung* von Cash zu einer Währungskategorie ändert sich.
+Die Asset-Klassen-Ansicht ist davon unberührt: sie behält eine eigene **Cash**-Steuerzeile.
+
 ## Wechselkurse und Bewertung
 
 Portfolios können Wertpapiere und Cash in mehreren Währungen halten. Wechselkurse

@@ -2,7 +2,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   use Portfolixir.DataCase, async: true
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, create_security!: 1, buy!: 3, deposit!: 3]
+    only: [base_world: 0, base_world: 1, create_security!: 1, buy!: 3, deposit!: 3]
 
   alias Portfolixir.Classifications
   alias Portfolixir.Portfolios
@@ -380,5 +380,200 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     # target defaults to zero (the nil cash target maps to a 0 weight).
     assert Decimal.equal?(allocation.total_value, Decimal.new("0"))
     assert Decimal.equal?(allocation.cash.target_weight, Decimal.new("0"))
+  end
+
+  # User story:
+  # As a local portfolio maintainer who steers currency exposure,
+  # I want cash attributed to its account's currency bucket in the Currency
+  # classification view (EUR cash → EUR, USD cash → USD),
+  # so that the drift table and sunburst reflect my true currency exposure
+  # including cash — not a separate, currency-less "Cash" lump (issue #407).
+  #
+  # Acceptance criteria:
+  # - In the Currency classification, each cash account's balance is attributed
+  #   to its own currency_code bucket (grouped with securities of that currency).
+  # - No separate currency-less cash row appears in the Currency view.
+  # - The total_value/basis is unchanged: counting cash still enters the 100%.
+  # - The asset-class classification keeps cash as its own separate row (#335).
+  # - Multi-currency: foreign cash converted to EUR via the hub for the basis.
+  describe "currency classification cash attribution (issue #407)" do
+    defp setup_currency_world do
+      # EUR portfolio with one EUR and one USD cash account plus a EUR depot.
+      world = base_world(name: "Currency Portfolio", currency: "EUR")
+
+      {:ok, usd_cash} =
+        Portfolios.create_cash_account(%{
+          portfolio_id: world.portfolio.id,
+          name: "USD Cash",
+          currency_code: "USD"
+        })
+
+      # Seed the EUR/USD rate so USD cash can be converted (ADR-0007).
+      {:ok, _} =
+        Portfolixir.Fx.upsert_many([
+          %{
+            base_currency: "EUR",
+            quote_currency: "USD",
+            rate: "1.1",
+            date: Date.utc_today(),
+            source: "manual"
+          }
+        ])
+
+      Map.put(world, :usd_cash, usd_cash)
+    end
+
+    test "EUR cash is attributed to the EUR currency bucket" do
+      world = setup_currency_world()
+      Classifications.ensure_builtins()
+      currency_cl = Classifications.get_classification_by_key("currency")
+
+      # Deposit 100 EUR into the EUR cash account.
+      deposit!(world, "100", ~D[2026-01-01])
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, currency_cl.id, prices: %{})
+
+      # Basis: no securities, 100 EUR counting cash.
+      assert Decimal.equal?(allocation.total_value, Decimal.new("100"))
+
+      # Cash is attributed to currency category, not a separate row.
+      assert allocation.cash.distributed == true
+
+      eur_row = Enum.find(allocation.categories, &(&1.name =~ "EUR"))
+      assert eur_row != nil
+      # EUR cash value (100) attributed to the EUR currency bucket.
+      assert Decimal.equal?(eur_row.market_value, Decimal.new("100"))
+      assert Decimal.equal?(eur_row.actual_weight, Decimal.new("1"))
+    end
+
+    test "USD cash is attributed to the USD currency bucket using base_value" do
+      world = setup_currency_world()
+      Classifications.ensure_builtins()
+      currency_cl = Classifications.get_classification_by_key("currency")
+
+      # Set USD cash balance to 110 USD = 100 EUR at 1 EUR = 1.1 USD.
+      {:ok, _} =
+        Portfolixir.Ledger.set_cash_balance(
+          world.usd_cash,
+          %{date: ~D[2026-01-01], amount: "110"}
+        )
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, currency_cl.id, prices: %{})
+
+      # Basis: 110 USD counting cash = 100 EUR base value.
+      assert Decimal.equal?(allocation.total_value, Decimal.new("100"))
+
+      usd_row = Enum.find(allocation.categories, &(&1.name =~ "USD"))
+      assert usd_row != nil
+      # USD cash at 100 EUR base value attributed to USD bucket.
+      assert Decimal.equal?(usd_row.market_value, Decimal.new("100"))
+    end
+
+    test "EUR security + EUR cash: both appear in EUR bucket; total unchanged" do
+      world = setup_currency_world()
+      Classifications.ensure_builtins()
+      currency_cl = Classifications.get_classification_by_key("currency")
+
+      eur_security = create_security!(name: "EUR Bond", ticker: "EURBND", currency: "EUR")
+
+      # Deposit 200, buy security for 100, leaving 100 EUR cash.
+      deposit!(world, "200", ~D[2026-01-01])
+      buy!(world, eur_security, quantity: "2", price: "50")
+
+      prices = %{eur_security.id => Decimal.new("50")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, currency_cl.id, prices: prices)
+
+      # Basis: securities 100 + counting cash 100 = 200.
+      assert Decimal.equal?(allocation.total_value, Decimal.new("200"))
+
+      eur_row = Enum.find(allocation.categories, &(&1.name =~ "EUR"))
+      # EUR security 100 + EUR cash 100 = 200 in the EUR bucket.
+      assert Decimal.equal?(eur_row.market_value, Decimal.new("200"))
+      assert Decimal.equal?(eur_row.actual_weight, Decimal.new("1"))
+    end
+
+    test "EUR security + USD cash: separate buckets; total unchanged" do
+      world = setup_currency_world()
+      Classifications.ensure_builtins()
+      currency_cl = Classifications.get_classification_by_key("currency")
+
+      eur_security = create_security!(name: "EUR Stock", ticker: "EURST", currency: "EUR")
+
+      # Buy EUR security for 100.
+      deposit!(world, "100", ~D[2026-01-01])
+      buy!(world, eur_security, quantity: "2", price: "50")
+
+      # USD cash: 110 USD = 100 EUR at 1.1.
+      {:ok, _} =
+        Portfolixir.Ledger.set_cash_balance(
+          world.usd_cash,
+          %{date: ~D[2026-01-01], amount: "110"}
+        )
+
+      prices = %{eur_security.id => Decimal.new("50")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, currency_cl.id, prices: prices)
+
+      # Basis: EUR security 100 + USD counting cash 100 EUR = 200.
+      assert Decimal.equal?(allocation.total_value, Decimal.new("200"))
+
+      eur_row = Enum.find(allocation.categories, &(&1.name =~ "EUR"))
+      usd_row = Enum.find(allocation.categories, &(&1.name =~ "USD"))
+
+      # EUR bucket: security only (100).
+      assert Decimal.equal?(eur_row.market_value, Decimal.new("100"))
+      # USD bucket: USD cash only (100 EUR base value).
+      assert Decimal.equal?(usd_row.market_value, Decimal.new("100"))
+
+      # No separate cash row.
+      assert allocation.cash.distributed == true
+    end
+
+    test "asset-class classification keeps cash as its own separate row" do
+      world = setup_currency_world()
+      Classifications.ensure_builtins()
+      asset_cl = Classifications.get_classification_by_key("asset_class")
+
+      deposit!(world, "100", ~D[2026-01-01])
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, asset_cl.id, prices: %{})
+
+      # Asset-class view: the separate cash row is present and not distributed.
+      refute Map.get(allocation.cash, :distributed, false)
+      assert Decimal.equal?(allocation.cash.market_value, Decimal.new("100"))
+    end
+
+    test "total_value basis is the same regardless of currency classification" do
+      # This pins the invariant: switching from a custom classification to the
+      # built-in currency classification must not change the total_value (basis).
+      world = setup_currency_world()
+      Classifications.ensure_builtins()
+      currency_cl = Classifications.get_classification_by_key("currency")
+
+      {:ok, custom_cl} = Classifications.create_classification(%{name: "Custom"})
+
+      eur_security = create_security!(name: "EUR Fund", ticker: "EURFD", currency: "EUR")
+
+      deposit!(world, "200", ~D[2026-01-01])
+      buy!(world, eur_security, quantity: "2", price: "50")
+
+      prices = %{eur_security.id => Decimal.new("50")}
+
+      {:ok, custom_alloc} =
+        Allocation.for_portfolio(world.portfolio.id, custom_cl.id, prices: prices)
+
+      {:ok, currency_alloc} =
+        Allocation.for_portfolio(world.portfolio.id, currency_cl.id, prices: prices)
+
+      # Both views report the same total basis: security 100 + cash 100 = 200.
+      assert Decimal.equal?(custom_alloc.total_value, currency_alloc.total_value)
+      assert Decimal.equal?(currency_alloc.total_value, Decimal.new("200"))
+    end
   end
 end
