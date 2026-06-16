@@ -307,10 +307,10 @@ defmodule PortfolixirWeb.PortfolioLive do
               <thead>
                 <tr>
                   <th><%= gettext("Category") %></th>
-                  <th><%= gettext("Value") %></th>
-                  <th><%= gettext("Actual") %></th>
-                  <th><%= gettext("Target") %></th>
-                  <th>
+                  <th class="num"><%= gettext("Value") %></th>
+                  <th class="num"><%= gettext("Actual") %></th>
+                  <th class="num"><%= gettext("Target") %></th>
+                  <th class="num">
                     <%= gettext("Drift") %>
                     <details class="metric-tooltip">
                       <summary aria-label={gettext("SOLL-IST drift info")}>ⓘ</summary>
@@ -343,16 +343,19 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <%= Format.percent(row.target_weight) %>%
                       </span>
                     </td>
-                    <td><%= Format.money(row.market_value) %></td>
-                    <td><%= Format.percent(row.actual_weight) %>%</td>
-                    <td>
+                    <td class="num"><%= Format.money(row.market_value) %></td>
+                    <td class="num"><%= Format.percent(row.actual_weight) %>%</td>
+                    <td class="num">
                       <%= if Decimal.equal?(row.target_weight, 0) do %>
                         —
                       <% else %>
                         <%= Format.percent(row.target_weight) %>%
                       <% end %>
                     </td>
-                    <td>
+                    <td class={[
+                      "num",
+                      Decimal.compare(row.drift_value, 0) == :lt && "is-negative"
+                    ]}>
                       <%= if Decimal.equal?(row.target_weight, 0) do %>
                         —
                       <% else %>
@@ -372,16 +375,19 @@ defmodule PortfolixirWeb.PortfolioLive do
                     </span>
                     <%= gettext("Cash") %>
                   </td>
-                  <td><%= Format.money(@allocation.cash.market_value) %></td>
-                  <td><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
-                  <td>
+                  <td class="num"><%= Format.money(@allocation.cash.market_value) %></td>
+                  <td class="num"><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
+                  <td class="num">
                     <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
                       —
                     <% else %>
                       <%= Format.percent(@allocation.cash.target_weight) %>%
                     <% end %>
                   </td>
-                  <td>
+                  <td class={[
+                    "num",
+                    Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
+                  ]}>
                     <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
                       —
                     <% else %>
@@ -393,10 +399,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <%= if @allocation.unassigned do %>
                   <tr class="is-muted">
                     <td><%= gettext("Unassigned") %></td>
-                    <td><%= Format.money(@allocation.unassigned.market_value) %></td>
-                    <td><%= Format.percent(@allocation.unassigned.actual_weight) %>%</td>
-                    <td>—</td>
-                    <td>—</td>
+                    <td class="num"><%= Format.money(@allocation.unassigned.market_value) %></td>
+                    <td class="num">
+                      <%= Format.percent(@allocation.unassigned.actual_weight) %>%
+                    </td>
+                    <td class="num">—</td>
+                    <td class="num">—</td>
                   </tr>
                 <% end %>
                 <%= if @allocation.excluded do %>
@@ -405,10 +413,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                       <%= gettext("Outside the steering basis") %>
                       <span class="hint"><%= gettext("not in allocation targets") %></span>
                     </td>
-                    <td><%= Format.money(@allocation.excluded.market_value) %></td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>—</td>
+                    <td class="num"><%= Format.money(@allocation.excluded.market_value) %></td>
+                    <td class="num">—</td>
+                    <td class="num">—</td>
+                    <td class="num">—</td>
                   </tr>
                 <% end %>
               </tbody>
