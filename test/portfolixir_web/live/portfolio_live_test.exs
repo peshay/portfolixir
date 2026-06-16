@@ -788,4 +788,44 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     refute full_html =~ ~s(data-role="allocation-skeleton")
     assert full_html =~ "1,380.00"
   end
+
+  # User story:
+  # As a local portfolio maintainer who scrolls down the portfolio page to
+  # reach the balance form before submitting it,
+  # I want "Balance updated" to appear as a fixed-position toast that is
+  # always visible regardless of scroll,
+  # so that I do not have to scroll back to the top to confirm the operation.
+  #
+  # Acceptance criteria:
+  # - On success, a toast with role="status" renders with the message "Balance
+  #   updated" and a dismiss button.
+  # - The toast is out of the normal document flow and never adds a banner
+  #   inside the content area.
+  # - Clicking dismiss removes the toast.
+  test "set_balance success renders an in-context status toast and dismiss clears it",
+       %{conn: conn} do
+    %{cash: cash} = seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    view
+    |> form("#portfolio-cash form", %{
+      "balance" => %{
+        "cash_account_id" => to_string(cash.id),
+        "date" => Date.to_iso8601(Date.utc_today()),
+        "amount" => "500"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, ".status-toast[role='status']", "Balance updated")
+    assert has_element?(view, ".status-toast .status-toast__dismiss")
+    refute has_element?(view, "p.alert-success")
+    refute has_element?(view, "p.alert-error")
+
+    view |> element(".status-toast__dismiss") |> render_click()
+
+    refute has_element?(view, ".status-toast")
+  end
 end

@@ -397,6 +397,39 @@ defmodule PortfolixirWeb.AppShell do
        icon_paths(name) <> ~s(</svg>)}
   end
 
+  @doc """
+  Renders a fixed-position status toast that is always visible regardless of
+  scroll position and never causes layout shift (out of normal document flow).
+
+  The dismiss button sends `phx-click="dismiss_toast"` to the parent LiveView,
+  which must implement `handle_event("dismiss_toast", _, socket)` to clear the
+  relevant status assign(s).
+  """
+  attr(:kind, :atom, values: [:success, :error], required: true)
+  attr(:message, :string, required: true)
+
+  def status_toast(assigns) do
+    ~H"""
+    <div
+      class={["status-toast", "status-toast--#{@kind}"]}
+      role={if @kind == :error, do: "alert", else: "status"}
+      aria-live={if @kind == :error, do: "assertive", else: "polite"}
+      aria-atomic="true"
+    >
+      <span class="status-toast__message"><%= @message %></span>
+      <button
+        type="button"
+        class="status-toast__dismiss"
+        phx-click="dismiss_toast"
+        aria-label={gettext("Dismiss")}
+        title={gettext("Dismiss")}
+      >
+        &times;
+      </button>
+    </div>
+    """
+  end
+
   @doc "Renders one of the named inline SVG icons at the given size."
   attr(:name, :atom, required: true)
   attr(:size, :integer, default: 16)

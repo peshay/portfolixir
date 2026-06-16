@@ -4076,6 +4076,92 @@ details[open] > .cat-summary::before {
   }
 }
 
+/* ── Status toast (fixed-position, out-of-flow, always visible) ── */
+/*
+ * Rendered outside the scrollable content area so it stays visible
+ * regardless of scroll position and never causes layout shift.
+ * Dismissed via a phx-click event (no JS timer, no JS build needed).
+ */
+.status-toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 500;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  animation: status-toast-in 0.18s ease-out both;
+}
+
+@keyframes status-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-toast {
+    animation: none;
+  }
+}
+
+.status-toast--success {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 32%, transparent);
+}
+
+.status-toast--error {
+  color: var(--color-danger);
+  background: var(--color-accent-coral-soft);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 32%, transparent);
+}
+
+.status-toast__message {
+  flex: 1;
+  min-width: 0;
+}
+
+.status-toast__dismiss {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  line-height: 1;
+  font-size: 1rem;
+}
+
+.status-toast__dismiss:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+@media (max-width: 480px) {
+  .status-toast {
+    right: 0.5rem;
+    left: 0.5rem;
+    max-width: none;
+  }
+}
+
 /* Import confirm: inline spinner shown while Imports.apply/2 runs async */
 .import-spinner {
   display: inline-block;

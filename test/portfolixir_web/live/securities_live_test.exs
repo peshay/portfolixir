@@ -565,8 +565,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
           end
         end)
 
-        refute has_element?(view, "#securities-flash", "Prices synced.")
-        assert has_element?(view, "#securities-flash", "skipped")
+        refute has_element?(view, ".status-toast", "Prices synced.")
+        assert has_element?(view, ".status-toast", "skipped")
       after
         Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
       end
@@ -1824,5 +1824,69 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       })
 
     {portfolio, cash_account, depot}
+  end
+
+  # User story:
+  # As a local portfolio maintainer who clicked "Update logo" on a security far
+  # down the list,
+  # I want the action status to appear as a fixed-position toast so it is
+  # always visible regardless of scroll position,
+  # so that I do not have to scroll back to the top to know whether the
+  # operation succeeded.
+  #
+  # Acceptance criteria:
+  # - When a logo-refresh result arrives the toast renders with the message
+  #   and the correct ARIA role (role="status" for success, role="alert" for
+  #   errors).
+  # - The toast has a dismiss button.
+  # - Clicking dismiss clears the toast from the DOM.
+  describe "in-context status toast" do
+    setup do
+      {:ok, sec} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Toast Corp",
+          currency_code: "EUR",
+          provider: "manual",
+          asset_class: "equity"
+        })
+
+      [sec: sec]
+    end
+
+    test "logo refresh success renders a status toast with role=status and dismiss button",
+         %{conn: conn, sec: sec} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      # Simulate the async logo-update message arriving.
+      send(view.pid, {:logo_update_done, sec.id, {:ok, sec}})
+      html = render(view)
+
+      assert html =~ "Logo updated"
+      assert has_element?(view, ".status-toast[role='status']", "Logo updated")
+      assert has_element?(view, ".status-toast .status-toast__dismiss")
+      refute has_element?(view, ".status-toast[role='alert']")
+    end
+
+    test "logo refresh failure renders a toast with role=alert", %{conn: conn, sec: sec} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      send(view.pid, {:logo_update_done, sec.id, {:error, :not_found}})
+      _html = render(view)
+
+      assert has_element?(view, ".status-toast[role='alert']", "Logo lookup failed")
+      assert has_element?(view, ".status-toast .status-toast__dismiss")
+      refute has_element?(view, ".status-toast[role='status']")
+    end
+
+    test "clicking dismiss clears the toast", %{conn: conn, sec: sec} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      send(view.pid, {:logo_update_done, sec.id, {:ok, sec}})
+      assert has_element?(view, ".status-toast", "Logo updated")
+
+      view |> element(".status-toast__dismiss") |> render_click()
+
+      refute has_element?(view, ".status-toast")
+    end
   end
 end
