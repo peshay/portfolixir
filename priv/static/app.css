@@ -3959,6 +3959,18 @@ details[open] > .cat-summary::before {
   margin-top: 1rem;
 }
 
+/* ===== Drift table: tabular numeric columns + negative-drift styling (#427) ===== */
+/* Numeric cells in the drift/allocation table are right-aligned with tabular
+   figures so digit places, sign characters and decimal separators align
+   vertically across all rows.  The .is-negative utility class (defined globally
+   above) colours negative drift red; it is also present on the sign character
+   so the visual cue is never colour-only (UX-DR7). */
+.drift-table th.num,
+.drift-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ===== Section skeletons (issue #402 — stable layout on async reload) ===== */
 /* Reserve the same vertical space as the loaded content so async results
    landing later do not cause a layout shift. The shimmer animation signals
