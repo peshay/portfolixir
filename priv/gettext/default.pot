@@ -1988,7 +1988,12 @@ msgstr ""
 msgid "Set balance"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:362
+#: lib/portfolixir_web/live/portfolio_live.ex:360
+#, elixir-autogen
+msgid "Updating…"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:363
 #, elixir-autogen
 msgid "State the balance your bank shows; only later bookings adjust it."
 msgstr ""
