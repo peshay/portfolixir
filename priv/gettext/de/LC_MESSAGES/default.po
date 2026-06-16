@@ -2070,6 +2070,11 @@ msgstr "%{count} gehaltene Positionen haben gar keinen Preis und fehlen in den S
 msgid "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import."
 msgstr "Buchungen mit Datum vor 1970 (%{dates}) werden am ersten plausiblen Tag angewendet — korrigiere die Daten in der Quelle und importiere erneut."
 
+#: lib/portfolixir_web/live/portfolio_live.ex:419
+#, elixir-autogen
+msgid "%{count} cash account(s) are not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include them."
+msgstr "%{count} Verrechnungskonto/Konten werden nicht in den Summen berücksichtigt, da kein Wechselkurs zu %{base} vorhanden ist: %{names}. Synchronisiere die Wechselkurse, um sie einzubeziehen."
+
 #: lib/portfolixir_web/live/portfolio_live.ex:244
 #, elixir-autogen
 msgid "Tap or hover a slice for details."
