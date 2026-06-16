@@ -149,10 +149,10 @@ defmodule PortfolixirWeb.PortfolioLive do
     >
       <div id="portfolio-overview" class="workspace-page portfolio-overview">
         <%= if @error do %>
-          <p class="alert-error" role="alert"><%= @error %></p>
+          <AppShell.status_toast kind={:error} message={@error} />
         <% end %>
         <%= if @success do %>
-          <p class="alert-success" role="status"><%= @success %></p>
+          <AppShell.status_toast kind={:success} message={@success} />
         <% end %>
 
         <section class="workspace-section grid" aria-label={gettext("Portfolio key figures")}>
@@ -654,6 +654,10 @@ defmodule PortfolixirWeb.PortfolioLive do
       _other ->
         {:noreply, assign(socket, error: gettext("Account not found"), success: nil)}
     end
+  end
+
+  def handle_event("dismiss_toast", _params, socket) do
+    {:noreply, assign(socket, error: nil, success: nil)}
   end
 
   # -- data quality helpers ----------------------------------------------------
