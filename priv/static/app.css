@@ -3959,6 +3959,36 @@ details[open] > .cat-summary::before {
   margin-top: 1rem;
 }
 
+/* ===== Section skeletons (issue #402 — stable layout on async reload) ===== */
+/* Reserve the same vertical space as the loaded content so async results
+   landing later do not cause a layout shift. The shimmer animation signals
+   that data is on its way without adding text that competes with the real
+   content. Heights match the typical rendered height of each section:
+   performance chart (180 px chart + hint line) and allocation (donut +
+   drift table). min-height keeps the skeleton taller than any plausible
+   content so the section never shrinks when the real data arrives. */
+.section-skeleton {
+  min-height: 220px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-muted) 25%,
+    var(--color-hover) 50%,
+    var(--color-bg-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.section-skeleton--allocation {
+  min-height: 380px;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* ===== Metric info tooltips (ⓘ) — WCAG 1.4.13 ===== */
 /* Native <details>/<summary> disclosure: focusable without JS, keyboard-
    operable (Tab to focus summary, Enter/Space to open). Content is
