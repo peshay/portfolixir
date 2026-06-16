@@ -894,7 +894,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
           quote_currency: "USD",
           rate: "1.1",
           date: Date.utc_today(),
-          source: "test"
+          source: "manual"
         }
       ])
 
