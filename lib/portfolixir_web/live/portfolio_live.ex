@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Classifications
+  alias Portfolixir.Fx.RateSync
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
@@ -486,6 +487,15 @@ defmodule PortfolixirWeb.PortfolioLive do
             <p class="hint">
               <%= gettext("State the balance your bank shows; only later bookings adjust it.") %>
             </p>
+
+            <div class="cash-actions">
+              <button type="button" phx-click="sync_rates" phx-disable-with={gettext("Syncing…")}>
+                <%= gettext("Sync exchange rates") %>
+              </button>
+              <p class="hint">
+                <%= gettext("Fetch the latest exchange rates so foreign-currency cash is valued in the totals.") %>
+              </p>
+            </div>
           <% else %>
             <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
           <% end %>
@@ -661,8 +671,35 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
+  def handle_event("sync_rates", _params, socket) do
+    case RateSync.sync() do
+      {:ok, %{upserted: count}} ->
+        {:noreply,
+         socket
+         |> assign(success: rates_synced_message(count), error: nil)
+         |> load_overview()
+         |> load_performance()}
+
+      {:error, _reason} ->
+        {:noreply, assign(socket, error: rate_sync_error_message(), success: nil)}
+    end
+  end
+
   def handle_event("dismiss_toast", _params, socket) do
     {:noreply, assign(socket, error: nil, success: nil)}
+  end
+
+  # On-demand exchange-rate sync (issue #432): the rate provider only refreshes
+  # on a 12 h timer, so a foreign-currency cash account stays unvalued until a
+  # rate arrives. This lets the user pull rates now and re-value the figures.
+  defp rates_synced_message(count) do
+    gettext("Exchange rates synced (%{count} updated). Recalculating figures…", count: count)
+  end
+
+  defp rate_sync_error_message do
+    gettext(
+      "Couldn't reach the exchange-rate provider. Please check the connection and try again."
+    )
   end
 
   # -- data quality helpers ----------------------------------------------------
