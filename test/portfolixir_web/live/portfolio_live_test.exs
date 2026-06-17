@@ -825,9 +825,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
 
-    # The warning must be absent — the account is now fully valued.
-    refute html =~ "exchange rate"
-    refute html =~ "not counted"
+    # The warning must be absent — the account is now fully valued. Match the
+    # warning's own phrasing, not a bare "exchange rate": the cash section's
+    # sync-rates hint also contains that string.
+    refute html =~ "are not counted in the totals"
   end
 
   test "points to portfolio creation when none exists", %{conn: conn} do
