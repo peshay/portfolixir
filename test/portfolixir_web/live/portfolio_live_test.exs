@@ -743,6 +743,94 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert drift_table =~ "-232.00"
   end
 
+  # User story:
+  # As a local portfolio maintainer with a foreign-currency cash account,
+  # I want the data-quality section to name any cash account that is excluded
+  # from the totals because no FX rate exists,
+  # so that I know which accounts are missing and can sync exchange rates to
+  # include them.
+  #
+  # Acceptance criteria:
+  # - With a USD cash account and no EUR/USD rate, the data-quality section
+  #   appears and names that account as uncounted.
+  # - With a EUR/USD rate seeded, the warning is absent (the account is valued).
+  test "surfaces unvalued foreign-currency cash accounts in data-quality section",
+       %{conn: conn} do
+    %{portfolio: portfolio} =
+      WorldFixtures.base_world(name: "FX Test Portfolio", cash_name: "EUR Giro")
+
+    # Create a USD cash account — with no EUR/USD rate it will be unvalued.
+    {:ok, usd_cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "USD Account",
+        currency_code: "USD",
+        liquidity_role: "free_cash"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: usd_cash.id,
+        type: "deposit",
+        date: Date.add(Date.utc_today(), -5),
+        gross_amount: "1000",
+        currency_code: "USD"
+      })
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # The data-quality section should warn about the unvalued USD account.
+    assert html =~ "Data quality"
+    assert html =~ "USD Account"
+    assert html =~ "USD"
+    assert html =~ "exchange rate"
+  end
+
+  test "no unvalued-cash warning when EUR/USD rate is present", %{conn: conn} do
+    %{portfolio: portfolio} =
+      WorldFixtures.base_world(name: "FX OK Portfolio", cash_name: "EUR Giro")
+
+    {:ok, usd_cash} =
+      Portfolios.create_cash_account(%{
+        portfolio_id: portfolio.id,
+        name: "USD Account",
+        currency_code: "USD",
+        liquidity_role: "free_cash"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: portfolio.id,
+        cash_account_id: usd_cash.id,
+        type: "deposit",
+        date: Date.add(Date.utc_today(), -5),
+        gross_amount: "1000",
+        currency_code: "USD"
+      })
+
+    # Seed a EUR/USD rate so the account is now valued.
+    {:ok, _} =
+      Portfolixir.Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: Date.add(Date.utc_today(), -10),
+          rate: Decimal.new("1.1"),
+          source: "manual"
+        }
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # The warning must be absent — the account is now fully valued. Match the
+    # warning's own phrasing, not a bare "exchange rate": the cash section's
+    # sync-rates hint also contains that string.
+    refute html =~ "are not counted in the totals"
+  end
+
   test "points to portfolio creation when none exists", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/portfolio")
 

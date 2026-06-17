@@ -6,9 +6,37 @@ defmodule Portfolixir.Fx.RateSyncTest do
   alias Portfolixir.Fx.RateSync.Ecb
   alias Portfolixir.Fx.RateSync.Fake
 
+  # A provider that pings the test process when fetched, so we can observe that
+  # the scheduler runs a sync shortly after startup — without real HTTP (#435).
+  defmodule StartupProbe do
+    @moduledoc false
+    @behaviour Portfolixir.Fx.RateSync.Provider
+    @impl true
+    def id, do: :startup_probe
+    @impl true
+    def fetch(_opts) do
+      send(:fx_startup_probe, :synced)
+      {:ok, []}
+    end
+  end
+
   setup do
     Fake.clear_response()
     :ok
+  end
+
+  # Issue #435: with enabled?, the first sync runs after startup_delay_ms, not
+  # interval_ms (12 h) — otherwise foreign cash is uncounted until the first
+  # 12 h tick. Uses a unique name so it doesn't touch the app's scheduler.
+  test "runs an initial sync shortly after startup when enabled" do
+    Process.register(self(), :fx_startup_probe)
+
+    start_supervised!(
+      {RateSync,
+       name: :ratesync_startup_test, enabled?: true, startup_delay_ms: 0, provider: StartupProbe}
+    )
+
+    assert_receive :synced, 1_000
   end
 
   defp row(quote, value, date \\ ~D[2026-06-04]) do
