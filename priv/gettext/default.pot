@@ -2070,6 +2070,11 @@ msgstr ""
 msgid "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import."
 msgstr ""
 
+#: lib/portfolixir_web/live/portfolio_live.ex:419
+#, elixir-autogen
+msgid "%{count} cash account(s) are not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include them."
+msgstr ""
+
 #: lib/portfolixir_web/live/portfolio_live.ex:244
 #, elixir-autogen
 msgid "Tap or hover a slice for details."
