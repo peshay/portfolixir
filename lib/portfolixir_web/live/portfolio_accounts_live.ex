@@ -116,7 +116,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     <%= account.name %> (<%= account.currency_code %>)
                     <label class="cash-quote-toggle">
                       <form id={"liquidity-role-form-#{account.id}"} phx-change="set_liquidity_role">
-                        <input type="hidden" name="id" value={account.id} />
+                        <input type="hidden" name="account_id" value={account.id} />
                         <select id={"liquidity-role-#{account.id}"} name="liquidity_role">
                           <option value="free_cash" selected={account.liquidity_role == "free_cash"}>
                             <%= gettext("Free cash") %>
@@ -216,7 +216,11 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     end
   end
 
-  def handle_event("set_liquidity_role", %{"id" => id, "liquidity_role" => role}, socket) do
+  def handle_event(
+        "set_liquidity_role",
+        %{"account_id" => id, "liquidity_role" => role},
+        socket
+      ) do
     with {account_id, ""} <- Integer.parse(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(account_id),
          %{id: portfolio_id} <- socket.assigns.current_portfolio,
