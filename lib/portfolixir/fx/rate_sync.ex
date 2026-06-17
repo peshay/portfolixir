@@ -10,6 +10,8 @@ defmodule Portfolixir.Fx.RateSync do
   `Portfolixir.Fx.RateSync.Fake` instead of the ECB adapter.
 
   The scheduler is opt-in (`enabled?: true` in prod/dev, `false` in tests).
+  When enabled it also runs one sync shortly after startup (`startup_delay_ms`),
+  so foreign-currency value is available promptly instead of `interval_ms` later.
   Use `sync_now/0` from the UI, API, or REPL to trigger an immediate sync.
   """
 
@@ -19,6 +21,7 @@ defmodule Portfolixir.Fx.RateSync do
   alias Portfolixir.Fx
 
   @default_interval :timer.hours(12)
+  @default_startup_delay :timer.seconds(5)
   @default_provider Portfolixir.Fx.RateSync.Ecb
 
   # -- public API ------------------------------------------------------------
@@ -75,11 +78,15 @@ defmodule Portfolixir.Fx.RateSync do
   def init(opts) do
     state = %{
       interval_ms: Keyword.get(opts, :interval_ms, @default_interval),
+      startup_delay_ms: Keyword.get(opts, :startup_delay_ms, @default_startup_delay),
       enabled?: Keyword.get(opts, :enabled?, false),
       provider: Keyword.get(opts, :provider, @default_provider)
     }
 
-    if state.enabled?, do: schedule_tick(state.interval_ms)
+    # Sync once shortly after boot (issue #435): without this the first tick is
+    # interval_ms (12 h) away, so foreign-currency cash is silently uncounted
+    # until then. handle_info/2 reschedules subsequent ticks at interval_ms.
+    if state.enabled?, do: schedule_tick(state.startup_delay_ms)
     {:ok, state}
   end
 
