@@ -110,13 +110,12 @@ jobs:
       - name: Audit retired Hex packages
         run: mix hex.audit
 
-      # `mix deps.audit` (mix_audit) is intentionally NOT wired in here yet: the
-      # current dependency tree carries active HIGH-severity advisories
-      # (cowlib, cowboy, plug_cowboy, postgrex). Enabling the gate now would
-      # either fail CI or require ignoring HIGH advisories, both undesirable.
-      # The gate is enabled together with the required upgrades in a dedicated
-      # follow-up issue. The mix_audit dependency is already declared so the
-      # follow-up only adds the CI step + version bumps.
+      # Fails the build on known security advisories in the Hex dependency
+      # tree (mix_audit). Enabled together with the upgrades that cleared the
+      # then-active HIGH advisories (cowlib, cowboy, plug_cowboy, postgrex) in
+      # issue #359.
+      - name: Audit Hex dependencies
+        run: mix deps.audit
 
       - name: Audit MCP server dependencies (npm)
         run: npm audit --audit-level=high --prefix mcp-server
