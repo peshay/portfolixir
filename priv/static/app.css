@@ -969,6 +969,22 @@ textarea:focus {
   outline: 3px solid color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
+/* Checkboxes and radios opt out of the generic full-width box styling above so
+   every one renders as a consistent compact accent control by default, instead
+   of the native "fat box" wherever a wrapper class is missing. */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  flex: 0 0 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  accent-color: var(--color-accent);
+}
+
 button {
   justify-self: start;
   min-height: 34px;
