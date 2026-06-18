@@ -2840,6 +2840,25 @@ img.security-logo {
   cursor: progress;
 }
 
+/* A background sync in flight: the icon button itself is the progress
+   indicator. The refresh icon spins and the button is disabled, so we no
+   longer need a sticky toast to say "working…". */
+.icon-button.is-busy {
+  cursor: progress;
+}
+
+.icon-button.is-busy svg {
+  animation: import-spin 0.8s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-button.is-busy svg {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
 .chart-frame {
   position: relative;
   width: 100%;

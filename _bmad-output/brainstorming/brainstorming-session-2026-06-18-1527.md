@@ -53,5 +53,45 @@ A single notification component conflates **"a background task is running (and y
 
 **AI Rationale:** Concrete/familiar UX topic favors creative + analogical divergence; the "one clear favorite" goal demands a structured convergence step at the end; codebase grounding keeps ideas implementable.
 
+## Outcome — Decision & Implementation
+
+The session was deliberately cut short: the user already had a clear, well-formed
+opinion, so we pivoted from divergent ideation straight to a grounded decision.
+
+**Chosen favorite (scope: Priority 1 + Priority 2):**
+
+1. **The button is the indicator (Priority 1).** For background actions the
+   triggering control shows its own state instead of a separate popup.
+   - Sync buttons (`#sync-prices`, `#detail-sync`) already bind `sync_running?`
+     → `is-busy` + `disabled`; added a real CSS spinner so the refresh icon
+     literally spins (`.icon-button.is-busy svg` reuses `@keyframes import-spin`).
+   - Synchronous form/button actions (e.g. `set_balance`, `sync_rates`) already
+     use `phx-disable-with`, which disables the button for the whole round-trip.
+   - Dropped the redundant in-progress "Syncing…" toasts; the spinning button
+     carries the running state.
+2. **Confirmation toasts auto-dismiss (fixes the core annoyance).** The shared
+   `AppShell.status_toast` now carries `data-auto-dismiss` and a new
+   `AutoDismissToast` JS hook clears success toasts after ~4.5s (no more manual
+   X, no more "it never goes away"). Errors stay until acknowledged.
+3. **OS notifications for long async actions (Priority 2).** On completion of
+   price sync (`{:sync_done}`) and logo lookup (`{:logo_update_done}`) the
+   server `push_event`s `"os-notify"`; the client shows a Web Notification, but
+   only when the tab is in the background (`document.hidden`) so it never
+   duplicates on-page feedback. Permission is requested in the click handler of
+   the sync buttons.
+
+**Files touched:**
+
+- `lib/portfolixir_web/components/app_shell.ex` — toast id + `AutoDismissToast` hook + docs.
+- `lib/portfolixir_web/live/securities_live.ex` — drop in-progress sync toasts, `notify_os/4`, OS-notify on completion, request permission on sync buttons.
+- `lib/portfolixir_web/layout_view.ex` — `AutoDismissToast` hook, `phx:os-notify` listener, `Portfolixir.osNotify` / `ensureNotifyPermission`.
+- `priv/static/app.css` — spinner for `.icon-button.is-busy`.
+
+**Verification:** `mix compile` clean; 118 LiveView/quote-sync tests pass (0 failures).
+
+**Possible follow-ups (not done):** reposition the toast so it never overlaps
+content even before it fades; per-row busy state for individual logo/sync menu
+actions; surface a notification permission affordance in settings.
+
 ## Technique Execution Results
 
