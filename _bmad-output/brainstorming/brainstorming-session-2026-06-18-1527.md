@@ -94,4 +94,3 @@ content even before it fades; per-row busy state for individual logo/sync menu
 actions; surface a notification permission affordance in settings.
 
 ## Technique Execution Results
-
