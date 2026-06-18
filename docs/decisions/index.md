@@ -46,3 +46,4 @@ already in force in the codebase.
 | [0015](0015-cross-currency-settlement-fx-rate.html) | Cross-currency transaction settlement with a stored FX rate | Accepted |
 | [0016](0016-rounding-policy.html) | Rounding policy — full precision in compute, round only at the human display | Accepted |
 | [0017](0017-append-only-audit-journal.html) | Append-only audit journal for financial writes | Accepted |
+| [0018](0018-buckets-tag-based-wealth-scoping.html) | Buckets — tag-based wealth scoping with view filters | Proposed |
