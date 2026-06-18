@@ -31,6 +31,24 @@ defmodule Portfolixir.CITest do
   end
 
   # User story:
+  # As a maintainer guarding the dependency tree,
+  # I want CI to fail on known Hex security advisories,
+  # so that vulnerable dependencies cannot land on the base branch unnoticed.
+  #
+  # Acceptance criteria:
+  # - The quality job runs `mix deps.audit`.
+  # - The mix_audit dependency stays declared.
+  # - The historical "intentionally NOT wired" placeholder is gone.
+  test "ci audits hex dependencies for security advisories" do
+    ci_workflow = File.read!(".github/workflows/ci.yml")
+    mix_file = File.read!("mix.exs")
+
+    assert ci_workflow =~ "mix deps.audit"
+    assert mix_file =~ ":mix_audit"
+    refute ci_workflow =~ "intentionally NOT wired"
+  end
+
+  # User story:
   # As a maintainer starting the local Docker app,
   # I want the container image to install the expected Hex version during build,
   # so that runtime startup does not print package-manager update warnings.
