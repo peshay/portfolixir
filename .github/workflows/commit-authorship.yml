@@ -1,0 +1,38 @@
+name: Commit authorship
+
+# Enforces that every commit is authored by an accountable human (see
+# .github/commit-authorship-allowlist.txt). Local hooks can be bypassed with
+# --no-verify; this workflow re-checks on the server, so make it a required
+# status check on main to make the rule unavoidable.
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  human-accountability:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # Full history so the commit range against the base resolves.
+          fetch-depth: 0
+
+      - name: Verify every commit is authored by an accountable human
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            before="${{ github.event.before }}"
+            if printf '%s' "$before" | grep -qE '^0+$'; then
+              # Branch creation / no parent recorded: check the tip commit only.
+              range="HEAD~1..HEAD"
+            else
+              range="$before..${{ github.sha }}"
+            fi
+          fi
+          echo "Checking commit range: $range"
+          bash scripts/check-commit-authorship.sh --range "$range"
