@@ -404,6 +404,11 @@ defmodule PortfolixirWeb.AppShell do
   The dismiss button sends `phx-click="dismiss_toast"` to the parent LiveView,
   which must implement `handle_event("dismiss_toast", _, socket)` to clear the
   relevant status assign(s).
+
+  Confirmation toasts (`kind: :success`) carry `data-auto-dismiss="true"` and
+  are dismissed automatically by the `AutoDismissToast` JS hook after a short
+  delay, so the user no longer has to click them away. Errors
+  (`kind: :error`) stay until dismissed so they are not missed.
   """
   attr(:kind, :atom, values: [:success, :error], required: true)
   attr(:message, :string, required: true)
@@ -411,10 +416,13 @@ defmodule PortfolixirWeb.AppShell do
   def status_toast(assigns) do
     ~H"""
     <div
+      id={"status-toast-#{@kind}"}
       class={["status-toast", "status-toast--#{@kind}"]}
       role={if @kind == :error, do: "alert", else: "status"}
       aria-live={if @kind == :error, do: "assertive", else: "polite"}
       aria-atomic="true"
+      phx-hook="AutoDismissToast"
+      data-auto-dismiss={if @kind == :error, do: "false", else: "true"}
     >
       <span class="status-toast__message"><%= @message %></span>
       <button

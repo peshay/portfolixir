@@ -1195,6 +1195,11 @@ msgstr "Ticker kopiert"
 msgid "Update existing"
 msgstr "Vorhandenes aktualisieren"
 
+#: lib/portfolixir_web/live/securities_live.ex:2306
+#, elixir-autogen, elixir-format
+msgid "Logo lookup complete"
+msgstr "Logo-Suche abgeschlossen"
+
 #: lib/portfolixir_web/live/securities_live.ex:2111
 #, elixir-autogen, elixir-format
 msgid "Logo lookup failed"
@@ -1799,6 +1804,11 @@ msgstr "Parser-Warnungen kopieren"
 #, elixir-autogen, elixir-format
 msgid "Resize detail split"
 msgstr "Detailaufteilung ändern"
+
+#: lib/portfolixir_web/live/securities_live.ex:2332
+#, elixir-autogen, elixir-format
+msgid "Price sync complete"
+msgstr "Kurssync abgeschlossen"
 
 #: lib/portfolixir_web/live/securities_live.ex:2285
 #, elixir-autogen, elixir-format

@@ -160,6 +160,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               id="sync-prices"
               class={["icon-button", @sync_running? && "is-busy"]}
               phx-click="sync_now"
+              onclick="Portfolixir.ensureNotifyPermission()"
               aria-label={gettext("Sync prices")}
               title={gettext("Sync prices")}
               disabled={@sync_running?}
@@ -570,6 +571,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 type="button"
                 id="detail-sync"
                 phx-click="sync_now"
+                onclick="Portfolixir.ensureNotifyPermission()"
                 class={["chart-toggle", @sync_running? && "is-busy"]}
                 disabled={@sync_running?}
               >
@@ -1703,11 +1705,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
       send(parent, {:sync_done, result})
     end)
 
+    # The sync button itself signals progress (spins + disabled via
+    # `sync_running?`), so we no longer raise a sticky "Syncing…" toast on top.
     {:noreply,
      socket
      |> assign(:sync_running?, true)
-     |> assign(:flash_kind, :success)
-     |> assign(:flash_message, gettext("Syncing prices…"))}
+     |> assign(:flash_message, nil)}
   end
 
   def handle_event("toggle_detail_fullscreen", _params, socket) do
@@ -2041,11 +2044,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
       send(parent, {:sync_done, result})
     end)
 
+    # Progress is shown by the busy sync button (`sync_running?`); no toast.
     {:noreply,
      socket
      |> assign(:sync_running?, true)
-     |> assign(:flash_kind, :success)
-     |> assign(:flash_message, gettext("Syncing %{name}…", name: sec.name))}
+     |> assign(:flash_message, nil)}
   end
 
   defp dispatch_row_action(socket, "retire", %Security{} = sec) do
@@ -2300,6 +2303,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:flash_kind, kind)
      |> assign(:flash_message, flash)
+     |> notify_os(gettext("Logo lookup complete"), flash, "logo-lookup")
      |> refresh_logo_dialog()
      |> load_securities()
      |> load_detail_data()}
@@ -2318,11 +2322,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_info({:sync_done, result}, socket) do
+    summary = sync_flash(result)
+
     {:noreply,
      socket
      |> assign(:sync_running?, false)
      |> assign(:flash_kind, :success)
-     |> assign(:flash_message, sync_flash(result))
+     |> assign(:flash_message, summary)
+     |> notify_os(gettext("Price sync complete"), summary, "price-sync")
      |> load_securities()
      |> load_detail_data()}
   end
@@ -2471,6 +2478,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
        error: 1,
        results: [%{status: :error, reason: reason}]
      }}
+  end
+
+  # Fires a browser/OS notification for a completed background action. The
+  # client only surfaces it while the tab is in the background (see
+  # `Portfolixir.osNotify`), so it never duplicates the on-page feedback.
+  defp notify_os(socket, title, body, tag) do
+    push_event(socket, "os-notify", %{title: title, body: body, tag: tag})
   end
 
   defp sync_flash({:ok, %{ok: ok, skipped: 0, error: 0}}) when ok > 0 do

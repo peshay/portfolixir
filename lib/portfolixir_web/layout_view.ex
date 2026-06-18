@@ -866,6 +866,37 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // Confirmation toasts dismiss themselves after a short delay so the
+            // user never has to click them away; errors (data-auto-dismiss
+            // "false") stay until acknowledged.
+            Hooks.AutoDismissToast = {
+              mounted() {
+                this._arm();
+              },
+              updated() {
+                this._arm();
+              },
+              destroyed() {
+                this._clear();
+              },
+              _arm() {
+                this._clear();
+                if (this.el.dataset.autoDismiss !== "true") {
+                  return;
+                }
+                var self = this;
+                this._timer = window.setTimeout(function () {
+                  self.pushEvent("dismiss_toast", {});
+                }, 4500);
+              },
+              _clear() {
+                if (this._timer) {
+                  window.clearTimeout(this._timer);
+                  this._timer = null;
+                }
+              }
+            };
+
             var liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
               hooks: Hooks,
               params: { _csrf_token: csrfToken }
@@ -900,6 +931,38 @@ defmodule PortfolixirWeb.LayoutView do
               }
 
               fallbackCopy();
+            });
+
+            // Long background actions (price sync, logo lookup) ask the OS to
+            // notify when they finish — but only if the tab is in the
+            // background, since the on-page feedback covers the visible case.
+            window.Portfolixir.ensureNotifyPermission = function () {
+              try {
+                if ("Notification" in window && Notification.permission === "default") {
+                  Notification.requestPermission();
+                }
+              } catch (_) {}
+            };
+
+            window.Portfolixir.osNotify = function (detail) {
+              try {
+                if (!("Notification" in window)) return;
+                if (Notification.permission !== "granted") return;
+                if (!document.hidden) return;
+                var title = (detail && detail.title) || "Portfolixir";
+                var note = new Notification(title, {
+                  body: (detail && detail.body) || "",
+                  tag: (detail && detail.tag) || "portfolixir"
+                });
+                note.onclick = function () {
+                  window.focus();
+                  note.close();
+                };
+              } catch (_) {}
+            };
+
+            window.addEventListener("phx:os-notify", function (event) {
+              window.Portfolixir.osNotify(event.detail || {});
             });
 
             liveSocket.connect();
