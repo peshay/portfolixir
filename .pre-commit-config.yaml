@@ -29,9 +29,9 @@ repos:
         language: system
         pass_filenames: false
         files: "(\\.exs?$|^mix\\.exs$|^\\.formatter\\.exs$)"
-      - id: llm-commit-footer
-        name: Require commit footer with model and thinking level
-        entry: bash scripts/validate-llm-commit-footer.sh
+      - id: commit-authorship
+        name: Require commits authored by an accountable human
+        entry: bash scripts/check-commit-authorship.sh
         language: system
         stages: [commit-msg]
         pass_filenames: true

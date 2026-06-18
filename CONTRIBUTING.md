@@ -98,27 +98,31 @@ Open a PR with a short summary, story-comment evidence, test-first evidence,
 API/MCP coverage notes, documentation review note, security audit note, coverage
 evidence, and commands run.
 
-## AI/Commit Metadata
+## Commit Authorship And Accountability
 
-For agent-authored branches, append metadata to commit messages in this format:
+Every commit is attributed to an accountable human under their own Git identity,
+even when an LLM or coding agent produced the change. The agent is a tool; a
+person owns the result and takes responsibility for it.
 
-```text
-Model: <model>
-Thinking level: <none|minimal|low|medium|high|xhigh>
-```
+- Configure `git config user.name` / `user.email` to your own GitHub-verified
+  identity (for example your `name@users.noreply.github.com` address).
+- Do not commit under a bot/agent identity, and do not add `Co-authored-by:`
+  lines, or `Model:` / `Thinking level:` / `Claude-Session:` /
+  `claude.ai/code/session` footers that credit an AI agent. Record the model and
+  reasoning level in the PR description if useful.
+- Accountable identities are listed in
+  [.github/commit-authorship-allowlist.txt](.github/commit-authorship-allowlist.txt);
+  add a contributor by appending their GitHub-verified email.
 
-The repository pre-commit config validates this footer for branches matching the
-agent naming convention.
+A `commit-msg` hook (`scripts/check-commit-authorship.sh`) and the "Commit
+authorship" CI workflow enforce this. CI re-checks every commit, so the rule
+holds even if local hooks are skipped with `--no-verify`.
 
-Use branch names that include the agent/provider:
+Use short, scoped branch names. Agent-assisted work may still use a provider
+hint, but the commits themselves are authored by the human:
 
 - `agent/<provider>/<topic-slug>`
-
-Examples:
-- `agent/codex/product-documentation`
-- `agent/claude/design-system`
-- `agent/gemini/locale-copy`
-- `agent/gemma/dev-guide`
+- `fix/<topic-slug>`, `chore/<topic-slug>`
 
 ## Story And Test Format
 

@@ -140,13 +140,13 @@ If pre-commit is not installed:
 pre-commit install --install-hooks
 ```
 
-For every Agent-authored branch, include this footer in the commit message so
-agent identity and reasoning budget are explicit:
-
-```text
-Model: <model-name>
-Thinking level: <none|minimal|low|medium|high|xhigh>
-```
+Commit under the accountable human's own Git identity (their GitHub account).
+An LLM or coding agent commits AS that person; it must not introduce a bot
+author/committer, a `Co-authored-by:` line that credits itself, or `Model:` /
+`Thinking level:` / `Claude-Session:` footers. Record the model and reasoning
+level in the pull request description instead, where they do not become part of
+the permanent commit authorship record. See "Commit Authorship And
+Accountability" below.
 
 ## Branch Naming For Agent Work
 
@@ -188,13 +188,39 @@ Agent commits must follow this order and keep each iteration reviewable:
 5. Update docs when user-visible behavior changes.
 6. Run a security review pass and harden risks introduced by the patch.
 
-All AI-authored commits should document model and reasoning level in the commit
-footer and use PR body structure that includes evidence for each iteration step.
+All AI-assisted commits are authored under the accountable human's own Git
+identity (see "Commit Authorship And Accountability"). Document the model and
+reasoning level in the PR description, not in the commit, and use a PR body
+structure that includes evidence for each iteration step.
 
 Read the user-visible problem, expected behavior, affected screen, route, or
 surface, severity, acceptance criteria, and non-goals before editing. Keep every
 change inside the story scope. Every user-visible change updates user
 documentation when behavior changes.
+
+## Commit Authorship And Accountability
+
+Every commit must be attributable to an accountable human. An LLM or coding
+agent is a tool: it drafts changes, but a person owns the result and commits
+under their own Git identity (the name and email of their GitHub account).
+
+- Configure Git so `user.name` and `user.email` resolve to the human running
+  the agent. Prefer a GitHub-verified address, e.g. the
+  `name@users.noreply.github.com` address GitHub provides.
+- Never commit under a bot/agent identity (for example `Claude`, `Codex`,
+  `OpenClaw`, or generic `agent@…` addresses).
+- Never add a `Co-authored-by:` trailer that credits an AI agent, and never add
+  `Model:`, `Thinking level:`, `Claude-Session:`, or `claude.ai/code/session`
+  footers. Record model and reasoning level in the PR description if useful.
+- Accountable identities live in `.github/commit-authorship-allowlist.txt`. Add
+  a teammate by appending their GitHub-verified email.
+
+Enforcement (do not work around it):
+
+- Local: a `commit-msg` hook (`scripts/check-commit-authorship.sh`, wired through
+  `.pre-commit-config.yaml`) rejects non-human authors and AI-identity trailers.
+- CI: the "Commit authorship" workflow re-checks every commit in a push or pull
+  request, so the rule holds even when local hooks are bypassed.
 
 ## Scope Lock
 
