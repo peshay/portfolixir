@@ -669,7 +669,10 @@ defmodule PortfolixirWeb.PortfolioLive do
          {:ok, _tx} <- Ledger.set_cash_balance(account, params) do
       {:noreply,
        socket
-       |> assign(success: gettext("Balance updated"), error: nil)
+       # No success toast on balance update: the submit button's busy state
+       # (phx-disable-with) plus the figures refreshing in place are
+       # confirmation enough. (Same "quiet feedback" theme as PR #442.)
+       |> assign(success: nil, error: nil)
        |> load_overview()
        |> load_performance()}
     else
