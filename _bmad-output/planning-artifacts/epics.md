@@ -225,6 +225,7 @@ Epics are organized by the PRD's five phases plus cross-cutting concerns, ordere
 | **E10 — Planning & simulation** | 5 | later | #332, FR-9, FR-26 |
 | **E11 — UX & accessibility** | — | priority 3 | #356, #336, #337, #339, #319 |
 | **E12 — Localization & docs** | — | cross-cutting | #313 |
+| **E13 — Buckets & views (ADR-0018)** | — | now | #448 (#443–#447) |
 
 ## Epic Detail
 
@@ -263,3 +264,14 @@ Tracked in **#356** against the DESIGN.md + EXPERIENCE.md spec, plus existing #3
 
 ### Epic 12: Localization & docs (cross-cutting)
 Multilingual docs site (#313, NFR-7); UI de/en via gettext is shipped and enforced by `localization_test.exs`.
+
+### Epic 13: Buckets & views (ADR-0018)
+Tag-based wealth scoping from the 2026-06-18 design session (full decision in
+ADR-0018). Separates **total wealth** (everything, counted once) from **per-view
+subsets** (strategy, rebalancing, per-person) with one primitive: **buckets**
+(overlapping tags on holdings; depot-default + per-position override) consumed by
+named **views** (include/exclude filters; exclude wins; totals are single-count,
+**never** the sum of buckets). Generalizes and will supersede ADR-0013 (the BTC
+exclude flag). Tracked in **#448**; stories sequence #443 (data model) → #444
+(engine scope) → #445 (API/MCP parity) → #446 (UI) → #447 (retire the old flag).
+Holding removal ("remove a non-owner entirely") is explicitly out of scope → #328.
