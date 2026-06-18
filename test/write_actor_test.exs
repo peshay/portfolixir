@@ -19,7 +19,8 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Ledger => "lib/portfolixir/ledger.ex",
     Portfolixir.Portfolios => "lib/portfolixir/portfolios.ex",
     Portfolixir.Classifications => "lib/portfolixir/classifications.ex",
-    Portfolixir.Imports => "lib/portfolixir/imports.ex"
+    Portfolixir.Imports => "lib/portfolixir/imports.ex",
+    Portfolixir.Buckets => "lib/portfolixir/buckets.ex"
   }
 
   # Contexts whose actor-first refactor + table arming has landed (leaf-first:
@@ -68,8 +69,11 @@ defmodule Portfolixir.WriteActorTest do
                    {Portfolixir.Classifications, :security_category_map, 1}
                  ])
 
-  # The only journaled tables currently guard-armed. Grows as contexts convert.
-  @armed_tables MapSet.new(["securities"])
+  # Journaled tables currently guard-armed. Grows as contexts convert. `buckets`
+  # is the root tag table of the born-actor-first Buckets context (ADR-0018); its
+  # assignment join tables stay un-armed because they FK-cascade from
+  # Portfolios-owned tables that are not yet actor-first (architecture amendment 1).
+  @armed_tables MapSet.new(["securities", "buckets"])
 
   # `Repo.transaction` is deliberately NOT a write marker: a read-only
   # transaction is not a write. Writing transactions are detected through the
