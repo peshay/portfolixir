@@ -146,6 +146,67 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-8 | — | cross-cutting perf; watch in perf-sensitive stories |
 | UX-DR1–14 | **#356** + #336, #337, #339, #319 | UX/a11y tracker (UI = priority 3) |
 
+## Implementation Status — reconciled with code (2026-06-18)
+
+> The sections above are the **authoritative planning intent** as captured on
+> 2026-06-12 (issues referenced up to #356). The codebase has since advanced to
+> ~#442. This section reconciles the plan with what is **actually in `main`**, so
+> downstream agentic work is steered by reality, not a stale map. It is additive
+> — it corrects status, it does not rewrite the original requirements.
+>
+> Ground truth at time of writing: `mix compile --warnings-as-errors` clean;
+> **735 tests, 0 failures**; gated boundaries (`sync/`, `pensions/`) empty as
+> designed (AR-9 ✓); Decimal discipline intact, IRR float-island the only
+> exception (AR-3 ✓).
+
+### Shipped beyond the 2026-06-12 doc (status: DONE)
+
+These were `now`/`next` and are delivered with code **and** tests:
+
+- **FR-1/2/3** ledger projection, currency-consistency validation (#362), rounding
+  policy ADR-0016 (#394).
+- **FR-6** import preview / idempotent / atomic.
+- **FR-8** TTWROR **and** IRR (`portfolios/performance/irr.ex`, #364).
+- **FR-10** income analytics (`portfolios/income.ex`, #374).
+- **FR-11** allocation: target hints, exclusion flags, cash-in-basis, classification
+  value view (#365/#367/#371/#372).
+- **FR-13/15/16** self-describing analytics over API/MCP (#384/#386); risk &
+  concentration endpoint (`portfolios/risk.ex`, #391); FX-correct cross-currency
+  settlement (#393).
+- **NFR-1/3** invariant meta-tests live (`test/invariants/*`), CI gates green.
+- **NFR-7 / E12** bilingual docs site (#380) + gettext de/en (`localization_test`).
+
+### In-flight by design — the main source of "half-finished" feel (status: PARTIAL)
+
+- **FR-28 / FR-14 — Audit journal (ADR-0017, sequenced slice rollout).**
+  - Slice 0 (infra) ✓ and Slice 1 (Catalog/Fx armed, actor-first) ✓.
+  - **Not yet:** Portfolios/Classifications → Ledger → Imports. Writes in those
+    contexts run **unjournaled** today, so the FR-28/NFR-2 "every write is
+    auditable" guarantee is **not yet actually met**.
+  - **MCP data-maintenance writes (FR-14)** are blocked behind this: arming MCP
+    write tools before the journal rollout completes would let an agent edit
+    transactions/accounts/classifications **without an audit trail**. Finish the
+    rollout *before* enabling agent writes.
+  - Note: the `scenario_id` column on `audit_journal` is an **intentional**
+    forward-index for FR-27 (documented in ADR-0017), not stray scaffolding.
+
+### Genuine open gaps (status: MISSING / not started)
+
+- **FR-29 — Backup/restore + PP-compatible export.** No code, no tracking issue
+  in-repo. PRD requires it to ship *before* external copies are retired →
+  data-safety gap. Needs a conscious "plan now" vs. "explicitly later" decision.
+- **FR-4 — Depot/cash move + merge/rename/delete (#327/#328).** Portfolio
+  scoping exists; the lifecycle ops are **not implemented** (no `move_*`/`merge_*`
+  functions in `portfolios.ex`). Decide if still wanted.
+- **AR-11 minor parity gap:** generic `portfolio.update` API write has no MCP
+  counterpart.
+
+### Correctly gated — no code, as designed (status: GATED, do not "fix")
+
+FR-5 (XML import), FR-9 (benchmark), FR-12 (rebalancing), FR-17–21 (sync),
+FR-22–26 (product types, pensions, retirement). Each still needs its scope
+ADR + AGENTS.md amendment (and, for FR-22–26, a discovery story) before code.
+
 ## Epic List
 
 Epics are organized by the PRD's five phases plus cross-cutting concerns, ordered by the maintainer priority (#321): **data completeness & correctness first, LLM-first consumption second, UI/sync/modeling later.** Each epic's stories are the GitHub issues above.
