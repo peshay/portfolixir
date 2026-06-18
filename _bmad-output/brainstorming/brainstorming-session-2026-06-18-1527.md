@@ -1,10 +1,10 @@
 ---
-stepsCompleted: [1]
+stepsCompleted: [1, 2]
 inputDocuments: []
 session_topic: 'A sensible on-page indicator for pending background actions, replacing the intrusive top-right status_toast that must be dismissed manually and gives no completion signal'
 session_goals: 'Converge on one clear favorite solution to implement'
 selected_approach: 'ai-recommended'
-techniques_used: []
+techniques_used: ['First Principles Thinking', 'Analogical Thinking / Cross-Pollination', 'Morphological Analysis']
 ideas_generated: []
 context_file: ''
 ---
@@ -39,3 +39,19 @@ A single notification component conflates **"a background task is running (and y
 ### Session Setup
 
 **Approach selected:** [2] AI-Recommended Techniques.
+
+## Technique Selection
+
+**Approach:** AI-Recommended Techniques
+**Analysis Context:** On-page indicator for pending background actions, with the explicit goal of converging on one clear favorite to implement.
+
+**Recommended sequence:**
+
+- **Phase 1 — First Principles Thinking (creative):** Strip the "we have a top-right toast" assumption; define what feedback a background action fundamentally needs (states, location, audience, timing). Produces the evaluation criteria.
+- **Phase 2 — Analogical Thinking / Cross-Pollination (creative):** Survey how other apps/domains signal background work (inline button spinners, "Sending… Undo", optimistic UI, progress bars, skeletons, embedded status badges) and map onto portfolixir's actions.
+- **Phase 3 — Morphological Analysis (deep):** Build a parameter grid (location · trigger · duration-awareness · self-dismiss · error handling) × action types (instant vs. long) and combine systematically to converge on the favorite.
+
+**AI Rationale:** Concrete/familiar UX topic favors creative + analogical divergence; the "one clear favorite" goal demands a structured convergence step at the end; codebase grounding keeps ideas implementable.
+
+## Technique Execution Results
+
