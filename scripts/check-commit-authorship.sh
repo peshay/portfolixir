@@ -68,8 +68,10 @@ check_message() {
         report "$ref: remove AI-identity footer line: $line"
         ;;
     esac
+    # Match real AI session links (always carry a "session_<id>" segment), not
+    # prose that merely mentions the pattern while documenting this policy.
     case "$low" in
-      *claude.ai/code/session*) report "$ref: remove AI session link: $line" ;;
+      *claude.ai/code/session_*) report "$ref: remove AI session link: $line" ;;
     esac
   done <<EOF
 $2
