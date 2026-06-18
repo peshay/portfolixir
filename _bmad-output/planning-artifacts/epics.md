@@ -226,6 +226,7 @@ Epics are organized by the PRD's five phases plus cross-cutting concerns, ordere
 | **E11 — UX & accessibility** | — | priority 3 | #356, #336, #337, #339, #319 |
 | **E12 — Localization & docs** | — | cross-cutting | #313 |
 | **E13 — Buckets & views (ADR-0018)** | — | now | #448 (#443–#447) |
+| **E14 — CSS consistency & design-system** | — | priority 3 | #451 (#449, #450) |
 
 ## Epic Detail
 
@@ -275,3 +276,15 @@ named **views** (include/exclude filters; exclude wins; totals are single-count,
 exclude flag). Tracked in **#448**; stories sequence #443 (data model) → #444
 (engine scope) → #445 (API/MCP parity) → #446 (UI) → #447 (retire the old flag).
 Holding removal ("remove Julia entirely") is explicitly out of scope → #328.
+
+### Epic 14: CSS consistency & design-system hardening
+The UI feels inconsistent not because the design system is missing but because
+it **exists yet isn't enforced or complete**. Findings (2026-06-18): the
+`--color-*` tokens exist but **57 raw hex colours** are hard-coded outside token
+definitions; **no spacing scale** (`--space*`) or heading ramp (UX-DR14); a dead
+`.mono` class. **Enforcement landed**: `test/invariants/css_token_discipline_test.exs`
+ratchets raw hex down and fails the build on any new hard-coded colour. Tracked
+in **#451**; stories #449 (hex→tokens, ratchet to zero) and #450 (4px spacing
+scale + heading ramp, UX-DR14 break-out). Related: #412 (forms + dead `.mono`),
+#411 (chart accent), #356 (UX tracker). UI priority 3 per #321, but the guard is
+cross-cutting and already active.
