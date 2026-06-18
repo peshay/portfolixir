@@ -451,7 +451,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
       |> render_submit()
 
-    assert html =~ "Balance updated"
+    # No success toast on balance update — the in-place figure refresh below
+    # is the confirmation (button feedback covers the in-flight state).
+    refute html =~ "Balance updated"
 
     html = render_async(view)
     # Cash 500 + securities 880 = 1380.
@@ -974,19 +976,16 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   end
 
   # User story:
-  # As a local portfolio maintainer who scrolls down the portfolio page to
-  # reach the balance form before submitting it,
-  # I want "Balance updated" to appear as a fixed-position toast that is
-  # always visible regardless of scroll,
-  # so that I do not have to scroll back to the top to confirm the operation.
+  # As a local portfolio maintainer setting a cash balance,
+  # I do NOT want a status toast interrupting me on success — the submit
+  # button's busy state plus the figures updating in place are confirmation
+  # enough, so routine balance entry stays quiet and frictionless.
   #
   # Acceptance criteria:
-  # - On success, a toast with role="status" renders with the message "Balance
-  #   updated" and a dismiss button.
-  # - The toast is out of the normal document flow and never adds a banner
-  #   inside the content area.
-  # - Clicking dismiss removes the toast.
-  test "set_balance success renders an in-context status toast and dismiss clears it",
+  # - On success, no status toast renders (no ".status-toast" element).
+  # - No legacy inline alert banners render either.
+  # - The submit button carries phx-disable-with busy feedback.
+  test "set_balance success shows no status toast (button feedback is enough)",
        %{conn: conn} do
     %{cash: cash} = seed_world()
 
@@ -1003,14 +1002,12 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, ".status-toast[role='status']", "Balance updated")
-    assert has_element?(view, ".status-toast .status-toast__dismiss")
+    refute has_element?(view, ".status-toast")
     refute has_element?(view, "p.alert-success")
     refute has_element?(view, "p.alert-error")
 
-    view |> element(".status-toast__dismiss") |> render_click()
-
-    refute has_element?(view, ".status-toast")
+    # The button's busy state is the in-context feedback that replaces the toast.
+    assert has_element?(view, "#portfolio-cash button[type=submit][phx-disable-with]")
   end
 
   # User story:
