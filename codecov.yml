@@ -1,27 +1,23 @@
 # Codecov configuration for Portfolixir.
 #
-# First increment of issue #314 ("Harden CI: coverage ratchet"). Until now no
-# codecov.yml existed, so Codecov applied its defaults. The default project
-# status uses `target: auto` with a `threshold: 0%`, which false-fails on
-# legitimate code deletions (removing well-covered lines can momentarily lower
-# the absolute percentage and trip the gate even though nothing got worse).
+# Part of the incremental coverage ratchet defined in issue #314
+# ("Harden CI: coverage ratchet"). This is the second step: the project target
+# is now an explicit 84% floor (previously `auto`). Main is currently at
+# ~84.57%, which leaves ~0.57% headroom for minor fluctuations while ensuring
+# any regression below 84% fails the gate.
 #
-# This config establishes the no-regression ratchet:
-#   * project: coverage may not drop by more than 1% versus the base commit
-#     (the mechanism to "ratchet up" coverage over follow-up increments without
-#     false-failing on deletions / small refactors).
+# Ratchet plan (one small PR per step, per #314):
+#   * project: explicit 84% floor now; will be raised to 85% then 90% in
+#     later increments as coverage continues to climb.
 #   * patch: changed lines must be ~90%+ covered (the issue's "~90%+ changed
 #     lines" bar), so every new PR pulls the overall number upward.
-#
-# The project target stays `auto` for now. As coverage climbs in the iterative
-# follow-up increments of #314, the project target will be raised explicitly
-# toward 85% and then 90% (one small PR per step, per the issue's "each increase
-# as its own small PR").
+#   * threshold: 1% — allows up to 1% drop versus the base commit so that
+#     legitimate code deletions / small refactors don't false-fail the gate.
 coverage:
   status:
     project:
       default:
-        target: auto
+        target: 84%
         threshold: 1%
     patch:
       default:
