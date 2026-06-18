@@ -6,7 +6,7 @@ description: Decision to introduce buckets as overlapping tags on holdings (depo
 
 # ADR-0018: Buckets — tag-based wealth scoping with view filters
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-06-18
 
 ## Context
@@ -81,9 +81,11 @@ Introduce two concepts: **Buckets** and **Views**.
 ### Relationship to existing decisions
 
 - ADR-0013's `excluded_from_allocation_targets` becomes a **special case** of
-  "not in the `Strategie` view". When buckets ship, the flag migrates to a
-  built-in bucket/view arrangement; ADR-0013 stays in force until then and will
-  be marked *Superseded by ADR-0018* once the migration lands.
+  "not in the `Strategie` view". The flag is **not auto-migrated**: at cutover it
+  is removed and the operator re-creates the equivalent setup by hand (assign the
+  affected securities to a bucket and exclude that bucket from the `Strategie`
+  view). ADR-0013 stays in force until then and will be marked *Superseded by
+  ADR-0018* once the flag is removed.
 - Buckets are the **primary soft-scoping** mechanism within the existing
   portfolio model. Multiple portfolios remain available for hard separation, but
   buckets + views deliver "household total with sub-views" without splitting the
@@ -128,20 +130,22 @@ Introduce two concepts: **Buckets** and **Views**.
 - Net worth stays honest: everything counts once toward the total, regardless of
   bucketing.
 
-## Open questions (resolve before moving to Accepted)
+## Resolved parameters
 
-1. **View filter grammar & precedence.** Include-only, exclude-only, or both;
-   when both are present, does exclude win? *Proposal:*
-   `{include: [buckets] | :all, exclude: [buckets]}`, exclude wins.
-2. **View scope across portfolios.** Are views global or per-portfolio?
-   *Proposal:* global (the goal is household totals); per-portfolio remains an
-   orthogonal filter.
-3. **Cash buckets in v1.** Do cash accounts need bucket tags from the start?
-   *Proposal:* yes — a cash account carries a default bucket so a person's cash
-   follows their holdings.
-4. **ADR-0013 migration shape.** Auto-create a `Strategie` view + a "do-not-steer"
-   bucket from existing flags, or require manual re-setup? *Proposal:*
-   auto-migrate.
-5. **Journaling granularity.** Journal *assignment* changes (they change reported
-   attribution) while treating pure view-*definition* edits as operational
-   config (cf. idempotency keys, AR-5)? *Proposal:* yes.
+These were decided with the maintainer and are part of this Accepted decision:
+
+1. **View filter grammar & precedence.** A view is
+   `{include: [buckets] | :all, exclude: [buckets]}`; when both are present,
+   **exclude wins**.
+2. **View scope.** Views are **global** (across all portfolios) so a unified
+   household total is possible; per-portfolio scoping remains an orthogonal
+   filter.
+3. **Cash buckets.** Cash accounts are bucketable from **v1** — a cash account
+   carries a default bucket so a person's cash follows their holdings.
+4. **ADR-0013 migration.** **Manual re-setup**, not auto-migration. Existing
+   `excluded_from_allocation_targets` flags are removed at cutover; the operator
+   re-creates the equivalent buckets/views by hand.
+5. **Journaling granularity.** **Bucket *assignment* changes are journaled**
+   (they change reported attribution); pure view-*definition* edits (create /
+   rename / delete a view) are operational config and are **not** journaled
+   (cf. idempotency keys, AR-5).
