@@ -96,7 +96,7 @@ These are fixed decisions from the issue. Do not redesign them; encode them.
   - [ ] Bucket, default-assignment, position-override, view schemas with closed-enum
         discipline and explicit validations.
 - [ ] **Task 3 — New context, actor-first + journaled** (AC: 4)
-  - [ ] `Portfolixir.Buckets` (or `Portfolios.Buckets`) is the **only** writer.
+  - [ ] `Portfolixir.Buckets` (top-level, locked) is the **only** writer.
   - [ ] Every journaled write follows the **P9 write path** (Dev Notes) with
         `Actor` as the **first positional arg** and `Journal.record/3` in the Multi.
   - [ ] View-definition CRUD: not journaled — but still satisfy the write-actor gate
@@ -150,13 +150,12 @@ holding id**. Key it on the durable pair **(securities_account_id, security_id)*
 `Repo.insert/update/delete/*_all` or a writing `Repo.transaction` as a "write function"
 that must carry the `Actor` first argument, **unless grandfathered** — and the grandfather
 list only shrinks, so a **new** context cannot be added to it. But ADR-0018 says
-view-definition edits are **not** journaled. Reconcile this in the ADR (Task 0). Two
-viable options to choose between and record:
-  - **(a)** View-CRUD still takes `Actor` as its first arg for signature uniformity,
-    but does **not** call `Journal.record/3` (satisfies the AST gate; no journal row).
-  - **(b)** Add `views` to a non-journaled allowlist category — but note the allowlist is
-    documented as *shrink-only* for *market-data* exemptions; growing it needs an explicit
-    ADR justification. Option (a) is the lower-friction path; confirm with Andi if unsure.
+view-definition edits are **not** journaled. Reconcile this in the ADR (Task 0).
+
+**Decision (locked, 2026-06-18):** use **option (a)** — view-CRUD takes `Actor` as its
+first positional arg for signature uniformity but does **not** call `Journal.record/3`
+(satisfies the P2 AST gate; emits no journal row). Do **not** grow the allowlist. Record
+this rationale in ADR-0018.
 
 ### Critical Finding #4 — "explicit-empty" vs "inherit" are different states
 AC 2 requires three distinguishable states for a position:
@@ -221,11 +220,10 @@ Key references:
   `lib/portfolixir/buckets/*.ex` (schemas), pure helpers under `lib/portfolixir/engines/`,
   migrations under `priv/repo/migrations/`, ADR under `docs/decisions/`, tests under
   `test/portfolixir/buckets/`.
-- Module naming: the issue allows `Portfolios.Buckets` **or** `Buckets`. `architecture.md`
-  lists `Actor`/`Journal` as top-level value/context modules; **recommend a top-level
-  `Portfolixir.Buckets` context** (it owns cross-cutting tags over depots, cash accounts
-  and positions, so it is not strictly a child of `Portfolios`). Confirm with Andi if a
-  strong preference exists; either is acceptable per the issue.
+- Module naming **(locked, 2026-06-18): top-level `Portfolixir.Buckets` context.** It owns
+  cross-cutting tags over depots, cash accounts and positions, so it is not a child of
+  `Portfolios`; this mirrors how `architecture.md` lists `Actor`/`Journal` as top-level
+  modules. Schemas live under `lib/portfolixir/buckets/`.
 - Existing schemas you will reference (read before touching):
   `lib/portfolixir/portfolios/securities_account.ex`,
   `lib/portfolixir/portfolios/cash_account.ex`,
