@@ -28,7 +28,13 @@ ELIXIR_DIR=/opt/elixir
 export DEBIAN_FRONTEND=noninteractive
 
 # 1. System packages: PostgreSQL, fetch tools, CA bundle, UTF-8 locale.
-apt-get update -y
+# The base web image preconfigures unrelated third-party PPAs (deadsnakes,
+# ondrej/php) on ppa.launchpadcontent.net that the network policy blocks (403).
+# A single failing source makes `apt-get update` exit non-zero, which would
+# abort this script under `set -e` even though the Ubuntu archives we actually
+# need refreshed fine. Tolerate that: the install step below still fails loudly
+# if a package genuinely cannot be resolved.
+apt-get update -y || true
 apt-get install -y --no-install-recommends \
   postgresql postgresql-contrib curl unzip ca-certificates locales git
 # Elixir warns and can malfunction under a latin1 locale; ensure C.UTF-8 exists.
