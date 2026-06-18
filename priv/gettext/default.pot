@@ -1195,6 +1195,11 @@ msgstr ""
 msgid "Update existing"
 msgstr ""
 
+#: lib/portfolixir_web/live/securities_live.ex:2306
+#, elixir-autogen, elixir-format
+msgid "Logo lookup complete"
+msgstr ""
+
 #: lib/portfolixir_web/live/securities_live.ex:2111
 #, elixir-autogen, elixir-format
 msgid "Logo lookup failed"
@@ -1798,6 +1803,11 @@ msgstr ""
 #: lib/portfolixir_web/live/securities_live.ex:341
 #, elixir-autogen, elixir-format
 msgid "Resize detail split"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:2332
+#, elixir-autogen, elixir-format
+msgid "Price sync complete"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities_live.ex:2285
