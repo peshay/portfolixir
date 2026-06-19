@@ -4,16 +4,20 @@ defmodule PortfolixirWeb.Api.V1.PerformanceController do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ViewParam
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, id} <- parse_id(portfolio_id),
-         portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id) do
+         portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id),
+         {:ok, view} <- ViewParam.resolve(params) do
       period = Map.get(params, "period", "max")
       include_series? = Map.get(params, "series") in ["true", "1"]
+      opts = Keyword.put(ViewParam.opts(view), :period, period)
 
-      case Performance.for_portfolio(id, period: period) do
+      case Performance.for_portfolio(id, opts) do
         {:ok, result} ->
-          json(conn, %{data: JSON.performance(result, include_series?)})
+          data = result |> JSON.performance(include_series?) |> ViewParam.put_active(view)
+          json(conn, %{data: data})
 
         {:error, :invalid_period} ->
           conn
@@ -23,7 +27,15 @@ defmodule PortfolixirWeb.Api.V1.PerformanceController do
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
+      {:error, :view} -> unprocessable(conn, %{view: ["is invalid"]})
+      :view_not_found -> not_found(conn)
     end
+  end
+
+  defp unprocessable(conn, errors) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{errors: errors})
   end
 
   defp parse_id(value) when is_binary(value) do

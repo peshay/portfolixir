@@ -2,6 +2,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   @moduledoc false
 
   alias Ecto.Changeset
+  alias Portfolixir.Buckets.Bucket
+  alias Portfolixir.Buckets.View
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
@@ -600,6 +602,40 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       inserted_at: datetime(entry.inserted_at)
     }
   end
+
+  def bucket(%Bucket{} = bucket) do
+    %{
+      id: bucket.id,
+      name: bucket.name,
+      color: bucket.color,
+      inserted_at: timestamp(bucket.inserted_at),
+      updated_at: timestamp(bucket.updated_at)
+    }
+  end
+
+  @doc """
+  Serializes a view with its resolved include/exclude bucket-id sets. `include`
+  is the literal string `"all"` when the view includes every bucket
+  (`include_all`), otherwise the list of included bucket ids; `exclude` is the
+  list of excluded bucket ids (exclude wins).
+  """
+  def view(%View{} = view, %{include: include, exclude: exclude}) do
+    %{
+      id: view.id,
+      name: view.name,
+      include_all: view.include_all,
+      include: view_include(include),
+      exclude: exclude,
+      inserted_at: timestamp(view.inserted_at),
+      updated_at: timestamp(view.updated_at)
+    }
+  end
+
+  defp view_include(:all), do: "all"
+  defp view_include(ids) when is_list(ids), do: ids
+
+  @doc "The active `view` scope echoed into a scoped analytics response (FR-13)."
+  def active_view(%View{} = view), do: %{id: view.id, name: view.name}
 
   def errors(%Changeset{} = changeset) do
     Changeset.traverse_errors(changeset, fn {message, opts} ->

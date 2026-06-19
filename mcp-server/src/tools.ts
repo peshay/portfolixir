@@ -669,6 +669,7 @@ const riskSchema = {
   required: ["portfolio_id"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 },
     top_n: { type: "integer", minimum: 1 },
     asset_class_caps: decimalMapSchema,
     hhi_bands: {
@@ -690,6 +691,7 @@ const riskSchema = {
 
 const riskZ = z.object({
   portfolio_id: z.number().int().positive(),
+  view: z.number().int().positive().optional(),
   top_n: z.number().int().positive().optional(),
   asset_class_caps: z.record(z.string()).optional(),
   hhi_bands: z
@@ -707,13 +709,15 @@ const allocationSchema = {
   required: ["portfolio_id", "classification_id"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
-    classification_id: { type: "integer", minimum: 1 }
+    classification_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 }
   }
 };
 
 const allocationZ = z.object({
   portfolio_id: z.number().int().positive(),
-  classification_id: z.number().int().positive()
+  classification_id: z.number().int().positive(),
+  view: z.number().int().positive().optional()
 });
 
 // The cash target is the SOLL cash share of the allocation's 100% basis
@@ -772,6 +776,7 @@ const performanceSchema = {
   required: ["portfolio_id"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 },
     period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
     series: { type: "boolean" }
   }
@@ -779,8 +784,161 @@ const performanceSchema = {
 
 const performanceZ = z.object({
   portfolio_id: z.number().int().positive(),
+  view: z.number().int().positive().optional(),
   period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
   series: z.boolean().optional()
+});
+
+// -- buckets & views (ADR-0018) --------------------------------------------
+
+const bucketSchema = objectWith("bucket", {
+  type: "object",
+  required: ["name"],
+  properties: {
+    name: { type: "string" },
+    color: { type: "string" }
+  }
+});
+
+const bucketZ = z.object({
+  bucket: z.object({
+    name: z.string(),
+    color: optionalString()
+  })
+});
+
+const bucketUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "bucket"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    bucket: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        color: { type: "string" }
+      }
+    }
+  }
+};
+
+const bucketUpdateZ = z.object({
+  id: z.number().int().positive(),
+  bucket: z.object({
+    name: optionalString(),
+    color: optionalString()
+  })
+});
+
+const viewSchema = objectWith("view", {
+  type: "object",
+  required: ["name"],
+  properties: {
+    name: { type: "string" },
+    include_all: { type: "boolean" }
+  }
+});
+
+const viewZ = z.object({
+  view: z.object({
+    name: z.string(),
+    include_all: z.boolean().optional()
+  })
+});
+
+const viewUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "view"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    view: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        include_all: { type: "boolean" }
+      }
+    }
+  }
+};
+
+const viewUpdateZ = z.object({
+  id: z.number().int().positive(),
+  view: z.object({
+    name: optionalString(),
+    include_all: z.boolean().optional()
+  })
+});
+
+const bucketIdArraySchema = {
+  type: "array",
+  items: { type: "integer", minimum: 1 }
+};
+const bucketIdArrayZ = z.array(z.number().int().positive());
+
+const viewBucketsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    include: bucketIdArraySchema,
+    exclude: bucketIdArraySchema
+  }
+};
+
+const viewBucketsZ = z.object({
+  id: z.number().int().positive(),
+  include: bucketIdArrayZ.optional(),
+  exclude: bucketIdArrayZ.optional()
+});
+
+const depotBucketsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    bucket_ids: bucketIdArraySchema
+  }
+};
+
+const depotBucketsZ = z.object({
+  id: z.number().int().positive(),
+  bucket_ids: bucketIdArrayZ.optional()
+});
+
+const positionBucketsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "security_id"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    security_id: { type: "integer", minimum: 1 },
+    bucket_ids: bucketIdArraySchema
+  }
+};
+
+const positionBucketsZ = z.object({
+  id: z.number().int().positive(),
+  security_id: z.number().int().positive(),
+  bucket_ids: bucketIdArrayZ.optional()
+});
+
+const clearPositionBucketsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "security_id"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    security_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const clearPositionBucketsZ = z.object({
+  id: z.number().int().positive(),
+  security_id: z.number().int().positive()
 });
 
 const journalActorTypes = [
@@ -944,12 +1102,15 @@ const toolDefinitions: ToolDefinition[] = [
     securities_account_id: z.number().int().positive().optional()
   })),
   tool("portfolixir.holdings.by_security", "Holdings by security (global EUR)", "Global per-security valuation across ALL portfolios: each held security's total quantity and current market value converted to the EUR hub, with a valued flag (false when a quote, trade price or EUR rate path is missing). Self-describing: currency EUR, an as_of read date and a note; market_value is a Decimal string. Differs from portfolixir.holdings.list (per-portfolio holdings in the security's own currency, no FX) and from portfolixir.portfolios.valuation (one portfolio's totals/weights in its base currency).", emptyObjectSchema, emptyObjectZ),
-  tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, actual weights per position, plus the base-currency portfolio total, cash balances and the cash quote (use this, not holdings.list, for base-currency totals). The valued/price_source flags mark stale or unpriceable positions.", {
+  tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, actual weights per position, plus the base-currency portfolio total, cash balances and the cash quote (use this, not holdings.list, for base-currency totals). The valued/price_source flags mark stale or unpriceable positions. Pass an optional view (a view id) to scope the result to the holdings matching that bucket view; the response then echoes the active view.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
-    properties: { portfolio_id: { type: "integer", minimum: 1 } }
-  }, z.object({ portfolio_id: z.number().int().positive() })),
+    properties: {
+      portfolio_id: { type: "integer", minimum: 1 },
+      view: { type: "integer", minimum: 1 }
+    }
+  }, z.object({ portfolio_id: z.number().int().positive(), view: z.number().int().positive().optional() })),
   tool("portfolixir.exchange_rates.list", "List exchange rates", "List stored EUR-hub exchange rates.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store the latest exchange rates from the configured provider.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and security assignments.", emptyObjectSchema, emptyObjectZ),
@@ -1006,14 +1167,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.allocation",
     "Portfolio allocation drift",
-    "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category plus a cash row, in one call. The 100% basis is securities + counting cash.",
+    "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category plus a cash row, in one call. The 100% basis is securities + counting cash. Pass an optional view (a view id) to scope the breakdown to the holdings matching that bucket view; the response then echoes the active view.",
     allocationSchema,
     allocationZ
   ),
   tool(
     "portfolixir.portfolios.risk",
     "Portfolio risk/concentration lens",
-    "Risk/concentration lens for a portfolio over the steerable basis (valued positions minus those flagged excluded_from_allocation_targets): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call.",
+    "Risk/concentration lens for a portfolio over the steerable basis (valued positions minus those flagged excluded_from_allocation_targets): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call. Pass an optional view (a view id) to scope the lens to the holdings matching that bucket view; the response then echoes the active view.",
     riskSchema,
     riskZ
   ),
@@ -1041,7 +1202,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.performance",
     "Portfolio performance (TTWROR + IRR)",
-    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). Set series=true to include the daily valuation series.",
+    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). Set series=true to include the daily valuation series. Pass an optional view (a view id) to scope the series to the holdings matching that bucket view; the response then echoes the active view.",
     performanceSchema,
     performanceZ
   ),
@@ -1051,6 +1212,111 @@ const toolDefinitions: ToolDefinition[] = [
     "List append-only audit-journal entries (FR-28), newest first: who (actor_type/label), what (operation on resource_type/resource_id) and the before/after snapshots of every financial write, including deletions. Optional filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. The response echoes as_of, the filters applied and the ordering.",
     journalListSchema,
     journalListZ
+  ),
+  tool(
+    "portfolixir.buckets.list",
+    "List buckets",
+    "List the buckets (overlapping tags applied to holdings for tag-based wealth scoping).",
+    emptyObjectSchema,
+    emptyObjectZ
+  ),
+  tool(
+    "portfolixir.buckets.get",
+    "Get bucket",
+    "Get one bucket by id.",
+    idSchema,
+    idZ
+  ),
+  tool(
+    "portfolixir.buckets.create",
+    "Create bucket",
+    "Create a bucket (an overlapping tag). name is required; color is an optional hex string.",
+    bucketSchema,
+    bucketZ
+  ),
+  tool(
+    "portfolixir.buckets.update",
+    "Update bucket",
+    "Patch a bucket's name or color.",
+    bucketUpdateSchema,
+    bucketUpdateZ
+  ),
+  tool(
+    "portfolixir.buckets.delete",
+    "Delete bucket",
+    "Delete a bucket. The deletion cascades: the bucket is removed from every assignment and view set.",
+    idSchema,
+    idZ
+  ),
+  tool(
+    "portfolixir.views.list",
+    "List views",
+    "List the views (named global filters over buckets). Each view carries its resolved include/exclude bucket sets; include is \"all\" under include_all, otherwise a list of bucket ids. Exclude always wins.",
+    emptyObjectSchema,
+    emptyObjectZ
+  ),
+  tool(
+    "portfolixir.views.get",
+    "Get view",
+    "Get one view by id, with its resolved include/exclude bucket sets.",
+    idSchema,
+    idZ
+  ),
+  tool(
+    "portfolixir.views.create",
+    "Create view",
+    "Create a view (a named bucket filter). name is required; include_all defaults to true (every bucket is in scope until you narrow it with set_buckets).",
+    viewSchema,
+    viewZ
+  ),
+  tool(
+    "portfolixir.views.update",
+    "Update view",
+    "Patch a view's name or include_all flag.",
+    viewUpdateSchema,
+    viewUpdateZ
+  ),
+  tool(
+    "portfolixir.views.delete",
+    "Delete view",
+    "Delete a view and its include/exclude bucket sets.",
+    idSchema,
+    idZ
+  ),
+  tool(
+    "portfolixir.views.set_buckets",
+    "Set view buckets",
+    "Replace a view's include and exclude bucket sets in one call. include and exclude are arrays of bucket ids (default empty). A holding matches when it is included (always under include_all, otherwise carries an included bucket) and carries no excluded bucket; exclude always wins.",
+    viewBucketsSchema,
+    viewBucketsZ
+  ),
+  tool(
+    "portfolixir.securities_accounts.set_buckets",
+    "Set depot default buckets",
+    "Replace a depot/securities account's default bucket set (the buckets every position inherits unless overridden). bucket_ids is an array of bucket ids (default empty).",
+    depotBucketsSchema,
+    depotBucketsZ
+  ),
+  tool(
+    "portfolixir.cash_accounts.set_buckets",
+    "Set cash account buckets",
+    "Replace a cash account's bucket set. bucket_ids is an array of bucket ids (default empty).",
+    depotBucketsSchema,
+    depotBucketsZ
+  ),
+  tool(
+    "portfolixir.securities_accounts.set_position_buckets",
+    "Set position bucket override",
+    "Set the per-position bucket override for one security in one depot (id is the securities account id, security_id the security). bucket_ids is an array of bucket ids; an empty array records the explicit-empty state (deliberately no buckets), distinct from inheriting the depot default. Override wins over the depot default.",
+    positionBucketsSchema,
+    positionBucketsZ
+  ),
+  tool(
+    "portfolixir.securities_accounts.clear_position_buckets",
+    "Clear position bucket override",
+    "Clear the per-position bucket override, returning the position to inherit the depot default (id is the securities account id, security_id the security).",
+    clearPositionBucketsSchema,
+    clearPositionBucketsZ
   )
 ];
 
@@ -1163,7 +1429,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.holdings.by_security":
       return client.request("GET", "/api/v1/holdings/by_security");
     case "portfolixir.portfolios.valuation":
-      return client.request("GET", `/api/v1/portfolios/${args.portfolio_id}/valuation`);
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/valuation`, args, ["view"])
+      );
     case "portfolixir.exchange_rates.list":
       return client.request("GET", "/api/v1/exchange_rates");
     case "portfolixir.exchange_rates.sync":
@@ -1237,7 +1506,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.portfolios.allocation":
       return client.request(
         "GET",
-        withQuery(`/api/v1/portfolios/${args.portfolio_id}/allocation`, args, ["classification_id"])
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/allocation`, args, [
+          "classification_id",
+          "view"
+        ])
       );
     case "portfolixir.portfolios.risk":
       return client.request("GET", riskPath(args));
@@ -1258,7 +1530,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/performance`, args, [
           "period",
-          "series"
+          "series",
+          "view"
         ])
       );
     case "portfolixir.journal.list":
@@ -1272,6 +1545,50 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "include_scenarios",
           "limit"
         ])
+      );
+    case "portfolixir.buckets.list":
+      return client.request("GET", "/api/v1/buckets");
+    case "portfolixir.buckets.get":
+      return client.request("GET", `/api/v1/buckets/${args.id}`);
+    case "portfolixir.buckets.create":
+      return client.request("POST", "/api/v1/buckets", { bucket: args.bucket });
+    case "portfolixir.buckets.update":
+      return client.request("PATCH", `/api/v1/buckets/${args.id}`, { bucket: args.bucket });
+    case "portfolixir.buckets.delete":
+      return client.request("DELETE", `/api/v1/buckets/${args.id}`);
+    case "portfolixir.views.list":
+      return client.request("GET", "/api/v1/views");
+    case "portfolixir.views.get":
+      return client.request("GET", `/api/v1/views/${args.id}`);
+    case "portfolixir.views.create":
+      return client.request("POST", "/api/v1/views", { view: args.view });
+    case "portfolixir.views.update":
+      return client.request("PATCH", `/api/v1/views/${args.id}`, { view: args.view });
+    case "portfolixir.views.delete":
+      return client.request("DELETE", `/api/v1/views/${args.id}`);
+    case "portfolixir.views.set_buckets":
+      return client.request("PUT", `/api/v1/views/${args.id}/buckets`, {
+        include: args.include ?? [],
+        exclude: args.exclude ?? []
+      });
+    case "portfolixir.securities_accounts.set_buckets":
+      return client.request("PUT", `/api/v1/securities_accounts/${args.id}/buckets`, {
+        bucket_ids: args.bucket_ids ?? []
+      });
+    case "portfolixir.cash_accounts.set_buckets":
+      return client.request("PUT", `/api/v1/cash_accounts/${args.id}/buckets`, {
+        bucket_ids: args.bucket_ids ?? []
+      });
+    case "portfolixir.securities_accounts.set_position_buckets":
+      return client.request(
+        "PUT",
+        `/api/v1/securities_accounts/${args.id}/positions/${args.security_id}/buckets`,
+        { bucket_ids: args.bucket_ids ?? [] }
+      );
+    case "portfolixir.securities_accounts.clear_position_buckets":
+      return client.request(
+        "DELETE",
+        `/api/v1/securities_accounts/${args.id}/positions/${args.security_id}/buckets`
       );
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);
@@ -1303,6 +1620,10 @@ function objectWith(property: string, schema: JsonSchema): JsonSchema {
 // flat. Absent overrides are simply omitted so the shipped defaults apply.
 function riskPath(args: Record<string, any>): string {
   const params = new URLSearchParams();
+
+  if (args.view !== undefined && args.view !== null) {
+    params.set("view", String(args.view));
+  }
 
   if (args.top_n !== undefined && args.top_n !== null) {
     params.set("top_n", String(args.top_n));

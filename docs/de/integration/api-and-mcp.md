@@ -513,6 +513,65 @@ Beispiel-Payload für eine Transaktion:
 }
 ```
 
+## Buckets und Views
+
+Buckets sind überlappende Tags, die auf Bestände (Depots, Geldkonten und
+einzelne Wertpapier-Positionen) angewendet werden, um Vermögen tag-basiert
+einzugrenzen. Views sind benannte, globale Filter über diese Buckets: ein
+Bestand passt, wenn er eingeschlossen ist (immer unter `include_all`, sonst wenn
+er einen der Include-Buckets der View trägt) und keinen der Exclude-Buckets der
+View trägt — Exclude gewinnt immer. Bucket-Definitions- und
+Zuordnungs-Schreibvorgänge werden journalisiert (ADR-0017);
+View-Definitions-Schreibvorgänge bewusst nicht (ADR-0018 §5).
+
+- `GET /api/v1/buckets` listet Buckets (`id`, `name`, `color`).
+- `POST /api/v1/buckets` legt einen Bucket aus einem `bucket`-Objekt an (`name`
+  erforderlich, optionales `color`). Ein leerer oder doppelter Name ergibt `422`.
+- `GET /api/v1/buckets/:id` liefert einen Bucket; unbekannte ids ergeben `404`.
+- `PATCH /api/v1/buckets/:id` ändert `name`/`color` eines Buckets.
+- `DELETE /api/v1/buckets/:id` löscht einen Bucket und entfernt ihn aus jeder
+  Zuordnung und jedem View-Set, Antwort `204 No Content`.
+- `GET /api/v1/views` listet Views. Jede View trägt `include_all`, das aufgelöste
+  `include`-Set (das Literal `"all"` unter `include_all`, sonst eine Liste von
+  Bucket-ids) und die `exclude`-Liste von Bucket-ids.
+- `POST /api/v1/views` legt eine View aus einem `view`-Objekt an (`name`
+  erforderlich, optionales `include_all`, Standard `true`).
+- `GET /api/v1/views/:id` liefert eine View mit ihrem aufgelösten Filter.
+- `PATCH /api/v1/views/:id` ändert `name`/`include_all` einer View.
+- `DELETE /api/v1/views/:id` löscht eine View und ihre Bucket-Sets (`204`).
+- `PUT /api/v1/views/:id/buckets` ersetzt die Include-/Exclude-Bucket-Sets einer
+  View. Body: `{"include": [..], "exclude": [..]}` (beide optional, Standard
+  `[]`, Listen von Bucket-ids). Eine fehlerhafte id-Liste ergibt `422`.
+- `PUT /api/v1/securities_accounts/:id/buckets` ersetzt das Standard-Bucket-Set
+  eines Depots (die Buckets, die jede Position erbt, sofern nicht überschrieben).
+  Body: `{"bucket_ids": [..]}`.
+- `PUT /api/v1/cash_accounts/:id/buckets` ersetzt das Bucket-Set eines
+  Geldkontos. Body: `{"bucket_ids": [..]}`.
+- `PUT /api/v1/securities_accounts/:id/positions/:security_id/buckets` setzt die
+  Positions-Überschreibung für ein Wertpapier in einem Depot. Ein leeres
+  `bucket_ids` speichert den **explizit-leeren** Zustand (bewusst keine Buckets),
+  unterschieden vom Erben des Depot-Standards; die Überschreibung gewinnt immer
+  gegenüber dem Depot-Standard. Die Antwort nennt das aufgelöste `override`
+  (`inherit`, `explicit_empty` oder `explicit`) und die `effective_bucket_ids`.
+- `DELETE /api/v1/securities_accounts/:id/positions/:security_id/buckets` setzt
+  die Überschreibung zurück, sodass die Position wieder den Depot-Standard erbt.
+
+Die Analyse-Endpunkte akzeptieren einen optionalen `view`-Query-Parameter (eine
+View-id), um das Ergebnis auf die Bestände der View einzugrenzen:
+
+- `GET /api/v1/portfolios/:portfolio_id/valuation?view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/allocation?classification_id=<id>&view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/performance?view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/risk?view=<id>`
+
+Bei gesetztem `view` spiegelt die Antwort die aktive View als `view: {id, name}`
+wider (FR-13); der Aufruf ohne View ist unverändert und trägt kein `view`-Feld.
+Eine fehlerhafte View-id ergibt `422`, eine unbekannte `404`. Der Bestände-
+Endpunkt (`GET /api/v1/portfolios/:portfolio_id/holdings`) ist **nicht**
+view-eingegrenzt: er liefert die Roh-Zeilen pro (Depot, Wertpapier) in der
+jeweiligen Wertpapierwährung, sodass ein Client das Buckets/Views-Modell selbst
+anhand von `securities_account_id` und `security_id` jeder Zeile anwenden kann.
+
 ## Audit-Journal
 
 Jeder finanzielle Schreibvorgang (Anlegen, Ändern, Löschen) wird in einem
@@ -590,3 +649,24 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`
 - `portfolixir.journal.list`
+- `portfolixir.buckets.list`
+- `portfolixir.buckets.get`
+- `portfolixir.buckets.create`
+- `portfolixir.buckets.update`
+- `portfolixir.buckets.delete`
+- `portfolixir.views.list`
+- `portfolixir.views.get`
+- `portfolixir.views.create`
+- `portfolixir.views.update`
+- `portfolixir.views.delete`
+- `portfolixir.views.set_buckets`
+- `portfolixir.securities_accounts.set_buckets`
+- `portfolixir.cash_accounts.set_buckets`
+- `portfolixir.securities_accounts.set_position_buckets`
+- `portfolixir.securities_accounts.clear_position_buckets`
+
+Die Tools `portfolixir.portfolios.valuation`,
+`portfolixir.portfolios.allocation`, `portfolixir.portfolios.performance` und
+`portfolixir.portfolios.risk` akzeptieren ein optionales `view` (eine View-id),
+das das Ergebnis auf die Bestände der Bucket-View eingrenzt; die Antwort spiegelt
+dann die aktive View wider.
