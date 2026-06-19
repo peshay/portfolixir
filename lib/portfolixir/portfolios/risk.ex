@@ -83,8 +83,10 @@ defmodule Portfolixir.Portfolios.Risk do
   existence and forwards a `404` otherwise.
   """
   def for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
+    # `:view` scopes risk by flowing through to the valuation it is computed over
+    # (#444); no view -> unscoped -> identical to today.
     {valuation_opts, risk_opts} =
-      Keyword.split(opts, [:prices, :base_currency])
+      Keyword.split(opts, [:prices, :base_currency, :view])
 
     valuation = Valuation.for_portfolio(portfolio_id, valuation_opts)
     excluded_ids = Catalog.excluded_from_allocation_target_ids()

@@ -235,33 +235,12 @@ defmodule Portfolixir.Buckets do
   `{:explicit, bucket_ids}` (ADR-0018).
   """
   def position_override(securities_account_id, security_id) do
-    rows =
-      Repo.all(
-        from(o in position_override_query(securities_account_id, security_id),
-          order_by: [asc: o.bucket_id],
-          select: o.bucket_id
-        )
-      )
-
-    case rows do
-      [] ->
-        :inherit
-
-      [nil] ->
-        :explicit_empty
-
-      ids ->
-        # The explicit-empty marker (a single NULL row) must never coexist with
-        # real bucket rows — the context always writes one kind in a single
-        # transaction. A mixed set means corruption; fail loud rather than
-        # silently dropping the explicit-empty semantics (crash-by-design).
-        if Enum.any?(ids, &is_nil/1) do
-          raise "position_bucket_overrides for (#{securities_account_id}, #{security_id}) " <>
-                  "mixes the explicit-empty marker with bucket rows"
-        end
-
-        {:explicit, ids}
-    end
+    from(o in position_override_query(securities_account_id, security_id),
+      order_by: [asc: o.bucket_id],
+      select: o.bucket_id
+    )
+    |> Repo.all()
+    |> classify_override()
   end
 
   @doc "The resolved effective bucket ids for a position (override wins over depot default)."
@@ -340,7 +319,108 @@ defmodule Portfolixir.Buckets do
     end
   end
 
+  # -- view scope (read seam for analytics, #444) ----------------------------
+
+  @doc """
+  Loads a reusable scope for `portfolio_id` under `view_id`. With `view_id == nil`
+  it returns `:unscoped` (everything is in scope, so analytics stay byte-identical
+  to the unscoped path). Otherwise it bulk-loads — in a fixed number of queries —
+  the view filter plus the portfolio's depot defaults, position overrides, and
+  cash-account assignments, so subsequent membership checks need no further
+  queries. The membership decision itself is the pure
+  `Portfolixir.Engines.BucketResolution` (architecture D2/P3): this function is
+  the shell that injects the data.
+  """
+  @spec load_scope(integer(), integer() | nil) :: :unscoped | map()
+  def load_scope(_portfolio_id, nil), do: :unscoped
+
+  def load_scope(portfolio_id, view_id) do
+    %{
+      view: view_filter(view_id),
+      depot_defaults: depot_defaults_for_portfolio(portfolio_id),
+      overrides: overrides_for_portfolio(portfolio_id),
+      cash: cash_assignments_for_portfolio(portfolio_id)
+    }
+  end
+
+  @doc "Whether the security position `{sa_id, sec_id}` is in `scope` (always true when unscoped)."
+  @spec position_in_scope?(:unscoped | map(), integer(), integer()) :: boolean()
+  def position_in_scope?(:unscoped, _sa_id, _sec_id), do: true
+
+  def position_in_scope?(scope, sa_id, sec_id) when is_map(scope) do
+    override = Map.get(scope.overrides, {sa_id, sec_id}, :inherit)
+
+    effective =
+      BucketResolution.effective_position_buckets(
+        override,
+        Map.get(scope.depot_defaults, sa_id, [])
+      )
+
+    BucketResolution.in_view?(scope.view, effective)
+  end
+
+  @doc "Whether the cash account is in `scope` (always true when unscoped)."
+  @spec cash_in_scope?(:unscoped | map(), integer()) :: boolean()
+  def cash_in_scope?(:unscoped, _cash_account_id), do: true
+
+  def cash_in_scope?(scope, cash_account_id) when is_map(scope) do
+    BucketResolution.in_view?(scope.view, Map.get(scope.cash, cash_account_id, []))
+  end
+
   # -- helpers ---------------------------------------------------------------
+
+  defp depot_defaults_for_portfolio(portfolio_id) do
+    from(x in SecuritiesAccountBucket,
+      join: sa in SecuritiesAccount,
+      on: sa.id == x.securities_account_id,
+      where: sa.portfolio_id == ^portfolio_id,
+      select: {x.securities_account_id, x.bucket_id}
+    )
+    |> Repo.all()
+    |> group_owner_ids()
+  end
+
+  defp cash_assignments_for_portfolio(portfolio_id) do
+    from(x in CashAccountBucket,
+      join: ca in CashAccount,
+      on: ca.id == x.cash_account_id,
+      where: ca.portfolio_id == ^portfolio_id,
+      select: {x.cash_account_id, x.bucket_id}
+    )
+    |> Repo.all()
+    |> group_owner_ids()
+  end
+
+  defp overrides_for_portfolio(portfolio_id) do
+    from(o in PositionBucketOverride,
+      join: sa in SecuritiesAccount,
+      on: sa.id == o.securities_account_id,
+      where: sa.portfolio_id == ^portfolio_id,
+      select: {o.securities_account_id, o.security_id, o.bucket_id}
+    )
+    |> Repo.all()
+    |> Enum.group_by(fn {sa, sec, _b} -> {sa, sec} end, fn {_sa, _sec, b} -> b end)
+    |> Map.new(fn {key, bucket_ids} -> {key, classify_override(bucket_ids)} end)
+  end
+
+  defp group_owner_ids(rows) do
+    Enum.group_by(rows, fn {owner, _bucket} -> owner end, fn {_owner, bucket} -> bucket end)
+  end
+
+  # Resolves the raw override bucket-id rows for one position into its assignment
+  # state. A single NULL row is the explicit-empty marker; the marker must never
+  # coexist with real bucket rows — the context always writes one kind in a single
+  # transaction, so a mixed set is corruption and fails loud (crash-by-design).
+  defp classify_override([]), do: :inherit
+  defp classify_override([nil]), do: :explicit_empty
+
+  defp classify_override(bucket_ids) do
+    if Enum.any?(bucket_ids, &is_nil/1) do
+      raise "position_bucket_overrides mixes the explicit-empty marker with bucket rows"
+    end
+
+    {:explicit, bucket_ids}
+  end
 
   defp position_override_query(sa_id, sec_id) do
     from(o in PositionBucketOverride,

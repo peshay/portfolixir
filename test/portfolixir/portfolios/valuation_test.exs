@@ -11,6 +11,8 @@ defmodule Portfolixir.Portfolios.ValuationTest do
       put_quote!: 3
     ]
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Valuation
 
@@ -104,6 +106,60 @@ defmodule Portfolixir.Portfolios.ValuationTest do
       |> Enum.reduce(Decimal.new("0"), &Decimal.add/2)
 
     assert Decimal.equal?(valued_weights, Decimal.new("1"))
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want to value a chosen view of my portfolio (e.g. everything except the
+  # long-term Krypto reserve), while the default view stays my whole, single-count
+  # wealth, so that I can analyse a slice without distorting my net worth (#444).
+  #
+  # Acceptance criteria:
+  # - With no view, the result is byte-for-byte identical to the unscoped path
+  #   (an include-everything view equals no view).
+  # - A view restricts positions to those matching it; the total and weights are
+  #   computed over the scoped, single-count universe.
+  # - A view excluding a bucket also drops cash assigned to that bucket.
+  test "scopes positions and cash to a view; the default stays identical" do
+    world = base_world()
+    core = equity!("Core Co.", "CORE")
+    krypto = equity!("Krypto Co.", "KRYP")
+    buy!(world, core, quantity: "10", price: "10")
+    buy!(world, krypto, quantity: "10", price: "10")
+    deposit!(world, "300", ~D[2026-01-01])
+
+    prices = %{core.id => Decimal.new("10"), krypto.id => Decimal.new("10")}
+
+    {:ok, krypto_bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+
+    {:ok, no_krypto} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "NoKrypto", include_all: true})
+
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), no_krypto, [], [krypto_bucket.id])
+    :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, krypto, [krypto_bucket.id])
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), world.cash, [krypto_bucket.id])
+
+    {:ok, everything} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Everything", include_all: true})
+
+    unscoped = Valuation.for_portfolio(world.portfolio.id, prices: prices)
+    permissive = Valuation.for_portfolio(world.portfolio.id, prices: prices, view: everything.id)
+
+    # An include-everything view is byte-for-byte identical to no view (AC 3).
+    assert permissive == unscoped
+    assert Decimal.equal?(unscoped.total_value, Decimal.new("200"))
+    # 300 deposited minus the two 100-EUR buys.
+    assert Decimal.equal?(unscoped.total_cash, Decimal.new("100"))
+
+    scoped = Valuation.for_portfolio(world.portfolio.id, prices: prices, view: no_krypto.id)
+
+    # Krypto position and Krypto-tagged cash are both out of the view (AC 2, 5).
+    assert Enum.map(scoped.positions, & &1.security_id) == [core.id]
+    assert Decimal.equal?(scoped.total_value, Decimal.new("100"))
+    assert Decimal.equal?(scoped.total_cash, Decimal.new("0"))
+
+    [row] = scoped.positions
+    assert Decimal.equal?(row.weight, Decimal.new("1"))
   end
 
   test "injects prices for tests without touching quote history" do
