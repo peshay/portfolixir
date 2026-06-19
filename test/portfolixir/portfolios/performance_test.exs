@@ -3,6 +3,8 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
 
   import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1, deposit!: 3]
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
@@ -45,6 +47,52 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
   end
 
   defp rounded(decimal, places), do: Decimal.round(decimal, places)
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want the performance of a chosen view (a slice of my holdings), while the
+  # default stays my whole-portfolio TTWROR, so that I can judge a slice on its
+  # own — with money crossing the view's edge treated as a deposit/withdrawal to
+  # the slice (ADR-0019, #444).
+  test "scopes the TTWROR to a view and treats boundary transfers as flows" do
+    world = setup_world()
+    other = create_security!(name: "Other ETF", ticker: "OTH", asset_class: "etf")
+
+    deposit!(world, "2000", ~D[2026-01-01])
+    WorldFixtures.buy!(world, world.security, quantity: "10", price: "100", date: ~D[2026-01-01])
+    WorldFixtures.buy!(world, other, quantity: "10", price: "100", date: ~D[2026-01-01])
+    quote!(world, "100", ~D[2026-01-01])
+    quote!(world, "120", ~D[2026-01-10])
+    WorldFixtures.put_quote!(other, ~D[2026-01-01], "100")
+    WorldFixtures.put_quote!(other, ~D[2026-01-10], "100")
+
+    {:ok, excl} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Excl"})
+    {:ok, no_other} = Buckets.create_view(Actor.owner_ui(), %{name: "NoOther", include_all: true})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), no_other, [], [excl.id])
+    :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, other, [excl.id])
+    {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "All", include_all: true})
+
+    {:ok, unscoped} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10])
+
+    {:ok, permissive} =
+      Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10], view: everything.id)
+
+    {:ok, scoped} =
+      Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10], view: no_other.id)
+
+    # An include-everything view is byte-for-byte identical to no view.
+    assert permissive == unscoped
+
+    # Whole portfolio: both bought at 100 (value 2000), day 10 -> 1200 + 1000 = 2200 (+10%).
+    assert rounded(unscoped.ttwror, 6) |> Decimal.equal?(Decimal.new("0.1"))
+    assert Decimal.equal?(unscoped.net_external_flows, Decimal.new("2000"))
+
+    # View = only the index fund: +20% on its own. Buying "Other" with in-view cash
+    # is a 1000 outflow at the boundary, so the deposit nets to 1000 for the slice.
+    assert rounded(scoped.ttwror, 6) |> Decimal.equal?(Decimal.new("0.2"))
+    assert Decimal.equal?(scoped.net_external_flows, Decimal.new("1000"))
+    assert Decimal.equal?(scoped.end_value, Decimal.new("1200"))
+  end
 
   test "chains daily returns and neutralises deposits" do
     world = setup_world()

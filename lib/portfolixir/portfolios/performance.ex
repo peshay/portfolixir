@@ -43,6 +43,7 @@ defmodule Portfolixir.Portfolios.Performance do
   itself issues no queries.
   """
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
@@ -92,6 +93,9 @@ defmodule Portfolixir.Portfolios.Performance do
     base = base_currency(portfolio_id)
     transactions = sorted_transactions(portfolio_id)
     suspects = suspect_dates(transactions)
+    # `:view` (a view id) scopes the series to the holdings matching that view;
+    # `nil` -> `:unscoped` -> the walk takes the unchanged code path (#444).
+    scope = Buckets.load_scope(portfolio_id, Keyword.get(opts, :view))
 
     case walk_start(transactions, today) do
       nil ->
@@ -104,7 +108,7 @@ defmodule Portfolixir.Portfolios.Performance do
           today: today,
           first_date: start,
           suspect_dates: suspects,
-          daily: daily_series(portfolio_id, transactions, start, today, base)
+          daily: daily_series(portfolio_id, transactions, start, today, base, scope)
         }
     end
   end
@@ -211,13 +215,14 @@ defmodule Portfolixir.Portfolios.Performance do
   # maintaining held quantities and per-account cash, and records each day's
   # portfolio value (base currency) and net external flow. All pricing data
   # (quotes, own trade prices, FX rates) is preloaded; the walk is pure.
-  defp daily_series(portfolio_id, transactions, walk_start, today, base) do
+  defp daily_series(portfolio_id, transactions, walk_start, today, base, scope) do
     by_day = Enum.group_by(transactions, &effective_date(&1, walk_start))
     currencies = account_currencies(portfolio_id)
 
     context = %{
       base: base,
       currencies: currencies,
+      scope: scope,
       pricing: init_pricing(transactions, walk_start),
       fx: init_fx(transactions, currencies, base, walk_start)
     }
@@ -274,12 +279,115 @@ defmodule Portfolixir.Portfolios.Performance do
   # balance snapshot: the residual jump — money that appeared or left outside
   # the recorded bookings) and the market value of the moved quantities count
   # as the day's external flow, converted to the base currency.
-  defp apply_transaction(tx, state, context) do
+  defp apply_transaction(tx, state, %{scope: :unscoped} = context) do
     effect = Projection.effects(tx)
     {state, cash_flow} = apply_cash_legs(effect.cash, tx, state, context, effect.external)
     {state, qty_flow} = apply_quantity_legs(effect.quantities, state, context, effect.external)
     {state, Decimal.add(cash_flow, qty_flow)}
   end
+
+  # Scoped walk (#444, ADR-0019): only in-view legs touch the state, so the daily
+  # value covers exactly the view's single-count holdings. The flow is the value
+  # crossing the view boundary: kept external legs (deposits/dividends/deliveries
+  # restricted to in-view accounts/positions) plus, for value-conserving internal
+  # transactions that straddle the boundary (a trade or transfer with some legs in
+  # and some out), the net booked value of the kept legs. A fully-in or fully-out
+  # transaction never straddles, so an include-everything view reproduces the
+  # unscoped result exactly.
+  defp apply_transaction(tx, state, context) do
+    effect = Projection.effects(tx)
+    scope = context.scope
+
+    kept_cash = Enum.filter(effect.cash, &cash_leg_in_scope?(&1, scope))
+    kept_qty = Enum.filter(effect.quantities, &qty_leg_in_scope?(&1, scope))
+
+    # Apply the kept legs to the (in-view) state and capture the kept cash's booked
+    # base value — ungated, because a straddle's cash side is a boundary flow even
+    # for an internal trade.
+    {state, kept_cash_base} = apply_kept_cash(kept_cash, tx, state, context)
+
+    state =
+      Enum.reduce(kept_qty, state, fn {_acct, sec, delta}, st -> add_qty(st, sec, delta) end)
+
+    flow =
+      cond do
+        effect.external ->
+          Decimal.add(kept_cash_base, kept_qty_market_value(kept_qty, context))
+
+        straddles?(effect, kept_cash, kept_qty) ->
+          Decimal.add(kept_cash_base, kept_qty_booked_value(effect, kept_qty, tx, context))
+
+        true ->
+          @zero
+      end
+
+    {state, flow}
+  end
+
+  defp apply_kept_cash(legs, tx, state, context) do
+    Enum.reduce(legs, {state, @zero}, fn {account_id, _op} = leg, {st, acc} ->
+      {st, applied} = apply_cash_leg(leg, st)
+      currency = Map.get(context.currencies, account_id, tx.currency_code)
+      {st, Decimal.add(acc, to_base(applied, currency, context))}
+    end)
+  end
+
+  defp cash_leg_in_scope?({nil, _op}, _scope), do: false
+  defp cash_leg_in_scope?({account_id, _op}, scope), do: Buckets.cash_in_scope?(scope, account_id)
+
+  defp qty_leg_in_scope?({account_id, security_id, _delta}, scope),
+    do: Buckets.position_in_scope?(scope, account_id, security_id)
+
+  # A value-conserving internal transaction straddles the view when it has at
+  # least one in-view leg and at least one out-of-view leg.
+  defp straddles?(effect, kept_cash, kept_qty) do
+    total = length(effect.cash) + length(effect.quantities)
+    kept = length(kept_cash) + length(kept_qty)
+    kept > 0 and kept < total
+  end
+
+  # External quantity legs (deliveries) are valued at market, like the unscoped path.
+  defp kept_qty_market_value(kept_qty, context) do
+    Enum.reduce(kept_qty, @zero, fn {_acct, security_id, delta}, acc ->
+      Decimal.add(acc, security_value(security_id, delta, context))
+    end)
+  end
+
+  # Booked value of the kept quantity legs for an internal straddle. For a trade
+  # (the transaction also moves cash) the quantity side is worth the negated total
+  # cash delta, apportioned by quantity, so a fully-in-view trade nets to zero. For
+  # a cashless transfer the moved quantity is valued at market.
+  defp kept_qty_booked_value(%{cash: []} = _effect, kept_qty, _tx, context),
+    do: kept_qty_market_value(kept_qty, context)
+
+  defp kept_qty_booked_value(effect, kept_qty, tx, context) do
+    total_cash_base = total_add_cash_base(effect.cash, tx, context)
+    total_abs_qty = effect.quantities |> Enum.map(&Decimal.abs(elem(&1, 2))) |> sum()
+
+    if Decimal.equal?(total_abs_qty, @zero) do
+      @zero
+    else
+      Enum.reduce(kept_qty, @zero, fn {_acct, _sec, delta}, acc ->
+        share = Decimal.div(Decimal.abs(delta), total_abs_qty)
+        Decimal.add(acc, Decimal.mult(Decimal.negate(total_cash_base), share))
+      end)
+    end
+  end
+
+  # The transaction's total `{:add, delta}` cash movement in base. Trades use
+  # additive legs; balance snapshots ({:set}) are external and never reach here.
+  defp total_add_cash_base(cash_legs, tx, context) do
+    Enum.reduce(cash_legs, @zero, fn
+      {account_id, {:add, delta}}, acc when not is_nil(account_id) ->
+        currency = Map.get(context.currencies, account_id, tx.currency_code)
+        Decimal.add(acc, to_base(delta, currency, context))
+
+      _leg, acc ->
+        acc
+    end)
+  end
+
+  defp sum(decimals), do: Enum.reduce(decimals, @zero, &Decimal.add/2)
 
   defp apply_cash_legs(legs, tx, state, context, external?) do
     Enum.reduce(legs, {state, @zero}, fn {account_id, _op} = leg, {state, flow} ->

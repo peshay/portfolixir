@@ -1,6 +1,6 @@
 # Story: Buckets & views — engine scoping (GitHub #444)
 
-Status: review (partial — valuation/allocation/risk; performance deferred)
+Status: review (performance scoping — completes #444; builds on merged #454)
 
 > **Tracking:** GitHub issue [#444](https://github.com/peshay/portfolixir/issues/444),
 > story 2 of epic [#448](https://github.com/peshay/portfolixir/issues/448). Builds on
@@ -69,12 +69,13 @@ and cash by `cash_account_id` — exactly the keys `Portfolixir.Buckets` resolve
       default test; per-view + multi-tag + cash-in-view Decimal-exact tests.
 - [x] **Task 4 — Allocation `:view`** (AC 1,2,3,6): filter; default identical; keep ADR-0013.
 - [x] **Task 5 — Risk `:view`** (AC 1,2,3,6): scoped positions; default identical.
-- [ ] **Task 6 — Performance `:view`** (AC 1,2,3,5,6) — **DEFERRED to a focused follow-up.**
-      Performance is a time-weighted/money-weighted series, not a snapshot: scoping it
-      correctly means **reclassifying transfers across the view boundary as external flows**
-      (e.g. buying an in-view security with out-of-view cash is an inflow to the view).
-      This sub-portfolio flow rule is a deliberate money-math decision and is split out so the
-      TTWROR/IRR semantics are designed, not rushed. Tracked as the remaining part of #444.
+- [x] **Task 6 — Performance `:view`** (AC 1,2,3,5,6) — **DONE (this PR, on top of #454).**
+      Scoped daily walk: only in-view legs touch the state; the day's flow is the value
+      crossing the view boundary — kept external legs plus, for value-conserving internal
+      transactions that straddle the boundary, the net booked value of the kept legs (a buy
+      of an in-view security with out-of-view cash is an inflow; the reverse is an outflow).
+      The unscoped path is untouched, so an include-everything view == no view (pinned by a
+      test). Rule recorded in **ADR-0019**. IRR inherits scoping (same scoped flows).
 - [x] **Task 7 — Gates & docs**: format, test, coveralls, credo, sobelow, dialyzer,
       pre-commit. API/MCP n/a here (#445). No user-visible surface yet (#446) → no product docs.
 
@@ -135,5 +136,6 @@ New:
 
 | Date | Change |
 | --- | --- |
-| 2026-06-19 | #444 (partial): scoped valuation/allocation/risk by view via a shared seam; performance deferred. All gates green; status → review. |
+| 2026-06-19 | #444 (partial): scoped valuation/allocation/risk by view via a shared seam; performance deferred. All gates green; merged in #454. |
+| 2026-06-19 | #444 (complete): scoped performance (TTWROR/IRR) with the ADR-0019 boundary-flow rule; unscoped byte-identical. All gates green (777 tests); status → review. |
 | 2026-06-19 | Started #444 engine scoping. |
