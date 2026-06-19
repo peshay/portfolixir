@@ -94,6 +94,91 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     assert Decimal.equal?(scoped.end_value, Decimal.new("1200"))
   end
 
+  # A delivery into an in-view position, and a buy of an in-view security funded
+  # from out-of-view cash, are both boundary inflows to the view (ADR-0019).
+  test "scoped flow: delivery and a buy funded from out-of-view cash are inflows" do
+    world = setup_world()
+    {:ok, mine} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Mine"})
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "MineA", include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [mine.id], [])
+    # Security is in view; cash is untagged, so it is out of an include-set view.
+    :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, world.security, [mine.id])
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: world.security.id,
+        type: "inbound_delivery",
+        date: ~D[2026-01-01],
+        quantity: "5",
+        currency_code: "EUR"
+      })
+
+    WorldFixtures.buy!(world, world.security, quantity: "5", price: "100", date: ~D[2026-01-01])
+    quote!(world, "100", ~D[2026-01-01])
+    quote!(world, "110", ~D[2026-01-10])
+
+    {:ok, scoped} =
+      Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10], view: view.id)
+
+    # Day 1: delivery 5@100 (500) + buy 5@100 from out-of-view cash (500) = 1000 in,
+    # value 1000. Day 10: 10 @ 110 = 1100 -> +10%.
+    assert rounded(scoped.ttwror, 6) |> Decimal.equal?(Decimal.new("0.1"))
+    assert Decimal.equal?(scoped.net_external_flows, Decimal.new("1000"))
+    assert Decimal.equal?(scoped.end_value, Decimal.new("1100"))
+  end
+
+  # A security transfer from an out-of-view depot into an in-view depot is a
+  # cashless boundary inflow, valued at market (ADR-0019).
+  test "scoped flow: a security transfer into the view is a market-valued inflow" do
+    world = setup_world()
+    extra = WorldFixtures.add_depot(world.portfolio, depot_name: "Depot B", cash_name: "Cash B")
+
+    {:ok, mine} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Mine"})
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "MineB", include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [mine.id], [])
+    # Only the main-depot position is in view; the Depot-B position is untagged.
+    :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, world.security, [mine.id])
+
+    # Stock Depot B (out of view), then transfer into the main depot (in view).
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: extra.depot.id,
+        security_id: world.security.id,
+        type: "inbound_delivery",
+        date: ~D[2026-01-01],
+        quantity: "5",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: extra.depot.id,
+        counter_securities_account_id: world.depot.id,
+        security_id: world.security.id,
+        type: "security_transfer",
+        date: ~D[2026-01-01],
+        quantity: "5",
+        gross_amount: "500",
+        currency_code: "EUR"
+      })
+
+    quote!(world, "100", ~D[2026-01-01])
+    quote!(world, "120", ~D[2026-01-10])
+
+    {:ok, scoped} =
+      Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10], view: view.id)
+
+    # The view sees only the main-depot position: 5 units arrive (500 inflow at market),
+    # day 10 at 120 -> 600 (+20%).
+    assert rounded(scoped.ttwror, 6) |> Decimal.equal?(Decimal.new("0.2"))
+    assert Decimal.equal?(scoped.net_external_flows, Decimal.new("500"))
+    assert Decimal.equal?(scoped.end_value, Decimal.new("600"))
+  end
+
   test "chains daily returns and neutralises deposits" do
     world = setup_world()
 

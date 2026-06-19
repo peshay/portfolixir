@@ -332,8 +332,8 @@ defmodule Portfolixir.Portfolios.Performance do
     end)
   end
 
-  defp cash_leg_in_scope?({nil, _op}, _scope), do: false
-  defp cash_leg_in_scope?({account_id, _op}, scope), do: Buckets.cash_in_scope?(scope, account_id)
+  defp cash_leg_in_scope?({account_id, _op}, scope),
+    do: not is_nil(account_id) and Buckets.cash_in_scope?(scope, account_id)
 
   defp qty_leg_in_scope?({account_id, security_id, _delta}, scope),
     do: Buckets.position_in_scope?(scope, account_id, security_id)
@@ -362,29 +362,25 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp kept_qty_booked_value(effect, kept_qty, tx, context) do
     total_cash_base = total_add_cash_base(effect.cash, tx, context)
+    # A trade's security legs always carry positive quantity (changeset-validated),
+    # so the apportionment denominator is never zero.
     total_abs_qty = effect.quantities |> Enum.map(&Decimal.abs(elem(&1, 2))) |> sum()
 
-    if Decimal.equal?(total_abs_qty, @zero) do
-      @zero
-    else
-      Enum.reduce(kept_qty, @zero, fn {_acct, _sec, delta}, acc ->
-        share = Decimal.div(Decimal.abs(delta), total_abs_qty)
-        Decimal.add(acc, Decimal.mult(Decimal.negate(total_cash_base), share))
-      end)
-    end
+    Enum.reduce(kept_qty, @zero, fn {_acct, _sec, delta}, acc ->
+      share = Decimal.div(Decimal.abs(delta), total_abs_qty)
+      Decimal.add(acc, Decimal.mult(Decimal.negate(total_cash_base), share))
+    end)
   end
 
   # The transaction's total `{:add, delta}` cash movement in base. Trades use
-  # additive legs; balance snapshots ({:set}) are external and never reach here.
+  # additive legs; balance snapshots ({:set}) are external and never reach here,
+  # and a nil-account leg carries no value — the comprehension skips both.
   defp total_add_cash_base(cash_legs, tx, context) do
-    Enum.reduce(cash_legs, @zero, fn
-      {account_id, {:add, delta}}, acc when not is_nil(account_id) ->
+    for {account_id, {:add, delta}} <- cash_legs, not is_nil(account_id), reduce: @zero do
+      acc ->
         currency = Map.get(context.currencies, account_id, tx.currency_code)
         Decimal.add(acc, to_base(delta, currency, context))
-
-      _leg, acc ->
-        acc
-    end)
+    end
   end
 
   defp sum(decimals), do: Enum.reduce(decimals, @zero, &Decimal.add/2)
