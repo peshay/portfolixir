@@ -58,7 +58,22 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.cash_accounts.set_balance",
       "portfolixir.portfolios.income",
       "portfolixir.portfolios.performance",
-      "portfolixir.journal.list"
+      "portfolixir.journal.list",
+      "portfolixir.buckets.list",
+      "portfolixir.buckets.get",
+      "portfolixir.buckets.create",
+      "portfolixir.buckets.update",
+      "portfolixir.buckets.delete",
+      "portfolixir.views.list",
+      "portfolixir.views.get",
+      "portfolixir.views.create",
+      "portfolixir.views.update",
+      "portfolixir.views.delete",
+      "portfolixir.views.set_buckets",
+      "portfolixir.securities_accounts.set_buckets",
+      "portfolixir.cash_accounts.set_buckets",
+      "portfolixir.securities_accounts.set_position_buckets",
+      "portfolixir.securities_accounts.clear_position_buckets"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -559,6 +574,159 @@ describe("Portfolixir MCP tools", () => {
       "/api/v1/journal?resource_type=security&operation=create&limit=50"
     );
     assert.equal((result.structuredContent as any).data[0].resource_type, "security");
+  });
+
+  it("forwards the view scope param on the analytics tools", async () => {
+    const { client, requests } = createRecordingClient({ data: { portfolio_id: 3 } });
+
+    await callTool(client, "portfolixir.portfolios.valuation", { portfolio_id: 3, view: 5 });
+    await callTool(client, "portfolixir.portfolios.allocation", {
+      portfolio_id: 3,
+      classification_id: 7,
+      view: 5
+    });
+    await callTool(client, "portfolixir.portfolios.performance", {
+      portfolio_id: 3,
+      period: "ytd",
+      view: 5
+    });
+    await callTool(client, "portfolixir.portfolios.risk", { portfolio_id: 3, view: 5, top_n: 4 });
+
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/valuation?view=5");
+    assert.equal(requests[1].path, "/api/v1/portfolios/3/allocation?classification_id=7&view=5");
+    assert.equal(requests[2].path, "/api/v1/portfolios/3/performance?period=ytd&view=5");
+    assert.equal(requests[3].path, "/api/v1/portfolios/3/risk?view=5&top_n=4");
+  });
+
+  it("routes bucket CRUD tools to the /buckets endpoints", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 1, name: "Retirement" } });
+
+    await callTool(client, "portfolixir.buckets.list", {});
+    await callTool(client, "portfolixir.buckets.get", { id: 1 });
+    await callTool(client, "portfolixir.buckets.create", { bucket: { name: "Retirement" } });
+    await callTool(client, "portfolixir.buckets.update", { id: 1, bucket: { color: "#0f766e" } });
+    await callTool(client, "portfolixir.buckets.delete", { id: 1 });
+
+    assert.deepEqual(requests[0], {
+      method: "GET",
+      path: "/api/v1/buckets",
+      body: undefined,
+      token: "Bearer api-token"
+    });
+    assert.equal(requests[1].path, "/api/v1/buckets/1");
+    assert.deepEqual(requests[2], {
+      method: "POST",
+      path: "/api/v1/buckets",
+      body: { bucket: { name: "Retirement" } },
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[3], {
+      method: "PATCH",
+      path: "/api/v1/buckets/1",
+      body: { bucket: { color: "#0f766e" } },
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[4], {
+      method: "DELETE",
+      path: "/api/v1/buckets/1",
+      body: undefined,
+      token: "Bearer api-token"
+    });
+  });
+
+  it("routes view CRUD and set_buckets to the /views endpoints", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 2, name: "Liquid" } });
+
+    await callTool(client, "portfolixir.views.list", {});
+    await callTool(client, "portfolixir.views.get", { id: 2 });
+    await callTool(client, "portfolixir.views.create", { view: { name: "Liquid" } });
+    await callTool(client, "portfolixir.views.update", {
+      id: 2,
+      view: { include_all: false }
+    });
+    await callTool(client, "portfolixir.views.set_buckets", {
+      id: 2,
+      include: [3, 4],
+      exclude: [9]
+    });
+    await callTool(client, "portfolixir.views.delete", { id: 2 });
+
+    assert.equal(requests[0].path, "/api/v1/views");
+    assert.equal(requests[1].path, "/api/v1/views/2");
+    assert.deepEqual(requests[2].body, { view: { name: "Liquid" } });
+    assert.deepEqual(requests[3].body, { view: { include_all: false } });
+    assert.deepEqual(requests[4], {
+      method: "PUT",
+      path: "/api/v1/views/2/buckets",
+      body: { include: [3, 4], exclude: [9] },
+      token: "Bearer api-token"
+    });
+    // Omitted bucket sets default to empty arrays.
+    assert.equal(requests[5].method, "DELETE");
+    assert.equal(requests[5].path, "/api/v1/views/2");
+  });
+
+  it("defaults omitted view bucket sets to empty arrays", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 2 } });
+
+    await callTool(client, "portfolixir.views.set_buckets", { id: 2 });
+
+    assert.deepEqual(requests[0].body, { include: [], exclude: [] });
+  });
+
+  it("routes bucket assignment tools to the depot/cash/position endpoints", async () => {
+    const { client, requests } = createRecordingClient({ data: { bucket_ids: [3] } });
+
+    await callTool(client, "portfolixir.securities_accounts.set_buckets", {
+      id: 1,
+      bucket_ids: [3, 4]
+    });
+    await callTool(client, "portfolixir.cash_accounts.set_buckets", { id: 2, bucket_ids: [5] });
+    await callTool(client, "portfolixir.securities_accounts.set_position_buckets", {
+      id: 1,
+      security_id: 7,
+      bucket_ids: [3]
+    });
+    await callTool(client, "portfolixir.securities_accounts.clear_position_buckets", {
+      id: 1,
+      security_id: 7
+    });
+
+    assert.deepEqual(requests[0], {
+      method: "PUT",
+      path: "/api/v1/securities_accounts/1/buckets",
+      body: { bucket_ids: [3, 4] },
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[1], {
+      method: "PUT",
+      path: "/api/v1/cash_accounts/2/buckets",
+      body: { bucket_ids: [5] },
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[2], {
+      method: "PUT",
+      path: "/api/v1/securities_accounts/1/positions/7/buckets",
+      body: { bucket_ids: [3] },
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[3], {
+      method: "DELETE",
+      path: "/api/v1/securities_accounts/1/positions/7/buckets",
+      body: undefined,
+      token: "Bearer api-token"
+    });
+  });
+
+  it("records the explicit-empty position override with an empty bucket_ids array", async () => {
+    const { client, requests } = createRecordingClient({ data: { override: "explicit_empty" } });
+
+    await callTool(client, "portfolixir.securities_accounts.set_position_buckets", {
+      id: 1,
+      security_id: 7
+    });
+
+    assert.deepEqual(requests[0].body, { bucket_ids: [] });
   });
 
   it("maps invalid tool names and upstream API errors to clear failures", async () => {

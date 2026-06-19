@@ -134,6 +134,34 @@ defmodule PortfolixirWeb.Router do
     patch("/securities_accounts/:id", SecuritiesAccountController, :update)
     delete("/securities_accounts/:id", SecuritiesAccountController, :delete)
 
+    get("/buckets", BucketController, :index)
+    post("/buckets", BucketController, :create)
+    get("/buckets/:id", BucketController, :show)
+    patch("/buckets/:id", BucketController, :update)
+    delete("/buckets/:id", BucketController, :delete)
+
+    get("/views", ViewController, :index)
+    post("/views", ViewController, :create)
+    get("/views/:id", ViewController, :show)
+    patch("/views/:id", ViewController, :update)
+    delete("/views/:id", ViewController, :delete)
+    put("/views/:id/buckets", ViewController, :set_buckets)
+
+    put("/securities_accounts/:id/buckets", BucketAssignmentController, :set_depot_buckets)
+    put("/cash_accounts/:id/buckets", BucketAssignmentController, :set_cash_account_buckets)
+
+    put(
+      "/securities_accounts/:id/positions/:security_id/buckets",
+      BucketAssignmentController,
+      :set_position_override
+    )
+
+    delete(
+      "/securities_accounts/:id/positions/:security_id/buckets",
+      BucketAssignmentController,
+      :clear_position_override
+    )
+
     get("/transactions", TransactionController, :index)
     post("/transactions", TransactionController, :create)
     get("/transactions/:id", TransactionController, :show)
