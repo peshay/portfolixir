@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   require Logger
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
@@ -17,6 +18,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Classifications
   alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
@@ -67,6 +69,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_transaction_rows, [])
      |> assign(:detail_trades, %{open_lots: [], closed_trades: [], orphan_sells: []})
      |> assign(:detail_holdings, [])
+     |> assign(:buckets, [])
      |> assign(:detail_latest, nil)
      |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
      |> assign(:detail_classifications, [])
@@ -641,6 +644,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <.holdings_tab_panel
           holdings={@detail_holdings}
           currency_code={@selected_security.currency_code}
+          buckets={@buckets}
         />
       <% end %>
 
@@ -949,6 +953,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   attr(:holdings, :list, required: true)
   attr(:currency_code, :string, default: nil)
+  attr(:buckets, :list, default: [])
 
   defp holdings_tab_panel(assigns) do
     totals =
@@ -1017,6 +1022,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     <%= signed_percent_or_dash(h.unrealized_pnl_pct) %>
                   </td>
                 </tr>
+                <tr :if={h.depot} class="bucket-override-row" id={"position-buckets-#{h.depot.id}"}>
+                  <td colspan="7">
+                    <.position_bucket_override holding={h} buckets={@buckets} />
+                  </td>
+                </tr>
               <% end %>
             </tbody>
             <tfoot>
@@ -1036,6 +1046,86 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </div>
       <% end %>
     </section>
+    """
+  end
+
+  # Per-position bucket override (issue #446), shown via progressive disclosure
+  # under each holding row. The state is one of three, made visually distinct:
+  #
+  #   * inherit         — the position uses the depot's default buckets;
+  #   * explicit-empty  — deliberately "no buckets (excluded)", NOT inheriting;
+  #   * explicit list   — its own bucket set, overriding the depot default.
+  #
+  # A radio group picks the mode; the checklist is only meaningful for the
+  # explicit list. Saving routes through `Buckets.set_position_override/4`
+  # (explicit list / explicit-empty) or `Buckets.clear_position_override/3`
+  # (inherit).
+  attr(:holding, :map, required: true)
+  attr(:buckets, :list, required: true)
+
+  defp position_bucket_override(assigns) do
+    ~H"""
+    <details class="position-buckets">
+      <summary>
+        <%= gettext("Buckets") %>:
+        <span data-role="override-state"><%= override_state_label(@holding.override) %></span>
+      </summary>
+      <form phx-submit="set_position_buckets" class="position-buckets__form">
+        <input type="hidden" name="depot_id" value={@holding.depot.id} />
+
+        <fieldset class="bucket-fieldset" role="radiogroup" aria-label={gettext("Bucket assignment mode")}>
+          <label class="bucket-checkbox">
+            <input
+              type="radio"
+              name="mode"
+              value="inherit"
+              checked={@holding.override == :inherit}
+            />
+            <span>
+              <%= gettext("Inherit from depot") %>
+              <small data-role="inherited-buckets">(<%= bucket_names(@holding.depot_default_bucket_ids, @buckets) %>)</small>
+            </span>
+          </label>
+          <label class="bucket-checkbox">
+            <input
+              type="radio"
+              name="mode"
+              value="empty"
+              checked={@holding.override == :explicit_empty}
+            />
+            <span><%= gettext("No buckets (excluded)") %></span>
+          </label>
+          <label class="bucket-checkbox">
+            <input
+              type="radio"
+              name="mode"
+              value="explicit"
+              checked={match?({:explicit, _}, @holding.override)}
+            />
+            <span><%= gettext("Choose specific buckets") %></span>
+          </label>
+        </fieldset>
+
+        <fieldset class="bucket-fieldset">
+          <legend class="visually-hidden"><%= gettext("Buckets") %></legend>
+          <%= for bucket <- @buckets do %>
+            <label class="bucket-checkbox" for={"position-bucket-#{@holding.depot.id}-#{bucket.id}"}>
+              <input
+                type="checkbox"
+                id={"position-bucket-#{@holding.depot.id}-#{bucket.id}"}
+                name="bucket_ids[]"
+                value={bucket.id}
+                checked={bucket.id in @holding.explicit_bucket_ids}
+              />
+              <span><%= bucket.name %></span>
+            </label>
+          <% end %>
+          <p :if={@buckets == []} class="hint"><%= gettext("Create a bucket first.") %></p>
+        </fieldset>
+
+        <button type="submit" class="button"><%= gettext("Save buckets") %></button>
+      </form>
+    </details>
     """
   end
 
@@ -1876,6 +1966,34 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, update(socket, :detail_percent_mode?, &(!&1))}
   end
 
+  # Per-position bucket override (issue #446). "inherit" clears the override;
+  # "empty" records the explicit-empty marker (deliberately no buckets); an
+  # explicit set writes the chosen bucket ids.
+  def handle_event("set_position_buckets", %{"depot_id" => depot_id} = params, socket) do
+    security = socket.assigns.selected_security
+
+    with %Security{} <- security,
+         {depot_id, ""} <- Integer.parse(depot_id),
+         depot when not is_nil(depot) <- Portfolios.get_securities_account(depot_id),
+         {:ok, _} <- apply_position_override(depot, security, params) do
+      {:noreply,
+       socket
+       |> put_flash_message(:success, gettext("Position buckets saved"))
+       |> load_detail_data()}
+    else
+      {:error, :bucket_ids} ->
+        {:noreply,
+         put_flash_message(
+           socket,
+           :error,
+           gettext("That bucket no longer exists. Refresh and try again.")
+         )}
+
+      _ ->
+        {:noreply, put_flash_message(socket, :error, gettext("Could not save position buckets"))}
+    end
+  end
+
   def handle_event("clear_detail_custom_range", _params, socket) do
     if socket.assigns.selected_security do
       {:noreply,
@@ -2392,10 +2510,98 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_transactions, transactions)
     |> assign(:detail_transaction_rows, transaction_rows)
     |> assign(:detail_trades, Ledger.list_trades_for_security(id))
-    |> assign(:detail_holdings, Ledger.holdings_for_security(id))
+    |> assign(
+      :detail_holdings,
+      decorate_holdings_with_buckets(Ledger.holdings_for_security(id), id)
+    )
+    |> assign(:buckets, Buckets.list_buckets())
     |> assign(:detail_latest, Quotes.latest(id))
     |> assign(:detail_metrics, metrics)
     |> assign(:detail_classifications, load_security_classifications(id))
+  end
+
+  # Joins each holding row's per-position bucket override state and its depot's
+  # default set, so the holdings tab can present inherit / explicit-empty /
+  # explicit list distinctly (issue #446).
+  defp decorate_holdings_with_buckets(holdings, security_id) do
+    Enum.map(holdings, fn h ->
+      case h.depot do
+        %{id: depot_id} ->
+          override = Buckets.position_override(depot_id, security_id)
+
+          explicit =
+            case override do
+              {:explicit, ids} -> ids
+              _ -> []
+            end
+
+          h
+          |> Map.put(:override, override)
+          |> Map.put(:explicit_bucket_ids, explicit)
+          |> Map.put(:depot_default_bucket_ids, Buckets.depot_default_bucket_ids(depot_id))
+
+        _ ->
+          h
+          |> Map.put(:override, :inherit)
+          |> Map.put(:explicit_bucket_ids, [])
+          |> Map.put(:depot_default_bucket_ids, [])
+      end
+    end)
+  end
+
+  # Routes the chosen override mode to the right Buckets write. The empty/list
+  # split is what keeps explicit-empty distinct from inherit (ADR-0018).
+  defp apply_position_override(depot, security, %{"mode" => "inherit"}) do
+    case Buckets.clear_position_override(Actor.owner_ui(), depot, security) do
+      :ok -> {:ok, :inherit}
+      other -> other
+    end
+  end
+
+  defp apply_position_override(depot, security, %{"mode" => "empty"}) do
+    case Buckets.set_position_override(Actor.owner_ui(), depot, security, []) do
+      :ok -> {:ok, :empty}
+      other -> other
+    end
+  end
+
+  defp apply_position_override(depot, security, params) do
+    ids =
+      params
+      |> Map.get("bucket_ids", [])
+      |> List.wrap()
+      |> Enum.flat_map(fn value ->
+        case Integer.parse(to_string(value)) do
+          {id, ""} -> [id]
+          _ -> []
+        end
+      end)
+
+    case Buckets.set_position_override(Actor.owner_ui(), depot, security, ids) do
+      :ok -> {:ok, :explicit}
+      other -> other
+    end
+  end
+
+  defp put_flash_message(socket, kind, message) do
+    socket
+    |> assign(:flash_kind, kind)
+    |> assign(:flash_message, message)
+  end
+
+  defp override_state_label(:inherit), do: gettext("inherited from depot")
+  defp override_state_label(:explicit_empty), do: gettext("no buckets (excluded)")
+  defp override_state_label({:explicit, _ids}), do: gettext("specific buckets")
+
+  defp bucket_names([], _buckets), do: gettext("none")
+
+  defp bucket_names(bucket_ids, buckets) do
+    names =
+      buckets
+      |> Enum.filter(&(&1.id in bucket_ids))
+      |> Enum.map_join(", ", & &1.name)
+
+    if names == "", do: gettext("none"), else: names
   end
 
   defp load_security_classifications(security_id) do

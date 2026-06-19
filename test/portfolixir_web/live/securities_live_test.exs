@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger
@@ -1887,6 +1888,98 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       view |> element(".status-toast__dismiss") |> render_click()
 
       refute has_element?(view, ".status-toast")
+    end
+  end
+
+  describe "holdings tab — per-position bucket override (issue #446)" do
+    setup do
+      {:ok, security} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "ACME",
+          currency_code: "USD"
+        })
+
+      {:ok, portfolio} =
+        Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+
+      {:ok, cash} =
+        Portfolios.create_cash_account(%{
+          portfolio_id: portfolio.id,
+          name: "Cash",
+          currency_code: "USD"
+        })
+
+      {:ok, depot} =
+        Portfolios.create_securities_account(%{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          name: "Main Depot"
+        })
+
+      {:ok, _} =
+        Ledger.create_transaction(%{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-01-10],
+          quantity: Decimal.new("10"),
+          price: Decimal.new("100.00"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          currency_code: "USD"
+        })
+
+      {:ok, security: security, portfolio: portfolio, cash: cash, depot: depot}
+    end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want to override the buckets on one position, including a deliberate
+    # explicit-empty choice that is distinct from inheriting the depot default,
+    # so that a single holding can be scoped precisely.
+    #
+    # Acceptance criteria:
+    # - The holdings tab shows the per-position override control with the three
+    #   modes (inherit, explicit-empty, explicit list).
+    # - Choosing a specific bucket records an explicit override.
+    # - Choosing "no buckets (excluded)" records the explicit-empty state, which
+    #   the context reports as :explicit_empty (not :inherit).
+    test "records an explicit override and an explicit-empty override distinctly",
+         %{conn: conn, security: security, depot: depot} do
+      {:ok, core} = Buckets.create_bucket(Portfolixir.Actor.owner_ui(), %{name: "Core"})
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=holdings")
+
+      # The override control and the inherit-vs-explicit-empty distinction render.
+      assert has_element?(view, "#position-buckets-#{depot.id}")
+      assert render(view) =~ "No buckets (excluded)"
+      assert render(view) =~ "Inherit from depot"
+
+      # An explicit set: pick Core.
+      view
+      |> form("#position-buckets-#{depot.id} form", %{
+        "mode" => "explicit",
+        "bucket_ids" => ["#{core.id}"]
+      })
+      |> render_submit()
+
+      assert Buckets.position_override(depot.id, security.id) == {:explicit, [core.id]}
+
+      # Explicit-empty: deliberately no buckets, distinct from inherit.
+      view
+      |> form("#position-buckets-#{depot.id} form", %{"mode" => "empty"})
+      |> render_submit()
+
+      assert Buckets.position_override(depot.id, security.id) == :explicit_empty
+
+      # Back to inherit clears the override.
+      view
+      |> form("#position-buckets-#{depot.id} form", %{"mode" => "inherit"})
+      |> render_submit()
+
+      assert Buckets.position_override(depot.id, security.id) == :inherit
     end
   end
 end

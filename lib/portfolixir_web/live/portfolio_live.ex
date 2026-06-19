@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  import PortfolixirWeb.ViewSwitcher
 
   @unassigned_color "#9ca3af"
   @fallback_color "#6b7280"
@@ -82,10 +83,11 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp load_overview(socket) do
     portfolio_id = socket.assigns.portfolio.id
     classification_id = socket.assigns.classification_id
+    view_id = socket.assigns[:active_view_id]
 
     start_async(socket, :overview, fn ->
-      valuation = Valuation.for_portfolio(portfolio_id)
-      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id)
+      valuation = Valuation.for_portfolio(portfolio_id, view: view_id)
+      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id, view: view_id)
       {valuation, allocation}
     end)
   end
@@ -93,18 +95,20 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp load_allocation(socket) do
     portfolio_id = socket.assigns.portfolio.id
     classification_id = socket.assigns.classification_id
+    view_id = socket.assigns[:active_view_id]
 
     start_async(socket, :allocation, fn ->
-      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id)
+      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id, view: view_id)
       allocation
     end)
   end
 
   defp load_performance(socket) do
     portfolio_id = socket.assigns.portfolio.id
+    view_id = socket.assigns[:active_view_id]
 
     start_async(socket, :performance, fn ->
-      Performance.analysis(portfolio_id)
+      Performance.analysis(portfolio_id, view: view_id)
     end)
   end
 
@@ -155,6 +159,8 @@ defmodule PortfolixirWeb.PortfolioLive do
         <%= if @success do %>
           <AppShell.status_toast kind={:success} message={@success} />
         <% end %>
+
+        <.view_switcher current_path={@current_path} views={@views} active_view={@active_view} />
 
         <section class="workspace-section grid" aria-label={gettext("Portfolio key figures")}>
           <article id="kpi-total" class="stat">

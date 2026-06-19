@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
+  import PortfolixirWeb.ViewSwitcher
 
   @impl true
   def mount(_params, _session, socket) do
@@ -20,6 +21,8 @@ defmodule PortfolixirWeb.DashboardLive do
       page_subtitle={gettext("Local portfolio tracking")}
     >
       <div id="dashboard-workspace" class="workspace-page">
+        <.view_switcher current_path="/" views={@views} active_view={@active_view} />
+
         <section id="workflow-path" class="workspace-section">
           <h2><%= gettext("Workflow path") %></h2>
           <ol>
