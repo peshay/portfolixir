@@ -1,6 +1,6 @@
 # Story: Buckets & views — engine scoping (GitHub #444)
 
-Status: in-progress
+Status: review (partial — valuation/allocation/risk; performance deferred)
 
 > **Tracking:** GitHub issue [#444](https://github.com/peshay/portfolixir/issues/444),
 > story 2 of epic [#448](https://github.com/peshay/portfolixir/issues/448). Builds on
@@ -60,18 +60,22 @@ and cash by `cash_account_id` — exactly the keys `Portfolixir.Buckets` resolve
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Pure `in_view?/2`** (AC 1,4): add to `BucketResolution`, refactor
+- [x] **Task 1 — Pure `in_view?/2`** (AC 1,4): add to `BucketResolution`, refactor
       `holdings_matching_view/2` to use it; unit tests (incl. exclude-wins, untagged).
-- [ ] **Task 2 — `Buckets.load_scope/2` + `position_in_scope?/3` + `cash_in_scope?/2`** (AC 1,2,4,5):
+- [x] **Task 2 — `Buckets.load_scope/2` + `position_in_scope?/3` + `cash_in_scope?/2`** (AC 1,2,4,5):
       bulk-load per portfolio; `nil` → `:unscoped`; DataCase tests (inherit, override,
       explicit-empty, multi-tag overlap single-count, cash membership).
-- [ ] **Task 3 — Valuation `:view`** (AC 1,2,3,5,6): filter positions + cash; byte-identical
+- [x] **Task 3 — Valuation `:view`** (AC 1,2,3,5,6): filter positions + cash; byte-identical
       default test; per-view + multi-tag + cash-in-view Decimal-exact tests.
-- [ ] **Task 4 — Allocation `:view`** (AC 1,2,3,6): filter; default identical; keep ADR-0013.
-- [ ] **Task 5 — Risk `:view`** (AC 1,2,3,6): scoped positions; default identical.
-- [ ] **Task 6 — Performance `:view`** (AC 1,2,3,5,6): scoped transaction stream; default
-      identical (the highest-risk engine — pin the default hard).
-- [ ] **Task 7 — Gates & docs**: format, test, coveralls, credo, sobelow, dialyzer,
+- [x] **Task 4 — Allocation `:view`** (AC 1,2,3,6): filter; default identical; keep ADR-0013.
+- [x] **Task 5 — Risk `:view`** (AC 1,2,3,6): scoped positions; default identical.
+- [ ] **Task 6 — Performance `:view`** (AC 1,2,3,5,6) — **DEFERRED to a focused follow-up.**
+      Performance is a time-weighted/money-weighted series, not a snapshot: scoping it
+      correctly means **reclassifying transfers across the view boundary as external flows**
+      (e.g. buying an in-view security with out-of-view cash is an inflow to the view).
+      This sub-portfolio flow rule is a deliberate money-math decision and is split out so the
+      TTWROR/IRR semantics are designed, not rushed. Tracked as the remaining part of #444.
+- [x] **Task 7 — Gates & docs**: format, test, coveralls, credo, sobelow, dialyzer,
       pre-commit. API/MCP n/a here (#445). No user-visible surface yet (#446) → no product docs.
 
 ## Dev Notes
@@ -96,10 +100,40 @@ claude-opus-4-8 (high reasoning), Claude Code dev-story workflow.
 
 ### Completion Notes List
 
+- Shared scope seam: pure `BucketResolution.in_view?/2` + `Buckets.load_scope/2`,
+  `position_in_scope?/3`, `cash_in_scope?/2`. `nil` view → `:unscoped` → byte-identical.
+- Valuation scoped (positions + cash); allocation and risk inherit scoping via the
+  valuation they compute over (allocation already forwards `opts`; risk's `Keyword.split`
+  gained `:view`).
+- Decimal-exact tests per engine incl. the include-everything == no-view identity.
+- Performance (Task 6) deferred: scoped TTWROR/IRR needs deliberate boundary-flow
+  semantics (transfers across the view boundary become external flows) — split to a
+  focused follow-up so returns are not computed wrong. #444 stays open for it.
+- Gates: `mix test` 776/0, coveralls 84.2% (buckets 94.6%, valuation 97.8%, risk 96.7%,
+  allocation 97.6%), credo clean, sobelow 0, dialyzer 0, pre-commit pass.
+- API/MCP: n/a here (#445). No user-visible surface (#446) → no product-docs change.
+
 ### File List
+
+Modified:
+- `lib/portfolixir/engines/bucket_resolution.ex` (`in_view?/2`)
+- `lib/portfolixir/buckets.ex` (`load_scope/2`, `position_in_scope?/3`, `cash_in_scope?/2`, shared `classify_override/1`)
+- `lib/portfolixir/portfolios/valuation.ex` (`:view` scoping of positions + cash)
+- `lib/portfolixir/portfolios/risk.ex` (`:view` forwarded to valuation)
+- `test/portfolixir/engines/bucket_resolution_test.exs`
+- `test/portfolixir/buckets_test.exs`
+- `test/portfolixir/portfolios/valuation_test.exs`
+- `test/portfolixir/portfolios/risk_test.exs`
+- `test/portfolixir/portfolios/allocation_test.exs`
+
+New:
+- `_bmad-output/implementation-artifacts/444-buckets-views-engine-scoping.md`
+
+(Allocation needed no source change — it already forwards `opts` to `Valuation`.)
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
+| 2026-06-19 | #444 (partial): scoped valuation/allocation/risk by view via a shared seam; performance deferred. All gates green; status → review. |
 | 2026-06-19 | Started #444 engine scoping. |
