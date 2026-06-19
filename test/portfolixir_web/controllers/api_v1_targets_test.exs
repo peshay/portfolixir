@@ -242,4 +242,119 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
 
     assert %{"errors" => %{"targets" => [_ | _]}} = json_response(response, 422)
   end
+
+  # User story:
+  # As an API client (and the LLM I connect over MCP),
+  # I want clear 404/422 errors for unknown portfolios, missing fields and
+  # cross-tree categories,
+  # so that a bad targets request fails loudly instead of mis-filing a weight.
+  #
+  # Acceptance criteria:
+  # - An unknown or non-numeric portfolio id returns 404 on index/set/delete.
+  # - A set request without classification_id returns 422; without a targets
+  #   list returns 422 ("must be a list").
+  # - Setting a target against an unknown classification returns 404.
+  # - A category from another classification returns 422 (category mismatch).
+  # - GET targets scoped by classification_id returns only that tree's targets.
+  test "returns 404 for an unknown or non-numeric portfolio", %{conn: conn} do
+    assert get_json(conn, "/api/v1/portfolios/999999/targets") |> json_response(404) ==
+             %{"errors" => %{"detail" => "not found"}}
+
+    assert put_json(conn, "/api/v1/portfolios/not-a-number/targets", %{
+             "classification_id" => 1,
+             "targets" => []
+           })
+           |> json_response(404) == %{"errors" => %{"detail" => "not found"}}
+
+    assert delete_json(conn, "/api/v1/portfolios/999999/targets/1")
+           |> json_response(404) == %{"errors" => %{"detail" => "not found"}}
+  end
+
+  test "returns 404 deleting a target with a non-numeric category id", %{conn: conn} do
+    %{portfolio: portfolio} = setup_world()
+
+    assert delete_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets/not-a-number")
+           |> json_response(404) == %{"errors" => %{"detail" => "not found"}}
+  end
+
+  test "requires classification_id and a targets list on set", %{conn: conn} do
+    %{portfolio: portfolio, core: core} = setup_world()
+
+    missing_classification =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+        "targets" => [%{"category_id" => core.id, "target_weight" => "0.5"}]
+      })
+
+    assert json_response(missing_classification, 422) ==
+             %{"errors" => %{"classification_id" => ["is required"]}}
+
+    %{classification: classification} = setup_world()
+
+    not_a_list =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+        "classification_id" => classification.id,
+        "targets" => "nope"
+      })
+
+    assert json_response(not_a_list, 422) == %{"errors" => %{"targets" => ["must be a list"]}}
+  end
+
+  test "returns 404 setting targets against an unknown classification", %{conn: conn} do
+    %{portfolio: portfolio, core: core} = setup_world()
+
+    response =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+        "classification_id" => 999_999,
+        "targets" => [%{"category_id" => core.id, "target_weight" => "0.5"}]
+      })
+
+    assert json_response(response, 404) == %{"errors" => %{"detail" => "not found"}}
+  end
+
+  test "returns 422 for a category from another classification", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = setup_world()
+
+    {:ok, other} = Classifications.create_classification(%{name: "Regions"})
+
+    {:ok, foreign} =
+      Classifications.create_category(%{classification_id: other.id, name: "Europe"})
+
+    response =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+        "classification_id" => classification.id,
+        "targets" => [%{"category_id" => foreign.id, "target_weight" => "0.5"}]
+      })
+
+    assert %{"errors" => %{"detail" => detail}} = json_response(response, 422)
+    assert detail =~ "category does not belong"
+  end
+
+  test "scopes the targets index to one classification", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    {:ok, _} =
+      Targets.set_targets(portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.7"}
+      ])
+
+    scoped =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}"
+      )
+      |> json_response(200)
+
+    assert %{"data" => %{"targets" => [target]}} = scoped
+    assert target["category_id"] == core.id
+
+    # A different classification id scopes to an empty list.
+    empty =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id + 999}"
+      )
+      |> json_response(200)
+
+    assert empty == %{"data" => %{"targets" => []}}
+  end
 end

@@ -1457,6 +1457,43 @@ defmodule PortfolixirWeb.ApiV1Test do
       |> json_response(404)
 
     assert not_found == %{"errors" => %{"detail" => "not found"}}
+
+    # A from/to window covering only the open lot's open date keeps the open lot
+    # but drops the later-closed round trip (filtered by its close date).
+    windowed =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities/#{security.id}/trades?from=2026-01-01&to=2026-02-01")
+      |> json_response(200)
+
+    assert %{"data" => %{"open_lots" => [_], "closed_trades" => [], "orphan_sells" => []}} =
+             windowed
+
+    # An invalid date is a 422 naming the offending field, not a crash.
+    invalid_from =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities/#{security.id}/trades?from=not-a-date")
+      |> json_response(422)
+
+    assert invalid_from == %{"errors" => %{"from" => ["is invalid"]}}
+
+    invalid_to =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities/#{security.id}/trades?to=2026-13-99")
+      |> json_response(422)
+
+    assert invalid_to == %{"errors" => %{"to" => ["is invalid"]}}
+
+    # A non-numeric security id is a 404, not a 500.
+    bad_id =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities/not-a-number/trades")
+      |> json_response(404)
+
+    assert bad_id == %{"errors" => %{"detail" => "not found"}}
   end
 
   # User story:

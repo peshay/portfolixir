@@ -100,6 +100,62 @@ defmodule Portfolixir.Portfolios.PerformanceFxTest do
     assert Decimal.compare(result.irr, Decimal.new("0")) == :gt
   end
 
+  # User story:
+  # As a maintainer holding a London-listed security quoted in pence (GBX),
+  # I want the daily walk to value it through GBP x 100 against my EUR base,
+  # so that a pence-quoted position is valued as precisely as any other.
+  #
+  # Acceptance criteria:
+  # - A GBX-quoted security in a EUR-base portfolio is valued each day at its
+  #   pence price converted via GBP x 100 and the stored EUR/GBP rate.
+  # - A rate stored before the first walk day is carried in as the opening
+  #   rate (no separate point needed on day one).
+  # - The chained TTWROR reflects the GBP price move, with values Decimal-exact.
+  test "values a GBX (pence) position through GBP x 100 against the EUR base" do
+    # EUR base portfolio, GBX cash account + depot so the pence-quoted security
+    # buys cleanly into a matching-currency cash account (issue #343); the base-
+    # currency valuation still has to triangulate GBX -> GBP x 100 -> EUR.
+    world = base_world(name: "GBX", currency: "EUR", cash_currency: "GBX")
+    security = create_security!(name: "London PLC", ticker: "LON", currency: "GBX")
+    world = Map.put(world, :security, security)
+
+    # Rate stored the day BEFORE the walk starts: EUR/GBP = 0.80 (1 GBP = 1.25
+    # EUR). This exercises the carried-in FX point (Fx.hub_rate_before path).
+    rate!("GBP", ~D[2025-12-31], "0.80")
+
+    # Day 1: deposit 100000 GBX, buy 100 shares at 500 GBX each (= 50000 GBX),
+    # leaving 50000 GBX cash. All amounts in GBX, matching the cash account.
+    deposit!(world, "100000", ~D[2026-01-01], currency: "GBX")
+
+    WorldFixtures.buy!(world, world.security,
+      quantity: "100",
+      price: "500",
+      date: ~D[2026-01-01],
+      currency: "GBX"
+    )
+
+    quote!(world, "500", ~D[2026-01-01])
+
+    # Day 5: price rises to 600 GBX, rate unchanged.
+    quote!(world, "600", ~D[2026-01-05])
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-05])
+
+    assert result.base_currency == "EUR"
+
+    # EUR/GBP = 0.80 -> 1 GBP = 1.25 EUR, and 1 GBX = 0.01 GBP = 0.0125 EUR.
+    # Day 1 value: position 100 * 500 = 50000 GBX + 50000 GBX cash = 100000 GBX
+    #   = 1250 EUR. Day 5 value: position 100 * 600 = 60000 GBX + 50000 GBX cash
+    #   = 110000 GBX = 1375 EUR.
+    assert Decimal.equal?(result.end_value, Decimal.new("1375"))
+
+    # Deposit of 100000 GBX at day 1's rate -> 1250 EUR external flow.
+    assert Decimal.equal?(result.net_external_flows, Decimal.new("1250"))
+
+    # No flow after the opening day, so TTWROR = 880/800 - 1 = 0.1.
+    assert rounded(result.ttwror, 6) |> Decimal.equal?(Decimal.new("0.1"))
+  end
+
   test "an unpriced FX path leaves a foreign position unvalued instead of crashing" do
     world = setup_world()
 
