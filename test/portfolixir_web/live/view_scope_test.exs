@@ -114,4 +114,81 @@ defmodule PortfolixirWeb.ViewScopeTest do
     {:ok, view, _html} = live(conn, "/portfolio?view=#{excluding.id}")
     assert has_element?(view, "[data-role='active-view']", "Without stocks")
   end
+
+  describe "ViewScope plug" do
+    alias PortfolixirWeb.ViewScope
+
+    # The plug is driven directly so the rarely-exercised shape branches —
+    # clearing back to Total, rejecting a non-integer id, and carrying the
+    # cookie when no ?view= is present — get explicit, meaningful coverage.
+
+    defp run_plug(conn) do
+      conn
+      |> Plug.Test.init_test_session(%{})
+      |> ViewScope.call(ViewScope.init([]))
+    end
+
+    test "exposes the cookie and session key names" do
+      assert ViewScope.cookie_name() == "portfolixir_view"
+      assert ViewScope.session_key() == "active_view_id"
+    end
+
+    test "a positive integer id is stored in the session and the cookie" do
+      conn =
+        :get
+        |> Phoenix.ConnTest.build_conn("/?view=7")
+        |> Map.put(:query_string, "view=7")
+        |> run_plug()
+
+      assert get_session(conn, ViewScope.session_key()) == 7
+      assert %{value: "7"} = conn.resp_cookies[ViewScope.cookie_name()]
+    end
+
+    test "?view=total clears the preference back to Total and deletes the cookie" do
+      conn =
+        :get
+        |> Phoenix.ConnTest.build_conn("/?view=total")
+        |> Map.put(:query_string, "view=total")
+        |> run_plug()
+
+      assert get_session(conn, ViewScope.session_key()) == nil
+      # delete_resp_cookie schedules the cookie for removal (max_age: 0).
+      assert %{max_age: 0} = conn.resp_cookies[ViewScope.cookie_name()]
+    end
+
+    test "a non-integer ?view= value is rejected and clears the preference" do
+      conn =
+        :get
+        |> Phoenix.ConnTest.build_conn("/?view=not-a-number")
+        |> Map.put(:query_string, "view=not-a-number")
+        |> run_plug()
+
+      assert get_session(conn, ViewScope.session_key()) == nil
+      assert %{max_age: 0} = conn.resp_cookies[ViewScope.cookie_name()]
+    end
+
+    test "with no ?view= the session is rebuilt from a valid cookie" do
+      conn =
+        :get
+        |> Phoenix.ConnTest.build_conn("/")
+        |> Map.put(:query_string, "")
+        |> Map.put(:cookies, %{ViewScope.cookie_name() => "42"})
+        |> run_plug()
+
+      assert get_session(conn, ViewScope.session_key()) == 42
+      # No explicit choice means the cookie is left untouched.
+      refute Map.has_key?(conn.resp_cookies, ViewScope.cookie_name())
+    end
+
+    test "with no ?view= and a junk cookie the session falls back to Total" do
+      conn =
+        :get
+        |> Phoenix.ConnTest.build_conn("/")
+        |> Map.put(:query_string, "")
+        |> Map.put(:cookies, %{ViewScope.cookie_name() => "garbage"})
+        |> run_plug()
+
+      assert get_session(conn, ViewScope.session_key()) == nil
+    end
+  end
 end

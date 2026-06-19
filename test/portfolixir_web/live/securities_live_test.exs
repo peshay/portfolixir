@@ -1981,5 +1981,51 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert Buckets.position_override(depot.id, security.id) == :inherit
     end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want the inherit option to name the depot's default buckets,
+    # so that I can see what "inherit" will actually apply before choosing it.
+    #
+    # Acceptance criteria:
+    # - The inherit label lists the depot's default bucket names.
+    test "the inherit option shows the depot's default bucket names",
+         %{conn: conn, security: security, depot: depot} do
+      {:ok, core} = Buckets.create_bucket(Portfolixir.Actor.owner_ui(), %{name: "Core"})
+      :ok = Buckets.set_depot_default_buckets(Portfolixir.Actor.owner_ui(), depot, [core.id])
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=holdings")
+
+      assert has_element?(view, "[data-role='inherited-buckets']", "Core")
+    end
+
+    # User story:
+    # As a local portfolio maintainer,
+    # I want a stale bucket id on a position override to fail cleanly,
+    # so that a concurrent delete produces a friendly error, not a crash.
+    #
+    # Acceptance criteria:
+    # - Submitting an explicit override with a non-existent bucket id shows the
+    #   "bucket no longer exists" error and records no override.
+    test "an explicit override with a stale bucket id surfaces a friendly error",
+         %{conn: conn, security: security, depot: depot} do
+      {:ok, core} = Buckets.create_bucket(Portfolixir.Actor.owner_ui(), %{name: "Core"})
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=holdings")
+
+      # Deleting the bucket behind the rendered form makes the submitted id stale.
+      {:ok, _} = Buckets.delete_bucket(Portfolixir.Actor.owner_ui(), core)
+
+      html =
+        view
+        |> form("#position-buckets-#{depot.id} form", %{
+          "mode" => "explicit",
+          "bucket_ids" => ["#{core.id}"]
+        })
+        |> render_submit()
+
+      assert html =~ "That bucket no longer exists"
+      assert Buckets.position_override(depot.id, security.id) == :inherit
+    end
   end
 end
