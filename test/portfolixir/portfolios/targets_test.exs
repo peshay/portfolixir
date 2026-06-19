@@ -118,4 +118,66 @@ defmodule Portfolixir.Portfolios.TargetsTest do
 
     assert Targets.list_targets(portfolio.id) == []
   end
+
+  # User story:
+  # As a maintainer (or the MCP client) reading and editing one target,
+  # I want to fetch a single portfolio/category target and to get clear errors
+  # for unknown trees or malformed entries,
+  # so that the SOLL editor never silently mis-files a weight.
+  #
+  # Acceptance criteria:
+  # - get_target/2 returns the stored target, or nil when none exists.
+  # - set_targets/3 against an unknown classification returns {:error, :not_found}.
+  # - An entry whose category_id is a numeric string is matched to its category;
+  #   a non-numeric id is treated as "no id" and left to the changeset.
+  test "get_target/2 returns the stored target or nil" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    assert Targets.get_target(portfolio.id, core.id) == nil
+
+    {:ok, _} =
+      Targets.set_targets(portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"}
+      ])
+
+    target = Targets.get_target(portfolio.id, core.id)
+    assert target.category_id == core.id
+    assert Decimal.equal?(target.target_weight, Decimal.new("0.6"))
+  end
+
+  test "set_targets/3 reports an unknown classification as :not_found" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    assert {:error, :not_found} =
+             Targets.set_targets(portfolio.id, classification.id + 999, [
+               %{"category_id" => core.id, "target_weight" => "0.5"}
+             ])
+  end
+
+  test "set_targets/3 accepts a numeric-string category id" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    # The string id matches the in-tree category (normalize_id parses it), so
+    # the foreign-category guard passes and the weight is upserted.
+    assert {:ok, [target]} =
+             Targets.set_targets(portfolio.id, classification.id, [
+               %{"category_id" => Integer.to_string(core.id), "target_weight" => "0.5"}
+             ])
+
+    assert target.category_id == core.id
+  end
+
+  test "set_targets/3 leaves a missing category id to the changeset" do
+    %{portfolio: portfolio, classification: classification} = setup_world()
+
+    # No category_id: the foreign-category guard treats it as "no id" and the
+    # changeset rejects the row for the missing required category.
+    assert {:error, %Ecto.Changeset{} = changeset} =
+             Targets.set_targets(portfolio.id, classification.id, [
+               %{"target_weight" => "0.5"}
+             ])
+
+    assert %{category_id: [_ | _]} = errors_on(changeset)
+    assert Targets.list_targets(portfolio.id) == []
+  end
 end
