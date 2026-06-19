@@ -284,6 +284,19 @@ defmodule Portfolixir.Ledger.Transaction do
     changeset
     |> validate_number(:fees, greater_than_or_equal_to: 0)
     |> validate_number(:taxes, greater_than_or_equal_to: 0)
+    |> validate_gross_amount_sign()
+  end
+
+  # Amounts are positive magnitudes — the sign comes from the kind (project
+  # invariant #3). The single exception is `balance_adjustment`, whose
+  # `gross_amount` is an absolute balance and may be negative (overdraft, ADR-0009).
+  # `validate_number/3` ignores a nil field, so kinds without a gross_amount
+  # (buy/sell/deliveries/transfers) are unaffected.
+  defp validate_gross_amount_sign(changeset) do
+    case get_field(changeset, :type) do
+      "balance_adjustment" -> changeset
+      _other -> validate_number(changeset, :gross_amount, greater_than: 0)
+    end
   end
 
   defp normalize_currency_code(changeset) do
