@@ -91,6 +91,37 @@ defmodule Portfolixir.Engines.BucketResolutionTest do
   end
 
   # User story:
+  # As a local portfolio maintainer,
+  # I want a single pure predicate that decides whether one holding (by its
+  # effective buckets) belongs to a view,
+  # so that every analytic can scope to a view over the single-count universe
+  # without re-implementing the filter (ADR-0018, #444).
+  describe "in_view?/2" do
+    test "include :all matches any holding, including untagged" do
+      assert BucketResolution.in_view?(%{include: :all, exclude: []}, [1])
+      assert BucketResolution.in_view?(%{include: :all, exclude: []}, [])
+    end
+
+    test "an include set requires at least one matching bucket" do
+      assert BucketResolution.in_view?(%{include: [1], exclude: []}, [1, 2])
+      refute BucketResolution.in_view?(%{include: [1], exclude: []}, [2])
+      refute BucketResolution.in_view?(%{include: [1], exclude: []}, [])
+    end
+
+    test "exclude wins over include" do
+      refute BucketResolution.in_view?(%{include: :all, exclude: [2]}, [2])
+      refute BucketResolution.in_view?(%{include: [1], exclude: [1]}, [1])
+    end
+
+    test "holdings_matching_view/2 agrees with in_view?/2 per holding" do
+      view = %{include: [1], exclude: [2]}
+      holdings = [%{ref: :a, buckets: [1]}, %{ref: :b, buckets: [1, 2]}, %{ref: :c, buckets: [3]}]
+      kept = BucketResolution.holdings_matching_view(view, holdings) |> Enum.map(& &1.ref)
+      assert kept == [:a]
+    end
+  end
+
+  # User story:
   # As a local portfolio maintainer reading a per-bucket breakdown,
   # I want overlapping buckets to be representable as overlapping groups that are
   # never summed as a partition,

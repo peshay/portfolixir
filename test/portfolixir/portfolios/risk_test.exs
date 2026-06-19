@@ -4,6 +4,8 @@ defmodule Portfolixir.Portfolios.RiskTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 0, create_security!: 1, buy!: 3, deposit!: 3]
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Portfolios.Risk
 
@@ -77,6 +79,32 @@ defmodule Portfolixir.Portfolios.RiskTest do
        big_etf: big_etf,
        crypto: crypto
      }), prices}
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want risk to optionally scope to a view, while no view stays my whole
+  # steerable basis, so that I can read concentration for a slice of my wealth
+  # (#444).
+  test "a view scopes risk through the underlying valuation; default identical" do
+    {world, prices} = risk_world()
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Drop"})
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "NoMid", include_all: true})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [], [bucket.id])
+
+    :ok =
+      Buckets.set_position_override(Actor.owner_ui(), world.depot, world.stock_mid, [bucket.id])
+
+    default = Risk.for_portfolio(world.portfolio.id, prices: prices)
+    scoped = Risk.for_portfolio(world.portfolio.id, prices: prices, view: view.id)
+
+    assert world.stock_mid.id in Enum.map(default.top_holdings, & &1.security_id)
+    refute world.stock_mid.id in Enum.map(scoped.top_holdings, & &1.security_id)
+
+    # The basis drops by stock_mid's 90 EUR (1000 -> 910); single-count preserved.
+    assert Decimal.equal?(default.steerable_basis, Decimal.new("1000"))
+    assert Decimal.equal?(scoped.steerable_basis, Decimal.new("910"))
   end
 
   test "reports single-name Top-N, HHI and the steerable basis with exact weights" do

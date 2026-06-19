@@ -58,9 +58,26 @@ defmodule Portfolixir.Engines.BucketResolution do
     exclude = MapSet.new(Map.get(view, :exclude) || [])
 
     Enum.filter(holdings, fn holding ->
-      effective = MapSet.new(Map.get(holding, :buckets) || [])
-      included?(include, effective) and MapSet.disjoint?(effective, exclude)
+      matches?(include, exclude, Map.get(holding, :buckets) || [])
     end)
+  end
+
+  @doc """
+  Whether a single holding, identified by its `effective_buckets`, belongs to
+  `view`. This is the per-holding predicate behind `holdings_matching_view/2`,
+  exposed so analytics can scope to a view over the single-count universe without
+  re-implementing the filter. Exclude wins.
+  """
+  @spec in_view?(view(), [bucket_id()]) :: boolean()
+  def in_view?(view, effective_buckets) do
+    include = normalize_include(Map.get(view, :include, :all))
+    exclude = MapSet.new(Map.get(view, :exclude) || [])
+    matches?(include, exclude, effective_buckets)
+  end
+
+  defp matches?(include, exclude, effective_buckets) do
+    effective = MapSet.new(effective_buckets || [])
+    included?(include, effective) and MapSet.disjoint?(effective, exclude)
   end
 
   @doc """
