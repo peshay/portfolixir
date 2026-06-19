@@ -85,6 +85,26 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
 
   # User story:
   # As an API client,
+  # I want clear 404/422 responses for malformed bucket requests,
+  # so that I can recover without inspecting server logs.
+  #
+  # Acceptance criteria:
+  # - A non-integer id on show/update/delete returns 404 (parse_id catch-all).
+  # - An invalid update body returns 422 with errors.
+  test "returns 404 for non-integer bucket ids and 422 for invalid updates", %{conn: conn} do
+    assert get_json(conn, "/api/v1/buckets/abc") |> json_response(404)
+    assert patch_json(conn, "/api/v1/buckets/abc", %{"bucket" => %{}}) |> json_response(404)
+    assert delete_json(conn, "/api/v1/buckets/abc") |> json_response(404)
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Existing"})
+
+    assert %{"errors" => %{"name" => [_ | _]}} =
+             patch_json(conn, "/api/v1/buckets/#{bucket.id}", %{"bucket" => %{"name" => ""}})
+             |> json_response(422)
+  end
+
+  # User story:
+  # As an API client,
   # I want to manage views and their include/exclude bucket sets,
   # so that I can define reusable scopes over my buckets.
   #
@@ -130,6 +150,90 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
 
     assert delete_json(conn, "/api/v1/views/#{vid}") |> response(204) == ""
     assert get_json(conn, "/api/v1/views/#{vid}") |> json_response(404)
+  end
+
+  # User story:
+  # As an API client,
+  # I want the view endpoints to list views and to fail predictably,
+  # so that malformed or unknown view requests return 404/422 instead of 500.
+  #
+  # Acceptance criteria:
+  # - GET /views lists existing views.
+  # - show/update/delete return 404 for unknown ids and non-integer ids.
+  # - create with invalid attrs returns 422; update with invalid attrs returns 422.
+  test "lists views and returns 404/422 for unknown, non-integer and invalid view requests",
+       %{conn: conn} do
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Listed", include_all: true})
+
+    listed = get_json(conn, "/api/v1/views") |> json_response(200)
+    ids = Enum.map(listed["data"], & &1["id"])
+    assert view.id in ids
+
+    # show: existing, unknown, non-integer.
+    assert get_json(conn, "/api/v1/views/#{view.id}") |> json_response(200)
+    assert get_json(conn, "/api/v1/views/999999") |> json_response(404)
+    assert get_json(conn, "/api/v1/views/abc") |> json_response(404)
+
+    # create: invalid attrs (blank name) -> 422.
+    assert %{"errors" => %{"name" => [_ | _]}} =
+             post_json(conn, "/api/v1/views", %{"view" => %{"name" => ""}})
+             |> json_response(422)
+
+    # update: existing valid, invalid -> 422, unknown -> 404, non-integer -> 404.
+    assert patch_json(conn, "/api/v1/views/#{view.id}", %{"view" => %{"name" => "Renamed"}})
+           |> json_response(200)
+
+    assert %{"errors" => %{"name" => [_ | _]}} =
+             patch_json(conn, "/api/v1/views/#{view.id}", %{"view" => %{"name" => ""}})
+             |> json_response(422)
+
+    assert patch_json(conn, "/api/v1/views/999999", %{"view" => %{"name" => "X"}})
+           |> json_response(404)
+
+    assert patch_json(conn, "/api/v1/views/abc", %{"view" => %{"name" => "X"}})
+           |> json_response(404)
+
+    # delete: existing, unknown, non-integer.
+    {:ok, deletable} = Buckets.create_view(Actor.owner_ui(), %{name: "Deletable"})
+    assert delete_json(conn, "/api/v1/views/#{deletable.id}") |> response(204) == ""
+    assert delete_json(conn, "/api/v1/views/999999") |> json_response(404)
+    assert delete_json(conn, "/api/v1/views/abc") |> json_response(404)
+  end
+
+  # User story:
+  # As an API client,
+  # I want set_buckets to validate the view, the body and the referenced buckets,
+  # so that a bad request returns 404/422 instead of crashing.
+  #
+  # Acceptance criteria:
+  # - Success replaces the include/exclude sets.
+  # - Unknown / non-integer view id -> 404.
+  # - A malformed bucket_ids list (non-list or non-integer entry) -> 422.
+  test "set_buckets covers success, unknown view, bad bucket refs and malformed lists",
+       %{conn: conn} do
+    {:ok, included} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Inc"})
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Scoped", include_all: false})
+
+    # Success.
+    assert put_json(conn, "/api/v1/views/#{view.id}/buckets", %{"include" => [included.id]})
+           |> json_response(200)
+
+    # Unknown / non-integer view id -> 404.
+    assert put_json(conn, "/api/v1/views/999999/buckets", %{"include" => [included.id]})
+           |> json_response(404)
+
+    assert put_json(conn, "/api/v1/views/abc/buckets", %{"include" => [included.id]})
+           |> json_response(404)
+
+    # Malformed bucket_ids: non-integer entry -> 422 ({:error, :include}).
+    assert %{"errors" => %{"include" => ["is invalid"]}} =
+             put_json(conn, "/api/v1/views/#{view.id}/buckets", %{"include" => ["x"]})
+             |> json_response(422)
+
+    # Malformed bucket_ids: not a list -> 422 ({:error, :exclude}).
+    assert %{"errors" => %{"exclude" => ["is invalid"]}} =
+             put_json(conn, "/api/v1/views/#{view.id}/buckets", %{"exclude" => "nope"})
+             |> json_response(422)
   end
 
   # User story:
@@ -200,6 +304,140 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
 
   # User story:
   # As an API client,
+  # I want the bucket-assignment endpoints to fail predictably,
+  # so that unknown accounts/securities return 404 and malformed bodies return 422.
+  #
+  # Acceptance criteria:
+  # - Unknown / non-integer account or security ids return 404.
+  # - A non-list bucket_ids or a non-integer entry returns 422 (:bucket_ids).
+  test "depot/cash/position bucket assignments cover 404 and 422 error paths", %{conn: conn} do
+    world = base_world()
+    %{depot: depot, cash: cash} = world
+    security = create_security!(name: "ACME", ticker: "ACME")
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
+
+    # -- depot defaults -------------------------------------------------------
+    # Unknown / non-integer depot id -> 404.
+    assert put_json(conn, "/api/v1/securities_accounts/999999/buckets", %{
+             "bucket_ids" => [bucket.id]
+           })
+           |> json_response(404)
+
+    assert put_json(conn, "/api/v1/securities_accounts/abc/buckets", %{
+             "bucket_ids" => [bucket.id]
+           })
+           |> json_response(404)
+
+    # Malformed bucket_ids: not a list -> 422 (:bucket_ids).
+    assert %{"errors" => %{"bucket_ids" => ["is invalid"]}} =
+             put_json(conn, "/api/v1/securities_accounts/#{depot.id}/buckets", %{
+               "bucket_ids" => "nope"
+             })
+             |> json_response(422)
+
+    # Malformed bucket_ids: non-integer entry -> 422 (:bucket_ids).
+    assert %{"errors" => %{"bucket_ids" => ["is invalid"]}} =
+             put_json(conn, "/api/v1/securities_accounts/#{depot.id}/buckets", %{
+               "bucket_ids" => ["x"]
+             })
+             |> json_response(422)
+
+    # An absent bucket_ids key defaults to the empty set (clears the depot).
+    cleared_depot =
+      put_json(conn, "/api/v1/securities_accounts/#{depot.id}/buckets", %{})
+      |> json_response(200)
+
+    assert cleared_depot["data"]["bucket_ids"] == []
+
+    # -- cash account ---------------------------------------------------------
+    assert put_json(conn, "/api/v1/cash_accounts/999999/buckets", %{"bucket_ids" => [bucket.id]})
+           |> json_response(404)
+
+    assert put_json(conn, "/api/v1/cash_accounts/abc/buckets", %{"bucket_ids" => [bucket.id]})
+           |> json_response(404)
+
+    assert %{"errors" => %{"bucket_ids" => ["is invalid"]}} =
+             put_json(conn, "/api/v1/cash_accounts/#{cash.id}/buckets", %{"bucket_ids" => "nope"})
+             |> json_response(422)
+
+    # -- position override ----------------------------------------------------
+    # Unknown depot, unknown security, non-integer ids all -> 404.
+    assert put_json(
+             conn,
+             "/api/v1/securities_accounts/999999/positions/#{security.id}/buckets",
+             %{"bucket_ids" => [bucket.id]}
+           )
+           |> json_response(404)
+
+    assert put_json(
+             conn,
+             "/api/v1/securities_accounts/#{depot.id}/positions/999999/buckets",
+             %{"bucket_ids" => [bucket.id]}
+           )
+           |> json_response(404)
+
+    assert put_json(
+             conn,
+             "/api/v1/securities_accounts/abc/positions/#{security.id}/buckets",
+             %{"bucket_ids" => [bucket.id]}
+           )
+           |> json_response(404)
+
+    assert put_json(
+             conn,
+             "/api/v1/securities_accounts/#{depot.id}/positions/abc/buckets",
+             %{"bucket_ids" => [bucket.id]}
+           )
+           |> json_response(404)
+
+    # Malformed bucket_ids on the override -> 422 (:bucket_ids).
+    assert %{"errors" => %{"bucket_ids" => ["is invalid"]}} =
+             put_json(
+               conn,
+               "/api/v1/securities_accounts/#{depot.id}/positions/#{security.id}/buckets",
+               %{"bucket_ids" => ["x"]}
+             )
+             |> json_response(422)
+
+    # -- clear override (DELETE) ---------------------------------------------
+    # Success path on a position with no override (returns inherit).
+    cleared =
+      delete_json(
+        conn,
+        "/api/v1/securities_accounts/#{depot.id}/positions/#{security.id}/buckets"
+      )
+      |> json_response(200)
+
+    assert cleared["data"]["override"] == "inherit"
+
+    # Unknown depot, unknown security and non-integer ids on clear -> 404.
+    assert delete_json(
+             conn,
+             "/api/v1/securities_accounts/999999/positions/#{security.id}/buckets"
+           )
+           |> json_response(404)
+
+    assert delete_json(
+             conn,
+             "/api/v1/securities_accounts/#{depot.id}/positions/999999/buckets"
+           )
+           |> json_response(404)
+
+    assert delete_json(
+             conn,
+             "/api/v1/securities_accounts/abc/positions/#{security.id}/buckets"
+           )
+           |> json_response(404)
+
+    assert delete_json(
+             conn,
+             "/api/v1/securities_accounts/#{depot.id}/positions/abc/buckets"
+           )
+           |> json_response(404)
+  end
+
+  # User story:
+  # As an API client,
   # I want to pass a view scope to the analytics endpoints,
   # so that valuation/allocation/performance/risk describe only the holdings in
   # that view, with the active view echoed back.
@@ -259,6 +497,16 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
 
     assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/valuation?view=abc")
            |> json_response(422)
+
+    # An empty view param is treated as unscoped (ViewParam "" -> {:ok, nil}):
+    # both positions remain and no active view is echoed.
+    empty_view =
+      get_json(conn, "/api/v1/portfolios/#{portfolio.id}/valuation?view=")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert length(empty_view["positions"]) == 2
+    refute Map.has_key?(empty_view, "view")
   end
 
   test "scopes the allocation by an optional view param", %{conn: conn} do
@@ -286,7 +534,22 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
              conn,
              "/api/v1/portfolios/#{portfolio.id}/allocation?classification_id=#{classification.id}&view=abc"
            )
-           |> json_response(422)
+           |> json_response(422) == %{"errors" => %{"view" => ["is invalid"]}}
+
+    # Unknown view id is a 404.
+    assert get_json(
+             conn,
+             "/api/v1/portfolios/#{portfolio.id}/allocation?classification_id=#{classification.id}&view=999999"
+           )
+           |> json_response(404)
+
+    # An unknown classification (valid portfolio + view) is a 404 from the
+    # Allocation context's {:error, :not_found}.
+    assert get_json(
+             conn,
+             "/api/v1/portfolios/#{portfolio.id}/allocation?classification_id=999999&view=#{view.id}"
+           )
+           |> json_response(404)
   end
 
   test "scopes performance and risk by an optional view param", %{conn: conn} do
@@ -311,5 +574,34 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
       |> Map.fetch!("data")
 
     assert risk["view"] == %{"id" => view.id, "name" => "All"}
+  end
+
+  # User story:
+  # As an API client,
+  # I want every analytics endpoint to validate the view param the same way,
+  # so that a malformed id is a 422 and an unknown id is a 404 across the board.
+  #
+  # Acceptance criteria:
+  # - performance and risk return 422 %{view: ["is invalid"]} on a non-integer view.
+  # - performance and risk return 404 on an unknown view id.
+  test "performance and risk validate the view param (422 malformed, 404 unknown)",
+       %{conn: conn} do
+    world = base_world()
+    %{portfolio: portfolio} = world
+    security = create_security!(name: "ACME", ticker: "ACME")
+    buy!(world, security, quantity: "10", price: "100")
+    put_quote!(security, ~D[2026-06-01], "100")
+
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/performance?view=abc")
+           |> json_response(422) == %{"errors" => %{"view" => ["is invalid"]}}
+
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/performance?view=999999")
+           |> json_response(404)
+
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/risk?view=abc")
+           |> json_response(422) == %{"errors" => %{"view" => ["is invalid"]}}
+
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/risk?view=999999")
+           |> json_response(404)
   end
 end
