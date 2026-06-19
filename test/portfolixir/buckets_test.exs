@@ -354,4 +354,39 @@ defmodule Portfolixir.BucketsTest do
       refute Buckets.cash_in_scope?(scope, cash.id)
     end
   end
+
+  # User story:
+  # As a local maintainer (or an LLM over MCP),
+  # I want assignment/view writes that reference a non-existent bucket to fail
+  # cleanly rather than crash, so the API can return a 422 instead of a 500.
+  describe "unknown bucket ids are rejected, not raised" do
+    @unknown_bucket_id 999_999
+
+    test "set_depot_default_buckets/set_cash_account_buckets/set_position_override reject unknown ids",
+         %{depot: depot, cash: cash, security: security} do
+      assert {:error, :bucket_ids} =
+               Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [@unknown_bucket_id])
+
+      assert {:error, :bucket_ids} =
+               Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [@unknown_bucket_id])
+
+      assert {:error, :bucket_ids} =
+               Buckets.set_position_override(
+                 Actor.owner_ui(),
+                 depot,
+                 security,
+                 [@unknown_bucket_id]
+               )
+    end
+
+    test "set_view_buckets rejects unknown include/exclude ids" do
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "V", include_all: false})
+
+      assert {:error, :bucket_ids} =
+               Buckets.set_view_buckets(Actor.owner_ui(), view, [@unknown_bucket_id], [])
+
+      assert {:error, :bucket_ids} =
+               Buckets.set_view_buckets(Actor.owner_ui(), view, [], [@unknown_bucket_id])
+    end
+  end
 end

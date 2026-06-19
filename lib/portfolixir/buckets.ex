@@ -104,24 +104,27 @@ defmodule Portfolixir.Buckets do
   def set_depot_default_buckets(%Actor{} = actor, %SecuritiesAccount{id: sa_id}, bucket_ids)
       when is_list(bucket_ids) do
     bucket_ids = Enum.uniq(bucket_ids)
-    entries = Enum.map(bucket_ids, &%{securities_account_id: sa_id, bucket_id: &1})
 
-    Multi.new()
-    |> Multi.delete_all(
-      :clear,
-      from(x in SecuritiesAccountBucket, where: x.securities_account_id == ^sa_id)
-    )
-    |> insert_all_step(:assign, SecuritiesAccountBucket, entries)
-    |> Multi.run(:record, fn _repo, _changes ->
-      {:ok, %{id: nil, securities_account_id: sa_id, bucket_ids: bucket_ids}}
-    end)
-    |> Journal.record(actor,
-      resource_type: "depot_bucket_assignment",
-      operation: :update,
-      source: :record
-    )
-    |> Repo.transaction()
-    |> normalize_assignment_result()
+    with :ok <- validate_bucket_ids(bucket_ids) do
+      entries = Enum.map(bucket_ids, &%{securities_account_id: sa_id, bucket_id: &1})
+
+      Multi.new()
+      |> Multi.delete_all(
+        :clear,
+        from(x in SecuritiesAccountBucket, where: x.securities_account_id == ^sa_id)
+      )
+      |> insert_all_step(:assign, SecuritiesAccountBucket, entries)
+      |> Multi.run(:record, fn _repo, _changes ->
+        {:ok, %{id: nil, securities_account_id: sa_id, bucket_ids: bucket_ids}}
+      end)
+      |> Journal.record(actor,
+        resource_type: "depot_bucket_assignment",
+        operation: :update,
+        source: :record
+      )
+      |> Repo.transaction()
+      |> normalize_assignment_result()
+    end
   end
 
   @doc "Bucket ids in a depot's default set."
@@ -144,21 +147,27 @@ defmodule Portfolixir.Buckets do
   def set_cash_account_buckets(%Actor{} = actor, %CashAccount{id: ca_id}, bucket_ids)
       when is_list(bucket_ids) do
     bucket_ids = Enum.uniq(bucket_ids)
-    entries = Enum.map(bucket_ids, &%{cash_account_id: ca_id, bucket_id: &1})
 
-    Multi.new()
-    |> Multi.delete_all(:clear, from(x in CashAccountBucket, where: x.cash_account_id == ^ca_id))
-    |> insert_all_step(:assign, CashAccountBucket, entries)
-    |> Multi.run(:record, fn _repo, _changes ->
-      {:ok, %{id: nil, cash_account_id: ca_id, bucket_ids: bucket_ids}}
-    end)
-    |> Journal.record(actor,
-      resource_type: "cash_account_bucket_assignment",
-      operation: :update,
-      source: :record
-    )
-    |> Repo.transaction()
-    |> normalize_assignment_result()
+    with :ok <- validate_bucket_ids(bucket_ids) do
+      entries = Enum.map(bucket_ids, &%{cash_account_id: ca_id, bucket_id: &1})
+
+      Multi.new()
+      |> Multi.delete_all(
+        :clear,
+        from(x in CashAccountBucket, where: x.cash_account_id == ^ca_id)
+      )
+      |> insert_all_step(:assign, CashAccountBucket, entries)
+      |> Multi.run(:record, fn _repo, _changes ->
+        {:ok, %{id: nil, cash_account_id: ca_id, bucket_ids: bucket_ids}}
+      end)
+      |> Journal.record(actor,
+        resource_type: "cash_account_bucket_assignment",
+        operation: :update,
+        source: :record
+      )
+      |> Repo.transaction()
+      |> normalize_assignment_result()
+    end
   end
 
   @doc "Bucket ids assigned to a cash account."
@@ -186,25 +195,31 @@ defmodule Portfolixir.Buckets do
         bucket_ids
       )
       when is_list(bucket_ids) do
-    entries =
-      case Enum.uniq(bucket_ids) do
-        [] -> [%{securities_account_id: sa_id, security_id: sec_id, bucket_id: nil}]
-        ids -> Enum.map(ids, &%{securities_account_id: sa_id, security_id: sec_id, bucket_id: &1})
-      end
+    with :ok <- validate_bucket_ids(bucket_ids) do
+      entries =
+        case Enum.uniq(bucket_ids) do
+          [] ->
+            [%{securities_account_id: sa_id, security_id: sec_id, bucket_id: nil}]
 
-    Multi.new()
-    |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
-    |> Multi.insert_all(:assign, PositionBucketOverride, entries)
-    |> Multi.run(:record, fn _repo, _changes ->
-      {:ok, %{id: nil, securities_account_id: sa_id, security_id: sec_id, bucket_ids: bucket_ids}}
-    end)
-    |> Journal.record(actor,
-      resource_type: "position_bucket_override",
-      operation: :update,
-      source: :record
-    )
-    |> Repo.transaction()
-    |> normalize_assignment_result()
+          ids ->
+            Enum.map(ids, &%{securities_account_id: sa_id, security_id: sec_id, bucket_id: &1})
+        end
+
+      Multi.new()
+      |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
+      |> Multi.insert_all(:assign, PositionBucketOverride, entries)
+      |> Multi.run(:record, fn _repo, _changes ->
+        {:ok,
+         %{id: nil, securities_account_id: sa_id, security_id: sec_id, bucket_ids: bucket_ids}}
+      end)
+      |> Journal.record(actor,
+        resource_type: "position_bucket_override",
+        operation: :update,
+        source: :record
+      )
+      |> Repo.transaction()
+      |> normalize_assignment_result()
+    end
   end
 
   @doc """
@@ -304,18 +319,20 @@ defmodule Portfolixir.Buckets do
   """
   def set_view_buckets(%Actor{} = _actor, %View{id: view_id}, include_ids, exclude_ids)
       when is_list(include_ids) and is_list(exclude_ids) do
-    include_entries = Enum.map(include_ids, &%{view_id: view_id, bucket_id: &1})
-    exclude_entries = Enum.map(exclude_ids, &%{view_id: view_id, bucket_id: &1})
+    with :ok <- validate_bucket_ids(include_ids ++ exclude_ids) do
+      include_entries = Enum.map(include_ids, &%{view_id: view_id, bucket_id: &1})
+      exclude_entries = Enum.map(exclude_ids, &%{view_id: view_id, bucket_id: &1})
 
-    Multi.new()
-    |> Multi.delete_all(:clear_in, from(x in ViewIncludeBucket, where: x.view_id == ^view_id))
-    |> Multi.delete_all(:clear_ex, from(x in ViewExcludeBucket, where: x.view_id == ^view_id))
-    |> insert_all_step(:include, ViewIncludeBucket, include_entries)
-    |> insert_all_step(:exclude, ViewExcludeBucket, exclude_entries)
-    |> Repo.transaction()
-    |> case do
-      {:ok, _} -> :ok
-      {:error, _, reason, _} -> {:error, reason}
+      Multi.new()
+      |> Multi.delete_all(:clear_in, from(x in ViewIncludeBucket, where: x.view_id == ^view_id))
+      |> Multi.delete_all(:clear_ex, from(x in ViewExcludeBucket, where: x.view_id == ^view_id))
+      |> insert_all_step(:include, ViewIncludeBucket, include_entries)
+      |> insert_all_step(:exclude, ViewExcludeBucket, exclude_entries)
+      |> Repo.transaction()
+      |> case do
+        {:ok, _} -> :ok
+        {:error, _, reason, _} -> {:error, reason}
+      end
     end
   end
 
@@ -420,6 +437,23 @@ defmodule Portfolixir.Buckets do
     end
 
     {:explicit, bucket_ids}
+  end
+
+  # Rejects assignment/view-set requests that reference a non-existent bucket with
+  # `{:error, :bucket_ids}` (a clean 422 at the web/MCP layer) instead of letting
+  # the FK violation raise. `bucket_ids` are already integers by the time they
+  # reach here (the web layer validates the shape).
+  defp validate_bucket_ids([]), do: :ok
+
+  defp validate_bucket_ids(bucket_ids) do
+    existing =
+      from(b in Bucket, where: b.id in ^bucket_ids, select: b.id)
+      |> Repo.all()
+      |> MapSet.new()
+
+    if Enum.all?(bucket_ids, &MapSet.member?(existing, &1)),
+      do: :ok,
+      else: {:error, :bucket_ids}
   end
 
   defp position_override_query(sa_id, sec_id) do

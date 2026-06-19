@@ -508,6 +508,65 @@ Example transaction payload:
 }
 ```
 
+## Buckets and Views
+
+Buckets are overlapping tags applied to holdings (depots, cash accounts and
+individual security positions) for tag-based wealth scoping. Views are named,
+global filters over those buckets: a holding matches when it is included
+(always under `include_all`, otherwise when it carries one of the view's include
+buckets) and carries none of the view's exclude buckets — exclude always wins.
+Bucket-definition and assignment writes are journaled (ADR-0017); view-definition
+writes are deliberately not journaled (ADR-0018 §5).
+
+- `GET /api/v1/buckets` lists buckets (`id`, `name`, `color`).
+- `POST /api/v1/buckets` creates a bucket from a `bucket` object (`name`
+  required, optional `color`). A blank or duplicate name returns `422`.
+- `GET /api/v1/buckets/:id` returns one bucket; unknown ids return `404`.
+- `PATCH /api/v1/buckets/:id` patches a bucket's `name`/`color`.
+- `DELETE /api/v1/buckets/:id` deletes a bucket and cascades it out of every
+  assignment and view set, returning `204 No Content`.
+- `GET /api/v1/views` lists views. Each view carries `include_all`, the resolved
+  `include` set (the literal `"all"` under `include_all`, otherwise a list of
+  bucket ids) and the `exclude` list of bucket ids.
+- `POST /api/v1/views` creates a view from a `view` object (`name` required,
+  optional `include_all` defaulting to `true`).
+- `GET /api/v1/views/:id` returns one view with its resolved filter.
+- `PATCH /api/v1/views/:id` patches a view's `name`/`include_all`.
+- `DELETE /api/v1/views/:id` deletes a view and its bucket sets (`204`).
+- `PUT /api/v1/views/:id/buckets` replaces a view's include/exclude bucket sets.
+  Body: `{"include": [..], "exclude": [..]}` (both optional, default `[]`,
+  arrays of bucket ids). A malformed id list returns `422`.
+- `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
+  bucket set (the buckets each position inherits unless overridden). Body:
+  `{"bucket_ids": [..]}`.
+- `PUT /api/v1/cash_accounts/:id/buckets` replaces a cash account's bucket set.
+  Body: `{"bucket_ids": [..]}`.
+- `PUT /api/v1/securities_accounts/:id/positions/:security_id/buckets` sets the
+  per-position override for one security in one depot. An empty `bucket_ids`
+  records the **explicit-empty** state (deliberately no buckets), distinct from
+  inheriting the depot default; the override always wins over the depot default.
+  The response reports the resolved `override` (`inherit`, `explicit_empty` or
+  `explicit`) and the `effective_bucket_ids`.
+- `DELETE /api/v1/securities_accounts/:id/positions/:security_id/buckets` clears
+  the override, returning the position to inherit the depot default.
+
+The analytics endpoints accept an optional `view` query param (a view id) to
+scope the result to the holdings matching that view:
+
+- `GET /api/v1/portfolios/:portfolio_id/valuation?view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/allocation?classification_id=<id>&view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/performance?view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/risk?view=<id>`
+
+When a `view` is supplied, the response echoes the active view as
+`view: {id, name}` (FR-13); the unscoped/default call is unchanged and carries
+no `view` field. A malformed view id returns `422`; an unknown view id returns
+`404`. The holdings endpoint
+(`GET /api/v1/portfolios/:portfolio_id/holdings`) is **not** view-scoped: it
+returns the raw per-(depot, security) rows in each security's own currency, so a
+client can apply the buckets/views model itself using each row's
+`securities_account_id` and `security_id`.
+
 ## Audit Journal
 
 Every financial write (create, update, delete) is recorded in an append-only
@@ -583,3 +642,23 @@ in MCP schemas are strings.
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`
 - `portfolixir.journal.list`
+- `portfolixir.buckets.list`
+- `portfolixir.buckets.get`
+- `portfolixir.buckets.create`
+- `portfolixir.buckets.update`
+- `portfolixir.buckets.delete`
+- `portfolixir.views.list`
+- `portfolixir.views.get`
+- `portfolixir.views.create`
+- `portfolixir.views.update`
+- `portfolixir.views.delete`
+- `portfolixir.views.set_buckets`
+- `portfolixir.securities_accounts.set_buckets`
+- `portfolixir.cash_accounts.set_buckets`
+- `portfolixir.securities_accounts.set_position_buckets`
+- `portfolixir.securities_accounts.clear_position_buckets`
+
+The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
+`portfolixir.portfolios.performance` and `portfolixir.portfolios.risk` tools
+accept an optional `view` (a view id) that scopes the result to the holdings
+matching that bucket view; the response then echoes the active view.

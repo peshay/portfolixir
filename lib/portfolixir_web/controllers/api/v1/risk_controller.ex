@@ -5,17 +5,22 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Risk
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ViewParam
 
   @zero Decimal.new("0")
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, pid} <- parse_id(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
+         {:ok, view} <- ViewParam.resolve(params),
          {:ok, opts} <- risk_opts(params) do
-      risk = Risk.for_portfolio(pid, opts)
-      json(conn, %{data: JSON.risk(risk)})
+      risk = Risk.for_portfolio(pid, Keyword.merge(opts, ViewParam.opts(view)))
+      data = risk |> JSON.risk() |> ViewParam.put_active(view)
+      json(conn, %{data: data})
     else
+      {:error, :view} -> unprocessable(conn, %{view: ["is invalid"]})
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
+      :view_not_found -> not_found(conn)
       :error -> not_found(conn)
       nil -> not_found(conn)
     end

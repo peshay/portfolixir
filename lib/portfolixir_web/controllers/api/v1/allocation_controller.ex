@@ -5,19 +5,27 @@ defmodule PortfolixirWeb.Api.V1.AllocationController do
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Portfolio
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ViewParam
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, pid} <- parse_id(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
-         {:ok, cid} <- classification_id(Map.get(params, "classification_id")) do
-      case Allocation.for_portfolio(pid, cid) do
-        {:ok, allocation} -> json(conn, %{data: JSON.allocation(allocation)})
-        {:error, :not_found} -> not_found(conn)
+         {:ok, cid} <- classification_id(Map.get(params, "classification_id")),
+         {:ok, view} <- ViewParam.resolve(params) do
+      case Allocation.for_portfolio(pid, cid, ViewParam.opts(view)) do
+        {:ok, allocation} ->
+          data = allocation |> JSON.allocation() |> ViewParam.put_active(view)
+          json(conn, %{data: data})
+
+        {:error, :not_found} ->
+          not_found(conn)
       end
     else
       :missing -> unprocessable(conn, %{classification_id: ["is required"]})
       :error -> not_found(conn)
       nil -> not_found(conn)
+      {:error, :view} -> unprocessable(conn, %{view: ["is invalid"]})
+      :view_not_found -> not_found(conn)
     end
   end
 
