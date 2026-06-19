@@ -6,6 +6,7 @@ defmodule Portfolixir.BucketsTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios
+  alias Portfolixir.Repo
 
   setup do
     {:ok, portfolio} =
@@ -147,11 +148,42 @@ defmodule Portfolixir.BucketsTest do
                Enum.sort([b1.id, b2.id, b3.id])
     end
 
-    test "assignment writes are journaled", %{depot: depot} do
+    test "an assignment write records exactly one journal entry", %{depot: depot} do
       {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Tag"})
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [b.id])
 
-      assert [_ | _] = Journal.list_entries(resource_type: "depot_bucket_assignment")
+      assert [_] = Journal.list_entries(resource_type: "depot_bucket_assignment")
+    end
+
+    test "duplicate bucket ids are de-duplicated rather than crashing", %{
+      depot: depot,
+      security: security
+    } do
+      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Dup"})
+
+      assert :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [b.id, b.id])
+      assert Buckets.depot_default_bucket_ids(depot.id) == [b.id]
+
+      assert :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [b.id, b.id])
+      assert Buckets.effective_position_buckets(depot.id, security.id) == [b.id]
+    end
+
+    test "position_override raises on a corrupt mixed (nil + bucket) row set", %{
+      depot: depot,
+      security: security
+    } do
+      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "X"})
+
+      # position_bucket_overrides is not guard-armed, so a raw insert can bypass
+      # the context invariant that keeps explicit-empty and explicit sets apart.
+      Repo.insert_all("position_bucket_overrides", [
+        %{securities_account_id: depot.id, security_id: security.id, bucket_id: nil},
+        %{securities_account_id: depot.id, security_id: security.id, bucket_id: b.id}
+      ])
+
+      assert_raise RuntimeError, ~r/mixes the explicit-empty marker/, fn ->
+        Buckets.position_override(depot.id, security.id)
+      end
     end
   end
 
@@ -165,7 +197,7 @@ defmodule Portfolixir.BucketsTest do
       :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [b.id])
 
       assert Buckets.cash_account_bucket_ids(cash.id) == [b.id]
-      assert [_ | _] = Journal.list_entries(resource_type: "cash_account_bucket_assignment")
+      assert [_] = Journal.list_entries(resource_type: "cash_account_bucket_assignment")
     end
   end
 

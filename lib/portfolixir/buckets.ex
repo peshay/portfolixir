@@ -103,6 +103,7 @@ defmodule Portfolixir.Buckets do
   """
   def set_depot_default_buckets(%Actor{} = actor, %SecuritiesAccount{id: sa_id}, bucket_ids)
       when is_list(bucket_ids) do
+    bucket_ids = Enum.uniq(bucket_ids)
     entries = Enum.map(bucket_ids, &%{securities_account_id: sa_id, bucket_id: &1})
 
     Multi.new()
@@ -128,6 +129,7 @@ defmodule Portfolixir.Buckets do
     Repo.all(
       from(x in SecuritiesAccountBucket,
         where: x.securities_account_id == ^securities_account_id,
+        order_by: [asc: x.bucket_id],
         select: x.bucket_id
       )
     )
@@ -141,6 +143,7 @@ defmodule Portfolixir.Buckets do
   """
   def set_cash_account_buckets(%Actor{} = actor, %CashAccount{id: ca_id}, bucket_ids)
       when is_list(bucket_ids) do
+    bucket_ids = Enum.uniq(bucket_ids)
     entries = Enum.map(bucket_ids, &%{cash_account_id: ca_id, bucket_id: &1})
 
     Multi.new()
@@ -163,6 +166,7 @@ defmodule Portfolixir.Buckets do
     Repo.all(
       from(x in CashAccountBucket,
         where: x.cash_account_id == ^cash_account_id,
+        order_by: [asc: x.bucket_id],
         select: x.bucket_id
       )
     )
@@ -183,7 +187,7 @@ defmodule Portfolixir.Buckets do
       )
       when is_list(bucket_ids) do
     entries =
-      case bucket_ids do
+      case Enum.uniq(bucket_ids) do
         [] -> [%{securities_account_id: sa_id, security_id: sec_id, bucket_id: nil}]
         ids -> Enum.map(ids, &%{securities_account_id: sa_id, security_id: sec_id, bucket_id: &1})
       end
@@ -234,14 +238,29 @@ defmodule Portfolixir.Buckets do
     rows =
       Repo.all(
         from(o in position_override_query(securities_account_id, security_id),
+          order_by: [asc: o.bucket_id],
           select: o.bucket_id
         )
       )
 
     case rows do
-      [] -> :inherit
-      [nil] -> :explicit_empty
-      ids -> {:explicit, Enum.reject(ids, &is_nil/1)}
+      [] ->
+        :inherit
+
+      [nil] ->
+        :explicit_empty
+
+      ids ->
+        # The explicit-empty marker (a single NULL row) must never coexist with
+        # real bucket rows — the context always writes one kind in a single
+        # transaction. A mixed set means corruption; fail loud rather than
+        # silently dropping the explicit-empty semantics (crash-by-design).
+        if Enum.any?(ids, &is_nil/1) do
+          raise "position_bucket_overrides for (#{securities_account_id}, #{security_id}) " <>
+                  "mixes the explicit-empty marker with bucket rows"
+        end
+
+        {:explicit, ids}
     end
   end
 

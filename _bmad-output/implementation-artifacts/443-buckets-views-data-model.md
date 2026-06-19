@@ -4,7 +4,7 @@ baseline_commit: ed0d90e7f16750bfd172792a5d21e2fea3e6e974
 
 # Story: Buckets & views — data model (GitHub #443)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -131,6 +131,19 @@ These are fixed decisions from the issue. Do not redesign them; encode them.
         state this explicitly in the PR body.
   - [x] User docs: data-model-only, no user-visible surface yet → note "no
         `product-documentation.md` change; UI lands in #446" in the PR.
+
+### Review Findings (code review 2026-06-18)
+
+- [x] [Review][Decision] Task 1 said "arm the assignment tables" but only `buckets` is armed — **RATIFIED (accept: only buckets armed)**. Arming the assignment join tables would make the journal guard reject legitimate FK-cascade deletes from not-yet-actor-first Portfolios contexts (confirmed by edge-case review). Recorded in ADR-0018; arming follows in the Portfolios actor-first slice.
+- [x] [Review][Patch] Setters crash on duplicate bucket ids instead of returning cleanly [`lib/portfolixir/buckets.ex`] — FIXED: `Enum.uniq` on the id lists in all setters.
+- [x] [Review][Patch] `position_override/2` silently collapses a corrupt mixed (NULL + bucket) row set to `{:explicit, …}` [`lib/portfolixir/buckets.ex`] — FIXED: raises (crash-by-design) on mixed state; covered by a test that injects the corrupt state via a raw insert.
+- [x] [Review][Patch] Non-deterministic ordering of public read APIs [`lib/portfolixir/buckets.ex`] — FIXED: `order_by: [asc: bucket_id]` on depot/cash/position reads.
+- [x] [Review][Patch] Assignment journaling tests assert `[_ | _]` not "exactly one" [`test/portfolixir/buckets_test.exs`] — FIXED: tightened to `[_]`.
+- [x] [Review][Patch] ADR-0018 doc drift (`create_view/4` → `create_view/2`) + cascade-delete journaling note [`docs/decisions/0018-buckets-tag-based-wealth-scoping.md`] — FIXED: arity corrected; added a consequence documenting that cascade-deleted assignment rows are not individually journaled.
+- [x] [Review][Dismiss] Aggregate assignment journal entries carry `resource_id = nil` — by design; the `after` payload carries the owning ids. No action.
+- [x] [Review][Dismiss] Dev Notes mention `engine_purity_test.exs` which does not exist — the engine is genuinely pure; gate is future work. No code impact.
+- [x] [Review][Dismiss] Return-shape `:ok` (set_*) vs `{:ok, _}` (create/update/delete) — intentional, consistent convention.
+- [x] [Review][Dismiss] `NULLS NOT DISTINCT` requires PostgreSQL 15+ — project runs postgres:18; commented.
 
 ## Dev Notes
 
@@ -321,3 +334,4 @@ Modified:
 | Date | Change |
 | --- | --- |
 | 2026-06-18 | Implemented #443: buckets & views data model, pure resolution engine, actor-first journaled Buckets context, ADR-0018. All gates green; status → review. |
+| 2026-06-18 | Code review: 5 patches applied (dedup setters, mixed-state fail-loud guard, deterministic ordering, exactly-one journaling assertions, ADR doc fixes), arming deviation ratified, 4 findings dismissed. All gates green; status → done. |
