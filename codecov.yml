@@ -1,14 +1,14 @@
 # Codecov configuration for Portfolixir.
 #
 # Part of the incremental coverage ratchet defined in issue #314
-# ("Harden CI: coverage ratchet"). This is the second step: the project target
-# is now an explicit 84% floor (previously `auto`). Main is currently at
-# ~84.57%, which leaves ~0.57% headroom for minor fluctuations while ensuring
-# any regression below 84% fails the gate.
+# ("Harden CI: coverage ratchet"). This is the next step: the project floor is
+# raised from 84% to 85%. Main is currently at ~85.7%, which leaves ~0.7%
+# headroom for minor fluctuations while ensuring any regression below 85% fails
+# the gate.
 #
 # Ratchet plan (one small PR per step, per #314):
-#   * project: explicit 84% floor now; will be raised to 85% then 90% in
-#     later increments as coverage continues to climb.
+#   * project: explicit 85% floor now (was 84%); will be raised to 90% in a
+#     later increment as coverage continues to climb.
 #   * patch: changed lines must be ~90%+ covered (the issue's "~90%+ changed
 #     lines" bar), so every new PR pulls the overall number upward.
 #   * threshold: 1% — allows up to 1% drop versus the base commit so that
@@ -17,7 +17,7 @@ coverage:
   status:
     project:
       default:
-        target: 84%
+        target: 85%
         threshold: 1%
     patch:
       default:

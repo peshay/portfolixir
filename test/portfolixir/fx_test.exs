@@ -78,4 +78,69 @@ defmodule Portfolixir.FxTest do
     assert {:ok, latest} = Fx.convert(d("100"), "EUR", "USD")
     assert Decimal.equal?(latest, d("125"))
   end
+
+  # User story:
+  # As a maintainer wiring up a currency-aware report,
+  # I want a single rate that turns one unit of any currency into another,
+  # so that callers (weights, allocation drift) can scale figures without
+  # re-deriving the EUR triangulation themselves.
+  #
+  # Acceptance criteria:
+  # - rate/2 is the identity for the same currency, with no stored rate needed.
+  # - rate/2 triangulates a cross pair through EUR (quote-per-unit, exact).
+  # - rate/3 honours an as-of date.
+  # - rate/2 returns {:error, :no_rate} when no path exists.
+  test "rate/2 returns the EUR-triangulated quote-per-unit factor" do
+    assert {:ok, identity} = Fx.rate("USD", "USD")
+    assert Decimal.equal?(identity, d("1"))
+
+    seed_rates!()
+
+    # 1 USD = 0.8 EUR = 0.8 * 0.8 GBP = 0.64 GBP.
+    assert {:ok, usd_to_gbp} = Fx.rate("USD", "GBP")
+    assert Decimal.equal?(usd_to_gbp, d("0.64"))
+
+    # 1 EUR = 1.25 USD.
+    assert {:ok, eur_to_usd} = Fx.rate("EUR", "USD")
+    assert Decimal.equal?(eur_to_usd, d("1.25"))
+  end
+
+  test "rate/3 uses the most recent rate on or before the as-of date" do
+    {:ok, _} =
+      Fx.upsert_many([
+        rate("USD", "1.20", ~D[2026-06-01]),
+        rate("USD", "1.25", ~D[2026-06-04])
+      ])
+
+    assert {:ok, on_date} = Fx.rate("EUR", "USD", ~D[2026-06-02])
+    assert Decimal.equal?(on_date, d("1.20"))
+  end
+
+  test "rate/2 returns :no_rate when no path to the target currency exists" do
+    seed_rates!()
+    assert {:error, :no_rate} = Fx.rate("USD", "JPY")
+  end
+
+  # User story:
+  # As a maintainer importing exchange rates,
+  # I want a batch with any invalid row rejected as a whole,
+  # so that a malformed feed never writes a partial, misleading rate history.
+  #
+  # Acceptance criteria:
+  # - upsert_many/1 returns {:error, changeset} and writes nothing when a row
+  #   fails validation.
+  # - An empty batch is a no-op returning {:ok, 0}.
+  test "upsert_many/1 rejects the whole batch when a row is invalid" do
+    before = length(Fx.list_rates())
+
+    # Second row has a non-positive rate, which the changeset rejects.
+    assert {:error, %Ecto.Changeset{valid?: false}} =
+             Fx.upsert_many([rate("USD", "1.25"), rate("GBP", "0")])
+
+    assert length(Fx.list_rates()) == before
+  end
+
+  test "upsert_many/1 is a no-op for an empty batch" do
+    assert {:ok, 0} = Fx.upsert_many([])
+  end
 end

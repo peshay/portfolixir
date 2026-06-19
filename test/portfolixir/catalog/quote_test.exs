@@ -14,6 +14,10 @@ defmodule Portfolixir.Catalog.QuoteTest do
   # - Missing fields are rejected with errors.
   # - Unknown sources are rejected so we never store unverified provenance.
 
+  test "sources/0 lists the known quote provenance tags" do
+    assert SecurityQuote.sources() == ~w(auto manual coingecko portfolio_performance)
+  end
+
   describe "changeset/2" do
     test "accepts a complete quote with a Decimal close" do
       attrs = %{
