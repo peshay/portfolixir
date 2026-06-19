@@ -258,6 +258,41 @@ defmodule Portfolixir.Ledger.LedgerPropertyTest do
   end
 
   # User story:
+  # As a maintainer relying on the "amounts are positive magnitudes" invariant,
+  # I want the changeset to reject a negative `gross_amount` for every cash kind
+  # whose sign comes from the kind (deposit/removal/interest/fee/tax/tax_refund),
+  # so that a sign-flipping amount can never enter through the API/MCP/manual path
+  # and corrupt the derived balance (project invariant #3; balance_adjustment is
+  # the sole exception, asserted separately).
+  #
+  # Acceptance criteria:
+  # - For each such cash kind, a negative `gross_amount` makes the changeset
+  #   invalid with a `gross_amount` error.
+  property "the changeset rejects a negative gross_amount for sign-from-kind cash kinds" do
+    {portfolio, cash} = setup_account()
+
+    check all(
+            kind <- member_of(@inflow_kinds ++ @outflow_kinds),
+            magnitude <- money(),
+            date <- booking_date(),
+            max_runs: @runs
+          ) do
+      changeset =
+        Transaction.changeset(%Transaction{}, %{
+          type: kind,
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          currency_code: "EUR",
+          date: date,
+          gross_amount: Decimal.negate(magnitude)
+        })
+
+      refute changeset.valid?, "#{kind} accepted a negative gross_amount"
+      assert {_msg, _} = changeset.errors[:gross_amount]
+    end
+  end
+
+  # User story:
   # As a maintainer recording an overdraft,
   # I want a `balance_adjustment` snapshot to accept a negative `gross_amount`,
   # so that a drawn credit line or overdrawn account can be stated honestly
