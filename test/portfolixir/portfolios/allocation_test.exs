@@ -4,6 +4,8 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 0, base_world: 1, create_security!: 1, buy!: 3, deposit!: 3]
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
@@ -57,6 +59,37 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
   defp fetch_category(allocation, category_id) do
     Enum.find(allocation.categories, &(&1.category_id == category_id))
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want the allocation to optionally scope to a view, while no view stays my
+  # whole steering basis, so that I can read SOLL/IST for a slice of my wealth
+  # (#444). The existing exclude flag (ADR-0013) is untouched.
+  test "a view scopes the allocation steering basis; the default is identical" do
+    world = setup_world()
+    sec_a = equity!("Sec A", "SECA")
+    sec_b = equity!("Sec B", "SECB")
+    buy!(world, sec_a, "10", "10")
+    buy!(world, sec_b, "10", "10")
+    prices = %{sec_a.id => Decimal.new("10"), sec_b.id => Decimal.new("10")}
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "OnlyA"})
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "ViewA", include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+    :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, sec_a, [bucket.id])
+
+    {:ok, full} =
+      Allocation.for_portfolio(world.portfolio.id, world.classification.id, prices: prices)
+
+    {:ok, scoped} =
+      Allocation.for_portfolio(world.portfolio.id, world.classification.id,
+        prices: prices,
+        view: view.id
+      )
+
+    assert Decimal.equal?(full.total_value, Decimal.new("200"))
+    assert Decimal.equal?(scoped.total_value, Decimal.new("100"))
   end
 
   test "breaks the valuation down by category and reports drift against targets" do

@@ -21,6 +21,7 @@ defmodule Portfolixir.Portfolios.Valuation do
   the total or the weights.
   """
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
@@ -112,11 +113,18 @@ defmodule Portfolixir.Portfolios.Valuation do
     base_currency =
       Keyword.get_lazy(opts, :base_currency, fn -> base_currency_for(portfolio_id) end)
 
+    # `:view` (a view id) scopes the result to the holdings matching that view.
+    # No view -> `:unscoped` -> every check passes -> byte-identical output (#444).
+    scope = Buckets.load_scope(portfolio_id, Keyword.get(opts, :view))
+
     trade_prices = Ledger.latest_trade_prices(portfolio_id)
 
     positions =
       portfolio_id
       |> Ledger.positions_for_portfolio()
+      |> Enum.filter(fn {{securities_account_id, security_id}, _quantity} ->
+        Buckets.position_in_scope?(scope, securities_account_id, security_id)
+      end)
       |> Enum.map(fn {{securities_account_id, security_id}, quantity} ->
         build_position(
           securities_account_id,
@@ -134,7 +142,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       |> Enum.map(&put_weight(&1, total))
       |> Enum.sort_by(& &1.security_id)
 
-    cash = cash_for(portfolio_id, base_currency)
+    cash = cash_for(portfolio_id, base_currency, scope)
     total_with_cash = Decimal.add(total, cash.total)
 
     %{
@@ -172,12 +180,13 @@ defmodule Portfolixir.Portfolios.Valuation do
   # unpriceable positions are handled. `total` spans all valued accounts (so a
   # drawn credit line's negative balance still reduces net worth, FR7);
   # `counting_total` is the deployable cash only (FR6).
-  defp cash_for(portfolio_id, base_currency) do
+  defp cash_for(portfolio_id, base_currency, scope) do
     balances = Ledger.cash_balances(portfolio_id: portfolio_id)
 
     entries =
       portfolio_id
       |> Portfolios.list_cash_accounts_for_portfolio()
+      |> Enum.filter(&Buckets.cash_in_scope?(scope, &1.id))
       |> Enum.map(fn account ->
         balance = Map.get(balances, account.id, @zero)
         {base_value, valued?} = convert_cash(balance, account.currency_code, base_currency)

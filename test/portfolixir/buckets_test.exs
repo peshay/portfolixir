@@ -271,4 +271,87 @@ defmodule Portfolixir.BucketsTest do
       assert Buckets.get_view!(view.id).name == "Z-view"
     end
   end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want a per-portfolio scope that says whether a position or cash account is
+  # in a chosen view, with no view meaning "everything",
+  # so that analytics can restrict to a view over the single-count universe
+  # without re-querying per holding (ADR-0018, #444).
+  describe "load_scope/2 + membership" do
+    test "nil view yields :unscoped and everything is in scope", %{
+      depot: depot,
+      cash: cash,
+      security: security
+    } do
+      scope = Buckets.load_scope(depot.portfolio_id, nil)
+      assert scope == :unscoped
+      assert Buckets.position_in_scope?(scope, depot.id, security.id)
+      assert Buckets.cash_in_scope?(scope, cash.id)
+    end
+
+    test "an include view scopes positions by their effective buckets (override beats depot default)",
+         %{
+           depot: depot,
+           security: security
+         } do
+      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
+      {:ok, krypto} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "CoreView", include_all: false})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [core.id], [])
+
+      # Depot default = Core -> position inherits and is in scope.
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [core.id])
+      scope = Buckets.load_scope(depot.portfolio_id, view.id)
+      assert Buckets.position_in_scope?(scope, depot.id, security.id)
+
+      # Override to Krypto -> no longer in the Core view.
+      :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [krypto.id])
+      scope = Buckets.load_scope(depot.portfolio_id, view.id)
+      refute Buckets.position_in_scope?(scope, depot.id, security.id)
+    end
+
+    test "explicit-empty position is out of a specific include view but in :all", %{
+      depot: depot,
+      security: security
+    } do
+      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [core.id])
+      :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [])
+
+      {:ok, specific} = Buckets.create_view(Actor.owner_ui(), %{name: "Spec", include_all: false})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), specific, [core.id], [])
+
+      refute Buckets.position_in_scope?(
+               Buckets.load_scope(depot.portfolio_id, specific.id),
+               depot.id,
+               security.id
+             )
+
+      {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "All", include_all: true})
+
+      assert Buckets.position_in_scope?(
+               Buckets.load_scope(depot.portfolio_id, everything.id),
+               depot.id,
+               security.id
+             )
+    end
+
+    test "exclude wins and cash respects its bucket", %{
+      depot: depot,
+      cash: cash,
+      security: security
+    } do
+      {:ok, leo} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Leo"})
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "NoLeo", include_all: true})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [], [leo.id])
+
+      :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [leo.id])
+      :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [leo.id])
+
+      scope = Buckets.load_scope(depot.portfolio_id, view.id)
+      refute Buckets.position_in_scope?(scope, depot.id, security.id)
+      refute Buckets.cash_in_scope?(scope, cash.id)
+    end
+  end
 end
