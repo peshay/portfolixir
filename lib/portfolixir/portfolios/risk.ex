@@ -9,12 +9,13 @@ defmodule Portfolixir.Portfolios.Risk do
   here.
 
   Everything is computed over the **steerable basis**: the valued positions'
-  market value *minus* any position whose security is flagged
-  `excluded_from_allocation_targets` (issue #329 / ADR-0013), the same basis the
-  allocation drift uses. A store-of-value Bitcoin kept out of the steering basis
-  therefore does not dilute the concentration view either. A security held in
-  several depots is merged into one single-name exposure first; weights are the
-  merged value as a share of the steerable basis.
+  market value (scoped by the active view, ADR-0018), the same basis the
+  allocation drift uses. To keep a holding out of this basis while it still
+  counts toward total wealth, tag it with a bucket and exclude that bucket from
+  the active view; the position then falls outside the scoped valuation and does
+  not dilute the concentration view either. A security held in several depots is
+  merged into one single-name exposure first; weights are the merged value as a
+  share of the steerable basis.
 
   Weights, caps and HHI all live on a **percentage scale (0–100)** so the three
   read consistently in one response:
@@ -48,7 +49,6 @@ defmodule Portfolixir.Portfolios.Risk do
   strictly above the relevant `warn`.
   """
 
-  alias Portfolixir.Catalog
   alias Portfolixir.Portfolios.Valuation
 
   @zero Decimal.new("0")
@@ -89,11 +89,10 @@ defmodule Portfolixir.Portfolios.Risk do
       Keyword.split(opts, [:prices, :base_currency, :view])
 
     valuation = Valuation.for_portfolio(portfolio_id, valuation_opts)
-    excluded_ids = Catalog.excluded_from_allocation_target_ids()
 
     exposures =
       valuation
-      |> steerable_positions(excluded_ids)
+      |> steerable_positions()
       |> merge_by_security()
 
     basis = sum_values(exposures)
@@ -109,13 +108,11 @@ defmodule Portfolixir.Portfolios.Risk do
     }
   end
 
-  # The steerable basis: valued positions whose security is not flagged
-  # `excluded_from_allocation_targets` (issue #329). Unvalued positions carry no
-  # market value and are dropped, mirroring the allocation breakdown.
-  defp steerable_positions(valuation, excluded_ids) do
-    valuation.positions
-    |> Enum.filter(& &1.valued)
-    |> Enum.reject(&MapSet.member?(excluded_ids, &1.security_id))
+  # The steerable basis: the valued positions (scoped by the active view,
+  # ADR-0018). Unvalued positions carry no market value and are dropped,
+  # mirroring the allocation breakdown.
+  defp steerable_positions(valuation) do
+    Enum.filter(valuation.positions, & &1.valued)
   end
 
   # One single-name exposure per security: a security held across several depots
