@@ -4389,3 +4389,104 @@ details[open] > .cat-summary::before {
     min-height: 44px;
   }
 }
+
+/* ===== SOLL plan editor on the classifications page (issue 467, ADR-0020) ===== */
+/* The per-view target-plan editor: a view picker, a per-category weight table
+   with a cash target and a live Σ footer, plus an empty/copy state. Reuses the
+   drift table's numeric alignment and the shared .is-target-mismatch cue. */
+.soll-editor__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.soll-view-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.soll-view-picker__label {
+  font-size: 0.9em;
+  color: var(--color-text-muted);
+}
+
+.soll-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.75rem;
+}
+
+.soll-table th,
+.soll-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.soll-table th.num,
+.soll-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.soll-table input[type="number"] {
+  width: 6rem;
+  text-align: right;
+}
+
+.soll-row.is-target-mismatch > .soll-row__name {
+  color: var(--color-warning);
+}
+
+.soll-row--sum th,
+.soll-row--sum td {
+  font-weight: 600;
+  border-bottom: none;
+  border-top: 2px solid var(--color-border-strong);
+}
+
+.soll-row--sum.is-target-mismatch td {
+  color: var(--color-warning);
+}
+
+.soll-ok {
+  color: var(--color-positive);
+  margin-left: 0.35rem;
+}
+
+.soll-bad {
+  color: var(--color-warning);
+  margin-left: 0.35rem;
+}
+
+.soll-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.soll-copy,
+.soll-empty {
+  margin-top: 0.75rem;
+}
+
+.soll-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.soll-copy__label {
+  font-size: 0.9em;
+  color: var(--color-text-muted);
+}
+
+@media (pointer: coarse) {
+  .soll-table input[type="number"] {
+    min-height: 44px;
+  }
+}

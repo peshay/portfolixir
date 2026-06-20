@@ -256,8 +256,8 @@ msgstr "Manuelles Kauf- und Verkaufsjournal"
 msgid "Missing linked cash account"
 msgstr "Verknüpftes Verrechnungskonto fehlt"
 
-#: lib/portfolixir_web/live/classifications_live.ex:265
-#: lib/portfolixir_web/live/classifications_live.ex:374
+#: lib/portfolixir_web/live/classifications_live.ex:279
+#: lib/portfolixir_web/live/classifications_live.ex:388
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:45
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:67
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:82
@@ -455,9 +455,9 @@ msgstr "Anlageklasse"
 
 #: lib/portfolixir_web/components/app_shell.ex:209
 #: lib/portfolixir_web/components/app_shell.ex:347
-#: lib/portfolixir_web/live/classifications_live.ex:85
-#: lib/portfolixir_web/live/classifications_live.ex:278
-#: lib/portfolixir_web/live/classifications_live.ex:281
+#: lib/portfolixir_web/live/classifications_live.ex:95
+#: lib/portfolixir_web/live/classifications_live.ex:292
+#: lib/portfolixir_web/live/classifications_live.ex:295
 #: lib/portfolixir_web/live/securities_live.ex:1441
 #, elixir-autogen, elixir-format
 msgid "Classifications"
@@ -663,7 +663,7 @@ msgstr "Filter entfernen"
 
 #: lib/portfolixir_web/live/buckets_live.ex:107
 #: lib/portfolixir_web/live/buckets_live.ex:179
-#: lib/portfolixir_web/live/classifications_live.ex:389
+#: lib/portfolixir_web/live/classifications_live.ex:403
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:343
 #, elixir-autogen, elixir-format
 msgid "Save"
@@ -1046,7 +1046,7 @@ msgstr "%{name} wird von bestehenden Transaktionen oder Kursdaten referenziert u
 #: lib/portfolixir_web/live/buckets_live.ex:109
 #: lib/portfolixir_web/live/buckets_live.ex:181
 #: lib/portfolixir_web/live/buckets_live.ex:434
-#: lib/portfolixir_web/live/classifications_live.ex:390
+#: lib/portfolixir_web/live/classifications_live.ex:404
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:184
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:328
 #: lib/portfolixir_web/live/securities_live.ex:1180
@@ -1903,6 +1903,7 @@ msgstr "Portfolio-Kennzahlen"
 msgid "Total incl. cash"
 msgstr "Gesamt inkl. Cash"
 
+#: lib/portfolixir_web/live/classifications_live.ex:517
 #: lib/portfolixir_web/live/portfolio_live.ex:181
 #: lib/portfolixir_web/live/portfolio_live.ex:387
 #: lib/portfolixir_web/live/portfolio_live.ex:806
@@ -1952,6 +1953,7 @@ msgstr "Allokation"
 msgid "Classification"
 msgstr "Klassifizierung"
 
+#: lib/portfolixir_web/live/classifications_live.ex:478
 #: lib/portfolixir_web/live/portfolio_live.ex:316
 #, elixir-autogen
 msgid "Category"
@@ -2077,7 +2079,7 @@ msgid "Tap or hover a slice for details."
 msgstr "Tippe auf ein Segment oder fahre mit der Maus darüber für Details."
 
 ## --- Classifications UI (added) ---
-#: lib/portfolixir_web/live/classifications_live.ex:182
+#: lib/portfolixir_web/live/classifications_live.ex:196
 #, elixir-autogen, elixir-format
 msgid "Add"
 msgstr "Hinzufügen"
@@ -2092,13 +2094,13 @@ msgstr "Erstes anlegen"
 msgid "Automatic"
 msgstr "Automatisch"
 
-#: lib/portfolixir_web/live/classifications_live.ex:117
+#: lib/portfolixir_web/live/classifications_live.ex:127
 #: lib/portfolixir_web/live/securities_live.ex:1153
 #, elixir-autogen, elixir-format
 msgid "Built-in"
 msgstr "Vordefiniert"
 
-#: lib/portfolixir_web/live/classifications_live.ex:850
+#: lib/portfolixir_web/live/classifications_live.ex:1370
 #, elixir-autogen, elixir-format
 msgid "Built-in classifications cannot be edited"
 msgstr "Vordefinierte Klassifizierungen können nicht bearbeitet werden"
@@ -2108,41 +2110,41 @@ msgstr "Vordefinierte Klassifizierungen können nicht bearbeitet werden"
 msgid "Cash account updated"
 msgstr "Verrechnungskonto aktualisiert"
 
-#: lib/portfolixir_web/live/classifications_live.ex:442
+#: lib/portfolixir_web/live/classifications_live.ex:614
 #, elixir-autogen, elixir-format
 msgid "Category created"
 msgstr "Kategorie angelegt"
 
-#: lib/portfolixir_web/live/classifications_live.ex:490
+#: lib/portfolixir_web/live/classifications_live.ex:662
 #, elixir-autogen, elixir-format
 msgid "Category deleted"
 msgstr "Kategorie gelöscht"
 
-#: lib/portfolixir_web/live/classifications_live.ex:853
+#: lib/portfolixir_web/live/classifications_live.ex:1373
 #, elixir-autogen, elixir-format
 msgid "Category not found"
 msgstr "Kategorie nicht gefunden"
 
-#: lib/portfolixir_web/live/classifications_live.ex:467
+#: lib/portfolixir_web/live/classifications_live.ex:639
 #, elixir-autogen, elixir-format
 msgid "Category updated"
 msgstr "Kategorie aktualisiert"
 
-#: lib/portfolixir_web/live/classifications_live.ex:87
+#: lib/portfolixir_web/live/classifications_live.ex:97
 #, elixir-autogen, elixir-format
 msgid "Classification not found"
 msgstr "Klassifizierung nicht gefunden"
 
-#: lib/portfolixir_web/live/classifications_live.ex:205
+#: lib/portfolixir_web/live/classifications_live.ex:219
 #, elixir-autogen, elixir-format
 msgid "Clear"
 msgstr "Aufheben"
 
 #: lib/portfolixir_web/live/buckets_live.ex:82
 #: lib/portfolixir_web/live/buckets_live.ex:105
-#: lib/portfolixir_web/live/classifications_live.ex:175
-#: lib/portfolixir_web/live/classifications_live.ex:387
-#: lib/portfolixir_web/live/classifications_live.ex:397
+#: lib/portfolixir_web/live/classifications_live.ex:189
+#: lib/portfolixir_web/live/classifications_live.ex:401
+#: lib/portfolixir_web/live/classifications_live.ex:411
 #, elixir-autogen, elixir-format
 msgid "Color"
 msgstr "Farbe"
@@ -2182,51 +2184,51 @@ msgstr "Reserve"
 msgid "Create & assign"
 msgstr "Anlegen & zuordnen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:262
-#: lib/portfolixir_web/live/classifications_live.ex:268
+#: lib/portfolixir_web/live/classifications_live.ex:276
+#: lib/portfolixir_web/live/classifications_live.ex:282
 #, elixir-autogen, elixir-format
 msgid "Create classification"
 msgstr "Klassifizierung anlegen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:361
-#: lib/portfolixir_web/live/classifications_live.ex:362
+#: lib/portfolixir_web/live/classifications_live.ex:375
+#: lib/portfolixir_web/live/classifications_live.ex:376
 #, elixir-autogen, elixir-format
 msgid "Delete category"
 msgstr "Kategorie löschen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:127
+#: lib/portfolixir_web/live/classifications_live.ex:137
 #, elixir-autogen, elixir-format
 msgid "Delete classification"
 msgstr "Klassifizierung löschen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:360
+#: lib/portfolixir_web/live/classifications_live.ex:374
 #, elixir-autogen, elixir-format
 msgid "Delete this category?"
 msgstr "Diese Kategorie löschen?"
 
-#: lib/portfolixir_web/live/classifications_live.ex:125
+#: lib/portfolixir_web/live/classifications_live.ex:135
 #, elixir-autogen, elixir-format
 msgid "Delete this classification and all its categories?"
 msgstr "Diese Klassifizierung und alle ihre Kategorien löschen?"
 
-#: lib/portfolixir_web/live/classifications_live.ex:179
-#: lib/portfolixir_web/live/classifications_live.ex:380
+#: lib/portfolixir_web/live/classifications_live.ex:193
+#: lib/portfolixir_web/live/classifications_live.ex:394
 #, elixir-autogen, elixir-format
 msgid "Description"
 msgstr "Beschreibung"
 
-#: lib/portfolixir_web/live/classifications_live.ex:405
+#: lib/portfolixir_web/live/classifications_live.ex:419
 #, elixir-autogen, elixir-format
 msgid "Done"
 msgstr "Fertig"
 
-#: lib/portfolixir_web/live/classifications_live.ex:351
-#: lib/portfolixir_web/live/classifications_live.ex:352
+#: lib/portfolixir_web/live/classifications_live.ex:365
+#: lib/portfolixir_web/live/classifications_live.ex:366
 #, elixir-autogen, elixir-format
 msgid "Edit category"
 msgstr "Kategorie bearbeiten"
 
-#: lib/portfolixir_web/live/classifications_live.ex:244
+#: lib/portfolixir_web/live/classifications_live.ex:258
 #, elixir-autogen, elixir-format
 msgid "Everything is sorted."
 msgstr "Alles ist einsortiert."
@@ -2236,19 +2238,19 @@ msgstr "Alles ist einsortiert."
 msgid "Manage classifications"
 msgstr "Klassifizierungen verwalten"
 
-#: lib/portfolixir_web/live/classifications_live.ex:200
+#: lib/portfolixir_web/live/classifications_live.ex:214
 #, elixir-autogen, elixir-format
 msgid "Move to category"
 msgstr "In Kategorie verschieben"
 
-#: lib/portfolixir_web/live/classifications_live.ex:809
+#: lib/portfolixir_web/live/classifications_live.ex:1185
 #, elixir-autogen, elixir-format
 msgid "Moved %{count} security"
 msgid_plural "Moved %{count} securities"
 msgstr[0] "%{count} Wertpapier verschoben"
 msgstr[1] "%{count} Wertpapiere verschoben"
 
-#: lib/portfolixir_web/live/classifications_live.ex:162
+#: lib/portfolixir_web/live/classifications_live.ex:176
 #, elixir-autogen, elixir-format
 msgid "New category"
 msgstr "Neue Kategorie"
@@ -2260,13 +2262,13 @@ msgstr "Name der neuen Kategorie"
 
 #: lib/portfolixir_web/components/app_shell.ex:213
 #: lib/portfolixir_web/components/app_shell.ex:214
-#: lib/portfolixir_web/live/classifications_live.ex:256
-#: lib/portfolixir_web/live/classifications_live.ex:284
+#: lib/portfolixir_web/live/classifications_live.ex:270
+#: lib/portfolixir_web/live/classifications_live.ex:298
 #, elixir-autogen, elixir-format
 msgid "New classification"
 msgstr "Neue Klassifizierung"
 
-#: lib/portfolixir_web/live/classifications_live.ex:225
+#: lib/portfolixir_web/live/classifications_live.ex:239
 #, elixir-autogen, elixir-format
 msgid "No categories yet."
 msgstr "Noch keine Kategorien."
@@ -2276,37 +2278,37 @@ msgstr "Noch keine Kategorien."
 msgid "No classifications yet."
 msgstr "Noch keine Klassifizierungen."
 
-#: lib/portfolixir_web/live/classifications_live.ex:228
+#: lib/portfolixir_web/live/classifications_live.ex:242
 #, elixir-autogen, elixir-format
 msgid "No securities match your search."
 msgstr "Keine Wertpapiere passen zur Suche."
 
-#: lib/portfolixir_web/live/classifications_live.ex:852
+#: lib/portfolixir_web/live/classifications_live.ex:1372
 #, elixir-autogen, elixir-format
 msgid "Not found"
 msgstr "Nicht gefunden"
 
-#: lib/portfolixir_web/live/classifications_live.ex:98
+#: lib/portfolixir_web/live/classifications_live.ex:108
 #, elixir-autogen, elixir-format
 msgid "Organise securities by dragging them between categories"
 msgstr "Wertpapiere per Drag-and-drop zwischen Kategorien einsortieren"
 
-#: lib/portfolixir_web/live/classifications_live.ex:166
+#: lib/portfolixir_web/live/classifications_live.ex:180
 #, elixir-autogen, elixir-format
 msgid "Parent"
 msgstr "Übergeordnet"
 
-#: lib/portfolixir_web/live/classifications_live.ex:282
+#: lib/portfolixir_web/live/classifications_live.ex:296
 #, elixir-autogen, elixir-format
 msgid "Pick a classification on the left, or create a new one."
 msgstr "Wähle links eine Klassifizierung oder lege eine neue an."
 
-#: lib/portfolixir_web/live/classifications_live.ex:140
+#: lib/portfolixir_web/live/classifications_live.ex:154
 #, elixir-autogen, elixir-format
 msgid "Search securities in this tree…"
 msgstr "Wertpapiere in diesem Baum suchen…"
 
-#: lib/portfolixir_web/live/classifications_live.ex:329
+#: lib/portfolixir_web/live/classifications_live.ex:343
 #, elixir-autogen, elixir-format
 msgid "Securities in this category and its sub-categories"
 msgstr "Wertpapiere in dieser Kategorie und ihren Unterkategorien"
@@ -2321,44 +2323,44 @@ msgstr "Wertpapier aktualisiert."
 msgid "Set how this security is classified in each custom tree. Built-in trees are filled in automatically."
 msgstr "Lege fest, wie dieses Wertpapier in jedem eigenen Baum klassifiziert wird. Vordefinierte Bäume werden automatisch befüllt."
 
-#: lib/portfolixir_web/live/classifications_live.ex:856
+#: lib/portfolixir_web/live/classifications_live.ex:1376
 #, elixir-autogen, elixir-format
 msgid "Something went wrong"
 msgstr "Etwas ist schiefgelaufen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:192
+#: lib/portfolixir_web/live/classifications_live.ex:206
 #, elixir-autogen, elixir-format
 msgid "Target category"
 msgstr "Zielkategorie"
 
-#: lib/portfolixir_web/live/classifications_live.ex:851
+#: lib/portfolixir_web/live/classifications_live.ex:1371
 #, elixir-autogen, elixir-format
 msgid "That category belongs to another tree"
 msgstr "Diese Kategorie gehört zu einem anderen Baum"
 
-#: lib/portfolixir_web/live/classifications_live.ex:854
+#: lib/portfolixir_web/live/classifications_live.ex:1374
 #, elixir-autogen, elixir-format
 msgid "This tree cannot be reassigned"
 msgstr "Dieser Baum kann nicht neu zugewiesen werden"
 
-#: lib/portfolixir_web/live/classifications_live.ex:209
+#: lib/portfolixir_web/live/classifications_live.ex:223
 #, elixir-autogen, elixir-format
 msgid "Tip: click rows to select several, then drag or use the toolbar to move them together."
 msgstr "Tipp: Klicke Zeilen an, um mehrere auszuwählen, und ziehe sie dann oder nutze die Leiste, um sie gemeinsam zu verschieben."
 
-#: lib/portfolixir_web/live/classifications_live.ex:203
+#: lib/portfolixir_web/live/classifications_live.ex:217
 #, elixir-autogen, elixir-format
 msgid "Unassign"
 msgstr "Zuordnung entfernen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:813
+#: lib/portfolixir_web/live/classifications_live.ex:1189
 #, elixir-autogen, elixir-format
 msgid "Unassigned %{count} security"
 msgid_plural "Unassigned %{count} securities"
 msgstr[0] "Zuordnung von %{count} Wertpapier entfernt"
 msgstr[1] "Zuordnung von %{count} Wertpapieren entfernt"
 
-#: lib/portfolixir_web/live/classifications_live.ex:235
+#: lib/portfolixir_web/live/classifications_live.ex:249
 #: lib/portfolixir_web/live/portfolio_live.ex:719
 #: lib/portfolixir_web/live/portfolio_live.ex:835
 #: lib/portfolixir_web/live/portfolio_live.ex:985
@@ -2382,17 +2384,17 @@ msgid "reserve"
 msgstr "Reserve"
 
 #: lib/portfolixir_web/live/buckets_live.ex:82
-#: lib/portfolixir_web/live/classifications_live.ex:179
+#: lib/portfolixir_web/live/classifications_live.ex:193
 #, elixir-autogen, elixir-format
 msgid "optional"
 msgstr "optional"
 
-#: lib/portfolixir_web/live/classifications_live.ex:189
+#: lib/portfolixir_web/live/classifications_live.ex:203
 #, elixir-autogen, elixir-format
 msgid "selected"
 msgstr "ausgewählt"
 
-#: lib/portfolixir_web/live/classifications_live.ex:168
+#: lib/portfolixir_web/live/classifications_live.ex:182
 #, elixir-autogen, elixir-format
 msgid "— Top level —"
 msgstr "— Oberste Ebene —"
@@ -2574,32 +2576,32 @@ msgstr "ist nicht klassifiziert"
 msgid "Row %{row}: %{errors}"
 msgstr "Zeile %{row}: %{errors}"
 
-#: lib/portfolixir_web/live/classifications_live.ex:342
+#: lib/portfolixir_web/live/classifications_live.ex:356
 #, elixir-autogen, elixir-format
 msgid "Assigned securities you no longer hold, hidden by the filter"
 msgstr "Zugeordnete Wertpapiere ohne aktuellen Bestand, durch Filter ausgeblendet"
 
-#: lib/portfolixir_web/live/classifications_live.ex:48
+#: lib/portfolixir_web/live/classifications_live.ex:56
 #, elixir-autogen, elixir-format
 msgid "Couldn't load current holdings."
 msgstr "Aktuelle Bestände konnten nicht geladen werden."
 
-#: lib/portfolixir_web/live/classifications_live.ex:154
+#: lib/portfolixir_web/live/classifications_live.ex:168
 #, elixir-autogen, elixir-format
 msgid "Current positions only"
 msgstr "Nur aktuelle Positionen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:335
+#: lib/portfolixir_web/live/classifications_live.ex:349
 #, elixir-autogen, elixir-format
 msgid "EUR value of the visible positions"
 msgstr "EUR-Wert der sichtbaren Positionen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:333
+#: lib/portfolixir_web/live/classifications_live.ex:347
 #, elixir-autogen, elixir-format
 msgid "Visible positions in this category and its sub-categories"
 msgstr "Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien"
 
-#: lib/portfolixir_web/live/classifications_live.ex:343
+#: lib/portfolixir_web/live/classifications_live.ex:357
 #, elixir-autogen, elixir-format
 msgid "without holdings"
 msgstr "ohne Bestand"
@@ -3042,3 +3044,106 @@ msgstr "eine erstellen"
 #, elixir-autogen, elixir-format
 msgid "to filter this page."
 msgstr "um diese Seite zu filtern."
+
+#: lib/portfolixir_web/live/classifications_live.ex:519
+#, elixir-autogen, elixir-format
+msgid "Cash target"
+msgstr "Cash-Ziel"
+
+#: lib/portfolixir_web/live/classifications_live.ex:561
+#: lib/portfolixir_web/live/classifications_live.ex:584
+#, elixir-autogen, elixir-format
+msgid "Copy from another view…"
+msgstr "Aus anderer Sicht übernehmen…"
+
+#: lib/portfolixir_web/live/classifications_live.ex:693
+#, elixir-autogen, elixir-format
+msgid "Could not create the plan"
+msgstr "Plan konnte nicht angelegt werden"
+
+#: lib/portfolixir_web/live/classifications_live.ex:723
+#, elixir-autogen, elixir-format
+msgid "Could not save the plan"
+msgstr "Plan konnte nicht gespeichert werden"
+
+#: lib/portfolixir_web/live/classifications_live.ex:578
+#, elixir-autogen, elixir-format
+msgid "Create plan"
+msgstr "Plan anlegen"
+
+#: lib/portfolixir_web/live/classifications_live.ex:553
+#, elixir-autogen, elixir-format
+msgid "Delete plan"
+msgstr "Plan löschen"
+
+#: lib/portfolixir_web/live/classifications_live.ex:551
+#, elixir-autogen, elixir-format
+msgid "Delete this view's plan? The portfolio page falls back to IST-only for it."
+msgstr "Plan dieser Sicht löschen? Die Portfolio-Seite zeigt dann nur noch IST."
+
+#: lib/portfolixir_web/live/classifications_live.ex:462
+#: lib/portfolixir_web/live/classifications_live.ex:918
+#, elixir-autogen, elixir-format
+msgid "Gesamt (total)"
+msgstr "Gesamt"
+
+#: lib/portfolixir_web/live/classifications_live.ex:574
+#, elixir-autogen, elixir-format
+msgid "No plan for this view yet. Create one, or copy another view's plan for this classification."
+msgstr "Für diese Sicht gibt es noch keinen Plan. Lege einen an oder übernimm den Plan einer anderen Sicht für diese Klassifizierung."
+
+#: lib/portfolixir_web/live/classifications_live.ex:691
+#, elixir-autogen, elixir-format
+msgid "Plan created"
+msgstr "Plan angelegt"
+
+#: lib/portfolixir_web/live/classifications_live.ex:731
+#, elixir-autogen, elixir-format
+msgid "Plan deleted"
+msgstr "Plan gelöscht"
+
+#: lib/portfolixir_web/live/classifications_live.ex:714
+#, elixir-autogen, elixir-format
+msgid "Plan saved"
+msgstr "Plan gespeichert"
+
+#: lib/portfolixir_web/live/classifications_live.ex:546
+#, elixir-autogen, elixir-format
+msgid "Save plan"
+msgstr "Plan speichern"
+
+#: lib/portfolixir_web/live/classifications_live.ex:479
+#, elixir-autogen, elixir-format
+msgid "Target %"
+msgstr "Soll %"
+
+#: lib/portfolixir_web/live/classifications_live.ex:455
+#, elixir-autogen, elixir-format
+msgid "Target plan (SOLL)"
+msgstr "Soll-Plan"
+
+#: lib/portfolixir_web/live/classifications_live.ex:458
+#, elixir-autogen, elixir-format
+msgid "Target plan for view:"
+msgstr "Soll-Plan für Sicht:"
+
+#: lib/portfolixir_web/live/classifications_live.ex:501
+#, elixir-autogen, elixir-format
+msgid "Target weight for %{name}"
+msgstr "Soll-Gewicht für %{name}"
+
+#: lib/portfolixir_web/live/classifications_live.ex:496
+#, elixir-autogen, elixir-format
+msgid "children Σ"
+msgstr "Kinder Σ"
+
+#: lib/portfolixir_web/live/classifications_live.ex:535
+#, elixir-autogen, elixir-format
+msgid "Σ"
+msgstr "Σ"
+
+#: lib/portfolixir_web/live/classifications_live.ex:564
+#: lib/portfolixir_web/live/classifications_live.ex:587
+#, elixir-autogen, elixir-format
+msgid "— Choose a view —"
+msgstr "— Sicht wählen —"
