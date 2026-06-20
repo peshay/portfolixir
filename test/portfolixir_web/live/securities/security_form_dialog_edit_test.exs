@@ -130,52 +130,6 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
     reloaded = Repo.get!(Security, sec.id)
     assert reloaded.exchange_code == "NASDAQ"
   end
-
-  # User story:
-  # As a local portfolio maintainer,
-  # I want a toggle in the security dialog to exclude a security from allocation
-  # targets,
-  # so that a store-of-value position stays in my totals but out of the
-  # allocation steering basis.
-  #
-  # Acceptance criteria:
-  # - The dialog renders the exclude-from-allocation-targets checkbox.
-  # - Submitting it checked persists excluded_from_allocation_targets = true.
-  test "renders and persists the exclude-from-allocation-targets toggle" do
-    sec = create_security!()
-
-    html =
-      render_component(SecurityFormDialog,
-        id: "security-form-dialog",
-        editing: sec
-      )
-
-    assert html =~ ~s(name="security[excluded_from_allocation_targets]")
-
-    parent_pid = self()
-
-    {:ok, view, _html} =
-      live_isolated(build_conn(), PortfolixirWeb.Securities.DialogHostTest,
-        session: %{"security_id" => sec.id, "test_pid" => :erlang.pid_to_list(parent_pid)}
-      )
-
-    view
-    |> element("#security-form-dialog form")
-    |> render_submit(%{
-      "security" => %{
-        "name" => "Apple",
-        "currency_code" => "USD",
-        "asset_class" => "equity",
-        "excluded_from_allocation_targets" => "true"
-      }
-    })
-
-    assert_receive {:updated_from_dialog, %Security{} = updated}
-    assert updated.excluded_from_allocation_targets == true
-
-    reloaded = Repo.get!(Security, sec.id)
-    assert reloaded.excluded_from_allocation_targets == true
-  end
 end
 
 defmodule PortfolixirWeb.Securities.DialogHostTest do

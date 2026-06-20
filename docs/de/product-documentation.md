@@ -197,16 +197,16 @@ Wertpapiere werden in einem Topf für nicht Zugeordnetes summiert. Nur die Ziele
 werden gespeichert; die Ist-Seite wird beim Lesen aus der Live-Bewertung
 abgeleitet.
 
-Ein Wertpapier kann als **von Allokationszielen ausgeschlossen** markiert werden
-(der Schalter in der Wertpapierverwaltung; das API/MCP-Feld ist
-`excluded_from_allocation_targets`). Eine ausgeschlossene Position — zum Beispiel
-ein als langfristiger Wertspeicher gehaltener Bitcoin statt Teil des gesteuerten
-Mix — zählt weiterhin in den Gesamtwert, die Bestände und die Performance, wird
-aber **aus der Allokations-Steuerbasis** (den 100 %) und der Drift-Tabelle
-herausgenommen. So hebt das Einschalten eines Schalters den Ist-Prozentsatz jeder
-anderen Kategorie konsistent an, ohne den Gesamtwert zu ändern. Die
-ausgeschlossenen Positionen verschwinden nicht: die Drift-Tabelle zeigt sie in
-einer separaten Zeile *Outside the steering basis* mit ihrem summierten Wert.
+Um eine Position **aus der Allokations-Steuerbasis** herauszuhalten, während sie
+weiterhin zum Gesamtvermögen zählt — zum Beispiel ein als langfristiger
+Wertspeicher gehaltener Bitcoin statt Teil des gesteuerten Mix — versiehst du das
+Wertpapier mit einem **Bucket** und **schließt diesen Bucket aus der
+Strategie-Ansicht aus**; betrachte die Allokation dann unter dieser Ansicht. Die
+Position fällt dann aus dem Geltungsbereich der Ansicht: sie verschwindet aus den
+100 % und der Drift-Tabelle und hebt den Ist-Prozentsatz jeder anderen Kategorie
+konsistent an, während Gesamtwert, Bestände und Performance (ohne die Ansicht
+gelesen) unverändert bleiben. (Dies ersetzt den früheren wertpapierbezogenen
+Schalter „von Allokationszielen ausgeschlossen“; siehe ADR-0013/ADR-0018.)
 
 Klassifizierungsbäume sind **hierarchisch**, und die Allokation rollt sie auf:
 eine einer Unterkategorie zugeordnete Position zählt zu dieser Unterkategorie
@@ -240,7 +240,7 @@ gewählte Gewichte nie ab.
 **Cash ist Teil der Allokation.** Ein Portfolio kann ein **Cash-Ziel** speichern
 (`cash_target_weight`, z. B. 5 %) — den SOLL-Anteil von Cash innerhalb derselben
 100 %-Basis wie die Kategorien. Mit gesetztem Cash-Ziel ist die 100 %-Basis der
-Allokation **Wertpapiere (abzüglich ausgeschlossener) + das Cash, das zur
+Allokation **Wertpapiere (innerhalb der aktiven Ansicht) + das Cash, das zur
 Cash-Quote zählt** (die als *counts toward the cash quote* markierten Konten). Die
 Drift-Tabelle zeigt dann eine eigene **Cash**-Zeile in eigener neutraler Farbe mit
 Cash-Ist, -Ziel und -Drift, der Sunburst erhält ein Cash-Segment, und jeder

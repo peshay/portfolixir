@@ -419,18 +419,6 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <td class="num">—</td>
                   </tr>
                 <% end %>
-                <%= if @allocation.excluded do %>
-                  <tr class="is-muted" id="allocation-excluded" data-role="allocation-excluded">
-                    <td>
-                      <%= gettext("Outside the steering basis") %>
-                      <span class="hint"><%= gettext("not in allocation targets") %></span>
-                    </td>
-                    <td class="num"><%= Format.money(@allocation.excluded.market_value) %></td>
-                    <td class="num">—</td>
-                    <td class="num">—</td>
-                    <td class="num">—</td>
-                  </tr>
-                <% end %>
               </tbody>
             </table>
           <% else %>

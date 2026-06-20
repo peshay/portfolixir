@@ -24,7 +24,6 @@ defmodule Portfolixir.Catalog.Security do
     field(:latest_feed, :string)
     field(:latest_feed_url, :string)
     field(:is_retired, :boolean, default: false)
-    field(:excluded_from_allocation_targets, :boolean, default: false)
     field(:online_id, :string)
     field(:provider, :string)
     field(:attributes, :map, default: %{})
@@ -35,7 +34,6 @@ defmodule Portfolixir.Catalog.Security do
   @castable ~w(
     name ticker_symbol isin wkn currency_code exchange_code asset_class
     note feed feed_url latest_feed latest_feed_url is_retired
-    excluded_from_allocation_targets
     online_id provider attributes
   )a
 
@@ -63,7 +61,7 @@ defmodule Portfolixir.Catalog.Security do
     ])
     |> default_attributes()
     |> infer_asset_class()
-    |> validate_required([:name, :currency_code, :excluded_from_allocation_targets])
+    |> validate_required([:name, :currency_code])
     |> validate_length(:currency_code, is: 3)
     |> validate_inclusion(:currency_code, Currencies.codes(), message: "is invalid")
     |> validate_inclusion(:asset_class, AssetClasses.codes(), message: "is invalid")

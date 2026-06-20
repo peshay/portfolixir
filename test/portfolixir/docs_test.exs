@@ -337,29 +337,6 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
-  # As a local integrator holding a store-of-value position,
-  # I want the docs to document the excluded-from-allocation-targets flag,
-  # so that I can keep a security (e.g. Bitcoin) out of the allocation steering
-  # basis over the API or MCP without reading source files.
-  #
-  # Acceptance criteria:
-  # - The API and MCP page documents excluded_from_allocation_targets on
-  #   securities and the allocation's excluded block.
-  # - The product handbook describes the flag and the "outside the steering
-  #   basis" block.
-  test "docs document the excluded-from-allocation-targets flag" do
-    api_docs = File.read!("docs/integration/api-and-mcp.md")
-    product_docs = File.read!("docs/product-documentation.md")
-
-    assert api_docs =~ "excluded_from_allocation_targets"
-    assert api_docs =~ "steering basis"
-    assert api_docs =~ "`excluded`"
-
-    assert product_docs =~ "excluded from allocation targets"
-    assert product_docs =~ "Outside the steering basis"
-  end
-
-  # User story:
   # As a local integrator who steers a cash quote,
   # I want the docs to document the cash target weight and the allocation cash
   # row, so that I can set the cash target and read its drift over the API or
@@ -522,7 +499,6 @@ defmodule Portfolixir.DocsTest do
           "GET /api/v1/holdings/by_security",
           "portfolixir.holdings.by_security",
           "liquidity_role",
-          "excluded_from_allocation_targets",
           "cash_target_weight"
         ] do
       assert en_api =~ surface

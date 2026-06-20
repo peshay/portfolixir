@@ -31,7 +31,6 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       latest_feed: security.latest_feed,
       latest_feed_url: security.latest_feed_url,
       is_retired: security.is_retired,
-      excluded_from_allocation_targets: security.excluded_from_allocation_targets,
       online_id: security.online_id,
       provider: security.provider,
       attributes: security.attributes || %{},
@@ -328,8 +327,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       categories: Enum.map(allocation.categories, &allocation_category/1),
       cash: allocation_cash(allocation.cash),
       top_level_target_sum: decimal(allocation.top_level_target_sum),
-      unassigned: allocation_unassigned(allocation.unassigned),
-      excluded: allocation_excluded(allocation.excluded)
+      unassigned: allocation_unassigned(allocation.unassigned)
     }
   end
 
@@ -384,15 +382,6 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  defp allocation_excluded(nil), do: nil
-
-  defp allocation_excluded(excluded) do
-    %{
-      market_value: decimal(excluded.market_value),
-      positions: Enum.map(excluded.positions, &allocation_position/1)
-    }
-  end
-
   def risk(risk) do
     %{
       portfolio_id: risk.portfolio_id,
@@ -412,9 +401,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   defp risk_note do
     "Weights, caps and HHI are on a 0-100 percentage scale over the steerable " <>
-      "basis (valued positions minus those flagged " <>
-      "excluded_from_allocation_targets); a security held across depots is " <>
-      "merged into one single-name exposure."
+      "basis (the valued positions, scoped by the active view); a security held " <>
+      "across depots is merged into one single-name exposure."
   end
 
   defp risk_holding(holding) do
