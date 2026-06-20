@@ -43,7 +43,13 @@ defmodule Portfolixir.WriteActorTest do
   @grandfathered MapSet.new([
                    {Portfolixir.Portfolios, :create_portfolio, 1},
                    {Portfolixir.Portfolios, :update_portfolio, 2},
-                   {Portfolixir.Portfolios, :set_cash_target, 2},
+                   # set_cash_target/2 no longer carries a direct Repo write: since
+                   # ADR-0020 it delegates to Portfolixir.Portfolios.Targets (the
+                   # cash target moved onto the per-view plan). Targets is an
+                   # internal sub-module, not a gated context module, so its writes
+                   # are backstopped at runtime by the per-table guard trigger when
+                   # the Portfolios slice is armed — not by this AST gate. The entry
+                   # is therefore removed (the list is shrink-only).
                    {Portfolixir.Portfolios, :create_cash_account, 1},
                    {Portfolixir.Portfolios, :update_cash_account, 2},
                    {Portfolixir.Portfolios, :delete_cash_account, 1},

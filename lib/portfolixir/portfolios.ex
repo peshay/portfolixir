@@ -7,10 +7,13 @@ defmodule Portfolixir.Portfolios do
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
 
   def list_portfolios do
-    Repo.all(from(portfolio in Portfolio, order_by: [asc: portfolio.id]))
+    from(portfolio in Portfolio, order_by: [asc: portfolio.id])
+    |> Repo.all()
+    |> Enum.map(&load_cash_target/1)
   end
 
   def count_portfolios do
@@ -18,36 +21,66 @@ defmodule Portfolixir.Portfolios do
   end
 
   def first_portfolio do
-    Repo.one(from(portfolio in Portfolio, order_by: [asc: portfolio.id], limit: 1))
+    from(portfolio in Portfolio, order_by: [asc: portfolio.id], limit: 1)
+    |> Repo.one()
+    |> load_cash_target()
   end
 
-  def get_portfolio!(id), do: Repo.get!(Portfolio, id)
+  def get_portfolio!(id), do: Repo.get!(Portfolio, id) |> load_cash_target()
 
-  def get_portfolio(id) when is_integer(id), do: Repo.get(Portfolio, id)
+  def get_portfolio(id) when is_integer(id), do: Repo.get(Portfolio, id) |> load_cash_target()
 
   def create_portfolio(attrs) when is_map(attrs) do
     %Portfolio{}
     |> Portfolio.changeset(attrs)
     |> Repo.insert()
+    |> persist_cash_target()
   end
 
   def update_portfolio(%Portfolio{} = portfolio, attrs) when is_map(attrs) do
     portfolio
     |> Portfolio.changeset(attrs)
     |> Repo.update()
+    |> persist_cash_target()
   end
 
   @doc """
   Sets (or clears) a portfolio's cash target weight, the SOLL share of cash in
   the allocation's 100% basis (securities + counting cash, see issue #335).
 
+  Since ADR-0020 the cash target lives on the portfolio's Gesamt cash plan
+  (`Portfolixir.Portfolios.Targets`); this writes there and returns the portfolio
+  with the value loaded into its virtual field, preserving the prior contract.
+
   `weight` is a fraction in `[0, 1]` or `nil` to stop steering a cash quote.
   Returns `{:ok, %Portfolio{}}` or `{:error, %Ecto.Changeset{}}` (a weight out
   of range).
   """
   def set_cash_target(%Portfolio{} = portfolio, weight) do
-    update_portfolio(portfolio, %{cash_target_weight: weight})
+    case Targets.set_cash_target(portfolio.id, weight) do
+      :ok -> {:ok, %{portfolio | cash_target_weight: weight}}
+      {:error, changeset} -> {:error, changeset}
+    end
   end
+
+  # Populates the virtual cash_target_weight from the portfolio-wide Gesamt cash
+  # plan, so reads keep exposing the value the column used to carry (ADR-0020).
+  defp load_cash_target(nil), do: nil
+
+  defp load_cash_target(%Portfolio{} = portfolio) do
+    %{portfolio | cash_target_weight: Targets.get_cash_target(portfolio.id)}
+  end
+
+  # Write-through: after a portfolio write, persist the virtual cash target onto
+  # the Gesamt cash plan when the changeset carried one (it casts and validates a
+  # `[0, 1]` fraction). A nil weight clears the steered quote.
+  defp persist_cash_target({:ok, %Portfolio{} = portfolio}) do
+    weight = portfolio.cash_target_weight
+    :ok = Targets.set_cash_target(portfolio.id, weight)
+    {:ok, %{portfolio | cash_target_weight: weight}}
+  end
+
+  defp persist_cash_target(other), do: other
 
   def list_cash_accounts do
     Repo.all(from(account in CashAccount, order_by: [asc: account.name, asc: account.id]))
