@@ -6,7 +6,11 @@ defmodule Portfolixir.Portfolios.Portfolio do
     field(:name, :string)
     field(:base_currency_code, :string)
     field(:notes, :string)
-    field(:cash_target_weight, :decimal)
+    # Since ADR-0020 the cash target lives on the Gesamt target plan, not on the
+    # portfolio. This stays as a **virtual** field so the existing API/UI contract
+    # (validate a `[0, 1]` fraction, echo it back) is unchanged; the Portfolios
+    # context reads/write-through it to the portfolio-wide Gesamt cash plan.
+    field(:cash_target_weight, :decimal, virtual: true)
 
     timestamps()
   end
