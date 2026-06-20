@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.Router do
     plug(:fetch_session)
     plug(:fetch_cookies)
     plug(PortfolixirWeb.Locale)
+    plug(PortfolixirWeb.ViewScope)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
@@ -23,7 +24,8 @@ defmodule PortfolixirWeb.Router do
   scope "/", PortfolixirWeb do
     pipe_through(:browser)
 
-    live_session :browser, on_mount: PortfolixirWeb.LiveLocale do
+    live_session :browser,
+      on_mount: [PortfolixirWeb.LiveLocale, PortfolixirWeb.LiveViewScope] do
       live("/", DashboardLive)
       live("/portfolio", PortfolioLive)
       live("/securities", SecuritiesLive)
@@ -32,6 +34,7 @@ defmodule PortfolixirWeb.Router do
       live("/transactions", TransactionManagementLive)
       live("/income", IncomeLive)
       live("/imports", ImportsLive)
+      live("/buckets", BucketsLive)
       live("/classifications", ClassificationsLive, :index)
       live("/classifications/new", ClassificationsLive, :new)
       live("/classifications/:id", ClassificationsLive, :show)
