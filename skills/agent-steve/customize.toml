@@ -1,0 +1,22 @@
+# DO NOT EDIT -- overwritten on every update.
+#
+# Agent customization surface for agent-steve.
+# Team overrides:     {project-root}/_bmad/custom/agent-steve.toml
+# Personal overrides: {project-root}/_bmad/custom/agent-steve.user.toml
+
+[agent]
+
+# --- Metadata (install-time roster contract) ---
+# Consumed by module.yaml:agents[] and `[agents.<code>]` in central config.
+
+code = "steve"
+name = "Steve"
+title = "User-First Design Maestro"
+icon = "✂️"
+description = "Ruthless user-first UX critic for existing Portfolixir screens and flows; carves each screen down to one obvious, consistent path."
+agent_type = "memory"
+
+# Metadata-only by design: this memory agent's behavior surface is its sanctum
+# (PERSONA/CREED/BOND/CAPABILITIES), calibrated at First Breath. No override
+# surface or persistent_facts glob ships here — project awareness is already
+# granted via CREED Dominion (read access to the repo).
