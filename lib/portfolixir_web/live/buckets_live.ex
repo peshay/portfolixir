@@ -48,20 +48,31 @@ defmodule PortfolixirWeb.BucketsLive do
     >
       <div id="buckets-workspace" class="workspace-page">
         <%= if @error do %>
-          <AppShell.status_toast kind={:error} message={@error} />
+          <p class="alert-error" role="alert"><%= @error %></p>
         <% end %>
         <%= if @success do %>
-          <AppShell.status_toast kind={:success} message={@success} />
+          <p class="alert-success" role="status"><%= @success %></p>
         <% end %>
 
-        <p class="hint" data-role="overlap-hint">
-          <%= gettext(
-            "Buckets are overlapping tags, not a partition: a holding can carry several buckets at once. Per-bucket figures may overlap and must never be read as a sum."
-          ) %>
-        </p>
+        <div class="hint" data-role="how-it-works">
+          <p>
+            <strong><%= gettext("How it works — two steps:") %></strong>
+            <%= gettext(
+              "1. Create buckets — tags you put on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Portfolio page, so you need both."
+            ) %>
+          </p>
+          <p data-role="overlap-hint">
+            <%= gettext(
+              "Buckets are overlapping tags, not a partition: a holding can carry several buckets at once. Per-bucket figures may overlap and must never be read as a sum."
+            ) %>
+          </p>
+        </div>
 
         <section id="buckets-section" class="workspace-section">
-          <h2><%= gettext("Buckets") %></h2>
+          <h2><%= gettext("1. Buckets") %></h2>
+          <p class="section-hint">
+            <%= gettext("Tags you assign to depots, cash accounts and individual positions.") %>
+          </p>
           <form id="bucket-form" phx-submit="create_bucket" class="inline-form">
             <label>
               <span><%= gettext("New bucket") %></span>
@@ -138,7 +149,10 @@ defmodule PortfolixirWeb.BucketsLive do
         </section>
 
         <section id="views-section" class="workspace-section">
-          <h2><%= gettext("Views") %></h2>
+          <h2><%= gettext("2. Views") %></h2>
+          <p class="section-hint">
+            <%= gettext("Saved include/exclude filters over buckets. A view is what you pick in the view switcher on the Portfolio page.") %>
+          </p>
           <p class="hint">
             <%= gettext("A view includes some buckets and excludes others. Exclude always wins.") %>
           </p>

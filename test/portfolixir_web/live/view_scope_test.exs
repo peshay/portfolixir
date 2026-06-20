@@ -41,25 +41,45 @@ defmodule PortfolixirWeb.ViewScopeTest do
   # - "Total" (no view) is the default, marked active on first load.
   # - Selecting a view (a full navigation through the ViewScope plug) makes that
   #   view the active one.
-  # - The choice persists onto the next surface (here: dashboard -> portfolio).
+  # - The choice persists onto the next navigation without re-specifying ?view=.
+  # The switcher lives on the analytics surfaces that the scope actually filters
+  # (the portfolio surface), not on the dashboard whose raw counts it cannot
+  # narrow — so this exercises it there.
   test "the active view defaults to Total and persists across pages", %{conn: conn} do
     world()
     {:ok, retirement} = Buckets.create_view(Actor.owner_ui(), %{name: "Retirement"})
 
     # Total is the default.
-    {:ok, _dash, html} = live(conn, "/")
+    {:ok, _portfolio, html} = live(conn, "/portfolio")
     assert html =~ "Total"
     assert html =~ ~r/id="view-switch-total"[^>]*is-active/
 
     # A full navigation with ?view=ID runs the plug and stores the choice.
-    conn = get(conn, "/?view=#{retirement.id}")
-    {:ok, dash, html} = live(conn, "/?view=#{retirement.id}")
+    conn = get(conn, "/portfolio?view=#{retirement.id}")
+    {:ok, scoped, html} = live(conn, "/portfolio?view=#{retirement.id}")
     assert html =~ ~r/id="view-switch-#{retirement.id}"[^>]*is-active/
-    assert has_element?(dash, "[data-role='active-view']", "Retirement")
+    assert has_element?(scoped, "[data-role='active-view']", "Retirement")
 
-    # The preference rides along to the portfolio surface without re-specifying it.
-    {:ok, portfolio_view, _html} = live(conn, "/portfolio")
-    assert has_element?(portfolio_view, "[data-role='active-view']", "Retirement")
+    # The preference rides along to the next navigation without re-specifying it.
+    {:ok, again, _html} = live(conn, "/portfolio")
+    assert has_element?(again, "[data-role='active-view']", "Retirement")
+  end
+
+  # User story:
+  # As a local portfolio maintainer who has not created any views yet,
+  # I want the view switcher to tell me where to make one,
+  # so that I understand the control needs a view before it can filter anything.
+  #
+  # Acceptance criteria:
+  # - With no views, the switcher shows a "no views yet" prompt.
+  # - The prompt links to the Buckets & views page (/buckets).
+  test "the switcher prompts to create a view when none exist", %{conn: conn} do
+    world()
+
+    {:ok, view, html} = live(conn, "/portfolio")
+
+    assert html =~ "View:"
+    assert has_element?(view, "[data-role='no-views'] a[href='/buckets']")
   end
 
   # User story:

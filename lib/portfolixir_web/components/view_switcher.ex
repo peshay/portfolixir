@@ -25,7 +25,7 @@ defmodule PortfolixirWeb.ViewSwitcher do
     ~H"""
     <div class="view-switcher" role="group" aria-label={gettext("Active view")}>
       <span class="view-switcher__label" id="view-switcher-label">
-        <%= gettext("View") %>
+        <%= gettext("View:") %>
       </span>
       <nav class="view-switcher__options" aria-labelledby="view-switcher-label">
         <a
@@ -50,6 +50,13 @@ defmodule PortfolixirWeb.ViewSwitcher do
           </a>
         <% end %>
       </nav>
+      <%= if @views == [] do %>
+        <p class="view-switcher__empty" data-role="no-views">
+          <%= gettext("No views yet —") %>
+          <a href="/buckets"><%= gettext("create one") %></a>
+          <%= gettext("to filter this page.") %>
+        </p>
+      <% end %>
       <%= if @active_view do %>
         <p class="view-switcher__active" data-role="active-view" role="status">
           <%= gettext("Scoped to view: %{name}", name: @active_view.name) %>
