@@ -26,7 +26,7 @@ defmodule Portfolixir.Portfolios.Allocation do
   per-security `excluded_from_allocation_targets` flag / ADR-0013.) Cash is
   **part** of the basis: a
   maintainer who steers a cash quote (e.g. ~5%) gets a dedicated `cash` row
-  (actual share, target from the portfolio's `cash_target_weight`, drift) in the
+  (actual share, target from the active view's plan cash target, drift) in the
   same drift logic, and every category percentage shrinks accordingly once cash
   joins the 100% (issue #335). Drift is
   `target_weight - actual_weight` per category; `drift_value` restates that drift
@@ -64,10 +64,22 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   Both are pure read-time hints; nothing here blocks saving targets, and the
   comparison the UI draws uses exact `Decimal.equal?/2`.
+
+  ## View-bound SOLL plans (ADR-0020)
+
+  The SOLL side is driven by the **active view's plan** for the classification.
+  Targets are keyed by `(view, classification)`; `view: nil` is the portfolio-wide
+  **Gesamt** plan that reproduces today's behaviour. `for_portfolio/3` loads
+  **only** the addressed plan (its category targets and its cash target), so no
+  foreign target from another view ever leaks into the breakdown — the ghost-row /
+  ~200% Σ incoherence is gone by construction. When the active view carries **no
+  plan** for the classification, the result is **IST-only**: no targets, no cash
+  target, a zero `top_level_target_sum`, and `has_plan: false` so callers can hide
+  the SOLL/drift columns. Loading happens in this impure shell; the pure builder
+  receives the plan as injected data (AR-2).
   """
 
   alias Portfolixir.Classifications
-  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
 
@@ -77,8 +89,11 @@ defmodule Portfolixir.Portfolios.Allocation do
   Builds the allocation breakdown for `portfolio_id` against `classification_id`.
 
   Options are passed through to `Valuation.for_portfolio/2` (e.g. `:prices`,
-  `:base_currency`) for testing. Returns `{:ok, breakdown}` or
-  `{:error, :not_found}` when the classification does not exist.
+  `:base_currency`). `:view` (a `%View{}`, a view id, or `nil` = Gesamt) scopes
+  **both** the IST valuation (#444) and the SOLL plan (ADR-0020): only the
+  addressed view's `(view, classification)` plan is loaded. Returns
+  `{:ok, breakdown}` or `{:error, :not_found}` when the classification does not
+  exist.
   """
   def for_portfolio(portfolio_id, classification_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(classification_id) do
@@ -90,12 +105,8 @@ defmodule Portfolixir.Portfolios.Allocation do
         classification = Classifications.get_classification(classification_id)
         categories = Classifications.list_categories(classification_id)
         valuation = Valuation.for_portfolio(portfolio_id, opts)
-        cash_target = cash_target_for(portfolio_id)
-
-        targets =
-          portfolio_id
-          |> Targets.list_targets(classification_id: classification_id)
-          |> Map.new(&{&1.category_id, &1.target_weight})
+        view = Keyword.get(opts, :view)
+        {targets, cash_target, has_plan} = plan_soll(portfolio_id, classification_id, view)
 
         {:ok,
          build(
@@ -104,17 +115,38 @@ defmodule Portfolixir.Portfolios.Allocation do
            categories,
            security_categories,
            targets,
-           cash_target
+           cash_target,
+           has_plan
          )}
     end
   end
 
-  # The portfolio's stored cash target weight (the SOLL cash share), or nil when
-  # the maintainer does not steer a cash quote (issue #335).
-  defp cash_target_for(portfolio_id) do
-    case Portfolios.get_portfolio(portfolio_id) do
-      %{cash_target_weight: weight} -> weight
-      _ -> nil
+  # The SOLL side is the active view's plan only (ADR-0020). A view "has a plan"
+  # for this surface when it carries a `(view, classification)` category plan OR
+  # a portfolio-wide cash target (the legacy cash-target home, which may be
+  # steered without any category targets — the prior Gesamt behaviour). With no
+  # plan at all, the breakdown is IST-only: no targets, no cash target,
+  # `has_plan: false`, so callers can hide the SOLL/drift columns. The plan is
+  # read here, in the impure shell, and injected into the pure `build/7` as data
+  # (AR-2).
+  defp plan_soll(portfolio_id, classification_id, view) do
+    cash_target = Targets.get_cash_target(portfolio_id, view: view)
+    category_plan? = Targets.plan_exists?(portfolio_id, classification_id, view: view)
+
+    cond do
+      category_plan? ->
+        targets =
+          portfolio_id
+          |> Targets.list_targets(classification_id: classification_id, view: view)
+          |> Map.new(&{&1.category_id, &1.target_weight})
+
+        {targets, cash_target, true}
+
+      not is_nil(cash_target) ->
+        {%{}, cash_target, true}
+
+      true ->
+        {%{}, nil, false}
     end
   end
 
@@ -124,7 +156,8 @@ defmodule Portfolixir.Portfolios.Allocation do
          categories,
          security_categories,
          targets,
-         cash_target
+         cash_target,
+         has_plan
        ) do
     steering_positions = Enum.filter(valuation.positions, & &1.valued)
 
@@ -182,6 +215,7 @@ defmodule Portfolixir.Portfolios.Allocation do
       base_currency: valuation.base_currency,
       total_value: total,
       unvalued_count: valuation.unvalued_count,
+      has_plan: has_plan,
       categories: rows,
       cash: cash_row(counting_cash, cash_target, total, distribute_cash?),
       top_level_target_sum:
@@ -229,8 +263,8 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   # The cash row sits in the same drift logic as the categories: its actual
   # weight is the counting cash as a share of the steering basis (so it shrinks
-  # the categories' shares once cash joins the 100%), its target is the
-  # portfolio's stored cash target, and the drift is `target - actual`, restated
+  # the categories' shares once cash joins the 100%), its target is the active
+  # view's plan cash target, and the drift is `target - actual`, restated
   # in the base currency like every category drift. Always present so the UI/API
   # can render the row even when there is no cash yet or no cash target set.
   #
