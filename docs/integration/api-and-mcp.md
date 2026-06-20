@@ -50,14 +50,13 @@ that successful delete response.
   certificate/leverage codes `warrant`, `knock_out`, `factor_certificate`,
   `discount_certificate`, `bonus_certificate`, `express_certificate`,
   `reverse_convertible`. Leave it empty to let the class be inferred from the
-  name/ISIN/ticker on read. The optional boolean
-  `excluded_from_allocation_targets` (default `false`) keeps a position out of
-  the allocation steering basis (the 100%) and the drift table while leaving it
-  in the valuation totals and performance — e.g. a Bitcoin held as a store of
-  value; excluded positions surface in the allocation's `excluded` block.
+  name/ISIN/ticker on read. To keep a position out of the allocation steering
+  basis (the 100%) and the drift table while leaving it in the valuation totals
+  and performance — e.g. a Bitcoin held as a store of value — tag it with a
+  bucket and exclude that bucket from a view, then read allocation under that
+  view.
 - `GET /api/v1/securities/:id` returns one security.
-- `PATCH /api/v1/securities/:id` updates a security with a `security` object
-  (including `excluded_from_allocation_targets`).
+- `PATCH /api/v1/securities/:id` updates a security with a `security` object.
 - `DELETE /api/v1/securities/:id` deletes a security when no dependent
   transactions or quote history reference it; referenced securities return
   `409 Conflict`.
@@ -368,8 +367,8 @@ Example account payloads:
   `market_value`, `weight` — largest first, securities merged across depots;
   this is what the sunburst's outermost ring renders. Securities held but not
   assigned in the tree are summed into `unassigned`. Weights are shares of the
-  **steering basis**: the valued positions' total minus any security flagged
-  `excluded_from_allocation_targets`, **plus the deployable cash** (`free_cash`
+  **steering basis**: the valued positions' total (scoped by the active `view`
+  when one is passed), **plus the deployable cash** (`free_cash`
   accounts with a non-negative balance). `total_value`
   here is that steering basis (not the full valuation). The response carries a
   `cash` object — `market_value` (the counting cash), `actual_weight` (its share
@@ -386,15 +385,14 @@ Example account payloads:
   part of the 100% basis, the category percentages shrink accordingly once cash
   is present. The `top_level_target_sum` is the sum of the root categories'
   targets **plus the cash target** (except for the currency classification where
-  cash is distributed into categories), compared against `1`. Flagged-excluded
-  positions do not vanish: they surface in a separate `excluded` object
-  (`market_value` plus per-security `positions`, or `null` when nothing is
-  excluded), so they stay visible while the percentages and drift describe only
-  the steered part. The valuation and performance endpoints are unaffected by the
-  flag. Unknown portfolios or classifications return `404 Not Found`.
+  cash is distributed into categories), compared against `1`. To keep a holding
+  out of the steering basis while it still counts toward total wealth, tag it
+  with a bucket and exclude that bucket from the `view` you read allocation
+  under — it then falls outside the scoped positions. Unknown portfolios or
+  classifications return `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` returns a **risk/concentration
-  lens** for one portfolio over the **steerable basis** (the valued positions'
-  total minus any security flagged `excluded_from_allocation_targets`, the same
+  lens** for one portfolio over the **steerable basis** (the valued positions,
+  scoped by the active `view`, the same
   basis the allocation drift uses). A security held across several depots is
   merged into one single-name exposure. Weights, caps and the HHI are all on a
   **0-100 percentage scale** (Decimal strings, full precision, no rounding):

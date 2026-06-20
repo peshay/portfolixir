@@ -2,7 +2,6 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
-  import Portfolixir.AllocationExcludeFixtures, only: [buy!: 5, manual_quote!: 2]
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
@@ -658,53 +657,6 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "valued at their last trade price"
     assert html =~ "no price at all"
     assert html =~ "Delivered Co."
-  end
-
-  # User story:
-  # As a local portfolio maintainer holding a store-of-value position,
-  # I want the Portfolio page to mark a security excluded from allocation
-  # targets,
-  # so that it stays in my totals but is shown outside the allocation steering
-  # basis instead of distorting the drift table.
-  #
-  # Acceptance criteria:
-  # - The excluded position is rendered in a separate "Outside the steering
-  #   basis" block with its summed value.
-  # - The remaining category's actual weight rises to 100% of the steered part.
-  # - The total portfolio value is unchanged by the flag.
-  test "renders an excluded allocation block outside the steering basis", %{conn: conn} do
-    world = seed_world()
-
-    {:ok, bitcoin} =
-      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Bitcoin",
-        ticker_symbol: "BTC",
-        currency_code: "EUR",
-        asset_class: "crypto",
-        excluded_from_allocation_targets: true
-      })
-
-    # Fund the Bitcoin buy so the cash account stays at its 200 EUR balance (no
-    # overdraft) — counting cash then enters the allocation basis cleanly.
-    WorldFixtures.deposit!(world, "400", Date.add(Date.utc_today(), -6))
-    buy!(world, bitcoin.id, "4", "100", Date.add(Date.utc_today(), -5))
-    manual_quote!(bitcoin.id, "100")
-
-    {:ok, view, _html} = live(conn, "/portfolio")
-    html = render_async(view)
-
-    excluded = view |> element(~s([data-role="allocation-excluded"])) |> render()
-    assert excluded =~ "Outside the steering basis"
-    assert excluded =~ "400.00"
-
-    # The steering basis excludes Bitcoin (400) but now INCLUDES the counting
-    # cash (200): basis = ETF 880 + cash 200 = 1080, so Core is 880/1080 = 81.5%
-    # and the cash row is 200/1080 = 18.5% (issues #329 + #335 together).
-    assert html =~ "81.5"
-    assert html =~ ~s(data-role="allocation-cash")
-    # The total is unchanged by the exclude flag: ETF 880 + BTC 400 + cash 200
-    # (200 start + 400 deposit - 400 Bitcoin buy) = 1,480.
-    assert html =~ "1,480.00"
   end
 
   # User story:

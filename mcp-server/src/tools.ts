@@ -43,7 +43,6 @@ const securityZ = z.object({
     feed_url: optionalString(),
     provider: optionalString(),
     online_id: optionalString(),
-    excluded_from_allocation_targets: z.boolean().optional(),
     attributes: z.record(z.unknown()).optional()
   })
 });
@@ -130,7 +129,6 @@ const securitySchema = objectWith("security", {
     feed_url: { type: "string" },
     provider: { type: "string" },
     online_id: { type: "string" },
-    excluded_from_allocation_targets: { type: "boolean" },
     attributes: { type: "object", additionalProperties: true }
   }
 });
@@ -412,7 +410,6 @@ const securityUpdateSchema = {
         feed_url: { type: "string" },
         provider: { type: "string" },
         online_id: { type: "string" },
-        excluded_from_allocation_targets: { type: "boolean" },
         attributes: { type: "object", additionalProperties: true }
       }
     }
@@ -434,7 +431,6 @@ const securityUpdateZ = z.object({
     feed_url: optionalString(),
     provider: optionalString(),
     online_id: optionalString(),
-    excluded_from_allocation_targets: z.boolean().optional(),
     attributes: z.record(z.unknown()).optional()
   })
 });
@@ -992,8 +988,8 @@ const toolDefinitions: ToolDefinition[] = [
     limit: z.number().int().min(0).optional(),
     offset: z.number().int().min(0).optional()
   })),
-  tool("portfolixir.securities.create", "Create security", "Create a local security. Set excluded_from_allocation_targets=true to keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift.", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data, including excluded_from_allocation_targets (keeps the position visible in totals/performance but out of the allocation steering basis and drift).", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.create", "Create security", "Create a local security. To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view.", securitySchema, securityZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view.", securityUpdateSchema, securityUpdateZ),
   tool("portfolixir.securities.delete", "Delete security", "Delete a local security when no transactions or quotes reference it.", idSchema, idZ),
   tool("portfolixir.securities.search_online", "Search online securities", "Search configured online security providers.", {
     type: "object",
@@ -1174,7 +1170,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.risk",
     "Portfolio risk/concentration lens",
-    "Risk/concentration lens for a portfolio over the steerable basis (valued positions minus those flagged excluded_from_allocation_targets): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call. Pass an optional view (a view id) to scope the lens to the holdings matching that bucket view; the response then echoes the active view.",
+    "Risk/concentration lens for a portfolio over the steerable basis (the valued positions, scoped by the active view): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call. Pass an optional view (a view id) to scope the lens to the holdings matching that bucket view; the response then echoes the active view.",
     riskSchema,
     riskZ
   ),

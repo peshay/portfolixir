@@ -79,8 +79,6 @@ defmodule Portfolixir.LocalizationTest do
     assert template =~ ~s(msgid "Σ target top level:")
     assert template =~ ~s(msgid "subcategories:")
     assert template =~ ~s(msgid "of")
-    assert template =~ ~s(msgid "Outside the steering basis")
-    assert template =~ ~s(msgid "not in allocation targets")
 
     # Income view strings (income_live.ex) previously missing from .pot
     assert template =~ ~s(msgid "Income")
@@ -99,8 +97,6 @@ defmodule Portfolixir.LocalizationTest do
 
     assert german =~ ~s(msgstr "Σ Soll oberste Ebene:")
     assert german =~ ~s(msgstr "Unterkategorien:")
-    assert german =~ ~s(msgstr "Außerhalb der Steuerungsbasis")
-    assert german =~ ~s(msgstr "nicht in den Allokationszielen")
     assert german =~ ~s(msgstr "Erträge")
     assert german =~ ~s(msgstr "Erhaltene Dividenden und Zinsen")
     assert german =~ ~s(msgstr "Jahresübersicht")

@@ -6,7 +6,6 @@ defmodule Portfolixir.Portfolios.RiskTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
-  alias Portfolixir.Catalog
   alias Portfolixir.Portfolios.Risk
 
   # User story:
@@ -25,8 +24,8 @@ defmodule Portfolixir.Portfolios.RiskTest do
   #   band.
   # - Asset-class caps are opt-in; only classes over cap come back, with the
   #   overage in percentage points.
-  # - Positions flagged excluded_from_allocation_targets are kept out of the
-  #   basis (the steerable basis, issue #329).
+  # - A holding tagged into a bucket excluded from the active view is kept out of
+  #   the steerable basis (view scoping, ADR-0018).
 
   defp equity!(name, ticker),
     do: create_security!(name: name, ticker: ticker, asset_class: "equity")
@@ -38,8 +37,7 @@ defmodule Portfolixir.Portfolios.RiskTest do
     do: Enum.find(risk.top_holdings, &(&1.security_id == security_id))
 
   # Builds a world whose steerable basis is exactly 1000 EUR:
-  #   stock_big 600 (60%), stock_mid 90 (9%), stock_small 50 (5%), big_etf 260 (26%)
-  # plus an excluded crypto of 500 that must stay out of the basis.
+  #   stock_big 600 (60%), stock_mid 90 (9%), stock_small 50 (5%), big_etf 260 (26%).
   defp risk_world do
     world = base_world()
 
@@ -48,36 +46,25 @@ defmodule Portfolixir.Portfolios.RiskTest do
     stock_small = equity!("Stock Small", "SML")
     big_etf = etf!("Big World ETF", "WRLD")
 
-    {:ok, crypto} =
-      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Store Of Value",
-        currency_code: "EUR",
-        asset_class: "crypto",
-        excluded_from_allocation_targets: true
-      })
-
     deposit!(world, "2000", ~D[2026-01-01])
 
     buy!(world, stock_big, quantity: "6", price: "100")
     buy!(world, stock_mid, quantity: "9", price: "10")
     buy!(world, stock_small, quantity: "5", price: "10")
     buy!(world, big_etf, quantity: "26", price: "10")
-    buy!(world, crypto, quantity: "5", price: "100")
 
     prices = %{
       stock_big.id => Decimal.new("100"),
       stock_mid.id => Decimal.new("10"),
       stock_small.id => Decimal.new("10"),
-      big_etf.id => Decimal.new("10"),
-      crypto.id => Decimal.new("100")
+      big_etf.id => Decimal.new("10")
     }
 
     {Map.merge(world, %{
        stock_big: stock_big,
        stock_mid: stock_mid,
        stock_small: stock_small,
-       big_etf: big_etf,
-       crypto: crypto
+       big_etf: big_etf
      }), prices}
   end
 
@@ -112,7 +99,7 @@ defmodule Portfolixir.Portfolios.RiskTest do
 
     risk = Risk.for_portfolio(world.portfolio.id, prices: prices)
 
-    # The excluded crypto (500) stays out of the basis: 600 + 90 + 50 + 260 = 1000.
+    # The steerable basis: 600 + 90 + 50 + 260 = 1000.
     assert Decimal.equal?(risk.steerable_basis, Decimal.new("1000"))
 
     # Largest first, on the percentage scale.
@@ -128,9 +115,6 @@ defmodule Portfolixir.Portfolios.RiskTest do
 
     etf = holding(risk, world.big_etf.id)
     assert Decimal.equal?(etf.weight, Decimal.new("26"))
-
-    # The excluded crypto never appears as a single-name exposure.
-    refute Enum.any?(risk.top_holdings, &(&1.security_id == world.crypto.id))
 
     # HHI = 60^2 + 9^2 + 5^2 + 26^2 = 3600 + 81 + 25 + 676 = 4382 -> concentrated.
     assert Decimal.equal?(risk.hhi.value, Decimal.new("4382"))

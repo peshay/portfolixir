@@ -65,7 +65,8 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   # As a local portfolio maintainer,
   # I want the allocation to optionally scope to a view, while no view stays my
   # whole steering basis, so that I can read SOLL/IST for a slice of my wealth
-  # (#444). The existing exclude flag (ADR-0013) is untouched.
+  # (#444). Excluding a bucket from a view carves it out of the steering basis
+  # (ADR-0018; replaces the retired exclude flag, ADR-0013).
   test "a view scopes the allocation steering basis; the default is identical" do
     world = setup_world()
     sec_a = equity!("Sec A", "SECA")
@@ -314,7 +315,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   # cash joins the basis.
   #
   # Acceptance criteria:
-  # - The 100% basis = securities (minus excluded) + counting cash.
+  # - The 100% basis = securities (within the active view) + counting cash.
   # - A `cash` row reports actual (counting cash share), target (the portfolio's
   #   cash_target_weight) and drift (target - actual), restated in base currency.
   # - Category percentages are shares of the larger basis (they shrink vs. a
