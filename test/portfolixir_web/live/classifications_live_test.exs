@@ -611,6 +611,420 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert html =~ "Gesamt"
   end
 
+  # User story:
+  # As a maintainer steering a nested classification,
+  # I want each parent row to show its direct children's running Σ and flag it
+  # when the children don't add up to the parent's own weight,
+  # so I can spot inconsistent sub-allocations at a glance.
+  #
+  # Acceptance criteria:
+  # - A parent category whose children carry weights renders a "children Σ" hint.
+  # - When the children's Σ differs from the parent's own weight the hint and row
+  #   carry the mismatch styling.
+  test "renders the children-Σ hint and flags a parent/children mismatch", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, child} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Large caps",
+        parent_id: equity.id
+      })
+
+    # Equity is steered to 60% but its only child carries 30% → mismatch.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [
+          %{category_id: equity.id, target_weight: "0.6"},
+          %{category_id: child.id, target_weight: "0.3"}
+        ],
+        view: nil
+      )
+
+    {:ok, _view, html} = live(conn, "/classifications/#{classification.id}")
+
+    # The parent row exposes its direct children's running Σ as a hint…
+    assert html =~ ~s(data-role="soll-child-hint")
+    assert html =~ "children Σ"
+    assert html =~ "30%"
+    # …and, since 30% ≠ the parent's 60%, the consistency styling is applied.
+    assert html =~ "is-target-mismatch"
+  end
+
+  # User story:
+  # As a maintainer typing into the live Σ,
+  # I want blank, non-numeric and otherwise odd values to be treated as absent
+  # rather than crash the running total,
+  # so editing the plan never breaks the form.
+  #
+  # Acceptance criteria:
+  # - A live change with a blank weight, an unparseable weight and a blank cash
+  #   target keeps the LiveView alive and shows a numeric running Σ.
+  test "live Σ tolerates blank, unparseable and missing values", %{conn: conn} do
+    %{classification: classification, equity: equity, bonds: bonds} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    # One good weight, one blank, one unparseable; cash target blank.
+    html =
+      view
+      |> element("#soll-plan-form")
+      |> render_change(%{
+        "weights" => %{
+          "#{equity.id}" => "40",
+          "#{bonds.id}" => "",
+          "999999" => "not-a-number"
+        },
+        "cash_target" => ""
+      })
+
+    assert Process.alive?(view.pid)
+    assert html =~ ~s(data-role="soll-sum")
+    # Only the parseable 40 counts; blank/garbage drop out of the Σ.
+    assert html =~ "40"
+
+    # A crafted live change with a non-string weight value and no cash_target key
+    # must also be tolerated (the lenient live-Σ parsers treat both as absent).
+    odd =
+      render_hook(view, "soll_sum", %{"weights" => %{"#{equity.id}" => ["nope"]}})
+
+    assert Process.alive?(view.pid)
+    assert odd =~ ~s(data-role="soll-sum")
+  end
+
+  # User story:
+  # As a maintainer (and against a crafted socket payload),
+  # I want odd-shaped live-Σ params (a non-map weights value) to be ignored,
+  # so a malformed change event can never crash the running total.
+  #
+  # Acceptance criteria:
+  # - A `soll_sum` event whose `weights` is not a map leaves the LiveView alive.
+  test "live Σ ignores a non-map weights payload", %{conn: conn} do
+    %{classification: classification} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    html = render_hook(view, "soll_sum", %{"weights" => "nonsense", "cash_target" => "5"})
+
+    assert Process.alive?(view.pid)
+    assert html =~ ~s(data-role="soll-sum")
+  end
+
+  # User story:
+  # As a maintainer leaving some categories and the cash target blank,
+  # I want saving to skip the blanks and still write the weights I entered,
+  # so a partial plan saves cleanly.
+  #
+  # Acceptance criteria:
+  # - Saving with a blank weight and no cash target writes only the filled
+  #   category weights and stores no cash target.
+  test "saves a plan that skips blank weights and a blank cash target", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity, bonds: bonds} =
+      soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    view
+    |> form("#soll-plan-form", %{
+      "weights" => %{
+        "#{equity.id}" => "100",
+        "#{bonds.id}" => ""
+      },
+      "cash_target" => ""
+    })
+    |> render_submit()
+
+    targets =
+      portfolio.id
+      |> Targets.list_targets(classification_id: classification.id, view: nil)
+      |> Map.new(&{&1.category_id, &1.target_weight})
+
+    assert Decimal.equal?(targets[equity.id], Decimal.new("1.0"))
+    refute Map.has_key?(targets, bonds.id)
+    assert is_nil(Targets.get_cash_target(portfolio.id, view: nil))
+  end
+
+  # User story:
+  # As a maintainer (and against a crafted socket payload),
+  # I want a save whose `weights`/`cash_target` arrive as non-strings to be
+  # rejected gracefully, so a malformed submit never crashes the editor.
+  #
+  # Acceptance criteria:
+  # - A save with a list-valued weight and a list-valued cash target keeps the
+  #   LiveView alive and persists nothing.
+  test "rejects a save with non-string weight and cash values", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    render_hook(view, "save_soll_plan", %{
+      "weights" => %{"#{equity.id}" => ["nope"]},
+      "cash_target" => ["nope"]
+    })
+
+    assert Process.alive?(view.pid)
+
+    assert Targets.list_targets(portfolio.id, classification_id: classification.id, view: nil) ==
+             []
+  end
+
+  # User story:
+  # As a maintainer (and against a crafted socket payload),
+  # I want a save whose `weights` is not a map at all to be a clean no-op,
+  # so a malformed submit never crashes the editor.
+  #
+  # Acceptance criteria:
+  # - A save with a non-map `weights` keeps the LiveView alive and persists
+  #   nothing.
+  test "tolerates a save with a non-map weights payload", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    render_hook(view, "save_soll_plan", %{"weights" => "nonsense", "cash_target" => "0"})
+
+    assert Process.alive?(view.pid)
+
+    assert Targets.list_targets(portfolio.id, classification_id: classification.id, view: nil) ==
+             []
+  end
+
+  # User story:
+  # As a maintainer who typed an out-of-range weight,
+  # I want the save to surface the validation error instead of crashing,
+  # so I can correct the value.
+  #
+  # Acceptance criteria:
+  # - Saving a weight above 100% surfaces an error and persists no target.
+  test "surfaces a changeset error for an out-of-range weight", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    # 150% → fraction 1.5, which the Target schema rejects (must be ≤ 1).
+    html =
+      view
+      |> form("#soll-plan-form", %{
+        "weights" => %{"#{equity.id}" => "150"},
+        "cash_target" => "0"
+      })
+      |> render_submit()
+
+    assert html =~ "alert-error"
+
+    assert Targets.list_targets(portfolio.id, classification_id: classification.id, view: nil) ==
+             []
+  end
+
+  # User story:
+  # As a maintainer who opened the copy picker but changed my mind,
+  # I want choosing the blank "— Choose a view —" option to do nothing,
+  # so an empty copy selection leaves the editor untouched.
+  #
+  # Acceptance criteria:
+  # - A `copy_soll_plan` change with a blank value is a no-op.
+  test "copying from a blank view selection is a no-op", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = soll_world()
+    {:ok, named} = Buckets.create_view(Portfolixir.Actor.owner_ui(), %{name: "Stocks"})
+
+    # Give Gesamt a plan so the empty named view shows a copy picker.
+    {:ok, _} = Targets.ensure_plan(portfolio.id, classification.id, view: nil)
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    switched =
+      view
+      |> element("form[phx-change='select_soll_view']")
+      |> render_change(%{"soll_view" => "#{named.id}"})
+
+    assert switched =~ "Create plan"
+
+    # Selecting the blank option must not change the editor.
+    unchanged =
+      view
+      |> element("form[phx-change='copy_soll_plan']")
+      |> render_change(%{"copy_from" => ""})
+
+    assert Process.alive?(view.pid)
+    assert unchanged =~ "Create plan"
+  end
+
+  # User story:
+  # As a maintainer building a fresh view's plan,
+  # I want the copy picker to list other views that already carry a plan for this
+  # classification, so I can start from one of them.
+  #
+  # Acceptance criteria:
+  # - On the Gesamt plan, a named view that has its own plan appears as a copy
+  #   source.
+  test "lists a named view's plan as a copy source on Gesamt", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+    {:ok, named} = Buckets.create_view(Portfolixir.Actor.owner_ui(), %{name: "Stocks"})
+
+    # The named view carries a plan; Gesamt does not yet.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.5"}],
+        view: named.id
+      )
+
+    {:ok, _view, html} = live(conn, "/classifications/#{classification.id}")
+
+    # The copy-from picker offers the named view (its id is rendered as an option).
+    assert html =~ "Copy from another view"
+    assert html =~ ~s(<option value="#{named.id}">)
+  end
+
+  # User story:
+  # As a maintainer switching the SOLL view selector,
+  # I want a non-numeric view value to fall back to Gesamt rather than crash,
+  # so a crafted selector payload is handled safely.
+  #
+  # Acceptance criteria:
+  # - Selecting a non-numeric view keeps the LiveView alive on the Gesamt plan.
+  test "selecting a non-numeric view falls back to Gesamt", %{conn: conn} do
+    %{classification: classification} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    html =
+      view
+      |> element("form[phx-change='select_soll_view']")
+      |> render_change(%{"soll_view" => "not-an-id"})
+
+    assert Process.alive?(view.pid)
+    # Falls back to the Gesamt plan, which has no plan yet → empty state.
+    assert html =~ "Create plan"
+  end
+
+  # User story:
+  # As a maintainer,
+  # I want the SOLL editor to appear only for editable custom trees with a
+  # portfolio, so built-in trees never show a plan editor.
+  #
+  # Acceptance criteria:
+  # - A built-in (read-only) tree renders no SOLL editor.
+  test "hides the SOLL editor on a built-in (read-only) tree", %{conn: conn} do
+    base_world()
+    Classifications.ensure_builtins()
+    currency = Classifications.get_classification_by_key("currency")
+
+    {:ok, _view, html} = live(conn, "/classifications/#{currency.id}")
+
+    refute html =~ "soll-editor"
+    refute html =~ "Target plan for view"
+  end
+
+  # User story:
+  # As a maintainer (and against a crafted socket payload),
+  # I want a save and a live-Σ change that arrive with the weights/cash keys
+  # missing entirely to be handled as "nothing entered",
+  # so an empty submit clears the plan rather than crashing.
+  #
+  # Acceptance criteria:
+  # - A save with no `weights` and no `cash_target` keys persists no targets and
+  #   no cash target.
+  # - A live-Σ change with no `weights` key keeps the LiveView alive.
+  test "handles a save and a live-Σ change with the keys missing", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    # A live-Σ change carrying neither key is a no-op total.
+    summed = render_hook(view, "soll_sum", %{})
+    assert Process.alive?(view.pid)
+    assert summed =~ ~s(data-role="soll-sum")
+
+    # A save with neither key writes nothing.
+    render_hook(view, "save_soll_plan", %{})
+    assert Process.alive?(view.pid)
+
+    assert Targets.list_targets(portfolio.id, classification_id: classification.id, view: nil) ==
+             []
+
+    assert is_nil(Targets.get_cash_target(portfolio.id, view: nil))
+  end
+
+  # User story:
+  # As a maintainer who accidentally typed only spaces into a weight,
+  # I want a whitespace-only value treated as blank,
+  # so it neither saves a bogus target nor crashes the live Σ.
+  #
+  # Acceptance criteria:
+  # - A whitespace-only weight in the live Σ is dropped from the running total.
+  test "treats a whitespace-only weight as blank in the live Σ", %{conn: conn} do
+    %{classification: classification, equity: equity} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    html =
+      view
+      |> element("#soll-plan-form")
+      |> render_change(%{
+        "weights" => %{"#{equity.id}" => "   "},
+        "cash_target" => "  "
+      })
+
+    assert Process.alive?(view.pid)
+    assert html =~ ~s(data-role="soll-sum")
+  end
+
+  # User story:
+  # As a maintainer (and against a crafted socket payload),
+  # I want a save attempted with no portfolio behind the editor to fail safely,
+  # so the editor never crashes when there is nothing to steer.
+  #
+  # Acceptance criteria:
+  # - With no portfolio, a save_soll_plan event surfaces an error and keeps the
+  #   LiveView alive without persisting.
+  test "fails the save gracefully when no portfolio exists", %{conn: conn} do
+    # No portfolio in this world — only a classification with a category.
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, equity} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Equity"})
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    html =
+      render_hook(view, "save_soll_plan", %{
+        "weights" => %{"#{equity.id}" => "100"},
+        "cash_target" => "0"
+      })
+
+    assert Process.alive?(view.pid)
+    assert html =~ "alert-error"
+  end
+
+  # User story:
+  # As a maintainer following a stale link to a deleted classification,
+  # I want a missing tree to show a "not found" notice without a SOLL editor,
+  # so the page degrades gracefully.
+  #
+  # Acceptance criteria:
+  # - A non-existent classification id renders the not-found state and no SOLL
+  #   editor.
+  test "shows not found and no SOLL editor for a missing classification", %{conn: conn} do
+    base_world()
+
+    {:ok, _view, html} = live(conn, "/classifications/999999")
+
+    assert html =~ "Classification not found"
+    refute html =~ "Target plan for view"
+  end
+
   defp assignments(classification_id) do
     Classifications.list_trees()
     |> Enum.find(&(&1.classification.id == classification_id))
