@@ -299,6 +299,13 @@ defmodule PortfolixirWeb.AppShell do
             label: gettext("All transactions"),
             section: :transactions,
             icon: :bars
+          },
+          %{
+            id: "nav-buckets",
+            href: "/buckets",
+            label: gettext("Buckets & views"),
+            section: :buckets,
+            icon: :filter
           }
         ]
       },
@@ -351,6 +358,9 @@ defmodule PortfolixirWeb.AppShell do
 
   defp nav_current?(path, %{section: :transactions}),
     do: String.starts_with?(path, "/transactions")
+
+  defp nav_current?(path, %{section: :buckets}),
+    do: String.starts_with?(path, "/buckets")
 
   defp nav_current?(path, %{section: :imports}),
     do: String.starts_with?(path, "/imports")
