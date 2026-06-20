@@ -137,6 +137,35 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
     refute Targets.plan_exists?(p.id, c.id)
   end
 
+  # User story:
+  # As a maintainer clearing a view's plan,
+  # I want deleting the whole plan to default to the Gesamt plan and to be a
+  # no-op when no plan exists,
+  # so the delete path is safe to call without a `view:` option (ADR-0020).
+  #
+  # Acceptance criteria:
+  # - `delete_plan/2` (default `view: nil` = Gesamt) removes the Gesamt plan and
+  #   reports the number of plan rows removed.
+  # - Deleting again (or with no plan at all) returns `{:ok, 0}` and leaves
+  #   `plan_exists?/3` false.
+  test "delete_plan defaults to the Gesamt plan and is a no-op when none exists" do
+    %{portfolio: p, classification: c, core: core} = setup_world()
+
+    # No plan yet: deleting is a harmless no-op (zero rows removed).
+    assert {:ok, 0} = Targets.delete_plan(p.id, c.id)
+
+    # Materialise a Gesamt plan, then delete it via the default (view: nil) path.
+    {:ok, _} =
+      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "0.6"}])
+
+    assert Targets.plan_exists?(p.id, c.id)
+    assert {:ok, 1} = Targets.delete_plan(p.id, c.id)
+
+    refute Targets.plan_exists?(p.id, c.id)
+    # A second delete finds nothing and stays a no-op.
+    assert {:ok, 0} = Targets.delete_plan(p.id, c.id)
+  end
+
   test "deleting a target only affects the addressed plan" do
     %{portfolio: p, classification: c, core: core, view: view} = setup_world()
 
