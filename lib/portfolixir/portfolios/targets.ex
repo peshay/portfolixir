@@ -124,6 +124,27 @@ defmodule Portfolixir.Portfolios.Targets do
   end
 
   @doc """
+  Removes the whole plan for `(portfolio, view, classification)` (default
+  `view: nil` = Gesamt): the plan row and — via the `plan_id` foreign key's
+  `ON DELETE CASCADE` — every category target hanging off it, plus the plan's
+  cash target. After this `plan_exists?/3` is `false`, so the portfolio page
+  falls back to IST-only for that `(view, classification)`. Returns `{:ok, count}`
+  with the number of plan rows removed (0 when there was no plan).
+  """
+  def delete_plan(portfolio_id, classification_id, opts \\ [])
+      when is_integer(portfolio_id) and is_integer(classification_id) do
+    view_id = view_id(Keyword.get(opts, :view))
+
+    {count, _} =
+      from(p in TargetPlan, where: p.portfolio_id == ^portfolio_id)
+      |> filter_plan_view_root(view_id)
+      |> filter_plan_classification_root(classification_id)
+      |> Repo.delete_all()
+
+    {:ok, count}
+  end
+
+  @doc """
   Finds or creates the plan for `(portfolio, view, classification)` (default
   `view: nil` = Gesamt). Use this to materialise an **empty** plan (a plan row
   that carries no category targets), which is deliberately distinct from "no plan
