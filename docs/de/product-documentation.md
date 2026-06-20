@@ -229,6 +229,14 @@ Brüche in `[0, 1]` gespeichert. Die Felder sind beschriftet und per Tastatur
 fokussierbar, und derselbe Plan ist über die API/MCP-Ziel-Endpunkte mit einem
 `view`-Parameter gleichermaßen erreichbar.
 
+> **Migrationshinweis (ADR-0020).** Der Wechsel zu Plänen je Sicht ist
+> **verlustfrei**: alle bereits vorhandenen Zielgewichte und das frühere
+> portfolioweite Cash-Ziel werden zu deinem **Gesamt**-Plan (`view = null`). Am
+> Verhalten ändert sich nichts — dein bestehendes Setup erscheint einfach unter
+> *Gesamt*, und die Portfolio-Seite liest es unter der Sicht **Total** genau wie
+> zuvor. Benannte Sichten starten **ohne Plan**, bis du einen anlegst oder
+> kopierst.
+
 Um eine Position **aus der Allokations-Steuerbasis** herauszuhalten, während sie
 weiterhin zum Gesamtvermögen zählt — zum Beispiel ein als langfristiger
 Wertspeicher gehaltener Bitcoin statt Teil des gesteuerten Mix — versiehst du das
@@ -375,6 +383,27 @@ wobei die Drift in der Basiswährung neu ausgewiesen wird. Der Cash-Abschnitt
 listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: tippe den
 Saldo ein, den deine Bank zeigt, und der Snapshot wird ohne Buchung einzelner
 Transaktionen erfasst.
+
+**Die SOLL-Seite folgt der aktiven Sicht (ADR-0020).** Die Spalten Ziel, Drift
+und *Σ target top level* der Drift-Tabelle spiegeln den **Plan der aktiven
+Sicht** für die gewählte Klassifizierung wider — IST und SOLL bewegen sich immer
+zusammen. Wechselst du den **Sicht-Umschalter** oben auf der Seite, springen
+beide Seiten gleichzeitig auf den Plan dieser Sicht, sodass nie zwei Pläne zu
+einer Σ über 100 % oder einer Geisterzeile vermischt werden. Die Standardsicht
+**Total** liest den portfolioweiten **Gesamt**-Plan. Ein dezenter Punkt auf einem
+Sicht-Chip markiert die Sichten, die bereits einen Plan für die aktuelle
+Klassifizierung tragen, sodass du gesteuerte und reine IST-Sichten auf einen
+Blick unterscheidest.
+
+**Kein Plan für die aktive Sicht?** Hat die aktive Sicht keinen Plan für die
+gewählte Klassifizierung, bleibt die Allokation **nur IST**: Sunburst und die
+Spalten Wert/Ist zeigen weiter deine tatsächliche Aufteilung, aber es gibt keine
+Spalten Ziel, Drift oder Σ. An ihrer Stelle erklärt ein Hinweis — *Kein Soll-Plan
+für diese Sicht* — die leere SOLL-Seite und **verlinkt direkt in den
+Klassifizierungs-Plan-Editor, mit dieser Sicht und Klassifizierung bereits
+vorausgewählt**, sodass du den Plan anlegen kannst, ohne beides erneut zu wählen.
+Auch das Ziel der Cash-Zeile stammt aus dem Cash-Ziel des Plans der aktiven Sicht
+(oder zeigt einen Strich, wenn keines gesetzt ist).
 
 Die Seite zeichnet sich sofort und berechnet ihre Zahlen **asynchron**; jeder
 Abschnitt füllt sich, sobald seine Daten bereit sind. Der teure tägliche

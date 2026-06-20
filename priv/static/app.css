@@ -3990,6 +3990,14 @@ details[open] > .cat-summary::before {
 .hint.is-target-mismatch {
   color: var(--color-warning);
 }
+/* The active view has no SOLL plan for this classification: the allocation is
+   IST-only and this hint deep-links into the per-view plan editor (ADR-0020). */
+.no-plan-hint {
+  margin: 0.75rem 0 0;
+}
+.no-plan-hint a {
+  margin-left: 0.35rem;
+}
 .balance-form {
   margin-top: 1rem;
 }
@@ -4281,6 +4289,20 @@ details[open] > .cat-summary::before {
 .view-chip:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* Subtle marker: this view carries a SOLL plan for the active classification
+   (ADR-0020, issue 468). The dot is aria-hidden; the chip's title carries the
+   meaning for assistive tech. */
+.view-chip__plan-dot {
+  margin-left: 4px;
+  font-size: 0.9em;
+  line-height: 1;
+  color: var(--color-accent);
+}
+
+.view-chip.is-active .view-chip__plan-dot {
+  color: white;
 }
 
 .view-switcher__active {

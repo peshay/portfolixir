@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Classifications
@@ -1038,5 +1040,246 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # In the asset-class view the separate Cash row is still present (issue #335).
     assert asset_html =~ ~s(data-role="allocation-cash")
     assert asset_html =~ "Cash"
+  end
+
+  # -- Story 5 (#468): per-view SOLL/drift viewer on the portfolio page --------
+
+  # A custom Strategy tree on the base world with one Core category holding the
+  # only security, plus a named view, so the viewer can read a per-view plan.
+  defp viewer_world do
+    %{portfolio: portfolio} =
+      world = WorldFixtures.base_world(name: "Plan Depot", cash_name: "Giro", depot_name: "Depot")
+
+    security = WorldFixtures.create_security!(name: "World ETF", ticker: "WLD")
+
+    today = Date.utc_today()
+    start = Date.add(today, -10)
+
+    WorldFixtures.deposit!(world, "1000", start)
+    WorldFixtures.buy!(world, security, quantity: "8", price: "100", date: start)
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
+
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, core} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Core",
+        color: "#2563eb"
+      })
+
+    {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
+
+    {:ok, scoped_view} = Buckets.create_view(Actor.owner_ui(), %{name: "Strategie"})
+
+    Map.merge(world, %{
+      classification: classification,
+      core: core,
+      security: security,
+      scoped_view: scoped_view,
+      portfolio: portfolio
+    })
+  end
+
+  # User story:
+  # As a local portfolio maintainer steering a named view,
+  # I want the SOLL/Target/Drift columns and the Σ check to reflect that
+  # active view's plan for the active classification,
+  # so that IST and SOLL move together with the view I am looking at.
+  #
+  # Acceptance criteria:
+  # - With a plan for (active view, classification), the drift table shows the
+  #   Target and Drift columns and the "Σ target top level" check.
+  # - The shown target is the active view's plan target, not another view's.
+  test "shows the active view's SOLL plan target and drift on the drift table",
+       %{conn: conn} do
+    world = viewer_world()
+
+    # The Strategie view's plan steers Core to 50%.
+    {:ok, _} =
+      Targets.set_targets(
+        world.portfolio.id,
+        world.classification.id,
+        [%{category_id: world.core.id, target_weight: "0.5"}],
+        view: world.scoped_view.id
+      )
+
+    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}")
+    html = render_async(view)
+
+    # The plan-present table carries the Target/Drift columns and the Σ check.
+    assert html =~ ~s(data-role="target-sum-top-level")
+    assert has_element?(view, ".drift-table")
+
+    # Core's target is the Strategie view's 50%, not a dash and not Gesamt's.
+    drift_table = view |> element(".drift-table") |> render()
+    assert drift_table =~ "50.0"
+    # Drift: 0.5 * 1080 - 880 = -340.
+    assert drift_table =~ "-340.00"
+    # No "no plan" hint when a plan exists.
+    refute html =~ "No target plan for this view"
+  end
+
+  # User story:
+  # As a local portfolio maintainer looking at a view that has no SOLL plan for
+  # the active classification,
+  # I want the allocation to stay IST-only with a clear hint and a deep-link
+  # into the editor (pre-selecting the view + classification),
+  # so that a missing plan is explained, not blank, and easy to create.
+  #
+  # Acceptance criteria:
+  # - The drift table renders IST-only: no Target/Drift columns, no Σ check.
+  # - A hint ("No target plan for this view") is shown.
+  # - The hint deep-links to /classifications/<id>?soll_view=<view_id>.
+  test "shows an IST-only table with a deep-link hint when the view has no plan",
+       %{conn: conn} do
+    world = viewer_world()
+
+    # Gesamt carries a plan, but the Strategie view does NOT — the active view's
+    # absence is what matters (no Gesamt leak).
+    {:ok, _} =
+      Targets.set_targets(
+        world.portfolio.id,
+        world.classification.id,
+        [%{category_id: world.core.id, target_weight: "0.6"}],
+        view: nil
+      )
+
+    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}")
+    html = render_async(view)
+
+    # IST-only: the Target/Drift Σ check is absent, the actual share is still shown.
+    refute has_element?(view, ~s([data-role="target-sum-top-level"]))
+    assert html =~ "81.5"
+
+    # The no-plan hint explains the empty SOLL side and links into the editor with
+    # the view + classification pre-selected.
+    hint = view |> element(~s([data-role="no-plan-hint"])) |> render()
+    assert hint =~ "No target plan for this view"
+
+    href = "/classifications/#{world.classification.id}?soll_view=#{world.scoped_view.id}"
+    assert has_element?(view, ~s([data-role="no-plan-hint"] a[href="#{href}"]))
+  end
+
+  # User story:
+  # As a local portfolio maintainer with several views,
+  # I want switching the view switcher to swap IST and SOLL together,
+  # so that I never see a 200% / ghost-row mix of two plans.
+  #
+  # Acceptance criteria:
+  # - View A (plan) shows its target; navigating to view B (no plan) drops to
+  #   IST-only, and back to A restores the target — IST and SOLL move together.
+  test "switching the active view swaps IST and SOLL together (no ghost rows)",
+       %{conn: conn} do
+    world = viewer_world()
+
+    {:ok, other} = Buckets.create_view(Actor.owner_ui(), %{name: "Crypto"})
+
+    # Strategie view: Core 50%. Crypto view: no plan at all.
+    {:ok, _} =
+      Targets.set_targets(
+        world.portfolio.id,
+        world.classification.id,
+        [%{category_id: world.core.id, target_weight: "0.5"}],
+        view: world.scoped_view.id
+      )
+
+    # Under Strategie the SOLL is shown.
+    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}")
+    {:ok, view_a, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}")
+    html_a = render_async(view_a)
+    assert html_a =~ ~s(data-role="target-sum-top-level")
+    assert view_a |> element(".drift-table") |> render() =~ "50.0"
+
+    # Switching to Crypto (no plan) drops to IST-only — SOLL moves with IST.
+    conn = get(conn, "/portfolio?view=#{other.id}")
+    {:ok, view_b, _html} = live(conn, "/portfolio?view=#{other.id}")
+    html_b = render_async(view_b)
+    refute has_element?(view_b, ~s([data-role="target-sum-top-level"]))
+    assert html_b =~ "No target plan for this view"
+  end
+
+  # User story:
+  # As a local portfolio maintainer steering a cash quote inside a view,
+  # I want the Cash row to read that view's plan cash target,
+  # so that the cash drift follows the active view's plan, not a global value.
+  #
+  # Acceptance criteria:
+  # - With the active view's plan carrying a cash target, the cash row shows it.
+  test "the cash row reads the active view's plan cash target", %{conn: conn} do
+    world = viewer_world()
+
+    # The Strategie plan steers Core 50% and cash 10%.
+    {:ok, _} =
+      Targets.set_targets(
+        world.portfolio.id,
+        world.classification.id,
+        [%{category_id: world.core.id, target_weight: "0.5"}],
+        view: world.scoped_view.id
+      )
+
+    :ok = Targets.set_cash_target(world.portfolio.id, "0.1", view: world.scoped_view.id)
+
+    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}")
+    html = render_async(view)
+
+    cash_row = view |> element(~s([data-role="allocation-cash"])) |> render()
+    # The Strategie view's 10% cash target renders (not a dash, not Gesamt's).
+    assert cash_row =~ "10.0"
+    assert cash_row =~ "EUR"
+    refute html =~ "No target plan for this view"
+  end
+
+  # User story (#468, optional chip marker):
+  # As a local portfolio maintainer scanning the view switcher,
+  # I want a subtle marker on the chips of views that already have a SOLL plan
+  # for the active classification,
+  # so that I can tell at a glance which views are steered and which are IST-only.
+  #
+  # Acceptance criteria:
+  # - A view with a plan for the active classification carries data-has-plan on
+  #   its chip; a view without one does not.
+  test "marks view-switcher chips that have a plan for the active classification",
+       %{conn: conn} do
+    world = viewer_world()
+
+    {:ok, unplanned} = Buckets.create_view(Actor.owner_ui(), %{name: "Crypto"})
+
+    # Only the Strategie view has a plan for this classification.
+    {:ok, _} =
+      Targets.set_targets(
+        world.portfolio.id,
+        world.classification.id,
+        [%{category_id: world.core.id, target_weight: "0.5"}],
+        view: world.scoped_view.id
+      )
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # The planned view's chip is marked; the unplanned view's chip is not.
+    assert has_element?(view, "#view-switch-#{world.scoped_view.id}[data-has-plan]")
+    refute has_element?(view, "#view-switch-#{unplanned.id}[data-has-plan]")
+  end
+
+  # User story (#468, German copy):
+  # As a German-speaking maintainer on a view with no plan,
+  # I want the no-plan hint in German,
+  # so the bridge into the editor reads in my language.
+  #
+  # Acceptance criteria:
+  # - With locale=de the no-plan hint reads "Kein Soll-Plan für diese Sicht".
+  test "renders the no-plan hint in German", %{conn: conn} do
+    world = viewer_world()
+
+    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}&locale=de")
+    {:ok, view, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}&locale=de")
+    html = render_async(view)
+
+    assert html =~ "Kein Soll-Plan für diese Sicht"
+    assert html =~ "Plan für diese Sicht anlegen"
   end
 end

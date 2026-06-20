@@ -74,13 +74,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
     assign(socket, selected_id: nil, tree: nil)
   end
 
-  defp apply_action(socket, :show, %{"id" => id}) do
+  defp apply_action(socket, :show, %{"id" => id} = params) do
     case Integer.parse(id) do
       {classification_id, ""} ->
+        # The portfolio page's no-plan hint deep-links here with `?soll_view=`
+        # so the editor opens on the right `(view, classification)` plan
+        # (ADR-0020, #468). Without the param the editor defaults to Gesamt.
         socket
         |> assign(:query, "")
         |> assign(:editing_id, nil)
-        |> assign(:soll_view_id, nil)
+        |> assign(:soll_view_id, soll_view_from_params(params))
         |> load_show(classification_id)
         |> load_soll()
 
@@ -88,6 +91,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
         push_navigate(socket, to: "/classifications")
     end
   end
+
+  # Reads the deep-link's `soll_view` param: missing → Gesamt (nil); otherwise
+  # "total"/an integer id via the shared, atom-safe parser.
+  defp soll_view_from_params(%{"soll_view" => value}), do: parse_soll_view(value)
+  defp soll_view_from_params(_params), do: nil
 
   @impl true
   def render(%{live_action: :show, tree: nil} = assigns) do

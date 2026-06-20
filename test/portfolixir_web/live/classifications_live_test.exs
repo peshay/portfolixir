@@ -611,6 +611,78 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert html =~ "Gesamt"
   end
 
+  # User story (#468, deep-link target):
+  # As a maintainer who clicked the "Create a plan for this view" hint on the
+  # Portfolio page (a view that had no plan),
+  # I want the classifications editor to open with that view AND classification
+  # already selected,
+  # so that I edit the right (view, classification) plan instead of starting on
+  # Gesamt and re-picking the view.
+  #
+  # Acceptance criteria:
+  # - /classifications/<id>?soll_view=<view_id> selects the named view in the
+  #   SOLL view selector (its option is selected).
+  # - The editor loads that (view, classification) plan, not the Gesamt plan.
+  test "the SOLL deep-link pre-selects the view from the soll_view param", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+    {:ok, named} = Buckets.create_view(Portfolixir.Actor.owner_ui(), %{name: "Strategie"})
+
+    # Gesamt has Equity at 80%; the named view has its own (different) plan.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.8"}],
+        view: nil
+      )
+
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.4"}],
+        view: named.id
+      )
+
+    {:ok, view, _html} =
+      live(conn, "/classifications/#{classification.id}?soll_view=#{named.id}")
+
+    # The named view's option is pre-selected in the SOLL view selector.
+    assert has_element?(
+             view,
+             "select[name='soll_view'] option[value='#{named.id}'][selected]"
+           )
+
+    # The editor loads the named view's plan (40%), not Gesamt's (80%).
+    assert has_element?(view, "input[name='weights[#{equity.id}]'][value='40']")
+    refute has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
+  end
+
+  # User story (#468, deep-link target — Gesamt):
+  # As a maintainer who clicked the hint from the Total (Gesamt) view,
+  # I want the deep-link with soll_view=total to land on the Gesamt plan,
+  # so the bridge works for the portfolio-wide plan too.
+  #
+  # Acceptance criteria:
+  # - /classifications/<id>?soll_view=total keeps Gesamt selected and loads it.
+  test "the SOLL deep-link with soll_view=total selects Gesamt", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.8"}],
+        view: nil
+      )
+
+    {:ok, view, _html} =
+      live(conn, "/classifications/#{classification.id}?soll_view=total")
+
+    assert has_element?(view, "select[name='soll_view'] option[value='total'][selected]")
+    assert has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
+  end
+
   defp assignments(classification_id) do
     Classifications.list_trees()
     |> Enum.find(&(&1.classification.id == classification_id))
