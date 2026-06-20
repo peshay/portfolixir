@@ -610,4 +610,292 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       assert Decimal.equal?(currency_alloc.total_value, Decimal.new("200"))
     end
   end
+
+  # User story:
+  # As a local portfolio maintainer who steers several views with their own
+  # 100% plans (ADR-0020),
+  # I want the allocation's SOLL side to come from the *active view's* plan for
+  # the classification — its category targets, its cash target, its Σ — and
+  # nothing from any other view,
+  # so that each view reads as one coherent plan and the ghost-row / ~200% Σ bug
+  # is gone by construction.
+  #
+  # Acceptance criteria:
+  # - With no view (Gesamt), the SOLL side is identical to today's behaviour.
+  # - A named view loads ONLY its own (view, classification) plan: its targets,
+  #   its cash target, its top_level_target_sum.
+  # - A category that has no in-scope value and no target in the active plan is
+  #   not rendered, even when another plan carries a target for it (ghost row).
+  # - An active view with no plan for the classification yields an IST-only
+  #   result: no targets, no cash target, top_level_target_sum 0, has_plan false.
+  # - Two views with different plans over the same classification never produce a
+  #   Σ above 100%; each view's Σ is its own plan only.
+  describe "view-bound SOLL plans (ADR-0020, #465)" do
+    defp named_view(name) do
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: name, include_all: true})
+      view
+    end
+
+    test "no view passed yields the same SOLL side as the Gesamt plan (view_id NULL)" do
+      world = setup_world()
+      %{classification: classification, core: core, satellite: satellite} = world
+
+      core_security = equity!("Core Equity", "CORE")
+      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      deposit!(world, "600", ~D[2026-01-01])
+      buy!(world, core_security, "10", "60")
+
+      # Write the plan to the Gesamt plan explicitly (view: nil), plus a Gesamt
+      # cash target.
+      {:ok, _} =
+        Targets.set_targets(world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "target_weight" => "0.7"},
+          %{"category_id" => satellite.id, "target_weight" => "0.3"}
+        ])
+
+      {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.0"))
+
+      prices = %{core_security.id => Decimal.new("60")}
+
+      {:ok, no_view} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      {:ok, gesamt} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices, view: nil)
+
+      assert no_view.has_plan == true
+      assert gesamt.has_plan == true
+
+      assert Decimal.equal?(no_view.top_level_target_sum, gesamt.top_level_target_sum)
+      assert Decimal.equal?(no_view.top_level_target_sum, Decimal.new("1.0"))
+
+      no_view_core = fetch_category(no_view, core.id)
+      gesamt_core = fetch_category(gesamt, core.id)
+      assert Decimal.equal?(no_view_core.target_weight, gesamt_core.target_weight)
+      assert Decimal.equal?(no_view_core.target_weight, Decimal.new("0.7"))
+      assert Decimal.equal?(no_view_core.drift_value, gesamt_core.drift_value)
+      assert Decimal.equal?(no_view.cash.target_weight, gesamt.cash.target_weight)
+    end
+
+    test "a named view loads only its own plan's category targets and Σ" do
+      world = setup_world()
+      %{classification: classification, core: core, satellite: satellite} = world
+      view = named_view("Stocks")
+
+      core_security = equity!("Core Equity", "CORE")
+      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      deposit!(world, "600", ~D[2026-01-01])
+      buy!(world, core_security, "10", "60")
+
+      # Gesamt plan: Core 0.9 — must NOT bleed into the view's reading.
+      {:ok, _} =
+        Targets.set_targets(world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "target_weight" => "0.9"}
+        ])
+
+      # The view's own plan: Core 0.6, Satellite 0.4.
+      {:ok, _} =
+        Targets.set_targets(
+          world.portfolio.id,
+          classification.id,
+          [
+            %{"category_id" => core.id, "target_weight" => "0.6"},
+            %{"category_id" => satellite.id, "target_weight" => "0.4"}
+          ],
+          view: view.id
+        )
+
+      prices = %{core_security.id => Decimal.new("60")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id,
+          prices: prices,
+          view: view.id
+        )
+
+      assert allocation.has_plan == true
+
+      core_row = fetch_category(allocation, core.id)
+      # The view's own target (0.6), NOT the Gesamt 0.9.
+      assert Decimal.equal?(core_row.target_weight, Decimal.new("0.6"))
+
+      satellite_row = fetch_category(allocation, satellite.id)
+      assert Decimal.equal?(satellite_row.target_weight, Decimal.new("0.4"))
+
+      # Σ over the view's plan only: 0.6 + 0.4 = 1.0 (the Gesamt 0.9 never counts).
+      assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("1.0"))
+    end
+
+    test "a named view reads its own cash target, not the Gesamt cash target" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+      view = named_view("CashView")
+
+      deposit!(world, "100", ~D[2026-01-01])
+
+      # Gesamt cash target 0.20 (portfolio-wide cash plan).
+      {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.20"))
+
+      # The view needs a plan for the classification to be "steered" at all.
+      {:ok, _} =
+        Targets.set_targets(
+          world.portfolio.id,
+          classification.id,
+          [%{"category_id" => core.id, "target_weight" => "0.5"}],
+          view: view.id
+        )
+
+      # The view's own cash target 0.05 (portfolio-wide cash plan for this view).
+      :ok = Targets.set_cash_target(world.portfolio.id, Decimal.new("0.05"), view: view.id)
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id,
+          prices: %{},
+          view: view.id
+        )
+
+      # The view's cash target (0.05), not the Gesamt 0.20.
+      assert Decimal.equal?(allocation.cash.target_weight, Decimal.new("0.05"))
+    end
+
+    test "an active view with no plan yields an IST-only result (no SOLL leakage)" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+      view = named_view("Empty")
+
+      core_security = equity!("Core Equity", "CORE")
+      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      deposit!(world, "600", ~D[2026-01-01])
+      buy!(world, core_security, "10", "60")
+
+      # The Gesamt plan has targets + cash; the view has NO plan -> IST-only.
+      {:ok, _} =
+        Targets.set_targets(world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "target_weight" => "0.9"}
+        ])
+
+      {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.25"))
+
+      prices = %{core_security.id => Decimal.new("60")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id,
+          prices: prices,
+          view: view.id
+        )
+
+      # No plan for this view: SOLL side collapses to zero, has_plan is false.
+      assert allocation.has_plan == false
+      assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0"))
+
+      core_row = fetch_category(allocation, core.id)
+      # The Gesamt 0.9 must NOT leak into the view with no plan.
+      assert Decimal.equal?(core_row.target_weight, Decimal.new("0"))
+
+      # The Gesamt cash target (0.25) must NOT leak either.
+      assert Decimal.equal?(allocation.cash.target_weight, Decimal.new("0"))
+
+      # The IST side is unchanged: Core still values at 600 (100% of the basis).
+      assert Decimal.equal?(allocation.total_value, Decimal.new("600"))
+      assert Decimal.equal?(core_row.market_value, Decimal.new("600"))
+      assert Decimal.equal?(core_row.actual_weight, Decimal.new("1"))
+    end
+
+    test "ghost row: a category targeted only by another plan is not rendered" do
+      world = setup_world()
+      %{classification: classification, core: core, satellite: satellite} = world
+      view = named_view("CoreOnly")
+
+      core_security = equity!("Core Equity", "CORE")
+      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      deposit!(world, "600", ~D[2026-01-01])
+      buy!(world, core_security, "10", "60")
+
+      # The GESAMT plan targets Satellite (which has no value). Under the view's
+      # plan, Satellite has no target and no value -> it must not render as a
+      # ghost row in the view's breakdown.
+      {:ok, _} =
+        Targets.set_targets(world.portfolio.id, classification.id, [
+          %{"category_id" => satellite.id, "target_weight" => "0.5"}
+        ])
+
+      # The view's plan only targets Core.
+      {:ok, _} =
+        Targets.set_targets(
+          world.portfolio.id,
+          classification.id,
+          [%{"category_id" => core.id, "target_weight" => "1.0"}],
+          view: view.id
+        )
+
+      prices = %{core_security.id => Decimal.new("60")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id,
+          prices: prices,
+          view: view.id
+        )
+
+      # Core renders (value + target); Satellite is absent (no value, no target
+      # in the active plan), so no ghost row and no foreign-target leak into Σ.
+      assert fetch_category(allocation, core.id) != nil
+      assert fetch_category(allocation, satellite.id) == nil
+      assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("1.0"))
+    end
+
+    test "two views with their own plans over one classification each Σ to <= 100%" do
+      world = setup_world()
+      %{classification: classification, core: core, satellite: satellite} = world
+      stocks = named_view("Stocks")
+      crypto = named_view("Crypto")
+
+      core_security = equity!("Core Equity", "CORE")
+      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      deposit!(world, "600", ~D[2026-01-01])
+      buy!(world, core_security, "10", "60")
+
+      # Each view steers the same classification to its own 100%.
+      {:ok, _} =
+        Targets.set_targets(
+          world.portfolio.id,
+          classification.id,
+          [%{"category_id" => core.id, "target_weight" => "1.0"}],
+          view: stocks.id
+        )
+
+      {:ok, _} =
+        Targets.set_targets(
+          world.portfolio.id,
+          classification.id,
+          [%{"category_id" => satellite.id, "target_weight" => "1.0"}],
+          view: crypto.id
+        )
+
+      prices = %{core_security.id => Decimal.new("60")}
+
+      {:ok, stocks_alloc} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id,
+          prices: prices,
+          view: stocks.id
+        )
+
+      {:ok, crypto_alloc} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id,
+          prices: prices,
+          view: crypto.id
+        )
+
+      # Each view's Σ is its own coherent 100% — never the ~200% of the old
+      # shared-target world.
+      assert Decimal.equal?(stocks_alloc.top_level_target_sum, Decimal.new("1.0"))
+      assert Decimal.equal?(crypto_alloc.top_level_target_sum, Decimal.new("1.0"))
+      assert Decimal.compare(stocks_alloc.top_level_target_sum, Decimal.new("1")) != :gt
+      assert Decimal.compare(crypto_alloc.top_level_target_sum, Decimal.new("1")) != :gt
+    end
+  end
 end
