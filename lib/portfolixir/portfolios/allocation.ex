@@ -17,15 +17,14 @@ defmodule Portfolixir.Portfolios.Allocation do
   `actual_weight` uses the rolled-up value. Rows come back in tree order
   (parent before its children) with a `depth`, so the table can indent.
 
-  Weights are shares of the **steering basis**: the valued positions' total
-  market value *minus* any position whose security is flagged
-  `excluded_from_allocation_targets` (see ADR-0013), *plus* the deployable cash
-  (`free_cash` accounts with a non-negative balance, FR6; ADR-0009).
-  Those flagged-excluded positions stay in `Portfolixir.Portfolios.Valuation`'s
-  totals and in performance, but are kept out of the 100% here so the target mix
-  is not diluted by, say, a Bitcoin held as a store of value. They surface as a
-  separate `excluded` block (`market_value` plus per-security `positions`)
-  rather than disappearing. Cash, by contrast, is now **part** of the basis: a
+  Weights are shares of the **steering basis**: the (possibly view-scoped) valued
+  positions' total market value *plus* the deployable cash (`free_cash` accounts
+  with a non-negative balance, FR6; ADR-0009). To keep a holding out of the
+  steering basis while it still counts toward total wealth, tag it with a bucket
+  and exclude that bucket from the active view (ADR-0018): the position then falls
+  outside the view's scope and never enters this 100%. (This replaces the retired
+  per-security `excluded_from_allocation_targets` flag / ADR-0013.) Cash is
+  **part** of the basis: a
   maintainer who steers a cash quote (e.g. ~5%) gets a dedicated `cash` row
   (actual share, target from the portfolio's `cash_target_weight`, drift) in the
   same drift logic, and every category percentage shrinks accordingly once cash
@@ -67,7 +66,6 @@ defmodule Portfolixir.Portfolios.Allocation do
   comparison the UI draws uses exact `Decimal.equal?/2`.
   """
 
-  alias Portfolixir.Catalog
   alias Portfolixir.Classifications
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
@@ -92,7 +90,6 @@ defmodule Portfolixir.Portfolios.Allocation do
         classification = Classifications.get_classification(classification_id)
         categories = Classifications.list_categories(classification_id)
         valuation = Valuation.for_portfolio(portfolio_id, opts)
-        excluded_ids = Catalog.excluded_from_allocation_target_ids()
         cash_target = cash_target_for(portfolio_id)
 
         targets =
@@ -107,7 +104,6 @@ defmodule Portfolixir.Portfolios.Allocation do
            categories,
            security_categories,
            targets,
-           excluded_ids,
            cash_target
          )}
     end
@@ -128,22 +124,20 @@ defmodule Portfolixir.Portfolios.Allocation do
          categories,
          security_categories,
          targets,
-         excluded_ids,
          cash_target
        ) do
-    {steering_positions, excluded_positions} = split_excluded(valuation, excluded_ids)
+    steering_positions = Enum.filter(valuation.positions, & &1.valued)
 
-    # The steering basis (the 100%) is securities (minus flagged-excluded
-    # positions, ADR-0013) PLUS the deployable cash (`free_cash` accounts with a
-    # non-negative balance, FR6; ADR-0009). Cash is part of
-    # the target mix: a maintainer who steers ~5% cash wants it tracked in the
-    # same drift logic, so its weight enters the same 100% as the categories
-    # (issue #335). Category percentages, target/actual/drift, the Σ header and
-    # the sunburst are all shares of this basis. Excluded positions still show
-    # in the valuation's totals and performance; here they surface in a separate
-    # `excluded` block instead of vanishing.
-    excluded_value = sum_values(excluded_positions)
-    securities_value = Decimal.sub(valuation.total_value, excluded_value)
+    # The steering basis (the 100%) is the (possibly view-scoped) valued
+    # securities PLUS the deployable cash (`free_cash` accounts with a
+    # non-negative balance, FR6; ADR-0009). Cash is part of the target mix: a
+    # maintainer who steers ~5% cash wants it tracked in the same drift logic, so
+    # its weight enters the same 100% as the categories (issue #335). Category
+    # percentages, target/actual/drift, the Σ header and the sunburst are all
+    # shares of this basis. To keep a holding out of the basis while it still
+    # counts toward total wealth, exclude its bucket from the active view
+    # (ADR-0018), which removes it from the valuation's scoped positions.
+    securities_value = valuation.total_value
     counting_cash = valuation.counting_cash
     total = Decimal.add(securities_value, counting_cash)
 
@@ -192,8 +186,7 @@ defmodule Portfolixir.Portfolios.Allocation do
       cash: cash_row(counting_cash, cash_target, total, distribute_cash?),
       top_level_target_sum:
         top_level_target_sum_for(children_by_parent, targets, cash_target, distribute_cash?),
-      unassigned: unassigned(unassigned_positions, total),
-      excluded: excluded(excluded_positions, excluded_value)
+      unassigned: unassigned(unassigned_positions, total)
     }
   end
 
@@ -259,17 +252,6 @@ defmodule Portfolixir.Portfolios.Allocation do
     }
   end
 
-  # Splits the valuation's valued positions into the steering set (the basis for
-  # category percentages and drift) and the flagged-excluded set. Unvalued
-  # positions are dropped on both sides, matching the previous behaviour.
-  defp split_excluded(valuation, excluded_ids) do
-    valuation.positions
-    |> Enum.filter(& &1.valued)
-    |> Enum.split_with(fn position ->
-      not MapSet.member?(excluded_ids, position.security_id)
-    end)
-  end
-
   # Sum of the direct children's target weights per parent, or absent when no
   # direct child carries a target — so the UI only hints where a comparison is
   # meaningful. Advisory only; never used to validate or block saving targets.
@@ -303,8 +285,8 @@ defmodule Portfolixir.Portfolios.Allocation do
     end)
   end
 
-  # Groups each (valued, non-excluded) position under the category it is directly
-  # assigned to, collecting positions with no assignment into the unassigned pot.
+  # Groups each valued position under the category it is directly assigned to,
+  # collecting positions with no assignment into the unassigned pot.
   defp group_positions(positions, security_categories) do
     positions
     |> Enum.reduce({%{}, []}, fn position, {by_category, unassigned} ->
@@ -453,20 +435,6 @@ defmodule Portfolixir.Portfolios.Allocation do
         market_value: value,
         actual_weight: weight(value, total),
         positions: position_entries(positions, total)
-      }
-    else
-      nil
-    end
-  end
-
-  # The flagged-out positions, surfaced as a separate block so they stay visible
-  # ("outside the steering basis: X €") instead of silently dropping out of the
-  # allocation view. `nil` when nothing is excluded so the UI can hide the block.
-  defp excluded(positions, value) do
-    if positive?(value) do
-      %{
-        market_value: value,
-        positions: position_entries(positions, value)
       }
     else
       nil

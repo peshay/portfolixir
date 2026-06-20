@@ -49,15 +49,15 @@ Löschantwort keinen JSON-Body parsen.
   Zertifikat-/Hebel-Codes `warrant`, `knock_out`, `factor_certificate`,
   `discount_certificate`, `bonus_certificate`, `express_certificate`,
   `reverse_convertible`. Lass es leer, damit die Klasse beim Lesen aus
-  Name/ISIN/Ticker inferiert wird. Das optionale Boolean
-  `excluded_from_allocation_targets` (Standard `false`) hält eine Position aus der
-  Allokations-Steuerbasis (den 100 %) und der Drift-Tabelle heraus, während sie in
-  den Bewertungssummen und der Performance bleibt — z. B. ein als Wertspeicher
-  gehaltener Bitcoin; ausgeschlossene Positionen erscheinen im `excluded`-Block der
-  Allokation.
+  Name/ISIN/Ticker inferiert wird. Um eine Position aus der
+  Allokations-Steuerbasis (den 100 %) und der Drift-Tabelle herauszuhalten,
+  während sie in den Bewertungssummen und der Performance bleibt — z. B. ein als
+  Wertspeicher gehaltener Bitcoin —, versiehst du sie mit einem Bucket und
+  schließt diesen Bucket aus einer Ansicht aus; lies die Allokation dann unter
+  dieser Ansicht.
 - `GET /api/v1/securities/:id` liefert ein Wertpapier.
 - `PATCH /api/v1/securities/:id` aktualisiert ein Wertpapier mit einem
-  `security`-Objekt (einschließlich `excluded_from_allocation_targets`).
+  `security`-Objekt.
 - `DELETE /api/v1/securities/:id` löscht ein Wertpapier, wenn keine abhängigen
   Transaktionen oder keine Kurshistorie darauf verweisen; referenzierte
   Wertpapiere liefern `409 Conflict`.
@@ -366,8 +366,8 @@ Beispiel-Payloads für Konten:
   zusammengeführt; das ist es, was der äußerste Ring des Sunburst rendert.
   Gehaltene, aber im Baum nicht zugeordnete Wertpapiere werden in `unassigned`
   summiert. Gewichte sind Anteile der **Steuerbasis**: der Gesamtwert der
-  bewerteten Positionen abzüglich jedes als `excluded_from_allocation_targets`
-  markierten Wertpapiers, **plus das verfügbare Cash** (`free_cash`-Konten mit
+  bewerteten Positionen (eingeschränkt durch die aktive `view`, sofern angegeben),
+  **plus das verfügbare Cash** (`free_cash`-Konten mit
   nicht-negativem Saldo). `total_value` ist hier diese
   Steuerbasis (nicht die volle Bewertung). Die Antwort trägt ein `cash`-Objekt —
   `market_value` (das zählende Cash), `actual_weight` (sein Anteil an
@@ -383,17 +383,16 @@ Beispiel-Payloads für Konten:
   Kategorie-Prozentsätze entsprechend, sobald Cash vorhanden ist. Der
   `top_level_target_sum` ist die Summe der Ziele der Wurzelkategorien **plus das
   Cash-Ziel** (außer im Währungs-Baum, wo Cash in Kategorien verteilt wird),
-  verglichen mit `1`. Als ausgeschlossen markierte Positionen verschwinden nicht:
-  sie erscheinen in einem separaten `excluded`-Objekt (`market_value` plus
-  `positions` je Wertpapier oder `null`, wenn nichts ausgeschlossen ist), sodass
-  sie sichtbar bleiben, während die Prozentsätze und die Drift nur den gesteuerten
-  Teil beschreiben. Die Bewertungs- und Performance-Endpunkte sind vom Flag
-  unbeeinflusst. Unbekannte Portfolios oder Klassifizierungen liefern `404 Not
+  verglichen mit `1`. Um einen Bestand aus der Steuerbasis herauszuhalten,
+  während er weiterhin zum Gesamtvermögen zählt, versiehst du ihn mit einem
+  Bucket und schließt diesen Bucket aus der `view` aus, unter der du die
+  Allokation liest — er fällt dann aus den eingeschränkten Positionen.
+  Unbekannte Portfolios oder Klassifizierungen liefern `404 Not
   Found`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` liefert eine
   **Risiko-/Konzentrationssicht** für ein Portfolio über die **Steuerbasis** (der
-  Gesamtwert der bewerteten Positionen abzüglich jedes als
-  `excluded_from_allocation_targets` markierten Wertpapiers — dieselbe Basis wie
+  Gesamtwert der bewerteten Positionen, eingeschränkt durch die aktive `view` —
+  dieselbe Basis wie
   die Allocation-Drift). Ein über mehrere Depots gehaltenes Wertpapier wird zu
   einer Einzeltitel-Position zusammengeführt. Gewichte, Caps und der HHI liegen
   alle auf einer **0-100-Prozentskala** (Decimal-Strings, volle Präzision, keine

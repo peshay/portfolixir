@@ -6,8 +6,18 @@ description: Decision to let a per-security flag keep a position (e.g. Bitcoin) 
 
 # ADR-0013: Exclude flagged securities from the allocation steering basis
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0018](0018-buckets-tag-based-wealth-scoping.html)
 - **Date:** 2026-06-13
+
+> **Superseded (2026-06-20, #447).** The per-security
+> `excluded_from_allocation_targets` flag described here was removed in the
+> buckets/views cutover. Its job — carving a position out of the allocation
+> steering basis while it still counts toward total wealth — is now done by
+> tagging the security with a bucket and excluding that bucket from a view
+> (ADR-0018 §4). The separate "outside the steering basis" block is gone; the
+> behaviour is reproduced by viewing allocation under a view that excludes the
+> bucket. The text below is kept as the historical record of the original
+> decision.
 
 ## Context
 

@@ -46,21 +46,6 @@ defmodule Portfolixir.Catalog do
     |> Repo.all()
   end
 
-  @doc """
-  Returns the set of security ids flagged `excluded_from_allocation_targets`.
-
-  Used by `Portfolixir.Portfolios.Allocation` to keep flagged positions out of
-  the steering basis (the 100%) while leaving valuation and performance
-  untouched. A `MapSet` so the allocation can test membership cheaply.
-  """
-  def excluded_from_allocation_target_ids do
-    Security
-    |> where([s], s.excluded_from_allocation_targets == true)
-    |> select([s], s.id)
-    |> Repo.all()
-    |> MapSet.new()
-  end
-
   # `:logo_status` narrows the list by logo state, used by the "securities
   # without logo" overview. `:missing` excludes both stored logos and rows the
   # user explicitly locked to "no logo".

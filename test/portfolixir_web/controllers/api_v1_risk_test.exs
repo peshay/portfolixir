@@ -4,7 +4,6 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 0, create_security!: 1, buy!: 3, deposit!: 3]
 
-  alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
 
   defp api_conn(conn) do
@@ -25,8 +24,7 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
   end
 
   # Builds a world whose steerable basis is exactly 1000 EUR, priced from stored
-  # quotes (so the API path needs no test-only price overrides), plus an excluded
-  # crypto of 500 that must stay out of the basis.
+  # quotes (so the API path needs no test-only price overrides).
   defp risk_world do
     world = base_world()
 
@@ -35,34 +33,23 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
     stock_small = equity!("Stock Small", "SML")
     big_etf = etf!("Big World ETF", "WRLD")
 
-    {:ok, crypto} =
-      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Store Of Value",
-        currency_code: "EUR",
-        asset_class: "crypto",
-        excluded_from_allocation_targets: true
-      })
-
     deposit!(world, "2000", ~D[2026-01-01])
 
     buy!(world, stock_big, quantity: "6", price: "100")
     buy!(world, stock_mid, quantity: "9", price: "10")
     buy!(world, stock_small, quantity: "5", price: "10")
     buy!(world, big_etf, quantity: "26", price: "10")
-    buy!(world, crypto, quantity: "5", price: "100")
 
     quote!(stock_big, "100")
     quote!(stock_mid, "10")
     quote!(stock_small, "10")
     quote!(big_etf, "10")
-    quote!(crypto, "100")
 
     Map.merge(world, %{
       stock_big: stock_big,
       stock_mid: stock_mid,
       stock_small: stock_small,
-      big_etf: big_etf,
-      crypto: crypto
+      big_etf: big_etf
     })
   end
 
@@ -70,12 +57,11 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
   # As an API client (and the LLM I connect over MCP),
   # I want the portfolio's risk/concentration lens from one endpoint,
   # so that single-name and asset-class concentration are visible without
-  # joining the valuation, the exclusion flag and the classifications by hand.
+  # joining the valuation and the classifications by hand.
   #
   # Acceptance criteria:
   # - GET /portfolios/:id/risk returns the Top-N single names (weight Decimal
   #   string + severity), the HHI value/band and the steerable basis.
-  # - Positions flagged excluded_from_allocation_targets stay out of the basis.
   # - Asset-class caps are opt-in via a request param; only classes over cap come
   #   back, with the overage in percentage points.
   # - top_n overrides the default of 10. An unknown portfolio returns 404.
@@ -109,9 +95,6 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
     assert weights[world.stock_small.id]["severity"] == "ok"
     assert weights[world.big_etf.id]["weight"] == "26"
     assert weights[world.big_etf.id]["severity"] == "warn"
-
-    # The excluded crypto never surfaces as a single-name exposure.
-    refute Map.has_key?(weights, world.crypto.id)
 
     assert data["hhi"]["value"] == "4382"
     assert data["hhi"]["band"] == "concentrated"
