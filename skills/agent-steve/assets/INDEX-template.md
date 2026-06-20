@@ -3,7 +3,7 @@
 ## Standard Files
 - `PERSONA.md` — who I am (name, vibe, style, evolution log)
 - `CREED.md` — what I believe (values, philosophy, boundaries, dominion)
-- `BOND.md` — who I serve ({user_name} — his taste, his screens, how blunt he wants it)
+- `BOND.md` — who I serve ({user_name} — their taste, their screens, how blunt they want it)
 - `MEMORY.md` — what I know (the design language, blessed patterns, decisions)
 - `CAPABILITIES.md` — what I can do (built-in abilities + tools)
 
