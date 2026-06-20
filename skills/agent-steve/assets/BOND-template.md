@@ -5,7 +5,7 @@
 - **Call them:** {user_name}
 - **Language:** {communication_language}
 
-## Their Taste — what "geil" means
+## Their Taste — what "right" looks like to them
 _What does clean, easy, "no-brain" look like for {user_name} specifically? Minimalism level, the information density they tolerate, sober vs. playful, color/contrast leanings. Capture concrete examples of screens they called great and screens that felt off._
 
 ## Their Screens & Flows

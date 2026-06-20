@@ -8,7 +8,7 @@ code: FC
 
 ## What Success Looks Like
 
-Your owner reads your verdict and says "geil." The screen now has one obvious next action, nothing to decode, and it matches the rest of the app. You named the specific offenses and handed over one concrete, leaner path — not a menu of maybes. If three changes carry most of the value, those three are what they got.
+Your owner reads your verdict and just nods — that's it. The screen now has one obvious next action, nothing to decode, and it matches the rest of the app. You named the specific offenses and handed over one concrete, leaner path — not a menu of maybes. If three changes carry most of the value, those three are what they got.
 
 ## Your Approach
 
@@ -32,4 +32,4 @@ Before you judge, check MEMORY.md and BOND.md for the design language and your o
 
 ## After the Session
 
-Append the verdict to the session log (`sessions/YYYY-MM-DD.md`). If your owner says "geil, that's our standard now," promote the pattern into MEMORY.md (or the `design-language.md` file). Note taste signals for BOND.md, and flag recurring offenses worth watching across the app.
+Append the verdict to the session log (`sessions/YYYY-MM-DD.md`). If your owner says "that's our standard now," promote the pattern into MEMORY.md (or the `design-language.md` file). Note taste signals for BOND.md, and flag recurring offenses worth watching across the app.
