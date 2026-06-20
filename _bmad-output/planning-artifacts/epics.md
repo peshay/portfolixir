@@ -227,6 +227,7 @@ Epics are organized by the PRD's five phases plus cross-cutting concerns, ordere
 | **E12 — Localization & docs** | — | cross-cutting | #313 |
 | **E13 — Buckets & views (ADR-0018)** | — | now | #448 (#443–#447) |
 | **E14 — CSS consistency & design-system** | — | priority 3 | #451 (#449, #450) |
+| **E15 — View-bound SOLL plans (ADR-0020)** | 2 | next | #463 (#464–#468) |
 
 ## Epic Detail
 
@@ -288,3 +289,22 @@ in **#451**; stories #449 (hex→tokens, ratchet to zero) and #450 (4px spacing
 scale + heading ramp, UX-DR14 break-out). Related: #412 (forms + dead `.mono`),
 #411 (chart accent), #356 (UX tracker). UI priority 3 per #321, but the guard is
 cross-cutting and already active.
+
+### Epic 15: View-bound SOLL plans (ADR-0020)
+From a design session 2026-06-20 (Andi), recorded in **ADR-0020**. Follow-on to
+E13 (buckets & views, ADR-0018) and the retirement of the per-security exclude
+flag (#447). Since #444 the **IST** side of the SOLL/IST allocation is
+view-scoped, but the **SOLL** (target weights + the global `cash_target_weight`)
+stayed global per classification — so two strategy views cannot each be a
+coherent 100% plan (their targets collide to ~200%), and a category with a target
+but no in-scope value renders as a ghost row under any view. ADR-0020 makes a
+target **plan belong to a view**: targets keyed by `(view, classification,
+category)` with `view_id NULL` = the portfolio-wide **Gesamt** plan; the cash
+target moves into the plan; a view may carry its own plan or none (→ IST-only).
+The active view loads only its own plan, fixing the 200%/ghost-row incoherence by
+construction. Editing lives on the classifications page (with a view selector),
+viewing on the portfolio page (driven by the #446 view switcher), with a deep-link
+between them. Migration is loss-free (existing targets + cash target → the Gesamt
+plan). Tracked in **#463**; stories sequence #464 (data model + migration) → #465
+(engine) → #466 (API/MCP) → #467 (editor UI) → #468 (viewer UI + docs). Extends
+FR-11; API/MCP parity per AR-11.
