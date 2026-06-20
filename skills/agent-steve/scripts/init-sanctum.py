@@ -17,7 +17,6 @@ Uses only the Python standard library. Run with `uv run` or plain `python3`.
 """
 
 import argparse
-import re
 import shutil
 import sys
 from datetime import date
@@ -70,13 +69,19 @@ def parse_yaml_config(config_path: Path) -> dict:
 
 
 def parse_frontmatter(file_path: Path) -> dict:
-    """Extract YAML frontmatter (top-level scalars) from a markdown file."""
+    """Extract YAML frontmatter (top-level scalars) from a markdown file.
+
+    Reads the block delimited by the leading `---` line and the next `---`
+    using plain string scanning (no regex) to keep parsing linear and avoid
+    any backtracking surface.
+    """
     meta = {}
-    content = file_path.read_text()
-    match = re.match(r"^---\s*\n(.*?)\n---", content, re.DOTALL)
-    if not match:
+    lines = file_path.read_text().splitlines()
+    if not lines or lines[0].strip() != "---":
         return meta
-    for line in match.group(1).strip().split("\n"):
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
         if ":" in line:
             key, _, value = line.partition(":")
             meta[key.strip()] = value.strip().strip("'\"")
