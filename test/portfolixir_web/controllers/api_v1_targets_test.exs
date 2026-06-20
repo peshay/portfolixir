@@ -262,7 +262,18 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert get_json(conn, "/api/v1/portfolios/999999/targets") |> json_response(404) ==
              %{"errors" => %{"detail" => "not found"}}
 
+    # A non-numeric portfolio id fails parse_id (the index `:error` branch).
+    assert get_json(conn, "/api/v1/portfolios/not-a-number/targets") |> json_response(404) ==
+             %{"errors" => %{"detail" => "not found"}}
+
     assert put_json(conn, "/api/v1/portfolios/not-a-number/targets", %{
+             "classification_id" => 1,
+             "targets" => []
+           })
+           |> json_response(404) == %{"errors" => %{"detail" => "not found"}}
+
+    # An unknown (numeric) portfolio is not found on set (the set `nil` branch).
+    assert put_json(conn, "/api/v1/portfolios/999999/targets", %{
              "classification_id" => 1,
              "targets" => []
            })
@@ -639,5 +650,53 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
              "cash_target_weight" => "0.1"
            })
            |> json_response(404) == missing
+  end
+
+  # User story:
+  # As an API client (and the LLM I connect over MCP) steering a per-plan cash
+  # target (ADR-0020),
+  # I want the cash-target endpoints to reject a bad portfolio or view with the
+  # same structured 404/422 contract as the rest of the target API,
+  # so that a non-numeric id, an unknown portfolio, or a malformed view never
+  # crashes the request or silently writes the Gesamt cash plan.
+  #
+  # Acceptance criteria:
+  # - GET cash_target with a non-numeric portfolio id returns 404.
+  # - GET cash_target with a valid portfolio but unknown `view` id returns 404.
+  # - PUT cash_target with a non-numeric portfolio id returns 404.
+  # - PUT cash_target with an unknown (numeric) portfolio returns 404.
+  # - PUT cash_target with a valid portfolio but a malformed `view` returns 422.
+  test "rejects a bad portfolio or view on the cash-target endpoints", %{conn: conn} do
+    %{portfolio: portfolio} = setup_world()
+
+    bad = %{"errors" => %{"view" => ["is invalid"]}}
+    missing = %{"errors" => %{"detail" => "not found"}}
+
+    # GET cash_target: a non-numeric portfolio id fails parse_id (404).
+    assert get_json(conn, "/api/v1/portfolios/not-a-number/cash_target")
+           |> json_response(404) == missing
+
+    # GET cash_target: a valid portfolio but an unknown view id (404).
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target?view=999999")
+           |> json_response(404) == missing
+
+    # PUT cash_target: a non-numeric portfolio id fails parse_id (404).
+    assert put_json(conn, "/api/v1/portfolios/not-a-number/cash_target", %{
+             "cash_target_weight" => "0.1"
+           })
+           |> json_response(404) == missing
+
+    # PUT cash_target: an unknown (numeric) portfolio is not found (404).
+    assert put_json(conn, "/api/v1/portfolios/999999/cash_target", %{
+             "cash_target_weight" => "0.1"
+           })
+           |> json_response(404) == missing
+
+    # PUT cash_target: a valid portfolio but a malformed view is invalid (422).
+    assert put_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target", %{
+             "view" => "nope",
+             "cash_target_weight" => "0.1"
+           })
+           |> json_response(422) == bad
   end
 end
