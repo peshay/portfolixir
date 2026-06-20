@@ -61,3 +61,6 @@ __pycache__/
 
 # Dialyzer PLTs (machine/version-specific build artifacts; CI caches separately)
 /priv/plts/
+
+# Agent builder quality-analysis output (generated, regenerable artifacts)
+/skills/reports/
