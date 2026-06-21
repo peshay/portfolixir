@@ -322,6 +322,21 @@ defmodule PortfolixirWeb.ImportsLive do
         <%= gettext("Skipped duplicates: %{n}", n: @result.skipped_duplicates) %>
       </p>
 
+      <%= if @result.skipped_entries != [] do %>
+        <div class="import-skipped" data-role="skipped-entries">
+          <p class="muted">
+            <%= gettext("Skipped %{n} unimportable record(s):",
+              n: length(@result.skipped_entries)
+            ) %>
+          </p>
+          <ul>
+            <%= for skip <- @result.skipped_entries do %>
+              <li><%= gettext("Row %{row}: %{reason}", row: skip.row, reason: skip.reason) %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
       <div class="summary">
         <div class="import-stat-card">
           <span class="label"><%= gettext("Securities") %></span>

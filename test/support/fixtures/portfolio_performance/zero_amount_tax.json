@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "transactions": [
+    {"type": "DEPOSIT", "date": "2024-01-01", "amount": 5000, "currency": "EUR", "account": "Cash"},
+    {"type": "PURCHASE", "date": "2024-01-02", "amount": 1000, "shares": 10, "currency": "EUR", "account": "Cash", "portfolio": "Depot", "security": {"name": "Demo AG", "isin": "DE000DEMO001", "wkn": null, "ticker": "DEMO", "currency": "EUR"}},
+    {"type": "TAX", "date": "2024-01-03", "amount": 0, "currency": "EUR", "account": "Cash"},
+    {"type": "OUTBOUND_DELIVERY", "date": "2024-01-04", "amount": 0, "shares": 5, "currency": "EUR", "portfolio": "Depot", "security": {"name": "Demo AG", "isin": "DE000DEMO001", "wkn": null, "ticker": "DEMO", "currency": "EUR"}}
+  ]
+}
