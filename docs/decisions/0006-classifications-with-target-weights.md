@@ -103,7 +103,7 @@ taxonomy trees plus auto-managed built-in trees.
   source for the built-in asset-class tree (not removed) and is now also written
   by reassigning a security within that tree, so no extra stored assignments are
   needed for the asset-class cut.
-- **Target and actual weights (SOLL/IST) are out of scope here** and were added
+- **Target and actual weights (target/actual) are out of scope here** and were added
   in a follow-up, [ADR-0008](0008-target-weights-and-allocation.html), on top of
   this structure; at the time of this decision categories carried no weight.
 - Region/industry built-ins (e.g. from the ISIN country prefix) are deliberately
