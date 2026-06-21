@@ -24,4 +24,19 @@ Then import the file through the Imports view (drag & drop, map everything as
 "create new", apply), or via the JSON API / a small `mix run` script that calls
 `Portfolixir.Imports.parse_portfolio_performance/2` and `Imports.apply/2`.
 
-The screenshots under `docs/screenshots/` were produced from this dataset.
+## Strategies + target weights (optional)
+
+To reproduce the target-vs-actual rebalancing view shown in the README, seed a
+small "Strategies" classification with target weights after importing:
+
+```bash
+DATABASE_NAME=portfolixir_demo PORT=4003 mix run priv/demo/strategies_seed.exs
+```
+
+It builds a Stability / Growth / Crypto tree fitted to the demo securities,
+assigns each holding to a category, and sets target weights plus a cash target,
+so the portfolio allocation view (classification "Strategies") shows
+per-category drift.
+
+The screenshots and the tour GIF under `docs/screenshots/` were produced from
+this dataset.
