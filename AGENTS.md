@@ -46,10 +46,13 @@ New functionality must stay small, reviewed, locally tested, and documented.
 - Never create atoms from external input with `String.to_atom/1`.
 - Use `Decimal` for money, quantities, prices, fees, taxes, and FX rates.
 - Do not use floats for persisted financial values.
-- Do not implement document intake (binary `.portfolio`, PP XML, broker PDFs),
+- Do not implement document intake (binary `.portfolio`, PP XML),
   broker sync, bank sync, trading, payment, order, rebalance, or LLM behavior
   unless a reviewed story explicitly changes scope. The Portfolio Performance
   CSV/JSON v1 import flow defined in goal #9 is an in-scope exception.
+  Broker-PDF transaction intake is also an in-scope exception per ADR-0021,
+  constrained to a sandboxed, text-extraction-only, per-broker, preview-then-
+  confirm importer (binary `.portfolio` intake stays out of scope).
 - Do not add advanced reports or advanced classifications.
 - Do not claim production readiness.
 - Public files must be normal readable multiline files.
