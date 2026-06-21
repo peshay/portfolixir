@@ -876,6 +876,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       weights: weights,
       cash_target: cash_target,
       top_level_ids: top_level_ids(assigns.tree.flat),
+      children_by_parent: children_by_parent(assigns.tree.flat),
       child_sums: child_sums(assigns.tree.flat, weights),
       copy_sources: copy_sources(portfolio_id, classification_id, view_id, assigns.views)
     }
@@ -891,6 +892,18 @@ defmodule PortfolixirWeb.ClassificationsLive do
     for {category, _depth} <- flat, is_nil(category.parent_id), into: MapSet.new() do
       category.id
     end
+  end
+
+  # The parent→children id structure (`%{parent_id => [child_id, ...]}`, integers)
+  # used to roll a blank parent's Σ up from its children's effective weights.
+  # Only real parents (non-nil parent_id rows grouped by their parent) appear.
+  defp children_by_parent(flat) do
+    flat
+    |> Enum.reject(fn {category, _depth} -> is_nil(category.parent_id) end)
+    |> Enum.group_by(
+      fn {category, _depth} -> category.parent_id end,
+      fn {category, _depth} -> category.id end
+    )
   end
 
   # Live Σ from the in-flight form values: recompute the running total and the
@@ -944,18 +957,20 @@ defmodule PortfolixirWeb.ClassificationsLive do
     |> Enum.map(fn {label, id} -> {label, view_param(id)} end)
   end
 
-  # Running total: the TOP-LEVEL category percentages plus the cash percentage.
-  # Children are excluded because a parent's weight already accounts for them,
-  # matching the allocation engine's `top_level_target_sum` (#467). Decimal math
-  # throughout so the 100% comparison is exact. The `top_level_ids` set is always
-  # populated by `build_soll/4`; the fallback keeps a malformed map from crashing.
+  # Running total: the TOP-LEVEL categories' EFFECTIVE weights plus the cash
+  # percentage. A category's effective weight is its own explicit weight when set
+  # (children are not added on top — that stays the per-parent hint only), else
+  # the rolled-up sum of its children's effective weights so sub-category-only
+  # plans still count (#467). Decimal math throughout so the 100% comparison is
+  # exact. `top_level_ids`/`children_by_parent` are always populated by
+  # `build_soll/4`; the fallback keeps a malformed map from crashing.
   defp put_sum(soll) do
     top_level_ids = Map.get(soll, :top_level_ids)
+    children_by_parent = Map.get(soll, :children_by_parent)
 
     sum =
-      soll.weights
-      |> top_level_weights(top_level_ids)
-      |> Enum.reduce(@zero, &Decimal.add(&2, to_decimal(&1)))
+      soll
+      |> effective_top_level_sum(top_level_ids, children_by_parent)
       |> Decimal.add(to_decimal(soll.cash_target))
 
     soll
@@ -963,11 +978,36 @@ defmodule PortfolixirWeb.ClassificationsLive do
     |> Map.put(:mismatch?, not Decimal.equal?(sum, @hundred))
   end
 
-  defp top_level_weights(weights, %MapSet{} = top_level_ids) do
-    for {id, value} <- weights, MapSet.member?(top_level_ids, id), do: value
+  defp effective_top_level_sum(soll, %MapSet{} = top_level_ids, children_by_parent)
+       when is_map(children_by_parent) do
+    Enum.reduce(top_level_ids, @zero, fn id, acc ->
+      Decimal.add(acc, effective_weight(id, soll.weights, children_by_parent))
+    end)
   end
 
-  defp top_level_weights(weights, _missing), do: Map.values(weights)
+  # Fallback when the tree shape is absent (malformed soll): sum every weight, as
+  # the pre-#467 editor did, so the badge degrades gracefully instead of crashing.
+  defp effective_top_level_sum(soll, _ids, _children) do
+    Enum.reduce(soll.weights, @zero, fn {_id, value}, acc ->
+      Decimal.add(acc, to_decimal(value))
+    end)
+  end
+
+  # A category's effective weight: its explicit weight when set, else the summed
+  # effective weights of its children (recursive roll-up), else zero.
+  defp effective_weight(id, weights, children_by_parent) do
+    case Map.get(weights, id) do
+      nil ->
+        children_by_parent
+        |> Map.get(id, [])
+        |> Enum.reduce(@zero, fn child_id, acc ->
+          Decimal.add(acc, effective_weight(child_id, weights, children_by_parent))
+        end)
+
+      value ->
+        to_decimal(value)
+    end
+  end
 
   # Sum of each parent's direct children's percentages, keyed by parent id, only
   # where at least one child carries a weight (advisory hint, display-only).
