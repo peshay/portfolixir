@@ -23,7 +23,12 @@ if [ ! -f "$ALLOWLIST_FILE" ]; then
 fi
 
 # Allowed emails, lower-cased, with comments (# ...) and whitespace stripped.
-mapfile -t ALLOWED < <(sed -e 's/#.*//' -e 's/[[:space:]]//g' "$ALLOWLIST_FILE" \
+# Read into an array with a portable loop instead of `mapfile` (a bash 4+
+# builtin) so the hook also runs under macOS' default /bin/bash 3.2.
+ALLOWED=()
+while IFS= read -r line; do
+  ALLOWED+=("$line")
+done < <(sed -e 's/#.*//' -e 's/[[:space:]]//g' "$ALLOWLIST_FILE" \
   | grep -v '^$' | tr 'A-Z' 'a-z')
 
 if [ "${#ALLOWED[@]}" -eq 0 ]; then
