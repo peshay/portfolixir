@@ -30,10 +30,11 @@ companion that wraps that API.
 
 ## See it in action
 
-A quick tour — dashboard, portfolio valuation with the allocation breakdown,
-the securities list, and the drag-and-drop import view:
+A quick tour of the portfolio view — switching the accent colour (violet, teal,
+coral), flipping to dark mode, and a custom strategy classification showing the
+target-vs-actual allocation with per-category drift for rebalancing:
 
-![Portfolixir tour](docs/screenshots/tour.gif)
+![Portfolixir tour: accent colours, dark mode, and target-vs-actual rebalancing](docs/screenshots/tour.gif)
 
 | Portfolio & allocation | Securities |
 | --- | --- |
