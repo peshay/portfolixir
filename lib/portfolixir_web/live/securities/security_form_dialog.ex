@@ -140,12 +140,12 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
         <AppShell.icon name={:search} />
         <input
           type="search"
-          name="query"
+          name="dialog_query"
           value={@query}
           phx-debounce="300"
           placeholder={gettext("Search by name, ISIN or ticker…")}
           autocomplete="off"
-          autofocus
+          phx-mounted={JS.focus()}
         />
       </label>
 
@@ -444,11 +444,11 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
      |> assign(:query, "")}
   end
 
-  def handle_event("search_change", %{"query" => query}, socket) do
+  def handle_event("search_change", %{"dialog_query" => query}, socket) do
     {:noreply, run_search(assign(socket, :query, query))}
   end
 
-  def handle_event("search_submit", %{"query" => query}, socket) do
+  def handle_event("search_submit", %{"dialog_query" => query}, socket) do
     {:noreply, run_search(assign(socket, :query, query))}
   end
 

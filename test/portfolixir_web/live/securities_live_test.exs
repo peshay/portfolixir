@@ -200,6 +200,39 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   end
 
   describe "create flow via dialog (fake provider)" do
+    # User story:
+    # As a maintainer adding a security, when I type in the new-security
+    # dialog's search field the dialog must show results — not silently filter
+    # the table behind it (#489). The page filter and the dialog search must be
+    # distinct fields so keystrokes never leak to the wrong one.
+    test "dialog search field is distinct from the page filter and is focused (#489)",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      view |> element("#open-new-dialog") |> render_click()
+      view |> element("button[phx-value-mode='security']") |> render_click()
+
+      # The dialog search field has its own name and grabs focus on mount,
+      # so it does not collide with the page filter's name="query".
+      assert has_element?(view, "#security-form-dialog input[name='dialog_query']")
+      refute has_element?(view, "#security-form-dialog input[name='query']")
+      assert render(view) =~ "phx-mounted"
+
+      # Typing in the dialog returns results from the provider.
+      view
+      |> element("#security-form-dialog form")
+      |> render_change(%{"dialog_query" => "apple"})
+
+      assert has_element?(view, "#security-form-dialog", "Apple Inc.")
+
+      # Submitting the dialog search (Enter) uses the same field and works too.
+      view
+      |> element("#security-form-dialog form")
+      |> render_submit(%{"dialog_query" => "apple"})
+
+      assert has_element?(view, "#security-form-dialog", "Apple Inc.")
+    end
+
     test "creates an Apple security via Portfolio Performance fake", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/securities")
 
@@ -208,7 +241,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       view
       |> element("#security-form-dialog form")
-      |> render_change(%{"query" => "apple"})
+      |> render_change(%{"dialog_query" => "apple"})
 
       assert has_element?(view, "#security-form-dialog", "Apple Inc.")
 
@@ -267,7 +300,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       view
       |> element("#security-form-dialog form")
-      |> render_change(%{"query" => "apple"})
+      |> render_change(%{"dialog_query" => "apple"})
 
       view |> element("#security-form-dialog .search-result") |> render_click()
 
@@ -318,7 +351,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       view
       |> element("#security-form-dialog form")
-      |> render_change(%{"query" => "apple"})
+      |> render_change(%{"dialog_query" => "apple"})
 
       view |> element("#security-form-dialog .search-result") |> render_click()
 
@@ -361,7 +394,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       view
       |> element("#security-form-dialog form")
-      |> render_change(%{"query" => "apple"})
+      |> render_change(%{"dialog_query" => "apple"})
 
       view |> element("#security-form-dialog .search-result") |> render_click()
 
