@@ -54,6 +54,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.targets.delete",
       "portfolixir.portfolios.allocation",
       "portfolixir.portfolios.risk",
+      "portfolixir.portfolios.cash_target",
       "portfolixir.portfolios.set_cash_target",
       "portfolixir.cash_accounts.set_balance",
       "portfolixir.portfolios.income",
@@ -133,6 +134,26 @@ describe("Portfolixir MCP tools", () => {
 
     const performance = tools.find((tool) => tool.name === "portfolixir.portfolios.performance");
     assert.match(performance?.description ?? "", /irr/i);
+
+    // ADR-0020: the target read/write tools and the per-plan cash-target tools
+    // expose an integer `view` scope and a string cash_target_weight.
+    const targetsList = tools.find((tool) => tool.name === "portfolixir.targets.list");
+    assert.equal(targetsList?.inputSchema.properties.view.type, "integer");
+    const targetsSet = tools.find((tool) => tool.name === "portfolixir.targets.set");
+    assert.equal(targetsSet?.inputSchema.properties.view.type, "integer");
+    const targetsDelete = tools.find((tool) => tool.name === "portfolixir.targets.delete");
+    assert.equal(targetsDelete?.inputSchema.properties.view.type, "integer");
+
+    const cashTargetGet = tools.find((tool) => tool.name === "portfolixir.portfolios.cash_target");
+    assert.equal(cashTargetGet?.inputSchema.properties.view.type, "integer");
+    const setCashTarget = tools.find(
+      (tool) => tool.name === "portfolixir.portfolios.set_cash_target"
+    );
+    assert.deepEqual(setCashTarget?.inputSchema.properties.cash_target_weight.type, [
+      "string",
+      "null"
+    ]);
+    assert.equal(setCashTarget?.inputSchema.properties.view.type, "integer");
   });
 
   it("calls the Phoenix API with bearer auth and returns structured content", async () => {
@@ -422,25 +443,71 @@ describe("Portfolixir MCP tools", () => {
     });
   });
 
-  it("routes set_cash_target to PATCH /portfolios/:id with the cash target weight", async () => {
-    const { client, requests } = createRecordingClient({
-      data: { id: 3, cash_target_weight: "0.05" }
+  it("forwards the view scope through the target weight tools (ADR-0020)", async () => {
+    const { client, requests } = createRecordingClient({ data: { targets: [] } });
+
+    await callTool(client, "portfolixir.targets.list", {
+      portfolio_id: 3,
+      classification_id: 5,
+      view: 7
+    });
+    await callTool(client, "portfolixir.targets.set", {
+      portfolio_id: 3,
+      classification_id: 5,
+      view: 7,
+      targets: [{ category_id: 9, target_weight: "0.25" }]
+    });
+    await callTool(client, "portfolixir.targets.delete", {
+      portfolio_id: 3,
+      category_id: 9,
+      view: 7
     });
 
+    // GET/DELETE carry the view as a query param; PUT carries it in the body.
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/targets?classification_id=5&view=7");
+    assert.deepEqual(requests[1].body, {
+      classification_id: 5,
+      view: 7,
+      targets: [{ category_id: 9, target_weight: "0.25" }]
+    });
+    assert.equal(requests[2].path, "/api/v1/portfolios/3/targets/9?view=7");
+  });
+
+  it("routes cash_target read/write to the /cash_target endpoint with a view scope", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { cash_target_weight: "0.05" }
+    });
+
+    await callTool(client, "portfolixir.portfolios.cash_target", { portfolio_id: 3 });
+    await callTool(client, "portfolixir.portfolios.cash_target", { portfolio_id: 3, view: 7 });
     await callTool(client, "portfolixir.portfolios.set_cash_target", {
       portfolio_id: 3,
       cash_target_weight: "0.05"
     });
+    await callTool(client, "portfolixir.portfolios.set_cash_target", {
+      portfolio_id: 3,
+      view: 7,
+      cash_target_weight: "0.2"
+    });
+    // Omitting the weight clears the cash target.
     await callTool(client, "portfolixir.portfolios.set_cash_target", { portfolio_id: 3 });
 
     assert.deepEqual(requests[0], {
-      method: "PATCH",
-      path: "/api/v1/portfolios/3",
-      body: { portfolio: { cash_target_weight: "0.05" } },
+      method: "GET",
+      path: "/api/v1/portfolios/3/cash_target",
+      body: undefined,
       token: "Bearer api-token"
     });
-    // Omitting the weight clears the cash target.
-    assert.deepEqual(requests[1].body, { portfolio: { cash_target_weight: null } });
+    assert.equal(requests[1].path, "/api/v1/portfolios/3/cash_target?view=7");
+
+    assert.deepEqual(requests[2], {
+      method: "PUT",
+      path: "/api/v1/portfolios/3/cash_target",
+      body: { cash_target_weight: "0.05" },
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[3].body, { view: 7, cash_target_weight: "0.2" });
+    assert.deepEqual(requests[4].body, { cash_target_weight: null });
   });
 
   it("issues a GET to /allocation for portfolixir.portfolios.allocation", async () => {
