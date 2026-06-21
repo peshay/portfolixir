@@ -151,6 +151,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <.soll_editor soll={@soll} views={@views} flat={@tree.flat} />
         <% end %>
 
+        <%= if @tree.assignable and @tree.flat != [] and @tree.unsorted != [] do %>
+          <p class="alert-info" role="status" data-role="assignment-nudge">
+            <%= ngettext(
+              "%{count} security isn't in any category yet — drag it from Unsorted below into a category so it counts toward the target/actual allocation.",
+              "%{count} securities aren't in any category yet — drag them from Unsorted below into categories so they count toward the target/actual allocation.",
+              length(@tree.unsorted)
+            ) %>
+          </p>
+        <% end %>
+
         <form phx-change="filter_tree" class="tree-search" onsubmit="return false">
           <input
             id="tree-search-input"

@@ -448,6 +448,17 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <% end %>
               </tbody>
             </table>
+
+            <%= if @allocation.unassigned && Decimal.compare(@allocation.unassigned.actual_weight, 0) == :gt do %>
+              <p class="hint" data-role="unassigned-hint">
+                <%= gettext("%{pct}% of holdings aren't assigned to a category.",
+                  pct: Format.percent(@allocation.unassigned.actual_weight)
+                ) %>
+                <.link navigate={"/classifications/#{@classification_id}"}>
+                  <%= gettext("Assign them on the Classifications page") %>
+                </.link>
+              </p>
+            <% end %>
           <% else %>
             <div
               class="section-skeleton section-skeleton--allocation"
