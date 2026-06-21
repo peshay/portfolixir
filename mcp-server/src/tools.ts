@@ -47,13 +47,17 @@ const securityZ = z.object({
   })
 });
 
+// Mirrors Catalog.Quote @sources: a closed set, so the schema describes the
+// accepted values instead of letting an LLM guess a free-form string (#508).
+const quoteSources = ["auto", "manual", "coingecko", "portfolio_performance"] as const;
+
 const quoteUpsertZ = z.object({
   security_id: z.number().int().positive(),
   quotes: z.array(
     z.object({
       date: z.string(),
       close: z.string(),
-      source: z.string()
+      source: z.enum(quoteSources)
     })
   )
 });
@@ -147,7 +151,12 @@ const quoteUpsertSchema = {
         properties: {
           date: { type: "string", format: "date" },
           close: { type: "string" },
-          source: { type: "string" }
+          source: {
+            type: "string",
+            enum: [...quoteSources],
+            description:
+              "Quote origin. Use `manual` for user- or LLM-supplied quotes; `auto`, `coingecko` and `portfolio_performance` are reserved for the respective providers."
+          }
         },
         additionalProperties: false
       }
