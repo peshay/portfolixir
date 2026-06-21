@@ -1320,4 +1320,36 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
              "[data-role='unassigned-hint'] a[href='/classifications/#{classification.id}']"
            )
   end
+
+  # User story:
+  # As a user reading the allocation, I want the not-in-a-category bucket to use
+  # one name across the donut and the table (#500), so the same thing isn't
+  # called both "Unsorted" and "Unassigned" on one screen.
+  test "allocation labels the not-in-a-category bucket 'Unassigned' consistently (#500)",
+       %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Depot", cash_name: "Giro", depot_name: "Depot")
+    security = WorldFixtures.create_security!(name: "World ETF", ticker: "WLD")
+    today = Date.utc_today()
+    start = Date.add(today, -5)
+    WorldFixtures.deposit!(world, "1000", start)
+    WorldFixtures.buy!(world, security, quantity: "8", price: "100", date: start)
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
+
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    # no category assignment -> the holding is the unassigned remainder
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    view
+    |> element("form[phx-change='select_classification']")
+    |> render_change(%{"classification_id" => to_string(classification.id)})
+
+    render_async(view)
+    allocation = view |> element("#portfolio-allocation") |> render()
+
+    # Both the donut data and the table row use "Unassigned"; "Unsorted" is gone.
+    assert allocation =~ "Unassigned"
+    refute allocation =~ "Unsorted"
+  end
 end
