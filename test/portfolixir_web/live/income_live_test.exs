@@ -86,6 +86,26 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     refute closed_html =~ "income-detail"
   end
 
+  # User story:
+  # As a German-locale portfolio maintainer,
+  # I want the income page's currency-conversion note to be translated,
+  # so that the page is fully German and does not leak an English sentence
+  # built by the domain layer.
+  #
+  # Acceptance criteria:
+  # - With ?locale=de the conversion note renders in German.
+  # - The raw English domain note is not shown in the German UI.
+  test "translates the conversion note for the German locale", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Mein Depot", currency: "EUR")
+    security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+    dividend!(world, security, date: ~D[2025-03-15], net: "100", tax: "0")
+
+    {:ok, _view, html} = live(conn, "/income?locale=de")
+
+    assert html =~ "Originalwährung beibehalten"
+    refute html =~ "original currency retained"
+  end
+
   test "shows an empty state when the portfolio has no income yet", %{conn: conn} do
     WorldFixtures.base_world(name: "Empty Depot", currency: "EUR")
 
