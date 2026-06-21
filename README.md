@@ -52,7 +52,7 @@ _All screenshots use the synthetic demo dataset in
 - Organise securities into classification trees (custom, plus built-in
   asset-class and currency trees); the asset-class tree is an editable taxonomy
   seeded from an inferred default and corrected by dragging.
-- Set per-category target weights and read a SOLL/IST allocation breakdown with
+- Set per-category target weights and read a target/actual allocation breakdown with
   per-category drift.
 - Value multi-currency portfolios by converting through stored exchange rates.
 - Import a Portfolio Performance CSV or JSON export: drag in the file, preview

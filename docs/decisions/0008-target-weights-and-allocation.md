@@ -1,10 +1,10 @@
 ---
 layout: docs
-title: "ADR-0008: Target weights and SOLL/IST allocation"
-description: Decision to store per-category target weights in Portfolixir and report the SOLL/IST allocation breakdown with drift in one read.
+title: "ADR-0008: Target weights and target/actual allocation"
+description: Decision to store per-category target weights in Portfolixir and report the target/actual allocation breakdown with drift in one read.
 ---
 
-# ADR-0008: Target weights and SOLL/IST allocation
+# ADR-0008: Target weights and target/actual allocation
 
 - **Status:** Accepted
 - **Date:** 2026-06-08
@@ -14,7 +14,7 @@ description: Decision to store per-category target weights in Portfolixir and re
 [ADR-0006](0006-classifications-with-target-weights.html) added classification
 trees but deliberately deferred weights: categories carried structure, not a
 target. In practice the weekly review an operator (or the LLM over MCP) runs is a
-SOLL/IST check — compare each strategy category's **target** weight against its
+target/actual check — compare each strategy category's **target** weight against its
 **actual** weight and act on the **drift**.
 
 Without stored targets that comparison lives outside Portfolixir: the target
@@ -37,7 +37,7 @@ Constraints that apply:
 
 ## Decision
 
-Store target weights and compute the SOLL/IST breakdown on read.
+Store target weights and compute the target/actual breakdown on read.
 
 **Stored targets:**
 
@@ -50,11 +50,11 @@ Store target weights and compute the SOLL/IST breakdown on read.
   the rest), lists (optionally scoped to one classification), and deletes
   targets. A category must belong to the named classification.
 
-**Derived allocation (SOLL/IST + drift), one call:**
+**Derived allocation (target/actual + drift), one call:**
 
 - `Portfolixir.Portfolios.Allocation` groups the live valuation's valued
-  positions into a chosen classification's categories (the IST side), joins each
-  category's stored target (the SOLL side), and reports per category:
+  positions into a chosen classification's categories (the actual side), joins each
+  category's stored target (the target side), and reports per category:
   `market_value`, `actual_weight` (its share of the valued total),
   `target_weight`, `drift_weight` (`target_weight - actual_weight`), and
   `drift_value` (the drift restated in the base currency — how much to buy or
@@ -73,7 +73,7 @@ Store target weights and compute the SOLL/IST breakdown on read.
 
 ## Consequences
 
-- The weekly SOLL/IST check and per-category drift come from one read against
+- The weekly target/actual check and per-category drift come from one read against
   Portfolixir, so the target allocation no longer has to be carried in an
   external document or joined by hand.
 - New schema arrives: `portfolio_targets`. Only the targets are stored; the

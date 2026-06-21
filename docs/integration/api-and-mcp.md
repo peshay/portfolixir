@@ -333,7 +333,7 @@ Example account payloads:
   the original currency retained; `unconverted_count` counts bookings with no
   rate path (converted at parity), and `conversion_note` states the basis.
   Unknown portfolios return `404 Not Found`.
-  Since ADR-0020 a SOLL target plan **belongs to a view**: the target read/write
+  Since ADR-0020 a target plan **belongs to a view**: the target read/write
   endpoints accept an optional `view` (a view id). Omitting it (or sending
   `null`) addresses the portfolio-wide **Gesamt** plan — the behaviour before
   views existed. A view carries its own plan, so the same classification can hold
@@ -342,7 +342,7 @@ Example account payloads:
   invalid"]}`) and an unknown view id returns `404 Not Found`, the same
   structured contract the analytics endpoints use.
 - `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
-  target weights (the SOLL side of the allocation). Optional `classification_id`
+  target weights (the target side of the allocation). Optional `classification_id`
   scopes the list to one tree; optional `view` selects the plan (omitted =
   Gesamt). Unknown portfolios return `404 Not Found`.
 - `PUT /api/v1/portfolios/:portfolio_id/targets` upserts target weights for one
@@ -355,7 +355,7 @@ Example account payloads:
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` removes a
   portfolio's target weight for one category and returns `{deleted}` (the number
   of rows removed). Optional `view` selects the plan (omitted = Gesamt).
-- `GET /api/v1/portfolios/:portfolio_id/allocation` returns the SOLL/IST
+- `GET /api/v1/portfolios/:portfolio_id/allocation` returns the target/actual
   breakdown for one classification (required `classification_id` query param; a
   missing one returns `422 Unprocessable Entity`). For each category it reports
   `parent_id` and `depth` (the categories form a tree), `color`,
@@ -399,7 +399,7 @@ Example account payloads:
   cash is distributed into categories), compared against `1`. To keep a holding
   out of the steering basis while it still counts toward total wealth, tag it
   with a bucket and exclude that bucket from the `view` you read allocation
-  under — it then falls outside the scoped positions. Since ADR-0020 the **SOLL**
+  under — it then falls outside the scoped positions. Since ADR-0020 the **target**
   side reflects the **active view's plan**: passing `view=<id>` reports that
   view's target weights, cash target and `top_level_target_sum` (omitting it uses
   the Gesamt plan), so the drift table steers against one coherent 100% plan per
@@ -437,7 +437,7 @@ Example account payloads:
   read. A malformed override (e.g. a non-positive `top_n`) returns `422
   Unprocessable Entity`; unknown portfolios return `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/cash_target` reads a plan's cash target,
-  the SOLL cash share of the allocation's 100% basis (securities + counting
+  the target cash share of the allocation's 100% basis (securities + counting
   cash). The response is `{"cash_target_weight": "0.05"}` (a string fraction in
   `[0, 1]`, or `null` when none is steered). Optional `view` selects the plan
   (omitted = the Gesamt plan). Unknown portfolios return `404 Not Found`, a
@@ -450,7 +450,7 @@ Example account payloads:
   addressed view.
 - `PATCH /api/v1/portfolios/:portfolio_id` patches a portfolio's master data.
   The body is `{"portfolio": {...}}`. **Cash target move (ADR-0020):** the cash
-  target moved off the portfolio object onto the per-view SOLL plan, served by
+  target moved off the portfolio object onto the per-view target plan, served by
   the two `cash_target` endpoints above. For **back-compatibility** the portfolio
   object still exposes `cash_target_weight` — a string fraction in `[0, 1]` (e.g.
   `"0.05"` for 5%), or `null` to stop steering a cash quote — and patching it
@@ -590,11 +590,11 @@ When a `view` is supplied, the response echoes the active view as
 `view: {id, name}` (FR-13); the unscoped/default call is unchanged and carries
 no `view` field. A malformed view id returns `422`; an unknown view id returns
 `404`. The same `view` scope (and the same `422`/`404` contract) applies to the
-SOLL target endpoints — `GET`/`PUT
+target endpoints — `GET`/`PUT
 /api/v1/portfolios/:portfolio_id/targets`, `DELETE
 /api/v1/portfolios/:portfolio_id/targets/:category_id` and the cash-target
 endpoints `GET`/`PUT /api/v1/portfolios/:portfolio_id/cash_target` — where a
-view selects the SOLL plan (omitted = the Gesamt plan). The holdings endpoint
+view selects the target plan (omitted = the Gesamt plan). The holdings endpoint
 (`GET /api/v1/portfolios/:portfolio_id/holdings`) is **not** view-scoped: it
 returns the raw per-(depot, security) rows in each security's own currency, so a
 client can apply the buckets/views model itself using each row's
@@ -697,11 +697,11 @@ The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
 accept an optional `view` (a view id) that scopes the result to the holdings
 matching that bucket view; the response then echoes the active view.
 
-Since ADR-0020 the SOLL target tools (`portfolixir.targets.list`,
+Since ADR-0020 the target tools (`portfolixir.targets.list`,
 `portfolixir.targets.set`, `portfolixir.targets.delete`) and the cash-target
 tools (`portfolixir.portfolios.cash_target` to read,
 `portfolixir.portfolios.set_cash_target` to set or clear) also accept an optional
-`view` (a view id) that selects the SOLL plan; omitting it addresses the
+`view` (a view id) that selects the target plan; omitting it addresses the
 portfolio-wide Gesamt plan. The cash target moved off the portfolio object onto
 the plan, but `portfolixir.portfolios.set_cash_target` without a `view` still
 steers the Gesamt cash target, so it keeps the same effect as the legacy

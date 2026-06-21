@@ -36,7 +36,7 @@ already in force in the codebase.
 | [0005](0005-quote-provider-split.html) | Split quote providers: search vs. history | Accepted |
 | [0006](0006-classifications-with-target-weights.html) | Classifications (taxonomies) with built-in derived trees | Accepted |
 | [0007](0007-currency-conversion-with-exchange-rates.html) | Currency conversion with exchange rates | Accepted |
-| [0008](0008-target-weights-and-allocation.html) | Target weights and SOLL/IST allocation | Accepted |
+| [0008](0008-target-weights-and-allocation.html) | Target weights and target/actual allocation | Accepted |
 | [0009](0009-cash-as-balance-snapshots.html) | Cash as balance snapshots, not a mirrored ledger | Accepted |
 | [0010](0010-ttwror-performance-series.html) | Daily valuation series and TTWROR | Accepted |
 | [0011](0011-unified-ledger-projection.html) | Unified ledger projection (single per-kind reducer) | Accepted |
@@ -48,5 +48,5 @@ already in force in the codebase.
 | [0017](0017-append-only-audit-journal.html) | Append-only audit journal for financial writes | Accepted |
 | [0018](0018-buckets-tag-based-wealth-scoping.html) | Buckets — tag-based wealth scoping with view filters | Accepted |
 | [0019](0019-view-scoped-performance-boundary-flows.html) | View-scoped performance treats boundary transfers as external flows | Accepted |
-| [0020](0020-view-bound-soll-plans.html) | SOLL target plans belong to a view | Accepted |
+| [0020](0020-view-bound-soll-plans.html) | target plans belong to a view | Accepted |
 | [0021](0021-pdf-transaction-intake.html) | In-app broker-PDF transaction intake (sandboxed, text-only) | Accepted |

@@ -28,7 +28,7 @@ tracking. Keep the product focused on auditable local records:
     built-in asset-class and currency trees derived from security data.
 11. Value multi-currency portfolios by converting positions and cash
     balances through stored exchange rates (EUR hub).
-12. Store per-category target weights and report the SOLL/IST allocation
+12. Store per-category target weights and report the target/actual allocation
     breakdown with per-category drift.
 
 New functionality must stay small, reviewed, locally tested, and documented.

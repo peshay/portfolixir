@@ -69,7 +69,7 @@ matching the API/MCP coverage rule.
 
 - An operator can hold a store-of-value position (Bitcoin, physical gold, a
   long-term reserve) that counts toward net worth and performance without
-  skewing the SOLL/IST steering of the rest of the portfolio.
+  skewing the target/actual steering of the rest of the portfolio.
 - Excluding a position raises every other category's actual percentage
   consistently (the basis shrinks) while the total value is unchanged.
 - **Trade-off:** the allocation's `total_value` is the steering basis, not the
