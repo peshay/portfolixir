@@ -28,6 +28,20 @@ It is not a broker, bank, trading, payment, order, or rebalance platform.
 Supported functions are also available through a local JSON API and an MCP
 companion that wraps that API.
 
+## See it in action
+
+A quick tour — dashboard, portfolio valuation with the allocation breakdown,
+the securities list, and the drag-and-drop import view:
+
+![Portfolixir tour](docs/screenshots/tour.gif)
+
+| Portfolio & allocation | Securities |
+| --- | --- |
+| ![Portfolio valuation and allocation](docs/screenshots/portfolio.png) | ![Securities list](docs/screenshots/securities.png) |
+
+_All screenshots use the synthetic demo dataset in
+[`priv/demo/`](priv/demo/) — no real financial data._
+
 ## What works today
 
 - Create securities, one portfolio, and linked cash/depot accounts.
