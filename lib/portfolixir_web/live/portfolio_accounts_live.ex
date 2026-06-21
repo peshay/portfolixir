@@ -59,9 +59,27 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         </section>
 
         <%= if @current_portfolio do %>
-          <section id="account-create" class="workspace-section grid">
-            <article class="panel">
-              <h2><%= gettext("Create cash account") %></h2>
+          <section id="account-create" class="workspace-section">
+            <%= if length(@portfolios) > 1 do %>
+              <form id="target-portfolio-form" phx-change="select_portfolio">
+                <label>
+                  <span><%= gettext("Add to portfolio") %></span>
+                  <select name="portfolio_id">
+                    <%= for p <- @portfolios do %>
+                      <option value={p.id} selected={p.id == @current_portfolio.id}>
+                        <%= p.name %> (<%= p.base_currency_code %>)
+                      </option>
+                    <% end %>
+                  </select>
+                </label>
+              </form>
+            <% end %>
+            <p class="muted" data-role="target-portfolio">
+              <%= gettext("Adding to: %{name}", name: @current_portfolio.name) %>
+            </p>
+            <div class="grid">
+              <article class="panel">
+                <h2><%= gettext("Create cash account") %></h2>
               <form id="cash-account-form" phx-submit="save_cash_account">
                 <label>
                   <span><%= gettext("Name") %></span>
@@ -93,7 +111,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                 </label>
                 <button type="submit"><%= gettext("Create depot") %></button>
               </form>
-            </article>
+              </article>
+            </div>
           </section>
         <% end %>
 
@@ -168,6 +187,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     end
   end
 
+  def handle_event("select_portfolio", %{"portfolio_id" => id}, socket) do
+    {:noreply, load_state(socket, id)}
+  end
+
   def handle_event(
         "save_cash_account",
         %{"cash_account" => _params},
@@ -236,9 +259,11 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     end
   end
 
-  defp load_state(socket) do
+  defp load_state(socket, selected_id \\ nil) do
     portfolios = Portfolios.list_portfolios()
-    current_portfolio = List.first(portfolios)
+
+    current_portfolio =
+      pick_portfolio(portfolios, selected_id, socket.assigns[:current_portfolio])
 
     cash_accounts =
       if current_portfolio do
@@ -260,6 +285,18 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       cash_accounts: cash_accounts,
       securities_accounts: securities_accounts
     )
+  end
+
+  # Keep the user's chosen target portfolio across reloads; fall back to the
+  # previously selected one, then to the first. Avoids silently retargeting
+  # account/depot creation to whichever portfolio happens to be first (#490).
+  defp pick_portfolio([], _selected_id, _previous), do: nil
+
+  defp pick_portfolio(portfolios, selected_id, previous) do
+    wanted = selected_id || (previous && previous.id)
+
+    Enum.find(portfolios, fn p -> to_string(p.id) == to_string(wanted) end) ||
+      List.first(portfolios)
   end
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
