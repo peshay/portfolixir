@@ -54,6 +54,12 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     "SECURITY_TRANSFER" => "security_transfer"
   }
 
+  # Deliveries and security transfers move shares but settle no cash. PP often
+  # records them with amount 0; persisting that as gross_amount 0 trips the
+  # ledger's "gross_amount must be greater than 0" check (#482), so these kinds
+  # carry no gross_amount.
+  @no_cash_kinds ~w(inbound_delivery outbound_delivery security_transfer)
+
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
     case Jason.decode(body, floats: :decimals) do
@@ -138,7 +144,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         date: date,
         time: time,
         currency_code: currency,
-        gross_amount: amount,
+        gross_amount: if(kind in @no_cash_kinds, do: nil, else: amount),
         fees: fees,
         taxes: taxes,
         quantity: shares,

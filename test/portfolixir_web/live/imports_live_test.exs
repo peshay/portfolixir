@@ -219,6 +219,39 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert done_html =~ "Skipped duplicates: 0"
   end
 
+  # User story:
+  # As a maintainer importing a PP export that contains a degenerate zero-amount
+  # record (e.g. a 0 EUR tax line), I want the import to finish and tell me which
+  # records it skipped (#482), so one bad row does not silently abort the batch.
+  test "surfaces zero-amount records skipped during apply (#482)", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+
+    upload_payload(
+      view,
+      "zero_amount_tax.json",
+      File.read!(Path.join(@fixtures, "zero_amount_tax.json")),
+      "application/json"
+    )
+
+    submit_params = %{
+      "portfolio_choice" => "create",
+      "portfolio_name" => "Zero Test",
+      "portfolio_currency" => "EUR",
+      "cash" => %{"Cash" => "create:Cash"},
+      "depot" => %{"Depot" => %{"target" => "create:Depot", "cash" => "pp:Cash"}}
+    }
+
+    view |> element("form#pp-import-apply") |> render_change(submit_params)
+    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    done_html = render_async(view)
+
+    assert done_html =~ "Import complete"
+    # deposit + buy + cashless delivery imported; the 0 EUR tax skipped.
+    assert done_html =~ "Created transactions: 3"
+    assert done_html =~ "unimportable"
+    assert done_html =~ "for tax"
+  end
+
   test "confirming with create-new portfolio + auto-mapped accounts creates ledger rows",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, "/imports")

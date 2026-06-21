@@ -47,6 +47,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
              ]
     end
 
+    # User story:
+    # As a maintainer importing deliveries and security transfers (which move
+    # shares but settle no cash), I want those entries to carry no gross_amount,
+    # so a PP export that records them with amount 0 does not trip the
+    # "gross_amount must be greater than 0" ledger validation (#482).
+    test "delivery and transfer kinds carry no gross_amount", %{preview: preview} do
+      for kind <- ["inbound_delivery", "outbound_delivery", "security_transfer"] do
+        entry = Enum.find(preview.entries, &(&1.kind == kind))
+        assert entry, "expected a #{kind} entry in the sample"
+        assert entry.gross_amount == nil, "#{kind} should have nil gross_amount"
+      end
+    end
+
     test "carries PP portfolio + account names through unchanged", %{preview: preview} do
       buy = Enum.find(preview.entries, &(&1.kind == "buy"))
       assert buy.pp_portfolio_name == "Test-Depot"
