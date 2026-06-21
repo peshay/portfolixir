@@ -3,7 +3,7 @@ bind_all_http = String.downcase(System.get_env("PHX_BIND_ALL", "false"))
 import Config
 
 config :portfolixir, Portfolixir.Repo,
-  database: "portfolixir_dev",
+  database: System.get_env("DATABASE_NAME", "portfolixir_dev"),
   username: "postgres",
   password: "postgres",
   hostname: System.get_env("DATABASE_HOST", "127.0.0.1"),
@@ -11,11 +11,13 @@ config :portfolixir, Portfolixir.Repo,
   pool_size: 10,
   stacktrace: true
 
+dev_http_port = String.to_integer(System.get_env("PORT", "4000"))
+
 config :portfolixir, PortfolixirWeb.Endpoint,
-  url: [host: System.get_env("PHX_HOST", "localhost"), port: 4000],
+  url: [host: System.get_env("PHX_HOST", "localhost"), port: dev_http_port],
   http: [
     ip: if(bind_all_http in ["1", "true", "yes"], do: {0, 0, 0, 0}, else: {127, 0, 0, 1}),
-    port: 4000
+    port: dev_http_port
   ],
   check_origin: false,
   code_reloader: true,
