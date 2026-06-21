@@ -70,6 +70,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
       {:ok, %Req.Response{status: 200, body: %{"pages" => pages}}} when is_list(pages) ->
         pages
         |> Enum.filter(&company_like?/1)
+        |> Enum.filter(&title_matches_query?(&1, query))
         |> first_candidate_image(opts)
 
       {:ok, %Req.Response{status: status}} when status in [200, 404] ->
@@ -101,6 +102,44 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
 
   defp looks_like_company?(text) do
     Regex.match?(@company_signal, text) and not Regex.match?(@non_company_signal, text)
+  end
+
+  # Stop the fuzzy search from accepting an unrelated brand: the candidate's
+  # title must relate to the query, so "Swarmer Inc" does not match "Docker
+  # (container engine)" (#487). It relates when it shares a meaningful token
+  # (Apple ~ "Apple Inc.") or is an acronym of the query (BMW ~ "Bayerische
+  # Motoren Werke") — the common German AG-abbreviation case. A company under a
+  # wholly unrelated title falls through to the companieslogo fallback or to no
+  # logo; a missing logo is better than a wrong one.
+  @name_stopwords ~w(inc incorporated corp corporation co company group holding holdings
+                     the and of ag se plc sa nv ltd llc lp)
+  defp title_matches_query?(page, query) when is_map(page) do
+    title = if is_binary(page["title"]), do: page["title"], else: ""
+    query_tokens = name_tokens(query)
+
+    query_tokens != [] and
+      (shares_token?(query_tokens, name_tokens(title)) or acronym_of?(title, query_tokens))
+  end
+
+  defp shares_token?(a, b), do: not MapSet.disjoint?(MapSet.new(a), MapSet.new(b))
+
+  # "BMW" is the initials of "Bayerische Motoren Werke". Treat the title as a
+  # match when its letters are a prefix of (or equal to) the query tokens'
+  # initials, ignoring trailing share-class noise.
+  defp acronym_of?(title, query_tokens) do
+    letters = title |> String.downcase() |> String.replace(~r/[^a-z0-9]/, "")
+    initials = query_tokens |> Enum.map_join(&String.first/1)
+
+    String.length(letters) >= 2 and
+      (letters == initials or String.starts_with?(initials, letters))
+  end
+
+  defp name_tokens(text) do
+    text
+    |> String.downcase()
+    |> String.replace(~r/\(.*?\)/, " ")
+    |> String.split(~r/[^a-z0-9]+/, trim: true)
+    |> Enum.reject(&(&1 in @name_stopwords or String.length(&1) < 2))
   end
 
   defp build_req(opts) do

@@ -134,4 +134,73 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaTest do
 
     assert :not_found = Wikipedia.lookup("DoesNotExist", req: stub)
   end
+
+  # User story:
+  # As a maintainer adding an obscure security, I want the fuzzy Wikipedia search
+  # to refuse a company-like page that has nothing to do with my security, so I
+  # don't get a wrong brand's logo (e.g. "Swarmer Inc" -> Docker) (#487). A
+  # missing logo is better than a wrong one.
+  test "search_logo rejects a company-like match that shares no token with the query (#487)" do
+    stub =
+      plug_stub(fn conn ->
+        if conn.request_path =~ "/search/page" do
+          conn
+          |> Plug.Conn.put_resp_content_type("application/json")
+          |> Plug.Conn.send_resp(
+            200,
+            Jason.encode!(%{
+              "pages" => [
+                %{
+                  "title" => "Docker (container engine)",
+                  "key" => "Docker_(container_engine)",
+                  "description" => "containerization software",
+                  "excerpt" => "software company"
+                }
+              ]
+            })
+          )
+        else
+          # Reaching the summary endpoint would mean the gate let Docker through.
+          conn
+          |> Plug.Conn.put_resp_content_type("application/json")
+          |> Plug.Conn.send_resp(
+            200,
+            Jason.encode!(%{"originalimage" => %{"source" => "https://wikipedia/Docker.png"}})
+          )
+        end
+      end)
+
+    assert :not_found = Wikipedia.search_logo("Swarmer Inc", req: stub)
+  end
+
+  test "search_logo accepts a candidate whose title shares a token with the query (#487)" do
+    stub =
+      plug_stub(fn conn ->
+        if conn.request_path =~ "/search/page" do
+          conn
+          |> Plug.Conn.put_resp_content_type("application/json")
+          |> Plug.Conn.send_resp(
+            200,
+            Jason.encode!(%{
+              "pages" => [
+                %{
+                  "title" => "Apple Inc.",
+                  "key" => "Apple_Inc.",
+                  "description" => "American technology company"
+                }
+              ]
+            })
+          )
+        else
+          conn
+          |> Plug.Conn.put_resp_content_type("application/json")
+          |> Plug.Conn.send_resp(
+            200,
+            Jason.encode!(%{"originalimage" => %{"source" => "https://wikipedia/Apple.png"}})
+          )
+        end
+      end)
+
+    assert {:ok, "https://wikipedia/Apple.png"} = Wikipedia.search_logo("Apple Inc.", req: stub)
+  end
 end
