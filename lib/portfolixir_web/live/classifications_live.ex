@@ -148,7 +148,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
         </header>
 
         <%= if @soll do %>
-          <.soll_editor soll={@soll} views={@views} flat={@tree.flat} />
+          <.soll_editor
+            soll={@soll}
+            views={@views}
+            flat={@tree.flat}
+            assigned={@tree.assigned_counts}
+          />
         <% end %>
 
         <%= if @tree.assignable and @tree.flat != [] and @tree.unsorted != [] do %>
@@ -465,6 +470,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   attr(:soll, :map, required: true)
   attr(:views, :list, required: true)
   attr(:flat, :list, required: true)
+  attr(:assigned, :map, required: true)
 
   defp soll_editor(assigns) do
     ~H"""
@@ -512,6 +518,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
                       data-role="soll-child-hint"
                     >
                       <%= gettext("children Σ") %> <%= child_hint(@soll, category.id) %>%
+                    </span>
+                    <span
+                      :if={empty_target?(@soll, @assigned, category.id)}
+                      class="hint target-consistency is-mismatch"
+                      data-role="empty-category-warning"
+                    >
+                      <%= gettext("no assigned positions") %>
                     </span>
                   </th>
                   <td class="num">
@@ -1113,6 +1126,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       reclassify: reclassify?,
       nodes: if(needle == "", do: nodes, else: prune_nodes(nodes)),
       flat: flatten(tree.categories),
+      assigned_counts: assigned_counts(nodes),
       unsorted: unsorted,
       query: query,
       filtering?: needle != "",
@@ -1194,6 +1208,23 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # Securities directly in this node plus everything in its sub-categories.
   defp total_count(node) do
     length(node.securities) + Enum.sum(Enum.map(node.children, &total_count/1))
+  end
+
+  # category_id -> number of securities assigned to it and its sub-categories
+  # (held or sold). Used by the target editor to warn when a target weight is
+  # set on a category that has nothing assigned, so it can never be reached
+  # (#501). Built from the unpruned node tree so search filtering can't skew it.
+  defp assigned_counts(nodes) do
+    Enum.reduce(nodes, %{}, fn node, acc ->
+      acc
+      |> Map.merge(assigned_counts(node.children))
+      |> Map.put(node.category.id, assigned_total(node))
+    end)
+  end
+
+  defp assigned_total(node) do
+    length(node.securities) + node.hidden +
+      Enum.sum(Enum.map(node.children, &assigned_total/1))
   end
 
   # Zero-holding securities hidden in this node and every sub-category, so the
@@ -1308,6 +1339,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
     case Map.get(soll.child_sums, parent_id) do
       nil -> nil
       sum -> format_sum(sum)
+    end
+  end
+
+  # True when a category carries a positive target weight but has no securities
+  # assigned to it or its sub-categories — a target it can never reach (#501).
+  defp empty_target?(soll, assigned, category_id) do
+    case Map.get(soll.weights, category_id) do
+      nil -> false
+      weight -> Decimal.compare(weight, @zero) == :gt and Map.get(assigned, category_id, 0) == 0
     end
   end
 
