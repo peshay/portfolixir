@@ -104,8 +104,10 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaTest do
         end
       end)
 
+    # Special:FilePath with a width renders an SVG logo to PNG, so the logo
+    # store accepts it instead of rejecting the raw SVG (#483).
     assert {:ok,
-            "https://commons.wikimedia.org/wiki/Special:Redirect/file/Alphabet%20Inc%20Logo%202015.svg?width=256"} =
+            "https://commons.wikimedia.org/wiki/Special:FilePath/Alphabet%20Inc%20Logo%202015.svg?width=256"} =
              Wikipedia.lookup("Alphabet Inc.", req: stub)
   end
 

@@ -21,7 +21,9 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   @endpoint "https://en.wikipedia.org/api/rest_v1/page/summary"
   @search_endpoint "https://en.wikipedia.org/w/rest.php/v1/search/page"
   @wikidata_endpoint "https://www.wikidata.org/wiki/Special:EntityData"
-  @commons_file_redirect "https://commons.wikimedia.org/wiki/Special:Redirect/file/"
+  # Special:FilePath with a width renders SVG logos to PNG (Special:Redirect only
+  # 301-redirects to the raw SVG, which the logo store then rejects — #483).
+  @commons_file_path "https://commons.wikimedia.org/wiki/Special:FilePath/"
 
   # A candidate is accepted when its description/excerpt looks like a company
   # or fund and does NOT look like an unrelated topic (a fruit, a genus, a
@@ -179,7 +181,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   end
 
   defp commons_logo_redirect(filename) do
-    @commons_file_redirect <> URI.encode(filename, &URI.char_unreserved?/1) <> "?width=256"
+    @commons_file_path <> URI.encode(filename, &URI.char_unreserved?/1) <> "?width=256"
   end
 
   defp summary_image(%{"thumbnail" => %{"source" => source}}) when is_binary(source),
