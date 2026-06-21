@@ -46,6 +46,32 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         <% end %>
 
         <%= if @current_portfolio do %>
+          <div
+            id="transaction-portfolio-strip"
+            class="view-switcher"
+            role="group"
+            aria-label={gettext("Active portfolio")}
+          >
+            <span class="view-switcher__label"><%= gettext("Portfolio:") %></span>
+            <nav class="view-switcher__options">
+              <%= for portfolio <- @portfolios do %>
+                <button
+                  type="button"
+                  id={"portfolio-switch-#{portfolio.id}"}
+                  class={[
+                    "view-chip",
+                    portfolio.id == @current_portfolio.id && "is-active"
+                  ]}
+                  phx-click="select_portfolio"
+                  phx-value-id={portfolio.id}
+                  aria-current={if portfolio.id == @current_portfolio.id, do: "true", else: nil}
+                >
+                  <%= portfolio.name %> (<%= portfolio.base_currency_code %>)
+                </button>
+              <% end %>
+            </nav>
+          </div>
+
           <section id="transaction-create" class="workspace-section">
             <h2><%= gettext("Record transaction") %></h2>
             <form id="transaction-form" phx-submit="save_transaction">
@@ -194,6 +220,22 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     {:noreply, failure(socket, gettext("Create a portfolio first"))}
   end
 
+  def handle_event("select_portfolio", %{"id" => id}, socket) do
+    socket =
+      case Integer.parse(to_string(id)) do
+        {portfolio_id, ""} ->
+          case Enum.find(socket.assigns.portfolios, &(&1.id == portfolio_id)) do
+            nil -> socket
+            portfolio -> assign(socket, :current_portfolio, portfolio)
+          end
+
+        _ ->
+          socket
+      end
+
+    {:noreply, socket |> assign(:transaction_form, @transaction_form) |> load_state()}
+  end
+
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
     params = Map.put(params, "portfolio_id", socket.assigns.current_portfolio.id)
 
@@ -213,7 +255,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp load_state(socket) do
     portfolios = Portfolios.list_portfolios()
-    current_portfolio = List.first(portfolios)
+    current_portfolio = resolve_current_portfolio(portfolios, socket.assigns[:current_portfolio])
     securities = Catalog.list_securities()
 
     {securities_accounts, transactions, position_rows} =
@@ -242,6 +284,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       position_rows: position_rows
     )
   end
+
+  # Keep the user's chosen portfolio across reloads (after a save or a switch);
+  # fall back to the first portfolio on initial mount or if the selection is gone.
+  defp resolve_current_portfolio(portfolios, %{id: id}) do
+    Enum.find(portfolios, List.first(portfolios), &(&1.id == id))
+  end
+
+  defp resolve_current_portfolio(portfolios, _), do: List.first(portfolios)
 
   defp position_rows(positions, securities_accounts, securities) do
     securities_account_names = Map.new(securities_accounts, &{&1.id, &1.name})
