@@ -894,7 +894,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     [
       %{
-        name: gettext("Unsorted"),
+        name: gettext("Unassigned"),
         color: @unassigned_color,
         percent: Format.percent(weight),
         value: Format.money(value),
@@ -1044,7 +1044,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           roots ++
             [
               %{
-                name: gettext("Unsorted"),
+                name: gettext("Unassigned"),
                 color: @unassigned_color,
                 percent: Format.percent(weight)
               }
