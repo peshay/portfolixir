@@ -3843,7 +3843,7 @@ details[open] > .cat-summary::before {
   display: block;
 }
 .perf-line {
-  stroke: var(--color-accent-violet, #7c3aed);
+  stroke: var(--color-accent, #7c3aed);
   stroke-width: 2;
 }
 .perf-zeroline {
