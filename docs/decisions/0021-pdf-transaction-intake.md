@@ -16,8 +16,8 @@ practical way to load real history today is Portfolio Performance (PP) CSV/JSON
 v1 (AGENTS goal #9). The long-term goal is to replace PP, which forces the
 question: where does transaction-grade data actually come from?
 
-For many German banks (e.g. comdirect), the only structured export is an
-**IST/holdings snapshot** (positions + current value). The data that matters —
+For many German banks (e.g. comdirect), the only structured export is a
+**current-holdings snapshot** (positions + current value). The data that matters —
 purchase price, shares and date, fees, taxes on sale, dividends — is **locked in
 PDFs** (Wertpapierabrechnung, Steuerreport). A generic CSV importer cannot
 recover it; it helps only brokers with structured trade exports (IBKR Flex,
