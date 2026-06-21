@@ -316,6 +316,13 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  @doc """
+  The per-plan cash target (ADR-0020) as a Decimal string, or `nil` when none is
+  steered. The cash target moved off the portfolio object onto the (view,
+  classification) plan; this serializes the plan's cash target weight.
+  """
+  def cash_target(weight), do: %{cash_target_weight: decimal(weight)}
+
   def allocation(allocation) do
     %{
       portfolio_id: allocation.portfolio_id,

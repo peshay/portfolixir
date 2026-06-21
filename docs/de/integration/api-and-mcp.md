@@ -328,20 +328,31 @@ Beispiel-Payloads für Konten:
   `unconverted_count` zählt Buchungen ohne Kurspfad (zur Parität umgerechnet), und
   `conversion_note` nennt die Basis. Unbekannte Portfolios liefern
   `404 Not Found`.
+  Seit ADR-0020 gehört ein SOLL-Zielplan zu einer **Sicht (View)**: Die
+  Lese-/Schreib-Endpunkte für Ziele akzeptieren ein optionales `view` (eine
+  View-id). Wird es weggelassen (oder als `null` gesendet), adressiert es den
+  portfolioweiten **Gesamt**-Plan — das Verhalten vor Einführung der Views. Eine
+  View trägt ihren eigenen Plan, sodass dieselbe Klassifizierung pro View einen
+  anderen Plan halten kann, ohne dass sich die Pläne übereinander summieren. Ein
+  fehlerhaftes `view` liefert `422 Unprocessable Entity` (`{"view": ["is
+  invalid"]}`) und eine unbekannte View-id liefert `404 Not Found` — derselbe
+  strukturierte Vertrag wie bei den Analyse-Endpunkten.
 - `GET /api/v1/portfolios/:portfolio_id/targets` listet die gespeicherten
   Zielgewichte eines Portfolios (die SOLL-Seite der Allokation). Optionales
-  `classification_id` schränkt die Liste auf einen Baum ein. Unbekannte Portfolios
-  liefern `404 Not Found`.
+  `classification_id` schränkt die Liste auf einen Baum ein; optionales `view`
+  wählt den Plan (weggelassen = Gesamt). Unbekannte Portfolios liefern `404 Not
+  Found`.
 - `PUT /api/v1/portfolios/:portfolio_id/targets` führt Zielgewichte für eine
   Klassifizierung ein (Upsert). Der Body ist `{"classification_id": id, "targets":
-  [{"category_id": id, "target_weight": "0.25"}]}`. Jedes `target_weight` ist ein
-  String-Bruch in `[0, 1]`; Ziele müssen sich nicht zu `1` summieren. Nur die
-  übergebenen Kategorien werden geändert. Eine Kategorie aus einem anderen Baum
-  liefert `422 Unprocessable Entity`, und eine unbekannte Klassifizierung liefert
-  `404 Not Found`.
+  [{"category_id": id, "target_weight": "0.25"}]}` und kann ein optionales
+  `"view": id` tragen, um den Plan dieser View zu schreiben (weggelassen =
+  Gesamt). Jedes `target_weight` ist ein String-Bruch in `[0, 1]`; Ziele müssen
+  sich nicht zu `1` summieren. Nur die übergebenen Kategorien werden geändert.
+  Eine Kategorie aus einem anderen Baum liefert `422 Unprocessable Entity`, und
+  eine unbekannte Klassifizierung liefert `404 Not Found`.
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` entfernt das
   Zielgewicht eines Portfolios für eine Kategorie und liefert `{deleted}` (die Zahl
-  der entfernten Zeilen).
+  der entfernten Zeilen). Optionales `view` wählt den Plan (weggelassen = Gesamt).
 - `GET /api/v1/portfolios/:portfolio_id/allocation` liefert die
   SOLL/IST-Aufschlüsselung für eine Klassifizierung (erforderlicher
   `classification_id`-Query-Parameter; ein fehlender liefert
@@ -371,8 +382,9 @@ Beispiel-Payloads für Konten:
   nicht-negativem Saldo). `total_value` ist hier diese
   Steuerbasis (nicht die volle Bewertung). Die Antwort trägt ein `cash`-Objekt —
   `market_value` (das zählende Cash), `actual_weight` (sein Anteil an
-  `total_value`), `target_weight` (das `cash_target_weight` des Portfolios oder
-  `0`, wenn nicht gesetzt), `drift_weight` (`target_weight - actual_weight`),
+  `total_value`), `target_weight` (das Cash-Ziel des Plans der aktiven View oder
+  `0`, wenn nicht gesetzt; siehe die Cash-Ziel-Endpunkte unten), `drift_weight`
+  (`target_weight - actual_weight`),
   `drift_value` (in Basiswährung neu ausgewiesen) und `distributed` (Boolean) —
   sodass Cash in derselben Drift-Logik wie die Kategorien gesteuert wird. Ist die
   aktive Klassifizierung der eingebaute **Währungs**-Baum, wird das Cash jedes
@@ -386,7 +398,11 @@ Beispiel-Payloads für Konten:
   verglichen mit `1`. Um einen Bestand aus der Steuerbasis herauszuhalten,
   während er weiterhin zum Gesamtvermögen zählt, versiehst du ihn mit einem
   Bucket und schließt diesen Bucket aus der `view` aus, unter der du die
-  Allokation liest — er fällt dann aus den eingeschränkten Positionen.
+  Allokation liest — er fällt dann aus den eingeschränkten Positionen. Seit
+  ADR-0020 spiegelt die **SOLL**-Seite den **Plan der aktiven View** wider: Mit
+  `view=<id>` werden die Zielgewichte, das Cash-Ziel und der
+  `top_level_target_sum` dieser View ausgewiesen (ohne `view` der Gesamt-Plan),
+  sodass die Drift-Tabelle pro View gegen einen kohärenten 100 %-Plan steuert.
   Unbekannte Portfolios oder Klassifizierungen liefern `404 Not
   Found`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` liefert eine
@@ -424,14 +440,33 @@ Beispiel-Payloads für Konten:
   deterministisch beim Lesen. Eine ungültige Überschreibung (z. B. ein
   nicht-positiver `top_n`) liefert `422 Unprocessable Entity`; unbekannte
   Portfolios liefern `404 Not Found`.
+- `GET /api/v1/portfolios/:portfolio_id/cash_target` liest das Cash-Ziel eines
+  Plans, den SOLL-Cash-Anteil an der 100 %-Basis der Allokation (Wertpapiere +
+  zählendes Cash). Die Antwort ist `{"cash_target_weight": "0.05"}` (ein
+  String-Bruch in `[0, 1]` oder `null`, wenn keines gesteuert wird). Optionales
+  `view` wählt den Plan (weggelassen = der Gesamt-Plan). Unbekannte Portfolios
+  liefern `404 Not Found`, ein fehlerhaftes `view` liefert `422` und eine
+  unbekannte View-id `404`.
+- `PUT /api/v1/portfolios/:portfolio_id/cash_target` setzt (oder löscht mit
+  `null`) das Cash-Ziel eines Plans. Der Body ist `{"cash_target_weight":
+  "0.05"}` und kann ein optionales `"view": id` tragen (weggelassen = Gesamt). Es
+  gibt den gespeicherten Wert zurück. Gewichte außerhalb des Bereichs liefern
+  `422 Unprocessable Entity`. Das Cash-Ziel speist die `cash`-Zeile der Allokation
+  und den `top_level_target_sum` der adressierten View.
 - `PATCH /api/v1/portfolios/:portfolio_id` patcht die Stammdaten eines Portfolios.
-  Der Body ist `{"portfolio": {...}}`. Nutze es, um den SOLL-Cash-Anteil mit
-  `cash_target_weight` zu setzen — einem String-Bruch in `[0, 1]` (z. B. `"0.05"`
-  für 5 %) oder `null`, um die Steuerung einer Cash-Quote zu beenden. Das Cash-Ziel
-  speist die `cash`-Zeile der Allokation und den `top_level_target_sum`. Gewichte
+  Der Body ist `{"portfolio": {...}}`. **Umzug des Cash-Ziels (ADR-0020):** Das
+  Cash-Ziel ist vom Portfolio-Objekt auf den View-gebundenen SOLL-Plan gewandert
+  und wird über die beiden `cash_target`-Endpunkte oben bedient. Aus
+  **Kompatibilitätsgründen** stellt das Portfolio-Objekt weiterhin
+  `cash_target_weight` bereit — einen String-Bruch in `[0, 1]` (z. B. `"0.05"`
+  für 5 %) oder `null`, um die Steuerung einer Cash-Quote zu beenden — und das
+  Patchen liest/schreibt das Cash-Ziel des **Gesamt**-Plans (`view` weggelassen).
+  Ein Client, der nur das alte Feld kennt, funktioniert also unverändert weiter;
+  nutze `PUT /cash_target?view=<id>` für ein View-spezifisches Cash-Ziel. Gewichte
   außerhalb des Bereichs liefern `422 Unprocessable Entity`; unbekannte Portfolios
   liefern `404 Not Found`. Das `cash_target_weight` ist auch in den von
-  `GET`/`POST /api/v1/portfolios` zurückgegebenen Portfolio-Objekten enthalten.
+  `GET`/`POST /api/v1/portfolios` zurückgegebenen Portfolio-Objekten enthalten
+  (das Gesamt-Cash-Ziel).
 - `GET /api/v1/securities/:security_id/trades` liefert FIFO-gematchte Trades eines
   Wertpapiers: offene Lots, geschlossene Round-Trips (mit realisiertem G/V und
   Haltedauer in Tagen) und etwaige verwaiste Verkäufe. Die Antwort ist
@@ -565,7 +600,12 @@ View-id), um das Ergebnis auf die Bestände der View einzugrenzen:
 
 Bei gesetztem `view` spiegelt die Antwort die aktive View als `view: {id, name}`
 wider (FR-13); der Aufruf ohne View ist unverändert und trägt kein `view`-Feld.
-Eine fehlerhafte View-id ergibt `422`, eine unbekannte `404`. Der Bestände-
+Eine fehlerhafte View-id ergibt `422`, eine unbekannte `404`. Derselbe
+`view`-Scope (und derselbe `422`/`404`-Vertrag) gilt für die SOLL-Ziel-Endpunkte
+— `GET`/`PUT /api/v1/portfolios/:portfolio_id/targets`, `DELETE
+/api/v1/portfolios/:portfolio_id/targets/:category_id` und die
+Cash-Ziel-Endpunkte `GET`/`PUT /api/v1/portfolios/:portfolio_id/cash_target` —,
+wo eine View den SOLL-Plan wählt (weggelassen = der Gesamt-Plan). Der Bestände-
 Endpunkt (`GET /api/v1/portfolios/:portfolio_id/holdings`) ist **nicht**
 view-eingegrenzt: er liefert die Roh-Zeilen pro (Depot, Wertpapier) in der
 jeweiligen Wertpapierwährung, sodass ein Client das Buckets/Views-Modell selbst
@@ -644,6 +684,7 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.risk`
+- `portfolixir.portfolios.cash_target`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`
@@ -669,3 +710,14 @@ Die Tools `portfolixir.portfolios.valuation`,
 `portfolixir.portfolios.risk` akzeptieren ein optionales `view` (eine View-id),
 das das Ergebnis auf die Bestände der Bucket-View eingrenzt; die Antwort spiegelt
 dann die aktive View wider.
+
+Seit ADR-0020 akzeptieren auch die SOLL-Ziel-Tools (`portfolixir.targets.list`,
+`portfolixir.targets.set`, `portfolixir.targets.delete`) und die Cash-Ziel-Tools
+(`portfolixir.portfolios.cash_target` zum Lesen,
+`portfolixir.portfolios.set_cash_target` zum Setzen oder Löschen) ein optionales
+`view` (eine View-id), das den SOLL-Plan wählt; ohne `view` wird der
+portfolioweite Gesamt-Plan adressiert. Das Cash-Ziel ist vom Portfolio-Objekt auf
+den Plan gewandert, aber `portfolixir.portfolios.set_cash_target` ohne `view`
+steuert weiterhin das Gesamt-Cash-Ziel und hat damit dieselbe Wirkung wie das
+alte Portfolio-Feld `cash_target_weight`. Alle Cash-Ziele und Zielgewichte werden
+als Decimal-Strings ausgegeben und akzeptiert.

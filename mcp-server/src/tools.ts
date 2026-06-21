@@ -578,19 +578,24 @@ const securitiesAccountUpdateZ = z.object({
   })
 });
 
+// Since ADR-0020 a SOLL plan belongs to a view: the target read/write tools take
+// an optional `view` (a view id). Omitting it addresses the portfolio-wide
+// "Gesamt" plan, reproducing the behaviour before views existed.
 const targetsListSchema = {
   type: "object",
   additionalProperties: false,
   required: ["portfolio_id"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
-    classification_id: { type: "integer", minimum: 1 }
+    classification_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 }
   }
 };
 
 const targetsListZ = z.object({
   portfolio_id: z.number().int().positive(),
-  classification_id: z.number().int().positive().optional()
+  classification_id: z.number().int().positive().optional(),
+  view: z.number().int().positive().optional()
 });
 
 const targetsSetSchema = {
@@ -600,6 +605,7 @@ const targetsSetSchema = {
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     classification_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 },
     targets: {
       type: "array",
       items: {
@@ -618,6 +624,7 @@ const targetsSetSchema = {
 const targetsSetZ = z.object({
   portfolio_id: z.number().int().positive(),
   classification_id: z.number().int().positive(),
+  view: z.number().int().positive().optional(),
   targets: z
     .array(
       z.object({
@@ -634,13 +641,15 @@ const targetsDeleteSchema = {
   required: ["portfolio_id", "category_id"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
-    category_id: { type: "integer", minimum: 1 }
+    category_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 }
   }
 };
 
 const targetsDeleteZ = z.object({
   portfolio_id: z.number().int().positive(),
-  category_id: z.number().int().positive()
+  category_id: z.number().int().positive(),
+  view: z.number().int().positive().optional()
 });
 
 // A map of asset_class -> percentage cap string (e.g. {"equity": "50"}). Caps
@@ -718,19 +727,38 @@ const allocationZ = z.object({
 
 // The cash target is the SOLL cash share of the allocation's 100% basis
 // (securities + counting cash, issue #335): a string fraction in [0, 1], or
-// null to stop steering a cash quote.
+// null to stop steering a cash quote. Since ADR-0020 it belongs to a plan, so
+// these tools take an optional `view` (omitted = the Gesamt plan, which is also
+// what the legacy portfolio `cash_target_weight` field reads/writes).
+const cashTargetGetSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 }
+  }
+};
+
+const cashTargetGetZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  view: z.number().int().positive().optional()
+});
+
 const cashTargetSchema = {
   type: "object",
   additionalProperties: false,
   required: ["portfolio_id"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 },
     cash_target_weight: { type: ["string", "null"] }
   }
 };
 
 const cashTargetZ = z.object({
   portfolio_id: z.number().int().positive(),
+  view: z.number().int().positive().optional(),
   cash_target_weight: z.union([z.string(), z.null()]).optional()
 });
 
@@ -1175,9 +1203,16 @@ const toolDefinitions: ToolDefinition[] = [
     riskZ
   ),
   tool(
+    "portfolixir.portfolios.cash_target",
+    "Read cash target weight",
+    "Read a plan's cash target weight, the SOLL cash share of the allocation's 100% basis (securities + counting cash), as a string fraction in [0,1] (or null when none is steered). Pass an optional view (a view id) to read that view's plan; omitting it reads the portfolio-wide Gesamt plan, the same value the portfolio's legacy cash_target_weight field reports.",
+    cashTargetGetSchema,
+    cashTargetGetZ
+  ),
+  tool(
     "portfolixir.portfolios.set_cash_target",
     "Set cash target weight",
-    "Set (or clear with null) a portfolio's cash target weight, the SOLL cash share of the allocation's 100% basis (securities + counting cash). A string fraction in [0,1].",
+    "Set (or clear with null) a plan's cash target weight, the SOLL cash share of the allocation's 100% basis (securities + counting cash). A string fraction in [0,1]. Pass an optional view (a view id) to steer that view's plan; omitting it steers the portfolio-wide Gesamt plan (equivalent to the legacy portfolio cash_target_weight).",
     cashTargetSchema,
     cashTargetZ
   ),
@@ -1487,17 +1522,25 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.targets.list":
       return client.request(
         "GET",
-        withQuery(`/api/v1/portfolios/${args.portfolio_id}/targets`, args, ["classification_id"])
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/targets`, args, [
+          "classification_id",
+          "view"
+        ])
       );
     case "portfolixir.targets.set":
       return client.request("PUT", `/api/v1/portfolios/${args.portfolio_id}/targets`, {
         classification_id: args.classification_id,
+        ...(args.view !== undefined && args.view !== null ? { view: args.view } : {}),
         targets: args.targets
       });
     case "portfolixir.targets.delete":
       return client.request(
         "DELETE",
-        `/api/v1/portfolios/${args.portfolio_id}/targets/${args.category_id}`
+        withQuery(
+          `/api/v1/portfolios/${args.portfolio_id}/targets/${args.category_id}`,
+          args,
+          ["view"]
+        )
       );
     case "portfolixir.portfolios.allocation":
       return client.request(
@@ -1509,9 +1552,15 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       );
     case "portfolixir.portfolios.risk":
       return client.request("GET", riskPath(args));
+    case "portfolixir.portfolios.cash_target":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/cash_target`, args, ["view"])
+      );
     case "portfolixir.portfolios.set_cash_target":
-      return client.request("PATCH", `/api/v1/portfolios/${args.portfolio_id}`, {
-        portfolio: { cash_target_weight: args.cash_target_weight ?? null }
+      return client.request("PUT", `/api/v1/portfolios/${args.portfolio_id}/cash_target`, {
+        ...(args.view !== undefined && args.view !== null ? { view: args.view } : {}),
+        cash_target_weight: args.cash_target_weight ?? null
       });
     case "portfolixir.cash_accounts.set_balance":
       return client.request("POST", `/api/v1/cash_accounts/${args.id}/balance`, {
