@@ -287,4 +287,56 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
       assert is_nil(Security.effective_asset_class(security))
     end
   end
+
+  # User story:
+  # As a maintainer importing securities with friendly short names (e.g.
+  # "Amazon", "Microsoft") that carry no legal-form token, I want a resolved
+  # company logo plus an ISIN to classify them as equity (#408), so the
+  # "Unsorted"/"Unassigned" bucket isn't full of obvious equities.
+  describe "equity fallback from a resolved company logo (#408)" do
+    test "a name-unresolved security with an ISIN and a company logo is equity" do
+      security = %Security{
+        name: "Amazon",
+        isin: "US0231351067",
+        ticker_symbol: nil,
+        asset_class: nil,
+        attributes: %{"logo_path" => "logos/amazon.png"}
+      }
+
+      assert Security.effective_asset_class(security) == "equity"
+    end
+
+    test "stays nil without a logo (heuristics still ambiguous)" do
+      security = %Security{
+        name: "Amazon",
+        isin: "US0231351067",
+        asset_class: nil,
+        attributes: %{}
+      }
+
+      assert is_nil(Security.effective_asset_class(security))
+    end
+
+    test "stays nil with a logo but no ISIN (logo alone is not enough)" do
+      security = %Security{
+        name: "Amazon",
+        isin: nil,
+        asset_class: nil,
+        attributes: %{"logo_path" => "logos/amazon.png"}
+      }
+
+      assert is_nil(Security.effective_asset_class(security))
+    end
+
+    test "a user-set class always wins over the logo fallback" do
+      security = %Security{
+        name: "Amazon",
+        isin: "US0231351067",
+        asset_class: "fund",
+        attributes: %{"logo_path" => "logos/amazon.png"}
+      }
+
+      assert Security.effective_asset_class(security) == "fund"
+    end
+  end
 end

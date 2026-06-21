@@ -94,10 +94,24 @@ defmodule Portfolixir.Catalog.Security do
     do: asset_class
 
   def effective_asset_class(%__MODULE__{} = security) do
-    infer_asset_class_code(security.name, security.isin, security.ticker_symbol)
+    infer_asset_class_code(security.name, security.isin, security.ticker_symbol) ||
+      inferred_from_logo(security)
   end
 
   def effective_asset_class(_), do: nil
+
+  # A name-unresolved instrument that has an ISIN *and* a resolved company logo
+  # is treated as equity: the logo pipeline already decided "this is a company",
+  # and the ISIN marks it as a real listed instrument (not a bare crypto or
+  # commodity). ISIN structure alone is not a reliable asset-class signal, so it
+  # is only used together with the company-logo result (#408). A user-set class
+  # always wins (handled by the binary-asset_class clause above).
+  defp inferred_from_logo(%__MODULE__{isin: isin, attributes: attributes})
+       when is_binary(isin) and isin != "" do
+    if is_binary(get_in(attributes || %{}, ["logo_path"])), do: "equity"
+  end
+
+  defp inferred_from_logo(_security), do: nil
 
   defp validate_feed(changeset, field) do
     case get_field(changeset, field) do
