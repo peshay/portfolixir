@@ -700,6 +700,101 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   end
 
   # User story:
+  # As a maintainer steering a nested classification,
+  # I want the running Σ to roll a blank parent's weight up from its children's
+  # weights,
+  # so a plan defined only on sub-categories still counts toward 100% instead of
+  # being silently ignored.
+  #
+  # Acceptance criteria:
+  # - With a top-level parent left blank but two children carrying 60% and 40%,
+  #   the Σ badge rolls up to the children's total (100%).
+  # - The Σ row carries the OK styling (no mismatch) because the rolled-up
+  #   top-level total plus cash is exactly 100%.
+  test "Σ rolls up a blank parent's weight from its children", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, large} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Large caps",
+        parent_id: equity.id
+      })
+
+    {:ok, small} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Small caps",
+        parent_id: equity.id
+      })
+
+    # The Equity parent is left blank; only its children carry weights (60 + 40).
+    # The Σ must roll these up to 100%, not ignore the un-weighted parent.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [
+          %{category_id: large.id, target_weight: "0.6"},
+          %{category_id: small.id, target_weight: "0.4"}
+        ],
+        view: nil
+      )
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    sum = view |> element("[data-role='soll-sum']") |> render()
+
+    # 60% + 40% roll up to the blank Equity parent → Σ reads 100%.
+    assert sum =~ "100%"
+    # 100% rolled-up top-level + no cash target == 100% → OK, no mismatch styling.
+    refute view |> element("tr.soll-row--sum") |> render() =~ "is-target-mismatch"
+  end
+
+  # User story:
+  # As a maintainer steering a nested classification,
+  # I want the running Σ to mix an explicit top-level weight with a blank parent
+  # whose weight rolls up from its child,
+  # so a partly-flat, partly-nested plan still totals correctly.
+  #
+  # Acceptance criteria:
+  # - With one top-level parent set explicitly to 50% and another top-level
+  #   parent left blank but carrying a single 50% child, the Σ badge reads 100%.
+  # - The Σ row carries the OK styling (no mismatch).
+  test "Σ mixes an explicit top-level weight with a rolled-up blank parent",
+       %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity, bonds: bonds} =
+      soll_world()
+
+    {:ok, govies} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Government",
+        parent_id: bonds.id
+      })
+
+    # Equity is explicit at 50%; Bonds is blank but its only child carries 50%.
+    # Σ = 50 (explicit) + 50 (rolled up) = 100%.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [
+          %{category_id: equity.id, target_weight: "0.5"},
+          %{category_id: govies.id, target_weight: "0.5"}
+        ],
+        view: nil
+      )
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    sum = view |> element("[data-role='soll-sum']") |> render()
+
+    assert sum =~ "100%"
+    refute view |> element("tr.soll-row--sum") |> render() =~ "is-target-mismatch"
+  end
+
+  # User story:
   # As a maintainer typing into the live Σ,
   # I want blank, non-numeric and otherwise odd values to be treated as absent
   # rather than crash the running total,
