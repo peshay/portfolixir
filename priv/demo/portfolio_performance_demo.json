@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "transactions": [
+    {"type": "DEPOSIT", "date": "2023-01-02", "time": "09:00", "amount": 50000.00, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot"},
+    {"type": "PURCHASE", "date": "2023-01-10", "time": "10:00", "amount": 8500.00, "shares": 50, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "Apple Inc. Registered Shares o.N.", "isin": "US0378331005", "wkn": "865985", "ticker": "AAPL", "currency": "EUR"}},
+    {"type": "PURCHASE", "date": "2023-02-15", "time": "10:00", "amount": 7200.00, "shares": 20, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "Microsoft Corporation Registered Shares DL-,00000625", "isin": "US5949181045", "wkn": "870747", "ticker": "MSFT", "currency": "EUR"}},
+    {"type": "PURCHASE", "date": "2023-03-01", "time": "10:00", "amount": 6000.00, "shares": 60, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "Allianz SE vinkulierte Namens-Aktien o.N.", "isin": "DE0008404005", "wkn": "840400", "ticker": "ALV", "currency": "EUR"}},
+    {"type": "PURCHASE", "date": "2023-03-20", "time": "10:00", "amount": 9000.00, "shares": 120, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "iShares Core MSCI World UCITS ETF USD (Acc)", "isin": "IE00B4L5Y983", "wkn": "A0RPWH", "ticker": "EUNL", "currency": "EUR"}},
+    {"type": "PURCHASE", "date": "2023-04-05", "time": "10:00", "amount": 4000.00, "shares": 40, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "Vanguard FTSE All-World UCITS ETF USD Acc", "isin": "IE00BK5BQT80", "wkn": "A2PKXG", "ticker": "VWCE", "currency": "EUR"}},
+    {"type": "PURCHASE", "date": "2023-05-12", "time": "10:00", "amount": 3000.00, "shares": 0.05, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "Bitcoin", "isin": null, "wkn": null, "ticker": "BTC", "currency": "EUR"}},
+    {"type": "PURCHASE", "date": "2023-06-01", "time": "10:00", "amount": 2500.00, "shares": 10, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "NVIDIA Corporation Registered Shares DL-,001", "isin": "US67066G1040", "wkn": "918422", "ticker": "NVDA", "currency": "EUR"}},
+    {"type": "DIVIDEND", "date": "2023-05-15", "time": "10:00", "amount": 120.00, "shares": 60, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "Allianz SE vinkulierte Namens-Aktien o.N.", "isin": "DE0008404005", "wkn": "840400", "ticker": "ALV", "currency": "EUR"}},
+    {"type": "DIVIDEND", "date": "2023-08-15", "time": "10:00", "amount": 18.50, "shares": 50, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "Apple Inc. Registered Shares o.N.", "isin": "US0378331005", "wkn": "865985", "ticker": "AAPL", "currency": "EUR"}},
+    {"type": "SALE", "date": "2023-09-10", "time": "10:00", "amount": 2200.00, "shares": 10, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot", "security": {"name": "Microsoft Corporation Registered Shares DL-,00000625", "isin": "US5949181045", "wkn": "870747", "ticker": "MSFT", "currency": "EUR"}},
+    {"type": "INTEREST", "date": "2023-12-29", "time": "10:00", "amount": 85.00, "currency": "EUR", "account": "Demo Cash", "portfolio": "Demo Depot"}
+  ]
+}
