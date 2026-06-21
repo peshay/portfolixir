@@ -24,6 +24,31 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     security
   end
 
+  # User story:
+  # As a new user who created categories but hasn't sorted holdings into them
+  # yet, I want the Classifications page to tell me holdings are still unassigned
+  # and how to fix it, so the portfolio's large "Unassigned" share is not a dead
+  # end (#499).
+  test "nudges to assign securities when categories exist but some are unsorted (#499)",
+       %{conn: conn} do
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, _core} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+
+    _sec = security!(%{name: "Unassigned Co"})
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    # Show all securities so the unassigned one is listed under Unsorted.
+    view
+    |> element("form[phx-change='toggle_current_only']")
+    |> render_change(%{"current_only" => "false"})
+
+    assert has_element?(view, "[data-role='assignment-nudge']")
+    assert render(view) =~ "category"
+  end
+
   test "index lists the built-in trees in the sidebar", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/classifications")
 
