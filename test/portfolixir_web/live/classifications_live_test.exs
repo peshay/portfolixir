@@ -654,6 +654,52 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   end
 
   # User story:
+  # As a maintainer steering a nested classification,
+  # I want the running Σ to count only the top-level category weights (plus the
+  # cash target), exactly like the portfolio page's allocation engine,
+  # so a hierarchical plan whose parents already sum to 100% is not double-counted
+  # by also adding the children's weights.
+  #
+  # Acceptance criteria:
+  # - With a parent at 100% and a child under it at 100%, the Σ badge shows the
+  #   top-level total (100%), not the doubled ~200%.
+  # - The Σ row carries the OK styling (no mismatch) because the top-level total
+  #   plus cash is exactly 100%.
+  test "Σ counts only top-level categories for a hierarchical plan", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, child} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Large caps",
+        parent_id: equity.id
+      })
+
+    # The single top-level category is steered to 100%; its child carries its own
+    # 100% (a fully-allocated sub-plan). The Σ must read 100%, not 200%.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [
+          %{category_id: equity.id, target_weight: "1.0"},
+          %{category_id: child.id, target_weight: "1.0"}
+        ],
+        view: nil
+      )
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    sum = view |> element("[data-role='soll-sum']") |> render()
+
+    # Only the top-level Equity (100%) feeds the Σ; the child's 100% is excluded.
+    assert sum =~ "100%"
+    refute sum =~ "200%"
+    # 100% top-level + no cash target == 100% → OK, no mismatch styling.
+    refute view |> element("tr.soll-row--sum") |> render() =~ "is-target-mismatch"
+  end
+
+  # User story:
   # As a maintainer typing into the live Σ,
   # I want blank, non-numeric and otherwise odd values to be treated as absent
   # rather than crash the running total,

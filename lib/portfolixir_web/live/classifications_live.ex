@@ -867,11 +867,22 @@ defmodule PortfolixirWeb.ClassificationsLive do
       exists: exists?,
       weights: weights,
       cash_target: cash_target,
+      top_level_ids: top_level_ids(assigns.tree.flat),
       child_sums: child_sums(assigns.tree.flat, weights),
       copy_sources: copy_sources(portfolio_id, classification_id, view_id, assigns.views)
     }
 
     put_sum(soll)
+  end
+
+  # The integer ids of the top-level categories (those without a parent). The
+  # running Σ counts only these, mirroring the allocation engine's
+  # `top_level_target_sum`, so a hierarchical plan is not double-counted when a
+  # parent's weight already covers its children (#467).
+  defp top_level_ids(flat) do
+    for {category, _depth} <- flat, is_nil(category.parent_id), into: MapSet.new() do
+      category.id
+    end
   end
 
   # Live Σ from the in-flight form values: recompute the running total and the
@@ -925,12 +936,17 @@ defmodule PortfolixirWeb.ClassificationsLive do
     |> Enum.map(fn {label, id} -> {label, view_param(id)} end)
   end
 
-  # Running total: the category percentages plus the cash percentage. Decimal
-  # math throughout so the 100% comparison is exact.
+  # Running total: the TOP-LEVEL category percentages plus the cash percentage.
+  # Children are excluded because a parent's weight already accounts for them,
+  # matching the allocation engine's `top_level_target_sum` (#467). Decimal math
+  # throughout so the 100% comparison is exact. The `top_level_ids` set is always
+  # populated by `build_soll/4`; the fallback keeps a malformed map from crashing.
   defp put_sum(soll) do
+    top_level_ids = Map.get(soll, :top_level_ids)
+
     sum =
       soll.weights
-      |> Map.values()
+      |> top_level_weights(top_level_ids)
       |> Enum.reduce(@zero, &Decimal.add(&2, to_decimal(&1)))
       |> Decimal.add(to_decimal(soll.cash_target))
 
@@ -938,6 +954,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
     |> Map.put(:sum, format_sum(sum))
     |> Map.put(:mismatch?, not Decimal.equal?(sum, @hundred))
   end
+
+  defp top_level_weights(weights, %MapSet{} = top_level_ids) do
+    for {id, value} <- weights, MapSet.member?(top_level_ids, id), do: value
+  end
+
+  defp top_level_weights(weights, _missing), do: Map.values(weights)
 
   # Sum of each parent's direct children's percentages, keyed by parent id, only
   # where at least one child carries a weight (advisory hint, display-only).
