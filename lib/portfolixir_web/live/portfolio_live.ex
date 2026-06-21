@@ -340,9 +340,9 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <th class="num">
                       <%= gettext("Drift") %>
                       <details class="metric-tooltip">
-                        <summary aria-label={gettext("SOLL-IST drift info")}>ⓘ</summary>
+                        <summary aria-label={gettext("Target/actual drift info")}>ⓘ</summary>
                         <p id="tip-soll-ist" role="tooltip">
-                          <%= gettext("SOLL-IST: target weight vs. actual weight (drift). Drift is the amount needed to reach the target allocation.") %>
+                          <%= gettext("Target vs. actual: target weight vs. actual weight (drift). Drift is the amount needed to reach the target allocation.") %>
                         </p>
                       </details>
                     </th>
