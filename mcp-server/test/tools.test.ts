@@ -122,6 +122,27 @@ describe("Portfolixir MCP tools", () => {
       "string"
     );
 
+    // The quote `source` is a closed set in the backend (Catalog.Quote @sources);
+    // expose it as an enum so an LLM does not guess a free-form value and hit an
+    // opaque 422 (#508).
+    const quoteUpsert = tools.find((tool) => tool.name === "portfolixir.quotes.upsert");
+    assert.deepEqual(
+      quoteUpsert?.inputSchema.properties.quotes.items.properties.source.enum,
+      ["auto", "manual", "coingecko", "portfolio_performance"]
+    );
+    assert.doesNotThrow(() =>
+      quoteUpsert?.zodSchema.parse({
+        security_id: 1,
+        quotes: [{ date: "2026-06-19", close: "100.00", source: "manual" }]
+      })
+    );
+    assert.throws(() =>
+      quoteUpsert?.zodSchema.parse({
+        security_id: 1,
+        quotes: [{ date: "2026-06-19", close: "100.00", source: "e2e" }]
+      })
+    );
+
     assert.doesNotThrow(() =>
       securitiesCreate?.zodSchema.parse({
         security: {
