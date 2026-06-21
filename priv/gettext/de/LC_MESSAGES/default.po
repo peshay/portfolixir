@@ -3146,12 +3146,12 @@ msgstr "Kein Soll-Plan für diese Sicht — es wird nur die Ist-Aufteilung gezei
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:66
 #, elixir-autogen, elixir-format
 msgid "Add to portfolio"
-msgstr ""
+msgstr "Zum Portfolio hinzufügen"
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:78
 #, elixir-autogen, elixir-format
 msgid "Adding to: %{name}"
-msgstr ""
+msgstr "Hinzufügen zu: %{name}"
 
 #: lib/portfolixir_web/live/classifications_live.ex:582
 #, elixir-autogen, elixir-format

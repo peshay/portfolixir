@@ -87,6 +87,25 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert first_cash == []
   end
 
+  # User story:
+  # As a German-locale maintainer with more than one portfolio,
+  # I want the "add to portfolio" target picker and its hint translated,
+  # so that the portfolios page is fully German.
+  #
+  # Acceptance criteria:
+  # - With ?locale=de the target-portfolio label and the "Adding to" hint
+  #   render in German and not in English.
+  test "translates the target-portfolio picker for the German locale", %{conn: conn} do
+    {:ok, _a} = Portfolios.create_portfolio(%{name: "Alpha", base_currency_code: "EUR"})
+    {:ok, _b} = Portfolios.create_portfolio(%{name: "Beta", base_currency_code: "EUR"})
+
+    {:ok, _view, html} = live(conn, "/portfolios?locale=de")
+
+    assert html =~ "Zum Portfolio hinzufügen"
+    assert html =~ "Hinzufügen zu:"
+    refute html =~ "Add to portfolio"
+  end
+
   test "renders the cash-quote toggle compact instead of as a full-width form input" do
     app_css = File.read!("priv/static/app.css")
 
