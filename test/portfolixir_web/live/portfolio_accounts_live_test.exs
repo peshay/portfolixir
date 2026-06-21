@@ -52,6 +52,41 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert Portfolios.get_cash_account(cash.id).liquidity_role == "credit_line"
   end
 
+  # User story:
+  # As a maintainer with more than one portfolio, I want to choose which
+  # portfolio a new cash account (or depot) is added to, so that accounts never
+  # silently land on whichever portfolio happens to be first in the list (#490).
+  #
+  # Acceptance criteria:
+  # - With multiple portfolios, a target-portfolio selector is shown.
+  # - The chosen target is visible ("Adding to: <name>").
+  # - A created cash account lands on the selected portfolio, not the first one.
+  test "creates a cash account on the explicitly selected portfolio (#490)", %{conn: conn} do
+    {:ok, _a} = Portfolios.create_portfolio(%{name: "Alpha", base_currency_code: "EUR"})
+    {:ok, _b} = Portfolios.create_portfolio(%{name: "Beta", base_currency_code: "EUR"})
+
+    [first | _] = Portfolios.list_portfolios()
+    target = Enum.find(Portfolios.list_portfolios(), &(&1.id != first.id))
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view
+    |> element("#target-portfolio-form")
+    |> render_change(%{"portfolio_id" => to_string(target.id)})
+
+    assert render(view) =~ "Adding to: #{target.name}"
+
+    view
+    |> element("#cash-account-form")
+    |> render_submit(%{"cash_account" => %{"name" => "Target Cash", "currency_code" => "EUR"}})
+
+    target_cash = Portfolios.list_cash_accounts_for_portfolio(target.id)
+    first_cash = Portfolios.list_cash_accounts_for_portfolio(first.id)
+
+    assert Enum.any?(target_cash, &(&1.name == "Target Cash"))
+    assert first_cash == []
+  end
+
   test "renders the cash-quote toggle compact instead of as a full-width form input" do
     app_css = File.read!("priv/static/app.css")
 
