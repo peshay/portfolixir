@@ -49,3 +49,4 @@ already in force in the codebase.
 | [0018](0018-buckets-tag-based-wealth-scoping.html) | Buckets — tag-based wealth scoping with view filters | Accepted |
 | [0019](0019-view-scoped-performance-boundary-flows.html) | View-scoped performance treats boundary transfers as external flows | Accepted |
 | [0020](0020-view-bound-soll-plans.html) | SOLL target plans belong to a view | Accepted |
+| [0021](0021-pdf-transaction-intake.html) | In-app broker-PDF transaction intake (sandboxed, text-only) | Accepted |
