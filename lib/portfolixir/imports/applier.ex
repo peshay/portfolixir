@@ -21,6 +21,11 @@ defmodule Portfolixir.Imports.Applier do
   - Resolves cash accounts and depots by name *within the chosen
     portfolio*. Missing ones are created.
   - Inserts one ledger row per entry, branching by kind.
+  - Skips degenerate rows that can never form a valid transaction — a
+    cash kind with a zero or missing gross_amount (e.g. a 0 EUR tax
+    line) — recording each in `skipped_entries` with its row and a
+    reason instead of aborting the whole import (#482). Genuine
+    changeset/FK errors still roll the whole transaction back.
   - Reports created/skipped/error counts in the final result.
 
   Out of scope (follow-ups): user-driven security match overrides
@@ -338,7 +343,38 @@ defmodule Portfolixir.Imports.Applier do
     |> Map.new()
   end
 
+  # Kinds that move shares but settle no cash, so they legitimately carry no
+  # gross_amount. Everything else (except balance_adjustment, whose amount is an
+  # absolute balance) needs a positive gross_amount.
+  @cashless_kinds ~w(inbound_delivery outbound_delivery security_transfer)
+
   defp process_entry(%Entry{} = entry, state) do
+    if skip_unimportable?(entry) do
+      # A degenerate row (e.g. a 0 EUR tax line) can't become a valid
+      # transaction, but it must not abort the whole atomic import (#482).
+      # Skip it and report it; genuine changeset failures still roll back.
+      reason = "skipped: zero or missing gross_amount for #{entry.kind}"
+      {:ok, record_skip(state, entry, reason)}
+    else
+      do_process_entry(entry, state)
+    end
+  end
+
+  defp skip_unimportable?(%Entry{kind: kind, gross_amount: amount}) do
+    kind not in @cashless_kinds and kind != "balance_adjustment" and
+      (is_nil(amount) or Decimal.compare(amount, Decimal.new(0)) != :gt)
+  end
+
+  defp record_skip(state, %Entry{} = entry, reason) when is_binary(reason) do
+    Map.update!(state, :result, fn %Result{} = r ->
+      %Result{
+        r
+        | skipped_entries: r.skipped_entries ++ [%{row: entry.source_row, reason: reason}]
+      }
+    end)
+  end
+
+  defp do_process_entry(%Entry{} = entry, state) do
     with {:ok, state, security_id} <- resolve_security(entry, state),
          {:ok, state, cash_id} <- resolve_cash(entry, state),
          {:ok, state, counter_cash_id} <- resolve_counter_cash(entry, state),

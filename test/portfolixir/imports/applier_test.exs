@@ -608,4 +608,78 @@ defmodule Portfolixir.Imports.ApplierTest do
       assert length(Ledger.list_transactions_for_portfolio(portfolio.id)) == 2
     end
   end
+
+  # User story:
+  # As a maintainer importing a real Portfolio Performance export that contains
+  # the odd zero-amount cash record (e.g. a 0 EUR tax line) alongside thousands
+  # of good rows, I want that single unimportable record to be skipped and
+  # reported, not to abort the whole atomic import (#482),
+  # so that one degenerate row does not block migrating my entire history.
+  #
+  # Acceptance criteria:
+  # - A zero-amount cash record (tax) is skipped and recorded in
+  #   `result.skipped_entries` with its row and a reason, instead of aborting.
+  # - A cashless outbound delivery (nil gross_amount) imports successfully.
+  # - The remaining valid records are created; the import returns {:ok, _}.
+  describe "apply/2 skips unimportable zero-amount records (#482)" do
+    alias Portfolixir.Imports.Entry
+    alias Portfolixir.Imports.Preview
+
+    test "skips a zero-amount tax, imports the rest, and reports the skip" do
+      portfolio = setup_portfolio()
+      security = %{name: "Demo AG", isin: "DE000DEMO001", wkn: nil, ticker: nil, currency: "EUR"}
+
+      preview = %Preview{
+        format: :json,
+        entries: [
+          %Entry{
+            source_row: 1,
+            kind: "buy",
+            date: ~D[2024-01-02],
+            currency_code: "EUR",
+            gross_amount: Decimal.new("1000.00"),
+            fees: Decimal.new("0"),
+            taxes: Decimal.new("0"),
+            quantity: Decimal.new("10"),
+            price: Decimal.new("100.00"),
+            security: security,
+            pp_portfolio_name: "Depot",
+            pp_account_name: "Cash"
+          },
+          %Entry{
+            source_row: 2,
+            kind: "tax",
+            date: ~D[2024-01-03],
+            currency_code: "EUR",
+            gross_amount: Decimal.new("0"),
+            fees: Decimal.new("0"),
+            taxes: Decimal.new("0"),
+            pp_account_name: "Cash"
+          },
+          %Entry{
+            source_row: 3,
+            kind: "outbound_delivery",
+            date: ~D[2024-01-04],
+            currency_code: "EUR",
+            gross_amount: nil,
+            fees: Decimal.new("0"),
+            taxes: Decimal.new("0"),
+            quantity: Decimal.new("5"),
+            security: security,
+            pp_portfolio_name: "Depot"
+          }
+        ]
+      }
+
+      assert {:ok, %Result{} = result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+      # Buy + delivery created; the zero tax skipped.
+      assert result.created_transactions == 2
+      assert [%{row: 2} = skip] = result.skipped_entries
+      assert is_binary(skip.reason)
+      assert skip.reason =~ "amount"
+
+      assert length(Ledger.list_transactions_for_portfolio(portfolio.id)) == 2
+    end
+  end
 end

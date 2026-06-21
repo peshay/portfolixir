@@ -47,6 +47,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     "Umbuchung (Wertpapier)" => "security_transfer"
   }
 
+  # Deliveries and security transfers move shares but settle no cash; they carry
+  # no gross_amount so a 0/blank amount does not trip the ledger's
+  # "gross_amount must be greater than 0" check (#482).
+  @no_cash_kinds ~w(inbound_delivery outbound_delivery security_transfer)
+
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
     case __MODULE__.Parser.parse_string(body, skip_headers: false) do
@@ -162,7 +167,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         date: date,
         time: time,
         currency_code: "EUR",
-        gross_amount: gross,
+        gross_amount: if(kind in @no_cash_kinds, do: nil, else: gross),
         fees: fees,
         taxes: taxes,
         quantity: quantity,
