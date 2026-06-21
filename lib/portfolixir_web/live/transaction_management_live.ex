@@ -221,16 +221,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   def handle_event("select_portfolio", %{"id" => id}, socket) do
+    # Match the chip's string value against the loaded portfolios (no atoms,
+    # no parsing): an unknown id simply leaves the active portfolio unchanged.
     socket =
-      case Integer.parse(to_string(id)) do
-        {portfolio_id, ""} ->
-          case Enum.find(socket.assigns.portfolios, &(&1.id == portfolio_id)) do
-            nil -> socket
-            portfolio -> assign(socket, :current_portfolio, portfolio)
-          end
-
-        _ ->
-          socket
+      case Enum.find(socket.assigns.portfolios, &(to_string(&1.id) == id)) do
+        nil -> socket
+        portfolio -> assign(socket, :current_portfolio, portfolio)
       end
 
     {:noreply, socket |> assign(:transaction_form, @transaction_form) |> load_state()}

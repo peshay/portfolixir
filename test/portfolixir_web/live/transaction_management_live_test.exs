@@ -69,4 +69,16 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert has_element?(view, "#portfolio-switch-#{world.portfolio.id}.is-active")
   end
+
+  # An unknown portfolio id (e.g. one deleted in another tab) is a no-op: the
+  # active portfolio is left unchanged rather than blanking the page.
+  test "selecting an unknown portfolio leaves the active one unchanged", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Solo")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    render_hook(view, "select_portfolio", %{"id" => "999999"})
+
+    assert has_element?(view, "#portfolio-switch-#{world.portfolio.id}.is-active")
+  end
 end
