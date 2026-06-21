@@ -77,7 +77,12 @@ defmodule PortfolixirWeb.IncomeLive do
     >
       <div class="workspace-page">
         <section class="workspace-section">
-          <p class="muted"><%= @income.conversion_note %></p>
+          <p class="muted">
+            <%= gettext(
+              "Amounts converted to %{currency} via the EUR hub at each booking date's stored rate; original currency retained.",
+              currency: @income.base_currency
+            ) %>
+          </p>
         </section>
 
         <section id="income-annual" class="workspace-section">
