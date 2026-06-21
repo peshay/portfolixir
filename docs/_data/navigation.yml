@@ -13,8 +13,20 @@
       url: /product-documentation.html#portfolios-and-accounts
     - title: Transactions and Holdings
       url: /product-documentation.html#transactions-and-holdings
+    - title: Classifications, Targets, and Allocation
+      url: /product-documentation.html#classifications-targets-and-allocation
+    - title: Exchange Rates and Valuation
+      url: /product-documentation.html#exchange-rates-and-valuation
+    - title: Portfolio Page
+      url: /product-documentation.html#portfolio-page
+    - title: Performance and Income
+      url: /product-documentation.html#performance-ttwror
+    - title: Imports
+      url: /product-documentation.html#imports
     - title: Quotes and Charts
       url: /product-documentation.html#quotes-and-charts
+    - title: Audit Journal
+      url: /product-documentation.html#audit-journal
 
 - title: Operations
   items:
