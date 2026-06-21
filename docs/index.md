@@ -15,12 +15,21 @@ The application is intentionally scoped to local portfolio records. It stays
 small, deterministic, and available through the web UI, JSON API, and MCP
 companion.
 
-- Create securities.
-- Create portfolios.
-- Link depots to cash accounts.
-- Record manual buy and sell transactions.
-- Review current holdings derived from transaction history.
-- Store and display quote history with a security detail chart.
+- Create securities, portfolios, cash accounts, and depots.
+- Record manual transactions across the Portfolio Performance kinds (buy, sell,
+  dividend, interest, deposit, removal, fee, tax, tax refund, cash transfer,
+  and the delivery/transfer kinds) and derive holdings with cost basis and
+  unrealized profit/loss.
+- Bulk-import Portfolio Performance CSV/JSON v1 exports through a
+  preview-and-apply Imports view with content-hash idempotency.
+- Organise securities into classification trees (custom plus built-in
+  asset-class and currency trees), set per-category target weights, and read a
+  target/actual allocation breakdown with per-category drift.
+- Value multi-currency holdings and cash through stored exchange rates (EUR hub).
+- Scope wealth into buckets and views (ADR-0018) to report on subsets.
+- Store and display quote history with a security detail chart, and review
+  performance (TTWROR) and income (dividends/interest) reports.
+- Audit every financial write through an append-only journal.
 
 Open the [App Handbook](product-documentation.html) for the product walkthrough,
 [Home Deployment](home-deployment.html) for a local Docker Compose setup, or
@@ -28,12 +37,13 @@ Open the [App Handbook](product-documentation.html) for the product walkthrough,
 
 ## Product Workflow
 
-1. Create securities with local identifying data.
-2. Create a portfolio.
-3. Link one depot to one cash account.
-4. Record manual buy and sell transactions.
-5. Review current holdings.
-6. Store quote history and inspect charts.
+1. Create securities, a portfolio, and depots linked to cash accounts — or
+   bulk-import a Portfolio Performance export to seed all of them at once.
+2. Record manual transactions, or apply the imported ones after previewing.
+3. Review holdings, cost basis, and unrealized profit/loss derived from history.
+4. Organise securities into classification trees and set per-category targets.
+5. Read the target/actual allocation breakdown with drift to plan rebalancing.
+6. Store quote history, inspect charts, and review performance and income.
 
 ## Theme, Accent, and Language
 
