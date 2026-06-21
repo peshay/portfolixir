@@ -885,6 +885,22 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert full_html =~ ~s(class="drift-table")
   end
 
+  # User story:
+  # As a maintainer who picked a non-default accent (Teal or Coral),
+  # I want the portfolio performance line to follow my chosen accent,
+  # so that the chart matches the rest of the UI instead of always being violet.
+  #
+  # Acceptance criteria:
+  # - The .perf-line stroke uses the switched --color-accent variable, not the
+  #   fixed --color-accent-violet, so [data-accent] on <html> recolors it.
+  test "performance line stroke follows the chosen accent variable (#411)" do
+    app_css = File.read!("priv/static/app.css")
+
+    assert app_css =~ ~r/\.perf-line\s*\{[^}]*stroke:\s*var\(--color-accent[,)]/s
+
+    refute app_css =~ ~r/\.perf-line\s*\{[^}]*stroke:\s*var\(--color-accent-violet/s
+  end
+
   test "Set balance button carries phx-disable-with for immediate working state",
        %{conn: conn} do
     seed_world()
