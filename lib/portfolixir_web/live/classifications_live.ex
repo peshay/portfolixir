@@ -1,13 +1,17 @@
 defmodule PortfolixirWeb.ClassificationsLive do
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
 
   @zero Decimal.new("0")
+  @hundred Decimal.new("100")
 
   @impl true
   def mount(_params, _session, socket) do
@@ -24,6 +28,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:current_only, true)
      |> assign(:holdings, nil)
      |> assign(:current_path, "/classifications")
+     |> assign(:portfolio, Portfolios.first_portfolio())
+     |> assign(:views, Buckets.list_views())
+     |> assign(:soll_view_id, nil)
+     |> assign(:soll, nil)
      |> start_holdings()}
   end
 
@@ -72,7 +80,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
         socket
         |> assign(:query, "")
         |> assign(:editing_id, nil)
+        |> assign(:soll_view_id, nil)
         |> load_show(classification_id)
+        |> load_soll()
 
       _ ->
         push_navigate(socket, to: "/classifications")
@@ -128,6 +138,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </button>
           <% end %>
         </header>
+
+        <%= if @soll do %>
+          <.soll_editor soll={@soll} views={@views} flat={@tree.flat} />
+        <% end %>
 
         <form phx-change="filter_tree" class="tree-search" onsubmit="return false">
           <input
@@ -425,6 +439,164 @@ defmodule PortfolixirWeb.ClassificationsLive do
     """
   end
 
+  # The view-bound SOLL plan editor (ADR-0020, issue #467). It lets the
+  # maintainer pick a view (Gesamt by default), then define, edit, copy or clear
+  # that `(view, classification)` plan's per-category target weights plus its
+  # cash target, with a live Σ badge and per-parent consistency hints. Weights
+  # are entered and shown as percentages; the context stores fractions in [0, 1].
+  attr(:soll, :map, required: true)
+  attr(:views, :list, required: true)
+  attr(:flat, :list, required: true)
+
+  defp soll_editor(assigns) do
+    ~H"""
+    <section id="soll-editor" class="workspace-section soll-editor">
+      <header class="soll-editor__head">
+        <h2><%= gettext("Target plan (SOLL)") %></h2>
+        <form phx-change="select_soll_view" class="soll-view-picker" onsubmit="return false">
+          <label class="soll-view-picker__label" for="soll-view-select">
+            <%= gettext("Target plan for view:") %>
+          </label>
+          <select id="soll-view-select" name="soll_view">
+            <option value="total" selected={is_nil(@soll.view_id)}>
+              <%= gettext("Gesamt (total)") %>
+            </option>
+            <%= for view <- @views do %>
+              <option value={view.id} selected={@soll.view_id == view.id}>
+                <%= view.name %>
+              </option>
+            <% end %>
+          </select>
+        </form>
+      </header>
+
+      <%= if @soll.exists do %>
+        <form id="soll-plan-form" phx-change="soll_sum" phx-submit="save_soll_plan">
+          <table class="soll-table">
+            <thead>
+              <tr>
+                <th scope="col"><%= gettext("Category") %></th>
+                <th scope="col" class="num"><%= gettext("Target %") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for {category, depth} <- @flat do %>
+                <tr class={["soll-row", child_mismatch_class(@soll, category.id)]}>
+                  <th scope="row" class="soll-row__name">
+                    <span aria-hidden="true"><%= indent(depth) %></span><%= category.name %>
+                    <span
+                      :if={child_hint(@soll, category.id)}
+                      class={[
+                        "hint",
+                        "target-consistency",
+                        child_mismatch_class(@soll, category.id)
+                      ]}
+                      data-role="soll-child-hint"
+                    >
+                      <%= gettext("children Σ") %> <%= child_hint(@soll, category.id) %>%
+                    </span>
+                  </th>
+                  <td class="num">
+                    <label class="sr-only" for={"soll-weight-#{category.id}"}>
+                      <%= gettext("Target weight for %{name}", name: category.name) %>
+                    </label>
+                    <input
+                      type="number"
+                      id={"soll-weight-#{category.id}"}
+                      name={"weights[#{category.id}]"}
+                      value={Map.get(@soll.weights, category.id, "")}
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      inputmode="decimal"
+                    />
+                  </td>
+                </tr>
+              <% end %>
+              <tr class="soll-row soll-row--cash">
+                <th scope="row" class="soll-row__name"><%= gettext("Cash") %></th>
+                <td class="num">
+                  <label class="sr-only" for="soll-cash-target"><%= gettext("Cash target") %></label>
+                  <input
+                    type="number"
+                    id="soll-cash-target"
+                    name="cash_target"
+                    value={@soll.cash_target || ""}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    inputmode="decimal"
+                  />
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class={["soll-row", "soll-row--sum", @soll.mismatch? && "is-target-mismatch"]}>
+                <th scope="row"><%= gettext("Σ") %></th>
+                <td class="num" data-role="soll-sum">
+                  <%= @soll.sum %>%
+                  <span :if={not @soll.mismatch?} class="soll-ok" aria-hidden="true">✓</span>
+                  <span :if={@soll.mismatch?} class="soll-bad" aria-hidden="true">✗</span>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div class="soll-editor__actions">
+            <button type="submit" class="button-primary"><%= gettext("Save plan") %></button>
+            <button
+              type="button"
+              class="button-danger"
+              phx-click="delete_soll_plan"
+              data-confirm={gettext("Delete this view's plan? The portfolio page falls back to IST-only for it.")}
+            >
+              <%= gettext("Delete plan") %>
+            </button>
+          </div>
+        </form>
+
+        <%= if @soll.copy_sources != [] do %>
+          <form phx-change="copy_soll_plan" class="soll-copy" onsubmit="return false">
+            <label class="soll-copy__label" for="soll-copy-from">
+              <%= gettext("Copy from another view…") %>
+            </label>
+            <select id="soll-copy-from" name="copy_from">
+              <option value=""><%= gettext("— Choose a view —") %></option>
+              <%= for {label, value} <- @soll.copy_sources do %>
+                <option value={value}><%= label %></option>
+              <% end %>
+            </select>
+          </form>
+        <% end %>
+      <% else %>
+        <div class="soll-empty" data-role="soll-empty">
+          <p class="hint">
+            <%= gettext("No plan for this view yet. Create one, or copy another view's plan for this classification.") %>
+          </p>
+          <div class="soll-editor__actions">
+            <button type="button" class="button-primary" phx-click="create_soll_plan">
+              <%= gettext("Create plan") %>
+            </button>
+          </div>
+          <%= if @soll.copy_sources != [] do %>
+            <form phx-change="copy_soll_plan" class="soll-copy" onsubmit="return false">
+              <label class="soll-copy__label" for="soll-copy-from-empty">
+                <%= gettext("Copy from another view…") %>
+              </label>
+              <select id="soll-copy-from-empty" name="copy_from">
+                <option value=""><%= gettext("— Choose a view —") %></option>
+                <%= for {label, value} <- @soll.copy_sources do %>
+                  <option value={value}><%= label %></option>
+                <% end %>
+              </select>
+            </form>
+          <% end %>
+        </div>
+      <% end %>
+    </section>
+    """
+  end
+
   @impl true
   def handle_event("create_classification", %{"classification" => params}, socket) do
     case Classifications.create_classification(params) do
@@ -503,6 +675,71 @@ defmodule PortfolixirWeb.ClassificationsLive do
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
       _ -> {:noreply, socket}
     end
+  end
+
+  # -- SOLL plan events ------------------------------------------------------
+
+  def handle_event("select_soll_view", %{"soll_view" => value}, socket) do
+    {:noreply, socket |> assign(:soll_view_id, parse_soll_view(value)) |> load_soll()}
+  end
+
+  def handle_event("create_soll_plan", _params, socket) do
+    with %{id: portfolio_id} <- socket.assigns.portfolio,
+         classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
+         {:ok, _plan} <-
+           Targets.ensure_plan(portfolio_id, classification_id, view: socket.assigns.soll_view_id) do
+      {:noreply, socket |> success(gettext("Plan created")) |> load_soll()}
+    else
+      _ -> {:noreply, failure(socket, gettext("Could not create the plan"))}
+    end
+  end
+
+  # Live Σ: recompute the running total (categories + cash) from the form as the
+  # maintainer types, without persisting anything.
+  def handle_event("soll_sum", params, socket) do
+    {:noreply, assign(socket, :soll, recompute_soll_sum(socket.assigns.soll, params))}
+  end
+
+  def handle_event("save_soll_plan", params, socket) do
+    with %{id: portfolio_id} <- socket.assigns.portfolio,
+         classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
+         {:ok, entries} <- parse_weight_entries(params["weights"]),
+         {:ok, cash_weight} <- parse_percent_fraction(params["cash_target"]),
+         {:ok, _} <-
+           Targets.set_targets(portfolio_id, classification_id, entries,
+             view: socket.assigns.soll_view_id
+           ),
+         :ok <-
+           Targets.set_cash_target(portfolio_id, cash_weight, view: socket.assigns.soll_view_id) do
+      {:noreply, socket |> success(gettext("Plan saved")) |> load_soll()}
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, failure(socket, changeset_error(changeset))}
+
+      {:error, reason} ->
+        {:noreply, failure(socket, error_message(reason))}
+
+      _ ->
+        {:noreply, failure(socket, gettext("Could not save the plan"))}
+    end
+  end
+
+  def handle_event("delete_soll_plan", _params, socket) do
+    with %{id: portfolio_id} <- socket.assigns.portfolio,
+         classification_id when is_integer(classification_id) <- socket.assigns.selected_id do
+      Targets.delete_plan(portfolio_id, classification_id, view: socket.assigns.soll_view_id)
+      {:noreply, socket |> success(gettext("Plan deleted")) |> load_soll()}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  # Prefill the editor from another view's plan for the same classification,
+  # without persisting until the maintainer saves.
+  def handle_event("copy_soll_plan", %{"copy_from" => ""}, socket), do: {:noreply, socket}
+
+  def handle_event("copy_soll_plan", %{"copy_from" => value}, socket) do
+    {:noreply, assign(socket, :soll, copy_soll_from(socket.assigns, parse_soll_view(value)))}
   end
 
   def handle_event("filter_tree", %{"query" => query}, socket) do
@@ -589,6 +826,207 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp reload(%{assigns: %{selected_id: nil}} = socket), do: socket
   defp reload(socket), do: load_show(socket, socket.assigns.selected_id)
+
+  # -- SOLL plan loading -----------------------------------------------------
+
+  # The plan editor only makes sense for an editable (custom) tree that has a
+  # portfolio behind it; built-in trees and the no-portfolio case carry no
+  # editor (`soll: nil`).
+  defp load_soll(%{assigns: %{portfolio: nil}} = socket), do: assign(socket, :soll, nil)
+  defp load_soll(%{assigns: %{tree: nil}} = socket), do: assign(socket, :soll, nil)
+
+  defp load_soll(%{assigns: %{tree: %{editable: false}}} = socket),
+    do: assign(socket, :soll, nil)
+
+  defp load_soll(socket) do
+    %{portfolio: portfolio, selected_id: classification_id, soll_view_id: view_id} =
+      socket.assigns
+
+    assign(socket, :soll, build_soll(portfolio.id, classification_id, view_id, socket.assigns))
+  end
+
+  defp build_soll(portfolio_id, classification_id, view_id, assigns) do
+    exists? = Targets.plan_exists?(portfolio_id, classification_id, view: view_id)
+
+    weights =
+      if exists? do
+        portfolio_id
+        |> Targets.list_targets(classification_id: classification_id, view: view_id)
+        |> Map.new(&{&1.category_id, fraction_to_percent(&1.target_weight)})
+      else
+        %{}
+      end
+
+    cash_target =
+      portfolio_id
+      |> Targets.get_cash_target(view: view_id)
+      |> fraction_to_percent_or_nil()
+
+    soll = %{
+      view_id: view_id,
+      exists: exists?,
+      weights: weights,
+      cash_target: cash_target,
+      top_level_ids: top_level_ids(assigns.tree.flat),
+      children_by_parent: children_by_parent(assigns.tree.flat),
+      child_sums: child_sums(assigns.tree.flat, weights),
+      copy_sources: copy_sources(portfolio_id, classification_id, view_id, assigns.views)
+    }
+
+    put_sum(soll)
+  end
+
+  # The integer ids of the top-level categories (those without a parent). The
+  # running Σ counts only these, mirroring the allocation engine's
+  # `top_level_target_sum`, so a hierarchical plan is not double-counted when a
+  # parent's weight already covers its children (#467).
+  defp top_level_ids(flat) do
+    for {category, _depth} <- flat, is_nil(category.parent_id), into: MapSet.new() do
+      category.id
+    end
+  end
+
+  # The parent→children id structure (`%{parent_id => [child_id, ...]}`, integers)
+  # used to roll a blank parent's Σ up from its children's effective weights.
+  # Only real parents (non-nil parent_id rows grouped by their parent) appear.
+  defp children_by_parent(flat) do
+    flat
+    |> Enum.reject(fn {category, _depth} -> is_nil(category.parent_id) end)
+    |> Enum.group_by(
+      fn {category, _depth} -> category.parent_id end,
+      fn {category, _depth} -> category.id end
+    )
+  end
+
+  # Live Σ from the in-flight form values: recompute the running total and the
+  # per-parent children sums without touching the database.
+  defp recompute_soll_sum(soll, params) do
+    weights = parse_percent_map(params["weights"])
+    cash = parse_percent_string(params["cash_target"])
+
+    soll
+    |> Map.put(:weights, weights)
+    |> Map.put(:cash_target, cash)
+    |> Map.put(:child_sums, child_sums_from_decimals(weights))
+    |> put_sum()
+  end
+
+  # Prefill from a source view's plan (for the same classification) without
+  # persisting; the editor shows the source values for the target view.
+  defp copy_soll_from(assigns, source_view_id) do
+    %{portfolio: portfolio, selected_id: classification_id} = assigns
+
+    weights =
+      portfolio.id
+      |> Targets.list_targets(classification_id: classification_id, view: source_view_id)
+      |> Map.new(&{&1.category_id, fraction_to_percent(&1.target_weight)})
+
+    cash =
+      portfolio.id
+      |> Targets.get_cash_target(view: source_view_id)
+      |> fraction_to_percent_or_nil()
+
+    # Copying prefills the form (and reveals it from the empty state) without
+    # persisting; the maintainer still has to Save to write the plan.
+    assigns.soll
+    |> Map.put(:exists, true)
+    |> Map.put(:weights, weights)
+    |> Map.put(:cash_target, cash)
+    |> Map.put(:child_sums, child_sums(assigns.tree.flat, weights))
+    |> put_sum()
+  end
+
+  # Other views (Gesamt + named) that carry a plan for this classification, as
+  # `{label, value}` pairs for the copy-from picker — the current view excluded.
+  defp copy_sources(portfolio_id, classification_id, current_view_id, views) do
+    candidates = [{gettext("Gesamt (total)"), nil} | Enum.map(views, &{&1.name, &1.id})]
+
+    candidates
+    |> Enum.reject(fn {_label, id} -> id == current_view_id end)
+    |> Enum.filter(fn {_label, id} ->
+      Targets.plan_exists?(portfolio_id, classification_id, view: id)
+    end)
+    |> Enum.map(fn {label, id} -> {label, view_param(id)} end)
+  end
+
+  # Running total: the TOP-LEVEL categories' EFFECTIVE weights plus the cash
+  # percentage. A category's effective weight is its own explicit weight when set
+  # (children are not added on top — that stays the per-parent hint only), else
+  # the rolled-up sum of its children's effective weights so sub-category-only
+  # plans still count (#467). Decimal math throughout so the 100% comparison is
+  # exact. `top_level_ids`/`children_by_parent` are always populated by
+  # `build_soll/4`; the fallback keeps a malformed map from crashing.
+  defp put_sum(soll) do
+    top_level_ids = Map.get(soll, :top_level_ids)
+    children_by_parent = Map.get(soll, :children_by_parent)
+
+    sum =
+      soll
+      |> effective_top_level_sum(top_level_ids, children_by_parent)
+      |> Decimal.add(to_decimal(soll.cash_target))
+
+    soll
+    |> Map.put(:sum, format_sum(sum))
+    |> Map.put(:mismatch?, not Decimal.equal?(sum, @hundred))
+  end
+
+  defp effective_top_level_sum(soll, %MapSet{} = top_level_ids, children_by_parent)
+       when is_map(children_by_parent) do
+    Enum.reduce(top_level_ids, @zero, fn id, acc ->
+      Decimal.add(acc, effective_weight(id, soll.weights, children_by_parent))
+    end)
+  end
+
+  # Fallback when the tree shape is absent (malformed soll): sum every weight, as
+  # the pre-#467 editor did, so the badge degrades gracefully instead of crashing.
+  defp effective_top_level_sum(soll, _ids, _children) do
+    Enum.reduce(soll.weights, @zero, fn {_id, value}, acc ->
+      Decimal.add(acc, to_decimal(value))
+    end)
+  end
+
+  # A category's effective weight: its explicit weight when set, else the summed
+  # effective weights of its children (recursive roll-up), else zero.
+  defp effective_weight(id, weights, children_by_parent) do
+    case Map.get(weights, id) do
+      nil ->
+        children_by_parent
+        |> Map.get(id, [])
+        |> Enum.reduce(@zero, fn child_id, acc ->
+          Decimal.add(acc, effective_weight(child_id, weights, children_by_parent))
+        end)
+
+      value ->
+        to_decimal(value)
+    end
+  end
+
+  # Sum of each parent's direct children's percentages, keyed by parent id, only
+  # where at least one child carries a weight (advisory hint, display-only).
+  defp child_sums(flat, weights) do
+    flat
+    |> Enum.group_by(fn {category, _depth} -> category.parent_id end)
+    |> Enum.reduce(%{}, fn {parent_id, children}, acc ->
+      case sum_child_weights(children, weights) do
+        nil -> acc
+        sum -> Map.put(acc, parent_id, sum)
+      end
+    end)
+  end
+
+  defp sum_child_weights(children, weights) do
+    Enum.reduce(children, nil, fn {category, _depth}, acc ->
+      case Map.get(weights, category.id) do
+        nil -> acc
+        value -> Decimal.add(acc || @zero, to_decimal(value))
+      end
+    end)
+  end
+
+  # Children sums during live typing: weights here are already parsed Decimals,
+  # but we lack the tree shape, so we only flag the top-level (parent nil) row.
+  # The full per-parent hints come back on the next server load.
+  defp child_sums_from_decimals(_weights), do: %{}
 
   defp load_show(socket, classification_id) do
     tree = Enum.find(Classifications.list_trees(), &(&1.classification.id == classification_id))
@@ -843,6 +1281,150 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp coerce_ids(_values), do: :error
+
+  # -- SOLL render helpers ---------------------------------------------------
+
+  # The children-Σ hint string for one parent (a percentage), or nil when no
+  # direct child carries a weight.
+  defp child_hint(soll, parent_id) do
+    case Map.get(soll.child_sums, parent_id) do
+      nil -> nil
+      sum -> format_sum(sum)
+    end
+  end
+
+  # Flags a parent row whose children's percentages do not sum to its own
+  # percentage (advisory; never blocks saving). Reuses the portfolio page's
+  # `is-target-mismatch` styling.
+  defp child_mismatch_class(soll, category_id) do
+    own = Map.get(soll.weights, category_id)
+    sum = Map.get(soll.child_sums, category_id)
+
+    if not is_nil(own) and not is_nil(sum) and not Decimal.equal?(to_decimal(own), sum) do
+      "is-target-mismatch"
+    end
+  end
+
+  # -- SOLL parsing / conversion ---------------------------------------------
+
+  # Parse the weights map into context entries `%{category_id, target_weight}`,
+  # converting each percentage to a fraction in [0, 1]. Blank inputs are skipped.
+  # An unparseable value fails the whole save.
+  defp parse_weight_entries(nil), do: {:ok, []}
+
+  defp parse_weight_entries(weights) when is_map(weights) do
+    Enum.reduce_while(weights, {:ok, []}, fn {key, value}, {:ok, acc} ->
+      with {:ok, category_id} <- coerce_id(key),
+           {:ok, fraction} <- parse_percent_fraction(value) do
+        case fraction do
+          nil -> {:cont, {:ok, acc}}
+          _ -> {:cont, {:ok, [%{category_id: category_id, target_weight: fraction} | acc]}}
+        end
+      else
+        _ -> {:halt, {:error, :invalid_weight}}
+      end
+    end)
+  end
+
+  defp parse_weight_entries(_weights), do: {:ok, []}
+
+  # A percentage string ("60", "12.5", "" ) → a `Decimal` fraction in [0, 1], or
+  # `nil` for blank. Returns `{:error, :invalid_weight}` for non-numbers.
+  defp parse_percent_fraction(nil), do: {:ok, nil}
+  defp parse_percent_fraction(""), do: {:ok, nil}
+
+  defp parse_percent_fraction(value) when is_binary(value) do
+    case parse_decimal(String.trim(value)) do
+      {:ok, decimal} -> {:ok, Decimal.div(decimal, @hundred)}
+      :error -> {:error, :invalid_weight}
+    end
+  end
+
+  defp parse_percent_fraction(_value), do: {:error, :invalid_weight}
+
+  # The live-Σ counterparts: lenient parsers that treat anything unparseable as
+  # zero/absent so typing never crashes the form.
+  defp parse_percent_map(nil), do: %{}
+
+  defp parse_percent_map(weights) when is_map(weights) do
+    Enum.reduce(weights, %{}, fn {key, value}, acc ->
+      case {coerce_id(key), parse_percent_string(value)} do
+        {{:ok, id}, %Decimal{} = decimal} -> Map.put(acc, id, decimal)
+        _ -> acc
+      end
+    end)
+  end
+
+  defp parse_percent_map(_weights), do: %{}
+
+  defp parse_percent_string(nil), do: nil
+  defp parse_percent_string(""), do: nil
+
+  defp parse_percent_string(value) when is_binary(value) do
+    case parse_decimal(String.trim(value)) do
+      {:ok, decimal} -> decimal
+      :error -> nil
+    end
+  end
+
+  defp parse_percent_string(_value), do: nil
+
+  defp parse_decimal(""), do: :error
+
+  # `Decimal.parse/1` also accepts the IEEE special values ("NaN", "Inf",
+  # "Infinity", any case/sign), which the `:decimal` Ecto cast then rejects with
+  # an uncaught `ArgumentError`. Treat any non-finite result as invalid here so a
+  # crafted form payload can never crash the editor — it surfaces as a normal
+  # "invalid weight" instead.
+  defp parse_decimal(value) do
+    case Decimal.parse(value) do
+      {%Decimal{} = decimal, ""} ->
+        if Decimal.nan?(decimal) or Decimal.inf?(decimal), do: :error, else: {:ok, decimal}
+
+      _ ->
+        :error
+    end
+  end
+
+  # A stored fraction in [0, 1] → its percentage as a plain display string
+  # ("0.6" → "60", "0.125" → "12.5"), trimming trailing zeros.
+  defp fraction_to_percent(%Decimal{} = fraction) do
+    fraction |> Decimal.mult(@hundred) |> Decimal.normalize() |> Decimal.to_string(:normal)
+  end
+
+  defp fraction_to_percent_or_nil(nil), do: nil
+  defp fraction_to_percent_or_nil(%Decimal{} = fraction), do: fraction_to_percent(fraction)
+
+  # Format a running sum (already a percentage Decimal) for display, trimming
+  # trailing zeros so "100.0" reads "100".
+  defp format_sum(%Decimal{} = sum) do
+    sum |> Decimal.normalize() |> Decimal.to_string(:normal)
+  end
+
+  defp to_decimal(%Decimal{} = value), do: value
+  defp to_decimal(nil), do: @zero
+
+  defp to_decimal(value) when is_binary(value) do
+    case parse_decimal(value) do
+      {:ok, decimal} -> decimal
+      :error -> @zero
+    end
+  end
+
+  # "total" or a view id string → the view id (nil for Gesamt) used by the
+  # Targets context. Never builds an atom from input.
+  defp parse_soll_view("total"), do: nil
+  defp parse_soll_view(nil), do: nil
+
+  defp parse_soll_view(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {id, ""} -> id
+      _ -> nil
+    end
+  end
+
+  defp view_param(nil), do: "total"
+  defp view_param(id) when is_integer(id), do: Integer.to_string(id)
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)

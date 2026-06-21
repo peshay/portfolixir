@@ -184,6 +184,37 @@ amount, i.e. how much to buy or sell to reach the target. Securities held but no
 assigned in the chosen tree are summed into an unassigned bucket. Only the
 targets are stored; the actual side is derived from the live valuation on read.
 
+### Editing a SOLL plan on the Classifications page
+
+Target weights are not global: a **SOLL plan belongs to a view** (see ADR-0020).
+You edit a plan on the **Classifications page**, in the **Target plan (SOLL)**
+section of a custom tree's detail pane. At the top of that section a **view
+selector** ("Target plan for view: [Gesamt ▾]" / German *Soll-Plan für Sicht*)
+chooses which plan you are editing; the default **Gesamt** is the portfolio-wide
+plan that behaves like a single global target set. Switching the selector loads
+that `(view, classification)` plan's stored weights and cash target — Gesamt and
+each named view carry **independent** plans, so the same tree can hold a
+different 100% plan per view, or none.
+
+The states are:
+
+- **No plan yet.** The section shows an empty state with **Create plan**
+  (*Plan anlegen*) and, when another view already has a plan for this tree, an
+  **Copy from another view…** (*Aus anderer Sicht übernehmen…*) picker that
+  prefills the editor from that source plan. Nothing is written until you save.
+- **A plan exists.** Each category gets a **Target %** input and there is a
+  **Cash** target input below them; **Save plan** writes the whole
+  `(view, classification)` plan at once. A live **Σ** footer sums the category
+  weights plus the cash target and shows a ✓ at exactly 100% or a ✗ with the
+  yellow mismatch cue otherwise, updating as you type.
+- **Delete plan** (*Plan löschen*) removes the view's plan; the Portfolio page
+  then falls back to **IST-only** (no SOLL, no drift) for that view.
+
+Weights are entered and shown as **percentages** (e.g. `60`), stored as
+fractions in `[0, 1]`. Inputs are labelled and keyboard-focusable, and the same
+plan is equally reachable over the API/MCP target endpoints with a `view`
+parameter.
+
 To keep a position **out of the allocation steering basis** while it still counts
 toward your total wealth — for example a Bitcoin held as a long-term store of
 value rather than part of the steered mix — tag the security with a **bucket** and
@@ -228,7 +259,8 @@ basis as the categories. With a cash target set, the allocation's 100% basis is
 with a non-negative balance). The drift table then shows
 a dedicated **Cash** row in its own neutral colour with the cash actual, target
 and drift, the sunburst gains a cash segment, and every category percentage
-shrinks accordingly once cash joins the basis. Set the cash target over the API
+shrinks accordingly once cash joins the basis. Set the cash target in the plan
+editor's **Cash** input on the Classifications page (per view), or over the API
 (`PATCH /api/v1/portfolios/:id`) or MCP (`portfolixir.portfolios.set_cash_target`),
 or clear it with `null` to stop steering a cash quote.
 
