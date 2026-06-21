@@ -299,6 +299,531 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert shown =~ ~r/data-role="category-positions"[^>]*>\s*2\b/
   end
 
+  # =====================================================================
+  # SOLL plan editor (ADR-0020, Story 4 / issue #467)
+  # =====================================================================
+
+  alias Portfolixir.Buckets
+  alias Portfolixir.Portfolios.Targets
+
+  # A custom classification with two categories on top of the base world, so the
+  # SOLL editor has a portfolio, a view and categories to steer.
+  defp soll_world do
+    world = base_world()
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, equity} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Equity"})
+
+    {:ok, bonds} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Bonds"})
+
+    Map.merge(world, %{classification: classification, equity: equity, bonds: bonds})
+  end
+
+  # User story:
+  # As a portfolio maintainer,
+  # I want to define a view's SOLL plan (per-category target weights and a cash
+  # target) for a classification on the classifications page, with a view
+  # selector defaulting to "Gesamt",
+  # so that each view carries its own coherent 100% steering plan.
+  #
+  # Acceptance criteria:
+  # - The SOLL area shows a view selector ("Soll-Plan für Sicht: [Gesamt ▾]").
+  # - With no plan yet, the editor shows the empty state ("Plan anlegen").
+  # - Saving per-category weights plus a cash target writes the (Gesamt,
+  #   classification) plan; the values round-trip into the Targets context.
+  test "creates a Gesamt SOLL plan with category weights and a cash target", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity, bonds: bonds} =
+      soll_world()
+
+    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+
+    # The view selector defaults to Gesamt and the empty state invites a plan.
+    assert html =~ "Target plan for view"
+    assert has_element?(view, "select[name='soll_view']")
+    assert html =~ "Create plan"
+
+    # Materialise the empty plan, then save weights and a cash target.
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    view
+    |> form("#soll-plan-form", %{
+      "weights" => %{
+        "#{equity.id}" => "60",
+        "#{bonds.id}" => "30"
+      },
+      "cash_target" => "10"
+    })
+    |> render_submit()
+
+    targets =
+      portfolio.id
+      |> Targets.list_targets(classification_id: classification.id, view: nil)
+      |> Map.new(&{&1.category_id, &1.target_weight})
+
+    assert Decimal.equal?(targets[equity.id], Decimal.new("0.6"))
+    assert Decimal.equal?(targets[bonds.id], Decimal.new("0.3"))
+    assert Decimal.equal?(Targets.get_cash_target(portfolio.id, view: nil), Decimal.new("0.1"))
+  end
+
+  # User story:
+  # As a maintainer reopening an existing plan,
+  # I want the editor pre-filled with the plan's stored weights and cash target,
+  # so I can review and edit it rather than re-enter it.
+  #
+  # Acceptance criteria:
+  # - A plan that exists renders filled inputs and a "Plan löschen" action.
+  test "shows an existing plan filled, with a delete action", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.75"}],
+        view: nil
+      )
+
+    :ok = Targets.set_cash_target(portfolio.id, "0.25", view: nil)
+
+    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+
+    assert html =~ "Delete plan"
+    # Weights are shown as percentages (75% / 25%).
+    assert has_element?(view, "input[name='weights[#{equity.id}]'][value='75']")
+    assert has_element?(view, "input[name='cash_target'][value='25']")
+  end
+
+  # User story:
+  # As a maintainer who set up a plan under one view,
+  # I want to delete a view's plan,
+  # so the portfolio page falls back to IST-only for that view.
+  #
+  # Acceptance criteria:
+  # - "Plan löschen" removes the plan; afterwards no plan exists.
+  test "deletes a plan and falls back to no plan", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.5"}],
+        view: nil
+      )
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    view
+    |> element("button[phx-click='delete_soll_plan']")
+    |> render_click()
+
+    refute Targets.plan_exists?(portfolio.id, classification.id, view: nil)
+    assert render(view) =~ "Create plan"
+  end
+
+  # User story:
+  # As a maintainer steering several views,
+  # I want a named view's plan to be independent from the Gesamt plan,
+  # so the same classification can carry a different 100% plan per view.
+  #
+  # Acceptance criteria:
+  # - Switching the view selector loads that (view, classification) plan only.
+  # - A named view's plan does not see the Gesamt plan's weights.
+  test "Gesamt and a named view carry independent plans", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+    {:ok, named} = Buckets.create_view(Portfolixir.Actor.owner_ui(), %{name: "Stocks"})
+
+    # Gesamt has Equity at 80%.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.8"}],
+        view: nil
+      )
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    assert has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
+
+    # Switching to the named view shows its own (empty) plan, not Gesamt's 80%.
+    switched =
+      view
+      |> element("form[phx-change='select_soll_view']")
+      |> render_change(%{"soll_view" => "#{named.id}"})
+
+    refute switched =~ ~s(name="weights[#{equity.id}]" value="80")
+    assert switched =~ "Create plan"
+  end
+
+  # User story:
+  # As a maintainer building a view's plan from scratch,
+  # I want to copy another view's plan for the same classification,
+  # so I can start from an existing plan instead of re-entering it.
+  #
+  # Acceptance criteria:
+  # - "Aus anderer Sicht übernehmen…" prefills the editor from a source plan;
+  #   saving writes the target view's plan from those values.
+  test "copies a plan from another view to prefill the editor", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity, bonds: bonds} =
+      soll_world()
+
+    {:ok, named} = Buckets.create_view(Portfolixir.Actor.owner_ui(), %{name: "Stocks"})
+
+    # Gesamt holds the source plan.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [
+          %{category_id: equity.id, target_weight: "0.7"},
+          %{category_id: bonds.id, target_weight: "0.3"}
+        ],
+        view: nil
+      )
+
+    :ok = Targets.set_cash_target(portfolio.id, "0.0", view: nil)
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    # Switch to the empty named view, then copy from Gesamt.
+    view
+    |> element("form[phx-change='select_soll_view']")
+    |> render_change(%{"soll_view" => "#{named.id}"})
+
+    copied =
+      view
+      |> element("form[phx-change='copy_soll_plan']")
+      |> render_change(%{"copy_from" => "total"})
+
+    # The form is now prefilled with Gesamt's weights for the named view.
+    assert copied =~ ~s(name="weights[#{equity.id}]" value="70")
+    assert copied =~ ~s(name="weights[#{bonds.id}]" value="30")
+
+    # Saving writes the named view's plan from those values.
+    view
+    |> form("#soll-plan-form", %{
+      "weights" => %{"#{equity.id}" => "70", "#{bonds.id}" => "30"},
+      "cash_target" => "0"
+    })
+    |> render_submit()
+
+    named_targets =
+      portfolio.id
+      |> Targets.list_targets(classification_id: classification.id, view: named.id)
+      |> Map.new(&{&1.category_id, &1.target_weight})
+
+    assert Decimal.equal?(named_targets[equity.id], Decimal.new("0.7"))
+    assert Decimal.equal?(named_targets[bonds.id], Decimal.new("0.3"))
+    # Gesamt is untouched.
+    assert Decimal.equal?(
+             Targets.get_cash_target(portfolio.id, view: nil),
+             Decimal.new("0.0")
+           )
+  end
+
+  # User story:
+  # As a maintainer typing target weights,
+  # I want a live Σ badge that sums the category weights and the cash target,
+  # so I immediately see whether the plan adds up to 100%.
+  #
+  # Acceptance criteria:
+  # - The Σ badge shows the running total and an OK marker at exactly 100%.
+  # - Off 100% it shows a not-OK marker and the mismatch styling.
+  test "live Σ badge tracks the running total as you type", %{conn: conn} do
+    %{classification: classification, equity: equity, bonds: bonds} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    # 60 + 30 + 10 = 100 → OK.
+    balanced =
+      view
+      |> element("#soll-plan-form")
+      |> render_change(%{
+        "weights" => %{"#{equity.id}" => "60", "#{bonds.id}" => "30"},
+        "cash_target" => "10"
+      })
+
+    assert balanced =~ "100"
+    assert balanced =~ ~s(data-role="soll-sum")
+    refute balanced =~ "is-target-mismatch"
+
+    # 60 + 30 + 20 = 110 → mismatch.
+    off =
+      view
+      |> element("#soll-plan-form")
+      |> render_change(%{
+        "weights" => %{"#{equity.id}" => "60", "#{bonds.id}" => "30"},
+        "cash_target" => "20"
+      })
+
+    assert off =~ "110"
+    assert off =~ "is-target-mismatch"
+  end
+
+  # User story:
+  # As a maintainer (and against a crafted socket payload),
+  # I want non-numeric or non-finite weights to be rejected gracefully,
+  # so a bad value never crashes the plan editor.
+  #
+  # Acceptance criteria:
+  # - A "NaN"/"Infinity" weight (which the number input's min/max can't stop on a
+  #   crafted payload) does not crash the LiveView; nothing is persisted.
+  test "rejects non-finite weights without crashing", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    view |> element("button[phx-click='create_soll_plan']") |> render_click()
+
+    # A crafted submit with a non-finite value: the process must survive.
+    view
+    |> form("#soll-plan-form", %{
+      "weights" => %{"#{equity.id}" => "NaN"},
+      "cash_target" => "Infinity"
+    })
+    |> render_submit()
+
+    assert Process.alive?(view.pid)
+    # Nothing crept into the plan from the bad payload.
+    assert Targets.list_targets(portfolio.id, classification_id: classification.id, view: nil) ==
+             []
+
+    assert is_nil(Targets.get_cash_target(portfolio.id, view: nil))
+  end
+
+  # User story:
+  # As a German-speaking maintainer,
+  # I want the SOLL editor labels in German,
+  # so the plan editor reads in my language.
+  #
+  # Acceptance criteria:
+  # - With locale=de the view selector reads "Soll-Plan für Sicht:" and the empty
+  #   state offers "Plan anlegen".
+  test "renders the SOLL editor labels in German", %{conn: conn} do
+    %{classification: classification} = soll_world()
+
+    {:ok, _view, html} = live(conn, "/classifications/#{classification.id}?locale=de")
+
+    assert html =~ "Soll-Plan für Sicht"
+    assert html =~ "Plan anlegen"
+    assert html =~ "Gesamt"
+  end
+
+  # User story:
+  # As a maintainer steering a nested classification,
+  # I want the running Σ to count only the top-level category weights (plus the
+  # cash target), exactly like the portfolio page's allocation engine,
+  # so a hierarchical plan whose parents already sum to 100% is not double-counted
+  # by also adding the children's weights.
+  #
+  # Acceptance criteria:
+  # - With a parent at 100% and a child under it at 100%, the Σ badge shows the
+  #   top-level total (100%), not the doubled ~200%.
+  # - The Σ row carries the OK styling (no mismatch) because the top-level total
+  #   plus cash is exactly 100%.
+  test "Σ counts only top-level categories for a hierarchical plan", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, child} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Large caps",
+        parent_id: equity.id
+      })
+
+    # The single top-level category is steered to 100%; its child carries its own
+    # 100% (a fully-allocated sub-plan). The Σ must read 100%, not 200%.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [
+          %{category_id: equity.id, target_weight: "1.0"},
+          %{category_id: child.id, target_weight: "1.0"}
+        ],
+        view: nil
+      )
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    sum = view |> element("[data-role='soll-sum']") |> render()
+
+    # Only the top-level Equity (100%) feeds the Σ; the child's 100% is excluded.
+    assert sum =~ "100%"
+    refute sum =~ "200%"
+    # 100% top-level + no cash target == 100% → OK, no mismatch styling.
+    refute view |> element("tr.soll-row--sum") |> render() =~ "is-target-mismatch"
+  end
+
+  # User story:
+  # As a maintainer steering a nested classification,
+  # I want the running Σ to roll a blank parent's weight up from its children's
+  # weights,
+  # so a plan defined only on sub-categories still counts toward 100% instead of
+  # being silently ignored.
+  #
+  # Acceptance criteria:
+  # - With a top-level parent left blank but two children carrying 60% and 40%,
+  #   the Σ badge rolls up to the children's total (100%).
+  # - The Σ row carries the OK styling (no mismatch) because the rolled-up
+  #   top-level total plus cash is exactly 100%.
+  test "Σ rolls up a blank parent's weight from its children", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, large} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Large caps",
+        parent_id: equity.id
+      })
+
+    {:ok, small} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Small caps",
+        parent_id: equity.id
+      })
+
+    # The Equity parent is left blank; only its children carry weights (60 + 40).
+    # The Σ must roll these up to 100%, not ignore the un-weighted parent.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [
+          %{category_id: large.id, target_weight: "0.6"},
+          %{category_id: small.id, target_weight: "0.4"}
+        ],
+        view: nil
+      )
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    sum = view |> element("[data-role='soll-sum']") |> render()
+
+    # 60% + 40% roll up to the blank Equity parent → Σ reads 100%.
+    assert sum =~ "100%"
+    # 100% rolled-up top-level + no cash target == 100% → OK, no mismatch styling.
+    refute view |> element("tr.soll-row--sum") |> render() =~ "is-target-mismatch"
+  end
+
+  # User story:
+  # As a maintainer steering a nested classification,
+  # I want the running Σ to mix an explicit top-level weight with a blank parent
+  # whose weight rolls up from its child,
+  # so a partly-flat, partly-nested plan still totals correctly.
+  #
+  # Acceptance criteria:
+  # - With one top-level parent set explicitly to 50% and another top-level
+  #   parent left blank but carrying a single 50% child, the Σ badge reads 100%.
+  # - The Σ row carries the OK styling (no mismatch).
+  test "Σ mixes an explicit top-level weight with a rolled-up blank parent",
+       %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity, bonds: bonds} =
+      soll_world()
+
+    {:ok, govies} =
+      Classifications.create_category(%{
+        classification_id: classification.id,
+        name: "Government",
+        parent_id: bonds.id
+      })
+
+    # Equity is explicit at 50%; Bonds is blank but its only child carries 50%.
+    # Σ = 50 (explicit) + 50 (rolled up) = 100%.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [
+          %{category_id: equity.id, target_weight: "0.5"},
+          %{category_id: govies.id, target_weight: "0.5"}
+        ],
+        view: nil
+      )
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    sum = view |> element("[data-role='soll-sum']") |> render()
+
+    assert sum =~ "100%"
+    refute view |> element("tr.soll-row--sum") |> render() =~ "is-target-mismatch"
+  end
+
+  # User story (#468, deep-link target):
+  # As a maintainer who clicked the "Create a plan for this view" hint on the
+  # Portfolio page (a view that had no plan),
+  # I want the classifications editor to open with that view AND classification
+  # already selected,
+  # so that I edit the right (view, classification) plan instead of starting on
+  # Gesamt and re-picking the view.
+  #
+  # Acceptance criteria:
+  # - /classifications/<id>?soll_view=<view_id> selects the named view in the
+  #   SOLL view selector (its option is selected).
+  # - The editor loads that (view, classification) plan, not the Gesamt plan.
+  test "the SOLL deep-link pre-selects the view from the soll_view param", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+    {:ok, named} = Buckets.create_view(Portfolixir.Actor.owner_ui(), %{name: "Strategie"})
+
+    # Gesamt has Equity at 80%; the named view has its own (different) plan.
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.8"}],
+        view: nil
+      )
+
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.4"}],
+        view: named.id
+      )
+
+    {:ok, view, _html} =
+      live(conn, "/classifications/#{classification.id}?soll_view=#{named.id}")
+
+    # The named view's option is pre-selected in the SOLL view selector.
+    assert has_element?(
+             view,
+             "select[name='soll_view'] option[value='#{named.id}'][selected]"
+           )
+
+    # The editor loads the named view's plan (40%), not Gesamt's (80%).
+    assert has_element?(view, "input[name='weights[#{equity.id}]'][value='40']")
+    refute has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
+  end
+
+  # User story (#468, deep-link target — Gesamt):
+  # As a maintainer who clicked the hint from the Total (Gesamt) view,
+  # I want the deep-link with soll_view=total to land on the Gesamt plan,
+  # so the bridge works for the portfolio-wide plan too.
+  #
+  # Acceptance criteria:
+  # - /classifications/<id>?soll_view=total keeps Gesamt selected and loads it.
+  test "the SOLL deep-link with soll_view=total selects Gesamt", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
+
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{category_id: equity.id, target_weight: "0.8"}],
+        view: nil
+      )
+
+    {:ok, view, _html} =
+      live(conn, "/classifications/#{classification.id}?soll_view=total")
+
+    assert has_element?(view, "select[name='soll_view'] option[value='total'][selected]")
+    assert has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
+  end
+
   defp assignments(classification_id) do
     Classifications.list_trees()
     |> Enum.find(&(&1.classification.id == classification_id))

@@ -21,6 +21,11 @@ defmodule PortfolixirWeb.ViewSwitcher do
   attr(:views, :list, required: true)
   attr(:active_view, :any, default: nil)
 
+  # The view ids that carry a SOLL plan for the page's active classification
+  # (ADR-0020, #468). `nil` in this list marks the Total/Gesamt chip. Optional so
+  # surfaces without a classification context render the switcher unchanged.
+  attr(:planned_view_ids, :list, default: [])
+
   def view_switcher(assigns) do
     ~H"""
     <div class="view-switcher" role="group" aria-label={gettext("Active view")}>
@@ -33,8 +38,14 @@ defmodule PortfolixirWeb.ViewSwitcher do
           class={["view-chip", is_nil(@active_view) && "is-active"]}
           href={view_href(@current_path, "total")}
           aria-current={if is_nil(@active_view), do: "true", else: nil}
+          data-has-plan={if nil in @planned_view_ids, do: "", else: nil}
+          title={plan_marker_title(nil in @planned_view_ids)}
         >
-          <%= gettext("Total") %>
+          <%= gettext("Total") %><span
+            :if={nil in @planned_view_ids}
+            class="view-chip__plan-dot"
+            aria-hidden="true"
+          >•</span>
         </a>
         <%= for view <- @views do %>
           <a
@@ -45,8 +56,14 @@ defmodule PortfolixirWeb.ViewSwitcher do
             ]}
             href={view_href(@current_path, view.id)}
             aria-current={if @active_view && @active_view.id == view.id, do: "true", else: nil}
+            data-has-plan={if view.id in @planned_view_ids, do: "", else: nil}
+            title={plan_marker_title(view.id in @planned_view_ids)}
           >
-            <%= view.name %>
+            <%= view.name %><span
+              :if={view.id in @planned_view_ids}
+              class="view-chip__plan-dot"
+              aria-hidden="true"
+            >•</span>
           </a>
         <% end %>
       </nav>
@@ -77,4 +94,9 @@ defmodule PortfolixirWeb.ViewSwitcher do
   defp view_href(path, view) do
     "#{path}?view=#{view}"
   end
+
+  # The accessible name for the subtle plan marker (the `•` is aria-hidden, so
+  # the title carries the meaning for assistive tech and on hover).
+  defp plan_marker_title(true), do: gettext("Has a target plan for the current classification")
+  defp plan_marker_title(false), do: nil
 end

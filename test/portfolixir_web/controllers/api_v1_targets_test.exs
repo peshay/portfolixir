@@ -4,6 +4,8 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 0, create_security!: 1, buy!: 3, put_quote!: 3, deposit!: 3]
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Portfolios.Targets
 
@@ -356,5 +358,286 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
       |> json_response(200)
 
     assert empty == %{"data" => %{"targets" => []}}
+  end
+
+  # User story:
+  # As an API client (and the LLM I connect over MCP) steering several coherent
+  # plans,
+  # I want the target read/write endpoints to accept a `view` parameter (ADR-0020),
+  # so that I can store and read a separate SOLL plan per view without the plans
+  # bleeding into each other.
+  #
+  # Acceptance criteria:
+  # - PUT/GET targets with `view=<id>` write/read only that view's plan; the
+  #   Gesamt plan (view omitted) stays untouched and independent.
+  # - DELETE targets with `view=<id>` removes only that view's target.
+  # - The plans are independent: a weight set under a view is invisible to Gesamt
+  #   and vice versa.
+  test "stores and reads a view-scoped target plan independently of Gesamt", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks", include_all: true})
+
+    # Gesamt plan: 0.4
+    put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+      "classification_id" => classification.id,
+      "targets" => [%{"category_id" => core.id, "target_weight" => "0.4"}]
+    })
+
+    # View plan: 0.9, scoped by the `view` param.
+    set =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+        "classification_id" => classification.id,
+        "view" => view.id,
+        "targets" => [%{"category_id" => core.id, "target_weight" => "0.9"}]
+      })
+
+    assert %{"data" => %{"targets" => [target]}} = json_response(set, 200)
+    assert target["target_weight"] == "0.9"
+    assert is_binary(target["target_weight"])
+
+    # Reading the view's plan returns only its 0.9.
+    view_read =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}&view=#{view.id}"
+      )
+      |> json_response(200)
+
+    assert %{"data" => %{"targets" => [%{"target_weight" => "0.9"}]}} = view_read
+
+    # Reading Gesamt (view omitted) still returns 0.4 — the plans are independent.
+    gesamt_read =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}"
+      )
+      |> json_response(200)
+
+    assert %{"data" => %{"targets" => [%{"target_weight" => "0.4"}]}} = gesamt_read
+
+    # Deleting the view's target leaves Gesamt's untouched.
+    assert delete_json(
+             conn,
+             "/api/v1/portfolios/#{portfolio.id}/targets/#{core.id}?view=#{view.id}"
+           )
+           |> json_response(200) == %{"data" => %{"deleted" => 1}}
+
+    assert get_json(
+             conn,
+             "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}&view=#{view.id}"
+           )
+           |> json_response(200) == %{"data" => %{"targets" => []}}
+
+    gesamt_after =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}"
+      )
+      |> json_response(200)
+
+    assert %{"data" => %{"targets" => [%{"target_weight" => "0.4"}]}} = gesamt_after
+  end
+
+  # User story:
+  # As an API client reading the allocation under a view,
+  # I want the SOLL side of the allocation to reflect that view's plan (ADR-0020),
+  # so that the drift table steers against the view's coherent 100% plan, not the
+  # Gesamt one.
+  #
+  # Acceptance criteria:
+  # - GET allocation?view=<id> echoes the active view (#445) AND reports the
+  #   view's plan target/drift, not the Gesamt plan's.
+  test "allocation under a view reflects that view's SOLL plan", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks", include_all: true})
+
+    {:ok, _} =
+      Targets.set_targets(portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.4"}
+      ])
+
+    {:ok, _} =
+      Targets.set_targets(
+        portfolio.id,
+        classification.id,
+        [%{"category_id" => core.id, "target_weight" => "0.9"}],
+        view: view.id
+      )
+
+    data =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/allocation?classification_id=#{classification.id}&view=#{view.id}"
+      )
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    # #445: the active view is echoed.
+    assert data["view"] == %{"id" => view.id, "name" => "Stocks"}
+
+    # SOLL side reflects the view's plan (0.9), not Gesamt's (0.4).
+    [category] = data["categories"]
+    assert category["target_weight"] == "0.9"
+    assert category["actual_weight"] == "1"
+    assert category["drift_weight"] == "-0.1"
+    assert data["top_level_target_sum"] == "0.9"
+  end
+
+  # User story:
+  # As an API client (and the LLM I connect over MCP) steering a cash quote per
+  # view,
+  # I want to read and write the per-plan cash target over the API (ADR-0020 — it
+  # moved out of the portfolio object),
+  # so that each view's plan owns its own cash steering and the legacy portfolio
+  # cash target keeps working as the Gesamt cash target.
+  #
+  # Acceptance criteria:
+  # - PUT /portfolios/:id/cash_target sets the cash target; GET returns it; both
+  #   accept `view` (omitted = Gesamt) and serialize the decimal as a string.
+  # - A view's cash target is independent of the Gesamt cash target.
+  # - The legacy portfolio PATCH `cash_target_weight` still works and reads back
+  #   as the Gesamt cash target (back-compat).
+  test "reads and writes the per-plan cash target with a view scope", %{conn: conn} do
+    %{portfolio: portfolio} = setup_world()
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks", include_all: true})
+
+    # No cash target yet on either plan.
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target")
+           |> json_response(200) == %{"data" => %{"cash_target_weight" => nil}}
+
+    # Set the Gesamt cash target.
+    gesamt =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target", %{
+        "cash_target_weight" => "0.05"
+      })
+
+    assert %{"data" => %{"cash_target_weight" => "0.05"}} = json_response(gesamt, 200)
+
+    # Set a different cash target on the view's plan.
+    scoped =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target", %{
+        "view" => view.id,
+        "cash_target_weight" => "0.2"
+      })
+
+    assert %{"data" => %{"cash_target_weight" => weight}} = json_response(scoped, 200)
+    assert weight == "0.2"
+    assert is_binary(weight)
+
+    # The two plans are independent.
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target?view=#{view.id}")
+           |> json_response(200) == %{"data" => %{"cash_target_weight" => "0.2"}}
+
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target")
+           |> json_response(200) == %{"data" => %{"cash_target_weight" => "0.05"}}
+
+    # Back-compat: the legacy portfolio PATCH reads/writes the Gesamt cash target.
+    patched =
+      patch_json(conn, "/api/v1/portfolios/#{portfolio.id}", %{
+        "portfolio" => %{"cash_target_weight" => "0.07"}
+      })
+
+    assert %{"data" => %{"cash_target_weight" => "0.07"}} = json_response(patched, 200)
+
+    # The PATCH wrote the Gesamt cash target — the view's plan is untouched.
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target")
+           |> json_response(200) == %{"data" => %{"cash_target_weight" => "0.07"}}
+
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target?view=#{view.id}")
+           |> json_response(200) == %{"data" => %{"cash_target_weight" => "0.2"}}
+
+    # Clearing with null is accepted.
+    cleared =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target", %{
+        "view" => view.id,
+        "cash_target_weight" => nil
+      })
+
+    assert %{"data" => %{"cash_target_weight" => nil}} = json_response(cleared, 200)
+  end
+
+  test "rejects an out-of-range cash target with 422", %{conn: conn} do
+    %{portfolio: portfolio} = setup_world()
+
+    response =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target", %{
+        "cash_target_weight" => "1.5"
+      })
+
+    assert %{"errors" => %{"cash_target_weight" => [_ | _]}} = json_response(response, 422)
+  end
+
+  test "returns 404 reading the cash target of an unknown portfolio", %{conn: conn} do
+    assert get_json(conn, "/api/v1/portfolios/999999/cash_target")
+           |> json_response(404) == %{"errors" => %{"detail" => "not found"}}
+  end
+
+  # User story:
+  # As an API client,
+  # I want a bad `view` parameter to fail with the existing structured error
+  # contract on every target endpoint (ADR-0020, reusing #445's view_param),
+  # so that a malformed or unknown view never crashes the request or silently
+  # falls back to Gesamt.
+  #
+  # Acceptance criteria:
+  # - A non-integer `view` returns 422 {view: ["is invalid"]}.
+  # - An unknown `view` id returns 404.
+  # - This holds across GET/PUT/DELETE targets and the cash-target endpoints.
+  test "validates the view parameter on the target endpoints", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    bad = %{"errors" => %{"view" => ["is invalid"]}}
+    missing = %{"errors" => %{"detail" => "not found"}}
+
+    # GET targets
+    assert get_json(
+             conn,
+             "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}&view=nope"
+           )
+           |> json_response(422) == bad
+
+    assert get_json(
+             conn,
+             "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}&view=999999"
+           )
+           |> json_response(404) == missing
+
+    # PUT targets
+    assert put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+             "classification_id" => classification.id,
+             "view" => "nope",
+             "targets" => [%{"category_id" => core.id, "target_weight" => "0.5"}]
+           })
+           |> json_response(422) == bad
+
+    assert put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+             "classification_id" => classification.id,
+             "view" => 999_999,
+             "targets" => [%{"category_id" => core.id, "target_weight" => "0.5"}]
+           })
+           |> json_response(404) == missing
+
+    # DELETE targets
+    assert delete_json(
+             conn,
+             "/api/v1/portfolios/#{portfolio.id}/targets/#{core.id}?view=nope"
+           )
+           |> json_response(422) == bad
+
+    assert delete_json(
+             conn,
+             "/api/v1/portfolios/#{portfolio.id}/targets/#{core.id}?view=999999"
+           )
+           |> json_response(404) == missing
+
+    # GET/PUT cash_target
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target?view=nope")
+           |> json_response(422) == bad
+
+    assert put_json(conn, "/api/v1/portfolios/#{portfolio.id}/cash_target", %{
+             "view" => 999_999,
+             "cash_target_weight" => "0.1"
+           })
+           |> json_response(404) == missing
   end
 end

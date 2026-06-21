@@ -184,6 +184,44 @@ amount, i.e. how much to buy or sell to reach the target. Securities held but no
 assigned in the chosen tree are summed into an unassigned bucket. Only the
 targets are stored; the actual side is derived from the live valuation on read.
 
+### Editing a SOLL plan on the Classifications page
+
+Target weights are not global: a **SOLL plan belongs to a view** (see ADR-0020).
+You edit a plan on the **Classifications page**, in the **Target plan (SOLL)**
+section of a custom tree's detail pane. At the top of that section a **view
+selector** ("Target plan for view: [Gesamt ▾]" / German *Soll-Plan für Sicht*)
+chooses which plan you are editing; the default **Gesamt** is the portfolio-wide
+plan that behaves like a single global target set. Switching the selector loads
+that `(view, classification)` plan's stored weights and cash target — Gesamt and
+each named view carry **independent** plans, so the same tree can hold a
+different 100% plan per view, or none.
+
+The states are:
+
+- **No plan yet.** The section shows an empty state with **Create plan**
+  (*Plan anlegen*) and, when another view already has a plan for this tree, an
+  **Copy from another view…** (*Aus anderer Sicht übernehmen…*) picker that
+  prefills the editor from that source plan. Nothing is written until you save.
+- **A plan exists.** Each category gets a **Target %** input and there is a
+  **Cash** target input below them; **Save plan** writes the whole
+  `(view, classification)` plan at once. A live **Σ** footer sums the category
+  weights plus the cash target and shows a ✓ at exactly 100% or a ✗ with the
+  yellow mismatch cue otherwise, updating as you type.
+- **Delete plan** (*Plan löschen*) removes the view's plan; the Portfolio page
+  then falls back to **IST-only** (no SOLL, no drift) for that view.
+
+Weights are entered and shown as **percentages** (e.g. `60`), stored as
+fractions in `[0, 1]`. Inputs are labelled and keyboard-focusable, and the same
+plan is equally reachable over the API/MCP target endpoints with a `view`
+parameter.
+
+> **Migration note (ADR-0020).** The move to per-view plans is **loss-free**:
+> any target weights and the former portfolio-wide cash target you already had
+> become your **Gesamt** plan (`view = null`). Nothing changes in behaviour —
+> your existing setup simply appears under *Gesamt*, and the Portfolio page reads
+> it under the **Total** view exactly as before. Named views start with **no
+> plan** until you create or copy one.
+
 To keep a position **out of the allocation steering basis** while it still counts
 toward your total wealth — for example a Bitcoin held as a long-term store of
 value rather than part of the steered mix — tag the security with a **bucket** and
@@ -228,7 +266,8 @@ basis as the categories. With a cash target set, the allocation's 100% basis is
 with a non-negative balance). The drift table then shows
 a dedicated **Cash** row in its own neutral colour with the cash actual, target
 and drift, the sunburst gains a cash segment, and every category percentage
-shrinks accordingly once cash joins the basis. Set the cash target over the API
+shrinks accordingly once cash joins the basis. Set the cash target in the plan
+editor's **Cash** input on the Classifications page (per view), or over the API
 (`PATCH /api/v1/portfolios/:id`) or MCP (`portfolixir.portfolios.set_cash_target`),
 or clear it with `null` to stop steering a cash quote.
 
@@ -321,6 +360,26 @@ rolled-up actual weight against the stored target and restating the drift in
 the base currency. The cash section lists each account's balance and carries
 the **set-balance form**: type the balance your bank shows and the snapshot is
 recorded without booking individual transactions.
+
+**The SOLL side follows the active view (ADR-0020).** The drift table's
+Target, Drift and *Σ target top level* columns reflect the **active view's plan**
+for the selected classification — IST and SOLL always move together. Switch the
+**view switcher** at the top of the page and both sides swap to that view's plan
+at once, so you never see two plans mixed into a >100% Σ or a ghost row. The
+default **Total** view reads the portfolio-wide **Gesamt** plan. A subtle dot on
+a view-switcher chip marks the views that already carry a plan for the current
+classification, so you can tell the steered views from the IST-only ones at a
+glance.
+
+**No plan for the active view?** When the active view has no plan for the
+selected classification, the allocation stays **IST-only**: the sunburst and the
+Value/Actual columns still show your actual allocation, but there are no Target,
+Drift or Σ columns. In their place a hint — *No target plan for this view*
+(German *Kein Soll-Plan für diese Sicht*) — explains the empty SOLL side and
+**deep-links into the Classifications plan editor with that view and
+classification already selected**, so you can create the plan without re-picking
+either. The cash row's target likewise comes from the active view's plan cash
+target (or shows a dash when none is set).
 
 The page paints immediately and computes its figures **asynchronously**; each
 section fills in when its data is ready. The expensive daily performance walk

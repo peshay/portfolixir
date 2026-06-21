@@ -22,6 +22,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
@@ -62,6 +63,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:analysis, nil)
           |> assign(:performance, nil)
           |> assign(:selected_segment, nil)
+          |> assign_planned_view_ids()
           |> start_loading()
 
         {:ok, socket}
@@ -160,7 +162,12 @@ defmodule PortfolixirWeb.PortfolioLive do
           <AppShell.status_toast kind={:success} message={@success} />
         <% end %>
 
-        <.view_switcher current_path={@current_path} views={@views} active_view={@active_view} />
+        <.view_switcher
+          current_path={@current_path}
+          views={@views}
+          active_view={@active_view}
+          planned_view_ids={@planned_view_ids}
+        />
 
         <section class="workspace-section grid" aria-label={gettext("Portfolio key figures")}>
           <article id="kpi-total" class="stat">
@@ -273,17 +280,29 @@ defmodule PortfolixirWeb.PortfolioLive do
           </header>
 
           <%= if @allocation do %>
-            <p
-              class={[
-                "hint",
-                "target-sum",
-                target_mismatch?(@allocation.top_level_target_sum, 1) && "is-target-mismatch"
-              ]}
-              data-role="target-sum-top-level"
-            >
-              <%= gettext("Σ target top level:") %>
-              <%= Format.percent(@allocation.top_level_target_sum) %>%
-            </p>
+            <%!-- The SOLL side follows the active view's plan (ADR-0020). With a
+                 plan the Σ-vs-100% header shows; without one the allocation is
+                 IST-only and a hint deep-links into the per-view plan editor. --%>
+            <%= if @allocation.has_plan do %>
+              <p
+                class={[
+                  "hint",
+                  "target-sum",
+                  target_mismatch?(@allocation.top_level_target_sum, 1) && "is-target-mismatch"
+                ]}
+                data-role="target-sum-top-level"
+              >
+                <%= gettext("Σ target top level:") %>
+                <%= Format.percent(@allocation.top_level_target_sum) %>%
+              </p>
+            <% else %>
+              <p class="hint no-plan-hint" data-role="no-plan-hint" role="status">
+                <%= gettext("No target plan for this view — showing actual allocation only.") %>
+                <.link navigate={plan_editor_path(@classification_id, @active_view_id)}>
+                  <%= gettext("Create a plan for this view") %>
+                </.link>
+              </p>
+            <% end %>
             <div class="donut-wrap">
               <div class="sunburst-pane">
                 <.allocation_sunburst segments={sunburst_segments(@allocation)} />
@@ -316,16 +335,18 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <th><%= gettext("Category") %></th>
                   <th class="num"><%= gettext("Value") %></th>
                   <th class="num"><%= gettext("Actual") %></th>
-                  <th class="num"><%= gettext("Target") %></th>
-                  <th class="num">
-                    <%= gettext("Drift") %>
-                    <details class="metric-tooltip">
-                      <summary aria-label={gettext("SOLL-IST drift info")}>ⓘ</summary>
-                      <p id="tip-soll-ist" role="tooltip">
-                        <%= gettext("SOLL-IST: target weight vs. actual weight (drift). Drift is the amount needed to reach the target allocation.") %>
-                      </p>
-                    </details>
-                  </th>
+                  <%= if @allocation.has_plan do %>
+                    <th class="num"><%= gettext("Target") %></th>
+                    <th class="num">
+                      <%= gettext("Drift") %>
+                      <details class="metric-tooltip">
+                        <summary aria-label={gettext("SOLL-IST drift info")}>ⓘ</summary>
+                        <p id="tip-soll-ist" role="tooltip">
+                          <%= gettext("SOLL-IST: target weight vs. actual weight (drift). Drift is the amount needed to reach the target allocation.") %>
+                        </p>
+                      </details>
+                    </th>
+                  <% end %>
                 </tr>
               </thead>
               <tbody>
@@ -341,7 +362,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                       </span>
                       <%= row.name %>
                       <span
-                        :if={row.child_target_sum}
+                        :if={@allocation.has_plan and row.child_target_sum}
                         class={["hint", "target-consistency", target_mismatch?(row.child_target_sum, row.target_weight) && "is-target-mismatch"]}
                         data-role="target-consistency-hint"
                       >
@@ -352,24 +373,26 @@ defmodule PortfolixirWeb.PortfolioLive do
                     </td>
                     <td class="num"><%= Format.money(row.market_value) %></td>
                     <td class="num"><%= Format.percent(row.actual_weight) %>%</td>
-                    <td class="num">
-                      <%= if Decimal.equal?(row.target_weight, 0) do %>
-                        —
-                      <% else %>
-                        <%= Format.percent(row.target_weight) %>%
-                      <% end %>
-                    </td>
-                    <td class={[
-                      "num",
-                      Decimal.compare(row.drift_value, 0) == :lt && "is-negative"
-                    ]}>
-                      <%= if Decimal.equal?(row.target_weight, 0) do %>
-                        —
-                      <% else %>
-                        <%= Format.money(row.drift_value) %>
-                        <%= if @valuation, do: @valuation.base_currency %>
-                      <% end %>
-                    </td>
+                    <%= if @allocation.has_plan do %>
+                      <td class="num">
+                        <%= if Decimal.equal?(row.target_weight, 0) do %>
+                          —
+                        <% else %>
+                          <%= Format.percent(row.target_weight) %>%
+                        <% end %>
+                      </td>
+                      <td class={[
+                        "num",
+                        Decimal.compare(row.drift_value, 0) == :lt && "is-negative"
+                      ]}>
+                        <%= if Decimal.equal?(row.target_weight, 0) do %>
+                          —
+                        <% else %>
+                          <%= Format.money(row.drift_value) %>
+                          <%= if @valuation, do: @valuation.base_currency %>
+                        <% end %>
+                      </td>
+                    <% end %>
                   </tr>
                 <% end %>
                 <%!-- In the currency classification cash is distributed into
@@ -388,24 +411,26 @@ defmodule PortfolixirWeb.PortfolioLive do
                     </td>
                     <td class="num"><%= Format.money(@allocation.cash.market_value) %></td>
                     <td class="num"><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
-                    <td class="num">
-                      <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
-                        —
-                      <% else %>
-                        <%= Format.percent(@allocation.cash.target_weight) %>%
-                      <% end %>
-                    </td>
-                    <td class={[
-                      "num",
-                      Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
-                    ]}>
-                      <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
-                        —
-                      <% else %>
-                        <%= Format.money(@allocation.cash.drift_value) %>
-                        <%= if @valuation, do: @valuation.base_currency %>
-                      <% end %>
-                    </td>
+                    <%= if @allocation.has_plan do %>
+                      <td class="num">
+                        <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                          —
+                        <% else %>
+                          <%= Format.percent(@allocation.cash.target_weight) %>%
+                        <% end %>
+                      </td>
+                      <td class={[
+                        "num",
+                        Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
+                      ]}>
+                        <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                          —
+                        <% else %>
+                          <%= Format.money(@allocation.cash.drift_value) %>
+                          <%= if @valuation, do: @valuation.base_currency %>
+                        <% end %>
+                      </td>
+                    <% end %>
                   </tr>
                 <% end %>
                 <%= if @allocation.unassigned do %>
@@ -415,8 +440,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <td class="num">
                       <%= Format.percent(@allocation.unassigned.actual_weight) %>%
                     </td>
-                    <td class="num">—</td>
-                    <td class="num">—</td>
+                    <%= if @allocation.has_plan do %>
+                      <td class="num">—</td>
+                      <td class="num">—</td>
+                    <% end %>
                   </tr>
                 <% end %>
               </tbody>
@@ -636,6 +663,7 @@ defmodule PortfolixirWeb.PortfolioLive do
          socket
          |> assign(:classification_id, classification_id)
          |> assign(:selected_segment, nil)
+         |> assign_planned_view_ids()
          |> load_allocation()}
 
       :error ->
@@ -740,6 +768,29 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp unvalued_cash(valuation) do
     Enum.filter(valuation.cash_balances, &(not &1.valued))
+  end
+
+  # Which views (and Gesamt, marked by `nil`) carry a SOLL plan for the active
+  # classification, for the subtle plan marker on the switcher chips (#468). A
+  # view "has a plan" when it carries a category plan OR a cash target — the same
+  # definition the allocation engine uses for `has_plan`, so the marker and the
+  # portfolio table never disagree. Computed over the few views in memory; cheap.
+  defp assign_planned_view_ids(%{assigns: %{portfolio: nil}} = socket) do
+    assign(socket, :planned_view_ids, [])
+  end
+
+  defp assign_planned_view_ids(socket) do
+    portfolio_id = socket.assigns.portfolio.id
+    classification_id = socket.assigns.classification_id
+    candidate_ids = [nil | Enum.map(socket.assigns.views, & &1.id)]
+
+    planned =
+      Enum.filter(candidate_ids, fn view_id ->
+        Targets.plan_exists?(portfolio_id, classification_id, view: view_id) or
+          not is_nil(Targets.get_cash_target(portfolio_id, view: view_id))
+      end)
+
+    assign(socket, :planned_view_ids, planned)
   end
 
   # Prefer the first custom tree (the user's own strategy); otherwise fall back
@@ -1071,6 +1122,17 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The neutral cash colour, exposed for the template's cash row swatch.
   defp cash_color, do: @cash_color
+
+  # Deep-link into the classifications SOLL editor with the view + classification
+  # pre-selected (ADR-0020): the no-plan hint sends the maintainer straight to
+  # the right `(view, classification)` plan rather than editing blind. `nil` =
+  # the portfolio-wide Gesamt plan ("total"); a view id rides along as `soll_view`.
+  defp plan_editor_path(classification_id, view_id) do
+    "/classifications/#{classification_id}?soll_view=#{view_param(view_id)}"
+  end
+
+  defp view_param(nil), do: "total"
+  defp view_param(id) when is_integer(id), do: Integer.to_string(id)
 
   # Why a non-deployable cash row is left out of the cash quote (FR6/FR7): a
   # reserve or credit line never contributes, and an overdrawn free_cash account

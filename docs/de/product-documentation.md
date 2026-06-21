@@ -197,6 +197,46 @@ Wertpapiere werden in einem Topf für nicht Zugeordnetes summiert. Nur die Ziele
 werden gespeichert; die Ist-Seite wird beim Lesen aus der Live-Bewertung
 abgeleitet.
 
+### Einen SOLL-Plan auf der Klassifizierungsseite bearbeiten
+
+Zielgewichte sind nicht global: ein **SOLL-Plan gehört zu einer Sicht** (siehe
+ADR-0020). Du bearbeitest einen Plan auf der **Klassifizierungsseite**, im
+Bereich **Soll-Plan** der Detailansicht eines eigenen Baums. Oben in diesem
+Bereich wählt ein **Sicht-Selektor** („Soll-Plan für Sicht: [Gesamt ▾]“),
+welchen Plan du bearbeitest; die Voreinstellung **Gesamt** ist der
+portfolioweite Plan, der sich wie ein einziges globales Zielset verhält. Wechselt
+man den Selektor, werden die gespeicherten Gewichte und das Cash-Ziel dieses
+`(Sicht, Klassifizierung)`-Plans geladen — Gesamt und jede benannte Sicht tragen
+**unabhängige** Pläne, sodass derselbe Baum je Sicht einen anderen 100 %-Plan
+oder gar keinen halten kann.
+
+Die Zustände sind:
+
+- **Noch kein Plan.** Der Bereich zeigt einen Leerzustand mit **Plan anlegen**
+  und, wenn eine andere Sicht bereits einen Plan für diesen Baum hat, einen
+  Selektor **Aus anderer Sicht übernehmen…**, der den Editor aus diesem
+  Quellplan vorbefüllt. Bis zum Speichern wird nichts geschrieben.
+- **Ein Plan existiert.** Jede Kategorie erhält ein **Soll %**-Feld, und darunter
+  steht ein **Cash**-Zielfeld; **Plan speichern** schreibt den gesamten
+  `(Sicht, Klassifizierung)`-Plan auf einmal. Eine Live-**Σ**-Fußzeile summiert
+  die Kategoriegewichte plus das Cash-Ziel und zeigt bei genau 100 % ein ✓, sonst
+  ein ✗ mit dem gelben Abweichungshinweis — und aktualisiert sich beim Tippen.
+- **Plan löschen** entfernt den Plan der Sicht; die Portfolio-Seite fällt für
+  diese Sicht dann auf **nur IST** zurück (kein SOLL, keine Drift).
+
+Gewichte werden als **Prozentsätze** eingegeben und angezeigt (z. B. `60`) und als
+Brüche in `[0, 1]` gespeichert. Die Felder sind beschriftet und per Tastatur
+fokussierbar, und derselbe Plan ist über die API/MCP-Ziel-Endpunkte mit einem
+`view`-Parameter gleichermaßen erreichbar.
+
+> **Migrationshinweis (ADR-0020).** Der Wechsel zu Plänen je Sicht ist
+> **verlustfrei**: alle bereits vorhandenen Zielgewichte und das frühere
+> portfolioweite Cash-Ziel werden zu deinem **Gesamt**-Plan (`view = null`). Am
+> Verhalten ändert sich nichts — dein bestehendes Setup erscheint einfach unter
+> *Gesamt*, und die Portfolio-Seite liest es unter der Sicht **Total** genau wie
+> zuvor. Benannte Sichten starten **ohne Plan**, bis du einen anlegst oder
+> kopierst.
+
 Um eine Position **aus der Allokations-Steuerbasis** herauszuhalten, während sie
 weiterhin zum Gesamtvermögen zählt — zum Beispiel ein als langfristiger
 Wertspeicher gehaltener Bitcoin statt Teil des gesteuerten Mix — versiehst du das
@@ -245,9 +285,10 @@ Cash-Quote zählt** (die als *counts toward the cash quote* markierten Konten). 
 Drift-Tabelle zeigt dann eine eigene **Cash**-Zeile in eigener neutraler Farbe mit
 Cash-Ist, -Ziel und -Drift, der Sunburst erhält ein Cash-Segment, und jeder
 Kategorie-Prozentsatz schrumpft entsprechend, sobald Cash zur Basis hinzukommt.
-Setze das Cash-Ziel über die API (`PATCH /api/v1/portfolios/:id`) oder MCP
-(`portfolixir.portfolios.set_cash_target`), oder lösche es mit `null`, um die
-Steuerung einer Cash-Quote zu beenden.
+Setze das Cash-Ziel im **Cash**-Feld des Plan-Editors auf der
+Klassifizierungsseite (je Sicht), über die API (`PATCH /api/v1/portfolios/:id`)
+oder MCP (`portfolixir.portfolios.set_cash_target`), oder lösche es mit `null`, um
+die Steuerung einer Cash-Quote zu beenden.
 
 **Währungsallokation: Cash nach Währung.** Ist die aktive Klassifizierung der
 eingebaute **Währungs**-Baum, wird das Cash jedes Geldkontos seiner eigenen
@@ -342,6 +383,27 @@ wobei die Drift in der Basiswährung neu ausgewiesen wird. Der Cash-Abschnitt
 listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: tippe den
 Saldo ein, den deine Bank zeigt, und der Snapshot wird ohne Buchung einzelner
 Transaktionen erfasst.
+
+**Die SOLL-Seite folgt der aktiven Sicht (ADR-0020).** Die Spalten Ziel, Drift
+und *Σ target top level* der Drift-Tabelle spiegeln den **Plan der aktiven
+Sicht** für die gewählte Klassifizierung wider — IST und SOLL bewegen sich immer
+zusammen. Wechselst du den **Sicht-Umschalter** oben auf der Seite, springen
+beide Seiten gleichzeitig auf den Plan dieser Sicht, sodass nie zwei Pläne zu
+einer Σ über 100 % oder einer Geisterzeile vermischt werden. Die Standardsicht
+**Total** liest den portfolioweiten **Gesamt**-Plan. Ein dezenter Punkt auf einem
+Sicht-Chip markiert die Sichten, die bereits einen Plan für die aktuelle
+Klassifizierung tragen, sodass du gesteuerte und reine IST-Sichten auf einen
+Blick unterscheidest.
+
+**Kein Plan für die aktive Sicht?** Hat die aktive Sicht keinen Plan für die
+gewählte Klassifizierung, bleibt die Allokation **nur IST**: Sunburst und die
+Spalten Wert/Ist zeigen weiter deine tatsächliche Aufteilung, aber es gibt keine
+Spalten Ziel, Drift oder Σ. An ihrer Stelle erklärt ein Hinweis — *Kein Soll-Plan
+für diese Sicht* — die leere SOLL-Seite und **verlinkt direkt in den
+Klassifizierungs-Plan-Editor, mit dieser Sicht und Klassifizierung bereits
+vorausgewählt**, sodass du den Plan anlegen kannst, ohne beides erneut zu wählen.
+Auch das Ziel der Cash-Zeile stammt aus dem Cash-Ziel des Plans der aktiven Sicht
+(oder zeigt einen Strich, wenn keines gesetzt ist).
 
 Die Seite zeichnet sich sofort und berechnet ihre Zahlen **asynchron**; jeder
 Abschnitt füllt sich, sobald seine Daten bereit sind. Der teure tägliche
