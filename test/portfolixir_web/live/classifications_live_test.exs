@@ -7,6 +7,8 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Targets
 
   # User story:
   # As a portfolio maintainer,
@@ -47,6 +49,43 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     assert has_element?(view, "[data-role='assignment-nudge']")
     assert render(view) =~ "category"
+  end
+
+  # User story:
+  # As a maintainer setting target weights, I want the editor to warn me when a
+  # target sits on a category with nothing assigned to it (#501), so I don't set
+  # a target that can never be reached and shows permanent drift.
+  test "warns when a target is set on a category with no assigned positions (#501)",
+       %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+
+    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, empty} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Empty"})
+
+    {:ok, filled} =
+      Classifications.create_category(%{classification_id: classification.id, name: "Filled"})
+
+    security = security!(%{name: "Held Co"})
+    {:ok, _} = Classifications.assign_security(security.id, classification.id, filled.id)
+
+    {:ok, _} =
+      Targets.set_targets(portfolio.id, classification.id, [
+        %{"category_id" => empty.id, "target_weight" => "0.5"},
+        %{"category_id" => filled.id, "target_weight" => "0.5"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    # Exactly one warning — on the empty category, not the one with an assignment.
+    assert has_element?(view, "[data-role='empty-category-warning']")
+
+    warnings =
+      view |> render() |> :binary.matches(~s(data-role="empty-category-warning")) |> length()
+
+    assert warnings == 1
   end
 
   test "index lists the built-in trees in the sidebar", %{conn: conn} do
