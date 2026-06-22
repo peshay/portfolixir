@@ -106,17 +106,28 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 </label>
                 <label>
                   <span><%= gettext("Security") %></span>
-                  <select name="transaction[security_id]" required>
-                    <option value=""><%= gettext("Select security") %></option>
-                    <%= for security <- @securities do %>
-                      <option
-                        value={security.id}
-                        selected={to_string(security.id) == @transaction_form["security_id"]}
-                      >
-                        <%= security.name %> (<%= security.ticker_symbol %>)
-                      </option>
-                    <% end %>
-                  </select>
+                  <%= if @securities == [] do %>
+                    <%!-- A security must exist before any transaction can be
+                          booked. Rather than a dead, unselectable dropdown that
+                          silently blocks submit, name the missing prerequisite
+                          at the point of pain and link to where it is fixed. --%>
+                    <p id="transaction-no-securities" class="form-help" role="status">
+                      <%= gettext("No securities yet.") %>
+                      <.link navigate="/securities"><%= gettext("Create a security first") %></.link>
+                    </p>
+                  <% else %>
+                    <select name="transaction[security_id]" required>
+                      <option value=""><%= gettext("Select security") %></option>
+                      <%= for security <- @securities do %>
+                        <option
+                          value={security.id}
+                          selected={to_string(security.id) == @transaction_form["security_id"]}
+                        >
+                          <%= security.name %> (<%= security.ticker_symbol %>)
+                        </option>
+                      <% end %>
+                    </select>
+                  <% end %>
                 </label>
                 <label>
                   <span><%= gettext("Quantity") %></span>
