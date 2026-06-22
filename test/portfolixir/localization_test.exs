@@ -18,7 +18,7 @@ defmodule Portfolixir.LocalizationTest do
     "Create securities",
     "Create one portfolio",
     "Record manual buy and sell transactions",
-    "Linked cash account is derived from the selected depot."
+    "Add costs"
   ]
 
   # User story:

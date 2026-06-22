@@ -74,7 +74,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
           <section id="transaction-create" class="workspace-section">
             <h2><%= gettext("Record transaction") %></h2>
-            <form id="transaction-form" phx-submit="save_transaction">
+            <form id="transaction-form" phx-change="form_changed" phx-submit="save_transaction">
               <div class="form-grid">
                 <label>
                   <span><%= gettext("Type") %></span>
@@ -92,22 +92,27 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <span><%= gettext("Depot") %></span>
                   <select name="transaction[securities_account_id]" required>
                     <option value=""><%= gettext("Select depot") %></option>
-                    <%= for account <- @securities_accounts do %>
-                      <option value={account.id}>
-                        <%= account.name %> -> <%= linked_cash_account_name(account) %>
+                    <%= for account <- bookable_depots(@securities_accounts) do %>
+                      <option
+                        value={account.id}
+                        selected={to_string(account.id) == @transaction_form["securities_account_id"]}
+                      >
+                        <%= depot_option_label(account) %>
                       </option>
                     <% end %>
                   </select>
                 </label>
-                <p class="form-help">
-                  <%= gettext("Linked cash account is derived from the selected depot.") %>
-                </p>
                 <label>
                   <span><%= gettext("Security") %></span>
                   <select name="transaction[security_id]" required>
                     <option value=""><%= gettext("Select security") %></option>
                     <%= for security <- @securities do %>
-                      <option value={security.id}><%= security.name %> (<%= security.ticker_symbol %>)</option>
+                      <option
+                        value={security.id}
+                        selected={to_string(security.id) == @transaction_form["security_id"]}
+                      >
+                        <%= security.name %> (<%= security.ticker_symbol %>)
+                      </option>
                     <% end %>
                   </select>
                 </label>
@@ -119,19 +124,31 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <span><%= gettext("Price") %></span>
                   <input name="transaction[price]" value={@transaction_form["price"]} inputmode="decimal" required />
                 </label>
-                <label>
-                  <span><%= gettext("Fees") %></span>
-                  <input name="transaction[fees]" value={@transaction_form["fees"]} inputmode="decimal" />
-                </label>
-                <label>
-                  <span><%= gettext("Taxes") %></span>
-                  <input name="transaction[taxes]" value={@transaction_form["taxes"]} inputmode="decimal" />
-                </label>
-                <label>
-                  <span><%= gettext("Currency") %></span>
-                  <input name="transaction[currency_code]" value={@transaction_form["currency_code"]} maxlength="3" required />
-                </label>
               </div>
+
+              <p class="form-help" data-role="derived-currency">
+                <%= case derived_currency(@securities_accounts, @transaction_form["securities_account_id"]) do %>
+                  <% nil -> %>
+                    <%= gettext("Currency is set by the selected depot.") %>
+                  <% currency -> %>
+                    <%= gettext("Currency: %{currency}", currency: currency) %>
+                <% end %>
+              </p>
+
+              <details id="transaction-costs" class="transaction-costs">
+                <summary><%= gettext("Add costs") %></summary>
+                <div class="form-grid">
+                  <label>
+                    <span><%= gettext("Fees") %></span>
+                    <input name="transaction[fees]" value={@transaction_form["fees"]} inputmode="decimal" />
+                  </label>
+                  <label>
+                    <span><%= gettext("Taxes") %></span>
+                    <input name="transaction[taxes]" value={@transaction_form["taxes"]} inputmode="decimal" />
+                  </label>
+                </div>
+              </details>
+
               <label>
                 <span><%= gettext("Notes") %></span>
                 <textarea name="transaction[notes]"><%= @transaction_form["notes"] %></textarea>
@@ -145,6 +162,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </section>
         <% end %>
 
+        <div class="transaction-secondary">
         <section id="holdings-panel" class="workspace-section">
           <h2><%= gettext("Current holdings") %></h2>
           <%= if Enum.empty?(@position_rows) do %>
@@ -206,6 +224,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             </table>
           <% end %>
         </section>
+        </div>
       </div>
     </AppShell.shell>
     """
@@ -232,8 +251,20 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     {:noreply, socket |> assign(:transaction_form, @transaction_form) |> load_state()}
   end
 
+  def handle_event("form_changed", %{"transaction" => params}, socket) do
+    {:noreply, assign(socket, :transaction_form, params)}
+  end
+
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
-    params = Map.put(params, "portfolio_id", socket.assigns.current_portfolio.id)
+    # The currency is authoritative from the chosen depot's cash account, never a
+    # free-text field the user could mistype (#473).
+    currency =
+      derived_currency(socket.assigns.securities_accounts, params["securities_account_id"])
+
+    params =
+      params
+      |> Map.put("portfolio_id", socket.assigns.current_portfolio.id)
+      |> maybe_put_currency(currency)
 
     case Ledger.create_transaction(params) do
       {:ok, _transaction} ->
@@ -308,8 +339,30 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp format_decimal(nil), do: ""
   defp format_decimal(decimal), do: Decimal.to_string(decimal, :normal)
 
-  defp linked_cash_account_name(%{cash_account: %{name: name}}), do: name
-  defp linked_cash_account_name(_account), do: gettext("Missing linked cash account")
+  # Only offer depots that have a usable linked cash account; a depot without one
+  # can never form a valid transaction, so it must not be a selectable dead end.
+  defp bookable_depots(accounts) do
+    Enum.filter(accounts, fn account -> match?(%{cash_account: %{}}, account) end)
+  end
+
+  # "Depot name (Cash account)" — the linked cash account reads as a quiet
+  # parenthetical caption rather than an arrow with a separate footnote.
+  defp depot_option_label(%{name: name, cash_account: %{name: cash_name}}) do
+    "#{name} (#{cash_name})"
+  end
+
+  # The transaction currency follows the chosen depot's linked cash account.
+  defp derived_currency(accounts, depot_id) when is_binary(depot_id) and depot_id != "" do
+    case Enum.find(accounts, &(to_string(&1.id) == depot_id)) do
+      %{cash_account: %{currency_code: code}} -> code
+      _ -> nil
+    end
+  end
+
+  defp derived_currency(_accounts, _depot_id), do: nil
+
+  defp maybe_put_currency(params, nil), do: params
+  defp maybe_put_currency(params, currency), do: Map.put(params, "currency_code", currency)
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
