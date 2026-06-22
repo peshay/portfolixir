@@ -1046,6 +1046,21 @@ li + li {
   border-radius: var(--radius-md);
 }
 
+.transaction-costs {
+  margin: 4px 0 8px;
+}
+
+.transaction-costs > summary {
+  cursor: pointer;
+  color: var(--color-accent);
+  font-weight: 500;
+  list-style-position: inside;
+}
+
+.transaction-costs[open] > summary {
+  margin-bottom: 8px;
+}
+
 .empty-state {
   background: var(--color-bg-muted);
   border: 1px dashed var(--color-border-strong);
