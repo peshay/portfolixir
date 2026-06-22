@@ -81,4 +81,167 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert has_element?(view, "#portfolio-switch-#{world.portfolio.id}.is-active")
   end
+
+  # User story (#472):
+  # As a maintainer choosing a depot, I want each option to read clearly — the
+  # depot name with its linked cash account as a quiet caption — instead of an
+  # arrow plus a separate footnote, so the dropdown is self-explanatory.
+  #
+  # Acceptance criteria:
+  # - The depot option shows the depot name and its linked cash account as a
+  #   parenthetical caption, not via a "->" arrow.
+  # - The "Linked cash account is derived…" footnote is gone.
+  test "depot option shows the linked cash account as a caption, no arrow/footnote (#472)",
+       %{conn: conn} do
+    WorldFixtures.base_world(name: "Solo", depot_name: "Main Depot", cash_name: "Local Cash")
+
+    {:ok, _view, html} = live(conn, "/transactions")
+
+    assert html =~ "Main Depot (Local Cash)"
+    refute html =~ "Main Depot -&gt;"
+    refute html =~ "Linked cash account is derived"
+  end
+
+  # User story (#473):
+  # As a maintainer recording a trade, I want the currency derived from the
+  # chosen depot's cash account and the rare fees/taxes tucked behind a
+  # disclosure, so the common buy/sell path stays clean.
+  #
+  # Acceptance criteria:
+  # - No free-text Currency input in the default field set.
+  # - Fees/Taxes live behind a (collapsed) disclosure.
+  # - A basic buy with no costs derives currency from the depot and stores 0 costs.
+  test "derives currency from the depot and hides costs behind a disclosure (#473)",
+       %{conn: conn} do
+    world =
+      WorldFixtures.base_world(
+        name: "Solo",
+        currency: "USD",
+        depot_name: "Main",
+        cash_name: "Cash"
+      )
+
+    security = WorldFixtures.create_security!(name: "Globex", ticker: "GLB", currency: "USD")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    refute has_element?(view, "input[name='transaction[currency_code]']")
+    assert has_element?(view, "details#transaction-costs")
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" => %{
+        "type" => "buy",
+        "date" => "2026-02-01",
+        "securities_account_id" => to_string(world.depot.id),
+        "security_id" => to_string(security.id),
+        "quantity" => "2",
+        "price" => "50"
+      }
+    })
+
+    [tx] = Ledger.list_transactions_for_portfolio(world.portfolio.id)
+    assert tx.currency_code == "USD"
+    assert Decimal.equal?(tx.fees, Decimal.new("0"))
+    assert Decimal.equal?(tx.taxes, Decimal.new("0"))
+  end
+
+  # The phx-change that drives the derived-currency caption must not blank the
+  # depot select: the chosen option keeps its server-rendered `selected` state.
+  test "keeps the chosen depot selected after a form change (#473)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Solo", depot_name: "Main", cash_name: "Cash")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    html =
+      view
+      |> element("#transaction-form")
+      |> render_change(%{
+        "transaction" => %{"securities_account_id" => to_string(world.depot.id)}
+      })
+
+    assert html =~ ~r/<option[^>]*value="#{world.depot.id}"[^>]*selected/
+    assert html =~ "Currency: EUR"
+  end
+
+  test "records fees entered in the costs disclosure (#473)", %{conn: conn} do
+    world =
+      WorldFixtures.base_world(
+        name: "Solo",
+        currency: "EUR",
+        depot_name: "Main",
+        cash_name: "Cash"
+      )
+
+    security = WorldFixtures.create_security!(name: "Globex", ticker: "GLB", currency: "EUR")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" => %{
+        "type" => "buy",
+        "date" => "2026-02-01",
+        "securities_account_id" => to_string(world.depot.id),
+        "security_id" => to_string(security.id),
+        "quantity" => "2",
+        "price" => "50",
+        "fees" => "3.50"
+      }
+    })
+
+    [tx] = Ledger.list_transactions_for_portfolio(world.portfolio.id)
+    assert Decimal.equal?(tx.fees, Decimal.new("3.50"))
+  end
+
+  # User story (#474):
+  # As a maintainer, I want the input form to read as the primary task with
+  # holdings and history as secondary supporting panels, and only the 6 core
+  # fields up front, so the screen says "enter here, see results there".
+  #
+  # Acceptance criteria:
+  # - The default form shows exactly the 6 core fields plus the costs disclosure.
+  # - Holdings/history render as a secondary region but keep their DOM ids and
+  #   still show their data after a transaction is recorded.
+  test "shows the 6 core fields and keeps holdings/history panels (#474)", %{conn: conn} do
+    world =
+      WorldFixtures.base_world(
+        name: "Solo",
+        currency: "EUR",
+        depot_name: "Main",
+        cash_name: "Cash"
+      )
+
+    security = WorldFixtures.create_security!(name: "Globex", ticker: "GLB", currency: "EUR")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    for field <- ~w(type date securities_account_id security_id quantity price) do
+      assert has_element?(view, "#transaction-form [name='transaction[#{field}]']")
+    end
+
+    assert has_element?(view, "details#transaction-costs")
+    # The holdings/history panels are grouped as a secondary region.
+    assert has_element?(view, ".transaction-secondary #holdings-panel")
+    assert has_element?(view, ".transaction-secondary #transaction-list-panel")
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" => %{
+        "type" => "buy",
+        "date" => "2026-02-01",
+        "securities_account_id" => to_string(world.depot.id),
+        "security_id" => to_string(security.id),
+        "quantity" => "2",
+        "price" => "50"
+      }
+    })
+
+    # The preserved ids still resolve and render their data.
+    assert has_element?(view, "#holdings-panel #holdings-table")
+    assert has_element?(view, "#transaction-list-panel #transaction-list")
+  end
 end

@@ -330,8 +330,8 @@ defmodule PortfolixirWeb.NavigationTest do
   #
   # Acceptance criteria:
   # - The transaction form has no independent cash-account select field.
-  # - The selected depot options include the linked cash account name as read-only context.
-  # - The page explains that the linked cash account is derived from the depot.
+  # - Each depot option names its linked cash account as a quiet caption (#472).
+  # - The currency in force is derived from the depot, shown as a caption (#473).
   test "transaction form derives cash account from depot instead of asking for it", %{conn: conn} do
     {:ok, portfolio} =
       Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
@@ -360,8 +360,9 @@ defmodule PortfolixirWeb.NavigationTest do
     {:ok, view, _html} = live(conn, "/transactions")
 
     refute has_element?(view, "#transaction-form select[name='transaction[cash_account_id]']")
-    assert has_element?(view, "#transaction-form", "Linked cash account")
-    assert has_element?(view, "#transaction-form", "Depot -> Cash EUR")
+    refute has_element?(view, "#transaction-form input[name='transaction[currency_code]']")
+    assert has_element?(view, "#transaction-form", "Depot (Cash EUR)")
+    assert has_element?(view, "#transaction-form [data-role='derived-currency']")
   end
 
   defp css_rule(css, selector) do
