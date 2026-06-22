@@ -37,6 +37,53 @@ defmodule PortfolixirWeb.NavigationTest do
     assert has_element?(view, "#workflow-path", "Record manual buy and sell transactions")
   end
 
+  # User story (Steve cold-start #4):
+  # As a new user reading the dashboard's workflow path,
+  # I want its first step to be the same prerequisite the Portfolio and Income
+  # screens demand — create a portfolio,
+  # so that the app does not contradict itself about where to start (dashboard
+  # said "Create securities" while /portfolio and /income said "Create one
+  # portfolio first").
+  #
+  # Acceptance criteria:
+  # - The workflow path's first step is "Create one portfolio", linking to
+  #   /portfolios.
+  # - "Create one portfolio" appears before "Create securities" in the path.
+  test "workflow path starts with creating a portfolio, matching the other screens",
+       %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             "#workflow-path ol li:first-child a[href='/portfolios']",
+             "Create one portfolio"
+           )
+
+    html = render(view)
+    {portfolio_at, _} = :binary.match(html, "Create one portfolio")
+    {securities_at, _} = :binary.match(html, "Create securities")
+    assert portfolio_at < securities_at
+  end
+
+  # User story (Steve cold-start #3):
+  # As a new user on the dashboard,
+  # I want the big count cards — the most clickable-looking thing on an empty
+  # screen — to actually take me to where I create that data,
+  # so that clicking "Securities 0" is not a dead end.
+  #
+  # Acceptance criteria:
+  # - Each dashboard count card is a link to its owning surface (securities,
+  #   portfolios, cash accounts, depots → /portfolios; transactions).
+  test "dashboard count cards link to their owning surface", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(view, "a#dashboard-securities-count[href='/securities']")
+    assert has_element?(view, "a#dashboard-portfolios-count[href='/portfolios']")
+    assert has_element?(view, "a#dashboard-cash-accounts-count[href='/portfolios']")
+    assert has_element?(view, "a#dashboard-securities-accounts-count[href='/portfolios']")
+    assert has_element?(view, "a#dashboard-transactions-count[href='/transactions']")
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want the sidebar to keep only the "Soon" entries that have an open issue
