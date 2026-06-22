@@ -93,7 +93,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <select name="transaction[securities_account_id]" required>
                     <option value=""><%= gettext("Select depot") %></option>
                     <%= for account <- bookable_depots(@securities_accounts) do %>
-                      <option value={account.id}><%= depot_option_label(account) %></option>
+                      <option
+                        value={account.id}
+                        selected={to_string(account.id) == @transaction_form["securities_account_id"]}
+                      >
+                        <%= depot_option_label(account) %>
+                      </option>
                     <% end %>
                   </select>
                 </label>
@@ -102,7 +107,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <select name="transaction[security_id]" required>
                     <option value=""><%= gettext("Select security") %></option>
                     <%= for security <- @securities do %>
-                      <option value={security.id}><%= security.name %> (<%= security.ticker_symbol %>)</option>
+                      <option
+                        value={security.id}
+                        selected={to_string(security.id) == @transaction_form["security_id"]}
+                      >
+                        <%= security.name %> (<%= security.ticker_symbol %>)
+                      </option>
                     <% end %>
                   </select>
                 </label>

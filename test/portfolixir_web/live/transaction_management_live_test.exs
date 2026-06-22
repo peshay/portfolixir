@@ -147,6 +147,24 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert Decimal.equal?(tx.taxes, Decimal.new("0"))
   end
 
+  # The phx-change that drives the derived-currency caption must not blank the
+  # depot select: the chosen option keeps its server-rendered `selected` state.
+  test "keeps the chosen depot selected after a form change (#473)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Solo", depot_name: "Main", cash_name: "Cash")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    html =
+      view
+      |> element("#transaction-form")
+      |> render_change(%{
+        "transaction" => %{"securities_account_id" => to_string(world.depot.id)}
+      })
+
+    assert html =~ ~r/<option[^>]*value="#{world.depot.id}"[^>]*selected/
+    assert html =~ "Currency: EUR"
+  end
+
   test "records fees entered in the costs disclosure (#473)", %{conn: conn} do
     world =
       WorldFixtures.base_world(
