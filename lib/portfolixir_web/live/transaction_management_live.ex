@@ -152,6 +152,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </section>
         <% end %>
 
+        <div class="transaction-secondary">
         <section id="holdings-panel" class="workspace-section">
           <h2><%= gettext("Current holdings") %></h2>
           <%= if Enum.empty?(@position_rows) do %>
@@ -213,6 +214,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             </table>
           <% end %>
         </section>
+        </div>
       </div>
     </AppShell.shell>
     """

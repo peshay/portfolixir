@@ -1050,6 +1050,19 @@ li + li {
   margin: 4px 0 8px;
 }
 
+/* Holdings and history read as secondary supporting panels next to the
+   primary "Record transaction" form (#474). */
+.transaction-secondary {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.transaction-secondary > .workspace-section > h2 {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+
 .transaction-costs > summary {
   cursor: pointer;
   color: var(--color-accent);

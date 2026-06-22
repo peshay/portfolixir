@@ -177,4 +177,53 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     [tx] = Ledger.list_transactions_for_portfolio(world.portfolio.id)
     assert Decimal.equal?(tx.fees, Decimal.new("3.50"))
   end
+
+  # User story (#474):
+  # As a maintainer, I want the input form to read as the primary task with
+  # holdings and history as secondary supporting panels, and only the 6 core
+  # fields up front, so the screen says "enter here, see results there".
+  #
+  # Acceptance criteria:
+  # - The default form shows exactly the 6 core fields plus the costs disclosure.
+  # - Holdings/history render as a secondary region but keep their DOM ids and
+  #   still show their data after a transaction is recorded.
+  test "shows the 6 core fields and keeps holdings/history panels (#474)", %{conn: conn} do
+    world =
+      WorldFixtures.base_world(
+        name: "Solo",
+        currency: "EUR",
+        depot_name: "Main",
+        cash_name: "Cash"
+      )
+
+    security = WorldFixtures.create_security!(name: "Globex", ticker: "GLB", currency: "EUR")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    for field <- ~w(type date securities_account_id security_id quantity price) do
+      assert has_element?(view, "#transaction-form [name='transaction[#{field}]']")
+    end
+
+    assert has_element?(view, "details#transaction-costs")
+    # The holdings/history panels are grouped as a secondary region.
+    assert has_element?(view, ".transaction-secondary #holdings-panel")
+    assert has_element?(view, ".transaction-secondary #transaction-list-panel")
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" => %{
+        "type" => "buy",
+        "date" => "2026-02-01",
+        "securities_account_id" => to_string(world.depot.id),
+        "security_id" => to_string(security.id),
+        "quantity" => "2",
+        "price" => "50"
+      }
+    })
+
+    # The preserved ids still resolve and render their data.
+    assert has_element?(view, "#holdings-panel #holdings-table")
+    assert has_element?(view, "#transaction-list-panel #transaction-list")
+  end
 end
