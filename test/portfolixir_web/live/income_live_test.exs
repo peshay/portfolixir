@@ -8,7 +8,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
 
   defp dividend!(world, security, opts) do
     {:ok, tx} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         cash_account_id: world.cash.id,
         security_id: WorldFixtures.security_id_for(security),
@@ -24,7 +24,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
 
   defp interest!(world, opts) do
     {:ok, tx} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         cash_account_id: world.cash.id,
         type: "interest",

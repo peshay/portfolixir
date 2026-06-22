@@ -195,8 +195,16 @@ first; arming no table, they cannot break existing writes.
   referential `{:error, :referenced}` guard and journal the full `before`
   snapshot. The `cash_accounts` and `securities_accounts` tables are armed, so
   **`Portfolios` is now a fully converted context** (in `@converted_contexts`).
-- **Next slices:** Classifications → Ledger → Imports, one context per iteration,
-  each arming its tables as it becomes actor-first.
+- **Slice 4 — Ledger + Imports transactions (landed):** `Ledger.create`/`update`/
+  `delete_transaction` and `set_cash_balance` are actor-first and journaled
+  (`resource_type: "transaction"`); the `transactions` table — the ledger crown
+  jewel — is armed. The import applier now journals each inserted booking under
+  `Actor.import_session()` in the same (nested) transaction as the insert, the
+  same way it already journals created securities, so imported history is fully
+  attributable. `Ledger` joins `@converted_contexts`.
+- **Next slice:** Classifications (classifications, categories, and the
+  assignment join table — note its bulk `insert_all`/`delete_all` paths and the
+  built-in tree seeding need their own journaling shape).
 
 ## Consequences
 

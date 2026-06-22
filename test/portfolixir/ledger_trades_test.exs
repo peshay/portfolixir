@@ -33,7 +33,7 @@ defmodule Portfolixir.LedgerTradesTest do
 
   defp create_tx!(%{security: s, portfolio: p, depot: d, cash: c}, type, date, qty, price) do
     {:ok, tx} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: p.id,
         securities_account_id: d.id,
         cash_account_id: c.id,

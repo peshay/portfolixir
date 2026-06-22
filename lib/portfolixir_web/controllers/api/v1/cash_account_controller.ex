@@ -84,7 +84,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
 
     with {:ok, cid} <- parse_id(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(cid),
-         {:ok, transaction} <- Ledger.set_cash_balance(account, attrs) do
+         {:ok, transaction} <- Ledger.set_cash_balance(conn.assigns.actor, account, attrs) do
       conn
       |> put_status(:created)
       |> json(%{data: JSON.transaction(transaction)})

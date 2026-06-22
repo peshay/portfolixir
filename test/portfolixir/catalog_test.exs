@@ -255,7 +255,7 @@ defmodule Portfolixir.CatalogTest do
       {portfolio, cash_account, depot} = create_trade_accounts()
 
       assert {:ok, _} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  securities_account_id: depot.id,
                  cash_account_id: cash_account.id,
@@ -270,7 +270,7 @@ defmodule Portfolixir.CatalogTest do
                })
 
       assert {:ok, _} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  securities_account_id: depot.id,
                  cash_account_id: cash_account.id,
@@ -285,7 +285,7 @@ defmodule Portfolixir.CatalogTest do
                })
 
       assert {:ok, _} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  securities_account_id: depot.id,
                  cash_account_id: cash_account.id,

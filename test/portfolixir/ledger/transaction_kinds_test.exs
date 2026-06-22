@@ -57,7 +57,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("1502.50")
         })
 
-      assert {:ok, %Transaction{type: "buy"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{type: "buy"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
   end
 
@@ -76,7 +77,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("2.00")
         })
 
-      assert {:ok, %Transaction{type: "sell"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{type: "sell"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
 
     test "still rejects a buy with negative price" do
@@ -93,7 +95,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("-10")
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
       assert %{price: ["must be greater than or equal to 0"]} = errors_on(changeset)
     end
   end
@@ -112,7 +114,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           price: Decimal.new("160.00")
         })
 
-      assert {:ok, %Transaction{type: "sell"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{type: "sell"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
   end
 
@@ -128,7 +131,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("12.34")
         })
 
-      assert {:ok, %Transaction{type: "dividend"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{type: "dividend"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
 
     test "rejects a dividend without a cash account" do
@@ -141,7 +145,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("12.34")
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
       assert %{cash_account_id: ["can't be blank"]} = errors_on(changeset)
     end
 
@@ -155,7 +159,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("12.34")
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
       assert %{security_id: ["can't be blank"]} = errors_on(changeset)
     end
   end
@@ -172,7 +176,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
             gross_amount: Decimal.new("100.00")
           })
 
-        assert {:ok, %Transaction{type: unquote(kind)}} = Ledger.create_transaction(attrs)
+        assert {:ok, %Transaction{type: unquote(kind)}} =
+                 Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
       end
 
       test "rejects #{kind} without a gross amount" do
@@ -184,7 +189,9 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
             cash_account_id: w.cash.id
           })
 
-        assert {:error, changeset} = Ledger.create_transaction(attrs)
+        assert {:error, changeset} =
+                 Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
+
         assert %{gross_amount: ["can't be blank"]} = errors_on(changeset)
       end
     end
@@ -202,7 +209,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
             gross_amount: Decimal.new("3.50")
           })
 
-        assert {:ok, %Transaction{type: unquote(kind)}} = Ledger.create_transaction(attrs)
+        assert {:ok, %Transaction{type: unquote(kind)}} =
+                 Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
       end
 
       test "accepts #{kind} attached to a security" do
@@ -217,7 +225,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           })
 
         assert {:ok, %Transaction{type: unquote(kind), security_id: sid}} =
-                 Ledger.create_transaction(attrs)
+                 Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
 
         assert sid == w.security.id
       end
@@ -236,7 +244,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("500.00")
         })
 
-      assert {:ok, %Transaction{type: "cash_transfer"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{type: "cash_transfer"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
 
     test "rejects a transfer where source and target are the same account" do
@@ -250,7 +259,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("500.00")
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
 
       assert %{counter_cash_account_id: ["must differ from cash_account_id"]} =
                errors_on(changeset)
@@ -271,7 +280,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           })
 
         assert {:ok, %Transaction{type: unquote(kind), cash_account_id: nil}} =
-                 Ledger.create_transaction(attrs)
+                 Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
       end
 
       test "rejects a delivery with a non-positive quantity" do
@@ -285,7 +294,9 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
             quantity: Decimal.new("0")
           })
 
-        assert {:error, changeset} = Ledger.create_transaction(attrs)
+        assert {:error, changeset} =
+                 Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
+
         assert %{quantity: ["must be greater than 0"]} = errors_on(changeset)
       end
     end
@@ -305,7 +316,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("1000.00")
         })
 
-      assert {:ok, %Transaction{type: "security_transfer"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{type: "security_transfer"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
 
     test "rejects a transfer where source and target depots are the same" do
@@ -320,7 +332,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           quantity: Decimal.new("5")
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
 
       assert %{counter_securities_account_id: ["must differ from securities_account_id"]} =
                errors_on(changeset)
@@ -340,8 +352,11 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           import_hash: "sha256-test-fixture"
         })
 
-      assert {:ok, _} = Ledger.create_transaction(base_attrs)
-      assert {:error, changeset} = Ledger.create_transaction(base_attrs)
+      assert {:ok, _} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), base_attrs)
+
+      assert {:error, changeset} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), base_attrs)
+
       assert %{import_hash: ["has already been taken"]} = errors_on(changeset)
     end
 
@@ -356,8 +371,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("12.34")
         })
 
-      assert {:ok, _} = Ledger.create_transaction(attrs)
-      assert {:ok, _} = Ledger.create_transaction(attrs)
+      assert {:ok, _} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
+      assert {:ok, _} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
   end
 
@@ -392,7 +407,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           currency_code: "EUR"
         })
 
-      assert {:ok, %Transaction{currency_code: "EUR"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{currency_code: "EUR"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
 
     test "rejects a mismatched-currency transaction with no settlement FX rate" do
@@ -406,7 +422,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           currency_code: "USD"
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
 
       assert %{settlement_fx_rate: ["is required for a cross-currency settlement"]} =
                errors_on(changeset)
@@ -427,7 +443,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           currency_code: "USD"
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
 
       assert %{settlement_fx_rate: ["is required for a cross-currency settlement"]} =
                errors_on(changeset)
@@ -449,7 +465,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           settlement_fx_rate: Decimal.new("0.909091")
         })
 
-      assert {:ok, %Transaction{currency_code: "USD"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{currency_code: "USD"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
 
     test "rejects a mismatched-currency buy with a non-positive settlement FX rate" do
@@ -468,7 +485,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           settlement_fx_rate: Decimal.new("0")
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
 
       assert %{settlement_fx_rate: ["must be greater than 0 for a cross-currency settlement"]} =
                errors_on(changeset)
@@ -486,7 +503,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           currency_code: "EUR"
         })
 
-      assert {:ok, %Transaction{type: "cash_transfer"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{type: "cash_transfer"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
 
     test "rejects a cash_transfer whose counter account has a different currency" do
@@ -508,7 +526,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           currency_code: "EUR"
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
 
       assert %{counter_cash_account_id: ["must match the transaction currency (EUR)"]} =
                errors_on(changeset)
@@ -519,6 +537,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
 
       {:ok, transaction} =
         Ledger.create_transaction(
+          Portfolixir.Actor.owner_ui(),
           Map.merge(base(w), %{
             type: "deposit",
             cash_account_id: w.cash.id,
@@ -528,7 +547,9 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
         )
 
       assert {:error, changeset} =
-               Ledger.update_transaction(transaction, %{currency_code: "USD"})
+               Ledger.update_transaction(Portfolixir.Actor.owner_ui(), transaction, %{
+                 currency_code: "USD"
+               })
 
       assert %{settlement_fx_rate: ["is required for a cross-currency settlement"]} =
                errors_on(changeset)
@@ -546,7 +567,8 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           currency_code: "USD"
         })
 
-      assert {:ok, %Transaction{type: "inbound_delivery"}} = Ledger.create_transaction(attrs)
+      assert {:ok, %Transaction{type: "inbound_delivery"}} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
     end
   end
 
@@ -561,7 +583,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           gross_amount: Decimal.new("1.00")
         })
 
-      assert {:error, changeset} = Ledger.create_transaction(attrs)
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
       assert %{type: ["is invalid"]} = errors_on(changeset)
     end
   end

@@ -489,6 +489,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       # Set USD cash balance to 110 USD = 100 EUR at 1 EUR = 1.1 USD.
       {:ok, _} =
         Portfolixir.Ledger.set_cash_balance(
+          Portfolixir.Actor.owner_ui(),
           world.usd_cash,
           %{date: ~D[2026-01-01], amount: "110"}
         )
@@ -544,6 +545,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       # USD cash: 110 USD = 100 EUR at 1.1.
       {:ok, _} =
         Portfolixir.Ledger.set_cash_balance(
+          Portfolixir.Actor.owner_ui(),
           world.usd_cash,
           %{date: ~D[2026-01-01], amount: "110"}
         )

@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Actor
   alias Portfolixir.Classifications
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Ledger
@@ -699,7 +700,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     with {:ok, account_id} <- coerce_id(params["cash_account_id"]),
          %{portfolio_id: pid} = account <- Portfolios.get_cash_account(account_id),
          true <- pid == socket.assigns.portfolio.id,
-         {:ok, _tx} <- Ledger.set_cash_balance(account, params) do
+         {:ok, _tx} <- Ledger.set_cash_balance(Actor.owner_ui(), account, params) do
       {:noreply,
        socket
        # No success toast on balance update: the submit button's busy state

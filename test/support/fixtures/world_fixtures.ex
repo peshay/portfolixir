@@ -127,7 +127,7 @@ defmodule Portfolixir.WorldFixtures do
   """
   def buy!(%{portfolio: portfolio, depot: depot, cash: cash}, security, opts \\ []) do
     {:ok, tx} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: cash.id,
@@ -154,7 +154,7 @@ defmodule Portfolixir.WorldFixtures do
   """
   def sell!(%{portfolio: portfolio, depot: depot, cash: cash}, security, opts \\ []) do
     {:ok, tx} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: cash.id,
@@ -176,7 +176,7 @@ defmodule Portfolixir.WorldFixtures do
   """
   def deposit!(%{portfolio: portfolio, cash: cash}, amount, date, opts \\ []) do
     {:ok, tx} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         type: "deposit",
