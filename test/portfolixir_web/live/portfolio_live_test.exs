@@ -211,7 +211,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         securities_account_id: world.depot.id,
         cash_account_id: world.cash.id,
@@ -531,7 +531,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         cash_account_id: business.id,
         type: "deposit",
@@ -574,7 +574,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         cash_account_id: lombard.id,
         type: "deposit",
@@ -592,7 +592,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, _} =
-      Ledger.set_cash_balance(overdrawn, %{date: Date.add(Date.utc_today(), -5), amount: "-50"})
+      Ledger.set_cash_balance(Portfolixir.Actor.owner_ui(), overdrawn, %{
+        date: Date.add(Date.utc_today(), -5),
+        amount: "-50"
+      })
 
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
@@ -618,7 +621,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         securities_account_id: world.depot.id,
         cash_account_id: world.cash.id,
@@ -642,7 +645,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         securities_account_id: world.depot.id,
         security_id: unpriced.id,
@@ -725,7 +728,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: usd_cash.id,
         type: "deposit",
@@ -757,7 +760,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: usd_cash.id,
         type: "deposit",
@@ -1021,7 +1024,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     WorldFixtures.deposit!(world, "200", Date.utc_today())
 
     {:ok, _} =
-      Ledger.set_cash_balance(usd_cash, %{
+      Ledger.set_cash_balance(Portfolixir.Actor.owner_ui(), usd_cash, %{
         date: Date.utc_today(),
         amount: "110"
       })

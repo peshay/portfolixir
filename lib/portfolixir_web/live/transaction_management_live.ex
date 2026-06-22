@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.TransactionManagementLive do
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -279,7 +280,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       |> Map.put("portfolio_id", socket.assigns.current_portfolio.id)
       |> maybe_put_currency(currency)
 
-    case Ledger.create_transaction(params) do
+    case Ledger.create_transaction(Actor.owner_ui(), params) do
       {:ok, _transaction} ->
         {:noreply,
          socket

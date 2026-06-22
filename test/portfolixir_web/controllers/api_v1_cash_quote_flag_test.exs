@@ -139,7 +139,7 @@ defmodule PortfolixirWeb.ApiV1CashQuoteFlagTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: created["id"],
         type: "deposit",
@@ -149,7 +149,7 @@ defmodule PortfolixirWeb.ApiV1CashQuoteFlagTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: created["id"],
@@ -164,7 +164,7 @@ defmodule PortfolixirWeb.ApiV1CashQuoteFlagTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: business["id"],
         type: "deposit",

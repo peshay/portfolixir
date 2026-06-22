@@ -137,7 +137,7 @@ defmodule PortfolixirWeb.ApiV1Test do
           {flat, "sell", "2", ~D[2026-01-04]}
         ] do
       assert {:ok, _} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  securities_account_id: depot.id,
                  cash_account_id: cash_account.id,
@@ -572,7 +572,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, _tx} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: cash.id,
@@ -657,7 +657,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         type: "deposit",
@@ -667,7 +667,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: cash.id,
@@ -737,7 +737,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, deposit} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         type: "deposit",
@@ -747,7 +747,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, buy} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: cash.id,
@@ -833,7 +833,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: cash.id,
@@ -928,7 +928,7 @@ defmodule PortfolixirWeb.ApiV1Test do
 
     for security <- [s1, s2] do
       {:ok, _} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,
@@ -1359,7 +1359,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     assert {:ok, _transaction} =
-             Ledger.create_transaction(%{
+             Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                portfolio_id: portfolio.id,
                securities_account_id: depot.id,
                cash_account_id: cash_account.id,
@@ -1438,6 +1438,7 @@ defmodule PortfolixirWeb.ApiV1Test do
 
     {:ok, _} =
       Ledger.create_transaction(
+        Portfolixir.Actor.owner_ui(),
         Map.merge(common, %{
           type: "buy",
           date: ~D[2026-01-10],
@@ -1448,6 +1449,7 @@ defmodule PortfolixirWeb.ApiV1Test do
 
     {:ok, _} =
       Ledger.create_transaction(
+        Portfolixir.Actor.owner_ui(),
         Map.merge(common, %{
           type: "sell",
           date: ~D[2026-04-10],

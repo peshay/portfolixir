@@ -105,7 +105,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, world.security, [mine.id])
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         securities_account_id: world.depot.id,
         security_id: world.security.id,
@@ -143,7 +143,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
 
     # Stock Depot B (out of view), then transfer into the main depot (in view).
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         securities_account_id: extra.depot.id,
         security_id: world.security.id,
@@ -154,7 +154,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
       })
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         securities_account_id: extra.depot.id,
         counter_securities_account_id: world.depot.id,
@@ -252,10 +252,14 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     deposit!(world, "1000", ~D[2026-01-01])
 
     {:ok, _} =
-      Ledger.set_cash_balance(Portfolios.get_cash_account(world.cash.id), %{
-        "date" => "2026-01-05",
-        "amount" => "1500"
-      })
+      Ledger.set_cash_balance(
+        Portfolixir.Actor.owner_ui(),
+        Portfolios.get_cash_account(world.cash.id),
+        %{
+          "date" => "2026-01-05",
+          "amount" => "1500"
+        }
+      )
 
     {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10])
 
@@ -270,7 +274,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     deposit!(world, "1000", ~D[2026-01-01])
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         cash_account_id: world.cash.id,
         security_id: world.security.id,
@@ -342,7 +346,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     # would mean ~660,000 daily steps — the walk must start at the first
     # plausible booking instead, with the ancient cash effect preserved.
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         cash_account_id: world.cash.id,
         type: "removal",
@@ -370,7 +374,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     deposit!(world, "100", ~D[2026-01-01])
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         cash_account_id: world.cash.id,
         type: "removal",

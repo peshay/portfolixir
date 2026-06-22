@@ -29,7 +29,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   def create(conn, params) do
     attrs = Map.get(params, "transaction", %{})
 
-    case Ledger.create_transaction(attrs) do
+    case Ledger.create_transaction(conn.assigns.actor, attrs) do
       {:ok, transaction} ->
         conn
         |> put_status(:created)
@@ -45,7 +45,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
 
     with {:ok, tid} <- parse_id(id),
          %Transaction{} = transaction <- Ledger.get_transaction(tid),
-         {:ok, updated} <- Ledger.update_transaction(transaction, attrs) do
+         {:ok, updated} <- Ledger.update_transaction(conn.assigns.actor, transaction, attrs) do
       json(conn, %{data: JSON.transaction(updated)})
     else
       nil -> not_found(conn)
@@ -57,7 +57,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   def delete(conn, %{"id" => id}) do
     with {:ok, tid} <- parse_id(id),
          %Transaction{} = transaction <- Ledger.get_transaction(tid),
-         {:ok, _} <- Ledger.delete_transaction(transaction) do
+         {:ok, _} <- Ledger.delete_transaction(conn.assigns.actor, transaction) do
       send_resp(conn, :no_content, "")
     else
       nil -> not_found(conn)

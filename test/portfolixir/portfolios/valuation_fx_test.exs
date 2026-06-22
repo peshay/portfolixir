@@ -68,7 +68,7 @@ defmodule Portfolixir.Portfolios.ValuationFxTest do
       depot_for_currency(world, currency_of(security))
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: cash.id,

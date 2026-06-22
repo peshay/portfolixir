@@ -300,7 +300,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
 
     {:ok, _tx} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         cash_account_id: world.cash.id,
         security_id: WorldFixtures.security_id_for(security),

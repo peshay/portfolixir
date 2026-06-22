@@ -50,7 +50,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
       assert securities_account.cash_account_id == cash_account.id
 
       assert {:ok, _buy} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  securities_account_id: securities_account.id,
                  cash_account_id: cash_account.id,
@@ -65,7 +65,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
                })
 
       assert {:ok, _sell} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  securities_account_id: securities_account.id,
                  cash_account_id: cash_account.id,
@@ -104,7 +104,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
         create_minimal_trade_setup("Other")
 
       assert {:ok, buy} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  securities_account_id: depot.id,
                  security_id: security.id,
@@ -120,7 +120,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
       assert buy.cash_account_id == linked_cash_account.id
 
       assert {:error, mismatch_changeset} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  securities_account_id: depot.id,
                  cash_account_id: other_cash_account.id,
@@ -137,7 +137,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
       assert "must match the selected depot" in errors_on(mismatch_changeset).cash_account_id
 
       assert {:ok, sell} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  securities_account_id: depot.id,
                  security_id: security.id,
@@ -171,7 +171,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
     # - The validation happens before any record is persisted.
     test "transaction changeset rejects unknown transaction kinds" do
       assert {:error, changeset} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  type: "made_up_kind",
                  date: ~D[2026-01-02],
                  quantity: Decimal.new("1"),

@@ -41,7 +41,7 @@ defmodule Portfolixir.Ledger.PositionsTest do
 
   defp delivery!(w, kind, depot, qty, date) do
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: w.portfolio.id,
         securities_account_id: depot.id,
         security_id: w.security.id,
@@ -69,7 +69,7 @@ defmodule Portfolixir.Ledger.PositionsTest do
     delivery!(w, "inbound_delivery", w.depot_a, "10", ~D[2026-01-02])
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: w.portfolio.id,
         securities_account_id: w.depot_a.id,
         counter_securities_account_id: w.depot_b.id,

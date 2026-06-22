@@ -147,7 +147,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
             {flat, "sell", "2", ~D[2026-01-04]}
           ] do
         assert {:ok, _} =
-                 Ledger.create_transaction(%{
+                 Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                    portfolio_id: portfolio.id,
                    securities_account_id: depot.id,
                    cash_account_id: cash_account.id,
@@ -1011,7 +1011,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, _} =
-        Portfolixir.Ledger.create_transaction(%{
+        Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,
@@ -1321,7 +1321,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "transactions tab renders non-trade rows with missing quantity and price",
          %{conn: conn, security: security, portfolio: portfolio, cash: cash} do
       {:ok, _dividend} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           cash_account_id: cash.id,
           security_id: security.id,
@@ -1347,7 +1347,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "trades tab renders open positions with unrealised P&L",
          %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
       {:ok, _} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,
@@ -1388,6 +1388,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       {:ok, _} =
         Ledger.create_transaction(
+          Portfolixir.Actor.owner_ui(),
           Map.merge(common, %{
             type: "buy",
             date: ~D[2026-01-10],
@@ -1398,6 +1399,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       {:ok, _} =
         Ledger.create_transaction(
+          Portfolixir.Actor.owner_ui(),
           Map.merge(common, %{
             type: "sell",
             date: ~D[2026-04-10],
@@ -1445,7 +1447,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "holdings tab renders per-portfolio rows with current value",
          %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
       {:ok, _} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,
@@ -1499,7 +1501,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "lists transactions newest-first with type, qty, price, portfolio and depot",
          %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
       {:ok, _earlier} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,
@@ -1515,7 +1517,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, _later} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,
@@ -1772,7 +1774,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "transactions tab renders price in DE locale as 1.234,50 and EN locale as 1,234.50",
          %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
       {:ok, _} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,
@@ -1802,7 +1804,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "holdings tab renders current value in DE locale as 1.234,50 and EN as 1,234.50",
          %{conn: conn, security: security, portfolio: portfolio, cash: cash, depot: depot} do
       {:ok, _} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,
@@ -1965,7 +1967,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, _} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,

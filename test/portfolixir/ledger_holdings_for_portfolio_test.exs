@@ -38,7 +38,7 @@ defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
 
   defp trade!(world, depot, security, type, qty, price, date) do
     {:ok, _tx} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: world.cash.id,
