@@ -12,7 +12,7 @@ defmodule PortfolixirWeb.Api.V1.PortfolioController do
   def create(conn, params) do
     attrs = Map.get(params, "portfolio", %{})
 
-    case Portfolios.create_portfolio(attrs) do
+    case Portfolios.create_portfolio(conn.assigns.actor, attrs) do
       {:ok, portfolio} ->
         conn
         |> put_status(:created)
@@ -33,7 +33,7 @@ defmodule PortfolixirWeb.Api.V1.PortfolioController do
          %Portfolio{} = portfolio <- Portfolios.get_portfolio(pid) do
       attrs = Map.get(params, "portfolio", %{})
 
-      case Portfolios.update_portfolio(portfolio, attrs) do
+      case Portfolios.update_portfolio(conn.assigns.actor, portfolio, attrs) do
         {:ok, updated} ->
           json(conn, %{data: JSON.portfolio(updated)})
 

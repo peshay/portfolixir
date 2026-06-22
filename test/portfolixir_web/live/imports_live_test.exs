@@ -483,7 +483,10 @@ defmodule PortfolixirWeb.ImportsLiveTest do
   test "async import error surfaces message and re-enables confirm button",
        %{conn: conn} do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Error Test Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Error Test Portfolio",
+        base_currency_code: "EUR"
+      })
 
     # Create a USD cash account with the same PP name as in sample.json.
     # The sample's first transaction is a EUR buy through "Test-Cash", so
@@ -543,7 +546,10 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
   defp setup_portfolio do
     {:ok, p} =
-      Portfolios.create_portfolio(%{name: "PP Import Target", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "PP Import Target",
+        base_currency_code: "EUR"
+      })
 
     p
   end

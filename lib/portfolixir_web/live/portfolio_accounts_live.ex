@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.PortfolioAccountsLive do
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Actor
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.AppShell
@@ -174,7 +175,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   @impl true
   def handle_event("save_portfolio", %{"portfolio" => params}, socket) do
-    case Portfolios.create_portfolio(params) do
+    case Portfolios.create_portfolio(Actor.owner_ui(), params) do
       {:ok, _portfolio} ->
         {:noreply,
          socket

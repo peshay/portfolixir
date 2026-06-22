@@ -25,7 +25,10 @@ defmodule PortfolixirWeb.ApiV1ValuationCashQuoteTest do
   #   Decimal string, so the consumer can reconstruct the quote itself.
   test "valuation endpoint returns the cash quote", %{conn: conn} do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Local Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{

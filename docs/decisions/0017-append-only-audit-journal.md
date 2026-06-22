@@ -184,8 +184,16 @@ first; arming no table, they cannot break existing writes.
   keeps its arity (immutable migrations) and is excluded from the actor gate.
   Meta-tests landed: append-only, allowlist, and the AST write-actor gate with a
   shrink-only grandfather list coupling arming to conversion.
-- **Next slices:** Portfolios/Classifications → Ledger → Imports, one context per
-  iteration, each arming its tables as it becomes actor-first.
+- **Slice 2 — Portfolios.portfolios (landed):** `Portfolios.create_portfolio`
+  and `update_portfolio` are actor-first and routed through `Journal.record/3`
+  (`resource_type: "portfolio"`); the `portfolios` table is armed by its own
+  migration. The virtual cash-target weight still persists separately to its
+  un-armed target table. The context's remaining writers (`cash_accounts`,
+  `securities_accounts`) stay grandfathered until their own follow-up slices arm
+  those tables, so `Portfolios` is not yet a fully converted context.
+- **Next slices:** Portfolios `cash_accounts`/`securities_accounts` →
+  Classifications → Ledger → Imports, one table/context per iteration, each
+  arming its tables as it becomes actor-first.
 
 ## Consequences
 

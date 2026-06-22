@@ -16,7 +16,11 @@ defmodule Portfolixir.Ledger.CashBalanceSnapshotTest do
   # - The amount may be negative (an overdraft); the latest snapshot wins.
 
   defp setup_account do
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
