@@ -314,4 +314,38 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert has_element?(view, "#transaction-list tbody tr td", "dividend")
   end
+
+  # User story (Steve cold-start #1):
+  # As a new user who has set up a portfolio and a depot but no securities yet,
+  # I want the transaction form to tell me a security must exist first and send
+  # me to create one,
+  # so that I do not fill in the whole form only to hit an empty, unselectable
+  # "Wertpapier auswählen" dropdown that silently blocks submission.
+  #
+  # Acceptance criteria:
+  # - With no securities, the Security field is replaced by an empty-state that
+  #   links to /securities (the missing prerequisite is named at the point of
+  #   pain), and the dead security <select> is not rendered.
+  # - Once a security exists, the normal Security select is back.
+  test "names the missing-security prerequisite instead of a dead empty select",
+       %{conn: conn} do
+    _world = WorldFixtures.base_world(name: "Solo")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    # The dead, unselectable security dropdown is gone...
+    refute has_element?(view, "#transaction-form select[name='transaction[security_id]']")
+    # ...replaced by a teaching empty-state that links to where you fix it.
+    assert has_element?(view, "#transaction-no-securities a[href='/securities']")
+  end
+
+  test "shows the security select again once a security exists", %{conn: conn} do
+    _world = WorldFixtures.base_world(name: "Solo")
+    WorldFixtures.create_security!(name: "Has Sec", ticker: "HAS")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert has_element?(view, "#transaction-form select[name='transaction[security_id]']")
+    refute has_element?(view, "#transaction-no-securities")
+  end
 end
