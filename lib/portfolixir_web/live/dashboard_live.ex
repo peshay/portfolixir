@@ -22,10 +22,13 @@ defmodule PortfolixirWeb.DashboardLive do
       <div id="dashboard-workspace" class="workspace-page">
         <section id="workflow-path" class="workspace-section">
           <h2><%= gettext("Workflow path") %></h2>
+          <%!-- A portfolio is the hard prerequisite the Portfolio and Income
+                screens demand first ("Create one portfolio first"); the path
+                starts there so the dashboard does not contradict them. --%>
           <ol>
-            <li><a href="/securities"><%= gettext("Create securities") %></a></li>
             <li><a href="/portfolios"><%= gettext("Create one portfolio") %></a></li>
             <li><a href="/portfolios"><%= gettext("Link one depot to one cash account") %></a></li>
+            <li><a href="/securities"><%= gettext("Create securities") %></a></li>
             <li>
               <a href="/transactions"><%= gettext("Record manual buy and sell transactions") %></a>
             </li>
