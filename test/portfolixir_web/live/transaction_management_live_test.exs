@@ -244,4 +244,74 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert has_element?(view, "#holdings-panel #holdings-table")
     assert has_element?(view, "#transaction-list-panel #transaction-list")
   end
+
+  # User story (Steve cold-start #2):
+  # As a German-speaking maintainer recording a transaction,
+  # I want the Type dropdown and history to read in my language,
+  # so that the form does not feel half-built with raw "buy"/"sell" leaking
+  # through an otherwise localized screen.
+  #
+  # Acceptance criteria:
+  # - The Type select offers localized option labels ("Buy"/"Sell" in English),
+  #   while the submitted value stays the stored enum ("buy"/"sell").
+  # - The transaction history Type column shows the localized label, not the
+  #   raw stored enum.
+  test "localizes the transaction Type options and history labels", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Solo")
+    security = WorldFixtures.create_security!(name: "Localize Co", ticker: "LOC")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    # The option keeps its machine value but renders a human, localized label.
+    assert has_element?(
+             view,
+             "#transaction-form select[name='transaction[type]'] option[value='buy']",
+             "Buy"
+           )
+
+    assert has_element?(
+             view,
+             "#transaction-form select[name='transaction[type]'] option[value='sell']",
+             "Sell"
+           )
+
+    # A recorded buy shows the localized label in the history, not raw "buy".
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" => %{
+        "type" => "buy",
+        "date" => "2026-02-01",
+        "securities_account_id" => to_string(world.depot.id),
+        "security_id" => to_string(security.id),
+        "quantity" => "2",
+        "price" => "50"
+      }
+    })
+
+    assert has_element?(view, "#transaction-list tbody tr td", "Buy")
+  end
+
+  # The history lists every ledger kind, not just buy/sell (e.g. an imported
+  # dividend). Such kinds have no dedicated label and fall back to their stored
+  # name rather than crashing the table.
+  test "history falls back to the stored name for non-buy/sell kinds", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Solo")
+    security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+    {:ok, _tx} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        security_id: WorldFixtures.security_id_for(security),
+        type: "dividend",
+        date: ~D[2026-02-01],
+        gross_amount: "100",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert has_element?(view, "#transaction-list tbody tr td", "dividend")
+  end
 end
