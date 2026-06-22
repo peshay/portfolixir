@@ -37,6 +37,34 @@ defmodule PortfolixirWeb.NavigationTest do
     assert has_element?(view, "#workflow-path", "Record manual buy and sell transactions")
   end
 
+  # User story (Steve cold-start #4):
+  # As a new user reading the dashboard's workflow path,
+  # I want its first step to be the same prerequisite the Portfolio and Income
+  # screens demand — create a portfolio,
+  # so that the app does not contradict itself about where to start (dashboard
+  # said "Create securities" while /portfolio and /income said "Create one
+  # portfolio first").
+  #
+  # Acceptance criteria:
+  # - The workflow path's first step is "Create one portfolio", linking to
+  #   /portfolios.
+  # - "Create one portfolio" appears before "Create securities" in the path.
+  test "workflow path starts with creating a portfolio, matching the other screens",
+       %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             "#workflow-path ol li:first-child a[href='/portfolios']",
+             "Create one portfolio"
+           )
+
+    html = render(view)
+    {portfolio_at, _} = :binary.match(html, "Create one portfolio")
+    {securities_at, _} = :binary.match(html, "Create securities")
+    assert portfolio_at < securities_at
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want the sidebar to keep only the "Soon" entries that have an open issue
