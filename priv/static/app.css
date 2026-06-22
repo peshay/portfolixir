@@ -4274,6 +4274,8 @@ details[open] > .cat-summary::before {
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: 999px;
+  font: inherit;
+  cursor: pointer;
 }
 
 .view-chip:hover {
