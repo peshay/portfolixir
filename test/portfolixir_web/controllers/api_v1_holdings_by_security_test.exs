@@ -38,7 +38,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsBySecurityTest do
     WorldFixtures.buy!(world, held, quantity: "10", price: "80")
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         securities_account_id: world.depot.id,
         security_id: unvalued.id,

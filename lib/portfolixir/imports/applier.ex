@@ -32,11 +32,13 @@ defmodule Portfolixir.Imports.Applier do
   (Story 4 UI), per-entry depot/cash override per pp-account-pair.
   """
 
+  alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
@@ -626,15 +628,27 @@ defmodule Portfolixir.Imports.Applier do
     if hash_already_imported?(attrs.import_hash) do
       {:ok, bump_result(state, :skipped_duplicates)}
     else
-      %Transaction{}
-      |> Transaction.changeset(attrs)
-      |> Transaction.validate_cash_account_currency(cash_currencies_for(attrs))
-      |> Repo.insert()
+      changeset =
+        %Transaction{}
+        |> Transaction.changeset(attrs)
+        |> Transaction.validate_cash_account_currency(cash_currencies_for(attrs))
+
+      # The transactions table is journal-armed (ADR-0017): each imported booking
+      # is journaled under an import actor in the same (nested) transaction as the
+      # insert, mirroring how the applier already journals created securities.
+      Multi.new()
+      |> Multi.insert(:transaction, changeset)
+      |> Journal.record(Actor.import_session(),
+        resource_type: "transaction",
+        operation: :create,
+        source: :transaction
+      )
+      |> Repo.transaction()
       |> case do
-        {:ok, %Transaction{}} ->
+        {:ok, %{transaction: %Transaction{}}} ->
           {:ok, bump_result(state, :created_transactions)}
 
-        {:error, %Ecto.Changeset{} = changeset} ->
+        {:error, :transaction, %Ecto.Changeset{} = changeset, _changes} ->
           {:error, %{row: entry.source_row, reason: {:insert_failed, changeset}}}
       end
     end

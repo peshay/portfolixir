@@ -34,7 +34,7 @@ defmodule Portfolixir.Ledger.CashBalanceSnapshotTest do
 
   defp cash_tx!(portfolio, cash, type, amount, date) do
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         type: type,
@@ -55,7 +55,10 @@ defmodule Portfolixir.Ledger.CashBalanceSnapshotTest do
     cash_tx!(portfolio, cash, "deposit", "1000", ~D[2026-01-01])
 
     assert {:ok, snapshot} =
-             Ledger.set_cash_balance(cash, %{"date" => "2026-06-01", "amount" => "4250"})
+             Ledger.set_cash_balance(Portfolixir.Actor.owner_ui(), cash, %{
+               "date" => "2026-06-01",
+               "amount" => "4250"
+             })
 
     assert snapshot.type == "balance_adjustment"
     assert Decimal.equal?(snapshot.gross_amount, Decimal.new("4250"))
@@ -71,7 +74,11 @@ defmodule Portfolixir.Ledger.CashBalanceSnapshotTest do
   test "accepts a negative snapshot balance (overdraft)" do
     %{cash: cash} = setup_account()
 
-    assert {:ok, _} = Ledger.set_cash_balance(cash, %{"date" => "2026-06-01", "amount" => "-50"})
+    assert {:ok, _} =
+             Ledger.set_cash_balance(Portfolixir.Actor.owner_ui(), cash, %{
+               "date" => "2026-06-01",
+               "amount" => "-50"
+             })
 
     assert Decimal.equal?(balance([], cash.id), Decimal.new("-50"))
   end
@@ -79,8 +86,17 @@ defmodule Portfolixir.Ledger.CashBalanceSnapshotTest do
   test "the latest snapshot wins" do
     %{cash: cash} = setup_account()
 
-    {:ok, _} = Ledger.set_cash_balance(cash, %{"date" => "2026-05-01", "amount" => "1000"})
-    {:ok, _} = Ledger.set_cash_balance(cash, %{"date" => "2026-06-01", "amount" => "2000"})
+    {:ok, _} =
+      Ledger.set_cash_balance(Portfolixir.Actor.owner_ui(), cash, %{
+        "date" => "2026-05-01",
+        "amount" => "1000"
+      })
+
+    {:ok, _} =
+      Ledger.set_cash_balance(Portfolixir.Actor.owner_ui(), cash, %{
+        "date" => "2026-06-01",
+        "amount" => "2000"
+      })
 
     assert Decimal.equal?(balance([], cash.id), Decimal.new("2000"))
   end

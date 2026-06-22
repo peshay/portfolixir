@@ -27,7 +27,7 @@ defmodule Portfolixir.Ledger.CashBalancesTest do
 
   defp create!(w, attrs) do
     base = %{portfolio_id: w.portfolio.id, date: ~D[2026-04-01], currency_code: "EUR"}
-    {:ok, _} = Ledger.create_transaction(Map.merge(base, attrs))
+    {:ok, _} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), Map.merge(base, attrs))
   end
 
   defp dec(value), do: Decimal.new(value)

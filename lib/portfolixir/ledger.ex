@@ -15,7 +15,10 @@ defmodule Portfolixir.Ledger do
 
   import Ecto.Query
 
+  alias Ecto.Multi
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.TradeMatcher
@@ -362,12 +365,27 @@ defmodule Portfolixir.Ledger do
     Repo.aggregate(Transaction, :count, :id)
   end
 
-  def create_transaction(attrs) when is_map(attrs) do
+  @doc """
+  Records a transaction on behalf of `actor` (FR-28). The `transactions` row and
+  its audit-journal entry commit in one transaction (ADR-0017); the table is
+  guard-armed, so every ledger write is attributable.
+  """
+  def create_transaction(%Actor{} = actor, attrs) when is_map(attrs) do
     with {:ok, attrs} <- maybe_derive_linked_cash_account(attrs) do
-      %Transaction{}
-      |> Transaction.changeset(derive_settlement_fx_rate(attrs))
-      |> validate_cash_account_currency()
-      |> Repo.insert()
+      changeset =
+        %Transaction{}
+        |> Transaction.changeset(derive_settlement_fx_rate(attrs))
+        |> validate_cash_account_currency()
+
+      Multi.new()
+      |> Multi.insert(:transaction, changeset)
+      |> Journal.record(actor,
+        resource_type: "transaction",
+        operation: :create,
+        source: :transaction
+      )
+      |> Repo.transaction()
+      |> transaction_write_result()
     end
   end
 
@@ -379,8 +397,9 @@ defmodule Portfolixir.Ledger do
   currency are taken from the cash account. Returns `{:ok, transaction}` or
   `{:error, changeset}`.
   """
-  def set_cash_balance(%CashAccount{} = cash_account, attrs) when is_map(attrs) do
-    create_transaction(%{
+  def set_cash_balance(%Actor{} = actor, %CashAccount{} = cash_account, attrs)
+      when is_map(attrs) do
+    create_transaction(actor, %{
       type: "balance_adjustment",
       portfolio_id: cash_account.portfolio_id,
       cash_account_id: cash_account.id,
@@ -393,14 +412,50 @@ defmodule Portfolixir.Ledger do
 
   def get_transaction(id) when is_integer(id), do: Repo.get(Transaction, id)
 
-  def update_transaction(%Transaction{} = transaction, attrs) when is_map(attrs) do
-    transaction
-    |> Transaction.changeset(derive_settlement_fx_rate(attrs))
-    |> validate_cash_account_currency()
-    |> Repo.update()
+  @doc """
+  Updates a transaction on behalf of `actor` (FR-28). The update and its audit
+  journal entry (with the pre-image as `before`) commit in one transaction.
+  """
+  def update_transaction(%Actor{} = actor, %Transaction{} = transaction, attrs)
+      when is_map(attrs) do
+    changeset =
+      transaction
+      |> Transaction.changeset(derive_settlement_fx_rate(attrs))
+      |> validate_cash_account_currency()
+
+    Multi.new()
+    |> Multi.update(:transaction, changeset)
+    |> Journal.record(actor,
+      resource_type: "transaction",
+      operation: :update,
+      source: :transaction,
+      before: transaction
+    )
+    |> Repo.transaction()
+    |> transaction_write_result()
   end
 
-  def delete_transaction(%Transaction{} = transaction), do: Repo.delete(transaction)
+  @doc """
+  Deletes a transaction on behalf of `actor` (FR-28). The deletion is journaled
+  with the full `before` snapshot so a removed booking stays traceable.
+  """
+  def delete_transaction(%Actor{} = actor, %Transaction{} = transaction) do
+    Multi.new()
+    |> Multi.delete(:transaction, transaction)
+    |> Journal.record(actor,
+      resource_type: "transaction",
+      operation: :delete,
+      source: :transaction,
+      before: transaction
+    )
+    |> Repo.transaction()
+    |> transaction_write_result()
+  end
+
+  defp transaction_write_result({:ok, %{transaction: transaction}}), do: {:ok, transaction}
+
+  defp transaction_write_result({:error, :transaction, %Ecto.Changeset{} = changeset, _changes}),
+    do: {:error, changeset}
 
   # Cross-record currency check (issue #343): a transaction is booked in
   # its cash account's currency, so its `currency_code` must equal the

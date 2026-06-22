@@ -52,7 +52,7 @@ defmodule Portfolixir.LedgerTransactionsFilterTest do
 
     for depot <- [depot_one, depot_two, depot_one] do
       {:ok, _} =
-        Ledger.create_transaction(%{
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           securities_account_id: depot.id,
           cash_account_id: cash.id,

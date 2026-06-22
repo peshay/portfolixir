@@ -63,7 +63,7 @@ defmodule Portfolixir.Ledger.CrossCurrencySettlementTest do
       gross_amount: Decimal.new("1818.181818")
     }
 
-    Ledger.create_transaction(Map.merge(base, overrides))
+    Ledger.create_transaction(Portfolixir.Actor.owner_ui(), Map.merge(base, overrides))
   end
 
   describe "booking a foreign-currency trade with a settlement FX rate (FR1, FR3)" do
@@ -172,7 +172,7 @@ defmodule Portfolixir.Ledger.CrossCurrencySettlementTest do
       security = create_security!(name: "EU Equity", ticker: "EUX", currency: "EUR")
 
       assert {:ok, %Transaction{} = tx} =
-               Ledger.create_transaction(%{
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: world.portfolio.id,
                  securities_account_id: world.depot.id,
                  cash_account_id: world.cash.id,

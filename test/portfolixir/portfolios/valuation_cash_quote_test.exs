@@ -23,14 +23,14 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
 
   defp set_balance!(portfolio, account, amount, date) do
     {:ok, _} =
-      Ledger.set_cash_balance(account, %{date: date, amount: amount})
+      Ledger.set_cash_balance(Portfolixir.Actor.owner_ui(), account, %{date: date, amount: amount})
 
     portfolio
   end
 
   defp deposit!(portfolio, account, amount, date) do
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: account.id,
         type: "deposit",
@@ -57,7 +57,7 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
     deposit!(portfolio, cash, "1000", ~D[2026-01-01])
 
     {:ok, _} =
-      Ledger.create_transaction(%{
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         securities_account_id: depot.id,
         cash_account_id: cash.id,
