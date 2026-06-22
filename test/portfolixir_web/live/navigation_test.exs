@@ -65,6 +65,25 @@ defmodule PortfolixirWeb.NavigationTest do
     assert portfolio_at < securities_at
   end
 
+  # User story (Steve cold-start #3):
+  # As a new user on the dashboard,
+  # I want the big count cards — the most clickable-looking thing on an empty
+  # screen — to actually take me to where I create that data,
+  # so that clicking "Securities 0" is not a dead end.
+  #
+  # Acceptance criteria:
+  # - Each dashboard count card is a link to its owning surface (securities,
+  #   portfolios, cash accounts, depots → /portfolios; transactions).
+  test "dashboard count cards link to their owning surface", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(view, "a#dashboard-securities-count[href='/securities']")
+    assert has_element?(view, "a#dashboard-portfolios-count[href='/portfolios']")
+    assert has_element?(view, "a#dashboard-cash-accounts-count[href='/portfolios']")
+    assert has_element?(view, "a#dashboard-securities-accounts-count[href='/portfolios']")
+    assert has_element?(view, "a#dashboard-transactions-count[href='/transactions']")
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want the sidebar to keep only the "Soon" entries that have an open issue

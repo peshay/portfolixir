@@ -36,27 +36,30 @@ defmodule PortfolixirWeb.DashboardLive do
           </ol>
         </section>
 
+        <%!-- Each count card looks like a card and is the most clickable thing
+              on an empty dashboard, so it links to where that data is created
+              instead of being a dead <article>. --%>
         <section class="workspace-section grid" aria-label={gettext("Portfolio counts")}>
-          <article id="dashboard-securities-count" class="stat">
+          <a href="/securities" id="dashboard-securities-count" class="stat stat--link">
             <span><%= gettext("Securities") %></span>
             <strong><%= @securities_count %></strong>
-          </article>
-          <article id="dashboard-portfolios-count" class="stat">
+          </a>
+          <a href="/portfolios" id="dashboard-portfolios-count" class="stat stat--link">
             <span><%= gettext("Portfolios") %></span>
             <strong><%= @portfolios_count %></strong>
-          </article>
-          <article id="dashboard-cash-accounts-count" class="stat">
+          </a>
+          <a href="/portfolios" id="dashboard-cash-accounts-count" class="stat stat--link">
             <span><%= gettext("Cash accounts") %></span>
             <strong><%= @cash_accounts_count %></strong>
-          </article>
-          <article id="dashboard-securities-accounts-count" class="stat">
+          </a>
+          <a href="/portfolios" id="dashboard-securities-accounts-count" class="stat stat--link">
             <span><%= gettext("Depots") %></span>
             <strong><%= @securities_accounts_count %></strong>
-          </article>
-          <article id="dashboard-transactions-count" class="stat">
+          </a>
+          <a href="/transactions" id="dashboard-transactions-count" class="stat stat--link">
             <span><%= gettext("Transactions") %></span>
             <strong><%= @transactions_count %></strong>
-          </article>
+          </a>
         </section>
       </div>
     </AppShell.shell>
