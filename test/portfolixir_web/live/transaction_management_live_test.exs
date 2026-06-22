@@ -291,4 +291,27 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert has_element?(view, "#transaction-list tbody tr td", "Buy")
   end
+
+  # The history lists every ledger kind, not just buy/sell (e.g. an imported
+  # dividend). Such kinds have no dedicated label and fall back to their stored
+  # name rather than crashing the table.
+  test "history falls back to the stored name for non-buy/sell kinds", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Solo")
+    security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+    {:ok, _tx} =
+      Ledger.create_transaction(%{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        security_id: WorldFixtures.security_id_for(security),
+        type: "dividend",
+        date: ~D[2026-02-01],
+        gross_amount: "100",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert has_element?(view, "#transaction-list tbody tr td", "dividend")
+  end
 end
