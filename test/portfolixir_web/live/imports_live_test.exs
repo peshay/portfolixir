@@ -494,14 +494,14 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # validation failure — the applier returns {:error, reason} for the
     # row and Imports.apply/2 returns {:ok, {:error, reason}}.
     {:ok, usd_cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Test-Cash",
         currency_code: "USD"
       })
 
     {:ok, usd_depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: usd_cash.id,
         name: "Test-Depot"

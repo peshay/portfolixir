@@ -16,7 +16,7 @@ defmodule Portfolixir.Ledger.CashBalancesTest do
     security = create_security!(name: "Test Security", ticker: nil, asset_class: "equity")
 
     {:ok, cash_b} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         name: "Cash 2",
         currency_code: "EUR"

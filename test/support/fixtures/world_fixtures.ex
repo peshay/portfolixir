@@ -67,7 +67,7 @@ defmodule Portfolixir.WorldFixtures do
     liquidity_role = Keyword.get(opts, :liquidity_role, "free_cash")
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: cash_name,
         currency_code: cash_currency,
@@ -75,7 +75,7 @@ defmodule Portfolixir.WorldFixtures do
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: depot_name

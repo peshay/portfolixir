@@ -34,7 +34,7 @@ defmodule PortfolixirWeb.ApiV1CashBalanceTest do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Giro",
         currency_code: "EUR"

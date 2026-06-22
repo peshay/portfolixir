@@ -518,7 +518,7 @@ defmodule Portfolixir.Imports.ApplierTest do
       portfolio = setup_portfolio()
 
       {:ok, _eur_cash} =
-        Portfolios.create_cash_account(%{
+        Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           name: "EUR-Cash",
           currency_code: "EUR"

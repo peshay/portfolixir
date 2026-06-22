@@ -124,7 +124,7 @@ defmodule PortfolixirWeb.ApiV1CashQuoteFlagTest do
 
     # Valuation: 800 invested + 200 deployable cash + 500 excluded reserve.
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: created["id"],
         name: "Main Depot"

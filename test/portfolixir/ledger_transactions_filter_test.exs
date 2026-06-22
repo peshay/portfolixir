@@ -23,21 +23,21 @@ defmodule Portfolixir.LedgerTransactionsFilterTest do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Local Cash",
         currency_code: "EUR"
       })
 
     {:ok, depot_one} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot One"
       })
 
     {:ok, depot_two} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot Two"

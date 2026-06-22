@@ -493,7 +493,7 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
       w = setup_world()
 
       {:ok, cash_usd} =
-        Portfolios.create_cash_account(%{
+        Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: w.portfolio.id,
           name: "USD Cash",
           currency_code: "USD"

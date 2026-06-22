@@ -387,14 +387,14 @@ defmodule PortfolixirWeb.NavigationTest do
       })
 
     {:ok, cash_account} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Cash EUR",
         currency_code: "EUR"
       })
 
     {:ok, _depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash_account.id,
         name: "Depot"

@@ -25,7 +25,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Business Account",
         currency_code: "EUR"

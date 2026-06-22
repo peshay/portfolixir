@@ -436,7 +436,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       world = base_world(name: "Currency Portfolio", currency: "EUR")
 
       {:ok, usd_cash} =
-        Portfolios.create_cash_account(%{
+        Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: world.portfolio.id,
           name: "USD Cash",
           currency_code: "USD"

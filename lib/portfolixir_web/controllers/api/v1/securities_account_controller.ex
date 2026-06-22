@@ -23,7 +23,7 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
   def create(conn, params) do
     attrs = Map.get(params, "securities_account", %{})
 
-    case Portfolios.create_securities_account(attrs) do
+    case Portfolios.create_securities_account(conn.assigns.actor, attrs) do
       {:ok, account} ->
         conn
         |> put_status(:created)
@@ -40,7 +40,8 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
 
     with {:ok, sid} <- parse_id(id),
          %SecuritiesAccount{} = account <- Portfolios.get_securities_account(sid),
-         {:ok, updated} <- Portfolios.update_securities_account(account, attrs) do
+         {:ok, updated} <-
+           Portfolios.update_securities_account(conn.assigns.actor, account, attrs) do
       json(conn, %{data: JSON.securities_account(updated)})
     else
       nil -> not_found(conn)
@@ -52,7 +53,7 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
   def delete(conn, %{"id" => id}) do
     with {:ok, sid} <- parse_id(id),
          %SecuritiesAccount{} = account <- Portfolios.get_securities_account(sid) do
-      case Portfolios.delete_securities_account(account) do
+      case Portfolios.delete_securities_account(conn.assigns.actor, account) do
         {:ok, _} -> send_resp(conn, :no_content, "")
         {:error, :referenced} -> conflict(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))

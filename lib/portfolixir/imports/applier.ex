@@ -236,7 +236,7 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp resolve_cash_choice(_pp_name, {:create, name}, portfolio_id, ccy) when is_binary(name) do
-    case Portfolios.create_cash_account(%{
+    case Portfolios.create_cash_account(Actor.import_session(), %{
            portfolio_id: portfolio_id,
            name: name,
            currency_code: ccy
@@ -294,7 +294,7 @@ defmodule Portfolixir.Imports.Applier do
 
   defp resolve_depot_choice(_pp_name, {:create, name}, portfolio_id, cash_id)
        when is_binary(name) and is_integer(cash_id) do
-    case Portfolios.create_securities_account(%{
+    case Portfolios.create_securities_account(Actor.import_session(), %{
            portfolio_id: portfolio_id,
            cash_account_id: cash_id,
            name: name
@@ -483,7 +483,7 @@ defmodule Portfolixir.Imports.Applier do
       currency_code: entry.currency_code || state.default_currency
     }
 
-    case Portfolios.create_cash_account(attrs) do
+    case Portfolios.create_cash_account(Actor.import_session(), attrs) do
       {:ok, cash} ->
         state =
           state
@@ -537,7 +537,7 @@ defmodule Portfolixir.Imports.Applier do
       name: name
     }
 
-    case Portfolios.create_securities_account(attrs) do
+    case Portfolios.create_securities_account(Actor.import_session(), attrs) do
       {:ok, depot} ->
         state =
           state

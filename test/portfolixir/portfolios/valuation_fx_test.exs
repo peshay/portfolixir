@@ -42,14 +42,14 @@ defmodule Portfolixir.Portfolios.ValuationFxTest do
 
       :error ->
         {:ok, cash} =
-          Portfolios.create_cash_account(%{
+          Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
             portfolio_id: world.portfolio.id,
             name: "#{currency} Cash",
             currency_code: currency
           })
 
         {:ok, depot} =
-          Portfolios.create_securities_account(%{
+          Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
             portfolio_id: world.portfolio.id,
             cash_account_id: cash.id,
             name: "#{currency} Depot"

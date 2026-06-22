@@ -70,7 +70,7 @@ defmodule Portfolixir.Ledger.LedgerPropertyTest do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Cash",
         currency_code: "EUR"

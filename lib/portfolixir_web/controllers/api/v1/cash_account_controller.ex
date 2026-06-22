@@ -34,7 +34,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
   def create(conn, params) do
     attrs = Map.get(params, "cash_account", %{})
 
-    case Portfolios.create_cash_account(attrs) do
+    case Portfolios.create_cash_account(conn.assigns.actor, attrs) do
       {:ok, account} ->
         conn
         |> put_status(:created)
@@ -51,7 +51,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
 
     with {:ok, cid} <- parse_id(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(cid),
-         {:ok, updated} <- Portfolios.update_cash_account(account, attrs) do
+         {:ok, updated} <- Portfolios.update_cash_account(conn.assigns.actor, account, attrs) do
       json(conn, %{data: JSON.cash_account(updated)})
     else
       nil -> not_found(conn)
@@ -63,7 +63,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
   def delete(conn, %{"id" => id}) do
     with {:ok, cid} <- parse_id(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(cid) do
-      case Portfolios.delete_cash_account(account) do
+      case Portfolios.delete_cash_account(conn.assigns.actor, account) do
         {:ok, _} -> send_resp(conn, :no_content, "")
         {:error, :referenced} -> conflict(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
