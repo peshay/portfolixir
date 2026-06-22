@@ -219,6 +219,49 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert done_html =~ "Skipped duplicates: 0"
   end
 
+  # User story (#475):
+  # As a maintainer mapping a PP import, I want to know exactly which mapping is
+  # still missing while Confirm is disabled, so I do not have to hunt for the
+  # empty dropdown behind a dead button.
+  #
+  # Acceptance criteria:
+  # - While the mapping is incomplete, a status hint next to Confirm names the
+  #   still-missing item(s) and Confirm is disabled.
+  # - Completing the mapping clears the hint and enables Confirm.
+  test "names the still-missing mapping next to a disabled Confirm (#475)", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    # The auto-detected mapping leaves Test-Depot-2 without a linked cash
+    # account, so Confirm is disabled and the hint must name what blocks it.
+    assert has_element?(view, "#pp-import-confirm[disabled]")
+    hint = view |> element("#import-missing-hint") |> render()
+    assert hint =~ "Test-Depot-2"
+
+    # The Confirm button is associated with the hint for assistive tech.
+    assert has_element?(view, "#pp-import-confirm[aria-describedby='import-missing-hint']")
+
+    # Completing the mapping clears the hint and enables Confirm.
+    view
+    |> element("form#pp-import-apply")
+    |> render_change(%{
+      "portfolio_choice" => "create",
+      "portfolio_name" => "PP Import Target",
+      "portfolio_currency" => "EUR",
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    })
+
+    refute has_element?(view, "#pp-import-confirm[disabled]")
+    refute has_element?(view, "#import-missing-hint")
+  end
+
   # User story:
   # As a maintainer importing a PP export that contains a degenerate zero-amount
   # record (e.g. a 0 EUR tax line), I want the import to finish and tell me which
