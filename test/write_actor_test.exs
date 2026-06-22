@@ -26,7 +26,7 @@ defmodule Portfolixir.WriteActorTest do
   # Contexts whose actor-first refactor + table arming has landed (leaf-first:
   # Catalog/Fx first). When a context is converted it carries NO grandfathered
   # writers and its journaled tables are armed (amendment 1 coupling).
-  @converted_contexts [Portfolixir.Catalog, Portfolixir.Fx]
+  @converted_contexts [Portfolixir.Catalog, Portfolixir.Fx, Portfolixir.Portfolios]
 
   # Migration-only data backfills: arity locked by immutable migrations (which run
   # before the table is armed), so they cannot take an actor. Excluded by class,
@@ -41,22 +41,13 @@ defmodule Portfolixir.WriteActorTest do
   # entry (no longer a non-actor-first writer) fails this test, forcing removal as
   # each context is converted.
   @grandfathered MapSet.new([
-                   # create_portfolio/update_portfolio are now actor-first and the
-                   # `portfolios` table is guard-armed (ADR-0017 Portfolios slice);
-                   # the cash-account and securities-account writers below stay
-                   # grandfathered until their own follow-up slices arm those tables.
-                   # set_cash_target/2 no longer carries a direct Repo write: since
-                   # ADR-0020 it delegates to Portfolixir.Portfolios.Targets (the
-                   # cash target moved onto the per-view plan). Targets is an
-                   # internal sub-module, not a gated context module, so its writes
-                   # are backstopped at runtime by the per-table guard trigger when
-                   # the Portfolios slice is armed — not by this AST gate. The entry
-                   # is therefore removed (the list is shrink-only).
-                   {Portfolixir.Portfolios, :create_cash_account, 1},
-                   {Portfolixir.Portfolios, :update_cash_account, 2},
-                   {Portfolixir.Portfolios, :delete_cash_account, 1},
-                   {Portfolixir.Portfolios, :create_securities_account, 1},
-                   {Portfolixir.Portfolios, :delete_securities_account, 1},
+                   # Portfolios is now a fully converted context: all portfolio,
+                   # cash-account and securities-account writers are actor-first and
+                   # the three tables are guard-armed (ADR-0017 Portfolios slices), so
+                   # none appear here. set_cash_target/2 carries no direct Repo write
+                   # since ADR-0020 (it delegates to Portfolixir.Portfolios.Targets, a
+                   # sub-module backstopped by the per-table guard trigger), so it is
+                   # not a writer this AST gate tracks.
                    {Portfolixir.Ledger, :create_transaction, 1},
                    {Portfolixir.Ledger, :update_transaction, 2},
                    {Portfolixir.Ledger, :delete_transaction, 1},
@@ -81,7 +72,13 @@ defmodule Portfolixir.WriteActorTest do
   # is the root tag table of the born-actor-first Buckets context (ADR-0018); its
   # assignment join tables stay un-armed because they FK-cascade from
   # Portfolios-owned tables that are not yet actor-first (architecture amendment 1).
-  @armed_tables MapSet.new(["securities", "buckets", "portfolios"])
+  @armed_tables MapSet.new([
+                  "securities",
+                  "buckets",
+                  "portfolios",
+                  "cash_accounts",
+                  "securities_accounts"
+                ])
 
   # `Repo.transaction` is deliberately NOT a write marker: a read-only
   # transaction is not a write. Writing transactions are detected through the

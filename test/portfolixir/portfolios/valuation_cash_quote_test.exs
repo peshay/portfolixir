@@ -112,17 +112,23 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
     assert cash.liquidity_role == "free_cash"
 
     assert {:ok, updated} =
-             Portfolios.update_cash_account(cash, %{"liquidity_role" => "reserve"})
+             Portfolios.update_cash_account(Portfolixir.Actor.owner_ui(), cash, %{
+               "liquidity_role" => "reserve"
+             })
 
     assert updated.liquidity_role == "reserve"
 
     assert {:error, changeset} =
-             Portfolios.update_cash_account(updated, %{"liquidity_role" => "bogus"})
+             Portfolios.update_cash_account(Portfolixir.Actor.owner_ui(), updated, %{
+               "liquidity_role" => "bogus"
+             })
 
     assert %{liquidity_role: ["is invalid"]} = errors_on(changeset)
 
     assert {:error, nil_changeset} =
-             Portfolios.update_cash_account(updated, %{"liquidity_role" => nil})
+             Portfolios.update_cash_account(Portfolixir.Actor.owner_ui(), updated, %{
+               "liquidity_role" => nil
+             })
 
     assert %{liquidity_role: ["can't be blank"]} = errors_on(nil_changeset)
   end
@@ -136,7 +142,7 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
     # free_cash overdrawn: -50, excluded from deployable cash but still in
     # total_cash (it is real money owed, reducing net worth).
     {:ok, overdrawn_free} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Overdrawn Free",
         currency_code: "EUR",
@@ -147,7 +153,7 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
 
     # credit_line drawn: -300, a liability (excluded from deployable, in total).
     {:ok, drawn_credit} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Lombard",
         currency_code: "EUR",
@@ -159,7 +165,7 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
     # credit_line with a positive balance: type beats sign, still excluded from
     # deployable cash though it joins total_cash.
     {:ok, positive_credit} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Credit Surplus",
         currency_code: "EUR",
@@ -170,7 +176,7 @@ defmodule Portfolixir.Portfolios.ValuationCashQuoteTest do
 
     # reserve: +500 visible but excluded from deployable cash.
     {:ok, reserve} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Reserve",
         currency_code: "EUR",

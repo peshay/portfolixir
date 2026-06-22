@@ -188,12 +188,15 @@ first; arming no table, they cannot break existing writes.
   and `update_portfolio` are actor-first and routed through `Journal.record/3`
   (`resource_type: "portfolio"`); the `portfolios` table is armed by its own
   migration. The virtual cash-target weight still persists separately to its
-  un-armed target table. The context's remaining writers (`cash_accounts`,
-  `securities_accounts`) stay grandfathered until their own follow-up slices arm
-  those tables, so `Portfolios` is not yet a fully converted context.
-- **Next slices:** Portfolios `cash_accounts`/`securities_accounts` →
-  Classifications → Ledger → Imports, one table/context per iteration, each
-  arming its tables as it becomes actor-first.
+  un-armed target table.
+- **Slice 3 — Portfolios accounts (landed):** `create`/`update`/`delete` for both
+  cash accounts and securities accounts are actor-first and journaled
+  (`resource_type: "cash_account"` / `"securities_account"`); deletions keep the
+  referential `{:error, :referenced}` guard and journal the full `before`
+  snapshot. The `cash_accounts` and `securities_accounts` tables are armed, so
+  **`Portfolios` is now a fully converted context** (in `@converted_contexts`).
+- **Next slices:** Classifications → Ledger → Imports, one context per iteration,
+  each arming its tables as it becomes actor-first.
 
 ## Consequences
 

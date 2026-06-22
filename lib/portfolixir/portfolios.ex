@@ -72,6 +72,14 @@ defmodule Portfolixir.Portfolios do
   defp portfolio_write_result({:error, :portfolio, %Ecto.Changeset{} = changeset, _changes}),
     do: {:error, changeset}
 
+  # Unwraps a journaled account Multi (the business write under `key`, plus the
+  # journal steps) into the bare `{:ok, record}` / `{:error, changeset}` the
+  # callers expect.
+  defp account_write_result({:ok, changes}, key), do: {:ok, Map.fetch!(changes, key)}
+
+  defp account_write_result({:error, key, %Ecto.Changeset{} = changeset, _changes}, key),
+    do: {:error, changeset}
+
   @doc """
   Sets (or clears) a portfolio's cash target weight, the SOLL share of cash in
   the allocation's 100% basis (securities + counting cash, see issue #335).
@@ -127,30 +135,54 @@ defmodule Portfolixir.Portfolios do
     Repo.aggregate(CashAccount, :count, :id)
   end
 
-  def create_cash_account(attrs) when is_map(attrs) do
-    %CashAccount{}
-    |> CashAccount.changeset(attrs)
-    |> Repo.insert()
+  def create_cash_account(%Actor{} = actor, attrs) when is_map(attrs) do
+    Multi.new()
+    |> Multi.insert(:cash_account, CashAccount.changeset(%CashAccount{}, attrs))
+    |> Journal.record(actor,
+      resource_type: "cash_account",
+      operation: :create,
+      source: :cash_account
+    )
+    |> Repo.transaction()
+    |> account_write_result(:cash_account)
   end
 
   def get_cash_account(id) when is_integer(id), do: Repo.get(CashAccount, id)
 
-  def update_cash_account(%CashAccount{} = cash_account, attrs) when is_map(attrs) do
-    cash_account
-    |> CashAccount.changeset(attrs)
-    |> Repo.update()
+  def update_cash_account(%Actor{} = actor, %CashAccount{} = cash_account, attrs)
+      when is_map(attrs) do
+    Multi.new()
+    |> Multi.update(:cash_account, CashAccount.changeset(cash_account, attrs))
+    |> Journal.record(actor,
+      resource_type: "cash_account",
+      operation: :update,
+      source: :cash_account,
+      before: cash_account
+    )
+    |> Repo.transaction()
+    |> account_write_result(:cash_account)
   end
 
   @doc """
-  Deletes a cash account. All account FKs are `on_delete: :restrict`, so an
-  account still referenced by a transaction or a securities account cannot be
-  removed; this returns `{:error, :referenced}` instead of raising.
+  Deletes a cash account on behalf of `actor`. All account FKs are
+  `on_delete: :restrict`, so an account still referenced by a transaction or a
+  securities account cannot be removed; this returns `{:error, :referenced}`
+  instead of raising. The deletion is journaled with the full `before` snapshot.
   """
-  def delete_cash_account(%CashAccount{} = cash_account) do
+  def delete_cash_account(%Actor{} = actor, %CashAccount{} = cash_account) do
     if cash_account_referenced?(cash_account.id) do
       {:error, :referenced}
     else
-      Repo.delete(cash_account)
+      Multi.new()
+      |> Multi.delete(:cash_account, cash_account)
+      |> Journal.record(actor,
+        resource_type: "cash_account",
+        operation: :delete,
+        source: :cash_account,
+        before: cash_account
+      )
+      |> Repo.transaction()
+      |> account_write_result(:cash_account)
     end
   end
 
@@ -185,10 +217,16 @@ defmodule Portfolixir.Portfolios do
     Repo.aggregate(SecuritiesAccount, :count, :id)
   end
 
-  def create_securities_account(attrs) when is_map(attrs) do
-    %SecuritiesAccount{}
-    |> SecuritiesAccount.changeset(attrs)
-    |> Repo.insert()
+  def create_securities_account(%Actor{} = actor, attrs) when is_map(attrs) do
+    Multi.new()
+    |> Multi.insert(:securities_account, SecuritiesAccount.changeset(%SecuritiesAccount{}, attrs))
+    |> Journal.record(actor,
+      resource_type: "securities_account",
+      operation: :create,
+      source: :securities_account
+    )
+    |> Repo.transaction()
+    |> account_write_result(:securities_account)
   end
 
   def get_securities_account(id) when is_integer(id) do
@@ -198,11 +236,22 @@ defmodule Portfolixir.Portfolios do
     end
   end
 
-  def update_securities_account(%SecuritiesAccount{} = securities_account, attrs)
+  def update_securities_account(
+        %Actor{} = actor,
+        %SecuritiesAccount{} = securities_account,
+        attrs
+      )
       when is_map(attrs) do
-    securities_account
-    |> SecuritiesAccount.changeset(attrs)
-    |> Repo.update()
+    Multi.new()
+    |> Multi.update(:securities_account, SecuritiesAccount.changeset(securities_account, attrs))
+    |> Journal.record(actor,
+      resource_type: "securities_account",
+      operation: :update,
+      source: :securities_account,
+      before: securities_account
+    )
+    |> Repo.transaction()
+    |> account_write_result(:securities_account)
     |> case do
       {:ok, updated} -> {:ok, Repo.preload(updated, :cash_account, force: true)}
       other -> other
@@ -210,15 +259,25 @@ defmodule Portfolixir.Portfolios do
   end
 
   @doc """
-  Deletes a securities account. Its FKs are `on_delete: :restrict`, so an account
-  still referenced by a transaction cannot be removed; this returns
-  `{:error, :referenced}` instead of raising.
+  Deletes a securities account on behalf of `actor`. Its FKs are
+  `on_delete: :restrict`, so an account still referenced by a transaction cannot
+  be removed; this returns `{:error, :referenced}` instead of raising. The
+  deletion is journaled with the full `before` snapshot.
   """
-  def delete_securities_account(%SecuritiesAccount{} = securities_account) do
+  def delete_securities_account(%Actor{} = actor, %SecuritiesAccount{} = securities_account) do
     if securities_account_referenced?(securities_account.id) do
       {:error, :referenced}
     else
-      Repo.delete(securities_account)
+      Multi.new()
+      |> Multi.delete(:securities_account, securities_account)
+      |> Journal.record(actor,
+        resource_type: "securities_account",
+        operation: :delete,
+        source: :securities_account,
+        before: securities_account
+      )
+      |> Repo.transaction()
+      |> account_write_result(:securities_account)
     end
   end
 

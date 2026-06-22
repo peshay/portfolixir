@@ -113,7 +113,7 @@ defmodule PortfolixirWeb.ApiV1SecuritiesAccountsTest do
     %{portfolio: portfolio, cash: cash} = base_world(name: "Delete")
 
     {:ok, spare} =
-      Portfolixir.Portfolios.create_securities_account(%{
+      Portfolixir.Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Spare Depot"

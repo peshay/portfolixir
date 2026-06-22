@@ -26,7 +26,7 @@ defmodule Portfolixir.Ledger.PositionsTest do
     # A second depot sharing the same cash account, so a security transfer can
     # move quantity between two own depots without a cash leg.
     {:ok, depot_b} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot B"

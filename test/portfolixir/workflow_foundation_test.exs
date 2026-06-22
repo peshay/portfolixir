@@ -32,7 +32,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
                })
 
       assert {:ok, cash_account} =
-               Portfolios.create_cash_account(%{
+               Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  name: "Cash EUR",
                  currency_code: "EUR"
@@ -41,7 +41,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
       assert %CashAccount{} = cash_account
 
       assert {:ok, securities_account} =
-               Portfolios.create_securities_account(%{
+               Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
                  portfolio_id: portfolio.id,
                  cash_account_id: cash_account.id,
                  name: "Depot"
@@ -198,14 +198,14 @@ defmodule Portfolixir.WorkflowFoundationTest do
              })
 
     assert {:ok, cash_account} =
-             Portfolios.create_cash_account(%{
+             Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
                portfolio_id: portfolio.id,
                name: "#{prefix} Cash",
                currency_code: "EUR"
              })
 
     assert {:ok, depot} =
-             Portfolios.create_securities_account(%{
+             Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
                portfolio_id: portfolio.id,
                cash_account_id: cash_account.id,
                name: "#{prefix} Depot"

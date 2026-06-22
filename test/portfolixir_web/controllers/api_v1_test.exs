@@ -118,14 +118,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, cash_account} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "API Filter Cash",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash_account.id,
         name: "API Filter Depot"
@@ -307,14 +307,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "EUR Cash",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot"
@@ -558,14 +558,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Cash EUR",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot"
@@ -643,14 +643,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Cash EUR",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot"
@@ -723,14 +723,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Cash",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot"
@@ -819,14 +819,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Cash",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot"
@@ -876,7 +876,7 @@ defmodule PortfolixirWeb.ApiV1Test do
              %{"errors" => %{"detail" => "cash account is referenced by existing records"}}
 
     {:ok, spare} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Spare",
         currency_code: "EUR"
@@ -913,14 +913,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Cash",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot"
@@ -1345,14 +1345,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, cash_account} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Delete Guard Cash",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash_account.id,
         name: "Delete Guard Depot"
@@ -1413,14 +1413,14 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "USD",
         currency_code: "USD"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "USD Depot"

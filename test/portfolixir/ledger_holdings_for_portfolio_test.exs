@@ -24,7 +24,7 @@ defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
     # A second depot on the same cash account, so the per-(depot, security)
     # row aggregation can be exercised across two depots.
     {:ok, depot_two} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Depot Two"
