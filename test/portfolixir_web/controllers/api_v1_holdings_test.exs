@@ -24,7 +24,10 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
   #   market_value and unrealized P&L (as Decimal strings) in its own currency.
   test "holdings endpoint returns cost basis and unrealized P&L", %{conn: conn} do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Local Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{

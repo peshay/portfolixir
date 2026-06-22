@@ -26,7 +26,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
                })
 
       assert {:ok, portfolio} =
-               Portfolios.create_portfolio(%{
+               Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
                  name: "Local Portfolio",
                  base_currency_code: "EUR"
                })
@@ -192,7 +192,7 @@ defmodule Portfolixir.WorkflowFoundationTest do
              })
 
     assert {:ok, portfolio} =
-             Portfolios.create_portfolio(%{
+             Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
                name: "#{prefix} Portfolio",
                base_currency_code: "EUR"
              })

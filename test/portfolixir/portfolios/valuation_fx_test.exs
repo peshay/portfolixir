@@ -22,7 +22,10 @@ defmodule Portfolixir.Portfolios.ValuationFxTest do
 
   defp setup_world do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "EUR Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "EUR Portfolio",
+        base_currency_code: "EUR"
+      })
 
     %{portfolio: portfolio, depots_by_currency: %{}}
   end

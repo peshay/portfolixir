@@ -494,7 +494,7 @@ defmodule Portfolixir.CatalogTest do
 
   defp create_trade_accounts do
     assert {:ok, portfolio} =
-             Portfolios.create_portfolio(%{
+             Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
                name: "Holding Filter Portfolio",
                base_currency_code: "EUR"
              })

@@ -63,7 +63,11 @@ defmodule Portfolixir.Ledger.LedgerPropertyTest do
     do: Decimal.negate(amount)
 
   defp setup_account do
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Prop", base_currency_code: "EUR"})
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Prop",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{

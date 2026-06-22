@@ -41,8 +41,10 @@ defmodule Portfolixir.WriteActorTest do
   # entry (no longer a non-actor-first writer) fails this test, forcing removal as
   # each context is converted.
   @grandfathered MapSet.new([
-                   {Portfolixir.Portfolios, :create_portfolio, 1},
-                   {Portfolixir.Portfolios, :update_portfolio, 2},
+                   # create_portfolio/update_portfolio are now actor-first and the
+                   # `portfolios` table is guard-armed (ADR-0017 Portfolios slice);
+                   # the cash-account and securities-account writers below stay
+                   # grandfathered until their own follow-up slices arm those tables.
                    # set_cash_target/2 no longer carries a direct Repo write: since
                    # ADR-0020 it delegates to Portfolixir.Portfolios.Targets (the
                    # cash target moved onto the per-view plan). Targets is an
@@ -79,7 +81,7 @@ defmodule Portfolixir.WriteActorTest do
   # is the root tag table of the born-actor-first Buckets context (ADR-0018); its
   # assignment join tables stay un-armed because they FK-cascade from
   # Portfolios-owned tables that are not yet actor-first (architecture amendment 1).
-  @armed_tables MapSet.new(["securities", "buckets"])
+  @armed_tables MapSet.new(["securities", "buckets", "portfolios"])
 
   # `Repo.transaction` is deliberately NOT a write marker: a read-only
   # transaction is not a write. Writing transactions are detected through the

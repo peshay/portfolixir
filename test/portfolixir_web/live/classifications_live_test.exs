@@ -58,7 +58,10 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   test "warns when a target is set on a category with no assigned positions (#501)",
        %{conn: conn} do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
 
     {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
 

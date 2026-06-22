@@ -112,7 +112,10 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "API Filter Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "API Filter Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash_account} =
       Portfolios.create_cash_account(%{
@@ -298,7 +301,10 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - A mismatch with no FX rate and no amounts to derive one is rejected (422).
   test "creates a cross-currency buy with settlement FX fields", %{conn: conn} do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "FX Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "FX Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -546,7 +552,10 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Valued Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Valued Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -628,7 +637,10 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Cash Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Cash Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -705,7 +717,10 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -798,7 +813,10 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -889,7 +907,10 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -1318,7 +1339,10 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Delete Guard Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Delete Guard Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash_account} =
       Portfolios.create_cash_account(%{
@@ -1383,7 +1407,10 @@ defmodule PortfolixirWeb.ApiV1Test do
       })
 
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Trades Portfolio", base_currency_code: "USD"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Trades Portfolio",
+        base_currency_code: "USD"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -1511,7 +1538,10 @@ defmodule PortfolixirWeb.ApiV1Test do
   # - A non-numeric portfolio id in the path returns the normal 404 JSON.
   test "patches a portfolio's cash target weight and reports errors", %{conn: conn} do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Cash Target Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Cash Target Portfolio",
+        base_currency_code: "EUR"
+      })
 
     updated =
       conn

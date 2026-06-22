@@ -991,7 +991,10 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "cost-basis toggle adds a chart-cost-basis polyline once transactions exist",
          %{conn: conn, security: security} do
       {:ok, portfolio} =
-        Portfolixir.Portfolios.create_portfolio(%{name: "P", base_currency_code: "USD"})
+        Portfolixir.Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+          name: "P",
+          base_currency_code: "USD"
+        })
 
       {:ok, cash} =
         Portfolixir.Portfolios.create_cash_account(%{
@@ -1266,7 +1269,10 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, portfolio} =
-        Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+        Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+          name: "Local Portfolio",
+          base_currency_code: "EUR"
+        })
 
       {:ok, cash} =
         Portfolios.create_cash_account(%{
@@ -1741,7 +1747,10 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, portfolio} =
-        Portfolios.create_portfolio(%{name: "Format Portfolio", base_currency_code: "EUR"})
+        Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+          name: "Format Portfolio",
+          base_currency_code: "EUR"
+        })
 
       {:ok, cash} =
         Portfolios.create_cash_account(%{
@@ -1841,7 +1850,10 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
   defp create_trade_accounts(prefix) do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "#{prefix} Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "#{prefix} Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash_account} =
       Portfolios.create_cash_account(%{
@@ -1933,7 +1945,10 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, portfolio} =
-        Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+        Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+          name: "Main",
+          base_currency_code: "EUR"
+        })
 
       {:ok, cash} =
         Portfolios.create_cash_account(%{

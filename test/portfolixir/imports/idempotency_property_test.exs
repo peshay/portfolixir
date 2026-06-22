@@ -33,7 +33,12 @@ defmodule Portfolixir.Imports.IdempotencyPropertyTest do
   end
 
   defp setup_portfolio do
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "Idem", base_currency_code: "EUR"})
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Idem",
+        base_currency_code: "EUR"
+      })
+
     portfolio
   end
 

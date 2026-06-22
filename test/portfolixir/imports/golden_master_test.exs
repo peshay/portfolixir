@@ -24,7 +24,10 @@ defmodule Portfolixir.Imports.GoldenMasterTest do
 
   defp import_target do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Golden target", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Golden target",
+        base_currency_code: "EUR"
+      })
 
     portfolio
   end

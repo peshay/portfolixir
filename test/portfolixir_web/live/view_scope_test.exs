@@ -13,7 +13,10 @@ defmodule PortfolixirWeb.ViewScopeTest do
 
   defp world do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Main",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{

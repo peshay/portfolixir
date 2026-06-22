@@ -30,7 +30,10 @@ defmodule PortfolixirWeb.ApiV1CashQuoteFlagTest do
     conn: conn
   } do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Local Portfolio",
+        base_currency_code: "EUR"
+      })
 
     created =
       conn
