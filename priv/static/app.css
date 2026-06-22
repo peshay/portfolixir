@@ -1051,7 +1051,7 @@ li + li {
 }
 
 /* Holdings and history read as secondary supporting panels next to the
-   primary "Record transaction" form (#474). */
+   primary "Record transaction" form (issue 474). */
 .transaction-secondary {
   display: grid;
   gap: 16px;
