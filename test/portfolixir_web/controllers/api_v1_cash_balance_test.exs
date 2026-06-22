@@ -27,7 +27,11 @@ defmodule PortfolixirWeb.ApiV1CashBalanceTest do
   # - POST /cash_accounts/:id/balance records a balance_adjustment snapshot.
   # - The cash account listing then reflects the snapshot balance.
   test "sets a cash balance snapshot and reflects it in the account balance", %{conn: conn} do
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{

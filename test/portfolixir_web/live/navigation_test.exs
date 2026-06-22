@@ -381,7 +381,10 @@ defmodule PortfolixirWeb.NavigationTest do
   # - The currency in force is derived from the depot, shown as a caption (#473).
   test "transaction form derives cash account from depot instead of asking for it", %{conn: conn} do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Local Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash_account} =
       Portfolios.create_cash_account(%{

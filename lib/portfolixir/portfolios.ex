@@ -3,6 +3,9 @@ defmodule Portfolixir.Portfolios do
 
   import Ecto.Query
 
+  alias Ecto.Multi
+  alias Portfolixir.Actor
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
@@ -30,19 +33,44 @@ defmodule Portfolixir.Portfolios do
 
   def get_portfolio(id) when is_integer(id), do: Repo.get(Portfolio, id) |> load_cash_target()
 
-  def create_portfolio(attrs) when is_map(attrs) do
-    %Portfolio{}
-    |> Portfolio.changeset(attrs)
-    |> Repo.insert()
+  @doc """
+  Creates a portfolio on behalf of `actor` (FR-28). The `portfolios` row and its
+  audit-journal entry commit in one transaction (ADR-0017); the table is
+  guard-armed, so this is the only sanctioned create path. The virtual
+  cash-target weight is persisted separately to its own (un-armed) target table,
+  mirroring the prior behavior.
+  """
+  def create_portfolio(%Actor{} = actor, attrs) when is_map(attrs) do
+    Multi.new()
+    |> Multi.insert(:portfolio, Portfolio.changeset(%Portfolio{}, attrs))
+    |> Journal.record(actor, resource_type: "portfolio", operation: :create, source: :portfolio)
+    |> Repo.transaction()
+    |> portfolio_write_result()
     |> persist_cash_target()
   end
 
-  def update_portfolio(%Portfolio{} = portfolio, attrs) when is_map(attrs) do
-    portfolio
-    |> Portfolio.changeset(attrs)
-    |> Repo.update()
+  @doc """
+  Updates a portfolio on behalf of `actor` (FR-28). The update and its audit
+  journal entry (with the pre-image as `before`) commit in one transaction.
+  """
+  def update_portfolio(%Actor{} = actor, %Portfolio{} = portfolio, attrs) when is_map(attrs) do
+    Multi.new()
+    |> Multi.update(:portfolio, Portfolio.changeset(portfolio, attrs))
+    |> Journal.record(actor,
+      resource_type: "portfolio",
+      operation: :update,
+      source: :portfolio,
+      before: portfolio
+    )
+    |> Repo.transaction()
+    |> portfolio_write_result()
     |> persist_cash_target()
   end
+
+  defp portfolio_write_result({:ok, %{portfolio: portfolio}}), do: {:ok, portfolio}
+
+  defp portfolio_write_result({:error, :portfolio, %Ecto.Changeset{} = changeset, _changes}),
+    do: {:error, changeset}
 
   @doc """
   Sets (or clears) a portfolio's cash target weight, the SOLL share of cash in

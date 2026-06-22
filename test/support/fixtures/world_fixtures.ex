@@ -42,7 +42,7 @@ defmodule Portfolixir.WorldFixtures do
     currency = Keyword.get(opts, :currency, "EUR")
 
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: name, base_currency_code: currency})
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: name, base_currency_code: currency})
 
     %{cash: cash, depot: depot} = add_depot(portfolio, opts)
 

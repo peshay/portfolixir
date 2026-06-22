@@ -25,7 +25,11 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
   #   Decimal strings; series only when requested.
   # - An unknown period returns 422; an unknown portfolio 404.
   test "returns the TTWROR with optional series", %{conn: conn} do
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -119,7 +123,11 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
   #   irr "0.1" as a Decimal string.
   # - A portfolio with no flows to weight returns irr null, never an error.
   test "returns the money-weighted IRR as a Decimal string", %{conn: conn} do
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -186,7 +194,11 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
 
     assert data["irr"] == "0.1"
 
-    {:ok, empty} = Portfolios.create_portfolio(%{name: "Empty", base_currency_code: "EUR"})
+    {:ok, empty} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Empty",
+        base_currency_code: "EUR"
+      })
 
     empty_data =
       conn
@@ -199,7 +211,11 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
   end
 
   test "rejects an unknown period and an unknown portfolio", %{conn: conn} do
-    {:ok, portfolio} = Portfolios.create_portfolio(%{name: "P", base_currency_code: "EUR"})
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
 
     invalid =
       conn

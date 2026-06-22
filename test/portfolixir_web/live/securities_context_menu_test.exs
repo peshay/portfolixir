@@ -43,7 +43,10 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
 
   defp add_transaction!(security) do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Test Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Test Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{

@@ -20,7 +20,10 @@ defmodule Portfolixir.Portfolios.TargetsTest do
 
   defp setup_world do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Local Portfolio", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Local Portfolio",
+        base_currency_code: "EUR"
+      })
 
     {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
 

@@ -175,7 +175,10 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp resolve_portfolio({:create, %{name: name, base_currency_code: ccy}}, result) do
-    case Portfolios.create_portfolio(%{name: name, base_currency_code: ccy}) do
+    case Portfolios.create_portfolio(Actor.import_session(), %{
+           name: name,
+           base_currency_code: ccy
+         }) do
       {:ok, %{id: id}} -> {:ok, id, result}
       {:error, changeset} -> {:error, {:portfolio_create_failed, changeset}}
     end

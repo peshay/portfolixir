@@ -96,7 +96,10 @@ defmodule Portfolixir.Imports.ApplierTest do
 
   defp setup_portfolio do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Import target", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Import target",
+        base_currency_code: "EUR"
+      })
 
     portfolio
   end

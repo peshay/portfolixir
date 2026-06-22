@@ -19,7 +19,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
   #   inheriting the full-width form-input styling.
   test "sets a cash account's liquidity role", %{conn: conn} do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Mein Depot", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Mein Depot",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -62,8 +65,17 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
   # - The chosen target is visible ("Adding to: <name>").
   # - A created cash account lands on the selected portfolio, not the first one.
   test "creates a cash account on the explicitly selected portfolio (#490)", %{conn: conn} do
-    {:ok, _a} = Portfolios.create_portfolio(%{name: "Alpha", base_currency_code: "EUR"})
-    {:ok, _b} = Portfolios.create_portfolio(%{name: "Beta", base_currency_code: "EUR"})
+    {:ok, _a} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Alpha",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, _b} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Beta",
+        base_currency_code: "EUR"
+      })
 
     [first | _] = Portfolios.list_portfolios()
     target = Enum.find(Portfolios.list_portfolios(), &(&1.id != first.id))
@@ -96,8 +108,17 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
   # - With ?locale=de the target-portfolio label and the "Adding to" hint
   #   render in German and not in English.
   test "translates the target-portfolio picker for the German locale", %{conn: conn} do
-    {:ok, _a} = Portfolios.create_portfolio(%{name: "Alpha", base_currency_code: "EUR"})
-    {:ok, _b} = Portfolios.create_portfolio(%{name: "Beta", base_currency_code: "EUR"})
+    {:ok, _a} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Alpha",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, _b} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Beta",
+        base_currency_code: "EUR"
+      })
 
     {:ok, _view, html} = live(conn, "/portfolios?locale=de")
 

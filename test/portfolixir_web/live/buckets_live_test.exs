@@ -10,7 +10,10 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
   defp world do
     {:ok, portfolio} =
-      Portfolios.create_portfolio(%{name: "Main", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Main",
+        base_currency_code: "EUR"
+      })
 
     {:ok, cash} =
       Portfolios.create_cash_account(%{
@@ -398,7 +401,10 @@ defmodule PortfolixirWeb.BucketsLiveTest do
   test "a portfolio with no depots or cash accounts shows the per-list empty states",
        %{conn: conn} do
     {:ok, _portfolio} =
-      Portfolios.create_portfolio(%{name: "Empty", base_currency_code: "EUR"})
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Empty",
+        base_currency_code: "EUR"
+      })
 
     {:ok, view, _html} = live(conn, "/buckets")
 

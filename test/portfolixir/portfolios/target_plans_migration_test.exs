@@ -165,6 +165,12 @@ defmodule Portfolixir.Portfolios.TargetPlansMigrationTest do
   # -- legacy seed helpers (raw SQL) ------------------------------------------
 
   defp insert_portfolio!(name, cash_target) do
+    # This raw seed mimics legacy (pre-ADR-0020) rows. Since the `portfolios`
+    # table is now guard-armed (ADR-0017), satisfy the actor guard the same way
+    # Portfolixir.Journal does — set the transaction-local actor GUC — so the
+    # seed insert is permitted.
+    Repo.query!("SELECT set_config('portfolixir.journal_actor', 'migration_seed', true)")
+
     %{rows: [[id]]} =
       Repo.query!(
         "INSERT INTO portfolios (name, base_currency_code, cash_target_weight, inserted_at, updated_at) " <>
