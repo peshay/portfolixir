@@ -286,6 +286,14 @@ defmodule PortfolixirWeb.ImportsLive do
           ) %>
         </p>
 
+        <% missing = missing_mappings(assigns) %>
+        <%= if not @applying and missing != [] do %>
+          <p id="import-missing-hint" class="form-help" role="status">
+            <%= gettext("Still to map before import:") %>
+            <%= Enum.join(missing, ", ") %>
+          </p>
+        <% end %>
+
         <div class="actions">
           <button
             type="submit"
@@ -293,6 +301,7 @@ defmodule PortfolixirWeb.ImportsLive do
             class="button-primary"
             phx-disable-with={gettext("Importing…")}
             disabled={not mapping_complete?(assigns) or @applying}
+            aria-describedby={if missing != [], do: "import-missing-hint", else: nil}
           >
             <%= if @applying do %>
               <span class="import-spinner" aria-hidden="true"></span>
@@ -647,6 +656,64 @@ defmodule PortfolixirWeb.ImportsLive do
       end)
 
     portfolio_ok? and cash_ok? and depot_ok?
+  end
+
+  # The human-readable list of still-missing mappings, derived from the SAME
+  # data `mapping_complete?/1` inspects, so the Confirm hint can never disagree
+  # with the button's disabled state (#475).
+  defp missing_mappings(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots}) do
+    portfolio_missing(m) ++ cash_missing(m, cashes) ++ depot_missing(m, depots)
+  end
+
+  defp portfolio_missing(m) do
+    case m.portfolio_choice do
+      "create" ->
+        name =
+          if is_binary(m.portfolio_name) and String.trim(m.portfolio_name) != "",
+            do: [],
+            else: [gettext("a name for the new portfolio")]
+
+        currency =
+          if is_binary(m.portfolio_currency) and String.length(m.portfolio_currency) == 3,
+            do: [],
+            else: [gettext("a 3-letter currency for the new portfolio")]
+
+        name ++ currency
+
+      "existing:" <> _ ->
+        []
+
+      _ ->
+        [gettext("a target portfolio")]
+    end
+  end
+
+  defp cash_missing(m, cashes) do
+    for pp <- cashes, not is_binary(Map.get(m.cash, pp)) do
+      gettext("cash account: %{name}", name: pp)
+    end
+  end
+
+  defp depot_missing(m, depots) do
+    Enum.flat_map(depots, fn pp ->
+      mapped = Map.get(m.depot, pp) || %{}
+      target_ok? = is_binary(mapped["target"]) and mapped["target"] != ""
+      cash_ok? = is_binary(mapped["cash"]) and mapped["cash"] != ""
+
+      cond do
+        not target_ok? and not cash_ok? ->
+          [gettext("depot and its cash account: %{name}", name: pp)]
+
+        not target_ok? ->
+          [gettext("target depot: %{name}", name: pp)]
+
+        not cash_ok? ->
+          [gettext("cash account for depot: %{name}", name: pp)]
+
+        true ->
+          []
+      end
+    end)
   end
 
   defp build_apply_params(mapping, assigns) do
