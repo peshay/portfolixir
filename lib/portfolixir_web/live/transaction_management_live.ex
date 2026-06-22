@@ -80,7 +80,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <span><%= gettext("Type") %></span>
                   <select name="transaction[type]">
                     <%= for type <- ["buy", "sell"] do %>
-                      <option value={type} selected={type == @transaction_form["type"]}><%= type %></option>
+                      <option value={type} selected={type == @transaction_form["type"]}>
+                        <%= tx_type_label(type) %>
+                      </option>
                     <% end %>
                   </select>
                 </label>
@@ -213,7 +215,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 <%= for transaction <- @transactions do %>
                   <tr>
                     <td><%= transaction.date %></td>
-                    <td><%= transaction.type %></td>
+                    <td><%= tx_type_label(transaction.type) %></td>
                     <td><%= transaction.security && transaction.security.name %></td>
                     <td><%= format_decimal(transaction.quantity) %></td>
                     <td><%= format_decimal(transaction.price) %></td>
@@ -335,6 +337,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end)
     |> Enum.sort_by(fn row -> {row.securities_account_name, row.security_name} end)
   end
+
+  # Human, localized labels for the stored type enum; the form value and the
+  # ledger keep the machine "buy"/"sell". Mirrors securities_live.ex so the two
+  # transaction surfaces read identically.
+  defp tx_type_label("buy"), do: gettext("Buy")
+  defp tx_type_label("sell"), do: gettext("Sell")
+  defp tx_type_label(other), do: to_string(other)
 
   defp format_decimal(nil), do: ""
   defp format_decimal(decimal), do: Decimal.to_string(decimal, :normal)
