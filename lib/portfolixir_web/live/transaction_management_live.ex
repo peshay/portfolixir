@@ -92,16 +92,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <span><%= gettext("Depot") %></span>
                   <select name="transaction[securities_account_id]" required>
                     <option value=""><%= gettext("Select depot") %></option>
-                    <%= for account <- @securities_accounts do %>
-                      <option value={account.id}>
-                        <%= account.name %> -> <%= linked_cash_account_name(account) %>
-                      </option>
+                    <%= for account <- bookable_depots(@securities_accounts) do %>
+                      <option value={account.id}><%= depot_option_label(account) %></option>
                     <% end %>
                   </select>
                 </label>
-                <p class="form-help">
-                  <%= gettext("Linked cash account is derived from the selected depot.") %>
-                </p>
                 <label>
                   <span><%= gettext("Security") %></span>
                   <select name="transaction[security_id]" required>
@@ -308,8 +303,17 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp format_decimal(nil), do: ""
   defp format_decimal(decimal), do: Decimal.to_string(decimal, :normal)
 
-  defp linked_cash_account_name(%{cash_account: %{name: name}}), do: name
-  defp linked_cash_account_name(_account), do: gettext("Missing linked cash account")
+  # Only offer depots that have a usable linked cash account; a depot without one
+  # can never form a valid transaction, so it must not be a selectable dead end.
+  defp bookable_depots(accounts) do
+    Enum.filter(accounts, fn account -> match?(%{cash_account: %{}}, account) end)
+  end
+
+  # "Depot name (Cash account)" — the linked cash account reads as a quiet
+  # parenthetical caption rather than an arrow with a separate footnote.
+  defp depot_option_label(%{name: name, cash_account: %{name: cash_name}}) do
+    "#{name} (#{cash_name})"
+  end
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)

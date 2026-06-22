@@ -81,4 +81,24 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert has_element?(view, "#portfolio-switch-#{world.portfolio.id}.is-active")
   end
+
+  # User story (#472):
+  # As a maintainer choosing a depot, I want each option to read clearly — the
+  # depot name with its linked cash account as a quiet caption — instead of an
+  # arrow plus a separate footnote, so the dropdown is self-explanatory.
+  #
+  # Acceptance criteria:
+  # - The depot option shows the depot name and its linked cash account as a
+  #   parenthetical caption, not via a "->" arrow.
+  # - The "Linked cash account is derived…" footnote is gone.
+  test "depot option shows the linked cash account as a caption, no arrow/footnote (#472)",
+       %{conn: conn} do
+    WorldFixtures.base_world(name: "Solo", depot_name: "Main Depot", cash_name: "Local Cash")
+
+    {:ok, _view, html} = live(conn, "/transactions")
+
+    assert html =~ "Main Depot (Local Cash)"
+    refute html =~ "Main Depot -&gt;"
+    refute html =~ "Linked cash account is derived"
+  end
 end
