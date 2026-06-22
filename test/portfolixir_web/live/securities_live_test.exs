@@ -997,14 +997,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, cash} =
-        Portfolixir.Portfolios.create_cash_account(%{
+        Portfolixir.Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           name: "C",
           currency_code: "USD"
         })
 
       {:ok, depot} =
-        Portfolixir.Portfolios.create_securities_account(%{
+        Portfolixir.Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           cash_account_id: cash.id,
           name: "D"
@@ -1275,7 +1275,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, cash} =
-        Portfolios.create_cash_account(%{
+        Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           name: "Local Cash",
           # The security trades in USD and every booking below is USD, so the
@@ -1285,7 +1285,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, depot} =
-        Portfolios.create_securities_account(%{
+        Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           cash_account_id: cash.id,
           name: "Main Depot"
@@ -1753,14 +1753,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, cash} =
-        Portfolios.create_cash_account(%{
+        Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           name: "Format Cash",
           currency_code: "EUR"
         })
 
       {:ok, depot} =
-        Portfolios.create_securities_account(%{
+        Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           cash_account_id: cash.id,
           name: "Format Depot"
@@ -1856,14 +1856,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       })
 
     {:ok, cash_account} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "#{prefix} Cash",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash_account.id,
         name: "#{prefix} Depot"
@@ -1951,14 +1951,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, cash} =
-        Portfolios.create_cash_account(%{
+        Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           name: "Cash",
           currency_code: "USD"
         })
 
       {:ok, depot} =
-        Portfolios.create_securities_account(%{
+        Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
           portfolio_id: portfolio.id,
           cash_account_id: cash.id,
           name: "Main Depot"

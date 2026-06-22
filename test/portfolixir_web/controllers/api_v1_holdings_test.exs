@@ -30,14 +30,14 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
       })
 
     {:ok, cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "Local Cash",
         currency_code: "EUR"
       })
 
     {:ok, depot} =
-      Portfolios.create_securities_account(%{
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         name: "Main Depot"

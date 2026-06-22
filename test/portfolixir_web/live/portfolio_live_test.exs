@@ -523,7 +523,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     world = seed_world()
 
     {:ok, business} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         name: "Business Account",
         currency_code: "EUR",
@@ -566,7 +566,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     world = seed_world()
 
     {:ok, lombard} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         name: "Lombard Loan",
         currency_code: "EUR",
@@ -584,7 +584,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, overdrawn} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         name: "Overdrawn Giro",
         currency_code: "EUR",
@@ -717,7 +717,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Create a USD cash account — with no EUR/USD rate it will be unvalued.
     {:ok, usd_cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "USD Account",
         currency_code: "USD",
@@ -749,7 +749,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       WorldFixtures.base_world(name: "FX OK Portfolio", cash_name: "EUR Giro")
 
     {:ok, usd_cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "USD Account",
         currency_code: "USD",
@@ -1011,7 +1011,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       ])
 
     {:ok, usd_cash} =
-      Portfolios.create_cash_account(%{
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: portfolio.id,
         name: "USD Giro",
         currency_code: "USD"

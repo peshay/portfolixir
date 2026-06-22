@@ -203,7 +203,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   def handle_event("save_cash_account", %{"cash_account" => params}, socket) do
     params = Map.put(params, "portfolio_id", socket.assigns.current_portfolio.id)
 
-    case Portfolios.create_cash_account(params) do
+    case Portfolios.create_cash_account(Actor.owner_ui(), params) do
       {:ok, _account} ->
         {:noreply,
          socket
@@ -227,7 +227,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   def handle_event("save_securities_account", %{"securities_account" => params}, socket) do
     params = Map.put(params, "portfolio_id", socket.assigns.current_portfolio.id)
 
-    case Portfolios.create_securities_account(params) do
+    case Portfolios.create_securities_account(Actor.owner_ui(), params) do
       {:ok, _account} ->
         {:noreply,
          socket
@@ -250,7 +250,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
          %{id: portfolio_id} <- socket.assigns.current_portfolio,
          true <- account.portfolio_id == portfolio_id,
          {:ok, _updated} <-
-           Portfolios.update_cash_account(account, %{liquidity_role: role}) do
+           Portfolios.update_cash_account(Actor.owner_ui(), account, %{liquidity_role: role}) do
       {:noreply,
        socket
        |> success(gettext("Cash account updated"))
