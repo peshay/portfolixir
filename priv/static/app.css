@@ -881,6 +881,25 @@ textarea {
   opacity: 0.85;
 }
 
+/* A count card that navigates: keep the card's own typography (no link color
+   or underline) but signal it is clickable on hover and keyboard focus. */
+.stat--link {
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.stat--link:hover {
+  border-color: var(--color-accent);
+}
+
+.stat--link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .stat span {
   color: var(--color-text-muted);
   font-size: 12px;
