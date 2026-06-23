@@ -33,16 +33,26 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   defp setup_world do
     world = base_world()
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, core} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     {:ok, satellite} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Satellite"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Satellite"
+      })
 
     {:ok, defensive} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Defensive"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Defensive"
+      })
 
     Map.merge(world, %{
       classification: classification,
@@ -172,14 +182,14 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     # Growth (target 50%) is a parent with two children; nothing is assigned to
     # Growth directly, only to its children — its IST must be their sum, not 0%.
     {:ok, tech} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Tech",
         parent_id: growth.id
       })
 
     {:ok, emerging} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Emerging",
         parent_id: growth.id
@@ -263,14 +273,14 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     %{classification: classification, core: core, satellite: satellite} = world
 
     {:ok, tech} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Tech",
         parent_id: core.id
       })
 
     {:ok, emerging} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Emerging",
         parent_id: core.id
@@ -592,7 +602,8 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       Classifications.ensure_builtins()
       currency_cl = Classifications.get_classification_by_key("currency")
 
-      {:ok, custom_cl} = Classifications.create_classification(%{name: "Custom"})
+      {:ok, custom_cl} =
+        Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Custom"})
 
       eur_security = create_security!(name: "EUR Fund", ticker: "EURFD", currency: "EUR")
 

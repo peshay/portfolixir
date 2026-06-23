@@ -12,6 +12,7 @@ defmodule Portfolixir.Classifications do
 
   import Ecto.Query
 
+  alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
@@ -20,6 +21,7 @@ defmodule Portfolixir.Classifications do
   alias Portfolixir.Classifications.Assignment
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
+  alias Portfolixir.Journal
   alias Portfolixir.Repo
 
   @builtin_keys ~w(asset_class currency)
@@ -155,46 +157,100 @@ defmodule Portfolixir.Classifications do
 
   # -- custom classifications -----------------------------------------------
 
-  def create_classification(attrs) when is_map(attrs) do
-    %Classification{}
-    |> Classification.changeset(attrs)
-    |> Repo.insert()
+  def create_classification(%Actor{} = actor, attrs) when is_map(attrs) do
+    Multi.new()
+    |> Multi.insert(:classification, Classification.changeset(%Classification{}, attrs))
+    |> Journal.record(actor,
+      resource_type: "classification",
+      operation: :create,
+      source: :classification
+    )
+    |> Repo.transaction()
+    |> classification_result()
   end
 
-  def update_classification(%Classification{built_in: true}, _attrs),
+  def update_classification(%Actor{}, %Classification{built_in: true}, _attrs),
     do: {:error, :builtin_locked}
 
-  def update_classification(%Classification{} = classification, attrs) do
-    classification
-    |> Classification.changeset(attrs)
-    |> Repo.update()
+  def update_classification(%Actor{} = actor, %Classification{} = classification, attrs) do
+    Multi.new()
+    |> Multi.update(:classification, Classification.changeset(classification, attrs))
+    |> Journal.record(actor,
+      resource_type: "classification",
+      operation: :update,
+      source: :classification,
+      before: classification
+    )
+    |> Repo.transaction()
+    |> classification_result()
   end
 
-  def delete_classification(%Classification{built_in: true}), do: {:error, :builtin_locked}
-  def delete_classification(%Classification{} = classification), do: Repo.delete(classification)
+  def delete_classification(%Actor{}, %Classification{built_in: true}),
+    do: {:error, :builtin_locked}
+
+  def delete_classification(%Actor{} = actor, %Classification{} = classification) do
+    Multi.new()
+    |> Multi.delete(:classification, classification)
+    |> Journal.record(actor,
+      resource_type: "classification",
+      operation: :delete,
+      source: :classification,
+      before: classification
+    )
+    |> Repo.transaction()
+    |> classification_result()
+  end
+
+  defp classification_result({:ok, %{classification: classification}}), do: {:ok, classification}
+
+  defp classification_result({:error, :classification, %Ecto.Changeset{} = changeset, _}),
+    do: {:error, changeset}
+
+  defp category_result({:ok, %{category: category}}), do: {:ok, category}
+
+  defp category_result({:error, :category, %Ecto.Changeset{} = changeset, _}),
+    do: {:error, changeset}
 
   # -- custom categories ----------------------------------------------------
 
-  def create_category(attrs) when is_map(attrs) do
+  def create_category(%Actor{} = actor, attrs) when is_map(attrs) do
     with {:ok, classification} <- fetch_classification(attrs),
          :ok <- ensure_custom(classification) do
-      %Category{}
-      |> Category.changeset(attrs)
-      |> Repo.insert()
+      Multi.new()
+      |> Multi.insert(:category, Category.changeset(%Category{}, attrs))
+      |> Journal.record(actor, resource_type: "category", operation: :create, source: :category)
+      |> Repo.transaction()
+      |> category_result()
     end
   end
 
-  def update_category(%Category{} = category, attrs) do
+  def update_category(%Actor{} = actor, %Category{} = category, attrs) do
     with :ok <- ensure_custom_category(category) do
-      category
-      |> Category.changeset(attrs)
-      |> Repo.update()
+      Multi.new()
+      |> Multi.update(:category, Category.changeset(category, attrs))
+      |> Journal.record(actor,
+        resource_type: "category",
+        operation: :update,
+        source: :category,
+        before: category
+      )
+      |> Repo.transaction()
+      |> category_result()
     end
   end
 
-  def delete_category(%Category{} = category) do
+  def delete_category(%Actor{} = actor, %Category{} = category) do
     with :ok <- ensure_custom_category(category) do
-      Repo.delete(category)
+      Multi.new()
+      |> Multi.delete(:category, category)
+      |> Journal.record(actor,
+        resource_type: "category",
+        operation: :delete,
+        source: :category,
+        before: category
+      )
+      |> Repo.transaction()
+      |> category_result()
     end
   end
 
@@ -204,10 +260,17 @@ defmodule Portfolixir.Classifications do
   Updates only a category's color. Allowed for built-in categories too, since
   recoloring does not change the locked structure (names, keys, hierarchy).
   """
-  def recolor_category(%Category{} = category, color) do
-    category
-    |> Category.color_changeset(color)
-    |> Repo.update()
+  def recolor_category(%Actor{} = actor, %Category{} = category, color) do
+    Multi.new()
+    |> Multi.update(:category, Category.color_changeset(category, color))
+    |> Journal.record(actor,
+      resource_type: "category",
+      operation: :update,
+      source: :category,
+      before: category
+    )
+    |> Repo.transaction()
+    |> category_result()
   end
 
   # -- assignments (custom only) --------------------------------------------
@@ -351,6 +414,13 @@ defmodule Portfolixir.Classifications do
     ensure_builtin_categories(classification, categories)
   end
 
+  # Built-in trees are derived/system data seeded on first access. The write is
+  # attributed to a fixed `system_job` actor so it passes the armed-table guard
+  # and stays auditable (FR-28). The `Repo.get_by` check above means a re-seed on
+  # a later read does NOT insert (no guard trigger, no journal noise) — only the
+  # genuine first creation writes and journals.
+  defp builtin_actor, do: Actor.system_job("builtin_seed")
+
   defp ensure_builtin_classification(key, name) do
     case Repo.get_by(Classification, key: key) do
       %Classification{} = classification ->
@@ -358,15 +428,29 @@ defmodule Portfolixir.Classifications do
 
       nil ->
         {:ok, classification} =
-          %Classification{}
-          |> Classification.builtin_changeset(%{
-            name: name,
-            key: key,
-            built_in: true,
-            position: 0
-          })
-          |> Repo.insert(on_conflict: :nothing, conflict_target: :key)
+          Multi.new()
+          |> Multi.insert(
+            :classification,
+            Classification.builtin_changeset(%Classification{}, %{
+              name: name,
+              key: key,
+              built_in: true,
+              position: 0
+            }),
+            on_conflict: :nothing,
+            conflict_target: :key
+          )
+          |> Journal.record(builtin_actor(),
+            resource_type: "classification",
+            operation: :create,
+            source: :classification
+          )
+          |> Repo.transaction()
+          |> classification_result()
 
+        # Re-fetch the canonical row: `on_conflict: :nothing` is a race backstop
+        # (a concurrent first seed past the `get_by` check), and the conflicting
+        # insert returns a row without the persisted id.
         Repo.get_by(Classification, key: key) || classification
     end
   end
@@ -398,23 +482,48 @@ defmodule Portfolixir.Classifications do
   defp seed_category(classification, seen, key, label, color, index, parent_id) do
     case Map.get(seen, key) do
       nil ->
-        %Category{}
-        |> Category.builtin_changeset(%{
-          classification_id: classification.id,
-          key: key,
-          name: label,
-          color: color,
-          position: index,
-          parent_id: parent_id
-        })
-        |> Repo.insert(on_conflict: :nothing, conflict_target: [:classification_id, :key])
+        {:ok, category} =
+          Multi.new()
+          |> Multi.insert(
+            :category,
+            Category.builtin_changeset(%Category{}, %{
+              classification_id: classification.id,
+              key: key,
+              name: label,
+              color: color,
+              position: index,
+              parent_id: parent_id
+            }),
+            on_conflict: :nothing,
+            conflict_target: [:classification_id, :key]
+          )
+          |> Journal.record(builtin_actor(),
+            resource_type: "category",
+            operation: :create,
+            source: :category
+          )
+          |> Repo.transaction()
+          |> category_result()
 
-        # Re-fetch the canonical row so its id is available for child parents.
-        Repo.get_by(Category, classification_id: classification.id, key: key)
+        # Re-fetch the canonical row (id available for child parents) — see the
+        # race-backstop note on ensure_builtin_classification/2.
+        Repo.get_by(Category, classification_id: classification.id, key: key) || category
 
       %Category{color: nil} = category when not is_nil(color) ->
-        # Backfill a default color, but never overwrite a user-chosen one.
-        {:ok, updated} = category |> Ecto.Changeset.change(color: color) |> Repo.update()
+        # Backfill a default color, but never overwrite a user-chosen one. This
+        # one-time write is journaled under the same built-in seed actor.
+        {:ok, updated} =
+          Multi.new()
+          |> Multi.update(:category, Ecto.Changeset.change(category, color: color))
+          |> Journal.record(builtin_actor(),
+            resource_type: "category",
+            operation: :update,
+            source: :category,
+            before: category
+          )
+          |> Repo.transaction()
+          |> category_result()
+
         updated
 
       category ->

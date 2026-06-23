@@ -33,10 +33,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # end (#499).
   test "nudges to assign securities when categories exist but some are unsorted (#499)",
        %{conn: conn} do
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, _core} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     _sec = security!(%{name: "Unassigned Co"})
 
@@ -63,13 +67,20 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         base_currency_code: "EUR"
       })
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, empty} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Empty"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Empty"
+      })
 
     {:ok, filled} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Filled"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Filled"
+      })
 
     security = security!(%{name: "Held Co"})
     {:ok, _} = Classifications.assign_security(security.id, classification.id, filled.id)
@@ -131,10 +142,15 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # and the ticker shown, so the view is not one long wall of expanded rows.
   test "collapses categories by default, expands on search, shows ticker + tooltip", %{conn: conn} do
     security = security!(%{name: "Some Very Long ETF Name UCITS Acc", ticker_symbol: "VLN"})
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, category} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     {:ok, _} = Classifications.assign_security(security.id, classification.id, category.id)
 
@@ -157,10 +173,15 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
   test "assigns and unassigns a security via the drag events", %{conn: conn} do
     security = security!()
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, category} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
 
@@ -184,10 +205,15 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   test "assigns and unassigns many securities via the bulk events", %{conn: conn} do
     one = security!(%{name: "One"})
     two = security!(%{name: "Two"})
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, category} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
 
@@ -208,10 +234,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   end
 
   test "renders the multiselect toolbar on an editable tree", %{conn: conn} do
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, _category} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     {:ok, _view, html} = live(conn, "/classifications/#{classification.id}")
 
@@ -220,10 +250,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   end
 
   test "exposes a parent select for building nested categories", %{conn: conn} do
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, _parent} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Equity"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Equity"
+      })
 
     {:ok, _view, html} = live(conn, "/classifications/#{classification.id}")
 
@@ -251,7 +285,9 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   test "filters the tree to securities matching the search", %{conn: conn} do
     security!(%{name: "Apple"})
     security!(%{name: "Microsoft"})
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
     assert html =~ "Apple"
@@ -267,10 +303,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   end
 
   test "edits an existing category's name and description inline", %{conn: conn} do
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, category} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
 
@@ -323,10 +363,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # Price the active position via a quote: 10 * 110 = 1,100.00 EUR.
     put_quote!(active, ~D[2026-01-05], "110")
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, category} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     {:ok, _} = Classifications.assign_security(active.id, classification.id, category.id)
     {:ok, _} = Classifications.assign_security(sold.id, classification.id, category.id)
@@ -377,13 +421,21 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # SOLL editor has a portfolio, a view and categories to steer.
   defp soll_world do
     world = base_world()
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, equity} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Equity"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Equity"
+      })
 
     {:ok, bonds} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Bonds"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Bonds"
+      })
 
     Map.merge(world, %{classification: classification, equity: equity, bonds: bonds})
   end
@@ -694,7 +746,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
 
     {:ok, child} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Large caps",
         parent_id: equity.id
@@ -740,14 +792,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
 
     {:ok, large} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Large caps",
         parent_id: equity.id
       })
 
     {:ok, small} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Small caps",
         parent_id: equity.id
@@ -792,7 +844,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
       soll_world()
 
     {:ok, govies} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Government",
         parent_id: bonds.id
@@ -889,6 +941,43 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     assert has_element?(view, "select[name='soll_view'] option[value='total'][selected]")
     assert has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
+  end
+
+  # Exercises the category/classification lifecycle events end to end (the writes
+  # are now actor-first + journaled, #353): create a category, recolor it, delete
+  # it, then delete the classification.
+  test "creates, recolors and deletes categories and the classification via live events",
+       %{conn: conn} do
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Lifecycle"})
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+
+    render_hook(view, "create_category", %{
+      "category" => %{"classification_id" => to_string(classification.id), "name" => "Core"}
+    })
+
+    category =
+      Portfolixir.Repo.get_by(Portfolixir.Classifications.Category,
+        classification_id: classification.id,
+        name: "Core"
+      )
+
+    assert category
+
+    render_hook(view, "recolor_category", %{
+      "category_id" => to_string(category.id),
+      "color" => "#abcdef"
+    })
+
+    assert Portfolixir.Repo.get(Portfolixir.Classifications.Category, category.id).color ==
+             "#abcdef"
+
+    render_hook(view, "delete_category", %{"id" => to_string(category.id)})
+    refute Portfolixir.Repo.get(Portfolixir.Classifications.Category, category.id)
+
+    render_hook(view, "delete_classification", %{})
+    refute Classifications.get_classification(classification.id)
   end
 
   defp assignments(classification_id) do
