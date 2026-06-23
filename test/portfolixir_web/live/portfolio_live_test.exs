@@ -928,6 +928,41 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     refute app_css =~ ~r/\.perf-line\s*\{[^}]*stroke:\s*var\(--color-accent-violet/s
   end
 
+  # User story (Steve UAT #411):
+  # As a maintainer reading the portfolio performance chart,
+  # I want labeled value/date axes and the underlying data as an accessible
+  # table, so that I can read the figures at the ends of the line and a screen
+  # reader can reach the whole series (UX-DR10) — matching the security detail
+  # charts that already set the quality bar.
+  #
+  # Acceptance criteria:
+  # - The chart figure shows value-axis labels (percent) and the first/last
+  #   date as date-axis labels.
+  # - The series is reachable as a <table> with a caption and one row per point.
+  # - The chart keeps role="img" and an aria-label.
+  test "the performance chart has labeled axes and an accessible data table (#411)",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    figure = view |> element("#performance-figure") |> render()
+
+    # Value axis carries percent labels (the run climbs to ~+8.0%).
+    assert figure =~ "8.0"
+    assert figure =~ "%"
+    # Date axis labels the most recent point with its ISO date.
+    assert figure =~ Date.to_iso8601(Date.utc_today())
+
+    # The line keeps its accessible image semantics.
+    assert has_element?(view, "svg.perf-chart[role='img'][aria-label]")
+
+    # The series is reachable as a table (UX-DR10).
+    assert has_element?(view, "#performance-figure table caption")
+    assert has_element?(view, "#performance-figure table tbody tr")
+  end
+
   test "Set balance button carries phx-disable-with for immediate working state",
        %{conn: conn} do
     seed_world()

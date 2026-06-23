@@ -592,20 +592,70 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp performance_chart(assigns) do
-    assigns = assign(assigns, :zero_y, chart_geometry(assigns.series).zero_y)
+    geometry = chart_geometry(assigns.series)
+    first = List.first(assigns.series)
+    last = List.last(assigns.series)
 
+    assigns =
+      assign(assigns,
+        zero_y: geometry.zero_y,
+        y_max_label: percent_label(geometry.max),
+        y_min_label: percent_label(geometry.min),
+        first_date: first && first.date,
+        last_date: last && last.date
+      )
+
+    # The bare polyline gained labeled value/date axes and an accessible data
+    # table (Steve UAT #411, UX-DR10), bringing it up to the security detail
+    # charts' bar. The hover crosshair is coordinated with #336's tooltip.
     ~H"""
-    <svg
-      class="perf-chart"
-      viewBox="0 0 720 180"
-      preserveAspectRatio="none"
-      role="img"
-      aria-label={gettext("Cumulative TTWROR over time")}
-    >
-      <line x1="0" y1={@zero_y} x2="720" y2={@zero_y} class="perf-zeroline" />
-      <polyline class="perf-line" fill="none" points={performance_points(@series)} />
-    </svg>
+    <figure id="performance-figure" class="perf-figure">
+      <div class="perf-plot">
+        <div class="perf-yaxis" aria-hidden="true">
+          <span class="perf-ytick"><%= @y_max_label %></span>
+          <span class="perf-ytick"><%= @y_min_label %></span>
+        </div>
+        <svg
+          class="perf-chart"
+          viewBox="0 0 720 180"
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={gettext("Cumulative TTWROR over time")}
+        >
+          <line x1="0" y1={@zero_y} x2="720" y2={@zero_y} class="perf-zeroline" />
+          <polyline class="perf-line" fill="none" points={performance_points(@series)} />
+        </svg>
+      </div>
+      <div :if={@first_date} class="perf-xaxis" aria-hidden="true">
+        <span><%= Date.to_iso8601(@first_date) %></span>
+        <span><%= Date.to_iso8601(@last_date) %></span>
+      </div>
+      <details class="perf-table-disclosure">
+        <summary><%= gettext("Show data as table") %></summary>
+        <table class="perf-data-table">
+          <caption class="sr-only"><%= gettext("Cumulative TTWROR by date") %></caption>
+          <thead>
+            <tr>
+              <th scope="col"><%= gettext("Date") %></th>
+              <th scope="col"><%= gettext("Cumulative TTWROR") %></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={point <- @series}>
+              <td><%= Date.to_iso8601(point.date) %></td>
+              <td class="num"><%= Format.percent(point.cumulative_ttwror) %>%</td>
+            </tr>
+          </tbody>
+        </table>
+      </details>
+    </figure>
     """
+  end
+
+  # The value-axis tick labels reuse the same percent formatting as the KPIs,
+  # so the chart and the figures above it read consistently.
+  defp percent_label(value) when is_float(value) do
+    Format.percent(Decimal.from_float(value)) <> "%"
   end
 
   # Concentric rings of annular-sector paths: the innermost ring is the
