@@ -489,5 +489,38 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       assert has_element?(view, "#transaction-no-match")
       refute has_element?(view, "#transaction-list tbody tr")
     end
+
+    # User story (Steve UAT #414 follow-up):
+    # As a maintainer scanning a long history,
+    # I want the rows sectioned by month with a subtotal per section,
+    # so that I read the ledger in meaningful chunks instead of one undivided
+    # run of rows.
+    #
+    # Acceptance criteria:
+    # - Transactions are grouped into month sections (most recent first), each
+    #   with a header row carrying the month and a count + amount subtotal.
+    # - Sections honour the active filter.
+    test "sections the history by month with per-month subtotals", %{conn: conn} do
+      overview_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      # Three buys/sells across Jan, Feb and Mar 2026 -> three month sections.
+      assert has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-03']")
+      assert has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-02']")
+      assert has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-01']")
+
+      # Each month's header subtotals its single transaction.
+      jan = view |> element("tr.tx-group-head[data-month-group='2026-01']") |> render()
+      assert jan =~ "1"
+
+      # Filtering to sells leaves only the March section.
+      view
+      |> form("#transaction-filters", %{"filters" => %{"type" => "sell"}})
+      |> render_change()
+
+      assert has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-03']")
+      refute has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-01']")
+    end
   end
 end
