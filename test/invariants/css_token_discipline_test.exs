@@ -19,8 +19,10 @@ defmodule Portfolixir.Invariants.CssTokenDisciplineTest do
 
   @css_path "priv/static/app.css"
 
-  # Ratchet baseline measured 2026-06-18. ONLY lower this — never raise it.
-  @max_raw_hex 57
+  # Ratchet baseline. ONLY lower this — never raise it. Reached 0 on
+  # 2026-06-23 (issue 449): every body colour now resolves through a
+  # `--color-*` token; hex literals live only on token-definition lines.
+  @max_raw_hex 0
 
   @hex ~r/#[0-9a-fA-F]{3,8}\b/
   @token_def ~r/^\s*--[\w-]+\s*:/
