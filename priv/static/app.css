@@ -46,6 +46,23 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  /* 4px spacing scale (UX-DR14, issue 450): one ramp for every margin,
+     padding and gap so spacing stops drifting into ad-hoc px values. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  /* Heading ramp bridging the 15px top bar and the 28px+ page title. */
+  --text-h1-size: clamp(28px, 4vw, 42px);
+  --text-h1-weight: 780;
+  --text-h2-size: 20px;
+  --text-h2-weight: 700;
+  --text-h3-size: 16px;
+  --text-h3-weight: 680;
   --density-font-size: 13px;
   --density-line-height: 1.4;
   --sidebar-width: 220px;
@@ -229,7 +246,7 @@ textarea {
   width: var(--sidebar-width);
   min-height: 100vh;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 12px 10px 20px;
   overflow-y: auto;
   color: var(--color-text);
@@ -248,7 +265,7 @@ textarea {
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-weight: 760;
   letter-spacing: 0;
 }
@@ -344,7 +361,7 @@ textarea {
   grid-template-columns: 6px 16px minmax(0, 1fr) auto;
   min-height: 28px;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   overflow: hidden;
   padding: 4px 9px;
   color: var(--color-text-muted);
@@ -622,9 +639,9 @@ textarea {
   right: 0;
   z-index: 45;
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 42px;
-  padding: 4px;
+  padding: var(--space-1);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg-elevated);
@@ -767,7 +784,7 @@ textarea {
 .workspace-section {
   display: grid;
   min-width: 0;
-  gap: 16px;
+  gap: var(--space-4);
   padding: clamp(18px, 2.4vw, 28px) clamp(14px, 2.4vw, 28px);
   border-bottom: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-bg-elevated) 94%, transparent);
@@ -812,7 +829,7 @@ textarea {
 
 .page-header {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   margin: 0 0 22px;
 }
 
@@ -828,8 +845,22 @@ textarea {
 }
 
 .page-header h1 {
-  font-size: clamp(28px, 4vw, 42px);
-  font-weight: 780;
+  font-size: var(--text-h1-size);
+  font-weight: var(--text-h1-weight);
+}
+
+/* Section/panel headings sit on the ramp between the top bar and the page
+   title (UX-DR14, issue 450) instead of leaning on the browser default. */
+.panel h2,
+.workspace-section h2 {
+  font-size: var(--text-h2-size);
+  font-weight: var(--text-h2-weight);
+}
+
+.panel h3,
+.workspace-section h3 {
+  font-size: var(--text-h3-size);
+  font-weight: var(--text-h3-weight);
 }
 
 .page-header p,
@@ -847,7 +878,7 @@ textarea {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .panel,
@@ -860,7 +891,7 @@ textarea {
 
 .panel {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
   padding: clamp(18px, 3vw, 26px);
 }
 
@@ -928,7 +959,7 @@ textarea {
 .recent-item {
   display: grid;
   grid-template-columns: 6rem 5rem 1fr;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: baseline;
 }
 
@@ -952,7 +983,7 @@ textarea {
 
 form {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .form-grid {
@@ -1087,7 +1118,7 @@ ul {
 }
 
 li + li {
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
 .empty-state,
@@ -1106,8 +1137,8 @@ li + li {
    primary "Record transaction" form (issue 474). */
 .transaction-secondary {
   display: grid;
-  gap: 16px;
-  margin-top: 8px;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
 }
 
 .transaction-secondary > .workspace-section > h2 {
@@ -1123,7 +1154,7 @@ li + li {
 }
 
 .transaction-costs[open] > summary {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .empty-state {
@@ -1249,7 +1280,7 @@ li + li {
   }
 
   .panel {
-    padding: 16px;
+    padding: var(--space-4);
   }
 
   .topbar-brand span:last-child {
@@ -1262,7 +1293,7 @@ li + li {
   }
 
   .topbar-controls {
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   .theme-choice {
@@ -1320,8 +1351,8 @@ li + li {
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -1482,14 +1513,14 @@ li + li {
 .checkbox-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 13px;
 }
 
 .popover label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: 12px;
   color: var(--color-text-muted);
 }
@@ -1511,7 +1542,7 @@ li + li {
 .checkbox-row {
   flex-direction: row !important;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 13px;
   color: var(--color-text);
   padding: 2px 0;
@@ -1538,7 +1569,7 @@ li + li {
 .popover-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .button-primary,
@@ -1772,20 +1803,20 @@ li + li {
   padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .dialog-choose {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .choose-card {
@@ -1793,7 +1824,7 @@ li + li {
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  padding: 16px;
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg);
@@ -1822,7 +1853,7 @@ li + li {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   max-height: 320px;
   overflow-y: auto;
 }
@@ -1871,14 +1902,14 @@ li + li {
 }
 
 .search-result-empty {
-  padding: 12px;
+  padding: var(--space-3);
   color: var(--color-text-muted);
   font-size: 13px;
 }
 
 .field-error {
   display: block;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   color: var(--color-danger);
   font-size: 12px;
 }
@@ -1905,7 +1936,7 @@ li + li {
 
 .alert-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .dialog-help {
@@ -1926,13 +1957,13 @@ li + li {
 .full-width {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .full-width textarea {
   font: inherit;
   font-size: 13px;
-  padding: 8px;
+  padding: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg);
@@ -2063,7 +2094,7 @@ li + li {
   border: none;
   background: transparent;
   color: var(--color-text-muted);
-  padding: 4px;
+  padding: var(--space-1);
   border-radius: var(--radius-sm, 6px);
   cursor: pointer;
   display: inline-flex;
@@ -2088,7 +2119,7 @@ li + li {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 8px);
   box-shadow: var(--shadow-md, 0 6px 20px rgba(0, 0, 0, 0.12));
-  padding: 4px;
+  padding: var(--space-1);
   display: flex;
   flex-direction: column;
   text-align: left;
@@ -2097,7 +2128,7 @@ li + li {
 .row-context-menu__item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 8px 10px;
   border: none;
   background: transparent;
@@ -2230,7 +2261,7 @@ img.security-logo {
 .detail-pane-head__title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .security-row a.row-target:focus-visible {
@@ -2240,8 +2271,8 @@ img.security-logo {
 }
 
 .detail-pane {
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: var(--space-3);
+  padding: var(--space-3);
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -2260,7 +2291,7 @@ img.security-logo {
   position: fixed;
   inset: 0;
   margin: 0;
-  padding: 24px;
+  padding: var(--space-6);
   border-radius: 0;
   border: 0;
   z-index: 100;
@@ -2330,16 +2361,16 @@ img.security-logo {
   }
 
   .detail-pane-toolbar {
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .chart-frame {
     aspect-ratio: 16 / 9;
-    padding: 4px;
+    padding: var(--space-1);
   }
 
   .detail-pane--fullscreen {
-    padding: 12px;
+    padding: var(--space-3);
   }
 
   .detail-pane--fullscreen .chart-frame {
@@ -2380,7 +2411,7 @@ img.security-logo {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .detail-pane-head h2 {
@@ -2529,9 +2560,9 @@ img.security-logo {
 .overview-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
   margin: 0;
-  padding: 12px;
+  padding: var(--space-3);
   background: var(--color-bg-muted);
   border-radius: var(--radius-md);
 }
@@ -2589,7 +2620,7 @@ img.security-logo {
 .overview-notes textarea {
   resize: vertical;
   min-height: 60px;
-  padding: 8px;
+  padding: var(--space-2);
   font: inherit;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
@@ -2805,7 +2836,7 @@ img.security-logo {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .range-buttons {
@@ -2851,7 +2882,7 @@ img.security-logo {
 .detail-custom-range {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: 12px;
 }
 
@@ -2966,7 +2997,7 @@ img.security-logo {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg);
-  padding: 8px;
+  padding: var(--space-2);
   box-sizing: border-box;
   touch-action: pan-y;
 }
@@ -3025,7 +3056,7 @@ img.security-logo {
 }
 
 .chart-tooltip__tx {
-  margin-top: 4px;
+  margin-top: var(--space-1);
   padding-top: 4px;
   border-top: 1px solid var(--color-border);
   font-size: 11px;
@@ -4217,8 +4248,8 @@ details[open] > .cat-summary::before {
   /* Comfortable tap targets on the securities surface (UX-DR6, issue 413):
      taller list rows and >=44px detail controls for thumbs. */
   .security-row td {
-    padding-top: 12px;
-    padding-bottom: 12px;
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
   }
 
   .detail-pane-tab,
