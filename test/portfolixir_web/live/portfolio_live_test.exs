@@ -59,10 +59,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, core} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Core",
         color: "#2563eb"
@@ -163,10 +164,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     WorldFixtures.buy!(world, security, quantity: "8", price: "100", date: start)
     WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, core} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Core",
         color: "#2563eb"
@@ -195,7 +197,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Add a sub-category under Core and assign a second holding to it; Core's
     # IST must roll the child up, and the child row must render indented.
     {:ok, sub} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: world.classification.id,
         name: "Core Tech",
         color: "#10b981",
@@ -328,7 +330,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Core has a 60% target (top level sum = 60% ≠ 100% → header highlighted).
     {:ok, tech} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: world.classification.id,
         name: "Core Tech",
         color: "#10b981",
@@ -336,7 +338,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, bonds} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: world.classification.id,
         name: "Core Bonds",
         color: "#f59e0b",
@@ -386,7 +388,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       ])
 
     {:ok, tech} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: world.classification.id,
         name: "Core Tech",
         color: "#10b981",
@@ -394,7 +396,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
 
     {:ok, bonds} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: world.classification.id,
         name: "Core Bonds",
         color: "#f59e0b",
@@ -1078,10 +1080,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     WorldFixtures.buy!(world, security, quantity: "8", price: "100", date: start)
     WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, core} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Core",
         color: "#2563eb"
@@ -1316,10 +1319,14 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     WorldFixtures.buy!(world, security, quantity: "8", price: "100", date: start)
     WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, _core} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     # security intentionally NOT assigned -> unassigned in this classification
 
@@ -1354,7 +1361,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     WorldFixtures.buy!(world, security, quantity: "8", price: "100", date: start)
     WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
+
     # no category assignment -> the holding is the unassigned remainder
 
     {:ok, view, _html} = live(conn, "/portfolio")

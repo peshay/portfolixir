@@ -25,13 +25,20 @@ defmodule Portfolixir.Portfolios.TargetsTest do
         base_currency_code: "EUR"
       })
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, core} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     {:ok, satellite} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Satellite"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Satellite"
+      })
 
     %{portfolio: portfolio, classification: classification, core: core, satellite: satellite}
   end
@@ -89,10 +96,14 @@ defmodule Portfolixir.Portfolios.TargetsTest do
   test "rejects a category from a different classification" do
     %{portfolio: portfolio, classification: classification} = setup_world()
 
-    {:ok, other} = Classifications.create_classification(%{name: "Regions"})
+    {:ok, other} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Regions"})
 
     {:ok, foreign} =
-      Classifications.create_category(%{classification_id: other.id, name: "Europe"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: other.id,
+        name: "Europe"
+      })
 
     assert {:error, :category_mismatch} =
              Targets.set_targets(portfolio.id, classification.id, [

@@ -56,20 +56,27 @@ defmodule Portfolixir.WriteActorTest do
                    # converted: create/update/delete_transaction and set_cash_balance
                    # are actor-first and the `transactions` table is guard-armed
                    # (ADR-0017 Ledger slice), so no Ledger entries appear here.
-                   {Portfolixir.Classifications, :create_classification, 1},
-                   {Portfolixir.Classifications, :update_classification, 2},
-                   {Portfolixir.Classifications, :delete_classification, 1},
-                   {Portfolixir.Classifications, :create_category, 1},
-                   {Portfolixir.Classifications, :update_category, 2},
-                   {Portfolixir.Classifications, :delete_category, 1},
-                   {Portfolixir.Classifications, :recolor_category, 2},
+                   #
+                   # Classifications stage 1 (ADR-0017): custom classification/category
+                   # CRUD + recolor are now actor-first and the `classifications` /
+                   # `classification_categories` tables are armed, so they no longer
+                   # appear here. The assignment writers below are stage 2 (the
+                   # `security_category_assignments` table is not yet armed). The
+                   # built-in seeding (`ensure_builtins/0`) and the read paths that
+                   # trigger it (`list_trees/0`, `security_category_map/1`) write under
+                   # a fixed `system_job` actor INTERNALLY rather than via a first-arg
+                   # actor (system_job), so they are NOT grandfathered: built-in
+                   # seeding (`ensure_builtins/0` and the read paths that trigger it,
+                   # `list_trees/0` / `security_category_map/1`) already journals every
+                   # write under a fixed `system_job` actor, and the per-table guard
+                   # trigger is the authoritative runtime guarantee. Only the stage-2
+                   # assignment writers (the `security_category_assignments` table is
+                   # not yet armed) remain here, so Classifications is not yet a fully
+                   # converted context.
                    {Portfolixir.Classifications, :assign_security, 3},
                    {Portfolixir.Classifications, :assign_securities, 3},
                    {Portfolixir.Classifications, :unassign_security, 2},
-                   {Portfolixir.Classifications, :unassign_securities, 2},
-                   {Portfolixir.Classifications, :ensure_builtins, 0},
-                   {Portfolixir.Classifications, :list_trees, 0},
-                   {Portfolixir.Classifications, :security_category_map, 1}
+                   {Portfolixir.Classifications, :unassign_securities, 2}
                  ])
 
   # Journaled tables currently guard-armed. Grows as contexts convert. `buckets`
@@ -82,7 +89,9 @@ defmodule Portfolixir.WriteActorTest do
                   "portfolios",
                   "cash_accounts",
                   "securities_accounts",
-                  "transactions"
+                  "transactions",
+                  "classifications",
+                  "classification_categories"
                 ])
 
   # `Repo.transaction` is deliberately NOT a write marker: a read-only

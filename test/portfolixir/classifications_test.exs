@@ -59,11 +59,19 @@ defmodule Portfolixir.ClassificationsTest do
     asset = Classifications.get_classification_by_key("asset_class")
     equity = Classifications.list_trees() |> tree("asset_class") |> category("equity")
 
-    assert {:error, :builtin_locked} = Classifications.update_classification(asset, %{name: "X"})
-    assert {:error, :builtin_locked} = Classifications.delete_classification(asset)
+    assert {:error, :builtin_locked} =
+             Classifications.update_classification(Portfolixir.Actor.owner_ui(), asset, %{
+               name: "X"
+             })
 
     assert {:error, :builtin_locked} =
-             Classifications.create_category(%{classification_id: asset.id, name: "X"})
+             Classifications.delete_classification(Portfolixir.Actor.owner_ui(), asset)
+
+    assert {:error, :builtin_locked} =
+             Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+               classification_id: asset.id,
+               name: "X"
+             })
 
     assert {:error, :builtin_locked} =
              Classifications.assign_security(security.id, asset.id, equity.id)
@@ -71,17 +79,22 @@ defmodule Portfolixir.ClassificationsTest do
 
   test "supports custom trees with categories and security assignments" do
     security = security!(%{})
-    {:ok, classification} = Classifications.create_classification(%{name: "My Strategy"})
+
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "My Strategy"})
 
     {:ok, core} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Core",
         color: "#7C3AED"
       })
 
     {:ok, satellite} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Satellite"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Satellite"
+      })
 
     assert core.color == "#7c3aed"
 
@@ -103,9 +116,14 @@ defmodule Portfolixir.ClassificationsTest do
 
   test "rejects assigning a security to a category from another classification" do
     security = security!(%{})
-    {:ok, a} = Classifications.create_classification(%{name: "A"})
-    {:ok, b} = Classifications.create_classification(%{name: "B"})
-    {:ok, b_category} = Classifications.create_category(%{classification_id: b.id, name: "B1"})
+    {:ok, a} = Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "A"})
+    {:ok, b} = Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "B"})
+
+    {:ok, b_category} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: b.id,
+        name: "B1"
+      })
 
     assert {:error, :category_mismatch} =
              Classifications.assign_security(security.id, a.id, b_category.id)
@@ -116,13 +134,22 @@ defmodule Portfolixir.ClassificationsTest do
     two = security!(%{name: "Two", ticker_symbol: "TWO"})
     three = security!(%{name: "Three", ticker_symbol: "THREE"})
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
+
     cid = classification.id
 
-    {:ok, core} = Classifications.create_category(%{classification_id: cid, name: "Core"})
+    {:ok, core} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: cid,
+        name: "Core"
+      })
 
     {:ok, satellite} =
-      Classifications.create_category(%{classification_id: cid, name: "Satellite"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: cid,
+        name: "Satellite"
+      })
 
     all_ids = [one.id, two.id, three.id]
     assert {:ok, 3} = Classifications.assign_securities(all_ids, cid, core.id)
@@ -171,7 +198,9 @@ defmodule Portfolixir.ClassificationsTest do
     asset = Classifications.list_trees() |> tree("asset_class")
     equity = category(asset, "equity")
 
-    assert {:ok, updated} = Classifications.recolor_category(equity, "#123abc")
+    assert {:ok, updated} =
+             Classifications.recolor_category(Portfolixir.Actor.owner_ui(), equity, "#123abc")
+
     assert updated.color == "#123abc"
 
     # Re-seeding must not clobber the user-chosen color.
@@ -181,15 +210,19 @@ defmodule Portfolixir.ClassificationsTest do
 
     # Names/keys stay locked.
     assert {:error, :builtin_locked} =
-             Classifications.update_category(equity, %{name: "Stocks"})
+             Classifications.update_category(Portfolixir.Actor.owner_ui(), equity, %{
+               name: "Stocks"
+             })
   end
 
   test "stores an optional category description and blanks whitespace to nil" do
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
+
     cid = classification.id
 
     {:ok, with_desc} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: cid,
         name: "Core",
         description: "  Long-term holdings  "
@@ -198,7 +231,7 @@ defmodule Portfolixir.ClassificationsTest do
     assert with_desc.description == "Long-term holdings"
 
     {:ok, blank} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: cid,
         name: "Satellite",
         description: "   "

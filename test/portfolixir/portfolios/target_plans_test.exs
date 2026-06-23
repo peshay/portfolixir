@@ -33,13 +33,20 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
         base_currency_code: "EUR"
       })
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, core} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     {:ok, satellite} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Satellite"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Satellite"
+      })
 
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
 

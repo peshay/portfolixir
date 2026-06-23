@@ -516,7 +516,11 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
     buy!(world, security, quantity: "10", price: "100")
     put_quote!(security, ~D[2026-06-01], "100")
 
-    {:ok, classification} = Portfolixir.Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+        name: "Strategy"
+      })
+
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "All", include_all: true})
 
     data =
