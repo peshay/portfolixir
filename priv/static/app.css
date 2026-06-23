@@ -4064,6 +4064,29 @@ details[open] > .cat-summary::before {
 .perf-data-table td.num {
   text-align: right;
 }
+
+/* Transaction overview: filter row + per-type summary header (issue 414). */
+.transaction-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+  margin-bottom: var(--space-3);
+}
+.transaction-filters-search {
+  flex: 1 1 200px;
+}
+.transaction-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.transaction-summary .summary-type {
+  font-variant-numeric: tabular-nums;
+}
 .donut-wrap {
   display: flex;
   gap: 1.5rem;
