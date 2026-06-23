@@ -212,30 +212,91 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <%= gettext("No transactions yet") %>
             </div>
           <% else %>
-            <table id="transaction-list">
-              <thead>
-                <tr>
-                  <th><%= gettext("Date") %></th>
-                  <th><%= gettext("Type") %></th>
-                  <th><%= gettext("Security") %></th>
-                  <th><%= gettext("Quantity") %></th>
-                  <th><%= gettext("Price") %></th>
-                  <th><%= gettext("Currency") %></th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for transaction <- @transactions do %>
+            <form id="transaction-filters" phx-change="filter_changed" class="transaction-filters">
+              <label>
+                <span><%= gettext("Type") %></span>
+                <select name="filters[type]">
+                  <option value=""><%= gettext("All types") %></option>
+                  <%= for type <- filter_type_options(@transactions) do %>
+                    <option value={type} selected={@filters["type"] == type}>
+                      <%= tx_type_label(type) %>
+                    </option>
+                  <% end %>
+                </select>
+              </label>
+              <label>
+                <span><%= gettext("Security") %></span>
+                <select name="filters[security_id]">
+                  <option value=""><%= gettext("All securities") %></option>
+                  <%= for {id, name} <- filter_security_options(@transactions) do %>
+                    <option value={id} selected={@filters["security_id"] == id}><%= name %></option>
+                  <% end %>
+                </select>
+              </label>
+              <label>
+                <span><%= gettext("From") %></span>
+                <input type="date" name="filters[from]" value={@filters["from"]} />
+              </label>
+              <label>
+                <span><%= gettext("To") %></span>
+                <input type="date" name="filters[to]" value={@filters["to"]} />
+              </label>
+              <label class="transaction-filters-search">
+                <span><%= gettext("Search") %></span>
+                <input
+                  type="text"
+                  name="filters[query]"
+                  value={@filters["query"]}
+                  phx-debounce="200"
+                  placeholder={gettext("Security, type, notes…")}
+                />
+              </label>
+            </form>
+
+            <div id="transaction-summary" class="transaction-summary" role="status">
+              <span class="summary-total">
+                <strong data-role="summary-total"><%= @summary.total %></strong>
+                <%= gettext("transactions") %>
+              </span>
+              <%= for row <- @summary.by_type do %>
+                <span class="summary-type" data-type={row.type}>
+                  <%= tx_type_label(row.type) %>:
+                  <strong data-role="summary-count"><%= row.count %></strong>
+                  · <%= format_decimal(row.total) %>
+                </span>
+              <% end %>
+            </div>
+
+            <%= if Enum.empty?(@filtered_transactions) do %>
+              <div id="transaction-no-match" class="empty-state" role="status">
+                <%= gettext("No transactions match the current filter.") %>
+              </div>
+            <% else %>
+              <table id="transaction-list">
+                <thead>
                   <tr>
-                    <td><%= transaction.date %></td>
-                    <td><%= tx_type_label(transaction.type) %></td>
-                    <td><%= transaction.security && transaction.security.name %></td>
-                    <td><%= format_decimal(transaction.quantity) %></td>
-                    <td><%= format_decimal(transaction.price) %></td>
-                    <td><%= transaction.currency_code %></td>
+                    <th><%= gettext("Date") %></th>
+                    <th><%= gettext("Type") %></th>
+                    <th><%= gettext("Security") %></th>
+                    <th><%= gettext("Quantity") %></th>
+                    <th><%= gettext("Price") %></th>
+                    <th><%= gettext("Currency") %></th>
                   </tr>
-                <% end %>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <%= for transaction <- @filtered_transactions do %>
+                    <tr>
+                      <td><%= transaction.date %></td>
+                      <td><%= tx_type_label(transaction.type) %></td>
+                      <td><%= transaction.security && transaction.security.name %></td>
+                      <td><%= format_decimal(transaction.quantity) %></td>
+                      <td><%= format_decimal(transaction.price) %></td>
+                      <td><%= transaction.currency_code %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            <% end %>
           <% end %>
         </section>
         </div>
@@ -267,6 +328,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   def handle_event("form_changed", %{"transaction" => params}, socket) do
     {:noreply, assign(socket, :transaction_form, params)}
+  end
+
+  def handle_event("filter_changed", %{"filters" => filters}, socket) do
+    {:noreply,
+     socket
+     |> assign(:filters, Map.merge(default_filters(), filters))
+     |> apply_current_filters()}
   end
 
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
@@ -316,7 +384,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         {[], [], []}
       end
 
-    assign(socket,
+    socket
+    |> assign(
       portfolios: portfolios,
       current_portfolio: current_portfolio,
       securities_accounts: securities_accounts,
@@ -324,6 +393,110 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       transactions: transactions,
       position_rows: position_rows
     )
+    |> apply_current_filters()
+  end
+
+  # The overview filters (#414) run in memory over the already-loaded history:
+  # the local ledger is bounded, so a client-side narrow is instant and keeps
+  # the query path simple. The summary always reflects the current filter.
+  defp default_filters,
+    do: %{"type" => "", "security_id" => "", "from" => "", "to" => "", "query" => ""}
+
+  defp apply_current_filters(socket) do
+    filters = Map.merge(default_filters(), socket.assigns[:filters] || %{})
+    filtered = filter_transactions(socket.assigns.transactions, filters)
+
+    assign(socket,
+      filters: filters,
+      filtered_transactions: filtered,
+      summary: summarise(filtered)
+    )
+  end
+
+  defp filter_transactions(transactions, filters) do
+    transactions
+    |> Enum.filter(&type_match?(&1, filters["type"]))
+    |> Enum.filter(&security_match?(&1, filters["security_id"]))
+    |> Enum.filter(&from_match?(&1, filters["from"]))
+    |> Enum.filter(&to_match?(&1, filters["to"]))
+    |> Enum.filter(&query_match?(&1, filters["query"]))
+  end
+
+  defp type_match?(_tx, blank) when blank in ["", nil], do: true
+  defp type_match?(tx, type), do: tx.type == type
+
+  defp security_match?(_tx, blank) when blank in ["", nil], do: true
+  defp security_match?(tx, id), do: to_string(tx.security_id) == id
+
+  defp from_match?(_tx, blank) when blank in ["", nil], do: true
+
+  defp from_match?(tx, str) do
+    case Date.from_iso8601(str) do
+      {:ok, date} -> Date.compare(tx.date, date) != :lt
+      _ -> true
+    end
+  end
+
+  defp to_match?(_tx, blank) when blank in ["", nil], do: true
+
+  defp to_match?(tx, str) do
+    case Date.from_iso8601(str) do
+      {:ok, date} -> Date.compare(tx.date, date) != :gt
+      _ -> true
+    end
+  end
+
+  defp query_match?(_tx, blank) when blank in ["", nil], do: true
+
+  defp query_match?(tx, query) do
+    needle = query |> String.trim() |> String.downcase()
+
+    haystack =
+      [tx.security && tx.security.name, tx.type, tx.notes, tx.currency_code]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
+      |> String.downcase()
+
+    needle == "" or String.contains?(haystack, needle)
+  end
+
+  defp summarise(transactions) do
+    by_type =
+      transactions
+      |> Enum.group_by(& &1.type)
+      |> Enum.map(fn {type, list} ->
+        %{type: type, count: length(list), total: sum_amount(list)}
+      end)
+      |> Enum.sort_by(& &1.type)
+
+    %{total: length(transactions), by_type: by_type}
+  end
+
+  defp sum_amount(transactions) do
+    Enum.reduce(transactions, Decimal.new(0), fn tx, acc ->
+      Decimal.add(acc, tx_amount(tx))
+    end)
+  end
+
+  defp tx_amount(%{gross_amount: %Decimal{} = gross}), do: gross
+
+  defp tx_amount(%{quantity: %Decimal{} = qty, price: %Decimal{} = price}),
+    do: Decimal.mult(qty, price)
+
+  defp tx_amount(_tx), do: Decimal.new(0)
+
+  # The distinct types / securities actually present in the history drive the
+  # filter dropdowns, so the controls never offer a value that matches nothing.
+  defp filter_type_options(transactions) do
+    transactions |> Enum.map(& &1.type) |> Enum.uniq() |> Enum.sort()
+  end
+
+  defp filter_security_options(transactions) do
+    transactions
+    |> Enum.filter(& &1.security)
+    |> Enum.map(&{to_string(&1.security_id), &1.security.name})
+    |> Enum.uniq()
+    |> Enum.sort_by(&elem(&1, 1))
   end
 
   # Keep the user's chosen portfolio across reloads (after a save or a switch);
