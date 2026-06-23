@@ -348,4 +348,146 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert has_element?(view, "#transaction-form select[name='transaction[security_id]']")
     refute has_element?(view, "#transaction-no-securities")
   end
+
+  # User story (Steve UAT #414):
+  # As a maintainer with a long transaction history,
+  # I want to filter the list (by type, security and date range, plus text
+  # search) and read a summary of what the current filter selects,
+  # so that I can find and understand my transactions instead of scrolling a
+  # flat wall of rows.
+  #
+  # Acceptance criteria:
+  # - A summary header reports the count of the currently shown transactions
+  #   and a per-type breakdown.
+  # - Filtering by type narrows both the list and the summary.
+  # - Filtering by security narrows the list.
+  # - A date-range filter keeps only transactions within the range.
+  # - A filter that matches nothing shows a distinct no-match state, not the
+  #   "no transactions yet" empty state.
+  describe "transaction overview (#414)" do
+    defp overview_world do
+      world =
+        WorldFixtures.base_world(name: "Overview", depot_name: "Depot", cash_name: "Cash")
+
+      etf = WorldFixtures.create_security!(name: "World ETF", ticker: "WLD")
+      bond = WorldFixtures.create_security!(name: "Bond Fund", ticker: "BND")
+
+      mk = fn attrs ->
+        {:ok, _} =
+          Ledger.create_transaction(
+            Portfolixir.Actor.owner_ui(),
+            Map.merge(
+              %{
+                portfolio_id: world.portfolio.id,
+                cash_account_id: world.cash.id,
+                securities_account_id: world.depot.id,
+                currency_code: "EUR"
+              },
+              attrs
+            )
+          )
+      end
+
+      mk.(%{
+        security_id: WorldFixtures.security_id_for(etf),
+        type: "buy",
+        date: ~D[2026-01-10],
+        quantity: "10",
+        price: "100"
+      })
+
+      mk.(%{
+        security_id: WorldFixtures.security_id_for(etf),
+        type: "sell",
+        date: ~D[2026-03-15],
+        quantity: "4",
+        price: "120"
+      })
+
+      mk.(%{
+        security_id: WorldFixtures.security_id_for(bond),
+        type: "buy",
+        date: ~D[2026-02-20],
+        quantity: "5",
+        price: "50"
+      })
+
+      %{world: world, etf: etf, bond: bond}
+    end
+
+    test "summary header reports the count and a per-type breakdown", %{conn: conn} do
+      overview_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      summary = view |> element("#transaction-summary") |> render()
+      # Three transactions in total, two of them buys.
+      assert summary =~ "3"
+      assert has_element?(view, "#transaction-summary [data-role='summary-total']", "3")
+      assert has_element?(view, "#transaction-summary [data-type='buy']", "2")
+      assert has_element?(view, "#transaction-summary [data-type='sell']", "1")
+    end
+
+    test "filtering by type narrows the list and the summary", %{conn: conn} do
+      overview_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      view
+      |> form("#transaction-filters", %{"filters" => %{"type" => "sell"}})
+      |> render_change()
+
+      rows = view |> element("#transaction-list tbody") |> render()
+      assert rows =~ "Sell"
+      refute rows =~ "Buy"
+      assert has_element?(view, "#transaction-summary [data-role='summary-total']", "1")
+    end
+
+    test "filtering by security narrows the list", %{conn: conn} do
+      %{bond: bond} = overview_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      view
+      |> form("#transaction-filters", %{
+        "filters" => %{"security_id" => to_string(WorldFixtures.security_id_for(bond))}
+      })
+      |> render_change()
+
+      rows = view |> element("#transaction-list tbody") |> render()
+      assert rows =~ "Bond Fund"
+      refute rows =~ "World ETF"
+    end
+
+    test "a date-range filter keeps only transactions in the range", %{conn: conn} do
+      overview_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      view
+      |> form("#transaction-filters", %{
+        "filters" => %{"from" => "2026-02-01", "to" => "2026-02-28"}
+      })
+      |> render_change()
+
+      # Only the 2026-02-20 bond buy falls in February.
+      assert has_element?(view, "#transaction-summary [data-role='summary-total']", "1")
+      rows = view |> element("#transaction-list tbody") |> render()
+      assert rows =~ "Bond Fund"
+      refute rows =~ "World ETF"
+    end
+
+    test "a filter that matches nothing shows a distinct no-match state", %{conn: conn} do
+      overview_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      view
+      |> form("#transaction-filters", %{"filters" => %{"query" => "zzz-no-such-thing"}})
+      |> render_change()
+
+      assert has_element?(view, "#transaction-no-match")
+      refute has_element?(view, "#transaction-list tbody tr")
+    end
+  end
 end
