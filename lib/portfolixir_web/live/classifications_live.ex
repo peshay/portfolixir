@@ -16,8 +16,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    Classifications.ensure_builtins()
-
+    # Built-in trees are seeded at startup (#529), not on this read path.
     {:ok,
      socket
      |> assign(:error, nil)

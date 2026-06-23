@@ -278,6 +278,27 @@ defmodule Portfolixir.ClassificationsJournalTest do
     end
   end
 
+  describe "seed_builtins_on_boot/0 (#529)" do
+    test "honors the :seed_builtins_on_boot config gate" do
+      original = Application.get_env(:portfolixir, :seed_builtins_on_boot)
+      on_exit(fn -> Application.put_env(:portfolixir, :seed_builtins_on_boot, original) end)
+
+      # Disabled (the test-env default): a no-op, nothing seeded.
+      Application.put_env(:portfolixir, :seed_builtins_on_boot, false)
+      assert :ok = Classifications.seed_builtins_on_boot()
+      assert Classifications.get_classification_by_key("asset_class") == nil
+
+      # Enabled: seeds the built-in trees under the system_job actor.
+      Application.put_env(:portfolixir, :seed_builtins_on_boot, true)
+
+      assert :ok = Classifications.seed_builtins_on_boot()
+      assert Classifications.get_classification_by_key("asset_class")
+
+      assert Journal.list_entries(resource_type: "classification")
+             |> Enum.any?(&(&1.actor_type == :system_job))
+    end
+  end
+
   describe "guard" do
     test "a direct unactored write to classifications is refused by the database" do
       assert_raise Postgrex.Error, fn ->

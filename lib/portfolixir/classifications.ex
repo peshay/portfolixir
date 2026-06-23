@@ -78,13 +78,15 @@ defmodule Portfolixir.Classifications do
 
   @doc """
   Lists every classification as a tree with its categories and the (derived or
-  stored) security assignments. Ensures the built-in trees exist first.
+  stored) security assignments.
+
+  The built-in trees are seeded once at startup (`ensure_builtins/0`, #529), not
+  on this read path; tests seed them explicitly within their sandbox.
 
   Each entry is `%{classification:, categories:, assignments:}` where
   `assignments` is a list of `%{security_id:, category_id:}`.
   """
   def list_trees do
-    ensure_builtins()
     securities = Catalog.list_securities()
 
     Classification
@@ -110,8 +112,8 @@ defmodule Portfolixir.Classifications do
   Lists one classification's categories, ordered the same way as the trees.
 
   Works for built-in and custom classifications alike; built-in categories are
-  seeded rows, so callers should `ensure_builtins/0` (or go through a function
-  that does, like `security_category_map/1`) before relying on them existing.
+  seeded rows that exist after the startup seed (`seed_builtins_on_boot/0`, #529)
+  — tests seed them explicitly via `ensure_builtins/0` within their sandbox.
   """
   def list_categories(classification_id) when is_integer(classification_id) do
     classification_id
@@ -123,12 +125,10 @@ defmodule Portfolixir.Classifications do
   Returns `%{security_id => category_id}` for one classification: the derived
   assignments for a built-in tree, or the stored assignments for a custom tree.
 
-  Built-in trees are seeded first so a built-in classification id resolves.
-  Returns `{:error, :not_found}` when the classification does not exist.
+  Built-in trees are seeded at startup (#529), so a built-in classification id
+  resolves. Returns `{:error, :not_found}` when the classification does not exist.
   """
   def security_category_map(classification_id) when is_integer(classification_id) do
-    ensure_builtins()
-
     case Repo.get(Classification, classification_id) do
       nil ->
         {:error, :not_found}
@@ -439,6 +439,20 @@ defmodule Portfolixir.Classifications do
     ensure_builtin("asset_class", "Asset class", builtin_asset_class_categories())
     ensure_builtin("currency", "Currency", builtin_currency_categories())
     :ok
+  end
+
+  @doc """
+  Seeds the built-in trees at application startup when enabled (#529), so reads
+  never have to. Gated by the `:seed_builtins_on_boot` config (default true; off
+  in the test environment, where each test seeds within its own sandbox).
+  Returns `:ok` either way.
+  """
+  def seed_builtins_on_boot do
+    if Application.get_env(:portfolixir, :seed_builtins_on_boot, true) do
+      ensure_builtins()
+    else
+      :ok
+    end
   end
 
   # Each spec is `{key, label, color, parent_key}`; parents are listed before

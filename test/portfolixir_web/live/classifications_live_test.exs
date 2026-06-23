@@ -110,6 +110,8 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   end
 
   test "index lists the built-in trees in the sidebar", %{conn: conn} do
+    Classifications.ensure_builtins()
+
     {:ok, _view, html} = live(conn, "/classifications")
 
     assert html =~ "Asset class"
