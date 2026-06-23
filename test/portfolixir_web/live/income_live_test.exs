@@ -120,4 +120,38 @@ defmodule PortfolixirWeb.IncomeLiveTest do
 
     assert html =~ "/portfolios"
   end
+
+  # User story (Steve UAT #415):
+  # As a maintainer reading the income report,
+  # I want a visual overview of income per year and the top contributors,
+  # so that I can see at a glance what I earn and whether it is growing,
+  # instead of only reading a wall of matrix rows.
+  #
+  # Acceptance criteria:
+  # - A server-rendered SVG bar chart shows total income per year (role="img"
+  #   + aria-label), one labelled bar per year.
+  # - A top-contributors view lists the highest-earning positions first.
+  # - The annual matrix stays as the backing data (chart-as-table, UX-DR10).
+  test "renders a per-year income chart and a top-contributors view (#415)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Mein Depot", currency: "EUR")
+    big = WorldFixtures.create_security!(name: "Big Payer", ticker: "BIG")
+    small = WorldFixtures.create_security!(name: "Small Payer", ticker: "SML")
+
+    dividend!(world, big, date: ~D[2024-05-15], net: "800", tax: "0")
+    dividend!(world, big, date: ~D[2025-05-15], net: "1000", tax: "0")
+    dividend!(world, small, date: ~D[2025-05-15], net: "100", tax: "0")
+
+    {:ok, view, _html} = live(conn, "/income")
+
+    # Server-rendered, accessible SVG chart with one bar per year.
+    assert has_element?(view, "#income-chart svg[role='img'][aria-label]")
+    assert has_element?(view, "#income-chart [data-year='2024']")
+    assert has_element?(view, "#income-chart [data-year='2025']")
+
+    # Top contributors lead with the biggest earner (Big Payer: 1800 > 100).
+    assert has_element?(view, "#income-top-contributors li:first-child", "Big Payer")
+
+    # The annual matrix is still present as the backing data (UX-DR10).
+    assert has_element?(view, "#income-annual table")
+  end
 end
