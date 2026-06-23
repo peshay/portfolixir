@@ -2265,8 +2265,12 @@ img.security-logo {
     display: block;
   }
 
+  /* Mobile master-detail (UX-DR12, issue 413): selecting a security swaps the
+     list for its detail instead of rendering the detail below the full (very
+     tall) list. The detail then sits at the top, immediately visible at the
+     tap; the detail's close button returns to the list. */
   .securities-workspace--split .securities-list-pane {
-    overflow: visible;
+    display: none;
   }
 
   .securities-detail-splitter {
@@ -2274,7 +2278,7 @@ img.security-logo {
   }
 
   .detail-pane {
-    margin-top: 12px;
+    margin-top: 0;
     padding: 10px;
     gap: 10px;
   }
@@ -4175,6 +4179,20 @@ details[open] > .cat-summary::before {
     width: 1.75rem;
     height: 1.75rem;
     font-size: 0.85rem;
+  }
+
+  /* Comfortable tap targets on the securities surface (UX-DR6, issue 413):
+     taller list rows and >=44px detail controls for thumbs. */
+  .security-row td {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .detail-pane-tab,
+  #detail-pane-close,
+  #detail-pane-fullscreen-toggle {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 
