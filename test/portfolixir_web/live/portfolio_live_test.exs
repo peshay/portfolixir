@@ -963,6 +963,46 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert has_element?(view, "#performance-figure table tbody tr")
   end
 
+  # User story (Steve UAT #336):
+  # As a maintainer reading the performance chart,
+  # I want to see the selected period's result (% and €) at a glance and toggle
+  # the line between the TTWROR % and the absolute € value,
+  # so that the chart answers "how much am I up, in % and in money?" without a
+  # mouseover, and I can read the wealth trajectory when I want it.
+  #
+  # Acceptance criteria:
+  # - A period-performance badge shows the TTWROR % and the € gain
+  #   ((end − start) − net external flows), coloured by sign.
+  # - A "% (TTWROR)" ↔ "Value (€)" toggle switches the rendered series.
+  # - The toggle choice survives a period switch.
+  test "the performance chart has a period badge and a %/€ series toggle (#336)",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # Badge: TTWROR is +8.0% and the € gain is end(1080) − start(0) − flows(1000)
+    # = +80.00, both positive.
+    badge = view |> element("[data-role='period-badge']") |> render()
+    assert badge =~ "+8.0"
+    assert badge =~ "80.00"
+    assert badge =~ "EUR"
+    assert has_element?(view, "[data-role='period-badge'].is-positive")
+
+    # Default series is the TTWROR %.
+    assert has_element?(view, "#performance-figure[data-chart-mode='ttwror']")
+
+    # Toggling to Value switches the rendered series.
+    view |> element("button[phx-value-mode='value']") |> render_click()
+    assert has_element?(view, "#performance-figure[data-chart-mode='value']")
+    assert has_element?(view, "svg.perf-chart[aria-label='Portfolio value over time']")
+
+    # The choice survives a period switch.
+    view |> element("button[phx-value-period='ytd']") |> render_click()
+    assert has_element?(view, "#performance-figure[data-chart-mode='value']")
+  end
+
   test "Set balance button carries phx-disable-with for immediate working state",
        %{conn: conn} do
     seed_world()
