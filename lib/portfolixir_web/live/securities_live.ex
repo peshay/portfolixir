@@ -1830,7 +1830,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       ) do
     with {cid, ""} <- Integer.parse(classification_id),
          {:ok, category} <-
-           Classifications.create_category(%{"classification_id" => cid, "name" => name}),
+           Classifications.create_category(Actor.owner_ui(), %{
+             "classification_id" => cid,
+             "name" => name
+           }),
          {:ok, _} <- Classifications.assign_security(id, cid, category.id) do
       {:noreply,
        socket

@@ -26,10 +26,14 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
   defp setup_world do
     world = base_world()
 
-    {:ok, classification} = Classifications.create_classification(%{name: "Strategy"})
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, core} =
-      Classifications.create_category(%{classification_id: classification.id, name: "Core"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
 
     security = create_security!(name: "Core Equity", ticker: "CORE", asset_class: "equity")
     {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
@@ -113,14 +117,14 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     %{portfolio: portfolio, classification: classification, core: core} = setup_world()
 
     {:ok, tech} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Tech",
         parent_id: core.id
       })
 
     {:ok, emerging} =
-      Classifications.create_category(%{
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: classification.id,
         name: "Emerging",
         parent_id: core.id
@@ -316,10 +320,14 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
   test "returns 422 for a category from another classification", %{conn: conn} do
     %{portfolio: portfolio, classification: classification} = setup_world()
 
-    {:ok, other} = Classifications.create_classification(%{name: "Regions"})
+    {:ok, other} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Regions"})
 
     {:ok, foreign} =
-      Classifications.create_category(%{classification_id: other.id, name: "Europe"})
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: other.id,
+        name: "Europe"
+      })
 
     response =
       put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{

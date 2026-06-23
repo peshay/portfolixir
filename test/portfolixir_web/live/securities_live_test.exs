@@ -754,10 +754,12 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "classifications tab assigns the security to a custom category",
          %{conn: conn, apple: apple} do
       {:ok, classification} =
-        Portfolixir.Classifications.create_classification(%{name: "Strategy"})
+        Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+          name: "Strategy"
+        })
 
       {:ok, category} =
-        Portfolixir.Classifications.create_category(%{
+        Portfolixir.Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
           classification_id: classification.id,
           name: "Core"
         })
@@ -785,7 +787,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "classifications tab creates a category inline and assigns the security",
          %{conn: conn, apple: apple} do
       {:ok, classification} =
-        Portfolixir.Classifications.create_classification(%{name: "Strategy"})
+        Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+          name: "Strategy"
+        })
 
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=classifications")
 

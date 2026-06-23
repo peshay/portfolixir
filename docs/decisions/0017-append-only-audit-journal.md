@@ -202,9 +202,20 @@ first; arming no table, they cannot break existing writes.
   `Actor.import_session()` in the same (nested) transaction as the insert, the
   same way it already journals created securities, so imported history is fully
   attributable. `Ledger` joins `@converted_contexts`.
-- **Next slice:** Classifications (classifications, categories, and the
-  assignment join table — note its bulk `insert_all`/`delete_all` paths and the
-  built-in tree seeding need their own journaling shape).
+- **Slice 5 — Classifications stage 1 (landed):** custom classification/category
+  `create`/`update`/`delete` + `recolor` are actor-first and journaled
+  (`resource_type: "classification"`/`"category"`); the `classifications` and
+  `classification_categories` tables are armed. **Built-in tree seeding** writes
+  under a fixed `system_job` actor — and because the seeding is check-then-insert
+  (`Repo.get_by` first), a re-seed on a later read does NOT write, so reads never
+  spam the journal; only the genuine first creation journals. `ensure_builtins/0`
+  and the read paths that trigger it (`list_trees/0`, `security_category_map/1`)
+  journal internally rather than via a first-arg actor, so Classifications is
+  journaled but **not** in `@converted_contexts`.
+- **Next slice — Classifications stage 2:** arm `security_category_assignments`
+  (`assign_security`/`unassign_security` and the bulk `assign_securities`/
+  `unassign_securities` — the bulk paths journal **one entry per affected
+  security**, per the 2(a) decision).
 
 ## Consequences
 

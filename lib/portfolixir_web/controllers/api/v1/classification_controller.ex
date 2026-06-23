@@ -12,7 +12,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   def create(conn, params) do
     attrs = Map.get(params, "classification", %{})
 
-    case Classifications.create_classification(attrs) do
+    case Classifications.create_classification(conn.assigns.actor, attrs) do
       {:ok, classification} ->
         conn
         |> put_status(:created)
@@ -28,7 +28,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
 
     with {:ok, cid} <- parse_id(id),
          %Classification{} = classification <- Classifications.get_classification(cid) do
-      case Classifications.update_classification(classification, attrs) do
+      case Classifications.update_classification(conn.assigns.actor, classification, attrs) do
         {:ok, classification} ->
           json(conn, %{data: JSON.classification(classification)})
 
@@ -44,7 +44,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   def delete(conn, %{"id" => id}) do
     with {:ok, cid} <- parse_id(id),
          %Classification{} = classification <- Classifications.get_classification(cid) do
-      case Classifications.delete_classification(classification) do
+      case Classifications.delete_classification(conn.assigns.actor, classification) do
         {:ok, _classification} -> json(conn, %{data: %{deleted: true}})
         {:error, reason} -> render_error(conn, reason)
       end
@@ -58,7 +58,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     with {:ok, id} <- parse_id(classification_id) do
       attrs = params |> Map.get("category", %{}) |> Map.put("classification_id", id)
 
-      case Classifications.create_category(attrs) do
+      case Classifications.create_category(conn.assigns.actor, attrs) do
         {:ok, category} ->
           conn
           |> put_status(:created)
@@ -80,7 +80,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     with {:ok, cid} <- parse_id(classification_id),
          {:ok, category_id} <- parse_id(id),
          %{classification_id: ^cid} = category <- Classifications.get_category(category_id) do
-      case Classifications.update_category(category, attrs) do
+      case Classifications.update_category(conn.assigns.actor, category, attrs) do
         {:ok, category} -> json(conn, %{data: JSON.category(category)})
         {:error, reason} -> render_error(conn, reason)
       end
@@ -95,7 +95,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     with {:ok, cid} <- parse_id(classification_id),
          {:ok, category_id} <- parse_id(id),
          %{classification_id: ^cid} = category <- Classifications.get_category(category_id) do
-      case Classifications.delete_category(category) do
+      case Classifications.delete_category(conn.assigns.actor, category) do
         {:ok, _category} -> json(conn, %{data: %{deleted: true}})
         {:error, reason} -> render_error(conn, reason)
       end

@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.ClassificationsLive do
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
@@ -630,7 +631,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   @impl true
   def handle_event("create_classification", %{"classification" => params}, socket) do
-    case Classifications.create_classification(params) do
+    case Classifications.create_classification(Actor.owner_ui(), params) do
       {:ok, classification} ->
         {:noreply, push_navigate(socket, to: "/classifications/#{classification.id}")}
 
@@ -640,7 +641,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("create_category", %{"category" => params}, socket) do
-    case Classifications.create_category(params) do
+    case Classifications.create_category(Actor.owner_ui(), params) do
       {:ok, _category} ->
         {:noreply, socket |> success(gettext("Category created")) |> reload()}
 
@@ -663,7 +664,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("update_category", %{"category" => %{"id" => id} = params}, socket) do
     with {:ok, category_id} <- coerce_id(id),
          category when not is_nil(category) <- Classifications.get_category(category_id),
-         {:ok, _} <- Classifications.update_category(category, params) do
+         {:ok, _} <- Classifications.update_category(Actor.owner_ui(), category, params) do
       {:noreply,
        socket
        |> assign(:editing_id, nil)
@@ -678,7 +679,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("recolor_category", %{"category_id" => id, "color" => color}, socket) do
     with {:ok, category_id} <- coerce_id(id),
          category when not is_nil(category) <- Classifications.get_category(category_id),
-         {:ok, _} <- Classifications.recolor_category(category, color) do
+         {:ok, _} <- Classifications.recolor_category(Actor.owner_ui(), category, color) do
       {:noreply, reload(socket)}
     else
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
@@ -689,7 +690,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("delete_category", %{"id" => id}, socket) do
     with {:ok, category_id} <- coerce_id(id),
          category when not is_nil(category) <- Classifications.get_category(category_id),
-         {:ok, _} <- Classifications.delete_category(category) do
+         {:ok, _} <- Classifications.delete_category(Actor.owner_ui(), category) do
       {:noreply, socket |> success(gettext("Category deleted")) |> reload()}
     else
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
@@ -700,7 +701,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("delete_classification", _params, socket) do
     with id when not is_nil(id) <- socket.assigns.selected_id,
          classification when not is_nil(classification) <- Classifications.get_classification(id),
-         {:ok, _} <- Classifications.delete_classification(classification) do
+         {:ok, _} <- Classifications.delete_classification(Actor.owner_ui(), classification) do
       {:noreply, push_navigate(socket, to: "/classifications")}
     else
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
