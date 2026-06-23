@@ -70,7 +70,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert app_css =~ "--topbar-height: 52px;"
       assert app_css =~ "font-size: var(--density-font-size);"
       assert app_css =~ ".data-table tbody td {\n  padding: 7px 9px;"
-      assert app_css =~ ".detail-pane {\n  margin-top: 12px;\n  padding: 12px;"
+      # Spacing now resolves through the 4px scale (#450): --space-3 == 12px.
+      assert app_css =~
+               ".detail-pane {\n  margin-top: var(--space-3);\n  padding: var(--space-3);"
 
       refute app_css =~ ~r/\bzoom\s*:/
       refute app_css =~ ~r/transform:\s*scale\(/i
