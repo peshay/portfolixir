@@ -58,6 +58,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:portfolio, portfolio)
           |> assign(:classifications, classifications)
           |> assign(:period, "max")
+          |> assign(:chart_mode, "ttwror")
           |> assign(:classification_id, default_classification_id(classifications))
           |> assign(:valuation, nil)
           |> assign(:allocation, nil)
@@ -231,21 +232,56 @@ defmodule PortfolixirWeb.PortfolioLive do
         <section id="portfolio-performance" class="workspace-section">
           <header class="section-head">
             <h2><%= gettext("Performance") %></h2>
-            <div class="period-buttons" role="group" aria-label={gettext("Period")}>
-              <%= for period <- Performance.periods() do %>
+            <div class="section-head-controls">
+              <div class="chart-toggle" role="group" aria-label={gettext("Chart series")}>
                 <button
                   type="button"
-                  class={["button-mini", period == @period && "is-active"]}
-                  phx-click="select_period"
-                  phx-value-period={period}
+                  class={["button-mini", @chart_mode == "ttwror" && "is-active"]}
+                  phx-click="set_chart_mode"
+                  phx-value-mode="ttwror"
+                  aria-pressed={to_string(@chart_mode == "ttwror")}
                 >
-                  <%= period_label(period) %>
+                  <%= gettext("%% (TTWROR)") %>
                 </button>
-              <% end %>
+                <button
+                  type="button"
+                  class={["button-mini", @chart_mode == "value" && "is-active"]}
+                  phx-click="set_chart_mode"
+                  phx-value-mode="value"
+                  aria-pressed={to_string(@chart_mode == "value")}
+                >
+                  <%= gettext("Value (%{currency})", currency: @portfolio.base_currency_code) %>
+                </button>
+              </div>
+              <div class="period-buttons" role="group" aria-label={gettext("Period")}>
+                <%= for period <- Performance.periods() do %>
+                  <button
+                    type="button"
+                    class={["button-mini", period == @period && "is-active"]}
+                    phx-click="select_period"
+                    phx-value-period={period}
+                  >
+                    <%= period_label(period) %>
+                  </button>
+                <% end %>
+              </div>
             </div>
           </header>
           <%= if @performance do %>
-            <.performance_chart series={downsample(@performance.series)} />
+            <p
+              class={["perf-badge", perf_sign_class(@performance.ttwror)]}
+              data-role="period-badge"
+            >
+              <strong><%= signed_percent(@performance.ttwror) %>%</strong>
+              <span class="perf-badge-sep">·</span>
+              <span><%= signed_money(period_value_gain(@performance)) %> <%= @performance.base_currency %></span>
+              <span class="perf-badge-period">(<%= period_label(@period) %>)</span>
+            </p>
+            <.performance_chart
+              series={downsample(@performance.series)}
+              mode={@chart_mode}
+              currency={@performance.base_currency}
+            />
             <p class="hint">
               <%= gettext("True time-weighted return; deposits and withdrawals are neutralised.") %>
               <%= if @performance.start_date do %>
@@ -592,24 +628,43 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp performance_chart(assigns) do
-    geometry = chart_geometry(assigns.series)
-    first = List.first(assigns.series)
-    last = List.last(assigns.series)
+    assigns = assign_new(assigns, :mode, fn -> "ttwror" end)
+    series = assigns.series
+    first = List.first(series)
+    last = List.last(series)
+
+    ttwror_geo = chart_geometry(series)
+    value_geo = value_geometry(series)
+
+    {points, y_max_label, y_min_label, aria_label, show_zero?} =
+      case assigns.mode do
+        "value" ->
+          {value_points(series, value_geo), money_label(value_geo.max),
+           money_label(value_geo.min), gettext("Portfolio value over time"), false}
+
+        _ ->
+          {performance_points(series), percent_label(ttwror_geo.max),
+           percent_label(ttwror_geo.min), gettext("Cumulative TTWROR over time"), true}
+      end
 
     assigns =
       assign(assigns,
-        zero_y: geometry.zero_y,
-        y_max_label: percent_label(geometry.max),
-        y_min_label: percent_label(geometry.min),
+        zero_y: ttwror_geo.zero_y,
+        points: points,
+        y_max_label: y_max_label,
+        y_min_label: y_min_label,
+        aria_label: aria_label,
+        show_zero?: show_zero?,
         first_date: first && first.date,
         last_date: last && last.date
       )
 
-    # The bare polyline gained labeled value/date axes and an accessible data
-    # table (Steve UAT #411, UX-DR10), bringing it up to the security detail
-    # charts' bar. The hover crosshair is coordinated with #336's tooltip.
+    # The polyline carries labeled value/date axes and an accessible data table
+    # (Steve UAT #411, UX-DR10). The series is toggleable between % (TTWROR) and
+    # € value (Steve UAT #336); the table always exposes both columns so the
+    # data is reachable regardless of the toggle.
     ~H"""
-    <figure id="performance-figure" class="perf-figure">
+    <figure id="performance-figure" class="perf-figure" data-chart-mode={@mode}>
       <div class="perf-plot">
         <div class="perf-yaxis" aria-hidden="true">
           <span class="perf-ytick"><%= @y_max_label %></span>
@@ -620,10 +675,10 @@ defmodule PortfolixirWeb.PortfolioLive do
           viewBox="0 0 720 180"
           preserveAspectRatio="none"
           role="img"
-          aria-label={gettext("Cumulative TTWROR over time")}
+          aria-label={@aria_label}
         >
-          <line x1="0" y1={@zero_y} x2="720" y2={@zero_y} class="perf-zeroline" />
-          <polyline class="perf-line" fill="none" points={performance_points(@series)} />
+          <line :if={@show_zero?} x1="0" y1={@zero_y} x2="720" y2={@zero_y} class="perf-zeroline" />
+          <polyline class="perf-line" fill="none" points={@points} />
         </svg>
       </div>
       <div :if={@first_date} class="perf-xaxis" aria-hidden="true">
@@ -633,17 +688,19 @@ defmodule PortfolixirWeb.PortfolioLive do
       <details class="perf-table-disclosure">
         <summary><%= gettext("Show data as table") %></summary>
         <table class="perf-data-table">
-          <caption class="sr-only"><%= gettext("Cumulative TTWROR by date") %></caption>
+          <caption class="sr-only"><%= gettext("Performance by date") %></caption>
           <thead>
             <tr>
               <th scope="col"><%= gettext("Date") %></th>
               <th scope="col"><%= gettext("Cumulative TTWROR") %></th>
+              <th scope="col"><%= gettext("Value (%{currency})", currency: @currency) %></th>
             </tr>
           </thead>
           <tbody>
             <tr :for={point <- @series}>
               <td><%= Date.to_iso8601(point.date) %></td>
               <td class="num"><%= Format.percent(point.cumulative_ttwror) %>%</td>
+              <td class="num"><%= Format.money(point.value) %></td>
             </tr>
           </tbody>
         </table>
@@ -652,10 +709,71 @@ defmodule PortfolixirWeb.PortfolioLive do
     """
   end
 
-  # The value-axis tick labels reuse the same percent formatting as the KPIs,
-  # so the chart and the figures above it read consistently.
+  # The value-axis tick labels reuse the same percent/money formatting as the
+  # KPIs, so the chart and the figures above it read consistently.
   defp percent_label(value) when is_float(value) do
     Format.percent(Decimal.from_float(value)) <> "%"
+  end
+
+  defp money_label(value) when is_float(value) do
+    Format.money(Decimal.from_float(value))
+  end
+
+  # The absolute € series uses its own min/max range (the TTWROR geometry is
+  # anchored at zero, which would flatten an always-positive value line).
+  defp value_geometry([]), do: %{min: 0.0, max: 1.0}
+
+  defp value_geometry(series) do
+    values = Enum.map(series, &Decimal.to_float(&1.value))
+    {min, max} = pad_flat(Enum.min(values), Enum.max(values))
+    %{min: min, max: max}
+  end
+
+  defp value_points([], _geometry), do: ""
+
+  defp value_points(series, %{min: min, max: max}) do
+    last = max(length(series) - 1, 1)
+
+    series
+    |> Enum.with_index()
+    |> Enum.map_join(" ", fn {point, index} ->
+      x = Float.round(index / last * 720, 2)
+      y = value_y(Decimal.to_float(point.value), min, max)
+      "#{x},#{y}"
+    end)
+  end
+
+  defp value_y(_value, min, max) when max - min < 1.0e-9, do: 90.0
+  defp value_y(value, min, max), do: Float.round(170 - (value - min) / (max - min) * 160, 2)
+
+  # The period badge: TTWROR % beside the absolute € gain, defined as the
+  # investment result net of contributions — (end − start) − net external flows
+  # — so a deposit never masquerades as performance (it stays consistent with
+  # the TTWROR % beside it).
+  defp period_value_gain(performance) do
+    performance.end_value
+    |> Decimal.sub(performance.start_value)
+    |> Decimal.sub(performance.net_external_flows)
+  end
+
+  defp perf_sign_class(value) do
+    case Decimal.compare(value, 0) do
+      :gt -> "is-positive"
+      :lt -> "is-negative"
+      :eq -> "is-flat"
+    end
+  end
+
+  defp signed_percent(value) do
+    signed(value, Format.percent(value))
+  end
+
+  defp signed_money(value) do
+    signed(value, Format.money(value))
+  end
+
+  defp signed(value, formatted) do
+    if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
   end
 
   # Concentric rings of annular-sector paths: the innermost ring is the
@@ -717,6 +835,16 @@ defmodule PortfolixirWeb.PortfolioLive do
         {:noreply, assign(socket, :period, period)}
     end
   end
+
+  # Switching the chart series (% TTWROR ↔ € value) is pure presentation — the
+  # same cached analysis feeds both lines, so it never recomputes and the choice
+  # survives period switches (select_period leaves :chart_mode untouched).
+  def handle_event("set_chart_mode", %{"mode" => mode}, socket)
+      when mode in ["ttwror", "value"] do
+    {:noreply, assign(socket, :chart_mode, mode)}
+  end
+
+  def handle_event("set_chart_mode", _params, socket), do: {:noreply, socket}
 
   def handle_event("select_classification", %{"classification_id" => id}, socket) do
     case coerce_id(id) do
