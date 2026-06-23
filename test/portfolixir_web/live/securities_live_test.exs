@@ -78,6 +78,23 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       refute app_css =~ ~r/transform:\s*scale\(/i
     end
 
+    # User story (Steve UAT #412):
+    # As a maintainer entering security identifiers (ISIN, WKN, ticker),
+    # I want those inputs to render in a monospace font,
+    # so that the technical codes line up and are easy to scan. The form already
+    # applied class="mono" to them, but no CSS rule backed it — a dead class
+    # that did nothing.
+    #
+    # Acceptance criteria:
+    # - The .mono utility is defined in the stylesheet.
+    # - It uses the monospace font token (--font-mono), so the identifier inputs
+    #   actually render monospaced.
+    test "the dead .mono class is defined and uses the monospace font token" do
+      app_css = File.read!("priv/static/app.css")
+
+      assert app_css =~ ~r/\.mono\s*\{[^}]*font-family:\s*var\(--font-mono\)/s
+    end
+
     test "search filters the list", %{conn: conn} do
       {:ok, _} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
