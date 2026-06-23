@@ -17,10 +17,12 @@ defmodule Portfolixir.ClassificationsJournalTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
+  alias Portfolixir.Classifications.Assignment
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Journal
   alias Portfolixir.Repo
+  alias Portfolixir.WorldFixtures
 
   describe "custom classification + category writes" do
     test "create_classification/2 records a create entry attributed to the actor" do
@@ -131,6 +133,148 @@ defmodule Portfolixir.ClassificationsJournalTest do
           length(Journal.list_entries(resource_type: "category", operation: :create))
 
       assert after_count == before
+    end
+  end
+
+  describe "security-category assignments" do
+    setup do
+      {:ok, cls} = Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+      {:ok, core} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: cls.id,
+          name: "Core"
+        })
+
+      {:ok, satellite} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: cls.id,
+          name: "Satellite"
+        })
+
+      s1 = WorldFixtures.create_security!(name: "One", ticker: "ONE")
+      s2 = WorldFixtures.create_security!(name: "Two", ticker: "TWO")
+      %{cls: cls, core: core, satellite: satellite, s1: s1, s2: s2}
+    end
+
+    test "assign_security/4 journals a create, then reassign journals an update with before",
+         %{cls: cls, core: core, satellite: satellite, s1: s1} do
+      actor = Actor.api_token_rw("assign-token")
+      {:ok, assignment} = Classifications.assign_security(actor, s1.id, cls.id, core.id)
+
+      assert [create] =
+               Journal.list_entries(
+                 resource_type: "security_category_assignment",
+                 operation: :create
+               )
+
+      assert create.actor_label == "assign-token"
+      assert create.before == nil
+      assert create.resource_id == to_string(assignment.id)
+      assert create.after["category_id"] == core.id
+
+      # Reassigning the same (security, classification) to another category is an
+      # update, with the prior assignment as `before` — the on-conflict REPLACE
+      # keeps the same row id, so the journal stays tied to one resource.
+      {:ok, reassigned} =
+        Classifications.assign_security(Actor.owner_ui(), s1.id, cls.id, satellite.id)
+
+      assert [update] =
+               Journal.list_entries(
+                 resource_type: "security_category_assignment",
+                 operation: :update
+               )
+
+      assert update.resource_id == to_string(assignment.id)
+      assert reassigned.id == assignment.id
+      assert update.before["category_id"] == core.id
+      assert update.after["category_id"] == satellite.id
+    end
+
+    test "unassign_security/3 on an unassigned security is a no-op", %{cls: cls, s2: s2} do
+      assert {:ok, 0} = Classifications.unassign_security(Actor.owner_ui(), s2.id, cls.id)
+
+      assert Journal.list_entries(
+               resource_type: "security_category_assignment",
+               operation: :delete
+             ) == []
+    end
+
+    test "a bulk assign that hits an invalid security rolls back and journals nothing", %{
+      cls: cls,
+      core: core,
+      s1: s1
+    } do
+      assert {:error, %Ecto.Changeset{}} =
+               Classifications.assign_securities(
+                 Actor.owner_ui(),
+                 [s1.id, 999_999_999],
+                 cls.id,
+                 core.id
+               )
+
+      # All-or-nothing: the valid first record is rolled back with the failure.
+      assert Classifications.get_assignment(s1.id, cls.id) == nil
+
+      assert Journal.list_entries(
+               resource_type: "security_category_assignment",
+               operation: :create
+             ) == []
+    end
+
+    test "unassign_security/3 journals the deletion", %{cls: cls, core: core, s1: s1} do
+      {:ok, _} = Classifications.assign_security(Actor.owner_ui(), s1.id, cls.id, core.id)
+      assert {:ok, 1} = Classifications.unassign_security(Actor.owner_ui(), s1.id, cls.id)
+
+      assert [_] =
+               Journal.list_entries(
+                 resource_type: "security_category_assignment",
+                 operation: :delete
+               )
+    end
+
+    test "bulk assign/unassign journal one entry per security (2(a))", %{
+      cls: cls,
+      core: core,
+      s1: s1,
+      s2: s2
+    } do
+      assert {:ok, 2} =
+               Classifications.assign_securities(
+                 Actor.owner_ui(),
+                 [s1.id, s2.id],
+                 cls.id,
+                 core.id
+               )
+
+      creates =
+        Journal.list_entries(resource_type: "security_category_assignment", operation: :create)
+
+      assert length(creates) == 2
+
+      assert {:ok, 2} =
+               Classifications.unassign_securities(Actor.owner_ui(), [s1.id, s2.id], cls.id)
+
+      deletes =
+        Journal.list_entries(resource_type: "security_category_assignment", operation: :delete)
+
+      assert length(deletes) == 2
+    end
+
+    test "a direct unactored write to security_category_assignments is refused", %{
+      cls: cls,
+      core: core,
+      s1: s1
+    } do
+      assert_raise Postgrex.Error, fn ->
+        Repo.insert!(
+          Assignment.changeset(%Assignment{}, %{
+            security_id: s1.id,
+            classification_id: cls.id,
+            category_id: core.id
+          })
+        )
+      end
     end
   end
 

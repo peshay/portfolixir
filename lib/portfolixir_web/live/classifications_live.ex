@@ -788,7 +788,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
          {:ok, classification_id} <- coerce_id(params["classification_id"]),
          {:ok, category_id} <- coerce_id(params["category_id"]),
          {:ok, _assignment} <-
-           Classifications.assign_security(security_id, classification_id, category_id) do
+           Classifications.assign_security(
+             Actor.owner_ui(),
+             security_id,
+             classification_id,
+             category_id
+           ) do
       {:noreply, reload(socket)}
     else
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
@@ -799,7 +804,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("unassign", params, socket) do
     with {:ok, security_id} <- coerce_id(params["security_id"]),
          {:ok, classification_id} <- coerce_id(params["classification_id"]) do
-      {:ok, _} = Classifications.unassign_security(security_id, classification_id)
+      {:ok, _} =
+        Classifications.unassign_security(Actor.owner_ui(), security_id, classification_id)
+
       {:noreply, reload(socket)}
     else
       :error -> {:noreply, socket}
@@ -837,7 +844,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp do_assign(socket, ids, classification_id, category_id) do
-    case Classifications.assign_securities(ids, classification_id, category_id) do
+    case Classifications.assign_securities(Actor.owner_ui(), ids, classification_id, category_id) do
       {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload()}
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
     end
@@ -850,7 +857,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp do_unassign(socket, ids, classification_id) do
-    {:ok, count} = Classifications.unassign_securities(ids, classification_id)
+    {:ok, count} = Classifications.unassign_securities(Actor.owner_ui(), ids, classification_id)
     {:noreply, socket |> success(unassigned_message(count)) |> reload()}
   end
 

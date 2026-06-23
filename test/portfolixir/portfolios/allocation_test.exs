@@ -113,10 +113,21 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     satellite_security = equity!("Satellite Equity", "SAT")
     unassigned_security = equity!("Loose Equity", "LOOSE")
 
-    {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        core_security.id,
+        classification.id,
+        core.id
+      )
 
     {:ok, _} =
-      Classifications.assign_security(satellite_security.id, classification.id, satellite.id)
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        satellite_security.id,
+        classification.id,
+        satellite.id
+      )
 
     # Fund the cash account so the buys leave it at zero: counting cash is 0, so
     # the basis here is securities only (the cash-in-basis case is covered by the
@@ -198,10 +209,21 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     tech_security = equity!("Tech Co.", "TECH")
     emerging_security = equity!("Emerging Co.", "EMRG")
 
-    {:ok, _} = Classifications.assign_security(tech_security.id, classification.id, tech.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        tech_security.id,
+        classification.id,
+        tech.id
+      )
 
     {:ok, _} =
-      Classifications.assign_security(emerging_security.id, classification.id, emerging.id)
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        emerging_security.id,
+        classification.id,
+        emerging.id
+      )
 
     # Fund the cash account so the buys leave it at zero (basis = securities).
     deposit!(world, "1000", ~D[2026-01-01])
@@ -338,10 +360,21 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     core_security = equity!("Core Equity", "CORE")
     satellite_security = equity!("Satellite Equity", "SAT")
 
-    {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        core_security.id,
+        classification.id,
+        core.id
+      )
 
     {:ok, _} =
-      Classifications.assign_security(satellite_security.id, classification.id, satellite.id)
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        satellite_security.id,
+        classification.id,
+        satellite.id
+      )
 
     # Securities worth 600 + 320 = 920; deposit 1000 then spend 920 on the buys
     # leaves 80 cash -> 100% basis = securities 920 + cash 80 = 1000.
@@ -654,7 +687,14 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       %{classification: classification, core: core, satellite: satellite} = world
 
       core_security = equity!("Core Equity", "CORE")
-      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          core_security.id,
+          classification.id,
+          core.id
+        )
 
       deposit!(world, "600", ~D[2026-01-01])
       buy!(world, core_security, "10", "60")
@@ -697,7 +737,14 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       view = named_view("Stocks")
 
       core_security = equity!("Core Equity", "CORE")
-      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          core_security.id,
+          classification.id,
+          core.id
+        )
 
       deposit!(world, "600", ~D[2026-01-01])
       buy!(world, core_security, "10", "60")
@@ -779,7 +826,14 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       view = named_view("Empty")
 
       core_security = equity!("Core Equity", "CORE")
-      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          core_security.id,
+          classification.id,
+          core.id
+        )
 
       deposit!(world, "600", ~D[2026-01-01])
       buy!(world, core_security, "10", "60")
@@ -823,7 +877,14 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       view = named_view("CoreOnly")
 
       core_security = equity!("Core Equity", "CORE")
-      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          core_security.id,
+          classification.id,
+          core.id
+        )
 
       deposit!(world, "600", ~D[2026-01-01])
       buy!(world, core_security, "10", "60")
@@ -867,7 +928,14 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       crypto = named_view("Crypto")
 
       core_security = equity!("Core Equity", "CORE")
-      {:ok, _} = Classifications.assign_security(core_security.id, classification.id, core.id)
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          core_security.id,
+          classification.id,
+          core.id
+        )
 
       deposit!(world, "600", ~D[2026-01-01])
       buy!(world, core_security, "10", "60")

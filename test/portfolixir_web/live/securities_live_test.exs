@@ -815,6 +815,48 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert tree.assignments == [%{security_id: apple.id, category_id: category.id}]
     end
 
+    test "classifications tab unassigns the security when the category is cleared",
+         %{conn: conn, apple: apple} do
+      {:ok, classification} =
+        Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+          name: "Strategy"
+        })
+
+      {:ok, category} =
+        Portfolixir.Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: "Core"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=classifications")
+
+      form = element(view, "form.sc-form")
+
+      render_change(form, %{
+        "classification_id" => "#{classification.id}",
+        "category_id" => "#{category.id}"
+      })
+
+      # Clearing the category (empty value) unassigns the security.
+      render_change(form, %{
+        "classification_id" => "#{classification.id}",
+        "category_id" => ""
+      })
+
+      # A non-numeric category id is ignored (no crash, no change).
+      render_change(form, %{
+        "classification_id" => "#{classification.id}",
+        "category_id" => "not-a-number"
+      })
+
+      assignments =
+        Portfolixir.Classifications.list_trees()
+        |> Enum.find(&(&1.classification.id == classification.id))
+        |> Map.fetch!(:assignments)
+
+      assert assignments == []
+    end
+
     test "overview tab is active by default and chart content is hidden",
          %{conn: conn, apple: apple} do
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
