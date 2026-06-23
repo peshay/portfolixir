@@ -4087,6 +4087,50 @@ details[open] > .cat-summary::before {
 .transaction-summary .summary-type {
   font-variant-numeric: tabular-nums;
 }
+
+/* Income overview: per-year bar chart + top-contributors list (issue 415).
+   No animation, so prefers-reduced-motion needs nothing extra (UX-DR5). */
+.income-chart {
+  margin-bottom: var(--space-4);
+}
+.income-bars {
+  width: 100%;
+  height: 140px;
+  display: block;
+}
+.income-bar {
+  fill: var(--color-accent);
+}
+.income-bar-labels {
+  display: flex;
+  justify-content: space-around;
+  margin-top: var(--space-1);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.income-bar-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.contributor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.contributor-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+.contributor-figures {
+  font-variant-numeric: tabular-nums;
+}
 .donut-wrap {
   display: flex;
   gap: 1.5rem;
