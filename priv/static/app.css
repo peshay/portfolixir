@@ -1045,6 +1045,14 @@ textarea {
   resize: vertical;
 }
 
+/* Identifier inputs (ISIN/WKN/ticker/currency) render monospaced so the
+   technical codes line up and are easy to scan (issue 412). The markup applied
+   class="mono" but no rule backed it — a dead class until now. */
+.mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
