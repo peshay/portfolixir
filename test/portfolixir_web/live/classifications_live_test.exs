@@ -83,7 +83,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
       })
 
     security = security!(%{name: "Held Co"})
-    {:ok, _} = Classifications.assign_security(security.id, classification.id, filled.id)
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        filled.id
+      )
 
     {:ok, _} =
       Targets.set_targets(portfolio.id, classification.id, [
@@ -152,7 +159,13 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         name: "Core"
       })
 
-    {:ok, _} = Classifications.assign_security(security.id, classification.id, category.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        category.id
+      )
 
     {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
 
@@ -372,8 +385,21 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         name: "Core"
       })
 
-    {:ok, _} = Classifications.assign_security(active.id, classification.id, category.id)
-    {:ok, _} = Classifications.assign_security(sold.id, classification.id, category.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        active.id,
+        classification.id,
+        category.id
+      )
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        sold.id,
+        classification.id,
+        category.id
+      )
 
     {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
 

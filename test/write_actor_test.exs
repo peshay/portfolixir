@@ -30,7 +30,8 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Catalog,
     Portfolixir.Fx,
     Portfolixir.Portfolios,
-    Portfolixir.Ledger
+    Portfolixir.Ledger,
+    Portfolixir.Classifications
   ]
 
   # Migration-only data backfills: arity locked by immutable migrations (which run
@@ -45,39 +46,15 @@ defmodule Portfolixir.WriteActorTest do
   # slices: Portfolios/Classifications → Ledger → Imports). SHRINK-ONLY: a stale
   # entry (no longer a non-actor-first writer) fails this test, forcing removal as
   # each context is converted.
-  @grandfathered MapSet.new([
-                   # Portfolios is now a fully converted context: all portfolio,
-                   # cash-account and securities-account writers are actor-first and
-                   # the three tables are guard-armed (ADR-0017 Portfolios slices), so
-                   # none appear here. set_cash_target/2 carries no direct Repo write
-                   # since ADR-0020 (it delegates to Portfolixir.Portfolios.Targets, a
-                   # sub-module backstopped by the per-table guard trigger), so it is
-                   # not a writer this AST gate tracks. Ledger is likewise fully
-                   # converted: create/update/delete_transaction and set_cash_balance
-                   # are actor-first and the `transactions` table is guard-armed
-                   # (ADR-0017 Ledger slice), so no Ledger entries appear here.
-                   #
-                   # Classifications stage 1 (ADR-0017): custom classification/category
-                   # CRUD + recolor are now actor-first and the `classifications` /
-                   # `classification_categories` tables are armed, so they no longer
-                   # appear here. The assignment writers below are stage 2 (the
-                   # `security_category_assignments` table is not yet armed). The
-                   # built-in seeding (`ensure_builtins/0`) and the read paths that
-                   # trigger it (`list_trees/0`, `security_category_map/1`) write under
-                   # a fixed `system_job` actor INTERNALLY rather than via a first-arg
-                   # actor (system_job), so they are NOT grandfathered: built-in
-                   # seeding (`ensure_builtins/0` and the read paths that trigger it,
-                   # `list_trees/0` / `security_category_map/1`) already journals every
-                   # write under a fixed `system_job` actor, and the per-table guard
-                   # trigger is the authoritative runtime guarantee. Only the stage-2
-                   # assignment writers (the `security_category_assignments` table is
-                   # not yet armed) remain here, so Classifications is not yet a fully
-                   # converted context.
-                   {Portfolixir.Classifications, :assign_security, 3},
-                   {Portfolixir.Classifications, :assign_securities, 3},
-                   {Portfolixir.Classifications, :unassign_security, 2},
-                   {Portfolixir.Classifications, :unassign_securities, 2}
-                 ])
+  # The leaf-first ADR-0017 rollout is COMPLETE: every context that writes
+  # financial data (Catalog/Fx, Portfolios, Ledger, Classifications) is converted
+  # — its public writers are actor-first (or, for built-in tree seeding, journal
+  # internally under a fixed `system_job` actor) and its tables are guard-armed.
+  # So the grandfather list of "not-yet-actor-first writers" is now empty; a new
+  # write path that forgets the actor is rejected by the per-table guard trigger
+  # at runtime and, where AST-detectable, by this gate. The list stays here
+  # (empty) so a future context's transitional writers can be parked deliberately.
+  @grandfathered MapSet.new([])
 
   # Journaled tables currently guard-armed. Grows as contexts convert. `buckets`
   # is the root tag table of the born-actor-first Buckets context (ADR-0018); its
@@ -91,7 +68,8 @@ defmodule Portfolixir.WriteActorTest do
                   "securities_accounts",
                   "transactions",
                   "classifications",
-                  "classification_categories"
+                  "classification_categories",
+                  "security_category_assignments"
                 ])
 
   # `Repo.transaction` is deliberately NOT a write marker: a read-only

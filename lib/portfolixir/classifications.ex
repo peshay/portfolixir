@@ -279,35 +279,74 @@ defmodule Portfolixir.Classifications do
   Assigns a security to one category of a custom classification, replacing any
   existing assignment for that `(security, classification)` pair.
   """
-  def assign_security(security_id, classification_id, category_id) do
+  def assign_security(%Actor{} = actor, security_id, classification_id, category_id) do
     with {:ok, classification} <- fetch_classification_by_id(classification_id),
          :ok <- ensure_custom(classification),
          :ok <- ensure_category_in_classification(category_id, classification_id) do
-      %Assignment{}
-      |> Assignment.changeset(%{
+      upsert_assignment(actor, security_id, classification_id, category_id)
+    end
+  end
+
+  # One journaled upsert of a `(security, classification)` assignment. A new pair
+  # journals a `:create`; reassigning an existing pair to another category
+  # journals an `:update` with the prior assignment as `before` (FR-28, 2(a):
+  # one entry per affected security, including in the bulk path).
+  defp upsert_assignment(actor, security_id, classification_id, category_id) do
+    existing = get_assignment(security_id, classification_id)
+    operation = if existing, do: :update, else: :create
+
+    Multi.new()
+    |> Multi.insert(
+      :assignment,
+      Assignment.changeset(%Assignment{}, %{
         security_id: security_id,
         classification_id: classification_id,
         category_id: category_id
-      })
-      |> Repo.insert(
-        on_conflict: {:replace, [:category_id, :updated_at]},
-        conflict_target: [:security_id, :classification_id]
-      )
-    end
+      }),
+      on_conflict: {:replace, [:category_id, :updated_at]},
+      conflict_target: [:security_id, :classification_id]
+    )
+    |> Journal.record(actor,
+      resource_type: "security_category_assignment",
+      operation: operation,
+      source: :assignment,
+      before: existing
+    )
+    |> Repo.transaction()
+    |> assignment_result()
   end
+
+  defp delete_assignment(actor, %Assignment{} = assignment) do
+    Multi.new()
+    |> Multi.delete(:assignment, assignment)
+    |> Journal.record(actor,
+      resource_type: "security_category_assignment",
+      operation: :delete,
+      source: :assignment,
+      before: assignment
+    )
+    |> Repo.transaction()
+    |> assignment_result()
+  end
+
+  defp assignment_result({:ok, %{assignment: assignment}}), do: {:ok, assignment}
+
+  defp assignment_result({:error, :assignment, %Ecto.Changeset{} = changeset, _}),
+    do: {:error, changeset}
 
   @doc "Returns the stored assignment for a `(security, classification)` pair, or nil."
   def get_assignment(security_id, classification_id) do
     Repo.get_by(Assignment, security_id: security_id, classification_id: classification_id)
   end
 
-  def unassign_security(security_id, classification_id) do
-    {count, _} =
-      Assignment
-      |> where([a], a.security_id == ^security_id and a.classification_id == ^classification_id)
-      |> Repo.delete_all()
+  def unassign_security(%Actor{} = actor, security_id, classification_id) do
+    case get_assignment(security_id, classification_id) do
+      nil ->
+        {:ok, 0}
 
-    {:ok, count}
+      %Assignment{} = assignment ->
+        with {:ok, _} <- delete_assignment(actor, assignment), do: {:ok, 1}
+    end
   end
 
   @doc """
@@ -315,44 +354,49 @@ defmodule Portfolixir.Classifications do
   statement, replacing any existing assignment for each `(security, classification)`
   pair. Returns `{:ok, count}` or `{:error, reason}`.
   """
-  def assign_securities(security_ids, classification_id, category_id)
+  def assign_securities(%Actor{} = actor, security_ids, classification_id, category_id)
       when is_list(security_ids) do
     with {:ok, classification} <- fetch_classification_by_id(classification_id),
          :ok <- ensure_custom(classification),
          :ok <- ensure_category_in_classification(category_id, classification_id) do
-      now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+      ids = Enum.uniq(security_ids)
 
-      entries =
-        security_ids
-        |> Enum.uniq()
-        |> Enum.map(fn security_id ->
-          %{
-            security_id: security_id,
-            classification_id: classification_id,
-            category_id: category_id,
-            inserted_at: now,
-            updated_at: now
-          }
+      # 2(a): one journal entry per affected security, all in one transaction
+      # (all-or-nothing), instead of a single un-attributable bulk insert_all.
+      Repo.transaction(fn ->
+        Enum.each(ids, fn security_id ->
+          case upsert_assignment(actor, security_id, classification_id, category_id) do
+            {:ok, _} -> :ok
+            {:error, reason} -> Repo.rollback(reason)
+          end
         end)
 
-      {count, _} =
-        Repo.insert_all(Assignment, entries,
-          on_conflict: {:replace, [:category_id, :updated_at]},
-          conflict_target: [:security_id, :classification_id]
-        )
-
-      {:ok, count}
+        length(ids)
+      end)
     end
   end
 
   @doc "Removes the given securities' assignments from a classification."
-  def unassign_securities(security_ids, classification_id) when is_list(security_ids) do
-    {count, _} =
-      Assignment
-      |> where([a], a.classification_id == ^classification_id and a.security_id in ^security_ids)
-      |> Repo.delete_all()
+  def unassign_securities(%Actor{} = actor, security_ids, classification_id)
+      when is_list(security_ids) do
+    Repo.transaction(fn ->
+      assignments =
+        Assignment
+        |> where(
+          [a],
+          a.classification_id == ^classification_id and a.security_id in ^security_ids
+        )
+        |> Repo.all()
 
-    {:ok, count}
+      Enum.each(assignments, fn assignment ->
+        case delete_assignment(actor, assignment) do
+          {:ok, _} -> :ok
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+
+      length(assignments)
+    end)
   end
 
   # -- asset-class reclassification -----------------------------------------

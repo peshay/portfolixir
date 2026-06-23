@@ -69,7 +69,13 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         color: "#2563eb"
       })
 
-    {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        core.id
+      )
 
     {:ok, _} =
       Targets.set_targets(portfolio.id, classification.id, [
@@ -174,7 +180,13 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         color: "#2563eb"
       })
 
-    {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        core.id
+      )
 
     {:ok, _} =
       Targets.set_targets(portfolio.id, classification.id, [
@@ -230,7 +242,13 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, _} =
       Quotes.upsert_many(second.id, [%{date: Date.utc_today(), close: "50", source: "manual"}])
 
-    {:ok, _} = Classifications.assign_security(second.id, world.classification.id, sub.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        second.id,
+        world.classification.id,
+        sub.id
+      )
 
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
@@ -1090,7 +1108,13 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         color: "#2563eb"
       })
 
-    {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        core.id
+      )
 
     {:ok, scoped_view} = Buckets.create_view(Actor.owner_ui(), %{name: "Strategie"})
 

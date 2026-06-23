@@ -112,7 +112,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
          {:ok, category_id} <- parse_id(Map.get(params, "category_id")) do
       previous = Classifications.get_assignment(security_id, cid)
 
-      case Classifications.assign_security(security_id, cid, category_id) do
+      case Classifications.assign_security(conn.assigns.actor, security_id, cid, category_id) do
         {:ok, assignment} ->
           json(conn, %{data: assignment_result(assignment, previous)})
 
@@ -128,7 +128,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     with {:ok, cid} <- parse_id(classification_id),
          {:ok, category_id} <- parse_id(Map.get(params, "category_id")),
          {:ok, security_ids} <- parse_ids(Map.get(params, "security_ids")) do
-      case Classifications.assign_securities(security_ids, cid, category_id) do
+      case Classifications.assign_securities(conn.assigns.actor, security_ids, cid, category_id) do
         {:ok, count} ->
           json(conn, %{
             data: %{assigned: count, category_id: category_id, security_ids: security_ids}
@@ -161,7 +161,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   def unassign(conn, %{"classification_id" => classification_id, "security_id" => security_id}) do
     with {:ok, cid} <- parse_id(classification_id),
          {:ok, sid} <- parse_id(security_id) do
-      {:ok, count} = Classifications.unassign_security(sid, cid)
+      {:ok, count} = Classifications.unassign_security(conn.assigns.actor, sid, cid)
       json(conn, %{data: %{unassigned: count}})
     else
       :error -> not_found(conn)
