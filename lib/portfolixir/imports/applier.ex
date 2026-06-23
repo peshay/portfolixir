@@ -113,7 +113,8 @@ defmodule Portfolixir.Imports.Applier do
           securities_by_name: load_securities_by_name(),
           cash_by_name: cash_by_pp_name,
           depot_by_name: depot_by_pp_name,
-          result: result
+          result: result,
+          existing_dedup_keys: load_existing_dedup_keys(portfolio_id)
         }
 
         case reduce_entries(flat_entries, state) do
@@ -146,7 +147,8 @@ defmodule Portfolixir.Imports.Applier do
         securities_by_name: load_securities_by_name(),
         cash_by_name: load_cash_by_name(portfolio_id),
         depot_by_name: load_depots_by_name(portfolio_id),
-        result: %Result{}
+        result: %Result{},
+        existing_dedup_keys: load_existing_dedup_keys(portfolio_id)
       }
 
       case reduce_entries(flat_entries, state) do
@@ -625,7 +627,19 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp insert_transaction(entry, attrs, state) do
-    if hash_already_imported?(attrs.import_hash) do
+    key = dedup_key(attrs)
+
+    # Two-layer idempotency (#533): the stored content `import_hash` skips exact
+    # re-inserts (and exact within-file duplicates — `hash_already_imported?`
+    # sees uncommitted inserts in this transaction). On top of that, a stable,
+    # formatting-tolerant key over the *resolved* DB identity (portfolio,
+    # security/account ids, normalized decimals) skips a re-import whose only
+    # difference is PP-export drift (decimal precision, or a security rename when
+    # matched by ISIN). The key set is a PRE-import snapshot and is deliberately
+    # NOT extended during the import: `time` is not persisted on a transaction, so
+    # two legitimate same-day/same-amount bookings (distinct only by time) must
+    # not collapse — within-file de-duplication is the hash's job, not this key's.
+    if hash_already_imported?(attrs.import_hash) or MapSet.member?(state.existing_dedup_keys, key) do
       {:ok, bump_result(state, :skipped_duplicates)}
     else
       changeset =
@@ -676,6 +690,50 @@ defmodule Portfolixir.Imports.Applier do
 
   defp hash_already_imported?(hash) when is_binary(hash) do
     Repo.exists?(from(t in Transaction, where: t.import_hash == ^hash))
+  end
+
+  # The portfolio's existing bookings as a set of stable dedup keys (#533). Loaded
+  # once per import so a re-import can skip a booking that already exists even when
+  # the exact content `import_hash` drifted (PP-export formatting/precision).
+  defp load_existing_dedup_keys(portfolio_id) do
+    from(t in Transaction, where: t.portfolio_id == ^portfolio_id)
+    |> Repo.all()
+    |> Enum.map(&dedup_key/1)
+    |> MapSet.new()
+  end
+
+  # A formatting-tolerant identity over the *resolved* DB fields: same portfolio,
+  # security/account ids, kind, date, and Decimal-normalized amounts. Computed
+  # identically from import `attrs` and from a stored `%Transaction{}`, so equal
+  # economic bookings collapse to the same key regardless of how PP serialized
+  # the numbers. `Map.get/2` tolerates the kind-specific attrs that omit fields.
+  defp dedup_key(record) do
+    {
+      Map.get(record, :portfolio_id),
+      Map.get(record, :type),
+      Map.get(record, :date),
+      Map.get(record, :security_id),
+      Map.get(record, :securities_account_id),
+      Map.get(record, :counter_securities_account_id),
+      Map.get(record, :cash_account_id),
+      Map.get(record, :counter_cash_account_id),
+      Map.get(record, :currency_code),
+      # Round to each column's stored NUMERIC scale (quantity 12, money 6) BEFORE
+      # normalizing, so a full-precision incoming entry collapses onto the value
+      # Postgres actually persisted — otherwise a price/quantity with more places
+      # than the column holds would round on storage and never match its re-import.
+      norm_decimal(Map.get(record, :quantity), 12),
+      norm_decimal(Map.get(record, :price), 6),
+      norm_decimal(Map.get(record, :gross_amount), 6),
+      norm_decimal(Map.get(record, :fees), 6),
+      norm_decimal(Map.get(record, :taxes), 6)
+    }
+  end
+
+  defp norm_decimal(nil, _scale), do: nil
+
+  defp norm_decimal(%Decimal{} = d, scale) do
+    d |> Decimal.round(scale) |> Decimal.normalize() |> Decimal.to_string(:normal)
   end
 
   # Increment one counter field on the Result struct inside `state`.

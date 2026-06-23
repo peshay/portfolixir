@@ -479,6 +479,201 @@ defmodule Portfolixir.Imports.ApplierTest do
     end
   end
 
+  # User story (#533):
+  # As a maintainer who edits and re-exports a Portfolio Performance file,
+  # I want a re-import of the same bookings to be skipped even when PP changed
+  # their formatting (decimal precision, a time field, a renamed but same-ISIN
+  # security), so that minor PP edits do not silently duplicate hundreds of rows.
+  describe "apply/2 stable-key dedup (#533)" do
+    alias Portfolixir.Imports.Entry
+    alias Portfolixir.Imports.Preview
+
+    test "skips a re-import whose only difference is PP-export formatting drift" do
+      portfolio = setup_portfolio()
+
+      ref = %{
+        name: "Apple Inc.",
+        isin: "US0378331005",
+        wkn: "865985",
+        ticker: "AAPL",
+        currency: "EUR"
+      }
+
+      buy = fn gross, qty, price, time, name ->
+        %Preview{
+          format: :json,
+          entries: [
+            %Entry{
+              source_row: 1,
+              kind: "buy",
+              date: ~D[2024-04-01],
+              time: time,
+              currency_code: "EUR",
+              gross_amount: gross,
+              fees: Decimal.new("0"),
+              taxes: Decimal.new("0"),
+              quantity: qty,
+              price: price,
+              security: %{ref | name: name},
+              pp_portfolio_name: "Test-Depot",
+              pp_account_name: "Test-Cash"
+            }
+          ]
+        }
+      end
+
+      {:ok, r1} =
+        Imports.apply(
+          buy.(
+            Decimal.new("1500.00"),
+            Decimal.new("10"),
+            Decimal.new("150.00"),
+            ~T[10:00:00],
+            "Apple Inc."
+          ),
+          %{portfolio_id: portfolio.id}
+        )
+
+      assert r1.created_transactions == 1
+
+      # Same economic booking, re-exported with drifted decimals, a different
+      # time, and a renamed (but same-ISIN) security: the content import_hash
+      # differs, yet the resolved-identity key matches → skipped, not duplicated.
+      {:ok, r2} =
+        Imports.apply(
+          buy.(
+            Decimal.new("1500"),
+            Decimal.new("10.0"),
+            Decimal.new("150.000"),
+            ~T[11:11:11],
+            "Apple Inc"
+          ),
+          %{portfolio_id: portfolio.id}
+        )
+
+      assert r2.created_transactions == 0
+      assert r2.skipped_duplicates == 1
+      assert Portfolixir.Ledger.count_transactions() == 1
+    end
+
+    test "skips a re-import whose high-precision decimals round to the same stored value" do
+      portfolio = setup_portfolio()
+
+      ref = %{
+        name: "Apple Inc.",
+        isin: "US0378331005",
+        wkn: "865985",
+        ticker: "AAPL",
+        currency: "EUR"
+      }
+
+      buy = fn price ->
+        %Preview{
+          format: :json,
+          entries: [
+            %Entry{
+              source_row: 1,
+              kind: "buy",
+              date: ~D[2024-04-01],
+              currency_code: "EUR",
+              gross_amount: Decimal.new("1500.00"),
+              fees: Decimal.new("0"),
+              taxes: Decimal.new("0"),
+              quantity: Decimal.new("10"),
+              price: price,
+              security: ref,
+              pp_portfolio_name: "Test-Depot",
+              pp_account_name: "Test-Cash"
+            }
+          ]
+        }
+      end
+
+      # The price column holds scale 6; an 8-place price is rounded on insert.
+      {:ok, _} = Imports.apply(buy.(Decimal.new("150.12345678")), %{portfolio_id: portfolio.id})
+
+      # A re-export that differs only beyond the 6th decimal place rounds to the
+      # same stored value → skipped, not duplicated (the real-file failure mode).
+      {:ok, r2} = Imports.apply(buy.(Decimal.new("150.12345699")), %{portfolio_id: portfolio.id})
+
+      assert r2.created_transactions == 0
+      assert r2.skipped_duplicates == 1
+    end
+
+    test "still imports a genuinely different booking (no false dedup)" do
+      portfolio = setup_portfolio()
+
+      ref = %{
+        name: "Apple Inc.",
+        isin: "US0378331005",
+        wkn: "865985",
+        ticker: "AAPL",
+        currency: "EUR"
+      }
+
+      buy = fn qty ->
+        %Preview{
+          format: :json,
+          entries: [
+            %Entry{
+              source_row: 1,
+              kind: "buy",
+              date: ~D[2024-04-01],
+              currency_code: "EUR",
+              gross_amount: Decimal.new("1500.00"),
+              fees: Decimal.new("0"),
+              taxes: Decimal.new("0"),
+              quantity: qty,
+              price: Decimal.new("150.00"),
+              security: ref,
+              pp_portfolio_name: "Test-Depot",
+              pp_account_name: "Test-Cash"
+            }
+          ]
+        }
+      end
+
+      {:ok, _} = Imports.apply(buy.(Decimal.new("10")), %{portfolio_id: portfolio.id})
+      # A different quantity is a different booking — not a duplicate.
+      {:ok, r2} = Imports.apply(buy.(Decimal.new("11")), %{portfolio_id: portfolio.id})
+
+      assert r2.created_transactions == 1
+      assert r2.skipped_duplicates == 0
+    end
+
+    test "two same-day, same-amount deposits differing only by time are both kept" do
+      portfolio = setup_portfolio()
+
+      deposit = fn time ->
+        %Entry{
+          source_row: 1,
+          kind: "deposit",
+          date: ~D[2024-04-01],
+          time: time,
+          currency_code: "EUR",
+          gross_amount: Decimal.new("500.00"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          pp_account_name: "Giro"
+        }
+      end
+
+      # `time` is not persisted on a transaction, so it cannot be part of the
+      # stable key. These two are legitimately distinct bookings; the key set is
+      # a pre-import snapshot (not extended during the import), so neither is
+      # falsely dropped.
+      preview = %Preview{
+        format: :json,
+        entries: [deposit.(~T[09:00:00]), deposit.(~T[14:00:00])]
+      }
+
+      {:ok, r} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+      assert r.created_transactions == 2
+      assert r.skipped_duplicates == 0
+    end
+  end
+
   describe "apply/2 rollback on real failure" do
     test "rolls back the entire transaction when one entry's changeset rejects" do
       portfolio = setup_portfolio()
