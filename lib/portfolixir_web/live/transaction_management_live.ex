@@ -284,15 +284,26 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   </tr>
                 </thead>
                 <tbody>
-                  <%= for transaction <- @filtered_transactions do %>
-                    <tr>
-                      <td><%= transaction.date %></td>
-                      <td><%= tx_type_label(transaction.type) %></td>
-                      <td><%= transaction.security && transaction.security.name %></td>
-                      <td><%= format_decimal(transaction.quantity) %></td>
-                      <td><%= format_decimal(transaction.price) %></td>
-                      <td><%= transaction.currency_code %></td>
+                  <%= for group <- grouped_by_month(@filtered_transactions) do %>
+                    <tr class="tx-group-head" data-month-group={group.id}>
+                      <th colspan="6" scope="colgroup">
+                        <span class="tx-group-month"><%= group.label %></span>
+                        <span class="tx-group-subtotal">
+                          <%= ngettext("%{count} transaction", "%{count} transactions", group.count,
+                            count: group.count) %> · <%= format_decimal(group.total) %>
+                        </span>
+                      </th>
                     </tr>
+                    <%= for transaction <- group.transactions do %>
+                      <tr>
+                        <td><%= transaction.date %></td>
+                        <td><%= tx_type_label(transaction.type) %></td>
+                        <td><%= transaction.security && transaction.security.name %></td>
+                        <td><%= format_decimal(transaction.quantity) %></td>
+                        <td><%= format_decimal(transaction.price) %></td>
+                        <td><%= transaction.currency_code %></td>
+                      </tr>
+                    <% end %>
                   <% end %>
                 </tbody>
               </table>
@@ -458,6 +469,34 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       |> String.downcase()
 
     needle == "" or String.contains?(haystack, needle)
+  end
+
+  # Section the (already date-desc) history into month chunks with a subtotal
+  # each (#414 follow-up). chunk_by works because the list is pre-sorted, so
+  # consecutive same-month rows are adjacent and order is preserved.
+  defp grouped_by_month(transactions) do
+    transactions
+    |> Enum.chunk_by(fn tx -> {tx.date.year, tx.date.month} end)
+    |> Enum.map(fn chunk ->
+      first = hd(chunk)
+
+      %{
+        id: month_group_id(first.date),
+        label: month_group_label(first.date),
+        transactions: chunk,
+        count: length(chunk),
+        total: sum_amount(chunk)
+      }
+    end)
+  end
+
+  defp month_group_id(date) do
+    "#{date.year}-#{date.month |> Integer.to_string() |> String.pad_leading(2, "0")}"
+  end
+
+  defp month_group_label(date) do
+    {:ok, first_of_month} = Date.new(date.year, date.month, 1)
+    Calendar.strftime(first_of_month, "%B %Y")
   end
 
   defp summarise(transactions) do

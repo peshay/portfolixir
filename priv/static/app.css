@@ -4087,6 +4087,19 @@ details[open] > .cat-summary::before {
 .transaction-summary .summary-type {
   font-variant-numeric: tabular-nums;
 }
+/* Month section headers in the grouped transaction list (issue 414 follow-up). */
+.tx-group-head th {
+  text-align: left;
+  background: var(--color-bg-muted);
+  font-weight: 650;
+  padding: var(--space-2) var(--space-3);
+}
+.tx-group-head .tx-group-subtotal {
+  margin-left: var(--space-2);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Income overview: per-year bar chart + top-contributors list (issue 415).
    No animation, so prefers-reduced-motion needs nothing extra (UX-DR5). */
