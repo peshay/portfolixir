@@ -33,6 +33,12 @@
   --color-text-soft: #8b7f9f;
   --color-text-subtle: #94a0b4;
   --color-chart-surface: #ffffff;
+  /* Constant-white tokens (issue 449): text on the accent fill and the plate
+     behind real image logos stay white in every theme by design. */
+  --color-on-accent: #ffffff;
+  --color-logo-plate: #ffffff;
+  /* Soft warning tint behind warning alerts (issue 449). */
+  --color-warning-soft: #fffbeb;
   --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
   --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
@@ -652,7 +658,7 @@ textarea {
 }
 
 .theme-choice.is-active {
-  color: #ffffff;
+  color: var(--color-on-accent);
   background: var(--color-accent);
 }
 
@@ -730,7 +736,7 @@ textarea {
 }
 
 .locale-link.is-active {
-  color: #ffffff;
+  color: var(--color-on-accent);
   background: var(--color-accent);
 }
 
@@ -1879,7 +1885,7 @@ li + li {
 
 .alert-warning {
   border: 1px solid var(--color-warning);
-  background: #fffbeb;
+  background: var(--color-warning-soft);
   color: var(--color-warning);
   padding: 10px 12px;
   border-radius: var(--radius-md);
@@ -2115,7 +2121,7 @@ li + li {
 }
 
 .row-context-menu__item--danger {
-  color: #b91c1c;
+  color: var(--color-danger);
 }
 
 @media (max-width: 720px) {
@@ -2163,7 +2169,7 @@ li + li {
    behind real image logos in both themes; initial-letter fallbacks keep
    their theme-aware colour. */
 img.security-logo {
-  background: #ffffff;
+  background: var(--color-logo-plate);
   padding: 2px;
 }
 
@@ -2198,7 +2204,7 @@ img.security-logo {
 }
 
 .security-logo--flag {
-  background: #ffffff;
+  background: var(--color-logo-plate);
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   line-height: 1;
 }
@@ -3026,11 +3032,11 @@ img.security-logo {
 }
 
 .chart-tooltip__tx--buy {
-  color: #047857;
+  color: var(--color-positive);
 }
 
 .chart-tooltip__tx--sell {
-  color: #b91c1c;
+  color: var(--color-danger);
 }
 
 .security-chart text {
@@ -3056,11 +3062,11 @@ img.security-logo {
 }
 
 .security-chart .tx-buy {
-  fill: #10b981;
+  fill: var(--color-positive);
 }
 
 .security-chart .tx-sell {
-  fill: #ef4444;
+  fill: var(--color-danger);
 }
 
 .security-chart .no-quotes text {
@@ -3068,11 +3074,11 @@ img.security-logo {
 }
 
 .decimal-positive {
-  color: #047857;
+  color: var(--color-positive);
 }
 
 .decimal-negative {
-  color: #b91c1c;
+  color: var(--color-danger);
 }
 
 .decimal-neutral {
@@ -3088,9 +3094,9 @@ img.security-logo {
   align-content: center;
   justify-items: center;
   text-align: center;
-  border: 2px dashed var(--color-border, #d4d4d8);
+  border: 2px dashed var(--color-border);
   border-radius: var(--radius-lg, 0.75rem);
-  background: var(--color-bg-elevated, #ffffff);
+  background: var(--color-bg-elevated);
   padding: 2.5rem 1.5rem;
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
@@ -3103,7 +3109,7 @@ img.security-logo {
 #pp-import-drop.is-dragging .import-drop-zone,
 .import-drop-zone.is-dragging {
   border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent-soft) 58%, var(--color-bg-elevated, #ffffff));
+  background: color-mix(in srgb, var(--color-accent-soft) 58%, var(--color-bg-elevated));
   transform: translateY(-1px);
 }
 
@@ -3137,8 +3143,8 @@ img.security-logo {
 }
 
 .import-stat-card {
-  background: var(--color-bg-elevated, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 0.75rem);
   padding: 0.9rem 1rem;
   display: grid;
@@ -3159,7 +3165,7 @@ img.security-logo {
 }
 
 .import-stat-card.warning .value {
-  color: #b91c1c;
+  color: var(--color-danger);
 }
 
 /* === Imports: kind-count chips === */
@@ -3236,8 +3242,8 @@ img.security-logo {
   gap: 0.75rem;
   align-items: center;
   padding: 0.6rem 0.85rem;
-  background: var(--color-bg-elevated, #ffffff);
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 0.5rem);
 }
 
@@ -3246,7 +3252,7 @@ img.security-logo {
 }
 
 .mapping-row:hover {
-  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border, #e5e7eb));
+  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
 }
 
 .mapping-row .source {
@@ -3288,7 +3294,7 @@ img.security-logo {
 .import-done .success-icon {
   width: 64px;
   height: 64px;
-  color: #047857;
+  color: var(--color-positive);
   background: rgba(4, 120, 87, 0.12);
   border-radius: 999px;
   padding: 0.85rem;
@@ -3369,7 +3375,7 @@ img.security-logo {
   opacity: 0.95;
 }
 .dnd-dropzone.is-dropping {
-  border-color: var(--color-accent-violet, #7c3aed);
+  border-color: var(--color-accent-violet);
   background: var(--color-accent-soft, rgba(124, 58, 237, 0.08));
 }
 .category-head {
@@ -3389,7 +3395,7 @@ img.security-logo {
 .cat-count {
   margin-left: auto;
   font-size: 0.75rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .cat-securities {
   list-style: none;
@@ -3414,7 +3420,7 @@ img.security-logo {
   cursor: default;
 }
 .dnd-chip small {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .chip-remove {
   border: none;
@@ -3422,7 +3428,7 @@ img.security-logo {
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
-  color: var(--color-danger, #dc2626);
+  color: var(--color-danger);
   padding: 0;
 }
 .securities-palette {
@@ -3438,7 +3444,7 @@ img.security-logo {
 }
 .hint {
   font-size: 0.8rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   margin: 0.2rem 0 0;
 }
 
@@ -3458,11 +3464,11 @@ img.security-logo {
   font-size: 1.1rem;
   line-height: 1;
   text-decoration: none;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .nav-add:hover {
   background: var(--color-accent-soft, rgba(124, 58, 237, 0.12));
-  color: var(--color-accent, #7c3aed);
+  color: var(--color-accent);
 }
 .classifications-detail .detail-head {
   display: flex;
@@ -3490,7 +3496,7 @@ img.security-logo {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .cat-node.is-dropping {
-  border-color: var(--color-accent-violet, #7c3aed);
+  border-color: var(--color-accent-violet);
   background: var(--color-accent-soft, rgba(124, 58, 237, 0.08));
 }
 .cat-summary {
@@ -3508,7 +3514,7 @@ img.security-logo {
 .cat-summary::before {
   content: "▸";
   font-size: 0.7rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   transition: transform 0.15s ease;
 }
 details[open] > .cat-summary::before {
@@ -3550,8 +3556,8 @@ details[open] > .cat-summary::before {
   font-size: 0.85rem;
 }
 .button-danger {
-  color: var(--color-danger, #dc2626);
-  border-color: var(--color-danger, #dc2626);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
   background: transparent;
 }
 
@@ -3585,7 +3591,7 @@ details[open] > .cat-summary::before {
 }
 .dnd-row.is-selected {
   background: var(--color-accent-soft, rgba(124, 58, 237, 0.16));
-  box-shadow: inset 3px 0 0 var(--color-accent-violet, #7c3aed);
+  box-shadow: inset 3px 0 0 var(--color-accent-violet);
 }
 .dnd-row .row-name {
   flex: 1 1 auto;
@@ -3596,7 +3602,7 @@ details[open] > .cat-summary::before {
 }
 .dnd-row .row-ccy {
   flex: 0 0 auto;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .select-toolbar {
   position: sticky;
@@ -3672,10 +3678,10 @@ details[open] > .cat-summary::before {
   max-width: 18rem;
 }
 .security-classification .sc-value {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .detail-tab-panel--classifications .detail-tab-hint {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
@@ -3683,7 +3689,7 @@ details[open] > .cat-summary::before {
 .cat-description {
   margin: 0.1rem 0 0.35rem;
   font-size: 0.8rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .category-form__description {
   flex: 1 1 100%;
@@ -3701,7 +3707,7 @@ details[open] > .cat-summary::before {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.78rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .recolor-label input[type="color"] {
   width: 1.6rem;
@@ -3752,7 +3758,7 @@ details[open] > .cat-summary::before {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .overview-edit-field input,
 .overview-edit-field select {
@@ -3787,7 +3793,7 @@ details[open] > .cat-summary::before {
 .cat-description-inline {
   font-weight: 400;
   font-size: 0.74rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3795,7 +3801,7 @@ details[open] > .cat-summary::before {
 .cat-count {
   margin-left: 0;
   font-size: 0.72rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .cat-actions {
   display: inline-flex;
@@ -3810,7 +3816,7 @@ details[open] > .cat-summary::before {
   line-height: 1;
   padding: 0.12rem 0.3rem;
   border-radius: 0.3rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .icon-mini:hover {
   background: var(--color-surface-hover, rgba(127, 127, 127, 0.14));
@@ -3887,7 +3893,7 @@ details[open] > .cat-summary::before {
   flex: 0 0 auto;
   font-variant: small-caps;
   letter-spacing: 0.02em;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 
 /* Portfolio overview ----------------------------------------------------- */
@@ -3904,16 +3910,16 @@ details[open] > .cat-summary::before {
 }
 .period-buttons .button-mini {
   padding: 0.25rem 0.6rem;
-  border: 1px solid var(--color-border, #d1d5db);
+  border: 1px solid var(--color-border);
   border-radius: 0.4rem;
   background: transparent;
   cursor: pointer;
   font-size: 0.8rem;
 }
 .period-buttons .button-mini.is-active {
-  background: var(--color-accent-violet, #7c3aed);
-  border-color: var(--color-accent-violet, #7c3aed);
-  color: #fff;
+  background: var(--color-accent-violet);
+  border-color: var(--color-accent-violet);
+  color: var(--color-on-accent);
 }
 .perf-chart {
   width: 100%;
@@ -3921,11 +3927,11 @@ details[open] > .cat-summary::before {
   display: block;
 }
 .perf-line {
-  stroke: var(--color-accent, #7c3aed);
+  stroke: var(--color-accent);
   stroke-width: 2;
 }
 .perf-zeroline {
-  stroke: var(--color-border, #d1d5db);
+  stroke: var(--color-border);
   stroke-dasharray: 4 4;
 }
 .donut-wrap {
@@ -3953,7 +3959,7 @@ details[open] > .cat-summary::before {
   fill: var(--color-surface-hover, rgba(127, 127, 127, 0.12));
 }
 .sunburst-seg {
-  stroke: var(--color-bg, #0b0e14);
+  stroke: var(--color-bg);
   stroke-width: 0.5;
   cursor: pointer;
 }
@@ -3970,7 +3976,7 @@ details[open] > .cat-summary::before {
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 6px);
-  background: var(--color-bg-elevated, #ffffff);
+  background: var(--color-bg-elevated);
   color: var(--color-text);
   font-size: 0.78rem;
   line-height: 1.35;
@@ -4014,7 +4020,7 @@ details[open] > .cat-summary::before {
   margin-top: 0.15rem;
 }
 .drift-table tr.is-child td:first-child {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .drift-table td .cat-swatch {
   display: inline-block;
@@ -4038,7 +4044,7 @@ details[open] > .cat-summary::before {
   gap: 0.5rem;
 }
 .donut-legend .legend-value {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .drift-table,
 .cash-table {
@@ -4055,7 +4061,7 @@ details[open] > .cat-summary::before {
   border-bottom: 1px solid var(--color-border-subtle, rgba(127, 127, 127, 0.16));
 }
 .drift-table tr.is-muted td {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 .target-sum {
   margin: 0.75rem 0 0;
@@ -4080,7 +4086,7 @@ details[open] > .cat-summary::before {
   margin-top: 1rem;
 }
 
-/* ===== Drift table: tabular numeric columns + negative-drift styling (#427) ===== */
+/* ===== Drift table: tabular numeric columns + negative-drift styling (issue 427) ===== */
 /* Numeric cells in the drift/allocation table are right-aligned with tabular
    figures so digit places, sign characters and decimal separators align
    vertically across all rows.  The .is-negative utility class (defined globally
@@ -4092,7 +4098,7 @@ details[open] > .cat-summary::before {
   font-variant-numeric: tabular-nums;
 }
 
-/* ===== Section skeletons (issue #402 — stable layout on async reload) ===== */
+/* ===== Section skeletons (issue 402 — stable layout on async reload) ===== */
 /* Reserve the same vertical space as the loaded content so async results
    landing later do not cause a layout shift. The shimmer animation signals
    that data is on its way without adding text that competes with the real
