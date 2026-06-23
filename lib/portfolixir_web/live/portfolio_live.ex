@@ -50,7 +50,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         {:ok, assign(socket, :portfolio, nil)}
 
       portfolio ->
-        Classifications.ensure_builtins()
+        # Built-in trees are seeded at startup (#529), not on this read path.
         classifications = Classifications.list_classifications()
 
         socket =

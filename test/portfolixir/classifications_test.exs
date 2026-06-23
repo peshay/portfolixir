@@ -36,6 +36,8 @@ defmodule Portfolixir.ClassificationsTest do
   end
 
   test "seeds built-in trees and derives assignments from security data" do
+    Classifications.ensure_builtins()
+
     security = security!(%{currency_code: "USD", asset_class: "equity"})
 
     trees = Classifications.list_trees()
@@ -238,6 +240,8 @@ defmodule Portfolixir.ClassificationsTest do
   end
 
   test "seeds asset-class categories with distinct default colors" do
+    Classifications.ensure_builtins()
+
     asset = Classifications.list_trees() |> tree("asset_class")
 
     equity = category(asset, "equity")
@@ -248,6 +252,8 @@ defmodule Portfolixir.ClassificationsTest do
   end
 
   test "recolors a built-in category without unlocking its structure" do
+    Classifications.ensure_builtins()
+
     asset = Classifications.list_trees() |> tree("asset_class")
     equity = category(asset, "equity")
 
@@ -332,6 +338,8 @@ defmodule Portfolixir.ClassificationsTest do
   end
 
   test "seeds the certificate/leverage groups as a hierarchy" do
+    Classifications.ensure_builtins()
+
     asset = Classifications.list_trees() |> tree("asset_class")
 
     leverage = category(asset, "leverage_products")

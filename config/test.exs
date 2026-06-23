@@ -42,6 +42,11 @@ config :portfolixir, Portfolixir.Fx.RateSync,
   interval_ms: 60_000,
   provider: Portfolixir.Fx.RateSync.Fake
 
+# Each test seeds the built-in classification trees within its own sandbox
+# transaction when it needs them; a global boot seed would pollute tests that
+# assert a clean slate (#529).
+config :portfolixir, :seed_builtins_on_boot, false
+
 # Logo discovery is gated off in tests so create_security/1 doesn't make
 # outbound HTTP calls. Tests that need it call LogoLookup.run/2 directly
 # with a Req plug stub.

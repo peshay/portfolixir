@@ -1018,6 +1018,8 @@ defmodule PortfolixirWeb.ApiV1Test do
   # so that securities can be organised like folders, alongside the locked
   # built-in asset-class and currency trees.
   test "lists built-in classifications and manages custom trees", %{conn: conn} do
+    Portfolixir.Classifications.ensure_builtins()
+
     {:ok, security} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Apple",

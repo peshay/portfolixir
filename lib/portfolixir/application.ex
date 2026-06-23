@@ -17,7 +17,15 @@ defmodule Portfolixir.Application do
     ]
 
     opts = [strategy: :one_for_one, name: Portfolixir.Supervisor]
-    Supervisor.start_link(children, opts)
+
+    with {:ok, pid} <- Supervisor.start_link(children, opts) do
+      # Built-in classification trees (asset-class, currency) are bootstrap data:
+      # seeded once at startup, after the Repo is up, rather than lazily on every
+      # read path (#529). Idempotent + config-gated (off in tests); see
+      # Classifications.seed_builtins_on_boot/0.
+      Portfolixir.Classifications.seed_builtins_on_boot()
+      {:ok, pid}
+    end
   end
 
   @impl true

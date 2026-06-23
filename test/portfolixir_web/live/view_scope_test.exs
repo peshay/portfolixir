@@ -12,6 +12,10 @@ defmodule PortfolixirWeb.ViewScopeTest do
   alias Portfolixir.Portfolios.Valuation
 
   defp world do
+    # Built-in trees are seeded at startup in prod (#529); seed them within the
+    # test sandbox so the view switcher / scoping surfaces resolve them.
+    Portfolixir.Classifications.ensure_builtins()
+
     {:ok, portfolio} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
         name: "Main",

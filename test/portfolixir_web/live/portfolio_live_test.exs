@@ -735,6 +735,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # - With a EUR/USD rate seeded, the warning is absent (the account is valued).
   test "surfaces unvalued foreign-currency cash accounts in data-quality section",
        %{conn: conn} do
+    Classifications.ensure_builtins()
+
     %{portfolio: portfolio} =
       WorldFixtures.base_world(name: "FX Test Portfolio", cash_name: "EUR Giro")
 
@@ -768,6 +770,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   end
 
   test "no unvalued-cash warning when EUR/USD rate is present", %{conn: conn} do
+    Classifications.ensure_builtins()
+
     %{portfolio: portfolio} =
       WorldFixtures.base_world(name: "FX OK Portfolio", cash_name: "EUR Giro")
 
