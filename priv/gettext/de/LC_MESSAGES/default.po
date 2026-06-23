@@ -45,7 +45,7 @@ msgstr "Lege ein Portfolio und verknüpfte Konten an, bevor du Transaktionen erf
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:200
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:224
-#: lib/portfolixir_web/live/transaction_management_live.ex:314
+#: lib/portfolixir_web/live/transaction_management_live.ex:325
 #, elixir-autogen
 msgid "Create a portfolio first"
 msgstr "Lege zuerst ein Portfolio an"
@@ -403,7 +403,7 @@ msgstr "Navigation umschalten"
 msgid "Transaction history"
 msgstr "Transaktionshistorie"
 
-#: lib/portfolixir_web/live/transaction_management_live.ex:356
+#: lib/portfolixir_web/live/transaction_management_live.ex:367
 #, elixir-autogen
 msgid "Transaction recorded"
 msgstr "Transaktion erfasst"
@@ -424,12 +424,12 @@ msgstr "Transaktionen"
 msgid "Type"
 msgstr "Typ"
 
-#: lib/portfolixir_web/live/transaction_management_live.ex:518
+#: lib/portfolixir_web/live/transaction_management_live.ex:557
 #, elixir-autogen
 msgid "Unknown depot"
 msgstr "Unbekanntes Depot"
 
-#: lib/portfolixir_web/live/transaction_management_live.ex:519
+#: lib/portfolixir_web/live/transaction_management_live.ex:558
 #, elixir-autogen
 msgid "Unknown security"
 msgstr "Unbekanntes Wertpapier"
@@ -1227,7 +1227,7 @@ msgstr "Ø Verkauf"
 
 #: lib/portfolixir_web/live/imports_live.ex:376
 #: lib/portfolixir_web/live/securities_live.ex:1285
-#: lib/portfolixir_web/live/transaction_management_live.ex:529
+#: lib/portfolixir_web/live/transaction_management_live.ex:568
 #, elixir-autogen, elixir-format
 msgid "Buy"
 msgstr "Kauf"
@@ -1404,7 +1404,7 @@ msgstr "Wertpapier-Detailansicht"
 
 #: lib/portfolixir_web/live/imports_live.ex:377
 #: lib/portfolixir_web/live/securities_live.ex:1286
-#: lib/portfolixir_web/live/transaction_management_live.ex:530
+#: lib/portfolixir_web/live/transaction_management_live.ex:569
 #, elixir-autogen, elixir-format
 msgid "Sell"
 msgstr "Verkauf"
@@ -3384,3 +3384,10 @@ msgstr "Gesamterträge pro Jahr"
 #, elixir-autogen, elixir-format
 msgid "net %{net}"
 msgstr "netto %{net}"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:292
+#, elixir-autogen, elixir-format
+msgid "%{count} transaction"
+msgid_plural "%{count} transactions"
+msgstr[0] "%{count} Transaktion"
+msgstr[1] "%{count} Transaktionen"
