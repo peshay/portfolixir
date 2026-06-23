@@ -212,10 +212,22 @@ first; arming no table, they cannot break existing writes.
   and the read paths that trigger it (`list_trees/0`, `security_category_map/1`)
   journal internally rather than via a first-arg actor, so Classifications is
   journaled but **not** in `@converted_contexts`.
-- **Next slice — Classifications stage 2:** arm `security_category_assignments`
-  (`assign_security`/`unassign_security` and the bulk `assign_securities`/
-  `unassign_securities` — the bulk paths journal **one entry per affected
-  security**, per the 2(a) decision).
+- **Slice 6 — Classifications stage 2 (landed):** `assign_security`/
+  `unassign_security` and the bulk `assign_securities`/`unassign_securities` are
+  actor-first and journaled; the `security_category_assignments` table is armed.
+  A `(security, classification)` upsert journals a `:create` for a new pair or an
+  `:update` (with the prior assignment as `before`) when reassigning to another
+  category. The bulk paths journal **one entry per affected security** (2(a)),
+  all in one transaction. `Classifications` joins `@converted_contexts`.
+
+### Rollout complete
+
+Every context that writes financial data — Catalog/Fx, Portfolios, Ledger,
+Classifications — is converted: its public writers are actor-first (or, for
+built-in tree seeding, journal internally under a fixed `system_job` actor) and
+its tables are guard-armed. The grandfather list is empty. The follow-up #529
+(seed built-in trees at startup instead of on read paths) is orthogonal to
+journaling and tracked separately.
 
 ## Consequences
 

@@ -1834,7 +1834,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
              "classification_id" => cid,
              "name" => name
            }),
-         {:ok, _} <- Classifications.assign_security(id, cid, category.id) do
+         {:ok, _} <- Classifications.assign_security(Actor.owner_ui(), id, cid, category.id) do
       {:noreply,
        socket
        |> assign(:detail_new_category_for, nil)
@@ -2653,13 +2653,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp apply_classification_change(security_id, classification_id, category_id)
        when category_id in [nil, ""] do
-    Classifications.unassign_security(security_id, classification_id)
+    Classifications.unassign_security(Actor.owner_ui(), security_id, classification_id)
   end
 
   defp apply_classification_change(security_id, classification_id, category_id) do
     case Integer.parse(category_id) do
-      {category, ""} -> Classifications.assign_security(security_id, classification_id, category)
-      _ -> {:error, :invalid}
+      {category, ""} ->
+        Classifications.assign_security(
+          Actor.owner_ui(),
+          security_id,
+          classification_id,
+          category
+        )
+
+      _ ->
+        {:error, :invalid}
     end
   end
 

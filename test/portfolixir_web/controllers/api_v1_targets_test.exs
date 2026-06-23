@@ -36,7 +36,14 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
       })
 
     security = create_security!(name: "Core Equity", ticker: "CORE", asset_class: "equity")
-    {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        core.id
+      )
 
     # Fund the cash account so the buy leaves it at zero: counting cash is 0, so
     # the allocation basis here is securities only (issue #335).

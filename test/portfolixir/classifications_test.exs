@@ -74,7 +74,12 @@ defmodule Portfolixir.ClassificationsTest do
              })
 
     assert {:error, :builtin_locked} =
-             Classifications.assign_security(security.id, asset.id, equity.id)
+             Classifications.assign_security(
+               Portfolixir.Actor.owner_ui(),
+               security.id,
+               asset.id,
+               equity.id
+             )
   end
 
   test "supports custom trees with categories and security assignments" do
@@ -98,18 +103,37 @@ defmodule Portfolixir.ClassificationsTest do
 
     assert core.color == "#7c3aed"
 
-    {:ok, _} = Classifications.assign_security(security.id, classification.id, core.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        core.id
+      )
 
     custom = Classifications.list_trees() |> tree(nil)
     assert %{security_id: security.id, category_id: core.id} in custom.assignments
 
     # Re-assigning replaces the single slot for this (security, classification).
-    {:ok, _} = Classifications.assign_security(security.id, classification.id, satellite.id)
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        satellite.id
+      )
+
     custom = Classifications.list_trees() |> tree(nil)
     assert [%{security_id: _, category_id: category_id}] = custom.assignments
     assert category_id == satellite.id
 
-    assert {:ok, 1} = Classifications.unassign_security(security.id, classification.id)
+    assert {:ok, 1} =
+             Classifications.unassign_security(
+               Portfolixir.Actor.owner_ui(),
+               security.id,
+               classification.id
+             )
+
     custom = Classifications.list_trees() |> tree(nil)
     assert custom.assignments == []
   end
@@ -126,7 +150,12 @@ defmodule Portfolixir.ClassificationsTest do
       })
 
     assert {:error, :category_mismatch} =
-             Classifications.assign_security(security.id, a.id, b_category.id)
+             Classifications.assign_security(
+               Portfolixir.Actor.owner_ui(),
+               security.id,
+               a.id,
+               b_category.id
+             )
   end
 
   test "assigns and unassigns many securities at once" do
@@ -152,7 +181,14 @@ defmodule Portfolixir.ClassificationsTest do
       })
 
     all_ids = [one.id, two.id, three.id]
-    assert {:ok, 3} = Classifications.assign_securities(all_ids, cid, core.id)
+
+    assert {:ok, 3} =
+             Classifications.assign_securities(
+               Portfolixir.Actor.owner_ui(),
+               all_ids,
+               cid,
+               core.id
+             )
 
     custom = Classifications.list_trees() |> tree(nil)
     assert length(custom.assignments) == 3
@@ -160,7 +196,14 @@ defmodule Portfolixir.ClassificationsTest do
 
     # Re-assigning the same pair moves it (upsert), it does not duplicate.
     pair = [one.id, two.id]
-    assert {:ok, 2} = Classifications.assign_securities(pair, cid, satellite.id)
+
+    assert {:ok, 2} =
+             Classifications.assign_securities(
+               Portfolixir.Actor.owner_ui(),
+               pair,
+               cid,
+               satellite.id
+             )
 
     custom = Classifications.list_trees() |> tree(nil)
     assert length(custom.assignments) == 3
@@ -168,7 +211,12 @@ defmodule Portfolixir.ClassificationsTest do
     assert by_security[one.id] == satellite.id
     assert by_security[three.id] == core.id
 
-    assert {:ok, 2} = Classifications.unassign_securities([one.id, three.id], cid)
+    assert {:ok, 2} =
+             Classifications.unassign_securities(
+               Portfolixir.Actor.owner_ui(),
+               [one.id, three.id],
+               cid
+             )
 
     custom = Classifications.list_trees() |> tree(nil)
     assert [%{security_id: security_id}] = custom.assignments
@@ -181,7 +229,12 @@ defmodule Portfolixir.ClassificationsTest do
     asset = Classifications.get_classification_by_key("asset_class")
 
     assert {:error, :builtin_locked} =
-             Classifications.assign_securities([security.id], asset.id, 0)
+             Classifications.assign_securities(
+               Portfolixir.Actor.owner_ui(),
+               [security.id],
+               asset.id,
+               0
+             )
   end
 
   test "seeds asset-class categories with distinct default colors" do
