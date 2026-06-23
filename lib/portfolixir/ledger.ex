@@ -41,7 +41,13 @@ defmodule Portfolixir.Ledger do
     |> filter_transaction_eq(:securities_account_id, opts[:securities_account_id])
     |> filter_transaction_from(opts[:from])
     |> filter_transaction_to(opts[:to])
+    |> filter_transaction_limit(opts[:limit])
   end
+
+  defp filter_transaction_limit(query, nil), do: query
+
+  defp filter_transaction_limit(query, n) when is_integer(n) and n > 0,
+    do: limit(query, ^n)
 
   defp filter_transaction_eq(query, _field, nil), do: query
 

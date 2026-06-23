@@ -908,6 +908,33 @@ textarea {
   text-transform: uppercase;
 }
 
+/* Dashboard recent-activity list (issue 337): a compact, tabular reading of
+   the last few transactions. Layout only — colours from inherited tokens. */
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recent-item {
+  display: grid;
+  grid-template-columns: 6rem 5rem 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.recent-item .recent-date {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.recent-item .recent-type {
+  text-transform: capitalize;
+}
+
 .stat strong {
   color: var(--color-accent);
   font-size: 30px;
