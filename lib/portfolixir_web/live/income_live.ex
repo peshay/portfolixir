@@ -67,7 +67,11 @@ defmodule PortfolixirWeb.IncomeLive do
   end
 
   def render(assigns) do
-    assigns = assign(assigns, :months, @months)
+    assigns =
+      assigns
+      |> assign(:months, @months)
+      |> assign(:income_bars, income_bars(assigns.income.annual))
+      |> assign(:top_contributors, Enum.take(assigns.income.positions, 5))
 
     ~H"""
     <AppShell.shell
@@ -90,6 +94,38 @@ defmodule PortfolixirWeb.IncomeLive do
           <%= if @income.annual == [] do %>
             <p class="empty-state"><%= gettext("No dividends or interest booked yet.") %></p>
           <% else %>
+            <%!-- A visual read of total income per year sits above the matrix,
+                  which stays as the backing data (chart-as-table, UX-DR10). The
+                  bars are plain server-rendered SVG with no animation, so
+                  prefers-reduced-motion needs nothing extra (UX-DR5). --%>
+            <div id="income-chart" class="income-chart">
+              <svg
+                class="income-bars"
+                viewBox={"0 0 #{max(length(@income_bars), 1)} 100"}
+                preserveAspectRatio="none"
+                role="img"
+                aria-label={gettext("Total income per year")}
+              >
+                <rect
+                  :for={{bar, index} <- Enum.with_index(@income_bars)}
+                  class="income-bar"
+                  data-year={bar.year}
+                  x={index + 0.1}
+                  y={100 - bar.height}
+                  width="0.8"
+                  height={bar.height}
+                >
+                  <title><%= bar.year %>: <%= money(bar.total) %></title>
+                </rect>
+              </svg>
+              <div class="income-bar-labels" aria-hidden="true">
+                <span :for={bar <- @income_bars} class="income-bar-label" data-year={bar.year}>
+                  <strong><%= bar.year %></strong>
+                  <span><%= money(bar.total) %></span>
+                </span>
+              </div>
+            </div>
+
             <table class="data-table">
               <thead>
                 <tr>
@@ -171,6 +207,25 @@ defmodule PortfolixirWeb.IncomeLive do
           </section>
         <% end %>
 
+        <%= if @top_contributors != [] do %>
+          <section id="income-top-contributors" class="workspace-section">
+            <h2><%= gettext("Top contributors") %></h2>
+            <ol class="contributor-list">
+              <li :for={row <- @top_contributors} class="contributor-row">
+                <span class="contributor-name">
+                  <%= row.security_name || gettext("Interest") %>
+                </span>
+                <span class="contributor-figures">
+                  <strong><%= money(row.gross) %></strong>
+                  <span class="muted">
+                    <%= gettext("net %{net}", net: money(row.net)) %>
+                  </span>
+                </span>
+              </li>
+            </ol>
+          </section>
+        <% end %>
+
         <section id="income-positions" class="workspace-section">
           <h2><%= gettext("Per position") %></h2>
           <%= if @income.positions == [] do %>
@@ -207,6 +262,29 @@ defmodule PortfolixirWeb.IncomeLive do
       </div>
     </AppShell.shell>
     """
+  end
+
+  # Year bars for the income overview (#415): height as a 0–100 percentage of
+  # the biggest year, so the tallest bar fills the plot and the rest scale to
+  # it. Sorted chronologically so the trend reads left-to-right.
+  defp income_bars([]), do: []
+
+  defp income_bars(annual) do
+    max = annual |> Enum.map(& &1.total) |> Enum.reduce(Decimal.new(0), &Decimal.max/2)
+
+    annual
+    |> Enum.sort_by(& &1.year)
+    |> Enum.map(fn year ->
+      %{year: year.year, total: year.total, height: bar_height(year.total, max)}
+    end)
+  end
+
+  defp bar_height(total, max) do
+    if Decimal.compare(max, 0) == :gt do
+      total |> Decimal.div(max) |> Decimal.mult(100) |> Decimal.to_float() |> Float.round(2)
+    else
+      0.0
+    end
   end
 
   defp detail_for(income, year) do
