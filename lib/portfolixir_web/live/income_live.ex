@@ -114,15 +114,27 @@ defmodule PortfolixirWeb.IncomeLive do
                   y={100 - bar.height}
                   width="0.8"
                   height={bar.height}
+                  phx-click="select_year"
+                  phx-value-year={bar.year}
                 >
                   <title><%= bar.year %>: <%= money(bar.total) %></title>
                 </rect>
               </svg>
-              <div class="income-bar-labels" aria-hidden="true">
-                <span :for={bar <- @income_bars} class="income-bar-label" data-year={bar.year}>
+              <%!-- The year labels are drill buttons: clicking one opens that
+                    year's detail + per-month breakdown below (#415 follow-up). --%>
+              <div class="income-bar-labels">
+                <button
+                  :for={bar <- @income_bars}
+                  type="button"
+                  class={["income-bar-label", @selected_year == bar.year && "is-active"]}
+                  data-year={bar.year}
+                  phx-click="select_year"
+                  phx-value-year={bar.year}
+                  aria-pressed={to_string(@selected_year == bar.year)}
+                >
                   <strong><%= bar.year %></strong>
                   <span><%= money(bar.total) %></span>
-                </span>
+                </button>
               </div>
             </div>
 
@@ -178,6 +190,36 @@ defmodule PortfolixirWeb.IncomeLive do
                 <%= gettext("Close") %>
               </button>
             </h2>
+
+            <%!-- Per-month breakdown of the drilled year; the payments table
+                  below stays as the backing data (UX-DR10). --%>
+            <div id="income-month-chart" class="income-chart">
+              <svg
+                class="income-bars"
+                viewBox="0 0 12 100"
+                preserveAspectRatio="none"
+                role="img"
+                aria-label={gettext("Income per month in %{year}", year: @selected_year)}
+              >
+                <rect
+                  :for={bar <- month_bars(@income, @selected_year)}
+                  class="income-bar income-month-bar"
+                  data-month={bar.month}
+                  x={bar.month - 1 + 0.1}
+                  y={100 - bar.height}
+                  width="0.8"
+                  height={bar.height}
+                >
+                  <title><%= month_label(bar.month) %>: <%= money(bar.total) %></title>
+                </rect>
+              </svg>
+              <div class="income-bar-labels" aria-hidden="true">
+                <span :for={bar <- month_bars(@income, @selected_year)} class="income-bar-label income-month-label">
+                  <%= month_label(bar.month) %>
+                </span>
+              </div>
+            </div>
+
             <table class="data-table">
               <thead>
                 <tr>
@@ -276,6 +318,29 @@ defmodule PortfolixirWeb.IncomeLive do
     |> Enum.sort_by(& &1.year)
     |> Enum.map(fn year ->
       %{year: year.year, total: year.total, height: bar_height(year.total, max)}
+    end)
+  end
+
+  # Per-month income totals (dividends + interest) for one drilled year, scaled
+  # to the busiest month (#415 follow-up). Always 12 slots so the x-axis is
+  # stable; months with nothing booked render as a zero-height bar.
+  defp month_bars(income, year) do
+    months =
+      case Enum.find(income.annual, &(&1.year == year)) do
+        %{months: m} -> m
+        _ -> %{}
+      end
+
+    totals =
+      for month <- 1..12 do
+        cell = Map.get(months, month, %{dividends: Decimal.new(0), interest: Decimal.new(0)})
+        {month, Decimal.add(cell.dividends, cell.interest)}
+      end
+
+    max = totals |> Enum.map(&elem(&1, 1)) |> Enum.reduce(Decimal.new(0), &Decimal.max/2)
+
+    Enum.map(totals, fn {month, total} ->
+      %{month: month, total: total, height: bar_height(total, max)}
     end)
   end
 

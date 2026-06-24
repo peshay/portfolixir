@@ -71,7 +71,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     # Drilling into the year reveals the per-transaction detail.
     detail_html =
       view
-      |> element("[phx-click='select_year'][phx-value-year='2025']")
+      |> element(".link-button[phx-value-year='2025']")
       |> render_click()
 
     assert detail_html =~ "income-detail"
@@ -153,5 +153,38 @@ defmodule PortfolixirWeb.IncomeLiveTest do
 
     # The annual matrix is still present as the backing data (UX-DR10).
     assert has_element?(view, "#income-annual table")
+  end
+
+  # User story (Steve UAT #415 follow-up):
+  # As a maintainer who spots a strong year in the overview chart,
+  # I want to click that year's bar to drill into a per-month breakdown,
+  # so that I can see when within the year the income landed without hunting
+  # through the matrix.
+  #
+  # Acceptance criteria:
+  # - Each year bar is a drill control (button) carrying its year.
+  # - Clicking it opens that year's detail with a per-month SVG breakdown
+  #   (role="img" + aria-label), the payments table staying as backing data.
+  test "drilling a year bar opens its per-month breakdown (#415 follow-up)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Mein Depot", currency: "EUR")
+    sec = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+    dividend!(world, sec, date: ~D[2025-03-15], net: "100", tax: "0")
+    dividend!(world, sec, date: ~D[2025-09-20], net: "200", tax: "0")
+
+    {:ok, view, _html} = live(conn, "/income")
+
+    # The year bar is a drill button.
+    assert has_element?(view, "#income-chart button[data-year='2025']")
+    refute has_element?(view, "#income-detail")
+
+    # Clicking it opens the year detail with a per-month breakdown chart.
+    view |> element("#income-chart button[data-year='2025']") |> render_click()
+
+    assert has_element?(view, "#income-detail")
+    assert has_element?(view, "#income-month-chart svg[role='img'][aria-label]")
+    # Twelve month slots, including the two paid months.
+    assert has_element?(view, "#income-month-chart .income-month-bar[data-month='3']")
+    assert has_element?(view, "#income-month-chart .income-month-bar[data-month='9']")
   end
 end
