@@ -105,4 +105,37 @@ defmodule PortfolixirWeb.DashboardTest do
     assert has_element?(view, "#dashboard-recent [data-role='recent-transaction']")
     assert has_element?(view, "#dashboard-recent a[href='/transactions']")
   end
+
+  # User story (Steve UAT #337 follow-up):
+  # As a maintainer keeping the local records auditable,
+  # I want the dashboard to flag securities that need attention — no recent
+  # quote, no asset class, no logo — with links to fix them,
+  # so that data gaps surface on the morning overview instead of silently
+  # skewing valuations (this is exactly how we found the missing-quotes issue).
+  #
+  # Acceptance criteria:
+  # - The populated dashboard renders a data-quality card with counts for
+  #   securities without a recent quote, without an asset class, and without a
+  #   logo, each linking to the securities surface.
+  test "a populated dashboard surfaces a data-quality card", %{conn: conn} do
+    seed_holding()
+
+    {:ok, _} =
+      Catalog.create_security(Actor.owner_ui(), %{name: "NoQuote Co", currency_code: "EUR"})
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert has_element?(view, "#dashboard-data-quality")
+
+    # NoQuote Co has no quote at all, so the "no recent quote" count is > 0.
+    assert has_element?(view, "#dashboard-data-quality [data-role='dq-quotes'] strong")
+    refute has_element?(view, "#dashboard-data-quality [data-role='dq-quotes'] strong", "0")
+
+    # Neither synthetic security has a logo.
+    assert has_element?(view, "#dashboard-data-quality [data-role='dq-logo'] strong", "2")
+
+    # Each tile links to where the gap is fixed.
+    assert has_element?(view, "#dashboard-data-quality a[href='/securities']")
+  end
 end

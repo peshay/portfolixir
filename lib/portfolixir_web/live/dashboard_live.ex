@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.DashboardLive do
       |> assign_counts()
       |> assign(:portfolio_cards, nil)
       |> assign(:recent_transactions, nil)
+      |> assign(:data_quality, nil)
       |> start_loading()
 
     {:ok, socket}
@@ -39,7 +40,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
         recent = Ledger.list_transactions(limit: @recent_limit)
 
-        {portfolio_cards, recent}
+        {portfolio_cards, recent, data_quality_report()}
       end)
     else
       socket
@@ -47,8 +48,13 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   @impl true
-  def handle_async(:overview, {:ok, {portfolio_cards, recent}}, socket) do
-    {:noreply, assign(socket, portfolio_cards: portfolio_cards, recent_transactions: recent)}
+  def handle_async(:overview, {:ok, {portfolio_cards, recent, data_quality}}, socket) do
+    {:noreply,
+     assign(socket,
+       portfolio_cards: portfolio_cards,
+       recent_transactions: recent,
+       data_quality: data_quality
+     )}
   end
 
   def handle_async(:overview, {:exit, _reason}, socket) do
@@ -153,9 +159,59 @@ defmodule PortfolixirWeb.DashboardLive do
         <% end %>
       </section>
 
+      <section id="dashboard-data-quality" class="workspace-section">
+        <h2><%= gettext("Data quality") %></h2>
+        <%= if is_nil(@data_quality) do %>
+          <p class="section-skeleton" data-role="data-quality-skeleton">
+            <%= gettext("Loading…") %>
+          </p>
+        <% else %>
+          <%!-- Counts of securities needing attention. Links land on the
+                securities surface (its filters are not URL-addressable yet, so
+                deep-linking to a pre-applied filter is a further step). --%>
+          <div class="grid" aria-label={gettext("Data quality")}>
+            <a href="/securities" class="stat stat--link" data-role="dq-quotes">
+              <span><%= gettext("No quote in 7 days") %></span>
+              <strong><%= @data_quality.without_quote %></strong>
+              <small><%= gettext("of %{n} securities", n: @data_quality.total) %></small>
+            </a>
+            <a href="/securities" class="stat stat--link" data-role="dq-class">
+              <span><%= gettext("No asset class") %></span>
+              <strong><%= @data_quality.without_class %></strong>
+            </a>
+            <a href="/securities" class="stat stat--link" data-role="dq-logo">
+              <span><%= gettext("No logo") %></span>
+              <strong><%= @data_quality.without_logo %></strong>
+            </a>
+          </div>
+        <% end %>
+      </section>
+
       <.count_cards {assigns} />
     </div>
     """
+  end
+
+  # Securities needing attention (#337 data-quality card): no recent quote
+  # (none at all, or older than 7 days), no persisted asset class, no logo.
+  defp data_quality_report do
+    today = Date.utc_today()
+    rows = Catalog.list_securities_with_metrics()
+
+    %{
+      total: length(rows),
+      without_quote: Enum.count(rows, &stale_quote?(&1, today)),
+      without_class: Enum.count(rows, &is_nil(&1.security.asset_class)),
+      without_logo: length(Catalog.list_securities(logo_status: :missing))
+    }
+  end
+
+  defp stale_quote?(row, today) do
+    case row.metrics.latest_price_date do
+      nil -> true
+      %Date{} = date -> Date.diff(today, date) > 7
+      _ -> true
+    end
   end
 
   defp count_cards(assigns) do
