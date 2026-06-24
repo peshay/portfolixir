@@ -523,4 +523,52 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       refute has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-01']")
     end
   end
+
+  # User story (Steve UAT #412 follow-up, UX-DR13):
+  # As a maintainer who submits the transaction form with a bad value,
+  # I want the offending field itself marked invalid with its error message
+  # associated to it,
+  # so that the error is announced on the field (a screen reader can reach it)
+  # instead of only as a detached banner.
+  #
+  # Acceptance criteria:
+  # - A field that fails validation gets aria-invalid="true" and an
+  #   aria-describedby pointing at its inline error message.
+  # - The associated error message element exists.
+  # - Valid fields are not marked invalid.
+  test "associates field errors with aria-invalid/aria-describedby (#412)", %{conn: conn} do
+    world =
+      WorldFixtures.base_world(name: "Solo", depot_name: "Main", cash_name: "Cash")
+
+    security = WorldFixtures.create_security!(name: "Globex", ticker: "GLB", currency: "EUR")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" => %{
+        "type" => "buy",
+        "date" => "2026-02-01",
+        "securities_account_id" => to_string(world.depot.id),
+        "security_id" => to_string(WorldFixtures.security_id_for(security)),
+        "quantity" => "",
+        "price" => "50"
+      }
+    })
+
+    # The blank required quantity is marked invalid and points at its message.
+    assert has_element?(
+             view,
+             "#transaction-form input[name='transaction[quantity]'][aria-invalid='true'][aria-describedby='tx-error-quantity']"
+           )
+
+    assert has_element?(view, "#tx-error-quantity")
+
+    # The valid price field is not flagged.
+    refute has_element?(
+             view,
+             "#transaction-form input[name='transaction[price]'][aria-invalid='true']"
+           )
+  end
 end
