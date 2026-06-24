@@ -30,7 +30,7 @@ msgid "Cash accounts"
 msgstr "Verrechnungskonten"
 
 #: lib/portfolixir_web/live/buckets_live.ex:381
-#: lib/portfolixir_web/live/income_live.ex:178
+#: lib/portfolixir_web/live/income_live.ex:190
 #: lib/portfolixir_web/live/securities/logo_override_dialog.ex:31
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:166
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:79
@@ -80,8 +80,8 @@ msgstr "Portfolio anlegen"
 msgid "Create securities"
 msgstr "Wertpapiere anlegen"
 
-#: lib/portfolixir_web/live/income_live.ex:190
-#: lib/portfolixir_web/live/income_live.ex:238
+#: lib/portfolixir_web/live/income_live.ex:232
+#: lib/portfolixir_web/live/income_live.ex:280
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:90
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:281
 #: lib/portfolixir_web/live/securities_live.ex:708
@@ -111,7 +111,7 @@ msgstr "Dunkel"
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: lib/portfolixir_web/live/income_live.ex:184
+#: lib/portfolixir_web/live/income_live.ex:226
 #: lib/portfolixir_web/live/portfolio_live.ex:545
 #: lib/portfolixir_web/live/portfolio_live.ex:694
 #: lib/portfolixir_web/live/securities_live.ex:807
@@ -349,8 +349,8 @@ msgstr "Aktuelle Bestände prüfen"
 msgid "Securities"
 msgstr "Wertpapiere"
 
-#: lib/portfolixir_web/live/income_live.ex:186
-#: lib/portfolixir_web/live/income_live.ex:237
+#: lib/portfolixir_web/live/income_live.ex:228
+#: lib/portfolixir_web/live/income_live.ex:279
 #: lib/portfolixir_web/live/transaction_management_live.ex:109
 #: lib/portfolixir_web/live/transaction_management_live.ex:191
 #: lib/portfolixir_web/live/transaction_management_live.ex:228
@@ -415,7 +415,7 @@ msgstr "Transaktion erfasst"
 msgid "Transactions"
 msgstr "Transaktionen"
 
-#: lib/portfolixir_web/live/income_live.ex:185
+#: lib/portfolixir_web/live/income_live.ex:227
 #: lib/portfolixir_web/live/securities_live.ex:808
 #: lib/portfolixir_web/live/transaction_management_live.ex:81
 #: lib/portfolixir_web/live/transaction_management_live.ex:217
@@ -460,7 +460,7 @@ msgstr "Klassifizierungen"
 msgid "Coming soon"
 msgstr "Bald verfügbar"
 
-#: lib/portfolixir_web/live/income_live.ex:154
+#: lib/portfolixir_web/live/income_live.ex:166
 #, elixir-autogen, elixir-format
 msgid "Dividends"
 msgstr "Dividenden"
@@ -1299,8 +1299,8 @@ msgstr "Feed"
 msgid "From"
 msgstr "Von"
 
-#: lib/portfolixir_web/live/income_live.ex:187
-#: lib/portfolixir_web/live/income_live.ex:239
+#: lib/portfolixir_web/live/income_live.ex:229
+#: lib/portfolixir_web/live/income_live.ex:281
 #: lib/portfolixir_web/live/securities_live.ex:813
 #, elixir-autogen, elixir-format
 msgid "Gross"
@@ -1441,7 +1441,7 @@ msgid "To"
 msgstr "Bis"
 
 #: lib/portfolixir_web/components/view_switcher.ex:44
-#: lib/portfolixir_web/live/income_live.ex:137
+#: lib/portfolixir_web/live/income_live.ex:149
 #: lib/portfolixir_web/live/securities_live.ex:1034
 #, elixir-autogen, elixir-format
 msgid "Total"
@@ -1718,17 +1718,17 @@ msgid "The CSV file is empty."
 msgstr "Die CSV-Datei ist leer."
 
 #: lib/portfolixir_web/live/imports_live.ex:378
-#: lib/portfolixir_web/live/income_live.ex:303
+#: lib/portfolixir_web/live/income_live.ex:368
 #, elixir-autogen, elixir-format
 msgid "Dividend"
 msgstr "Dividende"
 
 #: lib/portfolixir_web/live/imports_live.ex:379
-#: lib/portfolixir_web/live/income_live.ex:161
-#: lib/portfolixir_web/live/income_live.ex:198
-#: lib/portfolixir_web/live/income_live.ex:216
-#: lib/portfolixir_web/live/income_live.ex:249
-#: lib/portfolixir_web/live/income_live.ex:304
+#: lib/portfolixir_web/live/income_live.ex:173
+#: lib/portfolixir_web/live/income_live.ex:240
+#: lib/portfolixir_web/live/income_live.ex:258
+#: lib/portfolixir_web/live/income_live.ex:291
+#: lib/portfolixir_web/live/income_live.ex:369
 #, elixir-autogen, elixir-format
 msgid "Interest"
 msgstr "Zinsen"
@@ -1749,7 +1749,7 @@ msgid "Fee"
 msgstr "Gebühren"
 
 #: lib/portfolixir_web/live/imports_live.ex:383
-#: lib/portfolixir_web/live/income_live.ex:188
+#: lib/portfolixir_web/live/income_live.ex:230
 #, elixir-autogen, elixir-format
 msgid "Tax"
 msgstr "Steuern"
@@ -2447,48 +2447,48 @@ msgid "Annual overview"
 msgstr "Jahresübersicht"
 
 #: lib/portfolixir_web/live/income_live.ex:95
-#: lib/portfolixir_web/live/income_live.ex:232
+#: lib/portfolixir_web/live/income_live.ex:274
 #, elixir-autogen
 msgid "No dividends or interest booked yet."
 msgstr "Noch keine Dividenden oder Zinsen gebucht."
 
-#: lib/portfolixir_web/live/income_live.ex:132
+#: lib/portfolixir_web/live/income_live.ex:144
 #, elixir-autogen
 msgid "Year"
 msgstr "Jahr"
 
-#: lib/portfolixir_web/live/income_live.ex:133
+#: lib/portfolixir_web/live/income_live.ex:145
 #, elixir-autogen
 msgid "Series"
 msgstr "Reihe"
 
-#: lib/portfolixir_web/live/income_live.ex:176
+#: lib/portfolixir_web/live/income_live.ex:188
 #, elixir-autogen, elixir-format
 msgid "Payments in %{year}"
 msgstr "Zahlungen in %{year}"
 
-#: lib/portfolixir_web/live/income_live.ex:189
-#: lib/portfolixir_web/live/income_live.ex:241
+#: lib/portfolixir_web/live/income_live.ex:231
+#: lib/portfolixir_web/live/income_live.ex:283
 #, elixir-autogen
 msgid "Net"
 msgstr "Netto"
 
-#: lib/portfolixir_web/live/income_live.ex:240
+#: lib/portfolixir_web/live/income_live.ex:282
 #, elixir-autogen
 msgid "Withheld tax"
 msgstr "Einbehaltene Steuer"
 
-#: lib/portfolixir_web/live/income_live.ex:242
+#: lib/portfolixir_web/live/income_live.ex:284
 #, elixir-autogen
 msgid "Payments"
 msgstr "Zahlungen"
 
-#: lib/portfolixir_web/live/income_live.ex:243
+#: lib/portfolixir_web/live/income_live.ex:285
 #, elixir-autogen
 msgid "Last payment"
 msgstr "Letzte Zahlung"
 
-#: lib/portfolixir_web/live/income_live.ex:230
+#: lib/portfolixir_web/live/income_live.ex:272
 #, elixir-autogen
 msgid "Per position"
 msgstr "Je Position"
@@ -3370,7 +3370,7 @@ msgstr "Wertpapier, Typ, Notizen…"
 msgid "transactions"
 msgstr "Transaktionen"
 
-#: lib/portfolixir_web/live/income_live.ex:212
+#: lib/portfolixir_web/live/income_live.ex:254
 #, elixir-autogen, elixir-format
 msgid "Top contributors"
 msgstr "Top-Beiträge"
@@ -3380,7 +3380,7 @@ msgstr "Top-Beiträge"
 msgid "Total income per year"
 msgstr "Gesamterträge pro Jahr"
 
-#: lib/portfolixir_web/live/income_live.ex:221
+#: lib/portfolixir_web/live/income_live.ex:263
 #, elixir-autogen, elixir-format
 msgid "net %{net}"
 msgstr "netto %{net}"
@@ -3391,3 +3391,8 @@ msgid "%{count} transaction"
 msgid_plural "%{count} transactions"
 msgstr[0] "%{count} Transaktion"
 msgstr[1] "%{count} Transaktionen"
+
+#: lib/portfolixir_web/live/income_live.ex:202
+#, elixir-autogen, elixir-format
+msgid "Income per month in %{year}"
+msgstr "Erträge pro Monat in %{year}"
