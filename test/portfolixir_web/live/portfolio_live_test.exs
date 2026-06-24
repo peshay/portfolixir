@@ -1003,6 +1003,33 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert has_element?(view, "#performance-figure[data-chart-mode='value']")
   end
 
+  # User story (Steve UAT #336/#411 follow-up):
+  # As a maintainer hovering the performance line,
+  # I want a crosshair tooltip showing the date, TTWROR % and € value of the
+  # day under the pointer,
+  # so that I can read the figure at any point in time without leaving the
+  # chart. The hover itself is JS (manual UAT); this asserts the server wiring
+  # the hook reads.
+  #
+  # Acceptance criteria:
+  # - The figure is hooked with PerfCrosshair and carries a JSON payload of
+  #   per-point [date, %, € value] data, independent of the displayed series.
+  test "the performance chart exposes a crosshair payload (#336/#411)", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert has_element?(view, "#performance-figure[phx-hook='PerfCrosshair']")
+
+    payload = view |> element("#performance-figure script[data-perf-payload]") |> render()
+    # The payload carries date · % · € points, incl. today's point and the
+    # base currency, so the tooltip can show both series at once.
+    assert payload =~ Date.to_iso8601(Date.utc_today())
+    assert payload =~ "EUR"
+    assert payload =~ "%"
+  end
+
   test "Set balance button carries phx-disable-with for immediate working state",
        %{conn: conn} do
     seed_world()
