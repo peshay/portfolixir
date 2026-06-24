@@ -1053,6 +1053,17 @@ textarea {
   letter-spacing: 0.01em;
 }
 
+/* Inline per-field validation message + invalid-field outline (issue 412
+   follow-up, UX-DR13). */
+.field-error {
+  margin: var(--space-1) 0 0;
+  color: var(--color-danger);
+  font-size: 12px;
+}
+[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
 input:focus,
 select:focus,
 textarea:focus {
