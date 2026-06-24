@@ -4127,6 +4127,24 @@ details[open] > .cat-summary::before {
   align-items: center;
   text-align: center;
 }
+/* Year labels double as drill buttons (issue 415 follow-up): button reset +
+   pointer affordance, with the drilled year highlighted. */
+button.income-bar-label {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  min-height: 0;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+button.income-bar-label:hover {
+  background: var(--color-hover);
+}
+button.income-bar-label.is-active {
+  color: var(--color-accent);
+}
 .contributor-list {
   list-style: none;
   margin: 0;
