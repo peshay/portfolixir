@@ -20,7 +20,7 @@ msgid "Cash account created"
 msgstr "Verrechnungskonto angelegt"
 
 #: lib/portfolixir_web/live/buckets_live.ex:262
-#: lib/portfolixir_web/live/dashboard_live.ex:176
+#: lib/portfolixir_web/live/dashboard_live.ex:232
 #: lib/portfolixir_web/live/imports_live.ex:141
 #: lib/portfolixir_web/live/imports_live.ex:355
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:132
@@ -62,7 +62,7 @@ msgstr "Verrechnungskonto anlegen"
 msgid "Create depot"
 msgstr "Depot anlegen"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:87
+#: lib/portfolixir_web/live/dashboard_live.ex:93
 #: lib/portfolixir_web/live/income_live.ex:62
 #: lib/portfolixir_web/live/portfolio_live.ex:145
 #, elixir-autogen
@@ -75,7 +75,7 @@ msgstr "Ein Portfolio anlegen"
 msgid "Create portfolio"
 msgstr "Portfolio anlegen"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:89
+#: lib/portfolixir_web/live/dashboard_live.ex:95
 #, elixir-autogen
 msgid "Create securities"
 msgstr "Wertpapiere anlegen"
@@ -106,7 +106,7 @@ msgid "Dark"
 msgstr "Dunkel"
 
 #: lib/portfolixir_web/components/app_shell.ex:254
-#: lib/portfolixir_web/live/dashboard_live.ex:63
+#: lib/portfolixir_web/live/dashboard_live.ex:69
 #, elixir-autogen
 msgid "Dashboard"
 msgstr "Dashboard"
@@ -136,7 +136,7 @@ msgid "Depot created"
 msgstr "Depot angelegt"
 
 #: lib/portfolixir_web/live/buckets_live.ex:231
-#: lib/portfolixir_web/live/dashboard_live.ex:180
+#: lib/portfolixir_web/live/dashboard_live.ex:236
 #: lib/portfolixir_web/live/imports_live.ex:145
 #: lib/portfolixir_web/live/imports_live.ex:359
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:162
@@ -193,7 +193,7 @@ msgstr "Sprache"
 msgid "Light"
 msgstr "Hell"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:88
+#: lib/portfolixir_web/live/dashboard_live.ex:94
 #, elixir-autogen
 msgid "Link one depot to one cash account"
 msgstr "Ein Depot mit einem Verrechnungskonto verknüpfen"
@@ -216,17 +216,17 @@ msgstr "Akzentfarbe"
 msgid "Coral"
 msgstr "Koralle"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:64
+#: lib/portfolixir_web/live/dashboard_live.ex:70
 #, elixir-autogen
 msgid "Local portfolio tracking"
 msgstr "Lokales Portfolio-Tracking"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:166
+#: lib/portfolixir_web/live/dashboard_live.ex:222
 #, elixir-autogen
 msgid "Portfolio counts"
 msgstr "Portfolio-Zähler"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:82
+#: lib/portfolixir_web/live/dashboard_live.ex:88
 #, elixir-autogen
 msgid "Workflow path"
 msgstr "Workflow-Pfad"
@@ -292,7 +292,7 @@ msgid "Portfolio, cash account, and depot setup"
 msgstr "Portfolio-, Verrechnungskonto- und Depot-Einrichtung"
 
 #: lib/portfolixir_web/components/app_shell.ex:292
-#: lib/portfolixir_web/live/dashboard_live.ex:172
+#: lib/portfolixir_web/live/dashboard_live.ex:228
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:30
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:124
 #, elixir-autogen
@@ -322,7 +322,7 @@ msgstr "Hauptnavigation"
 msgid "Quantity"
 msgstr "Stückzahl"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:91
+#: lib/portfolixir_web/live/dashboard_live.ex:97
 #, elixir-autogen
 msgid "Record manual buy and sell transactions"
 msgstr "Manuelle Kauf- und Verkaufstransaktionen erfassen"
@@ -333,14 +333,14 @@ msgstr "Manuelle Kauf- und Verkaufstransaktionen erfassen"
 msgid "Record transaction"
 msgstr "Transaktion erfassen"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:93
+#: lib/portfolixir_web/live/dashboard_live.ex:99
 #, elixir-autogen
 msgid "Review current holdings"
 msgstr "Aktuelle Bestände prüfen"
 
 #: lib/portfolixir_web/components/app_shell.ex:268
 #: lib/portfolixir_web/components/app_shell.ex:273
-#: lib/portfolixir_web/live/dashboard_live.ex:168
+#: lib/portfolixir_web/live/dashboard_live.ex:224
 #: lib/portfolixir_web/live/imports_live.ex:137
 #: lib/portfolixir_web/live/imports_live.ex:351
 #: lib/portfolixir_web/live/portfolio_live.ex:183
@@ -408,7 +408,7 @@ msgstr "Transaktionshistorie"
 msgid "Transaction recorded"
 msgstr "Transaktion erfasst"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:184
+#: lib/portfolixir_web/live/dashboard_live.ex:240
 #: lib/portfolixir_web/live/securities_live.ex:1437
 #: lib/portfolixir_web/live/transaction_management_live.ex:38
 #, elixir-autogen
@@ -1901,7 +1901,7 @@ msgid "Total incl. cash"
 msgstr "Gesamt inkl. Cash"
 
 #: lib/portfolixir_web/live/classifications_live.ex:548
-#: lib/portfolixir_web/live/dashboard_live.ex:129
+#: lib/portfolixir_web/live/dashboard_live.ex:135
 #: lib/portfolixir_web/live/portfolio_live.ex:190
 #: lib/portfolixir_web/live/portfolio_live.ex:447
 #: lib/portfolixir_web/live/portfolio_live.ex:1047
@@ -2048,6 +2048,8 @@ msgstr "Berechne…"
 msgid "Couldn't load the portfolio figures."
 msgstr "Die Portfolio-Kennzahlen konnten nicht geladen werden."
 
+#: lib/portfolixir_web/live/dashboard_live.ex:163
+#: lib/portfolixir_web/live/dashboard_live.ex:172
 #: lib/portfolixir_web/live/portfolio_live.ex:597
 #, elixir-autogen
 msgid "Data quality"
@@ -3283,7 +3285,7 @@ msgstr "Zuerst ein Wertpapier anlegen"
 msgid "No securities yet."
 msgstr "Noch keine Wertpapiere."
 
-#: lib/portfolixir_web/live/dashboard_live.ex:55
+#: lib/portfolixir_web/live/dashboard_live.ex:61
 #, elixir-autogen, elixir-format
 msgid "Couldn't load the dashboard figures."
 msgstr "Die Dashboard-Kennzahlen konnten nicht geladen werden."
@@ -3293,18 +3295,19 @@ msgstr "Die Dashboard-Kennzahlen konnten nicht geladen werden."
 msgid "Cumulative TTWROR"
 msgstr "Kumulierte TTWROR"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:115
-#: lib/portfolixir_web/live/dashboard_live.ex:138
+#: lib/portfolixir_web/live/dashboard_live.ex:121
+#: lib/portfolixir_web/live/dashboard_live.ex:144
+#: lib/portfolixir_web/live/dashboard_live.ex:166
 #, elixir-autogen, elixir-format
 msgid "Loading…"
 msgstr "Lädt…"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:112
+#: lib/portfolixir_web/live/dashboard_live.ex:118
 #, elixir-autogen, elixir-format
 msgid "Portfolio values"
 msgstr "Portfoliowerte"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:136
+#: lib/portfolixir_web/live/dashboard_live.ex:142
 #, elixir-autogen, elixir-format
 msgid "Recent activity"
 msgstr "Letzte Aktivität"
@@ -3396,3 +3399,23 @@ msgstr[1] "%{count} Transaktionen"
 #, elixir-autogen, elixir-format
 msgid "Income per month in %{year}"
 msgstr "Erträge pro Monat in %{year}"
+
+#: lib/portfolixir_web/live/dashboard_live.ex:179
+#, elixir-autogen, elixir-format
+msgid "No asset class"
+msgstr "Keine Anlageklasse"
+
+#: lib/portfolixir_web/live/dashboard_live.ex:183
+#, elixir-autogen, elixir-format
+msgid "No logo"
+msgstr "Kein Logo"
+
+#: lib/portfolixir_web/live/dashboard_live.ex:174
+#, elixir-autogen, elixir-format
+msgid "No quote in 7 days"
+msgstr "Kein Kurs seit 7 Tagen"
+
+#: lib/portfolixir_web/live/dashboard_live.ex:176
+#, elixir-autogen, elixir-format
+msgid "of %{n} securities"
+msgstr "von %{n} Wertpapieren"
