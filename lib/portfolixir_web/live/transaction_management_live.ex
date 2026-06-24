@@ -27,6 +27,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:transaction_form, @transaction_form)
      |> assign(:error, nil)
      |> assign(:success, nil)
+     |> assign(:form_errors, %{})
      |> load_state()}
   end
 
@@ -89,11 +90,26 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 </label>
                 <label>
                   <span><%= gettext("Date") %></span>
-                  <input type="date" name="transaction[date]" value={@transaction_form["date"]} required />
+                  <input
+                    type="date"
+                    name="transaction[date]"
+                    value={@transaction_form["date"]}
+                    required
+                    aria-invalid={@form_errors["date"] && "true"}
+                    aria-describedby={@form_errors["date"] && "tx-error-date"}
+                  />
+                  <.field_error errors={@form_errors} field="date" />
                 </label>
                 <label>
                   <span><%= gettext("Depot") %></span>
-                  <select name="transaction[securities_account_id]" required>
+                  <select
+                    name="transaction[securities_account_id]"
+                    required
+                    aria-invalid={@form_errors["securities_account_id"] && "true"}
+                    aria-describedby={
+                      @form_errors["securities_account_id"] && "tx-error-securities_account_id"
+                    }
+                  >
                     <option value=""><%= gettext("Select depot") %></option>
                     <%= for account <- bookable_depots(@securities_accounts) do %>
                       <option
@@ -104,6 +120,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                       </option>
                     <% end %>
                   </select>
+                  <.field_error errors={@form_errors} field="securities_account_id" />
                 </label>
                 <label>
                   <span><%= gettext("Security") %></span>
@@ -129,14 +146,31 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                       <% end %>
                     </select>
                   <% end %>
+                  <.field_error errors={@form_errors} field="security_id" />
                 </label>
                 <label>
                   <span><%= gettext("Quantity") %></span>
-                  <input name="transaction[quantity]" value={@transaction_form["quantity"]} inputmode="decimal" required />
+                  <input
+                    name="transaction[quantity]"
+                    value={@transaction_form["quantity"]}
+                    inputmode="decimal"
+                    required
+                    aria-invalid={@form_errors["quantity"] && "true"}
+                    aria-describedby={@form_errors["quantity"] && "tx-error-quantity"}
+                  />
+                  <.field_error errors={@form_errors} field="quantity" />
                 </label>
                 <label>
                   <span><%= gettext("Price") %></span>
-                  <input name="transaction[price]" value={@transaction_form["price"]} inputmode="decimal" required />
+                  <input
+                    name="transaction[price]"
+                    value={@transaction_form["price"]}
+                    inputmode="decimal"
+                    required
+                    aria-invalid={@form_errors["price"] && "true"}
+                    aria-describedby={@form_errors["price"] && "tx-error-price"}
+                  />
+                  <.field_error errors={@form_errors} field="price" />
                 </label>
               </div>
 
@@ -338,7 +372,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   def handle_event("form_changed", %{"transaction" => params}, socket) do
-    {:noreply, assign(socket, :transaction_form, params)}
+    # Clear stale field errors as the user edits, so a corrected field stops
+    # reading as invalid before the next submit.
+    {:noreply, socket |> assign(:transaction_form, params) |> assign(:form_errors, %{})}
   end
 
   def handle_event("filter_changed", %{"filters" => filters}, socket) do
@@ -364,12 +400,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         {:noreply,
          socket
          |> assign(:transaction_form, @transaction_form)
+         |> assign(:form_errors, %{})
          |> success(gettext("Transaction recorded"))
          |> load_state()}
 
       {:error, changeset} ->
         {:noreply,
-         socket |> assign(:transaction_form, params) |> failure(changeset_error(changeset))}
+         socket
+         |> assign(:transaction_form, params)
+         |> assign(:form_errors, field_errors(changeset))
+         |> failure(changeset_error(changeset))}
     end
   end
 
@@ -599,6 +639,29 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
+
+  # Per-field changeset errors keyed by the form field name, so each input can
+  # carry aria-invalid + an associated message (UX-DR13, #412 follow-up).
+  defp field_errors(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Map.new(fn {field, messages} -> {to_string(field), Enum.join(messages, ", ")} end)
+  end
+
+  attr(:errors, :map, required: true)
+  attr(:field, :string, required: true)
+
+  defp field_error(assigns) do
+    ~H"""
+    <p :if={@errors[@field]} id={"tx-error-#{@field}"} class="field-error" role="alert">
+      <%= @errors[@field] %>
+    </p>
+    """
+  end
 
   defp changeset_error(changeset) do
     changeset.errors
