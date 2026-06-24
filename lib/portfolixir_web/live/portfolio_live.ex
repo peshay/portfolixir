@@ -656,7 +656,12 @@ defmodule PortfolixirWeb.PortfolioLive do
         aria_label: aria_label,
         show_zero?: show_zero?,
         first_date: first && first.date,
-        last_date: last && last.date
+        last_date: last && last.date,
+        crosshair_json:
+          Jason.encode!(
+            %{points: payload_points(series, assigns.currency), view: %{width: 720, height: 180}},
+            escape: :html_safe
+          )
       )
 
     # The polyline carries labeled value/date axes and an accessible data table
@@ -664,7 +669,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     # € value (Steve UAT #336); the table always exposes both columns so the
     # data is reachable regardless of the toggle.
     ~H"""
-    <figure id="performance-figure" class="perf-figure" data-chart-mode={@mode}>
+    <figure id="performance-figure" class="perf-figure" data-chart-mode={@mode} phx-hook="PerfCrosshair">
       <div class="perf-plot">
         <div class="perf-yaxis" aria-hidden="true">
           <span class="perf-ytick"><%= @y_max_label %></span>
@@ -685,6 +690,10 @@ defmodule PortfolixirWeb.PortfolioLive do
         <span><%= Date.to_iso8601(@first_date) %></span>
         <span><%= Date.to_iso8601(@last_date) %></span>
       </div>
+      <%!-- The hover/touch crosshair reads this payload (date · % · €) and draws
+            a tooltip over the line (Steve UAT #336/#411). It is a pure
+            enhancement: the data table above is the accessible fallback. --%>
+      <script type="application/json" data-perf-payload><%= Phoenix.HTML.raw(@crosshair_json) %></script>
       <details class="perf-table-disclosure">
         <summary><%= gettext("Show data as table") %></summary>
         <table class="perf-data-table">
@@ -711,6 +720,27 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The value-axis tick labels reuse the same percent/money formatting as the
   # KPIs, so the chart and the figures above it read consistently.
+  # Per-point payload the PerfCrosshair JS hook reads: [iso date, signed
+  # TTWROR %, € value, x] — so the hover tooltip shows both series regardless of
+  # the displayed line (#336/#411 follow-up). x is the viewBox coordinate, the
+  # same the polyline uses, so the crosshair lands on the data point.
+  defp payload_points(series, currency) do
+    last = max(length(series) - 1, 1)
+
+    series
+    |> Enum.with_index()
+    |> Enum.map(fn {point, index} ->
+      x = Float.round(index / last * 720, 2)
+
+      [
+        Date.to_iso8601(point.date),
+        signed_percent(point.cumulative_ttwror) <> "%",
+        "#{Format.money(point.value)} #{currency}",
+        x
+      ]
+    end)
+  end
+
   defp percent_label(value) when is_float(value) do
     Format.percent(Decimal.from_float(value)) <> "%"
   end
