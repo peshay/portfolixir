@@ -50,3 +50,5 @@ already in force in the codebase.
 | [0019](0019-view-scoped-performance-boundary-flows.html) | View-scoped performance treats boundary transfers as external flows | Accepted |
 | [0020](0020-view-bound-soll-plans.html) | target plans belong to a view | Accepted |
 | [0021](0021-pdf-transaction-intake.html) | In-app broker-PDF transaction intake (sandboxed, text-only) | Accepted |
+| [0022](0022-task-oriented-information-architecture.html) | Task-oriented UI information architecture | Accepted |
+| [0023](0023-drift-sign-and-display-only-rebalancing-hints.html) | Drift sign convention and display-only rebalancing hints | Accepted |
