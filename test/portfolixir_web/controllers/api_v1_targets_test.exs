@@ -95,8 +95,9 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert category["market_value"] == "1200"
     assert category["actual_weight"] == "1"
     assert category["target_weight"] == "0.8"
-    assert category["drift_weight"] == "-0.2"
-    assert category["drift_value"] == "-240"
+    # actual - target (positive = overweight, ADR-0023): 1 - 0.8 = 0.2.
+    assert category["drift_weight"] == "0.2"
+    assert category["drift_value"] == "240"
 
     # The allocation carries a cash row (here cash is 0) and the Σ top level.
     assert data["cash"]["market_value"] == "0"
@@ -494,7 +495,8 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     [category] = data["categories"]
     assert category["target_weight"] == "0.9"
     assert category["actual_weight"] == "1"
-    assert category["drift_weight"] == "-0.1"
+    # actual - target (ADR-0023): 1 - 0.9 = 0.1 overweight.
+    assert category["drift_weight"] == "0.1"
     assert data["top_level_target_sum"] == "0.9"
   end
 
