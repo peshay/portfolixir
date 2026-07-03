@@ -537,7 +537,8 @@ describe("Portfolixir MCP tools", () => {
         portfolio_id: 3,
         classification_id: 5,
         categories: [
-          { category_id: 9, actual_weight: "0.4", target_weight: "0.25", drift_weight: "-0.15" }
+          // drift_weight = actual - target (positive = overweight, ADR-0023).
+          { category_id: 9, actual_weight: "0.4", target_weight: "0.25", drift_weight: "0.15" }
         ]
       }
     });
@@ -549,7 +550,7 @@ describe("Portfolixir MCP tools", () => {
 
     assert.equal(requests[0].method, "GET");
     assert.equal(requests[0].path, "/api/v1/portfolios/3/allocation?classification_id=5");
-    assert.match(result.content[0].text, /-0\.15/);
+    assert.match(result.content[0].text, /0\.15/);
   });
 
   it("issues a GET to /risk for portfolixir.portfolios.risk", async () => {

@@ -21,8 +21,9 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   # Acceptance criteria:
   # - Each category reports its market value and actual weight (share of total).
   # - Each category reports its stored target weight and the drift
-  #   (target - actual), both as a weight and restated in the base currency.
-  # - A category with a target but no holdings still appears (drift = target).
+  #   (actual - target: positive = overweight, ADR-0023), both as a weight and
+  #   restated in the base currency.
+  # - A category with a target but no holdings still appears (drift = -target).
   # - Securities held but unassigned in the tree are summed into `unassigned`.
   # - A parent category rolls up the value of its whole subtree: a position
   #   assigned to a child counts toward the child AND every ancestor, so a
@@ -162,18 +163,19 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     assert Decimal.equal?(core_row.market_value, Decimal.new("800"))
     assert Decimal.equal?(Decimal.round(core_row.actual_weight, 4), Decimal.new("0.5333"))
     assert Decimal.equal?(core_row.target_weight, Decimal.new("0.6"))
-    # target - actual = 0.6 - 0.5333... ; restated: +100 EUR to reach target.
-    assert Decimal.equal?(Decimal.round(core_row.drift_value, 2), Decimal.new("100"))
+    # actual - target = 0.5333... - 0.6 (ADR-0023); restated: -100 EUR, i.e.
+    # underweight by 100 EUR (negative = buy to reach target).
+    assert Decimal.equal?(Decimal.round(core_row.drift_value, 2), Decimal.new("-100"))
 
     satellite_row = fetch_category(allocation, satellite.id)
     assert Decimal.equal?(satellite_row.market_value, Decimal.new("400"))
-    assert Decimal.equal?(Decimal.round(satellite_row.drift_value, 2), Decimal.new("50"))
+    assert Decimal.equal?(Decimal.round(satellite_row.drift_value, 2), Decimal.new("-50"))
 
     # Defensive has a target but no holdings: it still appears, fully under target.
     defensive_row = fetch_category(allocation, defensive.id)
     assert Decimal.equal?(defensive_row.market_value, Decimal.new("0"))
     assert Decimal.equal?(defensive_row.target_weight, Decimal.new("0.1"))
-    assert Decimal.equal?(Decimal.round(defensive_row.drift_value, 2), Decimal.new("150"))
+    assert Decimal.equal?(Decimal.round(defensive_row.drift_value, 2), Decimal.new("-150"))
 
     # The loose security is summed into the unassigned bucket, with its
     # per-position breakdown attached.
@@ -255,8 +257,8 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     assert Decimal.equal?(growth_row.market_value, Decimal.new("1000"))
     assert Decimal.equal?(growth_row.actual_weight, Decimal.new("1"))
     assert Decimal.equal?(growth_row.target_weight, Decimal.new("0.5"))
-    # Over target by 0.5 -> sell 500 EUR to reach it.
-    assert Decimal.equal?(Decimal.round(growth_row.drift_value, 2), Decimal.new("-500"))
+    # Over target by 0.5 -> +500 EUR overweight (positive = sell, ADR-0023).
+    assert Decimal.equal?(Decimal.round(growth_row.drift_value, 2), Decimal.new("500"))
 
     tech_row = fetch_category(allocation, tech.id)
     assert tech_row.depth == 1
@@ -349,7 +351,8 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   # Acceptance criteria:
   # - The 100% basis = securities (within the active view) + counting cash.
   # - A `cash` row reports actual (counting cash share), target (the portfolio's
-  #   cash_target_weight) and drift (target - actual), restated in base currency.
+  #   cash_target_weight) and drift (actual - target, ADR-0023), restated in
+  #   base currency.
   # - Category percentages are shares of the larger basis (they shrink vs. a
   #   securities-only basis).
   # - The Σ header (top_level_target_sum) includes the cash target.
@@ -402,13 +405,13 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     assert Decimal.equal?(allocation.total_value, Decimal.new("1000"))
 
     # The cash row: actual 80/1000 = 0.08 (8%), target 0.05 (5%); drift
-    # target - actual = -0.03 (cash is 3 pp over target), restated as -30 EUR
-    # (i.e. reduce cash by 30 to hit the 5% target).
+    # actual - target = +0.03 (cash is 3 pp overweight, ADR-0023), restated as
+    # +30 EUR (i.e. reduce cash by 30 to hit the 5% target).
     assert Decimal.equal?(allocation.cash.market_value, Decimal.new("80"))
     assert Decimal.equal?(allocation.cash.actual_weight, Decimal.new("0.08"))
     assert Decimal.equal?(allocation.cash.target_weight, Decimal.new("0.05"))
-    assert Decimal.equal?(allocation.cash.drift_weight, Decimal.new("-0.03"))
-    assert Decimal.equal?(Decimal.round(allocation.cash.drift_value, 2), Decimal.new("-30"))
+    assert Decimal.equal?(allocation.cash.drift_weight, Decimal.new("0.03"))
+    assert Decimal.equal?(Decimal.round(allocation.cash.drift_value, 2), Decimal.new("30"))
 
     # Category percentages shrink once cash joins the basis: Core is 600/1000 =
     # 0.60, NOT 600/920 = 0.6522 (the securities-only basis).

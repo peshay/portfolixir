@@ -360,8 +360,10 @@ Beispiel-Payloads für Konten:
   (die Kategorien bilden einen Baum), `color`, `own_market_value` (direkt
   zugeordnete Positionen), `market_value` (ihr ganzer aufgerollter Teilbaum),
   `actual_weight` (der aufgerollte Anteil an `total_value`), `target_weight`,
-  `drift_weight` (`target_weight - actual_weight`) und `drift_value` (die Drift in
-  Basiswährung neu ausgewiesen). Jede Zeile trägt zudem `child_target_sum`
+  `drift_weight` (`actual_weight - target_weight`: positiv = übergewichtet,
+  negativ = untergewichtet; ADR-0023) und `drift_value` (die Drift in
+  Basiswährung neu ausgewiesen — wie viel zu verkaufen (positiv) oder zu kaufen
+  (negativ) ist, um das Ziel zu erreichen). Jede Zeile trägt zudem `child_target_sum`
   (Decimal-String): die beratende Summe der Ziele ihrer **direkten** Kinder, oder
   `null`, wenn kein direktes Kind ein Ziel trägt — ein Konsistenzhinweis, den die
   UI gegen das eigene `target_weight` der Zeile abgleichen kann. Eine einem Kind
@@ -384,7 +386,7 @@ Beispiel-Payloads für Konten:
   `market_value` (das zählende Cash), `actual_weight` (sein Anteil an
   `total_value`), `target_weight` (das Cash-Ziel des Plans der aktiven View oder
   `0`, wenn nicht gesetzt; siehe die Cash-Ziel-Endpunkte unten), `drift_weight`
-  (`target_weight - actual_weight`),
+  (`actual_weight - target_weight`, ADR-0023),
   `drift_value` (in Basiswährung neu ausgewiesen) und `distributed` (Boolean) —
   sodass Cash in derselben Drift-Logik wie die Kategorien gesteuert wird. Ist die
   aktive Klassifizierung der eingebaute **Währungs**-Baum, wird das Cash jedes

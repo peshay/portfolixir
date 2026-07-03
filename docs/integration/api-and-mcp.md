@@ -362,8 +362,10 @@ Example account payloads:
   `own_market_value` (positions assigned directly to it), `market_value` (its
   whole subtree rolled up), `actual_weight` (the rolled-up share of
   `total_value`), `target_weight`, `drift_weight`
-  (`target_weight - actual_weight`), and `drift_value` (the drift restated in
-  the base currency). Each row also carries `child_target_sum` (Decimal string):
+  (`actual_weight - target_weight`: positive = overweight, negative =
+  underweight; ADR-0023), and `drift_value` (the drift restated in
+  the base currency — how much to sell (positive) or buy (negative) to reach
+  the target). Each row also carries `child_target_sum` (Decimal string):
   the advisory sum of its **direct** children's targets, or `null` when no direct
   child carries a target — a target-consistency hint the UI can flag against the
   row's own `target_weight`. A position assigned to a child counts toward that child
@@ -384,7 +386,7 @@ Example account payloads:
   `cash` object — `market_value` (the counting cash), `actual_weight` (its share
   of `total_value`), `target_weight` (the active view's plan cash target, or `0`
   when unset; see the cash-target endpoints below), `drift_weight`
-  (`target_weight - actual_weight`),
+  (`actual_weight - target_weight`, ADR-0023),
   `drift_value` (restated in the base currency), and `distributed` (boolean) —
   so cash is steered in the same drift logic as the categories. When the active
   classification is the built-in **currency** tree, each cash account's

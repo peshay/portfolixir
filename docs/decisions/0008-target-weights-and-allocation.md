@@ -6,7 +6,9 @@ description: Decision to store per-category target weights in Portfolixir and re
 
 # ADR-0008: Target weights and target/actual allocation
 
-- **Status:** Accepted
+- **Status:** Accepted (drift sign amended by
+  [ADR-0023](0023-drift-sign-and-display-only-rebalancing-hints.html): drift is
+  now `actual_weight - target_weight`, positive = overweight)
 - **Date:** 2026-06-08
 
 ## Context
