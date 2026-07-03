@@ -26,6 +26,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   import PortfolixirWeb.ViewSwitcher
 
@@ -698,73 +699,47 @@ defmodule PortfolixirWeb.PortfolioLive do
     """
   end
 
+  # The portfolio chart renders through the shared SecurityChart component
+  # (ADR-0022: one chart path, the security detail chart set the quality bar).
+  # The TTWROR series passes its cumulative percentages as ready-made percent
+  # values (value_mode: :percent_values) with the zero gain/loss line; the
+  # value series is a plain absolute money series. Every point carries a
+  # `label`, so the shared crosshair tooltip shows both series (date · % · €)
+  # regardless of the displayed line (Steve UAT #336/#411); the data table
+  # below stays the accessible fallback (UX-DR10).
   defp performance_chart(assigns) do
     assigns = assign_new(assigns, :mode, fn -> "ttwror" end)
-    series = assigns.series
-    first = List.first(series)
-    last = List.last(series)
 
-    ttwror_geo = chart_geometry(series)
-    value_geo = value_geometry(series)
-
-    {points, y_max_label, y_min_label, aria_label, show_zero?} =
+    {quotes, value_mode, zero_line?, aria_label, currency_code} =
       case assigns.mode do
         "value" ->
-          {value_points(series, value_geo), money_label(value_geo.max),
-           money_label(value_geo.min), gettext("Portfolio value over time"), false}
+          {chart_series(assigns.series, assigns.currency, :value), :absolute, false,
+           gettext("Portfolio value over time"), assigns.currency}
 
         _ ->
-          {performance_points(series), percent_label(ttwror_geo.max),
-           percent_label(ttwror_geo.min), gettext("Cumulative TTWROR over time"), true}
+          {chart_series(assigns.series, assigns.currency, :ttwror), :percent_values, true,
+           gettext("Cumulative TTWROR over time"), ""}
       end
 
     assigns =
       assign(assigns,
-        zero_y: ttwror_geo.zero_y,
-        points: points,
-        y_max_label: y_max_label,
-        y_min_label: y_min_label,
+        quotes: quotes,
+        value_mode: value_mode,
+        zero_line?: zero_line?,
         aria_label: aria_label,
-        show_zero?: show_zero?,
-        first_date: first && first.date,
-        last_date: last && last.date,
-        crosshair_json:
-          Jason.encode!(
-            %{points: payload_points(series, assigns.currency), view: %{width: 720, height: 180}},
-            escape: :html_safe
-          )
+        currency_code: currency_code
       )
 
-    # The polyline carries labeled value/date axes and an accessible data table
-    # (Steve UAT #411, UX-DR10). The series is toggleable between % (TTWROR) and
-    # € value (Steve UAT #336); the table always exposes both columns so the
-    # data is reachable regardless of the toggle.
     ~H"""
-    <figure id="performance-figure" class="perf-figure" data-chart-mode={@mode} phx-hook="PerfCrosshair">
-      <div class="perf-plot">
-        <div class="perf-yaxis" aria-hidden="true">
-          <span class="perf-ytick"><%= @y_max_label %></span>
-          <span class="perf-ytick"><%= @y_min_label %></span>
-        </div>
-        <svg
-          class="perf-chart"
-          viewBox="0 0 720 180"
-          preserveAspectRatio="none"
-          role="img"
-          aria-label={@aria_label}
-        >
-          <line :if={@show_zero?} x1="0" y1={@zero_y} x2="720" y2={@zero_y} class="perf-zeroline" />
-          <polyline class="perf-line" fill="none" points={@points} />
-        </svg>
-      </div>
-      <div :if={@first_date} class="perf-xaxis" aria-hidden="true">
-        <span><%= Date.to_iso8601(@first_date) %></span>
-        <span><%= Date.to_iso8601(@last_date) %></span>
-      </div>
-      <%!-- The hover/touch crosshair reads this payload (date · % · €) and draws
-            a tooltip over the line (Steve UAT #336/#411). It is a pure
-            enhancement: the data table above is the accessible fallback. --%>
-      <script type="application/json" data-perf-payload><%= Phoenix.HTML.raw(@crosshair_json) %></script>
+    <figure id="performance-figure" class="perf-figure" data-chart-mode={@mode}>
+      <SecurityChart.chart
+        quotes={@quotes}
+        show_transactions?={false}
+        value_mode={@value_mode}
+        zero_line?={@zero_line?}
+        aria_label={@aria_label}
+        currency_code={@currency_code}
+      />
       <details class="perf-table-disclosure">
         <summary><%= gettext("Show data as table") %></summary>
         <table class="perf-data-table">
@@ -789,63 +764,25 @@ defmodule PortfolixirWeb.PortfolioLive do
     """
   end
 
-  # The value-axis tick labels reuse the same percent/money formatting as the
-  # KPIs, so the chart and the figures above it read consistently.
-  # Per-point payload the PerfCrosshair JS hook reads: [iso date, signed
-  # TTWROR %, € value, x] — so the hover tooltip shows both series regardless of
-  # the displayed line (#336/#411 follow-up). x is the viewBox coordinate, the
-  # same the polyline uses, so the crosshair lands on the data point.
-  defp payload_points(series, currency) do
-    last = max(length(series) - 1, 1)
+  # Maps the performance series onto the shared chart's quote shape. The
+  # tooltip label always carries both series (% and €), so the hover answers
+  # "how much am I up" in both units whichever line is displayed.
+  defp chart_series(series, currency, mode) do
+    Enum.map(series, fn point ->
+      close =
+        case mode do
+          :value -> point.value
+          :ttwror -> Decimal.mult(point.cumulative_ttwror, 100)
+        end
 
-    series
-    |> Enum.with_index()
-    |> Enum.map(fn {point, index} ->
-      x = Float.round(index / last * 720, 2)
-
-      [
-        Date.to_iso8601(point.date),
-        signed_percent(point.cumulative_ttwror) <> "%",
-        "#{Format.money(point.value)} #{currency}",
-        x
-      ]
+      %{
+        date: point.date,
+        close: close,
+        label:
+          "#{signed_percent(point.cumulative_ttwror)}% · #{Format.money(point.value)} #{currency}"
+      }
     end)
   end
-
-  defp percent_label(value) when is_float(value) do
-    Format.percent(Decimal.from_float(value)) <> "%"
-  end
-
-  defp money_label(value) when is_float(value) do
-    Format.money(Decimal.from_float(value))
-  end
-
-  # The absolute € series uses its own min/max range (the TTWROR geometry is
-  # anchored at zero, which would flatten an always-positive value line).
-  defp value_geometry([]), do: %{min: 0.0, max: 1.0}
-
-  defp value_geometry(series) do
-    values = Enum.map(series, &Decimal.to_float(&1.value))
-    {min, max} = pad_flat(Enum.min(values), Enum.max(values))
-    %{min: min, max: max}
-  end
-
-  defp value_points([], _geometry), do: ""
-
-  defp value_points(series, %{min: min, max: max}) do
-    last = max(length(series) - 1, 1)
-
-    series
-    |> Enum.with_index()
-    |> Enum.map_join(" ", fn {point, index} ->
-      x = Float.round(index / last * 720, 2)
-      y = value_y(Decimal.to_float(point.value), min, max)
-      "#{x},#{y}"
-    end)
-  end
-
-  defp value_y(_value, min, max) when max - min < 1.0e-9, do: 90.0
-  defp value_y(value, min, max), do: Float.round(170 - (value - min) / (max - min) * 160, 2)
 
   # The period badge: TTWROR % beside the absolute € gain, defined as the
   # investment result net of contributions — (end − start) − net external flows
@@ -1414,36 +1351,6 @@ defmodule PortfolixirWeb.PortfolioLive do
     last = List.last(series)
 
     if List.last(sampled) == last, do: sampled, else: sampled ++ [last]
-  end
-
-  defp chart_geometry([]), do: %{min: -0.01, max: 0.01, zero_y: 90.0}
-
-  defp chart_geometry(series) do
-    values = Enum.map(series, &Decimal.to_float(&1.cumulative_ttwror))
-    min = Enum.min([0.0 | values])
-    max = Enum.max([0.0 | values])
-    {min, max} = pad_flat(min, max)
-    %{min: min, max: max, zero_y: y_for(0.0, min, max)}
-  end
-
-  defp pad_flat(min, max) when max - min < 1.0e-9, do: {min - 0.01, max + 0.01}
-  defp pad_flat(min, max), do: {min, max}
-
-  defp y_for(value, min, max), do: Float.round(170 - (value - min) / (max - min) * 160, 2)
-
-  defp performance_points([]), do: ""
-
-  defp performance_points(series) do
-    %{min: min, max: max} = chart_geometry(series)
-    last = max(length(series) - 1, 1)
-
-    series
-    |> Enum.with_index()
-    |> Enum.map_join(" ", fn {point, index} ->
-      x = Float.round(index / last * 720, 2)
-      y = y_for(Decimal.to_float(point.cumulative_ttwror), min, max)
-      "#{x},#{y}"
-    end)
   end
 
   # -- misc ---------------------------------------------------------------------

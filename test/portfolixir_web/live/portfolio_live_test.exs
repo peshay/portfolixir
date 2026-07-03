@@ -926,7 +926,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     full_html = render_async(view)
 
     refute full_html =~ ~s(data-role="performance-skeleton")
-    assert full_html =~ ~s(class="perf-chart")
+    assert full_html =~ "security-chart"
 
     # The Allocation & targets tab (ADR-0022) shows its own skeleton while
     # pending and the drift table after async.
@@ -940,20 +940,22 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert alloc_full_html =~ ~s(class="drift-table")
   end
 
-  # User story:
+  # User story (ADR-0022 — one shared chart component):
   # As a maintainer who picked a non-default accent (Teal or Coral),
   # I want the portfolio performance line to follow my chosen accent,
   # so that the chart matches the rest of the UI instead of always being violet.
   #
   # Acceptance criteria:
-  # - The .perf-line stroke uses the switched --color-accent variable, not the
-  #   fixed --color-accent-violet, so [data-accent] on <html> recolors it.
+  # - The portfolio chart renders through the shared security-chart component,
+  #   whose .quote-line stroke uses the switched --color-accent variable.
+  # - The old bespoke .perf-line/.perf-chart CSS is gone (single chart path).
   test "performance line stroke follows the chosen accent variable (#411)" do
     app_css = File.read!("priv/static/app.css")
 
-    assert app_css =~ ~r/\.perf-line\s*\{[^}]*stroke:\s*var\(--color-accent[,)]/s
+    assert app_css =~
+             ~r/\.security-chart \.quote-line\s*\{[^}]*stroke:\s*var\(--color-accent[,)]/s
 
-    refute app_css =~ ~r/\.perf-line\s*\{[^}]*stroke:\s*var\(--color-accent-violet/s
+    refute app_css =~ ~r/\.perf-line\s*\{/s
   end
 
   # User story (Steve UAT #411):
@@ -977,14 +979,15 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     figure = view |> element("#performance-figure") |> render()
 
-    # Value axis carries percent labels (the run climbs to ~+8.0%).
-    assert figure =~ "8.0"
-    assert figure =~ "%"
+    # Value axis carries signed percent tick labels (the run climbs to ~+8%).
+    assert figure =~ ~r/\+\d+(\.\d+)? %/
     # Date axis labels the most recent point with its ISO date.
     assert figure =~ Date.to_iso8601(Date.utc_today())
 
-    # The line keeps its accessible image semantics.
-    assert has_element?(view, "svg.perf-chart[role='img'][aria-label]")
+    # The shared chart component renders the line with accessible semantics
+    # (ADR-0022: one chart path), including the TTWROR zero line.
+    assert has_element?(view, "svg.security-chart[role='img'][aria-label]")
+    assert figure =~ "chart-zeroline"
 
     # The series is reachable as a table (UX-DR10).
     assert has_element?(view, "#performance-figure table caption")
@@ -1021,10 +1024,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Default series is the TTWROR %.
     assert has_element?(view, "#performance-figure[data-chart-mode='ttwror']")
 
-    # Toggling to Value switches the rendered series.
+    # Toggling to Value switches the rendered series (money axis, no zero line).
     view |> element("button[phx-value-mode='value']") |> render_click()
     assert has_element?(view, "#performance-figure[data-chart-mode='value']")
-    assert has_element?(view, "svg.perf-chart[aria-label='Portfolio value over time']")
+    assert has_element?(view, "svg.security-chart[aria-label='Portfolio value over time']")
+    refute view |> element("#performance-figure") |> render() =~ "chart-zeroline"
 
     # The choice survives a period switch.
     view |> element("button[phx-value-period='ytd']") |> render_click()
@@ -1040,19 +1044,21 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # the hook reads.
   #
   # Acceptance criteria:
-  # - The figure is hooked with PerfCrosshair and carries a JSON payload of
-  #   per-point [date, %, € value] data, independent of the displayed series.
+  # - The chart is hooked with the shared ChartCrosshair (ADR-0022: one chart
+  #   path) and carries a JSON payload whose per-point display label shows
+  #   both series (% and € value), independent of the displayed line.
   test "the performance chart exposes a crosshair payload (#336/#411)", %{conn: conn} do
     seed_world()
 
     {:ok, view, _html} = live(conn, "/portfolio")
     render_async(view)
 
-    assert has_element?(view, "#performance-figure[phx-hook='PerfCrosshair']")
+    figure = view |> element("#performance-figure") |> render()
+    assert figure =~ ~s(phx-hook="ChartCrosshair")
 
-    payload = view |> element("#performance-figure script[data-perf-payload]") |> render()
+    payload = view |> element("#performance-figure script[data-chart-payload]") |> render()
     # The payload carries date · % · € points, incl. today's point and the
-    # base currency, so the tooltip can show both series at once.
+    # base currency, so the tooltip shows both series at once.
     assert payload =~ Date.to_iso8601(Date.utc_today())
     assert payload =~ "EUR"
     assert payload =~ "%"
@@ -1092,7 +1098,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # The Holdings tab keeps its performance chart in place (the allocation
     # section lives on the Allocation & targets tab since ADR-0022).
     refute html_after_submit =~ ~s(data-role="performance-skeleton")
-    assert html_after_submit =~ ~s(class="perf-chart")
+    assert html_after_submit =~ "security-chart"
 
     # After the async jobs finish the updated totals are swapped in place.
     full_html = render_async(view)
