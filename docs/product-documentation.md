@@ -340,6 +340,20 @@ cash, so a drawn credit line correctly reduces your net worth, but the quote is
 computed over deployable cash only and never reports fake liquidity. The
 Portfolio page mutes non-deployable rows and labels them with their role.
 
+## Overview Page
+
+The **Overview** entry (the start page) answers "did anything change, does
+anything need me?" (ADR-0022). With an empty database it is the onboarding
+wizard (the ordered workflow path plus entity counts). Once transactions
+exist it shows, per portfolio, a **value card** (total incl. cash in the
+portfolio's base currency, with the **YTD TTWROR** as the change signal and
+the cash quote), a **Needs attention** list — every targeted category whose
+allocation drift exceeds **±5 percentage points** (ADR-0023 sign: positive =
+overweight), worst first, each linking into the Wealth area's Allocation &
+targets tab — and the **data-quality card** (securities without a recent
+quote, asset class, or logo). There is deliberately no activity feed: the
+audit journal owns the forensic detail.
+
 ## Wealth Page
 
 The **Wealth** entry in the navigation opens the portfolio overview, organised
