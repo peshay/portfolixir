@@ -378,8 +378,14 @@ native browser tooltip. The chart scales to the available width. Pick any
 classification tree from the selector. The drift table beneath it lists every category in tree
 order with **sub-categories indented** under their parent, comparing the
 rolled-up actual weight against the stored target and restating the drift in
-the base currency. A category with directly assigned securities carries a
-**toggle (▸)** that expands it into its member securities, each with its value,
+the base currency. The tree starts collapsed at the
+top level; every row with children carries a **toggle (▸)** that reveals its
+direct children — subcategories and positions alike — and **Expand all /
+Collapse all** controls open or fold the whole tree down to the single
+position. A **Tree | Positions** switch swaps the hierarchy for a flat
+rebalancing worklist: one row per security (cash included) with its category
+as context, sorted by absolute drift by default and re-sortable via the
+column heads. A category with directly assigned securities expands into its member securities, each with its value,
 weight, its share of the category drift, and a display-only **rebalancing
 hint**: the indicative number of units to sell (positive drift) or buy
 (negative) at the valuation's price to close the gap (ADR-0023). The hint
