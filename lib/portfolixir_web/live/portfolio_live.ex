@@ -85,6 +85,10 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:performance, nil)
           |> assign(:selected_segment, nil)
           |> assign(:expanded_categories, MapSet.new())
+          |> assign(:allocation_mode, :tree)
+          |> assign(:flat_sort, {:drift, :desc})
+          |> assign(:category_parent_map, %{})
+          |> assign(:category_parents_with_children, MapSet.new())
           |> assign_planned_view_ids()
           |> start_loading()
 
@@ -146,11 +150,11 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   @impl true
   def handle_async(:overview, {:ok, {valuation, allocation}}, socket) do
-    {:noreply, assign(socket, valuation: valuation, allocation: with_display_colors(allocation))}
+    {:noreply, socket |> assign(:valuation, valuation) |> assign_allocation(allocation)}
   end
 
   def handle_async(:allocation, {:ok, allocation}, socket) do
-    {:noreply, assign(socket, :allocation, with_display_colors(allocation))}
+    {:noreply, assign_allocation(socket, allocation)}
   end
 
   def handle_async(:performance, {:ok, analysis}, socket) do
@@ -160,6 +164,42 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_async(_name, {:exit, _reason}, socket) do
     {:noreply, assign(socket, error: gettext("Couldn't load the portfolio figures."))}
+  end
+
+  # One landing spot for a loaded allocation: resolved display colours plus
+  # the two lookups the collapsible tree needs (parent chain per category and
+  # which categories have child categories).
+  defp assign_allocation(socket, allocation) do
+    allocation = with_display_colors(allocation)
+
+    parent_map = Map.new(allocation.categories, &{&1.category_id, &1.parent_id})
+
+    parents_with_children =
+      allocation.categories
+      |> Enum.map(& &1.parent_id)
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new()
+
+    assign(socket,
+      allocation: allocation,
+      category_parent_map: parent_map,
+      category_parents_with_children: parents_with_children
+    )
+  end
+
+  # A row is visible when every ancestor on its parent chain is expanded -
+  # collapsing a category folds away its whole subtree (owner request).
+  defp branch_expanded?(nil, _expanded, _parents), do: true
+
+  defp branch_expanded?(category_id, expanded, parents) do
+    MapSet.member?(expanded, category_id) and
+      branch_expanded?(Map.get(parents, category_id), expanded, parents)
+  end
+
+  # A chevron makes sense when the row has direct children to reveal:
+  # subcategory rows and/or its own positions.
+  defp has_subtree?(row, parents_with_children) do
+    MapSet.member?(parents_with_children, row.category_id) or row.positions != []
   end
 
   # Resolves every category's display colour once: an explicitly chosen colour
@@ -358,18 +398,68 @@ defmodule PortfolixirWeb.PortfolioLive do
         <section id="portfolio-allocation" class="workspace-section">
           <header class="section-head">
             <h2><%= gettext("Allocation") %></h2>
-            <form phx-change="select_classification">
-              <label class="visually-hidden" for="allocation-classification">
-                <%= gettext("Classification") %>
-              </label>
-              <select id="allocation-classification" name="classification_id">
-                <%= for classification <- @classifications do %>
-                  <option value={classification.id} selected={classification.id == @classification_id}>
-                    <%= classification.name %>
-                  </option>
-                <% end %>
-              </select>
-            </form>
+            <div class="section-head-controls">
+              <%!-- Tree answers "is my structure on plan?"; Positions is the
+                   flat rebalancing worklist - sorting belongs to a flat list,
+                   not to a hierarchy (owner request). --%>
+              <div class="chart-toggle" role="group" aria-label={gettext("Allocation view")}>
+                <button
+                  type="button"
+                  data-role="allocation-mode-tree"
+                  class={["button-mini", @allocation_mode == :tree && "is-active"]}
+                  phx-click="set_allocation_mode"
+                  phx-value-mode="tree"
+                  aria-pressed={to_string(@allocation_mode == :tree)}
+                >
+                  <%= gettext("Tree") %>
+                </button>
+                <button
+                  type="button"
+                  data-role="allocation-mode-flat"
+                  class={["button-mini", @allocation_mode == :flat && "is-active"]}
+                  phx-click="set_allocation_mode"
+                  phx-value-mode="flat"
+                  aria-pressed={to_string(@allocation_mode == :flat)}
+                >
+                  <%= gettext("Positions") %>
+                </button>
+              </div>
+              <div
+                :if={@allocation_mode == :tree}
+                class="chart-toggle"
+                role="group"
+                aria-label={gettext("Tree depth")}
+              >
+                <button
+                  type="button"
+                  data-role="expand-all-categories"
+                  class="button-mini"
+                  phx-click="expand_all_categories"
+                >
+                  <%= gettext("Expand all") %>
+                </button>
+                <button
+                  type="button"
+                  data-role="collapse-all-categories"
+                  class="button-mini"
+                  phx-click="collapse_all_categories"
+                >
+                  <%= gettext("Collapse all") %>
+                </button>
+              </div>
+              <form phx-change="select_classification">
+                <label class="visually-hidden" for="allocation-classification">
+                  <%= gettext("Classification") %>
+                </label>
+                <select id="allocation-classification" name="classification_id">
+                  <%= for classification <- @classifications do %>
+                    <option value={classification.id} selected={classification.id == @classification_id}>
+                      <%= classification.name %>
+                    </option>
+                  <% end %>
+                </select>
+              </form>
+            </div>
           </header>
 
           <%= if @allocation do %>
@@ -396,6 +486,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 </.link>
               </p>
             <% end %>
+            <%= if @allocation_mode == :tree do %>
             <div class="donut-wrap">
               <div class="sunburst-pane">
                 <.allocation_sunburst segments={sunburst_segments(@allocation)} />
@@ -444,10 +535,11 @@ defmodule PortfolixirWeb.PortfolioLive do
               </thead>
               <tbody>
                 <%= for row <- @allocation.categories do %>
+                  <%= if branch_expanded?(row.parent_id, @expanded_categories, @category_parent_map) do %>
                   <tr class={row.depth > 0 && "is-child"}>
                     <td style={"padding-left:#{0.75 + row.depth * 1.25}rem"}>
                       <button
-                        :if={row.positions != []}
+                        :if={has_subtree?(row, @category_parents_with_children)}
                         type="button"
                         class="positions-toggle"
                         data-role="toggle-positions"
@@ -538,6 +630,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                       </tr>
                     <% end %>
                   <% end %>
+                  <% end %>
                 <% end %>
                 <%!-- In the currency classification cash is distributed into
                      currency buckets (issue #407), so the separate Cash row
@@ -602,6 +695,90 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <%= gettext("Assign them on the Classifications page") %>
                 </.link>
               </p>
+            <% end %>
+            <% end %>
+
+            <%!-- The flat rebalancing worklist: one row per position, ranked
+                 by absolute drift by default, re-sortable via the column
+                 heads. Cash joins as a row; unassigned positions carry no
+                 drift (nudging toward assignment). --%>
+            <%= if @allocation_mode == :flat do %>
+              <table class="drift-table" data-role="flat-positions">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Security") %></th>
+                    <th><%= gettext("Category") %></th>
+                    <th class="num">
+                      <button
+                        type="button"
+                        class="table-sort"
+                        data-role="flat-sort-value"
+                        phx-click="sort_flat_positions"
+                        phx-value-key="value"
+                      >
+                        <%= gettext("Value") %><%= flat_sort_marker(@flat_sort, :value) %>
+                      </button>
+                    </th>
+                    <th class="num"><%= gettext("Actual") %></th>
+                    <%= if @allocation.has_plan do %>
+                      <th class="num">
+                        <button
+                          type="button"
+                          class="table-sort"
+                          data-role="flat-sort-drift"
+                          phx-click="sort_flat_positions"
+                          phx-value-key="drift"
+                        >
+                          <%= gettext("Drift") %><%= flat_sort_marker(@flat_sort, :drift) %>
+                        </button>
+                      </th>
+                      <th class="num"><%= gettext("Hint") %></th>
+                    <% end %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    :for={entry <- flat_positions(@allocation, @flat_sort)}
+                    class={entry.cash? && "is-muted"}
+                    data-role={if entry.cash?, do: "flat-cash", else: "flat-position"}
+                  >
+                    <td><%= entry.security_name %></td>
+                    <td>
+                      <%= if entry.category_name do %>
+                        <span
+                          :if={entry.category_color}
+                          class="cat-swatch"
+                          style={"background:#{entry.category_color}"}
+                          aria-hidden="true"
+                        >
+                        </span>
+                        <%= entry.category_name %>
+                      <% else %>
+                        <span class="hint"><%= gettext("Unassigned") %></span>
+                      <% end %>
+                    </td>
+                    <td class="num"><%= Format.money(entry.market_value) %></td>
+                    <td class="num"><%= Format.percent(entry.weight) %>%</td>
+                    <%= if @allocation.has_plan do %>
+                      <td class={[
+                        "num",
+                        entry.drift_value && Decimal.compare(entry.drift_value, 0) == :lt &&
+                          "is-negative"
+                      ]}>
+                        <%= if entry.drift_value do %>
+                          <%= Format.money(entry.drift_value) %>
+                          <%= if @valuation, do: @valuation.base_currency %>
+                        <% else %>
+                          —
+                        <% end %>
+                      </td>
+                      <td class="num">
+                        <%= rebalance_hint(entry.rebalance_quantity) || "—" %>
+                      </td>
+                    <% end %>
+                  </tr>
+                </tbody>
+              </table>
             <% end %>
           <% else %>
             <div
@@ -1010,6 +1187,43 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, assign(socket, error: nil, success: nil)}
   end
 
+  # Expand-all reveals every level down to the positions; collapse-all is the
+  # top-level bird's view (owner request).
+  def handle_event("expand_all_categories", _params, socket) do
+    expanded =
+      case socket.assigns.allocation do
+        nil -> MapSet.new()
+        allocation -> MapSet.new(allocation.categories, & &1.category_id)
+      end
+
+    {:noreply, assign(socket, :expanded_categories, expanded)}
+  end
+
+  def handle_event("collapse_all_categories", _params, socket) do
+    {:noreply, assign(socket, :expanded_categories, MapSet.new())}
+  end
+
+  # Tree = structure check, Positions = flat rebalancing worklist.
+  def handle_event("set_allocation_mode", %{"mode" => mode}, socket)
+      when mode in ["tree", "flat"] do
+    {:noreply, assign(socket, :allocation_mode, String.to_existing_atom(mode))}
+  end
+
+  # Clicking the active sort key flips its direction; a new key starts desc
+  # (worklist semantics: biggest lever first).
+  def handle_event("sort_flat_positions", %{"key" => key}, socket)
+      when key in ["value", "drift", "weight"] do
+    key = String.to_existing_atom(key)
+
+    sort =
+      case socket.assigns.flat_sort do
+        {^key, :desc} -> {key, :asc}
+        _other -> {key, :desc}
+      end
+
+    {:noreply, assign(socket, :flat_sort, sort)}
+  end
+
   defp expanded?(expanded_categories, row) do
     MapSet.member?(expanded_categories, row.category_id)
   end
@@ -1017,6 +1231,78 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Display-only rebalancing hint (ADR-0023): positive drift = sell, negative
   # = buy, at the valuation's implied unit price. Indicative only — rounded at
   # display (ADR-0016), no fee/tax modelling, never turned into an order.
+  # The flat worklist rows: every category's positions (each security is
+  # directly assigned to exactly one category per tree, so each appears once),
+  # unassigned positions without drift, and the cash row unless cash is
+  # distributed into currency buckets. Positions in untargeted categories
+  # carry no drift/hint, mirroring the tree's dashes.
+  defp flat_positions(allocation, sort) do
+    from_categories =
+      Enum.flat_map(allocation.categories, fn row ->
+        untargeted? = Decimal.equal?(row.target_weight, 0)
+
+        Enum.map(row.positions, fn position ->
+          Map.merge(position, %{
+            category_name: row.name,
+            category_color: row.color,
+            cash?: false,
+            drift_value: if(untargeted?, do: nil, else: position.drift_value),
+            rebalance_quantity: if(untargeted?, do: nil, else: position.rebalance_quantity)
+          })
+        end)
+      end)
+
+    unassigned =
+      case allocation.unassigned do
+        nil ->
+          []
+
+        %{positions: entries} ->
+          Enum.map(
+            entries,
+            &Map.merge(&1, %{category_name: nil, category_color: nil, cash?: false})
+          )
+      end
+
+    sort_flat(from_categories ++ unassigned ++ flat_cash_entry(allocation), sort)
+  end
+
+  defp flat_cash_entry(%{cash: %{distributed: true}}), do: []
+
+  defp flat_cash_entry(%{cash: cash} = allocation) do
+    steered? = allocation.has_plan and not Decimal.equal?(cash.target_weight, 0)
+
+    [
+      %{
+        security_id: :cash,
+        security_name: gettext("Cash"),
+        quantity: nil,
+        market_value: cash.market_value,
+        weight: cash.actual_weight,
+        drift_value: if(steered?, do: cash.drift_value),
+        rebalance_quantity: nil,
+        category_name: nil,
+        category_color: nil,
+        cash?: true
+      }
+    ]
+  end
+
+  # Rows without a sortable value (nil drift) sink to the end regardless of
+  # direction — the worklist ranks what is actionable.
+  defp sort_flat(rows, {key, dir}) do
+    {sortable, unsortable} = Enum.split_with(rows, &flat_sort_value(&1, key))
+    Enum.sort_by(sortable, &flat_sort_value(&1, key), {dir, Decimal}) ++ unsortable
+  end
+
+  defp flat_sort_value(row, :drift), do: row.drift_value && Decimal.abs(row.drift_value)
+  defp flat_sort_value(row, :value), do: row.market_value
+  defp flat_sort_value(row, :weight), do: row.weight
+
+  defp flat_sort_marker({key, :desc}, key), do: " ↓"
+  defp flat_sort_marker({key, :asc}, key), do: " ↑"
+  defp flat_sort_marker(_sort, _key), do: ""
+
   defp rebalance_hint(nil), do: nil
 
   defp rebalance_hint(%Decimal{} = quantity) do
