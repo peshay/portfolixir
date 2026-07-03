@@ -66,7 +66,7 @@ defmodule PortfolixirWeb.DashboardLive do
     ~H"""
     <AppShell.shell
       current_path="/"
-      page_title={gettext("Dashboard")}
+      page_title={gettext("Overview")}
       page_subtitle={gettext("Local portfolio tracking")}
     >
       <div id="dashboard-workspace" class="workspace-page">

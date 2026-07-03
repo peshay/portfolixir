@@ -27,9 +27,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
   # User story:
   # As a local portfolio maintainer,
-  # I want one Portfolio page showing value, cash quote, TTWROR and the
-  # value-weighted allocation donut with drift, plus a way to set a cash
-  # balance,
+  # I want one Wealth area showing value, cash quote, TTWROR on the Holdings
+  # tab and the value-weighted allocation donut with drift on the
+  # Allocation & targets tab (ADR-0022), plus a way to set a cash balance,
   # so that the weekly check works in the app, not only over the API.
   #
   # Acceptance criteria:
@@ -37,8 +37,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   #   fill in (no blocking dead render, no double computation).
   # - The page shows total incl. cash, the cash quote, the period TTWROR and
   #   the money-weighted IRR, formatted for the locale (en: 1,080.00).
-  # - The donut renders one slice per category in the category colour, and the
-  #   drift table compares actual vs. target.
+  # - On the Allocation & targets tab the donut renders one slice per category
+  #   in the category colour, and the drift table compares actual vs. target.
   # - Switching the period re-chains the cached daily series instantly.
   # - Submitting the set-balance form records a snapshot and refreshes the
   #   shown balances.
@@ -85,7 +85,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     Map.merge(world, %{classification: classification, core: core})
   end
 
-  test "loads the figures asynchronously and shows totals, donut and drift", %{conn: conn} do
+  test "loads the holdings figures asynchronously and shows the totals", %{conn: conn} do
     seed_world()
 
     {:ok, view, _html} = live(conn, "/portfolio")
@@ -101,6 +101,15 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # The money-weighted IRR KPI renders next to the TTWROR KPI.
     assert html =~ ~s(id="kpi-irr")
     assert html =~ "IRR"
+  end
+
+  test "the Allocation & targets tab shows the donut and drift (ADR-0022)", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+
+    html = render_async(view)
+
     # Sunburst slice in the category colour, legend and drift row.
     assert html =~ ~s(fill="#2563eb")
     assert html =~ "Core"
@@ -132,7 +141,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Steer a 10% cash quote: actual cash 200/1080 = 18.5% vs. 10% target.
     {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.10"))
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
 
     cash_row = view |> element(~s([data-role="allocation-cash"])) |> render()
@@ -193,7 +202,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         %{"category_id" => core.id, "target_weight" => "1.0"}
       ])
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
 
     # The cash row still renders, at zero value and with the dash (zero-target
@@ -250,7 +259,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         sub.id
       )
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
 
     # Two rings: the parent ring and the child ring at different radii.
@@ -269,7 +278,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   test "tapping a slice echoes its details below the chart (mobile hover)", %{conn: conn} do
     seed_world()
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
 
     assert html =~ "Tap or hover a slice for details."
@@ -315,7 +324,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   test "the sunburst carries the tooltip hook and per-slice data attributes", %{conn: conn} do
     seed_world()
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
 
     # The container opts into the instant-tooltip hook.
@@ -370,7 +379,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         %{"category_id" => bonds.id, "target_weight" => "0.2"}
       ])
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
 
     # Top-level Σ hint, highlighted because 60% ≠ 100%.
@@ -428,7 +437,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         %{"category_id" => bonds.id, "target_weight" => "0.4"}
       ])
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
 
     top = view |> element(~s([data-role="target-sum-top-level"])) |> render()
@@ -708,8 +717,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         %{"category_id" => world.core.id, "target_weight" => "0.9"}
       ])
 
-    {:ok, view, _html} = live(conn, "/portfolio")
-    html = render_async(view)
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
 
     # The first body row is Core; select the whole drift table to inspect it.
     drift_table = view |> element(".drift-table") |> render()
@@ -845,7 +854,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
        %{conn: conn} do
     seed_world()
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    # The Allocation & targets tab (ADR-0022) carries the drift table; the KPI
+    # cards render on both Wealth tabs.
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
 
     # TTWROR tooltip: basis must state "selected period", not annualized.
@@ -891,10 +902,12 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # (issue #402).
   #
   # Acceptance criteria:
-  # - Before the async data arrives the performance section shows a skeleton
-  #   placeholder (data-role="performance-skeleton") that reserves height.
-  # - Before the async data arrives the allocation section shows a skeleton
-  #   placeholder (data-role="allocation-skeleton") that reserves height.
+  # - Before the async data arrives the performance section (Holdings tab)
+  #   shows a skeleton placeholder (data-role="performance-skeleton") that
+  #   reserves height.
+  # - Before the async data arrives the allocation section (Allocation &
+  #   targets tab, ADR-0022) shows a skeleton placeholder
+  #   (data-role="allocation-skeleton") that reserves height.
   # - After async data arrives the skeletons are replaced by real content.
   # - The "Set balance" button carries phx-disable-with so the browser
   #   disables it and shows a working label immediately on submit.
@@ -904,18 +917,27 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     {:ok, view, html} = live(conn, "/portfolio")
 
-    # Dead render (not connected): both sections show a skeleton placeholder
-    # rather than content, so the initial paint has stable height.
+    # Dead render (not connected): the Holdings tab's performance section shows
+    # a skeleton placeholder rather than content, so the initial paint has
+    # stable height.
     assert html =~ ~s(data-role="performance-skeleton")
-    assert html =~ ~s(data-role="allocation-skeleton")
 
-    # After async completes the skeletons are gone and real content is present.
+    # After async completes the skeleton is gone and real content is present.
     full_html = render_async(view)
 
     refute full_html =~ ~s(data-role="performance-skeleton")
-    refute full_html =~ ~s(data-role="allocation-skeleton")
     assert full_html =~ ~s(class="perf-chart")
-    assert full_html =~ ~s(class="drift-table")
+
+    # The Allocation & targets tab (ADR-0022) shows its own skeleton while
+    # pending and the drift table after async.
+    {:ok, alloc_view, alloc_html} = live(conn, "/portfolio?tab=allocation")
+
+    assert alloc_html =~ ~s(data-role="allocation-skeleton")
+
+    alloc_full_html = render_async(alloc_view)
+
+    refute alloc_full_html =~ ~s(data-role="allocation-skeleton")
+    assert alloc_full_html =~ ~s(class="drift-table")
   end
 
   # User story:
@@ -1067,16 +1089,15 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       })
       |> render_submit()
 
+    # The Holdings tab keeps its performance chart in place (the allocation
+    # section lives on the Allocation & targets tab since ADR-0022).
     refute html_after_submit =~ ~s(data-role="performance-skeleton")
-    refute html_after_submit =~ ~s(data-role="allocation-skeleton")
     assert html_after_submit =~ ~s(class="perf-chart")
-    assert html_after_submit =~ ~s(class="drift-table")
 
     # After the async jobs finish the updated totals are swapped in place.
     full_html = render_async(view)
 
     refute full_html =~ ~s(data-role="performance-skeleton")
-    refute full_html =~ ~s(data-role="allocation-skeleton")
     assert full_html =~ "1,380.00"
   end
 
@@ -1166,7 +1187,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     currency_cl = Enum.find(classifications, &(&1.key == "currency"))
     asset_cl = Enum.find(classifications, &(&1.key == "asset_class"))
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
 
     # Switch to the Currency classification.
@@ -1258,7 +1279,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
        %{conn: conn} do
     seed_world()
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
 
     # Collapsed by default: no position rows in the drift table.
@@ -1312,8 +1333,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         view: world.scoped_view.id
       )
 
-    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}")
-    {:ok, view, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}")
+    conn = get(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
     html = render_async(view)
 
     # The plan-present table carries the Target/Drift columns and the Σ check.
@@ -1354,8 +1375,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         view: nil
       )
 
-    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}")
-    {:ok, view, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}")
+    conn = get(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
     html = render_async(view)
 
     # IST-only: the Target/Drift Σ check is absent, the actual share is still shown.
@@ -1395,15 +1416,15 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       )
 
     # Under Strategie the SOLL is shown.
-    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}")
-    {:ok, view_a, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}")
+    conn = get(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
+    {:ok, view_a, _html} = live(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
     html_a = render_async(view_a)
     assert html_a =~ ~s(data-role="target-sum-top-level")
     assert view_a |> element(".drift-table") |> render() =~ "50.0"
 
     # Switching to Crypto (no plan) drops to IST-only — SOLL moves with IST.
-    conn = get(conn, "/portfolio?view=#{other.id}")
-    {:ok, view_b, _html} = live(conn, "/portfolio?view=#{other.id}")
+    conn = get(conn, "/portfolio?tab=allocation&view=#{other.id}")
+    {:ok, view_b, _html} = live(conn, "/portfolio?tab=allocation&view=#{other.id}")
     html_b = render_async(view_b)
     refute has_element?(view_b, ~s([data-role="target-sum-top-level"]))
     assert html_b =~ "No target plan for this view"
@@ -1430,8 +1451,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     :ok = Targets.set_cash_target(world.portfolio.id, "0.1", view: world.scoped_view.id)
 
-    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}")
-    {:ok, view, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}")
+    conn = get(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
     html = render_async(view)
 
     cash_row = view |> element(~s([data-role="allocation-cash"])) |> render()
@@ -1483,8 +1504,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   test "renders the no-plan hint in German", %{conn: conn} do
     world = viewer_world()
 
-    conn = get(conn, "/portfolio?view=#{world.scoped_view.id}&locale=de")
-    {:ok, view, _html} = live(conn, "/portfolio?view=#{world.scoped_view.id}&locale=de")
+    conn = get(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}&locale=de")
+
+    {:ok, view, _html} =
+      live(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}&locale=de")
+
     html = render_async(view)
 
     assert html =~ "Kein Soll-Plan für diese Sicht"
@@ -1516,7 +1540,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # security intentionally NOT assigned -> unassigned in this classification
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
 
     view
@@ -1552,7 +1576,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # no category assignment -> the holding is the unassigned remainder
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
 
     view

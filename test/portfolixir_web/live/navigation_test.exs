@@ -14,8 +14,8 @@ defmodule PortfolixirWeb.NavigationTest do
   # taxonomy/report surfaces do not guide my work.
   #
   # Acceptance criteria:
-  # - The dashboard exposes securities, portfolios, transactions and
-  #   imports as primary navigation.
+  # - The dashboard exposes securities, accounts & depots, and transactions as
+  #   primary navigation (imports live on the Transactions tab bar, ADR-0022).
   # - Prototype routes for documents, taxonomies, and reports are absent.
   # - The dashboard describes the manual workflow path in order.
   test "dashboard renders only the active local workflow navigation", %{conn: conn} do
@@ -25,7 +25,6 @@ defmodule PortfolixirWeb.NavigationTest do
     assert has_element?(view, "#nav-securities[href='/securities']")
     assert has_element?(view, "#nav-portfolios[href='/portfolios']")
     assert has_element?(view, "#nav-transactions[href='/transactions']")
-    assert has_element?(view, "#nav-imports[href='/imports']")
 
     refute has_element?(view, "a[href='/documents/new']")
     refute has_element?(view, "a[href='/taxonomies']")
@@ -84,43 +83,138 @@ defmodule PortfolixirWeb.NavigationTest do
     assert has_element?(view, "a#dashboard-transactions-count[href='/transactions']")
   end
 
-  # User story:
+  # User story (ADR-0022):
   # As a local portfolio maintainer,
-  # I want the sidebar to keep only the "Soon" entries that have an open issue
-  # behind them and drop the rest,
-  # so that the navigation promises only work that is actually planned.
+  # I want the sidebar organised into task-oriented areas — Overview, Wealth,
+  # Securities, Transactions, and an Administration group — with no roadmap
+  # placeholders and no per-classification tree,
+  # so that every destination answers a task ("how is my wealth doing?",
+  # "record/import data", "configure the system") instead of mirroring the
+  # issue history.
   #
   # Acceptance criteria:
-  # - Watchlist and Returns & risk remain as disabled "Soon" entries.
-  # - The income report (issue #331) is now a live "Income" link, no longer a
-  #   "Soon" entry.
-  # - Savings plans, Grouped accounts, Asset allocation, Holdings, Performance,
-  #   Currencies, and Settings are no longer rendered.
-  # - The kept entries still expose the shared "Soon" pill.
-  test "sidebar keeps only the issue-backed Soon entries and drops the rest", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/")
+  # - Top level: Overview (/), Wealth (/portfolio), Securities (/securities),
+  #   Transactions (/transactions).
+  # - An "Administration" group holds Accounts & depots (/portfolios),
+  #   Buckets & views (/buckets), and Classifications (/classifications).
+  # - The "Portfolio"/"Portfolios" naming collision is resolved: the holdings
+  #   view is labelled Wealth, the master-data page Accounts & depots.
+  # - Disabled "Soon" placeholders, the Income nav entry (now a Wealth tab),
+  #   the Imports nav entry (now a Transactions tab), the developer-facing
+  #   group titles, and the sidebar classification tree are gone.
+  test "sidebar shows the five task-oriented areas without placeholders", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
 
-    for kept_id <- ["nav-watchlist", "nav-returns-risk"] do
-      assert has_element?(view, "##{kept_id}.is-disabled[aria-disabled='true']")
-    end
+    assert has_element?(view, "#nav-dashboard[href='/']", "Overview")
+    assert has_element?(view, "#nav-portfolio[href='/portfolio']", "Wealth")
+    assert has_element?(view, "#nav-securities[href='/securities']", "Securities")
+    assert has_element?(view, "#nav-transactions[href='/transactions']", "Transactions")
 
-    # The income report shipped (#331): the entry is a live link, not "Soon".
-    assert has_element?(view, "#nav-dividends[href='/income']")
-    refute has_element?(view, "#nav-dividends.is-disabled")
+    assert html =~ "Administration"
+    assert has_element?(view, "#nav-portfolios[href='/portfolios']", "Accounts & depots")
+    assert has_element?(view, "#nav-buckets[href='/buckets']", "Buckets & views")
+    assert has_element?(view, "#nav-classifications[href='/classifications']", "Classifications")
 
-    assert has_element?(view, "#nav-watchlist .nav-pill", "Soon")
+    # Income and Imports moved into their areas' tab bars (ADR-0022).
+    refute has_element?(view, "#nav-dividends")
+    refute has_element?(view, "#nav-imports")
 
-    for removed_id <- [
-          "nav-savings-plans",
-          "nav-grouped-accounts",
-          "nav-asset-allocation",
-          "nav-holdings",
-          "nav-performance",
-          "nav-currencies",
-          "nav-settings"
-        ] do
-      refute has_element?(view, "##{removed_id}")
-    end
+    # No roadmap placeholders: the nav promises only what exists.
+    refute has_element?(view, ".nav-link.is-disabled")
+    refute has_element?(view, ".nav-pill")
+
+    # Developer-facing group titles are gone.
+    refute html =~ "Master data"
+    refute html =~ ">Tools<"
+    refute html =~ ">Reports<"
+
+    # The per-classification tree left the sidebar; the Classifications page
+    # owns tree management.
+    refute has_element?(view, "#app-sidebar a[href='/classifications/new']")
+  end
+
+  # User story (ADR-0022):
+  # As a local portfolio maintainer,
+  # I want the Wealth area to carry tabs for Holdings, Allocation & targets,
+  # and Income, and the Transactions area tabs for History and Import,
+  # so that analytics live in one place and importing is just another way to
+  # record transactions.
+  #
+  # Acceptance criteria:
+  # - /portfolio shows the Wealth tab bar with Holdings active; the allocation
+  #   tab is a link to /portfolio?tab=allocation and Income links to /income.
+  # - /income shows the same tab bar with Income active, and the sidebar
+  #   highlights Wealth.
+  # - /transactions and /imports share a History/Import tab bar, and /imports
+  #   keeps the sidebar's Transactions entry active.
+  test "wealth and transactions areas expose their tab bars", %{conn: conn} do
+    # The Wealth pages render their tab bar on the loaded (non-empty) state.
+    # Built-in classification trees are seeded at boot in production (#529);
+    # the sandboxed test DB needs one explicitly.
+    {:ok, _portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Local Portfolio",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, _classification} =
+      Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+        name: "Strategy"
+      })
+
+    {:ok, portfolio_view, _html} = live(conn, "/portfolio")
+
+    assert has_element?(
+             portfolio_view,
+             ~s([data-role="area-tabs"] a[href="/portfolio"][aria-current="page"]),
+             "Holdings"
+           )
+
+    assert has_element?(
+             portfolio_view,
+             ~s([data-role="area-tabs"] a[href="/portfolio?tab=allocation"]),
+             "Allocation & targets"
+           )
+
+    assert has_element?(
+             portfolio_view,
+             ~s([data-role="area-tabs"] a[href="/income"]),
+             "Income"
+           )
+
+    {:ok, income_view, _html} = live(conn, "/income")
+
+    assert has_element?(
+             income_view,
+             ~s([data-role="area-tabs"] a[href="/income"][aria-current="page"]),
+             "Income"
+           )
+
+    assert has_element?(income_view, "#nav-portfolio[aria-current='page']")
+
+    {:ok, transactions_view, _html} = live(conn, "/transactions")
+
+    assert has_element?(
+             transactions_view,
+             ~s([data-role="area-tabs"] a[href="/transactions"][aria-current="page"]),
+             "History"
+           )
+
+    assert has_element?(
+             transactions_view,
+             ~s([data-role="area-tabs"] a[href="/imports"]),
+             "Import"
+           )
+
+    {:ok, imports_view, _html} = live(conn, "/imports")
+
+    assert has_element?(
+             imports_view,
+             ~s([data-role="area-tabs"] a[href="/imports"][aria-current="page"]),
+             "Import"
+           )
+
+    assert has_element?(imports_view, "#nav-transactions[aria-current='page']")
   end
 
   # User story:
@@ -224,9 +318,9 @@ defmodule PortfolixirWeb.NavigationTest do
   # - Every active menu route uses the full-width workspace layout.
   test "active page title is rendered in the top bar for every menu route", %{conn: conn} do
     for {path, title, workspace_selector} <- [
-          {"/", "Dashboard", "#dashboard-workspace.workspace-page"},
+          {"/", "Overview", "#dashboard-workspace.workspace-page"},
           {"/securities", "Securities", "#securities-panel.workspace-panel"},
-          {"/portfolios", "Portfolios", "#portfolios-workspace.workspace-page"},
+          {"/portfolios", "Accounts & depots", "#portfolios-workspace.workspace-page"},
           {"/transactions", "Transactions", "#transactions-workspace.workspace-page"},
           {"/imports", "Imports", "#imports-workspace.workspace-page"}
         ] do

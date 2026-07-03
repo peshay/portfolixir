@@ -57,6 +57,8 @@ defmodule PortfolixirWeb.ImportsLive do
       page_subtitle={gettext("Bulk-import Portfolio Performance CSV or JSON exports.")}
     >
       <div id="imports-workspace" class="workspace-page">
+        <AppShell.area_tabs tabs={AppShell.transactions_tabs(:import)} />
+
         <%= if @error do %>
           <p class="alert-error" role="alert"><%= @error %></p>
         <% end %>
