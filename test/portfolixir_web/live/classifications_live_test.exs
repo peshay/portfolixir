@@ -17,6 +17,16 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # folder I can drag securities out of into (nested) categories,
   # so that organising holdings feels like working with folders.
 
+  # Mounts the LiveView and drains its async holdings load before returning.
+  # Every mount starts a holdings task (issue #334); a test exiting while the
+  # task is in flight races the shared sandbox owner teardown and fails a
+  # later test (flake). No test here asserts the pre-async skeleton.
+  defp live_drained(conn, path) do
+    {:ok, view, html} = live(conn, path)
+    render_async(view)
+    {:ok, view, html}
+  end
+
   defp security!(attrs \\ %{}) do
     base = %{name: "Apple", currency_code: "USD", asset_class: "equity"}
 
@@ -44,7 +54,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     _sec = security!(%{name: "Unassigned Co"})
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     # Show all securities so the unassigned one is listed under Unsorted.
     view
@@ -98,7 +108,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         %{"category_id" => filled.id, "target_weight" => "0.5"}
       ])
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     # Exactly one warning — on the empty category, not the one with an assignment.
     assert has_element?(view, "[data-role='empty-category-warning']")
@@ -124,7 +134,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     Classifications.ensure_builtins()
     asset = Classifications.get_classification_by_key("asset_class")
 
-    {:ok, view, html} = live(conn, "/classifications")
+    {:ok, view, html} = live_drained(conn, "/classifications")
 
     assert has_element?(
              view,
@@ -142,7 +152,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     Classifications.ensure_builtins()
     asset = Classifications.get_classification_by_key("asset_class")
 
-    {:ok, _view, html} = live(conn, "/classifications/#{asset.id}")
+    {:ok, _view, html} = live_drained(conn, "/classifications/#{asset.id}")
 
     assert html =~ "Built-in"
     assert html =~ "Unsorted"
@@ -151,9 +161,9 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   end
 
   test "creates a custom classification and redirects to its detail", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/classifications/new")
+    {:ok, view, _html} = live_drained(conn, "/classifications/new")
 
-    assert {:ok, _detail, html} =
+    assert {:ok, detail, html} =
              view
              |> form("#classification-form", classification: %{name: "Strategy"})
              |> render_submit()
@@ -161,6 +171,11 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     assert html =~ "Strategy"
     assert html =~ "Delete classification"
+
+    # Drain the detail view's async holdings load before the test (and with
+    # it the shared sandbox owner) exits — otherwise the in-flight task races
+    # the ownership teardown and fails a later test (flake).
+    render_async(detail)
   end
 
   # User story:
@@ -187,7 +202,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         category.id
       )
 
-    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, html} = live_drained(conn, "/classifications/#{classification.id}")
 
     # Categories start collapsed (no `open` attribute on the cat-node details).
     refute html =~ ~r/<details class="cat-node" open/
@@ -216,7 +231,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         name: "Core"
       })
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     render_hook(view, "assign_security", %{
       "security_id" => security.id,
@@ -248,7 +263,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         name: "Core"
       })
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     render_hook(view, "assign_securities", %{
       "security_ids" => [one.id, two.id],
@@ -276,7 +291,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         name: "Core"
       })
 
-    {:ok, _view, html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, _view, html} = live_drained(conn, "/classifications/#{classification.id}")
 
     assert html =~ "data-select-toolbar"
     assert html =~ "Move to category"
@@ -292,7 +307,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         name: "Equity"
       })
 
-    {:ok, _view, html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, _view, html} = live_drained(conn, "/classifications/#{classification.id}")
 
     assert html =~ "Top level"
     assert html =~ "Equity"
@@ -303,7 +318,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     Classifications.ensure_builtins()
     asset = Classifications.get_classification_by_key("asset_class")
 
-    {:ok, view, _html} = live(conn, "/classifications/#{asset.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{asset.id}")
 
     html =
       render_hook(view, "assign_security", %{
@@ -322,7 +337,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     {:ok, classification} =
       Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
-    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, html} = live_drained(conn, "/classifications/#{classification.id}")
     assert html =~ "Apple"
     assert html =~ "Microsoft"
 
@@ -345,7 +360,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         name: "Core"
       })
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     view
     |> element("button[phx-click='edit_category'][phx-value-id='#{category.id}']")
@@ -421,7 +436,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         category.id
       )
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     # The async holdings load completes; render the up-to-date DOM.
     html = render(view)
@@ -502,7 +517,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     %{portfolio: portfolio, classification: classification, equity: equity, bonds: bonds} =
       soll_world()
 
-    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, html} = live_drained(conn, "/classifications/#{classification.id}")
 
     # The view selector defaults to Gesamt and the empty state invites a plan.
     assert html =~ "Target plan for view"
@@ -552,7 +567,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     :ok = Targets.set_cash_target(portfolio.id, "0.25", view: nil)
 
-    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, html} = live_drained(conn, "/classifications/#{classification.id}")
 
     assert html =~ "Delete plan"
     # Weights are shown as percentages (75% / 25%).
@@ -578,7 +593,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         view: nil
       )
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     view
     |> element("button[phx-click='delete_soll_plan']")
@@ -609,7 +624,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         view: nil
       )
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
     assert has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
 
     # Switching to the named view shows its own (empty) plan, not Gesamt's 80%.
@@ -650,7 +665,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     :ok = Targets.set_cash_target(portfolio.id, "0.0", view: nil)
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     # Switch to the empty named view, then copy from Gesamt.
     view
@@ -699,7 +714,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   test "live Σ badge tracks the running total as you type", %{conn: conn} do
     %{classification: classification, equity: equity, bonds: bonds} = soll_world()
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
     view |> element("button[phx-click='create_soll_plan']") |> render_click()
 
     # 60 + 30 + 10 = 100 → OK.
@@ -739,7 +754,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   test "rejects non-finite weights without crashing", %{conn: conn} do
     %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
     view |> element("button[phx-click='create_soll_plan']") |> render_click()
 
     # A crafted submit with a non-finite value: the process must survive.
@@ -769,7 +784,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   test "renders the SOLL editor labels in German", %{conn: conn} do
     %{classification: classification} = soll_world()
 
-    {:ok, _view, html} = live(conn, "/classifications/#{classification.id}?locale=de")
+    {:ok, _view, html} = live_drained(conn, "/classifications/#{classification.id}?locale=de")
 
     assert html =~ "Soll-Plan für Sicht"
     assert html =~ "Plan anlegen"
@@ -811,7 +826,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         view: nil
       )
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     sum = view |> element("[data-role='soll-sum']") |> render()
 
@@ -864,7 +879,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         view: nil
       )
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     sum = view |> element("[data-role='soll-sum']") |> render()
 
@@ -909,7 +924,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         view: nil
       )
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     sum = view |> element("[data-role='soll-sum']") |> render()
 
@@ -951,7 +966,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
       )
 
     {:ok, view, _html} =
-      live(conn, "/classifications/#{classification.id}?soll_view=#{named.id}")
+      live_drained(conn, "/classifications/#{classification.id}?soll_view=#{named.id}")
 
     # The named view's option is pre-selected in the SOLL view selector.
     assert has_element?(
@@ -983,7 +998,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
       )
 
     {:ok, view, _html} =
-      live(conn, "/classifications/#{classification.id}?soll_view=total")
+      live_drained(conn, "/classifications/#{classification.id}?soll_view=total")
 
     assert has_element?(view, "select[name='soll_view'] option[value='total'][selected]")
     assert has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
@@ -997,7 +1012,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     {:ok, classification} =
       Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Lifecycle"})
 
-    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     render_hook(view, "create_category", %{
       "category" => %{"classification_id" => to_string(classification.id), "name" => "Core"}
