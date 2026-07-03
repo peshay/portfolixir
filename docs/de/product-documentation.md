@@ -381,7 +381,14 @@ zurück. Der Chart skaliert auf die verfügbare Breite. Wähle einen beliebigen
 Klassifizierungsbaum aus dem Selektor. Die Drift-Tabelle darunter listet jede
 Kategorie in Baumreihenfolge mit **eingerückten Unterkategorien** unter ihren
 Eltern und vergleicht das aufgerollte Ist-Gewicht mit dem gespeicherten Ziel,
-wobei die Drift in der Basiswährung neu ausgewiesen wird. Der Cash-Abschnitt
+wobei die Drift in der Basiswährung neu ausgewiesen wird. Eine Kategorie mit
+direkt zugeordneten Wertpapieren trägt einen **Aufklapp-Pfeil (▸)**, der sie in
+ihre Wertpapiere aufklappt — jedes mit Wert, Gewicht, seinem Anteil an der
+Kategorie-Drift und einem reinen **Anzeige-Rebalancing-Hinweis**: die indikative
+Stückzahl, die zum Bewertungskurs zu verkaufen (positive Drift) oder zu kaufen
+(negative) wäre, um die Lücke zu schließen (ADR-0023). Der Hinweis modelliert
+keine Gebühren oder Steuern, und hinter ihm steht bewusst kein Order-Knopf —
+das Handeln bleibt vollständig manuell. Der Cash-Abschnitt
 listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: tippe den
 Saldo ein, den deine Bank zeigt, und der Snapshot wird ohne Buchung einzelner
 Transaktionen erfasst.
