@@ -919,23 +919,6 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
-  defp expanded?(expanded_categories, row) do
-    MapSet.member?(expanded_categories, row.category_id)
-  end
-
-  # Display-only rebalancing hint (ADR-0023): positive drift = sell, negative
-  # = buy, at the valuation's implied unit price. Indicative only — rounded at
-  # display (ADR-0016), no fee/tax modelling, never turned into an order.
-  defp rebalance_hint(nil), do: nil
-
-  defp rebalance_hint(%Decimal{} = quantity) do
-    case Decimal.compare(quantity, 0) do
-      :gt -> gettext("Sell ≈ %{quantity}", quantity: Format.decimal(quantity, 2))
-      :lt -> gettext("Buy ≈ %{quantity}", quantity: Format.decimal(Decimal.abs(quantity), 2))
-      :eq -> nil
-    end
-  end
-
   # The mobile substitute for hover: tapping a slice echoes it below the chart.
   # Values are display strings straight from our own render; HEEx escapes them.
   def handle_event("select_segment", params, socket) do
@@ -987,6 +970,23 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_event("dismiss_toast", _params, socket) do
     {:noreply, assign(socket, error: nil, success: nil)}
+  end
+
+  defp expanded?(expanded_categories, row) do
+    MapSet.member?(expanded_categories, row.category_id)
+  end
+
+  # Display-only rebalancing hint (ADR-0023): positive drift = sell, negative
+  # = buy, at the valuation's implied unit price. Indicative only — rounded at
+  # display (ADR-0016), no fee/tax modelling, never turned into an order.
+  defp rebalance_hint(nil), do: nil
+
+  defp rebalance_hint(%Decimal{} = quantity) do
+    case Decimal.compare(quantity, 0) do
+      :gt -> gettext("Sell ≈ %{quantity}", quantity: Format.decimal(quantity, 2))
+      :lt -> gettext("Buy ≈ %{quantity}", quantity: Format.decimal(Decimal.abs(quantity), 2))
+      :eq -> nil
+    end
   end
 
   # On-demand exchange-rate sync (issue #432): the rate provider only refreshes
