@@ -178,6 +178,39 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(view, "#dashboard-attention [data-role='drift-alert']")
   end
 
+  # The dashboard must alert against the same default tree the Wealth page
+  # steers by (first CUSTOM classification, else the built-in asset-class
+  # tree) — with built-ins seeded first at boot, alerting against "the first
+  # classification" would silently miss a plan on the custom strategy tree.
+  test "drift alerts use the custom tree even when built-ins are seeded first", %{conn: conn} do
+    %{portfolio: portfolio, security: security} = seed_holding()
+
+    # Built-ins get the lowest ids/positions, like the boot seeding does.
+    Classifications.ensure_builtins()
+
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, core} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
+
+    {:ok, _} =
+      Classifications.assign_security(Actor.owner_ui(), security.id, classification.id, core.id)
+
+    {:ok, _} =
+      Targets.set_targets(portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert has_element?(view, "#dashboard-attention [data-role='drift-alert']", "Core")
+  end
+
   # User story (Steve UAT #337 follow-up):
   # As a maintainer keeping the local records auditable,
   # I want the dashboard to flag securities that need attention — no recent

@@ -223,16 +223,18 @@ defmodule PortfolixirWeb.DashboardLive do
     end
   end
 
-  # Categories drifting beyond ±5 pp against the first classification's
-  # portfolio-wide (Gesamt) plan, worst offenders first. Only rows that carry
-  # a target count — an untargeted parent's "drift" is not an alert. The cash
-  # row joins under the same rule when a cash target is steered.
+  # Categories drifting beyond ±5 pp against the default steering tree's
+  # portfolio-wide (Gesamt) plan — the same tree the Wealth page defaults to
+  # (first custom classification, else asset class; review finding) — worst
+  # offenders first. Only rows that carry a target count — an untargeted
+  # parent's "drift" is not an alert. The cash row joins under the same rule
+  # when a cash target is steered.
   defp drift_alerts do
-    case Classifications.list_classifications() do
-      [] ->
+    case Classifications.default_classification() do
+      nil ->
         []
 
-      [classification | _] ->
+      classification ->
         Enum.flat_map(Portfolios.list_portfolios(), &alerts_for(&1, classification))
     end
     |> Enum.sort_by(&Decimal.abs(&1.drift_value), {:desc, Decimal})

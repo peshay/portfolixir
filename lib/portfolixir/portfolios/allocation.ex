@@ -502,8 +502,13 @@ defmodule Portfolixir.Portfolios.Allocation do
     end
   end
 
+  # No hint without a defined implied unit price: a zero quantity or a
+  # zero-valued position (e.g. a stored 0 close) makes market_value/quantity
+  # meaningless, and the qty-cancellation below would suggest trading a
+  # worthless position.
   defp rebalance_quantity(position, row) do
-    if Decimal.equal?(position.quantity, @zero) do
+    if Decimal.equal?(position.quantity, @zero) or
+         Decimal.equal?(position.market_value, @zero) do
       nil
     else
       # share / unit_price = (drift × mv / rolled) / (mv / qty) = drift × qty / rolled.

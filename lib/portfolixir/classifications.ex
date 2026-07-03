@@ -109,6 +109,20 @@ defmodule Portfolixir.Classifications do
   end
 
   @doc """
+  The default steering tree: the first **custom** classification, else the
+  built-in asset-class tree. This is the rule the Wealth page's allocation
+  selector uses; the dashboard's drift alerts must follow the same rule so a
+  plan on the custom strategy tree is never silently missed (built-ins are
+  seeded first at boot, so "the first classification" would pick asset_class).
+  Returns `nil` when no classification exists.
+  """
+  def default_classification(classifications \\ list_classifications()) do
+    Enum.find(classifications, &(not &1.built_in)) ||
+      Enum.find(classifications, &(&1.key == "asset_class")) ||
+      List.first(classifications)
+  end
+
+  @doc """
   Lists one classification's categories, ordered the same way as the trees.
 
   Works for built-in and custom classifications alike; built-in categories are
