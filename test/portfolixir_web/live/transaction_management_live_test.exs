@@ -293,9 +293,10 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
   end
 
   # The history lists every ledger kind, not just buy/sell (e.g. an imported
-  # dividend). Such kinds have no dedicated label and fall back to their stored
-  # name rather than crashing the table.
-  test "history falls back to the stored name for non-buy/sell kinds", %{conn: conn} do
+  # dividend). Every PP kind now carries a translated label (Steve UAT,
+  # reconsolidation); unknown kinds still fall back to their stored name
+  # rather than crashing the table.
+  test "history shows a translated label for non-buy/sell kinds", %{conn: conn} do
     world = WorldFixtures.base_world(name: "Solo")
     security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
 
@@ -312,7 +313,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     {:ok, view, _html} = live(conn, "/transactions")
 
-    assert has_element?(view, "#transaction-list tbody tr td", "dividend")
+    assert has_element?(view, "#transaction-list tbody tr td", "Dividend")
   end
 
   # User story (Steve cold-start #1):
@@ -570,5 +571,37 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
              view,
              "#transaction-form input[name='transaction[price]'][aria-invalid='true']"
            )
+  end
+
+  # User story (Steve UAT, reconsolidation):
+  # As a maintainer scanning the Transactions page,
+  # I want holdings quantities and the summary shown as clean numbers with
+  # translated type labels,
+  # so that "200.000000000000" internals and raw type keys like "deposit"
+  # do not undermine trust in the ledger view.
+  #
+  # Acceptance criteria:
+  # - Holdings quantities render normalized (200, not 200.000000000000).
+  # - The per-type summary uses translated labels for every PP kind and
+  #   locale-formatted amounts.
+  test "holdings and the summary render clean numbers and translated labels", %{conn: conn} do
+    world = WorldFixtures.base_world()
+    security = WorldFixtures.create_security!(name: "Clean Co", ticker: "CLN")
+
+    WorldFixtures.deposit!(world, "52000", ~D[2026-01-02])
+    WorldFixtures.buy!(world, security, quantity: "200", price: "10", date: ~D[2026-01-03])
+
+    {:ok, _view, html} = live(conn, "/transactions")
+
+    # Holdings show the normalized quantity, not Decimal internals.
+    refute html =~ "200.000000000000"
+    assert html =~ ~r/>\s*200\s*</
+
+    # The summary translates every type key and formats the amounts.
+    assert html =~ ~r/data-type="deposit"/
+    refute html =~ ~s(deposit:)
+    assert html =~ "Deposit"
+    assert html =~ "52,000.00"
+    refute html =~ "52000.000000"
   end
 end

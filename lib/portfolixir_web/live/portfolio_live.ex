@@ -32,6 +32,19 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   @unassigned_color "#9ca3af"
   @fallback_color "#6b7280"
+  # Categories without a chosen colour cycle through this palette (in tree
+  # order), so an unstyled tree still renders a readable sunburst/legend
+  # instead of uniform grey (Steve UAT, reconsolidation).
+  @category_palette [
+    "#2563eb",
+    "#0d9488",
+    "#d97706",
+    "#db2777",
+    "#65a30d",
+    "#7c3aed",
+    "#0891b2",
+    "#c2410c"
+  ]
   # Neutral cash colour, distinct from the category palette and the grey
   # unassigned/excluded shades, for the cash segment in the basis (issue #335).
   @cash_color "#0ea5e9"
@@ -133,11 +146,11 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   @impl true
   def handle_async(:overview, {:ok, {valuation, allocation}}, socket) do
-    {:noreply, assign(socket, valuation: valuation, allocation: allocation)}
+    {:noreply, assign(socket, valuation: valuation, allocation: with_display_colors(allocation))}
   end
 
   def handle_async(:allocation, {:ok, allocation}, socket) do
-    {:noreply, assign(socket, :allocation, allocation)}
+    {:noreply, assign(socket, :allocation, with_display_colors(allocation))}
   end
 
   def handle_async(:performance, {:ok, analysis}, socket) do
@@ -147,6 +160,24 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_async(_name, {:exit, _reason}, socket) do
     {:noreply, assign(socket, error: gettext("Couldn't load the portfolio figures."))}
+  end
+
+  # Resolves every category's display colour once: an explicitly chosen colour
+  # wins, everything else cycles through the palette in tree order. Downstream
+  # consumers (sunburst, legend, drift table) can then rely on `color` being
+  # set.
+  defp with_display_colors(allocation) do
+    categories =
+      allocation.categories
+      |> Enum.with_index()
+      |> Enum.map(fn {row, index} ->
+        %{
+          row
+          | color: row.color || Enum.at(@category_palette, rem(index, length(@category_palette)))
+        }
+      end)
+
+    %{allocation | categories: categories}
   end
 
   @impl true
@@ -264,7 +295,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   phx-value-mode="ttwror"
                   aria-pressed={to_string(@chart_mode == "ttwror")}
                 >
-                  <%= gettext("%% (TTWROR)") %>
+                  <%= gettext("% (TTWROR)") %>
                 </button>
                 <button
                   type="button"
@@ -990,9 +1021,14 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp rebalance_hint(%Decimal{} = quantity) do
     case Decimal.compare(quantity, 0) do
-      :gt -> gettext("Sell ≈ %{quantity}", quantity: Format.decimal(quantity, 2))
-      :lt -> gettext("Buy ≈ %{quantity}", quantity: Format.decimal(Decimal.abs(quantity), 2))
-      :eq -> nil
+      :gt ->
+        gettext("Sell ≈ %{quantity} units", quantity: Format.decimal(quantity, 2))
+
+      :lt ->
+        gettext("Buy ≈ %{quantity} units", quantity: Format.decimal(Decimal.abs(quantity), 2))
+
+      :eq ->
+        nil
     end
   end
 

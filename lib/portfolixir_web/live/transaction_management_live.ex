@@ -298,7 +298,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 <span class="summary-type" data-type={row.type}>
                   <%= tx_type_label(row.type) %>:
                   <strong data-role="summary-count"><%= row.count %></strong>
-                  · <%= format_decimal(row.total) %>
+                  · <%= PortfolixirWeb.Format.money(row.total) %>
                 </span>
               <% end %>
             </div>
@@ -607,12 +607,32 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # Human, localized labels for the stored type enum; the form value and the
   # ledger keep the machine "buy"/"sell". Mirrors securities_live.ex so the two
   # transaction surfaces read identically.
+  # Every PP transaction kind gets a translated label, so the summary strip
+  # never mixes raw type keys into the localized UI (Steve UAT,
+  # reconsolidation).
   defp tx_type_label("buy"), do: gettext("Buy")
   defp tx_type_label("sell"), do: gettext("Sell")
+  defp tx_type_label("deposit"), do: gettext("Deposit")
+  defp tx_type_label("removal"), do: gettext("Removal")
+  defp tx_type_label("dividend"), do: gettext("Dividend")
+  defp tx_type_label("interest"), do: gettext("Interest")
+  defp tx_type_label("fee"), do: gettext("Fee")
+  defp tx_type_label("tax"), do: gettext("Tax")
+  defp tx_type_label("tax_refund"), do: gettext("Tax refund")
+  defp tx_type_label("cash_transfer"), do: gettext("Cash transfer")
+  defp tx_type_label("inbound_delivery"), do: gettext("Inbound delivery")
+  defp tx_type_label("outbound_delivery"), do: gettext("Outbound delivery")
+  defp tx_type_label("security_transfer"), do: gettext("Security transfer")
+  defp tx_type_label("balance"), do: gettext("Balance snapshot")
   defp tx_type_label(other), do: to_string(other)
 
+  # Normalized, so holdings show "200" instead of the stored scale
+  # ("200.000000000000"); nil stays blank.
   defp format_decimal(nil), do: ""
-  defp format_decimal(decimal), do: Decimal.to_string(decimal, :normal)
+
+  defp format_decimal(decimal) do
+    decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
+  end
 
   # Only offer depots that have a usable linked cash account; a depot without one
   # can never form a valid transaction, so it must not be a selectable dead end.

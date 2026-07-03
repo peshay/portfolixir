@@ -367,7 +367,9 @@ shows the classification as concentric rings — the inner ring is the top-level
 categories, each outer ring breaks one level down with sub-category arcs nested
 inside their parent, and the **outermost ring shows the individual positions**
 as shaded arcs of their category's colour (the Portfolio Performance style) —
-with a grey slice for unassigned holdings. Like PP the slices carry no
+with a grey slice for unassigned holdings. Categories without a chosen
+colour are assigned distinct palette colours automatically, so an unstyled
+tree stays readable. Like PP the slices carry no
 in-chart text: hovering a slice shows its name, share and value in an
 **instant custom tooltip** that follows the pointer (no browser hover delay),
 and a slice can be **tapped** to echo the same below the chart (the mobile
