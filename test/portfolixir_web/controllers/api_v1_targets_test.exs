@@ -99,6 +99,16 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert category["drift_weight"] == "0.2"
     assert category["drift_value"] == "240"
 
+    # Drill-down with display-only rebalancing hints (ADR-0023): the position
+    # carries its quantity, its share of the category drift and the indicative
+    # quantity to sell at the implied unit price (240 / 120 = 2). Positive =
+    # sell; nothing is persisted or transmitted as an order.
+    assert [position] = category["positions"]
+    assert position["security_name"] == "Core Equity"
+    assert position["quantity"] == "10"
+    assert position["drift_value"] == "240"
+    assert position["rebalance_quantity"] == "2"
+
     # The allocation carries a cash row (here cash is 0) and the Σ top level.
     assert data["cash"]["market_value"] == "0"
     assert data["cash"]["actual_weight"] == "0"

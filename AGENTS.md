@@ -53,6 +53,10 @@ New functionality must stay small, reviewed, locally tested, and documented.
   Broker-PDF transaction intake is also an in-scope exception per ADR-0021,
   constrained to a sandboxed, text-extraction-only, per-broker, preview-then-
   confirm importer (binary `.portfolio` intake stays out of scope).
+  Display-only rebalancing hints are an in-scope exception per ADR-0023:
+  computing and showing indicative corrective quantities next to the
+  allocation drift is allowed, but anything that creates, stores, or
+  transmits an order remains forbidden.
 - Do not add advanced reports or advanced classifications.
 - Do not claim production readiness.
 - Public files must be normal readable multiline files.

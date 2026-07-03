@@ -282,6 +282,118 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   end
 
   # User story:
+  # As a local portfolio maintainer rebalancing against my plan (ADR-0023),
+  # I want a category's member securities to carry their share of the category
+  # drift and an indicative buy/sell quantity at the valuation's price,
+  # so that I can read what a corrective trade would look like — without the
+  # app ever creating, storing, or transmitting an order.
+  #
+  # Acceptance criteria:
+  # - Each category position carries its `quantity` and, when the view has a
+  #   plan, `drift_value` (its proportional share of the category's drift,
+  #   weighted by market value within the rolled-up subtree value) and
+  #   `rebalance_quantity` (that share at the position's implied base-currency
+  #   unit price, i.e. drift_value × quantity / rolled value).
+  # - Positive values mean sell (overweight), negative mean buy (underweight).
+  # - Without a plan, and for `unassigned` positions, both fields are nil.
+  # - Values keep full precision (ADR-0016); rounding happens at display.
+  test "positions carry their drift share and an indicative rebalance quantity" do
+    world = setup_world()
+    %{classification: classification, core: core} = world
+
+    sec_a = equity!("Alpha ETF", "ALPH")
+    sec_b = equity!("Beta ETF", "BETA")
+    loose = equity!("Loose Equity", "LOOSE")
+
+    for security <- [sec_a, sec_b] do
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          security.id,
+          classification.id,
+          core.id
+        )
+    end
+
+    # Fund exactly: cash ends at zero, basis = securities 800 + 400 + 300 = 1500.
+    deposit!(world, "1500", ~D[2026-01-01])
+    buy!(world, sec_a, "10", "80")
+    buy!(world, sec_b, "40", "10")
+    buy!(world, loose, "5", "60")
+
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"}
+      ])
+
+    prices = %{
+      sec_a.id => Decimal.new("80"),
+      sec_b.id => Decimal.new("10"),
+      loose.id => Decimal.new("60")
+    }
+
+    {:ok, allocation} =
+      Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+    # Core: actual 1200/1500 = 0.8 vs target 0.6 -> drift_value +300 (sell).
+    core_row = fetch_category(allocation, core.id)
+    assert Decimal.equal?(Decimal.round(core_row.drift_value, 2), Decimal.new("300"))
+
+    # Positions come back largest first: Alpha (800), then Beta (400).
+    assert [alpha, beta] = core_row.positions
+
+    # Alpha: share of the drift = 300 × 800/1200 = 200; at the implied unit
+    # price of 80 that is an indicative sale of 2.5 units.
+    assert alpha.security_name == "Alpha ETF"
+    assert Decimal.equal?(alpha.quantity, Decimal.new("10"))
+    assert Decimal.equal?(Decimal.round(alpha.drift_value, 2), Decimal.new("200"))
+    assert Decimal.equal?(Decimal.round(alpha.rebalance_quantity, 4), Decimal.new("2.5"))
+
+    # Beta: 300 × 400/1200 = 100; at unit price 10 -> sell 10 units.
+    assert beta.security_name == "Beta ETF"
+    assert Decimal.equal?(beta.quantity, Decimal.new("40"))
+    assert Decimal.equal?(Decimal.round(beta.drift_value, 2), Decimal.new("100"))
+    assert Decimal.equal?(Decimal.round(beta.rebalance_quantity, 4), Decimal.new("10"))
+
+    # Unassigned positions never carry a drift share or a hint.
+    assert [loose_entry] = allocation.unassigned.positions
+    assert Decimal.equal?(loose_entry.quantity, Decimal.new("5"))
+    assert is_nil(loose_entry.drift_value)
+    assert is_nil(loose_entry.rebalance_quantity)
+  end
+
+  test "positions carry no drift share or hint when the view has no plan" do
+    world = setup_world()
+    %{classification: classification, core: core} = world
+
+    security = equity!("Solo ETF", "SOLO")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        core.id
+      )
+
+    deposit!(world, "500", ~D[2026-01-01])
+    buy!(world, security, "5", "100")
+
+    {:ok, allocation} =
+      Allocation.for_portfolio(world.portfolio.id, classification.id,
+        prices: %{security.id => Decimal.new("100")}
+      )
+
+    refute allocation.has_plan
+
+    core_row = fetch_category(allocation, core.id)
+    assert [entry] = core_row.positions
+    assert Decimal.equal?(entry.quantity, Decimal.new("5"))
+    assert is_nil(entry.drift_value)
+    assert is_nil(entry.rebalance_quantity)
+  end
+
+  # User story:
   # As a local portfolio maintainer setting targets at several levels,
   # I want the breakdown to carry advisory consistency figures (sum of a
   # parent's child targets, and the sum of the top-level targets),
