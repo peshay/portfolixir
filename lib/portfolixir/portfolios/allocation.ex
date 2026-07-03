@@ -195,8 +195,8 @@ defmodule Portfolixir.Portfolios.Allocation do
       |> preorder()
       |> Enum.filter(fn {category, _depth} -> MapSet.member?(kept, category.id) end)
       |> Enum.map(fn {category, depth} ->
-        row(
-          category,
+        category
+        |> row(
           depth,
           Map.get(own_value_by_category, category.id, @zero),
           Map.get(rolled, category.id, @zero),
@@ -205,6 +205,7 @@ defmodule Portfolixir.Portfolios.Allocation do
           position_entries(Map.get(positions_by_category, category.id, []), total),
           total
         )
+        |> with_rebalance_hints(has_plan)
       end)
 
     distribute_cash? = classification.key == "currency"
@@ -341,7 +342,9 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   # One entry per security (a security held in several depots is merged),
   # largest first — the per-position breakdown behind a category's own value,
-  # e.g. the outermost sunburst ring.
+  # e.g. the outermost sunburst ring. `drift_value` and `rebalance_quantity`
+  # stay nil here; category rows overwrite them when the view has a plan
+  # (ADR-0023), so every entry has a uniform shape for the UI/API.
   defp position_entries(positions, total) do
     positions
     |> Enum.group_by(&{&1.security_id, &1.security_name})
@@ -351,11 +354,18 @@ defmodule Portfolixir.Portfolios.Allocation do
       %{
         security_id: security_id,
         security_name: security_name,
+        quantity: sum_quantities(grouped),
         market_value: value,
-        weight: weight(value, total)
+        weight: weight(value, total),
+        drift_value: nil,
+        rebalance_quantity: nil
       }
     end)
     |> Enum.sort_by(& &1.market_value, {:desc, Decimal})
+  end
+
+  defp sum_quantities(positions) do
+    Enum.reduce(positions, @zero, &Decimal.add(&2, &1.quantity))
   end
 
   # Rolled-up value per category = own value + every descendant's own value.
@@ -460,6 +470,45 @@ defmodule Portfolixir.Portfolios.Allocation do
       child_target_sum: child_target_sum,
       positions: positions
     }
+  end
+
+  # Display-only rebalancing hints (ADR-0023): each position's proportional
+  # share of the category drift (weighted by market value within the rolled-up
+  # subtree value) and that share as an indicative quantity at the position's
+  # implied base-currency unit price (market_value / quantity — the same price
+  # basis the valuation used). Positive = sell, negative = buy. Derived data
+  # only; nothing here is persisted, and there is no fee/tax modelling. Both
+  # multiplications happen before the division so exact fixtures stay exact
+  # (ADR-0016: full precision in compute, round at display).
+  defp with_rebalance_hints(row, false), do: row
+
+  defp with_rebalance_hints(row, true) do
+    if Decimal.equal?(row.market_value, @zero) do
+      row
+    else
+      positions =
+        Enum.map(row.positions, fn position ->
+          %{
+            position
+            | drift_value:
+                row.drift_value
+                |> Decimal.mult(position.market_value)
+                |> Decimal.div(row.market_value),
+              rebalance_quantity: rebalance_quantity(position, row)
+          }
+        end)
+
+      %{row | positions: positions}
+    end
+  end
+
+  defp rebalance_quantity(position, row) do
+    if Decimal.equal?(position.quantity, @zero) do
+      nil
+    else
+      # share / unit_price = (drift × mv / rolled) / (mv / qty) = drift × qty / rolled.
+      row.drift_value |> Decimal.mult(position.quantity) |> Decimal.div(row.market_value)
+    end
   end
 
   defp unassigned(positions, total) do

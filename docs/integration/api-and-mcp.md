@@ -376,7 +376,13 @@ Example account payloads:
   levels — only the leaves plus `unassigned` do. Each category (and
   `unassigned`) also carries `positions`: the per-security breakdown of its
   **own** (directly assigned) value — `security_id`, `security_name`,
-  `market_value`, `weight` — largest first, securities merged across depots;
+  `quantity`, `market_value`, `weight`, plus the display-only rebalancing
+  hints (ADR-0023): `drift_value` (the position's proportional share of the
+  category drift) and `rebalance_quantity` (indicative units to sell
+  (positive) or buy (negative) at the valuation's implied base-currency unit
+  price; no fee/tax modelling, never an order). Both hints are `null` without
+  a plan and for `unassigned` positions. Entries come largest first,
+  securities merged across depots;
   this is what the sunburst's outermost ring renders. Securities held but not
   assigned in the tree are summed into `unassigned`. Weights are shares of the
   **steering basis**: the valued positions' total (scoped by the active `view`

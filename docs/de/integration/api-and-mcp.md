@@ -375,7 +375,13 @@ Beispiel-Payloads für Konten:
   über die Ebenen zu 1 — nur die Blätter plus `unassigned` tun es. Jede Kategorie
   (und `unassigned`) trägt außerdem `positions`: die Aufschlüsselung je Wertpapier
   ihres **eigenen** (direkt zugeordneten) Werts — `security_id`, `security_name`,
-  `market_value`, `weight` — größte zuerst, Wertpapiere über Depots
+  `quantity`, `market_value`, `weight`, plus die reinen Anzeige-Hinweise fürs
+  Rebalancing (ADR-0023): `drift_value` (der proportionale Anteil der Position an
+  der Kategorie-Drift) und `rebalance_quantity` (indikative Stückzahl, die zum
+  impliziten Stückpreis der Bewertung zu verkaufen (positiv) oder zu kaufen
+  (negativ) wäre; ohne Gebühren-/Steuermodell, nie eine Order). Beide Hinweise
+  sind ohne Plan und für `unassigned`-Positionen `null`. Einträge kommen größte
+  zuerst, Wertpapiere über Depots
   zusammengeführt; das ist es, was der äußerste Ring des Sunburst rendert.
   Gehaltene, aber im Baum nicht zugeordnete Wertpapiere werden in `unassigned`
   summiert. Gewichte sind Anteile der **Steuerbasis**: der Gesamtwert der
