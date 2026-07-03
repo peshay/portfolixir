@@ -107,6 +107,17 @@ jobs:
       - name: Compile (warnings as errors)
         run: mix compile --force --warnings-as-errors
 
+      # Hex 2.5's `mix hex.audit` gained advisory gating (hex.pm EEF feed)
+      # with NO ignore mechanism, so unpatched-upstream advisories (currently
+      # cowlib EEF-CVE-2026-43966 MEDIUM / -43969 LOW — no fixed release
+      # exists) would hard-fail CI with no recourse. Advisory gating with a
+      # documented ignore list lives in the mix_audit step below; this step's
+      # unique job is the RETIREMENT check, so Hex is pinned to 2.4.1 (the
+      # last retirement-only hex.audit). Revisit when hex.audit learns
+      # ignores or a fixed cowlib ships.
+      - name: Pin Hex for the retirement-only audit
+        run: mix local.hex 2.4.1 --force
+
       - name: Audit retired Hex packages
         run: mix hex.audit
 
