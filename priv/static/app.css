@@ -3971,18 +3971,11 @@ details[open] > .cat-summary::before {
   border-color: var(--color-accent-violet);
   color: var(--color-on-accent);
 }
-.perf-chart {
-  flex: 1;
-  min-width: 0;
-  height: 180px;
-  display: block;
-}
-.perf-line {
-  stroke: var(--color-accent);
-  stroke-width: 2;
-}
-.perf-zeroline {
-  stroke: var(--color-border);
+/* The portfolio performance chart renders through the shared security-chart
+   component (ADR-0022: one chart path); its zero gain/loss line is the only
+   portfolio-specific chart element. */
+.chart-zeroline {
+  stroke: var(--color-border-strong);
   stroke-dasharray: 4 4;
 }
 
@@ -4034,26 +4027,6 @@ details[open] > .cat-summary::before {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-.perf-plot {
-  display: flex;
-  gap: var(--space-2);
-  align-items: stretch;
-}
-.perf-yaxis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.perf-xaxis {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
 }
 .perf-table-disclosure > summary {
   cursor: pointer;
