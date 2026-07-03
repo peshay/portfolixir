@@ -38,10 +38,11 @@ defmodule PortfolixirWeb.PortfolioLive do
   @unpriced_names_shown 6
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     socket =
       socket
       |> assign(:current_path, "/portfolio")
+      |> assign(:wealth_tab, wealth_tab(params))
       |> assign(:error, nil)
       |> assign(:success, nil)
 
@@ -72,6 +73,11 @@ defmodule PortfolixirWeb.PortfolioLive do
         {:ok, socket}
     end
   end
+
+  # The Wealth area's active tab (ADR-0022): the tab bar navigates with plain
+  # links, so the choice arrives as a query param on mount.
+  defp wealth_tab(%{"tab" => "allocation"}), do: :allocation
+  defp wealth_tab(_params), do: :holdings
 
   # The dead render ships skeletons only; the expensive reads start once the
   # socket is connected, so the page paints fast and is computed exactly once.
@@ -138,10 +144,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   @impl true
   def render(%{portfolio: nil} = assigns) do
     ~H"""
-    <AppShell.shell current_path={@current_path} page_title={gettext("Portfolio")}>
+    <AppShell.shell current_path={@current_path} page_title={gettext("Wealth")}>
       <div class="workspace-page">
         <section class="workspace-section empty-state">
-          <h2><%= gettext("Portfolio") %></h2>
+          <h2><%= gettext("Wealth") %></h2>
           <p><%= gettext("Create one portfolio first to see value, performance and allocation.") %></p>
           <.link navigate="/portfolios" class="button"><%= gettext("Create one portfolio") %></.link>
         </section>
@@ -164,6 +170,8 @@ defmodule PortfolixirWeb.PortfolioLive do
         <%= if @success do %>
           <AppShell.status_toast kind={:success} message={@success} />
         <% end %>
+
+        <AppShell.area_tabs tabs={AppShell.wealth_tabs(@wealth_tab)} />
 
         <.view_switcher
           current_path={@current_path}
@@ -228,8 +236,14 @@ defmodule PortfolixirWeb.PortfolioLive do
           </article>
         </section>
 
-        <.data_quality valuation={@valuation} analysis={@analysis} />
+        <%!-- Wealth tabs (ADR-0022): Holdings carries the performance chart,
+             data quality and cash; Allocation & targets carries the sunburst
+             and drift table. KPIs and the view switcher head both. --%>
+        <%= if @wealth_tab == :holdings do %>
+          <.data_quality valuation={@valuation} analysis={@analysis} />
+        <% end %>
 
+        <%= if @wealth_tab == :holdings do %>
         <section id="portfolio-performance" class="workspace-section">
           <header class="section-head">
             <h2><%= gettext("Performance") %></h2>
@@ -299,7 +313,9 @@ defmodule PortfolixirWeb.PortfolioLive do
             </div>
           <% end %>
         </section>
+        <% end %>
 
+        <%= if @wealth_tab == :allocation do %>
         <section id="portfolio-allocation" class="workspace-section">
           <header class="section-head">
             <h2><%= gettext("Allocation") %></h2>
@@ -558,7 +574,9 @@ defmodule PortfolixirWeb.PortfolioLive do
             </div>
           <% end %>
         </section>
+        <% end %>
 
+        <%= if @wealth_tab == :holdings do %>
         <section id="portfolio-cash" class="workspace-section">
           <h2><%= gettext("Cash accounts") %></h2>
           <%= if @valuation do %>
@@ -621,6 +639,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
           <% end %>
         </section>
+        <% end %>
       </div>
     </AppShell.shell>
     """

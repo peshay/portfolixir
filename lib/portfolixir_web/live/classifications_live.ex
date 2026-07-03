@@ -66,8 +66,14 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> apply_action(socket.assigns.live_action, params)}
   end
 
+  # The index owns the tree list (ADR-0022): the per-classification tree left
+  # the sidebar, so this page is where every tree stays reachable.
   defp apply_action(socket, :index, _params) do
-    assign(socket, selected_id: nil, tree: nil)
+    assign(socket,
+      selected_id: nil,
+      tree: nil,
+      classifications: Classifications.list_classifications()
+    )
   end
 
   defp apply_action(socket, :new, _params) do
@@ -314,9 +320,17 @@ defmodule PortfolixirWeb.ClassificationsLive do
     ~H"""
     <AppShell.shell current_path={@current_path} page_title={gettext("Classifications")}>
       <div class="workspace-page">
-        <section class="workspace-section empty-state">
+        <section class="workspace-section">
           <h2><%= gettext("Classifications") %></h2>
-          <p><%= gettext("Pick a classification on the left, or create a new one.") %></p>
+          <p><%= gettext("Pick a classification tree, or create a new one.") %></p>
+          <ul class="classification-index" data-role="classification-index">
+            <li :for={classification <- @classifications}>
+              <.link navigate={"/classifications/#{classification.id}"}>
+                <%= classification.name %>
+              </.link>
+              <span :if={classification.built_in} class="badge"><%= gettext("Built-in") %></span>
+            </li>
+          </ul>
           <.link navigate="/classifications/new" class="button">
             <%= gettext("New classification") %>
           </.link>

@@ -80,6 +80,8 @@ defmodule PortfolixirWeb.IncomeLive do
       page_subtitle={gettext("Received dividends and interest")}
     >
       <div class="workspace-page">
+        <AppShell.area_tabs tabs={AppShell.wealth_tabs(:income)} />
+
         <section class="workspace-section">
           <p class="muted">
             <%= gettext(
