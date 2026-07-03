@@ -362,6 +362,47 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     assert is_nil(loose_entry.rebalance_quantity)
   end
 
+  test "a zero-valued position gets no rebalance quantity (undefined unit price)" do
+    world = setup_world()
+    %{classification: classification, core: core} = world
+
+    held = equity!("Held ETF", "HELD")
+    worthless = equity!("Worthless Co", "ZERO")
+
+    for security <- [held, worthless] do
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          security.id,
+          classification.id,
+          core.id
+        )
+    end
+
+    deposit!(world, "1100", ~D[2026-01-01])
+    buy!(world, held, "10", "100")
+    buy!(world, worthless, "10", "10")
+
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.5"}
+      ])
+
+    # The worthless position is valued at 0: its implied unit price is
+    # undefined, so no indicative quantity may be derived from it.
+    prices = %{held.id => Decimal.new("100"), worthless.id => Decimal.new("0")}
+
+    {:ok, allocation} =
+      Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+    core_row = fetch_category(allocation, core.id)
+    zero_entry = Enum.find(core_row.positions, &(&1.security_name == "Worthless Co"))
+
+    assert Decimal.equal?(zero_entry.market_value, Decimal.new("0"))
+    assert Decimal.equal?(zero_entry.drift_value, Decimal.new("0"))
+    assert is_nil(zero_entry.rebalance_quantity)
+  end
+
   test "positions carry no drift share or hint when the view has no plan" do
     world = setup_world()
     %{classification: classification, core: core} = world

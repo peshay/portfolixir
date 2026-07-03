@@ -217,6 +217,47 @@ defmodule PortfolixirWeb.NavigationTest do
     assert has_element?(imports_view, "#nav-transactions[aria-current='page']")
   end
 
+  # User story (ADR-0022 follow-up, review finding):
+  # As a local portfolio maintainer reading the Allocation & targets tab,
+  # I want switching the active view or the language to keep me on that tab,
+  # so that changing the view-bound SOLL plan context does not silently throw
+  # me back to Holdings.
+  #
+  # Acceptance criteria:
+  # - On /portfolio?tab=allocation the view-switcher chips and the locale
+  #   links carry the tab param alongside their own.
+  # - On plain /portfolio (Holdings) they keep working without a tab param.
+  test "view and locale switches keep the active wealth tab", %{conn: conn} do
+    {:ok, _portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Local Portfolio",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, _classification} =
+      Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+        name: "Strategy"
+      })
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    html = render_async(view)
+
+    # The Total view chip keeps the tab param next to its own view param.
+    total_chip = view |> element("#view-switch-total") |> render()
+    assert total_chip =~ "tab=allocation"
+    assert total_chip =~ "view=total"
+
+    # The locale links keep the tab param too.
+    assert html =~ ~r/id="locale-en"[^>]*href="[^"]*tab=allocation[^"]*"/
+
+    # Plain Holdings keeps the untabbed links.
+    {:ok, holdings_view, _html} = live(conn, "/portfolio")
+    render_async(holdings_view)
+    holdings_chip = holdings_view |> element("#view-switch-total") |> render()
+    refute holdings_chip =~ "tab=allocation"
+    assert holdings_chip =~ "view=total"
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want a responsive Portfolixir design shell with matching light and dark themes,
