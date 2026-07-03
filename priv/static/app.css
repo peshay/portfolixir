@@ -4337,6 +4337,31 @@ button.income-bar-label.is-active {
   font-variant-numeric: tabular-nums;
 }
 
+/* ===== Area tab bar (ADR-0022): sub-navigation inside a task area ===== */
+/* Plain links styled as underline tabs; the active tab carries the accent. */
+.area-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(127, 127, 127, 0.16));
+  margin-bottom: 1rem;
+}
+.area-tab {
+  padding: 0.45rem 0.8rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.area-tab:hover,
+.area-tab:focus-visible {
+  color: var(--color-text);
+}
+.area-tab.is-active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
+}
+
 /* ===== Drift drill-down: member securities + rebalancing hints (ADR-0023) ===== */
 /* The toggle is a plain text button so the row stays scannable; expanded
    position rows are muted secondary detail. The hint is display-only — it

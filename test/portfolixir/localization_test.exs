@@ -2,7 +2,7 @@ defmodule Portfolixir.LocalizationTest do
   use ExUnit.Case, async: true
 
   @core_messages [
-    "Dashboard",
+    "Overview",
     "Securities",
     "Portfolios",
     "Transactions",
@@ -39,7 +39,8 @@ defmodule Portfolixir.LocalizationTest do
       assert german =~ ~s(msgid "#{message}")
     end
 
-    assert german =~ ~s(msgstr "Dashboard")
+    # The Overview area (ADR-0022, formerly "Dashboard") translates to German.
+    assert german =~ ~s(msgstr "Übersicht")
     assert german =~ ~s(msgstr "Wertpapiere")
     assert german =~ ~s(msgstr "Portfolios")
     assert german =~ ~s(msgstr "Transaktionen")
