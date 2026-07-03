@@ -65,6 +65,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:analysis, nil)
           |> assign(:performance, nil)
           |> assign(:selected_segment, nil)
+          |> assign(:expanded_categories, MapSet.new())
           |> assign_planned_view_ids()
           |> start_loading()
 
@@ -390,6 +391,18 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <%= for row <- @allocation.categories do %>
                   <tr class={row.depth > 0 && "is-child"}>
                     <td style={"padding-left:#{0.75 + row.depth * 1.25}rem"}>
+                      <button
+                        :if={row.positions != []}
+                        type="button"
+                        class="positions-toggle"
+                        data-role="toggle-positions"
+                        phx-click="toggle_category_positions"
+                        phx-value-category-id={row.category_id}
+                        aria-expanded={to_string(expanded?(@expanded_categories, row))}
+                        aria-label={gettext("Toggle the category's securities")}
+                      >
+                        <%= if expanded?(@expanded_categories, row), do: "▾", else: "▸" %>
+                      </button>
                       <span
                         :if={row.color}
                         class="cat-swatch"
@@ -431,6 +444,45 @@ defmodule PortfolixirWeb.PortfolioLive do
                       </td>
                     <% end %>
                   </tr>
+                  <%!-- Drill-down (ADR-0023): the expanded category's member
+                       securities, each with its share of the drift and a
+                       display-only rebalancing hint. No order is created,
+                       stored, or transmitted. --%>
+                  <%= if expanded?(@expanded_categories, row) do %>
+                    <%= for position <- row.positions do %>
+                      <tr class="is-position is-muted" data-role="allocation-position">
+                        <td style={"padding-left:#{2.0 + row.depth * 1.25}rem"}>
+                          <%= position.security_name %>
+                        </td>
+                        <td class="num"><%= Format.money(position.market_value) %></td>
+                        <td class="num"><%= Format.percent(position.weight) %>%</td>
+                        <%= if @allocation.has_plan do %>
+                          <td class="num"></td>
+                          <td class={[
+                            "num",
+                            position.drift_value &&
+                              Decimal.compare(position.drift_value, 0) == :lt &&
+                              "is-negative"
+                          ]}>
+                            <%= if Decimal.equal?(row.target_weight, 0) or
+                                     is_nil(position.drift_value) do %>
+                              —
+                            <% else %>
+                              <%= Format.money(position.drift_value) %>
+                              <%= if @valuation, do: @valuation.base_currency %>
+                              <span
+                                :if={rebalance_hint(position.rebalance_quantity)}
+                                class="rebalance-hint"
+                                data-role="rebalance-hint"
+                              >
+                                <%= rebalance_hint(position.rebalance_quantity) %>
+                              </span>
+                            <% end %>
+                          </td>
+                        <% end %>
+                      </tr>
+                    <% end %>
+                  <% end %>
                 <% end %>
                 <%!-- In the currency classification cash is distributed into
                      currency buckets (issue #407), so the separate Cash row
@@ -883,11 +935,48 @@ defmodule PortfolixirWeb.PortfolioLive do
          socket
          |> assign(:classification_id, classification_id)
          |> assign(:selected_segment, nil)
+         |> assign(:expanded_categories, MapSet.new())
          |> assign_planned_view_ids()
          |> load_allocation()}
 
       :error ->
         {:noreply, socket}
+    end
+  end
+
+  # Expands/collapses a drift-table category into its member securities
+  # (ADR-0023). Pure display state; nothing is persisted.
+  def handle_event("toggle_category_positions", %{"category-id" => id}, socket) do
+    case coerce_id(id) do
+      {:ok, category_id} ->
+        expanded = socket.assigns.expanded_categories
+
+        expanded =
+          if MapSet.member?(expanded, category_id),
+            do: MapSet.delete(expanded, category_id),
+            else: MapSet.put(expanded, category_id)
+
+        {:noreply, assign(socket, :expanded_categories, expanded)}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  defp expanded?(expanded_categories, row) do
+    MapSet.member?(expanded_categories, row.category_id)
+  end
+
+  # Display-only rebalancing hint (ADR-0023): positive drift = sell, negative
+  # = buy, at the valuation's implied unit price. Indicative only — rounded at
+  # display (ADR-0016), no fee/tax modelling, never turned into an order.
+  defp rebalance_hint(nil), do: nil
+
+  defp rebalance_hint(%Decimal{} = quantity) do
+    case Decimal.compare(quantity, 0) do
+      :gt -> gettext("Sell ≈ %{quantity}", quantity: Format.decimal(quantity, 2))
+      :lt -> gettext("Buy ≈ %{quantity}", quantity: Format.decimal(Decimal.abs(quantity), 2))
+      :eq -> nil
     end
   end
 

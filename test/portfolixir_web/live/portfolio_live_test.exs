@@ -1240,6 +1240,56 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   end
 
   # User story:
+  # As a local portfolio maintainer rebalancing against my plan (ADR-0023),
+  # I want to expand a drift-table category into its member securities, each
+  # with its share of the category drift and an indicative buy/sell quantity
+  # at the valuation price,
+  # so that I can read what a corrective trade would look like — while the app
+  # never creates, stores, or transmits an order.
+  #
+  # Acceptance criteria:
+  # - A category with positions carries a toggle; the positions are hidden
+  #   until it is expanded.
+  # - An expanded category lists each security with value, weight, its share
+  #   of the drift, and a sell (positive drift) / buy (negative) hint with the
+  #   indicative quantity, rounded only at display (ADR-0016).
+  # - There is no order button, form, or persisted state behind the hint.
+  test "expands a drift category into member securities with rebalancing hints",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # Collapsed by default: no position rows in the drift table.
+    refute has_element?(view, ~s([data-role="allocation-position"]))
+
+    view
+    |> element(~s(.drift-table [data-role="toggle-positions"]))
+    |> render_click()
+
+    drift_table = view |> element(".drift-table") |> render()
+
+    # The member security with its value and weight (880 of 1080 = 81.5%).
+    assert drift_table =~ "World ETF"
+    assert drift_table =~ "880.00"
+
+    # Its share of Core's drift (the only position: the full +232.00) and the
+    # sell hint at the implied unit price: 232 × 8 / 880 ≈ 2.11 units.
+    position_row = view |> element(~s([data-role="allocation-position"])) |> render()
+    assert position_row =~ "232.00"
+    assert position_row =~ "Sell"
+    assert position_row =~ "2.11"
+
+    # Collapse again: the position rows disappear.
+    view
+    |> element(~s(.drift-table [data-role="toggle-positions"]))
+    |> render_click()
+
+    refute has_element?(view, ~s([data-role="allocation-position"]))
+  end
+
+  # User story:
   # As a local portfolio maintainer steering a named view,
   # I want the SOLL/Target/Drift columns and the Σ check to reflect that
   # active view's plan for the active classification,

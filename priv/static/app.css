@@ -4337,6 +4337,32 @@ button.income-bar-label.is-active {
   font-variant-numeric: tabular-nums;
 }
 
+/* ===== Drift drill-down: member securities + rebalancing hints (ADR-0023) ===== */
+/* The toggle is a plain text button so the row stays scannable; expanded
+   position rows are muted secondary detail. The hint is display-only — it
+   deliberately looks like an annotation, not an action. */
+.positions-toggle {
+  background: none;
+  border: none;
+  padding: 0 0.3rem 0 0;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 0.85em;
+  line-height: 1;
+}
+.positions-toggle:hover,
+.positions-toggle:focus-visible {
+  color: var(--color-text);
+}
+.drift-table tr.is-position td {
+  font-size: 0.92em;
+}
+.rebalance-hint {
+  display: block;
+  font-size: 0.85em;
+  color: var(--color-text-muted);
+}
+
 /* ===== Section skeletons (issue 402 — stable layout on async reload) ===== */
 /* Reserve the same vertical space as the loaded content so async results
    landing later do not cause a layout shift. The shimmer animation signals

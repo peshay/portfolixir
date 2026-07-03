@@ -370,12 +370,19 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  # `drift_value` is the position's share of its category's drift and
+  # `rebalance_quantity` the indicative quantity to sell (positive) or buy
+  # (negative) at the implied unit price — display-only hints (ADR-0023), nil
+  # without a plan and for `unassigned` positions.
   defp allocation_position(position) do
     %{
       security_id: position.security_id,
       security_name: position.security_name,
+      quantity: decimal(position.quantity),
       market_value: decimal(position.market_value),
-      weight: decimal(position.weight)
+      weight: decimal(position.weight),
+      drift_value: decimal(position.drift_value),
+      rebalance_quantity: decimal(position.rebalance_quantity)
     }
   end
 
