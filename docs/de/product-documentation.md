@@ -360,6 +360,21 @@ Nettovermögen korrekt mindert, aber die Quote wird nur über das verfügbare Ca
 berechnet und meldet nie Schein-Liquidität. Die Portfolio-Seite dämpft nicht
 verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 
+## Übersichts-Seite
+
+Der Eintrag **Übersicht** (die Startseite) beantwortet „Hat sich etwas
+geändert, braucht etwas meine Aufmerksamkeit?" (ADR-0022). Bei leerer
+Datenbank ist sie der Onboarding-Assistent (der geordnete Workflow-Pfad plus
+Zähler). Sobald Transaktionen existieren, zeigt sie je Portfolio eine
+**Wert-Karte** (Gesamtwert inkl. Cash in der Basiswährung des Portfolios, mit
+der **YTD-TTWROR** als Änderungssignal und der Cash-Quote), eine Liste
+**Braucht Aufmerksamkeit** — jede Kategorie mit Ziel, deren Allokations-Drift
+**±5 Prozentpunkte** überschreitet (ADR-0023-Vorzeichen: positiv =
+übergewichtet), schlimmste zuerst, jeweils verlinkt in den Tab „Allokation &
+Ziele" des Vermögens-Bereichs — und die **Datenqualitäts-Karte** (Wertpapiere
+ohne aktuellen Kurs, Anlageklasse oder Logo). Es gibt bewusst keinen
+Aktivitäts-Feed: die forensischen Details gehören dem Audit-Journal.
+
 ## Vermögens-Seite
 
 Der Eintrag **Vermögen** in der Navigation öffnet die Portfolio-Übersicht,

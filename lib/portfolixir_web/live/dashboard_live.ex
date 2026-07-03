@@ -2,13 +2,19 @@ defmodule PortfolixirWeb.DashboardLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Classifications
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Allocation
+  alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
 
-  @recent_limit 5
+  # A category counts as "needs attention" when its drift exceeds ±5 pp of the
+  # steering basis (ADR-0022 dashboard; drift per ADR-0023: actual − target).
+  @drift_threshold Decimal.new("0.05")
+  @max_alerts 5
 
   @impl true
   def mount(_params, _session, socket) do
@@ -16,7 +22,7 @@ defmodule PortfolixirWeb.DashboardLive do
       socket
       |> assign_counts()
       |> assign(:portfolio_cards, nil)
-      |> assign(:recent_transactions, nil)
+      |> assign(:drift_alerts, nil)
       |> assign(:data_quality, nil)
       |> start_loading()
 
@@ -25,7 +31,9 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # The dashboard splits on whether any transaction exists: an empty database is
   # still the onboarding wizard, but once data lands the page becomes the daily
-  # wealth overview (Steve UAT #337). The overview reads are expensive, so they
+  # attention surface (Steve UAT #337, reshaped by ADR-0022): value + change,
+  # drift beyond threshold, data quality — no activity feed (the audit journal
+  # keeps the forensic detail). The overview reads are expensive, so they
   # start only once the socket is connected — the first paint ships skeletons.
   defp start_loading(%{assigns: %{transactions_count: 0}} = socket), do: socket
 
@@ -35,12 +43,10 @@ defmodule PortfolixirWeb.DashboardLive do
         portfolio_cards =
           Portfolios.list_portfolios()
           |> Enum.map(fn portfolio ->
-            {portfolio, Valuation.for_portfolio(portfolio.id)}
+            {portfolio, Valuation.for_portfolio(portfolio.id), ytd_ttwror(portfolio.id)}
           end)
 
-        recent = Ledger.list_transactions(limit: @recent_limit)
-
-        {portfolio_cards, recent, data_quality_report()}
+        {portfolio_cards, drift_alerts(), data_quality_report()}
       end)
     else
       socket
@@ -48,11 +54,11 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   @impl true
-  def handle_async(:overview, {:ok, {portfolio_cards, recent, data_quality}}, socket) do
+  def handle_async(:overview, {:ok, {portfolio_cards, drift_alerts, data_quality}}, socket) do
     {:noreply,
      assign(socket,
        portfolio_cards: portfolio_cards,
-       recent_transactions: recent,
+       drift_alerts: drift_alerts,
        data_quality: data_quality
      )}
   end
@@ -104,10 +110,11 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
-  # Populated dashboard: per-portfolio value cards (each in its own base
-  # currency, so no cross-currency aggregation is invented here) plus the most
-  # recent activity. Richer widgets (sparkline, top/bottom movers, data-quality
-  # card) are the approval-gated follow-up tracked on #337.
+  # Populated dashboard (ADR-0022): per-portfolio value cards (each in its own
+  # base currency, so no cross-currency aggregation is invented here) with the
+  # YTD TTWROR as the change signal, the drift attention list, and the
+  # data-quality card. Deliberately no activity feed and no entity counts —
+  # the audit journal and the admin pages own those.
   defp overview(assigns) do
     ~H"""
     <div id="dashboard-overview">
@@ -122,7 +129,7 @@ defmodule PortfolixirWeb.DashboardLive do
           </article>
         <% else %>
           <a
-            :for={{portfolio, valuation} <- @portfolio_cards}
+            :for={{portfolio, valuation, ttwror} <- @portfolio_cards}
             id={"dashboard-portfolio-#{portfolio.id}"}
             href="/portfolio"
             class="stat stat--link"
@@ -131,31 +138,48 @@ defmodule PortfolixirWeb.DashboardLive do
             <strong>
               <%= Format.money(valuation.total_with_cash) %> <%= valuation.base_currency %>
             </strong>
-            <small>
+            <small :if={ttwror} data-role="card-ttwror">
+              <%= signed_percent(ttwror) %>% <%= gettext("YTD") %>
+              · <%= gettext("Cash") %> <%= Format.percent(valuation.cash_quote) %>%
+            </small>
+            <small :if={is_nil(ttwror)}>
               <%= gettext("Cash") %> <%= Format.percent(valuation.cash_quote) %>%
             </small>
           </a>
         <% end %>
       </section>
 
-      <section id="dashboard-recent" class="workspace-section">
-        <h2><a href="/transactions"><%= gettext("Recent activity") %></a></h2>
-        <%= if is_nil(@recent_transactions) do %>
-          <p class="section-skeleton" data-role="recent-skeleton"><%= gettext("Loading…") %></p>
+      <%!-- ADR-0022: the dashboard answers "does anything need me?". Drift
+           alerts (ADR-0023 sign: positive = overweight) link straight into
+           the Allocation & targets tab; the audit journal keeps the forensic
+           detail that the old activity feed restated. --%>
+      <section id="dashboard-attention" class="workspace-section">
+        <h2><%= gettext("Needs attention") %></h2>
+        <%= if is_nil(@drift_alerts) do %>
+          <p class="section-skeleton" data-role="attention-skeleton">
+            <%= gettext("Loading…") %>
+          </p>
         <% else %>
-          <ul class="recent-list">
-            <li
-              :for={transaction <- @recent_transactions}
-              data-role="recent-transaction"
-              class="recent-item"
-            >
-              <span class="recent-date"><%= transaction.date %></span>
-              <span class="recent-type"><%= transaction.type %></span>
-              <span class="recent-security">
-                <%= transaction.security && transaction.security.name %>
-              </span>
-            </li>
-          </ul>
+          <%= if @drift_alerts == [] do %>
+            <p class="hint" data-role="all-clear">
+              <%= gettext("All targets within ±5 pp — nothing needs rebalancing.") %>
+            </p>
+          <% else %>
+            <ul class="attention-list">
+              <li :for={alert <- @drift_alerts}>
+                <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
+                  <span class="attention-name">
+                    <%= alert.name %>
+                    <span class="hint">(<%= alert.portfolio_name %>)</span>
+                  </span>
+                  <span class={["num", drift_sign_class(alert.drift_weight)]}>
+                    <%= signed_percent(alert.drift_weight) %> pp
+                    · <%= Format.money(alert.drift_value) %> <%= alert.base_currency %>
+                  </span>
+                </a>
+              </li>
+            </ul>
+          <% end %>
         <% end %>
       </section>
 
@@ -186,10 +210,69 @@ defmodule PortfolixirWeb.DashboardLive do
           </div>
         <% end %>
       </section>
-
-      <.count_cards {assigns} />
     </div>
     """
+  end
+
+  # The YTD TTWROR as the card's "did anything change" signal; nil (hidden)
+  # when the period cannot be computed yet.
+  defp ytd_ttwror(portfolio_id) do
+    case Performance.for_portfolio(portfolio_id, period: "ytd") do
+      {:ok, %{ttwror: %Decimal{} = ttwror}} -> ttwror
+      _ -> nil
+    end
+  end
+
+  # Categories drifting beyond ±5 pp against the first classification's
+  # portfolio-wide (Gesamt) plan, worst offenders first. Only rows that carry
+  # a target count — an untargeted parent's "drift" is not an alert. The cash
+  # row joins under the same rule when a cash target is steered.
+  defp drift_alerts do
+    case Classifications.list_classifications() do
+      [] ->
+        []
+
+      [classification | _] ->
+        Enum.flat_map(Portfolios.list_portfolios(), &alerts_for(&1, classification))
+    end
+    |> Enum.sort_by(&Decimal.abs(&1.drift_value), {:desc, Decimal})
+    |> Enum.take(@max_alerts)
+  end
+
+  defp alerts_for(portfolio, classification) do
+    case Allocation.for_portfolio(portfolio.id, classification.id) do
+      {:ok, %{has_plan: true} = allocation} ->
+        rows = allocation.categories ++ [Map.put(allocation.cash, :name, gettext("Cash"))]
+
+        rows
+        |> Enum.filter(&targeted_beyond_threshold?/1)
+        |> Enum.map(fn row ->
+          %{
+            name: row.name,
+            portfolio_name: portfolio.name,
+            drift_weight: row.drift_weight,
+            drift_value: row.drift_value,
+            base_currency: allocation.base_currency
+          }
+        end)
+
+      _ ->
+        []
+    end
+  end
+
+  defp targeted_beyond_threshold?(row) do
+    Decimal.compare(row.target_weight, 0) == :gt and
+      Decimal.compare(Decimal.abs(row.drift_weight), @drift_threshold) == :gt
+  end
+
+  defp drift_sign_class(drift_weight) do
+    if Decimal.compare(drift_weight, 0) == :lt, do: "is-negative", else: nil
+  end
+
+  defp signed_percent(value) do
+    formatted = Format.percent(value)
+    if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
   end
 
   # Securities needing attention (#337 data-quality card): no recent quote
