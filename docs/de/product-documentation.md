@@ -360,13 +360,16 @@ Nettovermögen korrekt mindert, aber die Quote wird nur über das verfügbare Ca
 berechnet und meldet nie Schein-Liquidität. Die Portfolio-Seite dämpft nicht
 verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 
-## Portfolio-Seite
+## Vermögens-Seite
 
-Der Eintrag **Portfolio** in der Navigation öffnet die Portfolio-Übersicht: den
+Der Eintrag **Vermögen** in der Navigation öffnet die Portfolio-Übersicht,
+organisiert in Tabs (ADR-0022): **Bestände** (Wert, Performance, Datenqualität,
+Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Erträge** (der
+Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab zeigt den
 Gesamtwert inklusive Cash, die Cash-Quote sowie sowohl die TTWROR als auch den
 geldgewichteten **IRR** für einen wählbaren Zeitraum (laufendes Jahr, ein/drei/fünf
 Jahre oder seit der ersten Transaktion) mit dem kumulativen Performance-Chart.
-Darunter zeigt der **Allokations-Sunburst** die Klassifizierung als
+Auf dem Tab **Allokation & Ziele** zeigt der **Allokations-Sunburst** die Klassifizierung als
 konzentrische Ringe — der innere Ring sind die obersten Kategorien, jeder äußere
 Ring bricht eine Ebene weiter herunter mit in ihren Eltern verschachtelten
 Unterkategorie-Bögen, und der **äußerste Ring zeigt die einzelnen Positionen** als
@@ -592,13 +595,13 @@ Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 - Jede Kategoriezeile aggregiert den **Wert** und die **Positionsanzahl** der
   aktuell in ihr und ihren Unterkategorien sichtbaren Wertpapiere, sodass die
   Summen dem Schalter folgen.
-- Die Seitenleiste listet nur existierende Routen plus die wenigen geplanten
-  Funktionen mit einem offenen Issue dahinter. Zwei Einträge werden deaktiviert
-  mit einer „Soon"-Plakette gezeigt: **Watchlist** und **Returns & risk**. Der
-  **Income**-Bericht ist ein aktiver Eintrag (erhaltene Dividenden und Zinsen).
-  Allocation, Holdings und Performance sind keine eigenen Menüeinträge — die Seite
-  **Portfolio** deckt Asset-Allokation (den Sunburst), Bestände und
-  TTWROR-Performance bereits ab.
+- Die Seitenleiste ist in aufgabenorientierte Bereiche organisiert (ADR-0022):
+  **Übersicht**, **Vermögen**, **Wertpapiere** und **Transaktionen** auf der
+  obersten Ebene, plus eine Gruppe **Verwaltung** mit **Konten & Depots**,
+  **Buckets & Views** und **Klassifizierungen**. Sie listet nur existierende
+  Routen — keine deaktivierten Roadmap-Platzhalter. Erträge sind ein Tab des
+  Vermögens-Bereichs und der Import ein Tab des Transaktions-Bereichs, keine
+  eigenen Menüeinträge.
 - Theme: System-, hell- und dunkel-Modus werden unterstützt.
 - Akzent: violette, türkise und korallenfarbene Logo-Akzentwahlen werden
   unterstützt.

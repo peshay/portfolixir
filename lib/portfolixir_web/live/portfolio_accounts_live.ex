@@ -27,7 +27,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     ~H"""
     <AppShell.shell
       current_path="/portfolios"
-      page_title={gettext("Portfolios")}
+      page_title={gettext("Accounts & depots")}
       page_subtitle={gettext("Portfolio, cash account, and depot setup")}
     >
       <div id="portfolios-workspace" class="workspace-page">

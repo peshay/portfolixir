@@ -40,6 +40,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       page_subtitle={gettext("Manual buy and sell ledger")}
     >
       <div id="transactions-workspace" class="workspace-page">
+        <AppShell.area_tabs tabs={AppShell.transactions_tabs(:history)} />
+
         <%= if @error do %>
           <p class="alert-error" role="alert"><%= @error %></p>
         <% end %>

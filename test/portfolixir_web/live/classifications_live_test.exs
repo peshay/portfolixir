@@ -109,14 +109,32 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert warnings == 1
   end
 
-  test "index lists the built-in trees in the sidebar", %{conn: conn} do
+  # User story (ADR-0022):
+  # As a local portfolio maintainer,
+  # I want the Classifications page itself to list my trees,
+  # so that every tree stays reachable now that the per-classification tree
+  # left the sidebar — the page owns tree management.
+  #
+  # Acceptance criteria:
+  # - /classifications lists each classification as a link to its detail page,
+  #   built-ins marked as such.
+  # - The page offers the New-classification action.
+  # - The stale "pick a classification on the left" copy is gone.
+  test "index lists the classification trees as links", %{conn: conn} do
     Classifications.ensure_builtins()
+    asset = Classifications.get_classification_by_key("asset_class")
 
-    {:ok, _view, html} = live(conn, "/classifications")
+    {:ok, view, html} = live(conn, "/classifications")
 
-    assert html =~ "Asset class"
+    assert has_element?(
+             view,
+             ~s([data-role="classification-index"] a[href="/classifications/#{asset.id}"]),
+             "Asset class"
+           )
+
     assert html =~ "Currency"
-    assert html =~ "Pick a classification"
+    assert has_element?(view, ~s(a[href="/classifications/new"]))
+    refute html =~ "on the left"
   end
 
   test "shows a built-in tree as read-only with an Unsorted folder", %{conn: conn} do

@@ -10,11 +10,6 @@ defmodule PortfolixirWeb.AppShell do
   slot(:inner_block, required: true)
 
   def shell(assigns) do
-    assigns =
-      assign_new(assigns, :classifications, fn ->
-        Portfolixir.Classifications.list_classifications()
-      end)
-
     ~H"""
     <div id="app-shell" class="app-shell">
       <input
@@ -35,42 +30,24 @@ defmodule PortfolixirWeb.AppShell do
 
         <nav class="primary-nav" aria-label={gettext("Primary navigation")}>
           <%= for group <- nav_groups() do %>
-            <%= if group[:kind] == :classifications do %>
-              <.classifications_nav classifications={@classifications} current_path={@current_path} />
-            <% else %>
             <div class={["nav-group", group.title == nil && "nav-group-unlabeled"]}>
               <%= if group.title do %>
                 <div class="nav-group-head"><span><%= group.title %></span></div>
               <% end %>
 
               <%= for item <- group.items do %>
-                <%= if item[:disabled] do %>
-                  <span
-                    id={item.id}
-                    class="nav-link is-disabled"
-                    aria-disabled="true"
-                    title={gettext("Coming soon")}
-                  >
-                    <span class="nav-marker" aria-hidden="true"></span>
-                    <span class="nav-ico" aria-hidden="true"><%= nav_icon(item[:icon]) %></span>
-                    <span class="nav-label"><%= item.label %></span>
-                    <span class="nav-pill" aria-hidden="true"><%= gettext("Soon") %></span>
-                  </span>
-                <% else %>
-                  <a
-                    id={item.id}
-                    class={["nav-link", nav_current?(@current_path, item) && "is-active"]}
-                    href={item.href}
-                    aria-current={if nav_current?(@current_path, item), do: "page", else: nil}
-                  >
-                    <span class="nav-marker" aria-hidden="true"></span>
-                    <span class="nav-ico" aria-hidden="true"><%= nav_icon(item[:icon]) %></span>
-                    <span class="nav-label"><%= item.label %></span>
-                  </a>
-                <% end %>
+                <a
+                  id={item.id}
+                  class={["nav-link", nav_current?(@current_path, item) && "is-active"]}
+                  href={item.href}
+                  aria-current={if nav_current?(@current_path, item), do: "page", else: nil}
+                >
+                  <span class="nav-marker" aria-hidden="true"></span>
+                  <span class="nav-ico" aria-hidden="true"><%= nav_icon(item[:icon]) %></span>
+                  <span class="nav-label"><%= item.label %></span>
+                </a>
               <% end %>
             </div>
-            <% end %>
           <% end %>
         </nav>
       </aside>
@@ -202,47 +179,53 @@ defmodule PortfolixirWeb.AppShell do
     """
   end
 
-  defp classifications_nav(assigns) do
+  @doc """
+  The area tab bar (ADR-0022): sub-navigation inside a task area, e.g. the
+  Wealth tabs (Holdings · Allocation & targets · Income) or the Transactions
+  tabs (History · Import). Plain links so switching works without JS.
+  """
+  attr(:tabs, :list, required: true)
+
+  def area_tabs(assigns) do
     ~H"""
-    <div class="nav-group">
-      <div class="nav-group-head">
-        <span><%= gettext("Classifications") %></span>
-        <.link
-          navigate="/classifications/new"
-          class="nav-add"
-          aria-label={gettext("New classification")}
-          title={gettext("New classification")}
-        >+</.link>
-      </div>
-
-      <%= for classification <- @classifications do %>
-        <.link
-          id={"nav-classification-#{classification.id}"}
-          navigate={"/classifications/#{classification.id}"}
-          class={[
-            "nav-link",
-            @current_path == "/classifications/#{classification.id}" && "is-active"
-          ]}
-          aria-current={
-            if @current_path == "/classifications/#{classification.id}", do: "page", else: nil
-          }
-        >
-          <span class="nav-marker" aria-hidden="true"></span>
-          <span class="nav-ico" aria-hidden="true"><%= nav_icon(:tag) %></span>
-          <span class="nav-label"><%= classification.name %></span>
-        </.link>
-      <% end %>
-
-      <%= if @classifications == [] do %>
-        <.link navigate="/classifications/new" class="nav-link is-disabled">
-          <span class="nav-marker" aria-hidden="true"></span>
-          <span class="nav-label"><%= gettext("Add your first") %></span>
-        </.link>
-      <% end %>
-    </div>
+    <nav class="area-tabs" data-role="area-tabs" aria-label={gettext("Section tabs")}>
+      <a
+        :for={tab <- @tabs}
+        href={tab.href}
+        class={["area-tab", tab.current && "is-active"]}
+        aria-current={if tab.current, do: "page", else: nil}
+      >
+        <%= tab.label %>
+      </a>
+    </nav>
     """
   end
 
+  @doc "The Wealth area's tabs (ADR-0022); `current` marks the active one."
+  def wealth_tabs(current) do
+    [
+      %{label: gettext("Holdings"), href: "/portfolio", current: current == :holdings},
+      %{
+        label: gettext("Allocation & targets"),
+        href: "/portfolio?tab=allocation",
+        current: current == :allocation
+      },
+      %{label: gettext("Income"), href: "/income", current: current == :income}
+    ]
+  end
+
+  @doc "The Transactions area's tabs (ADR-0022); `current` marks the active one."
+  def transactions_tabs(current) do
+    [
+      %{label: gettext("History"), href: "/transactions", current: current == :history},
+      %{label: gettext("Import"), href: "/imports", current: current == :import}
+    ]
+  end
+
+  # The five task-oriented areas (ADR-0022): Overview, Wealth, Securities and
+  # Transactions at the top level, plus the low-traffic Administration group.
+  # Income is a Wealth tab and Import a Transactions tab, so neither is a nav
+  # destination; roadmap placeholders live in issues, not here.
   defp nav_groups do
     [
       %{
@@ -251,22 +234,17 @@ defmodule PortfolixirWeb.AppShell do
           %{
             id: "nav-dashboard",
             href: "/",
-            label: gettext("Dashboard"),
+            label: gettext("Overview"),
             section: :dashboard,
             icon: :dashboard
           },
           %{
             id: "nav-portfolio",
             href: "/portfolio",
-            label: gettext("Portfolio"),
+            label: gettext("Wealth"),
             section: :portfolio,
             icon: :chart_line
-          }
-        ]
-      },
-      %{
-        title: gettext("Securities"),
-        items: [
+          },
           %{
             id: "nav-securities",
             href: "/securities",
@@ -274,31 +252,24 @@ defmodule PortfolixirWeb.AppShell do
             section: :securities,
             icon: :layers
           },
-          # "Soon": covered by open issue #320 (watchlist).
           %{
-            id: "nav-watchlist",
-            label: gettext("Watchlist"),
-            disabled: true,
-            icon: :bookmark
+            id: "nav-transactions",
+            href: "/transactions",
+            label: gettext("Transactions"),
+            section: :transactions,
+            icon: :bars
           }
         ]
       },
       %{
-        title: gettext("Master data"),
+        title: gettext("Administration"),
         items: [
           %{
             id: "nav-portfolios",
             href: "/portfolios",
-            label: gettext("Portfolios"),
+            label: gettext("Accounts & depots"),
             section: :portfolios,
             icon: :briefcase
-          },
-          %{
-            id: "nav-transactions",
-            href: "/transactions",
-            label: gettext("All transactions"),
-            section: :transactions,
-            icon: :bars
           },
           %{
             id: "nav-buckets",
@@ -306,67 +277,33 @@ defmodule PortfolixirWeb.AppShell do
             label: gettext("Buckets & views"),
             section: :buckets,
             icon: :filter
-          }
-        ]
-      },
-      %{
-        title: gettext("Tools"),
-        items: [
-          %{
-            id: "nav-imports",
-            href: "/imports",
-            label: gettext("Imports"),
-            section: :imports,
-            icon: :upload
-          }
-        ]
-      },
-      %{
-        title: gettext("Reports"),
-        items: [
-          # "Soon": ships with open issue #316 (IRR returns and risk).
-          %{
-            id: "nav-returns-risk",
-            label: gettext("Returns & risk"),
-            disabled: true,
-            icon: :chart_bar
           },
-          # The income report (issue #331). Labelled "Income" rather than
-          # "Dividends" because it also reports interest (PP INTEREST: account
-          # interest and bond coupons), not only dividends.
           %{
-            id: "nav-dividends",
-            href: "/income",
-            label: gettext("Income"),
-            section: :income,
-            icon: :coins
+            id: "nav-classifications",
+            href: "/classifications",
+            label: gettext("Classifications"),
+            section: :classifications,
+            icon: :tag
           }
         ]
-      },
-      %{
-        title: gettext("Classifications"),
-        kind: :classifications,
-        items: []
       }
     ]
   end
 
   defp nav_current?("/", %{section: :dashboard}), do: true
-  defp nav_current?(path, %{section: :portfolio}), do: path == "/portfolio"
+
+  # Wealth covers its Income tab; Transactions covers its Import tab (ADR-0022).
+  defp nav_current?(path, %{section: :portfolio}),
+    do: path == "/portfolio" or String.starts_with?(path, "/income")
+
   defp nav_current?(path, %{section: :securities}), do: String.starts_with?(path, "/securities")
   defp nav_current?(path, %{section: :portfolios}), do: String.starts_with?(path, "/portfolios")
 
   defp nav_current?(path, %{section: :transactions}),
-    do: String.starts_with?(path, "/transactions")
+    do: String.starts_with?(path, "/transactions") or String.starts_with?(path, "/imports")
 
   defp nav_current?(path, %{section: :buckets}),
     do: String.starts_with?(path, "/buckets")
-
-  defp nav_current?(path, %{section: :imports}),
-    do: String.starts_with?(path, "/imports")
-
-  defp nav_current?(path, %{section: :income}),
-    do: String.starts_with?(path, "/income")
 
   defp nav_current?(path, %{section: :classifications}),
     do: String.starts_with?(path, "/classifications")

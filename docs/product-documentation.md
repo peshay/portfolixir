@@ -340,12 +340,15 @@ cash, so a drawn credit line correctly reduces your net worth, but the quote is
 computed over deployable cash only and never reports fake liquidity. The
 Portfolio page mutes non-deployable rows and labels them with their role.
 
-## Portfolio Page
+## Wealth Page
 
-The **Portfolio** entry in the navigation opens the portfolio overview: the
+The **Wealth** entry in the navigation opens the portfolio overview, organised
+into tabs (ADR-0022): **Holdings** (value, performance, data quality, cash),
+**Allocation & targets** (the sunburst and drift table), and **Income** (the
+received dividends and interest report). The Holdings tab shows the
 total value including cash, the cash quote, and both the TTWROR and the
 money-weighted **IRR** for a selectable period (year-to-date, one/three/five
-years, or since the first transaction) with the cumulative performance chart. Below it, the **allocation sunburst**
+years, or since the first transaction) with the cumulative performance chart. On the **Allocation & targets** tab, the **allocation sunburst**
 shows the classification as concentric rings — the inner ring is the top-level
 categories, each outer ring breaks one level down with sub-category arcs nested
 inside their parent, and the **outermost ring shows the individual positions**
@@ -574,12 +577,12 @@ The detail pane shows a server-rendered SVG price chart with:
 - Each category row aggregates the **value** and the **position count** of the
   securities currently visible in it and its sub-categories, so the totals
   follow the toggle.
-- The sidebar lists only routes that exist plus the few planned features that
-  have an open issue behind them. Two entries are shown disabled with a "Soon"
-  pill: **Watchlist** and **Returns & risk**. The **Income** report is a live
-  entry (received dividends and interest). Allocation, holdings, and performance
-  are not separate menu entries — the **Portfolio** page already covers asset
-  allocation (the sunburst), holdings, and TTWROR performance.
+- The sidebar is organised into task-oriented areas (ADR-0022): **Overview**,
+  **Wealth**, **Securities**, and **Transactions** at the top level, plus an
+  **Administration** group with **Accounts & depots**, **Buckets & views**, and
+  **Classifications**. It lists only routes that exist — no disabled roadmap
+  placeholders. Income is a tab of the Wealth area and Import a tab of the
+  Transactions area, not separate menu entries.
 - Theme: system, light, and dark modes are supported.
 - Accent: violet, teal, and coral logo accent choices are supported.
 - Language: first load follows the browser language when it is English or
