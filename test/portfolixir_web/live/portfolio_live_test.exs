@@ -270,9 +270,13 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ ~s(fill-opacity)
     assert html =~ "Tech ETF"
     assert html =~ "World ETF"
-    # Child row carries the nested class and the sub-category name.
-    assert html =~ "is-child"
-    assert html =~ "Core Tech"
+
+    # The tree starts at the top level (owner request); expanding reveals the
+    # child row with its nested class and sub-category name.
+    view |> element(~s([data-role="expand-all-categories"])) |> render_click()
+    expanded = view |> element(".drift-table") |> render()
+    assert expanded =~ "is-child"
+    assert expanded =~ "Core Tech"
   end
 
   test "tapping a slice echoes its details below the chart (mobile hover)", %{conn: conn} do
@@ -1656,5 +1660,154 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       |> Enum.uniq()
 
     assert length(fills) >= 2
+  end
+
+  # User story (owner request, reconsolidation follow-up):
+  # As a local portfolio maintainer reading the allocation tree,
+  # I want every category row to expand/collapse its direct children —
+  # subcategories and positions alike — plus expand-all/collapse-all controls,
+  # so that the first look is the top-level bird's view and I can drill down
+  # to any single position without scrolling through the whole tree.
+  #
+  # Acceptance criteria:
+  # - By default only top-level categories are visible (collapsed).
+  # - A row's chevron reveals its direct children (subcategory rows and/or
+  #   its own positions); collapsing an ancestor hides the whole subtree.
+  # - "Expand all" reveals every level down to the positions; "collapse all"
+  #   returns to the top-level view.
+  test "allocation tree collapses to top level and expands down to positions",
+       %{conn: conn} do
+    world = seed_world()
+
+    # Give Core a subcategory with its own security.
+    {:ok, sub} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: world.classification.id,
+        name: "Subcore",
+        parent_id: world.core.id
+      })
+
+    sub_security = WorldFixtures.create_security!(name: "Sub ETF", ticker: "SUB")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        sub_security.id,
+        world.classification.id,
+        sub.id
+      )
+
+    WorldFixtures.buy!(world, sub_security, quantity: "2", price: "50", date: ~D[2026-01-02])
+    WorldFixtures.put_quote!(sub_security, Date.utc_today(), "50")
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    drift_table = fn -> view |> element(".drift-table") |> render() end
+
+    # Default: the top-level category is visible, its subcategory and
+    # positions are not.
+    assert drift_table.() =~ "Core"
+    refute drift_table.() =~ "Subcore"
+    refute has_element?(view, ~s([data-role="allocation-position"]))
+
+    # Expanding Core reveals its direct children: the subcategory row and
+    # Core's own positions.
+    view
+    |> element(
+      ~s(.drift-table [data-role="toggle-positions"][phx-value-category-id="#{world.core.id}"])
+    )
+    |> render_click()
+
+    assert drift_table.() =~ "Subcore"
+    assert drift_table.() =~ "World ETF"
+
+    # The subcategory's own position stays hidden until Subcore expands too.
+    refute drift_table.() =~ "Sub ETF"
+
+    # Expand all: every level down to the positions.
+    view |> element(~s([data-role="expand-all-categories"])) |> render_click()
+    assert drift_table.() =~ "Sub ETF"
+
+    # Collapse all: back to the top-level bird's view.
+    view |> element(~s([data-role="collapse-all-categories"])) |> render_click()
+    refute drift_table.() =~ "Subcore"
+    refute has_element?(view, ~s([data-role="allocation-position"]))
+  end
+
+  # User story (owner request, reconsolidation follow-up):
+  # As a local portfolio maintainer rebalancing,
+  # I want a flat positions view of the allocation, sorted by drift,
+  # so that the biggest lever sits on top as a ready-made worklist —
+  # sorting belongs to a flat list, not to the tree.
+  #
+  # Acceptance criteria:
+  # - A "Tree | Positions" switch on the Allocation & targets tab.
+  # - The positions mode lists one row per security with its category as
+  #   context, plus the cash row, sorted by absolute drift descending.
+  # - Column headers re-sort (e.g. by value).
+  test "the flat positions view ranks by drift and re-sorts on demand",
+       %{conn: conn} do
+    world = seed_world()
+
+    # A second, small position in a second category with a tiny drift.
+    {:ok, minor} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: world.classification.id,
+        name: "Minor"
+      })
+
+    minor_security = WorldFixtures.create_security!(name: "Minor ETF", ticker: "MIN")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        minor_security.id,
+        world.classification.id,
+        minor.id
+      )
+
+    WorldFixtures.buy!(world, minor_security, quantity: "1", price: "100", date: ~D[2026-01-02])
+    WorldFixtures.put_quote!(minor_security, Date.utc_today(), "100")
+
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, world.classification.id, [
+        %{"category_id" => world.core.id, "target_weight" => "0.6"},
+        %{"category_id" => minor.id, "target_weight" => "0.1"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    # Switch to the flat positions view.
+    view |> element(~s([data-role="allocation-mode-flat"])) |> render_click()
+
+    flat = view |> element(~s([data-role="flat-positions"])) |> render()
+
+    # One row per security with its category as context, plus cash.
+    assert flat =~ "World ETF"
+    assert flat =~ "Minor ETF"
+    assert flat =~ "Core"
+    assert flat =~ "Minor"
+    assert flat =~ ~s(data-role="flat-cash")
+
+    # Default order: biggest absolute drift first (World ETF's drift share
+    # dwarfs Minor ETF's).
+    world_at = :binary.match(flat, "World ETF") |> elem(0)
+    minor_at = :binary.match(flat, "Minor ETF") |> elem(0)
+    assert world_at < minor_at
+
+    # Re-sorting by value ascending puts the small position first.
+    view |> element(~s([data-role="flat-sort-value"])) |> render_click()
+    view |> element(~s([data-role="flat-sort-value"])) |> render_click()
+
+    resorted = view |> element(~s([data-role="flat-positions"])) |> render()
+    world_at = :binary.match(resorted, "World ETF") |> elem(0)
+    minor_at = :binary.match(resorted, "Minor ETF") |> elem(0)
+    assert minor_at < world_at
+
+    # Back to the tree.
+    view |> element(~s([data-role="allocation-mode-tree"])) |> render_click()
+    assert has_element?(view, ".drift-table")
   end
 end

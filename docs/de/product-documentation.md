@@ -401,9 +401,15 @@ zurück. Der Chart skaliert auf die verfügbare Breite. Wähle einen beliebigen
 Klassifizierungsbaum aus dem Selektor. Die Drift-Tabelle darunter listet jede
 Kategorie in Baumreihenfolge mit **eingerückten Unterkategorien** unter ihren
 Eltern und vergleicht das aufgerollte Ist-Gewicht mit dem gespeicherten Ziel,
-wobei die Drift in der Basiswährung neu ausgewiesen wird. Eine Kategorie mit
-direkt zugeordneten Wertpapieren trägt einen **Aufklapp-Pfeil (▸)**, der sie in
-ihre Wertpapiere aufklappt — jedes mit Wert, Gewicht, seinem Anteil an der
+wobei die Drift in der Basiswährung neu ausgewiesen wird. Der Baum startet eingeklappt auf der obersten Ebene; jede Zeile mit Kindern
+trägt einen **Aufklapp-Pfeil (▸)**, der ihre direkten Kinder zeigt —
+Unterkategorien wie Positionen —, und **Alles aus-/einklappen** öffnet oder
+faltet den ganzen Baum bis zur Einzelposition. Ein Umschalter **Baum |
+Positionen** tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
+eine Zeile je Wertpapier (inkl. Cash) mit der Kategorie als Kontext,
+standardmäßig nach absoluter Drift sortiert und über die Spaltenköpfe
+umsortierbar. Eine Kategorie mit direkt zugeordneten Wertpapieren klappt in
+ihre Wertpapiere auf — jedes mit Wert, Gewicht, seinem Anteil an der
 Kategorie-Drift und einem reinen **Anzeige-Rebalancing-Hinweis**: die indikative
 Stückzahl, die zum Bewertungskurs zu verkaufen (positive Drift) oder zu kaufen
 (negative) wäre, um die Lücke zu schließen (ADR-0023). Der Hinweis modelliert
