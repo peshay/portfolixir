@@ -1021,6 +1021,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert badge =~ "EUR"
     assert has_element?(view, "[data-role='period-badge'].is-positive")
 
+    # The toggle label reads "% (TTWROR)" — not a doubled, over-escaped "%%"
+    # (Steve UAT, reconsolidation).
+    assert has_element?(view, "button[phx-value-mode='ttwror']", "% (TTWROR)")
+    refute render(view) =~ "%% (TTWROR)"
+
     # Default series is the TTWROR %.
     assert has_element?(view, "#performance-figure[data-chart-mode='ttwror']")
 
@@ -1305,8 +1310,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # sell hint at the implied unit price: 232 × 8 / 880 ≈ 2.11 units.
     position_row = view |> element(~s([data-role="allocation-position"])) |> render()
     assert position_row =~ "232.00"
+    # The hint names the unit so the quantity cannot be misread as an amount
+    # (Steve UAT, reconsolidation).
     assert position_row =~ "Sell"
     assert position_row =~ "2.11"
+    assert position_row =~ "units"
 
     # Collapse again: the position rows disappear.
     view
@@ -1595,5 +1603,58 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Both the donut data and the table row use "Unassigned"; "Unsorted" is gone.
     assert allocation =~ "Unassigned"
     refute allocation =~ "Unsorted"
+  end
+
+  # User story (Steve UAT, reconsolidation):
+  # As a maintainer whose categories have no chosen colours,
+  # I want the sunburst, legend and drift table to assign distinct palette
+  # colours automatically,
+  # so that the allocation stays readable instead of rendering every
+  # category in the same fallback grey.
+  test "colourless categories get distinct palette colours", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Palette Depot")
+
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
+
+    sec_a = WorldFixtures.create_security!(name: "Aaa Co", ticker: "AAA")
+    sec_b = WorldFixtures.create_security!(name: "Bbb Co", ticker: "BBB")
+
+    for {name, security} <- [{"First", sec_a}, {"Second", sec_b}] do
+      {:ok, category} =
+        Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: name
+        })
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          security.id,
+          classification.id,
+          category.id
+        )
+    end
+
+    WorldFixtures.deposit!(world, "300", ~D[2026-01-01])
+    WorldFixtures.buy!(world, sec_a, quantity: "1", price: "100", date: ~D[2026-01-02])
+    WorldFixtures.buy!(world, sec_b, quantity: "1", price: "200", date: ~D[2026-01-02])
+    WorldFixtures.put_quote!(sec_a, Date.utc_today(), "100")
+    WorldFixtures.put_quote!(sec_b, Date.utc_today(), "200")
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    html = render_async(view)
+
+    # No category renders in the fallback grey, and the two categories get
+    # two different colours.
+    refute html =~ "#6b7280"
+
+    fills =
+      ~r/fill="(#[0-9a-fA-F]{6})"/
+      |> Regex.scan(html)
+      |> Enum.map(fn [_, color] -> color end)
+      |> Enum.uniq()
+
+    assert length(fills) >= 2
   end
 end
