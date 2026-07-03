@@ -1,13 +1,26 @@
 defmodule PortfolixirWeb.Components.SecurityChart do
   @moduledoc """
-  Server-rendered SVG price chart for the security detail view.
+  Server-rendered SVG time-series chart — the one shared chart component
+  (ADR-0022). Born as the security detail price chart; the portfolio value
+  and TTWROR charts render through it too.
 
   Inputs:
-    * `:quotes` — `[%{date: Date, close: Decimal}]` in ascending date order
+    * `:quotes` — `[%{date: Date, close: Decimal}]` in ascending date order.
+      A quote may carry an optional `:label` string, which then replaces the
+      raw close as the crosshair tooltip's display value (e.g. "+8.0% ·
+      1,080.00 EUR" so a tooltip can show two series at once).
     * `:transactions` — `[%{date: Date, type: "buy"|"sell", price: Decimal}]`
     * `:log_scale?` — boolean, switches the Y axis to log10
+    * `:percent_mode?` — boolean, re-bases the series relative to the first
+      close and shows a percent axis (the security detail's % view)
+    * `:value_mode` — `:absolute` (default) or `:percent_values`, for series
+      whose values already ARE percentages (e.g. cumulative TTWROR): no
+      re-basing, but the axis and payload format as signed percent
+    * `:zero_line?` — boolean, draws a horizontal zero line when 0 is inside
+      the value range (e.g. the TTWROR gain/loss boundary)
     * `:show_transactions?` — boolean, toggles buy/sell markers
     * `:currency_code` — string label for the Y axis
+    * `:aria_label` — accessible name of the rendered svg
 
   Reasoning: the repo has no JS bundler, so charts are produced as a
   single `<svg>` element. Interactivity (range/log) is handled at the
@@ -28,8 +41,11 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   attr(:overlays, :list, default: [])
   attr(:log_scale?, :boolean, default: false)
   attr(:percent_mode?, :boolean, default: false)
+  attr(:value_mode, :atom, default: :absolute, values: [:absolute, :percent_values])
+  attr(:zero_line?, :boolean, default: false)
   attr(:show_transactions?, :boolean, default: true)
   attr(:currency_code, :string, default: "")
+  attr(:aria_label, :string, default: "Price chart")
 
   def chart(assigns) do
     geometry =
@@ -53,6 +69,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       |> assign(:plot_right, plot_right)
       |> assign(:plot_bottom, plot_bottom)
       |> assign(:chart_id, chart_id)
+      |> assign(:percent_axis?, assigns.percent_mode? or assigns.value_mode == :percent_values)
       |> assign(:payload_json, Jason.encode!(payload, escape: :html_safe))
 
     ~H"""
@@ -60,7 +77,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       <svg
         class={["security-chart", @log_scale? && "is-log"]}
         role="img"
-        aria-label="Price chart"
+        aria-label={@aria_label}
         viewBox={"0 0 #{@width} #{@height}"}
         preserveAspectRatio="xMidYMid meet"
         width="100%"
@@ -73,6 +90,15 @@ defmodule PortfolixirWeb.Components.SecurityChart do
           </g>
         <% else %>
           <%= render_axes(assigns) %>
+
+          <line
+            :if={@zero_line? and zero_in_range?(@geometry)}
+            class="chart-zeroline"
+            x1={@plot_left}
+            y1={zero_y(@geometry, @plot_top, @plot_bottom)}
+            x2={@plot_right}
+            y2={zero_y(@geometry, @plot_top, @plot_bottom)}
+          />
 
           <path
             class="quote-area"
@@ -133,7 +159,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       |> point_coords(x0, y0, x1, y1)
       |> Enum.zip(geometry.quotes)
       |> Enum.map(fn {{x, y}, {q, _idx}} ->
-        [Date.to_iso8601(q.date), chart_decimal_string(q.close), round2(x), round2(y)]
+        [Date.to_iso8601(q.date), point_display(q), round2(x), round2(y)]
       end)
 
     txs =
@@ -153,7 +179,26 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   end
 
   defp payload_mode(%{percent_mode?: true}), do: "percent"
+  defp payload_mode(%{value_mode: :percent_values}), do: "percent"
   defp payload_mode(_), do: "absolute"
+
+  # The crosshair tooltip's display value: a quote's explicit `:label` wins
+  # (lets a caller show two series in one tooltip line), else the raw close.
+  defp point_display(%{label: label}) when is_binary(label), do: label
+  defp point_display(q), do: chart_decimal_string(q.close)
+
+  # The zero line (gain/loss boundary) on the raw value scale; only rendered
+  # when 0 actually sits inside the padded range.
+  defp zero_in_range?(:empty), do: false
+
+  defp zero_in_range?(geometry) do
+    geometry.y_min < 0.0 and geometry.y_max > 0.0
+  end
+
+  defp zero_y(geometry, plot_top, plot_bottom) do
+    fraction = (0.0 - geometry.y_min) / (geometry.y_max - geometry.y_min)
+    format_coord(plot_bottom - (plot_bottom - plot_top) * fraction)
+  end
 
   defp build_tx_payload(transactions, geometry, x0, y0, x1, y1) do
     plot_w = x1 - x0
@@ -478,7 +523,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     <g class="chart-axis-labels">
       <%= for {value, y} <- @y_ticks do %>
         <text x={@plot_left - 6} y={y} text-anchor="end" dominant-baseline="central">
-          <%= if @percent_mode?, do: format_percent(value), else: format_axis_value(value) %>
+          <%= if @percent_axis?, do: format_percent(value), else: format_axis_value(value) %>
         </text>
       <% end %>
       <text x={@plot_left} y={@height - 6} text-anchor="start">
