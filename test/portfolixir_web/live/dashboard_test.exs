@@ -6,8 +6,10 @@ defmodule PortfolixirWeb.DashboardTest do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Classifications
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.Format
 
@@ -73,17 +75,20 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(view, "#dashboard-overview")
   end
 
-  # User story (Steve UAT #337):
+  # User story (Steve UAT #337, reshaped by ADR-0022):
   # As a user who already has transactions,
-  # I want the dashboard to answer "how is my wealth doing?" instead of the
-  # setup wizard,
-  # so that the dashboard stays useful as the daily entry page.
+  # I want the dashboard to answer "did anything change, does anything need
+  # me?" — value plus change, not a raw activity feed,
+  # so that the morning glance tells me whether to act, and forensic detail
+  # stays in the audit journal.
   #
   # Acceptance criteria:
   # - Once any transaction exists, the workflow-path wizard is gone.
-  # - The dashboard shows a wealth overview: a per-portfolio value card (loaded
-  #   async, with the portfolio's base-currency total) and recent activity.
-  test "a populated dashboard shows the wealth overview, not the wizard", %{conn: conn} do
+  # - The dashboard shows a per-portfolio value card (loaded async, with the
+  #   portfolio's base-currency total and its YTD TTWROR as the change signal).
+  # - The recent-activity feed and the count cards are gone from the populated
+  #   overview (the wizard keeps its counts).
+  test "a populated dashboard shows value and change, not an activity feed", %{conn: conn} do
     %{portfolio: portfolio} = seed_holding()
 
     {:ok, view, _html} = live(conn, "/")
@@ -101,9 +106,76 @@ defmodule PortfolixirWeb.DashboardTest do
     assert has_element?(view, "a#dashboard-portfolio-#{portfolio.id}[href='/portfolio']")
     assert html =~ "#{expected} EUR"
 
-    # Recent activity surfaces the buy and links to the transactions surface.
-    assert has_element?(view, "#dashboard-recent [data-role='recent-transaction']")
-    assert has_element?(view, "#dashboard-recent a[href='/transactions']")
+    # The change signal: the card carries the YTD TTWROR.
+    assert has_element?(view, "[data-role='card-ttwror']")
+    assert html =~ "YTD"
+
+    # No activity feed, no count cards on the populated overview (ADR-0022:
+    # the dashboard answers "does anything need me", it does not restate the
+    # journal or the entity counts).
+    refute has_element?(view, "#dashboard-recent")
+    refute has_element?(view, "#dashboard-securities-count")
+  end
+
+  # User story (ADR-0022 / ADR-0023):
+  # As a local portfolio maintainer steering against a target plan,
+  # I want the dashboard to flag categories whose drift exceeds a threshold,
+  # so that "does anything need rebalancing?" is answered on the morning
+  # glance, with a link straight into the Allocation & targets tab.
+  #
+  # Acceptance criteria:
+  # - With a plan and a category beyond ±5 pp drift, an attention item names
+  #   the category and links to /portfolio?tab=allocation.
+  # - Only categories that carry a target are considered (an untargeted parent
+  #   is not an alert).
+  # - Without any drift beyond the threshold (or without a plan), the section
+  #   shows the all-clear note instead.
+  test "the dashboard flags categories drifting beyond the threshold", %{conn: conn} do
+    %{portfolio: portfolio, security: security} = seed_holding()
+
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, core} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        security.id,
+        classification.id,
+        core.id
+      )
+
+    # The buy spent undeposited cash, so counting cash is 0 and the basis is
+    # the 1200 securities value: actual 100% vs target 60% -> +40 pp / 480 EUR.
+    {:ok, _} =
+      Targets.set_targets(portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert has_element?(view, "#dashboard-attention [data-role='drift-alert']", "Core")
+
+    alert = view |> element(~s(#dashboard-attention [data-role="drift-alert"])) |> render()
+    assert alert =~ ~s(href="/portfolio?tab=allocation")
+    assert alert =~ "+40.0"
+    assert alert =~ "480.00"
+  end
+
+  test "the dashboard shows the all-clear note when nothing drifts", %{conn: conn} do
+    seed_holding()
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert has_element?(view, "#dashboard-attention [data-role='all-clear']")
+    refute has_element?(view, "#dashboard-attention [data-role='drift-alert']")
   end
 
   # User story (Steve UAT #337 follow-up):

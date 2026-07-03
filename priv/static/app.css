@@ -945,9 +945,9 @@ textarea {
   text-transform: uppercase;
 }
 
-/* Dashboard recent-activity list (issue 337): a compact, tabular reading of
-   the last few transactions. Layout only — colours from inherited tokens. */
-.recent-list {
+/* Dashboard attention list (ADR-0022): each item is one drift alert linking
+   into the Allocation & targets tab. Layout only — colours from tokens. */
+.attention-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -956,20 +956,22 @@ textarea {
   gap: 6px;
 }
 
-.recent-item {
-  display: grid;
-  grid-template-columns: 6rem 5rem 1fr;
+.attention-item {
+  display: flex;
+  justify-content: space-between;
   gap: var(--space-3);
   align-items: baseline;
+  text-decoration: none;
+  color: var(--color-text);
 }
 
-.recent-item .recent-date {
-  color: var(--color-text-muted);
+.attention-item:hover .attention-name {
+  text-decoration: underline;
+}
+
+.attention-item .num {
   font-variant-numeric: tabular-nums;
-}
-
-.recent-item .recent-type {
-  text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .stat strong {
