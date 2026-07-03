@@ -294,7 +294,9 @@ defmodule PortfolixirWeb.AppShell do
 
   # Wealth covers its Income tab; Transactions covers its Import tab (ADR-0022).
   defp nav_current?(path, %{section: :portfolio}),
-    do: path == "/portfolio" or String.starts_with?(path, "/income")
+    do:
+      path == "/portfolio" or String.starts_with?(path, "/portfolio?") or
+        String.starts_with?(path, "/income")
 
   defp nav_current?(path, %{section: :securities}), do: String.starts_with?(path, "/securities")
   defp nav_current?(path, %{section: :portfolios}), do: String.starts_with?(path, "/portfolios")
@@ -330,8 +332,19 @@ defmodule PortfolixirWeb.AppShell do
     Gettext.get_locale(PortfolixirWeb.Gettext)
   end
 
+  # Merges `locale` into the path's existing query (rather than appending a
+  # second `?`), so surface state such as the Wealth tab (ADR-0022) survives
+  # a language switch.
   defp locale_href(path, locale) do
-    "#{path}?locale=#{locale}"
+    uri = URI.parse(path)
+
+    query =
+      (uri.query || "")
+      |> URI.decode_query()
+      |> Map.put("locale", to_string(locale))
+      |> URI.encode_query()
+
+    URI.to_string(%{uri | query: query})
   end
 
   defp locale_label("de"), do: gettext("German")

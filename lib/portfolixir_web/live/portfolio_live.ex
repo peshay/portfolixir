@@ -40,10 +40,14 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   @impl true
   def mount(params, _session, socket) do
+    wealth_tab = wealth_tab(params)
+
     socket =
       socket
-      |> assign(:current_path, "/portfolio")
-      |> assign(:wealth_tab, wealth_tab(params))
+      # The tab rides in current_path so the view/locale switchers (which
+      # derive their hrefs from it) keep the user on the active tab.
+      |> assign(:current_path, wealth_tab_path(wealth_tab))
+      |> assign(:wealth_tab, wealth_tab)
       |> assign(:error, nil)
       |> assign(:success, nil)
 
@@ -79,6 +83,9 @@ defmodule PortfolixirWeb.PortfolioLive do
   # links, so the choice arrives as a query param on mount.
   defp wealth_tab(%{"tab" => "allocation"}), do: :allocation
   defp wealth_tab(_params), do: :holdings
+
+  defp wealth_tab_path(:allocation), do: "/portfolio?tab=allocation"
+  defp wealth_tab_path(_tab), do: "/portfolio"
 
   # The dead render ships skeletons only; the expensive reads start once the
   # socket is connected, so the page paints fast and is computed exactly once.
@@ -1060,10 +1067,10 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # Prefer the first custom tree (the user's own strategy); otherwise fall back
   # to the built-in asset-class tree, which always exists after seeding.
+  # The default steering tree rule lives in the context so the dashboard's
+  # drift alerts and this page never disagree (review finding, ADR-0022).
   defp default_classification_id(classifications) do
-    custom = Enum.find(classifications, &(not &1.built_in))
-    asset_class = Enum.find(classifications, &(&1.key == "asset_class"))
-    (custom || asset_class).id
+    Classifications.default_classification(classifications).id
   end
 
   # -- sunburst geometry -------------------------------------------------------

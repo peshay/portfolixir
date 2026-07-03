@@ -91,8 +91,19 @@ defmodule PortfolixirWeb.ViewSwitcher do
     """
   end
 
+  # Merges `view` into the path's existing query (rather than appending a
+  # second `?`), so surface state such as the Wealth tab (ADR-0022) survives
+  # a view switch.
   defp view_href(path, view) do
-    "#{path}?view=#{view}"
+    uri = URI.parse(path)
+
+    query =
+      (uri.query || "")
+      |> URI.decode_query()
+      |> Map.put("view", to_string(view))
+      |> URI.encode_query()
+
+    URI.to_string(%{uri | query: query})
   end
 
   # The accessible name for the subtle plan marker (the `•` is aria-hidden, so
