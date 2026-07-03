@@ -179,8 +179,10 @@ default and corrected by dragging it between categories.
 Each portfolio can store a **target weight** per category (a fraction of the
 portfolio, for example 25%). The **allocation** breakdown then compares, per
 category, the actual weight (its share of the valued positions) against the
-stored target and reports the **drift** — both as a weight and as a base-currency
-amount, i.e. how much to buy or sell to reach the target. Securities held but not
+stored target and reports the **drift** — actual minus target (positive =
+overweight, negative = underweight; ADR-0023), both as a weight and as a
+base-currency amount, i.e. how much to sell (positive) or buy (negative) to
+reach the target. Securities held but not
 assigned in the chosen tree are summed into an unassigned bucket. Only the
 targets are stored; the actual side is derived from the live valuation on read.
 

@@ -29,8 +29,9 @@ defmodule Portfolixir.Portfolios.Allocation do
   (actual share, target from the active view's plan cash target, drift) in the
   same drift logic, and every category percentage shrinks accordingly once cash
   joins the 100% (issue #335). Drift is
-  `target_weight - actual_weight` per category; `drift_value` restates that drift
-  as an amount in the base currency, i.e. how much to buy (positive) or sell
+  `actual_weight - target_weight` per category (positive = overweight,
+  negative = underweight; ADR-0023); `drift_value` restates that drift as an
+  amount in the base currency, i.e. how much to sell (positive) or buy
   (negative) to reach the target. Because parents aggregate their children,
   the displayed IST percentages intentionally do not sum to 100% across levels
   — only the leaves (plus unassigned) do.
@@ -264,8 +265,8 @@ defmodule Portfolixir.Portfolios.Allocation do
   # The cash row sits in the same drift logic as the categories: its actual
   # weight is the counting cash as a share of the steering basis (so it shrinks
   # the categories' shares once cash joins the 100%), its target is the active
-  # view's plan cash target, and the drift is `target - actual`, restated
-  # in the base currency like every category drift. Always present so the UI/API
+  # view's plan cash target, and the drift is `actual - target` (ADR-0023),
+  # restated in the base currency like every category drift. Always present so the UI/API
   # can render the row even when there is no cash yet or no cash target set.
   #
   # For the built-in currency classification (issue #407), `distributed: true`
@@ -274,7 +275,7 @@ defmodule Portfolixir.Portfolios.Allocation do
   defp cash_row(counting_cash, cash_target, total, distributed?) do
     actual = weight(counting_cash, total)
     target_weight = cash_target || @zero
-    drift_weight = Decimal.sub(target_weight, actual)
+    drift_weight = Decimal.sub(actual, target_weight)
 
     %{
       market_value: counting_cash,
@@ -442,7 +443,7 @@ defmodule Portfolixir.Portfolios.Allocation do
   defp row(category, depth, own_value, rolled_value, target, child_target_sum, positions, total) do
     actual = weight(rolled_value, total)
     target_weight = target || @zero
-    drift_weight = Decimal.sub(target_weight, actual)
+    drift_weight = Decimal.sub(actual, target_weight)
 
     %{
       category_id: category.id,

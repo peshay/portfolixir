@@ -109,8 +109,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # cash row reports the 200 EUR / 18.5% share (issue #335).
     assert html =~ "81.5"
     assert html =~ "60.0"
-    # Drift: 0.6 * 1080 - 880 = -232.
-    assert html =~ "-232.00"
+    # Drift (actual - target, ADR-0023): 880 - 0.6 * 1080 = +232 (overweight).
+    assert html =~ "232.00"
     # The dedicated cash row in the drift table.
     assert html =~ ~s(data-role="allocation-cash")
     assert html =~ "Cash"
@@ -689,8 +689,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # I want numeric columns right-aligned with tabular figures,
   # so that digit places, decimal separators and signs align vertically,
   # and I want negative drift values coloured red while keeping the − sign,
-  # so that overweight categories are visually distinct without relying on
-  # colour alone (UX-DR7 / WCAG 1.4.1).
+  # so that underweight categories (actual - target < 0, ADR-0023) are
+  # visually distinct without relying on colour alone (UX-DR7 / WCAG 1.4.1).
   #
   # Acceptance criteria:
   # - Numeric cells (value, actual %, target %, drift) carry the "num" class.
@@ -699,12 +699,18 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   #   stripped or replaced), so the information is available without colour.
   test "drift table numeric cells are right-aligned and negative drift is coloured red",
        %{conn: conn} do
-    seed_world()
+    world = seed_world()
+
+    # Raise Core's target to 90% so the row is underweight under ADR-0023:
+    # drift = 880 − 0.9 × 1080 = −92.00 → negative.
+    {:ok, _} =
+      Targets.set_targets(world.portfolio.id, world.classification.id, [
+        %{"category_id" => world.core.id, "target_weight" => "0.9"}
+      ])
 
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
 
-    # Drift for Core: 0.6 * 1080 − 880 = −232.00 → negative.
     # The first body row is Core; select the whole drift table to inspect it.
     drift_table = view |> element(".drift-table") |> render()
 
@@ -719,7 +725,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # The − sign character is present in the rendered output (colour is not
     # the only indicator — UX-DR7).
-    assert drift_table =~ "-232.00"
+    assert drift_table =~ "-92.00"
   end
 
   # User story:
@@ -1267,8 +1273,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Core's target is the Strategie view's 50%, not a dash and not Gesamt's.
     drift_table = view |> element(".drift-table") |> render()
     assert drift_table =~ "50.0"
-    # Drift: 0.5 * 1080 - 880 = -340.
-    assert drift_table =~ "-340.00"
+    # Drift (actual - target, ADR-0023): 880 - 0.5 * 1080 = +340 (overweight).
+    assert drift_table =~ "340.00"
     # No "no plan" hint when a plan exists.
     refute html =~ "No target plan for this view"
   end
