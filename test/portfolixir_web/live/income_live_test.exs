@@ -106,6 +106,29 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     refute html =~ "original currency retained"
   end
 
+  # User story (Steve UAT, reconsolidation):
+  # As a German-locale maintainer reading the annual matrix,
+  # I want the month column headers in my language,
+  # so that the German UI does not leak English month abbreviations
+  # (Mär/Mai/Okt/Dez, not Mar/May/Oct/Dec).
+  test "localizes the month column headers", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Mein Depot", currency: "EUR")
+    security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+    dividend!(world, security, date: ~D[2025-03-15], net: "100", tax: "0")
+
+    {:ok, _view, german} = live(conn, "/income?locale=de")
+
+    assert german =~ "Mär"
+    assert german =~ "Okt"
+    assert german =~ "Dez"
+    refute german =~ ">Oct<"
+    refute german =~ ">Dec<"
+
+    {:ok, _view, english} = live(conn, "/income?locale=en")
+    assert english =~ "Oct"
+    assert english =~ "Dec"
+  end
+
   test "shows an empty state when the portfolio has no income yet", %{conn: conn} do
     WorldFixtures.base_world(name: "Empty Depot", currency: "EUR")
 

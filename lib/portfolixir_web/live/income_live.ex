@@ -362,10 +362,21 @@ defmodule PortfolixirWeb.IncomeLive do
 
   defp money(value), do: Format.money(value)
 
-  defp month_label(month) do
-    {:ok, date} = Date.new(2000, month, 1)
-    Calendar.strftime(date, "%b")
-  end
+  # Month abbreviations through gettext, so the German matrix reads
+  # Mär/Mai/Okt/Dez instead of leaking strftime's English %b output
+  # (Steve UAT, reconsolidation).
+  defp month_label(1), do: gettext("Jan")
+  defp month_label(2), do: gettext("Feb")
+  defp month_label(3), do: gettext("Mar")
+  defp month_label(4), do: gettext("Apr")
+  defp month_label(5), do: gettext("May")
+  defp month_label(6), do: gettext("Jun")
+  defp month_label(7), do: gettext("Jul")
+  defp month_label(8), do: gettext("Aug")
+  defp month_label(9), do: gettext("Sep")
+  defp month_label(10), do: gettext("Oct")
+  defp month_label(11), do: gettext("Nov")
+  defp month_label(12), do: gettext("Dec")
 
   defp kind_label("dividend"), do: gettext("Dividend")
   defp kind_label("interest"), do: gettext("Interest")

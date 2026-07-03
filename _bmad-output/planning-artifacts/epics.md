@@ -125,7 +125,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-9 | — | **future** (Phase 5; OQ-3 quote source) |
 | FR-10 | #331 | income report |
 | FR-11 | #318, #329, #335, #334 | target hints, exclude flag, cash basis, classification view |
-| FR-12 | — | **gated** (Phase 2; needs guidance-vs-action ADR) |
+| FR-12 | ADR-0023 | **partially landed** — display-only rebalancing hints (per-position drift share + indicative buy/sell quantity) shipped with the drift drill-down; the guidance-vs-action boundary is drawn in ADR-0023 + AGENTS.md. Ranked both-directions cash guidance remains open |
 | FR-13 | #349 | analytics over API/MCP |
 | FR-14 | **#355** | MCP data maintenance (new) |
 | FR-15 | #355, #349 | LLM tool-choice descriptions |

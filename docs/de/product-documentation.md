@@ -389,7 +389,9 @@ konzentrische Ringe — der innere Ring sind die obersten Kategorien, jeder äu�
 Ring bricht eine Ebene weiter herunter mit in ihren Eltern verschachtelten
 Unterkategorie-Bögen, und der **äußerste Ring zeigt die einzelnen Positionen** als
 schattierte Bögen in der Farbe ihrer Kategorie (der Portfolio-Performance-Stil) —
-mit einem grauen Segment für nicht zugeordnete Bestände. Wie bei PP tragen die
+mit einem grauen Segment für nicht zugeordnete Bestände. Kategorien ohne
+gewählte Farbe erhalten automatisch unterscheidbare Palettenfarben, sodass
+auch ein ungestylter Baum lesbar bleibt. Wie bei PP tragen die
 Segmente keinen Text im Chart: das Überfahren eines Segments zeigt seinen Namen,
 Anteil und Wert in einem **sofortigen, eigenen Tooltip**, der dem Zeiger folgt
 (keine Browser-Hover-Verzögerung), und ein Segment kann **angetippt** werden, um
