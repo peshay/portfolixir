@@ -190,9 +190,11 @@ zwischen Kategorien korrigiert.
 Jedes Portfolio kann ein **Zielgewicht** je Kategorie speichern (ein Anteil am
 Portfolio, zum Beispiel 25 %). Die **Allokations**-Aufschlüsselung vergleicht dann
 je Kategorie das tatsächliche Gewicht (seinen Anteil an den bewerteten Positionen)
-mit dem gespeicherten Ziel und meldet die **Drift** — sowohl als Gewicht als auch
-als Betrag in Basiswährung, d. h. wie viel zu kaufen oder zu verkaufen ist, um das
-Ziel zu erreichen. Gehaltene, aber im gewählten Baum nicht zugeordnete
+mit dem gespeicherten Ziel und meldet die **Drift** — Ist minus Soll (positiv =
+übergewichtet, negativ = untergewichtet; ADR-0023), sowohl als Gewicht als auch
+als Betrag in Basiswährung, d. h. wie viel zu verkaufen (positiv) oder zu kaufen
+(negativ) ist, um das Ziel zu erreichen. Gehaltene, aber im gewählten Baum nicht
+zugeordnete
 Wertpapiere werden in einem Topf für nicht Zugeordnetes summiert. Nur die Ziele
 werden gespeichert; die Ist-Seite wird beim Lesen aus der Live-Bewertung
 abgeleitet.
