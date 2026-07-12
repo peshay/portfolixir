@@ -155,6 +155,13 @@ defmodule PortfolixirWeb.DashboardLive do
            detail that the old activity feed restated. --%>
       <section id="dashboard-attention" class="workspace-section">
         <h2><%= gettext("Needs attention") %></h2>
+        <%!-- Say WHY these items surface (UAT fix round): the threshold rule,
+             derived from the same @drift_threshold the filter uses. --%>
+        <p class="hint" data-role="attention-explainer">
+          <%= gettext("Categories drifting more than ±%{pp} pp from their target weight.",
+            pp: threshold_pp()
+          ) %>
+        </p>
         <%= if is_nil(@drift_alerts) do %>
           <p class="section-skeleton" data-role="attention-skeleton">
             <%= gettext("Loading…") %>
@@ -173,7 +180,7 @@ defmodule PortfolixirWeb.DashboardLive do
                     <span class="hint">(<%= alert.portfolio_name %>)</span>
                   </span>
                   <span class={["num", drift_sign_class(alert.drift_weight)]}>
-                    <%= signed_percent(alert.drift_weight) %> pp
+                    <%= drift_phrase(alert.drift_weight) %>
                     · <%= Format.money(alert.drift_value) %> <%= alert.base_currency %>
                   </span>
                 </a>
@@ -270,6 +277,26 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp drift_sign_class(drift_weight) do
     if Decimal.compare(drift_weight, 0) == :lt, do: "is-negative", else: nil
+  end
+
+  # Readable item text (UAT fix round): "7.2 pp above target" instead of a
+  # bare signed number — the direction word carries the meaning.
+  defp drift_phrase(drift_weight) do
+    pp = Format.percent(Decimal.abs(drift_weight))
+
+    if Decimal.compare(drift_weight, 0) == :lt do
+      gettext("%{pp} pp below target", pp: pp)
+    else
+      gettext("%{pp} pp above target", pp: pp)
+    end
+  end
+
+  # The ±5 pp threshold as a plain "5" for the explainer copy.
+  defp threshold_pp do
+    @drift_threshold
+    |> Decimal.mult(100)
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
   end
 
   defp signed_percent(value) do
