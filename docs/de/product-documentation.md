@@ -383,7 +383,8 @@ Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Erträge** (der
 Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab zeigt den
 Gesamtwert inklusive Cash, die Cash-Quote sowie sowohl die TTWROR als auch den
 geldgewichteten **IRR** für einen wählbaren Zeitraum (laufendes Jahr, ein/drei/fünf
-Jahre oder seit der ersten Transaktion) mit dem kumulativen Performance-Chart.
+Jahre oder seit der ersten Transaktion; ein Jahr ist die Voreinstellung) mit
+dem kumulativen Performance-Chart.
 Auf dem Tab **Allokation & Ziele** zeigt der **Allokations-Sunburst** die Klassifizierung als
 konzentrische Ringe — der innere Ring sind die obersten Kategorien, jeder äußere
 Ring bricht eine Ebene weiter herunter mit in ihren Eltern verschachtelten
@@ -402,13 +403,16 @@ Klassifizierungsbaum aus dem Selektor. Die Drift-Tabelle darunter listet jede
 Kategorie in Baumreihenfolge mit **eingerückten Unterkategorien** unter ihren
 Eltern und vergleicht das aufgerollte Ist-Gewicht mit dem gespeicherten Ziel,
 wobei die Drift in der Basiswährung neu ausgewiesen wird. Der Baum startet eingeklappt auf der obersten Ebene; jede Zeile mit Kindern
-trägt einen **Aufklapp-Pfeil (▸)**, der ihre direkten Kinder zeigt —
-Unterkategorien wie Positionen —, und **Alles aus-/einklappen** öffnet oder
+trägt einen **Aufklapp-Pfeil (▸)** — die ganze Namenszelle ist klickbar —, der
+ihre direkten Kinder zeigt — Unterkategorien wie Positionen (auch der graue
+Eimer *Nicht zugeordnet* klappt so in seine Wertpapiere auf) —, und ein
+einzelner Umschalter **Alles aus-/einklappen** über der Tabelle öffnet oder
 faltet den ganzen Baum bis zur Einzelposition. Ein Umschalter **Baum |
 Positionen** tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
 eine Zeile je Wertpapier (inkl. Cash) mit der Kategorie als Kontext,
-standardmäßig nach absoluter Drift sortiert und über die Spaltenköpfe
-umsortierbar. Eine Kategorie mit direkt zugeordneten Wertpapieren klappt in
+standardmäßig nach vorzeichenbehafteter Drift sortiert (stärkstes Übergewicht
+zuerst, stärkstes Untergewicht zuletzt) und über die Spaltenköpfe (Wert, Drift
+oder Kategorie) umsortierbar. Eine Kategorie mit direkt zugeordneten Wertpapieren klappt in
 ihre Wertpapiere auf — jedes mit Wert, Gewicht, seinem Anteil an der
 Kategorie-Drift und einem reinen **Anzeige-Rebalancing-Hinweis**: die indikative
 Stückzahl, die zum Bewertungskurs zu verkaufen (positive Drift) oder zu kaufen

@@ -76,7 +76,9 @@ defmodule PortfolixirWeb.PortfolioLive do
           socket
           |> assign(:portfolio, portfolio)
           |> assign(:classifications, classifications)
-          |> assign(:period, "max")
+          # 1y default (UAT fix round): "max" grows unreadable as history
+          # accumulates; the period buttons still offer it.
+          |> assign(:period, "1y")
           |> assign(:chart_mode, "ttwror")
           |> assign(:classification_id, default_classification_id(classifications))
           |> assign(:valuation, nil)
@@ -87,6 +89,8 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:expanded_categories, MapSet.new())
           |> assign(:allocation_mode, :tree)
           |> assign(:flat_sort, {:drift, :desc})
+          |> assign(:fx_syncing, false)
+          |> assign(:fx_sync_result, nil)
           |> assign(:category_parent_map, %{})
           |> assign(:category_parents_with_children, MapSet.new())
           |> assign_planned_view_ids()
@@ -160,6 +164,25 @@ defmodule PortfolixirWeb.PortfolioLive do
   def handle_async(:performance, {:ok, analysis}, socket) do
     {:ok, performance} = Performance.summarise(analysis, socket.assigns.period)
     {:noreply, assign(socket, analysis: analysis, performance: performance)}
+  end
+
+  # The background rate sync (issue #432, UAT fix round): the outcome lands
+  # as an inline status line next to the button; a success re-values the
+  # figures the same way the old synchronous path did.
+  def handle_async(:sync_rates, {:ok, {:ok, %{upserted: count}}}, socket) do
+    {:noreply,
+     socket
+     |> assign(fx_syncing: false, fx_sync_result: {:ok, count})
+     |> load_overview()
+     |> load_performance()}
+  end
+
+  def handle_async(:sync_rates, {:ok, {:error, _reason}}, socket) do
+    {:noreply, assign(socket, fx_syncing: false, fx_sync_result: :error)}
+  end
+
+  def handle_async(:sync_rates, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, fx_syncing: false, fx_sync_result: :error)}
   end
 
   def handle_async(_name, {:exit, _reason}, socket) do
@@ -424,29 +447,6 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <%= gettext("Positions") %>
                 </button>
               </div>
-              <div
-                :if={@allocation_mode == :tree}
-                class="chart-toggle"
-                role="group"
-                aria-label={gettext("Tree depth")}
-              >
-                <button
-                  type="button"
-                  data-role="expand-all-categories"
-                  class="button-mini"
-                  phx-click="expand_all_categories"
-                >
-                  <%= gettext("Expand all") %>
-                </button>
-                <button
-                  type="button"
-                  data-role="collapse-all-categories"
-                  class="button-mini"
-                  phx-click="collapse_all_categories"
-                >
-                  <%= gettext("Collapse all") %>
-                </button>
-              </div>
               <form phx-change="select_classification">
                 <label class="visually-hidden" for="allocation-classification">
                   <%= gettext("Classification") %>
@@ -513,6 +513,23 @@ defmodule PortfolixirWeb.PortfolioLive do
               </ul>
             </div>
 
+            <%!-- One expand/collapse toggle directly above the table (UAT fix
+                 round): the label states the action it will perform next. --%>
+            <div class="drift-table-actions">
+              <button
+                type="button"
+                data-role="toggle-all-categories"
+                class="button-mini"
+                phx-click="toggle_all_categories"
+              >
+                <%= if all_categories_expanded?(@allocation, @expanded_categories) do %>
+                  <%= gettext("Collapse all") %>
+                <% else %>
+                  <%= gettext("Expand all") %>
+                <% end %>
+              </button>
+            </div>
+
             <table class="drift-table" aria-describedby="tip-soll-ist">
               <thead>
                 <tr>
@@ -537,7 +554,17 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <%= for row <- @allocation.categories do %>
                   <%= if branch_expanded?(row.parent_id, @expanded_categories, @category_parent_map) do %>
                   <tr class={row.depth > 0 && "is-child"}>
-                    <td style={"padding-left:#{0.75 + row.depth * 1.25}rem"}>
+                    <%!-- The whole name cell toggles the subtree (UAT fix
+                         round): the chevron alone is too small a target. --%>
+                    <td
+                      style={"padding-left:#{0.75 + row.depth * 1.25}rem"}
+                      class={has_subtree?(row, @category_parents_with_children) && "is-clickable"}
+                      phx-click={
+                        has_subtree?(row, @category_parents_with_children) &&
+                          "toggle_category_positions"
+                      }
+                      phx-value-category-id={row.category_id}
+                    >
                       <button
                         :if={has_subtree?(row, @category_parents_with_children)}
                         type="button"
@@ -617,13 +644,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                             <% else %>
                               <%= Format.money(position.drift_value) %>
                               <%= if @valuation, do: @valuation.base_currency %>
-                              <span
-                                :if={rebalance_hint(position.rebalance_quantity)}
-                                class="rebalance-hint"
-                                data-role="rebalance-hint"
-                              >
-                                <%= rebalance_hint(position.rebalance_quantity) %>
-                              </span>
+                              <.rebalance_hint quantity={position.rebalance_quantity} />
                             <% end %>
                           </td>
                         <% end %>
@@ -671,8 +692,28 @@ defmodule PortfolixirWeb.PortfolioLive do
                   </tr>
                 <% end %>
                 <%= if @allocation.unassigned do %>
+                  <%!-- The unassigned bucket expands like a category row (UAT
+                       fix round), keyed by the "unassigned" sentinel id; its
+                       positions carry no target/drift by definition. --%>
                   <tr class="is-muted">
-                    <td><%= gettext("Unassigned") %></td>
+                    <td
+                      class="is-clickable"
+                      phx-click="toggle_category_positions"
+                      phx-value-category-id="unassigned"
+                    >
+                      <button
+                        type="button"
+                        class="positions-toggle"
+                        data-role="toggle-positions"
+                        phx-click="toggle_category_positions"
+                        phx-value-category-id="unassigned"
+                        aria-expanded={to_string(MapSet.member?(@expanded_categories, :unassigned))}
+                        aria-label={gettext("Toggle the category's securities")}
+                      >
+                        <%= if MapSet.member?(@expanded_categories, :unassigned), do: "▾", else: "▸" %>
+                      </button>
+                      <%= gettext("Unassigned") %>
+                    </td>
                     <td class="num"><%= Format.money(@allocation.unassigned.market_value) %></td>
                     <td class="num">
                       <%= Format.percent(@allocation.unassigned.actual_weight) %>%
@@ -682,6 +723,21 @@ defmodule PortfolixirWeb.PortfolioLive do
                       <td class="num">—</td>
                     <% end %>
                   </tr>
+                  <%= if MapSet.member?(@expanded_categories, :unassigned) do %>
+                    <%= for position <- @allocation.unassigned.positions do %>
+                      <tr class="is-position is-muted" data-role="allocation-position">
+                        <td style="padding-left:2.0rem">
+                          <%= position.security_name %>
+                        </td>
+                        <td class="num"><%= Format.money(position.market_value) %></td>
+                        <td class="num"><%= Format.percent(position.weight) %>%</td>
+                        <%= if @allocation.has_plan do %>
+                          <td class="num">—</td>
+                          <td class="num">—</td>
+                        <% end %>
+                      </tr>
+                    <% end %>
+                  <% end %>
                 <% end %>
               </tbody>
             </table>
@@ -699,15 +755,26 @@ defmodule PortfolixirWeb.PortfolioLive do
             <% end %>
 
             <%!-- The flat rebalancing worklist: one row per position, ranked
-                 by absolute drift by default, re-sortable via the column
-                 heads. Cash joins as a row; unassigned positions carry no
-                 drift (nudging toward assignment). --%>
+                 by signed drift by default (overweight first, underweight
+                 last), re-sortable via the column heads. Cash joins as a row;
+                 unassigned positions carry no drift (nudging toward
+                 assignment). --%>
             <%= if @allocation_mode == :flat do %>
               <table class="drift-table" data-role="flat-positions">
                 <thead>
                   <tr>
                     <th><%= gettext("Security") %></th>
-                    <th><%= gettext("Category") %></th>
+                    <th>
+                      <button
+                        type="button"
+                        class="table-sort"
+                        data-role="flat-sort-category"
+                        phx-click="sort_flat_positions"
+                        phx-value-key="category"
+                      >
+                        <%= gettext("Category") %><%= flat_sort_marker(@flat_sort, :category) %>
+                      </button>
+                    </th>
                     <th class="num">
                       <button
                         type="button"
@@ -773,7 +840,11 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <% end %>
                       </td>
                       <td class="num">
-                        <%= rebalance_hint(entry.rebalance_quantity) || "—" %>
+                        <%= if rebalance_hint_parts(entry.rebalance_quantity) do %>
+                          <.rebalance_hint quantity={entry.rebalance_quantity} />
+                        <% else %>
+                          —
+                        <% end %>
                       </td>
                     <% end %>
                   </tr>
@@ -844,9 +915,25 @@ defmodule PortfolixirWeb.PortfolioLive do
             </p>
 
             <div class="cash-actions">
-              <button type="button" phx-click="sync_rates" phx-disable-with={gettext("Syncing…")}>
+              <button
+                type="button"
+                phx-click="sync_rates"
+                disabled={@fx_syncing}
+                phx-disable-with={gettext("Syncing…")}
+              >
                 <%= gettext("Sync exchange rates") %>
               </button>
+              <span :if={@fx_syncing} class="hint" data-role="fx-sync-status" role="status">
+                <%= gettext("Syncing exchange rates…") %>
+              </span>
+              <p
+                :if={@fx_sync_result}
+                class={["hint", @fx_sync_result == :error && "fx-sync-error"]}
+                data-role="fx-sync-result"
+                role={if @fx_sync_result == :error, do: "alert", else: "status"}
+              >
+                <%= fx_sync_result_message(@fx_sync_result) %>
+              </p>
               <p class="hint">
                 <%= gettext("Fetch the latest exchange rates so foreign-currency cash is valued in the totals.") %>
               </p>
@@ -1116,7 +1203,19 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   # Expands/collapses a drift-table category into its member securities
-  # (ADR-0023). Pure display state; nothing is persisted.
+  # (ADR-0023). Pure display state; nothing is persisted. The unassigned
+  # bucket has no category id, so it toggles under a fixed sentinel.
+  def handle_event("toggle_category_positions", %{"category-id" => "unassigned"}, socket) do
+    expanded = socket.assigns.expanded_categories
+
+    expanded =
+      if MapSet.member?(expanded, :unassigned),
+        do: MapSet.delete(expanded, :unassigned),
+        else: MapSet.put(expanded, :unassigned)
+
+    {:noreply, assign(socket, :expanded_categories, expanded)}
+  end
+
   def handle_event("toggle_category_positions", %{"category-id" => id}, socket) do
     case coerce_id(id) do
       {:ok, category_id} ->
@@ -1169,38 +1268,34 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
+  # The sync runs in the background (UAT fix round): the handler only flips
+  # the in-flight flag, so the button disables and the inline status shows
+  # immediately; the result lands inline next to the button, not as a toast.
   def handle_event("sync_rates", _params, socket) do
-    case RateSync.sync() do
-      {:ok, %{upserted: count}} ->
-        {:noreply,
-         socket
-         |> assign(success: rates_synced_message(count), error: nil)
-         |> load_overview()
-         |> load_performance()}
+    socket =
+      socket
+      |> assign(fx_syncing: true, fx_sync_result: nil)
+      |> start_async(:sync_rates, fn -> RateSync.sync() end)
 
-      {:error, _reason} ->
-        {:noreply, assign(socket, error: rate_sync_error_message(), success: nil)}
-    end
+    {:noreply, socket}
   end
 
   def handle_event("dismiss_toast", _params, socket) do
     {:noreply, assign(socket, error: nil, success: nil)}
   end
 
-  # Expand-all reveals every level down to the positions; collapse-all is the
-  # top-level bird's view (owner request).
-  def handle_event("expand_all_categories", _params, socket) do
+  # One toggle (UAT fix round): expand-all reveals every level down to the
+  # positions (unassigned included); once everything is open the same button
+  # collapses back to the top-level bird's view.
+  def handle_event("toggle_all_categories", _params, socket) do
+    allocation = socket.assigns.allocation
+
     expanded =
-      case socket.assigns.allocation do
-        nil -> MapSet.new()
-        allocation -> MapSet.new(allocation.categories, & &1.category_id)
-      end
+      if all_categories_expanded?(allocation, socket.assigns.expanded_categories),
+        do: MapSet.new(),
+        else: all_expandable_ids(allocation)
 
     {:noreply, assign(socket, :expanded_categories, expanded)}
-  end
-
-  def handle_event("collapse_all_categories", _params, socket) do
-    {:noreply, assign(socket, :expanded_categories, MapSet.new())}
   end
 
   # Tree = structure check, Positions = flat rebalancing worklist.
@@ -1209,23 +1304,46 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, assign(socket, :allocation_mode, String.to_existing_atom(mode))}
   end
 
-  # Clicking the active sort key flips its direction; a new key starts desc
-  # (worklist semantics: biggest lever first).
+  # Clicking the active sort key flips its direction; a new numeric key starts
+  # desc (worklist semantics: biggest lever first), the category label starts
+  # asc (alphabetical reading order).
   def handle_event("sort_flat_positions", %{"key" => key}, socket)
-      when key in ["value", "drift", "weight"] do
+      when key in ["value", "drift", "weight", "category"] do
     key = String.to_existing_atom(key)
 
     sort =
       case socket.assigns.flat_sort do
-        {^key, :desc} -> {key, :asc}
-        _other -> {key, :desc}
+        {^key, dir} -> {key, flip_dir(dir)}
+        _other -> {key, initial_dir(key)}
       end
 
     {:noreply, assign(socket, :flat_sort, sort)}
   end
 
+  defp flip_dir(:desc), do: :asc
+  defp flip_dir(:asc), do: :desc
+
+  defp initial_dir(:category), do: :asc
+  defp initial_dir(_key), do: :desc
+
   defp expanded?(expanded_categories, row) do
     MapSet.member?(expanded_categories, row.category_id)
+  end
+
+  # Every id the toggle-all button can open: all categories plus the
+  # unassigned bucket's sentinel when it exists.
+  defp all_expandable_ids(nil), do: MapSet.new()
+
+  defp all_expandable_ids(allocation) do
+    ids = MapSet.new(allocation.categories, & &1.category_id)
+    if allocation.unassigned, do: MapSet.put(ids, :unassigned), else: ids
+  end
+
+  # "Everything expanded" drives the toggle label: only true when there is
+  # something to expand and none of it is still collapsed.
+  defp all_categories_expanded?(allocation, expanded) do
+    all = all_expandable_ids(allocation)
+    MapSet.size(all) > 0 and MapSet.subset?(all, expanded)
   end
 
   # Display-only rebalancing hint (ADR-0023): positive drift = sell, negative
@@ -1288,39 +1406,62 @@ defmodule PortfolixirWeb.PortfolioLive do
     ]
   end
 
-  # Rows without a sortable value (nil drift) sink to the end regardless of
-  # direction — the worklist ranks what is actionable.
+  # Rows without a sortable value (nil drift, no category) sink to the end
+  # regardless of direction — the worklist ranks what is actionable.
   defp sort_flat(rows, {key, dir}) do
     {sortable, unsortable} = Enum.split_with(rows, &flat_sort_value(&1, key))
-    Enum.sort_by(sortable, &flat_sort_value(&1, key), {dir, Decimal}) ++ unsortable
+    Enum.sort_by(sortable, &flat_sort_value(&1, key), flat_sorter(key, dir)) ++ unsortable
   end
 
-  defp flat_sort_value(row, :drift), do: row.drift_value && Decimal.abs(row.drift_value)
+  # Signed drift (UAT fix round): most-overweight first, most-underweight
+  # last — absolute ranking interleaved buys and sells.
+  defp flat_sort_value(row, :drift), do: row.drift_value
   defp flat_sort_value(row, :value), do: row.market_value
   defp flat_sort_value(row, :weight), do: row.weight
+
+  defp flat_sort_value(row, :category),
+    do: row.category_name && String.downcase(row.category_name)
+
+  # Numeric keys sort as Decimals; the category label is a plain string.
+  defp flat_sorter(:category, dir), do: dir
+  defp flat_sorter(_key, dir), do: {dir, Decimal}
 
   defp flat_sort_marker({key, :desc}, key), do: " ↓"
   defp flat_sort_marker({key, :asc}, key), do: " ↑"
   defp flat_sort_marker(_sort, _key), do: ""
 
-  defp rebalance_hint(nil), do: nil
+  # Display-only rebalancing hint (ADR-0023), rendered in aligned parts —
+  # verb | ≈ | right-aligned quantity | unit — so the columns line up
+  # vertically across rows (UAT fix round).
+  defp rebalance_hint(assigns) do
+    assigns = assign(assigns, :parts, rebalance_hint_parts(assigns.quantity))
 
-  defp rebalance_hint(%Decimal{} = quantity) do
+    ~H"""
+    <span :if={@parts} class="rebalance-hint" data-role="rebalance-hint">
+      <span class="rebalance-verb"><%= @parts.verb %></span>
+      <span class="rebalance-approx">≈</span>
+      <span class="rebalance-qty"><%= @parts.quantity %></span>
+      <span class="rebalance-unit"><%= gettext("units") %></span>
+    </span>
+    """
+  end
+
+  defp rebalance_hint_parts(nil), do: nil
+
+  defp rebalance_hint_parts(%Decimal{} = quantity) do
     case Decimal.compare(quantity, 0) do
-      :gt ->
-        gettext("Sell ≈ %{quantity} units", quantity: Format.decimal(quantity, 2))
-
-      :lt ->
-        gettext("Buy ≈ %{quantity} units", quantity: Format.decimal(Decimal.abs(quantity), 2))
-
-      :eq ->
-        nil
+      :gt -> %{verb: gettext("Sell"), quantity: Format.decimal(quantity, 2)}
+      :lt -> %{verb: gettext("Buy"), quantity: Format.decimal(Decimal.abs(quantity), 2)}
+      :eq -> nil
     end
   end
 
   # On-demand exchange-rate sync (issue #432): the rate provider only refreshes
   # on a 12 h timer, so a foreign-currency cash account stays unvalued until a
   # rate arrives. This lets the user pull rates now and re-value the figures.
+  defp fx_sync_result_message({:ok, count}), do: rates_synced_message(count)
+  defp fx_sync_result_message(:error), do: rate_sync_error_message()
+
   defp rates_synced_message(count) do
     gettext("Exchange rates synced (%{count} updated). Recalculating figures…", count: count)
   end
