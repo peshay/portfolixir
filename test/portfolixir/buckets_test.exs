@@ -78,6 +78,28 @@ defmodule Portfolixir.BucketsTest do
 
       assert ops == [:create, :delete, :update]
     end
+
+    # User story (ADR-0024, epic story 5):
+    # As the import applier tagging newly created accounts,
+    # I want a find-or-create for a tag-dimension bucket by name,
+    # so that an entered tag matching an existing bucket reuses it instead of
+    # erroring on the unique name.
+    test "ensure_tag_bucket creates a journaled tag bucket and reuses an existing name" do
+      assert {:ok, bucket} = Buckets.ensure_tag_bucket(Actor.import_session(), "  PP Import  ")
+      assert bucket.name == "PP Import"
+      assert bucket.dimension == "tag"
+
+      assert [entry] =
+               Journal.list_entries(resource_type: "bucket", resource_id: to_string(bucket.id))
+
+      assert entry.operation == :create
+      assert entry.actor_type == :import_session
+
+      # Same (trimmed) name → the existing bucket, regardless of dimension.
+      assert {:ok, reused} = Buckets.ensure_tag_bucket(Actor.import_session(), "PP Import")
+      assert reused.id == bucket.id
+      assert length(Buckets.list_buckets()) == 1
+    end
   end
 
   # User story:
