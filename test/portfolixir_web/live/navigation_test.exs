@@ -97,7 +97,7 @@ defmodule PortfolixirWeb.NavigationTest do
   # - Top level: Overview (/), Wealth (/portfolio), Securities (/securities),
   #   Transactions (/transactions).
   # - An "Administration" group holds Accounts & depots (/portfolios),
-  #   Buckets & views (/buckets), and Classifications (/classifications).
+  #   Views (/buckets), and Classifications (/classifications).
   # - The "Portfolio"/"Portfolios" naming collision is resolved: the holdings
   #   view is labelled Wealth, the master-data page Accounts & depots.
   # - Disabled "Soon" placeholders, the Income nav entry (now a Wealth tab),
@@ -113,7 +113,11 @@ defmodule PortfolixirWeb.NavigationTest do
 
     assert html =~ "Administration"
     assert has_element?(view, "#nav-portfolios[href='/portfolios']", "Accounts & depots")
-    assert has_element?(view, "#nav-buckets[href='/buckets']", "Buckets & views")
+    # ADR-0024 modification 6: the sidebar entry is about views (the task of
+    # scoping analytics); bucket CRUD is reachable from account-row chips and
+    # from the views management page, never as its own sidebar destination.
+    assert has_element?(view, "#nav-buckets[href='/buckets']", "Views")
+    refute has_element?(view, "#nav-buckets", "Buckets & views")
     assert has_element?(view, "#nav-classifications[href='/classifications']", "Classifications")
 
     # Income and Imports moved into their areas' tab bars (ADR-0022).

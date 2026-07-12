@@ -135,11 +135,36 @@ The bookkeeping entities are cash accounts and depots:
 - cash account: tracks available liquidity context
 - depot/account: stores security positions linked to that cash account
 
+The **Accounts & depots** page (Administration area) shows both in **one
+paired table**: each depot renders one row together with its linked cash
+account, the account currency, and the per-account **liquidity role**
+selector (free cash, credit line, reserve); a cash account no depot links to
+gets its own row. A cash account shared by several depots carries its
+controls on its first row only.
+
+**Bucket chips (#559).** Each row shows its bucket memberships as chips —
+the exclusive **scope** bucket as a filled chip, free **tags** as outline
+chips, tinted with the bucket's color when one is set. Long names (for
+example date-stamped import tags) are truncated; hovering a chip reveals the
+full name. The chips are the grouping UI: the **+** affordance opens a small
+picker with the remaining buckets plus an inline **New tag** field that
+creates and assigns a tag in one step, and the **×** on a chip removes that
+membership. Every change is written through the audit-journaled bucket
+context; trying to add a second scope bucket is rejected with an inline
+message, because the scope dimension stays exclusive (ADR-0024).
+
+**One creation dialog (#491).** The **Add depot & account** button opens a
+modal that creates a depot together with its linked cash account in one flow
+— or a cash account alone, or a depot linked to an existing account. The
+dialog optionally applies **initial buckets**: check existing buckets and/or
+type one new tag, and every record the dialog creates starts out with that
+membership.
+
 **No portfolio decision is required anywhere** (ADR-0024): grouping happens
 exclusively through buckets and views. When a depot or cash account is
-created — in the UI or over the API/MCP — its internal binding resolves to one
-deterministic default portfolio (the earliest record, or a freshly created
-"Default"), without asking.
+created — in the dialog or over the API/MCP — its internal binding resolves
+to one deterministic default portfolio (the earliest record, or a freshly
+created "Default"), without asking.
 
 ### Portfolio records (compatibility)
 
@@ -423,7 +448,8 @@ recorded without booking individual transactions.
 section follow the **active view across all portfolios** — **Everything**
 (German *Alles*) is the built-in default and shows every holding, each account
 counted exactly once. Pick a view in the **view switcher** at the top of the
-page; **Set as default** (*Als Standard festlegen*) remembers the choice
+page — its **Manage…** link opens the Views page where views and their
+buckets are edited; **Set as default** (*Als Standard festlegen*) remembers the choice
 server-side, so the Wealth page and the Overview page open on that view
 whenever you have not explicitly picked another (an explicit pick — including
 Everything — always wins). When the active view's buckets share an account, a
@@ -656,10 +682,13 @@ The detail pane shows a server-rendered SVG price chart with:
   follow the toggle.
 - The sidebar is organised into task-oriented areas (ADR-0022): **Overview**,
   **Wealth**, **Securities**, and **Transactions** at the top level, plus an
-  **Administration** group with **Accounts & depots**, **Buckets & views**, and
+  **Administration** group with **Accounts & depots**, **Views**, and
   **Classifications**. It lists only routes that exist — no disabled roadmap
   placeholders. Income is a tab of the Wealth area and Import a tab of the
-  Transactions area, not separate menu entries.
+  Transactions area, not separate menu entries. Buckets have no sidebar entry
+  of their own (ADR-0024): they are managed as chips on the Accounts & depots
+  rows and on the Views page, which the view switcher's **Manage…** link
+  opens.
 - Theme: system, light, and dark modes are supported.
 - Accent: violet, teal, and coral logo accent choices are supported.
 - Language: first load follows the browser language when it is English or

@@ -144,9 +144,37 @@ Die Buchhaltungs-Entitäten sind Geldkonten und Depots:
 - Geldkonto: verfolgt den Kontext der verfügbaren Liquidität
 - Depot/Konto: speichert Wertpapierpositionen, verknüpft mit diesem Geldkonto
 
+Die Seite **Konten & Depots** (Bereich Verwaltung) zeigt beide in **einer
+gepaarten Tabelle**: jedes Depot bildet eine Zeile zusammen mit seinem
+verknüpften Verrechnungskonto, der Kontowährung und dem
+**Liquiditätsrollen**-Selektor je Konto (freies Cash, Kreditlinie, Reserve);
+ein Geldkonto ohne verknüpftes Depot bekommt eine eigene Zeile. Ein von
+mehreren Depots geteiltes Konto trägt seine Bedienelemente nur auf seiner
+ersten Zeile.
+
+**Bucket-Chips (#559).** Jede Zeile zeigt ihre Bucket-Zugehörigkeiten als
+Chips — den exklusiven **Scope**-Bucket als gefüllten Chip, freie **Tags**
+als Umriss-Chips, eingefärbt mit der Bucket-Farbe, wenn eine gesetzt ist.
+Lange Namen (etwa datumsgestempelte Import-Tags) werden gekürzt; der volle
+Name erscheint beim Überfahren des Chips. Die Chips sind die Gruppierungs-UI:
+das **+** öffnet einen kleinen Picker mit den übrigen Buckets plus einem
+Inline-Feld **Neuer Tag**, das einen Tag in einem Schritt anlegt und
+zuweist, und das **×** auf einem Chip entfernt die Zugehörigkeit. Jede
+Änderung läuft durch den audit-journalisierten Bucket-Kontext; der Versuch,
+einen zweiten Scope-Bucket zuzuweisen, wird mit einer Inline-Meldung
+abgelehnt, denn die Scope-Dimension bleibt exklusiv (ADR-0024).
+
+**Ein Anlage-Dialog (#491).** Der Knopf **Depot & Konto anlegen** öffnet
+einen Dialog, der ein Depot zusammen mit seinem verknüpften
+Verrechnungskonto in einem Fluss anlegt — oder ein Geldkonto allein, oder
+ein Depot verknüpft mit einem bestehenden Konto. Optional vergibt der Dialog
+**anfängliche Buckets**: bestehende Buckets ankreuzen und/oder einen neuen
+Tag eintippen, und jeder vom Dialog angelegte Datensatz startet mit dieser
+Zugehörigkeit.
+
 **Nirgendwo ist eine Portfolio-Entscheidung nötig** (ADR-0024): Gruppierung
 passiert ausschließlich über Buckets und Ansichten. Wird ein Depot oder
-Geldkonto angelegt — in der UI oder über API/MCP — löst sich die interne
+Geldkonto angelegt — im Dialog oder über API/MCP — löst sich die interne
 Bindung deterministisch auf ein Standard-Portfolio auf (den ältesten
 Datensatz, sonst ein frisch angelegtes „Default“), ohne nachzufragen.
 
@@ -449,7 +477,9 @@ Transaktionen erfasst.
 der Cash-Abschnitt folgen der **aktiven Ansicht über alle Portfolios hinweg** —
 **Alles** (englisch *Everything*) ist die eingebaute Voreinstellung und zeigt
 jede Position, jedes Konto genau einmal gezählt. Wähle eine Ansicht im
-**Sicht-Umschalter** oben auf der Seite; **Als Standard festlegen** merkt sich
+**Sicht-Umschalter** oben auf der Seite — sein **Verwalten…**-Link öffnet die
+Ansichten-Seite, auf der Ansichten und ihre Buckets bearbeitet werden;
+**Als Standard festlegen** merkt sich
 die Wahl serverseitig, sodass Vermögensseite und Übersicht mit dieser Ansicht
 öffnen, solange du nicht ausdrücklich eine andere wählst (eine ausdrückliche
 Wahl — auch von „Alles" — gewinnt immer). Teilen sich die Buckets der aktiven
@@ -678,10 +708,13 @@ Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 - Die Seitenleiste ist in aufgabenorientierte Bereiche organisiert (ADR-0022):
   **Übersicht**, **Vermögen**, **Wertpapiere** und **Transaktionen** auf der
   obersten Ebene, plus eine Gruppe **Verwaltung** mit **Konten & Depots**,
-  **Buckets & Views** und **Klassifizierungen**. Sie listet nur existierende
+  **Ansichten** und **Klassifizierungen**. Sie listet nur existierende
   Routen — keine deaktivierten Roadmap-Platzhalter. Erträge sind ein Tab des
   Vermögens-Bereichs und der Import ein Tab des Transaktions-Bereichs, keine
-  eigenen Menüeinträge.
+  eigenen Menüeinträge. Buckets haben keinen eigenen Seitenleisten-Eintrag
+  (ADR-0024): sie werden als Chips auf den Zeilen von Konten & Depots und auf
+  der Ansichten-Seite verwaltet, die der **Verwalten…**-Link des
+  Sicht-Umschalters öffnet.
 - Theme: System-, hell- und dunkel-Modus werden unterstützt.
 - Akzent: violette, türkise und korallenfarbene Logo-Akzentwahlen werden
   unterstützt.

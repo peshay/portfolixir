@@ -78,6 +78,14 @@ defmodule PortfolixirWeb.ViewSwitcher do
           </a>
         <% end %>
       </nav>
+      <a
+        class="view-switcher__manage"
+        data-role="manage-views"
+        href="/buckets"
+        title={gettext("Create, rename, and edit views and their buckets")}
+      >
+        <%= gettext("Manage…") %>
+      </a>
       <%= if @show_default_control do %>
         <%= if (@active_view && @active_view.id) == @default_view_id do %>
           <span class="hint" data-role="default-view-marker">
