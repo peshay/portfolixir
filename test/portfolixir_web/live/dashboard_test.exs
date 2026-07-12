@@ -162,9 +162,17 @@ defmodule PortfolixirWeb.DashboardTest do
 
     assert has_element?(view, "#dashboard-attention [data-role='drift-alert']", "Core")
 
+    # The card says WHY these items need attention (UAT fix round): an
+    # explanatory line under the heading naming the ±5 pp threshold …
+    explainer = view |> element(~s([data-role="attention-explainer"])) |> render()
+    assert explainer =~ "±5 pp"
+    assert explainer =~ "target weight"
+
+    # … and each item reads as text: "40.0 pp above target", not a bare "+40.0 pp".
     alert = view |> element(~s(#dashboard-attention [data-role="drift-alert"])) |> render()
     assert alert =~ ~s(href="/portfolio?tab=allocation")
-    assert alert =~ "+40.0"
+    assert alert =~ "40.0"
+    assert alert =~ "above target"
     assert alert =~ "480.00"
   end
 
