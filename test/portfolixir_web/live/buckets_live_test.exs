@@ -37,7 +37,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
   # User story:
   # As a local portfolio maintainer,
-  # I want a Buckets & Views page to create and manage buckets,
+  # I want a views management page to create and manage buckets,
   # so that I can tag holdings without touching the API.
   #
   # Acceptance criteria:
@@ -47,6 +47,10 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     world()
 
     {:ok, view, _html} = live(conn, "/buckets")
+
+    # ADR-0024 modification 6: the management surface is about views; buckets
+    # are the tags views filter on, managed here and from account-row chips.
+    assert view |> element("#app-topbar-title") |> render() =~ "Views"
 
     html =
       view

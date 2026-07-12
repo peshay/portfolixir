@@ -1,6 +1,8 @@
 defmodule PortfolixirWeb.BucketsLive do
   @moduledoc """
-  Buckets & Views management (issue #446).
+  Views management (issue #446; renamed from "Buckets & views" per ADR-0024
+  modification 6 — the sidebar entry is about views, while bucket CRUD is
+  additionally reachable from the chips on the Accounts & depots rows).
 
   One workspace for the tag-based wealth-scoping model (ADR-0018):
 
@@ -43,8 +45,8 @@ defmodule PortfolixirWeb.BucketsLive do
     ~H"""
     <AppShell.shell
       current_path="/buckets"
-      page_title={gettext("Buckets & views")}
-      page_subtitle={gettext("Tag holdings and scope your analytics")}
+      page_title={gettext("Views")}
+      page_subtitle={gettext("Saved filters that scope your analytics, built from bucket tags")}
     >
       <div id="buckets-workspace" class="workspace-page">
         <%= if @error do %>

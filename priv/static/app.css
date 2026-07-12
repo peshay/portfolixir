@@ -4928,3 +4928,203 @@ button.income-bar-label.is-active {
     min-height: 44px;
   }
 }
+
+/* === Accounts & depots: paired table, bucket chips, picker (ADR-0024, issues 491 + 559) === */
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.accounts-table td {
+  vertical-align: top;
+}
+
+.account-names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-name {
+  font-weight: 600;
+}
+
+.account-sub {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.account-buckets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 220px;
+}
+
+.bucket-chip-group {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.bucket-chip-group__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  margin-right: 0.15rem;
+}
+
+/* A bucket membership chip. The bucket's own color rides in through
+   --chip-color; without one the neutral accent tokens take over. Tag chips
+   are outlined, the exclusive scope chip is filled (ADR-0024). */
+.bucket-chip {
+  --chip-color: var(--color-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--chip-color) 45%, transparent);
+  background: color-mix(in srgb, var(--chip-color) 12%, transparent);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.bucket-chip--scope {
+  background: var(--chip-color);
+  border-color: var(--chip-color);
+  color: white;
+  font-weight: 600;
+}
+
+/* Import-created tags carry long date-stamped names — truncate, the chip's
+   title attribute keeps the full name reachable. */
+.bucket-chip__name {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bucket-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.bucket-chip__remove:hover {
+  opacity: 1;
+}
+
+.bucket-chip-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bucket-chip-add:hover,
+.bucket-chip-add[aria-expanded="true"] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.bucket-inline-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-danger);
+}
+
+.bucket-picker {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+.bucket-picker__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bucket-picker__options .bucket-chip {
+  cursor: pointer;
+}
+
+.bucket-picker__create {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bucket-picker__create input[name="bucket_name"] {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.view-switcher__manage {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+}
+
+.view-switcher__manage:hover {
+  color: var(--color-accent);
+}
+
+@media (pointer: coarse) {
+  .bucket-chip-add {
+    width: 32px;
+    height: 32px;
+  }
+
+  .bucket-chip__remove {
+    min-width: 24px;
+    min-height: 24px;
+  }
+}

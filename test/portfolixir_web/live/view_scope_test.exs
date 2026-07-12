@@ -80,7 +80,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
   #
   # Acceptance criteria:
   # - With no views, the switcher shows a "no views yet" prompt.
-  # - The prompt links to the Buckets & views page (/buckets).
+  # - The prompt links to the views management page (/buckets).
   test "the switcher prompts to create a view when none exist", %{conn: conn} do
     world()
 
@@ -88,6 +88,19 @@ defmodule PortfolixirWeb.ViewScopeTest do
 
     assert html =~ "View:"
     assert has_element?(view, "[data-role='no-views'] a[href='/buckets']")
+  end
+
+  # User story (ADR-0024 modification 6):
+  # As a local portfolio maintainer,
+  # I want a "Manage…" link on the Wealth view picker,
+  # so that the views management page is reachable from where views are used
+  # instead of needing a dedicated buckets sidebar entry.
+  test "the switcher links to the views management page", %{conn: conn} do
+    world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+
+    assert has_element?(view, "[data-role='manage-views'][href='/buckets']")
   end
 
   # User story:
