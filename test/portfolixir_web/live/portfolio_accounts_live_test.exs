@@ -55,17 +55,53 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert Portfolios.get_cash_account(cash.id).liquidity_role == "credit_line"
   end
 
-  # User story:
-  # As a maintainer with more than one portfolio, I want to choose which
-  # portfolio a new cash account (or depot) is added to, so that accounts never
-  # silently land on whichever portfolio happens to be first in the list (#490).
+  # User story (ADR-0024):
+  # As a local portfolio maintainer,
+  # I want to create depots and cash accounts without ever deciding on a
+  # portfolio,
+  # so that grouping happens exclusively through buckets and views while the
+  # compatibility record is resolved internally.
   #
   # Acceptance criteria:
-  # - With multiple portfolios, a target-portfolio selector is shown.
-  # - The chosen target is visible ("Adding to: <name>").
-  # - A created cash account lands on the selected portfolio, not the first one.
-  test "creates a cash account on the explicitly selected portfolio (#490)", %{conn: conn} do
-    {:ok, _a} =
+  # - The page renders no portfolio create form and no target-portfolio
+  #   selector.
+  # - Creating a cash account on an empty database binds it to one internal
+  #   default portfolio ("Default") without asking.
+  # - Creating a depot binds it the same way and links the cash account.
+  test "creates a cash account and depot without any portfolio decision", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/portfolios")
+
+    refute html =~ "portfolio-form"
+    refute html =~ "target-portfolio-form"
+    refute html =~ "Add to portfolio"
+    refute html =~ "Create portfolio"
+
+    view
+    |> element("#cash-account-form")
+    |> render_submit(%{"cash_account" => %{"name" => "Cash EUR", "currency_code" => "EUR"}})
+
+    assert [cash] = Portfolios.list_cash_accounts()
+    default = Portfolios.get_portfolio(cash.portfolio_id)
+    assert default.name == "Default"
+
+    view
+    |> element("#securities-account-form")
+    |> render_submit(%{
+      "securities_account" => %{"name" => "Depot", "cash_account_id" => to_string(cash.id)}
+    })
+
+    assert [depot] = Portfolios.list_securities_accounts()
+    assert depot.portfolio_id == default.id
+    assert depot.cash_account_id == cash.id
+
+    # Exactly one internal record was created for both writes.
+    assert Portfolios.count_portfolios() == 1
+  end
+
+  # An existing installation with portfolios keeps binding new accounts to its
+  # earliest portfolio — deterministic, no new "Default" record appears.
+  test "existing installs bind new accounts to the earliest portfolio", %{conn: conn} do
+    {:ok, first} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
         name: "Alpha",
         base_currency_code: "EUR"
@@ -76,55 +112,79 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
         name: "Beta",
         base_currency_code: "EUR"
       })
-
-    [first | _] = Portfolios.list_portfolios()
-    target = Enum.find(Portfolios.list_portfolios(), &(&1.id != first.id))
 
     {:ok, view, _html} = live(conn, "/portfolios")
 
     view
-    |> element("#target-portfolio-form")
-    |> render_change(%{"portfolio_id" => to_string(target.id)})
-
-    assert render(view) =~ "Adding to: #{target.name}"
-
-    view
     |> element("#cash-account-form")
-    |> render_submit(%{"cash_account" => %{"name" => "Target Cash", "currency_code" => "EUR"}})
+    |> render_submit(%{"cash_account" => %{"name" => "New Cash", "currency_code" => "EUR"}})
 
-    target_cash = Portfolios.list_cash_accounts_for_portfolio(target.id)
-    first_cash = Portfolios.list_cash_accounts_for_portfolio(first.id)
-
-    assert Enum.any?(target_cash, &(&1.name == "Target Cash"))
-    assert first_cash == []
+    assert [cash] = Portfolios.list_cash_accounts()
+    assert cash.portfolio_id == first.id
+    assert Portfolios.count_portfolios() == 2
   end
 
-  # User story:
-  # As a German-locale maintainer with more than one portfolio,
-  # I want the "add to portfolio" target picker and its hint translated,
-  # so that the portfolios page is fully German.
+  # User story (ADR-0024 modification 1):
+  # As a local portfolio maintainer,
+  # I want a minimal, read-only administration list of every portfolio record,
+  # so that portfolios created over the API/MCP can never become invisible
+  # writable resources.
   #
   # Acceptance criteria:
-  # - With ?locale=de the target-portfolio label and the "Adding to" hint
-  #   render in German and not in English.
-  test "translates the target-portfolio picker for the German locale", %{conn: conn} do
-    {:ok, _a} =
+  # - A collapsed panel on the Accounts & depots page lists every portfolio
+  #   record with name, creation date, source, and bound depot/account counts.
+  # - API-created records appear with the API source label.
+  # - The panel offers no create or edit controls.
+  test "admin panel lists every portfolio record read-only", %{conn: conn} do
+    {:ok, ui} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
-        name: "Alpha",
+        name: "Mine",
         base_currency_code: "EUR"
       })
 
-    {:ok, _b} =
+    {:ok, _api} =
+      Portfolios.create_portfolio(Portfolixir.Actor.api_token_rw("mcp"), %{
+        name: "Ghost",
+        base_currency_code: "USD"
+      })
+
+    {:ok, _cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: ui.id,
+        name: "Cash EUR",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    panel = view |> element("#portfolio-admin") |> render()
+    assert panel =~ "Mine"
+    assert panel =~ "Ghost"
+    assert panel =~ "API"
+    assert panel =~ Date.to_iso8601(Date.utc_today())
+
+    # Read-only: no create or edit affordance inside the panel.
+    refute panel =~ "<form"
+    refute panel =~ "<button"
+    refute panel =~ "<input"
+  end
+
+  # User story:
+  # As a German-locale maintainer,
+  # I want the demoted accounts page fully translated,
+  # so that the German UI carries the new no-portfolio wording.
+  test "translates the demoted accounts page for the German locale", %{conn: conn} do
+    {:ok, _p} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
-        name: "Beta",
+        name: "Alpha",
         base_currency_code: "EUR"
       })
 
     {:ok, _view, html} = live(conn, "/portfolios?locale=de")
 
-    assert html =~ "Zum Portfolio hinzufügen"
-    assert html =~ "Hinzufügen zu:"
+    assert html =~ "Portfoliodatensätze"
     refute html =~ "Add to portfolio"
+    refute html =~ "Create portfolio"
   end
 
   test "renders the cash-quote toggle compact instead of as a full-width form input" do

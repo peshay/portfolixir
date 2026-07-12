@@ -180,6 +180,20 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(setCashTarget?.inputSchema.properties.view.type, "integer");
   });
 
+  // ADR-0024 modification 1: portfolios are demoted to internal compatibility
+  // records. The portfolio tools stay callable (no breaking change in phase 1)
+  // but their descriptions must steer agents to buckets/views for grouping.
+  it("marks the portfolio list/create tools as deprecated, steering to buckets/views", () => {
+    const tools = listTools();
+
+    for (const name of ["portfolixir.portfolios.list", "portfolixir.portfolios.create"]) {
+      const tool = tools.find((candidate) => candidate.name === name);
+      assert.match(tool?.description ?? "", /deprecated/i, `${name} lacks a deprecation note`);
+      assert.match(tool?.description ?? "", /buckets/i, `${name} does not steer to buckets`);
+      assert.match(tool?.description ?? "", /views/i, `${name} does not steer to views`);
+    }
+  });
+
   it("calls the Phoenix API with bearer auth and returns structured content", async () => {
     const { client, requests } = createRecordingClient({
       data: [{ id: 7, name: "Synthetic" }]

@@ -60,16 +60,16 @@ Integrationsdetails für `/api/v1` und `mcp-server/` sind separat unter
 ## Kern-Workflow
 
 1. Lege ein oder mehrere Wertpapiere mit grundlegenden Identifikationsdaten an.
-2. Lege ein Portfolio an.
-3. Lege ein Geldkonto und ein Depot an und verknüpfe sie.
-4. Erfasse manuelle Kauf- und Verkauftransaktionen mit Decimal-basierten Mengen-
+2. Lege ein Geldkonto und ein Depot an und verknüpfe sie (nirgendwo eine
+   Portfolio-Entscheidung — siehe unten).
+3. Erfasse manuelle Kauf- und Verkauftransaktionen mit Decimal-basierten Mengen-
    und Preiswerten.
-5. Importiere optional einen Portfolio-Performance-Transaktionsexport über
+4. Importiere optional einen Portfolio-Performance-Transaktionsexport über
    Imports, prüfe die Vorschau, ordne fehlende Konten zu und wende dann atomar an.
-6. Öffne die Bestandsansicht, um die aktuelle Position je Wertpapier zu prüfen.
-7. Erfasse Wertpapierkurse im Zeitverlauf und behalte die Historie für
+5. Öffne die Bestandsansicht, um die aktuelle Position je Wertpapier zu prüfen.
+6. Erfasse Wertpapierkurse im Zeitverlauf und behalte die Historie für
    reproduzierbare Charts.
-8. Prüfe aktuelle Bestände und das Verhalten der Kurscharts direkt in der App.
+7. Prüfe aktuelle Bestände und das Verhalten der Kurscharts direkt in der App.
 
 ## Wertpapiere
 
@@ -137,12 +137,32 @@ Tokens sind einzelne Zeichen, mindestens vier Tokens) und führt die Tokens
 zusammen, bevor die Heuristiken laufen, sodass Rechtsform-Suffixe auch aus
 solchen Exporten zuverlässig erkannt werden.
 
-## Portfolios und Konten
+## Konten und Depots
 
-Das Portfolio besitzt eine Arbeitsgruppe von Kontomodellen:
+Die Buchhaltungs-Entitäten sind Geldkonten und Depots:
 
 - Geldkonto: verfolgt den Kontext der verfügbaren Liquidität
 - Depot/Konto: speichert Wertpapierpositionen, verknüpft mit diesem Geldkonto
+
+**Nirgendwo ist eine Portfolio-Entscheidung nötig** (ADR-0024): Gruppierung
+passiert ausschließlich über Buckets und Ansichten. Wird ein Depot oder
+Geldkonto angelegt — in der UI oder über API/MCP — löst sich die interne
+Bindung deterministisch auf ein Standard-Portfolio auf (den ältesten
+Datensatz, sonst ein frisch angelegtes „Default“), ohne nachzufragen.
+
+### Portfoliodatensätze (Kompatibilität)
+
+Portfolios bleiben als **interne Kompatibilitätsdatensätze** im Schema, in der
+JSON-API und im Importpfad erhalten. Die Seite **Konten & Depots** im
+Administrationsbereich trägt ein eingeklapptes, schreibgeschütztes Panel
+**Portfoliodatensätze (Kompatibilität)**, das jeden Datensatz auflistet —
+Name, Basiswährung, Anlagedatum, Quelle (UI, API, Import oder Seed, abgeleitet
+aus dem Audit-Journal) sowie die Zahl der gebundenen Depots und Geldkonten —
+damit über API/MCP angelegte Datensätze nie unsichtbar werden. Es gibt keine
+Anlage- oder Bearbeitungs-UI; die API-Schreibendpunkte sind veraltet (siehe
+[API und MCP](integration/api-and-mcp.html)), und eine Folge-Story
+verschmilzt die Datensätze nach zwei Releases ohne externe Portfolio-Writes
+in Buckets und Ansichten.
 
 ## Transaktionen und Bestände
 
@@ -223,7 +243,7 @@ Die Zustände sind:
   `(Sicht, Klassifizierung)`-Plan auf einmal. Eine Live-**Σ**-Fußzeile summiert
   die Kategoriegewichte plus das Cash-Ziel und zeigt bei genau 100 % ein ✓, sonst
   ein ✗ mit dem gelben Abweichungshinweis — und aktualisiert sich beim Tippen.
-- **Plan löschen** entfernt den Plan der Sicht; die Portfolio-Seite fällt für
+- **Plan löschen** entfernt den Plan der Sicht; die Vermögensseite fällt für
   diese Sicht dann auf **nur IST** zurück (kein SOLL, keine Drift).
 
 Gewichte werden als **Prozentsätze** eingegeben und angezeigt (z. B. `60`) und als
@@ -235,7 +255,7 @@ fokussierbar, und derselbe Plan ist über die API/MCP-Ziel-Endpunkte mit einem
 > **verlustfrei**: alle bereits vorhandenen Zielgewichte und das frühere
 > portfolioweite Cash-Ziel werden zu deinem **Gesamt**-Plan (`view = null`). Am
 > Verhalten ändert sich nichts — dein bestehendes Setup erscheint einfach unter
-> *Gesamt*, und die Portfolio-Seite liest es unter der Sicht **Total** genau wie
+> *Gesamt*, und die Vermögensseite liest es unter der Sicht **Total** genau wie
 > zuvor. Benannte Sichten starten **ohne Plan**, bis du einen anlegst oder
 > kopierst.
 
@@ -264,7 +284,7 @@ angezeigten Ist-Prozentsätze nur über die Blätter (plus nicht Zugeordnetes) z
 Ziele bleiben **bewusst locker**: du kannst ein Gewicht auf oberster Ebene und auf
 Unterebenen setzen, ohne dass die App sie zur Summe 100 % zwingt. Um diese
 Freiheit zu bewahren und zugleich Abweichungen sichtbar zu machen, zeigt die
-Portfolio-Seite zwei **beratende Konsistenzhinweise** — schreibgeschützt, ein
+Vermögensseite zwei **beratende Konsistenzhinweise** — schreibgeschützt, ein
 Speichern nie blockierend:
 
 - Eine dezente Zeile unter jeder übergeordneten Kategorie mit Kind-Zielen lautet
@@ -314,7 +334,7 @@ bepreist — ein Kauf oder Verkauf ist eine Preisbeobachtung, genau so, wie
 Portfolio Performance Preise aus Buchungen ableitet — sodass ein frisch
 importiertes Portfolio nicht mit null bewertet wird, während Kurse noch geholt
 werden. Solche Positionen tragen `price_source: "trade"` in der API und werden in
-`trade_priced_count` gezählt; die Portfolio-Seite markiert sie als
+`trade_priced_count` gezählt; die Vermögensseite markiert sie als
 Datenqualitäts-Hinweis. Eine Position mit weder Kurs noch Handelspreis oder ohne
 Kurspfad zur Basiswährung wird als unbewertet gemeldet, sodass ein fehlender Preis
 oder Kurs nie still den Gesamtwert oder die Gewichte verzerrt.
@@ -335,7 +355,7 @@ Pflege braucht.
 Für externe Konten (ein Girokonto, Sparkonto, ein Geschäftskonto) ist das Ziel
 Sichtbarkeit ohne Buchhaltung. Statt jede Buchung zu spiegeln, **setzt du den
 Saldo eines Kontos direkt** — tippe die Zahl ein, die deine Banking-App zeigt, als
-datierten **Snapshot** (das Saldo-setzen-Formular auf der Portfolio-Seite,
+datierten **Snapshot** (das Saldo-setzen-Formular auf der Vermögensseite,
 `POST /api/v1/cash_accounts/:id/balance` oder das MCP-Tool
 `cash_accounts.set_balance`). Der Saldo verankert sich dann an diesem Betrag, und
 nur Buchungen mit einem Datum strikt nach dem Snapshot verändern ihn; so braucht
@@ -347,7 +367,7 @@ eine Banking-App zu verwandeln. Dies folgt dem in
 [ADR-0009](/decisions/0009-cash-as-balance-snapshots.html) festgehaltenen Entwurf.
 
 Jedes Geldkonto trägt eine **Liquiditätsrolle** (`liquidity_role`; der Selektor
-sitzt neben dem Konto auf der Portfolios-Seite). Sie ist einer von drei Werten:
+sitzt neben dem Konto auf der Seite Konten & Depots). Sie ist einer von drei Werten:
 **free cash** (Standard — echtes verfügbares Cash), **credit line** (eine
 Überziehungs- oder Lombard-Linie, deren negativer Saldo eine Verbindlichkeit ist
 und deren ungenutzter Rahmen nie Liquidität ist) oder **reserve** (ein
@@ -357,7 +377,7 @@ in die Cash-Quote ein; eine Kreditlinie zählt nie (auch bei positivem Saldo —
 der Typ schlägt das Vorzeichen), und eine Reserve ist immer ausgeschlossen. Jedes
 Konto bleibt im gesamten Cash, sodass eine gezogene Kreditlinie dein
 Nettovermögen korrekt mindert, aber die Quote wird nur über das verfügbare Cash
-berechnet und meldet nie Schein-Liquidität. Die Portfolio-Seite dämpft nicht
+berechnet und meldet nie Schein-Liquidität. Die Vermögensseite dämpft nicht
 verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 
 ## Übersichts-Seite
@@ -379,7 +399,7 @@ Aktivitäts-Feed: die forensischen Details gehören dem Audit-Journal.
 
 ## Vermögens-Seite
 
-Der Eintrag **Vermögen** in der Navigation öffnet die Portfolio-Übersicht,
+Der Eintrag **Vermögen** in der Navigation öffnet die Vermögensübersicht,
 organisiert in Tabs (ADR-0022): **Bestände** (Wert, Performance, Datenqualität,
 Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Erträge** (der
 Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab zeigt den
@@ -500,7 +520,7 @@ sodass die beiden unterschiedlich ausfallen, wenn Geld zu guten oder schlechten
 Zeitpunkten bewegt wurde. Der IRR zeigt `—`, wenn es keine Rate zu berechnen gibt
 (keine Flüsse beider Vorzeichen oder der Solver konvergiert nicht).
 
-Die Performance wird auf der Portfolio-Seite gezeigt und ist je Zeitraum
+Die Performance wird auf der Vermögensseite gezeigt und ist je Zeitraum
 verfügbar — laufendes Jahr, ein, drei oder fünf Jahre oder seit der ersten
 Transaktion — über die API (`GET /api/v1/portfolios/:id/performance`) und das
 MCP-Tool `portfolixir.portfolios.performance`, optional mit der vollständigen

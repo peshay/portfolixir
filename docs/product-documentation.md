@@ -57,14 +57,14 @@ Integration details for `/api/v1` and `mcp-server/` are documented separately in
 ## Core Workflow
 
 1. Create one or more securities with basic identifying data.
-2. Create a portfolio.
-3. Create one cash account and one depot, and link them.
-4. Record manual buy and sell transactions with Decimal-based quantity and price values.
-5. Optionally import a Portfolio Performance transaction export through
+2. Create one cash account and one depot, and link them (no portfolio
+   decision anywhere — see below).
+3. Record manual buy and sell transactions with Decimal-based quantity and price values.
+4. Optionally import a Portfolio Performance transaction export through
    Imports, review the preview, map missing accounts, then apply atomically.
-6. Open the holdings view to verify current position per security.
-7. Record security quotes over time and keep history for reproducible charts.
-8. Review current holdings and quote chart behavior directly in the app.
+5. Open the holdings view to verify current position per security.
+6. Record security quotes over time and keep history for reproducible charts.
+7. Review current holdings and quote chart behavior directly in the app.
 
 ## Securities
 
@@ -128,12 +128,32 @@ single characters, minimum four tokens) and collapses the tokens before
 heuristics run, so legal-form suffixes are reliably detected even from such
 exports.
 
-## Portfolios and Accounts
+## Accounts and Depots
 
-The portfolio owns one working set of account models:
+The bookkeeping entities are cash accounts and depots:
 
 - cash account: tracks available liquidity context
 - depot/account: stores security positions linked to that cash account
+
+**No portfolio decision is required anywhere** (ADR-0024): grouping happens
+exclusively through buckets and views. When a depot or cash account is
+created — in the UI or over the API/MCP — its internal binding resolves to one
+deterministic default portfolio (the earliest record, or a freshly created
+"Default"), without asking.
+
+### Portfolio records (compatibility)
+
+Portfolios remain in the schema, the JSON API, and the import path as
+**internal compatibility records** only. The **Accounts & depots** page in the
+Administration area carries a collapsed, read-only **Portfolio records
+(compatibility)** panel listing every record — name, base currency, creation
+date, source (UI, API, Import, or Seeded, derived from the audit journal) and
+the count of bound depots and cash accounts — so records created over the
+API/MCP can never become invisible. There is no create or edit UI; the API
+write endpoints are deprecated (see
+[API and MCP](integration/api-and-mcp.html)) and a follow-up story merges the
+records into buckets and views after two releases without external portfolio
+writes.
 
 ## Transactions and Holdings
 
@@ -209,7 +229,7 @@ The states are:
   `(view, classification)` plan at once. A live **Σ** footer sums the category
   weights plus the cash target and shows a ✓ at exactly 100% or a ✗ with the
   yellow mismatch cue otherwise, updating as you type.
-- **Delete plan** (*Plan löschen*) removes the view's plan; the Portfolio page
+- **Delete plan** (*Plan löschen*) removes the view's plan; the Wealth page
   then falls back to **actual-only** (no target, no drift) for that view.
 
 Weights are entered and shown as **percentages** (e.g. `60`), stored as
@@ -220,7 +240,7 @@ parameter.
 > **Migration note (ADR-0020).** The move to per-view plans is **loss-free**:
 > any target weights and the former portfolio-wide cash target you already had
 > become your **Gesamt** plan (`view = null`). Nothing changes in behaviour —
-> your existing setup simply appears under *Gesamt*, and the Portfolio page reads
+> your existing setup simply appears under *Gesamt*, and the Wealth page reads
 > it under the **Total** view exactly as before. Named views start with **no
 > plan** until you create or copy one.
 
@@ -246,7 +266,7 @@ not across every level.
 
 Targets stay **loose on purpose**: you can set a weight at the top level and at
 sub-levels without the app forcing them to add up. To keep that freedom while
-making divergence visible, the Portfolio page shows two **advisory consistency
+making divergence visible, the Wealth page shows two **advisory consistency
 hints** — read-only, never blocking a save:
 
 - A subtle line under each parent that has child targets reads
@@ -296,7 +316,7 @@ A security without any quote yet is priced at your **latest own trade price**
 seeds prices from bookings — so a freshly imported portfolio is not valued at
 zero while quotes are still being fetched. Such positions carry
 `price_source: "trade"` in the API and are counted in `trade_priced_count`;
-the Portfolio page flags them as a data-quality hint. A position with neither
+the Wealth page flags them as a data-quality hint. A position with neither
 a quote nor a trade price, or with no rate path to the base currency, is
 reported as unvalued, so a missing price or rate never silently distorts the
 total or the weights.
@@ -316,7 +336,7 @@ that belongs to investing needs no separate upkeep.
 For external accounts (a current account, savings, a business account), the goal
 is visibility without bookkeeping. Instead of mirroring every booking, you **set
 an account's balance directly** — type the figure your banking app shows as a
-dated **snapshot** (the set-balance form on the Portfolio page,
+dated **snapshot** (the set-balance form on the Wealth page,
 `POST /api/v1/cash_accounts/:id/balance`, or the `cash_accounts.set_balance`
 MCP tool). The balance then anchors to that amount,
 and only bookings dated strictly after the snapshot change it; so moving money
@@ -328,7 +348,7 @@ design recorded in
 [ADR-0009](decisions/0009-cash-as-balance-snapshots.html).
 
 Each cash account carries a **liquidity role** (the selector sits next to the
-account on the Portfolios page; the API/MCP field is `liquidity_role`). It is
+account on the Accounts & depots page; the API/MCP field is `liquidity_role`). It is
 one of three values: **free cash** (the default — genuine deployable cash),
 **credit line** (an overdraft or Lombard facility, whose negative balance is a
 liability and whose unused headroom is never liquidity), or **reserve** (a
@@ -338,7 +358,7 @@ a credit line never counts (even when its balance is positive — type beats
 sign), and a reserve is always excluded. Every account still shows in the total
 cash, so a drawn credit line correctly reduces your net worth, but the quote is
 computed over deployable cash only and never reports fake liquidity. The
-Portfolio page mutes non-deployable rows and labels them with their role.
+Wealth page mutes non-deployable rows and labels them with their role.
 
 ## Overview Page
 
@@ -357,7 +377,7 @@ audit journal owns the forensic detail.
 
 ## Wealth Page
 
-The **Wealth** entry in the navigation opens the portfolio overview, organised
+The **Wealth** entry in the navigation opens the wealth overview, organised
 into tabs (ADR-0022): **Holdings** (value, performance, data quality, cash),
 **Allocation & targets** (the sunburst and drift table), and **Income** (the
 received dividends and interest report). The Holdings tab shows the
@@ -472,7 +492,7 @@ the two read differently when money moved at good or bad moments. The IRR shows
 `—` when there is no rate to compute (no flows of both signs, or the solver does
 not converge).
 
-Performance is shown on the Portfolio page and available per period —
+Performance is shown on the Wealth page and available per period —
 year-to-date, one, three, or five years, or since the first transaction —
 over the API
 (`GET /api/v1/portfolios/:id/performance`) and the

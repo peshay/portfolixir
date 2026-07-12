@@ -135,8 +135,22 @@ Example quote sync response:
 
 ## Portfolios and Accounts
 
-- `GET /api/v1/portfolios` lists portfolios.
+> **Portfolio writes are deprecated (ADR-0024) — compatibility only; use
+> buckets/views for grouping.** Portfolios were demoted to internal
+> compatibility records: the UI groups exclusively through buckets and views,
+> and depots/cash accounts no longer need a `portfolio_id` (a deterministic
+> internal default is bound automatically). `POST /api/v1/portfolios` and
+> `PATCH /api/v1/portfolios/:portfolio_id` keep working but answer with a
+> `Deprecation: true` response header. Sunset note: after two releases without
+> external portfolio writes, a follow-up story merges the records into
+> buckets and views (the ADR's exit criterion) — plan migrations to
+> `POST /api/v1/buckets` and `POST /api/v1/views` now. Every record written
+> here stays visible in the UI's read-only "Portfolio records (compatibility)"
+> admin list, so nothing becomes invisible.
+
+- `GET /api/v1/portfolios` lists portfolios (compatibility records).
 - `POST /api/v1/portfolios` creates a portfolio with a `portfolio` object.
+  **Deprecated** — answers with `Deprecation: true`; prefer buckets/views.
 - `GET /api/v1/cash_accounts` lists cash accounts. Each carries a `balance`
   (decimal string, in the account's own currency) derived on read from the
   ledger: amounts are stored as positive magnitudes and the transaction `type`
@@ -154,7 +168,9 @@ Example quote sync response:
   strictly after the snapshot change it, so moving money between your own
   accounts needs no transfer entry. Unknown accounts return `404 Not Found`.
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
-  object. The optional `liquidity_role` (default `free_cash`) classifies the
+  object. `portfolio_id` is optional (ADR-0024): when omitted, the account is
+  bound to the deterministic internal default portfolio; an explicit id keeps
+  winning for compatibility clients. The optional `liquidity_role` (default `free_cash`) classifies the
   account: `free_cash` is genuine deployable cash; `credit_line` is an
   overdraft/Lombard facility whose negative balance is a liability and whose
   unused headroom is never liquidity (it never enters deployable cash, even
@@ -170,7 +186,8 @@ Example quote sync response:
   `409 Conflict` when a transaction or securities account still references it.
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
 - `POST /api/v1/securities_accounts` creates a depot/securities account with a
-  `securities_account` object.
+  `securities_account` object. `portfolio_id` is optional (ADR-0024): when
+  omitted, the depot is bound to the deterministic internal default portfolio.
 - `GET /api/v1/securities_accounts/:id` returns one securities account.
 - `PATCH /api/v1/securities_accounts/:id` updates a securities account
   (`name`, `notes`, `cash_account_id`); `portfolio_id` cannot be changed.
@@ -457,7 +474,8 @@ Example account payloads:
   target feeds the allocation's `cash` row and the `top_level_target_sum` for the
   addressed view.
 - `PATCH /api/v1/portfolios/:portfolio_id` patches a portfolio's master data.
-  The body is `{"portfolio": {...}}`. **Cash target move (ADR-0020):** the cash
+  **Deprecated (ADR-0024)** — answers with `Deprecation: true`; compatibility
+  only, use buckets/views for grouping. The body is `{"portfolio": {...}}`. **Cash target move (ADR-0020):** the cash
   target moved off the portfolio object onto the per-view target plan, served by
   the two `cash_target` endpoints above. For **back-compatibility** the portfolio
   object still exposes `cash_target_weight` — a string fraction in `[0, 1]` (e.g.
@@ -676,8 +694,10 @@ in MCP schemas are strings.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
 - `portfolixir.quotes.upsert`
-- `portfolixir.portfolios.list`
-- `portfolixir.portfolios.create`
+- `portfolixir.portfolios.list` — deprecated (ADR-0024): steers to
+  buckets/views in its description.
+- `portfolixir.portfolios.create` — deprecated (ADR-0024): compatibility only;
+  prefer `portfolixir.buckets.create` / `portfolixir.views.create`.
 - `portfolixir.cash_accounts.list`
 - `portfolixir.cash_accounts.create`
 - `portfolixir.cash_accounts.update`

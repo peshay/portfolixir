@@ -69,11 +69,18 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:success, nil)
       |> assign_migration_notice()
 
-    case Portfolios.first_portfolio() do
-      nil ->
+    # ADR-0024: the empty state keys on the bookkeeping entities (depots and
+    # cash accounts), not on the internal portfolio compatibility record — a
+    # record without accounts must not unlock a page with nothing to show.
+    # Accounts always carry a portfolio FK, so `first_portfolio/0` is
+    # guaranteed below; it stays the internal mechanism for the
+    # portfolio-bound allocation/performance reads (documented ADR-0024 gap).
+    case Portfolios.count_securities_accounts() + Portfolios.count_cash_accounts() do
+      0 ->
         {:ok, assign(socket, :portfolio, nil)}
 
-      portfolio ->
+      _accounts ->
+        portfolio = Portfolios.first_portfolio()
         # Built-in trees are seeded at startup (#529), not on this read path.
         classifications = Classifications.list_classifications()
 
@@ -231,7 +238,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   def handle_async(_name, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, error: gettext("Couldn't load the portfolio figures."))}
+    {:noreply, assign(socket, error: gettext("Couldn't load the wealth figures."))}
   end
 
   # One landing spot for a loaded allocation: resolved display colours plus
@@ -295,8 +302,8 @@ defmodule PortfolixirWeb.PortfolioLive do
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Wealth") %></h2>
-          <p><%= gettext("Create one portfolio first to see value, performance and allocation.") %></p>
-          <.link navigate="/portfolios" class="button"><%= gettext("Create one portfolio") %></.link>
+          <p><%= gettext("Create a depot and cash account first to see value, performance and allocation.") %></p>
+          <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
         </section>
       </div>
     </AppShell.shell>
@@ -307,7 +314,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     ~H"""
     <AppShell.shell
       current_path={@current_path}
-      page_title={@portfolio.name}
+      page_title={gettext("Wealth")}
       page_subtitle={gettext("Value, performance and allocation")}
     >
       <div id="portfolio-overview" class="workspace-page portfolio-overview">
@@ -357,7 +364,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           </button>
         </section>
 
-        <section class="workspace-section grid" aria-label={gettext("Portfolio key figures")}>
+        <section class="workspace-section grid" aria-label={gettext("Wealth key figures")}>
           <article id="kpi-total" class="stat">
             <span><%= gettext("Total incl. cash") %></span>
             <strong :if={@valuation}>
@@ -455,7 +462,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   phx-value-mode="value"
                   aria-pressed={to_string(@chart_mode == "value")}
                 >
-                  <%= gettext("Value (%{currency})", currency: @portfolio.base_currency_code) %>
+                  <%= gettext("Value (%{currency})", currency: display_currency(assigns)) %>
                 </button>
               </div>
               <div class="period-buttons" role="group" aria-label={gettext("Period")}>
@@ -1096,6 +1103,13 @@ defmodule PortfolixirWeb.PortfolioLive do
     """
   end
 
+  # The display currency for user-facing labels (ADR-0024): taken from the
+  # loaded valuation (the number the label describes), with the EUR hub as the
+  # fallback before the async read lands — never from portfolio naming.
+  defp display_currency(%{valuation: %{base_currency: currency}}), do: currency
+  defp display_currency(%{performance: %{base_currency: currency}}), do: currency
+  defp display_currency(_assigns), do: "EUR"
+
   # The portfolio chart renders through the shared SecurityChart component
   # (ADR-0022: one chart path, the security detail chart set the quality bar).
   # The TTWROR series passes its cumulative percentages as ready-made percent
@@ -1111,7 +1125,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       case assigns.mode do
         "value" ->
           {chart_series(assigns.series, assigns.currency, :value), :absolute, false,
-           gettext("Portfolio value over time"), assigns.currency}
+           gettext("Value over time"), assigns.currency}
 
         _ ->
           {chart_series(assigns.series, assigns.currency, :ttwror), :percent_values, true,

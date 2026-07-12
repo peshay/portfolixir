@@ -49,33 +49,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <p class="alert-success" role="status"><%= @success %></p>
         <% end %>
 
-        <%= if @current_portfolio do %>
-          <div
-            id="transaction-portfolio-strip"
-            class="view-switcher"
-            role="group"
-            aria-label={gettext("Active portfolio")}
-          >
-            <span class="view-switcher__label"><%= gettext("Portfolio:") %></span>
-            <nav class="view-switcher__options">
-              <%= for portfolio <- @portfolios do %>
-                <button
-                  type="button"
-                  id={"portfolio-switch-#{portfolio.id}"}
-                  class={[
-                    "view-chip",
-                    portfolio.id == @current_portfolio.id && "is-active"
-                  ]}
-                  phx-click="select_portfolio"
-                  phx-value-id={portfolio.id}
-                  aria-current={if portfolio.id == @current_portfolio.id, do: "true", else: nil}
-                >
-                  <%= portfolio.name %> (<%= portfolio.base_currency_code %>)
-                </button>
-              <% end %>
-            </nav>
-          </div>
-
+        <%!-- ADR-0024: no portfolio strip — the depot choice alone decides
+             where a transaction books; every depot is offered together. --%>
+        <%= if @securities_accounts != [] do %>
           <section id="transaction-create" class="workspace-section">
             <h2><%= gettext("Record transaction") %></h2>
             <form id="transaction-form" phx-change="form_changed" phx-submit="save_transaction">
@@ -208,7 +184,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </section>
         <% else %>
           <section id="transaction-setup-empty" class="empty-state" role="status">
-            <%= gettext("Create a portfolio and linked accounts before recording transactions.") %>
+            <%= gettext("Create a depot and its cash account before recording transactions.") %>
           </section>
         <% end %>
 
@@ -356,21 +332,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   def handle_event(
         "save_transaction",
         %{"transaction" => _params},
-        %{assigns: %{current_portfolio: nil}} = socket
+        %{assigns: %{securities_accounts: []}} = socket
       ) do
-    {:noreply, failure(socket, gettext("Create a portfolio first"))}
-  end
-
-  def handle_event("select_portfolio", %{"id" => id}, socket) do
-    # Match the chip's string value against the loaded portfolios (no atoms,
-    # no parsing): an unknown id simply leaves the active portfolio unchanged.
-    socket =
-      case Enum.find(socket.assigns.portfolios, &(to_string(&1.id) == id)) do
-        nil -> socket
-        portfolio -> assign(socket, :current_portfolio, portfolio)
-      end
-
-    {:noreply, socket |> assign(:transaction_form, @transaction_form) |> load_state()}
+    {:noreply, failure(socket, gettext("Create a depot and its cash account first"))}
   end
 
   def handle_event("form_changed", %{"transaction" => params}, socket) do
@@ -394,7 +358,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
     params =
       params
-      |> Map.put("portfolio_id", socket.assigns.current_portfolio.id)
+      |> put_portfolio_from_depot(socket.assigns.securities_accounts)
       |> maybe_put_currency(currency)
 
     case Ledger.create_transaction(Actor.owner_ui(), params) do
@@ -415,32 +379,22 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
+  # ADR-0024: the ledger surface spans every depot at once. The internal
+  # portfolio records are only iterated as the mechanism behind the
+  # portfolio-bound positions read; depot ids are globally unique, so the
+  # concatenated position keys never collide.
   defp load_state(socket) do
-    portfolios = Portfolios.list_portfolios()
-    current_portfolio = resolve_current_portfolio(portfolios, socket.assigns[:current_portfolio])
     securities = Catalog.list_securities()
+    securities_accounts = Portfolios.list_securities_accounts()
+    transactions = Ledger.list_transactions()
 
-    {securities_accounts, transactions, position_rows} =
-      if current_portfolio do
-        securities_accounts =
-          Portfolios.list_securities_accounts_for_portfolio(current_portfolio.id)
-
-        transactions = Ledger.list_transactions_for_portfolio(current_portfolio.id)
-
-        position_rows =
-          current_portfolio.id
-          |> Ledger.positions_for_portfolio()
-          |> position_rows(securities_accounts, securities)
-
-        {securities_accounts, transactions, position_rows}
-      else
-        {[], [], []}
-      end
+    position_rows =
+      Portfolios.list_portfolios()
+      |> Enum.flat_map(&Map.to_list(Ledger.positions_for_portfolio(&1.id)))
+      |> position_rows(securities_accounts, securities)
 
     socket
     |> assign(
-      portfolios: portfolios,
-      current_portfolio: current_portfolio,
       securities_accounts: securities_accounts,
       securities: securities,
       transactions: transactions,
@@ -580,13 +534,17 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> Enum.sort_by(&elem(&1, 1))
   end
 
-  # Keep the user's chosen portfolio across reloads (after a save or a switch);
-  # fall back to the first portfolio on initial mount or if the selection is gone.
-  defp resolve_current_portfolio(portfolios, %{id: id}) do
-    Enum.find(portfolios, List.first(portfolios), &(&1.id == id))
-  end
+  # ADR-0024: the internal portfolio binding follows the chosen depot — no
+  # user-facing portfolio decision. An unknown/blank depot id adds nothing and
+  # lets the changeset report the missing depot.
+  defp put_portfolio_from_depot(params, securities_accounts) do
+    depot_id = params["securities_account_id"]
 
-  defp resolve_current_portfolio(portfolios, _), do: List.first(portfolios)
+    case Enum.find(securities_accounts, &(to_string(&1.id) == to_string(depot_id))) do
+      %{portfolio_id: portfolio_id} -> Map.put(params, "portfolio_id", portfolio_id)
+      _ -> params
+    end
+  end
 
   defp position_rows(positions, securities_accounts, securities) do
     securities_account_names = Map.new(securities_accounts, &{&1.id, &1.name})

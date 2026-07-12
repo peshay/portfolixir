@@ -209,6 +209,10 @@ defmodule PortfolixirWeb.DashboardTest do
     assert alert =~ "40.0"
     assert alert =~ "above target"
     assert alert =~ "480.00"
+
+    # ADR-0024: the internal portfolio iterated as the drift mechanism is not
+    # surfaced as a grouping label on the alert.
+    refute alert =~ "Main"
   end
 
   test "the dashboard shows the all-clear note when nothing drifts", %{conn: conn} do

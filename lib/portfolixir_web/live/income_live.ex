@@ -25,11 +25,16 @@ defmodule PortfolixirWeb.IncomeLive do
   def mount(_params, _session, socket) do
     socket = assign(socket, :current_path, "/income")
 
-    case Portfolios.first_portfolio() do
-      nil ->
+    # ADR-0024: the empty state keys on the bookkeeping entities, not on the
+    # internal portfolio compatibility record. Accounts always carry a
+    # portfolio FK, so `first_portfolio/0` is guaranteed in the second branch;
+    # it stays the internal mechanism of the portfolio-bound income read.
+    case Portfolios.count_securities_accounts() + Portfolios.count_cash_accounts() do
+      0 ->
         {:ok, assign(socket, portfolio: nil, income: nil, selected_year: nil)}
 
-      portfolio ->
+      _accounts ->
+        portfolio = Portfolios.first_portfolio()
         income = Income.for_portfolio(portfolio.id)
 
         socket =
@@ -58,8 +63,8 @@ defmodule PortfolixirWeb.IncomeLive do
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Income") %></h2>
-          <p><%= gettext("Create one portfolio first to see received dividends and interest.") %></p>
-          <.link navigate="/portfolios" class="button"><%= gettext("Create one portfolio") %></.link>
+          <p><%= gettext("Create a depot and cash account first to see received dividends and interest.") %></p>
+          <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
         </section>
       </div>
     </AppShell.shell>

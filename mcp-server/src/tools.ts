@@ -74,7 +74,9 @@ const liquidityRoleZ = z.enum(["free_cash", "credit_line", "reserve"]);
 
 const cashAccountZ = z.object({
   cash_account: z.object({
-    portfolio_id: z.number().int().positive(),
+    // ADR-0024: optional — a missing portfolio_id binds the account to the
+    // deterministic internal default portfolio.
+    portfolio_id: z.number().int().positive().optional(),
     name: z.string(),
     currency_code: z.string(),
     notes: optionalString(),
@@ -84,7 +86,9 @@ const cashAccountZ = z.object({
 
 const securitiesAccountZ = z.object({
   securities_account: z.object({
-    portfolio_id: z.number().int().positive(),
+    // ADR-0024: optional — a missing portfolio_id binds the depot to the
+    // deterministic internal default portfolio.
+    portfolio_id: z.number().int().positive().optional(),
     cash_account_id: z.number().int().positive(),
     name: z.string(),
     notes: optionalString()
@@ -176,7 +180,7 @@ const portfolioSchema = objectWith("portfolio", {
 
 const cashAccountSchema = objectWith("cash_account", {
   type: "object",
-  required: ["portfolio_id", "name", "currency_code"],
+  required: ["name", "currency_code"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     name: { type: "string" },
@@ -188,7 +192,7 @@ const cashAccountSchema = objectWith("cash_account", {
 
 const securitiesAccountSchema = objectWith("securities_account", {
   type: "object",
-  required: ["portfolio_id", "cash_account_id", "name"],
+  required: ["cash_account_id", "name"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     cash_account_id: { type: "integer", minimum: 1 },
@@ -1070,8 +1074,8 @@ const toolDefinitions: ToolDefinition[] = [
     }
   }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString() })),
   tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history.", quoteUpsertSchema, quoteUpsertZ),
-  tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios.", emptyObjectSchema, emptyObjectZ),
-  tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio.", portfolioSchema, portfolioZ),
+  tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios. Deprecated (ADR-0024): portfolios are internal compatibility records, not the user-facing grouping — use portfolixir.buckets.list and portfolixir.views.list to group and scope holdings.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio. Deprecated (ADR-0024, compatibility only — the API answers with a Deprecation header): grouping happens through buckets and views, so prefer portfolixir.buckets.create and portfolixir.views.create; depots and cash accounts no longer need a portfolio_id (a deterministic internal default is bound automatically).", portfolioSchema, portfolioZ),
   tool("portfolixir.cash_accounts.list", "List cash accounts", "List cash accounts with their current balance.", emptyObjectSchema, emptyObjectZ),
   tool(
     "portfolixir.cash_accounts.create",

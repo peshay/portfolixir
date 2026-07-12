@@ -811,7 +811,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <th class="num"><%= gettext("Fees") %></th>
                 <th class="num"><%= gettext("Taxes") %></th>
                 <th class="num"><%= gettext("Gross") %></th>
-                <th><%= gettext("Portfolio") %></th>
                 <th><%= gettext("Depot") %></th>
                 <th><%= gettext("Notes") %></th>
               </tr>
@@ -833,7 +832,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <td class="num"><%= Format.decimal(tx.fees, 2) %></td>
                   <td class="num"><%= Format.decimal(tx.taxes, 2) %></td>
                   <td class="num"><%= Format.decimal(tx_gross(tx), 2) %></td>
-                  <td><%= portfolio_name(tx) %></td>
                   <td><%= depot_name(tx) %></td>
                   <td><%= tx.notes %></td>
                 </tr>
@@ -981,14 +979,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
     >
       <%= if @holdings == [] do %>
         <p class="detail-tab-empty">
-          <%= gettext("No open positions for this security across your portfolios.") %>
+          <%= gettext("No open positions for this security across your depots.") %>
         </p>
       <% else %>
         <div class="data-table-wrap">
           <table class="data-table detail-holdings-table">
             <thead>
               <tr>
-                <th><%= gettext("Portfolio") %></th>
                 <th><%= gettext("Depot") %></th>
                 <th class="num"><%= gettext("Quantity") %></th>
                 <th class="num"><%= gettext("Avg cost") %></th>
@@ -1000,7 +997,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <tbody>
               <%= for h <- @holdings do %>
                 <tr>
-                  <td><%= h.portfolio && h.portfolio.name %></td>
                   <td><%= h.depot && h.depot.name %></td>
                   <td class="num"><%= Format.decimal(h.quantity, 4) %></td>
                   <td class="num">
@@ -1023,7 +1019,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   </td>
                 </tr>
                 <tr :if={h.depot} class="bucket-override-row" id={"position-buckets-#{h.depot.id}"}>
-                  <td colspan="7">
+                  <td colspan="6">
                     <.position_bucket_override holding={h} buckets={@buckets} />
                   </td>
                 </tr>
@@ -1031,7 +1027,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </tbody>
             <tfoot>
               <tr class="totals-row">
-                <td colspan="4"><%= gettext("Total") %></td>
+                <td colspan="3"><%= gettext("Total") %></td>
                 <td class="num">
                   <%= Format.decimal(@totals.value, 2) %>
                   <small><%= @currency_code %></small>
@@ -1298,9 +1294,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp tx_gross(%{gross_amount: gross}) when not is_nil(gross), do: gross
 
   defp tx_gross(_), do: nil
-
-  defp portfolio_name(%{portfolio: %{name: name}}), do: name
-  defp portfolio_name(_), do: nil
 
   defp depot_name(%{securities_account: %{name: name}}), do: name
   defp depot_name(_), do: nil

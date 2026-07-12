@@ -138,10 +138,12 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     assert html =~ "No dividends or interest booked yet."
   end
 
-  test "points to creating a portfolio when none exists", %{conn: conn} do
+  test "points to creating a depot and cash account when no accounts exist", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/income")
 
     assert html =~ "/portfolios"
+    assert html =~ "Create a depot and cash account"
+    refute html =~ "Create one portfolio"
   end
 
   # User story (Steve UAT #415):

@@ -1,4 +1,12 @@
 defmodule PortfolixirWeb.PortfolioAccountsLive do
+  @moduledoc """
+  Accounts & depots administration (ADR-0022 area, reshaped by ADR-0024):
+  create cash accounts and depots without any portfolio decision — the
+  internal compatibility binding resolves to one deterministic default
+  portfolio — plus the minimal read-only list of every portfolio record
+  (ADR-0024 modification 1: no invisible writable resource).
+  """
+
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Actor
@@ -6,7 +14,6 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.AppShell
 
-  @portfolio_form %{"name" => "", "base_currency_code" => "EUR", "notes" => ""}
   @cash_account_form %{"name" => "", "currency_code" => "EUR", "notes" => ""}
   @securities_account_form %{"name" => "", "cash_account_id" => "", "notes" => ""}
 
@@ -14,7 +21,6 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:portfolio_form, @portfolio_form)
      |> assign(:cash_account_form, @cash_account_form)
      |> assign(:securities_account_form, @securities_account_form)
      |> assign(:error, nil)
@@ -28,7 +34,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     <AppShell.shell
       current_path="/portfolios"
       page_title={gettext("Accounts & depots")}
-      page_subtitle={gettext("Portfolio, cash account, and depot setup")}
+      page_subtitle={gettext("Cash account and depot setup")}
     >
       <div id="portfolios-workspace" class="workspace-page">
         <%= if @error do %>
@@ -38,49 +44,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
           <p class="alert-success" role="status"><%= @success %></p>
         <% end %>
 
-        <section id="portfolio-create" class="workspace-section">
-          <h2><%= gettext("Create portfolio") %></h2>
-          <form id="portfolio-form" phx-submit="save_portfolio">
-            <div class="form-grid">
-              <label>
-                <span><%= gettext("Name") %></span>
-                <input name="portfolio[name]" value={@portfolio_form["name"]} required />
-              </label>
-              <label>
-                <span><%= gettext("Base currency") %></span>
-                <input name="portfolio[base_currency_code]" value={@portfolio_form["base_currency_code"]} maxlength="3" required />
-              </label>
-            </div>
-            <label>
-              <span><%= gettext("Notes") %></span>
-              <textarea name="portfolio[notes]"><%= @portfolio_form["notes"] %></textarea>
-            </label>
-            <button type="submit"><%= gettext("Create portfolio") %></button>
-          </form>
-        </section>
-
-        <%= if @current_portfolio do %>
-          <section id="account-create" class="workspace-section">
-            <%= if length(@portfolios) > 1 do %>
-              <form id="target-portfolio-form" phx-change="select_portfolio">
-                <label>
-                  <span><%= gettext("Add to portfolio") %></span>
-                  <select name="portfolio_id">
-                    <%= for p <- @portfolios do %>
-                      <option value={p.id} selected={p.id == @current_portfolio.id}>
-                        <%= p.name %> (<%= p.base_currency_code %>)
-                      </option>
-                    <% end %>
-                  </select>
-                </label>
-              </form>
-            <% end %>
-            <p class="muted" data-role="target-portfolio">
-              <%= gettext("Adding to: %{name}", name: @current_portfolio.name) %>
-            </p>
-            <div class="grid">
-              <article class="panel">
-                <h2><%= gettext("Create cash account") %></h2>
+        <section id="account-create" class="workspace-section">
+          <div class="grid">
+            <article class="panel">
+              <h2><%= gettext("Create cash account") %></h2>
               <form id="cash-account-form" phx-submit="save_cash_account">
                 <label>
                   <span><%= gettext("Name") %></span>
@@ -112,22 +79,13 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                 </label>
                 <button type="submit"><%= gettext("Create depot") %></button>
               </form>
-              </article>
-            </div>
-          </section>
-        <% end %>
+            </article>
+          </div>
+        </section>
 
         <section id="portfolio-list-panel" class="workspace-section">
           <h2><%= gettext("Current setup") %></h2>
           <div class="grid">
-            <article>
-              <h3><%= gettext("Portfolios") %></h3>
-              <ul id="portfolio-list">
-                <%= for portfolio <- @portfolios do %>
-                  <li><%= portfolio.name %> (<%= portfolio.base_currency_code %>)</li>
-                <% end %>
-              </ul>
-            </article>
             <article>
               <h3><%= gettext("Cash accounts") %></h3>
               <ul id="cash-account-list">
@@ -168,40 +126,53 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
             </article>
           </div>
         </section>
+
+        <%!-- ADR-0024 modification 1: every portfolio record — however it was
+             created (UI, API/MCP, import, seed) — stays visible in this
+             minimal read-only list, so no writable resource is invisible.
+             Deliberately collapsed and without any create/edit control: the
+             records are internal compatibility bindings, not a grouping. --%>
+        <details :if={@portfolio_records != []} id="portfolio-admin" class="workspace-section">
+          <summary>
+            <%= gettext("Portfolio records (compatibility)") %>
+          </summary>
+          <p class="hint">
+            <%= gettext(
+              "Internal compatibility records kept for the deprecated API surface. Grouping happens through buckets and views."
+            ) %>
+          </p>
+          <table class="data-table" data-role="portfolio-admin-table">
+            <thead>
+              <tr>
+                <th><%= gettext("Name") %></th>
+                <th><%= gettext("Base currency") %></th>
+                <th><%= gettext("Created") %></th>
+                <th><%= gettext("Source") %></th>
+                <th class="num"><%= gettext("Depots") %></th>
+                <th class="num"><%= gettext("Cash accounts") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={record <- @portfolio_records}>
+                <td><%= record.name %></td>
+                <td><%= record.base_currency_code %></td>
+                <td><%= record.inserted_at |> NaiveDateTime.to_date() |> Date.to_iso8601() %></td>
+                <td><%= source_label(record.source) %></td>
+                <td class="num"><%= record.depot_count %></td>
+                <td class="num"><%= record.cash_account_count %></td>
+              </tr>
+            </tbody>
+          </table>
+        </details>
       </div>
     </AppShell.shell>
     """
   end
 
   @impl true
-  def handle_event("save_portfolio", %{"portfolio" => params}, socket) do
-    case Portfolios.create_portfolio(Actor.owner_ui(), params) do
-      {:ok, _portfolio} ->
-        {:noreply,
-         socket
-         |> assign(:portfolio_form, @portfolio_form)
-         |> success(gettext("Portfolio created"))
-         |> load_state()}
-
-      {:error, changeset} ->
-        {:noreply, failure(socket, changeset_error(changeset))}
-    end
-  end
-
-  def handle_event("select_portfolio", %{"portfolio_id" => id}, socket) do
-    {:noreply, load_state(socket, id)}
-  end
-
-  def handle_event(
-        "save_cash_account",
-        %{"cash_account" => _params},
-        %{assigns: %{current_portfolio: nil}} = socket
-      ) do
-    {:noreply, failure(socket, gettext("Create a portfolio first"))}
-  end
-
   def handle_event("save_cash_account", %{"cash_account" => params}, socket) do
-    params = Map.put(params, "portfolio_id", socket.assigns.current_portfolio.id)
+    # ADR-0024: the internal binding is resolved, never asked for.
+    params = Map.put(params, "portfolio_id", Portfolios.default_portfolio(Actor.owner_ui()).id)
 
     case Portfolios.create_cash_account(Actor.owner_ui(), params) do
       {:ok, _account} ->
@@ -216,16 +187,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     end
   end
 
-  def handle_event(
-        "save_securities_account",
-        %{"securities_account" => _params},
-        %{assigns: %{current_portfolio: nil}} = socket
-      ) do
-    {:noreply, failure(socket, gettext("Create a portfolio first"))}
-  end
-
   def handle_event("save_securities_account", %{"securities_account" => params}, socket) do
-    params = Map.put(params, "portfolio_id", socket.assigns.current_portfolio.id)
+    params = Map.put(params, "portfolio_id", Portfolios.default_portfolio(Actor.owner_ui()).id)
 
     case Portfolios.create_securities_account(Actor.owner_ui(), params) do
       {:ok, _account} ->
@@ -247,8 +210,6 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       ) do
     with {account_id, ""} <- Integer.parse(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(account_id),
-         %{id: portfolio_id} <- socket.assigns.current_portfolio,
-         true <- account.portfolio_id == portfolio_id,
          {:ok, _updated} <-
            Portfolios.update_cash_account(Actor.owner_ui(), account, %{liquidity_role: role}) do
       {:noreply,
@@ -260,45 +221,18 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     end
   end
 
-  defp load_state(socket, selected_id \\ nil) do
-    portfolios = Portfolios.list_portfolios()
-
-    current_portfolio =
-      pick_portfolio(portfolios, selected_id, socket.assigns[:current_portfolio])
-
-    cash_accounts =
-      if current_portfolio do
-        Portfolios.list_cash_accounts_for_portfolio(current_portfolio.id)
-      else
-        []
-      end
-
-    securities_accounts =
-      if current_portfolio do
-        Portfolios.list_securities_accounts_for_portfolio(current_portfolio.id)
-      else
-        []
-      end
-
+  defp load_state(socket) do
     assign(socket,
-      portfolios: portfolios,
-      current_portfolio: current_portfolio,
-      cash_accounts: cash_accounts,
-      securities_accounts: securities_accounts
+      cash_accounts: Portfolios.list_cash_accounts(),
+      securities_accounts: Portfolios.list_securities_accounts(),
+      portfolio_records: Portfolios.portfolio_admin_list()
     )
   end
 
-  # Keep the user's chosen target portfolio across reloads; fall back to the
-  # previously selected one, then to the first. Avoids silently retargeting
-  # account/depot creation to whichever portfolio happens to be first (#490).
-  defp pick_portfolio([], _selected_id, _previous), do: nil
-
-  defp pick_portfolio(portfolios, selected_id, previous) do
-    wanted = selected_id || (previous && previous.id)
-
-    Enum.find(portfolios, fn p -> to_string(p.id) == to_string(wanted) end) ||
-      List.first(portfolios)
-  end
+  defp source_label(:ui), do: gettext("UI")
+  defp source_label(:api), do: gettext("API")
+  defp source_label(:import), do: gettext("Import")
+  defp source_label(_seeded), do: gettext("Seeded")
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
