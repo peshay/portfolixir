@@ -648,11 +648,18 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  @doc """
+  Serializes a bucket. `dimension` is `"tag"` (free overlapping tag) or
+  `"scope"` (the exclusive dimension: at most one per account, ADR-0024) and
+  is fixed at creation. The internal seed marker (`source_portfolio_id`) is
+  deliberately not exposed.
+  """
   def bucket(%Bucket{} = bucket) do
     %{
       id: bucket.id,
       name: bucket.name,
       color: bucket.color,
+      dimension: bucket.dimension,
       inserted_at: timestamp(bucket.inserted_at),
       updated_at: timestamp(bucket.updated_at)
     }
