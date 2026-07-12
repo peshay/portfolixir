@@ -34,6 +34,7 @@ defmodule Portfolixir.Imports.Applier do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports.Entry
@@ -53,7 +54,9 @@ defmodule Portfolixir.Imports.Applier do
               created_security_ids: [],
               resolved_security_ids: [],
               created_cash_accounts: 0,
+              created_cash_account_ids: [],
               created_securities_accounts: 0,
+              created_securities_account_ids: [],
               created_transactions: 0,
               skipped_duplicates: 0,
               skipped_entries: []
@@ -79,23 +82,31 @@ defmodule Portfolixir.Imports.Applier do
         }
 
   @type mapped_apply_params :: %{
-          required(:portfolio) => portfolio_choice(),
+          optional(:portfolio) => portfolio_choice(),
           required(:cash_accounts) => %{String.t() => account_choice()},
           required(:depots) => %{String.t() => depot_mapping()},
+          optional(:bucket_tag) => String.t() | nil,
           optional(:default_currency_code) => String.t()
         }
 
   @spec apply(Preview.t(), apply_params() | mapped_apply_params()) ::
           {:ok, Result.t()} | {:error, term()}
-  # New mapping-driven path: the LiveView picks/creates portfolio, cash
-  # accounts and depots explicitly and hands the resolver this struct.
-  def apply(%Preview{entries: entries}, %{portfolio: _, cash_accounts: _, depots: _} = params) do
+  # Mapping-driven path: the LiveView maps cash accounts and depots
+  # explicitly and hands the resolver this struct. Without an explicit
+  # `:portfolio` choice the import binds to the deterministic internal
+  # default portfolio (ADR-0024) — the user never picks one. An optional
+  # `:bucket_tag` names the tag-dimension bucket assigned to the accounts
+  # this import CREATES (nil/blank skips tagging; existing-mapped accounts
+  # keep their tags untouched).
+  def apply(%Preview{entries: entries}, %{cash_accounts: _, depots: _} = params) do
     default_currency = Map.get(params, :default_currency_code, "EUR")
+    bucket_tag = normalize_bucket_tag(Map.get(params, :bucket_tag))
     flat_entries = Entry.flatten(entries)
     cash_currencies = cash_currencies_by_pp_name(flat_entries)
 
     Repo.transaction(fn ->
-      with {:ok, portfolio_id, result} <- resolve_portfolio(params.portfolio, %Result{}),
+      with {:ok, portfolio_id, result} <-
+             resolve_portfolio(Map.get(params, :portfolio), %Result{}),
            {:ok, cash_by_pp_name, result} <-
              resolve_mapped_cash(
                params.cash_accounts,
@@ -117,8 +128,10 @@ defmodule Portfolixir.Imports.Applier do
           existing_dedup_keys: load_existing_dedup_keys(portfolio_id)
         }
 
-        case reduce_entries(flat_entries, state) do
-          {:ok, final_state} -> final_state.result
+        with {:ok, final_state} <- reduce_entries(flat_entries, state),
+             {:ok, final_result} <- apply_bucket_tag(bucket_tag, final_state.result) do
+          final_result
+        else
           {:error, reason} -> Repo.rollback(reason)
         end
       else
@@ -174,6 +187,14 @@ defmodule Portfolixir.Imports.Applier do
 
   # --- mapping resolvers (new path) ---
 
+  # No explicit choice: bind to the deterministic internal default
+  # portfolio (ADR-0024). Resolved under the import actor, so a
+  # first-import "Default" shows source Import in the admin list.
+  defp resolve_portfolio(nil, result) do
+    %{id: id} = Portfolios.default_portfolio(Actor.import_session())
+    {:ok, id, result}
+  end
+
   defp resolve_portfolio({:existing, id}, result) when is_integer(id) do
     {:ok, id, result}
   end
@@ -226,7 +247,12 @@ defmodule Portfolixir.Imports.Applier do
           {:cont, {:ok, Map.put(acc, pp_name, id), res}}
 
         {:ok, id, :created} ->
-          res = %Result{res | created_cash_accounts: res.created_cash_accounts + 1}
+          res = %Result{
+            res
+            | created_cash_accounts: res.created_cash_accounts + 1,
+              created_cash_account_ids: [id | res.created_cash_account_ids]
+          }
+
           {:cont, {:ok, Map.put(acc, pp_name, id), res}}
 
         {:error, _} = err ->
@@ -263,7 +289,11 @@ defmodule Portfolixir.Imports.Applier do
         res =
           case mode do
             :created ->
-              %Result{res | created_securities_accounts: res.created_securities_accounts + 1}
+              %Result{
+                res
+                | created_securities_accounts: res.created_securities_accounts + 1,
+                  created_securities_account_ids: [id | res.created_securities_account_ids]
+              }
 
             _ ->
               res
@@ -310,6 +340,78 @@ defmodule Portfolixir.Imports.Applier do
 
   defp resolve_depot_choice(pp_name, other, _portfolio_id, _cash_id) do
     {:error, {:invalid_depot_choice, pp_name, other}}
+  end
+
+  # --- bucket tag for newly created accounts (ADR-0024 story 5) ---
+
+  defp normalize_bucket_tag(nil), do: nil
+
+  defp normalize_bucket_tag(tag) when is_binary(tag) do
+    case String.trim(tag) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  # Assigns the tag-dimension bucket to every depot/cash account this import
+  # CREATED (journaled through the Buckets context, inside the same import
+  # transaction). No tag, or no newly created account, is a no-op — in
+  # particular no bucket is created for an import that only mapped existing
+  # records, and accounts mapped to existing records keep their tags.
+  defp apply_bucket_tag(nil, %Result{} = result), do: {:ok, result}
+
+  defp apply_bucket_tag(
+         _tag,
+         %Result{created_cash_account_ids: [], created_securities_account_ids: []} = result
+       ) do
+    {:ok, result}
+  end
+
+  defp apply_bucket_tag(tag, %Result{} = result) do
+    actor = Actor.import_session()
+
+    with {:ok, bucket} <- Buckets.ensure_tag_bucket(actor, tag),
+         :ok <- tag_created_depots(actor, bucket, result.created_securities_account_ids),
+         :ok <- tag_created_cash(actor, bucket, result.created_cash_account_ids) do
+      {:ok, result}
+    else
+      {:error, reason} -> {:error, {:bucket_tag_failed, reason}}
+    end
+  end
+
+  defp tag_created_depots(actor, bucket, depot_ids) do
+    each_ok(depot_ids, fn id ->
+      add_bucket(
+        Buckets.depot_default_bucket_ids(id),
+        bucket.id,
+        &Buckets.set_depot_default_buckets(actor, %SecuritiesAccount{id: id}, &1)
+      )
+    end)
+  end
+
+  defp tag_created_cash(actor, bucket, cash_ids) do
+    each_ok(cash_ids, fn id ->
+      add_bucket(
+        Buckets.cash_account_bucket_ids(id),
+        bucket.id,
+        &Buckets.set_cash_account_buckets(actor, %CashAccount{id: id}, &1)
+      )
+    end)
+  end
+
+  # Adds the bucket to the account's current set (freshly created accounts
+  # start empty; already-tagged is a no-op, so a retry can't double-assign).
+  defp add_bucket(current_ids, bucket_id, set_fun) do
+    if bucket_id in current_ids, do: :ok, else: set_fun.(current_ids ++ [bucket_id])
+  end
+
+  defp each_ok(ids, fun) do
+    Enum.reduce_while(ids, :ok, fn id, :ok ->
+      case fun.(id) do
+        :ok -> {:cont, :ok}
+        {:error, _} = err -> {:halt, err}
+      end
+    end)
   end
 
   defp reduce_entries(entries, initial_state) do
@@ -493,6 +595,7 @@ defmodule Portfolixir.Imports.Applier do
           state
           |> Map.update!(:cash_by_name, &Map.put(&1, cash.name, cash.id))
           |> bump_result(:created_cash_accounts)
+          |> track_created_account(:created_cash_account_ids, cash.id)
 
         {:ok, state, cash.id}
 
@@ -549,6 +652,7 @@ defmodule Portfolixir.Imports.Applier do
             Map.put(map, depot.name, %{id: depot.id, cash_account_id: cash_id})
           end)
           |> bump_result(:created_securities_accounts)
+          |> track_created_account(:created_securities_account_ids, depot.id)
 
         {:ok, state, depot.id}
 
@@ -747,6 +851,12 @@ defmodule Portfolixir.Imports.Applier do
   defp track_created_security(state, security_id) do
     Map.update!(state, :result, fn %Result{} = r ->
       %Result{r | created_security_ids: [security_id | r.created_security_ids]}
+    end)
+  end
+
+  defp track_created_account(state, field, account_id) when is_atom(field) do
+    Map.update!(state, :result, fn %Result{} = r ->
+      Map.update!(r, field, &[account_id | &1])
     end)
   end
 

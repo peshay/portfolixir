@@ -104,6 +104,21 @@ defmodule Portfolixir.Buckets do
     end
   end
 
+  @doc """
+  Finds the bucket named `name` (trimmed) or creates it as a free `"tag"`-
+  dimension bucket on behalf of `actor` (journaled like any bucket create).
+  Used by the import applier (ADR-0024 story 5): an entered tag that matches
+  an existing bucket reuses it instead of erroring on the unique name.
+  """
+  def ensure_tag_bucket(%Actor{} = actor, name) when is_binary(name) do
+    trimmed = String.trim(name)
+
+    case Repo.get_by(Bucket, name: trimmed) do
+      %Bucket{} = bucket -> {:ok, bucket}
+      nil -> create_bucket(actor, %{name: trimmed, dimension: "tag"})
+    end
+  end
+
   # -- depot default assignment (journaled) ----------------------------------
 
   @doc """

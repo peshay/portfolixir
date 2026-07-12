@@ -429,6 +429,167 @@ defmodule Portfolixir.Imports.ApplierTest do
     end
   end
 
+  # User story (ADR-0024, epic story 5):
+  # As a local portfolio maintainer importing a Portfolio Performance export,
+  # I want the applier to bind the import to the internal default portfolio
+  # and tag the newly created depots/cash accounts with an editable bucket,
+  # so that a fresh import lands already grouped without me ever picking or
+  # naming a portfolio.
+  #
+  # Acceptance criteria:
+  # - Without a :portfolio choice the applier resolves the internal default
+  #   portfolio (Portfolios.default_portfolio/1, import actor).
+  # - Newly created depots/cash accounts get the :bucket_tag bucket
+  #   (tag dimension, journaled); existing bucket names are reused.
+  # - Accounts mapped to existing records keep their tags untouched.
+  # - No new accounts (or a nil/blank tag) → no bucket is created.
+  # - Re-applying stays a no-op and never duplicates bucket assignments.
+  describe "apply/2 default-portfolio binding + bucket tag (ADR-0024 story 5)" do
+    alias Portfolixir.Buckets
+
+    defp mapped_create_params(bucket_tag) do
+      %{
+        cash_accounts: %{
+          "Test-Cash" => {:create, "Test-Cash"},
+          "Test-Cash-2" => {:create, "Test-Cash-2"}
+        },
+        depots: %{
+          "Test-Depot" => %{target: {:create, "Test-Depot"}, cash: "Test-Cash"},
+          "Test-Depot-2" => %{target: {:create, "Test-Depot-2"}, cash: "Test-Cash"}
+        },
+        bucket_tag: bucket_tag
+      }
+    end
+
+    test "binds to the internal default portfolio and tags all newly created accounts" do
+      preview = sample_preview()
+
+      assert {:ok, %Result{} = result} =
+               Imports.apply(preview, mapped_create_params("PP Import 2026-07-12"))
+
+      assert result.created_cash_accounts == 2
+      assert result.created_securities_accounts == 2
+
+      # No portfolio existed, so the applier created the deterministic
+      # internal default under the import actor (admin list source: Import).
+      assert [%{name: "Default", source: :import}] =
+               Portfolios.portfolio_admin_list()
+               |> Enum.map(&Map.take(&1, [:name, :source]))
+
+      [portfolio] = Portfolios.list_portfolios()
+      assert length(Ledger.list_transactions_for_portfolio(portfolio.id)) == 13
+
+      [bucket] = Buckets.list_buckets()
+      assert bucket.name == "PP Import 2026-07-12"
+      assert bucket.dimension == "tag"
+
+      for depot <- Portfolios.list_securities_accounts() do
+        assert Buckets.depot_default_bucket_ids(depot.id) == [bucket.id]
+      end
+
+      for cash <- Portfolios.list_cash_accounts() do
+        assert Buckets.cash_account_bucket_ids(cash.id) == [bucket.id]
+      end
+    end
+
+    test "reuses an existing bucket with the same name instead of erroring" do
+      {:ok, existing} =
+        Buckets.create_bucket(Portfolixir.Actor.owner_ui(), %{name: "Familie"})
+
+      preview = sample_preview()
+
+      assert {:ok, %Result{}} = Imports.apply(preview, mapped_create_params("Familie"))
+
+      assert [bucket] = Buckets.list_buckets()
+      assert bucket.id == existing.id
+
+      for depot <- Portfolios.list_securities_accounts() do
+        assert Buckets.depot_default_bucket_ids(depot.id) == [existing.id]
+      end
+    end
+
+    test "creates no bucket when the tag is nil and when nothing new was created" do
+      preview = sample_preview()
+
+      # nil tag → accounts created, but no bucket.
+      assert {:ok, %Result{}} = Imports.apply(preview, mapped_create_params(nil))
+      assert Buckets.list_buckets() == []
+
+      # Everything mapped to existing records → no bucket even with a name,
+      # and the existing accounts keep their (empty) tag sets untouched.
+      cash = Portfolios.list_cash_accounts() |> Map.new(&{&1.name, &1.id})
+      depots = Portfolios.list_securities_accounts() |> Map.new(&{&1.name, &1.id})
+
+      existing_params = %{
+        cash_accounts: %{
+          "Test-Cash" => {:existing, cash["Test-Cash"]},
+          "Test-Cash-2" => {:existing, cash["Test-Cash-2"]}
+        },
+        depots: %{
+          "Test-Depot" => %{
+            target: {:existing, depots["Test-Depot"]},
+            cash: {:existing, cash["Test-Cash"]}
+          },
+          "Test-Depot-2" => %{
+            target: {:existing, depots["Test-Depot-2"]},
+            cash: {:existing, cash["Test-Cash"]}
+          }
+        },
+        bucket_tag: "Should Not Exist"
+      }
+
+      assert {:ok, %Result{} = second} = Imports.apply(preview, existing_params)
+      assert second.created_transactions == 0
+      assert second.skipped_duplicates == 13
+      assert Buckets.list_buckets() == []
+    end
+
+    test "re-applying never duplicates bucket assignments and keeps existing tags" do
+      preview = sample_preview()
+
+      assert {:ok, %Result{}} = Imports.apply(preview, mapped_create_params("PP Import"))
+
+      [bucket] = Buckets.list_buckets()
+
+      cash = Portfolios.list_cash_accounts() |> Map.new(&{&1.name, &1.id})
+      depots = Portfolios.list_securities_accounts() |> Map.new(&{&1.name, &1.id})
+
+      existing_params = %{
+        cash_accounts: %{
+          "Test-Cash" => {:existing, cash["Test-Cash"]},
+          "Test-Cash-2" => {:existing, cash["Test-Cash-2"]}
+        },
+        depots: %{
+          "Test-Depot" => %{
+            target: {:existing, depots["Test-Depot"]},
+            cash: {:existing, cash["Test-Cash"]}
+          },
+          "Test-Depot-2" => %{
+            target: {:existing, depots["Test-Depot-2"]},
+            cash: {:existing, cash["Test-Cash"]}
+          }
+        },
+        bucket_tag: "PP Import"
+      }
+
+      assert {:ok, %Result{} = second} = Imports.apply(preview, existing_params)
+      assert second.created_transactions == 0
+      assert second.skipped_duplicates == 13
+
+      # Still exactly one bucket and exactly one assignment per account.
+      assert [%{id: bucket_id}] = Buckets.list_buckets()
+      assert bucket_id == bucket.id
+
+      for depot_id <- Map.values(depots) do
+        assert Buckets.depot_default_bucket_ids(depot_id) == [bucket.id]
+      end
+
+      for cash_id <- Map.values(cash) do
+        assert Buckets.cash_account_bucket_ids(cash_id) == [bucket.id]
+      end
+    end
+  end
+
   describe "apply/2 import_hash discriminators" do
     alias Portfolixir.Imports.Entry
     alias Portfolixir.Imports.Preview
