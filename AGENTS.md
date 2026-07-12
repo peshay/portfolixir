@@ -184,6 +184,32 @@ Examples:
 For AI-assisted changes, the above cycle is required to run as distinct
 iterations.
 
+## Epic-Batch Workflow (ADR-0026)
+
+Feature trees are delivered as epic batches by default; the maintainer
+reviews decisions and behavior, agents review code:
+
+1. **Decision gate:** an ADR or spec with acceptance criteria, signed off by
+   the owner before the batch starts.
+2. **Batch:** the feature tree is worked on ONE epic branch
+   (`agent/<provider>/<epic-slug>`), one commit or small commit group per
+   issue, every commit passing the local gates, the branch rebased onto
+   `main` at least daily. Epic branches live days, not weeks. The Story
+   Workflow above applies unchanged inside the batch.
+3. **Agentic review closing act (mandatory):** multi-role adversarial review
+   (at minimum correctness hunter, edge-case hunter, and a UAT persona
+   walkthrough on seeded synthetic data), confirmed findings fixed on the
+   branch, plus a reviewer briefing on the PR — what is new, what changed,
+   where to look, deliberate trade-offs — with screenshots for UI work.
+4. **Acceptance:** the owner reviews behavior against the briefing, feedback
+   lands as a UAT fix round on the same branch, and the maintainer
+   squash-merges. Agents never merge.
+
+**Risk-tier exceptions — dedicated small PRs with real human review:**
+ledger/money-domain math and invariants, security-relevant changes,
+dependency updates, and anything touching import idempotency or projection
+semantics. Weakening a quality gate to make a batch pass is a review reject.
+
 ## AI Authoring Contract
 
 Agent commits must follow this order and keep each iteration reviewable:
