@@ -75,7 +75,9 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.securities_accounts.set_buckets",
       "portfolixir.cash_accounts.set_buckets",
       "portfolixir.securities_accounts.set_position_buckets",
-      "portfolixir.securities_accounts.clear_position_buckets"
+      "portfolixir.securities_accounts.clear_position_buckets",
+      "portfolixir.settings.get_default_view",
+      "portfolixir.settings.set_default_view"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -829,6 +831,31 @@ describe("Portfolixir MCP tools", () => {
       body: undefined,
       token: "Bearer api-token"
     });
+  });
+
+  // User story: as an MCP client I want to read and set the default view
+  // (ADR-0024), so that the Wealth page / dashboard scope is scriptable.
+  // No financial decimals are involved in this preference.
+  it("routes the default-view preference tools to /settings/default_view", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { view_id: 2, view: { id: 2, name: "Mine" } }
+    });
+
+    const result = await callTool(client, "portfolixir.settings.get_default_view", {});
+    await callTool(client, "portfolixir.settings.set_default_view", { view_id: 2 });
+    // Omitted view_id clears back to Everything (view_id null).
+    await callTool(client, "portfolixir.settings.set_default_view", {});
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/settings/default_view");
+    assert.equal((result.structuredContent as any).data.view.name, "Mine");
+    assert.deepEqual(requests[1], {
+      method: "PUT",
+      path: "/api/v1/settings/default_view",
+      body: { view_id: 2 },
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[2].body, { view_id: null });
   });
 
   it("records the explicit-empty position override with an empty bucket_ids array", async () => {
