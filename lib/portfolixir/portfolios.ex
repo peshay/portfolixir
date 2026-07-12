@@ -34,6 +34,76 @@ defmodule Portfolixir.Portfolios do
   def get_portfolio(id) when is_integer(id), do: Repo.get(Portfolio, id) |> load_cash_target()
 
   @doc """
+  Resolves the ONE deterministic internal default portfolio that new depots
+  and cash accounts bind to (ADR-0024): the earliest record when any exists,
+  otherwise a freshly created "Default" (EUR) — journaled under `actor` like
+  any sanctioned portfolio write. The UI and API never ask the user for a
+  portfolio; grouping happens exclusively through buckets and views.
+  """
+  def default_portfolio(%Actor{} = actor) do
+    case first_portfolio() do
+      nil ->
+        {:ok, portfolio} =
+          create_portfolio(actor, %{name: "Default", base_currency_code: "EUR"})
+
+        portfolio
+
+      portfolio ->
+        portfolio
+    end
+  end
+
+  @doc """
+  The minimal read-only administration view of every portfolio record
+  (ADR-0024 modification 1: no invisible writable resource). Each row carries
+  the record's name, base currency, creation timestamp, its origin derived
+  from the audit journal's create entry (`:ui`, `:api`, `:import`, `:seeded`),
+  and the count of bound depots and cash accounts.
+  """
+  def portfolio_admin_list do
+    sources = portfolio_create_sources()
+    depot_counts = counts_by_portfolio(SecuritiesAccount)
+    cash_counts = counts_by_portfolio(CashAccount)
+
+    from(portfolio in Portfolio, order_by: [asc: portfolio.id])
+    |> Repo.all()
+    |> Enum.map(fn portfolio ->
+      %{
+        id: portfolio.id,
+        name: portfolio.name,
+        base_currency_code: portfolio.base_currency_code,
+        inserted_at: portfolio.inserted_at,
+        source: Map.get(sources, to_string(portfolio.id), :seeded),
+        depot_count: Map.get(depot_counts, portfolio.id, 0),
+        cash_account_count: Map.get(cash_counts, portfolio.id, 0)
+      }
+    end)
+  end
+
+  # Origin per portfolio id from the journaled create entry. Records created
+  # before ADR-0017 armed the table (or by seed/migration jobs) report
+  # `:seeded` — visible, never dropped.
+  defp portfolio_create_sources do
+    Journal.list_entries(resource_type: "portfolio", operation: :create)
+    |> Map.new(fn entry -> {entry.resource_id, source_from_actor(entry.actor_type)} end)
+  end
+
+  defp source_from_actor(:owner_ui), do: :ui
+  defp source_from_actor(:api_token_rw), do: :api
+  defp source_from_actor(:api_token_ro), do: :api
+  defp source_from_actor(:import_session), do: :import
+  defp source_from_actor(_other), do: :seeded
+
+  defp counts_by_portfolio(schema) do
+    from(record in schema,
+      group_by: record.portfolio_id,
+      select: {record.portfolio_id, count(record.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
   Creates a portfolio on behalf of `actor` (FR-28). The `portfolios` row and its
   audit-journal entry commit in one transaction (ADR-0017); the table is
   guard-armed, so this is the only sanctioned create path. The virtual

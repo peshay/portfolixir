@@ -854,10 +854,32 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     refute html =~ "are not counted in the totals"
   end
 
-  test "points to portfolio creation when none exists", %{conn: conn} do
+  # User story (ADR-0024):
+  # As a new user opening the Wealth page before any bookkeeping entities
+  # exist,
+  # I want the empty state to point me at creating a depot and cash account,
+  # so that no screen asks for a portfolio — grouping is buckets and views.
+  #
+  # Acceptance criteria:
+  # - With an empty database the empty state links to /portfolios and asks for
+  #   a depot + cash account, never a portfolio.
+  # - A portfolio record without any depots/cash accounts still shows the
+  #   empty state (the record is internal; the accounts are the prerequisite).
+  test "points to depot and cash-account creation when no accounts exist", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/portfolio")
 
-    assert html =~ "Create one portfolio"
+    assert html =~ "Create a depot and cash account"
+    refute html =~ "Create one portfolio"
+
+    # An internal compatibility record alone does not unlock the page.
+    {:ok, _} =
+      Portfolixir.Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Ghost",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, _view, html} = live(conn, "/portfolio")
+    assert html =~ "Create a depot and cash account"
   end
 
   # User story:
@@ -1057,7 +1079,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Toggling to Value switches the rendered series (money axis, no zero line).
     view |> element("button[phx-value-mode='value']") |> render_click()
     assert has_element?(view, "#performance-figure[data-chart-mode='value']")
-    assert has_element?(view, "svg.security-chart[aria-label='Portfolio value over time']")
+    # ADR-0024: the value series describes the wealth number, not a portfolio.
+    assert has_element?(view, "svg.security-chart[aria-label='Value over time']")
     refute view |> element("#performance-figure") |> render() =~ "chart-zeroline"
 
     # The choice survives a period switch.

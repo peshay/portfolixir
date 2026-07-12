@@ -117,8 +117,25 @@ Beispiel-Antwort für Kurssynchronisierung:
 
 ## Portfolios und Konten
 
-- `GET /api/v1/portfolios` listet Portfolios.
+> **Portfolio-Writes sind veraltet (ADR-0024) — nur Kompatibilität; nutze
+> Buckets/Ansichten zur Gruppierung.** Portfolios wurden zu internen
+> Kompatibilitätsdatensätzen herabgestuft: die UI gruppiert ausschließlich
+> über Buckets und Ansichten, und Depots/Geldkonten brauchen keine
+> `portfolio_id` mehr (ein deterministisches internes Standard-Portfolio wird
+> automatisch gebunden). `POST /api/v1/portfolios` und
+> `PATCH /api/v1/portfolios/:portfolio_id` funktionieren weiter, antworten
+> aber mit dem Response-Header `Deprecation: true`. Sunset-Hinweis: nach zwei
+> Releases ohne externe Portfolio-Writes verschmilzt eine Folge-Story die
+> Datensätze in Buckets und Ansichten (das Exit-Kriterium des ADR) — plane
+> Migrationen auf `POST /api/v1/buckets` und `POST /api/v1/views` jetzt.
+> Jeder hier geschriebene Datensatz bleibt in der schreibgeschützten
+> Admin-Liste „Portfoliodatensätze (Kompatibilität)“ der UI sichtbar, nichts
+> wird unsichtbar.
+
+- `GET /api/v1/portfolios` listet Portfolios (Kompatibilitätsdatensätze).
 - `POST /api/v1/portfolios` legt ein Portfolio mit einem `portfolio`-Objekt an.
+  **Veraltet** — antwortet mit `Deprecation: true`; bevorzuge
+  Buckets/Ansichten.
 - `GET /api/v1/cash_accounts` listet Geldkonten. Jedes trägt einen `balance`
   (Decimal-String, in der eigenen Währung des Kontos), der beim Lesen aus dem
   Ledger abgeleitet wird: Beträge werden als positive Größen gespeichert und der
@@ -138,7 +155,9 @@ Beispiel-Antwort für Kurssynchronisierung:
   verändern ihn, sodass Geld zwischen deinen eigenen Konten zu verschieben keine
   Übertragungsbuchung braucht. Unbekannte Konten liefern `404 Not Found`.
 - `POST /api/v1/cash_accounts` legt ein Geldkonto mit einem `cash_account`-Objekt
-  an. Das optionale `liquidity_role` (Standard `free_cash`) klassifiziert das
+  an. `portfolio_id` ist optional (ADR-0024): fehlt sie, wird das Konto an das
+  deterministische interne Standard-Portfolio gebunden; eine explizite id
+  gewinnt weiterhin (Kompatibilität). Das optionale `liquidity_role` (Standard `free_cash`) klassifiziert das
   Konto: `free_cash` ist echtes verfügbares Cash; `credit_line` ist eine
   Überziehungs-/Lombard-Linie, deren negativer Saldo eine Verbindlichkeit ist und
   deren ungenutzter Rahmen nie Liquidität ist (sie zählt nie zum verfügbaren
@@ -156,7 +175,9 @@ Beispiel-Antwort für Kurssynchronisierung:
   verweist.
 - `GET /api/v1/securities_accounts` listet Depots/Wertpapierkonten.
 - `POST /api/v1/securities_accounts` legt ein Depot/Wertpapierkonto mit einem
-  `securities_account`-Objekt an.
+  `securities_account`-Objekt an. `portfolio_id` ist optional (ADR-0024):
+  fehlt sie, wird das Depot an das deterministische interne Standard-Portfolio
+  gebunden.
 - `GET /api/v1/securities_accounts/:id` liefert ein Wertpapierkonto.
 - `PATCH /api/v1/securities_accounts/:id` aktualisiert ein Wertpapierkonto
   (`name`, `notes`, `cash_account_id`); `portfolio_id` kann nicht geändert werden.
@@ -462,7 +483,9 @@ Beispiel-Payloads für Konten:
   `422 Unprocessable Entity`. Das Cash-Ziel speist die `cash`-Zeile der Allokation
   und den `top_level_target_sum` der adressierten View.
 - `PATCH /api/v1/portfolios/:portfolio_id` patcht die Stammdaten eines Portfolios.
-  Der Body ist `{"portfolio": {...}}`. **Umzug des Cash-Ziels (ADR-0020):** Das
+  **Veraltet (ADR-0024)** — antwortet mit `Deprecation: true`; nur
+  Kompatibilität, nutze Buckets/Ansichten zur Gruppierung. Der Body ist
+  `{"portfolio": {...}}`. **Umzug des Cash-Ziels (ADR-0020):** Das
   Cash-Ziel ist vom Portfolio-Objekt auf den View-gebundenen SOLL-Plan gewandert
   und wird über die beiden `cash_target`-Endpunkte oben bedient. Aus
   **Kompatibilitätsgründen** stellt das Portfolio-Objekt weiterhin
@@ -671,8 +694,10 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
 - `portfolixir.quotes.upsert`
-- `portfolixir.portfolios.list`
-- `portfolixir.portfolios.create`
+- `portfolixir.portfolios.list` — veraltet (ADR-0024): die Beschreibung
+  verweist auf Buckets/Ansichten.
+- `portfolixir.portfolios.create` — veraltet (ADR-0024): nur Kompatibilität;
+  bevorzuge `portfolixir.buckets.create` / `portfolixir.views.create`.
 - `portfolixir.cash_accounts.list`
 - `portfolixir.cash_accounts.create`
 - `portfolixir.cash_accounts.update`

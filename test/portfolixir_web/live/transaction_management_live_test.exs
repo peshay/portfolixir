@@ -6,18 +6,19 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
   alias Portfolixir.Ledger
   alias Portfolixir.WorldFixtures
 
-  # User story (#471):
-  # As a maintainer with several portfolios,
-  # I want the Transactions page to name the active portfolio and let me switch,
-  # so that I never record a buy/sell into the wrong portfolio unknowingly.
+  # User story (ADR-0024, supersedes #471):
+  # As a maintainer recording transactions,
+  # I want the form to offer every depot directly — no portfolio strip, no
+  # portfolio switch —
+  # so that the depot choice alone decides where a transaction books and the
+  # portfolio stays an internal compatibility record.
   #
   # Acceptance criteria:
-  # - The page renders a portfolio strip naming the active portfolio and the
-  #   other portfolios as switchable chips.
-  # - Switching changes which portfolio is active (its depots are offered).
-  # - A transaction recorded after switching books into the switched-to
-  #   portfolio, not the one that happened to be first.
-  test "names the active portfolio and switches which portfolio books a transaction",
+  # - No portfolio strip renders; the word "Portfolio" is not used as a
+  #   grouping control.
+  # - Depots from every internal portfolio are offered together.
+  # - A transaction books into the chosen depot's internal portfolio.
+  test "offers every depot and books into the chosen depot's internal portfolio",
        %{conn: conn} do
     alpha =
       WorldFixtures.base_world(name: "Alpha", depot_name: "Alpha Depot", cash_name: "Alpha Cash")
@@ -29,19 +30,16 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     {:ok, view, html} = live(conn, "/transactions")
 
-    # The strip names both portfolios; the first-created one is active.
-    assert html =~ "Alpha"
-    assert html =~ "Beta"
-    assert has_element?(view, "#portfolio-switch-#{alpha.portfolio.id}.is-active")
-    refute has_element?(view, "#portfolio-switch-#{beta.portfolio.id}.is-active")
+    # No portfolio strip and no switch chips.
+    refute has_element?(view, "#transaction-portfolio-strip")
+    refute has_element?(view, "#portfolio-switch-#{alpha.portfolio.id}")
+    refute html =~ "Portfolio:"
 
-    # Switching to Beta exposes Beta's depot, not Alpha's.
-    switched = view |> element("#portfolio-switch-#{beta.portfolio.id}") |> render_click()
-    assert switched =~ "Beta Depot"
-    refute switched =~ "Alpha Depot"
-    assert has_element?(view, "#portfolio-switch-#{beta.portfolio.id}.is-active")
+    # Both depots are offered at once.
+    assert html =~ "Alpha Depot"
+    assert html =~ "Beta Depot"
 
-    # A transaction recorded now books into Beta, not the first portfolio.
+    # Booking against Beta's depot lands in Beta's internal portfolio.
     view
     |> element("#transaction-form")
     |> render_submit(%{
@@ -58,28 +56,6 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert Ledger.list_transactions_for_portfolio(beta.portfolio.id) != []
     assert Ledger.list_transactions_for_portfolio(alpha.portfolio.id) == []
-  end
-
-  # A single-portfolio install still names the active portfolio (no ambiguity,
-  # but the user should see which one they are booking into).
-  test "names the only portfolio when there is just one", %{conn: conn} do
-    world = WorldFixtures.base_world(name: "Solo")
-
-    {:ok, view, _html} = live(conn, "/transactions")
-
-    assert has_element?(view, "#portfolio-switch-#{world.portfolio.id}.is-active")
-  end
-
-  # An unknown portfolio id (e.g. one deleted in another tab) is a no-op: the
-  # active portfolio is left unchanged rather than blanking the page.
-  test "selecting an unknown portfolio leaves the active one unchanged", %{conn: conn} do
-    world = WorldFixtures.base_world(name: "Solo")
-
-    {:ok, view, _html} = live(conn, "/transactions")
-
-    render_hook(view, "select_portfolio", %{"id" => "999999"})
-
-    assert has_element?(view, "#portfolio-switch-#{world.portfolio.id}.is-active")
   end
 
   # User story (#472):

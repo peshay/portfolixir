@@ -151,7 +151,7 @@ defmodule PortfolixirWeb.BucketsLive do
         <section id="views-section" class="workspace-section">
           <h2><%= gettext("2. Views") %></h2>
           <p class="section-hint">
-            <%= gettext("Saved include/exclude filters over buckets. A view is what you pick in the view switcher on the Portfolio page.") %>
+            <%= gettext("Saved include/exclude filters over buckets. A view is what you pick in the view switcher on the Wealth page.") %>
           </p>
           <p class="hint">
             <%= gettext("A view includes some buckets and excludes others. Exclude always wins.") %>
@@ -221,7 +221,7 @@ defmodule PortfolixirWeb.BucketsLive do
 
         <section id="assignment-section" class="workspace-section">
           <h2><%= gettext("Default bucket assignment") %></h2>
-          <%= if @portfolio do %>
+          <%= if @depots != [] or @cash_accounts != [] do %>
             <p class="hint">
               <%= gettext("Set the default buckets a depot's positions and a cash account inherit.") %>
             </p>
@@ -291,7 +291,7 @@ defmodule PortfolixirWeb.BucketsLive do
             </div>
           <% else %>
             <p class="hint">
-              <%= gettext("Create a portfolio with a depot and a cash account to assign buckets.") %>
+              <%= gettext("Create a depot and a cash account to assign buckets.") %>
             </p>
           <% end %>
         </section>
@@ -614,7 +614,6 @@ defmodule PortfolixirWeb.BucketsLive do
   def handle_event("set_depot_buckets", params, socket) do
     with {:ok, depot_id} <- coerce_id(params["depot_id"]),
          depot when not is_nil(depot) <- Portfolios.get_securities_account(depot_id),
-         true <- owned_depot?(socket, depot),
          :ok <-
            Buckets.set_depot_default_buckets(
              Actor.owner_ui(),
@@ -635,7 +634,6 @@ defmodule PortfolixirWeb.BucketsLive do
   def handle_event("set_cash_buckets", params, socket) do
     with {:ok, cash_id} <- coerce_id(params["cash_id"]),
          cash when not is_nil(cash) <- Portfolios.get_cash_account(cash_id),
-         true <- owned_cash?(socket, cash),
          :ok <-
            Buckets.set_cash_account_buckets(
              Actor.owner_ui(),
@@ -655,42 +653,24 @@ defmodule PortfolixirWeb.BucketsLive do
 
   # -- data loading -----------------------------------------------------------
 
+  # ADR-0024: every depot and cash account is managed here, regardless of the
+  # internal portfolio compatibility record it happens to be bound to.
   defp load_state(socket) do
-    portfolio = Portfolios.first_portfolio()
-    buckets = Buckets.list_buckets()
-
     depots =
-      if portfolio do
-        portfolio.id
-        |> Portfolios.list_securities_accounts_for_portfolio()
-        |> Enum.map(&Map.put(&1, :bucket_ids, Buckets.depot_default_bucket_ids(&1.id)))
-      else
-        []
-      end
+      Portfolios.list_securities_accounts()
+      |> Enum.map(&Map.put(&1, :bucket_ids, Buckets.depot_default_bucket_ids(&1.id)))
 
     cash_accounts =
-      if portfolio do
-        portfolio.id
-        |> Portfolios.list_cash_accounts_for_portfolio()
-        |> Enum.map(&Map.put(&1, :bucket_ids, Buckets.cash_account_bucket_ids(&1.id)))
-      else
-        []
-      end
+      Portfolios.list_cash_accounts()
+      |> Enum.map(&Map.put(&1, :bucket_ids, Buckets.cash_account_bucket_ids(&1.id)))
 
     assign(socket,
-      portfolio: portfolio,
-      buckets: buckets,
+      buckets: Buckets.list_buckets(),
       views_full: Buckets.list_views(),
       depots: depots,
       cash_accounts: cash_accounts
     )
   end
-
-  defp owned_depot?(%{assigns: %{portfolio: %{id: pid}}}, depot), do: depot.portfolio_id == pid
-  defp owned_depot?(_socket, _depot), do: false
-
-  defp owned_cash?(%{assigns: %{portfolio: %{id: pid}}}, cash), do: cash.portfolio_id == pid
-  defp owned_cash?(_socket, _cash), do: false
 
   # -- helpers ----------------------------------------------------------------
 

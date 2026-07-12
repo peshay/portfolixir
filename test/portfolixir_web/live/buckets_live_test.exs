@@ -385,31 +385,41 @@ defmodule PortfolixirWeb.BucketsLiveTest do
   end
 
   # User story:
-  # As a local portfolio maintainer with no portfolio yet,
+  # As a local portfolio maintainer with no accounts yet,
   # I want the assignment section to explain what to create first,
-  # so that an empty install does not look broken.
+  # so that an empty install does not look broken (and never asks for a
+  # portfolio — ADR-0024).
   #
   # Acceptance criteria:
-  # - With no portfolio the assignment section shows the create-first hint.
-  test "with no portfolio the assignment section shows the create-first hint", %{conn: conn} do
+  # - With no depots/cash accounts the assignment section shows the
+  #   create-first hint, pointing at depot + cash account.
+  test "with no accounts the assignment section shows the create-first hint", %{conn: conn} do
     {:ok, view, html} = live(conn, "/buckets")
 
-    assert html =~ "Create a portfolio with a depot and a cash account to assign buckets."
+    assert html =~ "Create a depot and a cash account to assign buckets."
+    refute html =~ "Create a portfolio"
     refute has_element?(view, "#depot-assignment-list")
   end
 
-  test "a portfolio with no depots or cash accounts shows the per-list empty states",
+  test "a cash account without any depot shows the depot list's empty state",
        %{conn: conn} do
-    {:ok, _portfolio} =
+    {:ok, portfolio} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
         name: "Empty",
         base_currency_code: "EUR"
       })
 
+    {:ok, _cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Solo Cash",
+        currency_code: "EUR"
+      })
+
     {:ok, view, _html} = live(conn, "/buckets")
 
     assert has_element?(view, "#depot-assignment-list .hint", "No depots yet.")
-    assert has_element?(view, "#cash-assignment-list .hint", "No cash accounts yet.")
+    assert has_element?(view, "#cash-assignment-list", "Solo Cash")
   end
 
   # User story:
