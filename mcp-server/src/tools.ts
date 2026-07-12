@@ -1331,6 +1331,13 @@ const toolDefinitions: ToolDefinition[] = [
     viewBucketsZ
   ),
   tool(
+    "portfolixir.views.valuation",
+    "Value view (cross-portfolio)",
+    "Live valuation of a bucket view across ALL portfolios (id is the view id): the deduplicated union of every depot, position and cash account matching the view — an account tagged into several included buckets counts exactly once. Totals, weights, cash balances and the cash quote are in EUR (converted via the EUR hub); the valued/price_source flags mark stale or unpriceable positions, exactly as in portfolixir.portfolios.valuation. The overlap object lists the depots/cash accounts carrying more than one included bucket (badge data — the totals are already deduplicated). All financial values are Decimal strings. Use this, not a client-side sum of portfolio valuations, for a view's total wealth.",
+    idSchema,
+    idZ
+  ),
+  tool(
     "portfolixir.securities_accounts.set_buckets",
     "Set depot default buckets",
     "Replace a depot/securities account's default bucket set (the buckets every position inherits unless overridden). bucket_ids is an array of bucket ids (default empty).",
@@ -1620,6 +1627,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("PATCH", `/api/v1/views/${args.id}`, { view: args.view });
     case "portfolixir.views.delete":
       return client.request("DELETE", `/api/v1/views/${args.id}`);
+    case "portfolixir.views.valuation":
+      return client.request("GET", `/api/v1/views/${args.id}/valuation`);
     case "portfolixir.views.set_buckets":
       return client.request("PUT", `/api/v1/views/${args.id}/buckets`, {
         include: args.include ?? [],

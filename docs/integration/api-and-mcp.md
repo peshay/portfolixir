@@ -572,6 +572,18 @@ writes are deliberately not journaled (ADR-0018 §5).
 - `PUT /api/v1/views/:id/buckets` replaces a view's include/exclude bucket sets.
   Body: `{"include": [..], "exclude": [..]}` (both optional, default `[]`,
   arrays of bucket ids). A malformed id list returns `422`.
+- `GET /api/v1/views/:view_id/valuation` returns the live valuation of a view
+  **across all portfolios** (ADR-0024): the deduplicated union of every depot,
+  position and cash account matching the view — an account tagged into several
+  included buckets counts exactly once. The shape mirrors the portfolio
+  valuation (totals, positions with weights and `price_source`/`valued` flags,
+  `cash_balances`, `cash_quote`, `as_of`, a `valuation_note`) with `view_id` in
+  place of `portfolio_id`; totals are in EUR, converted via the EUR hub, and
+  all financial values are Decimal strings. An `overlap` object reports the
+  account-level bucket overlap for UI badges (`overlapping`, plus the
+  `securities_account_ids`/`cash_account_ids` carrying more than one included
+  bucket — the totals are already deduplicated). The active view is echoed as
+  `view: {id, name}`. Unknown and malformed view ids return `404`.
 - `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
   bucket set (the buckets each position inherits unless overridden). Body:
   `{"bucket_ids": [..]}`.
@@ -695,6 +707,7 @@ in MCP schemas are strings.
 - `portfolixir.views.update`
 - `portfolixir.views.delete`
 - `portfolixir.views.set_buckets`
+- `portfolixir.views.valuation`
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
@@ -704,6 +717,9 @@ The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
 `portfolixir.portfolios.performance` and `portfolixir.portfolios.risk` tools
 accept an optional `view` (a view id) that scopes the result to the holdings
 matching that bucket view; the response then echoes the active view.
+`portfolixir.views.valuation` values a view **across all portfolios** in one
+call (each matching account counted once, EUR totals, `overlap` badge data) —
+use it instead of summing per-portfolio valuations client-side.
 
 Since ADR-0020 the target tools (`portfolixir.targets.list`,
 `portfolixir.targets.set`, `portfolixir.targets.delete`) and the cash-target

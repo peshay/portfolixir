@@ -151,6 +151,7 @@ defmodule PortfolixirWeb.Router do
     patch("/views/:id", ViewController, :update)
     delete("/views/:id", ViewController, :delete)
     put("/views/:id/buckets", ViewController, :set_buckets)
+    get("/views/:view_id/valuation", ViewValuationController, :show)
 
     put("/securities_accounts/:id/buckets", BucketAssignmentController, :set_depot_buckets)
     put("/cash_accounts/:id/buckets", BucketAssignmentController, :set_cash_account_buckets)

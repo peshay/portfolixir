@@ -71,6 +71,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.views.update",
       "portfolixir.views.delete",
       "portfolixir.views.set_buckets",
+      "portfolixir.views.valuation",
       "portfolixir.securities_accounts.set_buckets",
       "portfolixir.cash_accounts.set_buckets",
       "portfolixir.securities_accounts.set_position_buckets",
@@ -741,6 +742,20 @@ describe("Portfolixir MCP tools", () => {
     // Omitted bucket sets default to empty arrays.
     assert.equal(requests[5].method, "DELETE");
     assert.equal(requests[5].path, "/api/v1/views/2");
+  });
+
+  // User story: as an MCP client I want one tool for a view's cross-portfolio
+  // total wealth, so that the LLM never has to sum portfolio valuations itself.
+  it("issues a GET to /views/:id/valuation for portfolixir.views.valuation", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { view_id: 2, total_with_cash: "750", overlap: { overlapping: false } }
+    });
+
+    const result = await callTool(client, "portfolixir.views.valuation", { id: 2 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/views/2/valuation");
+    assert.equal((result.structuredContent as any).data.total_with_cash, "750");
   });
 
   it("defaults omitted view bucket sets to empty arrays", async () => {

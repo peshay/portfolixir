@@ -278,6 +278,49 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       "indicate per-position price staleness."
   end
 
+  @doc """
+  Serializes the cross-portfolio view valuation (ADR-0024): the `for_portfolio`
+  shape with `view_id` in place of `portfolio_id`, plus account-level `overlap`
+  data (which depots/cash accounts carry more than one of the view's included
+  buckets — badge data; the totals are already deduplicated).
+  """
+  def view_valuation(%{positions: positions} = valuation) do
+    %{
+      view_id: valuation.view_id,
+      base_currency: valuation.base_currency,
+      # FR-13: `as_of` documents the read date (no stored snapshot exists) and
+      # the note states the cross-portfolio, count-once basis of the totals.
+      as_of: date(Date.utc_today()),
+      valuation_note: view_valuation_note(valuation.base_currency),
+      total_value: decimal(valuation.total_value),
+      total_cash: decimal(valuation.total_cash),
+      counting_cash: decimal(valuation.counting_cash),
+      total_with_cash: decimal(valuation.total_with_cash),
+      cash_quote: decimal(valuation.cash_quote),
+      unvalued_count: valuation.unvalued_count,
+      trade_priced_count: valuation.trade_priced_count,
+      overlap: view_overlap(valuation.overlap),
+      positions: Enum.map(positions, &valuation_position/1),
+      cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
+    }
+  end
+
+  defp view_valuation_note(base_currency) do
+    "Totals are in #{base_currency} across ALL portfolios, converted via the " <>
+      "EUR hub; each account matching the view counts exactly once, however " <>
+      "many included buckets it carries (`overlap` lists the multi-bucket " <>
+      "accounts). `price_source` and `valued` indicate per-position price " <>
+      "staleness."
+  end
+
+  defp view_overlap(overlap) do
+    %{
+      overlapping: overlap.overlapping?,
+      securities_account_ids: overlap.securities_account_ids,
+      cash_account_ids: overlap.cash_account_ids
+    }
+  end
+
   defp valuation_cash(cash) do
     %{
       cash_account_id: cash.cash_account_id,

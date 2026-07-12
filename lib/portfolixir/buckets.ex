@@ -360,6 +360,54 @@ defmodule Portfolixir.Buckets do
     }
   end
 
+  @doc """
+  Loads a reusable **instance-wide** scope for `view_id` (ADR-0024): the same
+  shape as `load_scope/2` but spanning every depot, position override, and cash
+  account, so a cross-portfolio valuation can check membership without a
+  portfolio filter. With `view_id == nil` it returns `:unscoped` (the
+  "everything" scope — every account matches).
+  """
+  @spec load_global_scope(integer() | nil) :: :unscoped | map()
+  def load_global_scope(nil), do: :unscoped
+
+  def load_global_scope(view_id) do
+    %{
+      view: view_filter(view_id),
+      depot_defaults: all_depot_defaults(),
+      overrides: all_overrides(),
+      cash: all_cash_assignments()
+    }
+  end
+
+  @doc """
+  Reports whether the scope's **included** buckets overlap on any account: a
+  depot or cash account carrying more than one included bucket (exclude wins,
+  so excluded buckets never count). Returned as data for UI badges — computed
+  from the already-loaded scope, no extra queries. The unscoped "everything"
+  scope has no include set and reports no overlap. Overlap is account-level
+  (depot defaults and cash assignments); a view whose buckets overlap still
+  counts every account exactly once (deduplication is by construction).
+  """
+  @spec scope_overlap(:unscoped | map()) :: %{
+          overlapping?: boolean(),
+          securities_account_ids: [integer()],
+          cash_account_ids: [integer()]
+        }
+  def scope_overlap(:unscoped) do
+    %{overlapping?: false, securities_account_ids: [], cash_account_ids: []}
+  end
+
+  def scope_overlap(scope) when is_map(scope) do
+    depot_ids = overlapping_owner_ids(scope.depot_defaults, scope.view)
+    cash_ids = overlapping_owner_ids(scope.cash, scope.view)
+
+    %{
+      overlapping?: depot_ids != [] or cash_ids != [],
+      securities_account_ids: depot_ids,
+      cash_account_ids: cash_ids
+    }
+  end
+
   @doc "Whether the security position `{sa_id, sec_id}` is in `scope` (always true when unscoped)."
   @spec position_in_scope?(:unscoped | map(), integer(), integer()) :: boolean()
   def position_in_scope?(:unscoped, _sa_id, _sec_id), do: true
@@ -385,6 +433,43 @@ defmodule Portfolixir.Buckets do
   end
 
   # -- helpers ---------------------------------------------------------------
+
+  defp all_depot_defaults do
+    from(x in SecuritiesAccountBucket, select: {x.securities_account_id, x.bucket_id})
+    |> Repo.all()
+    |> group_owner_ids()
+  end
+
+  defp all_cash_assignments do
+    from(x in CashAccountBucket, select: {x.cash_account_id, x.bucket_id})
+    |> Repo.all()
+    |> group_owner_ids()
+  end
+
+  defp all_overrides do
+    from(o in PositionBucketOverride,
+      select: {o.securities_account_id, o.security_id, o.bucket_id}
+    )
+    |> Repo.all()
+    |> classify_grouped_overrides()
+  end
+
+  # Owners (depot or cash-account ids) whose bucket set intersects the view's
+  # include set in more than one bucket. Excluded buckets never count (exclude
+  # wins); under `include: :all` every non-excluded bucket is included.
+  defp overlapping_owner_ids(assignments, view) do
+    assignments
+    |> Enum.filter(fn {_owner, bucket_ids} -> included_bucket_count(view, bucket_ids) > 1 end)
+    |> Enum.map(fn {owner, _bucket_ids} -> owner end)
+    |> Enum.sort()
+  end
+
+  defp included_bucket_count(%{include: include, exclude: exclude}, bucket_ids) do
+    bucket_ids
+    |> Enum.uniq()
+    |> Enum.reject(&(&1 in exclude))
+    |> Enum.count(&(include == :all or &1 in include))
+  end
 
   defp depot_defaults_for_portfolio(portfolio_id) do
     from(x in SecuritiesAccountBucket,
@@ -416,6 +501,11 @@ defmodule Portfolixir.Buckets do
       select: {o.securities_account_id, o.security_id, o.bucket_id}
     )
     |> Repo.all()
+    |> classify_grouped_overrides()
+  end
+
+  defp classify_grouped_overrides(rows) do
+    rows
     |> Enum.group_by(fn {sa, sec, _b} -> {sa, sec} end, fn {_sa, _sec, b} -> b end)
     |> Map.new(fn {key, bucket_ids} -> {key, classify_override(bucket_ids)} end)
   end

@@ -160,6 +160,84 @@ defmodule Portfolixir.Portfolios.Valuation do
     }
   end
 
+  @doc """
+  Returns the live valuation of a bucket **view across all portfolios**
+  (ADR-0024), in `:base_currency` (default the EUR hub).
+
+  A view is a global filter over buckets, so its account universe spans every
+  portfolio. Portfolios partition the accounts, so iterating each portfolio's
+  single-count position universe under one instance-wide scope
+  (`Portfolixir.Buckets.load_global_scope/1`) values the deduplicated union of
+  the view's accounts — an account tagged into several included buckets counts
+  once, by construction. Pricing fallbacks (quote, then latest own trade
+  price) and the EUR-hub FX path are exactly `for_portfolio/2`'s; the trade
+  fallback reads the instance-wide latest trade price (a view is not a
+  portfolio, so there is no per-portfolio trade universe to prefer).
+
+  With `view_id == nil` the result is the "everything" scope: the unscoped
+  union over all portfolios, Decimal-equal to summing the unscoped
+  `for_portfolio/2` totals.
+
+  The result mirrors `for_portfolio/2` with `view_id` in place of
+  `portfolio_id`, plus `overlap` (`Portfolixir.Buckets.scope_overlap/1`): which
+  depots/cash accounts carry more than one of the view's included buckets —
+  data for UI badges, not a correction (the totals are already deduplicated).
+
+  Options (for tests):
+    * `:prices` – `%{security_id => Decimal}` native prices; missing securities
+      fall back to `Catalog.Quotes.latest/1`.
+    * `:base_currency` – overrides the EUR-hub default.
+  """
+  def for_view(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    prices = Keyword.get(opts, :prices, %{})
+    base_currency = Keyword.get(opts, :base_currency, @hub)
+    scope = Buckets.load_global_scope(view_id)
+    trade_prices = Ledger.latest_trade_prices()
+
+    positions =
+      Portfolios.list_portfolios()
+      |> Enum.flat_map(&Ledger.positions_for_portfolio(&1.id))
+      |> Enum.filter(fn {{securities_account_id, security_id}, _quantity} ->
+        Buckets.position_in_scope?(scope, securities_account_id, security_id)
+      end)
+      |> Enum.map(fn {{securities_account_id, security_id}, quantity} ->
+        build_position(
+          securities_account_id,
+          security_id,
+          quantity,
+          {prices, trade_prices},
+          base_currency
+        )
+      end)
+
+    total = total_value(positions)
+
+    positions =
+      positions
+      |> Enum.map(&put_weight(&1, total))
+      |> Enum.sort_by(&{&1.security_id, &1.securities_account_id})
+
+    cash =
+      cash_summary(Portfolios.list_cash_accounts(), Ledger.cash_balances(), base_currency, scope)
+
+    total_with_cash = Decimal.add(total, cash.total)
+
+    %{
+      view_id: view_id,
+      base_currency: base_currency,
+      total_value: total,
+      total_cash: cash.total,
+      counting_cash: cash.counting_total,
+      total_with_cash: total_with_cash,
+      cash_quote: cash_quote(cash.counting_total, Decimal.add(total, cash.counting_total)),
+      cash_balances: cash.balances,
+      positions: positions,
+      unvalued_count: Enum.count(positions, &(not &1.valued)),
+      trade_priced_count: Enum.count(positions, &(&1.price_source == :trade)),
+      overlap: Buckets.scope_overlap(scope)
+    }
+  end
+
   # Cash as a share of the whole portfolio, the "Cashquote". Only deployable
   # cash enters the quote (free_cash accounts with a non-negative balance, FR6) —
   # numerator and denominator are computed as if the other accounts did not
@@ -182,10 +260,13 @@ defmodule Portfolixir.Portfolios.Valuation do
   # `counting_total` is the deployable cash only (FR6).
   defp cash_for(portfolio_id, base_currency, scope) do
     balances = Ledger.cash_balances(portfolio_id: portfolio_id)
+    accounts = Portfolios.list_cash_accounts_for_portfolio(portfolio_id)
+    cash_summary(accounts, balances, base_currency, scope)
+  end
 
+  defp cash_summary(accounts, balances, base_currency, scope) do
     entries =
-      portfolio_id
-      |> Portfolios.list_cash_accounts_for_portfolio()
+      accounts
       |> Enum.filter(&Buckets.cash_in_scope?(scope, &1.id))
       |> Enum.map(fn account ->
         balance = Map.get(balances, account.id, @zero)
