@@ -829,14 +829,16 @@ const bucketSchema = objectWith("bucket", {
   required: ["name"],
   properties: {
     name: { type: "string" },
-    color: { type: "string" }
+    color: { type: "string" },
+    dimension: { type: "string", enum: ["tag", "scope"] }
   }
 });
 
 const bucketZ = z.object({
   bucket: z.object({
     name: z.string(),
-    color: optionalString()
+    color: optionalString(),
+    dimension: z.enum(["tag", "scope"]).optional()
   })
 });
 
@@ -1256,7 +1258,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.buckets.list",
     "List buckets",
-    "List the buckets (overlapping tags applied to holdings for tag-based wealth scoping).",
+    "List the buckets (tags applied to holdings for wealth scoping). Each bucket carries its dimension: \"tag\" (free overlapping tag) or \"scope\" (the exclusive dimension — at most one per depot/cash account, ADR-0024).",
     emptyObjectSchema,
     emptyObjectZ
   ),
@@ -1270,14 +1272,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.buckets.create",
     "Create bucket",
-    "Create a bucket (an overlapping tag). name is required; color is an optional hex string.",
+    "Create a bucket. name is required; color is an optional hex string. dimension is optional: \"tag\" (default, a free overlapping tag) or \"scope\" (the exclusive dimension — a depot/cash account carries at most one scope bucket, ADR-0024); the dimension is fixed at creation.",
     bucketSchema,
     bucketZ
   ),
   tool(
     "portfolixir.buckets.update",
     "Update bucket",
-    "Patch a bucket's name or color.",
+    "Patch a bucket's name or color. The dimension is fixed at creation and cannot be patched.",
     bucketUpdateSchema,
     bucketUpdateZ
   ),
@@ -1340,14 +1342,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.securities_accounts.set_buckets",
     "Set depot default buckets",
-    "Replace a depot/securities account's default bucket set (the buckets every position inherits unless overridden). bucket_ids is an array of bucket ids (default empty).",
+    "Replace a depot/securities account's default bucket set (the buckets every position inherits unless overridden). bucket_ids is an array of bucket ids (default empty); at most one may be a scope-dimension bucket (ADR-0024) — a violating set is rejected with 422.",
     depotBucketsSchema,
     depotBucketsZ
   ),
   tool(
     "portfolixir.cash_accounts.set_buckets",
     "Set cash account buckets",
-    "Replace a cash account's bucket set. bucket_ids is an array of bucket ids (default empty).",
+    "Replace a cash account's bucket set. bucket_ids is an array of bucket ids (default empty); at most one may be a scope-dimension bucket (ADR-0024) — a violating set is rejected with 422.",
     depotBucketsSchema,
     depotBucketsZ
   ),

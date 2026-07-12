@@ -33,6 +33,7 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
       nil -> not_found(conn)
       :error -> not_found(conn)
       {:error, :bucket_ids} -> unprocessable(conn, %{bucket_ids: ["is invalid"]})
+      {:error, :exclusive_bucket_conflict} -> exclusive_conflict(conn)
       {:error, _reason} -> unprocessable(conn, %{detail: ["could not assign buckets"]})
     end
   end
@@ -50,6 +51,7 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
       nil -> not_found(conn)
       :error -> not_found(conn)
       {:error, :bucket_ids} -> unprocessable(conn, %{bucket_ids: ["is invalid"]})
+      {:error, :exclusive_bucket_conflict} -> exclusive_conflict(conn)
       {:error, _reason} -> unprocessable(conn, %{detail: ["could not assign buckets"]})
     end
   end
@@ -143,6 +145,14 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
   end
 
   defp parse_id(_value), do: :error
+
+  # ADR-0024: an account carries at most one bucket of the exclusive "scope"
+  # dimension; a violating set is rejected before anything is written.
+  defp exclusive_conflict(conn) do
+    unprocessable(conn, %{
+      bucket_ids: ["carries more than one scope-dimension bucket (at most one per account)"]
+    })
+  end
 
   defp unprocessable(conn, errors) do
     conn

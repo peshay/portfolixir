@@ -712,6 +712,27 @@ describe("Portfolixir MCP tools", () => {
     });
   });
 
+  // User story (ADR-0024, epic story 2): as an MCP client I want the bucket
+  // dimension on create, so that the LLM can distinguish the exclusive scope
+  // dimension from free overlapping tags.
+  it("passes the bucket dimension through on create and rejects unknown values", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { id: 1, name: "Main", dimension: "scope" }
+    });
+
+    await callTool(client, "portfolixir.buckets.create", {
+      bucket: { name: "Main", dimension: "scope" }
+    });
+
+    assert.deepEqual(requests[0].body, { bucket: { name: "Main", dimension: "scope" } });
+
+    // The zod validator (enforced by the MCP server layer) pins the closed
+    // dimension taxonomy.
+    const create = listTools().find((tool) => tool.name === "portfolixir.buckets.create");
+    assert.ok(create?.zodSchema.safeParse({ bucket: { name: "Main", dimension: "scope" } }).success);
+    assert.ok(!create?.zodSchema.safeParse({ bucket: { name: "Bad", dimension: "layer" } }).success);
+  });
+
   it("routes view CRUD and set_buckets to the /views endpoints", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 2, name: "Liquid" } });
 

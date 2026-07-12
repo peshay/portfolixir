@@ -392,4 +392,91 @@ defmodule Portfolixir.BucketsTest do
                Buckets.set_view_buckets(Actor.owner_ui(), view, [], [@unknown_bucket_id])
     end
   end
+
+  # User story (ADR-0024 modification 2, epic story 2):
+  # As a local portfolio maintainer upgrading to the buckets/views model,
+  # I want one designated exclusive "scope" bucket dimension,
+  # so that scoped totals keep adding up while free tag buckets stay overlapping.
+  #
+  # Acceptance criteria:
+  # - A bucket carries a dimension: "tag" (default, overlapping) or "scope"
+  #   (exclusive); anything else is rejected.
+  # - The dimension is fixed at creation — flipping it later could silently
+  #   break the at-most-one-scope-bucket invariant on existing assignments.
+  # - A depot or cash account carries AT MOST ONE scope bucket; assigning a
+  #   second returns a clear context error instead of writing.
+  # - Tag buckets stay unrestricted (any number, alongside the scope bucket).
+  describe "exclusive scope dimension" do
+    test "buckets default to the tag dimension and accept scope at creation" do
+      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+      assert tag.dimension == "tag"
+
+      {:ok, scope} =
+        Buckets.create_bucket(Actor.owner_ui(), %{name: "Main", dimension: "scope"})
+
+      assert scope.dimension == "scope"
+
+      assert {:error, changeset} =
+               Buckets.create_bucket(Actor.owner_ui(), %{name: "Bad", dimension: "layer"})
+
+      assert %{dimension: ["is invalid"]} = errors_on(changeset)
+    end
+
+    test "the dimension cannot be changed after creation" do
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Main"})
+
+      assert {:error, changeset} =
+               Buckets.update_bucket(Actor.owner_ui(), bucket, %{dimension: "scope"})
+
+      assert %{dimension: ["cannot be changed after creation"]} = errors_on(changeset)
+
+      # A no-op dimension value alongside a rename still goes through.
+      assert {:ok, renamed} =
+               Buckets.update_bucket(Actor.owner_ui(), bucket, %{
+                 name: "Primary",
+                 dimension: "tag"
+               })
+
+      assert renamed.name == "Primary"
+    end
+
+    test "a depot carries at most one scope bucket; tag buckets stay unrestricted",
+         %{depot: depot} do
+      {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A", dimension: "scope"})
+      {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B", dimension: "scope"})
+      {:ok, tag_x} = Buckets.create_bucket(Actor.owner_ui(), %{name: "X"})
+      {:ok, tag_y} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Y"})
+
+      assert {:error, :exclusive_bucket_conflict} =
+               Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [
+                 scope_a.id,
+                 scope_b.id
+               ])
+
+      assert Buckets.depot_default_bucket_ids(depot.id) == []
+
+      assert :ok =
+               Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [
+                 scope_a.id,
+                 tag_x.id,
+                 tag_y.id
+               ])
+
+      assert Buckets.depot_default_bucket_ids(depot.id) |> Enum.sort() ==
+               Enum.sort([scope_a.id, tag_x.id, tag_y.id])
+    end
+
+    test "a cash account carries at most one scope bucket", %{cash: cash} do
+      {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A", dimension: "scope"})
+      {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B", dimension: "scope"})
+
+      assert {:error, :exclusive_bucket_conflict} =
+               Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [scope_a.id, scope_b.id])
+
+      assert Buckets.cash_account_bucket_ids(cash.id) == []
+
+      assert :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [scope_a.id])
+      assert Buckets.cash_account_bucket_ids(cash.id) == [scope_a.id]
+    end
+  end
 end

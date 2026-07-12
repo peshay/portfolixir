@@ -554,11 +554,16 @@ buckets) and carries none of the view's exclude buckets — exclude always wins.
 Bucket-definition and assignment writes are journaled (ADR-0017); view-definition
 writes are deliberately not journaled (ADR-0018 §5).
 
-- `GET /api/v1/buckets` lists buckets (`id`, `name`, `color`).
+- `GET /api/v1/buckets` lists buckets (`id`, `name`, `color`, `dimension`).
+  `dimension` is `"tag"` (a free overlapping tag) or `"scope"` — the exclusive
+  dimension: a depot or cash account carries **at most one** scope bucket, so
+  scope-scoped totals always add up (ADR-0024).
 - `POST /api/v1/buckets` creates a bucket from a `bucket` object (`name`
-  required, optional `color`). A blank or duplicate name returns `422`.
+  required, optional `color`, optional `dimension` defaulting to `"tag"`).
+  A blank or duplicate name, or an unknown dimension, returns `422`.
 - `GET /api/v1/buckets/:id` returns one bucket; unknown ids return `404`.
-- `PATCH /api/v1/buckets/:id` patches a bucket's `name`/`color`.
+- `PATCH /api/v1/buckets/:id` patches a bucket's `name`/`color`. The
+  `dimension` is fixed at creation; attempts to change it return `422`.
 - `DELETE /api/v1/buckets/:id` deletes a bucket and cascades it out of every
   assignment and view set, returning `204 No Content`.
 - `GET /api/v1/views` lists views. Each view carries `include_all`, the resolved
@@ -586,9 +591,10 @@ writes are deliberately not journaled (ADR-0018 §5).
   `view: {id, name}`. Unknown and malformed view ids return `404`.
 - `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
   bucket set (the buckets each position inherits unless overridden). Body:
-  `{"bucket_ids": [..]}`.
+  `{"bucket_ids": [..]}`. At most one of the ids may be a scope-dimension
+  bucket; a violating set returns `422` without writing anything.
 - `PUT /api/v1/cash_accounts/:id/buckets` replaces a cash account's bucket set.
-  Body: `{"bucket_ids": [..]}`.
+  Body: `{"bucket_ids": [..]}`. The same at-most-one-scope-bucket rule applies.
 - `PUT /api/v1/securities_accounts/:id/positions/:security_id/buckets` sets the
   per-position override for one security in one depot. An empty `bucket_ids`
   records the **explicit-empty** state (deliberately no buckets), distinct from

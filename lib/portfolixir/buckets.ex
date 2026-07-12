@@ -7,6 +7,11 @@ defmodule Portfolixir.Buckets do
   accounts carry their own bucket set. Views are global `{include | :all, exclude}`
   filters over buckets, with exclude winning.
 
+  One bucket dimension is exclusive (ADR-0024): a depot/cash account carries at
+  most one `"scope"`-dimension bucket (enforced here on assignment), while
+  `"tag"` buckets stay free overlapping tags. The one-time portfolio migration
+  (`seed_portfolio_scope_buckets/1`) seeds a scope bucket + view per portfolio.
+
   This context is the **only** writer of the bucket/view tables and is born
   actor-first (ADR-0017): bucket-definition and assignment writes are routed
   through `Journal.record/3` in the same `Ecto.Multi`, so each is attributable in
@@ -33,8 +38,12 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Engines.BucketResolution
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
+
+  @scope_dimension "scope"
+  @seed_name_suffix " (Portfolio)"
 
   # -- buckets (reads) -------------------------------------------------------
 
@@ -105,7 +114,8 @@ defmodule Portfolixir.Buckets do
       when is_list(bucket_ids) do
     bucket_ids = Enum.uniq(bucket_ids)
 
-    with :ok <- validate_bucket_ids(bucket_ids) do
+    with :ok <- validate_bucket_ids(bucket_ids),
+         :ok <- validate_exclusive_dimension(bucket_ids) do
       entries = Enum.map(bucket_ids, &%{securities_account_id: sa_id, bucket_id: &1})
 
       Multi.new()
@@ -148,7 +158,8 @@ defmodule Portfolixir.Buckets do
       when is_list(bucket_ids) do
     bucket_ids = Enum.uniq(bucket_ids)
 
-    with :ok <- validate_bucket_ids(bucket_ids) do
+    with :ok <- validate_bucket_ids(bucket_ids),
+         :ok <- validate_exclusive_dimension(bucket_ids) do
       entries = Enum.map(bucket_ids, &%{cash_account_id: ca_id, bucket_id: &1})
 
       Multi.new()
@@ -432,6 +443,165 @@ defmodule Portfolixir.Buckets do
     BucketResolution.in_view?(scope.view, Map.get(scope.cash, cash_account_id, []))
   end
 
+  # -- portfolio -> scope-bucket seed (ADR-0024, epic story 2) ----------------
+
+  @doc """
+  Seeds the ADR-0024 portfolio migration: per existing portfolio one
+  exclusive-dimension ("scope") bucket plus one editable view including exactly
+  that bucket, and assigns each of the portfolio's depots and cash accounts to
+  the bucket (pre-existing tag assignments are kept, not replaced).
+
+  Seeded buckets and views carry the portfolio id in `source_portfolio_id`, so
+  the seed is **idempotent** (an already-seeded portfolio is skipped entirely)
+  and `rollback_portfolio_scope_seed/1` can remove exactly what was created.
+  A portfolio whose name is already taken falls back deterministically to
+  `"<name> (Portfolio)"`.
+
+  Bucket creations and account assignments are journaled under `actor` per
+  ADR-0017 (the buckets table is guard-armed); view definitions stay
+  unjournaled per ADR-0018 §5.
+
+  Returns `{:ok, %{buckets_created: n, views_created: n, accounts_tagged: n}}`;
+  a re-run over a fully seeded instance returns all zeros.
+  """
+  def seed_portfolio_scope_buckets(%Actor{} = actor) do
+    empty = %{buckets_created: 0, views_created: 0, accounts_tagged: 0}
+
+    summary =
+      from(p in Portfolio, order_by: [asc: p.id])
+      |> Repo.all()
+      |> Enum.reduce(empty, fn portfolio, acc -> seed_portfolio(actor, portfolio, acc) end)
+
+    {:ok, summary}
+  end
+
+  @doc """
+  Reverts `seed_portfolio_scope_buckets/1`: deletes every bucket and view that
+  carries a `source_portfolio_id` marker — and nothing else. Deleting a seeded
+  bucket cascades its assignments and view links away; user-created buckets,
+  views, and assignments are untouched. Bucket deletes are journaled under
+  `actor`.
+  """
+  def rollback_portfolio_scope_seed(%Actor{} = actor) do
+    Enum.each(seeded(Bucket), fn bucket -> {:ok, _} = delete_bucket(actor, bucket) end)
+    Enum.each(seeded(View), fn view -> {:ok, _} = delete_view(actor, view) end)
+    :ok
+  end
+
+  @doc """
+  What the ADR-0024 portfolio migration created (for the one-time UI notice):
+  the seeded buckets and views, each carrying its `source_portfolio_id`.
+  `migrated?` is false once the seed was rolled back or never ran.
+  """
+  def migration_summary do
+    buckets = seeded(Bucket)
+    views = seeded(View)
+    %{migrated?: buckets != [] or views != [], buckets: buckets, views: views}
+  end
+
+  defp seeded(schema) do
+    Repo.all(from(r in schema, where: not is_nil(r.source_portfolio_id), order_by: [asc: r.id]))
+  end
+
+  defp seed_portfolio(%Actor{} = actor, %Portfolio{} = portfolio, acc) do
+    {bucket, acc} = ensure_seeded_bucket(actor, portfolio, acc)
+    acc = ensure_seeded_view(portfolio, bucket, acc)
+    tag_portfolio_accounts(actor, portfolio, bucket, acc)
+  end
+
+  defp ensure_seeded_bucket(%Actor{} = actor, %Portfolio{} = portfolio, acc) do
+    case Repo.get_by(Bucket, source_portfolio_id: portfolio.id) do
+      %Bucket{} = bucket ->
+        {bucket, acc}
+
+      nil ->
+        bucket = create_seeded_bucket!(actor, portfolio)
+        {bucket, %{acc | buckets_created: acc.buckets_created + 1}}
+    end
+  end
+
+  # Mirrors `create_bucket/2` (journaled insert) but stamps the seed marker,
+  # which is deliberately not castable from attrs.
+  defp create_seeded_bucket!(%Actor{} = actor, %Portfolio{} = portfolio) do
+    changeset =
+      Bucket.changeset(%Bucket{source_portfolio_id: portfolio.id}, %{
+        name: seed_name(portfolio.name, Bucket),
+        dimension: @scope_dimension
+      })
+
+    {:ok, %{bucket: bucket}} =
+      Multi.new()
+      |> Multi.insert(:bucket, changeset)
+      |> Journal.record(actor, resource_type: "bucket", operation: :create, source: :bucket)
+      |> Repo.transaction()
+
+    bucket
+  end
+
+  defp ensure_seeded_view(%Portfolio{} = portfolio, %Bucket{} = bucket, acc) do
+    if Repo.get_by(View, source_portfolio_id: portfolio.id) do
+      acc
+    else
+      create_seeded_view!(portfolio, bucket)
+      %{acc | views_created: acc.views_created + 1}
+    end
+  end
+
+  # The view and its single include link commit together; view definitions are
+  # not journaled (ADR-0018 §5). The seeded view is a plain view — fully
+  # editable, no system special-casing.
+  defp create_seeded_view!(%Portfolio{} = portfolio, %Bucket{} = bucket) do
+    changeset =
+      View.changeset(%View{source_portfolio_id: portfolio.id}, %{
+        name: seed_name(portfolio.name, View),
+        include_all: false
+      })
+
+    {:ok, _} =
+      Multi.new()
+      |> Multi.insert(:view, changeset)
+      |> Multi.insert(:include, fn %{view: view} ->
+        %ViewIncludeBucket{view_id: view.id, bucket_id: bucket.id}
+      end)
+      |> Repo.transaction()
+
+    :ok
+  end
+
+  defp seed_name(name, schema) do
+    if Repo.exists?(from(r in schema, where: r.name == ^name)),
+      do: name <> @seed_name_suffix,
+      else: name
+  end
+
+  defp tag_portfolio_accounts(%Actor{} = actor, %Portfolio{id: pid}, %Bucket{} = bucket, acc) do
+    depots = Repo.all(from(sa in SecuritiesAccount, where: sa.portfolio_id == ^pid))
+    cash_accounts = Repo.all(from(ca in CashAccount, where: ca.portfolio_id == ^pid))
+
+    tagged =
+      Enum.count(depots, &tag_account(&1, bucket, depot_default_bucket_ids(&1.id), actor)) +
+        Enum.count(cash_accounts, &tag_account(&1, bucket, cash_account_bucket_ids(&1.id), actor))
+
+    %{acc | accounts_tagged: acc.accounts_tagged + tagged}
+  end
+
+  # Adds the seeded scope bucket to the account's existing set (idempotent:
+  # already-tagged accounts are skipped). Returns whether a write happened.
+  defp tag_account(account, %Bucket{id: bucket_id}, current_ids, %Actor{} = actor) do
+    if bucket_id in current_ids do
+      false
+    else
+      :ok = set_account_buckets(actor, account, current_ids ++ [bucket_id])
+      true
+    end
+  end
+
+  defp set_account_buckets(actor, %SecuritiesAccount{} = depot, ids),
+    do: set_depot_default_buckets(actor, depot, ids)
+
+  defp set_account_buckets(actor, %CashAccount{} = cash, ids),
+    do: set_cash_account_buckets(actor, cash, ids)
+
   # -- helpers ---------------------------------------------------------------
 
   defp all_depot_defaults do
@@ -544,6 +714,20 @@ defmodule Portfolixir.Buckets do
     if Enum.all?(bucket_ids, &MapSet.member?(existing, &1)),
       do: :ok,
       else: {:error, :bucket_ids}
+  end
+
+  # ADR-0024 invariant: an account carries AT MOST ONE bucket of the exclusive
+  # "scope" dimension, so scope-scoped totals always add up. Free "tag" buckets
+  # stay unrestricted. Rejected with `{:error, :exclusive_bucket_conflict}` (a
+  # clean 422 at the web/MCP layer) before anything is written.
+  defp validate_exclusive_dimension(bucket_ids) do
+    scope_count =
+      Repo.aggregate(
+        from(b in Bucket, where: b.id in ^bucket_ids and b.dimension == @scope_dimension),
+        :count
+      )
+
+    if scope_count > 1, do: {:error, :exclusive_bucket_conflict}, else: :ok
   end
 
   defp position_override_query(sa_id, sec_id) do
