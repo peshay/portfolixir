@@ -178,6 +178,11 @@ Geldkonto angelegt — im Dialog oder über API/MCP — löst sich die interne
 Bindung deterministisch auf ein Standard-Portfolio auf (den ältesten
 Datensatz, sonst ein frisch angelegtes „Default“), ohne nachzufragen.
 
+Durchgearbeitete Beispiele — Haushalts-Aufteilung, Strategie-Ansichten mit
+eigenen SOLL-Plänen, Übersetzen von Portfolio-Performance-Gewohnheiten und
+das Ausschließen einer Position aus der Steuerung — stehen im Leitfaden
+[Buckets & Ansichten](guides/buckets-and-views.html).
+
 ### Portfoliodatensätze (Kompatibilität)
 
 Portfolios bleiben als **interne Kompatibilitätsdatensätze** im Schema, in der
@@ -495,6 +500,9 @@ Hinweis** mit den angelegten Ansichten; das Schließen wird gemerkt. Die
 Standard-Ansicht ist auch über die API (`GET`/`PUT
 /api/v1/settings/default_view`) und die MCP-Tools
 `portfolixir.settings.get_default_view` / `set_default_view` les- und setzbar.
+Durchgearbeitete Klick-für-Klick-Setups (Haushalts-Aufteilung,
+Strategie-Ansichten, PP-Migrationsgewohnheiten) stehen im Leitfaden
+[Buckets & Ansichten](guides/buckets-and-views.html).
 
 **Die SOLL-Seite folgt der aktiven Sicht (ADR-0020).** Die Spalten Ziel, Drift
 und *Σ target top level* der Drift-Tabelle spiegeln den **Plan der aktiven

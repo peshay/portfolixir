@@ -166,6 +166,10 @@ created — in the dialog or over the API/MCP — its internal binding resolves
 to one deterministic default portfolio (the earliest record, or a freshly
 created "Default"), without asking.
 
+For worked examples — a household split, strategy views with their own target
+plans, translating Portfolio Performance habits, and excluding a position from
+steering — see the [Buckets & Views Guide](guides/buckets-and-views.html).
+
 ### Portfolio records (compatibility)
 
 Portfolios remain in the schema, the JSON API, and the import path as
@@ -463,7 +467,9 @@ migration that turned each portfolio into a bucket and a view of the same
 name, the page shows a **dismissible notice** listing the seeded views; the
 dismissal is remembered. The default view is also readable and settable over
 the API (`GET`/`PUT /api/v1/settings/default_view`) and the MCP tools
-`portfolixir.settings.get_default_view` / `set_default_view`.
+`portfolixir.settings.get_default_view` / `set_default_view`. Worked
+click-by-click setups (household split, strategy views, PP-migration habits)
+are in the [Buckets & Views Guide](guides/buckets-and-views.html).
 
 **The target side follows the active view (ADR-0020).** The drift table's
 Target, Drift and *Σ target top level* columns reflect the **active view's plan**
