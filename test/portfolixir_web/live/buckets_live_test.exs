@@ -105,9 +105,41 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     })
     |> render_submit()
 
-    filter = Buckets.view_filter(created.id)
+    {:ok, filter} = Buckets.view_filter(created.id)
     assert filter.include == [core.id]
     assert filter.exclude == [spec.id]
+  end
+
+  # User story (fix round, matches-nothing views):
+  # As a local portfolio maintainer,
+  # I want the Views page to flag a view whose resolution matches no accounts,
+  # so that I fix its bucket set instead of wondering about a silent 0 total.
+  #
+  # Acceptance criteria:
+  # - A view whose only include bucket was deleted carries the
+  #   "matches no accounts" hint; views that still match do not.
+  test "flags a view whose resolution matches no accounts", %{conn: conn} do
+    %{depot: depot} = world()
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Orphan"})
+
+    {:ok, orphaned} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Orphaned", include_all: false})
+
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), orphaned, [bucket.id], [])
+
+    {:ok, live_bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Live"})
+    {:ok, living} = Buckets.create_view(Actor.owner_ui(), %{name: "Living", include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), living, [live_bucket.id], [])
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [live_bucket.id])
+
+    # Deleting the only include bucket empties the orphaned view's resolution.
+    {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), bucket)
+
+    {:ok, view, _html} = live(conn, "/buckets")
+
+    assert has_element?(view, "#view-#{orphaned.id} [data-role='view-matches-nothing']")
+    refute has_element?(view, "#view-#{living.id} [data-role='view-matches-nothing']")
   end
 
   test "renames and deletes a bucket", %{conn: conn} do
@@ -327,7 +359,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       |> render_submit()
 
     assert html =~ "That bucket no longer exists"
-    filter = Buckets.view_filter(v.id)
+    {:ok, filter} = Buckets.view_filter(v.id)
     assert filter.include == []
     assert filter.exclude == []
   end

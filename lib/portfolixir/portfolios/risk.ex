@@ -88,8 +88,14 @@ defmodule Portfolixir.Portfolios.Risk do
     {valuation_opts, risk_opts} =
       Keyword.split(opts, [:prices, :base_currency, :view])
 
-    valuation = Valuation.for_portfolio(portfolio_id, valuation_opts)
+    # A vanished view degrades to `{:error, :view_not_found}` (fix round).
+    case Valuation.for_portfolio(portfolio_id, valuation_opts) do
+      {:error, :view_not_found} = error -> error
+      valuation -> build_risk(valuation, risk_opts)
+    end
+  end
 
+  defp build_risk(valuation, risk_opts) do
     exposures =
       valuation
       |> steerable_positions()

@@ -65,12 +65,26 @@ defmodule PortfolixirWeb.DashboardLive do
     first = Portfolios.first_portfolio()
     base_currency = (first && first.base_currency_code) || "EUR"
     view = view_id && Buckets.get_view(view_id)
+    # The default view can vanish between the settings read and here (fix
+    # round): degrade to the Everything scope instead of crashing the async.
+    view_id = view && view.id
 
     %{
-      name: (view && view.name) || gettext("Everything"),
-      valuation: Valuation.for_view(view_id, base_currency: base_currency),
+      # `name: nil` renders as the localized "Everything" label at render time
+      # (fix round): this function runs inside `start_async`'s task process,
+      # where the user's Gettext locale is NOT set — a gettext call here
+      # always came out English ("EVERYTHING" after the card's CSS uppercase).
+      name: view && view.name,
+      valuation: everything_or_view_valuation(view_id, base_currency),
       ttwror: first && ytd_ttwror(first.id, view_id)
     }
+  end
+
+  defp everything_or_view_valuation(view_id, base_currency) do
+    case Valuation.for_view(view_id, base_currency: base_currency) do
+      {:error, :view_not_found} -> Valuation.for_view(nil, base_currency: base_currency)
+      valuation -> valuation
+    end
   end
 
   @impl true
@@ -150,7 +164,7 @@ defmodule PortfolixirWeb.DashboardLive do
           </article>
         <% else %>
           <a id="dashboard-wealth-card" href="/portfolio" class="stat stat--link">
-            <span><%= @wealth_card.name %></span>
+            <span><%= @wealth_card.name || gettext("Everything") %></span>
             <strong>
               <%= Format.money(@wealth_card.valuation.total_with_cash) %> <%= @wealth_card.valuation.base_currency %>
             </strong>

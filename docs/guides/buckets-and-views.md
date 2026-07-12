@@ -103,6 +103,12 @@ Buckets and views replace that habit without the bookkeeping split.
   listing the seeded views. Rename both freely on the **Views** page
   (**Rename bucket** / **Rename view**) — the names were only carried over,
   nothing depends on them.
+- **Migrated an empty database, restored data afterwards?** The one-time
+  migration only converts the portfolios it finds. If you ran the upgrade
+  against an empty database and restored your data later, run
+  `mix portfolixir.seed_scope_buckets` once — it seeds the missing scope
+  bucket + view per portfolio and is safe to re-run (already-seeded
+  portfolios are skipped).
 - **What imports do now.** The import preview no longer asks for a target
   portfolio. Instead it offers an editable bucket tag — *The accounts created
   by this import get the bucket tag:* — pre-filled with a date-stamped

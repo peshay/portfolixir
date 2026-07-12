@@ -465,7 +465,9 @@ bucket membership applies retroactively to the whole history, and bucket
 changes are recorded in the audit journal. After the one-time ADR-0024
 migration that turned each portfolio into a bucket and a view of the same
 name, the page shows a **dismissible notice** listing the seeded views; the
-dismissal is remembered. The default view is also readable and settable over
+dismissal is remembered. (Migrated an empty database and restored data
+afterwards? Run `mix portfolixir.seed_scope_buckets` once to seed the
+missing bucket/view pairs — it is idempotent.) The default view is also readable and settable over
 the API (`GET`/`PUT /api/v1/settings/default_view`) and the MCP tools
 `portfolixir.settings.get_default_view` / `set_default_view`. Worked
 click-by-click setups (household split, strategy views, PP-migration habits)

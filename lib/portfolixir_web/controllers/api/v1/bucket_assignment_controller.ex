@@ -75,6 +75,9 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
       nil -> not_found(conn)
       :error -> not_found(conn)
       {:error, :bucket_ids} -> unprocessable(conn, %{bucket_ids: ["is invalid"]})
+      # The exclusive dimension holds for overrides too (fix round): at most
+      # one scope bucket per position, same 422 as the account endpoints.
+      {:error, :exclusive_bucket_conflict} -> exclusive_conflict(conn)
       {:error, _reason} -> unprocessable(conn, %{detail: ["could not set override"]})
     end
   end

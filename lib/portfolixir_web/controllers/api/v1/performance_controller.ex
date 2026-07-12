@@ -23,6 +23,11 @@ defmodule PortfolixirWeb.Api.V1.PerformanceController do
           conn
           |> put_status(:unprocessable_entity)
           |> json(%{errors: %{period: ["is invalid"]}})
+
+        # The view vanished between resolve and read (fix round TOCTOU):
+        # still a plain 404, never a 500.
+        {:error, :view_not_found} ->
+          not_found(conn)
       end
     else
       :error -> not_found(conn)

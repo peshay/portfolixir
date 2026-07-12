@@ -10,13 +10,16 @@ defmodule PortfolixirWeb.Api.V1.ValuationController do
     with {:ok, id} <- parse_id(portfolio_id),
          portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id),
          {:ok, view} <- ViewParam.resolve(params) do
-      data =
-        id
-        |> Valuation.for_portfolio(ViewParam.opts(view))
-        |> JSON.valuation()
-        |> ViewParam.put_active(view)
+      # The view can vanish between resolve and read (fix round TOCTOU):
+      # still a plain 404, never a 500.
+      case Valuation.for_portfolio(id, ViewParam.opts(view)) do
+        {:error, :view_not_found} ->
+          not_found(conn)
 
-      json(conn, %{data: data})
+        valuation ->
+          data = valuation |> JSON.valuation() |> ViewParam.put_active(view)
+          json(conn, %{data: data})
+      end
     else
       :error -> not_found(conn)
       nil -> not_found(conn)

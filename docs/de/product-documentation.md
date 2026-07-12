@@ -496,7 +496,10 @@ heute*: die aktuelle Bucket-Zuordnung der Ansicht gilt rückwirkend für die
 gesamte Historie, und Bucket-Änderungen stehen im Audit-Journal. Nach der
 einmaligen ADR-0024-Migration, die aus jedem Portfolio einen Bucket und eine
 gleichnamige Ansicht gemacht hat, zeigt die Seite einen **schließbaren
-Hinweis** mit den angelegten Ansichten; das Schließen wird gemerkt. Die
+Hinweis** mit den angelegten Ansichten; das Schließen wird gemerkt. (Leere
+Datenbank migriert und Daten erst danach eingespielt? Einmal
+`mix portfolixir.seed_scope_buckets` ausführen, um die fehlenden
+Bucket/Ansicht-Paare anzulegen — der Befehl ist idempotent.) Die
 Standard-Ansicht ist auch über die API (`GET`/`PUT
 /api/v1/settings/default_view`) und die MCP-Tools
 `portfolixir.settings.get_default_view` / `set_default_view` les- und setzbar.

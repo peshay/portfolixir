@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.ImportsLive do
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.Preview
@@ -197,6 +198,7 @@ defmodule PortfolixirWeb.ImportsLive do
               name="bucket_tag"
               value={@mapping.bucket_tag}
               disabled={@mapping.bucket_skip}
+              maxlength="100"
               placeholder={gettext("e.g. PP Import")}
             />
           </label>
@@ -680,14 +682,38 @@ defmodule PortfolixirWeb.ImportsLive do
   # `Portfolios.default_portfolio/1` itself — no portfolio param here.
   defp build_apply_params(mapping, assigns) do
     with {:ok, cash_params} <- cash_params(mapping, assigns.cash_pp_names),
-         {:ok, depot_params} <- depot_params(mapping, assigns.depot_pp_names) do
+         {:ok, depot_params} <- depot_params(mapping, assigns.depot_pp_names),
+         bucket_tag = effective_bucket_tag(mapping),
+         :ok <- validate_bucket_tag(bucket_tag) do
       {:ok,
        %{
          cash_accounts: cash_params,
          depots: depot_params,
-         bucket_tag: effective_bucket_tag(mapping)
+         bucket_tag: bucket_tag
        }}
     end
+  end
+
+  # Pre-validates the tag BEFORE the apply starts (fix round): a too-long or
+  # scope-colliding tag fails here with a clear message instead of aborting
+  # the whole import at the very end.
+  defp validate_bucket_tag(nil), do: :ok
+
+  defp validate_bucket_tag(tag) do
+    case Buckets.validate_tag_bucket_name(tag) do
+      :ok -> :ok
+      {:error, reason} -> {:error, bucket_tag_error_message(reason)}
+    end
+  end
+
+  defp bucket_tag_error_message(:name_too_long) do
+    gettext("The bucket tag is too long — bucket names carry at most 100 characters.")
+  end
+
+  defp bucket_tag_error_message(:name_taken_by_scope_bucket) do
+    gettext(
+      "The bucket tag names an existing scope bucket. Scope buckets are exclusive and cannot be used as import tags — pick a different tag name."
+    )
   end
 
   # Skip checked or a blank field → no tag (nil); the applier treats nil as
@@ -784,6 +810,17 @@ defmodule PortfolixirWeb.ImportsLive do
   # preview tells the user exactly which row and rule failed.
   defp apply_error_message(%{row: row, reason: {:insert_failed, %Ecto.Changeset{} = changeset}}) do
     gettext("Row %{row}: %{errors}", row: row || "?", errors: changeset_error_text(changeset))
+  end
+
+  # The tag write failed inside the apply (fix round belt-and-braces for the
+  # race where the colliding scope bucket appears after the pre-validation):
+  # surface the same clear message, never an `inspect` dump.
+  defp apply_error_message({:bucket_tag_failed, :name_taken_by_scope_bucket}) do
+    bucket_tag_error_message(:name_taken_by_scope_bucket)
+  end
+
+  defp apply_error_message({:bucket_tag_failed, %Ecto.Changeset{} = changeset}) do
+    gettext("Bucket tag: %{errors}", errors: changeset_error_text(changeset))
   end
 
   defp apply_error_message(reason), do: inspect(reason)

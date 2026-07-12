@@ -1,0 +1,33 @@
+## Ecto changeset error messages surfaced in the UI (fix round). Runtime
+## translations through `Gettext.dgettext(..., "errors", msg, opts)` — the
+## msgids below are Ecto's built-in validation messages, so this template is
+## maintained by hand (the extractor cannot see runtime message ids).
+msgid ""
+msgstr ""
+"Language: en\n"
+
+msgid "is invalid"
+msgstr ""
+
+msgid "can't be blank"
+msgstr ""
+
+msgid "must be greater than %{number}"
+msgstr ""
+
+msgid "must be greater than or equal to %{number}"
+msgstr ""
+
+msgid "must be less than %{number}"
+msgstr ""
+
+msgid "must be less than or equal to %{number}"
+msgstr ""
+
+msgid "has already been taken"
+msgstr ""
+
+msgid "should be %{count} character(s)"
+msgid_plural "should be %{count} character(s)"
+msgstr[0] ""
+msgstr[1] ""

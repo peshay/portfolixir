@@ -367,6 +367,16 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       {:ok, bucket} ->
         change_buckets(socket, owner, id, fn current -> current ++ [bucket.id] end)
 
+      # A scope bucket's name is never reused as a free tag (fix round).
+      {:error, :name_taken_by_scope_bucket} ->
+        {:noreply,
+         bucket_failure(
+           socket,
+           owner,
+           id,
+           gettext("That name belongs to a scope bucket — pick a different tag name.")
+         )}
+
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, bucket_failure(socket, owner, id, changeset_error(changeset))}
     end

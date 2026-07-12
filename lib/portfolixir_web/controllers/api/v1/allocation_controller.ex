@@ -19,6 +19,11 @@ defmodule PortfolixirWeb.Api.V1.AllocationController do
 
         {:error, :not_found} ->
           not_found(conn)
+
+        # The view vanished between resolve and read (fix round TOCTOU):
+        # still a plain 404, never a 500.
+        {:error, :view_not_found} ->
+          not_found(conn)
       end
     else
       :missing -> unprocessable(conn, %{classification_id: ["is required"]})

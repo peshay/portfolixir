@@ -49,6 +49,7 @@ defmodule PortfolixirWeb.ViewSwitcher do
           class={["view-chip", is_nil(@active_view) && "is-active"]}
           href={view_href(@current_path, "total")}
           aria-current={if is_nil(@active_view), do: "true", else: nil}
+          aria-label={gettext("Everything")}
           data-has-plan={if nil in @planned_view_ids, do: "", else: nil}
           title={plan_marker_title(nil in @planned_view_ids)}
         >
@@ -67,6 +68,7 @@ defmodule PortfolixirWeb.ViewSwitcher do
             ]}
             href={view_href(@current_path, view.id)}
             aria-current={if @active_view && @active_view.id == view.id, do: "true", else: nil}
+            aria-label={view.name}
             data-has-plan={if view.id in @planned_view_ids, do: "", else: nil}
             title={plan_marker_title(view.id in @planned_view_ids)}
           >
@@ -142,8 +144,12 @@ defmodule PortfolixirWeb.ViewSwitcher do
     URI.to_string(%{uri | query: query})
   end
 
-  # The accessible name for the subtle plan marker (the `•` is aria-hidden, so
-  # the title carries the meaning for assistive tech and on hover).
+  # The accessible name of each chip is pinned to the view name via aria-label
+  # (fix round): without it, the plan-dot `title` tooltip could win the
+  # accessible-name computation in some AT and announce "Has a target plan…"
+  # instead of the view.
+  # The `title` below is the plan marker's hover tooltip only (the `•` is
+  # aria-hidden).
   defp plan_marker_title(true), do: gettext("Has a target plan for the current classification")
   defp plan_marker_title(false), do: nil
 end

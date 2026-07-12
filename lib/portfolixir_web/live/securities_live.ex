@@ -1985,6 +1985,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
            gettext("That bucket no longer exists. Refresh and try again.")
          )}
 
+      # ADR-0024 exclusive dimension (fix round): overrides are validated like
+      # the account paths — at most one scope bucket per position.
+      {:error, :exclusive_bucket_conflict} ->
+        {:noreply,
+         put_flash_message(
+           socket,
+           :error,
+           gettext("A position can carry at most one scope bucket — pick one.")
+         )}
+
       _ ->
         {:noreply, put_flash_message(socket, :error, gettext("Could not save position buckets"))}
     end

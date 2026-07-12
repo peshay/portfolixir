@@ -83,4 +83,12 @@ defmodule Portfolixir.Settings do
   @doc "Dismisses the one-time portfolio-migration notice permanently."
   @spec dismiss_migration_notice() :: :ok
   def dismiss_migration_notice, do: put(@migration_notice_key, "true")
+
+  @doc """
+  Forgets a dismissal of the portfolio-migration notice (fix round): called by
+  the seed rollback, so a later re-seed is announced again instead of staying
+  silently suppressed by a stale dismissal.
+  """
+  @spec reset_migration_notice() :: :ok
+  def reset_migration_notice, do: delete(@migration_notice_key)
 end

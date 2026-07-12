@@ -64,10 +64,8 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     assert %{name: "Alpha", include_all: false} = alpha_view
     assert %{name: "Beta", include_all: false} = beta_view
 
-    assert Buckets.view_filter(alpha_view.id) == %{
-             include: [alpha_bucket.id],
-             exclude: []
-           }
+    assert Buckets.view_filter(alpha_view.id) ==
+             {:ok, %{include: [alpha_bucket.id], exclude: []}}
 
     # Assignments: the seeded scope bucket is added, the user tag is kept.
     assert Enum.sort(Buckets.depot_default_bucket_ids(alpha.depot.id)) ==
@@ -164,6 +162,143 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
     assert bucket.name == "Krypto (Portfolio)"
     assert view.name == "Krypto (Portfolio)"
+  end
+
+  # User story (fix round, seed naming robustness):
+  # As a local portfolio maintainer with clashing portfolio names,
+  # I want the seed to keep numbering fallback names until a free one exists,
+  # so that the migration never aborts on a name collision.
+  #
+  # Acceptance criteria:
+  # - Three same-named portfolios seed three distinct bucket/view pairs
+  #   ("<name>", "<name> (Portfolio)", "<name> (Portfolio 2)").
+  # - A pre-existing user bucket already named "<name> (Portfolio)" pushes the
+  #   seed to the next numbered variant instead of failing.
+  test "numbers fallback names until a free bucket AND view name is found" do
+    base_world(name: "Krypto", cash_name: "C1", depot_name: "D1")
+    base_world(name: "Krypto", cash_name: "C2", depot_name: "D2")
+    base_world(name: "Krypto", cash_name: "C3", depot_name: "D3")
+
+    assert {:ok, %{buckets_created: 3, views_created: 3, accounts_tagged: 6}} =
+             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+
+    %{buckets: buckets, views: views} = Buckets.migration_summary()
+
+    assert Enum.map(buckets, & &1.name) == [
+             "Krypto",
+             "Krypto (Portfolio)",
+             "Krypto (Portfolio 2)"
+           ]
+
+    assert Enum.map(views, & &1.name) == [
+             "Krypto",
+             "Krypto (Portfolio)",
+             "Krypto (Portfolio 2)"
+           ]
+  end
+
+  test "a pre-existing user bucket named \"<name> (Portfolio)\" pushes to the next number" do
+    _world = base_world(name: "Krypto", cash_name: "K Cash", depot_name: "K Depot")
+
+    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto (Portfolio)"})
+
+    assert {:ok, %{buckets_created: 1, views_created: 1}} =
+             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+
+    assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
+    assert bucket.name == "Krypto (Portfolio 2)"
+    assert view.name == "Krypto (Portfolio 2)"
+  end
+
+  # User story (fix round, over-long portfolio names):
+  # As a local portfolio maintainer with a portfolio name longer than the
+  # 100-character bucket/view limit,
+  # I want the seed to truncate the base name before suffixing,
+  # so that the migration never fails changeset validation.
+  test "truncates portfolio names longer than the 100-char bucket/view limit" do
+    long_name = String.duplicate("N", 120)
+    base_world(name: long_name, cash_name: "L Cash", depot_name: "L Depot")
+
+    assert {:ok, %{buckets_created: 1, views_created: 1}} =
+             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+
+    assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
+    assert bucket.name == String.duplicate("N", 100)
+    assert view.name == bucket.name
+    assert String.length(bucket.name) <= 100
+  end
+
+  # User story (fix round, re-seed tolerance):
+  # As a local portfolio maintainer who assigned my own scope bucket to an
+  # account after a rollback,
+  # I want a re-seed to skip that account instead of crashing,
+  # so that my scope decision wins and the summary tells me what was skipped.
+  #
+  # Acceptance criteria:
+  # - The account keeps its existing scope bucket; the seed counts it under
+  #   `skipped_existing_scope`.
+  test "re-seed skips accounts that already carry a different scope bucket" do
+    world = base_world(name: "Alpha", cash_name: "A Cash", depot_name: "A Depot")
+
+    {:ok, own_scope} =
+      Buckets.create_bucket(Actor.owner_ui(), %{name: "Eigene Scope", dimension: "scope"})
+
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [own_scope.id])
+
+    assert {:ok,
+            %{
+              buckets_created: 1,
+              views_created: 1,
+              accounts_tagged: 1,
+              skipped_existing_scope: 1
+            }} = Buckets.seed_portfolio_scope_buckets(@seed_actor)
+
+    # The user's scope assignment survived untouched; only the cash account
+    # was tagged with the seeded bucket.
+    assert Buckets.depot_default_bucket_ids(world.depot.id) == [own_scope.id]
+
+    %{buckets: [seeded_bucket]} = Buckets.migration_summary()
+    assert Buckets.cash_account_bucket_ids(world.cash.id) == [seeded_bucket.id]
+  end
+
+  # User story (fix round, restore-after-migrate installs):
+  # As a local portfolio maintainer who migrated an empty database and
+  # restored my data afterwards,
+  # I want `mix portfolixir.seed_scope_buckets` to create the missing
+  # bucket/view pairs on demand,
+  # so that the restored portfolios get the same migration as everyone else.
+  # (The task is a thin wrapper over this exact function + actor.)
+  test "re-running the seed after a data restore creates the missing pairs" do
+    # The upgrade migration ran against an empty database: nothing to seed.
+    assert {:ok, %{buckets_created: 0, views_created: 0, accounts_tagged: 0}} =
+             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+
+    # The user restores their data afterwards…
+    base_world(name: "Restored", cash_name: "R Cash", depot_name: "R Depot")
+
+    # …and the task's underlying call seeds exactly the missing pair.
+    assert {:ok, %{buckets_created: 1, views_created: 1, accounts_tagged: 2}} =
+             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+
+    assert %{migrated?: true, buckets: [%{name: "Restored"}], views: [%{name: "Restored"}]} =
+             Buckets.migration_summary()
+  end
+
+  # User story (fix round, migration notice after rollback):
+  # As a local portfolio maintainer who rolled the seed back,
+  # I want a later re-seed to be announced again on the Wealth page,
+  # so that a stale dismissal never hides a fresh migration.
+  test "rollback clears the dismissed-notice flag so a re-seed announces again" do
+    base_world(name: "Alpha", cash_name: "A Cash", depot_name: "A Depot")
+
+    assert {:ok, _} = Buckets.seed_portfolio_scope_buckets(@seed_actor)
+    :ok = Portfolixir.Settings.dismiss_migration_notice()
+    assert Portfolixir.Settings.migration_notice_dismissed?()
+
+    assert :ok = Buckets.rollback_portfolio_scope_seed(@seed_actor)
+
+    refute Portfolixir.Settings.migration_notice_dismissed?()
   end
 
   # User story (ADR-0024 kill criterion / epic story 2 equivalence proof):
