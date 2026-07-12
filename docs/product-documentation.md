@@ -362,7 +362,8 @@ into tabs (ADR-0022): **Holdings** (value, performance, data quality, cash),
 received dividends and interest report). The Holdings tab shows the
 total value including cash, the cash quote, and both the TTWROR and the
 money-weighted **IRR** for a selectable period (year-to-date, one/three/five
-years, or since the first transaction) with the cumulative performance chart. On the **Allocation & targets** tab, the **allocation sunburst**
+years, or since the first transaction; one year is the default) with the
+cumulative performance chart. On the **Allocation & targets** tab, the **allocation sunburst**
 shows the classification as concentric rings — the inner ring is the top-level
 categories, each outer ring breaks one level down with sub-category arcs nested
 inside their parent, and the **outermost ring shows the individual positions**
@@ -379,13 +380,16 @@ classification tree from the selector. The drift table beneath it lists every ca
 order with **sub-categories indented** under their parent, comparing the
 rolled-up actual weight against the stored target and restating the drift in
 the base currency. The tree starts collapsed at the
-top level; every row with children carries a **toggle (▸)** that reveals its
-direct children — subcategories and positions alike — and **Expand all /
-Collapse all** controls open or fold the whole tree down to the single
+top level; every row with children carries a **toggle (▸)** — the whole
+category-name cell is clickable — that reveals its direct children —
+subcategories and positions alike (the grey *Unassigned* bucket expands the
+same way into its member securities) — and a single **Expand all / Collapse
+all** toggle above the table opens or folds the whole tree down to the single
 position. A **Tree | Positions** switch swaps the hierarchy for a flat
 rebalancing worklist: one row per security (cash included) with its category
-as context, sorted by absolute drift by default and re-sortable via the
-column heads. A category with directly assigned securities expands into its member securities, each with its value,
+as context, sorted by signed drift by default (most overweight first, most
+underweight last) and re-sortable via the column heads (value, drift, or
+category). A category with directly assigned securities expands into its member securities, each with its value,
 weight, its share of the category drift, and a display-only **rebalancing
 hint**: the indicative number of units to sell (positive drift) or buy
 (negative) at the valuation's price to close the gap (ADR-0023). The hint

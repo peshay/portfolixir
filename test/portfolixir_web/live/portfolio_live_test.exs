@@ -273,7 +273,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # The tree starts at the top level (owner request); expanding reveals the
     # child row with its nested class and sub-category name.
-    view |> element(~s([data-role="expand-all-categories"])) |> render_click()
+    view |> element(~s([data-role="toggle-all-categories"])) |> render_click()
     expanded = view |> element(".drift-table") |> render()
     assert expanded =~ "is-child"
     assert expanded =~ "Core Tech"
@@ -459,12 +459,14 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     render_async(view)
 
-    assert view |> element(~s(button[phx-value-period="max"])) |> render() =~ "is-active"
+    # The default period is 1y (UAT fix round) — "max" grows unreadable as
+    # the history accumulates.
+    assert view |> element(~s(button[phx-value-period="1y"])) |> render() =~ "is-active"
 
-    html = view |> element(~s(button[phx-value-period="1y"])) |> render_click()
+    html = view |> element(~s(button[phx-value-period="max"])) |> render_click()
 
     # No new async round needed — the cached daily series is re-chained.
-    assert view |> element(~s(button[phx-value-period="1y"])) |> render() =~ "is-active"
+    assert view |> element(~s(button[phx-value-period="max"])) |> render() =~ "is-active"
     assert html =~ "8.0"
   end
 
@@ -501,10 +503,13 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # so that I can pull a missing rate and have the cash valued without leaving
   # the app or waiting for the 12 h background sync (issue #432).
   #
-  # Acceptance criteria:
+  # Acceptance criteria (UAT fix round: background run, inline status — no toast):
   # - A "Sync exchange rates" button is shown in the cash section.
-  # - Clicking it runs the sync and confirms with a status toast.
-  test "syncs exchange rates on demand from the cash section", %{conn: conn} do
+  # - Clicking it starts a background sync: the button is disabled and an
+  #   inline status text shows progress while it runs.
+  # - Completion reports inline next to the button (count on success), not
+  #   via a status toast, and the figures reload.
+  test "syncs exchange rates in the background with inline status", %{conn: conn} do
     seed_world()
 
     {:ok, view, _html} = live(conn, "/portfolio")
@@ -512,18 +517,31 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     assert html =~ "Sync exchange rates"
 
-    toast =
+    syncing =
       view
       |> element("#portfolio-cash button", "Sync exchange rates")
       |> render_click()
 
-    assert toast =~ "Exchange rates synced"
+    # While the background run is in flight: disabled button, inline progress.
+    # (Asserted on the click-time render — the fake sync completes instantly,
+    # so a fresh element query would race the completion message.)
+    assert syncing =~ "Syncing exchange rates…"
+    assert syncing =~ ~r/<button[^>]*phx-click="sync_rates"[^>]*\sdisabled/
 
-    # Drain the figure reloads the sync kicks off.
+    # Drain the sync and the figure reloads it kicks off.
     render_async(view)
+    html = render_async(view)
+
+    # Inline result line instead of a toast.
+    result = view |> element(~s([data-role="fx-sync-result"])) |> render()
+    assert result =~ "Exchange rates synced"
+    refute html =~ "status-toast--success"
+
+    # The button is usable again.
+    refute has_element?(view, ~s(#portfolio-cash button[disabled]), "Sync exchange rates")
   end
 
-  test "shows an error toast when the exchange-rate sync fails", %{conn: conn} do
+  test "shows an inline error when the exchange-rate sync fails", %{conn: conn} do
     seed_world()
 
     previous = Application.get_env(:portfolixir, Portfolixir.Fx.RateSync)
@@ -533,12 +551,15 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     render_async(view)
 
-    toast =
-      view
-      |> element("#portfolio-cash button", "Sync exchange rates")
-      |> render_click()
+    view
+    |> element("#portfolio-cash button", "Sync exchange rates")
+    |> render_click()
 
-    assert toast =~ "reach the exchange-rate provider"
+    html = render_async(view)
+
+    result = view |> element(~s([data-role="fx-sync-result"])) |> render()
+    assert result =~ "reach the exchange-rate provider"
+    refute html =~ "status-toast--error"
   end
 
   # User story:
@@ -1319,6 +1340,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert position_row =~ "Sell"
     assert position_row =~ "2.11"
     assert position_row =~ "units"
+    # The hint renders in aligned parts (verb / ≈ / quantity / unit) so the
+    # quantities line up across rows (UAT fix round).
+    assert position_row =~ ~s(class="rebalance-verb")
+    assert position_row =~ ~s(class="rebalance-qty")
 
     # Collapse again: the position rows disappear.
     view
@@ -1662,10 +1687,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert length(fills) >= 2
   end
 
-  # User story (owner request, reconsolidation follow-up):
+  # User story (owner request, reconsolidation follow-up + UAT fix round):
   # As a local portfolio maintainer reading the allocation tree,
   # I want every category row to expand/collapse its direct children —
-  # subcategories and positions alike — plus expand-all/collapse-all controls,
+  # subcategories and positions alike — plus ONE expand/collapse-all toggle
+  # directly above the drift table,
   # so that the first look is the top-level bird's view and I can drill down
   # to any single position without scrolling through the whole tree.
   #
@@ -1673,8 +1699,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # - By default only top-level categories are visible (collapsed).
   # - A row's chevron reveals its direct children (subcategory rows and/or
   #   its own positions); collapsing an ancestor hides the whole subtree.
-  # - "Expand all" reveals every level down to the positions; "collapse all"
-  #   returns to the top-level view.
+  # - A single toggle button reads "Expand all" while anything is collapsed;
+  #   clicking it reveals every level down to the positions and flips the
+  #   label to "Collapse all"; clicking again returns to the top-level view.
   test "allocation tree collapses to top level and expands down to positions",
        %{conn: conn} do
     world = seed_world()
@@ -1725,32 +1752,116 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # The subcategory's own position stays hidden until Subcore expands too.
     refute drift_table.() =~ "Sub ETF"
 
-    # Expand all: every level down to the positions.
-    view |> element(~s([data-role="expand-all-categories"])) |> render_click()
-    assert drift_table.() =~ "Sub ETF"
+    # One toggle above the table: it reads "Expand all" while collapsed,
+    # expands every level down to the positions, then flips its label.
+    toggle = fn -> view |> element(~s([data-role="toggle-all-categories"])) end
+    assert toggle.() |> render() =~ "Expand all"
 
-    # Collapse all: back to the top-level bird's view.
-    view |> element(~s([data-role="collapse-all-categories"])) |> render_click()
+    toggle.() |> render_click()
+    assert drift_table.() =~ "Sub ETF"
+    assert toggle.() |> render() =~ "Collapse all"
+
+    # Clicking again: back to the top-level bird's view, label flips back.
+    toggle.() |> render_click()
     refute drift_table.() =~ "Subcore"
+    refute has_element?(view, ~s([data-role="allocation-position"]))
+    assert toggle.() |> render() =~ "Expand all"
+
+    # The two separate header buttons are gone.
+    refute has_element?(view, ~s([data-role="expand-all-categories"]))
+    refute has_element?(view, ~s([data-role="collapse-all-categories"]))
+  end
+
+  # User story (UAT fix round):
+  # As a local portfolio maintainer with unassigned holdings,
+  # I want the "Unassigned" tree row to expand like a category row,
+  # so that I can see WHICH securities are unassigned without leaving the
+  # allocation view.
+  #
+  # Acceptance criteria:
+  # - The Unassigned row carries a chevron toggle; expanding it lists the
+  #   unassigned positions with name, market value and actual weight
+  #   (target/drift stay em-dashes).
+  # - The assign-hint link stays in place.
+  test "the Unassigned tree row expands into its positions", %{conn: conn} do
+    world = seed_world()
+
+    # A holding that is NOT assigned in the active classification.
+    loose_security = WorldFixtures.create_security!(name: "Loose ETF", ticker: "LSE")
+    WorldFixtures.buy!(world, loose_security, quantity: "2", price: "50", date: ~D[2026-01-02])
+    WorldFixtures.put_quote!(loose_security, Date.utc_today(), "50")
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    # Collapsed: the unassigned security's name is not listed.
+    refute view |> element(".drift-table") |> render() =~ "Loose ETF"
+
+    view
+    |> element(
+      ~s(.drift-table [data-role="toggle-positions"][phx-value-category-id="unassigned"])
+    )
+    |> render_click()
+
+    drift_table = view |> element(".drift-table") |> render()
+    assert drift_table =~ "Loose ETF"
+    assert drift_table =~ "100.00"
+
+    # The assign-hint link stays.
+    assert has_element?(view, ~s([data-role="unassigned-hint"] a))
+  end
+
+  # User story (UAT fix round):
+  # As a local portfolio maintainer drilling into the allocation tree,
+  # I want the whole category-name cell to toggle the row (not only the tiny
+  # chevron),
+  # so that expanding a category doesn't demand pixel-precise clicking.
+  #
+  # Acceptance criteria:
+  # - Clicking the category name cell of a row with a subtree expands it;
+  #   clicking again collapses it.
+  test "clicking the category name cell toggles the row's positions", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    refute has_element?(view, ~s([data-role="allocation-position"]))
+
+    view
+    |> element(~s(.drift-table td[phx-click="toggle_category_positions"]))
+    |> render_click()
+
+    assert has_element?(view, ~s([data-role="allocation-position"]))
+
+    view
+    |> element(~s(.drift-table td[phx-click="toggle_category_positions"]))
+    |> render_click()
+
     refute has_element?(view, ~s([data-role="allocation-position"]))
   end
 
-  # User story (owner request, reconsolidation follow-up):
+  # User story (owner request, reconsolidation follow-up + UAT fix round):
   # As a local portfolio maintainer rebalancing,
-  # I want a flat positions view of the allocation, sorted by drift,
-  # so that the biggest lever sits on top as a ready-made worklist —
-  # sorting belongs to a flat list, not to the tree.
+  # I want a flat positions view of the allocation, sorted by SIGNED drift,
+  # so that the most-overweight positions sit on top, the most-underweight at
+  # the bottom, and the list never interleaves buys and sells.
   #
   # Acceptance criteria:
   # - A "Tree | Positions" switch on the Allocation & targets tab.
   # - The positions mode lists one row per security with its category as
-  #   context, plus the cash row, sorted by absolute drift descending.
-  # - Column headers re-sort (e.g. by value).
-  test "the flat positions view ranks by drift and re-sorts on demand",
+  #   context, plus the cash row, sorted by signed drift descending
+  #   (overweight first, underweight last; no sign interleaving).
+  # - Column headers re-sort (e.g. by value, and by category label
+  #   case-insensitively with unassigned rows last).
+  test "the flat positions view ranks by signed drift and re-sorts on demand",
        %{conn: conn} do
     world = seed_world()
 
-    # A second, small position in a second category with a tiny drift.
+    # A second, small position in a second category with a small NEGATIVE
+    # drift, and a third (lowercase-named) category with an even smaller
+    # POSITIVE drift — signed ordering must group the positive above the
+    # negative, where absolute ordering would interleave them.
     {:ok, minor} =
       Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
         classification_id: world.classification.id,
@@ -1770,10 +1881,34 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     WorldFixtures.buy!(world, minor_security, quantity: "1", price: "100", date: ~D[2026-01-02])
     WorldFixtures.put_quote!(minor_security, Date.utc_today(), "100")
 
+    {:ok, aggressive} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: world.classification.id,
+        name: "aggressive"
+      })
+
+    small_security = WorldFixtures.create_security!(name: "Small ETF", ticker: "SML")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        small_security.id,
+        world.classification.id,
+        aggressive.id
+      )
+
+    WorldFixtures.buy!(world, small_security, quantity: "1", price: "50", date: ~D[2026-01-02])
+    WorldFixtures.put_quote!(small_security, Date.utc_today(), "50")
+
+    # Basis 1080 (880 World + 100 Minor + 50 Small + 50 cash):
+    # Core   drift = 880 − 0.60 × 1080 = +232.00 (overweight)
+    # Minor  drift = 100 − 0.10 × 1080 =   −8.00 (underweight)
+    # Small  drift =  50 − 0.04 × 1080 =   +6.80 (overweight, |drift| < 8)
     {:ok, _} =
       Targets.set_targets(world.portfolio.id, world.classification.id, [
         %{"category_id" => world.core.id, "target_weight" => "0.6"},
-        %{"category_id" => minor.id, "target_weight" => "0.1"}
+        %{"category_id" => minor.id, "target_weight" => "0.1"},
+        %{"category_id" => aggressive.id, "target_weight" => "0.04"}
       ])
 
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
@@ -1787,15 +1922,19 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # One row per security with its category as context, plus cash.
     assert flat =~ "World ETF"
     assert flat =~ "Minor ETF"
+    assert flat =~ "Small ETF"
     assert flat =~ "Core"
     assert flat =~ "Minor"
     assert flat =~ ~s(data-role="flat-cash")
 
-    # Default order: biggest absolute drift first (World ETF's drift share
-    # dwarfs Minor ETF's).
+    # Default order: signed drift descending — every overweight position
+    # (+232, +6.8) above every underweight one (−8). Absolute ordering
+    # would wrongly slot −8 above +6.8.
     world_at = :binary.match(flat, "World ETF") |> elem(0)
+    small_at = :binary.match(flat, "Small ETF") |> elem(0)
     minor_at = :binary.match(flat, "Minor ETF") |> elem(0)
-    assert world_at < minor_at
+    assert world_at < small_at
+    assert small_at < minor_at
 
     # Re-sorting by value ascending puts the small position first.
     view |> element(~s([data-role="flat-sort-value"])) |> render_click()
@@ -1805,6 +1944,20 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     world_at = :binary.match(resorted, "World ETF") |> elem(0)
     minor_at = :binary.match(resorted, "Minor ETF") |> elem(0)
     assert minor_at < world_at
+
+    # Sorting by category orders the labels case-insensitively ascending
+    # ("aggressive" < "Core" < "Minor" — a case-sensitive sort would put the
+    # lowercase name last); the category-less cash row sinks to the end.
+    view |> element(~s([data-role="flat-sort-category"])) |> render_click()
+
+    by_category = view |> element(~s([data-role="flat-positions"])) |> render()
+    small_at = :binary.match(by_category, "Small ETF") |> elem(0)
+    world_at = :binary.match(by_category, "World ETF") |> elem(0)
+    minor_at = :binary.match(by_category, "Minor ETF") |> elem(0)
+    cash_at = :binary.match(by_category, ~s(data-role="flat-cash")) |> elem(0)
+    assert small_at < world_at
+    assert world_at < minor_at
+    assert minor_at < cash_at
 
     # Back to the tree.
     view |> element(~s([data-role="allocation-mode-tree"])) |> render_click()

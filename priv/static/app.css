@@ -4299,6 +4299,13 @@ button.income-bar-label.is-active {
 .balance-form {
   margin-top: 1rem;
 }
+/* Inline FX-sync feedback next to the button (UAT fix round: no toast). */
+.cash-actions [data-role="fx-sync-status"] {
+  margin-left: 0.5rem;
+}
+.cash-actions .fx-sync-error {
+  color: var(--color-danger);
+}
 
 /* ===== Drift table: tabular numeric columns + negative-drift styling (issue 427) ===== */
 /* Numeric cells in the drift/allocation table are right-aligned with tabular
@@ -4340,11 +4347,17 @@ button.income-bar-label.is-active {
 /* ===== Drift drill-down: member securities + rebalancing hints (ADR-0023) ===== */
 /* The toggle is a plain text button so the row stays scannable; expanded
    position rows are muted secondary detail. The hint is display-only — it
-   deliberately looks like an annotation, not an action. */
+   deliberately looks like an annotation, not an action. Generous padding
+   (offset by negative margins so the row height stays put) gives the chevron
+   a comfortable hit area (UAT fix round). */
 .positions-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
-  padding: 0 0.3rem 0 0;
+  padding: 0.4rem 0.5rem 0.4rem 0.35rem;
+  margin: -0.4rem 0 -0.4rem -0.35rem;
   cursor: pointer;
   color: var(--color-text-muted);
   font-size: 0.85em;
@@ -4354,13 +4367,42 @@ button.income-bar-label.is-active {
 .positions-toggle:focus-visible {
   color: var(--color-text);
 }
+/* The whole name cell of an expandable row toggles it (UAT fix round). */
+.drift-table td.is-clickable {
+  cursor: pointer;
+}
+/* The single expand/collapse toggle sits directly above the drift table. */
+.drift-table-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}
 .drift-table tr.is-position td {
   font-size: 0.92em;
 }
+/* Aligned hint parts (UAT fix round): verb | ≈ | right-aligned quantity |
+   unit on fixed grid tracks, so the ≈ signs and quantities line up
+   vertically across rows in both the tree and the flat worklist. */
 .rebalance-hint {
-  display: block;
+  display: grid;
+  grid-template-columns: 2.9em 0.9em minmax(4.2em, max-content) max-content;
+  column-gap: 0.25em;
+  justify-content: end;
   font-size: 0.85em;
   color: var(--color-text-muted);
+}
+.rebalance-hint .rebalance-verb {
+  text-align: left;
+}
+.rebalance-hint .rebalance-approx {
+  text-align: center;
+}
+.rebalance-hint .rebalance-qty {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.rebalance-hint .rebalance-unit {
+  text-align: left;
 }
 
 /* ===== Section skeletons (issue 402 — stable layout on async reload) ===== */
@@ -4466,11 +4508,14 @@ button.income-bar-label.is-active {
   vertical-align: middle;
   margin-left: 0.3rem;
 }
+/* Anchored to the right edge so the panel opens leftward/downward — the
+   Drift column is the rightmost, a left-anchored panel ran off-screen
+   (UAT fix round). */
 .drift-table th .metric-tooltip p {
   bottom: auto;
   top: calc(100% + 0.4rem);
-  right: auto;
-  left: 0;
+  right: 0;
+  left: auto;
 }
 @media (pointer: coarse) {
   .metric-tooltip summary {
@@ -4489,6 +4534,12 @@ button.income-bar-label.is-active {
   .detail-pane-tab,
   #detail-pane-close,
   #detail-pane-fullscreen-toggle {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Thumb-sized chevron targets in the allocation tree (UAT fix round). */
+  .positions-toggle {
     min-height: 44px;
     min-width: 44px;
   }
