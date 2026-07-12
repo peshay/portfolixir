@@ -1,0 +1,75 @@
+---
+layout: docs
+title: "ADR-0026: Epic-batch workflow — humans review decisions and behavior, agents review code"
+description: Feature trees are worked agentically on a single epic branch and accepted in one behavior-level review; per-story human review is reserved for high-risk changes.
+---
+
+# ADR-0026: Epic-batch workflow — humans review decisions and behavior, agents review code
+
+- **Status:** Accepted
+- **Date:** 2026-07-12
+
+## Context
+
+The issue-driven per-story workflow assumed the maintainer reviews every PR.
+With current frontier models that assumption inverts the economics: code
+generation is cheap, verification is the bottleneck, and the maintainer's
+attention is the most expensive verification resource. The project has direct
+evidence for both failure and cure:
+
+- June 2026: individually clean, individually reviewed stories accumulated
+  into a scattered UI ("no artifact owned the whole"); scope lock even forbade
+  agents from fixing cross-cutting issues (context of ADR-0022).
+- July 2026: the reconsolidation branch (PR #557) bundled an entire feature
+  tree, closed with a multi-agent adversarial review, a synthetic-data UAT
+  persona pass, and one owner walkthrough — and merged cleaner than any of
+  the stacked small PRs would have.
+
+Issue #315 (spec-driven development) asked for exactly this decision.
+
+## Decision
+
+Feature work runs in **epic batches** by default:
+
+1. **Decision gate (human, minutes not hours).** Before the batch: an ADR or
+   spec with acceptance criteria, signed off by the owner. Direction is
+   reviewed here — not in the diff later.
+2. **Batch (agentic).** Agents work the feature tree on ONE epic branch
+   (`agent/<provider>/<epic-slug>`): one commit (or small commit group) per
+   issue for traceability and bisection, every commit passing the local
+   gates, the branch rebased onto `main` at least daily. Epic branches live
+   days, not weeks. Story-level TDD discipline (AGENTS.md) applies unchanged
+   inside the batch — what changes is who reads the result.
+3. **Agentic review closing act (mandatory, before the human sees it).**
+   Multi-role adversarial review (at minimum: correctness hunter, edge-case
+   hunter, UAT persona walkthrough on seeded synthetic data) with confirmed
+   findings fixed on the branch, plus a **reviewer briefing** on the PR: what
+   is new, what got better, what changed, where to look, which trade-offs
+   were made deliberately — with screenshots for UI work.
+4. **Acceptance (human, behavior-level).** The owner reviews behavior — a
+   walkthrough against the briefing — not lines. Feedback becomes a UAT fix
+   round on the same branch. The maintainer squash-merges; agents never merge.
+
+**Risk-tier exceptions — these keep dedicated small PRs with real human
+review:** ledger/money-domain math and domain invariants, security-relevant
+changes, dependency updates, and anything touching the import idempotency or
+projection semantics. A silent error there is expensive and invisible in a
+walkthrough.
+
+**Compensating controls** (the review budget moves into automation): the
+invariant meta-tests and quality gates (#420, #314), the golden-master import
+corpus, and property tests on money invariants are prerequisites this
+workflow leans on; weakening a gate to make a batch pass is a review reject.
+
+## Consequences
+
+- The maintainer's touchpoints per epic drop to two: decision sign-off and
+  behavior acceptance. Issues stay small (agent work units), PRs get big
+  (human review units).
+- AGENTS.md gains an "Epic-Batch Workflow" section; the story workflow
+  remains binding inside batches and for the risk-tier exceptions.
+- Revert unit = one squash-merged epic; inside-branch issue commits keep
+  bisection possible before the squash.
+- #315 is resolved by this ADR; #420 tracks the compensating-control work.
+- First application: the ADR-0024 restructure tree (gate: spike #574, then
+  the epic batch under #448).
