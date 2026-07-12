@@ -52,3 +52,5 @@ already in force in the codebase.
 | [0021](0021-pdf-transaction-intake.html) | In-app broker-PDF transaction intake (sandboxed, text-only) | Accepted |
 | [0022](0022-task-oriented-information-architecture.html) | Task-oriented UI information architecture | Accepted |
 | [0023](0023-drift-sign-and-display-only-rebalancing-hints.html) | Drift sign convention and display-only rebalancing hints | Accepted |
+| [0024](0024-buckets-and-views-replace-portfolios-in-the-ui.html) | Buckets and views replace portfolios as the user-facing grouping | Accepted |
+| [0025](0025-automation-recipes-boundary.html) | Automation recipes — docs in the repo, broker scripts outside | Accepted |
