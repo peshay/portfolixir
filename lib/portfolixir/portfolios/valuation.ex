@@ -108,14 +108,21 @@ defmodule Portfolixir.Portfolios.Valuation do
     * `:base_currency` – overrides the portfolio's base currency.
   """
   def for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
+    # `:view` (a view id) scopes the result to the holdings matching that view.
+    # No view -> `:unscoped` -> every check passes -> byte-identical output (#444).
+    # A vanished view degrades to `{:error, :view_not_found}` (fix round)
+    # instead of raising into an async render or API request.
+    case Buckets.load_scope(portfolio_id, Keyword.get(opts, :view)) do
+      {:error, :view_not_found} = error -> error
+      scope -> for_portfolio_scoped(portfolio_id, scope, opts)
+    end
+  end
+
+  defp for_portfolio_scoped(portfolio_id, scope, opts) do
     prices = Keyword.get(opts, :prices, %{})
 
     base_currency =
       Keyword.get_lazy(opts, :base_currency, fn -> base_currency_for(portfolio_id) end)
-
-    # `:view` (a view id) scopes the result to the holdings matching that view.
-    # No view -> `:unscoped` -> every check passes -> byte-identical output (#444).
-    scope = Buckets.load_scope(portfolio_id, Keyword.get(opts, :view))
 
     trade_prices = Ledger.latest_trade_prices(portfolio_id)
 
@@ -170,13 +177,15 @@ defmodule Portfolixir.Portfolios.Valuation do
   (`Portfolixir.Buckets.load_global_scope/1`) values the deduplicated union of
   the view's accounts — an account tagged into several included buckets counts
   once, by construction. Pricing fallbacks (quote, then latest own trade
-  price) and the EUR-hub FX path are exactly `for_portfolio/2`'s; the trade
-  fallback reads the instance-wide latest trade price (a view is not a
-  portfolio, so there is no per-portfolio trade universe to prefer).
+  price) and the EUR-hub FX path are exactly `for_portfolio/2`'s: each
+  portfolio's positions fall back to **that portfolio's** latest own trade
+  price (fix round), so a quote-less security is valued — or reported
+  unvalued — exactly as in the portfolio's own valuation.
 
   With `view_id == nil` the result is the "everything" scope: the unscoped
   union over all portfolios, Decimal-equal to summing the unscoped
-  `for_portfolio/2` totals.
+  `for_portfolio/2` totals. A vanished `view_id` returns
+  `{:error, :view_not_found}` (fix round) instead of raising.
 
   The result mirrors `for_portfolio/2` with `view_id` in place of
   `portfolio_id`, plus `overlap` (`Portfolixir.Buckets.scope_overlap/1`): which
@@ -189,25 +198,40 @@ defmodule Portfolixir.Portfolios.Valuation do
     * `:base_currency` – overrides the EUR-hub default.
   """
   def for_view(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    case Buckets.load_global_scope(view_id) do
+      {:error, :view_not_found} = error -> error
+      scope -> for_view_scoped(view_id, scope, opts)
+    end
+  end
+
+  defp for_view_scoped(view_id, scope, opts) do
     prices = Keyword.get(opts, :prices, %{})
     base_currency = Keyword.get(opts, :base_currency, @hub)
-    scope = Buckets.load_global_scope(view_id)
-    trade_prices = Ledger.latest_trade_prices()
 
+    # Per-portfolio trade-price fallback (fix round): each portfolio's
+    # positions are valued with that portfolio's own latest trade price, so
+    # `for_view(nil)` stays Decimal-equal to the sum of the unscoped
+    # `for_portfolio/2` totals even for quote-less securities held in one
+    # portfolio but traded only in another.
     positions =
       Portfolios.list_portfolios()
-      |> Enum.flat_map(&Ledger.positions_for_portfolio(&1.id))
-      |> Enum.filter(fn {{securities_account_id, security_id}, _quantity} ->
-        Buckets.position_in_scope?(scope, securities_account_id, security_id)
-      end)
-      |> Enum.map(fn {{securities_account_id, security_id}, quantity} ->
-        build_position(
-          securities_account_id,
-          security_id,
-          quantity,
-          {prices, trade_prices},
-          base_currency
-        )
+      |> Enum.flat_map(fn portfolio ->
+        trade_prices = Ledger.latest_trade_prices(portfolio.id)
+
+        portfolio.id
+        |> Ledger.positions_for_portfolio()
+        |> Enum.filter(fn {{securities_account_id, security_id}, _quantity} ->
+          Buckets.position_in_scope?(scope, securities_account_id, security_id)
+        end)
+        |> Enum.map(fn {{securities_account_id, security_id}, quantity} ->
+          build_position(
+            securities_account_id,
+            security_id,
+            quantity,
+            {prices, trade_prices},
+            base_currency
+          )
+        end)
       end)
 
     total = total_value(positions)
@@ -234,7 +258,10 @@ defmodule Portfolixir.Portfolios.Valuation do
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued)),
       trade_priced_count: Enum.count(positions, &(&1.price_source == :trade)),
-      overlap: Buckets.scope_overlap(scope)
+      overlap: Buckets.scope_overlap(scope),
+      # "Matches no accounts" hint data (fix round): a view whose resolution
+      # matches nothing should say so instead of showing a silent 0 total.
+      matches_no_accounts: not Buckets.scope_matches_any_account?(scope)
     }
   end
 

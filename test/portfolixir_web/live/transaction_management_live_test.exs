@@ -268,6 +268,92 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert has_element?(view, "#transaction-list tbody tr td", "Buy")
   end
 
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer,
+  # I want to type decimal commas into the price/quantity/fees/taxes fields,
+  # so that "100,50" books as 100.50 instead of failing validation.
+  #
+  # Acceptance criteria:
+  # - A single comma with no dot is normalized to a dot at the form boundary.
+  # - The stored Decimal values are exact; nothing else touches persisted
+  #   parsing.
+  test "accepts German decimal commas in the money fields", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Komma")
+    security = WorldFixtures.create_security!(name: "Komma Co", ticker: "KOM")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" => %{
+        "type" => "buy",
+        "date" => "2026-03-02",
+        "securities_account_id" => to_string(world.depot.id),
+        "security_id" => to_string(security.id),
+        "quantity" => "2,5",
+        "price" => "100,50",
+        "fees" => "1,25"
+      }
+    })
+
+    assert [tx] = Ledger.list_transactions_for_portfolio(world.portfolio.id)
+    assert Decimal.equal?(tx.quantity, Decimal.new("2.5"))
+    assert Decimal.equal?(tx.price, Decimal.new("100.50"))
+    assert Decimal.equal?(tx.fees, Decimal.new("1.25"))
+  end
+
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer,
+  # I want a failed submit to explain itself in German,
+  # so that "price is invalid" never leaks raw Ecto messages into a
+  # translated page.
+  test "renders the changeset error translated instead of the raw message", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Fehler")
+    security = WorldFixtures.create_security!(name: "Fehler Co", ticker: "FLR")
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    html =
+      view
+      |> element("#transaction-form")
+      |> render_submit(%{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "2026-03-02",
+          "securities_account_id" => to_string(world.depot.id),
+          "security_id" => to_string(security.id),
+          "quantity" => "2",
+          "price" => "abc"
+        }
+      })
+
+    refute html =~ "price is invalid"
+    assert html =~ "Preis"
+    assert html =~ "ist ungültig"
+  end
+
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer,
+  # I want the history's month-group headers in German with money-formatted
+  # sums,
+  # so that the localized page never mixes English month names or raw
+  # decimals into the section heads (same precedent as the income matrix).
+  test "localizes the month-group headers and money-formats the group sums", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Monat")
+    security = WorldFixtures.create_security!(name: "Monat Co", ticker: "MON")
+    WorldFixtures.deposit!(world, "1000", ~D[2026-03-01])
+    WorldFixtures.buy!(world, security, quantity: "2", price: "50", date: ~D[2026-03-02])
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    header = view |> element("tr.tx-group-head[data-month-group='2026-03']") |> render()
+    assert header =~ "März 2026"
+    refute header =~ "March"
+    # Money-formatted subtotal in the German locale (1000 + 100 = 1.100,00).
+    assert header =~ "1.100,00"
+  end
+
   # The history lists every ledger kind, not just buy/sell (e.g. an imported
   # dividend). Every PP kind now carries a translated label (Steve UAT,
   # reconsolidation); unknown kinds still fall back to their stored name

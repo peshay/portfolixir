@@ -103,6 +103,40 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "IRR"
   end
 
+  # User story (fix round, UAT merge condition):
+  # As a local portfolio maintainer with more than one internal portfolio,
+  # I want the performance card and chart to say which portfolio they cover,
+  # so that I never read the first portfolio's TTWROR as the whole instance's.
+  #
+  # Acceptance criteria:
+  # - With two portfolios, the performance card/section carries a visible
+  #   scope hint naming the covered portfolio.
+  # - With a single portfolio (the common migrated case) no hint renders.
+  test "the performance figures carry a scope hint on multi-portfolio instances",
+       %{conn: conn} do
+    seed_world()
+
+    second =
+      WorldFixtures.base_world(name: "Zweitdepot", cash_name: "Giro 2", depot_name: "Depot 2")
+
+    WorldFixtures.deposit!(second, "500", Date.add(Date.utc_today(), -5))
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    assert has_element?(view, "[data-role='performance-scope-hint']")
+    assert html =~ "Performance covers Mein Depot only"
+  end
+
+  test "no performance scope hint on a single-portfolio instance", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    refute has_element?(view, "[data-role='performance-scope-hint']")
+  end
+
   test "the Allocation & targets tab shows the donut and drift (ADR-0022)", %{conn: conn} do
     seed_world()
 

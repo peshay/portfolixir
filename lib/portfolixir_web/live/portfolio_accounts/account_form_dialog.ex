@@ -281,6 +281,16 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
            gettext("Only one scope bucket per account — pick at most one.")
          )}
 
+      # `ensure_tag_bucket/2` refuses to reuse a scope bucket's name as a free
+      # tag (fix round): tell the user instead of failing opaquely.
+      {:error, :name_taken_by_scope_bucket} ->
+        {:noreply,
+         assign(
+           socket,
+           :bucket_error,
+           gettext("That name belongs to a scope bucket — pick a different tag name.")
+         )}
+
       {:error, {:field_errors, errors}} ->
         {:noreply, socket |> assign(:errors, errors) |> assign(:bucket_error, nil)}
 

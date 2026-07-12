@@ -1353,7 +1353,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.views.valuation",
     "Value view (cross-portfolio)",
-    "Live valuation of a bucket view across ALL portfolios (id is the view id): the deduplicated union of every depot, position and cash account matching the view — an account tagged into several included buckets counts exactly once. Totals, weights, cash balances and the cash quote are in EUR (converted via the EUR hub); the valued/price_source flags mark stale or unpriceable positions, exactly as in portfolixir.portfolios.valuation. The overlap object lists the depots/cash accounts carrying more than one included bucket (badge data — the totals are already deduplicated). All financial values are Decimal strings. Use this, not a client-side sum of portfolio valuations, for a view's total wealth.",
+    "Live valuation of a bucket view across ALL portfolios (id is the view id): the deduplicated union of every depot, position and cash account matching the view — an account tagged into several included buckets counts exactly once. Totals, weights, cash balances and the cash quote are in EUR (converted via the EUR hub); the valued/price_source flags mark stale or unpriceable positions, exactly as in portfolixir.portfolios.valuation. The overlap object lists the depots/cash accounts carrying more than one included bucket (badge data — the totals are already deduplicated). matches_no_accounts is true when the view's resolution matches no account at all (an empty include set or orphaned buckets), explaining a 0 total. All financial values are Decimal strings. Use this, not a client-side sum of portfolio valuations, for a view's total wealth.",
     idSchema,
     idZ
   ),
@@ -1374,7 +1374,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.securities_accounts.set_position_buckets",
     "Set position bucket override",
-    "Set the per-position bucket override for one security in one depot (id is the securities account id, security_id the security). bucket_ids is an array of bucket ids; an empty array records the explicit-empty state (deliberately no buckets), distinct from inheriting the depot default. Override wins over the depot default.",
+    "Set the per-position bucket override for one security in one depot (id is the securities account id, security_id the security). bucket_ids is an array of bucket ids; an empty array records the explicit-empty state (deliberately no buckets), distinct from inheriting the depot default. Override wins over the depot default. Like the account assignments, an override carries at most one scope-dimension bucket (ADR-0024); a second scope bucket is rejected with a 422.",
     positionBucketsSchema,
     positionBucketsZ
   ),

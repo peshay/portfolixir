@@ -16,10 +16,13 @@ defmodule PortfolixirWeb.Api.V1.ViewValuationController do
 
   def show(conn, %{"view_id" => view_id}) do
     with {:ok, vid} <- parse_id(view_id),
-         %View{} = view <- Buckets.get_view(vid) do
+         %View{} = view <- Buckets.get_view(vid),
+         # The view can vanish between the lookup and the valuation read (fix
+         # round TOCTOU): `for_view/2` degrades to a not-found error, so the
+         # endpoint still answers a plain 404, never a 500.
+         %{} = valuation <- Valuation.for_view(view.id) do
       data =
-        view.id
-        |> Valuation.for_view()
+        valuation
         |> JSON.view_valuation()
         |> ViewParam.put_active(view)
 

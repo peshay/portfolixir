@@ -75,8 +75,9 @@ defmodule Portfolixir.Portfolios.Performance do
   def for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     period = Keyword.get(opts, :period, "max")
 
-    with :ok <- validate_period(period) do
-      portfolio_id |> analysis(opts) |> summarise(period)
+    with :ok <- validate_period(period),
+         %{} = analysis <- analysis(portfolio_id, opts) do
+      summarise(analysis, period)
     end
   end
 
@@ -89,13 +90,20 @@ defmodule Portfolixir.Portfolios.Performance do
   plausible day). Feed it to `summarise/2` once per period.
   """
   def analysis(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
+    # `:view` (a view id) scopes the series to the holdings matching that view;
+    # `nil` -> `:unscoped` -> the walk takes the unchanged code path (#444).
+    # A vanished view returns `{:error, :view_not_found}` (fix round).
+    case Buckets.load_scope(portfolio_id, Keyword.get(opts, :view)) do
+      {:error, :view_not_found} = error -> error
+      scope -> scoped_analysis(portfolio_id, scope, opts)
+    end
+  end
+
+  defp scoped_analysis(portfolio_id, scope, opts) do
     today = Keyword.get(opts, :today, Date.utc_today())
     base = base_currency(portfolio_id)
     transactions = sorted_transactions(portfolio_id)
     suspects = suspect_dates(transactions)
-    # `:view` (a view id) scopes the series to the holdings matching that view;
-    # `nil` -> `:unscoped` -> the walk takes the unchanged code path (#444).
-    scope = Buckets.load_scope(portfolio_id, Keyword.get(opts, :view))
 
     case walk_start(transactions, today) do
       nil ->

@@ -300,6 +300,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       unvalued_count: valuation.unvalued_count,
       trade_priced_count: valuation.trade_priced_count,
       overlap: view_overlap(valuation.overlap),
+      # Whether the view's resolution matches no account at all (fix round):
+      # clients can hint "matches no accounts" instead of a silent 0 total.
+      matches_no_accounts: Map.get(valuation, :matches_no_accounts, false),
       positions: Enum.map(positions, &valuation_position/1),
       cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
     }

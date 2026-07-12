@@ -185,6 +185,16 @@ defmodule PortfolixirWeb.BucketsLive do
                   </form>
                 <% else %>
                   <span class="bucket-list__name"><%= view.name %></span>
+                  <%!-- Matches-nothing hint (fix round): the view's resolution
+                       matches zero accounts, so every figure under it is a
+                       silent 0 — say so where the view is edited. --%>
+                  <span
+                    :if={view.id in @empty_view_ids}
+                    class="hint"
+                    data-role="view-matches-nothing"
+                  >
+                    <%= gettext("matches no accounts") %>
+                  </span>
                   <span class="bucket-list__actions">
                     <button
                       type="button"
@@ -548,8 +558,8 @@ defmodule PortfolixirWeb.BucketsLive do
 
   def handle_event("edit_view_buckets", %{"id" => id}, socket) do
     with {:ok, view_id} <- coerce_id(id),
-         view when not is_nil(view) <- Buckets.get_view(view_id) do
-      filter = Buckets.view_filter(view_id)
+         view when not is_nil(view) <- Buckets.get_view(view_id),
+         {:ok, filter} <- Buckets.view_filter(view_id) do
       include = if filter.include == :all, do: [], else: filter.include
 
       {:noreply,
@@ -666,12 +676,28 @@ defmodule PortfolixirWeb.BucketsLive do
       Portfolios.list_cash_accounts()
       |> Enum.map(&Map.put(&1, :bucket_ids, Buckets.cash_account_bucket_ids(&1.id)))
 
+    views_full = Buckets.list_views()
+
     assign(socket,
       buckets: Buckets.list_buckets(),
-      views_full: Buckets.list_views(),
+      views_full: views_full,
+      empty_view_ids: empty_view_ids(views_full),
       depots: depots,
       cash_accounts: cash_accounts
     )
+  end
+
+  # Views whose resolution matches zero accounts (fix round): computed from
+  # each view's loaded scope — a handful of views, all in-memory checks.
+  defp empty_view_ids(views) do
+    views
+    |> Enum.filter(fn view ->
+      case Buckets.load_global_scope(view.id) do
+        {:error, :view_not_found} -> false
+        scope -> not Buckets.scope_matches_any_account?(scope)
+      end
+    end)
+    |> MapSet.new(& &1.id)
   end
 
   # -- helpers ----------------------------------------------------------------

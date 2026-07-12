@@ -105,20 +105,24 @@ defmodule Portfolixir.Portfolios.Allocation do
       {:ok, security_categories} ->
         classification = Classifications.get_classification(classification_id)
         categories = Classifications.list_categories(classification_id)
-        valuation = Valuation.for_portfolio(portfolio_id, opts)
         view = Keyword.get(opts, :view)
-        {targets, cash_target, has_plan} = plan_soll(portfolio_id, classification_id, view)
 
-        {:ok,
-         build(
-           valuation,
-           classification,
-           categories,
-           security_categories,
-           targets,
-           cash_target,
-           has_plan
-         )}
+        # A vanished view degrades to `{:error, :view_not_found}` (fix round)
+        # instead of raising out of an async render or API request.
+        with %{} = valuation <- Valuation.for_portfolio(portfolio_id, opts) do
+          {targets, cash_target, has_plan} = plan_soll(portfolio_id, classification_id, view)
+
+          {:ok,
+           build(
+             valuation,
+             classification,
+             categories,
+             security_categories,
+             targets,
+             cash_target,
+             has_plan
+           )}
+        end
     end
   end
 

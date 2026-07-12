@@ -369,6 +369,82 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     end
   end
 
+  # User story (fix round, tag pre-validation):
+  # As a local portfolio maintainer importing a PP export,
+  # I want a bucket tag that names an existing scope bucket — or exceeds the
+  # 100-character bucket limit — rejected BEFORE the apply starts,
+  # so that a bad tag never aborts a whole import at the very end with an
+  # opaque dump.
+  #
+  # Acceptance criteria:
+  # - A tag equal to a scope bucket's name shows a clear error and applies
+  #   nothing (no transactions, page stays on preview).
+  # - A 101-character tag is rejected the same way (the input also carries
+  #   maxlength="100" as the first line of defence).
+  test "a tag naming a scope bucket is rejected before apply", %{conn: conn} do
+    {:ok, _scope} =
+      Buckets.create_bucket(Portfolixir.Actor.owner_ui(), %{
+        name: "Haushalt",
+        dimension: "scope"
+      })
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    submit_params = %{
+      "bucket_tag" => "Haushalt",
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    }
+
+    html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+
+    refute html =~ "Import complete"
+    assert has_element?(view, "p.alert-error")
+    assert html =~ "scope bucket"
+    refute html =~ "%Ecto."
+
+    # Nothing was applied: no transactions, no accounts, no extra bucket.
+    assert Ledger.list_transactions() == []
+    assert Portfolios.list_securities_accounts() == []
+    assert [%{dimension: "scope"}] = Buckets.list_buckets()
+  end
+
+  test "a 101-character tag is rejected before apply", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    # The rendered input carries the maxlength guard.
+    assert has_element?(view, "input[name='bucket_tag'][maxlength='100']")
+
+    submit_params = %{
+      "bucket_tag" => String.duplicate("x", 101),
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    }
+
+    html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+
+    refute html =~ "Import complete"
+    assert has_element?(view, "p.alert-error")
+    assert html =~ "at most 100 characters"
+
+    assert Ledger.list_transactions() == []
+    assert Buckets.list_buckets() == []
+  end
+
   test "re-applying the same file is a no-op and does not duplicate bucket assignments",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, "/imports")

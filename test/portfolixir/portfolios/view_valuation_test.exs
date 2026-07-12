@@ -20,6 +20,7 @@ defmodule Portfolixir.Portfolios.ViewValuationTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Fx
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Valuation
 
   defp bucket!(name) do
@@ -221,6 +222,76 @@ defmodule Portfolixir.Portfolios.ViewValuationTest do
              securities_account_ids: [],
              cash_account_ids: []
            }
+  end
+
+  # User story (fix round, per-portfolio trade-price fallback):
+  # As a local portfolio maintainer,
+  # I want the cross-portfolio view valuation to price each portfolio's
+  # quote-less positions with THAT portfolio's own latest trade price,
+  # so that the everything scope stays Decimal-identical to the sum of the
+  # unscoped portfolio totals — a position with no price observation in its
+  # own portfolio must stay unvalued, not borrow another portfolio's price.
+  #
+  # Acceptance criteria:
+  # - A quote-less security delivered into portfolio A but traded only in
+  #   portfolio B is unvalued in A and trade-priced in B under `for_view/2`.
+  # - `for_view(nil)` equals the Decimal-exact sum of the unscoped
+  #   `for_portfolio/2` totals.
+  test "quote-less positions use each portfolio's own trade price, never a global one" do
+    alpha = base_world(name: "Alpha", cash_name: "Alpha Cash", depot_name: "Alpha Depot")
+    beta = base_world(name: "Beta", cash_name: "Beta Cash", depot_name: "Beta Depot")
+
+    ghost = create_security!(name: "Ghost Co.", ticker: "GHST", asset_class: "equity")
+
+    # Delivered into Alpha: held there without any own price observation.
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: alpha.portfolio.id,
+        securities_account_id: alpha.depot.id,
+        security_id: ghost.id,
+        type: "inbound_delivery",
+        date: ~D[2026-01-02],
+        quantity: "7",
+        currency_code: "EUR"
+      })
+
+    # Traded only in Beta: the trade price belongs to Beta's universe.
+    deposit!(beta, "500", ~D[2026-01-01], [])
+    buy!(beta, ghost, quantity: "2", price: "30")
+
+    everything = Valuation.for_view(nil, [])
+
+    alpha_row = Enum.find(everything.positions, &(&1.securities_account_id == alpha.depot.id))
+    beta_row = Enum.find(everything.positions, &(&1.securities_account_id == beta.depot.id))
+
+    # Alpha's delivered position stays unvalued (no price in Alpha's own
+    # portfolio); Beta's is valued at its own trade price.
+    refute alpha_row.valued
+    assert beta_row.valued
+    assert beta_row.price_source == :trade
+    assert everything.unvalued_count == 1
+    assert everything.trade_priced_count == 1
+
+    # Decimal-exact parity with the sum of the unscoped portfolio totals:
+    # Beta 60 position + 440 cash = 500; Alpha contributes nothing valued.
+    unscoped_sum =
+      [alpha.portfolio.id, beta.portfolio.id]
+      |> Enum.map(&Valuation.for_portfolio(&1, []))
+      |> Enum.reduce(Decimal.new("0"), &Decimal.add(&2, &1.total_with_cash))
+
+    assert Decimal.equal?(everything.total_with_cash, unscoped_sum)
+    assert Decimal.equal?(everything.total_with_cash, Decimal.new("500"))
+  end
+
+  # User story (fix round, deleted-view degradation):
+  # As a local portfolio maintainer,
+  # I want `for_view/2` on a vanished view id to return a not-found error,
+  # so that a stale id from another tab degrades instead of crashing.
+  test "for_view returns a not-found error for a deleted view id" do
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Gone", include_all: true})
+    {:ok, _} = Buckets.delete_view(Actor.owner_ui(), view)
+
+    assert Valuation.for_view(view.id, []) == {:error, :view_not_found}
   end
 
   # User story (ADR-0024 story 1):

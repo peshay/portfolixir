@@ -341,6 +341,35 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
     assert cleared["data"]["effective_bucket_ids"] == [bucket.id]
   end
 
+  # User story (fix round, exclusive dimension on overrides):
+  # As an API client,
+  # I want a position override carrying two scope buckets rejected with a 422,
+  # so that the ADR-0024 exclusive dimension holds on every assignment path.
+  #
+  # Acceptance criteria:
+  # - PUT .../positions/:security_id/buckets with two scope buckets returns
+  #   422 (the same error shape as the account endpoints) and writes nothing.
+  test "a position override with two scope buckets is a 422", %{conn: conn} do
+    %{depot: depot} = base_world()
+    security = create_security!(name: "ACME", ticker: "ACME")
+    {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A", dimension: "scope"})
+    {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B", dimension: "scope"})
+
+    resp =
+      put_json(
+        conn,
+        "/api/v1/securities_accounts/#{depot.id}/positions/#{security.id}/buckets",
+        %{"bucket_ids" => [scope_a.id, scope_b.id]}
+      )
+      |> json_response(422)
+
+    assert %{"errors" => %{"bucket_ids" => [message]}} = resp
+    assert message =~ "scope-dimension"
+
+    # Nothing was written: the position still inherits.
+    assert Buckets.position_override(depot.id, security.id) == :inherit
+  end
+
   # User story:
   # As an API client,
   # I want the bucket-assignment endpoints to fail predictably,

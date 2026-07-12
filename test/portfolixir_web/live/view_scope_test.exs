@@ -429,5 +429,109 @@ defmodule PortfolixirWeb.ViewScopeTest do
       {:ok, _lv, html} = live(conn, "/portfolio")
       refute html =~ "Your portfolios are now views"
     end
+
+    # User story (fix round, migration notice edge state):
+    # As a local portfolio maintainer who deleted every seeded view,
+    # I want the migration notice to disappear with them,
+    # so that the page never announces an empty list of views.
+    #
+    # Acceptance criteria:
+    # - With seeded buckets present but NO seeded views left, the notice does
+    #   not render at all (no empty <ul>).
+    test "the notice does not render when no seeded views remain", %{conn: conn} do
+      world()
+      {:ok, _summary} = Buckets.seed_portfolio_scope_buckets(Actor.owner_ui())
+
+      %{views: seeded_views} = Buckets.migration_summary()
+
+      Enum.each(seeded_views, fn view ->
+        {:ok, _} = Buckets.delete_view(Actor.owner_ui(), view)
+      end)
+
+      {:ok, lv, html} = live(conn, "/portfolio")
+      refute html =~ "Your portfolios are now views"
+      refute has_element?(lv, "[data-role='migration-notice']")
+    end
+
+    # User story (fix round, deleted-view degradation):
+    # As a local portfolio maintainer with two tabs open,
+    # I want the Wealth page to fall back to the Everything scope with a small
+    # notice when the active view was deleted in the other tab,
+    # so that an event never leaves me on a dead "Couldn't load" toast.
+    #
+    # Acceptance criteria:
+    # - An event after the deletion reloads the figures under Everything.
+    # - A small notice explains the fallback; the error toast never shows.
+    test "an event after view deletion degrades to Everything with a notice", %{conn: conn} do
+      %{cash: cash} = world()
+      {:ok, doomed} = Buckets.create_view(Actor.owner_ui(), %{name: "Doomed"})
+
+      conn = get(conn, "/portfolio?view=#{doomed.id}")
+      {:ok, lv, _html} = live(conn, "/portfolio")
+      html = render_async(lv)
+      assert html =~ "Scoped to view: Doomed"
+
+      # The other tab deletes the view while this one still holds its id.
+      {:ok, _} = Buckets.delete_view(Actor.owner_ui(), doomed)
+
+      lv
+      |> form("form.balance-form", %{
+        "balance" => %{
+          "cash_account_id" => to_string(cash.id),
+          "date" => Date.to_iso8601(Date.utc_today()),
+          "amount" => "100"
+        }
+      })
+      |> render_submit()
+
+      html = render_async(lv)
+      assert has_element?(lv, "[data-role='view-gone-notice']")
+      assert html =~ "The selected view no longer exists"
+      refute html =~ "Couldn&#39;t load the wealth figures."
+      refute html =~ "Scoped to view: Doomed"
+    end
+
+    # User story (fix round, matches-nothing views):
+    # As a local portfolio maintainer whose view's only include bucket was
+    # deleted,
+    # I want the Wealth picker area to say the view matches no accounts,
+    # so that the 0 total reads as a definition issue, not missing data.
+    test "an active view matching no accounts shows a hint", %{conn: conn} do
+      world()
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Orphan"})
+
+      {:ok, empty_view} =
+        Buckets.create_view(Actor.owner_ui(), %{name: "Leer", include_all: false})
+
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), empty_view, [bucket.id], [])
+      {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), bucket)
+
+      conn = get(conn, "/portfolio?view=#{empty_view.id}")
+      {:ok, lv, _html} = live(conn, "/portfolio")
+      html = render_async(lv)
+
+      assert has_element?(lv, "[data-role='view-matches-nothing']")
+      assert html =~ "matches no accounts"
+
+      # The Everything scope never carries the hint.
+      conn = get(conn, "/portfolio?view=total")
+      {:ok, lv, _html} = live(conn, "/portfolio")
+      render_async(lv)
+      refute has_element?(lv, "[data-role='view-matches-nothing']")
+    end
+
+    # User story (fix round, picker a11y):
+    # As a screen-reader user,
+    # I want each view-picker chip announced by its view name,
+    # so that the plan-dot tooltip never hijacks the accessible name.
+    test "view chips carry the view name as their accessible name", %{conn: conn} do
+      world()
+      {:ok, mine} = Buckets.create_view(Actor.owner_ui(), %{name: "Mine"})
+
+      {:ok, lv, _html} = live(conn, "/portfolio")
+
+      assert has_element?(lv, ~s(#view-switch-total[aria-label="Everything"]))
+      assert has_element?(lv, ~s(#view-switch-#{mine.id}[aria-label="Mine"]))
+    end
   end
 end

@@ -67,6 +67,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:wealth_tab, wealth_tab)
       |> assign(:error, nil)
       |> assign(:success, nil)
+      |> assign(:view_gone_notice, false)
       |> assign_migration_notice()
 
     # ADR-0024: the empty state keys on the bookkeeping entities (depots and
@@ -87,6 +88,10 @@ defmodule PortfolixirWeb.PortfolioLive do
         socket =
           socket
           |> assign(:portfolio, portfolio)
+          # For the performance scope hint (fix round): the TTWROR/IRR walk is
+          # still portfolio-bound (documented ADR-0024 gap), so with more than
+          # one portfolio the performance figures must say what they cover.
+          |> assign(:portfolio_count, Portfolios.count_portfolios())
           |> assign(:classifications, classifications)
           # 1y default (UAT fix round): "max" grows unreadable as history
           # accumulates; the period buttons still offer it.
@@ -140,13 +145,15 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The one-time ADR-0024 migration notice: shown while the seeded views exist
   # and the maintainer has not dismissed it yet; two cheap indexed reads.
+  # No seeded views left (all deleted, only buckets remain) means there is
+  # nothing to announce — the notice must not render an empty list (fix round).
   defp assign_migration_notice(socket) do
     notice =
       if Settings.migration_notice_dismissed?() do
         nil
       else
         case Buckets.migration_summary() do
-          %{migrated?: true} = summary -> summary
+          %{migrated?: true, views: [_ | _]} = summary -> summary
           _not_migrated -> nil
         end
       end
@@ -167,6 +174,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp load_overview(socket) do
+    socket = ensure_live_view_scope(socket)
     portfolio_id = socket.assigns.portfolio.id
     base_currency = socket.assigns.portfolio.base_currency_code
     classification_id = socket.assigns.classification_id
@@ -177,25 +185,34 @@ defmodule PortfolixirWeb.PortfolioLive do
       # (ADR-0024): the page's primary scope is the active view — Everything
       # when none is picked — deduplicated at the account level. The allocation
       # stays on the portfolio-bound read (its per-portfolio SOLL plans,
-      # ADR-0020) filtered by the same view.
-      valuation = Valuation.for_view(view_id, base_currency: base_currency)
-      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id, view: view_id)
-      {valuation, allocation}
+      # ADR-0020) filtered by the same view. A view deleted between the check
+      # above and this read degrades via `handle_async` (fix round).
+      with %{} = valuation <- Valuation.for_view(view_id, base_currency: base_currency),
+           {:ok, allocation} <-
+             Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
+        {valuation, allocation}
+      else
+        {:error, :view_not_found} -> :view_not_found
+      end
     end)
   end
 
   defp load_allocation(socket) do
+    socket = ensure_live_view_scope(socket)
     portfolio_id = socket.assigns.portfolio.id
     classification_id = socket.assigns.classification_id
     view_id = socket.assigns[:active_view_id]
 
     start_async(socket, :allocation, fn ->
-      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id, view: view_id)
-      allocation
+      case Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
+        {:ok, allocation} -> allocation
+        {:error, :view_not_found} -> :view_not_found
+      end
     end)
   end
 
   defp load_performance(socket) do
+    socket = ensure_live_view_scope(socket)
     portfolio_id = socket.assigns.portfolio.id
     view_id = socket.assigns[:active_view_id]
 
@@ -204,7 +221,42 @@ defmodule PortfolixirWeb.PortfolioLive do
     end)
   end
 
+  # The active view can be deleted in another tab while this page still holds
+  # its id (fix round): re-check before each load and degrade to the built-in
+  # Everything scope with a small notice instead of a dead "Couldn't load"
+  # toast.
+  defp ensure_live_view_scope(socket) do
+    view_id = socket.assigns[:active_view_id]
+
+    if view_id && is_nil(Buckets.get_view(view_id)) do
+      degrade_to_everything(socket)
+    else
+      socket
+    end
+  end
+
+  defp degrade_to_everything(socket) do
+    socket
+    |> assign(:active_view, nil)
+    |> assign(:active_view_id, nil)
+    |> assign(:view_gone_notice, true)
+  end
+
   @impl true
+  # The view vanished mid-read (fix round TOCTOU): degrade and re-load the
+  # section under the Everything scope.
+  def handle_async(:overview, {:ok, :view_not_found}, socket) do
+    {:noreply, socket |> degrade_to_everything() |> load_overview()}
+  end
+
+  def handle_async(:allocation, {:ok, :view_not_found}, socket) do
+    {:noreply, socket |> degrade_to_everything() |> load_allocation()}
+  end
+
+  def handle_async(:performance, {:ok, {:error, :view_not_found}}, socket) do
+    {:noreply, socket |> degrade_to_everything() |> load_performance()}
+  end
+
   def handle_async(:overview, {:ok, {valuation, allocation}}, socket) do
     {:noreply, socket |> assign(:valuation, valuation) |> assign_allocation(allocation)}
   end
@@ -336,6 +388,25 @@ defmodule PortfolixirWeb.PortfolioLive do
           default_view_id={@default_view_id}
         />
 
+        <%!-- The picked view was deleted (another tab, fix round): the page
+             degraded to the Everything scope instead of a dead error toast. --%>
+        <p :if={@view_gone_notice} class="hint" data-role="view-gone-notice" role="status">
+          <%= gettext("The selected view no longer exists — showing Everything.") %>
+        </p>
+
+        <%!-- Matches-nothing hint (fix round): the active view resolves to
+             zero accounts, so the 0 total is a definition issue, not data. --%>
+        <p
+          :if={@active_view && matches_no_accounts?(@valuation)}
+          class="hint"
+          data-role="view-matches-nothing"
+          role="status"
+        >
+          <%= gettext(
+            "This view matches no accounts — its included buckets are empty or no longer assigned. Edit the view under Manage… or tag accounts into its buckets."
+          ) %>
+        </p>
+
         <%!-- One-time ADR-0024 migration notice: the seeded views exist, so
              say what happened once and get out of the way permanently. --%>
         <section
@@ -410,6 +481,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
             <strong :if={@performance}><%= Format.percent(@performance.ttwror) %>%</strong>
             <strong :if={is_nil(@performance)}>…</strong>
+            <%!-- Scope disclaimer (fix round): see #portfolio-performance. --%>
+            <small :if={@portfolio_count > 1} class="hint" data-role="performance-scope-hint">
+              <%= performance_scope_hint(@portfolio.name) %>
+            </small>
             <details class="metric-tooltip">
               <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
               <p id="tip-ttwror" role="tooltip">
@@ -442,6 +517,19 @@ defmodule PortfolixirWeb.PortfolioLive do
 
         <%= if @wealth_tab == :holdings do %>
         <section id="portfolio-performance" class="workspace-section">
+          <%!-- Scope disclaimer (fix round, UAT merge condition): the TTWROR/
+               IRR walk is still bound to the first portfolio (documented
+               ADR-0024 gap), so multi-portfolio instances must say what the
+               performance figures cover. Single-portfolio instances (the
+               common migrated case) show nothing. --%>
+          <p
+            :if={@portfolio_count > 1}
+            class="hint"
+            data-role="performance-scope-hint"
+            role="note"
+          >
+            <%= performance_scope_hint(@portfolio.name) %>
+          </p>
           <header class="section-head">
             <h2><%= gettext("Performance") %></h2>
             <div class="section-head-controls">
@@ -1625,6 +1713,19 @@ defmodule PortfolixirWeb.PortfolioLive do
   # overlap badge). Tolerates valuations without overlap data.
   defp overlapping?(%{overlap: %{overlapping?: true}}), do: true
   defp overlapping?(_valuation), do: false
+
+  # Whether the active view's resolution matches zero accounts (fix round
+  # hint). Tolerates valuations without the flag (and the pre-async nil).
+  defp matches_no_accounts?(%{matches_no_accounts: true}), do: true
+  defp matches_no_accounts?(_valuation), do: false
+
+  # The multi-portfolio performance disclaimer (fix round, UAT merge
+  # condition) — one message for the KPI card and the chart section.
+  defp performance_scope_hint(portfolio_name) do
+    gettext("Performance covers %{name} only — the total above spans all accounts.",
+      name: portfolio_name
+    )
+  end
 
   defp suspect_dates(nil), do: []
   defp suspect_dates(analysis), do: analysis.suspect_dates

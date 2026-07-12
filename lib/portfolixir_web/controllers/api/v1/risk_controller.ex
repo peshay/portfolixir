@@ -14,9 +14,16 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
          {:ok, opts} <- risk_opts(params) do
-      risk = Risk.for_portfolio(pid, Keyword.merge(opts, ViewParam.opts(view)))
-      data = risk |> JSON.risk() |> ViewParam.put_active(view)
-      json(conn, %{data: data})
+      # The view can vanish between resolve and read (fix round TOCTOU):
+      # still a plain 404, never a 500.
+      case Risk.for_portfolio(pid, Keyword.merge(opts, ViewParam.opts(view))) do
+        {:error, :view_not_found} ->
+          not_found(conn)
+
+        risk ->
+          data = risk |> JSON.risk() |> ViewParam.put_active(view)
+          json(conn, %{data: data})
+      end
     else
       {:error, :view} -> unprocessable(conn, %{view: ["is invalid"]})
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})

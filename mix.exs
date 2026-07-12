@@ -12,7 +12,10 @@ defmodule Portfolixir.MixProject do
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
         plt_local_path: "priv/plts",
-        plt_core_path: "priv/plts"
+        plt_core_path: "priv/plts",
+        # `:mix` is in the PLT for the Mix task(s) under lib/mix/tasks
+        # (fix round: mix portfolixir.seed_scope_buckets).
+        plt_add_apps: [:mix]
       ],
       aliases: aliases(),
       deps: deps()

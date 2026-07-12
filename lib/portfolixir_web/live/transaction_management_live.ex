@@ -302,7 +302,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                         <span class="tx-group-month"><%= group.label %></span>
                         <span class="tx-group-subtotal">
                           <%= ngettext("%{count} transaction", "%{count} transactions", group.count,
-                            count: group.count) %> · <%= format_decimal(group.total) %>
+                            count: group.count) %> · <%= PortfolixirWeb.Format.money(group.total) %>
                         </span>
                       </th>
                     </tr>
@@ -358,6 +358,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
     params =
       params
+      |> normalize_decimal_inputs()
       |> put_portfolio_from_depot(socket.assigns.securities_accounts)
       |> maybe_put_currency(currency)
 
@@ -490,10 +491,23 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     "#{date.year}-#{date.month |> Integer.to_string() |> String.pad_leading(2, "0")}"
   end
 
-  defp month_group_label(date) do
-    {:ok, first_of_month} = Date.new(date.year, date.month, 1)
-    Calendar.strftime(first_of_month, "%B %Y")
-  end
+  # Month names through gettext (fix round), so the German history reads
+  # "März 2026" instead of leaking strftime's English %B — same precedent as
+  # the income matrix month abbreviations (Steve UAT, reconsolidation).
+  defp month_group_label(date), do: "#{month_name(date.month)} #{date.year}"
+
+  defp month_name(1), do: gettext("January")
+  defp month_name(2), do: gettext("February")
+  defp month_name(3), do: gettext("March")
+  defp month_name(4), do: gettext("April")
+  defp month_name(5), do: gettext("May")
+  defp month_name(6), do: gettext("June")
+  defp month_name(7), do: gettext("July")
+  defp month_name(8), do: gettext("August")
+  defp month_name(9), do: gettext("September")
+  defp month_name(10), do: gettext("October")
+  defp month_name(11), do: gettext("November")
+  defp month_name(12), do: gettext("December")
 
   defp summarise(transactions) do
     by_type =
@@ -620,16 +634,49 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
 
+  # German decimal commas (fix round, UAT): "10,50" means 10.50 to a German
+  # user. Normalized ONLY at this form boundary — a single comma becomes a dot
+  # when the string carries no dot; anything else (thousands separators,
+  # already-dotted input) passes through untouched for the changeset to judge.
+  # Persisted parsing elsewhere is deliberately not changed.
+  @comma_decimal_fields ~w(quantity price fees taxes)
+
+  defp normalize_decimal_inputs(params) do
+    Enum.reduce(@comma_decimal_fields, params, fn field, acc ->
+      case Map.get(acc, field) do
+        value when is_binary(value) -> Map.put(acc, field, normalize_decimal_comma(value))
+        _ -> acc
+      end
+    end)
+  end
+
+  defp normalize_decimal_comma(value) do
+    trimmed = String.trim(value)
+
+    if not String.contains?(trimmed, ".") and
+         length(String.split(trimmed, ",")) == 2 do
+      String.replace(trimmed, ",", ".")
+    else
+      value
+    end
+  end
+
   # Per-field changeset errors keyed by the form field name, so each input can
   # carry aria-invalid + an associated message (UX-DR13, #412 follow-up).
+  # Messages run through the "errors" Gettext domain (fix round), so a German
+  # user reads "ist ungültig" instead of the raw "is invalid".
   defp field_errors(changeset) do
     changeset
-    |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
-      Enum.reduce(opts, msg, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
+    |> Ecto.Changeset.traverse_errors(&translate_error/1)
     |> Map.new(fn {field, messages} -> {to_string(field), Enum.join(messages, ", ")} end)
+  end
+
+  defp translate_error({msg, opts}) do
+    if count = opts[:count] do
+      Gettext.dngettext(PortfolixirWeb.Gettext, "errors", msg, msg, count, opts)
+    else
+      Gettext.dgettext(PortfolixirWeb.Gettext, "errors", msg, opts)
+    end
   end
 
   attr(:errors, :map, required: true)
@@ -643,9 +690,26 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     """
   end
 
+  # The submit flash: localized field label + translated message (fix round),
+  # so the German UI never mixes "price is invalid" into a translated page.
   defp changeset_error(changeset) do
     changeset.errors
-    |> Enum.map(fn {field, {message, _opts}} -> "#{field} #{message}" end)
+    |> Enum.map(fn {field, error} -> "#{field_label(field)} #{translate_error(error)}" end)
     |> Enum.join(", ")
   end
+
+  # The same labels the form inputs carry; unknown fields fall back to the
+  # schema field name.
+  defp field_label(:quantity), do: gettext("Quantity")
+  defp field_label(:price), do: gettext("Price")
+  defp field_label(:fees), do: gettext("Fees")
+  defp field_label(:taxes), do: gettext("Taxes")
+  defp field_label(:date), do: gettext("Date")
+  defp field_label(:type), do: gettext("Type")
+  defp field_label(:security_id), do: gettext("Security")
+  defp field_label(:securities_account_id), do: gettext("Depot")
+  defp field_label(:cash_account_id), do: gettext("Cash account")
+  defp field_label(:gross_amount), do: gettext("Amount")
+  defp field_label(:currency_code), do: gettext("Currency")
+  defp field_label(other), do: to_string(other)
 end

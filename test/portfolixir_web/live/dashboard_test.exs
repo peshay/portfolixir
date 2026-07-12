@@ -88,6 +88,22 @@ defmodule PortfolixirWeb.DashboardTest do
   #   "Everything" when none is set — with the YTD TTWROR as the change signal.
   # - The recent-activity feed and the count cards are gone from the populated
   #   overview (the wizard keeps its counts).
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer,
+  # I want the wealth card's default-scope label to read "Alles",
+  # so that the localized dashboard never shows an uppercase English
+  # "EVERYTHING". (The label is translated at render time — the card data is
+  # computed in an async task whose process has no user locale.)
+  test "the wealth card's Everything label is localized", %{conn: conn} do
+    seed_holding()
+
+    {:ok, view, _html} = live(conn, "/?locale=de")
+    html = render_async(view)
+
+    assert has_element?(view, "#dashboard-wealth-card span", "Alles")
+    refute html =~ "Everything"
+  end
+
   test "a populated dashboard shows value and change, not an activity feed", %{conn: conn} do
     seed_holding()
 

@@ -114,6 +114,13 @@ Buchhaltung aufzuspalten.
   Benenne beides frei auf der Seite **Ansichten** um (**Bucket umbenennen** /
   **Ansicht umbenennen**) — die Namen wurden nur übernommen, nichts hängt an
   ihnen.
+- **Leere Datenbank migriert, Daten erst danach eingespielt?** Die einmalige
+  Migration konvertiert nur die Portfolios, die sie vorfindet. Wenn du das
+  Upgrade gegen eine leere Datenbank ausgeführt und deine Daten später
+  wiederhergestellt hast, führe einmal `mix portfolixir.seed_scope_buckets`
+  aus — das legt den fehlenden Scope-Bucket samt Ansicht je Portfolio an und
+  ist gefahrlos wiederholbar (bereits migrierte Portfolios werden
+  übersprungen).
 - **Was Importe jetzt tun.** Die Import-Vorschau fragt nicht mehr nach einem
   Ziel-Portfolio. Stattdessen bietet sie einen bearbeitbaren Bucket-Tag an —
   *Die von diesem Import angelegten Konten erhalten den Bucket-Tag:* —

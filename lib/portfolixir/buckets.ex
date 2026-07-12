@@ -44,6 +44,7 @@ defmodule Portfolixir.Buckets do
 
   @scope_dimension "scope"
   @seed_name_suffix " (Portfolio)"
+  @name_max_length 100
 
   # -- buckets (reads) -------------------------------------------------------
 
@@ -109,13 +110,43 @@ defmodule Portfolixir.Buckets do
   dimension bucket on behalf of `actor` (journaled like any bucket create).
   Used by the import applier (ADR-0024 story 5): an entered tag that matches
   an existing bucket reuses it instead of erroring on the unique name.
+
+  The lookup is dimension-safe (fix round): a name that belongs to an
+  exclusive `"scope"`-dimension bucket is **not** reused as a tag — assigning
+  a scope bucket as if it were a free tag would silently break the one-scope-
+  bucket-per-account invariant. Returns `{:error, :name_taken_by_scope_bucket}`
+  so callers can surface a clear message.
   """
   def ensure_tag_bucket(%Actor{} = actor, name) when is_binary(name) do
     trimmed = String.trim(name)
 
     case Repo.get_by(Bucket, name: trimmed) do
+      %Bucket{dimension: @scope_dimension} -> {:error, :name_taken_by_scope_bucket}
       %Bucket{} = bucket -> {:ok, bucket}
       nil -> create_bucket(actor, %{name: trimmed, dimension: "tag"})
+    end
+  end
+
+  @doc """
+  Pre-validates a tag-bucket name **before** any write, so an import can
+  reject a bad tag in the preview instead of aborting the whole apply at the
+  end (fix round). Mirrors exactly what `ensure_tag_bucket/2` would hit:
+  the 100-character name limit and the scope-bucket name collision.
+  """
+  @spec validate_tag_bucket_name(String.t()) ::
+          :ok | {:error, :name_too_long | :name_taken_by_scope_bucket}
+  def validate_tag_bucket_name(name) when is_binary(name) do
+    trimmed = String.trim(name)
+
+    cond do
+      String.length(trimmed) > @name_max_length ->
+        {:error, :name_too_long}
+
+      match?(%Bucket{dimension: @scope_dimension}, Repo.get_by(Bucket, name: trimmed)) ->
+        {:error, :name_taken_by_scope_bucket}
+
+      true ->
+        :ok
     end
   end
 
@@ -213,6 +244,12 @@ defmodule Portfolixir.Buckets do
   Sets the per-position override for `(securities_account, security)` to
   `bucket_ids` on behalf of `actor`. An empty list records the **explicit-empty**
   state (deliberately no buckets), distinct from inheriting the depot default.
+
+  Like the account paths, the override enforces the ADR-0024 exclusive
+  dimension (fix round): at most one `"scope"`-dimension bucket per position,
+  rejected with `{:error, :exclusive_bucket_conflict}` before anything is
+  written — otherwise an override could double-count a position into two
+  scope-scoped totals.
   """
   def set_position_override(
         %Actor{} = actor,
@@ -221,7 +258,8 @@ defmodule Portfolixir.Buckets do
         bucket_ids
       )
       when is_list(bucket_ids) do
-    with :ok <- validate_bucket_ids(bucket_ids) do
+    with :ok <- validate_bucket_ids(bucket_ids),
+         :ok <- validate_exclusive_dimension(bucket_ids) do
       entries =
         case Enum.uniq(bucket_ids) do
           [] ->
@@ -301,23 +339,37 @@ defmodule Portfolixir.Buckets do
   def get_view!(id), do: Repo.get!(View, id)
 
   @doc """
-  The pure filter for a view: `%{include: :all | [bucket_id], exclude: [bucket_id]}`.
+  The pure filter for a view:
+  `{:ok, %{include: :all | [bucket_id], exclude: [bucket_id]}}`.
   Feed it to `Portfolixir.Engines.BucketResolution.holdings_matching_view/2`.
+
+  A vanished view returns `{:error, :view_not_found}` instead of raising
+  (fix round): a stale view id — deleted in another tab between check and
+  use — must degrade at the caller, never crash an async render or turn an
+  API 404 into a 500.
   """
   def view_filter(view_id) do
-    view = Repo.get!(View, view_id)
+    case Repo.get(View, view_id) do
+      nil ->
+        {:error, :view_not_found}
 
-    include =
-      if view.include_all do
-        :all
-      else
-        Repo.all(from(x in ViewIncludeBucket, where: x.view_id == ^view_id, select: x.bucket_id))
-      end
+      view ->
+        include =
+          if view.include_all do
+            :all
+          else
+            Repo.all(
+              from(x in ViewIncludeBucket, where: x.view_id == ^view_id, select: x.bucket_id)
+            )
+          end
 
-    exclude =
-      Repo.all(from(x in ViewExcludeBucket, where: x.view_id == ^view_id, select: x.bucket_id))
+        exclude =
+          Repo.all(
+            from(x in ViewExcludeBucket, where: x.view_id == ^view_id, select: x.bucket_id)
+          )
 
-    %{include: include, exclude: exclude}
+        {:ok, %{include: include, exclude: exclude}}
+    end
   end
 
   # -- views (writes, actor-first but NOT journaled, ADR-0018 §5) -------------
@@ -373,17 +425,27 @@ defmodule Portfolixir.Buckets do
   queries. The membership decision itself is the pure
   `Portfolixir.Engines.BucketResolution` (architecture D2/P3): this function is
   the shell that injects the data.
+
+  A vanished `view_id` returns `{:error, :view_not_found}` (fix round) so the
+  analytics caller can degrade instead of crashing on a stale id.
   """
-  @spec load_scope(integer(), integer() | nil) :: :unscoped | map()
+  @spec load_scope(integer(), integer() | nil) ::
+          :unscoped | map() | {:error, :view_not_found}
   def load_scope(_portfolio_id, nil), do: :unscoped
 
   def load_scope(portfolio_id, view_id) do
-    %{
-      view: view_filter(view_id),
-      depot_defaults: depot_defaults_for_portfolio(portfolio_id),
-      overrides: overrides_for_portfolio(portfolio_id),
-      cash: cash_assignments_for_portfolio(portfolio_id)
-    }
+    case view_filter(view_id) do
+      {:error, :view_not_found} = error ->
+        error
+
+      {:ok, view} ->
+        %{
+          view: view,
+          depot_defaults: depot_defaults_for_portfolio(portfolio_id),
+          overrides: overrides_for_portfolio(portfolio_id),
+          cash: cash_assignments_for_portfolio(portfolio_id)
+        }
+    end
   end
 
   @doc """
@@ -391,18 +453,26 @@ defmodule Portfolixir.Buckets do
   shape as `load_scope/2` but spanning every depot, position override, and cash
   account, so a cross-portfolio valuation can check membership without a
   portfolio filter. With `view_id == nil` it returns `:unscoped` (the
-  "everything" scope — every account matches).
+  "everything" scope — every account matches). A vanished `view_id` returns
+  `{:error, :view_not_found}` (fix round).
   """
-  @spec load_global_scope(integer() | nil) :: :unscoped | map()
+  @spec load_global_scope(integer() | nil) ::
+          :unscoped | map() | {:error, :view_not_found}
   def load_global_scope(nil), do: :unscoped
 
   def load_global_scope(view_id) do
-    %{
-      view: view_filter(view_id),
-      depot_defaults: all_depot_defaults(),
-      overrides: all_overrides(),
-      cash: all_cash_assignments()
-    }
+    case view_filter(view_id) do
+      {:error, :view_not_found} = error ->
+        error
+
+      {:ok, view} ->
+        %{
+          view: view,
+          depot_defaults: all_depot_defaults(),
+          overrides: all_overrides(),
+          cash: all_cash_assignments()
+        }
+    end
   end
 
   @doc """
@@ -432,6 +502,30 @@ defmodule Portfolixir.Buckets do
       securities_account_ids: depot_ids,
       cash_account_ids: cash_ids
     }
+  end
+
+  @doc """
+  Whether the scope matches at least one account or overridden position
+  (always true when unscoped or `include: :all`). Computed from the already-
+  loaded scope, no extra queries. Drives the "matches no accounts" hint
+  (fix round): a view whose include set is empty — or whose included buckets
+  are no longer assigned anywhere — should say so instead of showing a silent
+  zero total.
+  """
+  @spec scope_matches_any_account?(:unscoped | map()) :: boolean()
+  def scope_matches_any_account?(:unscoped), do: true
+
+  def scope_matches_any_account?(%{view: %{include: :all}}), do: true
+
+  def scope_matches_any_account?(scope) when is_map(scope) do
+    in_view? = &BucketResolution.in_view?(scope.view, &1)
+
+    Enum.any?(scope.depot_defaults, fn {_owner, bucket_ids} -> in_view?.(bucket_ids) end) or
+      Enum.any?(scope.cash, fn {_owner, bucket_ids} -> in_view?.(bucket_ids) end) or
+      Enum.any?(scope.overrides, fn
+        {_position, {:explicit, bucket_ids}} -> in_view?.(bucket_ids)
+        {_position, _state} -> false
+      end)
   end
 
   @doc "Whether the security position `{sa_id, sec_id}` is in `scope` (always true when unscoped)."
@@ -469,25 +563,44 @@ defmodule Portfolixir.Buckets do
   Seeded buckets and views carry the portfolio id in `source_portfolio_id`, so
   the seed is **idempotent** (an already-seeded portfolio is skipped entirely)
   and `rollback_portfolio_scope_seed/1` can remove exactly what was created.
-  A portfolio whose name is already taken falls back deterministically to
-  `"<name> (Portfolio)"`.
+  Naming is collision-safe (fix round): a taken portfolio name falls back to
+  `"<name> (Portfolio)"`, then `"<name> (Portfolio 2)"` and so on until a name
+  free among **both** buckets and views is found; over-long portfolio names
+  are truncated to fit the 100-character bucket/view limit before suffixing.
+
+  An account that already carries a **different** scope bucket is skipped
+  (never crashed on) and counted in `skipped_existing_scope` — its existing
+  scope assignment is the user's decision and wins.
 
   Bucket creations and account assignments are journaled under `actor` per
   ADR-0017 (the buckets table is guard-armed); view definitions stay
   unjournaled per ADR-0018 §5.
 
-  Returns `{:ok, %{buckets_created: n, views_created: n, accounts_tagged: n}}`;
-  a re-run over a fully seeded instance returns all zeros.
+  Returns `{:ok, %{buckets_created: n, views_created: n, accounts_tagged: n,
+  skipped_existing_scope: n}}`; a re-run over a fully seeded instance returns
+  all zeros. A failed write stops the seed and reports **which portfolio**
+  failed: `{:error, %{portfolio_id: id, portfolio_name: name, reason: reason}}`.
   """
   def seed_portfolio_scope_buckets(%Actor{} = actor) do
-    empty = %{buckets_created: 0, views_created: 0, accounts_tagged: 0}
+    empty = %{
+      buckets_created: 0,
+      views_created: 0,
+      accounts_tagged: 0,
+      skipped_existing_scope: 0
+    }
 
-    summary =
-      from(p in Portfolio, order_by: [asc: p.id])
-      |> Repo.all()
-      |> Enum.reduce(empty, fn portfolio, acc -> seed_portfolio(actor, portfolio, acc) end)
+    from(p in Portfolio, order_by: [asc: p.id])
+    |> Repo.all()
+    |> Enum.reduce_while({:ok, empty}, fn portfolio, {:ok, acc} ->
+      case seed_portfolio(actor, portfolio, acc) do
+        {:ok, acc} ->
+          {:cont, {:ok, acc}}
 
-    {:ok, summary}
+        {:error, reason} ->
+          {:halt,
+           {:error, %{portfolio_id: portfolio.id, portfolio_name: portfolio.name, reason: reason}}}
+      end
+    end)
   end
 
   @doc """
@@ -500,6 +613,11 @@ defmodule Portfolixir.Buckets do
   def rollback_portfolio_scope_seed(%Actor{} = actor) do
     Enum.each(seeded(Bucket), fn bucket -> {:ok, _} = delete_bucket(actor, bucket) end)
     Enum.each(seeded(View), fn view -> {:ok, _} = delete_view(actor, view) end)
+
+    # A rolled-back migration also forgets that its notice was dismissed
+    # (fix round): a later re-seed is a fresh migration and must be announced
+    # again on the Wealth page.
+    :ok = Portfolixir.Settings.reset_migration_notice()
     :ok
   end
 
@@ -519,95 +637,150 @@ defmodule Portfolixir.Buckets do
   end
 
   defp seed_portfolio(%Actor{} = actor, %Portfolio{} = portfolio, acc) do
-    {bucket, acc} = ensure_seeded_bucket(actor, portfolio, acc)
-    acc = ensure_seeded_view(portfolio, bucket, acc)
-    tag_portfolio_accounts(actor, portfolio, bucket, acc)
+    with {:ok, bucket, acc} <- ensure_seeded_bucket(actor, portfolio, acc),
+         {:ok, acc} <- ensure_seeded_view(portfolio, bucket, acc) do
+      tag_portfolio_accounts(actor, portfolio, bucket, acc)
+    end
   end
 
   defp ensure_seeded_bucket(%Actor{} = actor, %Portfolio{} = portfolio, acc) do
     case Repo.get_by(Bucket, source_portfolio_id: portfolio.id) do
       %Bucket{} = bucket ->
-        {bucket, acc}
+        {:ok, bucket, acc}
 
       nil ->
-        bucket = create_seeded_bucket!(actor, portfolio)
-        {bucket, %{acc | buckets_created: acc.buckets_created + 1}}
+        with {:ok, bucket} <- create_seeded_bucket(actor, portfolio) do
+          {:ok, bucket, %{acc | buckets_created: acc.buckets_created + 1}}
+        end
     end
   end
 
   # Mirrors `create_bucket/2` (journaled insert) but stamps the seed marker,
   # which is deliberately not castable from attrs.
-  defp create_seeded_bucket!(%Actor{} = actor, %Portfolio{} = portfolio) do
+  defp create_seeded_bucket(%Actor{} = actor, %Portfolio{} = portfolio) do
     changeset =
       Bucket.changeset(%Bucket{source_portfolio_id: portfolio.id}, %{
-        name: seed_name(portfolio.name, Bucket),
+        name: seed_bucket_name(portfolio),
         dimension: @scope_dimension
       })
 
-    {:ok, %{bucket: bucket}} =
-      Multi.new()
-      |> Multi.insert(:bucket, changeset)
-      |> Journal.record(actor, resource_type: "bucket", operation: :create, source: :bucket)
-      |> Repo.transaction()
-
-    bucket
+    Multi.new()
+    |> Multi.insert(:bucket, changeset)
+    |> Journal.record(actor, resource_type: "bucket", operation: :create, source: :bucket)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{bucket: bucket}} -> {:ok, bucket}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
   end
 
   defp ensure_seeded_view(%Portfolio{} = portfolio, %Bucket{} = bucket, acc) do
     if Repo.get_by(View, source_portfolio_id: portfolio.id) do
-      acc
+      {:ok, acc}
     else
-      create_seeded_view!(portfolio, bucket)
-      %{acc | views_created: acc.views_created + 1}
+      with :ok <- create_seeded_view(portfolio, bucket) do
+        {:ok, %{acc | views_created: acc.views_created + 1}}
+      end
     end
   end
 
   # The view and its single include link commit together; view definitions are
   # not journaled (ADR-0018 §5). The seeded view is a plain view — fully
-  # editable, no system special-casing.
-  defp create_seeded_view!(%Portfolio{} = portfolio, %Bucket{} = bucket) do
+  # editable, no system special-casing. The view prefers the bucket's exact
+  # name (the pair reads as one unit); only a view-name collision — e.g. an
+  # earlier partial seed plus a user view created in between — falls to the
+  # numbered variants.
+  defp create_seeded_view(%Portfolio{} = portfolio, %Bucket{} = bucket) do
     changeset =
       View.changeset(%View{source_portfolio_id: portfolio.id}, %{
-        name: seed_name(portfolio.name, View),
+        name: seed_view_name(bucket),
         include_all: false
       })
 
-    {:ok, _} =
-      Multi.new()
-      |> Multi.insert(:view, changeset)
-      |> Multi.insert(:include, fn %{view: view} ->
-        %ViewIncludeBucket{view_id: view.id, bucket_id: bucket.id}
-      end)
-      |> Repo.transaction()
-
-    :ok
+    Multi.new()
+    |> Multi.insert(:view, changeset)
+    |> Multi.insert(:include, fn %{view: view} ->
+      %ViewIncludeBucket{view_id: view.id, bucket_id: bucket.id}
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, _changes} -> :ok
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
   end
 
-  defp seed_name(name, schema) do
-    if Repo.exists?(from(r in schema, where: r.name == ^name)),
-      do: name <> @seed_name_suffix,
-      else: name
+  # The seeded bucket name must be free among buckets AND views, so the view
+  # created right after it can carry the same name.
+  defp seed_bucket_name(%Portfolio{name: name}) do
+    available_name(name, fn candidate ->
+      not Repo.exists?(from(b in Bucket, where: b.name == ^candidate)) and
+        not Repo.exists?(from(v in View, where: v.name == ^candidate))
+    end)
+  end
+
+  defp seed_view_name(%Bucket{name: name}) do
+    available_name(name, fn candidate ->
+      not Repo.exists?(from(v in View, where: v.name == ^candidate))
+    end)
+  end
+
+  # Collision-safe seed naming (fix round): the name itself, then
+  # "<name> (Portfolio)", then "<name> (Portfolio 2)", "<name> (Portfolio 3)",
+  # … — each with the base truncated so the whole candidate fits the
+  # 100-character bucket/view name limit. The numbered tail is unbounded, so a
+  # free name always exists and the seed can never abort on naming.
+  defp available_name(base, free?) do
+    base = String.trim(base)
+
+    [fit_name(base, ""), fit_name(base, @seed_name_suffix)]
+    |> Stream.concat(
+      Stream.map(Stream.iterate(2, &(&1 + 1)), &fit_name(base, " (Portfolio #{&1})"))
+    )
+    |> Enum.find(free?)
+  end
+
+  defp fit_name(base, suffix) do
+    String.slice(base, 0, max(@name_max_length - String.length(suffix), 1)) <> suffix
   end
 
   defp tag_portfolio_accounts(%Actor{} = actor, %Portfolio{id: pid}, %Bucket{} = bucket, acc) do
     depots = Repo.all(from(sa in SecuritiesAccount, where: sa.portfolio_id == ^pid))
     cash_accounts = Repo.all(from(ca in CashAccount, where: ca.portfolio_id == ^pid))
 
-    tagged =
-      Enum.count(depots, &tag_account(&1, bucket, depot_default_bucket_ids(&1.id), actor)) +
-        Enum.count(cash_accounts, &tag_account(&1, bucket, cash_account_bucket_ids(&1.id), actor))
+    depots
+    |> Enum.map(&{&1, depot_default_bucket_ids(&1.id)})
+    |> Enum.concat(Enum.map(cash_accounts, &{&1, cash_account_bucket_ids(&1.id)}))
+    |> Enum.reduce_while({:ok, acc}, fn {account, current_ids}, {:ok, acc} ->
+      case tag_account(account, bucket, current_ids, actor) do
+        {:ok, :tagged} ->
+          {:cont, {:ok, %{acc | accounts_tagged: acc.accounts_tagged + 1}}}
 
-    %{acc | accounts_tagged: acc.accounts_tagged + tagged}
+        {:ok, :skipped_existing_scope} ->
+          {:cont, {:ok, %{acc | skipped_existing_scope: acc.skipped_existing_scope + 1}}}
+
+        {:ok, :already_tagged} ->
+          {:cont, {:ok, acc}}
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
   end
 
-  # Adds the seeded scope bucket to the account's existing set (idempotent:
-  # already-tagged accounts are skipped). Returns whether a write happened.
+  # Adds the seeded scope bucket to the account's existing set. Idempotent:
+  # already-tagged accounts are skipped. An account that already carries a
+  # DIFFERENT scope bucket is skipped too (fix round) — the exclusive-dimension
+  # rejection is expected there, not a crash: the user's existing scope
+  # assignment wins over the seed.
   defp tag_account(account, %Bucket{id: bucket_id}, current_ids, %Actor{} = actor) do
     if bucket_id in current_ids do
-      false
+      {:ok, :already_tagged}
     else
-      :ok = set_account_buckets(actor, account, current_ids ++ [bucket_id])
-      true
+      case set_account_buckets(actor, account, current_ids ++ [bucket_id]) do
+        :ok -> {:ok, :tagged}
+        {:error, :exclusive_bucket_conflict} -> {:ok, :skipped_existing_scope}
+        {:error, reason} -> {:error, reason}
+      end
     end
   end
 
