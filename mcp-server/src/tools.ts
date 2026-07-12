@@ -976,6 +976,20 @@ const clearPositionBucketsZ = z.object({
   security_id: z.number().int().positive()
 });
 
+// The default-view preference (ADR-0024): a view id, or null/omitted for the
+// built-in Everything scope. Not a financial value, so no Decimal strings.
+const defaultViewSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    view_id: { type: ["integer", "null"], minimum: 1 }
+  }
+};
+
+const defaultViewZ = z.object({
+  view_id: z.number().int().positive().nullable().optional()
+});
+
 const journalActorTypes = [
   "owner_ui",
   "api_token_rw",
@@ -1366,6 +1380,20 @@ const toolDefinitions: ToolDefinition[] = [
     "Clear the per-position bucket override, returning the position to inherit the depot default (id is the securities account id, security_id the security).",
     clearPositionBucketsSchema,
     clearPositionBucketsZ
+  ),
+  tool(
+    "portfolixir.settings.get_default_view",
+    "Get default view",
+    "Read the user's default view preference (ADR-0024): the view the Wealth page and dashboard open on. view_id is null when the built-in Everything scope is the default. No financial values are involved.",
+    emptyObjectSchema,
+    emptyObjectZ
+  ),
+  tool(
+    "portfolixir.settings.set_default_view",
+    "Set default view",
+    "Set the user's default view preference (ADR-0024). Pass a view id to make it the default scope of the Wealth page and dashboard; pass null (or omit view_id) to clear back to the built-in Everything scope. An unknown view id is rejected with 404.",
+    defaultViewSchema,
+    defaultViewZ
   )
 ];
 
@@ -1655,6 +1683,12 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "DELETE",
         `/api/v1/securities_accounts/${args.id}/positions/${args.security_id}/buckets`
       );
+    case "portfolixir.settings.get_default_view":
+      return client.request("GET", "/api/v1/settings/default_view");
+    case "portfolixir.settings.set_default_view":
+      return client.request("PUT", "/api/v1/settings/default_view", {
+        view_id: args.view_id ?? null
+      });
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);
   }

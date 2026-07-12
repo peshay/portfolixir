@@ -153,6 +153,9 @@ defmodule PortfolixirWeb.Router do
     put("/views/:id/buckets", ViewController, :set_buckets)
     get("/views/:view_id/valuation", ViewValuationController, :show)
 
+    get("/settings/default_view", SettingsController, :show_default_view)
+    put("/settings/default_view", SettingsController, :set_default_view)
+
     put("/securities_accounts/:id/buckets", BucketAssignmentController, :set_depot_buckets)
     put("/cash_accounts/:id/buckets", BucketAssignmentController, :set_cash_account_buckets)
 

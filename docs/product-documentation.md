@@ -345,9 +345,10 @@ Portfolio page mutes non-deployable rows and labels them with their role.
 The **Overview** entry (the start page) answers "did anything change, does
 anything need me?" (ADR-0022). With an empty database it is the onboarding
 wizard (the ordered workflow path plus entity counts). Once transactions
-exist it shows, per portfolio, a **value card** (total incl. cash in the
-portfolio's base currency, with the **YTD TTWROR** as the change signal and
-the cash quote), a **Needs attention** list — every targeted category whose
+exist it shows one **value card scoped to your default view** — **Everything**
+when none is set (ADR-0024: views, not portfolios, are what the dashboard
+aggregates over) — with the total incl. cash, the **YTD TTWROR** as the
+change signal and the cash quote, a **Needs attention** list — every targeted category whose
 allocation drift exceeds **±5 percentage points** (ADR-0023 sign: positive =
 overweight), worst first, each linking into the Wealth area's Allocation &
 targets tab — and the **data-quality card** (securities without a recent
@@ -398,12 +399,33 @@ acting on it stays entirely manual. The cash section lists each account's balanc
 the **set-balance form**: type the balance your bank shows and the snapshot is
 recorded without booking individual transactions.
 
+**The page scopes to a view (ADR-0024).** The header totals and the cash
+section follow the **active view across all portfolios** — **Everything**
+(German *Alles*) is the built-in default and shows every holding, each account
+counted exactly once. Pick a view in the **view switcher** at the top of the
+page; **Set as default** (*Als Standard festlegen*) remembers the choice
+server-side, so the Wealth page and the Overview page open on that view
+whenever you have not explicitly picked another (an explicit pick — including
+Everything — always wins). When the active view's buckets share an account, a
+badge next to the total — *Overlapping buckets — accounts counted once* —
+reminds you that per-bucket figures overlap and must not be summed; the total
+itself is already deduplicated. View-scoped performance series carry the label
+*Composition as of today* (*Zusammensetzung per heute*): the view's current
+bucket membership applies retroactively to the whole history, and bucket
+changes are recorded in the audit journal. After the one-time ADR-0024
+migration that turned each portfolio into a bucket and a view of the same
+name, the page shows a **dismissible notice** listing the seeded views; the
+dismissal is remembered. The default view is also readable and settable over
+the API (`GET`/`PUT /api/v1/settings/default_view`) and the MCP tools
+`portfolixir.settings.get_default_view` / `set_default_view`.
+
 **The target side follows the active view (ADR-0020).** The drift table's
 Target, Drift and *Σ target top level* columns reflect the **active view's plan**
 for the selected classification — actual and target always move together. Switch the
 **view switcher** at the top of the page and both sides swap to that view's plan
 at once, so you never see two plans mixed into a >100% Σ or a ghost row. The
-default **Total** view reads the portfolio-wide **Gesamt** plan. A subtle dot on
+built-in **Everything** view (formerly labelled *Total*) reads the
+portfolio-wide **Gesamt** plan. A subtle dot on
 a view-switcher chip marks the views that already carry a plan for the current
 classification, so you can tell the steered views from the actual-only ones at a
 glance.

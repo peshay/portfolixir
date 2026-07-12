@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Ledger
@@ -25,6 +26,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
+  alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
@@ -58,11 +60,14 @@ defmodule PortfolixirWeb.PortfolioLive do
     socket =
       socket
       # The tab rides in current_path so the view/locale switchers (which
-      # derive their hrefs from it) keep the user on the active tab.
-      |> assign(:current_path, wealth_tab_path(wealth_tab))
+      # derive their hrefs from it) keep the user on the active tab — and an
+      # explicit ?view= rides along too, so a tab or locale switch keeps the
+      # picked view in the URL (ADR-0024).
+      |> assign(:current_path, wealth_tab |> wealth_tab_path() |> keep_view_param(params))
       |> assign(:wealth_tab, wealth_tab)
       |> assign(:error, nil)
       |> assign(:success, nil)
+      |> assign_migration_notice()
 
     case Portfolios.first_portfolio() do
       nil ->
@@ -108,6 +113,40 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp wealth_tab_path(:allocation), do: "/portfolio?tab=allocation"
   defp wealth_tab_path(_tab), do: "/portfolio"
 
+  # Merges an explicit ?view= from the mount params into current_path (same
+  # query-merging pattern as the switcher's own hrefs), so the tab bar and the
+  # locale switcher — which derive their links from current_path — carry the
+  # picked view along instead of dropping it.
+  defp keep_view_param(path, %{"view" => view}) when is_binary(view) do
+    uri = URI.parse(path)
+
+    query =
+      (uri.query || "")
+      |> URI.decode_query()
+      |> Map.put("view", view)
+      |> URI.encode_query()
+
+    URI.to_string(%{uri | query: query})
+  end
+
+  defp keep_view_param(path, _params), do: path
+
+  # The one-time ADR-0024 migration notice: shown while the seeded views exist
+  # and the maintainer has not dismissed it yet; two cheap indexed reads.
+  defp assign_migration_notice(socket) do
+    notice =
+      if Settings.migration_notice_dismissed?() do
+        nil
+      else
+        case Buckets.migration_summary() do
+          %{migrated?: true} = summary -> summary
+          _not_migrated -> nil
+        end
+      end
+
+    assign(socket, :migration_notice, notice)
+  end
+
   # The dead render ships skeletons only; the expensive reads start once the
   # socket is connected, so the page paints fast and is computed exactly once.
   defp start_loading(socket) do
@@ -122,11 +161,17 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp load_overview(socket) do
     portfolio_id = socket.assigns.portfolio.id
+    base_currency = socket.assigns.portfolio.base_currency_code
     classification_id = socket.assigns.classification_id
     view_id = socket.assigns[:active_view_id]
 
     start_async(socket, :overview, fn ->
-      valuation = Valuation.for_portfolio(portfolio_id, view: view_id)
+      # The header totals and cash come from the cross-portfolio view valuation
+      # (ADR-0024): the page's primary scope is the active view — Everything
+      # when none is picked — deduplicated at the account level. The allocation
+      # stays on the portfolio-bound read (its per-portfolio SOLL plans,
+      # ADR-0020) filtered by the same view.
+      valuation = Valuation.for_view(view_id, base_currency: base_currency)
       {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id, view: view_id)
       {valuation, allocation}
     end)
@@ -280,7 +325,37 @@ defmodule PortfolixirWeb.PortfolioLive do
           views={@views}
           active_view={@active_view}
           planned_view_ids={@planned_view_ids}
+          show_default_control={true}
+          default_view_id={@default_view_id}
         />
+
+        <%!-- One-time ADR-0024 migration notice: the seeded views exist, so
+             say what happened once and get out of the way permanently. --%>
+        <section
+          :if={@migration_notice}
+          id="portfolio-migration-notice"
+          class="workspace-section"
+          data-role="migration-notice"
+          role="status"
+        >
+          <h2><%= gettext("Your portfolios are now views") %></h2>
+          <p>
+            <%= gettext(
+              "The one-time migration turned each portfolio into a bucket and a view of the same name — fully editable, nothing was deleted. Pick a view above to scope this page."
+            ) %>
+          </p>
+          <ul data-role="migration-views">
+            <li :for={view <- @migration_notice.views}><%= view.name %></li>
+          </ul>
+          <button
+            type="button"
+            class="button-mini"
+            data-role="dismiss-migration-notice"
+            phx-click="dismiss_migration_notice"
+          >
+            <%= gettext("Got it") %>
+          </button>
+        </section>
 
         <section class="workspace-section grid" aria-label={gettext("Portfolio key figures")}>
           <article id="kpi-total" class="stat">
@@ -289,6 +364,19 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= Format.money(@valuation.total_with_cash) %> <%= @valuation.base_currency %>
             </strong>
             <strong :if={is_nil(@valuation)}>…</strong>
+            <%!-- Overlap badge (ADR-0024 modification 2): the active view's
+                 buckets share at least one account. Purely informational —
+                 the total already counts each account exactly once. --%>
+            <small
+              :if={@valuation && overlapping?(@valuation)}
+              class="hint"
+              data-role="overlap-badge"
+              title={gettext(
+                "This view's buckets share accounts. Each account is counted once, so per-bucket figures may overlap and must not be summed."
+              )}
+            >
+              <%= gettext("Overlapping buckets — accounts counted once") %>
+            </small>
           </article>
           <article id="kpi-securities" class="stat">
             <span><%= gettext("Securities") %></span>
@@ -404,6 +492,13 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= if @performance.start_date do %>
                 <%= @performance.start_date %> – <%= @performance.end_date %>
               <% end %>
+            </p>
+            <%!-- ADR-0024 modification 4: bucket membership applies
+                 retroactively, so a view-scoped series is labelled with its
+                 semantics instead of pretending temporal membership. --%>
+            <p :if={@active_view} class="hint" data-role="composition-label">
+              <%= gettext("Composition as of today") %> —
+              <%= gettext("the view's current bucket membership is applied to the whole history.") %>
             </p>
           <% else %>
             <div
@@ -1247,9 +1342,11 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   def handle_event("set_balance", %{"balance" => params}, socket) do
+    # The cash table is view-scoped across all portfolios (ADR-0024), so any
+    # existing account listed there may take a snapshot — the old "must belong
+    # to the page's portfolio" guard no longer matches the page's scope.
     with {:ok, account_id} <- coerce_id(params["cash_account_id"]),
-         %{portfolio_id: pid} = account <- Portfolios.get_cash_account(account_id),
-         true <- pid == socket.assigns.portfolio.id,
+         %{id: _} = account <- Portfolios.get_cash_account(account_id),
          {:ok, _tx} <- Ledger.set_cash_balance(Actor.owner_ui(), account, params) do
       {:noreply,
        socket
@@ -1282,6 +1379,22 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_event("dismiss_toast", _params, socket) do
     {:noreply, assign(socket, error: nil, success: nil)}
+  end
+
+  # Persists the active selection as the user's default view (ADR-0024): the
+  # scope the Wealth page and dashboard open on when nothing explicit was
+  # chosen. Everything active (`nil`) clears the preference — Everything IS
+  # the built-in default.
+  def handle_event("set_default_view", _params, socket) do
+    :ok = Settings.set_default_view(socket.assigns.active_view_id)
+    {:noreply, assign(socket, :default_view_id, socket.assigns.active_view_id)}
+  end
+
+  # Dismisses the one-time migration notice permanently (server-side, so it
+  # stays dismissed across browsers and new sessions).
+  def handle_event("dismiss_migration_notice", _params, socket) do
+    :ok = Settings.dismiss_migration_notice()
+    {:noreply, assign(socket, :migration_notice, nil)}
   end
 
   # One toggle (UAT fix round): expand-all reveals every level down to the
@@ -1493,6 +1606,11 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp trade_priced_count(nil), do: 0
   defp trade_priced_count(valuation), do: valuation.trade_priced_count
+
+  # Whether the active view's buckets share at least one account (ADR-0024
+  # overlap badge). Tolerates valuations without overlap data.
+  defp overlapping?(%{overlap: %{overlapping?: true}}), do: true
+  defp overlapping?(_valuation), do: false
 
   defp suspect_dates(nil), do: []
   defp suspect_dates(analysis), do: analysis.suspect_dates

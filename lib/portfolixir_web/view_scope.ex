@@ -5,12 +5,17 @@ defmodule PortfolixirWeb.ViewScope do
   Mirrors `PortfolixirWeb.Locale`: the active view is a cross-page UI preference,
   carried by a `?view=` query parameter on a full navigation, stored in the
   session (so the LiveView mount can read it) and in a long-lived cookie (so the
-  choice survives a new session). `?view=total` (or any unknown id) clears the
-  preference back to **Total** — the unscoped default.
+  choice survives a new session).
+
+  `?view=total` stores the literal `"total"` — an **explicit** choice of the
+  built-in Everything scope. It must stay distinguishable from "never chose
+  anything", because with a user-settable default view (ADR-0024) the unset
+  state falls back to the default while an explicit Everything must not. A
+  malformed value clears the preference back to unset.
 
   The plug only validates the *shape* of the value (a positive integer id, or the
-  literal `"total"`); whether the id still names a live view is decided where the
-  scope is loaded, so a deleted view degrades gracefully to Total.
+  literal `"total"`); whether an id still names a live view is decided where the
+  scope is loaded, so a deleted view degrades gracefully.
   """
 
   import Plug.Conn
@@ -44,11 +49,17 @@ defmodule PortfolixirWeb.ViewScope do
   def cookie_name, do: @cookie
 
   # An explicit `?view=` was supplied: store the (validated) choice in both the
-  # session and the cookie. `nil` (Total) clears both.
+  # session and the cookie. A malformed value clears both back to unset.
   defp apply_choice(conn, nil) do
     conn
     |> put_session(@session_key, nil)
     |> delete_resp_cookie(@cookie)
+  end
+
+  defp apply_choice(conn, "total") do
+    conn
+    |> put_session(@session_key, "total")
+    |> put_resp_cookie(@cookie, "total", max_age: @max_age, same_site: "Lax")
   end
 
   defp apply_choice(conn, view_id) when is_integer(view_id) do
@@ -63,11 +74,14 @@ defmodule PortfolixirWeb.ViewScope do
   defp carry_cookie(conn) do
     case normalize(conn.cookies[@cookie]) do
       nil -> put_session(conn, @session_key, nil)
-      view_id -> put_session(conn, @session_key, view_id)
+      choice -> put_session(conn, @session_key, choice)
     end
   end
 
-  # "total" (and anything that is not a positive integer) means Total/unscoped.
+  # A positive integer id, the literal "total" (explicit Everything), or nil
+  # (unset — the default-view fallback applies at mount).
+  defp normalize("total"), do: "total"
+
   defp normalize(value) when is_binary(value) do
     case Integer.parse(String.trim(value)) do
       {id, ""} when id > 0 -> id

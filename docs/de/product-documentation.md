@@ -365,9 +365,11 @@ verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 Der Eintrag **Übersicht** (die Startseite) beantwortet „Hat sich etwas
 geändert, braucht etwas meine Aufmerksamkeit?" (ADR-0022). Bei leerer
 Datenbank ist sie der Onboarding-Assistent (der geordnete Workflow-Pfad plus
-Zähler). Sobald Transaktionen existieren, zeigt sie je Portfolio eine
-**Wert-Karte** (Gesamtwert inkl. Cash in der Basiswährung des Portfolios, mit
-der **YTD-TTWROR** als Änderungssignal und der Cash-Quote), eine Liste
+Zähler). Sobald Transaktionen existieren, zeigt sie eine **Wert-Karte,
+eingegrenzt auf deine Standard-Ansicht** — **Alles**, wenn keine gesetzt ist
+(ADR-0024: Ansichten, nicht Portfolios, sind das, worüber die Übersicht
+aggregiert) — mit dem Gesamtwert inkl. Cash, der **YTD-TTWROR** als
+Änderungssignal und der Cash-Quote, eine Liste
 **Braucht Aufmerksamkeit** — jede Kategorie mit Ziel, deren Allokations-Drift
 **±5 Prozentpunkte** überschreitet (ADR-0023-Vorzeichen: positiv =
 übergewichtet), schlimmste zuerst, jeweils verlinkt in den Tab „Allokation &
@@ -423,13 +425,34 @@ listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: tippe de
 Saldo ein, den deine Bank zeigt, und der Snapshot wird ohne Buchung einzelner
 Transaktionen erfasst.
 
+**Die Seite ist auf eine Ansicht eingegrenzt (ADR-0024).** Die Kopf-Summen und
+der Cash-Abschnitt folgen der **aktiven Ansicht über alle Portfolios hinweg** —
+**Alles** (englisch *Everything*) ist die eingebaute Voreinstellung und zeigt
+jede Position, jedes Konto genau einmal gezählt. Wähle eine Ansicht im
+**Sicht-Umschalter** oben auf der Seite; **Als Standard festlegen** merkt sich
+die Wahl serverseitig, sodass Vermögensseite und Übersicht mit dieser Ansicht
+öffnen, solange du nicht ausdrücklich eine andere wählst (eine ausdrückliche
+Wahl — auch von „Alles" — gewinnt immer). Teilen sich die Buckets der aktiven
+Ansicht ein Konto, erinnert ein Badge neben der Summe — *Überlappende Buckets –
+Konten nur einmal gezählt* — daran, dass sich Werte je Bucket überschneiden und
+nicht summiert werden dürfen; die Summe selbst ist bereits dedupliziert.
+Ansicht-bezogene Performance-Reihen tragen das Label *Zusammensetzung per
+heute*: die aktuelle Bucket-Zuordnung der Ansicht gilt rückwirkend für die
+gesamte Historie, und Bucket-Änderungen stehen im Audit-Journal. Nach der
+einmaligen ADR-0024-Migration, die aus jedem Portfolio einen Bucket und eine
+gleichnamige Ansicht gemacht hat, zeigt die Seite einen **schließbaren
+Hinweis** mit den angelegten Ansichten; das Schließen wird gemerkt. Die
+Standard-Ansicht ist auch über die API (`GET`/`PUT
+/api/v1/settings/default_view`) und die MCP-Tools
+`portfolixir.settings.get_default_view` / `set_default_view` les- und setzbar.
+
 **Die SOLL-Seite folgt der aktiven Sicht (ADR-0020).** Die Spalten Ziel, Drift
 und *Σ target top level* der Drift-Tabelle spiegeln den **Plan der aktiven
 Sicht** für die gewählte Klassifizierung wider — IST und SOLL bewegen sich immer
 zusammen. Wechselst du den **Sicht-Umschalter** oben auf der Seite, springen
 beide Seiten gleichzeitig auf den Plan dieser Sicht, sodass nie zwei Pläne zu
-einer Σ über 100 % oder einer Geisterzeile vermischt werden. Die Standardsicht
-**Total** liest den portfolioweiten **Gesamt**-Plan. Ein dezenter Punkt auf einem
+einer Σ über 100 % oder einer Geisterzeile vermischt werden. Die eingebaute
+Ansicht **Alles** (früher *Total*) liest den portfolioweiten **Gesamt**-Plan. Ein dezenter Punkt auf einem
 Sicht-Chip markiert die Sichten, die bereits einen Plan für die aktuelle
 Klassifizierung tragen, sodass du gesteuerte und reine IST-Sichten auf einen
 Blick unterscheidest.

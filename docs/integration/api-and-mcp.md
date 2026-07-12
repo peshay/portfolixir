@@ -626,6 +626,21 @@ returns the raw per-(depot, security) rows in each security's own currency, so a
 client can apply the buckets/views model itself using each row's
 `securities_account_id` and `security_id`.
 
+## Settings
+
+A minimal keyed preference store backs the user-facing defaults (ADR-0024).
+Today it carries one preference: the **default view** the Wealth page and
+dashboard open on when no explicit view was chosen in the UI. No financial
+decimals are involved.
+
+- `GET /api/v1/settings/default_view` returns the current default:
+  `{"data": {"view_id": null, "view": null}}` when unset (the built-in
+  Everything scope), otherwise the id plus a `view: {id, name}` echo.
+- `PUT /api/v1/settings/default_view` sets it. Body: `{"view_id": <id>}` with a
+  live view id, or `{"view_id": null}` to clear back to Everything. An unknown
+  view id returns `404` (nothing is written); a malformed `view_id` returns
+  `422`. The response mirrors the `GET` shape.
+
 ## Audit Journal
 
 Every financial write (create, update, delete) is recorded in an append-only
@@ -718,6 +733,8 @@ in MCP schemas are strings.
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
 - `portfolixir.securities_accounts.clear_position_buckets`
+- `portfolixir.settings.get_default_view`
+- `portfolixir.settings.set_default_view`
 
 The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
 `portfolixir.portfolios.performance` and `portfolixir.portfolios.risk` tools
@@ -726,6 +743,9 @@ matching that bucket view; the response then echoes the active view.
 `portfolixir.views.valuation` values a view **across all portfolios** in one
 call (each matching account counted once, EUR totals, `overlap` badge data) —
 use it instead of summing per-portfolio valuations client-side.
+`portfolixir.settings.get_default_view` / `portfolixir.settings.set_default_view`
+read and set the default-view preference (ADR-0024): pass a `view_id` to pin a
+view, or `null`/omit it to clear back to the built-in Everything scope.
 
 Since ADR-0020 the target tools (`portfolixir.targets.list`,
 `portfolixir.targets.set`, `portfolixir.targets.delete`) and the cash-target

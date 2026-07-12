@@ -619,6 +619,21 @@ view-eingegrenzt: er liefert die Roh-Zeilen pro (Depot, Wertpapier) in der
 jeweiligen Wertpapierwährung, sodass ein Client das Buckets/Views-Modell selbst
 anhand von `securities_account_id` und `security_id` jeder Zeile anwenden kann.
 
+## Einstellungen
+
+Ein minimaler Schlüssel-Wert-Speicher trägt die nutzerseitigen Voreinstellungen
+(ADR-0024). Heute gibt es eine: die **Standard-Ansicht**, mit der Vermögensseite
+und Übersicht öffnen, wenn in der UI keine Ansicht ausdrücklich gewählt wurde.
+Finanzielle Decimals kommen hier nicht vor.
+
+- `GET /api/v1/settings/default_view` liefert die aktuelle Voreinstellung:
+  `{"data": {"view_id": null, "view": null}}` wenn keine gesetzt ist (die
+  eingebaute Alles-Sicht), sonst die id plus ein `view: {id, name}`-Echo.
+- `PUT /api/v1/settings/default_view` setzt sie. Body: `{"view_id": <id>}` mit
+  einer existierenden View-id, oder `{"view_id": null}` zum Zurücksetzen auf
+  Alles. Eine unbekannte View-id liefert `404` (nichts wird geschrieben); eine
+  fehlerhafte `view_id` liefert `422`. Die Antwort entspricht dem `GET`-Format.
+
 ## Audit-Journal
 
 Jeder finanzielle Schreibvorgang (Anlegen, Ändern, Löschen) wird in einem
@@ -712,6 +727,13 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
 - `portfolixir.securities_accounts.clear_position_buckets`
+- `portfolixir.settings.get_default_view`
+- `portfolixir.settings.set_default_view`
+
+`portfolixir.settings.get_default_view` /
+`portfolixir.settings.set_default_view` lesen und setzen die
+Standard-Ansicht-Voreinstellung (ADR-0024): eine `view_id` pinnt eine Ansicht,
+`null` (oder weglassen) setzt auf die eingebaute Alles-Sicht zurück.
 
 Die Tools `portfolixir.portfolios.valuation`,
 `portfolixir.portfolios.allocation`, `portfolixir.portfolios.performance` und
