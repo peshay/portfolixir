@@ -354,6 +354,131 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert header =~ "1.100,00"
   end
 
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer with a year-spanning history,
+  # I want EVERY month-group header translated,
+  # so that no strftime English month name (May, October, ...) leaks into the
+  # localized history for any month of the year.
+  test "translates the month-group header for every month", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Jahr")
+
+    for month <- 4..12 do
+      WorldFixtures.deposit!(world, "10", Date.new!(2026, month, 1))
+    end
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    expected = %{
+      4 => "April 2026",
+      5 => "Mai 2026",
+      6 => "Juni 2026",
+      7 => "Juli 2026",
+      8 => "August 2026",
+      9 => "September 2026",
+      10 => "Oktober 2026",
+      11 => "November 2026",
+      12 => "Dezember 2026"
+    }
+
+    for {month, label} <- expected do
+      group = "2026-#{month |> Integer.to_string() |> String.pad_leading(2, "0")}"
+      header = view |> element("tr.tx-group-head[data-month-group='#{group}']") |> render()
+      assert header =~ label
+    end
+
+    html = render(view)
+    refute html =~ "May 2026"
+    refute html =~ "October 2026"
+    refute html =~ "December 2026"
+  end
+
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer who submits an incomplete form,
+  # I want the flash to name every offending field with its localized label,
+  # so that "securities_account_id can't be blank" never leaks schema field
+  # names into a translated page.
+  #
+  # Acceptance criteria:
+  # - A submit without a depot keeps the ledger empty and reports the missing
+  #   depot/security/date (and the negative costs) in German.
+  # - The internal portfolio binding is simply absent when no depot matched —
+  #   no crash, the changeset reports it.
+  test "a submit without a depot names every missing field in German", %{conn: conn} do
+    WorldFixtures.base_world(name: "Leer")
+    _security = WorldFixtures.create_security!(name: "Leer Co", ticker: "LER")
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    html =
+      view
+      |> element("#transaction-form")
+      |> render_submit(%{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "",
+          "securities_account_id" => "",
+          "security_id" => "",
+          "quantity" => "2",
+          "price" => "10",
+          "fees" => "-1",
+          "taxes" => "-1"
+        }
+      })
+
+    assert Portfolixir.Ledger.list_transactions() == []
+
+    # Localized field labels, not schema field names.
+    assert html =~ "Depot darf nicht leer sein"
+    assert html =~ "Wertpapier darf nicht leer sein"
+    assert html =~ "Datum darf nicht leer sein"
+    assert html =~ "Verrechnungskonto darf nicht leer sein"
+    refute html =~ "securities_account_id can&#39;t be blank"
+
+    # Negative costs are rejected with the localized number message.
+    assert html =~ "Gebühren muss größer oder gleich 0 sein"
+    assert html =~ "Steuern muss größer oder gleich 0 sein"
+  end
+
+  # User story (fix round, robustness):
+  # As a local portfolio maintainer whose stale browser tab sends a degraded
+  # payload (missing cost fields, an unknown type, a malformed currency),
+  # I want the save to answer with translated validation errors,
+  # so that a hostile or out-of-date client can neither crash the view nor
+  # write an invalid transaction.
+  test "a degraded client payload gets translated errors, nothing is written", %{conn: conn} do
+    WorldFixtures.base_world(name: "Kaputt")
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    # Sent straight at the event handler: no fees/taxes keys at all, an
+    # unknown type and a two-letter currency the form would never produce.
+    html =
+      render_submit(view, "save_transaction", %{
+        "transaction" => %{
+          "type" => "bogus",
+          "date" => "2026-01-05",
+          "currency_code" => "EU",
+          "quantity" => "1",
+          "price" => "1"
+        }
+      })
+
+    assert Portfolixir.Ledger.list_transactions() == []
+    assert html =~ "Typ ist ungültig"
+    # The pluralized length message runs through the errors domain (count).
+    assert html =~ "Währung muss genau 3 Zeichen lang sein"
+
+    # A cash kind without its amount reports the localized Amount label.
+    html =
+      render_submit(view, "save_transaction", %{
+        "transaction" => %{"type" => "dividend", "date" => "2026-01-05"}
+      })
+
+    assert Portfolixir.Ledger.list_transactions() == []
+    assert html =~ "Betrag darf nicht leer sein"
+    assert html =~ "Verrechnungskonto darf nicht leer sein"
+  end
+
   # The history lists every ledger kind, not just buy/sell (e.g. an imported
   # dividend). Every PP kind now carries a translated label (Steve UAT,
   # reconsolidation); unknown kinds still fall back to their stored name

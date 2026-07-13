@@ -451,6 +451,379 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     refute panel =~ "<input"
   end
 
+  # User story (ADR-0024, #491):
+  # As a local portfolio maintainer whose depots settle against one shared
+  # cash account,
+  # I want the shared account's controls rendered exactly once,
+  # so that later rows read "shared account" instead of duplicating the
+  # liquidity selector and chips under conflicting DOM ids.
+  test "a shared cash account renders its controls only on the first row", %{conn: conn} do
+    %{portfolio: portfolio, cash: cash, depot: depot} = world()
+
+    {:ok, second} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot B"
+      })
+
+    {:ok, view, html} = live(conn, "/portfolios")
+
+    # The first claiming row keeps the liquidity selector and cash chips.
+    first_row = view |> element("#account-row-depot-#{depot.id}") |> render()
+    assert first_row =~ "liquidity-role-#{cash.id}"
+    assert first_row =~ "cash-buckets-#{cash.id}"
+
+    # The second row names the sharing instead of duplicating controls.
+    second_row = view |> element("#account-row-depot-#{second.id}") |> render()
+    assert second_row =~ "shared account"
+    refute second_row =~ "liquidity-role-#{cash.id}"
+
+    # No DOM id appears twice.
+    assert length(String.split(html, ~s(id="liquidity-role-#{cash.id}"))) == 2
+  end
+
+  # User story (ADR-0024, #559):
+  # As a local portfolio maintainer,
+  # I want the "+" affordance to close an open picker again,
+  # so that the chip row toggles instead of stacking pickers.
+  test "the bucket picker toggles closed on the second + click", %{conn: conn} do
+    %{depot: depot} = world()
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view
+    |> element("#depot-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> render_click()
+
+    assert has_element?(view, "#bucket-picker-depot-#{depot.id}")
+
+    view
+    |> element("#depot-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> render_click()
+
+    refute has_element?(view, "#bucket-picker-depot-#{depot.id}")
+  end
+
+  # User story (fix round, robustness):
+  # As a local portfolio maintainer,
+  # I want malformed or stale chip payloads (a non-numeric id, an account that
+  # vanished in another tab) to be ignored,
+  # so that a hostile or out-of-date client can neither crash the page nor
+  # write an assignment.
+  test "malformed and stale chip payloads are ignored without a write", %{conn: conn} do
+    %{depot: depot, cash: cash} = world()
+    {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Retirement"})
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [tag.id])
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    # Non-numeric owner id: the picker never opens.
+    render_click(view, "open_bucket_picker", %{"owner" => "depot", "id" => "abc"})
+    refute has_element?(view, "[data-role='bucket-picker']")
+
+    # Non-numeric bucket ids leave the membership untouched.
+    depot_id = to_string(depot.id)
+    render_click(view, "add_bucket", %{"owner" => "depot", "id" => depot_id, "bucket" => "abc"})
+    render_click(view, "remove_bucket", %{"owner" => "depot", "id" => depot_id, "bucket" => "x"})
+    assert Buckets.depot_default_bucket_ids(depot.id) == [tag.id]
+
+    # Vanished owners (depot or cash) are ignored, no crash, no write.
+    render_click(view, "add_bucket", %{
+      "owner" => "depot",
+      "id" => "999999",
+      "bucket" => to_string(tag.id)
+    })
+
+    render_click(view, "add_bucket", %{
+      "owner" => "cash",
+      "id" => "999999",
+      "bucket" => to_string(tag.id)
+    })
+
+    assert Buckets.depot_default_bucket_ids(depot.id) == [tag.id]
+    assert Buckets.cash_account_bucket_ids(cash.id) == []
+  end
+
+  # User story (fix round, two-tab staleness):
+  # As a local portfolio maintainer with two tabs open,
+  # I want picking a bucket that was deleted in the other tab to say so,
+  # so that the stale picker fails with a refresh hint instead of a crash.
+  test "adding a bucket deleted meanwhile shows the refresh hint", %{conn: conn} do
+    %{depot: depot} = world()
+    {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Retirement"})
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view
+    |> element("#depot-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> render_click()
+
+    # The other tab deletes the bucket while our picker is open.
+    {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), tag)
+
+    html =
+      view
+      |> element("#bucket-picker-depot-#{depot.id} button[phx-value-bucket='#{tag.id}']")
+      |> render_click()
+
+    assert html =~ "data-role=\"bucket-error\""
+    assert html =~ "no longer exists"
+    assert Buckets.depot_default_bucket_ids(depot.id) == []
+  end
+
+  # User story (fix round, tag/scope dimension safety):
+  # As a local portfolio maintainer,
+  # I want the inline tag creation to refuse a scope bucket's name,
+  # so that the exclusive scope dimension is never silently reused as a tag.
+  test "inline tag creation refuses a scope bucket's name and bad names", %{conn: conn} do
+    %{depot: depot} = world()
+
+    {:ok, _scope} =
+      Buckets.create_bucket(Actor.owner_ui(), %{name: "Household", dimension: "scope"})
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view
+    |> element("#depot-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> render_click()
+
+    html =
+      view
+      |> element("#bucket-create-form-depot-#{depot.id}")
+      |> render_submit(%{"bucket_name" => "Household"})
+
+    assert html =~ "belongs to a scope bucket"
+    assert Buckets.depot_default_bucket_ids(depot.id) == []
+
+    # An over-long tag name fails with the changeset message, no write.
+    html =
+      view
+      |> element("#bucket-create-form-depot-#{depot.id}")
+      |> render_submit(%{"bucket_name" => String.duplicate("x", 120)})
+
+    assert html =~ "data-role=\"bucket-error\""
+    assert html =~ "should be at most"
+    assert Buckets.depot_default_bucket_ids(depot.id) == []
+    assert length(Buckets.list_buckets()) == 1
+  end
+
+  # User story (ADR-0024 modification 1):
+  # As a local portfolio maintainer,
+  # I want import- and seed-created portfolio records labeled by their origin,
+  # so that the admin list tells me where every compatibility record came from.
+  test "admin panel labels import- and seed-created records", %{conn: conn} do
+    {:ok, imported} =
+      Portfolios.create_portfolio(Actor.import_session("pp-2026-07"), %{
+        name: "PP Import",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, _seeded} =
+      Portfolios.create_portfolio(Actor.system_job("portfolio_scope_seed"), %{
+        name: "Machine Made",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    panel = view |> element("#portfolio-admin") |> render()
+    assert panel =~ "PP Import"
+    assert panel =~ "Import"
+    assert panel =~ "Machine Made"
+    assert panel =~ "Seeded"
+    assert imported.name == "PP Import"
+  end
+
+  # User story (ADR-0024, #491):
+  # As a local portfolio maintainer,
+  # I want the creation dialog to close via its X button and to step back to
+  # the depot-or-cash choice,
+  # so that I can abandon or correct the flow without reloading the page.
+  test "the dialog closes via X and steps back to the choice", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view |> element("#add-account-button") |> render_click()
+    assert has_element?(view, "#account-form-dialog")
+
+    # Into the depot form, then back to the choice step.
+    view
+    |> element("#account-form-dialog button[phx-value-mode='depot']")
+    |> render_click()
+
+    assert has_element?(view, "#account-dialog-form")
+
+    view |> element("#account-dialog-form button.button-ghost") |> render_click()
+    refute has_element?(view, "#account-dialog-form")
+    assert has_element?(view, "#account-form-dialog button[phx-value-mode='cash']")
+
+    # The X closes the dialog entirely.
+    view |> element("#account-form-dialog header button.icon-button") |> render_click()
+    refute has_element?(view, "#account-form-dialog")
+  end
+
+  # User story (ADR-0024, #491):
+  # As a local portfolio maintainer,
+  # I want the new-cash-account fields to disappear when I link an existing
+  # account,
+  # so that the form never asks for a name/currency it would ignore.
+  test "linking an existing cash account hides the new-cash fields", %{conn: conn} do
+    %{cash: cash} = world()
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view |> element("#add-account-button") |> render_click()
+
+    view
+    |> element("#account-form-dialog button[phx-value-mode='depot']")
+    |> render_click()
+
+    assert has_element?(view, "#account-dialog-form input[name='account[cash_name]']")
+
+    view
+    |> element("#account-dialog-form")
+    |> render_change(%{"account" => %{"cash_account_id" => to_string(cash.id)}})
+
+    refute has_element?(view, "#account-dialog-form input[name='account[cash_name]']")
+
+    view
+    |> element("#account-dialog-form")
+    |> render_change(%{"account" => %{"cash_account_id" => ""}})
+
+    assert has_element?(view, "#account-dialog-form input[name='account[cash_name]']")
+  end
+
+  # User story (ADR-0024, #491):
+  # As a local portfolio maintainer,
+  # I want a blank depot name rejected before anything is written,
+  # so that a failed depot create never leaves a freshly created cash account
+  # dangling without its depot.
+  test "a blank depot name fails before creating the cash account", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view |> element("#add-account-button") |> render_click()
+
+    view
+    |> element("#account-form-dialog button[phx-value-mode='depot']")
+    |> render_click()
+
+    html =
+      view
+      |> form("#account-dialog-form", %{
+        "account" => %{
+          "depot_name" => "   ",
+          "cash_account_id" => "",
+          "cash_name" => "Verrechnungskonto",
+          "currency_code" => "EUR",
+          "new_tag" => ""
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "field-error"
+    assert html =~ "blank"
+    assert Portfolios.list_cash_accounts() == []
+    assert Portfolios.list_securities_accounts() == []
+  end
+
+  # Changeset errors land on the field that caused them: a malformed currency
+  # is reported at the Currency input, and nothing is created.
+  test "the dialog maps changeset errors onto the offending field", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view |> element("#add-account-button") |> render_click()
+
+    view
+    |> element("#account-form-dialog button[phx-value-mode='cash']")
+    |> render_click()
+
+    html =
+      view
+      |> form("#account-dialog-form", %{
+        "account" => %{"cash_name" => "Neu", "currency_code" => "EU", "new_tag" => ""}
+      })
+      |> render_submit()
+
+    assert html =~ "field-error"
+    assert html =~ "should be"
+    assert Portfolios.list_cash_accounts() == []
+  end
+
+  # User story (fix round, tag/scope dimension safety):
+  # As a local portfolio maintainer,
+  # I want the dialog's inline tag to refuse a scope bucket's name and
+  # unusable names,
+  # so that the creation flow fails loud before any record is written.
+  test "the dialog rejects a scope-named or unusable new tag before creating", %{conn: conn} do
+    {:ok, _scope} =
+      Buckets.create_bucket(Actor.owner_ui(), %{name: "Household", dimension: "scope"})
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view |> element("#add-account-button") |> render_click()
+
+    view
+    |> element("#account-form-dialog button[phx-value-mode='cash']")
+    |> render_click()
+
+    html =
+      view
+      |> form("#account-dialog-form", %{
+        "account" => %{"cash_name" => "Cash", "currency_code" => "EUR", "new_tag" => "Household"}
+      })
+      |> render_submit()
+
+    assert html =~ "belongs to a scope bucket"
+    assert Portfolios.list_cash_accounts() == []
+
+    html =
+      view
+      |> form("#account-dialog-form", %{
+        "account" => %{
+          "cash_name" => "Cash",
+          "currency_code" => "EUR",
+          "new_tag" => String.duplicate("x", 120)
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "The new tag could not be created."
+    assert Portfolios.list_cash_accounts() == []
+  end
+
+  # A cash-only creation also honors the initial buckets (there is no depot to
+  # tag, only the new cash account).
+  test "cash-only creation tags the new account with the initial buckets", %{conn: conn} do
+    {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Household"})
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view |> element("#add-account-button") |> render_click()
+
+    view
+    |> element("#account-form-dialog button[phx-value-mode='cash']")
+    |> render_click()
+
+    view
+    |> form("#account-dialog-form", %{
+      "account" => %{
+        "cash_name" => "Tagesgeld",
+        "currency_code" => "EUR",
+        "bucket_ids" => [to_string(tag.id)],
+        "new_tag" => ""
+      }
+    })
+    |> render_submit()
+
+    # Synchronize on the parent's success flash before asserting the writes:
+    # the dialog notifies the parent asynchronously, which reloads the page.
+    assert render(view) =~ "Cash account created"
+
+    assert [cash] = Portfolios.list_cash_accounts()
+    assert cash.name == "Tagesgeld"
+    assert Buckets.cash_account_bucket_ids(cash.id) == [tag.id]
+  end
+
   # User story:
   # As a German-locale maintainer,
   # I want the accounts surface fully translated,
