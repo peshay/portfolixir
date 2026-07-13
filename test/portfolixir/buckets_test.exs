@@ -531,6 +531,20 @@ defmodule Portfolixir.BucketsTest do
 
       assert Buckets.scope_matches_any_account?(Buckets.load_global_scope(view.id))
     end
+
+    # An explicit-empty override deliberately assigns no buckets, so it can
+    # never make a view match — and it must not crash the check either.
+    test "an explicit-empty override does not make a view match", %{
+      depot: depot,
+      security: security
+    } do
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Solo"})
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "SoloView", include_all: false})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+      :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [])
+
+      refute Buckets.scope_matches_any_account?(Buckets.load_global_scope(view.id))
+    end
   end
 
   describe "exclusive scope dimension" do
