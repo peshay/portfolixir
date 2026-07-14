@@ -145,23 +145,31 @@ Die Buchhaltungs-Entitäten sind Geldkonten und Depots:
 - Depot/Konto: speichert Wertpapierpositionen, verknüpft mit diesem Geldkonto
 
 Die Seite **Konten & Depots** (Bereich Verwaltung) zeigt beide in **einer
-gepaarten Tabelle**: jedes Depot bildet eine Zeile zusammen mit seinem
-verknüpften Verrechnungskonto, der Kontowährung und dem
-**Liquiditätsrollen**-Selektor je Konto (freies Cash, Kreditlinie, Reserve);
-ein Geldkonto ohne verknüpftes Depot bekommt eine eigene Zeile. Ein von
-mehreren Depots geteiltes Konto trägt seine Bedienelemente nur auf seiner
-ersten Zeile.
+Tabelle, ein Eintrag je Zeile**: jedes Depot bildet eine Zeile, sein
+verknüpftes Verrechnungskonto sitzt eingerückt direkt darunter — mit der
+Kontowährung und dem beschrifteten **Liquiditätsrollen**-Selektor je Konto
+(freies Cash, Kreditlinie, Reserve); ein Geldkonto ohne verknüpftes Depot
+bekommt eine eigene Zeile. Ein von mehreren Depots geteiltes Konto trägt
+seine Bedienelemente nur unter seinem ersten Depot — spätere Zeilen zeigen
+*geteilt — oben verwaltet*.
 
 **Bucket-Chips (#559).** Jede Zeile zeigt ihre Bucket-Zugehörigkeiten als
 Chips — den exklusiven **Scope**-Bucket als gefüllten Chip, freie **Tags**
 als Umriss-Chips, eingefärbt mit der Bucket-Farbe, wenn eine gesetzt ist.
-Lange Namen (etwa datumsgestempelte Import-Tags) werden gekürzt; der volle
-Name erscheint beim Überfahren des Chips. Die Chips sind die Gruppierungs-UI:
-das **+** öffnet einen kleinen Picker mit den übrigen Buckets plus einem
-Inline-Feld **Neuer Tag**, das einen Tag in einem Schritt anlegt und
-zuweist, und das **×** auf einem Chip entfernt die Zugehörigkeit. Jede
-Änderung läuft durch den audit-journalisierten Bucket-Kontext; der Versuch,
-einen zweiten Scope-Bucket zuzuweisen, wird mit einer Inline-Meldung
+Tragen Depot und Verrechnungskonto dieselben Buckets, zeigt das Paar **eine
+zusammengeführte Chip-Gruppe mit der Marke „Beide"** über beide Zeilen; der
+Link **Getrennt taggen** daneben teilt die Gruppe, sodass jede Seite eigene
+Tags bekommt (unterschiedliche Mengen erscheinen immer getrennt). Je Gruppe
+sind höchstens vier Chips sichtbar — weitere klappen in einen **+N**-Chip,
+und der Picker führt die vollständige Menge. Lange Namen (etwa
+datumsgestempelte Import-Tags) werden gekürzt; der volle Name erscheint beim
+Überfahren des Chips. Die Chips sind die Gruppierungs-UI: das **+** öffnet
+ein kleines Picker-Popover mit den übrigen Buckets plus einem Inline-Feld
+**Neuer Tag**, das einen Tag in einem Schritt anlegt und zuweist, und das
+**×** auf einem Chip entfernt die Zugehörigkeit. Änderungen an einer
+zusammengeführten Gruppe gelten für Depot und Verrechnungskonto gemeinsam.
+Jede Änderung läuft durch den audit-journalisierten Bucket-Kontext; der
+Versuch, einen zweiten Scope-Bucket zuzuweisen, wird mit einer Inline-Meldung
 abgelehnt, denn die Scope-Dimension bleibt exklusiv (ADR-0024).
 
 **Ein Anlage-Dialog (#491).** Der Knopf **Depot & Konto anlegen** öffnet
