@@ -4606,8 +4606,10 @@ button.income-bar-label.is-active {
   }
 }
 
-/* Import confirm: inline spinner shown while Imports.apply/2 runs async */
-.import-spinner {
+/* Inline spinner: import confirm while Imports.apply/2 runs async, and the
+   FX sync button while the background rate sync is in flight. */
+.import-spinner,
+.spinner {
   display: inline-block;
   width: 0.8em;
   height: 0.8em;
@@ -4626,7 +4628,8 @@ button.income-bar-label.is-active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .import-spinner {
+  .import-spinner,
+  .spinner {
     animation: none;
     border-top-color: currentColor;
     opacity: 0.5;

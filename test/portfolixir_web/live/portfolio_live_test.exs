@@ -537,12 +537,17 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # so that I can pull a missing rate and have the cash valued without leaving
   # the app or waiting for the 12 h background sync (issue #432).
   #
-  # Acceptance criteria (UAT fix round: background run, inline status — no toast):
+  # Acceptance criteria (UAT fix rounds: background run, inline status — no
+  # toast; tactile button feedback because the sub-second sync made the
+  # disabled state invisible):
   # - A "Sync exchange rates" button is shown in the cash section.
-  # - Clicking it starts a background sync: the button is disabled and an
-  #   inline status text shows progress while it runs.
-  # - Completion reports inline next to the button (count on success), not
-  #   via a status toast, and the figures reload.
+  # - Clicking it starts a background sync: while it runs the button is
+  #   disabled and shows an inline spinner with "Syncing…".
+  # - On success the button itself confirms — disabled, "✓ Up to date" — for a
+  #   flash window that a :clear_fx_flash message ends, then returns to its
+  #   normal label.
+  # - The result line is compact: "N rates updated" plus a local HH:MM time,
+  #   not a verbose sentence, and no status toast.
   test "syncs exchange rates in the background with inline status", %{conn: conn} do
     seed_world()
 
@@ -556,22 +561,37 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       |> element("#portfolio-cash button", "Sync exchange rates")
       |> render_click()
 
-    # While the background run is in flight: disabled button, inline progress.
-    # (Asserted on the click-time render — the fake sync completes instantly,
-    # so a fresh element query would race the completion message.)
+    # While the background run is in flight: disabled button with an inline
+    # spinner and label. (Asserted on the click-time render — the fake sync
+    # completes instantly, so a fresh element query would race completion.)
     assert syncing =~ "Syncing exchange rates…"
     assert syncing =~ ~r/<button[^>]*phx-click="sync_rates"[^>]*\sdisabled/
+    assert syncing =~ ~r/<button[^>]*phx-click="sync_rates"[^>]*>[\s\S]*?class="spinner"/
+    assert syncing =~ "Syncing…"
 
     # Drain the sync and the figure reloads it kicks off.
     render_async(view)
     html = render_async(view)
 
-    # Inline result line instead of a toast.
+    # During the flash window the button stays disabled and confirms inline.
+    button = view |> element(~s(#portfolio-cash button[phx-click="sync_rates"])) |> render()
+    assert button =~ "Up to date"
+    assert button =~ "✓"
+    assert button =~ ~r/<button[^>]*\sdisabled/
+
+    # Compact inline result line instead of a toast: count + local HH:MM.
     result = view |> element(~s([data-role="fx-sync-result"])) |> render()
-    assert result =~ "Exchange rates synced"
+    assert result =~ ~r/\d+ rates updated/
+    assert result =~ ~r/\d{2}:\d{2}/
+    refute result =~ "Recalculating figures"
     refute html =~ "status-toast--success"
 
-    # The button is usable again.
+    # The flash timer clears the confirmation and re-arms the button.
+    send(view.pid, :clear_fx_flash)
+    cleared = view |> element(~s(#portfolio-cash button[phx-click="sync_rates"])) |> render()
+    assert cleared =~ "Sync exchange rates"
+    refute cleared =~ "Up to date"
+    refute cleared =~ ~r/<button[^>]*\sdisabled/
     refute has_element?(view, ~s(#portfolio-cash button[disabled]), "Sync exchange rates")
   end
 
@@ -594,6 +614,12 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     result = view |> element(~s([data-role="fx-sync-result"])) |> render()
     assert result =~ "reach the exchange-rate provider"
     refute html =~ "status-toast--error"
+
+    # No success flash on failure: the button re-arms immediately.
+    button = view |> element(~s(#portfolio-cash button[phx-click="sync_rates"])) |> render()
+    assert button =~ "Sync exchange rates"
+    refute button =~ "Up to date"
+    refute button =~ ~r/<button[^>]*\sdisabled/
   end
 
   # User story:

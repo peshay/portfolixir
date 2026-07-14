@@ -108,6 +108,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:flat_sort, {:drift, :desc})
           |> assign(:fx_syncing, false)
           |> assign(:fx_sync_result, nil)
+          |> assign(:fx_sync_flash, false)
           |> assign(:category_parent_map, %{})
           |> assign(:category_parents_with_children, MapSet.new())
           |> assign_planned_view_ids()
@@ -270,13 +271,22 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, assign(socket, analysis: analysis, performance: performance)}
   end
 
-  # The background rate sync (issue #432, UAT fix round): the outcome lands
-  # as an inline status line next to the button; a success re-values the
-  # figures the same way the old synchronous path did.
+  # The background rate sync (issue #432, UAT fix rounds): the outcome lands
+  # as a compact inline status line next to the button; a success re-values
+  # the figures the same way the old synchronous path did. Because the sync
+  # completes sub-second, success also flashes IN the button ("✓ Up to date",
+  # disabled) until :clear_fx_flash fires — otherwise the disabled state is
+  # invisible and the button feels like it did nothing.
   def handle_async(:sync_rates, {:ok, {:ok, %{upserted: count}}}, socket) do
+    Process.send_after(self(), :clear_fx_flash, 3000)
+
     {:noreply,
      socket
-     |> assign(fx_syncing: false, fx_sync_result: {:ok, count})
+     |> assign(
+       fx_syncing: false,
+       fx_sync_flash: true,
+       fx_sync_result: {:ok, count, NaiveDateTime.local_now()}
+     )
      |> load_overview()
      |> load_performance()}
   end
@@ -291,6 +301,12 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_async(_name, {:exit, _reason}, socket) do
     {:noreply, assign(socket, error: gettext("Couldn't load the wealth figures."))}
+  end
+
+  @impl true
+  # Ends the transient "✓ Up to date" confirmation in the sync button.
+  def handle_info(:clear_fx_flash, socket) do
+    {:noreply, assign(socket, :fx_sync_flash, false)}
   end
 
   # One landing spot for a loaded allocation: resolved display colours plus
@@ -1108,10 +1124,17 @@ defmodule PortfolixirWeb.PortfolioLive do
               <button
                 type="button"
                 phx-click="sync_rates"
-                disabled={@fx_syncing}
+                disabled={@fx_syncing or @fx_sync_flash}
                 phx-disable-with={gettext("Syncing…")}
               >
-                <%= gettext("Sync exchange rates") %>
+                <%= cond do %>
+                  <% @fx_syncing -> %>
+                    <span class="spinner" aria-hidden="true"></span> <%= gettext("Syncing…") %>
+                  <% @fx_sync_flash -> %>
+                    ✓ <%= gettext("Up to date") %>
+                  <% true -> %>
+                    <%= gettext("Sync exchange rates") %>
+                <% end %>
               </button>
               <span :if={@fx_syncing} class="hint" data-role="fx-sync-status" role="status">
                 <%= gettext("Syncing exchange rates…") %>
@@ -1674,12 +1697,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   # On-demand exchange-rate sync (issue #432): the rate provider only refreshes
   # on a 12 h timer, so a foreign-currency cash account stays unvalued until a
   # rate arrives. This lets the user pull rates now and re-value the figures.
-  defp fx_sync_result_message({:ok, count}), do: rates_synced_message(count)
-  defp fx_sync_result_message(:error), do: rate_sync_error_message()
-
-  defp rates_synced_message(count) do
-    gettext("Exchange rates synced (%{count} updated). Recalculating figures…", count: count)
+  # The success line is compact — count plus the local wall-clock time of the
+  # run (display-only formatting; domain data stays day-granular).
+  defp fx_sync_result_message({:ok, count, synced_at}) do
+    gettext("%{count} rates updated", count: count) <>
+      " · " <> Calendar.strftime(synced_at, "%H:%M")
   end
+
+  defp fx_sync_result_message(:error), do: rate_sync_error_message()
 
   defp rate_sync_error_message do
     gettext(
