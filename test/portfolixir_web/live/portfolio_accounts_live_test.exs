@@ -93,22 +93,28 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     {:ok, view, html} = live(conn, "/portfolios")
 
-    # One paired row carries both names and the cash currency.
-    pair_row = view |> element("#account-row-depot-#{depot.id}") |> render()
-    assert pair_row =~ "Depot A"
-    assert pair_row =~ "Giro"
-    assert pair_row =~ "EUR"
-    assert pair_row =~ "liquidity-role-#{cash.id}"
+    # One paired band carries both names and the cash currency: the depot row
+    # on top, the indented cash row below it.
+    pair_band = view |> element("#account-row-depot-#{depot.id}") |> render()
+    assert pair_band =~ "Depot A"
+    assert pair_band =~ "Giro"
+    assert pair_band =~ "EUR"
+    assert pair_band =~ "liquidity-role-#{cash.id}"
+    assert pair_band =~ "account-row--depot"
+    assert pair_band =~ "account-row--cash"
 
-    # The unpaired cash account is its own row.
-    lone_row = view |> element("#account-row-cash-#{lone_cash.id}") |> render()
-    assert lone_row =~ "Tagesgeld"
-    assert lone_row =~ "USD"
+    # The unpaired cash account is its own single-row band with a micro-tag.
+    lone_band = view |> element("#account-row-cash-#{lone_cash.id}") |> render()
+    assert lone_band =~ "Tagesgeld"
+    assert lone_band =~ "USD"
+    assert lone_band =~ "account-pair--lone"
+    assert lone_band =~ "Cash account"
 
     # The two separate lists are gone.
     refute html =~ "cash-account-list"
     refute html =~ "securities-account-list"
     assert has_element?(view, "table[data-role='accounts-table']")
+    assert has_element?(view, "tbody[data-role='account-row']#account-row-depot-#{depot.id}")
   end
 
   # User story (ADR-0024, #559):
@@ -170,6 +176,12 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Retirement"})
 
     {:ok, view, _html} = live(conn, "/portfolios")
+
+    # The fresh pair starts merged (equal empty sets) — split it so the depot
+    # and cash sides carry their own chip groups.
+    view
+    |> element("#account-row-depot-#{depot.id} [data-role='split-pair']")
+    |> render_click()
 
     # Open the picker on the depot row and add the existing bucket.
     view
@@ -455,8 +467,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
   # As a local portfolio maintainer whose depots settle against one shared
   # cash account,
   # I want the shared account's controls rendered exactly once,
-  # so that later rows read "shared account" instead of duplicating the
-  # liquidity selector and chips under conflicting DOM ids.
+  # so that later rows read "shared — managed above" instead of duplicating
+  # the liquidity selector and chips under conflicting DOM ids.
   test "a shared cash account renders its controls only on the first row", %{conn: conn} do
     %{portfolio: portfolio, cash: cash, depot: depot} = world()
 
@@ -467,17 +479,24 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
         name: "Depot B"
       })
 
+    # Distinct sets keep the first band split, so the cash chips are visible.
+    {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Household"})
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [tag.id])
+
     {:ok, view, html} = live(conn, "/portfolios")
 
-    # The first claiming row keeps the liquidity selector and cash chips.
+    # The first claiming band keeps the liquidity selector and cash chips.
     first_row = view |> element("#account-row-depot-#{depot.id}") |> render()
     assert first_row =~ "liquidity-role-#{cash.id}"
     assert first_row =~ "cash-buckets-#{cash.id}"
 
-    # The second row names the sharing instead of duplicating controls.
+    # The second band names the sharing instead of duplicating controls, and
+    # its depot chips render as their own group — never merged.
     second_row = view |> element("#account-row-depot-#{second.id}") |> render()
-    assert second_row =~ "shared account"
+    assert second_row =~ "shared — managed above"
+    assert second_row =~ "depot-buckets-#{second.id}"
     refute second_row =~ "liquidity-role-#{cash.id}"
+    refute second_row =~ "pair-buckets-#{second.id}"
 
     # No DOM id appears twice.
     assert length(String.split(html, ~s(id="liquidity-role-#{cash.id}"))) == 2
@@ -493,16 +512,295 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     {:ok, view, _html} = live(conn, "/portfolios")
 
     view
-    |> element("#depot-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> element("#pair-buckets-#{depot.id} button[data-role='bucket-add']")
     |> render_click()
 
-    assert has_element?(view, "#bucket-picker-depot-#{depot.id}")
+    assert has_element?(view, "#bucket-picker-pair-#{depot.id}")
 
+    view
+    |> element("#pair-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> render_click()
+
+    refute has_element?(view, "#bucket-picker-pair-#{depot.id}")
+  end
+
+  # User story (UAT fix round, disciplined table):
+  # As a local portfolio maintainer whose depot and cash account carry the
+  # same buckets,
+  # I want the pair to show ONE chip group marked "Both" spanning both rows,
+  # so that identical memberships are not duplicated chip-for-chip.
+  #
+  # Acceptance criteria:
+  # - The merged group renders exactly once, on the depot row, with
+  #   rowspan="2"; the cash row has no buckets cell.
+  # - The group carries the "Both" micro-label with an explanatory title.
+  # - A visible "Tag separately" link sits next to the merged chip group.
+  # - The pair picker's header explains that tags apply to depot & cash.
+  test "equal bucket sets render one merged pair chip group with rowspan", %{conn: conn} do
+    %{cash: cash, depot: depot} = world()
+
+    {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Household"})
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [tag.id])
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [tag.id])
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    band = view |> element("#account-row-depot-#{depot.id}") |> render()
+    assert band =~ ~s(rowspan="2")
+    assert band =~ "pair-buckets-#{depot.id}"
+    assert band =~ "Both"
+    assert band =~ "Applies to depot and cash account"
+    assert band =~ "Tag separately"
+    refute band =~ "depot-buckets-#{depot.id}"
+    refute band =~ "cash-buckets-#{cash.id}"
+
+    # Exactly one chip group in the band.
+    assert length(String.split(band, ~s(data-role="bucket-chips"))) == 2
+
+    # The pair picker names its double scope.
+    view
+    |> element("#pair-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> render_click()
+
+    picker = view |> element("#bucket-picker-pair-#{depot.id}") |> render()
+    assert picker =~ "Tags apply to depot &amp; cash"
+  end
+
+  # User story (UAT fix round, disciplined table):
+  # As a local portfolio maintainer,
+  # I want "Tag separately" to split the merged pair group into per-entity
+  # groups,
+  # so that I can tag the depot and its cash account differently.
+  test "Tag separately splits the merged group into per-entity chips", %{conn: conn} do
+    %{cash: cash, depot: depot} = world()
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    assert has_element?(view, "#pair-buckets-#{depot.id}")
+
+    view
+    |> element("#account-row-depot-#{depot.id} [data-role='split-pair']")
+    |> render_click()
+
+    refute has_element?(view, "#pair-buckets-#{depot.id}")
+    assert has_element?(view, "#depot-buckets-#{depot.id}")
+    assert has_element?(view, "#cash-buckets-#{cash.id}")
+  end
+
+  # User story (UAT fix round, disciplined table):
+  # As a local portfolio maintainer,
+  # I want chip edits on the merged group applied to the depot AND its cash
+  # account,
+  # so that "Both" stays truthful after every write.
+  test "merged pair chip edits write both owners", %{conn: conn} do
+    %{cash: cash, depot: depot} = world()
+
+    {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Retirement"})
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view
+    |> element("#pair-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> render_click()
+
+    view
+    |> element("#bucket-picker-pair-#{depot.id} button[phx-value-bucket='#{tag.id}']")
+    |> render_click()
+
+    assert Buckets.depot_default_bucket_ids(depot.id) == [tag.id]
+    assert Buckets.cash_account_bucket_ids(cash.id) == [tag.id]
+
+    # Still one merged group after the write.
+    assert has_element?(view, "#pair-buckets-#{depot.id}")
+
+    # Inline tag creation also lands on both owners.
+    view
+    |> element("#bucket-create-form-pair-#{depot.id}")
+    |> render_submit(%{"bucket_name" => "Kids"})
+
+    kids = Enum.find(Buckets.list_buckets(), &(&1.name == "Kids"))
+    assert kids
+    assert Enum.sort(Buckets.depot_default_bucket_ids(depot.id)) == Enum.sort([tag.id, kids.id])
+    assert Enum.sort(Buckets.cash_account_bucket_ids(cash.id)) == Enum.sort([tag.id, kids.id])
+
+    # Removing a merged chip removes it from both owners.
+    view
+    |> element(
+      "#pair-buckets-#{depot.id} button[data-role='bucket-remove'][phx-value-bucket='#{tag.id}']"
+    )
+    |> render_click()
+
+    assert Buckets.depot_default_bucket_ids(depot.id) == [kids.id]
+    assert Buckets.cash_account_bucket_ids(cash.id) == [kids.id]
+  end
+
+  # User story (UAT fix round, disciplined table):
+  # As a local portfolio maintainer,
+  # I want a second scope bucket on the merged group rejected with the inline
+  # message,
+  # so that the exclusive dimension holds for pair writes too.
+  test "pair write of a second scope bucket surfaces the conflict", %{conn: conn} do
+    %{cash: cash, depot: depot} = world()
+
+    {:ok, scope_a} =
+      Buckets.create_bucket(Actor.owner_ui(), %{name: "Mine", dimension: "scope"})
+
+    {:ok, scope_b} =
+      Buckets.create_bucket(Actor.owner_ui(), %{name: "Partner", dimension: "scope"})
+
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [scope_a.id])
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [scope_a.id])
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    view
+    |> element("#pair-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> render_click()
+
+    html =
+      view
+      |> element("#bucket-picker-pair-#{depot.id} button[phx-value-bucket='#{scope_b.id}']")
+      |> render_click()
+
+    assert html =~ "data-role=\"bucket-error\""
+    assert html =~ "one scope bucket"
+    assert Buckets.depot_default_bucket_ids(depot.id) == [scope_a.id]
+    assert Buckets.cash_account_bucket_ids(cash.id) == [scope_a.id]
+  end
+
+  # User story (UAT fix round, disciplined table):
+  # As a local portfolio maintainer,
+  # I want a pair whose depot and cash sets differ to render split
+  # automatically,
+  # so that "Both" never lies about a diverged membership.
+  test "diverged bucket sets auto-split the pair into per-entity chips", %{conn: conn} do
+    %{cash: cash, depot: depot} = world()
+
+    {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Household"})
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [tag.id])
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    refute has_element?(view, "#pair-buckets-#{depot.id}")
+    assert has_element?(view, "#depot-buckets-#{depot.id}")
+    assert has_element?(view, "#cash-buckets-#{cash.id}")
+  end
+
+  # User story (UAT fix round, chip overflow):
+  # As a local portfolio maintainer with many import-created tags,
+  # I want at most four visible chips plus a "+N" overflow chip,
+  # so that one tag-heavy account cannot blow up the row height.
+  #
+  # Acceptance criteria:
+  # - The fifth and later chips collapse into a "+N" chip whose title lists
+  #   the hidden names.
+  # - The picker carries the full assigned set, so hidden chips stay
+  #   removable.
+  test "more than four chips collapse into a +N overflow chip", %{conn: conn} do
+    %{depot: depot} = world()
+
+    tags =
+      for name <- ["Tag A", "Tag B", "Tag C", "Tag D", "Tag E", "Tag F"] do
+        {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
+        tag
+      end
+
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, Enum.map(tags, & &1.id))
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    # Depot-only tags diverge from the untagged cash account: split groups.
+    chips = view |> element("#depot-buckets-#{depot.id}") |> render()
+    assert chips =~ "Tag A"
+    assert chips =~ "Tag D"
+    assert chips =~ ~s(data-role="bucket-overflow")
+    assert chips =~ "+2"
+    assert chips =~ ~r/title="[^"]*Tag E[^"]*Tag F[^"]*"/
+
+    # Only the four visible chips carry row-level remove buttons.
+    assert length(String.split(chips, ~s(data-role="bucket-remove"))) == 5
+
+    # The picker lists the full assigned set; the hidden chip is removable
+    # there.
     view
     |> element("#depot-buckets-#{depot.id} button[data-role='bucket-add']")
     |> render_click()
 
-    refute has_element?(view, "#bucket-picker-depot-#{depot.id}")
+    picker = view |> element("#bucket-picker-depot-#{depot.id}") |> render()
+    assert picker =~ "Tag E"
+    assert picker =~ "Tag F"
+
+    tag_f = List.last(tags)
+
+    view
+    |> element(
+      "#bucket-picker-depot-#{depot.id} button[data-role='bucket-remove'][phx-value-bucket='#{tag_f.id}']"
+    )
+    |> render_click()
+
+    refute tag_f.id in Buckets.depot_default_bucket_ids(depot.id)
+  end
+
+  # User story (UAT fix round, disciplined table):
+  # As a local portfolio maintainer,
+  # I want the liquidity-role select labeled on the cash row,
+  # so that the dropdown is not context-free on small screens where the
+  # column header is hidden.
+  test "the liquidity-role select carries a visible attached label", %{conn: conn} do
+    %{cash: cash} = world()
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    assert has_element?(view, "label[for='liquidity-role-#{cash.id}']", "Liquidity role")
+    refute has_element?(view, ".cash-quote-toggle")
+  end
+
+  # User story (UAT fix round, disciplined table):
+  # As a local portfolio maintainer,
+  # I want the bands sorted by depot name (case-insensitive) with lone cash
+  # accounts appended,
+  # so that the table order is stable and predictable.
+  test "sorts depot bands by downcased name and appends lone cash accounts", %{conn: conn} do
+    %{portfolio: portfolio, cash: cash, depot: depot} = world()
+
+    {:ok, _zeta} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "zeta depot"
+      })
+
+    {:ok, _beta} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "beta"
+      })
+
+    {:ok, _money} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "money market",
+        currency_code: "EUR"
+      })
+
+    {:ok, _alpha_cash} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Alpha Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, _view, html} = live(conn, "/portfolios")
+
+    positions =
+      for name <- ["beta", "Depot A", "zeta depot", "Alpha Cash", "money market"] do
+        {pos, _len} = :binary.match(html, name)
+        pos
+      end
+
+    assert positions == Enum.sort(positions)
+    assert depot.name == "Depot A"
   end
 
   # User story (fix round, robustness):
@@ -528,7 +826,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     render_click(view, "remove_bucket", %{"owner" => "depot", "id" => depot_id, "bucket" => "x"})
     assert Buckets.depot_default_bucket_ids(depot.id) == [tag.id]
 
-    # Vanished owners (depot or cash) are ignored, no crash, no write.
+    # Vanished owners (depot, cash, or pair) are ignored, no crash, no write.
     render_click(view, "add_bucket", %{
       "owner" => "depot",
       "id" => "999999",
@@ -540,6 +838,15 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
       "id" => "999999",
       "bucket" => to_string(tag.id)
     })
+
+    render_click(view, "add_bucket", %{
+      "owner" => "pair",
+      "id" => "999999",
+      "bucket" => to_string(tag.id)
+    })
+
+    # A stale split payload for a non-numeric id is ignored too.
+    render_click(view, "split_pair", %{"id" => "abc"})
 
     assert Buckets.depot_default_bucket_ids(depot.id) == [tag.id]
     assert Buckets.cash_account_bucket_ids(cash.id) == []
@@ -555,8 +862,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     {:ok, view, _html} = live(conn, "/portfolios")
 
+    # The fresh pair is merged, so the stale pick runs through the pair group.
     view
-    |> element("#depot-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> element("#pair-buckets-#{depot.id} button[data-role='bucket-add']")
     |> render_click()
 
     # The other tab deletes the bucket while our picker is open.
@@ -564,7 +872,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     html =
       view
-      |> element("#bucket-picker-depot-#{depot.id} button[phx-value-bucket='#{tag.id}']")
+      |> element("#bucket-picker-pair-#{depot.id} button[phx-value-bucket='#{tag.id}']")
       |> render_click()
 
     assert html =~ "data-role=\"bucket-error\""
@@ -584,13 +892,15 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     {:ok, view, _html} = live(conn, "/portfolios")
 
+    # The fresh pair is merged, so the inline creation runs through the pair
+    # group's picker.
     view
-    |> element("#depot-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> element("#pair-buckets-#{depot.id} button[data-role='bucket-add']")
     |> render_click()
 
     html =
       view
-      |> element("#bucket-create-form-depot-#{depot.id}")
+      |> element("#bucket-create-form-pair-#{depot.id}")
       |> render_submit(%{"bucket_name" => "Household"})
 
     assert html =~ "belongs to a scope bucket"
@@ -599,7 +909,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     # An over-long tag name fails with the changeset message, no write.
     html =
       view
-      |> element("#bucket-create-form-depot-#{depot.id}")
+      |> element("#bucket-create-form-pair-#{depot.id}")
       |> render_submit(%{"bucket_name" => String.duplicate("x", 120)})
 
     assert html =~ "data-role=\"bucket-error\""
@@ -835,19 +1145,39 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     assert html =~ "Portfoliodatensätze"
     assert html =~ "Depot &amp; Konto anlegen"
+    # The merged pair group speaks German too (fresh pair = equal empty sets).
+    assert html =~ "Beide"
+    assert html =~ "Getrennt taggen"
     refute html =~ "Add to portfolio"
     refute html =~ "Create portfolio"
   end
 
-  test "renders the cash-quote toggle compact instead of as a full-width form input" do
+  # Disciplined table (UAT fix round): no zebra, one divider per band, popover
+  # picker, indented cash rows, stacked mobile cards.
+  test "the accounts table CSS keeps rows calm and the picker out of flow" do
     app_css = File.read!("priv/static/app.css")
 
-    # Inline next to the account name, not stacked by the global label grid...
-    assert app_css =~ ~r/\.cash-quote-toggle\s*\{[^}]*display:\s*inline-flex/s
+    # Zebra striping and inner borders are off for this table.
+    assert app_css =~
+             ~r/\.accounts-table tbody tr:nth-child\(even\) td\s*\{[^}]*background:\s*transparent/s
 
-    # ...and the checkbox must not inherit the 100%-width / 34px form sizing.
-    assert app_css =~ ~r/\.cash-quote-toggle input\[type="checkbox"\]\s*\{[^}]*width:\s*14px/s
-    assert app_css =~ ~r/\.cash-quote-toggle input\[type="checkbox"\]\s*\{[^}]*min-height:\s*0/s
+    # One divider between bands, nothing inside a band.
+    assert app_css =~
+             ~r/tbody\.account-pair \+ tbody\.account-pair tr:first-child td\s*\{[^}]*border-top/s
+
+    # The cash row is indented with an L-connector drawn in CSS.
+    assert app_css =~ ~r/\.cell-name--cash::before\s*\{[^}]*border-left/s
+
+    # The picker is a popover, so opening it never changes the row height...
+    assert app_css =~ ~r/\.accounts-table \.bucket-picker\s*\{[^}]*position:\s*absolute/s
+    assert app_css =~ ~r/\.accounts-table \.bucket-picker\s*\{[^}]*min-width:\s*260px/s
+
+    # ...except on small screens, where it reverts to static full width and
+    # each band stacks into a card.
+    assert app_css =~ ~r/\.accounts-table tbody\.account-pair\s*\{[^}]*display:\s*block/s
+
+    # The dropped cash-quote-toggle wrapper left no dead CSS behind.
+    refute app_css =~ ".cash-quote-toggle"
   end
 
   # Chip visuals: scope chips are filled, tag chips outlined, both truncate and

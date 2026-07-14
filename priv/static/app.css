@@ -1005,31 +1005,6 @@ label span {
   font-weight: 680;
 }
 
-/* Compact inline toggle next to a list entry (cash-account list): opt out of
-   the full-width form-input sizing and the stacked label grid above. */
-.cash-quote-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 8px;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-.cash-quote-toggle input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  min-height: 0;
-  margin: 0;
-  flex: 0 0 14px;
-  accent-color: var(--color-accent);
-}
-
-.cash-quote-toggle span {
-  font-size: 12px;
-  font-weight: 540;
-}
-
 input,
 select,
 textarea {
@@ -4929,7 +4904,10 @@ button.income-bar-label.is-active {
   }
 }
 
-/* === Accounts & depots: paired table, bucket chips, picker (ADR-0024, issues 491 + 559) === */
+/* === Accounts & depots v2: disciplined table (ADR-0024, issues 491 + 559, UAT fix round) ===
+   One entity per row, one depot/cash pair per tbody band. Calm rows: no
+   zebra, no inner borders — exactly one divider between bands. The bucket
+   picker is a popover, so opening it never changes the row height. */
 
 .section-head {
   display: flex;
@@ -4944,14 +4922,41 @@ button.income-bar-label.is-active {
   margin: 0;
 }
 
-.accounts-table td {
-  vertical-align: top;
+/* The popover picker must be able to escape the table box; the four-column
+   accounts table is narrow enough to live without horizontal scrolling. */
+.data-table-wrapper:has(.accounts-table) {
+  overflow: visible;
 }
 
-.account-names {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.accounts-table thead th {
+  border-right: 0;
+}
+
+.accounts-table tbody td {
+  padding: 6px 9px;
+  vertical-align: middle;
+  border-bottom: 0;
+  border-right: 0;
+}
+
+/* Zebra striping and the row-hover wash are table-wide defaults — this table
+   highlights per band instead. */
+.accounts-table tbody tr:nth-child(even) td {
+  background: transparent;
+}
+
+.accounts-table tbody tr:hover,
+.accounts-table tbody tr:hover td {
+  background: transparent;
+}
+
+.accounts-table tbody.account-pair:hover td {
+  background: var(--color-hover);
+}
+
+/* ONE divider between bands. */
+.accounts-table tbody.account-pair + tbody.account-pair tr:first-child td {
+  border-top: 1px solid var(--color-border);
 }
 
 .account-name {
@@ -4963,11 +4968,67 @@ button.income-bar-label.is-active {
   color: var(--color-text-muted);
 }
 
-.account-buckets {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+.account-sub--placeholder {
+  font-style: italic;
+}
+
+/* Lone cash account: un-indented name plus a muted micro-tag. */
+.account-microtag {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+/* The cash row is indented under its depot with a CSS-drawn L-connector. */
+.accounts-table .cell-name--cash {
+  position: relative;
+  padding-left: 1.9rem;
+}
+
+.accounts-table .cell-name--cash::before {
+  content: "";
+  position: absolute;
+  left: 0.8rem;
+  top: -4px;
+  width: 0.55rem;
+  height: 1.05rem;
+  border-left: 1px solid var(--color-border-strong);
+  border-bottom: 1px solid var(--color-border-strong);
+  border-bottom-left-radius: 4px;
+}
+
+.accounts-table .cell-buckets {
   min-width: 220px;
+}
+
+.accounts-table .cell-buckets--pair {
+  vertical-align: middle;
+}
+
+/* Compact labeled liquidity-role select: opts out of the global stacked
+   label grid and the 100%-width / 34px form sizing so the row stays ~32px. */
+.liquidity-role-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.liquidity-role-field__label {
+  display: inline;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.liquidity-role-field select {
+  width: auto;
+  min-height: 24px;
+  padding: 2px 6px;
+  font-size: 12px;
 }
 
 .bucket-chip-group {
@@ -5063,6 +5124,33 @@ button.income-bar-label.is-active {
   background: var(--color-accent-soft);
 }
 
+/* "+N" overflow chip: the fifth and later chips collapse into it; the title
+   attribute lists the hidden names, the click opens the picker. */
+.bucket-chip--overflow {
+  cursor: pointer;
+  color: var(--color-text-muted);
+  border-style: dashed;
+  background: transparent;
+}
+
+/* "Tag separately" next to a merged pair group. */
+.bucket-split-link {
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bucket-split-link:hover {
+  color: var(--color-accent);
+}
+
 .bucket-inline-error {
   flex-basis: 100%;
   margin: 0;
@@ -5071,7 +5159,6 @@ button.income-bar-label.is-active {
 }
 
 .bucket-picker {
-  flex-basis: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -5080,6 +5167,32 @@ button.income-bar-label.is-active {
   border-radius: var(--radius-md);
   background: var(--color-bg-elevated);
   box-shadow: var(--shadow-sm);
+}
+
+/* Popover: anchored below the chip group (its position: relative parent), so
+   opening it never changes the row height. */
+.accounts-table .bucket-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  min-width: 260px;
+}
+
+.bucket-picker__caption {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* The full assigned set (the row truncates at four chips). */
+.bucket-picker__assigned {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px dashed var(--color-border);
 }
 
 .bucket-picker__options {
@@ -5126,5 +5239,69 @@ button.income-bar-label.is-active {
   .bucket-chip__remove {
     min-width: 24px;
     min-height: 24px;
+  }
+}
+
+/* Small screens: each band stacks into a card (plain block fallback — no
+   display: contents), the header row is visually hidden but stays readable
+   for assistive tech, and the picker reverts to a static full-width panel. */
+@media (max-width: 640px) {
+  .accounts-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .accounts-table tbody.account-pair {
+    display: block;
+    padding: 8px 0;
+  }
+
+  .accounts-table tbody.account-pair + tbody.account-pair {
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* The card border above replaces the desktop td divider. */
+  .accounts-table tbody.account-pair + tbody.account-pair tr:first-child td {
+    border-top: 0;
+  }
+
+  .accounts-table tbody.account-pair tr,
+  .accounts-table tbody.account-pair td {
+    display: block;
+    border: 0;
+  }
+
+  .accounts-table tbody.account-pair td {
+    padding: 3px 9px;
+  }
+
+  /* Keep the cash-account indent in the stacked card and anchor the
+     L-connector inside its own line instead of reaching up. */
+  .accounts-table tbody.account-pair td.cell-name--cash {
+    padding-left: 1.9rem;
+  }
+
+  .accounts-table .cell-name--cash::before {
+    top: 0.15em;
+    height: 0.75em;
+  }
+
+  .accounts-table tbody.account-pair td:empty,
+  .accounts-table .cell-currency--empty,
+  .accounts-table .cell-role--empty {
+    display: none;
+  }
+
+  .accounts-table .bucket-picker {
+    position: static;
+    min-width: 0;
+    width: 100%;
   }
 }

@@ -136,22 +136,29 @@ The bookkeeping entities are cash accounts and depots:
 - depot/account: stores security positions linked to that cash account
 
 The **Accounts & depots** page (Administration area) shows both in **one
-paired table**: each depot renders one row together with its linked cash
-account, the account currency, and the per-account **liquidity role**
-selector (free cash, credit line, reserve); a cash account no depot links to
-gets its own row. A cash account shared by several depots carries its
-controls on its first row only.
+table, one entity per row**: each depot renders as a row with its linked
+cash account indented directly beneath it, carrying the account currency and
+the labeled per-account **liquidity role** selector (free cash, credit line,
+reserve); a cash account no depot links to gets its own row. A cash account
+shared by several depots carries its controls under its first depot only —
+later rows read *shared — managed above*.
 
 **Bucket chips (#559).** Each row shows its bucket memberships as chips —
 the exclusive **scope** bucket as a filled chip, free **tags** as outline
-chips, tinted with the bucket's color when one is set. Long names (for
-example date-stamped import tags) are truncated; hovering a chip reveals the
-full name. The chips are the grouping UI: the **+** affordance opens a small
-picker with the remaining buckets plus an inline **New tag** field that
-creates and assigns a tag in one step, and the **×** on a chip removes that
-membership. Every change is written through the audit-journaled bucket
-context; trying to add a second scope bucket is rejected with an inline
-message, because the scope dimension stays exclusive (ADR-0024).
+chips, tinted with the bucket's color when one is set. When a depot and its
+cash account carry the same buckets, the pair shows **one merged chip group
+marked "Both"** spanning both rows; the **Tag separately** link next to it
+splits the group so each side can be tagged on its own (differing sets always
+render split). At most four chips are shown per group — further chips
+collapse into a **+N** chip, and the picker carries the full set. Long names
+(for example date-stamped import tags) are truncated; hovering a chip reveals
+the full name. The chips are the grouping UI: the **+** affordance opens a
+small picker popover with the remaining buckets plus an inline **New tag**
+field that creates and assigns a tag in one step, and the **×** on a chip
+removes that membership. Edits on a merged group apply to the depot and the
+cash account together. Every change is written through the audit-journaled
+bucket context; trying to add a second scope bucket is rejected with an
+inline message, because the scope dimension stays exclusive (ADR-0024).
 
 **One creation dialog (#491).** The **Add depot & account** button opens a
 modal that creates a depot together with its linked cash account in one flow

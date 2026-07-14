@@ -8,7 +8,7 @@ msgstr ""
 msgid "Application navigation"
 msgstr "App-Navigation"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:169
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:217
 #, elixir-autogen
 msgid "Base currency"
 msgstr "Basiswährung"
@@ -22,7 +22,7 @@ msgstr "Verrechnungskonto angelegt"
 #: lib/portfolixir_web/live/dashboard_live.ex:373
 #: lib/portfolixir_web/live/imports_live.ex:144
 #: lib/portfolixir_web/live/imports_live.ex:359
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:173
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:221
 #: lib/portfolixir_web/live/portfolio_live.ex:1058
 #, elixir-autogen
 msgid "Cash accounts"
@@ -51,7 +51,7 @@ msgstr "Wertpapiere anlegen"
 #: lib/portfolixir_web/live/income_live.ex:239
 #: lib/portfolixir_web/live/income_live.ex:287
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:152
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:76
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:86
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:281
 #: lib/portfolixir_web/live/securities_live.ex:708
 #: lib/portfolixir_web/live/transaction_management_live.ex:295
@@ -82,7 +82,6 @@ msgstr "Dunkel"
 msgid "Date"
 msgstr "Datum"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:127
 #: lib/portfolixir_web/live/securities_live.ex:814
 #: lib/portfolixir_web/live/securities_live.ex:989
 #: lib/portfolixir_web/live/transaction_management_live.ex:82
@@ -96,7 +95,7 @@ msgstr "Depot"
 #: lib/portfolixir_web/live/dashboard_live.ex:377
 #: lib/portfolixir_web/live/imports_live.ex:148
 #: lib/portfolixir_web/live/imports_live.ex:363
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:172
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:220
 #, elixir-autogen
 msgid "Depots"
 msgstr "Depots"
@@ -196,8 +195,8 @@ msgstr "Manuelles Kauf- und Verkaufsjournal"
 
 #: lib/portfolixir_web/live/classifications_live.ex:308
 #: lib/portfolixir_web/live/classifications_live.ex:425
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:75
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:168
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:85
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:216
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:256
 #: lib/portfolixir_web/live/securities_live.ex:688
 #, elixir-autogen
@@ -1304,7 +1303,7 @@ msgstr "Zeitraum %{range}. Passe den Reiter \"Diagramm\" an, um die hier angezei
 msgid "Some sell transactions could not be matched to a preceding buy — they may indicate missing data."
 msgstr "Einige Verkäufe konnten keinem vorangegangenen Kauf zugeordnet werden — möglicherweise fehlen Daten."
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:171
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:219
 #: lib/portfolixir_web/live/securities_live.ex:1234
 #, elixir-autogen, elixir-format
 msgid "Source"
@@ -1754,7 +1753,6 @@ msgstr "Gesamt inkl. Cash"
 #: lib/portfolixir_web/live/dashboard_live.ex:173
 #: lib/portfolixir_web/live/dashboard_live.ex:176
 #: lib/portfolixir_web/live/dashboard_live.ex:286
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:137
 #: lib/portfolixir_web/live/portfolio_live.ex:467
 #: lib/portfolixir_web/live/portfolio_live.ex:858
 #: lib/portfolixir_web/live/portfolio_live.ex:1611
@@ -1957,7 +1955,7 @@ msgstr "Vordefiniert"
 msgid "Built-in classifications cannot be edited"
 msgstr "Vordefinierte Klassifizierungen können nicht bearbeitet werden"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:318
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:439
 #, elixir-autogen, elixir-format
 msgid "Cash account updated"
 msgstr "Verrechnungskonto aktualisiert"
@@ -2006,27 +2004,28 @@ msgstr "Farbe"
 msgid "Could not save changes."
 msgstr "Änderungen konnten nicht gespeichert werden."
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:321
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:442
 #, elixir-autogen, elixir-format
 msgid "Could not update cash account"
 msgstr "Verrechnungskonto konnte nicht aktualisiert werden"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:77
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:87
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:263
 #, elixir-autogen, elixir-format
 msgid "Liquidity role"
 msgstr "Liquiditätsrolle"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:103
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:267
 #, elixir-autogen, elixir-format
 msgid "Free cash"
 msgstr "Verfügbares Cash"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:109
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:270
 #, elixir-autogen, elixir-format
 msgid "Credit line"
 msgstr "Kreditlinie"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:112
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:273
 #, elixir-autogen, elixir-format
 msgid "Reserve"
 msgstr "Reserve"
@@ -2525,8 +2524,8 @@ msgid "Active view"
 msgstr "Aktive Filter"
 
 #: lib/portfolixir_web/live/buckets_live.ex:87
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:252
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:253
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:330
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:331
 #, elixir-autogen, elixir-format
 msgid "Add bucket"
 msgstr "Bucket hinzufügen"
@@ -2561,7 +2560,7 @@ msgstr "Bucket-Name"
 msgid "Bucket updated"
 msgstr "Saldo aktualisiert"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:78
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:88
 #: lib/portfolixir_web/live/securities_live.ex:1066
 #: lib/portfolixir_web/live/securities_live.ex:1106
 #, elixir-autogen, elixir-format
@@ -2753,7 +2752,7 @@ msgstr "Lege die Standard-Buckets fest, die Positionen eines Depots und ein Verr
 #: lib/portfolixir_web/live/buckets_live.ex:614
 #: lib/portfolixir_web/live/buckets_live.ex:639
 #: lib/portfolixir_web/live/buckets_live.ex:659
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:426
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:602
 #: lib/portfolixir_web/live/securities_live.ex:1985
 #, elixir-autogen, elixir-format
 msgid "That bucket no longer exists. Refresh and try again."
@@ -3188,7 +3187,7 @@ msgid "Toggle the category's securities"
 msgstr "Wertpapiere der Kategorie ein-/ausblenden"
 
 #: lib/portfolixir_web/components/app_shell.ex:270
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:42
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:52
 #, elixir-autogen, elixir-format
 msgid "Accounts & depots"
 msgstr "Konten & Depots"
@@ -3209,7 +3208,7 @@ msgid "History"
 msgstr "Historie"
 
 #: lib/portfolixir_web/components/app_shell.ex:221
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:549
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:743
 #, elixir-autogen, elixir-format
 msgid "Import"
 msgstr "Import"
@@ -3430,7 +3429,7 @@ msgstr "Deine Portfolios sind jetzt Ansichten"
 msgid "the view's current bucket membership is applied to the whole history."
 msgstr "die aktuelle Bucket-Zuordnung der Ansicht wird auf die gesamte Historie angewendet."
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:548
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:742
 #, elixir-autogen, elixir-format
 msgid "API"
 msgstr "API"
@@ -3476,7 +3475,7 @@ msgstr "Lege zuerst ein Depot mit Verrechnungskonto an"
 msgid "Create one cash account"
 msgstr "Ein Verrechnungskonto anlegen"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:170
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:218
 #, elixir-autogen, elixir-format
 msgid "Created"
 msgstr "Angelegt"
@@ -3486,7 +3485,7 @@ msgstr "Angelegt"
 msgid "Delete this view's plan? The Wealth page falls back to actual-only for it."
 msgstr "Plan dieser Sicht löschen? Die Vermögensseite zeigt dann nur noch IST."
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:161
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:209
 #, elixir-autogen, elixir-format
 msgid "Internal compatibility records kept for the deprecated API surface. Grouping happens through buckets and views."
 msgstr "Interne Kompatibilitätsdatensätze für die veraltete API-Schnittstelle. Die Gruppierung erfolgt über Buckets und Ansichten."
@@ -3496,7 +3495,7 @@ msgstr "Interne Kompatibilitätsdatensätze für die veraltete API-Schnittstelle
 msgid "No open positions for this security across your depots."
 msgstr "Keine offenen Positionen für dieses Wertpapier in deinen Depots."
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:158
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:206
 #, elixir-autogen, elixir-format
 msgid "Portfolio records (compatibility)"
 msgstr "Portfoliodatensätze (Kompatibilität)"
@@ -3506,7 +3505,7 @@ msgstr "Portfoliodatensätze (Kompatibilität)"
 msgid "Saved include/exclude filters over buckets. A view is what you pick in the view switcher on the Wealth page."
 msgstr "Gespeicherte Einschluss-/Ausschlussfilter über Buckets. Eine Ansicht ist das, was du im Ansichtsumschalter auf der Vermögensseite auswählst."
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:550
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:744
 #, elixir-autogen, elixir-format
 msgid "Seeded"
 msgstr "Seed"
@@ -3516,7 +3515,7 @@ msgstr "Seed"
 msgid "Setup counts"
 msgstr "Einrichtungszähler"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:547
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:741
 #, elixir-autogen, elixir-format
 msgid "UI"
 msgstr "UI"
@@ -3572,13 +3571,13 @@ msgid "A standalone account for cash balances, e.g. a giro or call-money account
 msgstr "Ein eigenständiges Konto für Geldbestände, z. B. ein Giro- oder Tagesgeldkonto."
 
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:224
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:62
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:72
 #, elixir-autogen, elixir-format
 msgid "Add depot & account"
 msgstr "Depot & Konto anlegen"
 
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:126
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:92
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:177
 #: lib/portfolixir_web/live/transaction_management_live.ex:711
 #, elixir-autogen, elixir-format
 msgid "Cash account"
@@ -3604,7 +3603,7 @@ msgstr "Neues Verrechnungskonto anlegen"
 msgid "Create depot & account"
 msgstr "Depot & Konto anlegen"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:293
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:387
 #, elixir-autogen, elixir-format
 msgid "Create tag"
 msgstr "Tag anlegen"
@@ -3629,12 +3628,12 @@ msgstr "Depotname"
 msgid "Depot with cash account"
 msgstr "Depot mit Verrechnungskonto"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:55
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:65
 #, elixir-autogen, elixir-format
 msgid "Depots and cash accounts"
 msgstr "Depots und Verrechnungskonten"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:43
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:53
 #, elixir-autogen, elixir-format
 msgid "Depots, cash accounts, and their buckets"
 msgstr "Depots, Verrechnungskonten und ihre Buckets"
@@ -3659,8 +3658,8 @@ msgstr "Neues Verrechnungskonto"
 msgid "New depot with cash account"
 msgstr "Neues Depot mit Verrechnungskonto"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:290
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:291
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:384
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:385
 #, elixir-autogen, elixir-format
 msgid "New tag"
 msgstr "Neuer Tag"
@@ -3670,12 +3669,12 @@ msgstr "Neuer Tag"
 msgid "New tag (optional)"
 msgstr "Neuer Tag (optional)"
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:68
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:78
 #, elixir-autogen, elixir-format
 msgid "No accounts yet — add your first depot and cash account."
 msgstr "Noch keine Konten — lege dein erstes Depot samt Verrechnungskonto an."
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:88
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:165
 #, elixir-autogen, elixir-format
 msgid "No cash account linked"
 msgstr "Kein Verrechnungskonto verknüpft"
@@ -3685,13 +3684,13 @@ msgstr "Kein Verrechnungskonto verknüpft"
 msgid "Only one scope bucket per account — pick at most one."
 msgstr "Nur ein Scope-Bucket je Konto — wähle höchstens einen."
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:417
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:598
 #, elixir-autogen, elixir-format
 msgid "Only one scope bucket per account — remove its current scope bucket first."
 msgstr "Nur ein Scope-Bucket je Konto — entferne zuerst den aktuellen Scope-Bucket."
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:240
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:241
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:414
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:415
 #, elixir-autogen, elixir-format
 msgid "Remove bucket %{name}"
 msgstr "Bucket %{name} entfernen"
@@ -3741,11 +3740,6 @@ msgstr "existiert nicht mehr"
 #, elixir-autogen, elixir-format
 msgid "scope"
 msgstr "Scope"
-
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:118
-#, elixir-autogen, elixir-format
-msgid "shared account"
-msgstr "geteiltes Konto"
 
 #: lib/portfolixir_web/live/securities_live.ex:1995
 #, elixir-autogen, elixir-format
@@ -3823,7 +3817,7 @@ msgid "September"
 msgstr "September"
 
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:291
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:377
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:514
 #, elixir-autogen, elixir-format
 msgid "That name belongs to a scope bucket — pick a different tag name."
 msgstr "Dieser Name gehört zu einem Scope-Bucket — wähle einen anderen Tag-Namen."
@@ -3852,3 +3846,28 @@ msgstr "Diese Ansicht trifft keine Konten — ihre eingeschlossenen Buckets sind
 #, elixir-autogen, elixir-format
 msgid "matches no accounts"
 msgstr "trifft keine Konten"
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:114
+#, elixir-autogen, elixir-format
+msgid "Applies to depot and cash account"
+msgstr "Gilt für Depot und Verrechnungskonto"
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:113
+#, elixir-autogen, elixir-format
+msgid "Both"
+msgstr "Beide"
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:341
+#, elixir-autogen, elixir-format
+msgid "Tag separately"
+msgstr "Getrennt taggen"
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:115
+#, elixir-autogen, elixir-format
+msgid "Tags apply to depot & cash"
+msgstr "Tags gelten für Depot & Verrechnungskonto"
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:155
+#, elixir-autogen, elixir-format
+msgid "shared — managed above"
+msgstr "geteilt — oben verwaltet"

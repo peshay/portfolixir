@@ -1,13 +1,16 @@
 defmodule PortfolixirWeb.PortfolioAccountsLive do
   @moduledoc """
   Accounts & depots administration (ADR-0022 area, reshaped by ADR-0024,
-  #491/#559): one paired table of depots with their linked cash accounts,
-  bucket membership editable as chips on each row, a single creation dialog
-  (`PortfolixirWeb.PortfolioAccounts.AccountFormDialog`), and the minimal
-  read-only list of every portfolio record (ADR-0024 modification 1: no
-  invisible writable resource). No portfolio decision appears anywhere — the
-  internal compatibility binding resolves to one deterministic default
-  portfolio.
+  #491/#559, UAT fix round v2 "disciplined table"): one entity per row, one
+  depot/cash pair per `<tbody>` band. A pair whose depot and cash account
+  carry the same buckets shows ONE merged chip group ("Both") spanning both
+  rows; "Tag separately" or diverged sets split it into per-entity groups.
+  Bucket membership is editable as chips with a popover picker, creation runs
+  through a single dialog (`PortfolixirWeb.PortfolioAccounts.AccountFormDialog`),
+  and the minimal read-only list of every portfolio record stays (ADR-0024
+  modification 1: no invisible writable resource). No portfolio decision
+  appears anywhere — the internal compatibility binding resolves to one
+  deterministic default portfolio.
   """
 
   use PortfolixirWeb, :live_view
@@ -22,6 +25,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   @color_format ~r/^#[0-9a-fA-F]{3,8}$/
 
+  # Chip overflow cap: the fifth and later chips collapse into a "+N" chip;
+  # the full set stays reachable (and removable) inside the picker.
+  @max_visible_chips 4
+
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
@@ -31,6 +38,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
      |> assign(:account_dialog?, false)
      |> assign(:picker, nil)
      |> assign(:bucket_error, nil)
+     # Session-only: pairs the user chose to tag separately. Never persisted —
+     # a reload merges equal sets again.
+     |> assign(:split_pairs, MapSet.new())
      |> load_state()}
   end
 
@@ -78,70 +88,108 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     <th><%= gettext("Buckets") %></th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr :for={row <- @rows} id={row_id(row)} data-role="account-row">
-                    <td class="account-names">
-                      <%= if row.depot do %>
+                <tbody
+                  :for={row <- @rows}
+                  class={["account-pair", is_nil(row.depot) && "account-pair--lone"]}
+                  id={row_id(row)}
+                  data-role="account-row"
+                >
+                  <%= if row.depot do %>
+                    <tr class="account-row--depot">
+                      <td class="cell-name cell-name--depot">
                         <span class="account-name"><%= row.depot.name %></span>
-                        <span :if={row.cash} class="account-sub"><%= row.cash.name %></span>
-                        <span :if={is_nil(row.cash)} class="account-sub">
-                          <%= gettext("No cash account linked") %>
-                        </span>
+                      </td>
+                      <td class="cell-currency cell-currency--empty"></td>
+                      <td class="cell-role cell-role--empty"></td>
+                      <%= if merged?(row, @split_pairs) do %>
+                        <td class="cell-buckets cell-buckets--pair" rowspan="2">
+                          <.bucket_chips
+                            owner="pair"
+                            owner_id={row.depot.id}
+                            assigned={row.depot_buckets}
+                            all_buckets={@buckets}
+                            picker_open={@picker == {"pair", row.depot.id}}
+                            error={chip_error(@bucket_error, "pair", row.depot.id)}
+                            group_label={gettext("Both")}
+                            group_label_title={gettext("Applies to depot and cash account")}
+                            picker_caption={gettext("Tags apply to depot & cash")}
+                            split_control
+                          />
+                        </td>
                       <% else %>
+                        <td class="cell-buckets">
+                          <.bucket_chips
+                            owner="depot"
+                            owner_id={row.depot.id}
+                            assigned={row.depot_buckets}
+                            all_buckets={@buckets}
+                            picker_open={@picker == {"depot", row.depot.id}}
+                            error={chip_error(@bucket_error, "depot", row.depot.id)}
+                          />
+                        </td>
+                      <% end %>
+                    </tr>
+                    <%= cond do %>
+                      <% row.cash && row.cash_controls? -> %>
+                        <tr class="account-row--cash">
+                          <td class="cell-name cell-name--cash">
+                            <span class="account-cash-name"><%= row.cash.name %></span>
+                          </td>
+                          <td class="cell-currency"><%= row.cash.currency_code %></td>
+                          <td class="cell-role"><.liquidity_role_field cash={row.cash} /></td>
+                          <td :if={not merged?(row, @split_pairs)} class="cell-buckets">
+                            <.bucket_chips
+                              owner="cash"
+                              owner_id={row.cash.id}
+                              assigned={row.cash_buckets}
+                              all_buckets={@buckets}
+                              picker_open={@picker == {"cash", row.cash.id}}
+                              error={chip_error(@bucket_error, "cash", row.cash.id)}
+                            />
+                          </td>
+                        </tr>
+                      <% row.cash -> %>
+                        <tr class="account-row--cash account-row--shared">
+                          <td class="cell-name cell-name--cash">
+                            <span class="account-cash-name"><%= row.cash.name %></span>
+                            <span class="account-sub"><%= gettext("shared — managed above") %></span>
+                          </td>
+                          <td class="cell-currency"><%= row.cash.currency_code %></td>
+                          <td class="cell-role"></td>
+                          <td class="cell-buckets"></td>
+                        </tr>
+                      <% true -> %>
+                        <tr class="account-row--cash account-row--placeholder">
+                          <td class="cell-name cell-name--cash">
+                            <span class="account-sub account-sub--placeholder">
+                              <%= gettext("No cash account linked") %>
+                            </span>
+                          </td>
+                          <td class="cell-currency"></td>
+                          <td class="cell-role"></td>
+                          <td class="cell-buckets"></td>
+                        </tr>
+                    <% end %>
+                  <% else %>
+                    <tr class="account-row--cash account-row--lone-cash">
+                      <td class="cell-name cell-name--lone">
                         <span class="account-name"><%= row.cash.name %></span>
-                        <span class="account-sub"><%= gettext("Cash account") %></span>
-                      <% end %>
-                    </td>
-                    <td><%= (row.cash && row.cash.currency_code) || "—" %></td>
-                    <td>
-                      <%= if row.cash && row.cash_controls? do %>
-                        <label class="cash-quote-toggle">
-                          <form id={"liquidity-role-form-#{row.cash.id}"} phx-change="set_liquidity_role">
-                            <input type="hidden" name="account_id" value={row.cash.id} />
-                            <select id={"liquidity-role-#{row.cash.id}"} name="liquidity_role">
-                              <option value="free_cash" selected={row.cash.liquidity_role == "free_cash"}>
-                                <%= gettext("Free cash") %>
-                              </option>
-                              <option
-                                value="credit_line"
-                                selected={row.cash.liquidity_role == "credit_line"}
-                              >
-                                <%= gettext("Credit line") %>
-                              </option>
-                              <option value="reserve" selected={row.cash.liquidity_role == "reserve"}>
-                                <%= gettext("Reserve") %>
-                              </option>
-                            </select>
-                          </form>
-                        </label>
-                      <% else %>
-                        <span :if={row.cash} class="hint"><%= gettext("shared account") %></span>
-                        <span :if={is_nil(row.cash)}>—</span>
-                      <% end %>
-                    </td>
-                    <td class="account-buckets">
-                      <.bucket_chips
-                        :if={row.depot}
-                        owner="depot"
-                        owner_id={row.depot.id}
-                        label={if row.cash, do: gettext("Depot")}
-                        assigned={row.depot_buckets}
-                        all_buckets={@buckets}
-                        picker_open={@picker == {"depot", row.depot.id}}
-                        error={chip_error(@bucket_error, "depot", row.depot.id)}
-                      />
-                      <.bucket_chips
-                        :if={row.cash && row.cash_controls?}
-                        owner="cash"
-                        owner_id={row.cash.id}
-                        label={if row.depot, do: gettext("Cash")}
-                        assigned={row.cash_buckets}
-                        all_buckets={@buckets}
-                        picker_open={@picker == {"cash", row.cash.id}}
-                        error={chip_error(@bucket_error, "cash", row.cash.id)}
-                      />
-                    </td>
-                  </tr>
+                        <span class="account-microtag"><%= gettext("Cash account") %></span>
+                      </td>
+                      <td class="cell-currency"><%= row.cash.currency_code %></td>
+                      <td class="cell-role"><.liquidity_role_field cash={row.cash} /></td>
+                      <td class="cell-buckets">
+                        <.bucket_chips
+                          owner="cash"
+                          owner_id={row.cash.id}
+                          assigned={row.cash_buckets}
+                          all_buckets={@buckets}
+                          picker_open={@picker == {"cash", row.cash.id}}
+                          error={chip_error(@bucket_error, "cash", row.cash.id)}
+                        />
+                      </td>
+                    </tr>
+                  <% end %>
                 </tbody>
               </table>
             </div>
@@ -201,46 +249,76 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   # -- components --------------------------------------------------------------
 
-  attr(:owner, :string, required: true, doc: ~s(the assignment side: "depot" or "cash"))
+  attr(:cash, CashAccount, required: true)
+
+  defp liquidity_role_field(assigns) do
+    ~H"""
+    <form
+      id={"liquidity-role-form-#{@cash.id}"}
+      class="liquidity-role-field"
+      phx-change="set_liquidity_role"
+    >
+      <input type="hidden" name="account_id" value={@cash.id} />
+      <label class="liquidity-role-field__label" for={"liquidity-role-#{@cash.id}"}>
+        <%= gettext("Liquidity role") %>
+      </label>
+      <select id={"liquidity-role-#{@cash.id}"} name="liquidity_role">
+        <option value="free_cash" selected={@cash.liquidity_role == "free_cash"}>
+          <%= gettext("Free cash") %>
+        </option>
+        <option value="credit_line" selected={@cash.liquidity_role == "credit_line"}>
+          <%= gettext("Credit line") %>
+        </option>
+        <option value="reserve" selected={@cash.liquidity_role == "reserve"}>
+          <%= gettext("Reserve") %>
+        </option>
+      </select>
+    </form>
+    """
+  end
+
+  attr(:owner, :string, required: true, doc: ~s(the assignment side: "depot", "cash", or "pair"))
   attr(:owner_id, :integer, required: true)
-  attr(:label, :string, default: nil)
   attr(:assigned, :list, required: true, doc: "the bucket structs assigned to this owner")
   attr(:all_buckets, :list, required: true)
   attr(:picker_open, :boolean, required: true)
   attr(:error, :string, default: nil)
+  attr(:group_label, :string, default: nil, doc: ~s(micro-label, e.g. "Both" on a merged pair))
+  attr(:group_label_title, :string, default: nil)
+  attr(:picker_caption, :string, default: nil)
+  attr(:split_control, :boolean, default: false, doc: "render the \"Tag separately\" link")
 
   defp bucket_chips(assigns) do
-    assigns =
-      assign(
-        assigns,
-        :available,
-        Enum.reject(assigns.all_buckets, fn bucket ->
-          Enum.any?(assigns.assigned, &(&1.id == bucket.id))
-        end)
-      )
+    available =
+      Enum.reject(assigns.all_buckets, fn bucket ->
+        Enum.any?(assigns.assigned, &(&1.id == bucket.id))
+      end)
+
+    {visible, overflow} =
+      if length(assigns.assigned) > @max_visible_chips do
+        Enum.split(assigns.assigned, @max_visible_chips)
+      else
+        {assigns.assigned, []}
+      end
+
+    assigns = assign(assigns, available: available, visible: visible, overflow: overflow)
 
     ~H"""
     <div class="bucket-chip-group" id={"#{@owner}-buckets-#{@owner_id}"} data-role="bucket-chips">
-      <span :if={@label} class="bucket-chip-group__label"><%= @label %></span>
-      <span
-        :for={bucket <- @assigned}
-        class={["bucket-chip", bucket.dimension == "scope" && "bucket-chip--scope"]}
-        style={chip_style(bucket)}
-        title={bucket.name}
-      >
-        <span class="bucket-chip__name"><%= bucket.name %></span>
-        <button
-          type="button"
-          class="bucket-chip__remove"
-          data-role="bucket-remove"
-          phx-click="remove_bucket"
-          phx-value-owner={@owner}
-          phx-value-id={@owner_id}
-          phx-value-bucket={bucket.id}
-          aria-label={gettext("Remove bucket %{name}", name: bucket.name)}
-          title={gettext("Remove bucket %{name}", name: bucket.name)}
-        >×</button>
+      <span :if={@group_label} class="bucket-chip-group__label" title={@group_label_title}>
+        <%= @group_label %>
       </span>
+      <.chip :for={bucket <- @visible} bucket={bucket} owner={@owner} owner_id={@owner_id} />
+      <button
+        :if={@overflow != []}
+        type="button"
+        class="bucket-chip bucket-chip--overflow"
+        data-role="bucket-overflow"
+        title={Enum.map_join(@overflow, ", ", & &1.name)}
+        phx-click={if @picker_open, do: "close_bucket_picker", else: "open_bucket_picker"}
+        phx-value-owner={@owner}
+        phx-value-id={@owner_id}
+      >+<%= length(@overflow) %></button>
       <button
         type="button"
         class="bucket-chip-add"
@@ -252,6 +330,16 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         aria-label={gettext("Add bucket")}
         title={gettext("Add bucket")}
       >+</button>
+      <button
+        :if={@split_control}
+        type="button"
+        class="bucket-split-link"
+        data-role="split-pair"
+        phx-click="split_pair"
+        phx-value-id={@owner_id}
+      >
+        <%= gettext("Tag separately") %>
+      </button>
       <p :if={@error} class="bucket-inline-error" data-role="bucket-error" role="alert">
         <%= @error %>
       </p>
@@ -261,6 +349,12 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         class="bucket-picker"
         data-role="bucket-picker"
       >
+        <p :if={@picker_caption} class="bucket-picker__caption"><%= @picker_caption %></p>
+        <%!-- The row truncates at four chips, so the picker carries the full
+             assigned set — the overflowed chips stay removable here. --%>
+        <div :if={@overflow != []} class="bucket-picker__assigned" data-role="bucket-picker-assigned">
+          <.chip :for={bucket <- @assigned} bucket={bucket} owner={@owner} owner_id={@owner_id} />
+        </div>
         <ul :if={@available != []} class="bucket-picker__options">
           <li :for={bucket <- @available}>
             <button
@@ -297,6 +391,33 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     """
   end
 
+  attr(:bucket, :map, required: true)
+  attr(:owner, :string, required: true)
+  attr(:owner_id, :integer, required: true)
+
+  defp chip(assigns) do
+    ~H"""
+    <span
+      class={["bucket-chip", @bucket.dimension == "scope" && "bucket-chip--scope"]}
+      style={chip_style(@bucket)}
+      title={@bucket.name}
+    >
+      <span class="bucket-chip__name"><%= @bucket.name %></span>
+      <button
+        type="button"
+        class="bucket-chip__remove"
+        data-role="bucket-remove"
+        phx-click="remove_bucket"
+        phx-value-owner={@owner}
+        phx-value-id={@owner_id}
+        phx-value-bucket={@bucket.id}
+        aria-label={gettext("Remove bucket %{name}", name: @bucket.name)}
+        title={gettext("Remove bucket %{name}", name: @bucket.name)}
+      >×</button>
+    </span>
+    """
+  end
+
   # -- events -------------------------------------------------------------------
 
   @impl true
@@ -323,12 +444,28 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   end
 
   def handle_event("open_bucket_picker", %{"owner" => owner, "id" => id}, socket)
-      when owner in ["depot", "cash"] do
+      when owner in ["depot", "cash", "pair"] do
     case coerce_id(id) do
       {:ok, owner_id} ->
         {:noreply,
          socket
          |> assign(:picker, {owner, owner_id})
+         |> assign(:bucket_error, nil)}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  # Session-only split of a merged pair: from here on the depot and its cash
+  # account carry their own chip groups (no write happens).
+  def handle_event("split_pair", %{"id" => id}, socket) do
+    case coerce_id(id) do
+      {:ok, depot_id} ->
+        {:noreply,
+         socket
+         |> assign(:split_pairs, MapSet.put(socket.assigns.split_pairs, depot_id))
+         |> assign(:picker, nil)
          |> assign(:bucket_error, nil)}
 
       :error ->
@@ -399,6 +536,30 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   # Every chip edit is a full-set replacement through the journaled Buckets
   # context, derived from the currently persisted set (never from the DOM).
+  #
+  # A merged pair edit (owner "pair") resolves the depot's linked cash account
+  # and applies the same target set to both, depot first. When the second
+  # write fails the sets have diverged, so the reload auto-splits the band and
+  # the error keys on the cash group that the split reveals.
+  defp change_buckets(socket, "pair", id, fun) do
+    with {:ok, depot_id} <- coerce_id(id),
+         {:ok, %SecuritiesAccount{} = depot} <- fetch_owner("depot", depot_id),
+         {:ok, %CashAccount{} = cash} <- paired_cash(depot) do
+      current = Buckets.depot_default_bucket_ids(depot_id)
+      target = Enum.uniq(fun.(current))
+
+      case Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, target) do
+        :ok ->
+          write_pair_cash_side(socket, cash, target)
+
+        {:error, reason} ->
+          {:noreply, bucket_failure(socket, "pair", depot_id, bucket_write_error(reason))}
+      end
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
   defp change_buckets(socket, owner, id, fun) when owner in ["depot", "cash"] do
     with {:ok, owner_id} <- coerce_id(id),
          {:ok, record} <- fetch_owner(owner, owner_id) do
@@ -408,28 +569,41 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         :ok ->
           {:noreply, socket |> assign(:bucket_error, nil) |> load_state()}
 
-        {:error, :exclusive_bucket_conflict} ->
-          {:noreply,
-           bucket_failure(
-             socket,
-             owner,
-             owner_id,
-             gettext("Only one scope bucket per account — remove its current scope bucket first.")
-           )}
-
-        {:error, _reason} ->
-          {:noreply,
-           bucket_failure(
-             socket,
-             owner,
-             owner_id,
-             gettext("That bucket no longer exists. Refresh and try again.")
-           )}
+        {:error, reason} ->
+          {:noreply, bucket_failure(socket, owner, owner_id, bucket_write_error(reason))}
       end
     else
       _ -> {:noreply, socket}
     end
   end
+
+  defp change_buckets(socket, _owner, _id, _fun), do: {:noreply, socket}
+
+  defp write_pair_cash_side(socket, cash, target) do
+    case Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, target) do
+      :ok ->
+        {:noreply, socket |> assign(:bucket_error, nil) |> load_state()}
+
+      {:error, reason} ->
+        # Depot write landed, cash write did not: reload so the diverged sets
+        # render split, with the error on the now-visible cash group.
+        {:noreply,
+         socket
+         |> bucket_failure("cash", cash.id, bucket_write_error(reason))
+         |> load_state()}
+    end
+  end
+
+  defp bucket_write_error(:exclusive_bucket_conflict) do
+    gettext("Only one scope bucket per account — remove its current scope bucket first.")
+  end
+
+  defp bucket_write_error(_reason) do
+    gettext("That bucket no longer exists. Refresh and try again.")
+  end
+
+  defp paired_cash(%SecuritiesAccount{cash_account_id: nil}), do: :error
+  defp paired_cash(%SecuritiesAccount{cash_account_id: cash_id}), do: fetch_owner("cash", cash_id)
 
   defp fetch_owner("depot", id) do
     case Portfolios.get_securities_account(id) do
@@ -476,12 +650,15 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     )
   end
 
-  # One row per depot, paired with its linked cash account; cash accounts no
-  # depot links to get their own row. A cash account shared by several depots
-  # renders its controls (liquidity role, chips) only on its first row, so no
-  # DOM id appears twice.
+  # One band per depot, paired with its linked cash account; cash accounts no
+  # depot links to get their own single-row band appended. Depot bands sort by
+  # case-insensitive name (id as tiebreak), lone cash accounts likewise. A
+  # cash account shared by several depots renders its controls (liquidity
+  # role, chips) only on its first band, so no DOM id appears twice.
   defp build_rows(cash_accounts, buckets_by_id) do
-    depots = Portfolios.list_securities_accounts()
+    depots =
+      Portfolios.list_securities_accounts()
+      |> Enum.sort_by(&{String.downcase(&1.name), &1.id})
 
     {depot_rows, claimed} =
       Enum.map_reduce(depots, MapSet.new(), fn depot, seen ->
@@ -507,6 +684,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     lone_rows =
       cash_accounts
       |> Enum.reject(&MapSet.member?(claimed, &1.id))
+      |> Enum.sort_by(&{String.downcase(&1.name), &1.id})
       |> Enum.map(fn cash ->
         %{
           depot: nil,
@@ -532,6 +710,22 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   defp row_id(%{depot: nil, cash: cash}), do: "account-row-cash-#{cash.id}"
   defp row_id(%{depot: depot}), do: "account-row-depot-#{depot.id}"
+
+  # A pair renders ONE merged chip group ("Both") exactly when the depot and
+  # its own (first-claimed) cash account carry the same bucket set and the
+  # user has not chosen to tag them separately this session. Diverged sets —
+  # however they diverged — always render split, so "Both" never lies.
+  defp merged?(
+         %{depot: %SecuritiesAccount{} = depot, cash: %CashAccount{}, cash_controls?: true} = row,
+         split_pairs
+       ) do
+    not MapSet.member?(split_pairs, depot.id) and
+      MapSet.equal?(bucket_id_set(row.depot_buckets), bucket_id_set(row.cash_buckets))
+  end
+
+  defp merged?(_row, _split_pairs), do: false
+
+  defp bucket_id_set(buckets), do: MapSet.new(buckets, & &1.id)
 
   # The bucket color rides in as a CSS custom property; anything that is not a
   # hex color is dropped so no attacker-shaped string reaches the style attr.
