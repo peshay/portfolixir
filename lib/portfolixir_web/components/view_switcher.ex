@@ -3,11 +3,17 @@ defmodule PortfolixirWeb.ViewSwitcher do
   The active-view switcher shown on the analytics surfaces (issue #446).
 
   A bucket **view** narrows every figure on the page to the holdings it matches.
-  "Total" (no view) is the default and shows everything. The control is a set of
-  plain links — like the locale switcher — so picking a view is a full
-  navigation that runs `PortfolixirWeb.ViewScope`, persisting the choice in the
-  session and a cookie; the LiveView then mounts with that scope. Because it is a
-  cross-page preference, the same choice is in force on the next surface too.
+  "Everything" (no view) is the built-in default and shows all holdings
+  (ADR-0024). The control is a set of plain links — like the locale switcher —
+  so picking a view is a full navigation that runs `PortfolixirWeb.ViewScope`,
+  persisting the choice in the session and a cookie; the LiveView then mounts
+  with that scope. Because it is a cross-page preference, the same choice is in
+  force on the next surface too.
+
+  With `show_default_control` the switcher also renders the "set as default"
+  affordance (ADR-0024 user-settable default view): a `set_default_view` click
+  event for the hosting LiveView when the active selection is not the default,
+  or a "Default view" marker when it is.
 
   Per-bucket figures are **overlapping facets**, never a partition: a holding can
   carry several buckets, so two buckets' values can both include it and must not
@@ -26,6 +32,11 @@ defmodule PortfolixirWeb.ViewSwitcher do
   # surfaces without a classification context render the switcher unchanged.
   attr(:planned_view_ids, :list, default: [])
 
+  # The default-view affordance (ADR-0024): opt-in per surface so pages whose
+  # LiveView does not handle `set_default_view` render the switcher unchanged.
+  attr(:show_default_control, :boolean, default: false)
+  attr(:default_view_id, :any, default: nil)
+
   def view_switcher(assigns) do
     ~H"""
     <div class="view-switcher" role="group" aria-label={gettext("Active view")}>
@@ -38,10 +49,11 @@ defmodule PortfolixirWeb.ViewSwitcher do
           class={["view-chip", is_nil(@active_view) && "is-active"]}
           href={view_href(@current_path, "total")}
           aria-current={if is_nil(@active_view), do: "true", else: nil}
+          aria-label={gettext("Everything")}
           data-has-plan={if nil in @planned_view_ids, do: "", else: nil}
           title={plan_marker_title(nil in @planned_view_ids)}
         >
-          <%= gettext("Total") %><span
+          <%= gettext("Everything") %><span
             :if={nil in @planned_view_ids}
             class="view-chip__plan-dot"
             aria-hidden="true"
@@ -56,6 +68,7 @@ defmodule PortfolixirWeb.ViewSwitcher do
             ]}
             href={view_href(@current_path, view.id)}
             aria-current={if @active_view && @active_view.id == view.id, do: "true", else: nil}
+            aria-label={view.name}
             data-has-plan={if view.id in @planned_view_ids, do: "", else: nil}
             title={plan_marker_title(view.id in @planned_view_ids)}
           >
@@ -67,6 +80,31 @@ defmodule PortfolixirWeb.ViewSwitcher do
           </a>
         <% end %>
       </nav>
+      <a
+        class="view-switcher__manage"
+        data-role="manage-views"
+        href="/buckets"
+        title={gettext("Create, rename, and edit views and their buckets")}
+      >
+        <%= gettext("Manage…") %>
+      </a>
+      <%= if @show_default_control do %>
+        <%= if (@active_view && @active_view.id) == @default_view_id do %>
+          <span class="hint" data-role="default-view-marker">
+            <%= gettext("Default view") %>
+          </span>
+        <% else %>
+          <button
+            type="button"
+            class="button-mini"
+            data-role="set-default-view"
+            phx-click="set_default_view"
+            title={gettext("Open the Wealth page and dashboard on this view by default")}
+          >
+            <%= gettext("Set as default") %>
+          </button>
+        <% end %>
+      <% end %>
       <%= if @views == [] do %>
         <p class="view-switcher__empty" data-role="no-views">
           <%= gettext("No views yet —") %>
@@ -106,8 +144,12 @@ defmodule PortfolixirWeb.ViewSwitcher do
     URI.to_string(%{uri | query: query})
   end
 
-  # The accessible name for the subtle plan marker (the `•` is aria-hidden, so
-  # the title carries the meaning for assistive tech and on hover).
+  # The accessible name of each chip is pinned to the view name via aria-label
+  # (fix round): without it, the plan-dot `title` tooltip could win the
+  # accessible-name computation in some AT and announce "Has a target plan…"
+  # instead of the view.
+  # The `title` below is the plan marker's hover tooltip only (the `•` is
+  # aria-hidden).
   defp plan_marker_title(true), do: gettext("Has a target plan for the current classification")
   defp plan_marker_title(false), do: nil
 end

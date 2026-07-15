@@ -1,6 +1,8 @@
 defmodule PortfolixirWeb.BucketsLive do
   @moduledoc """
-  Buckets & Views management (issue #446).
+  Views management (issue #446; renamed from "Buckets & views" per ADR-0024
+  modification 6 — the sidebar entry is about views, while bucket CRUD is
+  additionally reachable from the chips on the Accounts & depots rows).
 
   One workspace for the tag-based wealth-scoping model (ADR-0018):
 
@@ -43,8 +45,8 @@ defmodule PortfolixirWeb.BucketsLive do
     ~H"""
     <AppShell.shell
       current_path="/buckets"
-      page_title={gettext("Buckets & views")}
-      page_subtitle={gettext("Tag holdings and scope your analytics")}
+      page_title={gettext("Views")}
+      page_subtitle={gettext("Saved filters that scope your analytics, built from bucket tags")}
     >
       <div id="buckets-workspace" class="workspace-page">
         <%= if @error do %>
@@ -151,7 +153,7 @@ defmodule PortfolixirWeb.BucketsLive do
         <section id="views-section" class="workspace-section">
           <h2><%= gettext("2. Views") %></h2>
           <p class="section-hint">
-            <%= gettext("Saved include/exclude filters over buckets. A view is what you pick in the view switcher on the Portfolio page.") %>
+            <%= gettext("Saved include/exclude filters over buckets. A view is what you pick in the view switcher on the Wealth page.") %>
           </p>
           <p class="hint">
             <%= gettext("A view includes some buckets and excludes others. Exclude always wins.") %>
@@ -183,6 +185,16 @@ defmodule PortfolixirWeb.BucketsLive do
                   </form>
                 <% else %>
                   <span class="bucket-list__name"><%= view.name %></span>
+                  <%!-- Matches-nothing hint (fix round): the view's resolution
+                       matches zero accounts, so every figure under it is a
+                       silent 0 — say so where the view is edited. --%>
+                  <span
+                    :if={view.id in @empty_view_ids}
+                    class="hint"
+                    data-role="view-matches-nothing"
+                  >
+                    <%= gettext("matches no accounts") %>
+                  </span>
                   <span class="bucket-list__actions">
                     <button
                       type="button"
@@ -221,7 +233,7 @@ defmodule PortfolixirWeb.BucketsLive do
 
         <section id="assignment-section" class="workspace-section">
           <h2><%= gettext("Default bucket assignment") %></h2>
-          <%= if @portfolio do %>
+          <%= if @depots != [] or @cash_accounts != [] do %>
             <p class="hint">
               <%= gettext("Set the default buckets a depot's positions and a cash account inherit.") %>
             </p>
@@ -291,7 +303,7 @@ defmodule PortfolixirWeb.BucketsLive do
             </div>
           <% else %>
             <p class="hint">
-              <%= gettext("Create a portfolio with a depot and a cash account to assign buckets.") %>
+              <%= gettext("Create a depot and a cash account to assign buckets.") %>
             </p>
           <% end %>
         </section>
@@ -546,8 +558,8 @@ defmodule PortfolixirWeb.BucketsLive do
 
   def handle_event("edit_view_buckets", %{"id" => id}, socket) do
     with {:ok, view_id} <- coerce_id(id),
-         view when not is_nil(view) <- Buckets.get_view(view_id) do
-      filter = Buckets.view_filter(view_id)
+         view when not is_nil(view) <- Buckets.get_view(view_id),
+         {:ok, filter} <- Buckets.view_filter(view_id) do
       include = if filter.include == :all, do: [], else: filter.include
 
       {:noreply,
@@ -614,7 +626,6 @@ defmodule PortfolixirWeb.BucketsLive do
   def handle_event("set_depot_buckets", params, socket) do
     with {:ok, depot_id} <- coerce_id(params["depot_id"]),
          depot when not is_nil(depot) <- Portfolios.get_securities_account(depot_id),
-         true <- owned_depot?(socket, depot),
          :ok <-
            Buckets.set_depot_default_buckets(
              Actor.owner_ui(),
@@ -635,7 +646,6 @@ defmodule PortfolixirWeb.BucketsLive do
   def handle_event("set_cash_buckets", params, socket) do
     with {:ok, cash_id} <- coerce_id(params["cash_id"]),
          cash when not is_nil(cash) <- Portfolios.get_cash_account(cash_id),
-         true <- owned_cash?(socket, cash),
          :ok <-
            Buckets.set_cash_account_buckets(
              Actor.owner_ui(),
@@ -655,42 +665,40 @@ defmodule PortfolixirWeb.BucketsLive do
 
   # -- data loading -----------------------------------------------------------
 
+  # ADR-0024: every depot and cash account is managed here, regardless of the
+  # internal portfolio compatibility record it happens to be bound to.
   defp load_state(socket) do
-    portfolio = Portfolios.first_portfolio()
-    buckets = Buckets.list_buckets()
-
     depots =
-      if portfolio do
-        portfolio.id
-        |> Portfolios.list_securities_accounts_for_portfolio()
-        |> Enum.map(&Map.put(&1, :bucket_ids, Buckets.depot_default_bucket_ids(&1.id)))
-      else
-        []
-      end
+      Portfolios.list_securities_accounts()
+      |> Enum.map(&Map.put(&1, :bucket_ids, Buckets.depot_default_bucket_ids(&1.id)))
 
     cash_accounts =
-      if portfolio do
-        portfolio.id
-        |> Portfolios.list_cash_accounts_for_portfolio()
-        |> Enum.map(&Map.put(&1, :bucket_ids, Buckets.cash_account_bucket_ids(&1.id)))
-      else
-        []
-      end
+      Portfolios.list_cash_accounts()
+      |> Enum.map(&Map.put(&1, :bucket_ids, Buckets.cash_account_bucket_ids(&1.id)))
+
+    views_full = Buckets.list_views()
 
     assign(socket,
-      portfolio: portfolio,
-      buckets: buckets,
-      views_full: Buckets.list_views(),
+      buckets: Buckets.list_buckets(),
+      views_full: views_full,
+      empty_view_ids: empty_view_ids(views_full),
       depots: depots,
       cash_accounts: cash_accounts
     )
   end
 
-  defp owned_depot?(%{assigns: %{portfolio: %{id: pid}}}, depot), do: depot.portfolio_id == pid
-  defp owned_depot?(_socket, _depot), do: false
-
-  defp owned_cash?(%{assigns: %{portfolio: %{id: pid}}}, cash), do: cash.portfolio_id == pid
-  defp owned_cash?(_socket, _cash), do: false
+  # Views whose resolution matches zero accounts (fix round): computed from
+  # each view's loaded scope — a handful of views, all in-memory checks.
+  defp empty_view_ids(views) do
+    views
+    |> Enum.filter(fn view ->
+      case Buckets.load_global_scope(view.id) do
+        {:error, :view_not_found} -> false
+        scope -> not Buckets.scope_matches_any_account?(scope)
+      end
+    end)
+    |> MapSet.new(& &1.id)
+  end
 
   # -- helpers ----------------------------------------------------------------
 

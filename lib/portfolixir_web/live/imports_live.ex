@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.ImportsLive do
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.Preview
@@ -185,34 +186,37 @@ defmodule PortfolixirWeb.ImportsLive do
       <% end %>
 
       <form id="pp-import-apply" phx-change="mapping_changed" phx-submit="apply">
-        <section class="panel inner">
-          <h3><%= gettext("Target portfolio") %></h3>
+        <section class="panel inner" id="import-bucket-tag">
+          <h3><%= gettext("Bucket tag for new accounts") %></h3>
+          <p class="muted">
+            <%= gettext("The accounts created by this import get the bucket tag:") %>
+          </p>
           <label>
-            <span><%= gettext("Portfolio") %></span>
-            <select name="portfolio_choice">
-              <%= for p <- @portfolios do %>
-                <option value={"existing:#{p.id}"} selected={@mapping.portfolio_choice == "existing:#{p.id}"}>
-                  <%= p.name %> (<%= p.base_currency_code %>)
-                </option>
-              <% end %>
-              <option value="create" selected={@mapping.portfolio_choice == "create"}>
-                <%= gettext("+ Create new portfolio") %>
-              </option>
-            </select>
+            <span><%= gettext("Bucket tag") %></span>
+            <input
+              type="text"
+              name="bucket_tag"
+              value={@mapping.bucket_tag}
+              disabled={@mapping.bucket_skip}
+              maxlength="100"
+              placeholder={gettext("e.g. PP Import")}
+            />
           </label>
-
-          <%= if @mapping.portfolio_choice == "create" do %>
-            <label>
-              <span><%= gettext("New portfolio name") %></span>
-              <input type="text" name="portfolio_name" value={@mapping.portfolio_name}
-                     placeholder={gettext("e.g. PP Import")} />
-            </label>
-            <label>
-              <span><%= gettext("Base currency") %></span>
-              <input type="text" name="portfolio_currency" value={@mapping.portfolio_currency}
-                     maxlength="3" />
-            </label>
-          <% end %>
+          <label>
+            <input type="hidden" name="bucket_skip" value="false" />
+            <input
+              type="checkbox"
+              name="bucket_skip"
+              value="true"
+              checked={@mapping.bucket_skip}
+            />
+            <span><%= gettext("No tag — leave the new accounts untagged") %></span>
+          </label>
+          <p class="muted">
+            <%= gettext(
+              "An existing bucket with this name is reused. Accounts mapped to existing records keep their current tags."
+            ) %>
+          </p>
         </section>
 
         <%= if @cash_pp_names != [] do %>
@@ -283,9 +287,7 @@ defmodule PortfolixirWeb.ImportsLive do
         <% end %>
 
         <p class="muted">
-          <%= gettext(
-            "Missing securities will be created automatically inside the chosen portfolio."
-          ) %>
+          <%= gettext("Missing securities will be created automatically.") %>
         </p>
 
         <% missing = missing_mappings(assigns) %>
@@ -516,12 +518,10 @@ defmodule PortfolixirWeb.ImportsLive do
   # --- helpers ---
 
   defp reload_lookups(socket) do
-    portfolios = Portfolios.list_portfolios()
     existing_cash = Portfolios.list_cash_accounts()
     existing_depots = Portfolios.list_securities_accounts()
 
     socket
-    |> assign(:portfolios, portfolios)
     |> assign(:existing_cash, existing_cash)
     |> assign(:existing_depots, existing_depots)
     |> assign_new(:cash_pp_names, fn -> [] end)
@@ -541,12 +541,17 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp blank_mapping do
     %{
-      portfolio_choice: "create",
-      portfolio_name: "PP Import",
-      portfolio_currency: "EUR",
+      bucket_tag: default_bucket_tag(),
+      bucket_skip: false,
       cash: %{},
       depot: %{}
     }
+  end
+
+  # The date-stamped default bucket name is data (a bucket name), not UI
+  # copy — deliberately not translated.
+  defp default_bucket_tag do
+    "PP Import #{Date.to_iso8601(Date.utc_today())}"
   end
 
   # Auto-prefill: existing-name match → existing; otherwise create-new.
@@ -556,12 +561,6 @@ defmodule PortfolixirWeb.ImportsLive do
 
     cash_pp_names = Mapping.unique_cash_pp_names(preview)
     depot_pp_names = Mapping.unique_depot_pp_names(preview)
-
-    portfolio_choice =
-      case socket.assigns.portfolios do
-        [] -> "create"
-        [first | _] -> "existing:#{first.id}"
-      end
 
     cash =
       Map.new(cash_pp_names, fn pp_name ->
@@ -589,23 +588,20 @@ defmodule PortfolixirWeb.ImportsLive do
         {pp_name, %{"target" => target, "cash" => cash_value}}
       end)
 
-    %{
-      blank_mapping()
-      | portfolio_choice: portfolio_choice,
-        cash: cash,
-        depot: depot
-    }
+    %{blank_mapping() | cash: cash, depot: depot}
   end
 
   defp mapping_from_params(params, current) do
     %{
-      portfolio_choice: Map.get(params, "portfolio_choice", current.portfolio_choice),
-      portfolio_name: Map.get(params, "portfolio_name", current.portfolio_name),
-      portfolio_currency: Map.get(params, "portfolio_currency", current.portfolio_currency),
+      bucket_tag: Map.get(params, "bucket_tag", current.bucket_tag),
+      bucket_skip: parse_bucket_skip(Map.get(params, "bucket_skip"), current.bucket_skip),
       cash: Map.merge(current.cash, Map.get(params, "cash", %{})),
       depot: Map.merge(current.depot, Map.get(params, "depot", %{}))
     }
   end
+
+  defp parse_bucket_skip(nil, current), do: current
+  defp parse_bucket_skip(value, _current), do: value == "true"
 
   defp cash_value(mapping, pp_name), do: Map.get(mapping.cash, pp_name)
 
@@ -627,22 +623,9 @@ defmodule PortfolixirWeb.ImportsLive do
     Enum.reduce(entries, 0, fn e, acc -> acc + 1 + length(e.companion_entries || []) end)
   end
 
-  # True iff every dropdown is filled. Portfolio create needs a name +
-  # 3-letter currency; every depot row needs a `target` and a `cash`.
+  # True iff every dropdown is filled: every depot row needs a `target` and
+  # a `cash`. The bucket tag never blocks — blank behaves like skip.
   defp mapping_complete?(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots}) do
-    portfolio_ok? =
-      case m.portfolio_choice do
-        "create" ->
-          is_binary(m.portfolio_name) and String.trim(m.portfolio_name) != "" and
-            is_binary(m.portfolio_currency) and String.length(m.portfolio_currency) == 3
-
-        "existing:" <> _ ->
-          true
-
-        _ ->
-          false
-      end
-
     cash_ok? = Enum.all?(cashes, fn pp -> is_binary(Map.get(m.cash, pp)) end)
 
     depot_ok? =
@@ -657,37 +640,14 @@ defmodule PortfolixirWeb.ImportsLive do
         end
       end)
 
-    portfolio_ok? and cash_ok? and depot_ok?
+    cash_ok? and depot_ok?
   end
 
   # The human-readable list of still-missing mappings, derived from the SAME
   # data `mapping_complete?/1` inspects, so the Confirm hint can never disagree
   # with the button's disabled state (#475).
   defp missing_mappings(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots}) do
-    portfolio_missing(m) ++ cash_missing(m, cashes) ++ depot_missing(m, depots)
-  end
-
-  defp portfolio_missing(m) do
-    case m.portfolio_choice do
-      "create" ->
-        name =
-          if is_binary(m.portfolio_name) and String.trim(m.portfolio_name) != "",
-            do: [],
-            else: [gettext("a name for the new portfolio")]
-
-        currency =
-          if is_binary(m.portfolio_currency) and String.length(m.portfolio_currency) == 3,
-            do: [],
-            else: [gettext("a 3-letter currency for the new portfolio")]
-
-        name ++ currency
-
-      "existing:" <> _ ->
-        []
-
-      _ ->
-        [gettext("a target portfolio")]
-    end
+    cash_missing(m, cashes) ++ depot_missing(m, depots)
   end
 
   defp cash_missing(m, cashes) do
@@ -718,38 +678,56 @@ defmodule PortfolixirWeb.ImportsLive do
     end)
   end
 
+  # The portfolio binding is internal (ADR-0024): the applier resolves
+  # `Portfolios.default_portfolio/1` itself — no portfolio param here.
   defp build_apply_params(mapping, assigns) do
-    with {:ok, portfolio} <- portfolio_param(mapping),
-         {:ok, cash_params} <- cash_params(mapping, assigns.cash_pp_names),
-         {:ok, depot_params} <- depot_params(mapping, assigns.depot_pp_names) do
+    with {:ok, cash_params} <- cash_params(mapping, assigns.cash_pp_names),
+         {:ok, depot_params} <- depot_params(mapping, assigns.depot_pp_names),
+         bucket_tag = effective_bucket_tag(mapping),
+         :ok <- validate_bucket_tag(bucket_tag) do
       {:ok,
        %{
-         portfolio: portfolio,
          cash_accounts: cash_params,
-         depots: depot_params
+         depots: depot_params,
+         bucket_tag: bucket_tag
        }}
     end
   end
 
-  defp portfolio_param(%{portfolio_choice: "existing:" <> id_str}) do
-    case Integer.parse(id_str) do
-      {id, ""} -> {:ok, {:existing, id}}
-      _ -> {:error, gettext("Invalid portfolio id.")}
+  # Pre-validates the tag BEFORE the apply starts (fix round): a too-long or
+  # scope-colliding tag fails here with a clear message instead of aborting
+  # the whole import at the very end.
+  defp validate_bucket_tag(nil), do: :ok
+
+  defp validate_bucket_tag(tag) do
+    case Buckets.validate_tag_bucket_name(tag) do
+      :ok -> :ok
+      {:error, reason} -> {:error, bucket_tag_error_message(reason)}
     end
   end
 
-  defp portfolio_param(%{
-         portfolio_choice: "create",
-         portfolio_name: name,
-         portfolio_currency: ccy
-       })
-       when is_binary(name) and is_binary(ccy) do
-    {:ok,
-     {:create,
-      %{name: String.trim(name), base_currency_code: ccy |> String.trim() |> String.upcase()}}}
+  defp bucket_tag_error_message(:name_too_long) do
+    gettext("The bucket tag is too long — bucket names carry at most 100 characters.")
   end
 
-  defp portfolio_param(_), do: {:error, gettext("Please pick or define a portfolio.")}
+  defp bucket_tag_error_message(:name_taken_by_scope_bucket) do
+    gettext(
+      "The bucket tag names an existing scope bucket. Scope buckets are exclusive and cannot be used as import tags — pick a different tag name."
+    )
+  end
+
+  # Skip checked or a blank field → no tag (nil); the applier treats nil as
+  # "leave the new accounts untagged".
+  defp effective_bucket_tag(%{bucket_skip: true}), do: nil
+
+  defp effective_bucket_tag(%{bucket_tag: tag}) when is_binary(tag) do
+    case String.trim(tag) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp effective_bucket_tag(_mapping), do: nil
 
   defp cash_params(mapping, pp_names) do
     Enum.reduce_while(pp_names, {:ok, %{}}, fn pp_name, {:ok, acc} ->
@@ -832,6 +810,17 @@ defmodule PortfolixirWeb.ImportsLive do
   # preview tells the user exactly which row and rule failed.
   defp apply_error_message(%{row: row, reason: {:insert_failed, %Ecto.Changeset{} = changeset}}) do
     gettext("Row %{row}: %{errors}", row: row || "?", errors: changeset_error_text(changeset))
+  end
+
+  # The tag write failed inside the apply (fix round belt-and-braces for the
+  # race where the colliding scope bucket appears after the pre-validation):
+  # surface the same clear message, never an `inspect` dump.
+  defp apply_error_message({:bucket_tag_failed, :name_taken_by_scope_bucket}) do
+    bucket_tag_error_message(:name_taken_by_scope_bucket)
+  end
+
+  defp apply_error_message({:bucket_tag_failed, %Ecto.Changeset{} = changeset}) do
+    gettext("Bucket tag: %{errors}", errors: changeset_error_text(changeset))
   end
 
   defp apply_error_message(reason), do: inspect(reason)

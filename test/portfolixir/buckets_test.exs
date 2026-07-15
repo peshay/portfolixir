@@ -78,6 +78,28 @@ defmodule Portfolixir.BucketsTest do
 
       assert ops == [:create, :delete, :update]
     end
+
+    # User story (ADR-0024, epic story 5):
+    # As the import applier tagging newly created accounts,
+    # I want a find-or-create for a tag-dimension bucket by name,
+    # so that an entered tag matching an existing bucket reuses it instead of
+    # erroring on the unique name.
+    test "ensure_tag_bucket creates a journaled tag bucket and reuses an existing name" do
+      assert {:ok, bucket} = Buckets.ensure_tag_bucket(Actor.import_session(), "  PP Import  ")
+      assert bucket.name == "PP Import"
+      assert bucket.dimension == "tag"
+
+      assert [entry] =
+               Journal.list_entries(resource_type: "bucket", resource_id: to_string(bucket.id))
+
+      assert entry.operation == :create
+      assert entry.actor_type == :import_session
+
+      # Same (trimmed) name → the existing bucket, regardless of dimension.
+      assert {:ok, reused} = Buckets.ensure_tag_bucket(Actor.import_session(), "PP Import")
+      assert reused.id == bucket.id
+      assert length(Buckets.list_buckets()) == 1
+    end
   end
 
   # User story:
@@ -221,7 +243,7 @@ defmodule Portfolixir.BucketsTest do
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Strategy", include_all: false})
       :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [b_in.id], [b_ex.id])
 
-      assert Buckets.view_filter(view.id) == %{include: [b_in.id], exclude: [b_ex.id]}
+      assert Buckets.view_filter(view.id) == {:ok, %{include: [b_in.id], exclude: [b_ex.id]}}
 
       # Only the two bucket creates were journaled; no view-definition entries.
       assert length(Journal.list_entries([])) == bucket_entries
@@ -232,7 +254,7 @@ defmodule Portfolixir.BucketsTest do
       {:ok, view} =
         Buckets.create_view(Actor.owner_ui(), %{name: "Everything", include_all: true})
 
-      assert Buckets.view_filter(view.id) == %{include: :all, exclude: []}
+      assert Buckets.view_filter(view.id) == {:ok, %{include: :all, exclude: []}}
     end
 
     test "update_view and delete_view edit the definition without journaling" do
@@ -255,6 +277,65 @@ defmodule Portfolixir.BucketsTest do
     test "view name is required and unique" do
       assert {:error, changeset} = Buckets.create_view(Actor.owner_ui(), %{name: ""})
       assert %{name: ["can't be blank"]} = errors_on(changeset)
+    end
+
+    # User story (fix round, deleted-view degradation):
+    # As a local portfolio maintainer with two tabs open,
+    # I want a stale view id (the view was deleted in the other tab) to
+    # resolve to a not-found error instead of crashing,
+    # so that every surface can degrade to the Everything scope.
+    #
+    # Acceptance criteria:
+    # - `view_filter/1`, `load_scope/2` and `load_global_scope/1` return
+    #   `{:error, :view_not_found}` for a vanished view id — no raise.
+    test "view_filter and scope loaders return a not-found error for a deleted view" do
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Gone", include_all: true})
+      {:ok, _} = Buckets.delete_view(Actor.owner_ui(), view)
+
+      assert Buckets.view_filter(view.id) == {:error, :view_not_found}
+      assert Buckets.load_scope(1, view.id) == {:error, :view_not_found}
+      assert Buckets.load_global_scope(view.id) == {:error, :view_not_found}
+    end
+  end
+
+  # User story (fix round, tag/scope dimension safety):
+  # As a local portfolio maintainer importing a PP export,
+  # I want an import tag that collides with a scope bucket's name to be
+  # rejected with a clear error — before and during the apply,
+  # so that the exclusive scope dimension is never silently reused as a tag
+  # and my import never aborts at the very end with an opaque dump.
+  #
+  # Acceptance criteria:
+  # - `ensure_tag_bucket/2` refuses a scope bucket's name with
+  #   `{:error, :name_taken_by_scope_bucket}` (no write happens).
+  # - `validate_tag_bucket_name/1` pre-flags the same collision and a name
+  #   over the 100-character bucket limit.
+  describe "tag-bucket name safety (fix round)" do
+    test "ensure_tag_bucket refuses to reuse a scope bucket's name" do
+      {:ok, scope} =
+        Buckets.create_bucket(Actor.owner_ui(), %{name: "Haushalt", dimension: "scope"})
+
+      assert {:error, :name_taken_by_scope_bucket} =
+               Buckets.ensure_tag_bucket(Actor.import_session(), "  Haushalt ")
+
+      # No second bucket appeared and the scope bucket is untouched.
+      assert [%{id: id, dimension: "scope"}] =
+               Enum.filter(Buckets.list_buckets(), &(&1.name == "Haushalt"))
+
+      assert id == scope.id
+    end
+
+    test "validate_tag_bucket_name pre-flags scope collisions and over-long names" do
+      {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Firma", dimension: "scope"})
+
+      assert Buckets.validate_tag_bucket_name("Firma") ==
+               {:error, :name_taken_by_scope_bucket}
+
+      assert Buckets.validate_tag_bucket_name(String.duplicate("x", 101)) ==
+               {:error, :name_too_long}
+
+      assert Buckets.validate_tag_bucket_name(String.duplicate("x", 100)) == :ok
+      assert Buckets.validate_tag_bucket_name("PP Import 2026-07-12") == :ok
     end
   end
 
@@ -390,6 +471,182 @@ defmodule Portfolixir.BucketsTest do
 
       assert {:error, :bucket_ids} =
                Buckets.set_view_buckets(Actor.owner_ui(), view, [], [@unknown_bucket_id])
+    end
+  end
+
+  # User story (ADR-0024 modification 2, epic story 2):
+  # As a local portfolio maintainer upgrading to the buckets/views model,
+  # I want one designated exclusive "scope" bucket dimension,
+  # so that scoped totals keep adding up while free tag buckets stay overlapping.
+  #
+  # Acceptance criteria:
+  # - A bucket carries a dimension: "tag" (default, overlapping) or "scope"
+  #   (exclusive); anything else is rejected.
+  # - The dimension is fixed at creation — flipping it later could silently
+  #   break the at-most-one-scope-bucket invariant on existing assignments.
+  # - A depot or cash account carries AT MOST ONE scope bucket; assigning a
+  #   second returns a clear context error instead of writing.
+  # - Tag buckets stay unrestricted (any number, alongside the scope bucket).
+  # User story (fix round, matches-nothing views):
+  # As a local portfolio maintainer,
+  # I want a view whose resolution matches zero accounts to be detectable,
+  # so that the UI can hint "matches no accounts" instead of showing a
+  # silent 0 total.
+  #
+  # Acceptance criteria:
+  # - A view whose only include bucket was deleted matches nothing.
+  # - A view with `include_all` or with a still-assigned include bucket
+  #   matches; the unscoped Everything scope always matches.
+  describe "scope_matches_any_account?/1 (fix round)" do
+    test "a view whose only include bucket was deleted matches no accounts",
+         %{depot: depot} do
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Orphan"})
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Orphaned", include_all: false})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [bucket.id])
+
+      assert Buckets.scope_matches_any_account?(Buckets.load_global_scope(view.id))
+
+      # Deleting the bucket cascades it out of the view's include set.
+      {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), bucket)
+
+      refute Buckets.scope_matches_any_account?(Buckets.load_global_scope(view.id))
+    end
+
+    test "include_all views and the Everything scope always match" do
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "All", include_all: true})
+
+      assert Buckets.scope_matches_any_account?(Buckets.load_global_scope(view.id))
+      assert Buckets.scope_matches_any_account?(:unscoped)
+    end
+
+    test "a position override alone keeps a view matching", %{depot: depot, security: security} do
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Solo"})
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "SoloView", include_all: false})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+
+      refute Buckets.scope_matches_any_account?(Buckets.load_global_scope(view.id))
+
+      :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [bucket.id])
+
+      assert Buckets.scope_matches_any_account?(Buckets.load_global_scope(view.id))
+    end
+
+    # An explicit-empty override deliberately assigns no buckets, so it can
+    # never make a view match — and it must not crash the check either.
+    test "an explicit-empty override does not make a view match", %{
+      depot: depot,
+      security: security
+    } do
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Solo"})
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "SoloView", include_all: false})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+      :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [])
+
+      refute Buckets.scope_matches_any_account?(Buckets.load_global_scope(view.id))
+    end
+  end
+
+  describe "exclusive scope dimension" do
+    test "buckets default to the tag dimension and accept scope at creation" do
+      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+      assert tag.dimension == "tag"
+
+      {:ok, scope} =
+        Buckets.create_bucket(Actor.owner_ui(), %{name: "Main", dimension: "scope"})
+
+      assert scope.dimension == "scope"
+
+      assert {:error, changeset} =
+               Buckets.create_bucket(Actor.owner_ui(), %{name: "Bad", dimension: "layer"})
+
+      assert %{dimension: ["is invalid"]} = errors_on(changeset)
+    end
+
+    test "the dimension cannot be changed after creation" do
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Main"})
+
+      assert {:error, changeset} =
+               Buckets.update_bucket(Actor.owner_ui(), bucket, %{dimension: "scope"})
+
+      assert %{dimension: ["cannot be changed after creation"]} = errors_on(changeset)
+
+      # A no-op dimension value alongside a rename still goes through.
+      assert {:ok, renamed} =
+               Buckets.update_bucket(Actor.owner_ui(), bucket, %{
+                 name: "Primary",
+                 dimension: "tag"
+               })
+
+      assert renamed.name == "Primary"
+    end
+
+    test "a depot carries at most one scope bucket; tag buckets stay unrestricted",
+         %{depot: depot} do
+      {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A", dimension: "scope"})
+      {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B", dimension: "scope"})
+      {:ok, tag_x} = Buckets.create_bucket(Actor.owner_ui(), %{name: "X"})
+      {:ok, tag_y} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Y"})
+
+      assert {:error, :exclusive_bucket_conflict} =
+               Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [
+                 scope_a.id,
+                 scope_b.id
+               ])
+
+      assert Buckets.depot_default_bucket_ids(depot.id) == []
+
+      assert :ok =
+               Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [
+                 scope_a.id,
+                 tag_x.id,
+                 tag_y.id
+               ])
+
+      assert Buckets.depot_default_bucket_ids(depot.id) |> Enum.sort() ==
+               Enum.sort([scope_a.id, tag_x.id, tag_y.id])
+    end
+
+    # Fix round: the override path enforces the same invariant as the account
+    # paths — otherwise a position override could double-count a position
+    # into two scope-scoped totals.
+    test "a position override carries at most one scope bucket",
+         %{depot: depot, security: security} do
+      {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "OA", dimension: "scope"})
+      {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "OB", dimension: "scope"})
+      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "OTag"})
+
+      assert {:error, :exclusive_bucket_conflict} =
+               Buckets.set_position_override(Actor.owner_ui(), depot, security, [
+                 scope_a.id,
+                 scope_b.id
+               ])
+
+      # Nothing was written: the position still inherits.
+      assert Buckets.position_override(depot.id, security.id) == :inherit
+
+      # One scope bucket plus tags stays fine.
+      assert :ok =
+               Buckets.set_position_override(Actor.owner_ui(), depot, security, [
+                 scope_a.id,
+                 tag.id
+               ])
+
+      assert {:explicit, ids} = Buckets.position_override(depot.id, security.id)
+      assert Enum.sort(ids) == Enum.sort([scope_a.id, tag.id])
+    end
+
+    test "a cash account carries at most one scope bucket", %{cash: cash} do
+      {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A", dimension: "scope"})
+      {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B", dimension: "scope"})
+
+      assert {:error, :exclusive_bucket_conflict} =
+               Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [scope_a.id, scope_b.id])
+
+      assert Buckets.cash_account_bucket_ids(cash.id) == []
+
+      assert :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [scope_a.id])
+      assert Buckets.cash_account_bucket_ids(cash.id) == [scope_a.id]
     end
   end
 end

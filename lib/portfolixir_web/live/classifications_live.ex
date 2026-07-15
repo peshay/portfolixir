@@ -593,7 +593,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
               type="button"
               class="button-danger"
               phx-click="delete_soll_plan"
-              data-confirm={gettext("Delete this view's plan? The portfolio page falls back to actual-only for it.")}
+              data-confirm={gettext("Delete this view's plan? The Wealth page falls back to actual-only for it.")}
             >
               <%= gettext("Delete plan") %>
             </button>

@@ -75,21 +75,37 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(view, "#dashboard-overview")
   end
 
-  # User story (Steve UAT #337, reshaped by ADR-0022):
+  # User story (Steve UAT #337, reshaped by ADR-0022 and ADR-0024):
   # As a user who already has transactions,
   # I want the dashboard to answer "did anything change, does anything need
-  # me?" — value plus change, not a raw activity feed,
-  # so that the morning glance tells me whether to act, and forensic detail
-  # stays in the audit journal.
+  # me?" — one view-scoped value plus change, not per-portfolio cards,
+  # so that the morning glance shows the slice of wealth I steer and forensic
+  # detail stays in the audit journal.
   #
   # Acceptance criteria:
   # - Once any transaction exists, the workflow-path wizard is gone.
-  # - The dashboard shows a per-portfolio value card (loaded async, with the
-  #   portfolio's base-currency total and its YTD TTWROR as the change signal).
+  # - The dashboard shows ONE value card scoped to the default view —
+  #   "Everything" when none is set — with the YTD TTWROR as the change signal.
   # - The recent-activity feed and the count cards are gone from the populated
   #   overview (the wizard keeps its counts).
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer,
+  # I want the wealth card's default-scope label to read "Alles",
+  # so that the localized dashboard never shows an uppercase English
+  # "EVERYTHING". (The label is translated at render time — the card data is
+  # computed in an async task whose process has no user locale.)
+  test "the wealth card's Everything label is localized", %{conn: conn} do
+    seed_holding()
+
+    {:ok, view, _html} = live(conn, "/?locale=de")
+    html = render_async(view)
+
+    assert has_element?(view, "#dashboard-wealth-card span", "Alles")
+    refute html =~ "Everything"
+  end
+
   test "a populated dashboard shows value and change, not an activity feed", %{conn: conn} do
-    %{portfolio: portfolio} = seed_holding()
+    seed_holding()
 
     {:ok, view, _html} = live(conn, "/")
 
@@ -98,23 +114,58 @@ defmodule PortfolixirWeb.DashboardTest do
 
     html = render_async(view)
 
-    # Per-portfolio value card shows the portfolio's total incl. cash in its own
-    # base currency (10 shares @ 120 = 1200 securities, less the 1000 the buy
-    # took from cash = 200 total incl. cash).
-    expected = Format.money(Valuation.for_portfolio(portfolio.id).total_with_cash)
-    assert html =~ "Main"
-    assert has_element?(view, "a#dashboard-portfolio-#{portfolio.id}[href='/portfolio']")
+    # One wealth card, scoped to Everything (no default view set): 10 shares
+    # @ 120 = 1200 securities, less the 1000 the buy took from cash = 200
+    # total incl. cash.
+    expected = Format.money(Valuation.for_view(nil, base_currency: "EUR").total_with_cash)
+    assert html =~ "Everything"
+    assert has_element?(view, "a#dashboard-wealth-card[href='/portfolio']")
     assert html =~ "#{expected} EUR"
 
     # The change signal: the card carries the YTD TTWROR.
     assert has_element?(view, "[data-role='card-ttwror']")
     assert html =~ "YTD"
 
-    # No activity feed, no count cards on the populated overview (ADR-0022:
-    # the dashboard answers "does anything need me", it does not restate the
-    # journal or the entity counts).
+    # No per-portfolio cards (ADR-0024: portfolios are no longer the
+    # user-facing grouping), no activity feed, no count cards.
+    refute has_element?(view, "[id^='dashboard-portfolio-']")
     refute has_element?(view, "#dashboard-recent")
     refute has_element?(view, "#dashboard-securities-count")
+  end
+
+  # User story (ADR-0024):
+  # As a local portfolio maintainer with a default view,
+  # I want the dashboard value card scoped to that view,
+  # so that my daily check-in opens on the slice of wealth I steer.
+  #
+  # Acceptance criteria:
+  # - With a default view set, the card carries the view's name and the
+  #   view-scoped total (here: the depot's securities only — the untagged cash
+  #   account is out of the view's scope).
+  test "the dashboard value card scopes to the default view", %{conn: conn} do
+    seed_holding()
+
+    depot = Portfolios.list_securities_accounts() |> hd()
+    {:ok, bucket} = Portfolixir.Buckets.create_bucket(Actor.owner_ui(), %{name: "mine"})
+    :ok = Portfolixir.Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [bucket.id])
+
+    {:ok, mine} =
+      Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Mine", include_all: false})
+
+    :ok = Portfolixir.Buckets.set_view_buckets(Actor.owner_ui(), mine, [bucket.id], [])
+    :ok = Portfolixir.Settings.set_default_view(mine.id)
+
+    {:ok, view, _html} = live(conn, "/")
+    html = render_async(view)
+
+    expected = Format.money(Valuation.for_view(mine.id, base_currency: "EUR").total_with_cash)
+    assert has_element?(view, "#dashboard-wealth-card", "Mine")
+    assert html =~ "#{expected} EUR"
+
+    # The scope actually narrows: 1200 securities in scope, while Everything
+    # also counts the untagged cash account's -1000 balance.
+    everything = Format.money(Valuation.for_view(nil, base_currency: "EUR").total_with_cash)
+    refute expected == everything
   end
 
   # User story (ADR-0022 / ADR-0023):
@@ -174,6 +225,10 @@ defmodule PortfolixirWeb.DashboardTest do
     assert alert =~ "40.0"
     assert alert =~ "above target"
     assert alert =~ "480.00"
+
+    # ADR-0024: the internal portfolio iterated as the drift mechanism is not
+    # surfaced as a grouping label on the alert.
+    refute alert =~ "Main"
   end
 
   test "the dashboard shows the all-clear note when nothing drifts", %{conn: conn} do

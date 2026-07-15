@@ -60,16 +60,16 @@ Integrationsdetails für `/api/v1` und `mcp-server/` sind separat unter
 ## Kern-Workflow
 
 1. Lege ein oder mehrere Wertpapiere mit grundlegenden Identifikationsdaten an.
-2. Lege ein Portfolio an.
-3. Lege ein Geldkonto und ein Depot an und verknüpfe sie.
-4. Erfasse manuelle Kauf- und Verkauftransaktionen mit Decimal-basierten Mengen-
+2. Lege ein Geldkonto und ein Depot an und verknüpfe sie (nirgendwo eine
+   Portfolio-Entscheidung — siehe unten).
+3. Erfasse manuelle Kauf- und Verkauftransaktionen mit Decimal-basierten Mengen-
    und Preiswerten.
-5. Importiere optional einen Portfolio-Performance-Transaktionsexport über
+4. Importiere optional einen Portfolio-Performance-Transaktionsexport über
    Imports, prüfe die Vorschau, ordne fehlende Konten zu und wende dann atomar an.
-6. Öffne die Bestandsansicht, um die aktuelle Position je Wertpapier zu prüfen.
-7. Erfasse Wertpapierkurse im Zeitverlauf und behalte die Historie für
+5. Öffne die Bestandsansicht, um die aktuelle Position je Wertpapier zu prüfen.
+6. Erfasse Wertpapierkurse im Zeitverlauf und behalte die Historie für
    reproduzierbare Charts.
-8. Prüfe aktuelle Bestände und das Verhalten der Kurscharts direkt in der App.
+7. Prüfe aktuelle Bestände und das Verhalten der Kurscharts direkt in der App.
 
 ## Wertpapiere
 
@@ -137,12 +137,73 @@ Tokens sind einzelne Zeichen, mindestens vier Tokens) und führt die Tokens
 zusammen, bevor die Heuristiken laufen, sodass Rechtsform-Suffixe auch aus
 solchen Exporten zuverlässig erkannt werden.
 
-## Portfolios und Konten
+## Konten und Depots
 
-Das Portfolio besitzt eine Arbeitsgruppe von Kontomodellen:
+Die Buchhaltungs-Entitäten sind Geldkonten und Depots:
 
 - Geldkonto: verfolgt den Kontext der verfügbaren Liquidität
 - Depot/Konto: speichert Wertpapierpositionen, verknüpft mit diesem Geldkonto
+
+Die Seite **Konten & Depots** (Bereich Verwaltung) zeigt beide in **einer
+Tabelle, ein Eintrag je Zeile**: jedes Depot bildet eine Zeile, sein
+verknüpftes Verrechnungskonto sitzt eingerückt direkt darunter — mit der
+Kontowährung und dem beschrifteten **Liquiditätsrollen**-Selektor je Konto
+(freies Cash, Kreditlinie, Reserve); ein Geldkonto ohne verknüpftes Depot
+bekommt eine eigene Zeile. Ein von mehreren Depots geteiltes Konto trägt
+seine Bedienelemente nur unter seinem ersten Depot — spätere Zeilen zeigen
+*geteilt — oben verwaltet*.
+
+**Bucket-Chips (#559).** Jede Zeile zeigt ihre Bucket-Zugehörigkeiten als
+Chips — den exklusiven **Scope**-Bucket als gefüllten Chip, freie **Tags**
+als Umriss-Chips, eingefärbt mit der Bucket-Farbe, wenn eine gesetzt ist.
+Tragen Depot und Verrechnungskonto dieselben Buckets, zeigt das Paar **eine
+zusammengeführte Chip-Gruppe mit der Marke „Beide"** über beide Zeilen; der
+Link **Getrennt taggen** daneben teilt die Gruppe, sodass jede Seite eigene
+Tags bekommt (unterschiedliche Mengen erscheinen immer getrennt). Je Gruppe
+sind höchstens vier Chips sichtbar — weitere klappen in einen **+N**-Chip,
+und der Picker führt die vollständige Menge. Lange Namen (etwa
+datumsgestempelte Import-Tags) werden gekürzt; der volle Name erscheint beim
+Überfahren des Chips. Die Chips sind die Gruppierungs-UI: das **+** öffnet
+ein kleines Picker-Popover mit den übrigen Buckets plus einem Inline-Feld
+**Neuer Tag**, das einen Tag in einem Schritt anlegt und zuweist, und das
+**×** auf einem Chip entfernt die Zugehörigkeit. Änderungen an einer
+zusammengeführten Gruppe gelten für Depot und Verrechnungskonto gemeinsam.
+Jede Änderung läuft durch den audit-journalisierten Bucket-Kontext; der
+Versuch, einen zweiten Scope-Bucket zuzuweisen, wird mit einer Inline-Meldung
+abgelehnt, denn die Scope-Dimension bleibt exklusiv (ADR-0024).
+
+**Ein Anlage-Dialog (#491).** Der Knopf **Depot & Konto anlegen** öffnet
+einen Dialog, der ein Depot zusammen mit seinem verknüpften
+Verrechnungskonto in einem Fluss anlegt — oder ein Geldkonto allein, oder
+ein Depot verknüpft mit einem bestehenden Konto. Optional vergibt der Dialog
+**anfängliche Buckets**: bestehende Buckets ankreuzen und/oder einen neuen
+Tag eintippen, und jeder vom Dialog angelegte Datensatz startet mit dieser
+Zugehörigkeit.
+
+**Nirgendwo ist eine Portfolio-Entscheidung nötig** (ADR-0024): Gruppierung
+passiert ausschließlich über Buckets und Ansichten. Wird ein Depot oder
+Geldkonto angelegt — im Dialog oder über API/MCP — löst sich die interne
+Bindung deterministisch auf ein Standard-Portfolio auf (den ältesten
+Datensatz, sonst ein frisch angelegtes „Default“), ohne nachzufragen.
+
+Durchgearbeitete Beispiele — Haushalts-Aufteilung, Strategie-Ansichten mit
+eigenen SOLL-Plänen, Übersetzen von Portfolio-Performance-Gewohnheiten und
+das Ausschließen einer Position aus der Steuerung — stehen im Leitfaden
+[Buckets & Ansichten](guides/buckets-and-views.html).
+
+### Portfoliodatensätze (Kompatibilität)
+
+Portfolios bleiben als **interne Kompatibilitätsdatensätze** im Schema, in der
+JSON-API und im Importpfad erhalten. Die Seite **Konten & Depots** im
+Administrationsbereich trägt ein eingeklapptes, schreibgeschütztes Panel
+**Portfoliodatensätze (Kompatibilität)**, das jeden Datensatz auflistet —
+Name, Basiswährung, Anlagedatum, Quelle (UI, API, Import oder Seed, abgeleitet
+aus dem Audit-Journal) sowie die Zahl der gebundenen Depots und Geldkonten —
+damit über API/MCP angelegte Datensätze nie unsichtbar werden. Es gibt keine
+Anlage- oder Bearbeitungs-UI; die API-Schreibendpunkte sind veraltet (siehe
+[API und MCP](integration/api-and-mcp.html)), und eine Folge-Story
+verschmilzt die Datensätze nach zwei Releases ohne externe Portfolio-Writes
+in Buckets und Ansichten.
 
 ## Transaktionen und Bestände
 
@@ -223,7 +284,7 @@ Die Zustände sind:
   `(Sicht, Klassifizierung)`-Plan auf einmal. Eine Live-**Σ**-Fußzeile summiert
   die Kategoriegewichte plus das Cash-Ziel und zeigt bei genau 100 % ein ✓, sonst
   ein ✗ mit dem gelben Abweichungshinweis — und aktualisiert sich beim Tippen.
-- **Plan löschen** entfernt den Plan der Sicht; die Portfolio-Seite fällt für
+- **Plan löschen** entfernt den Plan der Sicht; die Vermögensseite fällt für
   diese Sicht dann auf **nur IST** zurück (kein SOLL, keine Drift).
 
 Gewichte werden als **Prozentsätze** eingegeben und angezeigt (z. B. `60`) und als
@@ -235,7 +296,7 @@ fokussierbar, und derselbe Plan ist über die API/MCP-Ziel-Endpunkte mit einem
 > **verlustfrei**: alle bereits vorhandenen Zielgewichte und das frühere
 > portfolioweite Cash-Ziel werden zu deinem **Gesamt**-Plan (`view = null`). Am
 > Verhalten ändert sich nichts — dein bestehendes Setup erscheint einfach unter
-> *Gesamt*, und die Portfolio-Seite liest es unter der Sicht **Total** genau wie
+> *Gesamt*, und die Vermögensseite liest es unter der Sicht **Total** genau wie
 > zuvor. Benannte Sichten starten **ohne Plan**, bis du einen anlegst oder
 > kopierst.
 
@@ -264,7 +325,7 @@ angezeigten Ist-Prozentsätze nur über die Blätter (plus nicht Zugeordnetes) z
 Ziele bleiben **bewusst locker**: du kannst ein Gewicht auf oberster Ebene und auf
 Unterebenen setzen, ohne dass die App sie zur Summe 100 % zwingt. Um diese
 Freiheit zu bewahren und zugleich Abweichungen sichtbar zu machen, zeigt die
-Portfolio-Seite zwei **beratende Konsistenzhinweise** — schreibgeschützt, ein
+Vermögensseite zwei **beratende Konsistenzhinweise** — schreibgeschützt, ein
 Speichern nie blockierend:
 
 - Eine dezente Zeile unter jeder übergeordneten Kategorie mit Kind-Zielen lautet
@@ -314,7 +375,7 @@ bepreist — ein Kauf oder Verkauf ist eine Preisbeobachtung, genau so, wie
 Portfolio Performance Preise aus Buchungen ableitet — sodass ein frisch
 importiertes Portfolio nicht mit null bewertet wird, während Kurse noch geholt
 werden. Solche Positionen tragen `price_source: "trade"` in der API und werden in
-`trade_priced_count` gezählt; die Portfolio-Seite markiert sie als
+`trade_priced_count` gezählt; die Vermögensseite markiert sie als
 Datenqualitäts-Hinweis. Eine Position mit weder Kurs noch Handelspreis oder ohne
 Kurspfad zur Basiswährung wird als unbewertet gemeldet, sodass ein fehlender Preis
 oder Kurs nie still den Gesamtwert oder die Gewichte verzerrt.
@@ -335,7 +396,7 @@ Pflege braucht.
 Für externe Konten (ein Girokonto, Sparkonto, ein Geschäftskonto) ist das Ziel
 Sichtbarkeit ohne Buchhaltung. Statt jede Buchung zu spiegeln, **setzt du den
 Saldo eines Kontos direkt** — tippe die Zahl ein, die deine Banking-App zeigt, als
-datierten **Snapshot** (das Saldo-setzen-Formular auf der Portfolio-Seite,
+datierten **Snapshot** (das Saldo-setzen-Formular auf der Vermögensseite,
 `POST /api/v1/cash_accounts/:id/balance` oder das MCP-Tool
 `cash_accounts.set_balance`). Der Saldo verankert sich dann an diesem Betrag, und
 nur Buchungen mit einem Datum strikt nach dem Snapshot verändern ihn; so braucht
@@ -347,7 +408,7 @@ eine Banking-App zu verwandeln. Dies folgt dem in
 [ADR-0009](/decisions/0009-cash-as-balance-snapshots.html) festgehaltenen Entwurf.
 
 Jedes Geldkonto trägt eine **Liquiditätsrolle** (`liquidity_role`; der Selektor
-sitzt neben dem Konto auf der Portfolios-Seite). Sie ist einer von drei Werten:
+sitzt neben dem Konto auf der Seite Konten & Depots). Sie ist einer von drei Werten:
 **free cash** (Standard — echtes verfügbares Cash), **credit line** (eine
 Überziehungs- oder Lombard-Linie, deren negativer Saldo eine Verbindlichkeit ist
 und deren ungenutzter Rahmen nie Liquidität ist) oder **reserve** (ein
@@ -357,7 +418,7 @@ in die Cash-Quote ein; eine Kreditlinie zählt nie (auch bei positivem Saldo —
 der Typ schlägt das Vorzeichen), und eine Reserve ist immer ausgeschlossen. Jedes
 Konto bleibt im gesamten Cash, sodass eine gezogene Kreditlinie dein
 Nettovermögen korrekt mindert, aber die Quote wird nur über das verfügbare Cash
-berechnet und meldet nie Schein-Liquidität. Die Portfolio-Seite dämpft nicht
+berechnet und meldet nie Schein-Liquidität. Die Vermögensseite dämpft nicht
 verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 
 ## Übersichts-Seite
@@ -365,9 +426,11 @@ verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
 Der Eintrag **Übersicht** (die Startseite) beantwortet „Hat sich etwas
 geändert, braucht etwas meine Aufmerksamkeit?" (ADR-0022). Bei leerer
 Datenbank ist sie der Onboarding-Assistent (der geordnete Workflow-Pfad plus
-Zähler). Sobald Transaktionen existieren, zeigt sie je Portfolio eine
-**Wert-Karte** (Gesamtwert inkl. Cash in der Basiswährung des Portfolios, mit
-der **YTD-TTWROR** als Änderungssignal und der Cash-Quote), eine Liste
+Zähler). Sobald Transaktionen existieren, zeigt sie eine **Wert-Karte,
+eingegrenzt auf deine Standard-Ansicht** — **Alles**, wenn keine gesetzt ist
+(ADR-0024: Ansichten, nicht Portfolios, sind das, worüber die Übersicht
+aggregiert) — mit dem Gesamtwert inkl. Cash, der **YTD-TTWROR** als
+Änderungssignal und der Cash-Quote, eine Liste
 **Braucht Aufmerksamkeit** — jede Kategorie mit Ziel, deren Allokations-Drift
 **±5 Prozentpunkte** überschreitet (ADR-0023-Vorzeichen: positiv =
 übergewichtet), schlimmste zuerst, jeweils verlinkt in den Tab „Allokation &
@@ -377,7 +440,7 @@ Aktivitäts-Feed: die forensischen Details gehören dem Audit-Journal.
 
 ## Vermögens-Seite
 
-Der Eintrag **Vermögen** in der Navigation öffnet die Portfolio-Übersicht,
+Der Eintrag **Vermögen** in der Navigation öffnet die Vermögensübersicht,
 organisiert in Tabs (ADR-0022): **Bestände** (Wert, Performance, Datenqualität,
 Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Erträge** (der
 Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab zeigt den
@@ -423,13 +486,42 @@ listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: tippe de
 Saldo ein, den deine Bank zeigt, und der Snapshot wird ohne Buchung einzelner
 Transaktionen erfasst.
 
+**Die Seite ist auf eine Ansicht eingegrenzt (ADR-0024).** Die Kopf-Summen und
+der Cash-Abschnitt folgen der **aktiven Ansicht über alle Portfolios hinweg** —
+**Alles** (englisch *Everything*) ist die eingebaute Voreinstellung und zeigt
+jede Position, jedes Konto genau einmal gezählt. Wähle eine Ansicht im
+**Sicht-Umschalter** oben auf der Seite — sein **Verwalten…**-Link öffnet die
+Ansichten-Seite, auf der Ansichten und ihre Buckets bearbeitet werden;
+**Als Standard festlegen** merkt sich
+die Wahl serverseitig, sodass Vermögensseite und Übersicht mit dieser Ansicht
+öffnen, solange du nicht ausdrücklich eine andere wählst (eine ausdrückliche
+Wahl — auch von „Alles" — gewinnt immer). Teilen sich die Buckets der aktiven
+Ansicht ein Konto, erinnert ein Badge neben der Summe — *Überlappende Buckets –
+Konten nur einmal gezählt* — daran, dass sich Werte je Bucket überschneiden und
+nicht summiert werden dürfen; die Summe selbst ist bereits dedupliziert.
+Ansicht-bezogene Performance-Reihen tragen das Label *Zusammensetzung per
+heute*: die aktuelle Bucket-Zuordnung der Ansicht gilt rückwirkend für die
+gesamte Historie, und Bucket-Änderungen stehen im Audit-Journal. Nach der
+einmaligen ADR-0024-Migration, die aus jedem Portfolio einen Bucket und eine
+gleichnamige Ansicht gemacht hat, zeigt die Seite einen **schließbaren
+Hinweis** mit den angelegten Ansichten; das Schließen wird gemerkt. (Leere
+Datenbank migriert und Daten erst danach eingespielt? Einmal
+`mix portfolixir.seed_scope_buckets` ausführen, um die fehlenden
+Bucket/Ansicht-Paare anzulegen — der Befehl ist idempotent.) Die
+Standard-Ansicht ist auch über die API (`GET`/`PUT
+/api/v1/settings/default_view`) und die MCP-Tools
+`portfolixir.settings.get_default_view` / `set_default_view` les- und setzbar.
+Durchgearbeitete Klick-für-Klick-Setups (Haushalts-Aufteilung,
+Strategie-Ansichten, PP-Migrationsgewohnheiten) stehen im Leitfaden
+[Buckets & Ansichten](guides/buckets-and-views.html).
+
 **Die SOLL-Seite folgt der aktiven Sicht (ADR-0020).** Die Spalten Ziel, Drift
 und *Σ target top level* der Drift-Tabelle spiegeln den **Plan der aktiven
 Sicht** für die gewählte Klassifizierung wider — IST und SOLL bewegen sich immer
 zusammen. Wechselst du den **Sicht-Umschalter** oben auf der Seite, springen
 beide Seiten gleichzeitig auf den Plan dieser Sicht, sodass nie zwei Pläne zu
-einer Σ über 100 % oder einer Geisterzeile vermischt werden. Die Standardsicht
-**Total** liest den portfolioweiten **Gesamt**-Plan. Ein dezenter Punkt auf einem
+einer Σ über 100 % oder einer Geisterzeile vermischt werden. Die eingebaute
+Ansicht **Alles** (früher *Total*) liest den portfolioweiten **Gesamt**-Plan. Ein dezenter Punkt auf einem
 Sicht-Chip markiert die Sichten, die bereits einen Plan für die aktuelle
 Klassifizierung tragen, sodass du gesteuerte und reine IST-Sichten auf einen
 Blick unterscheidest.
@@ -477,7 +569,7 @@ sodass die beiden unterschiedlich ausfallen, wenn Geld zu guten oder schlechten
 Zeitpunkten bewegt wurde. Der IRR zeigt `—`, wenn es keine Rate zu berechnen gibt
 (keine Flüsse beider Vorzeichen oder der Solver konvergiert nicht).
 
-Die Performance wird auf der Portfolio-Seite gezeigt und ist je Zeitraum
+Die Performance wird auf der Vermögensseite gezeigt und ist je Zeitraum
 verfügbar — laufendes Jahr, ein, drei oder fünf Jahre oder seit der ersten
 Transaktion — über die API (`GET /api/v1/portfolios/:id/performance`) und das
 MCP-Tool `portfolixir.portfolios.performance`, optional mit der vollständigen
@@ -510,6 +602,16 @@ Die Imports-Seite akzeptiert Portfolio-Performance-Transaktionsexporte im Format
 CSV oder JSON v1. Dateien werden in eine Vorschau geparst, bevor Datensätze
 gespeichert werden. Die Vorschau zeigt übersetzte Transaktionsart-Labels, die
 Datensätze, die angelegt würden, und Konto-/Depotzuordnungen für fehlende Ziele.
+
+Statt nach einem Zielportfolio zu fragen, bietet die Vorschau einen editierbaren
+**Bucket-Tag** für die Konten an, die der Import anlegen wird — vorbelegt mit
+einem datumsgestempelten Standard wie `PP Import 2026-07-12`. Benenne ihn um,
+gib den Namen eines bestehenden Buckets ein, um ihn wiederzuverwenden, oder
+wähle *kein Tag*, um die neuen Konten ohne Bucket zu lassen (ein leeres Feld
+verhält sich genauso). Konten, die bestehenden Einträgen zugeordnet sind,
+behalten ihre aktuellen Tags, und ein Import, der keine neuen Konten anlegt,
+erzeugt keinen Bucket. Die interne Portfolio-Bindung geschieht automatisch und
+erfordert nie eine Auswahl (siehe den Abschnitt Portfolios).
 
 Parser-Warnungen erscheinen in einem scrollbaren Feld mit Kopier-Button. Der
 kopierte Text nutzt stabile `Row N: message`-Zeilen, sodass die Diagnose beim
@@ -625,10 +727,13 @@ Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 - Die Seitenleiste ist in aufgabenorientierte Bereiche organisiert (ADR-0022):
   **Übersicht**, **Vermögen**, **Wertpapiere** und **Transaktionen** auf der
   obersten Ebene, plus eine Gruppe **Verwaltung** mit **Konten & Depots**,
-  **Buckets & Views** und **Klassifizierungen**. Sie listet nur existierende
+  **Ansichten** und **Klassifizierungen**. Sie listet nur existierende
   Routen — keine deaktivierten Roadmap-Platzhalter. Erträge sind ein Tab des
   Vermögens-Bereichs und der Import ein Tab des Transaktions-Bereichs, keine
-  eigenen Menüeinträge.
+  eigenen Menüeinträge. Buckets haben keinen eigenen Seitenleisten-Eintrag
+  (ADR-0024): sie werden als Chips auf den Zeilen von Konten & Depots und auf
+  der Ansichten-Seite verwaltet, die der **Verwalten…**-Link des
+  Sicht-Umschalters öffnet.
 - Theme: System-, hell- und dunkel-Modus werden unterstützt.
 - Akzent: violette, türkise und korallenfarbene Logo-Akzentwahlen werden
   unterstützt.

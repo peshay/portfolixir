@@ -11,6 +11,8 @@
       url: /product-documentation.html#securities
     - title: Portfolios and Accounts
       url: /product-documentation.html#portfolios-and-accounts
+    - title: Buckets & Views Guide
+      url: /guides/buckets-and-views.html
     - title: Transactions and Holdings
       url: /product-documentation.html#transactions-and-holdings
     - title: Classifications, Targets, and Allocation

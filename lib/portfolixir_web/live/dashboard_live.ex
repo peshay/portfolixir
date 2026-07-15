@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.DashboardLive do
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
   alias Portfolixir.Ledger
@@ -8,6 +9,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Valuation
+  alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
 
@@ -21,7 +23,7 @@ defmodule PortfolixirWeb.DashboardLive do
     socket =
       socket
       |> assign_counts()
-      |> assign(:portfolio_cards, nil)
+      |> assign(:wealth_card, nil)
       |> assign(:drift_alerts, nil)
       |> assign(:data_quality, nil)
       |> start_loading()
@@ -40,24 +42,56 @@ defmodule PortfolixirWeb.DashboardLive do
   defp start_loading(socket) do
     if connected?(socket) do
       start_async(socket, :overview, fn ->
-        portfolio_cards =
-          Portfolios.list_portfolios()
-          |> Enum.map(fn portfolio ->
-            {portfolio, Valuation.for_portfolio(portfolio.id), ytd_ttwror(portfolio.id)}
-          end)
-
-        {portfolio_cards, drift_alerts(), data_quality_report()}
+        # One value card scoped to the user's default view — Everything when
+        # none is set (ADR-0024: views, not portfolios, are the grouping the
+        # dashboard aggregates over). The drift alerts steer against the same
+        # view's SOLL plans (ADR-0020: plans are view-bound).
+        view_id = Settings.default_view_id()
+        {wealth_card(view_id), drift_alerts(view_id), data_quality_report()}
       end)
     else
       socket
     end
   end
 
+  # The card's data: the deduplicated cross-portfolio view valuation in the
+  # first portfolio's base currency (display continuity with the Wealth page),
+  # plus the YTD TTWROR as the change signal. The TTWROR series is still
+  # portfolio-bound (ADR-0019 scopes it by view within one portfolio), so it
+  # is computed over the first portfolio under the same view — exact for
+  # single-portfolio instances, an honest approximation until the performance
+  # walk spans portfolios.
+  defp wealth_card(view_id) do
+    first = Portfolios.first_portfolio()
+    base_currency = (first && first.base_currency_code) || "EUR"
+    view = view_id && Buckets.get_view(view_id)
+    # The default view can vanish between the settings read and here (fix
+    # round): degrade to the Everything scope instead of crashing the async.
+    view_id = view && view.id
+
+    %{
+      # `name: nil` renders as the localized "Everything" label at render time
+      # (fix round): this function runs inside `start_async`'s task process,
+      # where the user's Gettext locale is NOT set — a gettext call here
+      # always came out English ("EVERYTHING" after the card's CSS uppercase).
+      name: view && view.name,
+      valuation: everything_or_view_valuation(view_id, base_currency),
+      ttwror: first && ytd_ttwror(first.id, view_id)
+    }
+  end
+
+  defp everything_or_view_valuation(view_id, base_currency) do
+    case Valuation.for_view(view_id, base_currency: base_currency) do
+      {:error, :view_not_found} -> Valuation.for_view(nil, base_currency: base_currency)
+      valuation -> valuation
+    end
+  end
+
   @impl true
-  def handle_async(:overview, {:ok, {portfolio_cards, drift_alerts, data_quality}}, socket) do
+  def handle_async(:overview, {:ok, {wealth_card, drift_alerts, data_quality}}, socket) do
     {:noreply,
      assign(socket,
-       portfolio_cards: portfolio_cards,
+       wealth_card: wealth_card,
        drift_alerts: drift_alerts,
        data_quality: data_quality
      )}
@@ -92,11 +126,12 @@ defmodule PortfolixirWeb.DashboardLive do
     ~H"""
     <section id="workflow-path" class="workspace-section">
       <h2><%= gettext("Workflow path") %></h2>
-      <%!-- A portfolio is the hard prerequisite the Portfolio and Income
-            screens demand first ("Create one portfolio first"); the path
-            starts there so the dashboard does not contradict them. --%>
+      <%!-- The depot + cash account pair is the prerequisite the Wealth and
+            Income screens demand first (ADR-0024: no portfolio decision
+            anywhere); the path starts there so the dashboard does not
+            contradict them. --%>
       <ol>
-        <li><a href="/portfolios"><%= gettext("Create one portfolio") %></a></li>
+        <li><a href="/portfolios"><%= gettext("Create one cash account") %></a></li>
         <li><a href="/portfolios"><%= gettext("Link one depot to one cash account") %></a></li>
         <li><a href="/securities"><%= gettext("Create securities") %></a></li>
         <li>
@@ -110,9 +145,9 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
-  # Populated dashboard (ADR-0022): per-portfolio value cards (each in its own
-  # base currency, so no cross-currency aggregation is invented here) with the
-  # YTD TTWROR as the change signal, the drift attention list, and the
+  # Populated dashboard (ADR-0022, reshaped by ADR-0024): one value card
+  # scoped to the default view (Everything when none is set) with the YTD
+  # TTWROR as the change signal, the drift attention list, and the
   # data-quality card. Deliberately no activity feed and no entity counts —
   # the audit journal and the admin pages own those.
   defp overview(assigns) do
@@ -122,28 +157,23 @@ defmodule PortfolixirWeb.DashboardLive do
         <AppShell.status_toast kind={:error} message={@error} />
       <% end %>
 
-      <section class="workspace-section grid" aria-label={gettext("Portfolio values")}>
-        <%= if is_nil(@portfolio_cards) do %>
+      <section class="workspace-section grid" aria-label={gettext("Wealth value")}>
+        <%= if is_nil(@wealth_card) do %>
           <article class="stat section-skeleton" data-role="overview-skeleton">
             <span><%= gettext("Loading…") %></span>
           </article>
         <% else %>
-          <a
-            :for={{portfolio, valuation, ttwror} <- @portfolio_cards}
-            id={"dashboard-portfolio-#{portfolio.id}"}
-            href="/portfolio"
-            class="stat stat--link"
-          >
-            <span><%= portfolio.name %></span>
+          <a id="dashboard-wealth-card" href="/portfolio" class="stat stat--link">
+            <span><%= @wealth_card.name || gettext("Everything") %></span>
             <strong>
-              <%= Format.money(valuation.total_with_cash) %> <%= valuation.base_currency %>
+              <%= Format.money(@wealth_card.valuation.total_with_cash) %> <%= @wealth_card.valuation.base_currency %>
             </strong>
-            <small :if={ttwror} data-role="card-ttwror">
-              <%= signed_percent(ttwror) %>% <%= gettext("YTD") %>
-              · <%= gettext("Cash") %> <%= Format.percent(valuation.cash_quote) %>%
+            <small :if={@wealth_card.ttwror} data-role="card-ttwror">
+              <%= signed_percent(@wealth_card.ttwror) %>% <%= gettext("YTD") %>
+              · <%= gettext("Cash") %> <%= Format.percent(@wealth_card.valuation.cash_quote) %>%
             </small>
-            <small :if={is_nil(ttwror)}>
-              <%= gettext("Cash") %> <%= Format.percent(valuation.cash_quote) %>%
+            <small :if={is_nil(@wealth_card.ttwror)}>
+              <%= gettext("Cash") %> <%= Format.percent(@wealth_card.valuation.cash_quote) %>%
             </small>
           </a>
         <% end %>
@@ -177,7 +207,6 @@ defmodule PortfolixirWeb.DashboardLive do
                 <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
                   <span class="attention-name">
                     <%= alert.name %>
-                    <span class="hint">(<%= alert.portfolio_name %>)</span>
                   </span>
                   <span class={["num", drift_sign_class(alert.drift_weight)]}>
                     <%= drift_phrase(alert.drift_weight) %>
@@ -221,44 +250,48 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
-  # The YTD TTWROR as the card's "did anything change" signal; nil (hidden)
-  # when the period cannot be computed yet.
-  defp ytd_ttwror(portfolio_id) do
-    case Performance.for_portfolio(portfolio_id, period: "ytd") do
+  # The YTD TTWROR as the card's "did anything change" signal, scoped to the
+  # default view within the portfolio (ADR-0019); nil (hidden) when the
+  # period cannot be computed yet.
+  defp ytd_ttwror(portfolio_id, view_id) do
+    case Performance.for_portfolio(portfolio_id, period: "ytd", view: view_id) do
       {:ok, %{ttwror: %Decimal{} = ttwror}} -> ttwror
       _ -> nil
     end
   end
 
-  # Categories drifting beyond ±5 pp against the default steering tree's
-  # portfolio-wide (Gesamt) plan — the same tree the Wealth page defaults to
-  # (first custom classification, else asset class; review finding) — worst
-  # offenders first. Only rows that carry a target count — an untargeted
-  # parent's "drift" is not an alert. The cash row joins under the same rule
-  # when a cash target is steered.
-  defp drift_alerts do
+  # Categories drifting beyond ±5 pp against the default steering tree's plan
+  # for the default view (ADR-0020: SOLL plans are view-bound; `nil` view =
+  # the Gesamt plan) — the same tree the Wealth page defaults to (first custom
+  # classification, else asset class; review finding) — worst offenders first.
+  # Only rows that carry a target count — an untargeted parent's "drift" is
+  # not an alert. The cash row joins under the same rule when a cash target is
+  # steered. The allocation read is still portfolio-bound, so portfolios are
+  # iterated as the mechanism; the view is the user-facing scope.
+  defp drift_alerts(view_id) do
     case Classifications.default_classification() do
       nil ->
         []
 
       classification ->
-        Enum.flat_map(Portfolios.list_portfolios(), &alerts_for(&1, classification))
+        Enum.flat_map(Portfolios.list_portfolios(), &alerts_for(&1, classification, view_id))
     end
     |> Enum.sort_by(&Decimal.abs(&1.drift_value), {:desc, Decimal})
     |> Enum.take(@max_alerts)
   end
 
-  defp alerts_for(portfolio, classification) do
-    case Allocation.for_portfolio(portfolio.id, classification.id) do
+  defp alerts_for(portfolio, classification, view_id) do
+    case Allocation.for_portfolio(portfolio.id, classification.id, view: view_id) do
       {:ok, %{has_plan: true} = allocation} ->
         rows = allocation.categories ++ [Map.put(allocation.cash, :name, gettext("Cash"))]
 
         rows
         |> Enum.filter(&targeted_beyond_threshold?/1)
         |> Enum.map(fn row ->
+          # ADR-0024: the portfolio is the iteration mechanism only — its name
+          # is not surfaced as a grouping label.
           %{
             name: row.name,
-            portfolio_name: portfolio.name,
             drift_weight: row.drift_weight,
             drift_value: row.drift_value,
             base_currency: allocation.base_currency
@@ -331,14 +364,10 @@ defmodule PortfolixirWeb.DashboardLive do
     <%!-- Each count card looks like a card and is the most clickable thing on
           the dashboard, so it links to where that data is created instead of
           being a dead <article>. --%>
-    <section class="workspace-section grid" aria-label={gettext("Portfolio counts")}>
+    <section class="workspace-section grid" aria-label={gettext("Setup counts")}>
       <a href="/securities" id="dashboard-securities-count" class="stat stat--link">
         <span><%= gettext("Securities") %></span>
         <strong><%= @securities_count %></strong>
-      </a>
-      <a href="/portfolios" id="dashboard-portfolios-count" class="stat stat--link">
-        <span><%= gettext("Portfolios") %></span>
-        <strong><%= @portfolios_count %></strong>
       </a>
       <a href="/portfolios" id="dashboard-cash-accounts-count" class="stat stat--link">
         <span><%= gettext("Cash accounts") %></span>
@@ -359,7 +388,6 @@ defmodule PortfolixirWeb.DashboardLive do
   defp assign_counts(socket) do
     assign(socket,
       securities_count: Catalog.count_securities(),
-      portfolios_count: Portfolios.count_portfolios(),
       cash_accounts_count: Portfolios.count_cash_accounts(),
       securities_accounts_count: Portfolios.count_securities_accounts(),
       transactions_count: Ledger.count_transactions(),

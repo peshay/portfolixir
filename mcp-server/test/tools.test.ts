@@ -71,10 +71,13 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.views.update",
       "portfolixir.views.delete",
       "portfolixir.views.set_buckets",
+      "portfolixir.views.valuation",
       "portfolixir.securities_accounts.set_buckets",
       "portfolixir.cash_accounts.set_buckets",
       "portfolixir.securities_accounts.set_position_buckets",
-      "portfolixir.securities_accounts.clear_position_buckets"
+      "portfolixir.securities_accounts.clear_position_buckets",
+      "portfolixir.settings.get_default_view",
+      "portfolixir.settings.set_default_view"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -175,6 +178,20 @@ describe("Portfolixir MCP tools", () => {
       "null"
     ]);
     assert.equal(setCashTarget?.inputSchema.properties.view.type, "integer");
+  });
+
+  // ADR-0024 modification 1: portfolios are demoted to internal compatibility
+  // records. The portfolio tools stay callable (no breaking change in phase 1)
+  // but their descriptions must steer agents to buckets/views for grouping.
+  it("marks the portfolio list/create tools as deprecated, steering to buckets/views", () => {
+    const tools = listTools();
+
+    for (const name of ["portfolixir.portfolios.list", "portfolixir.portfolios.create"]) {
+      const tool = tools.find((candidate) => candidate.name === name);
+      assert.match(tool?.description ?? "", /deprecated/i, `${name} lacks a deprecation note`);
+      assert.match(tool?.description ?? "", /buckets/i, `${name} does not steer to buckets`);
+      assert.match(tool?.description ?? "", /views/i, `${name} does not steer to views`);
+    }
   });
 
   it("calls the Phoenix API with bearer auth and returns structured content", async () => {
@@ -711,6 +728,27 @@ describe("Portfolixir MCP tools", () => {
     });
   });
 
+  // User story (ADR-0024, epic story 2): as an MCP client I want the bucket
+  // dimension on create, so that the LLM can distinguish the exclusive scope
+  // dimension from free overlapping tags.
+  it("passes the bucket dimension through on create and rejects unknown values", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { id: 1, name: "Main", dimension: "scope" }
+    });
+
+    await callTool(client, "portfolixir.buckets.create", {
+      bucket: { name: "Main", dimension: "scope" }
+    });
+
+    assert.deepEqual(requests[0].body, { bucket: { name: "Main", dimension: "scope" } });
+
+    // The zod validator (enforced by the MCP server layer) pins the closed
+    // dimension taxonomy.
+    const create = listTools().find((tool) => tool.name === "portfolixir.buckets.create");
+    assert.ok(create?.zodSchema.safeParse({ bucket: { name: "Main", dimension: "scope" } }).success);
+    assert.ok(!create?.zodSchema.safeParse({ bucket: { name: "Bad", dimension: "layer" } }).success);
+  });
+
   it("routes view CRUD and set_buckets to the /views endpoints", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 2, name: "Liquid" } });
 
@@ -741,6 +779,20 @@ describe("Portfolixir MCP tools", () => {
     // Omitted bucket sets default to empty arrays.
     assert.equal(requests[5].method, "DELETE");
     assert.equal(requests[5].path, "/api/v1/views/2");
+  });
+
+  // User story: as an MCP client I want one tool for a view's cross-portfolio
+  // total wealth, so that the LLM never has to sum portfolio valuations itself.
+  it("issues a GET to /views/:id/valuation for portfolixir.views.valuation", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { view_id: 2, total_with_cash: "750", overlap: { overlapping: false } }
+    });
+
+    const result = await callTool(client, "portfolixir.views.valuation", { id: 2 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/views/2/valuation");
+    assert.equal((result.structuredContent as any).data.total_with_cash, "750");
   });
 
   it("defaults omitted view bucket sets to empty arrays", async () => {
@@ -793,6 +845,31 @@ describe("Portfolixir MCP tools", () => {
       body: undefined,
       token: "Bearer api-token"
     });
+  });
+
+  // User story: as an MCP client I want to read and set the default view
+  // (ADR-0024), so that the Wealth page / dashboard scope is scriptable.
+  // No financial decimals are involved in this preference.
+  it("routes the default-view preference tools to /settings/default_view", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { view_id: 2, view: { id: 2, name: "Mine" } }
+    });
+
+    const result = await callTool(client, "portfolixir.settings.get_default_view", {});
+    await callTool(client, "portfolixir.settings.set_default_view", { view_id: 2 });
+    // Omitted view_id clears back to Everything (view_id null).
+    await callTool(client, "portfolixir.settings.set_default_view", {});
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/settings/default_view");
+    assert.equal((result.structuredContent as any).data.view.name, "Mine");
+    assert.deepEqual(requests[1], {
+      method: "PUT",
+      path: "/api/v1/settings/default_view",
+      body: { view_id: 2 },
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[2].body, { view_id: null });
   });
 
   it("records the explicit-empty position override with an empty bucket_ids array", async () => {
