@@ -31,37 +31,37 @@ defmodule PortfolixirWeb.NavigationTest do
     refute has_element?(view, "a[href='/reports/fund-allocations']")
 
     assert has_element?(view, "#workflow-path", "Create securities")
-    assert has_element?(view, "#workflow-path", "Create one portfolio")
+    assert has_element?(view, "#workflow-path", "Create one cash account")
     assert has_element?(view, "#workflow-path", "Link one depot to one cash account")
     assert has_element?(view, "#workflow-path", "Record manual buy and sell transactions")
   end
 
-  # User story (Steve cold-start #4):
+  # User story (ADR-0024, supersedes Steve cold-start #4):
   # As a new user reading the dashboard's workflow path,
-  # I want its first step to be the same prerequisite the Portfolio and Income
-  # screens demand — create a portfolio,
-  # so that the app does not contradict itself about where to start (dashboard
-  # said "Create securities" while /portfolio and /income said "Create one
-  # portfolio first").
+  # I want its first step to be creating a depot with its cash account —
+  # with no portfolio decision anywhere,
+  # so that the onboarding matches the bucket/view grouping model and the
+  # empty-state prerequisites of the Wealth and Income screens.
   #
   # Acceptance criteria:
-  # - The workflow path's first step is "Create one portfolio", linking to
-  #   /portfolios.
-  # - "Create one portfolio" appears before "Create securities" in the path.
-  test "workflow path starts with creating a portfolio, matching the other screens",
+  # - The workflow path's first step links to /portfolios (Accounts & depots)
+  #   and asks for a cash account, not a portfolio.
+  # - No wizard step mentions creating a portfolio.
+  test "workflow path starts with the cash account and depot, never a portfolio",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
     assert has_element?(
              view,
              "#workflow-path ol li:first-child a[href='/portfolios']",
-             "Create one portfolio"
+             "Create one cash account"
            )
 
     html = render(view)
-    {portfolio_at, _} = :binary.match(html, "Create one portfolio")
+    refute html =~ "Create one portfolio"
+    {cash_at, _} = :binary.match(html, "Create one cash account")
     {securities_at, _} = :binary.match(html, "Create securities")
-    assert portfolio_at < securities_at
+    assert cash_at < securities_at
   end
 
   # User story (Steve cold-start #3):
@@ -72,12 +72,13 @@ defmodule PortfolixirWeb.NavigationTest do
   #
   # Acceptance criteria:
   # - Each dashboard count card is a link to its owning surface (securities,
-  #   portfolios, cash accounts, depots → /portfolios; transactions).
+  #   cash accounts, depots → /portfolios; transactions).
+  # - No portfolio count card exists (ADR-0024: portfolios left the UI).
   test "dashboard count cards link to their owning surface", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
     assert has_element?(view, "a#dashboard-securities-count[href='/securities']")
-    assert has_element?(view, "a#dashboard-portfolios-count[href='/portfolios']")
+    refute has_element?(view, "a#dashboard-portfolios-count")
     assert has_element?(view, "a#dashboard-cash-accounts-count[href='/portfolios']")
     assert has_element?(view, "a#dashboard-securities-accounts-count[href='/portfolios']")
     assert has_element?(view, "a#dashboard-transactions-count[href='/transactions']")
@@ -96,7 +97,7 @@ defmodule PortfolixirWeb.NavigationTest do
   # - Top level: Overview (/), Wealth (/portfolio), Securities (/securities),
   #   Transactions (/transactions).
   # - An "Administration" group holds Accounts & depots (/portfolios),
-  #   Buckets & views (/buckets), and Classifications (/classifications).
+  #   Views (/buckets), and Classifications (/classifications).
   # - The "Portfolio"/"Portfolios" naming collision is resolved: the holdings
   #   view is labelled Wealth, the master-data page Accounts & depots.
   # - Disabled "Soon" placeholders, the Income nav entry (now a Wealth tab),
@@ -112,7 +113,11 @@ defmodule PortfolixirWeb.NavigationTest do
 
     assert html =~ "Administration"
     assert has_element?(view, "#nav-portfolios[href='/portfolios']", "Accounts & depots")
-    assert has_element?(view, "#nav-buckets[href='/buckets']", "Buckets & views")
+    # ADR-0024 modification 6: the sidebar entry is about views (the task of
+    # scoping analytics); bucket CRUD is reachable from account-row chips and
+    # from the views management page, never as its own sidebar destination.
+    assert has_element?(view, "#nav-buckets[href='/buckets']", "Views")
+    refute has_element?(view, "#nav-buckets", "Buckets & views")
     assert has_element?(view, "#nav-classifications[href='/classifications']", "Classifications")
 
     # Income and Imports moved into their areas' tab bars (ADR-0022).
@@ -151,10 +156,26 @@ defmodule PortfolixirWeb.NavigationTest do
     # The Wealth pages render their tab bar on the loaded (non-empty) state.
     # Built-in classification trees are seeded at boot in production (#529);
     # the sandboxed test DB needs one explicitly.
-    {:ok, _portfolio} =
+    {:ok, portfolio} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
         name: "Local Portfolio",
         base_currency_code: "EUR"
+      })
+
+    # ADR-0024: the Wealth pages key their loaded state on the bookkeeping
+    # entities, so the fixture needs a cash account and a depot.
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Local Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, _depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Main Depot"
       })
 
     {:ok, _classification} =
@@ -228,10 +249,26 @@ defmodule PortfolixirWeb.NavigationTest do
   #   links carry the tab param alongside their own.
   # - On plain /portfolio (Holdings) they keep working without a tab param.
   test "view and locale switches keep the active wealth tab", %{conn: conn} do
-    {:ok, _portfolio} =
+    {:ok, portfolio} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
         name: "Local Portfolio",
         base_currency_code: "EUR"
+      })
+
+    # ADR-0024: the Wealth pages key their loaded state on the bookkeeping
+    # entities, so the fixture needs a cash account and a depot.
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Local Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, _depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Main Depot"
       })
 
     {:ok, _classification} =

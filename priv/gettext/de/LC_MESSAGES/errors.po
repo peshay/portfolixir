@@ -1,0 +1,31 @@
+## German translations for Ecto changeset error messages (fix round).
+msgid ""
+msgstr ""
+"Language: de\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "is invalid"
+msgstr "ist ungültig"
+
+msgid "can't be blank"
+msgstr "darf nicht leer sein"
+
+msgid "must be greater than %{number}"
+msgstr "muss größer als %{number} sein"
+
+msgid "must be greater than or equal to %{number}"
+msgstr "muss größer oder gleich %{number} sein"
+
+msgid "must be less than %{number}"
+msgstr "muss kleiner als %{number} sein"
+
+msgid "must be less than or equal to %{number}"
+msgstr "muss kleiner oder gleich %{number} sein"
+
+msgid "has already been taken"
+msgstr "ist bereits vergeben"
+
+msgid "should be %{count} character(s)"
+msgid_plural "should be %{count} character(s)"
+msgstr[0] "muss genau %{count} Zeichen lang sein"
+msgstr[1] "muss genau %{count} Zeichen lang sein"

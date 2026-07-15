@@ -21,7 +21,13 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
   end
 
   def create(conn, params) do
-    attrs = Map.get(params, "securities_account", %{})
+    # ADR-0024: no portfolio decision required — a missing portfolio_id
+    # resolves to the deterministic internal default; an explicit id keeps
+    # winning for compatibility clients.
+    attrs =
+      params
+      |> Map.get("securities_account", %{})
+      |> default_portfolio_binding(conn.assigns.actor)
 
     case Portfolios.create_securities_account(conn.assigns.actor, attrs) do
       {:ok, account} ->
@@ -74,6 +80,18 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
   end
 
   defp parse_id(_value), do: :error
+
+  defp default_portfolio_binding(attrs, actor) when is_map(attrs) do
+    case Map.get(attrs, "portfolio_id") do
+      value when value in [nil, ""] ->
+        Map.put(attrs, "portfolio_id", Portfolios.default_portfolio(actor).id)
+
+      _explicit ->
+        attrs
+    end
+  end
+
+  defp default_portfolio_binding(attrs, _actor), do: attrs
 
   defp unprocessable(conn, errors) do
     conn

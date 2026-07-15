@@ -74,7 +74,9 @@ const liquidityRoleZ = z.enum(["free_cash", "credit_line", "reserve"]);
 
 const cashAccountZ = z.object({
   cash_account: z.object({
-    portfolio_id: z.number().int().positive(),
+    // ADR-0024: optional — a missing portfolio_id binds the account to the
+    // deterministic internal default portfolio.
+    portfolio_id: z.number().int().positive().optional(),
     name: z.string(),
     currency_code: z.string(),
     notes: optionalString(),
@@ -84,7 +86,9 @@ const cashAccountZ = z.object({
 
 const securitiesAccountZ = z.object({
   securities_account: z.object({
-    portfolio_id: z.number().int().positive(),
+    // ADR-0024: optional — a missing portfolio_id binds the depot to the
+    // deterministic internal default portfolio.
+    portfolio_id: z.number().int().positive().optional(),
     cash_account_id: z.number().int().positive(),
     name: z.string(),
     notes: optionalString()
@@ -176,7 +180,7 @@ const portfolioSchema = objectWith("portfolio", {
 
 const cashAccountSchema = objectWith("cash_account", {
   type: "object",
-  required: ["portfolio_id", "name", "currency_code"],
+  required: ["name", "currency_code"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     name: { type: "string" },
@@ -188,7 +192,7 @@ const cashAccountSchema = objectWith("cash_account", {
 
 const securitiesAccountSchema = objectWith("securities_account", {
   type: "object",
-  required: ["portfolio_id", "cash_account_id", "name"],
+  required: ["cash_account_id", "name"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     cash_account_id: { type: "integer", minimum: 1 },
@@ -829,14 +833,16 @@ const bucketSchema = objectWith("bucket", {
   required: ["name"],
   properties: {
     name: { type: "string" },
-    color: { type: "string" }
+    color: { type: "string" },
+    dimension: { type: "string", enum: ["tag", "scope"] }
   }
 });
 
 const bucketZ = z.object({
   bucket: z.object({
     name: z.string(),
-    color: optionalString()
+    color: optionalString(),
+    dimension: z.enum(["tag", "scope"]).optional()
   })
 });
 
@@ -974,6 +980,20 @@ const clearPositionBucketsZ = z.object({
   security_id: z.number().int().positive()
 });
 
+// The default-view preference (ADR-0024): a view id, or null/omitted for the
+// built-in Everything scope. Not a financial value, so no Decimal strings.
+const defaultViewSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    view_id: { type: ["integer", "null"], minimum: 1 }
+  }
+};
+
+const defaultViewZ = z.object({
+  view_id: z.number().int().positive().nullable().optional()
+});
+
 const journalActorTypes = [
   "owner_ui",
   "api_token_rw",
@@ -1054,8 +1074,8 @@ const toolDefinitions: ToolDefinition[] = [
     }
   }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString() })),
   tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history.", quoteUpsertSchema, quoteUpsertZ),
-  tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios.", emptyObjectSchema, emptyObjectZ),
-  tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio.", portfolioSchema, portfolioZ),
+  tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios. Deprecated (ADR-0024): portfolios are internal compatibility records, not the user-facing grouping — use portfolixir.buckets.list and portfolixir.views.list to group and scope holdings.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio. Deprecated (ADR-0024, compatibility only — the API answers with a Deprecation header): grouping happens through buckets and views, so prefer portfolixir.buckets.create and portfolixir.views.create; depots and cash accounts no longer need a portfolio_id (a deterministic internal default is bound automatically).", portfolioSchema, portfolioZ),
   tool("portfolixir.cash_accounts.list", "List cash accounts", "List cash accounts with their current balance.", emptyObjectSchema, emptyObjectZ),
   tool(
     "portfolixir.cash_accounts.create",
@@ -1256,7 +1276,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.buckets.list",
     "List buckets",
-    "List the buckets (overlapping tags applied to holdings for tag-based wealth scoping).",
+    "List the buckets (tags applied to holdings for wealth scoping). Each bucket carries its dimension: \"tag\" (free overlapping tag) or \"scope\" (the exclusive dimension — at most one per depot/cash account, ADR-0024).",
     emptyObjectSchema,
     emptyObjectZ
   ),
@@ -1270,14 +1290,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.buckets.create",
     "Create bucket",
-    "Create a bucket (an overlapping tag). name is required; color is an optional hex string.",
+    "Create a bucket. name is required; color is an optional hex string. dimension is optional: \"tag\" (default, a free overlapping tag) or \"scope\" (the exclusive dimension — a depot/cash account carries at most one scope bucket, ADR-0024); the dimension is fixed at creation.",
     bucketSchema,
     bucketZ
   ),
   tool(
     "portfolixir.buckets.update",
     "Update bucket",
-    "Patch a bucket's name or color.",
+    "Patch a bucket's name or color. The dimension is fixed at creation and cannot be patched.",
     bucketUpdateSchema,
     bucketUpdateZ
   ),
@@ -1331,23 +1351,30 @@ const toolDefinitions: ToolDefinition[] = [
     viewBucketsZ
   ),
   tool(
+    "portfolixir.views.valuation",
+    "Value view (cross-portfolio)",
+    "Live valuation of a bucket view across ALL portfolios (id is the view id): the deduplicated union of every depot, position and cash account matching the view — an account tagged into several included buckets counts exactly once. Totals, weights, cash balances and the cash quote are in EUR (converted via the EUR hub); the valued/price_source flags mark stale or unpriceable positions, exactly as in portfolixir.portfolios.valuation. The overlap object lists the depots/cash accounts carrying more than one included bucket (badge data — the totals are already deduplicated). matches_no_accounts is true when the view's resolution matches no account at all (an empty include set or orphaned buckets), explaining a 0 total. All financial values are Decimal strings. Use this, not a client-side sum of portfolio valuations, for a view's total wealth.",
+    idSchema,
+    idZ
+  ),
+  tool(
     "portfolixir.securities_accounts.set_buckets",
     "Set depot default buckets",
-    "Replace a depot/securities account's default bucket set (the buckets every position inherits unless overridden). bucket_ids is an array of bucket ids (default empty).",
+    "Replace a depot/securities account's default bucket set (the buckets every position inherits unless overridden). bucket_ids is an array of bucket ids (default empty); at most one may be a scope-dimension bucket (ADR-0024) — a violating set is rejected with 422.",
     depotBucketsSchema,
     depotBucketsZ
   ),
   tool(
     "portfolixir.cash_accounts.set_buckets",
     "Set cash account buckets",
-    "Replace a cash account's bucket set. bucket_ids is an array of bucket ids (default empty).",
+    "Replace a cash account's bucket set. bucket_ids is an array of bucket ids (default empty); at most one may be a scope-dimension bucket (ADR-0024) — a violating set is rejected with 422.",
     depotBucketsSchema,
     depotBucketsZ
   ),
   tool(
     "portfolixir.securities_accounts.set_position_buckets",
     "Set position bucket override",
-    "Set the per-position bucket override for one security in one depot (id is the securities account id, security_id the security). bucket_ids is an array of bucket ids; an empty array records the explicit-empty state (deliberately no buckets), distinct from inheriting the depot default. Override wins over the depot default.",
+    "Set the per-position bucket override for one security in one depot (id is the securities account id, security_id the security). bucket_ids is an array of bucket ids; an empty array records the explicit-empty state (deliberately no buckets), distinct from inheriting the depot default. Override wins over the depot default. Like the account assignments, an override carries at most one scope-dimension bucket (ADR-0024); a second scope bucket is rejected with a 422.",
     positionBucketsSchema,
     positionBucketsZ
   ),
@@ -1357,6 +1384,20 @@ const toolDefinitions: ToolDefinition[] = [
     "Clear the per-position bucket override, returning the position to inherit the depot default (id is the securities account id, security_id the security).",
     clearPositionBucketsSchema,
     clearPositionBucketsZ
+  ),
+  tool(
+    "portfolixir.settings.get_default_view",
+    "Get default view",
+    "Read the user's default view preference (ADR-0024): the view the Wealth page and dashboard open on. view_id is null when the built-in Everything scope is the default. No financial values are involved.",
+    emptyObjectSchema,
+    emptyObjectZ
+  ),
+  tool(
+    "portfolixir.settings.set_default_view",
+    "Set default view",
+    "Set the user's default view preference (ADR-0024). Pass a view id to make it the default scope of the Wealth page and dashboard; pass null (or omit view_id) to clear back to the built-in Everything scope. An unknown view id is rejected with 404.",
+    defaultViewSchema,
+    defaultViewZ
   )
 ];
 
@@ -1620,6 +1661,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("PATCH", `/api/v1/views/${args.id}`, { view: args.view });
     case "portfolixir.views.delete":
       return client.request("DELETE", `/api/v1/views/${args.id}`);
+    case "portfolixir.views.valuation":
+      return client.request("GET", `/api/v1/views/${args.id}/valuation`);
     case "portfolixir.views.set_buckets":
       return client.request("PUT", `/api/v1/views/${args.id}/buckets`, {
         include: args.include ?? [],
@@ -1644,6 +1687,12 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "DELETE",
         `/api/v1/securities_accounts/${args.id}/positions/${args.security_id}/buckets`
       );
+    case "portfolixir.settings.get_default_view":
+      return client.request("GET", "/api/v1/settings/default_view");
+    case "portfolixir.settings.set_default_view":
+      return client.request("PUT", "/api/v1/settings/default_view", {
+        view_id: args.view_id ?? null
+      });
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);
   }

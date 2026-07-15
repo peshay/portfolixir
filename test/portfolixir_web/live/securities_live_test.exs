@@ -1534,7 +1534,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=holdings")
 
       panel = element(view, "#detail-tab-panel-holdings") |> render()
-      assert panel =~ "Local Portfolio"
+      # ADR-0024: the internal portfolio is not surfaced as a grouping column.
+      refute panel =~ "Local Portfolio"
       assert panel =~ "Main Depot"
       assert panel =~ "1,500.00"
       # 10 * (150 - 100) = +500 unrealised P&L
@@ -1611,7 +1612,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert panel =~ "150.00"
       assert panel =~ "180.00"
       assert panel =~ "Main Depot"
-      assert panel =~ "Local Portfolio"
+      # ADR-0024: the internal portfolio is not surfaced as a grouping column.
+      refute panel =~ "Local Portfolio"
       assert panel =~ "Initial entry"
 
       # Newest first: the April row appears before the January row

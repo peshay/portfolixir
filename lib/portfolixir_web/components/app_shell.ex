@@ -272,9 +272,12 @@ defmodule PortfolixirWeb.AppShell do
             icon: :briefcase
           },
           %{
+            # ADR-0024 modification 6: the entry is about views (the task of
+            # scoping analytics); buckets are attributes managed from account
+            # chips and on the views page, never a sidebar destination.
             id: "nav-buckets",
             href: "/buckets",
-            label: gettext("Buckets & views"),
+            label: gettext("Views"),
             section: :buckets,
             icon: :filter
           },

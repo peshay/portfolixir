@@ -16,7 +16,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   def index(conn, _params) do
     data =
       Buckets.list_views()
-      |> Enum.map(fn view -> JSON.view(view, Buckets.view_filter(view.id)) end)
+      |> Enum.map(fn view -> JSON.view(view, filter_for(view)) end)
 
     json(conn, %{data: data})
   end
@@ -24,7 +24,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   def show(conn, %{"id" => id}) do
     with {:ok, vid} <- parse_id(id),
          %View{} = view <- Buckets.get_view(vid) do
-      json(conn, %{data: JSON.view(view, Buckets.view_filter(view.id))})
+      json(conn, %{data: JSON.view(view, filter_for(view))})
     else
       _ -> not_found(conn)
     end
@@ -37,7 +37,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
       {:ok, view} ->
         conn
         |> put_status(:created)
-        |> json(%{data: JSON.view(view, Buckets.view_filter(view.id))})
+        |> json(%{data: JSON.view(view, filter_for(view))})
 
       {:error, changeset} ->
         unprocessable(conn, JSON.errors(changeset))
@@ -50,7 +50,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
     with {:ok, vid} <- parse_id(id),
          %View{} = view <- Buckets.get_view(vid),
          {:ok, updated} <- Buckets.update_view(conn.assigns.actor, view, attrs) do
-      json(conn, %{data: JSON.view(updated, Buckets.view_filter(updated.id))})
+      json(conn, %{data: JSON.view(updated, filter_for(updated))})
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
@@ -81,12 +81,22 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
          {:ok, include} <- id_list(params, "include", :include),
          {:ok, exclude} <- id_list(params, "exclude", :exclude),
          :ok <- Buckets.set_view_buckets(conn.assigns.actor, view, include, exclude) do
-      json(conn, %{data: JSON.view(view, Buckets.view_filter(view.id))})
+      json(conn, %{data: JSON.view(view, filter_for(view))})
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
       {:error, field} when is_atom(field) -> unprocessable(conn, %{field => ["is invalid"]})
       {:error, _reason} -> unprocessable(conn, %{detail: ["could not set view buckets"]})
+    end
+  end
+
+  # The just-handled view's resolved filter. A concurrent delete between the
+  # write and this read (fix round TOCTOU) serializes as an empty filter
+  # instead of raising a 500 — the record itself was verified moments before.
+  defp filter_for(%View{id: id}) do
+    case Buckets.view_filter(id) do
+      {:ok, filter} -> filter
+      {:error, :view_not_found} -> %{include: [], exclude: []}
     end
   end
 

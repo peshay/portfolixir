@@ -135,8 +135,22 @@ Example quote sync response:
 
 ## Portfolios and Accounts
 
-- `GET /api/v1/portfolios` lists portfolios.
+> **Portfolio writes are deprecated (ADR-0024) — compatibility only; use
+> buckets/views for grouping.** Portfolios were demoted to internal
+> compatibility records: the UI groups exclusively through buckets and views,
+> and depots/cash accounts no longer need a `portfolio_id` (a deterministic
+> internal default is bound automatically). `POST /api/v1/portfolios` and
+> `PATCH /api/v1/portfolios/:portfolio_id` keep working but answer with a
+> `Deprecation: true` response header. Sunset note: after two releases without
+> external portfolio writes, a follow-up story merges the records into
+> buckets and views (the ADR's exit criterion) — plan migrations to
+> `POST /api/v1/buckets` and `POST /api/v1/views` now. Every record written
+> here stays visible in the UI's read-only "Portfolio records (compatibility)"
+> admin list, so nothing becomes invisible.
+
+- `GET /api/v1/portfolios` lists portfolios (compatibility records).
 - `POST /api/v1/portfolios` creates a portfolio with a `portfolio` object.
+  **Deprecated** — answers with `Deprecation: true`; prefer buckets/views.
 - `GET /api/v1/cash_accounts` lists cash accounts. Each carries a `balance`
   (decimal string, in the account's own currency) derived on read from the
   ledger: amounts are stored as positive magnitudes and the transaction `type`
@@ -154,7 +168,9 @@ Example quote sync response:
   strictly after the snapshot change it, so moving money between your own
   accounts needs no transfer entry. Unknown accounts return `404 Not Found`.
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
-  object. The optional `liquidity_role` (default `free_cash`) classifies the
+  object. `portfolio_id` is optional (ADR-0024): when omitted, the account is
+  bound to the deterministic internal default portfolio; an explicit id keeps
+  winning for compatibility clients. The optional `liquidity_role` (default `free_cash`) classifies the
   account: `free_cash` is genuine deployable cash; `credit_line` is an
   overdraft/Lombard facility whose negative balance is a liability and whose
   unused headroom is never liquidity (it never enters deployable cash, even
@@ -170,7 +186,8 @@ Example quote sync response:
   `409 Conflict` when a transaction or securities account still references it.
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
 - `POST /api/v1/securities_accounts` creates a depot/securities account with a
-  `securities_account` object.
+  `securities_account` object. `portfolio_id` is optional (ADR-0024): when
+  omitted, the depot is bound to the deterministic internal default portfolio.
 - `GET /api/v1/securities_accounts/:id` returns one securities account.
 - `PATCH /api/v1/securities_accounts/:id` updates a securities account
   (`name`, `notes`, `cash_account_id`); `portfolio_id` cannot be changed.
@@ -457,7 +474,8 @@ Example account payloads:
   target feeds the allocation's `cash` row and the `top_level_target_sum` for the
   addressed view.
 - `PATCH /api/v1/portfolios/:portfolio_id` patches a portfolio's master data.
-  The body is `{"portfolio": {...}}`. **Cash target move (ADR-0020):** the cash
+  **Deprecated (ADR-0024)** — answers with `Deprecation: true`; compatibility
+  only, use buckets/views for grouping. The body is `{"portfolio": {...}}`. **Cash target move (ADR-0020):** the cash
   target moved off the portfolio object onto the per-view target plan, served by
   the two `cash_target` endpoints above. For **back-compatibility** the portfolio
   object still exposes `cash_target_weight` — a string fraction in `[0, 1]` (e.g.
@@ -554,11 +572,16 @@ buckets) and carries none of the view's exclude buckets — exclude always wins.
 Bucket-definition and assignment writes are journaled (ADR-0017); view-definition
 writes are deliberately not journaled (ADR-0018 §5).
 
-- `GET /api/v1/buckets` lists buckets (`id`, `name`, `color`).
+- `GET /api/v1/buckets` lists buckets (`id`, `name`, `color`, `dimension`).
+  `dimension` is `"tag"` (a free overlapping tag) or `"scope"` — the exclusive
+  dimension: a depot or cash account carries **at most one** scope bucket, so
+  scope-scoped totals always add up (ADR-0024).
 - `POST /api/v1/buckets` creates a bucket from a `bucket` object (`name`
-  required, optional `color`). A blank or duplicate name returns `422`.
+  required, optional `color`, optional `dimension` defaulting to `"tag"`).
+  A blank or duplicate name, or an unknown dimension, returns `422`.
 - `GET /api/v1/buckets/:id` returns one bucket; unknown ids return `404`.
-- `PATCH /api/v1/buckets/:id` patches a bucket's `name`/`color`.
+- `PATCH /api/v1/buckets/:id` patches a bucket's `name`/`color`. The
+  `dimension` is fixed at creation; attempts to change it return `422`.
 - `DELETE /api/v1/buckets/:id` deletes a bucket and cascades it out of every
   assignment and view set, returning `204 No Content`.
 - `GET /api/v1/views` lists views. Each view carries `include_all`, the resolved
@@ -572,11 +595,24 @@ writes are deliberately not journaled (ADR-0018 §5).
 - `PUT /api/v1/views/:id/buckets` replaces a view's include/exclude bucket sets.
   Body: `{"include": [..], "exclude": [..]}` (both optional, default `[]`,
   arrays of bucket ids). A malformed id list returns `422`.
+- `GET /api/v1/views/:view_id/valuation` returns the live valuation of a view
+  **across all portfolios** (ADR-0024): the deduplicated union of every depot,
+  position and cash account matching the view — an account tagged into several
+  included buckets counts exactly once. The shape mirrors the portfolio
+  valuation (totals, positions with weights and `price_source`/`valued` flags,
+  `cash_balances`, `cash_quote`, `as_of`, a `valuation_note`) with `view_id` in
+  place of `portfolio_id`; totals are in EUR, converted via the EUR hub, and
+  all financial values are Decimal strings. An `overlap` object reports the
+  account-level bucket overlap for UI badges (`overlapping`, plus the
+  `securities_account_ids`/`cash_account_ids` carrying more than one included
+  bucket — the totals are already deduplicated). The active view is echoed as
+  `view: {id, name}`. Unknown and malformed view ids return `404`.
 - `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
   bucket set (the buckets each position inherits unless overridden). Body:
-  `{"bucket_ids": [..]}`.
+  `{"bucket_ids": [..]}`. At most one of the ids may be a scope-dimension
+  bucket; a violating set returns `422` without writing anything.
 - `PUT /api/v1/cash_accounts/:id/buckets` replaces a cash account's bucket set.
-  Body: `{"bucket_ids": [..]}`.
+  Body: `{"bucket_ids": [..]}`. The same at-most-one-scope-bucket rule applies.
 - `PUT /api/v1/securities_accounts/:id/positions/:security_id/buckets` sets the
   per-position override for one security in one depot. An empty `bucket_ids`
   records the **explicit-empty** state (deliberately no buckets), distinct from
@@ -607,6 +643,21 @@ view selects the target plan (omitted = the Gesamt plan). The holdings endpoint
 returns the raw per-(depot, security) rows in each security's own currency, so a
 client can apply the buckets/views model itself using each row's
 `securities_account_id` and `security_id`.
+
+## Settings
+
+A minimal keyed preference store backs the user-facing defaults (ADR-0024).
+Today it carries one preference: the **default view** the Wealth page and
+dashboard open on when no explicit view was chosen in the UI. No financial
+decimals are involved.
+
+- `GET /api/v1/settings/default_view` returns the current default:
+  `{"data": {"view_id": null, "view": null}}` when unset (the built-in
+  Everything scope), otherwise the id plus a `view: {id, name}` echo.
+- `PUT /api/v1/settings/default_view` sets it. Body: `{"view_id": <id>}` with a
+  live view id, or `{"view_id": null}` to clear back to Everything. An unknown
+  view id returns `404` (nothing is written); a malformed `view_id` returns
+  `422`. The response mirrors the `GET` shape.
 
 ## Audit Journal
 
@@ -643,8 +694,10 @@ in MCP schemas are strings.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
 - `portfolixir.quotes.upsert`
-- `portfolixir.portfolios.list`
-- `portfolixir.portfolios.create`
+- `portfolixir.portfolios.list` — deprecated (ADR-0024): steers to
+  buckets/views in its description.
+- `portfolixir.portfolios.create` — deprecated (ADR-0024): compatibility only;
+  prefer `portfolixir.buckets.create` / `portfolixir.views.create`.
 - `portfolixir.cash_accounts.list`
 - `portfolixir.cash_accounts.create`
 - `portfolixir.cash_accounts.update`
@@ -695,15 +748,24 @@ in MCP schemas are strings.
 - `portfolixir.views.update`
 - `portfolixir.views.delete`
 - `portfolixir.views.set_buckets`
+- `portfolixir.views.valuation`
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
 - `portfolixir.securities_accounts.clear_position_buckets`
+- `portfolixir.settings.get_default_view`
+- `portfolixir.settings.set_default_view`
 
 The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
 `portfolixir.portfolios.performance` and `portfolixir.portfolios.risk` tools
 accept an optional `view` (a view id) that scopes the result to the holdings
 matching that bucket view; the response then echoes the active view.
+`portfolixir.views.valuation` values a view **across all portfolios** in one
+call (each matching account counted once, EUR totals, `overlap` badge data) —
+use it instead of summing per-portfolio valuations client-side.
+`portfolixir.settings.get_default_view` / `portfolixir.settings.set_default_view`
+read and set the default-view preference (ADR-0024): pass a `view_id` to pin a
+view, or `null`/omit it to clear back to the built-in Everything scope.
 
 Since ADR-0020 the target tools (`portfolixir.targets.list`,
 `portfolixir.targets.set`, `portfolixir.targets.delete`) and the cash-target

@@ -37,7 +37,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
   # User story:
   # As a local portfolio maintainer,
-  # I want a Buckets & Views page to create and manage buckets,
+  # I want a views management page to create and manage buckets,
   # so that I can tag holdings without touching the API.
   #
   # Acceptance criteria:
@@ -47,6 +47,10 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     world()
 
     {:ok, view, _html} = live(conn, "/buckets")
+
+    # ADR-0024 modification 6: the management surface is about views; buckets
+    # are the tags views filter on, managed here and from account-row chips.
+    assert view |> element("#app-topbar-title") |> render() =~ "Views"
 
     html =
       view
@@ -101,9 +105,41 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     })
     |> render_submit()
 
-    filter = Buckets.view_filter(created.id)
+    {:ok, filter} = Buckets.view_filter(created.id)
     assert filter.include == [core.id]
     assert filter.exclude == [spec.id]
+  end
+
+  # User story (fix round, matches-nothing views):
+  # As a local portfolio maintainer,
+  # I want the Views page to flag a view whose resolution matches no accounts,
+  # so that I fix its bucket set instead of wondering about a silent 0 total.
+  #
+  # Acceptance criteria:
+  # - A view whose only include bucket was deleted carries the
+  #   "matches no accounts" hint; views that still match do not.
+  test "flags a view whose resolution matches no accounts", %{conn: conn} do
+    %{depot: depot} = world()
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Orphan"})
+
+    {:ok, orphaned} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Orphaned", include_all: false})
+
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), orphaned, [bucket.id], [])
+
+    {:ok, live_bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Live"})
+    {:ok, living} = Buckets.create_view(Actor.owner_ui(), %{name: "Living", include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), living, [live_bucket.id], [])
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [live_bucket.id])
+
+    # Deleting the only include bucket empties the orphaned view's resolution.
+    {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), bucket)
+
+    {:ok, view, _html} = live(conn, "/buckets")
+
+    assert has_element?(view, "#view-#{orphaned.id} [data-role='view-matches-nothing']")
+    refute has_element?(view, "#view-#{living.id} [data-role='view-matches-nothing']")
   end
 
   test "renames and deletes a bucket", %{conn: conn} do
@@ -323,7 +359,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       |> render_submit()
 
     assert html =~ "That bucket no longer exists"
-    filter = Buckets.view_filter(v.id)
+    {:ok, filter} = Buckets.view_filter(v.id)
     assert filter.include == []
     assert filter.exclude == []
   end
@@ -385,31 +421,41 @@ defmodule PortfolixirWeb.BucketsLiveTest do
   end
 
   # User story:
-  # As a local portfolio maintainer with no portfolio yet,
+  # As a local portfolio maintainer with no accounts yet,
   # I want the assignment section to explain what to create first,
-  # so that an empty install does not look broken.
+  # so that an empty install does not look broken (and never asks for a
+  # portfolio — ADR-0024).
   #
   # Acceptance criteria:
-  # - With no portfolio the assignment section shows the create-first hint.
-  test "with no portfolio the assignment section shows the create-first hint", %{conn: conn} do
+  # - With no depots/cash accounts the assignment section shows the
+  #   create-first hint, pointing at depot + cash account.
+  test "with no accounts the assignment section shows the create-first hint", %{conn: conn} do
     {:ok, view, html} = live(conn, "/buckets")
 
-    assert html =~ "Create a portfolio with a depot and a cash account to assign buckets."
+    assert html =~ "Create a depot and a cash account to assign buckets."
+    refute html =~ "Create a portfolio"
     refute has_element?(view, "#depot-assignment-list")
   end
 
-  test "a portfolio with no depots or cash accounts shows the per-list empty states",
+  test "a cash account without any depot shows the depot list's empty state",
        %{conn: conn} do
-    {:ok, _portfolio} =
+    {:ok, portfolio} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
         name: "Empty",
         base_currency_code: "EUR"
       })
 
+    {:ok, _cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Solo Cash",
+        currency_code: "EUR"
+      })
+
     {:ok, view, _html} = live(conn, "/buckets")
 
     assert has_element?(view, "#depot-assignment-list .hint", "No depots yet.")
-    assert has_element?(view, "#cash-assignment-list .hint", "No cash accounts yet.")
+    assert has_element?(view, "#cash-assignment-list", "Solo Cash")
   end
 
   # User story:

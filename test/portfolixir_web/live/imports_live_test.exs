@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -55,7 +56,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~ "Preview"
     assert html =~ "Buy"
     assert html =~ "Dividend"
-    assert has_element?(view, "form#pp-import-apply select[name='portfolio_choice']")
+    assert has_element?(view, "form#pp-import-apply input[name='bucket_tag']")
     assert has_element?(view, "form#pp-import-apply select[name=\"cash[Test-Cash]\"]")
     assert has_element?(view, "form#pp-import-apply select[name=\"depot[Test-Depot][target]\"]")
     assert has_element?(view, "form#pp-import-apply select[name=\"depot[Test-Depot][cash]\"]")
@@ -174,9 +175,6 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     upload_sample(view)
 
     submit_params = %{
-      "portfolio_choice" => "create",
-      "portfolio_name" => "PP Import Target",
-      "portfolio_currency" => "EUR",
       "cash" => %{
         "Test-Cash" => "create:Test-Cash",
         "Test-Cash-2" => "create:Test-Cash-2"
@@ -212,7 +210,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert applying_html =~ ~r/id="pp-import-confirm"[^>]*disabled/
 
     # Wait for the async :apply_import task to complete and handle_async to fire.
-    done_html = render_async(view)
+    done_html = render_async(view, 1_000)
 
     assert done_html =~ "Import complete"
     assert done_html =~ "Created transactions: 13"
@@ -245,9 +243,6 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     view
     |> element("form#pp-import-apply")
     |> render_change(%{
-      "portfolio_choice" => "create",
-      "portfolio_name" => "PP Import Target",
-      "portfolio_currency" => "EUR",
       "cash" => %{
         "Test-Cash" => "create:Test-Cash",
         "Test-Cash-2" => "create:Test-Cash-2"
@@ -277,16 +272,13 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     )
 
     submit_params = %{
-      "portfolio_choice" => "create",
-      "portfolio_name" => "Zero Test",
-      "portfolio_currency" => "EUR",
       "cash" => %{"Cash" => "create:Cash"},
       "depot" => %{"Depot" => %{"target" => "create:Depot", "cash" => "pp:Cash"}}
     }
 
     view |> element("form#pp-import-apply") |> render_change(submit_params)
     view |> element("form#pp-import-apply") |> render_submit(submit_params)
-    done_html = render_async(view)
+    done_html = render_async(view, 1_000)
 
     assert done_html =~ "Import complete"
     # deposit + buy + cashless delivery imported; the 0 EUR tax skipped.
@@ -295,15 +287,49 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert done_html =~ "for tax"
   end
 
-  test "confirming with create-new portfolio + auto-mapped accounts creates ledger rows",
+  # User story (ADR-0024, epic story 5):
+  # As a local portfolio maintainer importing a Portfolio Performance export,
+  # I want the preview to offer an editable bucket tag for the accounts it
+  # will create — instead of asking me to pick or name a portfolio —
+  # so that a fresh import lands already grouped, with nothing to rename
+  # afterwards.
+  #
+  # Acceptance criteria:
+  # - The Target-portfolio picker disappears; the portfolio binding happens
+  #   internally via Portfolios.default_portfolio/1 (import actor).
+  # - The preview shows an editable bucket-tag field, pre-filled with a
+  #   date-stamped default, plus a "no tag" skip option.
+  # - On apply the NEWLY created depots/cash accounts get the (tag-dimension)
+  #   bucket; existing-mapped accounts keep their tags untouched.
+  # - A bucket with the entered name is reused, not duplicated.
+  # - Re-applying the same file stays a no-op and does not duplicate bucket
+  #   assignments; blank tag behaves like skip; no new accounts → no bucket.
+  test "preview shows an editable date-stamped bucket tag instead of a portfolio picker",
+       %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+    html = render(view)
+
+    # The Target-portfolio picker is gone.
+    refute has_element?(view, "select[name='portfolio_choice']")
+    refute html =~ "Target portfolio"
+    refute html =~ "Create new portfolio"
+
+    # The editable bucket tag is pre-filled with a date-stamped default and
+    # offers a skip option.
+    default_tag = "PP Import #{Date.utc_today() |> Date.to_iso8601()}"
+    assert has_element?(view, "input[name='bucket_tag'][value='#{default_tag}']")
+    assert has_element?(view, "input[type='checkbox'][name='bucket_skip']")
+    assert html =~ "bucket tag"
+  end
+
+  test "confirming binds internally to the default portfolio and tags the new accounts",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, "/imports")
     upload_sample(view)
 
     submit_params = %{
-      "portfolio_choice" => "create",
-      "portfolio_name" => "PP Import Target",
-      "portfolio_currency" => "EUR",
+      "bucket_tag" => "PP Import 2026-07-12",
       "cash" => %{
         "Test-Cash" => "create:Test-Cash",
         "Test-Cash-2" => "create:Test-Cash-2"
@@ -315,26 +341,117 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     }
 
     view |> element("form#pp-import-apply") |> render_submit(submit_params)
-    html = render_async(view)
+    html = render_async(view, 1_000)
 
     assert html =~ "Import complete"
     assert html =~ "Created transactions: 13"
     assert html =~ "Skipped duplicates: 0"
 
-    portfolio = Portfolios.list_portfolios() |> Enum.find(&(&1.name == "PP Import Target"))
-    assert portfolio
+    # The internal default portfolio was created under the import actor —
+    # the admin list shows it with source Import; the user never named it.
+    assert [%{name: "Default", source: :import}] =
+             Portfolios.portfolio_admin_list() |> Enum.map(&Map.take(&1, [:name, :source]))
 
+    [portfolio] = Portfolios.list_portfolios()
     assert length(Ledger.list_transactions_for_portfolio(portfolio.id)) == 13
+
+    # Every newly created account carries the tag-dimension bucket.
+    [bucket] = Buckets.list_buckets()
+    assert bucket.name == "PP Import 2026-07-12"
+    assert bucket.dimension == "tag"
+
+    for depot <- Portfolios.list_securities_accounts() do
+      assert Buckets.depot_default_bucket_ids(depot.id) == [bucket.id]
+    end
+
+    for cash <- Portfolios.list_cash_accounts() do
+      assert Buckets.cash_account_bucket_ids(cash.id) == [bucket.id]
+    end
   end
 
-  test "confirming with an existing portfolio reuses it",
-       %{conn: conn} do
-    portfolio = setup_portfolio()
+  # User story (fix round, tag pre-validation):
+  # As a local portfolio maintainer importing a PP export,
+  # I want a bucket tag that names an existing scope bucket — or exceeds the
+  # 100-character bucket limit — rejected BEFORE the apply starts,
+  # so that a bad tag never aborts a whole import at the very end with an
+  # opaque dump.
+  #
+  # Acceptance criteria:
+  # - A tag equal to a scope bucket's name shows a clear error and applies
+  #   nothing (no transactions, page stays on preview).
+  # - A 101-character tag is rejected the same way (the input also carries
+  #   maxlength="100" as the first line of defence).
+  test "a tag naming a scope bucket is rejected before apply", %{conn: conn} do
+    {:ok, _scope} =
+      Buckets.create_bucket(Portfolixir.Actor.owner_ui(), %{
+        name: "Haushalt",
+        dimension: "scope"
+      })
+
     {:ok, view, _html} = live(conn, "/imports")
     upload_sample(view)
 
     submit_params = %{
-      "portfolio_choice" => "existing:#{portfolio.id}",
+      "bucket_tag" => "Haushalt",
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    }
+
+    html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+
+    refute html =~ "Import complete"
+    assert has_element?(view, "p.alert-error")
+    assert html =~ "scope bucket"
+    refute html =~ "%Ecto."
+
+    # Nothing was applied: no transactions, no accounts, no extra bucket.
+    assert Ledger.list_transactions() == []
+    assert Portfolios.list_securities_accounts() == []
+    assert [%{dimension: "scope"}] = Buckets.list_buckets()
+  end
+
+  test "a 101-character tag is rejected before apply", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    # The rendered input carries the maxlength guard.
+    assert has_element?(view, "input[name='bucket_tag'][maxlength='100']")
+
+    submit_params = %{
+      "bucket_tag" => String.duplicate("x", 101),
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    }
+
+    html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+
+    refute html =~ "Import complete"
+    assert has_element?(view, "p.alert-error")
+    assert html =~ "at most 100 characters"
+
+    assert Ledger.list_transactions() == []
+    assert Buckets.list_buckets() == []
+  end
+
+  test "re-applying the same file is a no-op and does not duplicate bucket assignments",
+       %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    submit_params = %{
+      "bucket_tag" => "PP Import",
       "cash" => %{
         "Test-Cash" => "create:Test-Cash",
         "Test-Cash-2" => "create:Test-Cash-2"
@@ -346,10 +463,160 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     }
 
     view |> element("form#pp-import-apply") |> render_submit(submit_params)
-    html = render_async(view)
+    assert render_async(view, 1_000) =~ "Import complete"
+
+    [bucket] = Buckets.list_buckets()
+
+    # Second run of the same file: everything maps to the now-existing
+    # accounts, so nothing new is created and nothing re-tagged.
+    cash = Portfolios.list_cash_accounts() |> Map.new(&{&1.name, &1.id})
+    depots = Portfolios.list_securities_accounts() |> Map.new(&{&1.name, &1.id})
+
+    second_params = %{
+      "bucket_tag" => "PP Import",
+      "cash" => %{
+        "Test-Cash" => "existing:#{cash["Test-Cash"]}",
+        "Test-Cash-2" => "existing:#{cash["Test-Cash-2"]}"
+      },
+      "depot" => %{
+        "Test-Depot" => %{
+          "target" => "existing:#{depots["Test-Depot"]}",
+          "cash" => "existing:#{cash["Test-Cash"]}"
+        },
+        "Test-Depot-2" => %{
+          "target" => "existing:#{depots["Test-Depot-2"]}",
+          "cash" => "existing:#{cash["Test-Cash"]}"
+        }
+      }
+    }
+
+    view |> element("button", "Import another file") |> render_click()
+    upload_sample(view)
+    view |> element("form#pp-import-apply") |> render_submit(second_params)
+    html = render_async(view, 1_000)
 
     assert html =~ "Import complete"
-    assert length(Ledger.list_transactions_for_portfolio(portfolio.id)) == 13
+    assert html =~ "Created transactions: 0"
+    assert html =~ "Skipped duplicates: 13"
+
+    assert [%{id: bucket_id}] = Buckets.list_buckets()
+    assert bucket_id == bucket.id
+
+    for depot <- Portfolios.list_securities_accounts() do
+      assert Buckets.depot_default_bucket_ids(depot.id) == [bucket.id]
+    end
+
+    for cash <- Portfolios.list_cash_accounts() do
+      assert Buckets.cash_account_bucket_ids(cash.id) == [bucket.id]
+    end
+  end
+
+  test "accounts mapped to existing records keep their tags; existing bucket names are reused",
+       %{conn: conn} do
+    portfolio = setup_portfolio()
+
+    {:ok, existing_cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Test-Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, existing_depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: existing_cash.id,
+        name: "Test-Depot"
+      })
+
+    {:ok, mine} = Buckets.create_bucket(Portfolixir.Actor.owner_ui(), %{name: "Mine"})
+
+    :ok =
+      Buckets.set_depot_default_buckets(Portfolixir.Actor.owner_ui(), existing_depot, [mine.id])
+
+    # The entered tag collides with an existing bucket — it must be reused.
+    {:ok, reused} = Buckets.create_bucket(Portfolixir.Actor.owner_ui(), %{name: "Familie"})
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    submit_params = %{
+      "bucket_tag" => "Familie",
+      "cash" => %{
+        "Test-Cash" => "existing:#{existing_cash.id}",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{
+          "target" => "existing:#{existing_depot.id}",
+          "cash" => "existing:#{existing_cash.id}"
+        },
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash-2"}
+      }
+    }
+
+    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    assert render_async(view, 1_000) =~ "Import complete"
+
+    # No third bucket appeared; the entered name reused "Familie".
+    assert Buckets.list_buckets() |> Enum.map(& &1.name) |> Enum.sort() == ["Familie", "Mine"]
+
+    # The existing depot keeps exactly its own tag; only the new depot got tagged.
+    assert Buckets.depot_default_bucket_ids(existing_depot.id) == [mine.id]
+    assert Buckets.cash_account_bucket_ids(existing_cash.id) == []
+
+    new_depot =
+      Portfolios.list_securities_accounts() |> Enum.find(&(&1.name == "Test-Depot-2"))
+
+    assert Buckets.depot_default_bucket_ids(new_depot.id) == [reused.id]
+  end
+
+  test "a blank tag and the skip option create no bucket", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    submit_params = %{
+      "bucket_tag" => "Never Created",
+      "bucket_skip" => "true",
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    }
+
+    # Skip wins over the entered name.
+    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    assert render_async(view, 1_000) =~ "Import complete"
+    assert Buckets.list_buckets() == []
+
+    for depot <- Portfolios.list_securities_accounts() do
+      assert Buckets.depot_default_bucket_ids(depot.id) == []
+    end
+  end
+
+  test "a blank tag field behaves like skip", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    submit_params = %{
+      "bucket_tag" => "   ",
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    }
+
+    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    assert render_async(view, 1_000) =~ "Import complete"
+    assert Buckets.list_buckets() == []
   end
 
   # User story:
@@ -392,9 +659,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     view
     |> element("form#pp-import-apply")
     |> render_change(%{
-      "portfolio_choice" => "create",
-      "portfolio_name" => "My Preserved Portfolio",
-      "portfolio_currency" => "EUR",
+      "bucket_tag" => "My Preserved Tag",
       "cash" => %{"Test-Cash" => "create:Test-Cash", "Test-Cash-2" => "create:Test-Cash-2"},
       "depot" => %{
         "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
@@ -404,7 +669,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
     # Verify PreviewStore holds the entry under our session token.
     assert {_preview, mapping} = PreviewStore.get(session_token)
-    assert mapping.portfolio_name == "My Preserved Portfolio"
+    assert mapping.bucket_tag == "My Preserved Tag"
 
     # Simulate locale switch: remount the LiveView on the same session.
     # In production the live_session :browser re-runs LiveLocale.on_mount which
@@ -415,16 +680,14 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html2 =~ "Preview"
     assert html2 =~ "Buy"
 
-    # The mapping portfolio name should still be present.
-    assert render(view2) =~ "My Preserved Portfolio"
+    # The mapping bucket tag should still be present.
+    assert render(view2) =~ "My Preserved Tag"
 
     # Cleanup: verify the store entry is deleted after a successful import.
     view2
     |> element("form#pp-import-apply")
     |> render_submit(%{
-      "portfolio_choice" => "create",
-      "portfolio_name" => "My Preserved Portfolio",
-      "portfolio_currency" => "EUR",
+      "bucket_tag" => "My Preserved Tag",
       "cash" => %{
         "Test-Cash" => "create:Test-Cash",
         "Test-Cash-2" => "create:Test-Cash-2"
@@ -435,7 +698,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     })
 
-    html3 = render_async(view2)
+    html3 = render_async(view2, 1_000)
 
     assert html3 =~ "Import complete"
     assert PreviewStore.get(session_token) == nil
@@ -511,7 +774,6 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     upload_sample(view)
 
     submit_params = %{
-      "portfolio_choice" => "existing:#{portfolio.id}",
       "cash" => %{
         "Test-Cash" => "existing:#{usd_cash.id}",
         "Test-Cash-2" => "create:Test-Cash-2"
@@ -529,7 +791,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     }
 
     view |> element("form#pp-import-apply") |> render_submit(submit_params)
-    html = render_async(view)
+    html = render_async(view, 1_000)
 
     # The import must not have succeeded — we stay on preview, not done.
     refute html =~ "Import complete"

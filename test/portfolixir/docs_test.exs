@@ -12,6 +12,7 @@ defmodule Portfolixir.DocsTest do
   @public_doc_files [
     "docs/index.md",
     "docs/product-documentation.md",
+    "docs/guides/buckets-and-views.md",
     "docs/home-deployment.md",
     "docs/integration/api-and-mcp.md",
     "docs/development/story-workflow.md",
@@ -553,6 +554,94 @@ defmodule Portfolixir.DocsTest do
 
     assert de_product =~ "Währungsallokation"
     assert de_api =~ "distributed"
+  end
+
+  # User story:
+  # As a Portfolixir user mapping real grouping needs onto buckets and views,
+  # I want a worked use-case guide in English and German,
+  # so that I can set up a household split, strategy views, my old Portfolio
+  # Performance habits, and steering exclusions without reverse-engineering
+  # the model (issue #573, ADR-0024).
+  #
+  # Acceptance criteria:
+  # - The guide exists as an EN baseline with a DE counterpart, carries the
+  #   docs layout and language-switcher front matter, and is in the navigation.
+  # - It covers the household split (counts-once guarantee and overlap badge),
+  #   a strategy view with a view-bound target plan, the PP-migrator habit
+  #   (import tag, seeded buckets/views, compatibility panel), and the
+  #   count-but-don't-steer exclusion.
+  # - It offers a "bucket or view?" decision paragraph, warns that re-tagging
+  #   changes historical series ("Composition as of today"), and links
+  #   ADR-0024. Screenshot placeholders mark where images belong.
+  # - The product handbook and the guide cross-link in both languages.
+  test "docs provide a worked bucket/view use-case guide in English and German (#573)" do
+    en = File.read!("docs/guides/buckets-and-views.md")
+    de = File.read!("docs/de/guides/buckets-and-views.md")
+    navigation = File.read!("docs/_data/navigation.yml")
+    en_product = File.read!("docs/product-documentation.md")
+    de_product = File.read!("docs/de/product-documentation.md")
+
+    for page <- [en, de] do
+      assert page =~ ~r/\A---\nlayout: docs\n/
+      assert page =~ "lang_en: /guides/buckets-and-views.html"
+      assert page =~ "lang_de: /de/guides/buckets-and-views.html"
+      assert page =~ "0024-buckets-and-views-replace-portfolios-in-the-ui.html"
+      assert page =~ "<!-- screenshot:"
+    end
+
+    assert en =~ "lang: en"
+    assert de =~ "lang: de"
+
+    assert navigation =~ "title: Buckets & Views Guide"
+    assert navigation =~ "url: /guides/buckets-and-views.html"
+
+    # The four worked use cases, the decision help, and the retroactivity
+    # warning use the exact UI labels of each language.
+    en_normalized = String.replace(en, ~r/\s+/, " ")
+
+    for expected <- [
+          "Which do I need — a bucket or a view?",
+          "counted exactly once",
+          "Overlapping buckets — accounts counted once",
+          "Set as default",
+          "Manage…",
+          "Everything",
+          "Target plan for view:",
+          "Save plan",
+          "PP Import",
+          "Portfolio records (compatibility)",
+          "No tag — leave the new accounts untagged",
+          "Exclude buckets",
+          "Composition as of today"
+        ] do
+      assert en_normalized =~ expected
+    end
+
+    de_normalized = String.replace(de, ~r/\s+/, " ")
+
+    for expected <- [
+          "Brauche ich einen Bucket oder eine Ansicht?",
+          "genau einmal gezählt",
+          "Überlappende Buckets – Konten nur einmal gezählt",
+          "Als Standard festlegen",
+          "Verwalten…",
+          "Alles",
+          "Soll-Plan für Sicht:",
+          "Plan speichern",
+          "PP Import",
+          "Portfoliodatensätze (Kompatibilität)",
+          "Kein Tag – die neuen Konten bleiben ohne Bucket",
+          "Buckets ausschließen",
+          "Zusammensetzung per heute"
+        ] do
+      assert de_normalized =~ expected
+    end
+
+    # The handbook and the guide cross-link in both languages.
+    assert en_product =~ "guides/buckets-and-views.html"
+    assert de_product =~ "guides/buckets-and-views.html"
+    assert en =~ "/product-documentation.html"
+    assert de =~ "/de/product-documentation.html"
   end
 
   defp api_routes_from_router do

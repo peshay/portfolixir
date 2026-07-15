@@ -47,6 +47,7 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
                    "id" => id,
                    "name" => "Retirement",
                    "color" => nil,
+                   "dimension" => "tag",
                    "inserted_at" => bucket["inserted_at"],
                    "updated_at" => bucket["updated_at"]
                  }
@@ -71,6 +72,44 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
       |> Enum.sort()
 
     assert ops == [:create, :delete, :update]
+  end
+
+  # User story (ADR-0024 modification 2, epic story 2):
+  # As an API client (and the LLM I connect over MCP),
+  # I want the bucket payload to carry the exclusive-dimension field,
+  # so that I can distinguish the scope dimension from free overlapping tags.
+  #
+  # Acceptance criteria:
+  # - POST accepts an optional dimension ("tag" default, "scope" exclusive);
+  #   an unknown dimension returns 422.
+  # - GET/PATCH responses echo the dimension; the dimension itself is fixed at
+  #   creation (PATCH attempts return 422).
+  test "exposes the bucket dimension over the API", %{conn: conn} do
+    created =
+      post_json(conn, "/api/v1/buckets", %{
+        "bucket" => %{"name" => "Main", "dimension" => "scope"}
+      })
+      |> json_response(201)
+
+    assert created["data"]["dimension"] == "scope"
+    id = created["data"]["id"]
+
+    assert get_json(conn, "/api/v1/buckets/#{id}")
+           |> json_response(200)
+           |> get_in([
+             "data",
+             "dimension"
+           ]) == "scope"
+
+    assert %{"errors" => %{"dimension" => [_ | _]}} =
+             post_json(conn, "/api/v1/buckets", %{
+               "bucket" => %{"name" => "Bad", "dimension" => "layer"}
+             })
+             |> json_response(422)
+
+    assert %{"errors" => %{"dimension" => ["cannot be changed after creation"]}} =
+             patch_json(conn, "/api/v1/buckets/#{id}", %{"bucket" => %{"dimension" => "tag"}})
+             |> json_response(422)
   end
 
   test "rejects a blank bucket name with 422 and unknown ids with 404", %{conn: conn} do
@@ -302,6 +341,35 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
     assert cleared["data"]["effective_bucket_ids"] == [bucket.id]
   end
 
+  # User story (fix round, exclusive dimension on overrides):
+  # As an API client,
+  # I want a position override carrying two scope buckets rejected with a 422,
+  # so that the ADR-0024 exclusive dimension holds on every assignment path.
+  #
+  # Acceptance criteria:
+  # - PUT .../positions/:security_id/buckets with two scope buckets returns
+  #   422 (the same error shape as the account endpoints) and writes nothing.
+  test "a position override with two scope buckets is a 422", %{conn: conn} do
+    %{depot: depot} = base_world()
+    security = create_security!(name: "ACME", ticker: "ACME")
+    {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A", dimension: "scope"})
+    {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B", dimension: "scope"})
+
+    resp =
+      put_json(
+        conn,
+        "/api/v1/securities_accounts/#{depot.id}/positions/#{security.id}/buckets",
+        %{"bucket_ids" => [scope_a.id, scope_b.id]}
+      )
+      |> json_response(422)
+
+    assert %{"errors" => %{"bucket_ids" => [message]}} = resp
+    assert message =~ "scope-dimension"
+
+    # Nothing was written: the position still inherits.
+    assert Buckets.position_override(depot.id, security.id) == :inherit
+  end
+
   # User story:
   # As an API client,
   # I want the bucket-assignment endpoints to fail predictably,
@@ -434,6 +502,35 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
              "/api/v1/securities_accounts/#{depot.id}/positions/abc/buckets"
            )
            |> json_response(404)
+  end
+
+  # User story (ADR-0024 modification 2, epic story 2):
+  # As an API client,
+  # I want assigning two scope-dimension buckets to one account rejected,
+  # so that the exclusive dimension keeps scoped totals additive.
+  #
+  # Acceptance criteria:
+  # - A depot or cash-account assignment carrying two scope buckets returns a
+  #   422 with a clear bucket_ids error and writes nothing.
+  test "rejects assigning two scope-dimension buckets to one account", %{conn: conn} do
+    %{depot: depot, cash: cash} = base_world()
+
+    {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A", dimension: "scope"})
+    {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B", dimension: "scope"})
+
+    for path <- [
+          "/api/v1/securities_accounts/#{depot.id}/buckets",
+          "/api/v1/cash_accounts/#{cash.id}/buckets"
+        ] do
+      assert %{"errors" => %{"bucket_ids" => [message]}} =
+               put_json(conn, path, %{"bucket_ids" => [scope_a.id, scope_b.id]})
+               |> json_response(422)
+
+      assert message =~ "scope-dimension"
+    end
+
+    assert Buckets.depot_default_bucket_ids(depot.id) == []
+    assert Buckets.cash_account_bucket_ids(cash.id) == []
   end
 
   # User story:

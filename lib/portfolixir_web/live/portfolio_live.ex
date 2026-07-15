@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Ledger
@@ -25,6 +26,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
+  alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
@@ -58,23 +60,38 @@ defmodule PortfolixirWeb.PortfolioLive do
     socket =
       socket
       # The tab rides in current_path so the view/locale switchers (which
-      # derive their hrefs from it) keep the user on the active tab.
-      |> assign(:current_path, wealth_tab_path(wealth_tab))
+      # derive their hrefs from it) keep the user on the active tab — and an
+      # explicit ?view= rides along too, so a tab or locale switch keeps the
+      # picked view in the URL (ADR-0024).
+      |> assign(:current_path, wealth_tab |> wealth_tab_path() |> keep_view_param(params))
       |> assign(:wealth_tab, wealth_tab)
       |> assign(:error, nil)
       |> assign(:success, nil)
+      |> assign(:view_gone_notice, false)
+      |> assign_migration_notice()
 
-    case Portfolios.first_portfolio() do
-      nil ->
+    # ADR-0024: the empty state keys on the bookkeeping entities (depots and
+    # cash accounts), not on the internal portfolio compatibility record — a
+    # record without accounts must not unlock a page with nothing to show.
+    # Accounts always carry a portfolio FK, so `first_portfolio/0` is
+    # guaranteed below; it stays the internal mechanism for the
+    # portfolio-bound allocation/performance reads (documented ADR-0024 gap).
+    case Portfolios.count_securities_accounts() + Portfolios.count_cash_accounts() do
+      0 ->
         {:ok, assign(socket, :portfolio, nil)}
 
-      portfolio ->
+      _accounts ->
+        portfolio = Portfolios.first_portfolio()
         # Built-in trees are seeded at startup (#529), not on this read path.
         classifications = Classifications.list_classifications()
 
         socket =
           socket
           |> assign(:portfolio, portfolio)
+          # For the performance scope hint (fix round): the TTWROR/IRR walk is
+          # still portfolio-bound (documented ADR-0024 gap), so with more than
+          # one portfolio the performance figures must say what they cover.
+          |> assign(:portfolio_count, Portfolios.count_portfolios())
           |> assign(:classifications, classifications)
           # 1y default (UAT fix round): "max" grows unreadable as history
           # accumulates; the period buttons still offer it.
@@ -91,6 +108,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:flat_sort, {:drift, :desc})
           |> assign(:fx_syncing, false)
           |> assign(:fx_sync_result, nil)
+          |> assign(:fx_sync_flash, false)
           |> assign(:category_parent_map, %{})
           |> assign(:category_parents_with_children, MapSet.new())
           |> assign_planned_view_ids()
@@ -108,6 +126,42 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp wealth_tab_path(:allocation), do: "/portfolio?tab=allocation"
   defp wealth_tab_path(_tab), do: "/portfolio"
 
+  # Merges an explicit ?view= from the mount params into current_path (same
+  # query-merging pattern as the switcher's own hrefs), so the tab bar and the
+  # locale switcher — which derive their links from current_path — carry the
+  # picked view along instead of dropping it.
+  defp keep_view_param(path, %{"view" => view}) when is_binary(view) do
+    uri = URI.parse(path)
+
+    query =
+      (uri.query || "")
+      |> URI.decode_query()
+      |> Map.put("view", view)
+      |> URI.encode_query()
+
+    URI.to_string(%{uri | query: query})
+  end
+
+  defp keep_view_param(path, _params), do: path
+
+  # The one-time ADR-0024 migration notice: shown while the seeded views exist
+  # and the maintainer has not dismissed it yet; two cheap indexed reads.
+  # No seeded views left (all deleted, only buckets remain) means there is
+  # nothing to announce — the notice must not render an empty list (fix round).
+  defp assign_migration_notice(socket) do
+    notice =
+      if Settings.migration_notice_dismissed?() do
+        nil
+      else
+        case Buckets.migration_summary() do
+          %{migrated?: true, views: [_ | _]} = summary -> summary
+          _not_migrated -> nil
+        end
+      end
+
+    assign(socket, :migration_notice, notice)
+  end
+
   # The dead render ships skeletons only; the expensive reads start once the
   # socket is connected, so the page paints fast and is computed exactly once.
   defp start_loading(socket) do
@@ -121,29 +175,45 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp load_overview(socket) do
+    socket = ensure_live_view_scope(socket)
     portfolio_id = socket.assigns.portfolio.id
+    base_currency = socket.assigns.portfolio.base_currency_code
     classification_id = socket.assigns.classification_id
     view_id = socket.assigns[:active_view_id]
 
     start_async(socket, :overview, fn ->
-      valuation = Valuation.for_portfolio(portfolio_id, view: view_id)
-      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id, view: view_id)
-      {valuation, allocation}
+      # The header totals and cash come from the cross-portfolio view valuation
+      # (ADR-0024): the page's primary scope is the active view — Everything
+      # when none is picked — deduplicated at the account level. The allocation
+      # stays on the portfolio-bound read (its per-portfolio SOLL plans,
+      # ADR-0020) filtered by the same view. A view deleted between the check
+      # above and this read degrades via `handle_async` (fix round).
+      with %{} = valuation <- Valuation.for_view(view_id, base_currency: base_currency),
+           {:ok, allocation} <-
+             Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
+        {valuation, allocation}
+      else
+        {:error, :view_not_found} -> :view_not_found
+      end
     end)
   end
 
   defp load_allocation(socket) do
+    socket = ensure_live_view_scope(socket)
     portfolio_id = socket.assigns.portfolio.id
     classification_id = socket.assigns.classification_id
     view_id = socket.assigns[:active_view_id]
 
     start_async(socket, :allocation, fn ->
-      {:ok, allocation} = Allocation.for_portfolio(portfolio_id, classification_id, view: view_id)
-      allocation
+      case Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
+        {:ok, allocation} -> allocation
+        {:error, :view_not_found} -> :view_not_found
+      end
     end)
   end
 
   defp load_performance(socket) do
+    socket = ensure_live_view_scope(socket)
     portfolio_id = socket.assigns.portfolio.id
     view_id = socket.assigns[:active_view_id]
 
@@ -152,7 +222,42 @@ defmodule PortfolixirWeb.PortfolioLive do
     end)
   end
 
+  # The active view can be deleted in another tab while this page still holds
+  # its id (fix round): re-check before each load and degrade to the built-in
+  # Everything scope with a small notice instead of a dead "Couldn't load"
+  # toast.
+  defp ensure_live_view_scope(socket) do
+    view_id = socket.assigns[:active_view_id]
+
+    if view_id && is_nil(Buckets.get_view(view_id)) do
+      degrade_to_everything(socket)
+    else
+      socket
+    end
+  end
+
+  defp degrade_to_everything(socket) do
+    socket
+    |> assign(:active_view, nil)
+    |> assign(:active_view_id, nil)
+    |> assign(:view_gone_notice, true)
+  end
+
   @impl true
+  # The view vanished mid-read (fix round TOCTOU): degrade and re-load the
+  # section under the Everything scope.
+  def handle_async(:overview, {:ok, :view_not_found}, socket) do
+    {:noreply, socket |> degrade_to_everything() |> load_overview()}
+  end
+
+  def handle_async(:allocation, {:ok, :view_not_found}, socket) do
+    {:noreply, socket |> degrade_to_everything() |> load_allocation()}
+  end
+
+  def handle_async(:performance, {:ok, {:error, :view_not_found}}, socket) do
+    {:noreply, socket |> degrade_to_everything() |> load_performance()}
+  end
+
   def handle_async(:overview, {:ok, {valuation, allocation}}, socket) do
     {:noreply, socket |> assign(:valuation, valuation) |> assign_allocation(allocation)}
   end
@@ -166,13 +271,22 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, assign(socket, analysis: analysis, performance: performance)}
   end
 
-  # The background rate sync (issue #432, UAT fix round): the outcome lands
-  # as an inline status line next to the button; a success re-values the
-  # figures the same way the old synchronous path did.
+  # The background rate sync (issue #432, UAT fix rounds): the outcome lands
+  # as a compact inline status line next to the button; a success re-values
+  # the figures the same way the old synchronous path did. Because the sync
+  # completes sub-second, success also flashes IN the button ("✓ Up to date",
+  # disabled) until :clear_fx_flash fires — otherwise the disabled state is
+  # invisible and the button feels like it did nothing.
   def handle_async(:sync_rates, {:ok, {:ok, %{upserted: count}}}, socket) do
+    Process.send_after(self(), :clear_fx_flash, 3000)
+
     {:noreply,
      socket
-     |> assign(fx_syncing: false, fx_sync_result: {:ok, count})
+     |> assign(
+       fx_syncing: false,
+       fx_sync_flash: true,
+       fx_sync_result: {:ok, count, NaiveDateTime.local_now()}
+     )
      |> load_overview()
      |> load_performance()}
   end
@@ -186,7 +300,13 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   def handle_async(_name, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, error: gettext("Couldn't load the portfolio figures."))}
+    {:noreply, assign(socket, error: gettext("Couldn't load the wealth figures."))}
+  end
+
+  @impl true
+  # Ends the transient "✓ Up to date" confirmation in the sync button.
+  def handle_info(:clear_fx_flash, socket) do
+    {:noreply, assign(socket, :fx_sync_flash, false)}
   end
 
   # One landing spot for a loaded allocation: resolved display colours plus
@@ -250,8 +370,8 @@ defmodule PortfolixirWeb.PortfolioLive do
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Wealth") %></h2>
-          <p><%= gettext("Create one portfolio first to see value, performance and allocation.") %></p>
-          <.link navigate="/portfolios" class="button"><%= gettext("Create one portfolio") %></.link>
+          <p><%= gettext("Create a depot and cash account first to see value, performance and allocation.") %></p>
+          <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
         </section>
       </div>
     </AppShell.shell>
@@ -262,7 +382,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     ~H"""
     <AppShell.shell
       current_path={@current_path}
-      page_title={@portfolio.name}
+      page_title={gettext("Wealth")}
       page_subtitle={gettext("Value, performance and allocation")}
     >
       <div id="portfolio-overview" class="workspace-page portfolio-overview">
@@ -280,15 +400,77 @@ defmodule PortfolixirWeb.PortfolioLive do
           views={@views}
           active_view={@active_view}
           planned_view_ids={@planned_view_ids}
+          show_default_control={true}
+          default_view_id={@default_view_id}
         />
 
-        <section class="workspace-section grid" aria-label={gettext("Portfolio key figures")}>
+        <%!-- The picked view was deleted (another tab, fix round): the page
+             degraded to the Everything scope instead of a dead error toast. --%>
+        <p :if={@view_gone_notice} class="hint" data-role="view-gone-notice" role="status">
+          <%= gettext("The selected view no longer exists — showing Everything.") %>
+        </p>
+
+        <%!-- Matches-nothing hint (fix round): the active view resolves to
+             zero accounts, so the 0 total is a definition issue, not data. --%>
+        <p
+          :if={@active_view && matches_no_accounts?(@valuation)}
+          class="hint"
+          data-role="view-matches-nothing"
+          role="status"
+        >
+          <%= gettext(
+            "This view matches no accounts — its included buckets are empty or no longer assigned. Edit the view under Manage… or tag accounts into its buckets."
+          ) %>
+        </p>
+
+        <%!-- One-time ADR-0024 migration notice: the seeded views exist, so
+             say what happened once and get out of the way permanently. --%>
+        <section
+          :if={@migration_notice}
+          id="portfolio-migration-notice"
+          class="workspace-section"
+          data-role="migration-notice"
+          role="status"
+        >
+          <h2><%= gettext("Your portfolios are now views") %></h2>
+          <p>
+            <%= gettext(
+              "The one-time migration turned each portfolio into a bucket and a view of the same name — fully editable, nothing was deleted. Pick a view above to scope this page."
+            ) %>
+          </p>
+          <ul data-role="migration-views">
+            <li :for={view <- @migration_notice.views}><%= view.name %></li>
+          </ul>
+          <button
+            type="button"
+            class="button-mini"
+            data-role="dismiss-migration-notice"
+            phx-click="dismiss_migration_notice"
+          >
+            <%= gettext("Got it") %>
+          </button>
+        </section>
+
+        <section class="workspace-section grid" aria-label={gettext("Wealth key figures")}>
           <article id="kpi-total" class="stat">
             <span><%= gettext("Total incl. cash") %></span>
             <strong :if={@valuation}>
               <%= Format.money(@valuation.total_with_cash) %> <%= @valuation.base_currency %>
             </strong>
             <strong :if={is_nil(@valuation)}>…</strong>
+            <%!-- Overlap badge (ADR-0024 modification 2): the active view's
+                 buckets share at least one account. Purely informational —
+                 the total already counts each account exactly once. --%>
+            <small
+              :if={@valuation && overlapping?(@valuation)}
+              class="hint"
+              data-role="overlap-badge"
+              title={gettext(
+                "This view's buckets share accounts. Each account is counted once, so per-bucket figures may overlap and must not be summed."
+              )}
+            >
+              <%= gettext("Overlapping buckets — accounts counted once") %>
+            </small>
           </article>
           <article id="kpi-securities" class="stat">
             <span><%= gettext("Securities") %></span>
@@ -315,6 +497,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
             <strong :if={@performance}><%= Format.percent(@performance.ttwror) %>%</strong>
             <strong :if={is_nil(@performance)}>…</strong>
+            <%!-- Scope disclaimer (fix round): see #portfolio-performance. --%>
+            <small :if={@portfolio_count > 1} class="hint" data-role="performance-scope-hint">
+              <%= performance_scope_hint(@portfolio.name) %>
+            </small>
             <details class="metric-tooltip">
               <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
               <p id="tip-ttwror" role="tooltip">
@@ -347,6 +533,19 @@ defmodule PortfolixirWeb.PortfolioLive do
 
         <%= if @wealth_tab == :holdings do %>
         <section id="portfolio-performance" class="workspace-section">
+          <%!-- Scope disclaimer (fix round, UAT merge condition): the TTWROR/
+               IRR walk is still bound to the first portfolio (documented
+               ADR-0024 gap), so multi-portfolio instances must say what the
+               performance figures cover. Single-portfolio instances (the
+               common migrated case) show nothing. --%>
+          <p
+            :if={@portfolio_count > 1}
+            class="hint"
+            data-role="performance-scope-hint"
+            role="note"
+          >
+            <%= performance_scope_hint(@portfolio.name) %>
+          </p>
           <header class="section-head">
             <h2><%= gettext("Performance") %></h2>
             <div class="section-head-controls">
@@ -367,7 +566,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   phx-value-mode="value"
                   aria-pressed={to_string(@chart_mode == "value")}
                 >
-                  <%= gettext("Value (%{currency})", currency: @portfolio.base_currency_code) %>
+                  <%= gettext("Value (%{currency})", currency: display_currency(assigns)) %>
                 </button>
               </div>
               <div class="period-buttons" role="group" aria-label={gettext("Period")}>
@@ -404,6 +603,13 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= if @performance.start_date do %>
                 <%= @performance.start_date %> – <%= @performance.end_date %>
               <% end %>
+            </p>
+            <%!-- ADR-0024 modification 4: bucket membership applies
+                 retroactively, so a view-scoped series is labelled with its
+                 semantics instead of pretending temporal membership. --%>
+            <p :if={@active_view} class="hint" data-role="composition-label">
+              <%= gettext("Composition as of today") %> —
+              <%= gettext("the view's current bucket membership is applied to the whole history.") %>
             </p>
           <% else %>
             <div
@@ -918,10 +1124,17 @@ defmodule PortfolixirWeb.PortfolioLive do
               <button
                 type="button"
                 phx-click="sync_rates"
-                disabled={@fx_syncing}
+                disabled={@fx_syncing or @fx_sync_flash}
                 phx-disable-with={gettext("Syncing…")}
               >
-                <%= gettext("Sync exchange rates") %>
+                <%= cond do %>
+                  <% @fx_syncing -> %>
+                    <span class="spinner" aria-hidden="true"></span> <%= gettext("Syncing…") %>
+                  <% @fx_sync_flash -> %>
+                    ✓ <%= gettext("Up to date") %>
+                  <% true -> %>
+                    <%= gettext("Sync exchange rates") %>
+                <% end %>
               </button>
               <span :if={@fx_syncing} class="hint" data-role="fx-sync-status" role="status">
                 <%= gettext("Syncing exchange rates…") %>
@@ -1001,6 +1214,13 @@ defmodule PortfolixirWeb.PortfolioLive do
     """
   end
 
+  # The display currency for user-facing labels (ADR-0024): taken from the
+  # loaded valuation (the number the label describes), with the EUR hub as the
+  # fallback before the async read lands — never from portfolio naming.
+  defp display_currency(%{valuation: %{base_currency: currency}}), do: currency
+  defp display_currency(%{performance: %{base_currency: currency}}), do: currency
+  defp display_currency(_assigns), do: "EUR"
+
   # The portfolio chart renders through the shared SecurityChart component
   # (ADR-0022: one chart path, the security detail chart set the quality bar).
   # The TTWROR series passes its cumulative percentages as ready-made percent
@@ -1016,7 +1236,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       case assigns.mode do
         "value" ->
           {chart_series(assigns.series, assigns.currency, :value), :absolute, false,
-           gettext("Portfolio value over time"), assigns.currency}
+           gettext("Value over time"), assigns.currency}
 
         _ ->
           {chart_series(assigns.series, assigns.currency, :ttwror), :percent_values, true,
@@ -1247,9 +1467,11 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   def handle_event("set_balance", %{"balance" => params}, socket) do
+    # The cash table is view-scoped across all portfolios (ADR-0024), so any
+    # existing account listed there may take a snapshot — the old "must belong
+    # to the page's portfolio" guard no longer matches the page's scope.
     with {:ok, account_id} <- coerce_id(params["cash_account_id"]),
-         %{portfolio_id: pid} = account <- Portfolios.get_cash_account(account_id),
-         true <- pid == socket.assigns.portfolio.id,
+         %{id: _} = account <- Portfolios.get_cash_account(account_id),
          {:ok, _tx} <- Ledger.set_cash_balance(Actor.owner_ui(), account, params) do
       {:noreply,
        socket
@@ -1282,6 +1504,22 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_event("dismiss_toast", _params, socket) do
     {:noreply, assign(socket, error: nil, success: nil)}
+  end
+
+  # Persists the active selection as the user's default view (ADR-0024): the
+  # scope the Wealth page and dashboard open on when nothing explicit was
+  # chosen. Everything active (`nil`) clears the preference — Everything IS
+  # the built-in default.
+  def handle_event("set_default_view", _params, socket) do
+    :ok = Settings.set_default_view(socket.assigns.active_view_id)
+    {:noreply, assign(socket, :default_view_id, socket.assigns.active_view_id)}
+  end
+
+  # Dismisses the one-time migration notice permanently (server-side, so it
+  # stays dismissed across browsers and new sessions).
+  def handle_event("dismiss_migration_notice", _params, socket) do
+    :ok = Settings.dismiss_migration_notice()
+    {:noreply, assign(socket, :migration_notice, nil)}
   end
 
   # One toggle (UAT fix round): expand-all reveals every level down to the
@@ -1459,12 +1697,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   # On-demand exchange-rate sync (issue #432): the rate provider only refreshes
   # on a 12 h timer, so a foreign-currency cash account stays unvalued until a
   # rate arrives. This lets the user pull rates now and re-value the figures.
-  defp fx_sync_result_message({:ok, count}), do: rates_synced_message(count)
-  defp fx_sync_result_message(:error), do: rate_sync_error_message()
-
-  defp rates_synced_message(count) do
-    gettext("Exchange rates synced (%{count} updated). Recalculating figures…", count: count)
+  # The success line is compact — count plus the local wall-clock time of the
+  # run (display-only formatting; domain data stays day-granular).
+  defp fx_sync_result_message({:ok, count, synced_at}) do
+    gettext("%{count} rates updated", count: count) <>
+      " · " <> Calendar.strftime(synced_at, "%H:%M")
   end
+
+  defp fx_sync_result_message(:error), do: rate_sync_error_message()
 
   defp rate_sync_error_message do
     gettext(
@@ -1493,6 +1733,24 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp trade_priced_count(nil), do: 0
   defp trade_priced_count(valuation), do: valuation.trade_priced_count
+
+  # Whether the active view's buckets share at least one account (ADR-0024
+  # overlap badge). Tolerates valuations without overlap data.
+  defp overlapping?(%{overlap: %{overlapping?: true}}), do: true
+  defp overlapping?(_valuation), do: false
+
+  # Whether the active view's resolution matches zero accounts (fix round
+  # hint). Tolerates valuations without the flag (and the pre-async nil).
+  defp matches_no_accounts?(%{matches_no_accounts: true}), do: true
+  defp matches_no_accounts?(_valuation), do: false
+
+  # The multi-portfolio performance disclaimer (fix round, UAT merge
+  # condition) — one message for the KPI card and the chart section.
+  defp performance_scope_hint(portfolio_name) do
+    gettext("Performance covers %{name} only — the total above spans all accounts.",
+      name: portfolio_name
+    )
+  end
 
   defp suspect_dates(nil), do: []
   defp suspect_dates(analysis), do: analysis.suspect_dates

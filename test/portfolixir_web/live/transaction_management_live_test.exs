@@ -6,18 +6,19 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
   alias Portfolixir.Ledger
   alias Portfolixir.WorldFixtures
 
-  # User story (#471):
-  # As a maintainer with several portfolios,
-  # I want the Transactions page to name the active portfolio and let me switch,
-  # so that I never record a buy/sell into the wrong portfolio unknowingly.
+  # User story (ADR-0024, supersedes #471):
+  # As a maintainer recording transactions,
+  # I want the form to offer every depot directly — no portfolio strip, no
+  # portfolio switch —
+  # so that the depot choice alone decides where a transaction books and the
+  # portfolio stays an internal compatibility record.
   #
   # Acceptance criteria:
-  # - The page renders a portfolio strip naming the active portfolio and the
-  #   other portfolios as switchable chips.
-  # - Switching changes which portfolio is active (its depots are offered).
-  # - A transaction recorded after switching books into the switched-to
-  #   portfolio, not the one that happened to be first.
-  test "names the active portfolio and switches which portfolio books a transaction",
+  # - No portfolio strip renders; the word "Portfolio" is not used as a
+  #   grouping control.
+  # - Depots from every internal portfolio are offered together.
+  # - A transaction books into the chosen depot's internal portfolio.
+  test "offers every depot and books into the chosen depot's internal portfolio",
        %{conn: conn} do
     alpha =
       WorldFixtures.base_world(name: "Alpha", depot_name: "Alpha Depot", cash_name: "Alpha Cash")
@@ -29,19 +30,16 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     {:ok, view, html} = live(conn, "/transactions")
 
-    # The strip names both portfolios; the first-created one is active.
-    assert html =~ "Alpha"
-    assert html =~ "Beta"
-    assert has_element?(view, "#portfolio-switch-#{alpha.portfolio.id}.is-active")
-    refute has_element?(view, "#portfolio-switch-#{beta.portfolio.id}.is-active")
+    # No portfolio strip and no switch chips.
+    refute has_element?(view, "#transaction-portfolio-strip")
+    refute has_element?(view, "#portfolio-switch-#{alpha.portfolio.id}")
+    refute html =~ "Portfolio:"
 
-    # Switching to Beta exposes Beta's depot, not Alpha's.
-    switched = view |> element("#portfolio-switch-#{beta.portfolio.id}") |> render_click()
-    assert switched =~ "Beta Depot"
-    refute switched =~ "Alpha Depot"
-    assert has_element?(view, "#portfolio-switch-#{beta.portfolio.id}.is-active")
+    # Both depots are offered at once.
+    assert html =~ "Alpha Depot"
+    assert html =~ "Beta Depot"
 
-    # A transaction recorded now books into Beta, not the first portfolio.
+    # Booking against Beta's depot lands in Beta's internal portfolio.
     view
     |> element("#transaction-form")
     |> render_submit(%{
@@ -58,28 +56,6 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     assert Ledger.list_transactions_for_portfolio(beta.portfolio.id) != []
     assert Ledger.list_transactions_for_portfolio(alpha.portfolio.id) == []
-  end
-
-  # A single-portfolio install still names the active portfolio (no ambiguity,
-  # but the user should see which one they are booking into).
-  test "names the only portfolio when there is just one", %{conn: conn} do
-    world = WorldFixtures.base_world(name: "Solo")
-
-    {:ok, view, _html} = live(conn, "/transactions")
-
-    assert has_element?(view, "#portfolio-switch-#{world.portfolio.id}.is-active")
-  end
-
-  # An unknown portfolio id (e.g. one deleted in another tab) is a no-op: the
-  # active portfolio is left unchanged rather than blanking the page.
-  test "selecting an unknown portfolio leaves the active one unchanged", %{conn: conn} do
-    world = WorldFixtures.base_world(name: "Solo")
-
-    {:ok, view, _html} = live(conn, "/transactions")
-
-    render_hook(view, "select_portfolio", %{"id" => "999999"})
-
-    assert has_element?(view, "#portfolio-switch-#{world.portfolio.id}.is-active")
   end
 
   # User story (#472):
@@ -290,6 +266,217 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     })
 
     assert has_element?(view, "#transaction-list tbody tr td", "Buy")
+  end
+
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer,
+  # I want to type decimal commas into the price/quantity/fees/taxes fields,
+  # so that "100,50" books as 100.50 instead of failing validation.
+  #
+  # Acceptance criteria:
+  # - A single comma with no dot is normalized to a dot at the form boundary.
+  # - The stored Decimal values are exact; nothing else touches persisted
+  #   parsing.
+  test "accepts German decimal commas in the money fields", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Komma")
+    security = WorldFixtures.create_security!(name: "Komma Co", ticker: "KOM")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" => %{
+        "type" => "buy",
+        "date" => "2026-03-02",
+        "securities_account_id" => to_string(world.depot.id),
+        "security_id" => to_string(security.id),
+        "quantity" => "2,5",
+        "price" => "100,50",
+        "fees" => "1,25"
+      }
+    })
+
+    assert [tx] = Ledger.list_transactions_for_portfolio(world.portfolio.id)
+    assert Decimal.equal?(tx.quantity, Decimal.new("2.5"))
+    assert Decimal.equal?(tx.price, Decimal.new("100.50"))
+    assert Decimal.equal?(tx.fees, Decimal.new("1.25"))
+  end
+
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer,
+  # I want a failed submit to explain itself in German,
+  # so that "price is invalid" never leaks raw Ecto messages into a
+  # translated page.
+  test "renders the changeset error translated instead of the raw message", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Fehler")
+    security = WorldFixtures.create_security!(name: "Fehler Co", ticker: "FLR")
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    html =
+      view
+      |> element("#transaction-form")
+      |> render_submit(%{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "2026-03-02",
+          "securities_account_id" => to_string(world.depot.id),
+          "security_id" => to_string(security.id),
+          "quantity" => "2",
+          "price" => "abc"
+        }
+      })
+
+    refute html =~ "price is invalid"
+    assert html =~ "Preis"
+    assert html =~ "ist ungültig"
+  end
+
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer,
+  # I want the history's month-group headers in German with money-formatted
+  # sums,
+  # so that the localized page never mixes English month names or raw
+  # decimals into the section heads (same precedent as the income matrix).
+  test "localizes the month-group headers and money-formats the group sums", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Monat")
+    security = WorldFixtures.create_security!(name: "Monat Co", ticker: "MON")
+    WorldFixtures.deposit!(world, "1000", ~D[2026-03-01])
+    WorldFixtures.buy!(world, security, quantity: "2", price: "50", date: ~D[2026-03-02])
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    header = view |> element("tr.tx-group-head[data-month-group='2026-03']") |> render()
+    assert header =~ "März 2026"
+    refute header =~ "March"
+    # Money-formatted subtotal in the German locale (1000 + 100 = 1.100,00).
+    assert header =~ "1.100,00"
+  end
+
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer with a year-spanning history,
+  # I want EVERY month-group header translated,
+  # so that no strftime English month name (May, October, ...) leaks into the
+  # localized history for any month of the year.
+  test "translates the month-group header for every month", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Jahr")
+
+    for month <- 4..12 do
+      WorldFixtures.deposit!(world, "10", Date.new!(2026, month, 1))
+    end
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    expected = %{
+      4 => "April 2026",
+      5 => "Mai 2026",
+      6 => "Juni 2026",
+      7 => "Juli 2026",
+      8 => "August 2026",
+      9 => "September 2026",
+      10 => "Oktober 2026",
+      11 => "November 2026",
+      12 => "Dezember 2026"
+    }
+
+    for {month, label} <- expected do
+      group = "2026-#{month |> Integer.to_string() |> String.pad_leading(2, "0")}"
+      header = view |> element("tr.tx-group-head[data-month-group='#{group}']") |> render()
+      assert header =~ label
+    end
+
+    html = render(view)
+    refute html =~ "May 2026"
+    refute html =~ "October 2026"
+    refute html =~ "December 2026"
+  end
+
+  # User story (fix round, UAT locale):
+  # As a German-speaking maintainer who submits an incomplete form,
+  # I want the flash to name every offending field with its localized label,
+  # so that "securities_account_id can't be blank" never leaks schema field
+  # names into a translated page.
+  #
+  # Acceptance criteria:
+  # - A submit without a depot keeps the ledger empty and reports the missing
+  #   depot/security/date (and the negative costs) in German.
+  # - The internal portfolio binding is simply absent when no depot matched —
+  #   no crash, the changeset reports it.
+  test "a submit without a depot names every missing field in German", %{conn: conn} do
+    WorldFixtures.base_world(name: "Leer")
+    _security = WorldFixtures.create_security!(name: "Leer Co", ticker: "LER")
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    html =
+      view
+      |> element("#transaction-form")
+      |> render_submit(%{
+        "transaction" => %{
+          "type" => "buy",
+          "date" => "",
+          "securities_account_id" => "",
+          "security_id" => "",
+          "quantity" => "2",
+          "price" => "10",
+          "fees" => "-1",
+          "taxes" => "-1"
+        }
+      })
+
+    assert Portfolixir.Ledger.list_transactions() == []
+
+    # Localized field labels, not schema field names.
+    assert html =~ "Depot darf nicht leer sein"
+    assert html =~ "Wertpapier darf nicht leer sein"
+    assert html =~ "Datum darf nicht leer sein"
+    assert html =~ "Verrechnungskonto darf nicht leer sein"
+    refute html =~ "securities_account_id can&#39;t be blank"
+
+    # Negative costs are rejected with the localized number message.
+    assert html =~ "Gebühren muss größer oder gleich 0 sein"
+    assert html =~ "Steuern muss größer oder gleich 0 sein"
+  end
+
+  # User story (fix round, robustness):
+  # As a local portfolio maintainer whose stale browser tab sends a degraded
+  # payload (missing cost fields, an unknown type, a malformed currency),
+  # I want the save to answer with translated validation errors,
+  # so that a hostile or out-of-date client can neither crash the view nor
+  # write an invalid transaction.
+  test "a degraded client payload gets translated errors, nothing is written", %{conn: conn} do
+    WorldFixtures.base_world(name: "Kaputt")
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    # Sent straight at the event handler: no fees/taxes keys at all, an
+    # unknown type and a two-letter currency the form would never produce.
+    html =
+      render_submit(view, "save_transaction", %{
+        "transaction" => %{
+          "type" => "bogus",
+          "date" => "2026-01-05",
+          "currency_code" => "EU",
+          "quantity" => "1",
+          "price" => "1"
+        }
+      })
+
+    assert Portfolixir.Ledger.list_transactions() == []
+    assert html =~ "Typ ist ungültig"
+    # The pluralized length message runs through the errors domain (count).
+    assert html =~ "Währung muss genau 3 Zeichen lang sein"
+
+    # A cash kind without its amount reports the localized Amount label.
+    html =
+      render_submit(view, "save_transaction", %{
+        "transaction" => %{"type" => "dividend", "date" => "2026-01-05"}
+      })
+
+    assert Portfolixir.Ledger.list_transactions() == []
+    assert html =~ "Betrag darf nicht leer sein"
+    assert html =~ "Verrechnungskonto darf nicht leer sein"
   end
 
   # The history lists every ledger kind, not just buy/sell (e.g. an imported

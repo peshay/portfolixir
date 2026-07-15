@@ -1,10 +1,11 @@
 defmodule Portfolixir.LocalizationTest do
   use ExUnit.Case, async: true
 
+  # ADR-0024: "Portfolios" and "Create one portfolio" left the UI — the
+  # accounts page and the wizard speak of depots and cash accounts.
   @core_messages [
     "Overview",
     "Securities",
-    "Portfolios",
     "Transactions",
     "Theme",
     "Light",
@@ -16,7 +17,7 @@ defmodule Portfolixir.LocalizationTest do
     "Language",
     "German",
     "Create securities",
-    "Create one portfolio",
+    "Create one cash account",
     "Record manual buy and sell transactions",
     "Add costs"
   ]
@@ -42,7 +43,6 @@ defmodule Portfolixir.LocalizationTest do
     # The Overview area (ADR-0022, formerly "Dashboard") translates to German.
     assert german =~ ~s(msgstr "Übersicht")
     assert german =~ ~s(msgstr "Wertpapiere")
-    assert german =~ ~s(msgstr "Portfolios")
     assert german =~ ~s(msgstr "Transaktionen")
     assert german =~ ~s(msgstr "Wertpapiere anlegen")
   end
