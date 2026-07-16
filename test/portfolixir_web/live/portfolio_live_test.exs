@@ -78,7 +78,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       )
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
 
@@ -173,7 +173,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     world = seed_world()
 
     # Steer a 10% cash quote: actual cash 200/1080 = 18.5% vs. 10% target.
-    {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.10"))
+    {:ok, _} = Portfolios.set_cash_target(Actor.owner_ui(), world.portfolio, Decimal.new("0.10"))
 
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
@@ -232,7 +232,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       )
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "1.0"}
       ])
 
@@ -412,7 +412,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Children target 0.3 + 0.2 = 0.5 ≠ Core's 0.6 → parent hint yellow.
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, world.classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
         %{"category_id" => tech.id, "target_weight" => "0.3"},
         %{"category_id" => bonds.id, "target_weight" => "0.2"}
       ])
@@ -448,7 +448,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Reset Core to a full 100% target so the top level sums to 100%.
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, world.classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
         %{"category_id" => world.core.id, "target_weight" => "1.0"}
       ])
 
@@ -470,7 +470,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Children target 0.6 + 0.4 = 1.0 = Core's 1.0 → consistent.
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, world.classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
         %{"category_id" => tech.id, "target_weight" => "0.6"},
         %{"category_id" => bonds.id, "target_weight" => "0.4"}
       ])
@@ -798,7 +798,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Raise Core's target to 90% so the row is underweight under ADR-0023:
     # drift = 880 − 0.9 × 1080 = −92.00 → negative.
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, world.classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
         %{"category_id" => world.core.id, "target_weight" => "0.9"}
       ])
 
@@ -1453,6 +1453,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # The Strategie view's plan steers Core to 50%.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         world.portfolio.id,
         world.classification.id,
         [%{category_id: world.core.id, target_weight: "0.5"}],
@@ -1495,6 +1496,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # absence is what matters (no Gesamt leak).
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         world.portfolio.id,
         world.classification.id,
         [%{category_id: world.core.id, target_weight: "0.6"}],
@@ -1535,6 +1537,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Strategie view: Core 50%. Crypto view: no plan at all.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         world.portfolio.id,
         world.classification.id,
         [%{category_id: world.core.id, target_weight: "0.5"}],
@@ -1569,13 +1572,17 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # The Strategie plan steers Core 50% and cash 10%.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         world.portfolio.id,
         world.classification.id,
         [%{category_id: world.core.id, target_weight: "0.5"}],
         view: world.scoped_view.id
       )
 
-    :ok = Targets.set_cash_target(world.portfolio.id, "0.1", view: world.scoped_view.id)
+    :ok =
+      Targets.set_cash_target(Actor.owner_ui(), world.portfolio.id, "0.1",
+        view: world.scoped_view.id
+      )
 
     conn = get(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
@@ -1606,6 +1613,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Only the Strategie view has a plan for this classification.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         world.portfolio.id,
         world.classification.id,
         [%{category_id: world.core.id, target_weight: "0.5"}],
@@ -1988,7 +1996,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Minor  drift = 100 − 0.10 × 1080 =   −8.00 (underweight)
     # Small  drift =  50 − 0.04 × 1080 =   +6.80 (overweight, |drift| < 8)
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, world.classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
         %{"category_id" => world.core.id, "target_weight" => "0.6"},
         %{"category_id" => minor.id, "target_weight" => "0.1"},
         %{"category_id" => aggressive.id, "target_weight" => "0.04"}

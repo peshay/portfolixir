@@ -1,6 +1,8 @@
 defmodule PortfolixirWeb.ClassificationsLiveTest do
   use PortfolixirWeb.ConnCase
 
+  alias Portfolixir.Actor
+
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures
@@ -103,7 +105,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
       )
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => empty.id, "target_weight" => "0.5"},
         %{"category_id" => filled.id, "target_weight" => "0.5"}
       ])
@@ -559,13 +561,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [%{category_id: equity.id, target_weight: "0.75"}],
         view: nil
       )
 
-    :ok = Targets.set_cash_target(portfolio.id, "0.25", view: nil)
+    :ok = Targets.set_cash_target(Actor.owner_ui(), portfolio.id, "0.25", view: nil)
 
     {:ok, view, html} = live_drained(conn, "/classifications/#{classification.id}")
 
@@ -587,6 +590,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [%{category_id: equity.id, target_weight: "0.5"}],
@@ -618,6 +622,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # Gesamt has Equity at 80%.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [%{category_id: equity.id, target_weight: "0.8"}],
@@ -654,6 +659,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # Gesamt holds the source plan.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [
@@ -663,7 +669,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         view: nil
       )
 
-    :ok = Targets.set_cash_target(portfolio.id, "0.0", view: nil)
+    :ok = Targets.set_cash_target(Actor.owner_ui(), portfolio.id, "0.0", view: nil)
 
     {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
@@ -817,6 +823,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # 100% (a fully-allocated sub-plan). The Σ must read 100%, not 200%.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [
@@ -870,6 +877,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # The Σ must roll these up to 100%, not ignore the un-weighted parent.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [
@@ -915,6 +923,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # Σ = 50 (explicit) + 50 (rolled up) = 100%.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [
@@ -951,6 +960,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # Gesamt has Equity at 80%; the named view has its own (different) plan.
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [%{category_id: equity.id, target_weight: "0.8"}],
@@ -959,6 +969,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [%{category_id: equity.id, target_weight: "0.4"}],
@@ -991,6 +1002,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [%{category_id: equity.id, target_weight: "0.8"}],

@@ -388,8 +388,26 @@ defmodule Portfolixir.Buckets do
     |> Repo.update()
   end
 
-  @doc "Deletes a view definition (not journaled)."
-  def delete_view(%Actor{} = _actor, %View{} = view), do: Repo.delete(view)
+  @doc """
+  Deletes a view definition. Journaled: deleting a view cascades the view's
+  target plans (ADR-0027) — a financial-steering write, and the armed plan
+  tables require the journal actor to be set when the cascade fires.
+  """
+  def delete_view(%Actor{} = actor, %View{} = view) do
+    Multi.new()
+    |> Multi.delete(:view, view)
+    |> Journal.record(actor,
+      resource_type: "view",
+      operation: :delete,
+      source: :view,
+      before: view
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{view: deleted}} -> {:ok, deleted}
+      {:error, :view, changeset, _changes} -> {:error, changeset}
+    end
+  end
 
   @doc """
   Replaces a view's include and exclude bucket sets (not journaled). Runs in one

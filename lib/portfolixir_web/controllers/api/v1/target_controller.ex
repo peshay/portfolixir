@@ -44,7 +44,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
          {:ok, cid} <- parse_id(category_id) do
-      {:ok, count} = Targets.delete_target(pid, cid, ViewParam.opts(view))
+      {:ok, count} = Targets.delete_target(conn.assigns.actor, pid, cid, ViewParam.opts(view))
       json(conn, %{data: %{deleted: count}})
     else
       :error -> not_found(conn)
@@ -78,7 +78,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
          {:ok, view} <- ViewParam.resolve(params) do
       weight = Map.get(params, "cash_target_weight")
 
-      case Targets.set_cash_target(pid, weight, ViewParam.opts(view)) do
+      case Targets.set_cash_target(conn.assigns.actor, pid, weight, ViewParam.opts(view)) do
         :ok -> json(conn, %{data: JSON.cash_target(weight)})
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       end
@@ -93,7 +93,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   defp set_for_portfolio(conn, pid, params, view) do
     with {:ok, cid} <- parse_id(Map.get(params, "classification_id")),
          entries when is_list(entries) <- Map.get(params, "targets") do
-      case Targets.set_targets(pid, cid, entries, ViewParam.opts(view)) do
+      case Targets.set_targets(conn.assigns.actor, pid, cid, entries, ViewParam.opts(view)) do
         {:ok, targets} ->
           json(conn, %{data: %{targets: Enum.map(targets, &JSON.target/1)}})
 

@@ -257,7 +257,7 @@ defmodule Portfolixir.BucketsTest do
       assert Buckets.view_filter(view.id) == {:ok, %{include: :all, exclude: []}}
     end
 
-    test "update_view and delete_view edit the definition without journaling" do
+    test "update_view edits the definition without journaling; delete_view is journaled" do
       before = length(Journal.list_entries([]))
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Draft", include_all: true})
 
@@ -267,11 +267,17 @@ defmodule Portfolixir.BucketsTest do
       assert renamed.name == "Final"
       assert renamed.include_all == false
 
+      # Create/update of a view definition are not journaled.
+      assert length(Journal.list_entries([])) == before
+
+      # Deleting a view IS journaled (ADR-0027): the delete cascades the view's
+      # target plans, so it is a financial-steering write and must set the
+      # journal actor for the armed plan tables.
       assert {:ok, _} = Buckets.delete_view(Actor.owner_ui(), renamed)
       refute Buckets.get_view(renamed.id)
 
-      # No view-definition write was journaled.
-      assert length(Journal.list_entries([])) == before
+      assert [%{operation: :delete}] = Journal.list_entries(resource_type: "view")
+      assert length(Journal.list_entries([])) == before + 1
     end
 
     test "view name is required and unique" do

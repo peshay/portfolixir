@@ -69,7 +69,9 @@ defmodule Portfolixir.WriteActorTest do
                   "transactions",
                   "classifications",
                   "classification_categories",
-                  "security_category_assignments"
+                  "security_category_assignments",
+                  "portfolio_target_plans",
+                  "portfolio_targets"
                 ])
 
   # `Repo.transaction` is deliberately NOT a write marker: a read-only
