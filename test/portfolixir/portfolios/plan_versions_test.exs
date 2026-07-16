@@ -194,3 +194,44 @@ defmodule Portfolixir.Portfolios.PlanVersionsTest do
     assert Enum.find(plans, &(&1.status == "active")).id == b.id
   end
 end
+
+# Regression tests from the ADR-0026 adversarial review round (2026-07-16).
+defmodule Portfolixir.Portfolios.PlanVersionsReviewTest do
+  use Portfolixir.DataCase, async: true
+
+  alias Portfolixir.Actor
+  alias Portfolixir.Classifications
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Targets
+
+  # Review finding: plan resolution used to commit outside the batch
+  # transaction, so a rejected entry left an empty ACTIVE plan behind —
+  # flipping the Wealth page from IST-only into SOLL mode on a failed save.
+  test "a rejected batch does not leave a freshly created plan behind" do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: "P", base_currency_code: "EUR"})
+
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
+
+    assert {:error, %Ecto.Changeset{}} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{category_id: category.id, target_weight: Decimal.new("1.5")}
+             ])
+
+    refute Targets.plan_exists?(portfolio.id, classification.id)
+    assert Targets.list_plans(portfolio.id, classification_id: classification.id) == []
+
+    # Same guarantee for the cash-target create path.
+    assert {:error, %Ecto.Changeset{}} =
+             Targets.set_cash_target(Actor.owner_ui(), portfolio.id, Decimal.new("2"))
+
+    assert Targets.list_plans(portfolio.id) == []
+  end
+end

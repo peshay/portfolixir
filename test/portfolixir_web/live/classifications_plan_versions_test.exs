@@ -96,4 +96,48 @@ defmodule PortfolixirWeb.ClassificationsPlanVersionsTest do
     assert statuses[draft.id] == "active"
     assert statuses[active.id] == "archived"
   end
+
+  # Review finding: after deleting the active plan while a draft survives, the
+  # lone draft used to be unreachable (picker hidden, editor in empty state).
+  # The editor now falls back to the first remaining version.
+  test "a lone surviving draft stays reachable and activatable", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = plan_world()
+
+    [active] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), active.id, %{name: "Survivor"})
+    {:ok, _} = Targets.delete_plan_version(Actor.owner_ui(), active.id)
+
+    {:ok, view, html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    # The draft is selected (name visible), editable and activatable.
+    assert html =~ "Survivor"
+    assert has_element?(view, "button[phx-click='activate_soll_plan']")
+
+    view |> element("button[phx-click='activate_soll_plan']") |> render_click()
+
+    [survivor] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    assert survivor.id == draft.id
+    assert survivor.status == "active"
+  end
+
+  # Review finding: deleting a draft that vanished in another tab crashed the
+  # LiveView through a {:ok, _} match on {:error, :not_found}.
+  test "deleting an already-deleted draft does not crash", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = plan_world()
+
+    [active] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), active.id, %{name: "Gone"})
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    view
+    |> element("form.soll-plan-picker")
+    |> render_change(%{"soll_plan" => "#{draft.id}"})
+
+    # The draft vanishes out-of-band (other tab / API / MCP).
+    {:ok, _} = Targets.delete_plan_version(Actor.owner_ui(), draft.id)
+
+    html = view |> element("button[phx-click='delete_soll_plan']") |> render_click()
+    assert html =~ "Plan deleted"
+  end
 end

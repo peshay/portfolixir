@@ -69,25 +69,38 @@ defmodule PortfolixirWeb.SnapshotsLive do
   end
 
   def handle_event("select_snapshot", %{"id" => id}, socket) do
-    {:noreply, select_snapshot(socket, String.to_integer(id))}
+    case parse_int(id) do
+      nil -> {:noreply, socket}
+      id -> {:noreply, select_snapshot(socket, id)}
+    end
   end
 
   def handle_event("delete_snapshot", %{"id" => id}, socket) do
-    id = String.to_integer(id)
-    {:ok, _} = Snapshots.delete_snapshot(Actor.owner_ui(), id)
+    case parse_int(id) do
+      nil ->
+        {:noreply, socket}
 
-    socket =
-      socket
-      |> load_snapshots()
-      |> then(fn socket ->
-        if socket.assigns.selected_id == id do
-          assign(socket, comparison: nil, selected_id: nil)
-        else
-          socket
+      id ->
+        # A snapshot already deleted elsewhere (other tab, API, MCP) is not an
+        # error — the marker is gone either way; just refresh the list.
+        case Snapshots.delete_snapshot(Actor.owner_ui(), id) do
+          {:ok, _} -> :ok
+          {:error, :not_found} -> :ok
         end
-      end)
 
-    {:noreply, socket}
+        socket =
+          socket
+          |> load_snapshots()
+          |> then(fn socket ->
+            if socket.assigns.selected_id == id do
+              assign(socket, comparison: nil, selected_id: nil)
+            else
+              socket
+            end
+          end)
+
+        {:noreply, socket}
+    end
   end
 
   defp load_snapshots(socket) do
@@ -108,7 +121,14 @@ defmodule PortfolixirWeb.SnapshotsLive do
 
   defp parse_view_id(nil), do: nil
   defp parse_view_id(""), do: nil
-  defp parse_view_id(value) when is_binary(value), do: String.to_integer(value)
+  defp parse_view_id(value) when is_binary(value), do: parse_int(value)
+
+  defp parse_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} -> int
+      _ -> nil
+    end
+  end
 
   defp changeset_error(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->

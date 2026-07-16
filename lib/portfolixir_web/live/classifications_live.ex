@@ -778,7 +778,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # -- plan versions (ADR-0027) ----------------------------------------------
 
   def handle_event("select_soll_plan", %{"soll_plan" => value}, socket) do
-    {:noreply, socket |> assign(:soll_plan_id, String.to_integer(value)) |> load_soll()}
+    case Integer.parse(value) do
+      {plan_id, ""} -> {:noreply, socket |> assign(:soll_plan_id, plan_id) |> load_soll()}
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event("duplicate_soll_plan", _params, socket) do
@@ -852,7 +855,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
       # plan keeps the ADR-0020 scope semantics (Wealth page → actual-only).
       case socket.assigns.soll do
         %{editing_version?: true, plan: %{id: plan_id}} ->
-          {:ok, _} = Targets.delete_plan_version(Actor.owner_ui(), plan_id)
+          # Already deleted elsewhere (other tab, API, MCP) is not an error —
+          # the version is gone either way (review finding).
+          case Targets.delete_plan_version(Actor.owner_ui(), plan_id) do
+            {:ok, _} -> :ok
+            {:error, :not_found} -> :ok
+          end
 
         _ ->
           Targets.delete_plan(Actor.owner_ui(), portfolio_id, classification_id,
@@ -864,40 +872,6 @@ defmodule PortfolixirWeb.ClassificationsLive do
        socket |> assign(:soll_plan_id, nil) |> success(gettext("Plan deleted")) |> load_soll()}
     else
       _ -> {:noreply, socket}
-    end
-  end
-
-  # Writes into the picked plan version when one is loaded; with no plan yet
-  # (e.g. saving a copy-prefilled empty scope) the view-addressed write creates
-  # the scope's active plan on first save, as before ADR-0027.
-  defp save_soll_targets(socket, portfolio_id, classification_id, entries) do
-    case socket.assigns.soll do
-      %{plan: %{id: plan_id}} ->
-        Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
-          plan: plan_id
-        )
-
-      _ ->
-        Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
-          view: socket.assigns.soll_view_id
-        )
-    end
-  end
-
-  # The cash target belongs to the ACTIVE steering (the portfolio-wide cash
-  # plan of the view scope, ADR-0020) — editing a draft version leaves it
-  # untouched; the input is disabled there (ADR-0027 v1).
-  defp save_soll_cash_target(socket, portfolio_id, params) do
-    case socket.assigns.soll do
-      %{editing_version?: true} ->
-        :ok
-
-      _ ->
-        with {:ok, cash_weight} <- parse_percent_fraction(params["cash_target"]) do
-          Targets.set_cash_target(Actor.owner_ui(), portfolio_id, cash_weight,
-            view: socket.assigns.soll_view_id
-          )
-        end
     end
   end
 
@@ -967,6 +941,40 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
+  # Writes into the picked plan version when one is loaded; with no plan yet
+  # (e.g. saving a copy-prefilled empty scope) the view-addressed write creates
+  # the scope's active plan on first save, as before ADR-0027.
+  defp save_soll_targets(socket, portfolio_id, classification_id, entries) do
+    case socket.assigns.soll do
+      %{plan: %{id: plan_id}} ->
+        Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
+          plan: plan_id
+        )
+
+      _ ->
+        Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
+          view: socket.assigns.soll_view_id
+        )
+    end
+  end
+
+  # The cash target belongs to the ACTIVE steering (the portfolio-wide cash
+  # plan of the view scope, ADR-0020) — editing a draft version leaves it
+  # untouched; the input is disabled there (ADR-0027 v1).
+  defp save_soll_cash_target(socket, portfolio_id, params) do
+    case socket.assigns.soll do
+      %{editing_version?: true} ->
+        :ok
+
+      _ ->
+        with {:ok, cash_weight} <- parse_percent_fraction(params["cash_target"]) do
+          Targets.set_cash_target(Actor.owner_ui(), portfolio_id, cash_weight,
+            view: socket.assigns.soll_view_id
+          )
+        end
+    end
+  end
+
   # -- move / reclassify dispatch -------------------------------------------
 
   # Asset-class tree: a "move" edits each security's asset_class field; other
@@ -1026,10 +1034,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
     plans = Targets.list_plans(portfolio_id, classification_id: classification_id, view: view_id)
     active = Enum.find(plans, &(&1.status == "active"))
 
+    # With no active plan (e.g. the active version was deleted while drafts
+    # survive) fall back to the first version, so a lone draft stays reachable,
+    # editable and activatable instead of stranding (review finding).
     selected =
       case assigns[:soll_plan_id] do
-        nil -> active
-        plan_id -> Enum.find(plans, &(&1.id == plan_id)) || active
+        nil -> active || List.first(plans)
+        plan_id -> Enum.find(plans, &(&1.id == plan_id)) || active || List.first(plans)
       end
 
     editing_version? = selected != nil and selected.status != "active"
