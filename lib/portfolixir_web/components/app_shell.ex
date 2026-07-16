@@ -210,7 +210,8 @@ defmodule PortfolixirWeb.AppShell do
         href: "/portfolio?tab=allocation",
         current: current == :allocation
       },
-      %{label: gettext("Income"), href: "/income", current: current == :income}
+      %{label: gettext("Income"), href: "/income", current: current == :income},
+      %{label: gettext("Snapshots"), href: "/snapshots", current: current == :snapshots}
     ]
   end
 
