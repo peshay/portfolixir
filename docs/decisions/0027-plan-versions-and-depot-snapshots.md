@@ -6,7 +6,7 @@ description: Decision that target plans become named, versioned entities (active
 
 # ADR-0027: named plan versions and ledger-marker depot snapshots
 
-- **Status:** Proposed (decision gate per [ADR-0026](0026-epic-batch-workflow.html); owner sign-off pending)
+- **Status:** Accepted (owner sign-off 2026-07-16, decision gate per [ADR-0026](0026-epic-batch-workflow.html))
 - **Date:** 2026-07-16
 
 ## Context
