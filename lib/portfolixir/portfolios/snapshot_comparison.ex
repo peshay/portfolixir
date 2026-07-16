@@ -60,13 +60,10 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
       base = base_currency(portfolio_id)
       as_of = snapshot.as_of
 
-      {included, gaps} =
-        portfolio_id
-        |> frozen_quantities(as_of, scope)
-        |> split_by_valuability(as_of, base)
-
+      candidates = frozen_quantities(portfolio_id, as_of, scope)
+      fx = init_fx(candidates, base, as_of, today)
+      {included, gaps} = split_by_valuability(candidates, as_of, base, fx)
       pricing = init_pricing(included, as_of, today)
-      fx = init_fx(included, base, as_of, today)
 
       snapshot_series = walk(included, pricing, fx, base, as_of, today)
       real = real_side(portfolio_id, snapshot.view_id, as_of, today)
@@ -109,11 +106,16 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
   end
 
   # A position is valuable when it has a close on-or-before the as-of date AND
-  # an FX path into the base currency there. Anything else is a gap (AR-4).
-  defp split_by_valuability(positions, as_of, base) do
+  # the walk's own converter can reach the base currency with the FX rates
+  # seeded at the as-of date. The gate deliberately uses the SAME conversion
+  # path as the daily walk (review finding: an `Fx.rate/3`-based gate admitted
+  # same-currency positions the walk then zeroed out) — gate and walk cannot
+  # disagree by construction. Anything else is a gap (AR-4).
+  defp split_by_valuability(positions, as_of, base, fx_at_as_of) do
     {included, excluded} =
       Enum.split_with(positions, fn position ->
-        has_seed_quote?(position, as_of) and has_fx_path?(position.currency, base, as_of)
+        has_seed_quote?(position, as_of) and
+          convertible?(position.currency, base, fx_at_as_of)
       end)
 
     gaps =
@@ -132,8 +134,8 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
     match?(%{close: %Decimal{}}, Quotes.at_or_before(security_id, as_of))
   end
 
-  defp has_fx_path?(currency, base, as_of) do
-    match?({:ok, %Decimal{}}, Fx.rate(fx_currency(currency), fx_currency(base), as_of))
+  defp convertible?(currency, base, fx) do
+    not is_nil(to_base_or_nil(@one, currency, base, fx))
   end
 
   defp fx_currency("GBX"), do: "GBP"
@@ -244,14 +246,24 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
 
   # ECB semantics: a stored rate is "quote currency per 1 EUR" (ADR-0007), so
   # from → base is amount × (base_rate / from_rate), each leg via the hub.
+  # Excluded up front by split_by_valuability (which gates through the same
+  # to_base_or_nil path); a mid-series rate can only carry forward, so the
+  # zero fallback is unreachable for included positions.
   defp to_base(amount, currency, base, fx) do
+    to_base_or_nil(amount, currency, base, fx) || @zero
+  end
+
+  # Same-currency needs no stored rate — mirrors Fx.rate/3's from == to
+  # short-circuit, so e.g. a USD position in a USD-base portfolio values
+  # correctly even when no EUR hub rate was ever synced (review finding).
+  defp to_base_or_nil(amount, currency, base, _fx) when currency == base, do: amount
+
+  defp to_base_or_nil(amount, currency, base, fx) do
     with {:ok, from_rate} <- eur_rate(currency, fx),
          {:ok, to_rate} <- eur_rate(base, fx) do
       Decimal.mult(amount, Decimal.div(to_rate, from_rate))
     else
-      # Excluded up front by split_by_valuability; a mid-series rate can only
-      # carry forward, so this clause is unreachable for included positions.
-      _ -> @zero
+      _ -> nil
     end
   end
 

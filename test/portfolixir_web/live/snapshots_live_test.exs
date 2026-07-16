@@ -113,4 +113,25 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
     refute render(view) =~ "Old marker"
     assert Snapshots.list_snapshots() == []
   end
+
+  # Review finding: deleting a snapshot that vanished in another tab (or via
+  # API/MCP) crashed the LiveView through a {:ok, _} match on :not_found.
+  test "deleting an already-deleted snapshot does not crash", %{conn: conn} do
+    seeded_world()
+
+    {:ok, snapshot} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Racy", as_of: ~D[2026-02-15]})
+
+    {:ok, view, _html} = live(conn, "/snapshots")
+
+    {:ok, _} = Snapshots.delete_snapshot(Actor.owner_ui(), snapshot.id)
+
+    html =
+      view
+      |> element("button[phx-click=delete_snapshot][phx-value-id='#{snapshot.id}']")
+      |> render_click()
+
+    refute html =~ "Racy"
+    assert Snapshots.list_snapshots() == []
+  end
 end
