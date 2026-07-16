@@ -134,4 +134,28 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
     refute html =~ "Racy"
     assert Snapshots.list_snapshots() == []
   end
+
+  # Steve UAT finding: a failed create (duplicate name) used to collapse the
+  # details and swallow the error — the form now stays open with an associated
+  # error message.
+  test "a duplicate snapshot name keeps the form open with a visible error", %{conn: conn} do
+    seeded_world()
+
+    {:ok, _} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Twice", as_of: ~D[2026-02-15]})
+
+    {:ok, view, _html} = live(conn, "/snapshots")
+
+    html =
+      view
+      |> form("#snapshot-create-form", %{
+        "snapshot" => %{"name" => "Twice", "as_of" => "2026-03-01", "view_id" => ""}
+      })
+      |> render_submit()
+
+    assert html =~ ~s(id="snapshot-form-error")
+    assert html =~ "has already been taken"
+    assert has_element?(view, "details.snapshot-create[open]")
+    assert has_element?(view, "input[name='snapshot[name]'][aria-invalid='true']")
+  end
 end

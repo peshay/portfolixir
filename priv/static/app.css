@@ -5319,6 +5319,21 @@ button.income-bar-label.is-active {
 /* The create form hides behind a summary (UX-DR3); the comparison chart is
    colour-independent by line style — the snapshot series is solid, the real
    series dashed (UX-DR7) — and its data is also a table (UX-DR10). */
+/* A details grid-item defaults to min-width:auto, so a wide inner table
+   (mobile nowrap rules) silently widens and clips the WHOLE section under
+   .workspace-page's overflow-x clip. min-width:0 keeps the table scrolling
+   inside .table-scroll instead (design-review finding, verified at 390px). */
+.workspace-section > details {
+  min-width: 0;
+}
+/* Disabled inputs must read as disabled (design review): muted text on the
+   page background, not-allowed cursor. */
+input:disabled,
+select:disabled {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
 .snapshot-create {
   margin: var(--space-3) 0;
 }
@@ -5395,5 +5410,60 @@ button.income-bar-label.is-active {
   margin: var(--space-3) 0;
 }
 .soll-plan-versions .hint {
+  color: var(--color-text-muted);
+}
+.soll-plan-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.plan-rename summary {
+  cursor: pointer;
+  color: var(--color-accent);
+}
+.plan-rename form {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+/* Comfortable touch targets for the ADR-0027 controls (UX-DR6): the shared
+   button classes and the new summaries/selects get the 44px floor that the
+   other surfaces' coarse-pointer blocks already guarantee. */
+@media (pointer: coarse) {
+  .button,
+  .button-danger,
+  .button-primary,
+  .snapshot-create > summary,
+  .workspace-section > details > summary,
+  .soll-plan-versions select,
+  .plan-rename summary {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* Chart scale/date labels live in HTML beside the stretched SVG (text inside
+   a preserveAspectRatio:none viewBox would distort). */
+.snapshot-chart {
+  position: relative;
+}
+.snapshot-chart__scale {
+  position: absolute;
+  top: 0;
+  bottom: 46px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+.snapshot-chart__dates {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
   color: var(--color-text-muted);
 }
