@@ -545,11 +545,23 @@ defmodule Portfolixir.Ledger do
     end
   end
 
-  def positions_for_portfolio(portfolio_id) when is_integer(portfolio_id) do
+  @doc """
+  Held quantities per `{securities_account, security}` of one portfolio,
+  derived from the ledger (ADR-0004). Pass `as_of:` (a `%Date{}`) to project
+  only transactions up to that date — the historical position set a depot
+  snapshot marks (ADR-0027); omit it for the current holdings.
+  """
+  def positions_for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     portfolio_id
     |> list_transactions_for_portfolio()
+    |> filter_up_to(Keyword.get(opts, :as_of))
     |> Positions.calculate()
   end
+
+  defp filter_up_to(transactions, nil), do: transactions
+
+  defp filter_up_to(transactions, %Date{} = as_of),
+    do: Enum.filter(transactions, &(Date.compare(&1.date, as_of) != :gt))
 
   @doc """
   Currently held quantity per security, summed across every securities account
