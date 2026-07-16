@@ -175,3 +175,45 @@ defmodule Portfolixir.Portfolios.SnapshotComparisonTest do
     assert comparison.series == []
   end
 end
+
+# Regression tests from the ADR-0026 adversarial review round (2026-07-16).
+defmodule Portfolixir.Portfolios.SnapshotComparisonReviewTest do
+  use Portfolixir.DataCase, async: true
+
+  alias Portfolixir.Actor
+  alias Portfolixir.Portfolios.SnapshotComparison
+  alias Portfolixir.Portfolios.Snapshots
+  alias Portfolixir.WorldFixtures
+
+  # Review finding (HIGH): a position denominated in a non-EUR base currency
+  # passed the valuability gate (Fx.rate short-circuits from == to) but the
+  # walk's converter had no same-currency shortcut and zeroed it silently —
+  # the exact "silent zero" AR-4 forbids. Gate and walk now share one path.
+  test "values a same-currency position in a non-EUR-base portfolio without FX rates" do
+    world = WorldFixtures.base_world(name: "USD world", currency: "USD", cash_currency: "USD")
+
+    sec = WorldFixtures.create_security!(name: "US Stock", ticker: "USDS", currency: "USD")
+    WorldFixtures.deposit!(world, "10000", ~D[2026-01-02], currency: "USD")
+
+    WorldFixtures.buy!(world, sec,
+      quantity: "10",
+      price: "100",
+      date: ~D[2026-01-05],
+      currency: "USD"
+    )
+
+    WorldFixtures.put_quote!(sec, ~D[2026-02-14], "110")
+    WorldFixtures.put_quote!(sec, ~D[2026-03-10], "120")
+
+    {:ok, snapshot} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "USD marker", as_of: ~D[2026-02-15]})
+
+    {:ok, comparison} =
+      SnapshotComparison.for_snapshot(snapshot.id, world.portfolio.id, today: ~D[2026-03-10])
+
+    assert comparison.base_currency == "USD"
+    assert Decimal.equal?(comparison.as_of_value, Decimal.new("1100"))
+    assert Decimal.equal?(comparison.current_value, Decimal.new("1200"))
+    assert comparison.gaps.unvalued_securities == []
+  end
+end
