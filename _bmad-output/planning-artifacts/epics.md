@@ -207,6 +207,42 @@ FR-5 (XML import), FR-9 (benchmark), FR-12 (rebalancing), FR-17–21 (sync),
 FR-22–26 (product types, pensions, retirement). Each still needs its scope
 ADR + AGENTS.md amendment (and, for FR-22–26, a discovery story) before code.
 
+## Implementation Status — reconciled with code (2026-07-16)
+
+> Second additive reconciliation (the 2026-06-18 section above stays as the
+> historical record). Ground truth: `main` at #576 (buckets & views replace
+> portfolios in the UI, ADR-0024); 1122 tests + 6 properties, 0 failures.
+
+### Newly shipped since 2026-06-18 (status: DONE)
+
+- **E13 — Buckets & views (ADR-0018)**: complete, including the ADR-0024
+  follow-through that replaced portfolios as the user-facing grouping (#576)
+  and view-scoped performance boundary flows (ADR-0019).
+- **E15 — View-bound SOLL plans (ADR-0020)**: complete (`TargetPlan` with
+  `view_id`, Gesamt plan, per-view cash target).
+- **E14 — CSS consistency**: complete — raw-hex ratchet is at **0**, the 4px
+  spacing scale + heading ramp landed (UX-DR14), both guarded by invariant
+  meta-tests.
+- **E2 (partial → mostly done) — audit journal (ADR-0017)**: rollout now covers
+  Catalog/Fx, **Ledger, Portfolios, Imports**. Open slice: **Targets/Plans**
+  (noted in `TargetPlan`'s moduledoc) — rides with E16.
+- **E6 — LLM/MCP surface**: MCP data-maintenance writes (FR-14/#355) are
+  broadly shipped (securities/accounts/transactions/classifications/targets
+  create-update-delete), unblocked by the journal rollout above.
+- **E7 (partial)**: display-only rebalancing hints + drift drill-down
+  (ADR-0023); ADR-0021 PDF intake and ADR-0022 IA landed alongside.
+
+### Remaining genuine gaps (status: MISSING)
+
+- **FR-29 — backup/restore + PP-compatible export**: still no code. PM
+  recommendation 2026-07-16 (owner confirmation pending): keep `pg_dump` as
+  the operational backup (documented, docker-compose sidecar) and build the
+  application-level piece as the lossless PP-compatible export that
+  round-trips through the existing idempotent import (restore = re-import).
+- **E7 rest**: ranked both-direction cash guidance (needs its scope decision).
+- **E16 — plan versions & depot snapshots (ADR-0027)**: new, decision gate
+  written, owner sign-off pending.
+
 ## Epic List
 
 Epics are organized by the PRD's five phases plus cross-cutting concerns, ordered by the maintainer priority (#321): **data completeness & correctness first, LLM-first consumption second, UI/sync/modeling later.** Each epic's stories are the GitHub issues above.
@@ -228,6 +264,7 @@ Epics are organized by the PRD's five phases plus cross-cutting concerns, ordere
 | **E13 — Buckets & views (ADR-0018)** | — | now | #448 (#443–#447) |
 | **E14 — CSS consistency & design-system** | — | priority 3 | #451 (#449, #450) |
 | **E15 — View-bound SOLL plans (ADR-0020)** | 2 | next | #463 (#464–#468) |
+| **E16 — Plan versions & depot snapshots (ADR-0027)** | 2/5 bridge | next | ADR-0027 (decision gate; issues after sign-off) |
 
 ## Epic Detail
 
@@ -308,3 +345,29 @@ between them. Migration is loss-free (existing targets + cash target → the Ges
 plan). Tracked in **#463**; stories sequence #464 (data model + migration) → #465
 (engine) → #466 (API/MCP) → #467 (editor UI) → #468 (viewer UI + docs). Extends
 FR-11; API/MCP parity per AR-11.
+
+### Epic 16: Plan versions & depot snapshots (ADR-0027)
+From the owner design conversation 2026-07-16, recorded in **ADR-0027**
+(decision gate per ADR-0026 — owner sign-off pending). The owner's workflow:
+duplicate a target plan to restructure it while the old plan stays visible,
+freeze the depot state at the strategy change, and later compare real
+performance against "what if I had kept my old holdings?".
+
+Three decisions: (1) a **snapshot is a ledger marker** — name + view scope +
+as-of date, no copied data; holdings/cost basis derive by projecting the ledger
+up to the date (ADR-0004 makes snapshots near-free); (2) the **v1
+counterfactual is buy-and-hold** of the snapshot positions over real quote
+history, compared against the view's real TTWROR since the as-of date (TTWROR
+neutralises flows, so no fresh-money detection is needed; gross, price-return
+only — distributions are a labeled follow-up); (3) **plans become named,
+versioned entities** (active/draft/archived, duplicate-to-edit, at most one
+active plan per ADR-0020 scope; loss-free migration). Journal-arming for the
+Targets/Plans context (open ADR-0017 slice) rides in the same epic.
+
+Story cut (issues created after sign-off): plan versioning (data model +
+migration + journal arming) → snapshot entity (create/list/delete) → snapshot
+valuation engine (pure engine, AR-2) → comparison view (chart + table,
+UX-DR10/11) → API/MCP parity (AR-11) + docs. Deliberately NOT in scope:
+old-plan rebalancing simulation and fictitious trades — that is FR-27 (#332),
+which later layers scenario trades on a snapshot base (AR-8;
+`audit_journal.scenario_id` forward-index). Extends FR-11 toward FR-27.
