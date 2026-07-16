@@ -13,13 +13,14 @@ defmodule Portfolixir.Portfolios.TargetPlan do
   target (which was never classification-scoped); per-classification cash targets
   live on the plan for their own `classification_id`.
 
-  Uniqueness is enforced by the partial-NULL-aware index
-  `portfolio_target_plans_unique_index` (NULLS NOT DISTINCT): at most one plan per
-  `(portfolio_id, view_id, classification_id)`.
+  Since ADR-0027 a plan is a **named version** with a lifecycle `status`
+  (`active` / `draft` / `archived`). Uniqueness is enforced by the partial
+  NULLS-NOT-DISTINCT index `portfolio_target_plans_active_unique_index`: at most
+  one **active** plan per `(portfolio_id, view_id, classification_id)`; drafts
+  and archived plans coexist freely in the same scope (duplicate-to-edit).
 
-  Like `portfolio_targets`, plan writes are not yet journaled — the owning
-  Portfolios/Targets context is a later slice of the leaf-first audit-journal
-  rollout (ADR-0017).
+  Plan and target writes are journaled and guard-armed (ADR-0017): every write
+  goes through `Portfolixir.Portfolios.Targets` with an actor.
   """
 
   use Ecto.Schema
@@ -32,8 +33,12 @@ defmodule Portfolixir.Portfolios.TargetPlan do
 
   @type t :: %__MODULE__{}
 
+  @statuses ~w(active draft archived)
+
   schema "portfolio_target_plans" do
     field(:cash_target_weight, :decimal)
+    field(:name, :string, default: "Plan")
+    field(:status, :string, default: "active")
 
     belongs_to(:portfolio, Portfolio)
     belongs_to(:view, View)
@@ -44,16 +49,28 @@ defmodule Portfolixir.Portfolios.TargetPlan do
     timestamps()
   end
 
+  @doc "The allowed plan lifecycle statuses (ADR-0027)."
+  def statuses, do: @statuses
+
   def changeset(plan, attrs) do
     plan
-    |> cast(attrs, [:portfolio_id, :view_id, :classification_id, :cash_target_weight])
-    |> validate_required([:portfolio_id])
+    |> cast(attrs, [
+      :portfolio_id,
+      :view_id,
+      :classification_id,
+      :cash_target_weight,
+      :name,
+      :status
+    ])
+    |> validate_required([:portfolio_id, :name, :status])
+    |> validate_length(:name, max: 120)
+    |> validate_inclusion(:status, @statuses)
     |> validate_cash_target_weight()
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:view)
     |> assoc_constraint(:classification)
     |> unique_constraint([:portfolio_id, :view_id, :classification_id],
-      name: :portfolio_target_plans_unique_index
+      name: :portfolio_target_plans_active_unique_index
     )
   end
 

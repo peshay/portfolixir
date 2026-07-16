@@ -149,7 +149,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
       })
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"},
         %{"category_id" => tech.id, "target_weight" => "0.3"},
         %{"category_id" => emerging.id, "target_weight" => "0.2"}
@@ -361,7 +361,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     %{portfolio: portfolio, classification: classification, core: core} = setup_world()
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.7"}
       ])
 
@@ -478,12 +478,13 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks", include_all: true})
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.4"}
       ])
 
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         portfolio.id,
         classification.id,
         [%{"category_id" => core.id, "target_weight" => "0.9"}],
