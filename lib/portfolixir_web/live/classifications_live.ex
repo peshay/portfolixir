@@ -31,6 +31,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:portfolio, Portfolios.first_portfolio())
      |> assign(:views, Buckets.list_views())
      |> assign(:soll_view_id, nil)
+     |> assign(:soll_plan_id, nil)
      |> assign(:soll, nil)
      |> start_holdings()}
   end
@@ -508,6 +509,43 @@ defmodule PortfolixirWeb.ClassificationsLive do
         </form>
       </header>
 
+      <%!-- Plan versions (ADR-0027): pick the version to edit, duplicate the
+           current one into a draft, activate a draft. Only the active plan
+           steers the Wealth page; drafts are edited silently beside it. --%>
+      <%= if length(@soll.plans) > 0 do %>
+        <div class="soll-plan-versions">
+          <%= if length(@soll.plans) > 1 do %>
+            <form phx-change="select_soll_plan" class="soll-plan-picker" onsubmit="return false">
+              <label class="soll-view-picker__label" for="soll-plan-select">
+                <%= gettext("Plan version:") %>
+              </label>
+              <select id="soll-plan-select" name="soll_plan">
+                <%= for plan <- @soll.plans do %>
+                  <option value={plan.id} selected={@soll.plan && @soll.plan.id == plan.id}>
+                    <%= plan.name %> · <%= plan_status_label(plan.status) %>
+                  </option>
+                <% end %>
+              </select>
+            </form>
+          <% else %>
+            <span class="muted" data-role="soll-plan-name">
+              <%= @soll.plan && @soll.plan.name %>
+            </span>
+          <% end %>
+          <button type="button" class="button" phx-click="duplicate_soll_plan">
+            <%= gettext("Duplicate plan") %>
+          </button>
+          <%= if @soll.editing_version? do %>
+            <button type="button" class="button-primary" phx-click="activate_soll_plan">
+              <%= gettext("Activate this plan") %>
+            </button>
+            <span class="hint" data-role="soll-version-hint">
+              <%= gettext("Draft — the Wealth page keeps following the active plan until you activate it.") %>
+            </span>
+          <% end %>
+        </div>
+      <% end %>
+
       <%= if @soll.exists do %>
         <form id="soll-plan-form" phx-change="soll_sum" phx-submit="save_soll_plan">
           <table class="soll-table">
@@ -571,6 +609,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
                     max="100"
                     step="0.1"
                     inputmode="decimal"
+                    disabled={@soll.editing_version?}
+                    title={
+                      @soll.editing_version? &&
+                        gettext("The cash target stays with the active plan (v1)")
+                    }
                   />
                 </td>
               </tr>
@@ -725,7 +768,52 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # -- SOLL plan events ------------------------------------------------------
 
   def handle_event("select_soll_view", %{"soll_view" => value}, socket) do
-    {:noreply, socket |> assign(:soll_view_id, parse_soll_view(value)) |> load_soll()}
+    {:noreply,
+     socket
+     |> assign(:soll_view_id, parse_soll_view(value))
+     |> assign(:soll_plan_id, nil)
+     |> load_soll()}
+  end
+
+  # -- plan versions (ADR-0027) ----------------------------------------------
+
+  def handle_event("select_soll_plan", %{"soll_plan" => value}, socket) do
+    {:noreply, socket |> assign(:soll_plan_id, String.to_integer(value)) |> load_soll()}
+  end
+
+  def handle_event("duplicate_soll_plan", _params, socket) do
+    with %{plan: %{id: plan_id}} <- socket.assigns.soll,
+         {:ok, copy} <- Targets.duplicate_plan(Actor.owner_ui(), plan_id) do
+      {:noreply,
+       socket
+       |> assign(:soll_plan_id, copy.id)
+       |> success(gettext("Plan duplicated as draft"))
+       |> load_soll()}
+    else
+      _ -> {:noreply, failure(socket, gettext("Could not duplicate the plan"))}
+    end
+  end
+
+  def handle_event("activate_soll_plan", _params, socket) do
+    with %{plan: %{id: plan_id}} <- socket.assigns.soll,
+         {:ok, activated} <- Targets.activate_plan(Actor.owner_ui(), plan_id) do
+      {:noreply,
+       socket
+       |> assign(:soll_plan_id, activated.id)
+       |> success(gettext("Plan activated"))
+       |> load_soll()}
+    else
+      _ -> {:noreply, failure(socket, gettext("Could not activate the plan"))}
+    end
+  end
+
+  def handle_event("rename_soll_plan", %{"plan_name" => name}, socket) do
+    with %{plan: %{id: plan_id}} <- socket.assigns.soll,
+         {:ok, _} <- Targets.rename_plan(Actor.owner_ui(), plan_id, String.trim(name)) do
+      {:noreply, socket |> success(gettext("Plan renamed")) |> load_soll()}
+    else
+      _ -> {:noreply, failure(socket, gettext("Could not rename the plan"))}
+    end
   end
 
   def handle_event("create_soll_plan", _params, socket) do
@@ -751,15 +839,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
     with %{id: portfolio_id} <- socket.assigns.portfolio,
          classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
          {:ok, entries} <- parse_weight_entries(params["weights"]),
-         {:ok, cash_weight} <- parse_percent_fraction(params["cash_target"]),
-         {:ok, _} <-
-           Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
-             view: socket.assigns.soll_view_id
-           ),
-         :ok <-
-           Targets.set_cash_target(Actor.owner_ui(), portfolio_id, cash_weight,
-             view: socket.assigns.soll_view_id
-           ) do
+         {:ok, _} <- save_soll_targets(socket, portfolio_id, classification_id, entries),
+         :ok <- save_soll_cash_target(socket, portfolio_id, params) do
       {:noreply, socket |> success(gettext("Plan saved")) |> load_soll()}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -776,13 +857,56 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("delete_soll_plan", _params, socket) do
     with %{id: portfolio_id} <- socket.assigns.portfolio,
          classification_id when is_integer(classification_id) <- socket.assigns.selected_id do
-      Targets.delete_plan(Actor.owner_ui(), portfolio_id, classification_id,
-        view: socket.assigns.soll_view_id
-      )
+      # A non-active version deletes just that version (ADR-0027); the active
+      # plan keeps the ADR-0020 scope semantics (Wealth page → actual-only).
+      case socket.assigns.soll do
+        %{editing_version?: true, plan: %{id: plan_id}} ->
+          {:ok, _} = Targets.delete_plan_version(Actor.owner_ui(), plan_id)
 
-      {:noreply, socket |> success(gettext("Plan deleted")) |> load_soll()}
+        _ ->
+          Targets.delete_plan(Actor.owner_ui(), portfolio_id, classification_id,
+            view: socket.assigns.soll_view_id
+          )
+      end
+
+      {:noreply,
+       socket |> assign(:soll_plan_id, nil) |> success(gettext("Plan deleted")) |> load_soll()}
     else
       _ -> {:noreply, socket}
+    end
+  end
+
+  # Writes into the picked plan version when one is loaded; with no plan yet
+  # (e.g. saving a copy-prefilled empty scope) the view-addressed write creates
+  # the scope's active plan on first save, as before ADR-0027.
+  defp save_soll_targets(socket, portfolio_id, classification_id, entries) do
+    case socket.assigns.soll do
+      %{plan: %{id: plan_id}} ->
+        Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
+          plan: plan_id
+        )
+
+      _ ->
+        Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
+          view: socket.assigns.soll_view_id
+        )
+    end
+  end
+
+  # The cash target belongs to the ACTIVE steering (the portfolio-wide cash
+  # plan of the view scope, ADR-0020) — editing a draft version leaves it
+  # untouched; the input is disabled there (ADR-0027 v1).
+  defp save_soll_cash_target(socket, portfolio_id, params) do
+    case socket.assigns.soll do
+      %{editing_version?: true} ->
+        :ok
+
+      _ ->
+        with {:ok, cash_weight} <- parse_percent_fraction(params["cash_target"]) do
+          Targets.set_cash_target(Actor.owner_ui(), portfolio_id, cash_weight,
+            view: socket.assigns.soll_view_id
+          )
+        end
     end
   end
 
@@ -905,24 +1029,44 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp build_soll(portfolio_id, classification_id, view_id, assigns) do
-    exists? = Targets.plan_exists?(portfolio_id, classification_id, view: view_id)
+    # Plan versions (ADR-0027): the editor follows the scope's active plan by
+    # default; a picked version (soll_plan_id) is edited via plan-addressed
+    # reads/writes while the active plan keeps steering the SOLL surface.
+    plans = Targets.list_plans(portfolio_id, classification_id: classification_id, view: view_id)
+    active = Enum.find(plans, &(&1.status == "active"))
+
+    selected =
+      case assigns[:soll_plan_id] do
+        nil -> active
+        plan_id -> Enum.find(plans, &(&1.id == plan_id)) || active
+      end
+
+    editing_version? = selected != nil and selected.status != "active"
+    exists? = selected != nil
 
     weights =
       if exists? do
         portfolio_id
-        |> Targets.list_targets(classification_id: classification_id, view: view_id)
+        |> Targets.list_targets(classification_id: classification_id, plan: selected.id)
         |> Map.new(&{&1.category_id, fraction_to_percent(&1.target_weight)})
       else
         %{}
       end
 
     cash_target =
-      portfolio_id
-      |> Targets.get_cash_target(view: view_id)
-      |> fraction_to_percent_or_nil()
+      if editing_version? do
+        fraction_to_percent_or_nil(selected.cash_target_weight)
+      else
+        portfolio_id
+        |> Targets.get_cash_target(view: view_id)
+        |> fraction_to_percent_or_nil()
+      end
 
     soll = %{
       view_id: view_id,
+      plans: plans,
+      plan: selected,
+      editing_version?: editing_version?,
       exists: exists?,
       weights: weights,
       cash_target: cash_target,
@@ -1416,6 +1560,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # A percentage string ("60", "12.5", "" ) → a `Decimal` fraction in [0, 1], or
   # `nil` for blank. Returns `{:error, :invalid_weight}` for non-numbers.
+  defp plan_status_label("active"), do: gettext("active")
+  defp plan_status_label("draft"), do: gettext("draft")
+  defp plan_status_label(_status), do: gettext("archived")
+
   defp parse_percent_fraction(nil), do: {:ok, nil}
   defp parse_percent_fraction(""), do: {:ok, nil}
 
