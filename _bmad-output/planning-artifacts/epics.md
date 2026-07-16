@@ -241,7 +241,8 @@ ADR + AGENTS.md amendment (and, for FR-22–26, a discovery story) before code.
   round-trips through the existing idempotent import (restore = re-import).
 - **E7 rest**: ranked both-direction cash guidance (needs its scope decision).
 - **E16 — plan versions & depot snapshots (ADR-0027)**: new, decision gate
-  written, owner sign-off pending.
+  signed off by the owner 2026-07-16 — in implementation on
+  `agent/claude/plan-snapshots-adr`.
 
 ## Epic List
 
@@ -348,7 +349,8 @@ FR-11; API/MCP parity per AR-11.
 
 ### Epic 16: Plan versions & depot snapshots (ADR-0027)
 From the owner design conversation 2026-07-16, recorded in **ADR-0027**
-(decision gate per ADR-0026 — owner sign-off pending). The owner's workflow:
+(decision gate per ADR-0026 — signed off by the owner 2026-07-16). The owner's
+workflow:
 duplicate a target plan to restructure it while the old plan stays visible,
 freeze the depot state at the strategy change, and later compare real
 performance against "what if I had kept my old holdings?".
