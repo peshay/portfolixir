@@ -184,6 +184,12 @@
 html {
   min-height: 100%;
   background: var(--color-bg);
+  /* Disable mobile text inflation (Android Chrome font boosting, iOS Safari
+     auto-sizing): without this, wide blocks such as the allocation drift
+     table get their text inflated by a content-dependent amount, so rows
+     with long security names render bigger or smaller than their neighbours. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
