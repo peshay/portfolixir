@@ -140,4 +140,46 @@ defmodule PortfolixirWeb.ClassificationsPlanVersionsTest do
     html = view |> element("button[phx-click='delete_soll_plan']") |> render_click()
     assert html =~ "Plan deleted"
   end
+
+  # Steve UAT finding: the Σ check must not call a complete plan broken while
+  # a draft is selected — the cash row shows (and Σ counts) the view scope's
+  # ACTIVE steering cash, with a visible lock hint instead of a title tooltip.
+  test "a draft shows and counts the active steering cash target", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = plan_world()
+
+    :ok = Targets.set_cash_target(Actor.owner_ui(), portfolio.id, Decimal.new("0.2"))
+
+    [active] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), active.id, %{name: "Draft"})
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    view
+    |> element("form.soll-plan-picker")
+    |> render_change(%{"soll_plan" => "#{draft.id}"})
+
+    html = render(view)
+    assert html =~ ~s(id="soll-cash-target")
+    assert html =~ ~s(value="20")
+    assert has_element?(view, "#soll-cash-target[disabled]")
+    assert has_element?(view, "[data-role=soll-cash-lock-hint]")
+    # Σ counts weights (80) + active cash (20) = 100.
+    assert view |> element("[data-role=soll-sum]") |> render() =~ "100"
+  end
+
+  # Steve UAT finding: plans need renaming in the UI (drop the "(Entwurf)"
+  # suffix after activation, fix "(copy)" names).
+  test "renames the selected plan from the version row", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = plan_world()
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    view
+    |> form("details.plan-rename form", %{"plan_name" => "Plan 2026"})
+    |> render_submit()
+
+    [plan] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    assert plan.name == "Plan 2026"
+    assert render(view) =~ "Plan renamed"
+  end
 end

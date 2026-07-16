@@ -304,12 +304,15 @@ aktiven Plan. So baust du eine Strategie um, ohne den alten Plan zu verlieren:
   ein **Plan-Versions-Selektor**.
 - Einen **Entwurf** zu bearbeiten und zu speichern berührt den aktiven Plan
   nie — die Vermögensseite folgt weiter dem aktiven Plan, und ein Hinweis im
-  Editor sagt das auch. Das **Cash-Ziel**-Feld ist im Entwurfsmodus
-  deaktiviert: die Cash-Quote bleibt bis zum Wechsel bei der aktiven
-  Steuerung (v1).
+  Editor sagt das auch. Die **Cash-Ziel**-Zeile zeigt den aktiven
+  Steuerungswert (er zählt in die Σ-Prüfung), ist aber gesperrt, solange eine
+  Version bearbeitet wird — mit sichtbarem Hinweis: die Cash-Quote bleibt bis
+  zum Wechsel bei der aktiven Steuerung (v1).
 - **Diesen Plan aktivieren** schaltet den Entwurf scharf; der zuvor aktive
   Plan wird in derselben Transaktion archiviert — alter und neuer Plan bleiben
   nebeneinander einsehbar.
+- **Umbenennen** benennt die ausgewählte Version um — z. B. um nach der
+  Aktivierung ein „(Entwurf)"-Suffix loszuwerden.
 - **Plan löschen** entfernt bei einem Entwurf oder archivierten Plan nur diese
   Version; beim aktiven Plan behält es die ADR-0020-Bedeutung (der
   Geltungsbereich fällt auf nur IST zurück).
