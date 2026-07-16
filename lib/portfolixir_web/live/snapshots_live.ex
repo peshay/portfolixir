@@ -38,7 +38,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
           |> assign(:views, Buckets.list_views())
           |> assign(:comparison, nil)
           |> assign(:selected_id, nil)
-          |> assign(:form_error, nil)
+          |> assign(:form_errors, nil)
           |> load_snapshots()
 
         {:ok, socket}
@@ -57,14 +57,14 @@ defmodule PortfolixirWeb.SnapshotsLive do
       {:ok, snapshot} ->
         socket =
           socket
-          |> assign(:form_error, nil)
+          |> assign(:form_errors, nil)
           |> load_snapshots()
           |> select_snapshot(snapshot.id)
 
         {:noreply, socket}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, :form_error, changeset_error(changeset))}
+        {:noreply, assign(socket, :form_errors, changeset_errors(changeset))}
     end
   end
 
@@ -130,16 +130,26 @@ defmodule PortfolixirWeb.SnapshotsLive do
     end
   end
 
-  defp changeset_error(changeset) do
+  # Field -> messages map, so each input can carry aria-invalid and reference
+  # the error text (UX-DR13; a11y review finding).
+  defp changeset_errors(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
       Enum.reduce(opts, message, fn {key, value}, acc ->
         String.replace(acc, "%{#{key}}", to_string(value))
       end)
     end)
-    |> Enum.map_join("; ", fn {field, messages} ->
+  end
+
+  defp form_error_text(nil), do: nil
+
+  defp form_error_text(errors) do
+    Enum.map_join(errors, "; ", fn {field, messages} ->
       "#{field} #{Enum.join(messages, ", ")}"
     end)
   end
+
+  defp invalid?(nil, _field), do: false
+  defp invalid?(errors, field), do: Map.has_key?(errors, field)
 
   defp view_name(_views, nil), do: gettext("Everything")
 
@@ -211,6 +221,14 @@ defmodule PortfolixirWeb.SnapshotsLive do
     "#{Float.round((factor - 1.0) * 100, 1)}%"
   end
 
+  # The viewBox y of the ±0% level (factor 1.0), or nil when the whole series
+  # sits above/below it (no line beats a misleading one).
+  defp baseline_y(geometry) do
+    if geometry.min <= 1.0 and 1.0 <= geometry.max do
+      Float.round(200 - (1.0 - geometry.min) / geometry.span * 180, 2)
+    end
+  end
+
   # The table samples the daily series to weekly rows (plus the last day) so
   # the chart-as-table stays readable; the full daily data is the chart's.
   defp table_rows(series) do
@@ -258,16 +276,32 @@ defmodule PortfolixirWeb.SnapshotsLive do
             ) %>
           </p>
 
-          <details class="snapshot-create">
+          <%!-- Kept open while errors exist: a closed details would swallow
+               the error message after a failed submit (Steve UAT finding). --%>
+          <details class="snapshot-create" open={@form_errors != nil}>
             <summary><%= gettext("New snapshot") %></summary>
             <form id="snapshot-create-form" phx-submit="create_snapshot" class="snapshot-create__form">
               <label>
                 <%= gettext("Name") %>
-                <input type="text" name="snapshot[name]" required maxlength="120" />
+                <input
+                  type="text"
+                  name="snapshot[name]"
+                  required
+                  maxlength="120"
+                  aria-invalid={invalid?(@form_errors, :name) && "true"}
+                  aria-describedby={invalid?(@form_errors, :name) && "snapshot-form-error"}
+                />
               </label>
               <label>
                 <%= gettext("As of") %>
-                <input type="date" name="snapshot[as_of]" value={Date.to_iso8601(Date.utc_today())} required />
+                <input
+                  type="date"
+                  name="snapshot[as_of]"
+                  value={Date.to_iso8601(Date.utc_today())}
+                  required
+                  aria-invalid={invalid?(@form_errors, :as_of) && "true"}
+                  aria-describedby={invalid?(@form_errors, :as_of) && "snapshot-form-error"}
+                />
               </label>
               <label>
                 <%= gettext("Scope") %>
@@ -280,13 +314,16 @@ defmodule PortfolixirWeb.SnapshotsLive do
               </label>
               <button type="submit" class="button"><%= gettext("Freeze state") %></button>
             </form>
-            <p :if={@form_error} class="form-error" role="alert"><%= @form_error %></p>
+            <p :if={@form_errors} id="snapshot-form-error" class="form-error" role="alert">
+              <%= form_error_text(@form_errors) %>
+            </p>
           </details>
 
           <%= if @snapshots == [] do %>
             <p class="muted"><%= gettext("No snapshots yet.") %></p>
           <% else %>
-            <table class="drift-table" data-role="snapshot-list">
+            <div class="table-scroll">
+              <table class="drift-table" data-role="snapshot-list">
               <thead>
                 <tr>
                   <th scope="col"><%= gettext("Name") %></th>
@@ -323,7 +360,8 @@ defmodule PortfolixirWeb.SnapshotsLive do
                   </tr>
                 <% end %>
               </tbody>
-            </table>
+              </table>
+            </div>
           <% end %>
         </section>
 
@@ -340,7 +378,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
               ) %>
             </p>
 
-            <div class="grid" aria-label={gettext("Comparison key figures")}>
+            <div class="grid" role="group" aria-label={gettext("Comparison key figures")}>
               <article class="stat">
                 <span><%= gettext("Frozen value then") %></span>
                 <strong>
@@ -385,28 +423,57 @@ defmodule PortfolixirWeb.SnapshotsLive do
             <% geometry = chart_geometry(@comparison.series) %>
             <%= if geometry do %>
               <figure class="snapshot-chart">
+                <%!-- Min/max labels as HTML beside the SVG: text inside a
+                     preserveAspectRatio="none" viewBox would distort
+                     (design-review finding). --%>
+                <div class="snapshot-chart__scale" aria-hidden="true">
+                  <span><%= percent_label(geometry.max) %></span>
+                  <span><%= percent_label(geometry.min) %></span>
+                </div>
                 <svg
                   viewBox="0 0 640 220"
                   role="img"
-                  aria-label={gettext("Indexed development: snapshot buy-and-hold versus real performance")}
+                  aria-label={gettext("Change since the as-of date: snapshot buy-and-hold versus real performance")}
                   preserveAspectRatio="none"
                 >
-                  <line x1="40" y1="200" x2="620" y2="200" class="chart-axis" />
-                  <polyline points={polyline(geometry, :snapshot)} class="snapshot-series" fill="none" />
+                  <%!-- Reference line at the ±0% start level, not at the series
+                       minimum — the minimum floats when performance dips
+                       (design-review finding). --%>
+                  <%= if baseline_y = baseline_y(geometry) do %>
+                    <line
+                      x1="40"
+                      y1={baseline_y}
+                      x2="620"
+                      y2={baseline_y}
+                      class="chart-axis"
+                      vector-effect="non-scaling-stroke"
+                    />
+                  <% end %>
+                  <polyline
+                    points={polyline(geometry, :snapshot)}
+                    class="snapshot-series"
+                    fill="none"
+                    vector-effect="non-scaling-stroke"
+                  />
                   <polyline
                     points={polyline(geometry, :real)}
                     class="real-series"
                     fill="none"
                     stroke-dasharray="6 4"
+                    vector-effect="non-scaling-stroke"
                   />
                 </svg>
+                <div class="snapshot-chart__dates" aria-hidden="true">
+                  <span><%= Date.to_iso8601(@comparison.as_of) %></span>
+                  <span><%= Date.to_iso8601(@comparison.today) %></span>
+                </div>
                 <figcaption class="snapshot-chart__legend">
                   <span class="legend-swatch legend-swatch--solid" aria-hidden="true"></span>
                   <%= gettext("Snapshot (buy-and-hold)") %>
                   <span class="legend-swatch legend-swatch--dashed" aria-hidden="true"></span>
                   <%= gettext("Real (TTWROR)") %>
                   <span class="muted">
-                    <%= gettext("indexed to 100% on %{date}", date: Date.to_iso8601(@comparison.as_of)) %>
+                    <%= gettext("change since %{date}, in percent", date: Date.to_iso8601(@comparison.as_of)) %>
                   </span>
                 </figcaption>
               </figure>
@@ -419,8 +486,8 @@ defmodule PortfolixirWeb.SnapshotsLive do
                       <tr>
                         <th scope="col"><%= gettext("Date") %></th>
                         <th scope="col" class="num"><%= gettext("Snapshot value") %></th>
-                        <th scope="col" class="num"><%= gettext("Snapshot indexed") %></th>
-                        <th scope="col" class="num"><%= gettext("Real indexed") %></th>
+                        <th scope="col" class="num"><%= gettext("Snapshot return") %></th>
+                        <th scope="col" class="num"><%= gettext("Real return") %></th>
                       </tr>
                     </thead>
                     <tbody>
