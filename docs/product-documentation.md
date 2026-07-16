@@ -273,6 +273,29 @@ fractions in `[0, 1]`. Inputs are labelled and keyboard-focusable, and the same
 plan is equally reachable over the API/MCP target endpoints with a `view`
 parameter.
 
+### Plan versions: duplicate, draft, activate
+
+Since ADR-0027 a plan is a **named version** with a status — *active*, *draft*
+or *archived* — and a scope carries at most one active plan. This is how you
+restructure a strategy without losing the old plan:
+
+- **Duplicate plan** (*Plan duplizieren*) copies the current plan (category
+  weights and cash target) into a **draft**; the editor switches to it and a
+  **plan version picker** appears next to the view selector once a scope has
+  more than one version.
+- Editing and saving a **draft** never touches the active plan — the Wealth
+  page keeps following the active plan, and a hint in the editor says so. The
+  **cash target** input is disabled in draft mode: the cash quote stays with
+  the active steering until the switch (v1).
+- **Activate this plan** (*Diesen Plan aktivieren*) swaps the draft in; the
+  previously active plan is archived in the same transaction, so old and new
+  plan stay side by side for reference.
+- **Delete plan** on a draft or archived version removes just that version;
+  on the active plan it keeps its ADR-0020 meaning (the scope falls back to
+  actual-only).
+
+Every plan write is recorded in the audit journal.
+
 > **Migration note (ADR-0020).** The move to per-view plans is **loss-free**:
 > any target weights and the former portfolio-wide cash target you already had
 > become your **Gesamt** plan (`view = null`). Nothing changes in behaviour —
@@ -559,6 +582,38 @@ EUR hub at each booking date's stored rate (the same conversion the valuation
 uses); the original currency stays visible on each row. The report is also
 available over the API (`GET /api/v1/portfolios/:id/income`) and the
 `portfolixir.portfolios.income` MCP tool.
+
+## Snapshots (what if I had kept it?)
+
+The **Snapshots** tab of the Wealth area freezes "the holdings I have right
+now" as a named marker and later answers: **would I have done better keeping
+exactly those holdings?** Create a snapshot before restructuring a strategy,
+trade on, and come back to compare.
+
+A snapshot is a pure **ledger marker** — a name, a scope (a bucket view or
+*Everything*) and an as-of date. It copies **no** transactions, quantities or
+prices: the state it represents is derived from the transaction ledger on
+demand, so a snapshot can never drift from your data, and deleting one never
+touches a transaction. Names are unique per scope and the as-of date cannot
+lie in the future.
+
+**Compare** shows the counterfactual:
+
+- **Frozen value then / today** — the snapshot's position set valued at the
+  as-of date and valued today, buy-and-hold over the real stored quote history
+  (daily closes, EUR-hub exchange rates of each day).
+- **Snapshot return (price)** vs. **Real TTWROR since** — the frozen set's
+  price return against your real time-weighted performance since the as-of
+  date. TTWROR neutralises deposits and withdrawals, so fresh money does not
+  distort the comparison.
+- A chart with both series **indexed to 100%** on the as-of date (solid =
+  snapshot, dashed = real), and the same data as a table.
+
+The comparison is **gross and price-return only** in v1 — dividends the frozen
+positions would have paid are not yet included, and the page says so.
+Securities without a usable quote or exchange rate at the as-of date are
+**excluded and listed** rather than silently valued at zero. The same
+comparison is available over the [API and MCP](integration/api-and-mcp.html).
 
 ## Imports
 
