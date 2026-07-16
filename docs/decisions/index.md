@@ -55,3 +55,4 @@ already in force in the codebase.
 | [0024](0024-buckets-and-views-replace-portfolios-in-the-ui.html) | Buckets and views replace portfolios as the user-facing grouping | Accepted |
 | [0025](0025-automation-recipes-boundary.html) | Automation recipes — docs in the repo, broker scripts outside | Accepted |
 | [0026](0026-epic-batch-workflow.html) | Epic-batch workflow — humans review decisions and behavior | Accepted |
+| [0027](0027-plan-versions-and-depot-snapshots.html) | Named plan versions and ledger-marker depot snapshots | Proposed |
