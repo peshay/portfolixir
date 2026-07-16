@@ -341,16 +341,7 @@ defmodule Portfolixir.Portfolios.Targets do
         {:ok, plan}
       else
         Repo.transaction(fn ->
-          case get_active_plan(plan.portfolio_id, plan.classification_id, plan.view_id) do
-            nil ->
-              :ok
-
-            %TargetPlan{} = current ->
-              case journaled_update(actor, current, %{status: "archived"}, "target_plan") do
-                {:ok, _} -> :ok
-                {:error, changeset} -> Repo.rollback(changeset)
-              end
-          end
+          archive_current_active!(actor, plan)
 
           case journaled_update(actor, plan, %{status: "active"}, "target_plan") do
             {:ok, activated} -> activated
@@ -358,6 +349,21 @@ defmodule Portfolixir.Portfolios.Targets do
           end
         end)
       end
+    end
+  end
+
+  # Archives the scope's currently active plan (if any) inside the caller's
+  # activation transaction; a failed archive rolls the whole activation back.
+  defp archive_current_active!(actor, plan) do
+    case get_active_plan(plan.portfolio_id, plan.classification_id, plan.view_id) do
+      nil ->
+        :ok
+
+      %TargetPlan{} = current ->
+        case journaled_update(actor, current, %{status: "archived"}, "target_plan") do
+          {:ok, _} -> :ok
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
     end
   end
 
