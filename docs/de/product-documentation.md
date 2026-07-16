@@ -292,6 +292,30 @@ Brüche in `[0, 1]` gespeichert. Die Felder sind beschriftet und per Tastatur
 fokussierbar, und derselbe Plan ist über die API/MCP-Ziel-Endpunkte mit einem
 `view`-Parameter gleichermaßen erreichbar.
 
+### Plan-Versionen: duplizieren, Entwurf, aktivieren
+
+Seit ADR-0027 ist ein Plan eine **benannte Version** mit Status — *aktiv*,
+*Entwurf* oder *archiviert* — und je Geltungsbereich gibt es höchstens einen
+aktiven Plan. So baust du eine Strategie um, ohne den alten Plan zu verlieren:
+
+- **Plan duplizieren** kopiert den aktuellen Plan (Kategoriegewichte und
+  Cash-Ziel) in einen **Entwurf**; der Editor wechselt dorthin, und sobald ein
+  Geltungsbereich mehr als eine Version hat, erscheint neben dem Sicht-Selektor
+  ein **Plan-Versions-Selektor**.
+- Einen **Entwurf** zu bearbeiten und zu speichern berührt den aktiven Plan
+  nie — die Vermögensseite folgt weiter dem aktiven Plan, und ein Hinweis im
+  Editor sagt das auch. Das **Cash-Ziel**-Feld ist im Entwurfsmodus
+  deaktiviert: die Cash-Quote bleibt bis zum Wechsel bei der aktiven
+  Steuerung (v1).
+- **Diesen Plan aktivieren** schaltet den Entwurf scharf; der zuvor aktive
+  Plan wird in derselben Transaktion archiviert — alter und neuer Plan bleiben
+  nebeneinander einsehbar.
+- **Plan löschen** entfernt bei einem Entwurf oder archivierten Plan nur diese
+  Version; beim aktiven Plan behält es die ADR-0020-Bedeutung (der
+  Geltungsbereich fällt auf nur IST zurück).
+
+Jede Plan-Änderung wird im Audit-Journal festgehalten.
+
 > **Migrationshinweis (ADR-0020).** Der Wechsel zu Plänen je Sicht ist
 > **verlustfrei**: alle bereits vorhandenen Zielgewichte und das frühere
 > portfolioweite Cash-Ziel werden zu deinem **Gesamt**-Plan (`view = null`). Am
@@ -595,6 +619,43 @@ den EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums (dieselbe
 Umrechnung wie die Bewertung); die ursprüngliche Währung bleibt je Zeile sichtbar.
 Der Bericht ist auch über die API (`GET /api/v1/portfolios/:id/income`) und das
 MCP-Tool `portfolixir.portfolios.income` verfügbar.
+
+## Snapshots (was wäre, wenn ich es behalten hätte?)
+
+Der Reiter **Snapshots** im Vermögensbereich friert „die Bestände, die ich
+gerade habe" als benannten Marker ein und beantwortet später: **wäre ich besser
+gefahren, wenn ich genau diese Bestände behalten hätte?** Lege einen Snapshot
+an, bevor du eine Strategie umbaust, handle weiter, und komm zum Vergleich
+zurück.
+
+Ein Snapshot ist ein reiner **Ledger-Marker** — ein Name, ein Geltungsbereich
+(eine Bucket-Sicht oder *Alles*) und ein Stichtag. Er kopiert **keine**
+Transaktionen, Stückzahlen oder Kurse: der Zustand, den er repräsentiert, wird
+bei Bedarf aus dem Transaktions-Ledger abgeleitet. Ein Snapshot kann also nie
+von deinen Daten abweichen, und ihn zu löschen berührt nie eine Transaktion.
+Namen sind je Geltungsbereich eindeutig; der Stichtag darf nicht in der
+Zukunft liegen.
+
+**Vergleichen** zeigt das Kontrafaktual:
+
+- **Eingefrorener Wert damals / heute** — die Positionen des Snapshots zum
+  Stichtag und heute bewertet, buy-and-hold über die echte gespeicherte
+  Kurshistorie (tägliche Schlusskurse, EUR-Hub-Wechselkurse des jeweiligen
+  Tags).
+- **Snapshot-Rendite (Kurs)** gegen **Echte TTWROR seitdem** — die
+  Kursrendite des eingefrorenen Bestands gegen deine echte zeitgewichtete
+  Performance seit dem Stichtag. TTWROR neutralisiert Ein- und Auszahlungen,
+  frisches Geld verzerrt den Vergleich also nicht.
+- Ein Chart mit beiden Serien, **indexiert auf 100 %** am Stichtag
+  (durchgezogen = Snapshot, gestrichelt = echt), und dieselben Daten als
+  Tabelle.
+
+Der Vergleich ist in v1 **brutto und nur Kursentwicklung** — Ausschüttungen,
+die die eingefrorenen Positionen gezahlt hätten, sind noch nicht enthalten;
+die Seite sagt das auch. Wertpapiere ohne verwendbaren Kurs oder Wechselkurs
+zum Stichtag werden **ausgeschlossen und aufgeführt**, statt still mit null
+bewertet zu werden. Derselbe Vergleich steht über die
+[API und MCP](../integration/api-and-mcp.html) bereit.
 
 ## Imports
 

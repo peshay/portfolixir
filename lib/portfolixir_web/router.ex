@@ -88,6 +88,24 @@ defmodule PortfolixirWeb.Router do
     get("/portfolios/:portfolio_id/cash_target", TargetController, :show_cash_target)
     put("/portfolios/:portfolio_id/cash_target", TargetController, :set_cash_target)
 
+    # Plan versions (ADR-0027): named SOLL plan versions per scope.
+    get("/portfolios/:portfolio_id/plans", PlanController, :index)
+    post("/plans/:id/duplicate", PlanController, :duplicate)
+    post("/plans/:id/activate", PlanController, :activate)
+    patch("/plans/:id", PlanController, :rename)
+    delete("/plans/:id", PlanController, :delete)
+
+    # Depot snapshots + counterfactual comparison (ADR-0027).
+    get("/snapshots", SnapshotController, :index)
+    post("/snapshots", SnapshotController, :create)
+    delete("/snapshots/:id", SnapshotController, :delete)
+
+    get(
+      "/portfolios/:portfolio_id/snapshots/:id/comparison",
+      SnapshotController,
+      :comparison
+    )
+
     get("/exchange_rates", ExchangeRateController, :index)
     post("/exchange_rates/sync", ExchangeRateController, :sync)
 

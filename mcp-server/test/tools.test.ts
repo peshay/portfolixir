@@ -77,7 +77,16 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.securities_accounts.set_position_buckets",
       "portfolixir.securities_accounts.clear_position_buckets",
       "portfolixir.settings.get_default_view",
-      "portfolixir.settings.set_default_view"
+      "portfolixir.settings.set_default_view",
+      "portfolixir.plans.list",
+      "portfolixir.plans.duplicate",
+      "portfolixir.plans.activate",
+      "portfolixir.plans.rename",
+      "portfolixir.plans.delete",
+      "portfolixir.snapshots.list",
+      "portfolixir.snapshots.create",
+      "portfolixir.snapshots.delete",
+      "portfolixir.snapshots.comparison"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -214,6 +223,49 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].token, "Bearer api-token");
     assert.deepEqual(result.structuredContent, { data: [{ id: 7, name: "Synthetic" }] });
     assert.match(result.content[0].text, /Synthetic/);
+  });
+
+  // User story (Andi, 2026-07-16, ADR-0027): plan versions and depot
+  // snapshots are operable by an agent at API parity (FR-14, AR-11) — the
+  // restructuring workflow (duplicate plan, freeze state, compare later)
+  // never requires the UI.
+  it("routes plan-version tools to the plans API", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { id: 12, name: "Plan 2027", status: "draft" }
+    });
+
+    await callTool(client, "portfolixir.plans.duplicate", { plan_id: 4, name: "Plan 2027" });
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/plans/4/duplicate");
+    assert.deepEqual(requests[0].body, { name: "Plan 2027" });
+
+    await callTool(client, "portfolixir.plans.activate", { plan_id: 12 });
+    assert.equal(requests[1].method, "POST");
+    assert.equal(requests[1].path, "/api/v1/plans/12/activate");
+  });
+
+  it("routes snapshot tools to the snapshots API with decimal-string output", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { id: 3, name: "Before restructuring", as_of: "2026-02-15", view_id: null }
+    });
+
+    await callTool(client, "portfolixir.snapshots.create", {
+      name: "Before restructuring",
+      as_of: "2026-02-15"
+    });
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/snapshots");
+
+    await callTool(client, "portfolixir.snapshots.comparison", {
+      portfolio_id: 1,
+      snapshot_id: 3
+    });
+    assert.equal(requests[1].method, "GET");
+    assert.equal(requests[1].path, "/api/v1/portfolios/1/snapshots/3/comparison");
+
+    const tools = listTools();
+    const comparison = tools.find((tool) => tool.name === "portfolixir.snapshots.comparison");
+    assert.ok(comparison?.description.includes("string"));
   });
 
   it("issues a GET to /trades for portfolixir.trades.list", async () => {

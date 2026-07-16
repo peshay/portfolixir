@@ -1025,6 +1025,110 @@ const journalListZ = z.object({
   limit: z.number().int().min(1).optional()
 });
 
+// Plan versions & depot snapshots (ADR-0027).
+const plansListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    classification_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const plansListZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  classification_id: z.number().int().positive().optional()
+});
+
+const planIdSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["plan_id"],
+  properties: { plan_id: { type: "integer", minimum: 1 } }
+};
+
+const planIdZ = z.object({ plan_id: z.number().int().positive() });
+
+const planDuplicateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["plan_id"],
+  properties: {
+    plan_id: { type: "integer", minimum: 1 },
+    name: { type: "string", minLength: 1, maxLength: 120 }
+  }
+};
+
+const planDuplicateZ = z.object({
+  plan_id: z.number().int().positive(),
+  name: z.string().min(1).max(120).optional()
+});
+
+const planRenameSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["plan_id", "name"],
+  properties: {
+    plan_id: { type: "integer", minimum: 1 },
+    name: { type: "string", minLength: 1, maxLength: 120 }
+  }
+};
+
+const planRenameZ = z.object({
+  plan_id: z.number().int().positive(),
+  name: z.string().min(1).max(120)
+});
+
+const snapshotsListSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {}
+};
+
+const snapshotsListZ = z.object({});
+
+const snapshotCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "as_of"],
+  properties: {
+    name: { type: "string", minLength: 1, maxLength: 120 },
+    as_of: { type: "string", description: "ISO date (YYYY-MM-DD), not in the future" },
+    view_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const snapshotCreateZ = z.object({
+  name: z.string().min(1).max(120),
+  as_of: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  view_id: z.number().int().positive().optional()
+});
+
+const snapshotIdSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["snapshot_id"],
+  properties: { snapshot_id: { type: "integer", minimum: 1 } }
+};
+
+const snapshotIdZ = z.object({ snapshot_id: z.number().int().positive() });
+
+const snapshotComparisonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id", "snapshot_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    snapshot_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const snapshotComparisonZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  snapshot_id: z.number().int().positive()
+});
+
 const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.list", "List securities", "List local securities. Use limit/offset to page large catalogs and keep responses small.", {
     type: "object",
@@ -1398,6 +1502,69 @@ const toolDefinitions: ToolDefinition[] = [
     "Set the user's default view preference (ADR-0024). Pass a view id to make it the default scope of the Wealth page and dashboard; pass null (or omit view_id) to clear back to the built-in Everything scope. An unknown view id is rejected with 404.",
     defaultViewSchema,
     defaultViewZ
+  ),
+  tool(
+    "portfolixir.plans.list",
+    "List plan versions",
+    "List a portfolio's SOLL plan versions (ADR-0027): active first, then drafts and archived plans, each with name, status, scope (view_id, classification_id) and the cash target weight as a string fraction. Optional classification_id scopes to one tree. Use this before duplicating or activating a plan.",
+    plansListSchema,
+    plansListZ
+  ),
+  tool(
+    "portfolixir.plans.duplicate",
+    "Duplicate a plan into a draft",
+    "Copy a plan version (its category target weights and cash target) into a new DRAFT of the same scope. Optional name (default: '<source> (copy)'). The active plan keeps steering the allocation until the draft is activated - use this to prepare a restructured plan next to the current one.",
+    planDuplicateSchema,
+    planDuplicateZ
+  ),
+  tool(
+    "portfolixir.plans.activate",
+    "Activate a plan version",
+    "Make a draft or archived plan version the ACTIVE plan of its scope; the previously active plan is archived in the same transaction, so a scope always has at most one active plan. Activating the already-active plan is a no-op.",
+    planIdSchema,
+    planIdZ
+  ),
+  tool(
+    "portfolixir.plans.rename",
+    "Rename a plan version",
+    "Rename one plan version (any status). Names are free text up to 120 characters.",
+    planRenameSchema,
+    planRenameZ
+  ),
+  tool(
+    "portfolixir.plans.delete",
+    "Delete a plan version",
+    "Delete one plan version by id (any status) including its category targets - the cleanup path for drafts and archived plans. Deleting the active plan leaves its scope without a plan (the allocation falls back to actual-only).",
+    planIdSchema,
+    planIdZ
+  ),
+  tool(
+    "portfolixir.snapshots.list",
+    "List depot snapshots",
+    "List depot snapshot markers (ADR-0027): each is a name, a view scope (view_id null = everything) and an as-of date. A snapshot copies no data - the holdings it represents derive from the transaction ledger on demand.",
+    snapshotsListSchema,
+    snapshotsListZ
+  ),
+  tool(
+    "portfolixir.snapshots.create",
+    "Create a depot snapshot",
+    "Freeze 'the holdings of a scope as of a date' as a named marker (no data copied; the ledger stays the single source). as_of is an ISO date not in the future; names are unique per scope. Create one before restructuring a strategy, then compare later with portfolixir.snapshots.comparison.",
+    snapshotCreateSchema,
+    snapshotCreateZ
+  ),
+  tool(
+    "portfolixir.snapshots.delete",
+    "Delete a depot snapshot",
+    "Delete one snapshot marker. No transactions or holdings are affected - the marker only referenced them.",
+    snapshotIdSchema,
+    snapshotIdZ
+  ),
+  tool(
+    "portfolixir.snapshots.comparison",
+    "Snapshot counterfactual comparison",
+    "Answer 'would I have done better keeping what I had?': values the snapshot's frozen holdings buy-and-hold over the real stored quote history (daily, EUR-hub FX) and compares against the scope's real TTWROR since the as-of date. Gross, price-return only (v1); all financial values are Decimal strings; the response is self-describing (basis, base_currency) and lists securities excluded for missing quotes/FX under gaps.",
+    snapshotComparisonSchema,
+    snapshotComparisonZ
   )
 ];
 
@@ -1693,6 +1860,38 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("PUT", "/api/v1/settings/default_view", {
         view_id: args.view_id ?? null
       });
+    case "portfolixir.plans.list":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/plans`, args, ["classification_id"])
+      );
+    case "portfolixir.plans.duplicate":
+      return client.request(
+        "POST",
+        `/api/v1/plans/${args.plan_id}/duplicate`,
+        args.name !== undefined ? { name: args.name } : {}
+      );
+    case "portfolixir.plans.activate":
+      return client.request("POST", `/api/v1/plans/${args.plan_id}/activate`, {});
+    case "portfolixir.plans.rename":
+      return client.request("PATCH", `/api/v1/plans/${args.plan_id}`, { name: args.name });
+    case "portfolixir.plans.delete":
+      return client.request("DELETE", `/api/v1/plans/${args.plan_id}`);
+    case "portfolixir.snapshots.list":
+      return client.request("GET", "/api/v1/snapshots");
+    case "portfolixir.snapshots.create":
+      return client.request("POST", "/api/v1/snapshots", {
+        name: args.name,
+        as_of: args.as_of,
+        ...(args.view_id !== undefined ? { view_id: args.view_id } : {})
+      });
+    case "portfolixir.snapshots.delete":
+      return client.request("DELETE", `/api/v1/snapshots/${args.snapshot_id}`);
+    case "portfolixir.snapshots.comparison":
+      return client.request(
+        "GET",
+        `/api/v1/portfolios/${args.portfolio_id}/snapshots/${args.snapshot_id}/comparison`
+      );
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);
   }
