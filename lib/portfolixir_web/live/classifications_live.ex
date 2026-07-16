@@ -807,15 +807,6 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  def handle_event("rename_soll_plan", %{"plan_name" => name}, socket) do
-    with %{plan: %{id: plan_id}} <- socket.assigns.soll,
-         {:ok, _} <- Targets.rename_plan(Actor.owner_ui(), plan_id, String.trim(name)) do
-      {:noreply, socket |> success(gettext("Plan renamed")) |> load_soll()}
-    else
-      _ -> {:noreply, failure(socket, gettext("Could not rename the plan"))}
-    end
-  end
-
   def handle_event("create_soll_plan", _params, socket) do
     with %{id: portfolio_id} <- socket.assigns.portfolio,
          classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
