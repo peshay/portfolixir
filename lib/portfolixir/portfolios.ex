@@ -107,8 +107,8 @@ defmodule Portfolixir.Portfolios do
   Creates a portfolio on behalf of `actor` (FR-28). The `portfolios` row and its
   audit-journal entry commit in one transaction (ADR-0017); the table is
   guard-armed, so this is the only sanctioned create path. The virtual
-  cash-target weight is persisted separately to its own (un-armed) target table,
-  mirroring the prior behavior.
+  cash-target weight is persisted separately to the (journal-armed) plan table
+  under the same actor, mirroring the prior behavior.
   """
   def create_portfolio(%Actor{} = actor, attrs) when is_map(attrs) do
     Multi.new()
@@ -116,7 +116,7 @@ defmodule Portfolixir.Portfolios do
     |> Journal.record(actor, resource_type: "portfolio", operation: :create, source: :portfolio)
     |> Repo.transaction()
     |> portfolio_write_result()
-    |> persist_cash_target()
+    |> persist_cash_target(actor)
   end
 
   @doc """
@@ -134,7 +134,7 @@ defmodule Portfolixir.Portfolios do
     )
     |> Repo.transaction()
     |> portfolio_write_result()
-    |> persist_cash_target()
+    |> persist_cash_target(actor)
   end
 
   defp portfolio_write_result({:ok, %{portfolio: portfolio}}), do: {:ok, portfolio}
@@ -162,8 +162,8 @@ defmodule Portfolixir.Portfolios do
   Returns `{:ok, %Portfolio{}}` or `{:error, %Ecto.Changeset{}}` (a weight out
   of range).
   """
-  def set_cash_target(%Portfolio{} = portfolio, weight) do
-    case Targets.set_cash_target(portfolio.id, weight) do
+  def set_cash_target(%Actor{} = actor, %Portfolio{} = portfolio, weight) do
+    case Targets.set_cash_target(actor, portfolio.id, weight) do
       :ok -> {:ok, %{portfolio | cash_target_weight: weight}}
       {:error, changeset} -> {:error, changeset}
     end
@@ -180,13 +180,13 @@ defmodule Portfolixir.Portfolios do
   # Write-through: after a portfolio write, persist the virtual cash target onto
   # the Gesamt cash plan when the changeset carried one (it casts and validates a
   # `[0, 1]` fraction). A nil weight clears the steered quote.
-  defp persist_cash_target({:ok, %Portfolio{} = portfolio}) do
+  defp persist_cash_target({:ok, %Portfolio{} = portfolio}, %Actor{} = actor) do
     weight = portfolio.cash_target_weight
-    :ok = Targets.set_cash_target(portfolio.id, weight)
+    :ok = Targets.set_cash_target(actor, portfolio.id, weight)
     {:ok, %{portfolio | cash_target_weight: weight}}
   end
 
-  defp persist_cash_target(other), do: other
+  defp persist_cash_target(other, _actor), do: other
 
   def list_cash_accounts do
     Repo.all(from(account in CashAccount, order_by: [asc: account.name, asc: account.id]))

@@ -63,10 +63,16 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
     %{portfolio: p, classification: c, core: core, view: view} = setup_world()
 
     {:ok, _} =
-      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "0.6"}])
+      Targets.set_targets(Actor.owner_ui(), p.id, c.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"}
+      ])
 
     {:ok, _} =
-      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "0.3"}],
+      Targets.set_targets(
+        Actor.owner_ui(),
+        p.id,
+        c.id,
+        [%{"category_id" => core.id, "target_weight" => "0.3"}],
         view: view
       )
 
@@ -86,12 +92,17 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
     {:ok, other_view} = Buckets.create_view(Actor.owner_ui(), %{name: "Crypto"})
 
     {:ok, _} =
-      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "1.0"}],
+      Targets.set_targets(
+        Actor.owner_ui(),
+        p.id,
+        c.id,
+        [%{"category_id" => core.id, "target_weight" => "1.0"}],
         view: view
       )
 
     {:ok, _} =
       Targets.set_targets(
+        Actor.owner_ui(),
         p.id,
         c.id,
         [%{"category_id" => satellite.id, "target_weight" => "1.0"}],
@@ -112,10 +123,16 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
     %{portfolio: p, classification: c, core: core, view: view} = setup_world()
 
     {:ok, _} =
-      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "0.6"}])
+      Targets.set_targets(Actor.owner_ui(), p.id, c.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"}
+      ])
 
     {:ok, _} =
-      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "0.3"}],
+      Targets.set_targets(
+        Actor.owner_ui(),
+        p.id,
+        c.id,
+        [%{"category_id" => core.id, "target_weight" => "0.3"}],
         view: view
       )
 
@@ -138,7 +155,7 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
     refute Targets.plan_exists?(p.id, c.id, view: view)
 
     # Creating an empty plan (no category targets) materialises a plan row.
-    {:ok, _plan} = Targets.ensure_plan(p.id, c.id, view: view)
+    {:ok, _plan} = Targets.ensure_plan(Actor.owner_ui(), p.id, c.id, view: view)
 
     assert Targets.plan_exists?(p.id, c.id, view: view)
     assert Targets.list_targets(p.id, view: view) == []
@@ -151,14 +168,20 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
     %{portfolio: p, classification: c, core: core, view: view} = setup_world()
 
     {:ok, _} =
-      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "0.6"}])
+      Targets.set_targets(Actor.owner_ui(), p.id, c.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"}
+      ])
 
     {:ok, _} =
-      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "0.3"}],
+      Targets.set_targets(
+        Actor.owner_ui(),
+        p.id,
+        c.id,
+        [%{"category_id" => core.id, "target_weight" => "0.3"}],
         view: view
       )
 
-    assert {:ok, 1} = Targets.delete_target(p.id, core.id, view: view)
+    assert {:ok, 1} = Targets.delete_target(Actor.owner_ui(), p.id, core.id, view: view)
 
     # The view's target is gone; the Gesamt one remains.
     assert Targets.list_targets(p.id, view: view) == []
@@ -170,7 +193,11 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
 
     # Write addressing the view by its integer id; read it back by the struct.
     {:ok, _} =
-      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "0.25"}],
+      Targets.set_targets(
+        Actor.owner_ui(),
+        p.id,
+        c.id,
+        [%{"category_id" => core.id, "target_weight" => "0.25"}],
         view: view.id
       )
 
@@ -184,7 +211,9 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
     %{portfolio: p, classification: c, core: core, view: view} = setup_world()
 
     {:ok, _} =
-      Targets.set_targets(p.id, c.id, [%{"category_id" => core.id, "target_weight" => "0.6"}])
+      Targets.set_targets(Actor.owner_ui(), p.id, c.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"}
+      ])
 
     assert %{target_weight: gesamt_w} = Targets.get_target(p.id, core.id)
     assert Decimal.equal?(gesamt_w, Decimal.new("0.6"))
@@ -206,15 +235,18 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
   test "cash target lives on the plan, per view" do
     %{portfolio: p, classification: c, view: view} = setup_world()
 
-    :ok = Targets.set_cash_target(p.id, Decimal.new("0.05"))
-    :ok = Targets.set_cash_target(p.id, Decimal.new("0.10"), view: view)
+    :ok = Targets.set_cash_target(Actor.owner_ui(), p.id, Decimal.new("0.05"))
+    :ok = Targets.set_cash_target(Actor.owner_ui(), p.id, Decimal.new("0.10"), view: view)
 
     assert Decimal.equal?(Targets.get_cash_target(p.id), Decimal.new("0.05"))
     assert Decimal.equal?(Targets.get_cash_target(p.id, view: view), Decimal.new("0.10"))
 
     # Per-classification override on the Gesamt plan is independent of the
     # portfolio-wide cash target.
-    :ok = Targets.set_cash_target(p.id, Decimal.new("0.07"), classification_id: c.id)
+    :ok =
+      Targets.set_cash_target(Actor.owner_ui(), p.id, Decimal.new("0.07"),
+        classification_id: c.id
+      )
 
     assert Decimal.equal?(
              Targets.get_cash_target(p.id, classification_id: c.id),

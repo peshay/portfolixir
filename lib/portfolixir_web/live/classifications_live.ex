@@ -732,7 +732,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
     with %{id: portfolio_id} <- socket.assigns.portfolio,
          classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
          {:ok, _plan} <-
-           Targets.ensure_plan(portfolio_id, classification_id, view: socket.assigns.soll_view_id) do
+           Targets.ensure_plan(Actor.owner_ui(), portfolio_id, classification_id,
+             view: socket.assigns.soll_view_id
+           ) do
       {:noreply, socket |> success(gettext("Plan created")) |> load_soll()}
     else
       _ -> {:noreply, failure(socket, gettext("Could not create the plan"))}
@@ -751,11 +753,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
          {:ok, entries} <- parse_weight_entries(params["weights"]),
          {:ok, cash_weight} <- parse_percent_fraction(params["cash_target"]),
          {:ok, _} <-
-           Targets.set_targets(portfolio_id, classification_id, entries,
+           Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
              view: socket.assigns.soll_view_id
            ),
          :ok <-
-           Targets.set_cash_target(portfolio_id, cash_weight, view: socket.assigns.soll_view_id) do
+           Targets.set_cash_target(Actor.owner_ui(), portfolio_id, cash_weight,
+             view: socket.assigns.soll_view_id
+           ) do
       {:noreply, socket |> success(gettext("Plan saved")) |> load_soll()}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -772,7 +776,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("delete_soll_plan", _params, socket) do
     with %{id: portfolio_id} <- socket.assigns.portfolio,
          classification_id when is_integer(classification_id) <- socket.assigns.selected_id do
-      Targets.delete_plan(portfolio_id, classification_id, view: socket.assigns.soll_view_id)
+      Targets.delete_plan(Actor.owner_ui(), portfolio_id, classification_id,
+        view: socket.assigns.soll_view_id
+      )
+
       {:noreply, socket |> success(gettext("Plan deleted")) |> load_soll()}
     else
       _ -> {:noreply, socket}
