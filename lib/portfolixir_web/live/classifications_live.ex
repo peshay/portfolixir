@@ -535,12 +535,29 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <button type="button" class="button" phx-click="duplicate_soll_plan">
             <%= gettext("Duplicate plan") %>
           </button>
+          <%= if @soll.plan do %>
+            <details class="plan-rename">
+              <summary><%= gettext("Rename") %></summary>
+              <form phx-submit="rename_soll_plan">
+                <label class="sr-only" for="plan-rename-input"><%= gettext("New plan name") %></label>
+                <input
+                  id="plan-rename-input"
+                  type="text"
+                  name="plan_name"
+                  value={@soll.plan.name}
+                  maxlength="120"
+                  required
+                />
+                <button type="submit" class="button"><%= gettext("Save name") %></button>
+              </form>
+            </details>
+          <% end %>
           <%= if @soll.editing_version? do %>
             <button type="button" class="button-primary" phx-click="activate_soll_plan">
               <%= gettext("Activate this plan") %>
             </button>
             <span class="hint" data-role="soll-version-hint">
-              <%= gettext("Draft — the Wealth page keeps following the active plan until you activate it.") %>
+              <%= version_hint(@soll.plan.status) %>
             </span>
           <% end %>
         </div>
@@ -610,11 +627,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
                     step="0.1"
                     inputmode="decimal"
                     disabled={@soll.editing_version?}
-                    title={
-                      @soll.editing_version? &&
-                        gettext("The cash target stays with the active plan (v1)")
-                    }
+                    aria-describedby={@soll.editing_version? && "soll-cash-lock-hint"}
                   />
+                  <span
+                    :if={@soll.editing_version?}
+                    class="hint"
+                    id="soll-cash-lock-hint"
+                    data-role="soll-cash-lock-hint"
+                  >
+                    <%= gettext("Follows the active plan until this version is activated") %>
+                  </span>
                 </td>
               </tr>
             </tbody>
@@ -807,6 +829,19 @@ defmodule PortfolixirWeb.ClassificationsLive do
        |> load_soll()}
     else
       _ -> {:noreply, failure(socket, gettext("Could not activate the plan"))}
+    end
+  end
+
+  def handle_event("rename_soll_plan", %{"plan_name" => name}, socket) do
+    with %{plan: %{id: plan_id}} <- socket.assigns.soll,
+         {:ok, renamed} <- Targets.rename_plan(Actor.owner_ui(), plan_id, String.trim(name)) do
+      {:noreply,
+       socket
+       |> assign(:soll_plan_id, renamed.id)
+       |> success(gettext("Plan renamed"))
+       |> load_soll()}
+    else
+      _ -> {:noreply, failure(socket, gettext("Could not rename the plan"))}
     end
   end
 
@@ -1055,14 +1090,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
         %{}
       end
 
+    # The cash target shown (and counted into Σ) is ALWAYS the view scope's
+    # active steering value — matching the hint that cash stays with the
+    # active plan while a version is edited. A draft's own copied cash column
+    # stays inert in v1 (Steve UAT finding: Σ must not call a complete plan
+    # broken just because a version is selected).
     cash_target =
-      if editing_version? do
-        fraction_to_percent_or_nil(selected.cash_target_weight)
-      else
-        portfolio_id
-        |> Targets.get_cash_target(view: view_id)
-        |> fraction_to_percent_or_nil()
-      end
+      portfolio_id
+      |> Targets.get_cash_target(view: view_id)
+      |> fraction_to_percent_or_nil()
 
     soll = %{
       view_id: view_id,
@@ -1562,6 +1598,14 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # A percentage string ("60", "12.5", "" ) → a `Decimal` fraction in [0, 1], or
   # `nil` for blank. Returns `{:error, :invalid_weight}` for non-numbers.
+  # Status-aware banner for a selected non-active version (Steve UAT: an
+  # archived plan is not a draft).
+  defp version_hint("archived"),
+    do: gettext("Archived — the Wealth page follows the active plan; activate to reuse it.")
+
+  defp version_hint(_status),
+    do: gettext("Draft — the Wealth page keeps following the active plan until you activate it.")
+
   defp plan_status_label("active"), do: gettext("active")
   defp plan_status_label("draft"), do: gettext("draft")
   defp plan_status_label(_status), do: gettext("archived")

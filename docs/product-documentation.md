@@ -285,11 +285,14 @@ restructure a strategy without losing the old plan:
   more than one version.
 - Editing and saving a **draft** never touches the active plan — the Wealth
   page keeps following the active plan, and a hint in the editor says so. The
-  **cash target** input is disabled in draft mode: the cash quote stays with
-  the active steering until the switch (v1).
+  **cash target** row shows the active steering value (counted into the Σ
+  check) but is locked while a version is edited, with a visible note: the
+  cash quote stays with the active steering until the switch (v1).
 - **Activate this plan** (*Diesen Plan aktivieren*) swaps the draft in; the
   previously active plan is archived in the same transaction, so old and new
   plan stay side by side for reference.
+- **Rename** (*Umbenennen*) renames the selected version — e.g. to drop a
+  "(Entwurf)" suffix after activation.
 - **Delete plan** on a draft or archived version removes just that version;
   on the active plan it keeps its ADR-0020 meaning (the scope falls back to
   actual-only).
