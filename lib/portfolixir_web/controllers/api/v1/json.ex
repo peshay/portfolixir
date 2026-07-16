@@ -14,6 +14,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount, Target}
+  alias Portfolixir.Portfolios.Snapshot
+  alias Portfolixir.Portfolios.TargetPlan
 
   def security(%Security{} = security) do
     %{
@@ -368,6 +370,73 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   classification) plan; this serializes the plan's cash target weight.
   """
   def cash_target(weight), do: %{cash_target_weight: decimal(weight)}
+
+  @doc "A SOLL plan version (ADR-0027); the cash target weight as a string."
+  def plan(%TargetPlan{} = plan) do
+    %{
+      id: plan.id,
+      portfolio_id: plan.portfolio_id,
+      view_id: plan.view_id,
+      classification_id: plan.classification_id,
+      name: plan.name,
+      status: plan.status,
+      cash_target_weight: decimal(plan.cash_target_weight)
+    }
+  end
+
+  @doc "A depot snapshot marker (ADR-0027) — scope + as-of date, no values."
+  def snapshot(%Snapshot{} = snapshot) do
+    %{
+      id: snapshot.id,
+      name: snapshot.name,
+      view_id: snapshot.view_id,
+      as_of: Date.to_iso8601(snapshot.as_of)
+    }
+  end
+
+  @doc """
+  The counterfactual comparison (ADR-0027): buy-and-hold of the snapshot's
+  frozen holdings vs. the scope's real TTWROR since the as-of date. All
+  financial decimals as strings; self-describing via `basis` and explicit
+  `gaps` (AR-4).
+  """
+  def snapshot_comparison(comparison) do
+    %{
+      snapshot: %{
+        id: comparison.snapshot.id,
+        name: comparison.snapshot.name,
+        as_of: Date.to_iso8601(comparison.snapshot.as_of),
+        view_id: comparison.snapshot.view_id
+      },
+      base_currency: comparison.base_currency,
+      as_of: Date.to_iso8601(comparison.as_of),
+      today: Date.to_iso8601(comparison.today),
+      as_of_value: decimal(comparison.as_of_value),
+      current_value: decimal(comparison.current_value),
+      snapshot_return: decimal(comparison.snapshot_return),
+      real_ttwror: decimal(comparison.real_ttwror),
+      series:
+        Enum.map(comparison.series, fn point ->
+          %{
+            date: Date.to_iso8601(point.date),
+            snapshot_value: decimal(point.snapshot_value),
+            snapshot_indexed: decimal(point.snapshot_indexed),
+            real_indexed: decimal(point.real_indexed)
+          }
+        end),
+      gaps: %{
+        unvalued_securities:
+          Enum.map(comparison.gaps.unvalued_securities, fn gap ->
+            %{
+              security_id: gap.security_id,
+              security_name: gap.security_name,
+              reason: gap.reason
+            }
+          end)
+      },
+      basis: comparison.basis
+    }
+  end
 
   def allocation(allocation) do
     %{

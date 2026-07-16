@@ -372,6 +372,42 @@ Example account payloads:
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` removes a
   portfolio's target weight for one category and returns `{deleted}` (the number
   of rows removed). Optional `view` selects the plan (omitted = Gesamt).
+- `GET /api/v1/portfolios/:portfolio_id/plans` lists a portfolio's SOLL **plan
+  versions** (ADR-0027): active first, then drafts and archived plans, each with
+  `name`, `status` (`active` / `draft` / `archived`), its scope (`view_id`,
+  `classification_id`) and `cash_target_weight` as a Decimal string. Optional
+  `classification_id` scopes to one tree. Only the **active** plan of a scope
+  steers the allocation.
+- `POST /api/v1/plans/:id/duplicate` copies a plan version (category targets and
+  cash target) into a new **draft** of the same scope and returns it with
+  `201 Created`. Optional body `{"name": "Plan 2027"}` names the copy (default:
+  `"<source name> (copy)"`).
+- `POST /api/v1/plans/:id/activate` makes a draft or archived version the active
+  plan of its scope, archiving the previously active plan in the same
+  transaction. Activating the already-active plan is a no-op.
+- `PATCH /api/v1/plans/:id` renames a plan version (`{"name": "..."}`).
+- `DELETE /api/v1/plans/:id` deletes one plan version (any status) including its
+  category targets. Deleting the active plan leaves the scope without a plan
+  (the allocation falls back to actual-only).
+- `GET /api/v1/snapshots` lists depot **snapshot markers** (ADR-0027): each is a
+  `name`, a scope (`view_id`, `null` = everything) and an `as_of` date. A
+  snapshot copies no financial data — the holdings it represents derive from
+  the transaction ledger on demand.
+- `POST /api/v1/snapshots` creates a marker
+  (`{"name": "...", "as_of": "2026-02-15", "view_id": 3}`; `view_id` optional).
+  A future `as_of` or a duplicate name within the scope returns
+  `422 Unprocessable Entity`.
+- `DELETE /api/v1/snapshots/:id` deletes one marker; no transactions or
+  holdings are affected.
+- `GET /api/v1/portfolios/:portfolio_id/snapshots/:id/comparison` answers
+  "would I have done better keeping what I had?": the snapshot's frozen
+  holdings valued **buy-and-hold** over the stored quote history (daily, EUR-hub
+  FX) against the scope's real TTWROR since the as-of date. The response
+  carries `as_of_value`, `current_value`, `snapshot_return`, `real_ttwror`, a
+  daily `series` (`snapshot_value`, `snapshot_indexed`, `real_indexed`), a
+  `gaps` list of securities excluded for missing quotes or FX at the as-of
+  date, and a self-describing `basis` (gross, price-return only in v1). All
+  financial values are Decimal strings.
 - `GET /api/v1/portfolios/:portfolio_id/allocation` returns the target/actual
   breakdown for one classification (required `classification_id` query param; a
   missing one returns `422 Unprocessable Entity`). For each category it reports
@@ -755,6 +791,15 @@ in MCP schemas are strings.
 - `portfolixir.securities_accounts.clear_position_buckets`
 - `portfolixir.settings.get_default_view`
 - `portfolixir.settings.set_default_view`
+- `portfolixir.plans.list`
+- `portfolixir.plans.duplicate`
+- `portfolixir.plans.activate`
+- `portfolixir.plans.rename`
+- `portfolixir.plans.delete`
+- `portfolixir.snapshots.list`
+- `portfolixir.snapshots.create`
+- `portfolixir.snapshots.delete`
+- `portfolixir.snapshots.comparison`
 
 The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
 `portfolixir.portfolios.performance` and `portfolixir.portfolios.risk` tools
@@ -777,3 +822,15 @@ the plan, but `portfolixir.portfolios.set_cash_target` without a `view` still
 steers the Gesamt cash target, so it keeps the same effect as the legacy
 portfolio `cash_target_weight` field. All cash targets and target weights are
 exposed and accepted as Decimal strings.
+
+Since ADR-0027 the plan tools (`portfolixir.plans.list`,
+`portfolixir.plans.duplicate`, `portfolixir.plans.activate`,
+`portfolixir.plans.rename`, `portfolixir.plans.delete`) manage named plan
+**versions**: duplicate the active plan into a draft, edit the draft through the
+target tools (the drafts are addressed by the plan endpoints; view-addressed
+target writes keep editing the active plan), then activate it. The snapshot
+tools (`portfolixir.snapshots.list`, `portfolixir.snapshots.create`,
+`portfolixir.snapshots.delete`, `portfolixir.snapshots.comparison`) freeze a
+depot state as a marker and read the counterfactual comparison; every financial
+value in the comparison is a Decimal string and the response labels its basis
+(gross, price-return only).
