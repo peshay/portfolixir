@@ -204,7 +204,7 @@ defmodule PortfolixirWeb.DashboardTest do
     # The buy spent undeposited cash, so counting cash is 0 and the basis is
     # the 1200 securities value: actual 100% vs target 60% -> +40 pp / 480 EUR.
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
 
@@ -264,7 +264,7 @@ defmodule PortfolixirWeb.DashboardTest do
       Classifications.assign_security(Actor.owner_ui(), security.id, classification.id, core.id)
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
 

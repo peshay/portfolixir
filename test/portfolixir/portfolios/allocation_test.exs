@@ -140,7 +140,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, unassigned_security, "5", "60")
 
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"},
         %{"category_id" => satellite.id, "target_weight" => "0.3"},
         %{"category_id" => defensive.id, "target_weight" => "0.1"}
@@ -234,7 +234,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, emerging_security, "10", "40")
 
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
         %{"category_id" => growth.id, "target_weight" => "0.5"}
       ])
 
@@ -322,7 +322,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, loose, "5", "60")
 
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
 
@@ -384,7 +384,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, worthless, "10", "10")
 
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.5"}
       ])
 
@@ -464,7 +464,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       })
 
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"},
         %{"category_id" => satellite.id, "target_weight" => "0.3"},
         %{"category_id" => tech.id, "target_weight" => "0.3"},
@@ -539,12 +539,12 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, satellite_security, "8", "40")
 
     {:ok, _} =
-      Targets.set_targets(world.portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"},
         %{"category_id" => satellite.id, "target_weight" => "0.35"}
       ])
 
-    {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.05"))
+    {:ok, _} = Portfolios.set_cash_target(Actor.owner_ui(), world.portfolio, Decimal.new("0.05"))
 
     prices = %{
       core_security.id => Decimal.new("60"),
@@ -858,12 +858,12 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       # Write the plan to the Gesamt plan explicitly (view: nil), plus a Gesamt
       # cash target.
       {:ok, _} =
-        Targets.set_targets(world.portfolio.id, classification.id, [
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
           %{"category_id" => core.id, "target_weight" => "0.7"},
           %{"category_id" => satellite.id, "target_weight" => "0.3"}
         ])
 
-      {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.0"))
+      {:ok, _} = Portfolios.set_cash_target(Actor.owner_ui(), world.portfolio, Decimal.new("0.0"))
 
       prices = %{core_security.id => Decimal.new("60")}
 
@@ -907,13 +907,14 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
       # Gesamt plan: Core 0.9 — must NOT bleed into the view's reading.
       {:ok, _} =
-        Targets.set_targets(world.portfolio.id, classification.id, [
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
           %{"category_id" => core.id, "target_weight" => "0.9"}
         ])
 
       # The view's own plan: Core 0.6, Satellite 0.4.
       {:ok, _} =
         Targets.set_targets(
+          Actor.owner_ui(),
           world.portfolio.id,
           classification.id,
           [
@@ -952,11 +953,13 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       deposit!(world, "100", ~D[2026-01-01])
 
       # Gesamt cash target 0.20 (portfolio-wide cash plan).
-      {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.20"))
+      {:ok, _} =
+        Portfolios.set_cash_target(Actor.owner_ui(), world.portfolio, Decimal.new("0.20"))
 
       # The view needs a plan for the classification to be "steered" at all.
       {:ok, _} =
         Targets.set_targets(
+          Actor.owner_ui(),
           world.portfolio.id,
           classification.id,
           [%{"category_id" => core.id, "target_weight" => "0.5"}],
@@ -964,7 +967,10 @@ defmodule Portfolixir.Portfolios.AllocationTest do
         )
 
       # The view's own cash target 0.05 (portfolio-wide cash plan for this view).
-      :ok = Targets.set_cash_target(world.portfolio.id, Decimal.new("0.05"), view: view.id)
+      :ok =
+        Targets.set_cash_target(Actor.owner_ui(), world.portfolio.id, Decimal.new("0.05"),
+          view: view.id
+        )
 
       {:ok, allocation} =
         Allocation.for_portfolio(world.portfolio.id, classification.id,
@@ -996,11 +1002,12 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
       # The Gesamt plan has targets + cash; the view has NO plan -> IST-only.
       {:ok, _} =
-        Targets.set_targets(world.portfolio.id, classification.id, [
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
           %{"category_id" => core.id, "target_weight" => "0.9"}
         ])
 
-      {:ok, _} = Portfolios.set_cash_target(world.portfolio, Decimal.new("0.25"))
+      {:ok, _} =
+        Portfolios.set_cash_target(Actor.owner_ui(), world.portfolio, Decimal.new("0.25"))
 
       prices = %{core_security.id => Decimal.new("60")}
 
@@ -1049,13 +1056,14 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       # plan, Satellite has no target and no value -> it must not render as a
       # ghost row in the view's breakdown.
       {:ok, _} =
-        Targets.set_targets(world.portfolio.id, classification.id, [
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
           %{"category_id" => satellite.id, "target_weight" => "0.5"}
         ])
 
       # The view's plan only targets Core.
       {:ok, _} =
         Targets.set_targets(
+          Actor.owner_ui(),
           world.portfolio.id,
           classification.id,
           [%{"category_id" => core.id, "target_weight" => "1.0"}],
@@ -1099,6 +1107,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       # Each view steers the same classification to its own 100%.
       {:ok, _} =
         Targets.set_targets(
+          Actor.owner_ui(),
           world.portfolio.id,
           classification.id,
           [%{"category_id" => core.id, "target_weight" => "1.0"}],
@@ -1107,6 +1116,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
       {:ok, _} =
         Targets.set_targets(
+          Actor.owner_ui(),
           world.portfolio.id,
           classification.id,
           [%{"category_id" => satellite.id, "target_weight" => "1.0"}],

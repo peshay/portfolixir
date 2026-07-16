@@ -1,6 +1,8 @@
 defmodule Portfolixir.Portfolios.TargetsTest do
   use Portfolixir.DataCase, async: true
 
+  alias Portfolixir.Actor
+
   alias Portfolixir.Classifications
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
@@ -48,7 +50,7 @@ defmodule Portfolixir.Portfolios.TargetsTest do
       setup_world()
 
     {:ok, targets} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"},
         %{"category_id" => satellite.id, "target_weight" => "0.4"}
       ])
@@ -68,12 +70,12 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     %{portfolio: portfolio, classification: classification, core: core} = setup_world()
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.5"}
       ])
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.7"}
       ])
 
@@ -85,7 +87,7 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     %{portfolio: portfolio, classification: classification, core: core} = setup_world()
 
     assert {:error, %Ecto.Changeset{} = changeset} =
-             Targets.set_targets(portfolio.id, classification.id, [
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
                %{"category_id" => core.id, "target_weight" => "1.5"}
              ])
 
@@ -106,7 +108,7 @@ defmodule Portfolixir.Portfolios.TargetsTest do
       })
 
     assert {:error, :category_mismatch} =
-             Targets.set_targets(portfolio.id, classification.id, [
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
                %{"category_id" => foreign.id, "target_weight" => "0.5"}
              ])
   end
@@ -115,20 +117,20 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     %{portfolio: portfolio, classification: classification, core: core} = setup_world()
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.5"}
       ])
 
-    assert {:ok, 1} = Targets.delete_target(portfolio.id, core.id)
+    assert {:ok, 1} = Targets.delete_target(Actor.owner_ui(), portfolio.id, core.id)
     assert Targets.list_targets(portfolio.id) == []
-    assert {:ok, 0} = Targets.delete_target(portfolio.id, core.id)
+    assert {:ok, 0} = Targets.delete_target(Actor.owner_ui(), portfolio.id, core.id)
   end
 
   test "rejects a non-map target entry instead of crashing" do
     %{portfolio: portfolio, classification: classification} = setup_world()
 
     assert {:error, :invalid_entry} =
-             Targets.set_targets(portfolio.id, classification.id, [1])
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [1])
 
     assert Targets.list_targets(portfolio.id) == []
   end
@@ -150,7 +152,7 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     assert Targets.get_target(portfolio.id, core.id) == nil
 
     {:ok, _} =
-      Targets.set_targets(portfolio.id, classification.id, [
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
 
@@ -163,7 +165,7 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     %{portfolio: portfolio, classification: classification, core: core} = setup_world()
 
     assert {:error, :not_found} =
-             Targets.set_targets(portfolio.id, classification.id + 999, [
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id + 999, [
                %{"category_id" => core.id, "target_weight" => "0.5"}
              ])
   end
@@ -174,7 +176,7 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     # The string id matches the in-tree category (normalize_id parses it), so
     # the foreign-category guard passes and the weight is upserted.
     assert {:ok, [target]} =
-             Targets.set_targets(portfolio.id, classification.id, [
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
                %{"category_id" => Integer.to_string(core.id), "target_weight" => "0.5"}
              ])
 
@@ -187,7 +189,7 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     # No category_id: the foreign-category guard treats it as "no id" and the
     # changeset rejects the row for the missing required category.
     assert {:error, %Ecto.Changeset{} = changeset} =
-             Targets.set_targets(portfolio.id, classification.id, [
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
                %{"target_weight" => "0.5"}
              ])
 
