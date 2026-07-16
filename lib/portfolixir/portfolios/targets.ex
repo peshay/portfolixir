@@ -177,18 +177,42 @@ defmodule Portfolixir.Portfolios.Targets do
       when is_integer(portfolio_id) and is_integer(classification_id) and is_list(entries) do
     with {:ok, _classification} <- fetch_classification(classification_id),
          :ok <- ensure_entries_are_maps(entries),
-         :ok <- ensure_categories(classification_id, entries),
-         {:ok, plan} <- resolve_write_plan(actor, portfolio_id, classification_id, opts) do
-      Repo.transaction(fn ->
-        Enum.map(entries, fn entry ->
-          case upsert_target(actor, plan, portfolio_id, classification_id, entry) do
-            {:ok, target} -> target
-            {:error, changeset} -> Repo.rollback(changeset)
-          end
-        end)
-      end)
+         :ok <- ensure_categories(classification_id, entries) do
+      batch = fn -> run_targets_batch(actor, portfolio_id, classification_id, entries, opts) end
+      retry_once_on_plan_race(batch.(), batch)
     end
   end
+
+  # Plan resolution runs INSIDE the batch transaction (review finding): a
+  # rejected entry must also roll back a plan row created for this batch —
+  # otherwise a failed first save leaves an empty active plan behind and flips
+  # the Wealth page from IST-only into SOLL mode.
+  defp run_targets_batch(actor, portfolio_id, classification_id, entries, opts) do
+    Repo.transaction(fn ->
+      case resolve_write_plan(actor, portfolio_id, classification_id, opts) do
+        {:ok, plan} ->
+          Enum.map(entries, fn entry ->
+            case upsert_target(actor, plan, portfolio_id, classification_id, entry) do
+              {:ok, target} -> target
+              {:error, changeset} -> Repo.rollback(changeset)
+            end
+          end)
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+  end
+
+  # A racing first-writer beat this call to the active-unique index: one fresh
+  # attempt converges on the winner's plan instead of surfacing a spurious save
+  # failure (the behaviour the pre-versioning `ensure_plan!` guaranteed). The
+  # retry runs in a NEW transaction — the losing one is already rolled back.
+  defp retry_once_on_plan_race({:error, %Ecto.Changeset{errors: errors}} = result, retry) do
+    if unique_violation?(errors), do: retry.(), else: result
+  end
+
+  defp retry_once_on_plan_race(result, _retry), do: result
 
   @doc """
   Removes a target for one category within the addressed plan (default
@@ -290,7 +314,9 @@ defmodule Portfolixir.Portfolios.Targets do
         view_id: attr(attrs, :view_id, source.view_id),
         classification_id: source.classification_id,
         cash_target_weight: source.cash_target_weight,
-        name: attr(attrs, :name, source.name <> " (copy)"),
+        # The default copy name is clamped to the 120-char limit so a
+        # maximum-length source name still duplicates (review finding).
+        name: attr(attrs, :name, String.slice(source.name <> " (copy)", 0, 120)),
         status: "draft"
       }
 
@@ -400,16 +426,35 @@ defmodule Portfolixir.Portfolios.Targets do
         classification_id = Keyword.get(opts, :classification_id)
         view_id = view_id(Keyword.get(opts, :view))
 
-        with {:ok, plan} <-
-               ensure_plan_journaled(actor, portfolio_id, classification_id, view_id) do
-          write_cash_target(actor, plan, weight)
+        write = fn ->
+          run_cash_target_create(actor, portfolio_id, classification_id, view_id, weight)
         end
+
+        retry_once_on_plan_race(write.(), write)
 
       {_weight, nil, _plan_ref} ->
         {:error, :not_found}
 
       {_weight, %TargetPlan{} = plan, _} ->
         write_cash_target(actor, plan, weight)
+    end
+  end
+
+  # One transaction, so a rejected weight also rolls back a plan row created
+  # for this write (mirrors set_targets — review finding).
+  defp run_cash_target_create(actor, portfolio_id, classification_id, view_id, weight) do
+    Repo.transaction(fn ->
+      with {:ok, plan} <-
+             ensure_plan_journaled(actor, portfolio_id, classification_id, view_id),
+           :ok <- write_cash_target(actor, plan, weight) do
+        :ok
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+    |> case do
+      {:ok, :ok} -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -516,6 +561,11 @@ defmodule Portfolixir.Portfolios.Targets do
 
         journaled_insert(actor, changeset, "target_plan")
     end
+  end
+
+  defp unique_violation?(errors) do
+    match?({_msg, opts} when is_list(opts), errors[:portfolio_id]) and
+      Keyword.get(elem(errors[:portfolio_id], 1), :constraint) == :unique
   end
 
   defp get_active_plan(portfolio_id, classification_id, view_id) do
