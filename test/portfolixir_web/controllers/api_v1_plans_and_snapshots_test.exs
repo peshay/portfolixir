@@ -150,4 +150,97 @@ defmodule PortfolixirWeb.ApiV1PlansAndSnapshotsTest do
 
     assert response["errors"]
   end
+
+  test "plan endpoints reject garbage and unknown ids consistently", %{conn: conn} do
+    %{portfolio: portfolio} = plan_world()
+
+    # index: garbage/unknown portfolio -> 404; classification filter narrows.
+    assert conn |> get_json("/api/v1/portfolios/abc/plans") |> json_response(404)
+    assert conn |> get_json("/api/v1/portfolios/999999/plans") |> json_response(404)
+
+    filtered =
+      conn
+      |> get_json("/api/v1/portfolios/#{portfolio.id}/plans?classification_id=999999")
+      |> json_response(200)
+
+    assert filtered["data"]["plans"] == []
+
+    # duplicate/activate/rename/delete: garbage and unknown ids -> 404.
+    for path <- ["duplicate", "activate"] do
+      assert conn |> post_json("/api/v1/plans/abc/#{path}", %{}) |> json_response(404)
+      assert conn |> post_json("/api/v1/plans/999999/#{path}", %{}) |> json_response(404)
+    end
+
+    assert conn |> patch_json("/api/v1/plans/999999", %{name: "X"}) |> json_response(404)
+    assert conn |> delete_json("/api/v1/plans/999999") |> json_response(404)
+  end
+
+  test "plan rename validates the name; duplicate validates the copy", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = plan_world()
+    [plan] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+
+    missing = conn |> patch_json("/api/v1/plans/#{plan.id}", %{}) |> json_response(422)
+    assert missing["errors"]["name"]
+
+    too_long =
+      conn
+      |> post_json("/api/v1/plans/#{plan.id}/duplicate", %{name: String.duplicate("x", 121)})
+      |> json_response(422)
+
+    assert too_long["errors"]["name"]
+  end
+
+  test "deletes a plan version over the API", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = plan_world()
+    [plan] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), plan.id, %{name: "Doomed"})
+
+    deleted = conn |> delete_json("/api/v1/plans/#{draft.id}") |> json_response(200)
+    assert deleted["data"]["id"] == draft.id
+    assert [%{id: kept}] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    assert kept == plan.id
+  end
+
+  test "snapshot endpoints reject garbage and unknown ids; gaps serialize", %{conn: conn} do
+    world = base_world()
+    security = create_security!(name: "EUR Stock", ticker: "EURS", currency: "EUR")
+    ghost = create_security!(name: "Unquoted", ticker: "GHST", currency: "EUR")
+    deposit!(world, "10000", ~D[2026-01-02])
+    buy!(world, security, quantity: "5", price: "100", date: ~D[2026-01-05])
+    buy!(world, ghost, quantity: "3", price: "10", date: ~D[2026-01-20])
+    put_quote!(security, ~D[2026-02-14], "110")
+
+    assert conn |> delete_json("/api/v1/snapshots/abc") |> json_response(404)
+    assert conn |> delete_json("/api/v1/snapshots/999999") |> json_response(404)
+
+    created =
+      conn
+      |> post_json("/api/v1/snapshots", %{name: "Marker", as_of: "2026-02-15"})
+      |> json_response(201)
+
+    id = created["data"]["id"]
+
+    assert conn
+           |> get_json("/api/v1/portfolios/abc/snapshots/#{id}/comparison")
+           |> json_response(404)
+
+    assert conn
+           |> get_json("/api/v1/portfolios/999999/snapshots/#{id}/comparison")
+           |> json_response(404)
+
+    assert conn
+           |> get_json("/api/v1/portfolios/#{world.portfolio.id}/snapshots/999999/comparison")
+           |> json_response(404)
+
+    comparison =
+      conn
+      |> get_json("/api/v1/portfolios/#{world.portfolio.id}/snapshots/#{id}/comparison")
+      |> json_response(200)
+
+    # The excluded security is listed under gaps with its reason (AR-4).
+    assert [gap] = comparison["data"]["gaps"]["unvalued_securities"]
+    assert gap["security_name"] == "Unquoted"
+    assert gap["reason"] == "no_quote_at_as_of"
+  end
 end

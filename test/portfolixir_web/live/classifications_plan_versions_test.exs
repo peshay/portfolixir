@@ -182,4 +182,42 @@ defmodule PortfolixirWeb.ClassificationsPlanVersionsTest do
     assert plan.name == "Plan 2026"
     assert render(view) =~ "Plan renamed"
   end
+
+  test "an archived version gets its own banner and garbage picker input is ignored",
+       %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = plan_world()
+
+    [original] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), original.id, %{name: "Successor"})
+    {:ok, _} = Targets.activate_plan(Actor.owner_ui(), draft.id)
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    # Select the now-archived original: the banner says archived, not draft.
+    view
+    |> element("form.soll-plan-picker")
+    |> render_change(%{"soll_plan" => "#{original.id}"})
+
+    hint = view |> element("[data-role=soll-version-hint]") |> render()
+    assert hint =~ "Archived"
+    refute hint =~ "Draft"
+
+    # A crafted non-integer picker payload changes nothing and does not crash.
+    html = view |> element("form.soll-plan-picker") |> render_change(%{"soll_plan" => "abc"})
+    assert html =~ "Archived"
+  end
+
+  test "a blank rename fails with feedback instead of silently succeeding", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = plan_world()
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    view
+    |> form("details.plan-rename form", %{"plan_name" => "   "})
+    |> render_submit()
+
+    assert render(view) =~ "Could not rename the plan"
+    [plan] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    assert plan.name == "Plan"
+  end
 end

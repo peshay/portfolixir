@@ -39,6 +39,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
           |> assign(:comparison, nil)
           |> assign(:selected_id, nil)
           |> assign(:form_errors, nil)
+          |> assign(:page_error, nil)
           |> load_snapshots()
 
         {:ok, socket}
@@ -110,12 +111,16 @@ defmodule PortfolixirWeb.SnapshotsLive do
   defp select_snapshot(socket, id) do
     case SnapshotComparison.for_snapshot(id, socket.assigns.portfolio.id) do
       {:ok, comparison} ->
-        assign(socket, comparison: comparison, selected_id: id)
+        assign(socket, comparison: comparison, selected_id: id, page_error: nil)
 
       {:error, _reason} ->
-        socket
-        |> assign(comparison: nil, selected_id: nil)
-        |> put_flash(:error, gettext("Could not load the comparison"))
+        # The app shell shows assign-based alerts, not LiveView flash — mirror
+        # the pattern the other pages use (review/coverage round).
+        assign(socket,
+          comparison: nil,
+          selected_id: nil,
+          page_error: gettext("Could not load the comparison")
+        )
     end
   end
 
@@ -265,6 +270,8 @@ defmodule PortfolixirWeb.SnapshotsLive do
     >
       <div class="workspace-page">
         <AppShell.area_tabs tabs={AppShell.wealth_tabs(:snapshots)} />
+
+        <p :if={@page_error} class="alert-error" role="alert"><%= @page_error %></p>
 
         <section class="workspace-section">
           <header class="section-head">
