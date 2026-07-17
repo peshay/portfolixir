@@ -158,4 +158,79 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
     assert has_element?(view, "details.snapshot-create[open]")
     assert has_element?(view, "input[name='snapshot[name]'][aria-invalid='true']")
   end
+
+  test "shows the empty state until accounts exist", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/snapshots")
+    assert html =~ "Create a depot and cash account first"
+  end
+
+  test "ignores crafted non-integer event payloads instead of crashing", %{conn: conn} do
+    seeded_world()
+
+    {:ok, _} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Sturdy", as_of: ~D[2026-02-15]})
+
+    {:ok, view, _html} = live(conn, "/snapshots")
+
+    assert render_click(view, "select_snapshot", %{"id" => "abc"}) =~ "Sturdy"
+    assert render_click(view, "delete_snapshot", %{"id" => "abc"}) =~ "Sturdy"
+    assert [_] = Snapshots.list_snapshots()
+  end
+
+  test "selecting a vanished snapshot flashes an error instead of crashing", %{conn: conn} do
+    seeded_world()
+
+    {:ok, snapshot} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Fleeting", as_of: ~D[2026-02-15]})
+
+    {:ok, view, _html} = live(conn, "/snapshots")
+    {:ok, _} = Snapshots.delete_snapshot(Actor.owner_ui(), snapshot.id)
+
+    html = render_click(view, "select_snapshot", %{"id" => "#{snapshot.id}"})
+    assert html =~ "Could not load the comparison"
+    assert has_element?(view, "p.alert-error[role=alert]")
+  end
+
+  test "a view-scoped snapshot lists its view name; deleting another snapshot keeps the comparison",
+       %{conn: conn} do
+    seeded_world()
+    {:ok, view_record} = Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
+
+    {:ok, scoped} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{
+        name: "Scoped",
+        as_of: ~D[2026-02-15],
+        view_id: view_record.id
+      })
+
+    {:ok, other} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Other", as_of: ~D[2026-02-15]})
+
+    {:ok, view, html} = live(conn, "/snapshots")
+    assert html =~ "Stocks"
+
+    render_click(view, "select_snapshot", %{"id" => "#{scoped.id}"})
+    html = render_click(view, "delete_snapshot", %{"id" => "#{other.id}"})
+
+    # The unrelated delete leaves the selected comparison on screen.
+    assert has_element?(view, "[data-role=snapshot-comparison]")
+    refute html =~ "Other"
+  end
+
+  test "a snapshot whose holdings are all unquoted renders the nothing-to-compare state",
+       %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Bare", currency: "EUR")
+    ghost = WorldFixtures.create_security!(name: "Unquoted", ticker: "GHST", currency: "EUR")
+    WorldFixtures.deposit!(world, "1000", ~D[2026-01-02], [])
+    WorldFixtures.buy!(world, ghost, quantity: "3", price: "10", date: ~D[2026-01-20])
+
+    {:ok, snapshot} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Bare marker", as_of: ~D[2026-02-15]})
+
+    {:ok, view, _html} = live(conn, "/snapshots")
+    render_click(view, "select_snapshot", %{"id" => "#{snapshot.id}"})
+
+    assert has_element?(view, "[data-role=comparison-empty]")
+    assert has_element?(view, "[data-role=comparison-gaps]")
+  end
 end

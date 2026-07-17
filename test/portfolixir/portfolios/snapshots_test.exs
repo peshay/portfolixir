@@ -96,4 +96,22 @@ defmodule Portfolixir.Portfolios.SnapshotsTest do
              &(&1.operation == :delete)
            ) == 1
   end
+
+  test "struct-addressed listing and deletion work like id addressing" do
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
+
+    {:ok, scoped} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{
+        name: "Scoped",
+        view_id: view.id,
+        as_of: ~D[2026-07-01]
+      })
+
+    assert [%{id: id}] = Snapshots.list_snapshots(view: view)
+    assert id == scoped.id
+
+    {:ok, deleted} = Snapshots.delete_snapshot(Actor.owner_ui(), scoped)
+    assert deleted.id == scoped.id
+    assert Snapshots.list_snapshots(view: view) == []
+  end
 end

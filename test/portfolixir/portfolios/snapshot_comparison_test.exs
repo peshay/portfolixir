@@ -216,4 +216,100 @@ defmodule Portfolixir.Portfolios.SnapshotComparisonReviewTest do
     assert Decimal.equal?(comparison.current_value, Decimal.new("1200"))
     assert comparison.gaps.unvalued_securities == []
   end
+
+  test "a quoted security without an FX path is a gap with reason no_fx_rate" do
+    world = WorldFixtures.base_world(name: "Gap world", currency: "EUR", cash_currency: "USD")
+    usd = WorldFixtures.create_security!(name: "US Stock", ticker: "USDS", currency: "USD")
+    eur = WorldFixtures.create_security!(name: "EUR Stock", ticker: "EURS", currency: "EUR")
+
+    WorldFixtures.deposit!(world, "10000", ~D[2026-01-02], currency: "USD")
+
+    eur_accounts =
+      WorldFixtures.add_depot(world.portfolio,
+        currency: "EUR",
+        cash_name: "EUR Cash",
+        depot_name: "EUR Depot"
+      )
+
+    eur_world = %{world | depot: eur_accounts.depot, cash: eur_accounts.cash}
+    WorldFixtures.buy!(eur_world, eur, quantity: "5", price: "100", date: ~D[2026-01-05])
+
+    WorldFixtures.buy!(world, usd,
+      quantity: "5",
+      price: "50",
+      date: ~D[2026-01-10],
+      currency: "USD"
+    )
+
+    WorldFixtures.put_quote!(eur, ~D[2026-02-14], "110")
+    # The USD security HAS a quote but no EUR/USD rate exists at the as-of date.
+    WorldFixtures.put_quote!(usd, ~D[2026-02-14], "60")
+
+    {:ok, snapshot} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "FX gap", as_of: ~D[2026-02-15]})
+
+    {:ok, comparison} =
+      SnapshotComparison.for_snapshot(snapshot.id, world.portfolio.id, today: ~D[2026-03-10])
+
+    assert Decimal.equal?(comparison.as_of_value, Decimal.new("550"))
+    assert [gap] = comparison.gaps.unvalued_securities
+    assert gap.security_name == "US Stock"
+    assert gap.reason == :no_fx_rate
+  end
+
+  test "a GBX-quoted position values through GBP × 100 at the stored hub rate" do
+    world = WorldFixtures.base_world(name: "GBX world", currency: "EUR", cash_currency: "GBX")
+    gbx = WorldFixtures.create_security!(name: "UK Stock", ticker: "UKS", currency: "GBX")
+
+    WorldFixtures.deposit!(world, "10000", ~D[2026-01-02], currency: "GBX")
+
+    WorldFixtures.buy!(world, gbx,
+      quantity: "10",
+      price: "500",
+      date: ~D[2026-01-05],
+      currency: "GBX"
+    )
+
+    WorldFixtures.put_quote!(gbx, ~D[2026-02-14], "500")
+
+    {:ok, _} =
+      Portfolixir.Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "GBP",
+          date: ~D[2026-02-13],
+          rate: "0.8",
+          source: "manual"
+        }
+      ])
+
+    {:ok, snapshot} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "GBX", as_of: ~D[2026-02-15]})
+
+    {:ok, comparison} =
+      SnapshotComparison.for_snapshot(snapshot.id, world.portfolio.id, today: ~D[2026-02-20])
+
+    # 10 × 500 GBX = 5000 GBX = 50 GBP; 1 EUR = 0.8 GBP → 62.5 EUR.
+    assert Decimal.equal?(comparison.as_of_value, Decimal.new("62.5"))
+    assert comparison.gaps.unvalued_securities == []
+  end
+
+  test "an as-of date before the first transaction yields an empty, real-less comparison" do
+    world = WorldFixtures.base_world(name: "Early world", currency: "EUR")
+    sec = WorldFixtures.create_security!(name: "EUR Stock", ticker: "EURS", currency: "EUR")
+    WorldFixtures.deposit!(world, "10000", ~D[2026-03-01], [])
+    WorldFixtures.buy!(world, sec, quantity: "5", price: "100", date: ~D[2026-03-02])
+    WorldFixtures.put_quote!(sec, ~D[2026-03-02], "100")
+
+    {:ok, snapshot} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Too early", as_of: ~D[2026-01-15]})
+
+    {:ok, comparison} =
+      SnapshotComparison.for_snapshot(snapshot.id, world.portfolio.id, today: ~D[2026-03-10])
+
+    # Nothing was held at the as-of date; the real walk has no baseline there.
+    assert comparison.series == []
+    assert comparison.snapshot_return == nil
+    assert comparison.real_ttwror == nil
+  end
 end
