@@ -7,8 +7,8 @@ defmodule Portfolixir.Ledger.Positions do
   `buy`/`sell` trades, `inbound_delivery`/`outbound_delivery` (shares enter
   or leave without a cash leg, e.g. a depot transfer from another bank), and
   `security_transfer` between own depots. Cost basis and P&L stay with the
-  moving-average holdings view, which only considers priced trades — a
-  delivery carries no own cost.
+  holdings views, whose cost fold follows the shares through the same kinds
+  but only ever adds cost for priced acquisitions.
   """
 
   alias Portfolixir.Ledger.Projection

@@ -221,8 +221,11 @@ quantities move with buys and sells, with inbound/outbound **deliveries**
 another bank), and with **security transfers** between your own depots. Each
 holding also carries a moving-average cost basis and the unrealized
 profit/loss (absolute and percentage) against the latest stored price, in the
-security's own currency; cost basis and P&L consider only priced buy/sell
-trades, since a delivery carries no own cost.
+security's own currency. The cost basis follows the shares: buys (and inbound
+deliveries recorded with a price) add cost, sells and outbound deliveries take
+it out at the running average, and a security transfer carries the cost of the
+moved shares into the receiving depot. A delivery recorded without a price
+moves quantity at zero cost, since no own purchase cost is known for it.
 
 ## Classifications, Targets, and Allocation
 

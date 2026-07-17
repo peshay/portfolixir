@@ -15,11 +15,13 @@ defmodule Portfolixir.Ledger.Projection do
   projection has not been taught raises, so it cannot silently drift through
   one read model and not another.
 
-  Deliberately *not* fed from here: the moving-average cost basis and the
-  FIFO trade matcher. Those are cost views that consider only the priced
-  `buy`/`sell` kinds by definition — they filter to two kinds rather than
-  interpreting all of them. Held *quantities* everywhere (positions and the
-  holdings views) do fold this projection's quantity legs.
+  Deliberately *not* fed from here: the cost side of the read models. The
+  holdings cost fold (`Portfolixir.Ledger` `cost_lots/1`) moves cost along
+  the same quantity-bearing kinds but needs per-kind cost semantics this
+  projection does not carry, and the FIFO trade matcher considers only the
+  priced `buy`/`sell` kinds by definition. Held *quantities* everywhere
+  (positions and the holdings views) do fold this projection's quantity
+  legs.
   """
 
   @zero Decimal.new("0")

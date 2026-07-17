@@ -9,10 +9,11 @@ defmodule Portfolixir.Ledger do
 
   Held quantities — `positions_for_portfolio/1` and the holdings views —
   move with trades, deliveries and security transfers (the projection's
-  quantity legs, ADR-0011). The moving-average cost basis and the FIFO
-  trade matcher consider only the priced `buy`/`sell` kinds — the
-  remaining kinds change quantity or cash balance without re-pricing
-  existing lots.
+  quantity legs, ADR-0011). The moving-average cost basis follows the
+  shares through the same kinds (`cost_lots/1`): only priced acquisitions
+  add cost, removals take it out at the running average, and a transfer
+  carries it into the counter depot. The FIFO trade matcher still considers
+  only the priced `buy`/`sell` kinds.
   """
 
   import Ecto.Query
@@ -28,6 +29,8 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
+
+  @zero Decimal.new("0")
 
   def list_transactions(opts \\ []) when is_list(opts) do
     ordered_transactions()
@@ -156,14 +159,16 @@ defmodule Portfolixir.Ledger do
   Quantities are the canonical position quantities (`Ledger.Positions`,
   ADR-0011): they move with trades, deliveries and security transfers, so a
   position that left the depot without a sell (e.g. a takeover booked as an
-  outbound delivery) does not linger as a phantom holding. Like
-  `holdings_for_security/2`, the cost basis is price-based (it follows
-  `moving_average/1` over the priced `buy`/`sell` trades only, so fees, taxes
-  and unpriced deliveries are not folded into the unit cost) and every monetary
-  figure is in the security's own currency — no FX conversion is applied here
-  (that is the job of `Portfolixir.Portfolios.Valuation`). A holding whose
-  security has no quote is returned with `nil` price, market value and P&L, so
-  a missing price never distorts the rest of the list.
+  outbound delivery) does not linger as a phantom holding. The cost basis
+  follows the shares through the same kinds (see `cost_lots/1`): buys and
+  priced inbound deliveries add cost, sells and outbound deliveries remove
+  it at the running average, a security transfer carries it into the counter
+  depot, and unpriced deliveries move quantity at zero cost. Fees and taxes
+  are not folded into the basis, and every monetary figure is in the
+  security's own currency — no FX conversion is applied here (that is the
+  job of `Portfolixir.Portfolios.Valuation`). A holding whose security has
+  no quote is returned with `nil` price, market value and P&L, so a missing
+  price never distorts the rest of the list.
 
   Pass `:prices` (`%{security_id => Decimal}`) to inject comparison prices for
   tests; missing securities fall back to `Catalog.Quotes.latest/1`.
@@ -171,23 +176,18 @@ defmodule Portfolixir.Ledger do
   def holdings_for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     prices = Keyword.get(opts, :prices, %{})
     transactions = portfolio_transactions_with_security(portfolio_id)
-
-    trades =
-      Enum.group_by(priced_trades(transactions), &{&1.securities_account_id, &1.security_id})
-
+    lots = cost_lots(transactions)
     securities = securities_by_id(transactions)
 
     transactions
     |> Positions.calculate()
-    |> Enum.map(fn {{account_id, security_id}, quantity} ->
-      avg_cost = moving_average(Map.get(trades, {account_id, security_id}, [])).avg_cost
-
+    |> Enum.map(fn {{account_id, security_id} = key, quantity} ->
       build_holding_row(
         account_id,
         security_id,
         Map.get(securities, security_id),
         quantity,
-        avg_cost,
+        lot_cost(lots, key),
         holding_price(security_id, prices)
       )
     end)
@@ -207,26 +207,35 @@ defmodule Portfolixir.Ledger do
     )
   end
 
-  defp priced_trades(transactions), do: Enum.filter(transactions, &(&1.type in ["buy", "sell"]))
-
   defp securities_by_id(transactions) do
     for %{security: %Portfolixir.Catalog.Security{} = security} <- transactions,
         into: %{},
         do: {security.id, security}
   end
 
-  defp build_holding_row(account_id, security_id, security, quantity, avg_cost, latest_price) do
+  defp build_holding_row(account_id, security_id, security, quantity, cost_basis, latest_price) do
     base = %{
       securities_account_id: account_id,
       security_id: security_id,
       security_name: security && security.name,
       currency_code: security && security.currency_code,
       quantity: quantity,
-      avg_cost: avg_cost,
-      cost_basis: Decimal.mult(quantity, avg_cost)
+      avg_cost: average_unit_cost(quantity, cost_basis),
+      cost_basis: cost_basis
     }
 
     put_holding_valuation(base, latest_price)
+  end
+
+  # The displayed per-unit cost is derived from the folded total, never the
+  # other way round; a non-positive quantity carries a zero basis by the
+  # `cost_lots/1` invariant, so its average is zero too.
+  defp average_unit_cost(quantity, cost_basis) do
+    if Decimal.compare(quantity, @zero) == :gt do
+      Decimal.div(cost_basis, quantity)
+    else
+      @zero
+    end
   end
 
   defp put_holding_valuation(row, nil) do
@@ -275,8 +284,8 @@ defmodule Portfolixir.Ledger do
 
   Quantities are the canonical position quantities (`Ledger.Positions`,
   ADR-0011), so trades, deliveries and security transfers all move them.
-  The moving-average cost basis is computed from the chronological
-  `buy`/`sell` stream of each depot only.
+  The moving-average cost basis follows the shares through the same kinds
+  (see `cost_lots/1`), per depot.
 
   Pass `:latest_price` to inject the comparison price for tests;
   otherwise reads it from `Catalog.Quotes.latest/1`.
@@ -291,17 +300,23 @@ defmodule Portfolixir.Ledger do
       end)
 
     transactions = list_transactions_for_security(security_id)
-    trades = Enum.group_by(priced_trades(transactions), & &1.securities_account_id)
+    lots = cost_lots(transactions)
     depots = depots_by_id(transactions)
 
     transactions
     |> Positions.calculate()
-    |> Enum.map(fn {{account_id, _security_id}, quantity} ->
+    |> Enum.map(fn {{account_id, _security_id} = key, quantity} ->
       %{portfolio: portfolio, depot: depot} = Map.fetch!(depots, account_id)
-      avg_cost = moving_average(Map.get(trades, account_id, [])).avg_cost
+      cost_basis = lot_cost(lots, key)
 
       decorate_holding(
-        %{portfolio: portfolio, depot: depot, quantity: quantity, avg_cost: avg_cost},
+        %{
+          portfolio: portfolio,
+          depot: depot,
+          quantity: quantity,
+          avg_cost: average_unit_cost(quantity, cost_basis),
+          cost_basis: cost_basis
+        },
         latest_price
       )
     end)
@@ -325,35 +340,79 @@ defmodule Portfolixir.Ledger do
 
   defp put_depot(acc, _not_loaded_or_nil, _portfolio), do: acc
 
-  defp moving_average(transactions) do
-    Enum.reduce(transactions, %{quantity: Decimal.new(0), avg_cost: Decimal.new(0)}, fn tx, acc ->
-      case tx.type do
-        "buy" ->
-          new_qty = Decimal.add(acc.quantity, tx.quantity)
+  # Moving-average cost lots per `{securities_account, security}`, folded
+  # chronologically over the quantity-moving kinds (the cost companion of
+  # `Positions.calculate/1` — the caller feeds both from the same ascending
+  # transaction stream). The cost follows the shares: buys and priced inbound
+  # deliveries add `quantity * price`, sells and outbound deliveries remove at
+  # the lot's running average, a `security_transfer` carries the removed cost
+  # into the counter depot, and an unpriced delivery moves quantity at zero
+  # cost. A lot's cost never goes below zero: a removal beyond the held
+  # quantity takes out the full remaining cost, so an over-sold or
+  # over-delivered (negative) lot always carries a zero basis.
+  defp cost_lots(transactions), do: Enum.reduce(transactions, %{}, &apply_cost_effect/2)
 
-          new_avg =
-            if Decimal.equal?(new_qty, 0) do
-              Decimal.new(0)
-            else
-              numerator =
-                Decimal.add(
-                  Decimal.mult(acc.quantity, acc.avg_cost),
-                  Decimal.mult(tx.quantity, tx.price)
-                )
+  defp apply_cost_effect(%{type: "buy"} = tx, lots),
+    do: add_cost(lots, lot_key(tx), tx.quantity, Decimal.mult(tx.quantity, tx.price))
 
-              Decimal.div(numerator, new_qty)
-            end
+  defp apply_cost_effect(%{type: "inbound_delivery"} = tx, lots),
+    do: add_cost(lots, lot_key(tx), tx.quantity, Decimal.mult(tx.quantity, tx.price || @zero))
 
-          %{quantity: new_qty, avg_cost: new_avg}
+  defp apply_cost_effect(%{type: type} = tx, lots) when type in ["sell", "outbound_delivery"],
+    do: lots |> remove_cost(lot_key(tx), tx.quantity) |> elem(0)
 
-        "sell" ->
-          %{acc | quantity: Decimal.sub(acc.quantity, tx.quantity)}
-
-        _ ->
-          acc
-      end
-    end)
+  defp apply_cost_effect(%{type: "security_transfer"} = tx, lots) do
+    {lots, moved_cost} = remove_cost(lots, lot_key(tx), tx.quantity)
+    add_cost(lots, {tx.counter_securities_account_id, tx.security_id}, tx.quantity, moved_cost)
   end
+
+  defp apply_cost_effect(_cash_only_kind, lots), do: lots
+
+  defp lot_key(tx), do: {tx.securities_account_id, tx.security_id}
+
+  defp lot_cost(lots, key), do: Map.get(lots, key, %{cost: @zero}).cost
+
+  # Shares that merely cover a short (negative) lot carry no cost forward;
+  # only the portion that ends up above zero enters at the addition's unit
+  # cost. A negative lot always has zero cost (see `remove_cost/3`), so the
+  # positive branch never mixes in stale cost.
+  defp add_cost(lots, key, quantity, cost) do
+    lot = Map.get(lots, key, empty_lot())
+    new_quantity = Decimal.add(lot.quantity, quantity)
+
+    new_cost =
+      cond do
+        Decimal.compare(lot.quantity, @zero) != :lt -> Decimal.add(lot.cost, cost)
+        Decimal.compare(new_quantity, @zero) != :gt -> @zero
+        true -> cost |> Decimal.mult(new_quantity) |> Decimal.div(quantity)
+      end
+
+    Map.put(lots, key, %{quantity: new_quantity, cost: new_cost})
+  end
+
+  # Removes shares at the lot's running average and returns the removed cost
+  # (a `security_transfer` hands it to the receiving depot). Removing the
+  # whole lot — or more — takes the exact remaining cost, so closing a
+  # position never leaves a rounding residue behind.
+  defp remove_cost(lots, key, quantity) do
+    lot = Map.get(lots, key, empty_lot())
+
+    removed_cost =
+      if Decimal.compare(lot.quantity, quantity) == :gt do
+        quantity |> Decimal.mult(lot.cost) |> Decimal.div(lot.quantity)
+      else
+        lot.cost
+      end
+
+    updated = %{
+      quantity: Decimal.sub(lot.quantity, quantity),
+      cost: Decimal.sub(lot.cost, removed_cost)
+    }
+
+    {Map.put(lots, key, updated), removed_cost}
+  end
+
+  defp empty_lot, do: %{quantity: @zero, cost: @zero}
 
   defp decorate_holding(row, nil) do
     Map.merge(row, %{
@@ -366,9 +425,12 @@ defmodule Portfolixir.Ledger do
 
   defp decorate_holding(row, %Decimal{} = latest_price) do
     current_value = Decimal.mult(row.quantity, latest_price)
-    cost = Decimal.mult(row.quantity, row.avg_cost)
-    abs_pnl = Decimal.sub(current_value, cost)
-    pct_pnl = if Decimal.equal?(cost, 0), do: Decimal.new(0), else: Decimal.div(abs_pnl, cost)
+    abs_pnl = Decimal.sub(current_value, row.cost_basis)
+
+    pct_pnl =
+      if Decimal.equal?(row.cost_basis, 0),
+        do: Decimal.new(0),
+        else: Decimal.div(abs_pnl, row.cost_basis)
 
     Map.merge(row, %{
       latest_price: latest_price,
