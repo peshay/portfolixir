@@ -7,10 +7,12 @@ defmodule Portfolixir.Ledger do
   plus the cash-, dividend-, fee-, tax- and transfer-flavoured events
   required to ingest external exports.
 
-  Position quantities (`positions_for_portfolio/1`) move with trades,
-  deliveries and security transfers; the moving-average holdings view and
-  the FIFO trade matcher consider only the priced `buy`/`sell` kinds — the
-  remaining kinds change cash balance without re-pricing existing lots.
+  Held quantities — `positions_for_portfolio/1` and the holdings views —
+  move with trades, deliveries and security transfers (the projection's
+  quantity legs, ADR-0011). The moving-average cost basis and the FIFO
+  trade matcher consider only the priced `buy`/`sell` kinds — the
+  remaining kinds change quantity or cash balance without re-pricing
+  existing lots.
   """
 
   import Ecto.Query
@@ -80,7 +82,7 @@ defmodule Portfolixir.Ledger do
       from(transaction in Transaction,
         where: transaction.security_id == ^security_id,
         order_by: [asc: transaction.date, asc: transaction.id],
-        preload: [:portfolio, :securities_account, :cash_account]
+        preload: [:portfolio, :securities_account, :cash_account, :counter_securities_account]
       )
     )
   end
@@ -151,54 +153,77 @@ defmodule Portfolixir.Ledger do
   (depot, security), enriched with a moving-average cost basis and the
   unrealised P&L against each security's latest known quote close.
 
-  Like `holdings_for_security/2`, the cost basis is price-based (it follows
-  `moving_average/1`, so fees and taxes are not folded into the unit cost) and
-  every monetary figure is in the security's own currency — no FX conversion is
-  applied here (that is the job of `Portfolixir.Portfolios.Valuation`). A holding
-  whose security has no quote is returned with `nil` price, market value and
-  P&L, so a missing price never distorts the rest of the list.
+  Quantities are the canonical position quantities (`Ledger.Positions`,
+  ADR-0011): they move with trades, deliveries and security transfers, so a
+  position that left the depot without a sell (e.g. a takeover booked as an
+  outbound delivery) does not linger as a phantom holding. Like
+  `holdings_for_security/2`, the cost basis is price-based (it follows
+  `moving_average/1` over the priced `buy`/`sell` trades only, so fees, taxes
+  and unpriced deliveries are not folded into the unit cost) and every monetary
+  figure is in the security's own currency — no FX conversion is applied here
+  (that is the job of `Portfolixir.Portfolios.Valuation`). A holding whose
+  security has no quote is returned with `nil` price, market value and P&L, so
+  a missing price never distorts the rest of the list.
 
   Pass `:prices` (`%{security_id => Decimal}`) to inject comparison prices for
   tests; missing securities fall back to `Catalog.Quotes.latest/1`.
   """
   def holdings_for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     prices = Keyword.get(opts, :prices, %{})
+    transactions = portfolio_transactions_with_security(portfolio_id)
 
-    portfolio_id
-    |> portfolio_trades()
-    |> Enum.group_by(fn tx -> {tx.securities_account_id, tx.security_id} end)
-    |> Enum.map(fn {{account_id, security_id}, txs} ->
-      build_holding_row(account_id, security_id, txs, holding_price(security_id, prices))
+    trades =
+      Enum.group_by(priced_trades(transactions), &{&1.securities_account_id, &1.security_id})
+
+    securities = securities_by_id(transactions)
+
+    transactions
+    |> Positions.calculate()
+    |> Enum.map(fn {{account_id, security_id}, quantity} ->
+      avg_cost = moving_average(Map.get(trades, {account_id, security_id}, [])).avg_cost
+
+      build_holding_row(
+        account_id,
+        security_id,
+        Map.get(securities, security_id),
+        quantity,
+        avg_cost,
+        holding_price(security_id, prices)
+      )
     end)
-    |> Enum.reject(&Decimal.equal?(&1.quantity, 0))
     |> Enum.sort_by(&{&1.security_id, &1.securities_account_id})
   end
 
-  # Buy/sell transactions of one portfolio in chronological order, with the
-  # security preloaded so each holding can carry its name and currency. Ordering
-  # ascending is required for the moving-average fold to be correct.
-  defp portfolio_trades(portfolio_id) do
+  # All transactions of one portfolio in chronological order, with the
+  # security preloaded so each holding can carry its name and currency.
+  # Ordering ascending is required for the moving-average fold to be correct.
+  defp portfolio_transactions_with_security(portfolio_id) do
     Repo.all(
       from(transaction in Transaction,
-        where: transaction.portfolio_id == ^portfolio_id and transaction.type in ["buy", "sell"],
+        where: transaction.portfolio_id == ^portfolio_id,
         order_by: [asc: transaction.date, asc: transaction.id],
         preload: [:security]
       )
     )
   end
 
-  defp build_holding_row(account_id, security_id, txs, latest_price) do
-    summary = moving_average(txs)
-    security = List.first(txs).security
+  defp priced_trades(transactions), do: Enum.filter(transactions, &(&1.type in ["buy", "sell"]))
 
+  defp securities_by_id(transactions) do
+    for %{security: %Portfolixir.Catalog.Security{} = security} <- transactions,
+        into: %{},
+        do: {security.id, security}
+  end
+
+  defp build_holding_row(account_id, security_id, security, quantity, avg_cost, latest_price) do
     base = %{
       securities_account_id: account_id,
       security_id: security_id,
       security_name: security && security.name,
       currency_code: security && security.currency_code,
-      quantity: summary.quantity,
-      avg_cost: summary.avg_cost,
-      cost_basis: Decimal.mult(summary.quantity, summary.avg_cost)
+      quantity: quantity,
+      avg_cost: avg_cost,
+      cost_basis: Decimal.mult(quantity, avg_cost)
     }
 
     put_holding_valuation(base, latest_price)
@@ -246,8 +271,12 @@ defmodule Portfolixir.Ledger do
 
   @doc """
   Returns the current holdings of a single security, split by
-  (portfolio, depot). Computes a moving-average cost basis from the
-  chronological buy/sell stream within each grouping.
+  (portfolio, depot).
+
+  Quantities are the canonical position quantities (`Ledger.Positions`,
+  ADR-0011), so trades, deliveries and security transfers all move them.
+  The moving-average cost basis is computed from the chronological
+  `buy`/`sell` stream of each depot only.
 
   Pass `:latest_price` to inject the comparison price for tests;
   otherwise reads it from `Catalog.Quotes.latest/1`.
@@ -261,24 +290,40 @@ defmodule Portfolixir.Ledger do
         end
       end)
 
-    security_id
-    |> list_transactions_for_security()
-    |> Enum.group_by(fn tx -> {tx.portfolio_id, tx.securities_account_id} end)
-    |> Enum.map(fn {{_pid, _depot_id}, txs} ->
-      summary = moving_average(txs)
+    transactions = list_transactions_for_security(security_id)
+    trades = Enum.group_by(priced_trades(transactions), & &1.securities_account_id)
+    depots = depots_by_id(transactions)
 
-      base_row = %{
-        portfolio: List.first(txs).portfolio,
-        depot: List.first(txs).securities_account,
-        quantity: summary.quantity,
-        avg_cost: summary.avg_cost
-      }
+    transactions
+    |> Positions.calculate()
+    |> Enum.map(fn {{account_id, _security_id}, quantity} ->
+      %{portfolio: portfolio, depot: depot} = Map.fetch!(depots, account_id)
+      avg_cost = moving_average(Map.get(trades, account_id, [])).avg_cost
 
-      decorate_holding(base_row, latest_price)
+      decorate_holding(
+        %{portfolio: portfolio, depot: depot, quantity: quantity, avg_cost: avg_cost},
+        latest_price
+      )
     end)
-    |> Enum.reject(&Decimal.equal?(&1.quantity, 0))
     |> Enum.sort_by(& &1.portfolio.name)
   end
+
+  # Depot (and owning portfolio) structs per securities-account id, taken from
+  # the preloaded transactions. The counter account of a `security_transfer`
+  # belongs to the same portfolio (enforced by FK), so the transaction's
+  # portfolio serves both legs.
+  defp depots_by_id(transactions) do
+    Enum.reduce(transactions, %{}, fn tx, acc ->
+      acc
+      |> put_depot(tx.securities_account, tx.portfolio)
+      |> put_depot(tx.counter_securities_account, tx.portfolio)
+    end)
+  end
+
+  defp put_depot(acc, %SecuritiesAccount{} = depot, portfolio),
+    do: Map.put_new(acc, depot.id, %{depot: depot, portfolio: portfolio})
+
+  defp put_depot(acc, _not_loaded_or_nil, _portfolio), do: acc
 
   defp moving_average(transactions) do
     Enum.reduce(transactions, %{quantity: Decimal.new(0), avg_cost: Decimal.new(0)}, fn tx, acc ->
