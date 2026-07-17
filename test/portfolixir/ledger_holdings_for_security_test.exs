@@ -115,6 +115,63 @@ defmodule Portfolixir.LedgerHoldingsForSecurityTest do
     assert Ledger.holdings_for_security(w.security.id) == []
   end
 
+  defp delivery!(w, depot, portfolio, type, date, qty) do
+    {:ok, t} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        security_id: w.security.id,
+        type: type,
+        date: date,
+        quantity: Decimal.new(qty),
+        currency_code: "USD"
+      })
+
+    t
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want the security detail holdings to reflect deliveries,
+  # so that shares that left the depot without a sell (e.g. a takeover
+  # booked as an outbound delivery) are not reported as still held.
+  #
+  # Acceptance criteria:
+  # - A full outbound delivery closes the position (no row).
+  # - A partial outbound delivery reduces the quantity while the
+  #   moving-average cost of the buys is kept.
+  # - An inbound delivery adds held quantity without a priced trade.
+  test "deliveries move the held quantity per depot" do
+    w = setup_world()
+
+    # Depot A: bought, then partially delivered out.
+    tx!(w, w.depot_a, w.cash_a, w.portfolio_a, "buy", ~D[2026-01-10], "10", "100.00")
+    delivery!(w, w.depot_a, w.portfolio_a, "outbound_delivery", ~D[2026-03-10], "4")
+
+    # Depot B: shares arrived by inbound delivery only.
+    delivery!(w, w.depot_b, w.portfolio_b, "inbound_delivery", ~D[2026-02-10], "3")
+
+    rows = Ledger.holdings_for_security(w.security.id)
+    assert length(rows) == 2
+
+    personal = Enum.find(rows, &(&1.portfolio.id == w.portfolio_a.id))
+    assert Decimal.equal?(personal.quantity, Decimal.new("6"))
+    assert Decimal.equal?(personal.avg_cost, Decimal.new("100"))
+
+    joint = Enum.find(rows, &(&1.portfolio.id == w.portfolio_b.id))
+    assert joint.depot.id == w.depot_b.id
+    assert Decimal.equal?(joint.quantity, Decimal.new("3"))
+    assert Decimal.equal?(joint.avg_cost, Decimal.new("0"))
+  end
+
+  test "omits a position fully removed by an outbound delivery" do
+    w = setup_world()
+    tx!(w, w.depot_a, w.cash_a, w.portfolio_a, "buy", ~D[2026-01-10], "10", "100.00")
+    delivery!(w, w.depot_a, w.portfolio_a, "outbound_delivery", ~D[2026-03-10], "10")
+
+    assert Ledger.holdings_for_security(w.security.id) == []
+  end
+
   test "returns nil current value when no quote is available" do
     w = setup_world()
     tx!(w, w.depot_a, w.cash_a, w.portfolio_a, "buy", ~D[2026-01-10], "10", "100.00")
