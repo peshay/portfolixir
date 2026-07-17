@@ -236,8 +236,12 @@ austreten, z. B. ein Depotübertrag von einer anderen Bank) und mit
 **Wertpapierübertragungen** zwischen deinen eigenen Depots. Jeder Bestand trägt
 außerdem einen gleitenden Durchschnitts-Einstandswert und den nicht realisierten
 Gewinn/Verlust (absolut und prozentual) gegen den zuletzt gespeicherten Preis, in
-der eigenen Währung des Wertpapiers; Einstandswert und G/V berücksichtigen nur
-bepreiste Kauf-/Verkauftrades, da eine Lieferung keinen eigenen Einstand trägt.
+der eigenen Währung des Wertpapiers. Der Einstandswert wandert mit den Anteilen:
+Käufe (und mit Preis erfasste Einlieferungen) fügen Einstand hinzu, Verkäufe und
+Auslieferungen entnehmen ihn zum laufenden Durchschnitt, und eine
+Wertpapierübertragung nimmt den Einstand der bewegten Anteile mit ins Zieldepot.
+Eine ohne Preis erfasste Lieferung bewegt die Menge zum Einstand null, da für
+sie kein eigener Anschaffungswert bekannt ist.
 
 ## Klassifizierungen, Ziele und Allokation
 
