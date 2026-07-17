@@ -235,3 +235,174 @@ defmodule Portfolixir.Portfolios.PlanVersionsReviewTest do
     assert Targets.list_plans(portfolio.id) == []
   end
 end
+
+# Contract tests for the version API's error and addressing paths (coverage
+# ratchet #314: every branch a client can reach carries an assertion).
+defmodule Portfolixir.Portfolios.PlanVersionsContractTest do
+  use Portfolixir.DataCase, async: true
+
+  alias Portfolixir.Actor
+  alias Portfolixir.Buckets
+  alias Portfolixir.Classifications
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.TargetPlan
+  alias Portfolixir.Portfolios.Targets
+
+  defp world do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: "P", base_currency_code: "EUR"})
+
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
+
+    %{portfolio: portfolio, classification: classification, category: category}
+  end
+
+  test "the plan lifecycle statuses are the closed active/draft/archived set" do
+    assert TargetPlan.statuses() == ["active", "draft", "archived"]
+  end
+
+  test "version functions return :not_found for unknown ids" do
+    assert {:error, :not_found} = Targets.fetch_plan(999_999)
+    assert {:error, :not_found} = Targets.duplicate_plan(Actor.owner_ui(), 999_999)
+    assert {:error, :not_found} = Targets.activate_plan(Actor.owner_ui(), 999_999)
+    assert {:error, :not_found} = Targets.rename_plan(Actor.owner_ui(), 999_999, "X")
+    assert {:error, :not_found} = Targets.delete_plan_version(Actor.owner_ui(), 999_999)
+  end
+
+  test "rename rejects a blank name instead of silently doing nothing" do
+    %{portfolio: portfolio, classification: classification, category: category} = world()
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{category_id: category.id, target_weight: Decimal.new("0.5")}
+      ])
+
+    [plan] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    assert {:error, :invalid_name} = Targets.rename_plan(Actor.owner_ui(), plan, "   ")
+
+    [unchanged] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    assert unchanged.name == plan.name
+  end
+
+  test "a plan: option from another scope is rejected as plan_mismatch" do
+    %{portfolio: portfolio, classification: classification, category: category} = world()
+
+    {:ok, other_portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: "Other", base_currency_code: "EUR"})
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{category_id: category.id, target_weight: Decimal.new("0.5")}
+      ])
+
+    [plan] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+
+    assert {:error, :plan_mismatch} =
+             Targets.set_targets(
+               Actor.owner_ui(),
+               other_portfolio.id,
+               classification.id,
+               [%{category_id: category.id, target_weight: Decimal.new("0.5")}],
+               plan: plan.id
+             )
+
+    # Plan-addressed reads scope-check against the portfolio too.
+    assert Targets.get_cash_target(other_portfolio.id, plan: plan.id) == nil
+  end
+
+  test "ensure_plan materialises an empty active plan; delete_plan on none is a no-op" do
+    %{portfolio: portfolio, classification: classification} = world()
+
+    assert {:ok, 0} = Targets.delete_plan(Actor.owner_ui(), portfolio.id, classification.id)
+
+    {:ok, %TargetPlan{status: "active"} = plan} =
+      Targets.ensure_plan(Actor.owner_ui(), portfolio.id, classification.id)
+
+    assert Targets.plan_exists?(portfolio.id, classification.id)
+    # Idempotent: a second ensure returns the same row.
+    {:ok, same} = Targets.ensure_plan(Actor.owner_ui(), portfolio.id, classification.id)
+    assert same.id == plan.id
+
+    assert {:ok, 1} = Targets.delete_plan(Actor.owner_ui(), portfolio.id, classification.id)
+    refute Targets.plan_exists?(portfolio.id, classification.id)
+  end
+
+  test "plan-addressed reads and deletes hit exactly the addressed version" do
+    %{portfolio: portfolio, classification: classification, category: category} = world()
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{category_id: category.id, target_weight: Decimal.new("0.5")}
+      ])
+
+    [active] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), active, %{name: "Draft"})
+
+    # get_target/delete_target with plan: address the draft only.
+    draft_target = Targets.get_target(portfolio.id, category.id, plan: draft)
+    assert Decimal.equal?(draft_target.target_weight, Decimal.new("0.5"))
+
+    assert {:ok, 1} =
+             Targets.delete_target(Actor.owner_ui(), portfolio.id, category.id, plan: draft.id)
+
+    assert Targets.list_targets(portfolio.id, plan: draft.id) == []
+
+    [kept] = Targets.list_targets(portfolio.id, classification_id: classification.id)
+    assert Decimal.equal?(kept.target_weight, Decimal.new("0.5"))
+
+    # Cash target per version: writes land on the draft row only.
+    :ok =
+      Targets.set_cash_target(Actor.owner_ui(), portfolio.id, Decimal.new("0.3"), plan: draft.id)
+
+    assert Decimal.equal?(
+             Targets.get_cash_target(portfolio.id, plan: draft.id),
+             Decimal.new("0.3")
+           )
+
+    assert Targets.get_cash_target(portfolio.id) == nil
+
+    # Clearing a cash target with no plan anywhere stays a no-op, and a plan:
+    # pointing nowhere is :not_found.
+    assert {:error, :not_found} =
+             Targets.set_cash_target(Actor.owner_ui(), portfolio.id, Decimal.new("0.1"),
+               plan: 999_999
+             )
+  end
+
+  test "list_plans filters by view scope, nil meaning Gesamt" do
+    %{portfolio: portfolio, classification: classification, category: category} = world()
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{category_id: category.id, target_weight: Decimal.new("0.5")}
+      ])
+
+    {:ok, _} =
+      Targets.set_targets(
+        Actor.owner_ui(),
+        portfolio.id,
+        classification.id,
+        [%{category_id: category.id, target_weight: Decimal.new("0.9")}],
+        view: view.id
+      )
+
+    all = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    assert length(all) == 2
+
+    [gesamt] = Targets.list_plans(portfolio.id, classification_id: classification.id, view: nil)
+    assert gesamt.view_id == nil
+
+    [scoped] =
+      Targets.list_plans(portfolio.id, classification_id: classification.id, view: view.id)
+
+    assert scoped.view_id == view.id
+  end
+end

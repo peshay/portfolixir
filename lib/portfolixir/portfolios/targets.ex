@@ -398,8 +398,16 @@ defmodule Portfolixir.Portfolios.Targets do
   `{:error, :not_found}`, or `{:error, %Ecto.Changeset{}}`.
   """
   def rename_plan(%Actor{} = actor, plan_or_id, name) when is_binary(name) do
-    with {:ok, plan} <- fetch_plan(plan_or_id) do
-      journaled_update(actor, plan, %{name: name}, "target_plan")
+    # An empty name would be silently dropped by cast/3 (empty values), turning
+    # the rename into a confusing no-op — reject it explicitly instead.
+    case String.trim(name) do
+      "" ->
+        {:error, :invalid_name}
+
+      trimmed ->
+        with {:ok, plan} <- fetch_plan(plan_or_id) do
+          journaled_update(actor, plan, %{name: trimmed}, "target_plan")
+        end
     end
   end
 
