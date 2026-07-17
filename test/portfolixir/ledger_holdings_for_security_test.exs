@@ -157,11 +157,13 @@ defmodule Portfolixir.LedgerHoldingsForSecurityTest do
     personal = Enum.find(rows, &(&1.portfolio.id == w.portfolio_a.id))
     assert Decimal.equal?(personal.quantity, Decimal.new("6"))
     assert Decimal.equal?(personal.avg_cost, Decimal.new("100"))
+    assert Decimal.equal?(personal.cost_basis, Decimal.new("600"))
 
     joint = Enum.find(rows, &(&1.portfolio.id == w.portfolio_b.id))
     assert joint.depot.id == w.depot_b.id
     assert Decimal.equal?(joint.quantity, Decimal.new("3"))
     assert Decimal.equal?(joint.avg_cost, Decimal.new("0"))
+    assert Decimal.equal?(joint.cost_basis, Decimal.new("0"))
   end
 
   test "omits a position fully removed by an outbound delivery" do

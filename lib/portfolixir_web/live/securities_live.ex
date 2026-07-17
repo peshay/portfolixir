@@ -956,12 +956,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp holdings_tab_panel(assigns) do
     totals =
       Enum.reduce(assigns.holdings, %{value: Decimal.new(0), cost: Decimal.new(0)}, fn h, acc ->
-        if h.current_value && h.avg_cost do
-          cost = Decimal.mult(h.quantity, h.avg_cost)
-
+        if h.current_value && h.cost_basis do
           %{
             value: Decimal.add(acc.value, h.current_value),
-            cost: Decimal.add(acc.cost, cost)
+            cost: Decimal.add(acc.cost, h.cost_basis)
           }
         else
           acc

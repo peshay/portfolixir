@@ -197,9 +197,88 @@ defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
 
     d_source = row_for(holdings, d.id, depot_one.id)
     assert Decimal.equal?(d_source.quantity, Decimal.new("6"))
+    assert Decimal.equal?(d_source.avg_cost, Decimal.new("20"))
+    assert Decimal.equal?(d_source.cost_basis, Decimal.new("120"))
 
     d_target = row_for(holdings, d.id, depot_two.id)
     assert Decimal.equal?(d_target.quantity, Decimal.new("4"))
     assert d_target.security_name == "Transferred"
+    # The transferred shares keep their recorded buy cost — a transfer between
+    # own depots must not erase money that was actually spent.
+    assert Decimal.equal?(d_target.avg_cost, Decimal.new("20"))
+    assert Decimal.equal?(d_target.cost_basis, Decimal.new("80"))
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want the cost basis to follow the shares through deliveries and
+  # transfers,
+  # so that unrealized P&L is always computed against the money actually
+  # spent on the shares still held.
+  #
+  # Acceptance criteria:
+  # - Re-buying after a full outbound delivery starts a fresh average
+  #   (the delivered-out shares take their cost with them).
+  # - Shares entering by an unpriced inbound delivery add no cost, so the
+  #   cost basis stays the sum of the priced buys.
+  # - After trades net to zero, delivered-in shares carry a zero basis.
+  # - An over-delivered (negative) position reports a zero cost basis and
+  #   the P&L percentage does not flip its sign.
+  test "cost basis follows the shares through deliveries" do
+    world = setup_world()
+    %{depot_one: depot_one} = world
+
+    r = equity!("Reopened", "ROP")
+    m = equity!("Mixed Basis", "MIX")
+    n = equity!("Netted", "NET")
+    o = equity!("Over Delivered", "OVR")
+
+    # Reopened: buy, deliver everything out, buy again at a new price.
+    trade!(world, depot_one, r, "buy", "10", "100", ~D[2026-01-02])
+    delivery!(world, depot_one, r, "outbound_delivery", "10", ~D[2026-02-02])
+    trade!(world, depot_one, r, "buy", "5", "200", ~D[2026-03-02])
+
+    # Mixed: one priced buy plus an unpriced inbound delivery (spin-off style).
+    trade!(world, depot_one, m, "buy", "5", "100", ~D[2026-01-03])
+    delivery!(world, depot_one, m, "inbound_delivery", "10", ~D[2026-02-03])
+
+    # Netted: trades close to zero, then shares arrive by delivery.
+    trade!(world, depot_one, n, "buy", "10", "100", ~D[2026-01-04])
+    trade!(world, depot_one, n, "sell", "10", "110", ~D[2026-02-04])
+    delivery!(world, depot_one, n, "inbound_delivery", "5", ~D[2026-03-04])
+
+    # Over-delivered: more shares leave than were ever held.
+    trade!(world, depot_one, o, "buy", "10", "100", ~D[2026-01-05])
+    delivery!(world, depot_one, o, "outbound_delivery", "15", ~D[2026-02-05])
+
+    holdings =
+      Ledger.holdings_for_portfolio(world.portfolio.id,
+        prices: %{m.id => Decimal.new("100"), o.id => Decimal.new("120")}
+      )
+
+    r_row = row_for(holdings, r.id, depot_one.id)
+    assert Decimal.equal?(r_row.quantity, Decimal.new("5"))
+    assert Decimal.equal?(r_row.avg_cost, Decimal.new("200"))
+    assert Decimal.equal?(r_row.cost_basis, Decimal.new("1000"))
+
+    m_row = row_for(holdings, m.id, depot_one.id)
+    assert Decimal.equal?(m_row.quantity, Decimal.new("15"))
+    assert Decimal.equal?(m_row.cost_basis, Decimal.new("500"))
+    assert Decimal.equal?(Decimal.round(m_row.avg_cost, 4), Decimal.new("33.3333"))
+    assert Decimal.equal?(m_row.market_value, Decimal.new("1500"))
+    assert Decimal.equal?(m_row.unrealized_pnl_abs, Decimal.new("1000"))
+    assert Decimal.equal?(m_row.unrealized_pnl_pct, Decimal.new("2"))
+
+    n_row = row_for(holdings, n.id, depot_one.id)
+    assert Decimal.equal?(n_row.quantity, Decimal.new("5"))
+    assert Decimal.equal?(n_row.avg_cost, Decimal.new("0"))
+    assert Decimal.equal?(n_row.cost_basis, Decimal.new("0"))
+
+    o_row = row_for(holdings, o.id, depot_one.id)
+    assert Decimal.equal?(o_row.quantity, Decimal.new("-5"))
+    assert Decimal.equal?(o_row.cost_basis, Decimal.new("0"))
+    assert Decimal.equal?(o_row.market_value, Decimal.new("-600"))
+    assert Decimal.equal?(o_row.unrealized_pnl_abs, Decimal.new("-600"))
+    assert Decimal.equal?(o_row.unrealized_pnl_pct, Decimal.new("0"))
   end
 end
