@@ -5,6 +5,10 @@ inputDocuments:
   - '_bmad-output/planning-artifacts/architecture.md'
   - '_bmad-output/planning-artifacts/ux-designs/ux-portfolixir-2026-06-12/DESIGN.md'
   - '_bmad-output/planning-artifacts/ux-designs/ux-portfolixir-2026-06-12/EXPERIENCE.md'
+amendments:
+  - date: '2026-07-18'
+    source: 'MCP field feedback (owner LLM agent), code-verified; owner-confirmed FR-30..FR-35'
+    stepsCompleted: [1]
 ---
 
 # Portfolixir - Epic Breakdown
@@ -61,6 +65,16 @@ This document provides the complete epic and story breakdown for Portfolixir, de
 **G. Planning & simulation (Phase 5)**
 - FR-26: Retirement projection: wealth-at-age and sustainable-withdrawal curves under named scenario parameter sets (discovery story fixes AC; backs Success Metric 3).
 - FR-27: What-if simulator: virtual trade scenarios as overlay timelines vs. real quote history, incl. blind-follow series + aggregate per-source verdict; strictly separated from the real ledger (#332).
+
+**H. LLM-DX & data resilience (added 2026-07-18, source: MCP field feedback from the owner's LLM agent, each claim code-verified; confirmed by the owner and re-reviewed by the reporting agent)**
+- FR-30: Holdings payloads (JSON API + MCP) carry the stable security identifiers ISIN/WKN, so external reconciliation needs no client-side join over `securities_list`. (Verified gap: `Api.V1.JSON.holding/2` serializes id/name only.)
+- FR-31: The MCP `transactions_create` tool accepts all 13 ledger kinds at parity with the JSON API. Acceptance criteria MUST name `inbound_delivery`/`outbound_delivery` explicitly — together with the holdings-quantity fix (see 2026-07-18 reconciliation) this completes the minimal phantom-position workflow over MCP: book the delivery, holdings are right. FR-23 wizards are the comfort layer on top. (Verified gap: create schema allows `buy`/`sell` only while update allows all 13 — forcing a create-as-buy→update-to-dividend detour.)
+- FR-32: Booking semantics are documented where the LLM reads them (MCP tool/schema descriptions + API docs): `gross_amount` on a dividend is the NET cash credited (withheld taxes ride separately; the income report reconstructs gross). Explicitly NOT a field rename — that would be breaking.
+- FR-33: Response-size control for token economy: a `fields` selector (or a slim default projection) for `securities_list` so logos/timestamps don't ride along on every listing. Extends FR-15.
+- FR-34: Strategy configuration (classifications, target plans, cash target) survives a PP re-import. Decision gate ADR: stable external identity (ISIN-keyed matching at import) vs. strategy-config export/import. Touches import idempotency → **risk-tier** (dedicated small PRs, real human review).
+- FR-35: Read-only holdings reconciliation against an external position list (preview-style compare, no write-back). Requires a mini-ADR drawing the boundary against the forbidden broker sync (NFR-4) before implementation.
+
+**FR-23 sharpened (no new FR):** corporate actions remain the guided-wizard feature (split, rename/ISIN change, merger/spin-off) with quote-history continuity — reproducible ledger events, ADR decision gate first. Priority raised from "later" to "next": a split silently distorts every chart and holdings figure, and no delivery pair can compensate for that. The phantom-holdings defect formerly motivating urgency here was a projection bug, not a missing feature — fixed 2026-07-18 (see reconciliation below), NOT part of this feature scope.
 
 ### NonFunctional Requirements
 
@@ -145,6 +159,12 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | — | cross-cutting perf; watch in perf-sensitive stories |
 | UX-DR1–14 | **#356** + #336, #337, #339, #319 | UX/a11y tracker (UI = priority 3) |
+| FR-30 | tbd | ISIN/WKN in holdings payloads (E6 DX batch) |
+| FR-31 | tbd | MCP create: all 13 kinds, deliveries named in AC (E6 DX batch) |
+| FR-32 | tbd | booking-semantics docs, `gross_amount` = net cash (E6 DX batch) |
+| FR-33 | tbd | `fields` selector / slim `securities_list` (E6 DX batch) |
+| FR-34 | tbd | **gated** — re-import identity ADR first (E18), risk-tier |
+| FR-35 | tbd | **gated** — reconcile mini-ADR vs. NFR-4 first (E18) |
 
 ## Implementation Status — reconciled with code (2026-06-18)
 
@@ -243,6 +263,39 @@ ADR + AGENTS.md amendment (and, for FR-22–26, a discovery story) before code.
 - **E16 — plan versions & depot snapshots (ADR-0027)**: new, decision gate
   signed off by the owner 2026-07-16 — in implementation on
   `agent/claude/plan-snapshots-adr`.
+
+## Implementation Status — reconciled with code (2026-07-18)
+
+> Third additive reconciliation. Trigger: MCP field feedback from the owner's
+> LLM agent surfaced a wrong-number defect and four DX gaps; all claims were
+> verified against the code before planning.
+
+- **Phantom-holdings defect: FIXED on branch, pending owner merge.** The
+  moving-average holdings views (`holdings_for_portfolio/2`,
+  `holdings_for_security/2`) derived quantities from the `buy`/`sell` stream
+  only, so positions exited via `inbound_delivery`/`outbound_delivery`/
+  `security_transfer` lingered with stale quantities (an FR-1 violation — the
+  canonical `Positions` fold already counted these kinds; the two views did
+  not). Fixed fast-lane, no ADR gate, on
+  `claude/portfolixir-holdings-calculation-zfcqeh`:
+  - `e6508aa` — holdings quantities now come from the canonical
+    `Ledger.Positions` fold (deliveries + transfers move them); the owner's
+    real-world case (buy 615 @ 17.50, takeover booked as outbound delivery)
+    is a committed regression test.
+  - `5ed3f13` — follow-up from the mandatory adversarial review (3 agents:
+    correctness, edge-case, UAT persona): the cost basis now follows the
+    shares (transfers carry cost into the counter depot, removals take cost
+    out at the running average, unpriced deliveries enter at zero cost, P&L
+    percentage can no longer sign-flip on negative positions). Docs EN/DE
+    updated.
+  - **Owner actions:** review + merge the branch (ledger math = risk-tier,
+    agents never merge), then have the reporting LLM agent re-verify live
+    over MCP (ledger quantity vs. holdings for the affected ISINs) as UAT
+    evidence. Until merge, the running instance still shows the phantom.
+- Import applier note (feeds E17/E18 design): the PP CSV parser reads a
+  `Kurs` for deliveries but the applier persists only `quantity` — imported
+  deliveries therefore carry no price and enter the cost fold at zero cost.
+  Carrying the price through is a candidate story in the E6 DX batch or E17.
 
 ## Epic List
 
