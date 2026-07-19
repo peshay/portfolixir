@@ -1041,4 +1041,86 @@ defmodule Portfolixir.Imports.ApplierTest do
       assert length(Ledger.list_transactions_for_portfolio(portfolio.id)) == 2
     end
   end
+
+  # User story (#585, Story 6.C-1):
+  # As a local portfolio maintainer importing PP history,
+  # I want the applier to persist the parsed `Kurs` on delivery rows,
+  # so that imported deliveries enter the cost fold with their real cost
+  # instead of zero.
+  #
+  # Acceptance criteria:
+  # - A PP CSV `Einlieferung` row carrying `Kurs`: the created
+  #   `inbound_delivery` stores that price and the holdings cost basis
+  #   reflects it (exact-Decimal expectations).
+  # - An `Auslieferung` row's `Kurs` is persisted too; the cost fold still
+  #   removes cost at the running average (projection semantics unchanged).
+  # - A `Kurs`-less delivery row still imports (price nil, zero cost).
+  # - Import idempotency is unaffected: re-applying the same file is a
+  #   no-op (content-hash regression).
+  describe "apply/2 persists the parsed Kurs on deliveries (#585)" do
+    # Synthetic PP CSV: a priced Einlieferung, a priced Auslieferung and a
+    # Kurs-less Einlieferung of the same security in one depot. The leading
+    # Kauf of an unrelated security gives the freshly created depot its cash
+    # account (delivery rows carry no cash side).
+    @delivery_csv """
+    Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+    2024-01-15 10:01:00;Kauf;Apple Inc.;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;
+    2024-09-04 00:00:00;Einlieferung;iShares Core MSCI World UCITS ETF;5;100,50;502,50;;;502,50;Test-Depot;;;
+    2024-10-01 00:00:00;Auslieferung;iShares Core MSCI World UCITS ETF;2;110,00;220,00;;;220,00;Test-Depot;;;
+    2024-11-01 00:00:00;Einlieferung;iShares Core MSCI World UCITS ETF;1;;0,00;;;0,00;Test-Depot;;;
+    """
+
+    test "stores the delivery prices and folds them into the holdings cost basis" do
+      portfolio = setup_portfolio()
+
+      {:ok, preview} = PortfolioPerformance.parse(@delivery_csv, filename: "deliveries.csv")
+
+      assert {:ok, %Result{created_transactions: 4, skipped_entries: []}} =
+               Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+      transactions =
+        portfolio.id
+        |> Ledger.list_transactions_for_portfolio()
+        |> Enum.sort_by(&Date.to_erl(&1.date))
+
+      assert [%{type: "buy"}, priced_inbound, priced_outbound, unpriced_inbound] = transactions
+
+      assert priced_inbound.type == "inbound_delivery"
+      assert Decimal.equal?(priced_inbound.price, Decimal.new("100.50"))
+
+      assert priced_outbound.type == "outbound_delivery"
+      assert Decimal.equal?(priced_outbound.price, Decimal.new("110.00"))
+
+      assert unpriced_inbound.type == "inbound_delivery"
+      assert is_nil(unpriced_inbound.price)
+
+      # Cost fold: +5 × 100.50 = 502.50, the outbound removes 2 shares at the
+      # running average (2 × 100.50 = 201.00, its own 110.00 price is data
+      # retention only), the unpriced inbound adds 1 share at zero cost.
+      assert [holding] =
+               portfolio.id
+               |> Ledger.holdings_for_portfolio()
+               |> Enum.filter(&(&1.security_id == priced_inbound.security_id))
+
+      assert Decimal.equal?(holding.quantity, Decimal.new("4"))
+      assert Decimal.equal?(holding.cost_basis, Decimal.new("301.50"))
+      assert Decimal.equal?(holding.avg_cost, Decimal.new("75.375"))
+    end
+
+    test "re-applying the same file stays a content-hash no-op" do
+      portfolio = setup_portfolio()
+
+      {:ok, preview} = PortfolioPerformance.parse(@delivery_csv, filename: "deliveries.csv")
+
+      assert {:ok, %Result{created_transactions: 4}} =
+               Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+      {:ok, reparsed} = PortfolioPerformance.parse(@delivery_csv, filename: "deliveries.csv")
+
+      assert {:ok, %Result{created_transactions: 0, skipped_duplicates: 4}} =
+               Imports.apply(reparsed, %{portfolio_id: portfolio.id})
+
+      assert Ledger.count_transactions() == 4
+    end
+  end
 end

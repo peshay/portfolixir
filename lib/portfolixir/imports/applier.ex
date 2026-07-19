@@ -712,10 +712,16 @@ defmodule Portfolixir.Imports.Applier do
           }
 
         kind when kind in ["inbound_delivery", "outbound_delivery"] ->
+          # The parsed per-share price (PP CSV `Kurs`) is persisted so a
+          # priced inbound delivery enters the holdings cost fold with its
+          # real cost (#585). The outbound price is data retention only —
+          # the cost fold removes cost at the running average. A price-less
+          # delivery keeps `price: nil` (zero cost, unchanged).
           %{
             security_id: ids.security_id,
             securities_account_id: ids.depot_id,
-            quantity: entry.quantity
+            quantity: entry.quantity,
+            price: entry.price
           }
 
         "security_transfer" ->
