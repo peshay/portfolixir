@@ -8,7 +8,8 @@ inputDocuments:
 amendments:
   - date: '2026-07-18'
     source: 'MCP field feedback (owner LLM agent), code-verified; owner-confirmed FR-30..FR-35'
-    stepsCompleted: [1]
+    stepsCompleted: [1, 2]
+    elicitation: 'inversion analysis + stakeholder round table (subagents); findings applied with owner approval'
 ---
 
 # Portfolixir - Epic Breakdown
@@ -68,13 +69,13 @@ This document provides the complete epic and story breakdown for Portfolixir, de
 
 **H. LLM-DX & data resilience (added 2026-07-18, source: MCP field feedback from the owner's LLM agent, each claim code-verified; confirmed by the owner and re-reviewed by the reporting agent)**
 - FR-30: Holdings payloads (JSON API + MCP) carry the stable security identifiers ISIN/WKN, so external reconciliation needs no client-side join over `securities_list`. (Verified gap: `Api.V1.JSON.holding/2` serializes id/name only.)
-- FR-31: The MCP `transactions_create` tool accepts all 13 ledger kinds at parity with the JSON API. Acceptance criteria MUST name `inbound_delivery`/`outbound_delivery` explicitly — together with the holdings-quantity fix (see 2026-07-18 reconciliation) this completes the minimal phantom-position workflow over MCP: book the delivery, holdings are right. FR-23 wizards are the comfort layer on top. (Verified gap: create schema allows `buy`/`sell` only while update allows all 13 — forcing a create-as-buy→update-to-dividend detour.)
+- FR-31: The MCP `transactions_create` tool accepts all 13 ledger kinds at parity with the JSON API. Acceptance criteria MUST name `inbound_delivery`/`outbound_delivery` explicitly — together with the holdings-quantity fix (see 2026-07-18 reconciliation) this completes the minimal phantom-position workflow over MCP: book the delivery, holdings are right. FR-23 events/wizards are the comfort layer on top. (Verified gap: create schema allows `buy`/`sell` only while update allows all 13 — forcing a create-as-buy→update-to-dividend detour.) **Delivery cost-basis guard (inversion finding #1):** the schema validates deliveries WITHOUT a price, and an unpriced delivery enters the cost fold at zero — so (a) the MCP tool description must state "a delivery without a price enters the cost basis at zero; supply the price for a correct cost basis", and (b) MCP create REQUIRES a price for delivery kinds (deliberately stricter than the API, which keeps PP-import compatibility).
 - FR-32: Booking semantics are documented where the LLM reads them (MCP tool/schema descriptions + API docs): `gross_amount` on a dividend is the NET cash credited (withheld taxes ride separately; the income report reconstructs gross). Explicitly NOT a field rename — that would be breaking.
-- FR-33: Response-size control for token economy: a `fields` selector (or a slim default projection) for `securities_list` so logos/timestamps don't ride along on every listing. Extends FR-15.
-- FR-34: Strategy configuration (classifications, target plans, cash target) survives a PP re-import. Decision gate ADR: stable external identity (ISIN-keyed matching at import) vs. strategy-config export/import. Touches import idempotency → **risk-tier** (dedicated small PRs, real human review).
-- FR-35: Read-only holdings reconciliation against an external position list (preview-style compare, no write-back). Requires a mini-ADR drawing the boundary against the forbidden broker sync (NFR-4) before implementation.
+- FR-33: Response-size control for token economy: a slim default projection or FIXED field whitelist for `securities_list` so logos/timestamps don't ride along on every listing. Scope lock: `securities_list` ONLY — explicitly no generic field-selection framework across endpoints. Extends FR-15.
+- FR-34: Strategy configuration (classifications, target plans, cash target) survives a PP re-import. Decision gate ADR: stable external identity (ISIN-keyed matching at import) vs. strategy-config export/import. Mandatory ADR questions: identity fallback for ISIN-less securities (crypto/watch-only — ISIN is optional and only unique-when-present, so ISIN-only matching silently orphans exactly those positions), and the ISIN-changed case (cross-reference the E17 rename slice). Epic AC: a golden-path round-trip DataCase test (import fixture → attach classification/target/cash-target → re-import mutated fixture → exact-Decimal equality of surviving strategy config). Dependency: E16's journal arming for Targets/Plans completes before E18 write paths land. Touches import idempotency → **risk-tier** (dedicated small PRs, real human review).
+- FR-35: Read-only holdings reconciliation against an external position list (preview-style compare, no write-back). Boundary pinned NOW, not deferred to the ADR: the external list arrives ONLY as user-supplied paste/file content — no network acquisition, no credential storage, the external list is never persisted (NFR-4). The reconcile response embeds resolution guidance ("resolve a difference by booking the missing transaction of the correct kind; balance snapshots and unpriced deliveries are last resorts that distort cost basis") so the operating LLM is steered away from the fix-it hammer at the moment of temptation; FR-32's doc story extends the same warning into the `set_balance` and delivery tool descriptions. The decision rides as a SECTION of the FR-34 ADR (one owner decision session, not a separate gate) and must explicitly re-evaluate whether FR-30 plus the established agent reconcile procedure already covers the need — "close as documented procedure, no feature" is an acceptable outcome.
 
-**FR-23 sharpened (no new FR):** corporate actions remain the guided-wizard feature (split, rename/ISIN change, merger/spin-off) with quote-history continuity — reproducible ledger events, ADR decision gate first. Priority raised from "later" to "next": a split silently distorts every chart and holdings figure, and no delivery pair can compensate for that. The phantom-holdings defect formerly motivating urgency here was a projection bug, not a missing feature — fixed 2026-07-18 (see reconciliation below), NOT part of this feature scope.
+**FR-23 sharpened (no new FR):** corporate actions are **ledger events first, wizard second** (reframed 2026-07-18 after stakeholder round table + inversion analysis: a UI wizard is unreachable for the MCP-first operator, and the event representation IS projection semantics). The E17 ADR must decide the event representation (first-class kind vs. composed existing kinds), its projection semantics, and quote-history continuity as APPEND-ONLY adjustment factors (never mutated history — NFR-2), and mandates API/MCP booking + read parity (AR-11) in the acceptance criteria. The guided wizard (split, rename/ISIN change, merger/spin-off) is the subsequent UI layer. Scope lock: splits ONLY in the first ADR slice; rename/ISIN-change (cross-referenced by the FR-34 ADR) and merger/spin-off are follow-on slices. Priority raised from "later" to "next": a split silently distorts every chart and holdings figure, and no delivery pair can compensate for that. The phantom-holdings defect formerly motivating urgency here was a projection bug, not a missing feature — fixed 2026-07-18 (see reconciliation below), NOT part of this feature scope.
 
 ### NonFunctional Requirements
 
@@ -159,12 +160,12 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | — | cross-cutting perf; watch in perf-sensitive stories |
 | UX-DR1–14 | **#356** + #336, #337, #339, #319 | UX/a11y tracker (UI = priority 3) |
-| FR-30 | tbd | ISIN/WKN in holdings payloads (E6 DX batch) |
-| FR-31 | tbd | MCP create: all 13 kinds, deliveries named in AC (E6 DX batch) |
-| FR-32 | tbd | booking-semantics docs, `gross_amount` = net cash (E6 DX batch) |
-| FR-33 | tbd | `fields` selector / slim `securities_list` (E6 DX batch) |
+| FR-30 | tbd | ISIN/WKN in holdings payloads (E6 DX batch, story 2) |
+| FR-31 | tbd | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
+| FR-32 | tbd | booking-semantics docs incl. fix-it-hammer warnings (E6 DX batch, story 3) |
+| FR-33 | tbd | slim `securities_list` projection, scope-locked (E6 DX batch, story 4) |
 | FR-34 | tbd | **gated** — re-import identity ADR first (E18), risk-tier |
-| FR-35 | tbd | **gated** — reconcile mini-ADR vs. NFR-4 first (E18) |
+| FR-35 | tbd | **gated** — decided as a section of the FR-34 ADR (E18); may close as documented procedure |
 
 ## Implementation Status — reconciled with code (2026-06-18)
 
@@ -319,6 +320,8 @@ Epics are organized by the PRD's five phases plus cross-cutting concerns, ordere
 | **E14 — CSS consistency & design-system** | — | priority 3 | #451 (#449, #450) |
 | **E15 — View-bound SOLL plans (ADR-0020)** | 2 | next | #463 (#464–#468) |
 | **E16 — Plan versions & depot snapshots (ADR-0027)** | 2/5 bridge | next | ADR-0027 (decision gate; issues after sign-off) |
+| **E17 — Corporate actions as ledger events** | 2/4 bridge | next (ADR-gated) | FR-23 (issues after ADR sign-off) |
+| **E18 — Stable identities & reconciliation** | 2 | next (ADR-gated, after E17 ADR) | FR-34, FR-35 (issues after ADR sign-off) |
 
 ## Epic Detail
 
@@ -340,6 +343,20 @@ The read models the LLM consumes: IRR alongside TTWROR (#316), income report (#3
 ### Epic 6: LLM/MCP surface
 Make Portfolixir fully agent-operable. Expose precomputed analytics over API/MCP (#349, FR-13), and **#355 (FR-14)** for data-maintenance tools at API parity so an LLM replaces manual entry — gated by the audit journal (#353). FR-13/14/15/16.
 
+**DX batch (added 2026-07-18, FR-30..33):** four small stories on the API/MCP
+surface, ordered by operator pain: FR-31 (create all 13 kinds, delivery price
+guard) → FR-30 (ISIN/WKN in holdings) → FR-32 (booking-semantics docs, incl.
+fix-it-hammer warnings on `set_balance` and delivery tools) → FR-33
+(scope-locked slim `securities_list`). **Entry criterion:** the
+phantom-holdings fix branch (`claude/portfolixir-holdings-calculation-zfcqeh`)
+is merged AND the operating LLM agent's live MCP re-verification (ledger
+quantity vs. holdings per affected ISIN) is complete — FR-31 must not hand out
+delivery-booking power against an instance still showing phantoms.
+**Companion (not IN the batch):** a standalone risk-tier small PR making the
+import applier persist the parsed `Kurs` on deliveries, so imported deliveries
+stop entering the cost fold at zero — scheduled alongside the batch, reviewed
+separately (projection semantics per AGENTS.md).
+
 ### Epic 7: Rebalancing guidance (gated)
 FR-12, both-direction guidance ranked by drift. **No issue yet** — needs the guidance-vs-action ADR/AGENTS.md clarification first (it must never place or prepare orders). Create the issue after the scope decision.
 
@@ -347,7 +364,7 @@ FR-12, both-direction guidance ranked by drift. **No issue yet** — needs the g
 comdirect/bunq/bitcoin.de/watch-only (FR-17–21), tracked in #320. **Hard scope gate:** AGENTS.md currently forbids broker/bank sync; entering this epic requires an ADR + AGENTS.md amendment limited to read-only acquisition. OQ-4 (bitcoin.de) and OQ-6 (unattended-sync feasibility) are open.
 
 ### Epic 9: Product-type modeling (Phase 4, discovery-first)
-Bonds (#330), corporate actions (#338), German pension modeling (#340 parking lot). Per the PRD, **each modeling FR is preceded by its own discovery story** that fixes acceptance criteria before implementation. FR-22–25.
+Bonds (#330) and German pension modeling (#340 parking lot). Per the PRD, **each modeling FR is preceded by its own discovery story** that fixes acceptance criteria before implementation. FR-22/24/25. *(Corporate actions — FR-23/#338 — moved to E17 on 2026-07-18; no double-tracking, #338 re-labels to E17.)*
 
 ### Epic 10: Planning & simulation (Phase 5)
 What-if simulator (#332, FR-27), benchmark comparison (FR-9 — the founding "worth it?" question, needs OQ-3 quote source), retirement projection (FR-26 — backs Success Metric 3, discovery story fixes AC). Benchmark + retirement have no issues yet (future).
@@ -426,3 +443,37 @@ UX-DR10/11) → API/MCP parity (AR-11) + docs. Deliberately NOT in scope:
 old-plan rebalancing simulation and fictitious trades — that is FR-27 (#332),
 which later layers scenario trades on a snapshot base (AR-8;
 `audit_journal.scenario_id` forward-index). Extends FR-11 toward FR-27.
+
+### Epic 17: Corporate actions as ledger events (FR-23, ADR-gated)
+Extracted from E9 on 2026-07-18 (LLM field feedback + elicitation round;
+priority "later" → "next"). **Ledger events first, wizard second** — the daily
+operator is an MCP agent that cannot reach a UI wizard, and the event
+representation IS projection semantics. The decision-gate ADR must settle:
+(a) event representation — first-class kind vs. composed existing kinds — and
+its `Projection.effects/1` clause (AR-7 no-catch-all, migration immutability,
+PP round-trip FR-5/FR-29 impact); (b) quote-history continuity as APPEND-ONLY
+adjustment factors, never mutated history (NFR-2); (c) the ISIN-change case,
+cross-referenced with the FR-34 ADR. API/MCP booking + read parity (AR-11) is
+an acceptance criterion of the event layer, not an afterthought. Delivery
+split by risk tier: projection/ledger changes land as dedicated small PRs
+(risk-tier per AGENTS.md); the guided wizard UI (split → rename/ISIN change →
+merger/spin-off, in that slice order; splits ONLY in the first ADR slice) may
+ride the epic batch. The E17 ADR may be DRAFTED in parallel to the E6 DX
+batch, but at most one risk-tier review is in flight at any time.
+
+### Epic 18: Stable identities & reconciliation (FR-34/35, ADR-gated)
+A fresh PP import re-rolls IDs and orphans the owner's strategy configuration
+(classifications, target plans, cash target — the accumulated E13/E15/E16
+investment). One decision-gate ADR (FR-34) settles: ISIN-keyed stable identity
+vs. strategy-config export/import, WITH the mandatory fallback question for
+ISIN-less securities (crypto/watch-only) and the ISIN-changed case (E17
+cross-reference). FR-35 (read-only reconcile, boundary pinned in its FR text:
+user-supplied paste/file only, no network acquisition, nothing persisted,
+resolution guidance embedded in the response) rides as a SECTION of that same
+ADR — one owner decision session, not a second gate — and may close as
+"documented procedure, no feature" if FR-30 plus the agent's established
+reconcile procedure already covers the need. Epic ACs: the golden-path
+re-import round-trip test (exact-Decimal survival of strategy config);
+dependency on E16's Targets/Plans journal arming before any E18 write path.
+Import idempotency → **risk-tier**; both E18 gates come strictly after the
+E17 ADR (reviewer WIP limit — the owner is one person).
