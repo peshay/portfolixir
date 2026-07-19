@@ -62,6 +62,31 @@ Sources: `StockSplitModel.java` and `SecurityEvent.java` in
 `portfolio-performance/portfolio`; help.portfolio-performance.info,
 "Recording a stock split".
 
+**Why the PP-style rewrite is disqualified here** (not merely dispreferred):
+
+1. **It breaks import idempotency.** The content hash that makes imports
+   idempotent (FR-6) covers quantity and price. Rewriting stored
+   transaction quantities detaches the ledger from the original PP export,
+   so the FR-29 restore path ("restore = re-import") and any later
+   re-import (FR-34) would see mismatching hashes and duplicate or skew the
+   very history the rewrite touched. PP has no such idempotent-import
+   contract to break; Portfolixir does.
+2. **It contradicts the audit journal.** FR-28/NFR-2 promise that stored
+   transactions keep matching broker records; a mass before/after rewrite
+   of history is precisely what the journal exists to prevent.
+3. **Rewriting quotes is futile here.** `QuoteSync` re-mirrors the full
+   provider history every cycle and overwrites stored closes — a one-time
+   local rewrite of synced quotes would simply be overwritten again. (PP is
+   not exposed to this because its quote updates never replace existing
+   dates.) Only manual rows would keep a rewrite — and for those the
+   display-time factor produces the same picture without destroying the
+   original data.
+
+The event approach is also strictly **reversible**: deleting a mistakenly
+booked split event restores every chart and figure, because nothing was
+ever mutated — the failure mode PP's forum is full of (wrong ratio entered,
+no way back) cannot occur.
+
 ## Decision
 
 ### 1. A split is a first-class transaction kind, not a composed booking
@@ -104,18 +129,30 @@ The split event never mutates stored quotes. But stored histories come in
 at — this is the trap Portfolio Performance fell into from the other side
 (double adjustment, portfolio-performance/portfolio#4223):
 
-- **Provider-synced rows** (`source` = sync): `QuoteSync.Yahoo` refetches the
-  *full* history (`period1=0`) every cycle and `Quotes.upsert_many/2`
-  overwrites existing closes, so these rows always mirror the provider's
-  **current, back-adjusted** basis. After a real-world split the stored
-  series becomes split-adjusted on the next sync, automatically. These rows
-  are a *provider mirror*, not an immutable raw record — display applies
-  **no** additional factor (the series is already continuous), and applying
-  one would double-adjust.
-- **Manual and import-sourced rows** (`source` = manual/import, never
-  overwritten by a sync): raw as-traded prices, the auditable immutable
-  input of NFR-2. For dates before an effective date, the displayed close is
-  the raw close divided by the cumulative ratio of all later splits.
+- **Provider-synced rows** (`source` in `coingecko`/`portfolio_performance`
+  — both labels are served by the same `QuoteSync.Yahoo` adapter today, the
+  label only selects the symbol format): the sync refetches the *full*
+  history (`period1=0`) every cycle and `Quotes.upsert_many/2` overwrites
+  existing closes, so these rows always mirror the provider's **current,
+  back-adjusted** basis. After a real-world split the stored series becomes
+  split-adjusted on the next sync, automatically. These rows are a
+  *provider mirror*, not an immutable raw record — display applies **no**
+  additional factor (the series is already continuous), and applying one
+  would double-adjust.
+- **Manual rows** (`source` = `manual`; never overwritten by a sync): raw
+  as-traded prices, the auditable immutable input of NFR-2. For dates
+  before an effective date, the displayed close is the raw close divided by
+  the cumulative ratio of all later splits. (PP CSV/JSON v1 imports carry
+  no quote history, so today manual entry is the only raw source; the gated
+  XML import (FR-5) would add an import-sourced raw class under the same
+  rule.)
+
+Basis mapping is **total and enforced**: every value of `Quote.sources`
+(including the legacy `auto`, which no code writes today and which maps to
+the provider-mirror basis) has an explicit basis in the adjustment engine —
+no catch-all clause, in the spirit of AR-7, so adding a quote source or a
+new `QuoteSync` adapter without declaring its basis (adjusted mirror vs.
+raw) fails tests instead of guessing.
 
 The per-row basis is derived from the existing `source` column — nothing new
 is persisted; the factors remain a pure function of
@@ -176,6 +213,12 @@ slices, each requiring its own ADR amendment before implementation:
 - A TTWROR-continuity test replays a synthetic 10:1 split: quantity ×10,
   total cost basis unchanged, per-share cost /10, no jump in the daily
   series on the effective date — exact `Decimal` expectations.
+- A deterministic quote-basis test matrix covers: raw-only series,
+  provider-adjusted series, a mixed series (manual rows outside the
+  provider's range plus synced rows), sequential splits, and a reverse
+  split — each asserting chart continuity **and** valuation correctness
+  with exact `Decimal` expectations, plus the no-catch-all basis-mapping
+  invariant test and a delete-the-event test proving full restoration.
 
 ## Consequences
 
