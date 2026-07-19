@@ -78,14 +78,16 @@ Sources: `StockSplitModel.java` and `SecurityEvent.java` in
    provider history every cycle and overwrites stored closes — a one-time
    local rewrite of synced quotes would simply be overwritten again. (PP is
    not exposed to this because its quote updates never replace existing
-   dates.) Only manual rows would keep a rewrite — and for those the
-   display-time factor produces the same picture without destroying the
-   original data.
+   dates.) Only manual rows outside the provider's range would keep a
+   rewrite today — the sync currently replaces even manual rows inside
+   that range, the very defect §2 requires fixing first — and for rows
+   that do keep it, the display-time factor produces the same picture
+   without destroying the original data.
 
 The event approach is also strictly **reversible**: deleting a mistakenly
-booked split event restores every chart and figure, because nothing was
-ever mutated — the failure mode PP's forum is full of (wrong ratio entered,
-no way back) cannot occur.
+booked split (the whole per-portfolio group of §1) restores every chart and
+figure, because nothing was ever mutated — the failure mode PP's forum is
+full of (wrong ratio entered, no way back) cannot occur.
 
 ## Decision
 
@@ -94,19 +96,46 @@ no way back) cannot occur.
 A new ledger kind `split` records: the security, the effective date, and the
 ratio as a pair of **positive integers** (`10:1` forward, `1:10` reverse) —
 an integer pair keeps a `1:3` reverse split exact where a decimal ratio
-cannot. It carries no cash leg, no price, no depot: a split is a
-security-level fact that applies to every depot holding the security.
+cannot. The pair is **normalized to lowest terms at write time**; marker
+encoding, import dedup identity, and event equality all use the normalized
+pair. It carries no cash leg and no price.
+
+To the operator a split is a security-level fact, but it is **booked as one
+row per portfolio** holding a non-zero position in the security at the
+effective date — the schema's required `portfolio_id` stays. The booking
+shell (API, MCP tool, wizard) fans the single "split security X at ratio R"
+request out atomically in one `Ecto.Multi`, one journal entry per row, under
+a shared group identity, so the operator still books the split once. A
+portfolio with zero position gets no row (and needs none); booking against a
+security with no position anywhere is rejected in preview. Scale semantics
+are scoped to the row's portfolio: in any fold, a split row scales only the
+`{account, security}` positions belonging to its own portfolio — the global
+one-pass fold (`positions_by_security`) stays single-application per account
+even with N portfolio rows, and portfolio-scoped folds each see exactly
+their own row.
 
 Its projection is one new `effects/1` clause introducing a **multiplicative
 quantity leg** — conceptually
-`quantities: [{:scale, security_id, ratio}], external: false` — following the
-precedent of the non-additive `{:set, absolute}` cash leg from
-[ADR-0009](0009-cash-as-balance-snapshots.html). Generic folds apply it by
-scaling every position in that security; `external: false` because nothing
-enters or leaves the portfolio, so TTWROR needs no flow neutralisation.
-Within its day the split applies **first** (start-of-day, via
-`intra_day_order/1`), so same-day trades are booked in post-split units,
-matching broker statements.
+`quantities: [{:scale, %{security_id: id, ratio: {p, q}}}], external: false`
+— following the precedent of the non-additive `{:set, absolute}` cash leg
+from [ADR-0009](0009-cash-as-balance-snapshots.html). The leg MUST be a
+tagged, structurally distinct shape — never a 3-tuple: the additive quantity
+leg is the 3-tuple `{account_id, security_id, delta}`, and scope filters
+such as `qty_leg_in_scope?` silently drop same-arity tuples they do not
+recognise (a verified failure mode); a distinct shape makes an untaught fold
+fail loudly instead. Folds expand the leg to per-account scaling from each
+account's own pre-split state within the row's portfolio;
+`external: false` because nothing enters or leaves the portfolio, so TTWROR
+needs no flow neutralisation. Within its day the split applies **first**
+(start-of-day), so same-day trades are booked in post-split units, matching
+broker statements — §3 makes this ordering load-bearing and names the shared
+sort helper every quantity fold must adopt.
+
+**Write idempotency:** a retried timeout must not compound a multiplicative
+event, so a partial unique index on `(portfolio_id, security_id, date)
+where type = split` backs the write; a second same-day split for the same
+security and portfolio is rejected, and the API/MCP error names the
+existing event.
 
 Composed existing kinds (an outbound/inbound delivery pair) are **rejected**:
 wrong cost basis (removal at running average, re-entry at zero), wrong
@@ -118,9 +147,24 @@ carries `split` as a documented Portfolixir extension kind. The
 **PP-compatible** CSV/JSON export degrades a split to the conventional PP
 idiom — an outbound/inbound delivery pair on the effective date — tagged with
 a stable marker in the notes field; the Portfolixir importer recognises that
-marker and reconstitutes the first-class split (idempotent via the existing
-content hash), so Portfolixir → PP → Portfolixir round-trips losslessly while
-plain PP still imports a quantity-correct history.
+marker and reconstitutes the first-class split, so Portfolixir → PP →
+Portfolixir round-trips losslessly while plain PP still imports a
+quantity-correct history. Hardening, all binding: the marker encodes the
+**normalized ratio explicitly** — never inferred from the pair's
+quantities; an orphaned marker leg, or one whose quantities contradict the
+encoded ratio, **fails the import preview with a warning** (the
+plain-delivery fallback is taken only by explicit user choice); marker
+pairs across N depots/portfolios sharing one group identity reconstitute
+exactly **one split row per portfolio**; and the import dedup identity for
+split rows is `(portfolio, security, date, normalized ratio)`, so importing
+a file whose split already exists is a no-op.
+
+Because a first-time PP import may carry history already destructively
+rewritten by PP's own split wizard (see Prior art), the split booking
+preview also shows the booked quantity immediately before and after the
+effective date plus the resulting current position, and warns when the
+effective date predates the imported history's earliest transaction — the
+quantities may already be post-split.
 
 ### 2. Quote continuity via append-only adjustment factors, derived at read time
 
@@ -139,20 +183,37 @@ at — this is the trap Portfolio Performance fell into from the other side
   *provider mirror*, not an immutable raw record — display applies **no**
   additional factor (the series is already continuous), and applying one
   would double-adjust.
-- **Manual rows** (`source` = `manual`; never overwritten by a sync): raw
-  as-traded prices, the auditable immutable input of NFR-2. For dates
-  before an effective date, the displayed close is the raw close divided by
-  the cumulative ratio of all later splits. (PP CSV/JSON v1 imports carry
-  no quote history, so today manual entry is the only raw source; the gated
-  XML import (FR-5) would add an import-sourced raw class under the same
-  rule.)
+- **Manual rows** (`source` = `manual`): raw as-traded prices, the
+  auditable immutable input of NFR-2. For dates strictly before an
+  effective date, the displayed close is the raw close divided by the
+  cumulative ratio of all later splits; a quote dated **on** the effective
+  date is post-split basis — "later splits" means strictly later dates.
+  (PP CSV/JSON v1 imports carry no quote history, so today manual entry is
+  the only raw source; the gated XML import (FR-5) would add an
+  import-sourced raw class under the same rule.)
+
+**Required precondition — manual rows do not survive a sync today.** The
+premise that manual rows are sync-immune is false in the current code:
+`Quotes.upsert_many/2` replaces close **and** source on conflict, and the
+sync pushes the full provider history every cycle, so a manual row inside
+the provider's date range is silently overwritten. The sync upsert must be
+changed to **skip rows whose stored source is `manual`** (manual rows win),
+with a data-quality notice surfaced when a sync skipped manual rows; until
+that behavior change lands, §2 must not be implemented. The
+manual-inside-provider-range overlap case joins the §5 test matrix.
 
 Basis mapping is **total and enforced**: every value of `Quote.sources`
 (including the legacy `auto`, which no code writes today and which maps to
 the provider-mirror basis) has an explicit basis in the adjustment engine —
 no catch-all clause, in the spirit of AR-7, so adding a quote source or a
 new `QuoteSync` adapter without declaring its basis (adjusted mirror vs.
-raw) fails tests instead of guessing.
+raw) fails tests instead of guessing. Totality covers **every pricing
+source the valuation and performance walks merge**, not only
+`Quote.sources`: both fall back to raw as-traded transaction prices
+(`latest_trade_prices`, and the trade points merged into the pricing
+stream), and those fallback prices are **always raw basis** — a fallback
+trade price is divided by the cumulative ratio of splits effective after
+the trade's date.
 
 The per-row basis is derived from the existing `source` column — nothing new
 is persisted; the factors remain a pure function of
@@ -161,6 +222,19 @@ the Catalog context (engines compute, the shell reads — AR-2). The security
 chart **and** its chart-as-table show the series with the basis stated
 ("split-adjusted" / "provider-adjusted"; UX-DR10/11); stored values stay
 reachable.
+
+The adjustment engine is **authoritative for every read of stored closes**,
+not only the chart pair. The implementation PR must enumerate every call
+site that reads or ratios closes — `Quotes.latest`, `at_or_before`,
+`performance/2`, the `attach_metrics` day-change/1M/1Y tiles, holdings
+market value — and route each through the engine or document why it is
+basis-safe. The same obligation applies, named explicitly, to the
+[ADR-0027](0027-plan-versions-and-depot-snapshots.html)
+`SnapshotComparison` engine: it does not dispatch through
+`Projection.effects/1`, so nothing fails loudly there; its frozen-quantity
+side must apply split scaling at the effective date (raw basis) / scale
+pre-split quantities (adjusted basis), with its own acceptance-criteria
+test.
 
 **Valuation** must use one consistent basis per date. For raw rows,
 pre-split quantity × raw pre-split quote is correct as stored. For
@@ -177,7 +251,13 @@ continuous across the effective date by construction.
 tool's preview output) renders the stored closes around the effective date;
 a visible jump indicates a raw basis, a continuous series an adjusted one.
 If that contradicts the per-row `source` classification, the preview warns
-instead of silently adjusting — no PP-style silent double adjustment.
+instead of silently adjusting — no PP-style silent double adjustment. When
+too few quotes exist around the effective date, the preview states
+"insufficient quotes to verify basis" instead of implying a clean check.
+And as the escape hatch for provider listings that never — or only
+belatedly — back-adjust, a **per-security override flag** ("treat this
+synced series as raw") forces the raw basis for that security's synced
+rows; the preview warning names the flag.
 
 ### 3. Cost basis: quantity multiplies, total cost is invariant
 
@@ -186,8 +266,37 @@ ratio and leaves the lot's total cost basis **unchanged**; the per-share
 average cost divides accordingly. All arithmetic is exact `Decimal` at full
 precision; where the division is inexact, [ADR-0016](0016-rounding-policy.html)
 applies — no intermediate rounding, quantize only at the persistence or
-display boundary. The FIFO trade matcher continues to consider only priced
-`buy`/`sell` kinds; a split scales open FIFO lot quantities the same way.
+display boundary — with one **narrow, named exception**: the scale leg's
+resulting *quantity* is quantized once, deterministically, at volume
+scale 6 at the fold, so a subsequent broker-stated sell (e.g. `3.333333`
+after `10 × 1:3`) zeroes the position exactly instead of leaving an
+undroppable dust row. Prices and cost totals keep full precision to the
+usual boundaries.
+
+The FIFO trade matcher continues to consider only priced `buy`/`sell` kinds
+for matching; a split scales open FIFO lot quantities the same way, and an
+open lot's per-share `buy_price` **divides by the ratio** so the lot's cost
+stays invariant (`decorate_open_lot` computes quantity × buy_price).
+Matched trades whose buy and sell straddle the effective date compare in
+one basis.
+
+**The AR-7 loud-failure gate covers only folds that dispatch through
+`Projection.effects/1`.** Two folds do not: the moving-average cost fold
+(its `apply_cost_effect` ends in a catch-all) and the FIFO `TradeMatcher`
+(its `_ -> acc` catch-all) — both are named **mandatory change sites**,
+each with its own post-split partial-sell test, plus an invariant test that
+enumerates `Transaction.kinds/0` and asserts every kind is either
+explicitly handled or explicitly listed as cost-neutral in the cost fold.
+
+**Intra-day ordering is load-bearing:** multiplicative legs do not commute
+with additive ones, so the split's before-all-same-day-trades ordering
+(§1) is enforced through a shared sort helper —
+`{date, intra_day_order, id}` — that **every** quantity-fold consumer
+adopts. Today only the cash fold (`cash_balances`) and the performance
+walk's within-day sort apply `intra_day_order/1`; the quantity folds order
+by `{date, id}` alone (verified). Acceptance criterion: a same-day buy plus
+split yields identical results across positions, holdings, FIFO, and the
+performance walk.
 
 ### 4. Scope: splits only in this slice
 
@@ -209,16 +318,31 @@ slices, each requiring its own ADR amendment before implementation:
 - Projection/ledger changes land as **dedicated small risk-tier PRs** with
   real human review (AGENTS.md risk-tier exception), not inside an epic batch.
 - The PP round-trip behavior of §1 is documented and covered by tests
-  (export → re-import reconstitutes the split; content-hash idempotency).
+  (export → re-import reconstitutes the split; split rows dedup on the §1
+  identity `(portfolio, security, date, normalized ratio)`, content-hash
+  idempotency for all other rows).
 - A TTWROR-continuity test replays a synthetic 10:1 split: quantity ×10,
   total cost basis unchanged, per-share cost /10, no jump in the daily
   series on the effective date — exact `Decimal` expectations.
 - A deterministic quote-basis test matrix covers: raw-only series,
-  provider-adjusted series, a mixed series (manual rows outside the
-  provider's range plus synced rows), sequential splits, and a reverse
-  split — each asserting chart continuity **and** valuation correctness
-  with exact `Decimal` expectations, plus the no-catch-all basis-mapping
-  invariant test and a delete-the-event test proving full restoration.
+  provider-adjusted series, a mixed series (manual rows outside **and
+  inside** the provider's range plus synced rows — the inside case
+  exercising the §2 sync-skip precondition), sequential splits, and a
+  reverse split — each asserting chart continuity **and** valuation
+  correctness with exact `Decimal` expectations, plus the no-catch-all
+  basis-mapping invariant test and a delete-the-event test proving full
+  restoration, extended to the §1 per-portfolio fan-out (deleting the
+  group removes all rows).
+- Review-driven additions (details in the referenced sections): the §3
+  same-day ordering cross-model equality test; the §2 `SnapshotComparison`
+  split test on both bases; the §2 close-reading call-site sweep,
+  enumerated in the implementation PR with each site routed through the
+  engine or documented basis-safe; the §2 manual-overlap sync-skip test;
+  the §2 trade-price-fallback era test; the §1 unique-index rejection
+  test; the §1 import-of-existing-split no-op test; the §1 orphan-marker
+  preview-warning test; a future-dated effective date rejected (or
+  hard-warned) in preview; and the §3 kinds-enumeration cost-fold
+  invariant test.
 
 ## Consequences
 
@@ -228,7 +352,10 @@ slices, each requiring its own ADR amendment before implementation:
   merger/spin-off slices build on.
 - Negative / accepted: the effect type grows a second non-additive leg shape,
   and every generic fold must handle scaling — mitigated by AR-7's
-  no-catch-all gate failing loudly in every read model at once. Plain PP
+  no-catch-all gate failing loudly in every fold that dispatches through
+  `Projection.effects/1`; the sites outside that dispatch
+  (`apply_cost_effect`, `TradeMatcher`, `SnapshotComparison`) are named
+  mandatory change sites in §2/§3, not covered by the gate. Plain PP
   consumers of the compatible export see a delivery pair, not a split; that
   degradation is documented.
 - A reverse split can leave fractional share remainders; they remain as
@@ -241,9 +368,15 @@ slices, each requiring its own ADR amendment before implementation:
   on a stale basis until the next successful sync; `updated_at`/`source` on
   the rows make that state diagnosable.
 - NFR-2 nuance made explicit: immutable-input auditability applies to
-  manual/import quote rows and to the ledger itself; provider-synced rows
-  are a refreshable mirror of an external source and are overwritten by
-  design (existing `QuoteSync` behavior, unchanged by this ADR).
+  manual/import quote rows and to the ledger itself — noting that manual
+  rows become truly immutable only once the §2 sync-skip precondition
+  lands (today the sync overwrites them); provider-synced rows are a
+  refreshable mirror of an external source and remain overwritten by
+  design.
+- This ADR was hardened by a three-method adversarial review
+  (red-team/blue-team, pre-mortem, edge-case walk) on 2026-07-19, with
+  every finding code-verified; the review-confirmed gaps are incorporated
+  in the sections above.
 
 ## References
 
@@ -253,5 +386,6 @@ slices, each requiring its own ADR amendment before implementation:
 - [ADR-0017](0017-append-only-audit-journal.html) — journaled financial writes
 - [ADR-0019](0019-view-scoped-performance-boundary-flows.html) — why delivery pairs distort TTWROR
 - [ADR-0026](0026-epic-batch-workflow.html) — decision-gate workflow this ADR follows
+- [ADR-0027](0027-plan-versions-and-depot-snapshots.html) — the `SnapshotComparison` engine, a named §2 change site outside `effects/1` dispatch
 - FR-23 / #338 — corporate actions; FR-5/FR-29 — PP round-trip; FR-34 — E18 identity ADR (rename/ISIN slice)
 - Epic tracking: E17 in `_bmad-output/planning-artifacts/epics.md`
