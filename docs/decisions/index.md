@@ -56,5 +56,5 @@ already in force in the codebase.
 | [0025](0025-automation-recipes-boundary.html) | Automation recipes — docs in the repo, broker scripts outside | Accepted |
 | [0026](0026-epic-batch-workflow.html) | Epic-batch workflow — humans review decisions and behavior | Accepted |
 | [0027](0027-plan-versions-and-depot-snapshots.html) | Named plan versions and ledger-marker depot snapshots | Accepted |
-| [0028](0028-corporate-actions-as-ledger-events.html) | Corporate actions as ledger events — splits as a first-class kind | Proposed |
+| [0028](0028-corporate-actions-as-ledger-events.html) | Corporate actions as ledger events — splits as a first-class kind | Accepted |
 | [0029](0029-stable-identities-and-reimport-survival.html) | Stable identities and re-import survival — identity ladder with ISIN-change aliases | Proposed |
