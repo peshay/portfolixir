@@ -78,6 +78,63 @@ defmodule PortfolixirWeb.ApiV1Test do
   end
 
   # User story:
+  # As the operating LLM agent listing securities routinely,
+  # I want a slim default projection for the securities list,
+  # so that listings stop paying tokens for notes, feeds, attributes and
+  # timestamps I did not ask for.
+  #
+  # Acceptance criteria:
+  # - The default listing carries exactly the fixed slim whitelist
+  #   (id, name, ticker_symbol, isin, wkn, currency_code, asset_class).
+  # - `?view=full` returns the full projection (timestamps included).
+  # - An invalid view value returns a field-specific 422.
+  # - Scope lock: securities list ONLY — no generic field-selection framework.
+  test "securities list defaults to a slim projection with view=full escape", %{conn: conn} do
+    {:ok, security} =
+      Portfolixir.Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Slim Equity",
+        ticker_symbol: "SLIM",
+        isin: "DE0007100000",
+        wkn: "710000",
+        currency_code: "EUR",
+        asset_class: "equity",
+        note: "verbose note that must not ride along in listings"
+      })
+
+    [slim] =
+      conn
+      |> api_conn()
+      |> get("/api/v1/securities")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert slim == %{
+             "id" => security.id,
+             "name" => "Slim Equity",
+             "ticker_symbol" => "SLIM",
+             "isin" => "DE0007100000",
+             "wkn" => "710000",
+             "currency_code" => "EUR",
+             "asset_class" => "equity"
+           }
+
+    [full] =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities?view=full")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert full["note"] == "verbose note that must not ride along in listings"
+    assert is_binary(full["inserted_at"])
+
+    assert build_conn()
+           |> api_conn()
+           |> get("/api/v1/securities?view=everything")
+           |> json_response(422) == %{"errors" => %{"view" => ["is invalid"]}}
+  end
+
+  # User story:
   # As an API client listing securities,
   # I want to filter by derived holding status,
   # so that MCP and other local clients can request active or inactive securities without duplicating ledger logic.
