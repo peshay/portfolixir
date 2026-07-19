@@ -224,6 +224,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       securities_account_id: holding.securities_account_id,
       security_id: holding.security_id,
       security_name: holding.security_name,
+      isin: holding.isin,
+      wkn: holding.wkn,
       currency_code: holding.currency_code,
       quantity: decimal(holding.quantity),
       avg_cost: decimal(holding.avg_cost),
