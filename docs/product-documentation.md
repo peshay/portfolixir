@@ -718,6 +718,12 @@ because required fields such as ticker are missing, are reported as skipped
 with a reason. Failed adapter calls are reported separately from successful
 syncs.
 
+Hand-entered quotes win over synced ones: the sync never overwrites a stored
+row whose source is `manual`, even when the provider history covers the same
+date. Each sync reports how many manual rows it left untouched and logs a
+warning when that count is above zero. Editing a quote by hand still
+overwrites whatever is stored, including previously synced values.
+
 ### Security Detail Chart
 
 With no selected security, the securities list fills the page workspace.
