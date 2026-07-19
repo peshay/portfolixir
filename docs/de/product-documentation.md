@@ -754,6 +754,14 @@ laufen kann, weil Pflichtfelder wie der Ticker fehlen, werden mit einem Grund al
 übersprungen gemeldet. Fehlgeschlagene Adapter-Aufrufe werden getrennt von
 erfolgreichen Synchronisierungen gemeldet.
 
+Von Hand eingetragene Kurse gewinnen gegen synchronisierte: Die
+Synchronisierung überschreibt nie eine gespeicherte Zeile mit der Quelle
+`manual`, auch wenn die Anbieter-Historie dasselbe Datum abdeckt. Jede
+Synchronisierung meldet, wie viele manuelle Zeilen sie unangetastet gelassen
+hat, und protokolliert eine Warnung, wenn diese Zahl größer als null ist.
+Wer einen Kurs von Hand bearbeitet, überschreibt weiterhin den gespeicherten
+Wert — auch zuvor synchronisierte.
+
 ### Wertpapier-Detailchart
 
 Ohne ausgewähltes Wertpapier füllt die Wertpapierliste den Arbeitsbereich der

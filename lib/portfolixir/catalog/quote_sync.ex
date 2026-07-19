@@ -159,10 +159,17 @@ defmodule Portfolixir.Catalog.QuoteSync do
   defp persist(security, rows, provider) do
     case Quotes.upsert_many(
            security.id,
-           Enum.map(rows, &Map.put(&1, :source, provider))
+           Enum.map(rows, &Map.put(&1, :source, provider)),
+           protect_manual: true
          ) do
-      {:ok, count} ->
-        result(security, :ok, nil, count)
+      {:ok, count, skipped_manual} ->
+        if skipped_manual > 0 do
+          Logger.warning(
+            "quote sync skipped #{skipped_manual} manual quote row(s) for security ##{security.id}: manual entries win over provider data"
+          )
+        end
+
+        result(security, :ok, nil, count, skipped_manual)
 
       {:error, reason} ->
         Logger.warning("quote upsert failed for security ##{security.id}: #{inspect(reason)}")
@@ -170,13 +177,14 @@ defmodule Portfolixir.Catalog.QuoteSync do
     end
   end
 
-  defp result(security, status, reason, upserted \\ nil) do
+  defp result(security, status, reason, upserted \\ nil, skipped_manual \\ 0) do
     %{
       security_id: security.id,
       provider: security.provider,
       status: status,
       reason: reason,
-      upserted: upserted
+      upserted: upserted,
+      skipped_manual: skipped_manual
     }
   end
 

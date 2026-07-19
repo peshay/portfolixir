@@ -104,6 +104,77 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
 
   # User story:
   # As a local portfolio maintainer,
+  # I want the background sync to never overwrite my hand-entered quote rows,
+  # so that a manual correction survives every sync cycle instead of being
+  # silently replaced by provider history.
+  #
+  # Acceptance criteria:
+  # - A stored row with source "manual" on a provider-covered date keeps its
+  #   close and source after a sync.
+  # - The sync's remaining rows are still written, the per-security result
+  #   reports the skipped-manual count, and a warning is logged.
+  test "sync does not overwrite manual rows and reports the skipped count" do
+    sec = security_fixture(name: "Gamma", provider: "coingecko")
+
+    {:ok, 1} =
+      Quotes.upsert_many(sec.id, [
+        %{date: ~D[2026-05-15], close: Decimal.new("100"), source: "manual"}
+      ])
+
+    Fake.put_response(
+      sec.id,
+      {:ok,
+       [
+         %{date: ~D[2026-05-14], close: Decimal.new("90.00")},
+         %{date: ~D[2026-05-15], close: Decimal.new("110.00")}
+       ]}
+    )
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:ok, %{ok: 1, skipped: 0, error: 0, results: [result]}} =
+                 QuoteSync.sync_all(adapter_for: %{"coingecko" => Fake})
+
+        assert %{status: :ok, upserted: 1, skipped_manual: 1} = result
+      end)
+
+    assert log =~ "skipped 1 manual quote row"
+
+    by_date =
+      Quotes.range(sec.id, ~D[2026-01-01], ~D[2026-12-31])
+      |> Map.new(&{&1.date, &1})
+
+    assert Decimal.equal?(by_date[~D[2026-05-15]].close, Decimal.new("100"))
+    assert by_date[~D[2026-05-15]].source == "manual"
+    assert Decimal.equal?(by_date[~D[2026-05-14]].close, Decimal.new("90.00"))
+    assert by_date[~D[2026-05-14]].source == "coingecko"
+  end
+
+  test "sync still replaces its own previously synced rows" do
+    sec = security_fixture(name: "Delta", provider: "coingecko")
+
+    Fake.put_response(
+      sec.id,
+      {:ok, [%{date: ~D[2026-05-15], close: Decimal.new("100.00")}]}
+    )
+
+    assert {:ok, %{ok: 1}} = QuoteSync.sync_all(adapter_for: %{"coingecko" => Fake})
+
+    Fake.put_response(
+      sec.id,
+      {:ok, [%{date: ~D[2026-05-15], close: Decimal.new("105.00")}]}
+    )
+
+    assert {:ok, %{ok: 1, results: [%{upserted: 1, skipped_manual: 0}]}} =
+             QuoteSync.sync_all(adapter_for: %{"coingecko" => Fake})
+
+    latest = Quotes.latest(sec.id)
+    assert Decimal.equal?(latest.close, Decimal.new("105.00"))
+    assert latest.source == "coingecko"
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
   # I want quote sync to report skipped and failed securities with reasons,
   # so that missing setup is auditable instead of being counted as success.
   #
