@@ -10,19 +10,30 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
                    end)
 
   def index(conn, params) do
-    case list_opts(params) do
-      {:ok, opts} ->
-        securities =
-          opts
-          |> Catalog.list_securities()
-          |> Enum.map(&JSON.security/1)
+    with {:ok, opts} <- list_opts(params),
+         {:ok, serializer} <- listing_serializer(params) do
+      securities =
+        opts
+        |> Catalog.list_securities()
+        |> Enum.map(serializer)
 
-        json(conn, %{data: securities})
-
+      json(conn, %{data: securities})
+    else
       {:error, field} ->
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{errors: %{field => ["is invalid"]}})
+    end
+  end
+
+  # FR-33: listings default to the slim whitelist projection; `view=full`
+  # opts back into the complete serializer. Anything else is a 422 rather
+  # than a silent fallback.
+  defp listing_serializer(params) do
+    case Map.get(params, "view", "slim") do
+      "slim" -> {:ok, &JSON.security_listing/1}
+      "full" -> {:ok, &JSON.security/1}
+      _other -> {:error, "view"}
     end
   end
 
