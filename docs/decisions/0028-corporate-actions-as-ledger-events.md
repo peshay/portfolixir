@@ -35,6 +35,33 @@ Constraints that bind this decision:
 - Rounding follows [ADR-0016](0016-rounding-policy.html): full `Decimal`
   precision in compute, round only at boundaries.
 
+### Prior art: how Portfolio Performance handles splits (verified 2026-07-19)
+
+PP's split wizard (`StockSplitWizard`/`StockSplitModel.applyChanges()`) is a
+**one-time destructive rewrite**, not an event mechanism: it multiplies the
+share count of every stored transaction before the ex-date in place and
+divides every stored quote before the ex-date in place (both default-on
+checkboxes). The `STOCK_SPLIT` `SecurityEvent` it also records is purely
+cosmetic — it draws a chart marker and is read by no calculation; deleting it
+does not undo the rewrite. PP's own manual calls the operation "destructive…
+not easily undone", warns that past transactions "will no longer accurately
+reflect the actual transactions as documented in your paper files", and
+documents a sell/buy-back workaround for users who want history kept intact.
+
+PP can afford this because it makes no auditability promise and it keeps the
+local series consistent with back-adjusted provider feeds (Yahoo delivers
+split-adjusted history), with zero split-awareness anywhere else in its code.
+Portfolixir cannot: NFR-2 requires every number to be reproducible from
+immutable inputs, and stored transactions must keep matching broker records.
+PP's model is therefore recorded here as the considered-and-rejected prior
+art, and its known failure mode — double adjustment when the provider history
+is already split-adjusted (portfolio-performance/portfolio#4223) — motivates
+the provider-history caveat in the Consequences below.
+
+Sources: `StockSplitModel.java` and `SecurityEvent.java` in
+`portfolio-performance/portfolio`; help.portfolio-performance.info,
+"Recording a stock split".
+
 ## Decision
 
 ### 1. A split is a first-class transaction kind, not a composed booking
