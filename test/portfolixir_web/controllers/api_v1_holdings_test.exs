@@ -173,7 +173,8 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
     assert identified["wkn"] == "710000"
 
     unidentified = Enum.find(data, &(&1["security_id"] == without_isin.id))
-    assert unidentified["isin"] == nil
-    assert unidentified["wkn"] == nil
+    # Keys must be PRESENT with null (contract: additive fields, never absent).
+    assert Map.has_key?(unidentified, "isin") and unidentified["isin"] == nil
+    assert Map.has_key?(unidentified, "wkn") and unidentified["wkn"] == nil
   end
 end

@@ -42,10 +42,10 @@ Löschantwort keinen JSON-Body parsen.
 - `GET /api/v1/securities` listet Wertpapiere. Zeilen kommen standardmäßig als
   schlanke Projektion — die feste Whitelist `id`, `name`, `ticker_symbol`,
   `isin`, `wkn`, `currency_code`, `asset_class` — damit Routineabfragen klein
-  bleiben; `view=full` liefert den vollständigen Datensatz (Notizen,
+  bleiben; `projection=full` liefert den vollständigen Datensatz (Notizen,
   Feed-Konfiguration, Attribute, Zeitstempel). Optionale Query-Parameter:
   `query`, `sort`, `direction`, holding_status (`all`, `held` oder `not_held`),
-  `view` (`slim`/`full`) und `limit`/`offset` zur Paginierung (beides
+  `projection` (`slim`/`full`) und `limit`/`offset` zur Paginierung (beides
   nichtnegative Ganzzahlen). Nutze diese, um große Kataloge zu paginieren,
   statt die ganze Tabelle auf einmal zu holen.
 - `POST /api/v1/securities` legt ein Wertpapier mit einem `security`-Objekt an.
@@ -231,11 +231,15 @@ Beispiel-Payloads für Konten:
   kennen sollte: `gross_amount` einer Dividende ist der NETTO-Geldzufluss auf dem
   Konto — einbehaltene Steuern gehören in `taxes`, der Einnahmenbericht
   rekonstruiert brutto als netto plus einbehaltene Steuer. Eine ohne `price`
-  erfasste Lieferung (`inbound_delivery`/`outbound_delivery`) bewegt die Menge zum
-  Einstand null; wenn der Kurs bekannt ist, sollte er mitgegeben werden. Bei einer
+  erfasste Einlieferung (`inbound_delivery`) geht mit Einstand null in die
+  Kostenbasis ein — der Anschaffungskurs sollte mitgegeben werden, wenn er
+  bekannt ist; eine Auslieferung (`outbound_delivery`) entnimmt den Einstand
+  zum laufenden Durchschnitt, ihr Kurs ist rein informativ. Bei einer
   Abgleichdifferenz sollte die fehlende Buchung der richtigen Art nachgetragen
-  werden — Kontostand-Snapshots und unbepreiste Lieferungen sind letzte Mittel,
-  die Zahlen richtig aussehen lassen und dabei den Einstand verzerren. Ein
+  werden — Kontostand-Snapshots und unbepreiste Einlieferungen sind letzte Mittel,
+  die Zahlen richtig aussehen lassen und dabei den Einstand verzerren. Beträge
+  sind positive Größen — die Buchungsart bestimmt die Richtung; nur
+  `balance_adjustment` darf einen negativen (absoluten) Betrag tragen. Ein
   Wertpapier, das über ein Geldkonto in einer
   anderen Währung abgerechnet wird (zum Beispiel ein USD-Wertpapier über ein
   EUR-Konto), wird in der eigenen Währung des Wertpapiers gebucht und trägt die
