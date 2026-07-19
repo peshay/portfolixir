@@ -218,6 +218,10 @@ defmodule Portfolixir.Ledger do
       securities_account_id: account_id,
       security_id: security_id,
       security_name: security && security.name,
+      # Stable external identifiers so API/MCP consumers can reconcile against
+      # broker data without joining the securities list (FR-30).
+      isin: security && security.isin,
+      wkn: security && security.wkn,
       currency_code: security && security.currency_code,
       quantity: quantity,
       avg_cost: average_unit_cost(quantity, cost_basis),

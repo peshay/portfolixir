@@ -94,4 +94,86 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
     assert holding["unrealized_pnl_abs"] == "200"
     assert holding["unrealized_pnl_pct"] == "0.2"
   end
+
+  # User story:
+  # As the operating LLM agent reconciling against broker data,
+  # I want ISIN and WKN on every holdings row,
+  # so that I can match positions by their stable identifiers without a
+  # token-expensive client-side join over the securities list.
+  #
+  # Acceptance criteria:
+  # - Holdings rows carry isin and wkn.
+  # - A security without ISIN/WKN serializes them as null (additive,
+  #   backward-compatible fields).
+  test "holdings rows carry ISIN/WKN, null when absent", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Ident Portfolio",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Ident Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Ident Depot"
+      })
+
+    {:ok, with_isin} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Identified Equity",
+        ticker_symbol: "IDN",
+        isin: "DE0007100000",
+        wkn: "710000",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, without_isin} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Unidentified Coin",
+        ticker_symbol: "COIN",
+        currency_code: "EUR",
+        asset_class: "crypto"
+      })
+
+    for security <- [with_isin, without_isin] do
+      {:ok, _} =
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-01-02],
+          quantity: "5",
+          price: "10",
+          fees: "0",
+          taxes: "0",
+          currency_code: "EUR"
+        })
+    end
+
+    data =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/holdings")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    identified = Enum.find(data, &(&1["security_id"] == with_isin.id))
+    assert identified["isin"] == "DE0007100000"
+    assert identified["wkn"] == "710000"
+
+    unidentified = Enum.find(data, &(&1["security_id"] == without_isin.id))
+    assert unidentified["isin"] == nil
+    assert unidentified["wkn"] == nil
+  end
 end
