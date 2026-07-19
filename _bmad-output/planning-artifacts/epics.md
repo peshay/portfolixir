@@ -147,7 +147,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-16 | — | convention (API/MCP parity, PR review) |
 | FR-17–21 | #320 | **gated** (Phase 3 sync, tracking) |
 | FR-22 | #330 | bonds (Phase 4, discovery-first) |
-| FR-23 | #338 | corporate actions |
+| FR-23 | #338 (#588–#591) | corporate actions — ADR-0028 accepted 2026-07-19; #338 repurposed as the E17 tracker |
 | FR-24, FR-25 | #340 | pension modeling (Phase 4, parked/discovery) |
 | FR-26 | — | **future** (Phase 5 retirement projection) |
 | FR-27 | #332 | what-if simulator |
@@ -320,7 +320,7 @@ Epics are organized by the PRD's five phases plus cross-cutting concerns, ordere
 | **E14 — CSS consistency & design-system** | — | priority 3 | #451 (#449, #450) |
 | **E15 — View-bound SOLL plans (ADR-0020)** | 2 | next | #463 (#464–#468) |
 | **E16 — Plan versions & depot snapshots (ADR-0027)** | 2/5 bridge | next | ADR-0027 (decision gate; issues after sign-off) |
-| **E17 — Corporate actions as ledger events** | 2/4 bridge | next (ADR-gated) | FR-23 (issues after ADR sign-off) |
+| **E17 — Corporate actions as ledger events** | 2/4 bridge | next (ADR-0028 accepted) | #338 (tracker), #588–#591 |
 | **E18 — Stable identities & reconciliation** | 2 | next (ADR-gated, after E17 ADR) | FR-34, FR-35 (issues after ADR sign-off) |
 
 ## Epic Detail
@@ -541,7 +541,14 @@ merger/spin-off, in that slice order; splits ONLY in the first ADR slice) may
 ride the epic batch. The E17 ADR may be DRAFTED in parallel to the E6 DX
 batch, but at most one risk-tier review is in flight at any time.
 
-#### E17 stories (issues created after ADR sign-off)
+#### E17 stories
+
+> Status 2026-07-19: ADR-0028 drafted, hardened by a three-method adversarial
+> review (red team vs blue team, pre-mortem, edge-case walk) and **accepted by
+> the owner** — Story 17.1 is complete. Issues created as thin pointers (the
+> ADR and this document stay the single source of truth): #338 (tracker),
+> #588 (E17.0 sync-vs-manual-quotes precondition, added by the review),
+> #589 (17.2), #590 (17.3), #591 (17.4).
 
 ##### Story 17.1: Corporate-actions decision ADR (gate)
 

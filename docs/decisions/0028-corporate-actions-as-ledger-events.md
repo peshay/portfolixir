@@ -6,8 +6,9 @@ description: Decision that corporate actions enter the ledger as first-class tra
 
 # ADR-0028: corporate actions as ledger events — splits as a first-class kind
 
-- **Status:** Proposed (owner sign-off pending; per the [ADR-0026](0026-epic-batch-workflow.html)
-  decision gate, no E17 implementation story starts before sign-off)
+- **Status:** Accepted (owner sign-off 2026-07-19, after the three-method
+  adversarial review round; [ADR-0026](0026-epic-batch-workflow.html)
+  decision gate passed — E17 implementation stories may start)
 - **Date:** 2026-07-19
 
 ## Context
