@@ -439,6 +439,132 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(requests[0].body, { category_id: 9, security_ids: [1, 2, 7] });
   });
 
+  // User story:
+  // As the operating LLM agent,
+  // I want transactions_create to accept all 13 ledger kinds directly,
+  // so that I can book dividends, deliveries and transfers without the
+  // create-as-buy-then-update detour through momentarily-wrong ledger states.
+  //
+  // Acceptance criteria:
+  // - Every one of the 13 kinds creates in one call, deliveries included.
+  // - Delivery kinds REQUIRE a price on MCP create (an unpriced delivery
+  //   enters the cost basis at zero) — deliberately stricter than the API.
+  // - balance_adjustment stays excluded (the set_balance tool owns it).
+  it("creates every ledger kind directly (FR-31)", async () => {
+    const transactionCreate = listTools().find(
+      (tool) => tool.name === "portfolixir.transactions.create"
+    );
+    assert.deepEqual(transactionCreate?.inputSchema.properties.transaction.properties.type.enum, [
+      "buy",
+      "sell",
+      "dividend",
+      "interest",
+      "deposit",
+      "removal",
+      "fee",
+      "tax",
+      "tax_refund",
+      "cash_transfer",
+      "inbound_delivery",
+      "outbound_delivery",
+      "security_transfer"
+    ]);
+    assert.match(String(transactionCreate?.description), /delivery without a price/i);
+
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+
+    await callTool(client, "portfolixir.transactions.create", {
+      transaction: {
+        portfolio_id: 3,
+        cash_account_id: 4,
+        security_id: 9,
+        type: "dividend",
+        date: "2026-05-11",
+        gross_amount: "12.34",
+        currency_code: "EUR"
+      }
+    });
+    await callTool(client, "portfolixir.transactions.create", {
+      transaction: {
+        portfolio_id: 3,
+        securities_account_id: 7,
+        security_id: 9,
+        type: "outbound_delivery",
+        date: "2026-05-12",
+        quantity: "615",
+        price: "17.50",
+        currency_code: "EUR"
+      }
+    });
+    await callTool(client, "portfolixir.transactions.create", {
+      transaction: {
+        portfolio_id: 3,
+        securities_account_id: 7,
+        counter_securities_account_id: 8,
+        security_id: 9,
+        type: "security_transfer",
+        date: "2026-05-13",
+        quantity: "4",
+        currency_code: "EUR"
+      }
+    });
+
+    assert.deepEqual(requests[0], {
+      method: "POST",
+      path: "/api/v1/transactions",
+      body: {
+        transaction: {
+          portfolio_id: 3,
+          cash_account_id: 4,
+          security_id: 9,
+          type: "dividend",
+          date: "2026-05-11",
+          gross_amount: "12.34",
+          currency_code: "EUR"
+        }
+      },
+      token: "Bearer api-token"
+    });
+    assert.equal(requests[1].method, "POST");
+    assert.equal((requests[1].body as any).transaction.type, "outbound_delivery");
+    assert.equal((requests[2].body as any).transaction.type, "security_transfer");
+  });
+
+  it("rejects a delivery create without a price before any API call (FR-31 cost-basis guard)", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.transactions.create", {
+        transaction: {
+          portfolio_id: 3,
+          securities_account_id: 7,
+          security_id: 9,
+          type: "inbound_delivery",
+          date: "2026-05-14",
+          quantity: "50",
+          currency_code: "EUR"
+        }
+      }),
+      /price/i
+    );
+    // Buy stays guarded too: quantity and price remain required for trades.
+    await assert.rejects(
+      callTool(client, "portfolixir.transactions.create", {
+        transaction: {
+          portfolio_id: 3,
+          securities_account_id: 7,
+          security_id: 9,
+          type: "buy",
+          date: "2026-05-14",
+          currency_code: "EUR"
+        }
+      }),
+      /quantity|price/i
+    );
+
+    assert.equal(requests.length, 0);
+  });
+
   it("routes update/delete tools to PATCH/DELETE on the right paths", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
 
@@ -951,8 +1077,13 @@ describe("Portfolixir MCP tools", () => {
       /Unknown Portfolixir MCP tool/
     );
 
+    // Zod-valid payload (all required fields present) so the call reaches the
+    // API and the upstream 422 is what surfaces — schema-invalid payloads now
+    // fail earlier, in callTool's own validation.
     await assert.rejects(
-      callTool(client, "portfolixir.securities.create", { security: { name: "" } }),
+      callTool(client, "portfolixir.securities.create", {
+        security: { name: "", currency_code: "EUR" }
+      }),
       /Portfolixir API request failed/
     );
   });

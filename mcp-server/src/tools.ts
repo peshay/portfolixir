@@ -95,23 +95,83 @@ const securitiesAccountZ = z.object({
   })
 });
 
+// The 13 bookable PP kinds. `balance_adjustment` is deliberately absent:
+// absolute balance anchors are owned by the dedicated `set_balance` tool.
+const bookableKinds = [
+  "buy",
+  "sell",
+  "dividend",
+  "interest",
+  "deposit",
+  "removal",
+  "fee",
+  "tax",
+  "tax_refund",
+  "cash_transfer",
+  "inbound_delivery",
+  "outbound_delivery",
+  "security_transfer"
+] as const;
+
 const transactionZ = z.object({
-  transaction: z.object({
-    portfolio_id: z.number().int().positive(),
-    securities_account_id: z.number().int().positive(),
-    security_id: z.number().int().positive(),
-    type: z.enum(["buy", "sell"]),
-    date: z.string(),
-    quantity: z.string(),
-    price: z.string(),
-    fees: optionalString(),
-    taxes: optionalString(),
-    currency_code: z.string(),
-    security_amount: optionalString(),
-    settlement_amount: optionalString(),
-    settlement_fx_rate: optionalString(),
-    notes: optionalString()
-  })
+  transaction: z
+    .object({
+      portfolio_id: z.number().int().positive(),
+      securities_account_id: z.number().int().positive().optional(),
+      cash_account_id: z.number().int().positive().optional(),
+      counter_cash_account_id: z.number().int().positive().optional(),
+      counter_securities_account_id: z.number().int().positive().optional(),
+      security_id: z.number().int().positive().optional(),
+      type: z.enum(bookableKinds),
+      date: z.string(),
+      quantity: optionalString(),
+      price: optionalString(),
+      gross_amount: optionalString(),
+      fees: optionalString(),
+      taxes: optionalString(),
+      currency_code: z.string(),
+      security_amount: optionalString(),
+      settlement_amount: optionalString(),
+      settlement_fx_rate: optionalString(),
+      notes: optionalString()
+    })
+    .superRefine((tx, ctx) => {
+      // The backend validates per-kind required fields; these two guards are
+      // deliberately client-side because the failure they prevent is silent:
+      // an unpriced delivery is VALID for the API (PP-import compatibility)
+      // but enters the cost basis at zero (FR-31 cost-basis guard).
+      if (tx.type === "buy" || tx.type === "sell") {
+        for (const field of ["quantity", "price"] as const) {
+          if (!tx[field]) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [field],
+              message: `${field} is required for ${tx.type}`
+            });
+          }
+        }
+      }
+
+      if (tx.type === "inbound_delivery" || tx.type === "outbound_delivery") {
+        if (!tx.quantity) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["quantity"],
+            message: `quantity is required for ${tx.type}`
+          });
+        }
+
+        if (!tx.price) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["price"],
+            message:
+              "price is required for delivery kinds over MCP: a delivery without a price " +
+              "enters the cost basis at zero — supply the price for a correct cost basis"
+          });
+        }
+      }
+    })
 });
 
 const idSchema = {
@@ -203,24 +263,19 @@ const securitiesAccountSchema = objectWith("securities_account", {
 
 const transactionSchema = objectWith("transaction", {
   type: "object",
-  required: [
-    "portfolio_id",
-    "securities_account_id",
-    "security_id",
-    "type",
-    "date",
-    "quantity",
-    "price",
-    "currency_code"
-  ],
+  required: ["portfolio_id", "type", "date", "currency_code"],
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     securities_account_id: { type: "integer", minimum: 1 },
+    cash_account_id: { type: "integer", minimum: 1 },
+    counter_cash_account_id: { type: "integer", minimum: 1 },
+    counter_securities_account_id: { type: "integer", minimum: 1 },
     security_id: { type: "integer", minimum: 1 },
-    type: { type: "string", enum: ["buy", "sell"] },
+    type: { type: "string", enum: [...bookableKinds] },
     date: { type: "string", format: "date" },
     quantity: { type: "string" },
     price: { type: "string" },
+    gross_amount: { type: "string" },
     fees: { type: "string" },
     taxes: { type: "string" },
     currency_code: { type: "string" },
@@ -1241,7 +1296,7 @@ const toolDefinitions: ToolDefinition[] = [
     security_id: z.number().int().positive().optional(),
     securities_account_id: z.number().int().positive().optional()
   })),
-  tool("portfolixir.transactions.create", "Create transaction", "Create a manual buy or sell transaction. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
+  tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id, quantity AND price (a delivery without a price enters the cost basis at zero, so this tool requires it); security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking).", transactionUpdateSchema, transactionUpdateZ),
   tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction.", idSchema, idZ),
   tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings in each security's own currency (no FX conversion), with moving-average cost basis, latest price, market value and unrealized P&L. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
@@ -1577,7 +1632,14 @@ export async function callTool(
   name: string,
   args: Record<string, any>
 ): Promise<ToolResult> {
-  const payload = await apiCall(client, name, args ?? {});
+  // Validate here, not only in the SDK layer: guards like the delivery-price
+  // rule must hold for every caller of callTool, and a zod failure must
+  // surface BEFORE any API request is made.
+  const definition = toolDefinitions.find((tool) => tool.name === name);
+  const parsedArgs = definition
+    ? (definition.zodSchema.parse(args ?? {}) as Record<string, any>)
+    : (args ?? {});
+  const payload = await apiCall(client, name, parsedArgs);
 
   return {
     content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
