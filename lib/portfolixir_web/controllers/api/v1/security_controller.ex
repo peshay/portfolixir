@@ -26,14 +26,17 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     end
   end
 
-  # FR-33: listings default to the slim whitelist projection; `view=full`
-  # opts back into the complete serializer. Anything else is a 422 rather
+  # FR-33: listings default to the slim whitelist projection;
+  # `projection=full` opts back into the complete serializer. Named
+  # `projection` (not `view`) because `view` means "bucket-view id" on the
+  # analytics endpoints. An empty value counts as absent — the same leniency
+  # every other param on this route applies. Anything else is a 422 rather
   # than a silent fallback.
   defp listing_serializer(params) do
-    case Map.get(params, "view", "slim") do
-      "slim" -> {:ok, &JSON.security_listing/1}
+    case Map.get(params, "projection", "slim") do
+      value when value in ["slim", ""] -> {:ok, &JSON.security_listing/1}
       "full" -> {:ok, &JSON.security/1}
-      _other -> {:error, "view"}
+      _other -> {:error, "projection"}
     end
   end
 

@@ -20,7 +20,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   # Slim listing projection (FR-33): a FIXED whitelist for routine listings so
   # notes, feed config, attributes and timestamps don't ride along on every
   # page an LLM operator requests. Deliberately not a generic field selector —
-  # scope-locked to the securities list; `?view=full` returns `security/1`.
+  # scope-locked to the securities list; `?projection=full` returns `security/1`.
   def security_listing(%Security{} = security) do
     %{
       id: security.id,
