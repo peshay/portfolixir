@@ -686,6 +686,12 @@ kopierte Text nutzt stabile `Row N: message`-Zeilen, sodass die Diagnose beim
 Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und nutzt
 Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
 
+**Ein-/Auslieferungszeilen** behalten ihren geparsten Stückpreis (die
+CSV-Spalte `Kurs`), sodass eine Einlieferung mit Preis mit ihrem echten
+Einstand in den Einstandswert der Bestände eingeht. Eine Lieferzeile ohne
+Preis wird weiterhin importiert und bewegt die Menge zum Einstand null, wie
+unter Bestandsberechnung beschrieben.
+
 Zeilen mit **unplausiblen Daten** (vor 1900, z. B. ein `0217-12-05`-Tippfehler für
 2017) werden je Zeile mit einer klaren Meldung abgelehnt, statt jede abgeleitete
 Kennzahl zu vergiften — korrigiere die Buchung in der Quelle und importiere
