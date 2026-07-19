@@ -210,6 +210,15 @@ ledger/money-domain math and invariants, security-relevant changes,
 dependency updates, and anything touching import idempotency or projection
 semantics. Weakening a quality gate to make a batch pass is a review reject.
 
+## Issue Tracking Convention
+
+GitHub issues are thin pointers: the authoritative spec lives in the
+ADR/epics document, never in the issue body. An issue carries a title, a
+one-paragraph scope statement, links to the authoritative sections, and its
+dependencies. Do not duplicate acceptance-criteria text into an issue —
+copies drift, and the ADR/epics source is what reviewers hold the work
+against.
+
 ## AI Authoring Contract
 
 Agent commits must follow this order and keep each iteration reviewable:
