@@ -58,26 +58,56 @@ defmodule Portfolixir.Catalog.Quotes do
   Returns `{:ok, count}` on success. Validates each row through the schema
   changeset first; if any row fails validation we return
   `{:error, changeset}` and write nothing.
+
+  With `protect_manual: true` (the sync path) existing rows whose stored
+  source is `"manual"` are left untouched — manual entries win over provider
+  data — and the return shape becomes `{:ok, upserted, skipped_manual}`.
+  Without the option (the manual entry path) every conflicting row is
+  replaced, so a human correcting a value can still overwrite anything.
   """
-  def upsert_many(security_id, rows) when is_integer(security_id) and is_list(rows) do
+  def upsert_many(security_id, rows, opts \\ [])
+      when is_integer(security_id) and is_list(rows) do
+    protect_manual? = Keyword.get(opts, :protect_manual, false)
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     case prepare_rows(security_id, rows, now) do
       {:ok, []} ->
-        {:ok, 0}
+        if protect_manual?, do: {:ok, 0, 0}, else: {:ok, 0}
 
       {:ok, prepared} ->
         {count, _} =
           Repo.insert_all(SecurityQuote, prepared,
-            on_conflict: {:replace, [:close, :source, :updated_at]},
+            on_conflict: on_conflict(protect_manual?),
             conflict_target: [:security_id, :date]
           )
 
-        {:ok, count}
+        if protect_manual? do
+          {:ok, count, length(prepared) - count}
+        else
+          {:ok, count}
+        end
 
       {:error, _} = err ->
         err
     end
+  end
+
+  # Postgres counts a conflicting row only when the DO UPDATE actually ran,
+  # so with the manual-protecting WHERE the difference between prepared rows
+  # and the returned count is exactly the number of skipped manual rows.
+  defp on_conflict(false), do: {:replace, [:close, :source, :updated_at]}
+
+  defp on_conflict(true) do
+    from(q in SecurityQuote,
+      update: [
+        set: [
+          close: fragment("EXCLUDED.close"),
+          source: fragment("EXCLUDED.source"),
+          updated_at: fragment("EXCLUDED.updated_at")
+        ]
+      ],
+      where: q.source != "manual"
+    )
   end
 
   @doc """

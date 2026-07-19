@@ -135,6 +135,57 @@ defmodule Portfolixir.Catalog.QuotesTest do
       assert latest.source == "coingecko"
     end
 
+    # User story:
+    # As a local portfolio maintainer,
+    # I want the background sync's upserts to leave my hand-entered quotes
+    # untouched,
+    # so that a manual correction is never silently replaced by provider data.
+    #
+    # Acceptance criteria:
+    # - With `protect_manual: true`, an existing row whose stored source is
+    #   "manual" keeps its close and source, and the skipped count is
+    #   reported alongside the upserted count.
+    # - Non-manual rows are still inserted or replaced as before.
+    test "protect_manual: true skips existing manual rows and reports the count" do
+      sec = security_fixture()
+      insert_quote(sec, ~D[2026-05-15], "100", "manual")
+      insert_quote(sec, ~D[2026-05-14], "90", "coingecko")
+
+      assert {:ok, 2, 1} =
+               Quotes.upsert_many(
+                 sec.id,
+                 [
+                   %{date: ~D[2026-05-15], close: Decimal.new("125"), source: "coingecko"},
+                   %{date: ~D[2026-05-14], close: Decimal.new("95"), source: "coingecko"},
+                   %{date: ~D[2026-05-13], close: Decimal.new("85"), source: "coingecko"}
+                 ],
+                 protect_manual: true
+               )
+
+      by_date =
+        Quotes.range(sec.id, ~D[2026-01-01], ~D[2026-12-31])
+        |> Map.new(&{&1.date, &1})
+
+      assert Decimal.equal?(by_date[~D[2026-05-15]].close, Decimal.new("100"))
+      assert by_date[~D[2026-05-15]].source == "manual"
+      assert Decimal.equal?(by_date[~D[2026-05-14]].close, Decimal.new("95"))
+      assert Decimal.equal?(by_date[~D[2026-05-13]].close, Decimal.new("85"))
+    end
+
+    test "a manual upsert without protect_manual still overwrites provider rows" do
+      sec = security_fixture()
+      insert_quote(sec, ~D[2026-05-15], "125", "coingecko")
+
+      {:ok, 1} =
+        Quotes.upsert_many(sec.id, [
+          %{date: ~D[2026-05-15], close: Decimal.new("111"), source: "manual"}
+        ])
+
+      latest = Quotes.latest(sec.id)
+      assert Decimal.equal?(latest.close, Decimal.new("111"))
+      assert latest.source == "manual"
+    end
+
     test "rejects rows with invalid sources" do
       sec = security_fixture()
 
