@@ -86,10 +86,11 @@ defmodule PortfolixirWeb.ApiV1Test do
   # Acceptance criteria:
   # - The default listing carries exactly the fixed slim whitelist
   #   (id, name, ticker_symbol, isin, wkn, currency_code, asset_class).
-  # - `?view=full` returns the full projection (timestamps included).
-  # - An invalid view value returns a field-specific 422.
+  # - `?projection=full` returns the full projection (timestamps included).
+  # - An empty value counts as absent (default slim), like every other param.
+  # - An invalid projection value returns a field-specific 422.
   # - Scope lock: securities list ONLY — no generic field-selection framework.
-  test "securities list defaults to a slim projection with view=full escape", %{conn: conn} do
+  test "securities list defaults to a slim projection with projection=full escape", %{conn: conn} do
     {:ok, security} =
       Portfolixir.Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Slim Equity",
@@ -121,17 +122,27 @@ defmodule PortfolixirWeb.ApiV1Test do
     [full] =
       build_conn()
       |> api_conn()
-      |> get("/api/v1/securities?view=full")
+      |> get("/api/v1/securities?projection=full")
       |> json_response(200)
       |> Map.fetch!("data")
 
     assert full["note"] == "verbose note that must not ride along in listings"
     assert is_binary(full["inserted_at"])
 
+    # Empty value counts as absent, like every other param on this route.
+    [empty] =
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities?projection=")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert empty == slim
+
     assert build_conn()
            |> api_conn()
-           |> get("/api/v1/securities?view=everything")
-           |> json_response(422) == %{"errors" => %{"view" => ["is invalid"]}}
+           |> get("/api/v1/securities?projection=everything")
+           |> json_response(422) == %{"errors" => %{"projection" => ["is invalid"]}}
   end
 
   # User story:

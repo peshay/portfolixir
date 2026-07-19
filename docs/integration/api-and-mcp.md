@@ -41,11 +41,11 @@ that successful delete response.
 - `GET /api/v1/securities` lists securities. Rows default to a slim
   projection — the fixed whitelist `id`, `name`, `ticker_symbol`, `isin`,
   `wkn`, `currency_code`, `asset_class` — so routine listings stay small;
-  `view=full` returns the complete record (notes, feed config, attributes,
+  `projection=full` returns the complete record (notes, feed config, attributes,
   timestamps). Optional query params: `query`, `sort`, `direction`,
   holding_status (`all`, `held`, or `not_held`), `logo_status` (`missing` or
   `present` — `missing` powers the "securities without a logo" overview and
-  excludes rows explicitly set to no logo), `view` (`slim`/`full`), and
+  excludes rows explicitly set to no logo), `projection` (`slim`/`full`), and
   `limit`/`offset` for pagination (both non-negative integers). Use these to
   page large catalogs instead of fetching the whole table at once.
 - `POST /api/v1/securities` creates a security with a `security` object.
@@ -239,11 +239,14 @@ Example account payloads:
   Booking semantics worth knowing before the first write: a dividend's
   `gross_amount` is the NET cash credited to the account — withheld taxes ride
   in `taxes`, and the income report reconstructs gross as net plus withheld
-  tax. A delivery (`inbound_delivery`/`outbound_delivery`) recorded without a
-  `price` moves quantity at zero cost basis; supply the price when it is
-  known. When reconciling a difference, prefer booking the missing transaction
-  of the correct kind — balance snapshots and unpriced deliveries are last
-  resorts that make numbers look right while distorting cost basis. A security
+  tax. An inbound delivery recorded without a
+  `price` enters the cost basis at zero — supply the acquisition price when it
+  is known; an outbound delivery removes cost at the position's running
+  average, so its price is informational only. When reconciling a difference, prefer booking the missing transaction
+  of the correct kind — balance snapshots and unpriced inbound deliveries are last
+  resorts that make numbers look right while distorting cost basis. Amounts
+  are positive magnitudes — the kind implies the direction; only
+  `balance_adjustment` may carry a negative (absolute) amount. A security
   settled through a different-currency cash
   account (for example a USD security bought through a EUR account) is booked in
   the security's own currency and carries the cross-currency settlement fields
