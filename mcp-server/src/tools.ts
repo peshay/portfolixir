@@ -1185,7 +1185,7 @@ const snapshotComparisonZ = z.object({
 });
 
 const toolDefinitions: ToolDefinition[] = [
-  tool("portfolixir.securities.list", "List securities", "List local securities. Use limit/offset to page large catalogs and keep responses small.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass view=full only when you need notes, feed config, attributes or timestamps. Use limit/offset to page large catalogs.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -1193,6 +1193,7 @@ const toolDefinitions: ToolDefinition[] = [
       sort: { type: "string" },
       direction: { type: "string", enum: ["asc", "desc"] },
       holding_status: { type: "string", enum: ["held", "not_held", "all"] },
+      view: { type: "string", enum: ["slim", "full"] },
       limit: { type: "integer", minimum: 0 },
       offset: { type: "integer", minimum: 0 }
     }
@@ -1201,6 +1202,7 @@ const toolDefinitions: ToolDefinition[] = [
     sort: optionalString(),
     direction: z.enum(["asc", "desc"]).optional(),
     holding_status: z.enum(["held", "not_held", "all"]).optional(),
+    view: z.enum(["slim", "full"]).optional(),
     limit: z.number().int().min(0).optional(),
     offset: z.number().int().min(0).optional()
   })),
@@ -1657,6 +1659,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "sort",
           "direction",
           "holding_status",
+          "view",
           "limit",
           "offset"
         ])
