@@ -530,6 +530,32 @@ describe("Portfolixir MCP tools", () => {
     assert.equal((requests[2].body as any).transaction.type, "security_transfer");
   });
 
+  // User story:
+  // As the operating LLM agent,
+  // I want the semantic traps written into the tool descriptions I read,
+  // so that I book correctly on the first attempt instead of learning by
+  // mis-booking.
+  //
+  // Acceptance criteria:
+  // - Create/update descriptions state that a dividend's gross_amount is the
+  //   NET cash credited (withheld taxes ride in taxes).
+  // - set_balance carries the fix-it-hammer warning (book the missing
+  //   transaction of the correct kind; snapshots/unpriced deliveries are
+  //   last resorts).
+  it("documents booking semantics in the tool descriptions (FR-32)", () => {
+    const byName = new Map(listTools().map((tool) => [tool.name, String(tool.description)]));
+
+    for (const name of ["portfolixir.transactions.create", "portfolixir.transactions.update"]) {
+      assert.match(byName.get(name) ?? "", /gross_amount is the NET cash credited/i, name);
+    }
+
+    assert.match(
+      byName.get("portfolixir.cash_accounts.set_balance") ?? "",
+      /book(ing)? the missing transaction of the correct kind/i
+    );
+    assert.match(byName.get("portfolixir.cash_accounts.set_balance") ?? "", /last resort/i);
+  });
+
   it("rejects a delivery create without a price before any API call (FR-31 cost-basis guard)", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
 

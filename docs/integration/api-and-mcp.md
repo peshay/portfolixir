@@ -230,8 +230,17 @@ Example account payloads:
 - `GET /api/v1/transactions` lists transactions. Optional filters: `from`/`to`
   (ISO dates, inclusive), `portfolio_id`, `security_id`, `securities_account_id`.
   Invalid filters return `422 Unprocessable Entity` with the offending field.
-- `POST /api/v1/transactions` creates a manual buy or sell transaction with a
-  `transaction` object. A security settled through a different-currency cash
+- `POST /api/v1/transactions` creates a transaction of any bookable kind with a
+  `transaction` object (per-kind required fields are validated server-side).
+  Booking semantics worth knowing before the first write: a dividend's
+  `gross_amount` is the NET cash credited to the account — withheld taxes ride
+  in `taxes`, and the income report reconstructs gross as net plus withheld
+  tax. A delivery (`inbound_delivery`/`outbound_delivery`) recorded without a
+  `price` moves quantity at zero cost basis; supply the price when it is
+  known. When reconciling a difference, prefer booking the missing transaction
+  of the correct kind — balance snapshots and unpriced deliveries are last
+  resorts that make numbers look right while distorting cost basis. A security
+  settled through a different-currency cash
   account (for example a USD security bought through a EUR account) is booked in
   the security's own currency and carries the cross-currency settlement fields
   `security_amount` (trade amount in the security currency), `settlement_amount`
