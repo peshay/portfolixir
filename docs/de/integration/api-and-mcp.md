@@ -220,8 +220,18 @@ Beispiel-Payloads für Konten:
 - `GET /api/v1/transactions` listet Transaktionen. Optionale Filter: `from`/`to`
   (ISO-Daten, inklusive), `portfolio_id`, `security_id`, `securities_account_id`.
   Ungültige Filter liefern `422 Unprocessable Entity` mit dem betreffenden Feld.
-- `POST /api/v1/transactions` legt eine manuelle Kauf- oder Verkauftransaktion mit
-  einem `transaction`-Objekt an. Ein Wertpapier, das über ein Geldkonto in einer
+- `POST /api/v1/transactions` legt eine Transaktion beliebiger buchbarer Art mit
+  einem `transaction`-Objekt an (die pro Buchungsart erforderlichen Felder werden
+  serverseitig validiert). Buchungssemantik, die man vor dem ersten Schreiben
+  kennen sollte: `gross_amount` einer Dividende ist der NETTO-Geldzufluss auf dem
+  Konto — einbehaltene Steuern gehören in `taxes`, der Einnahmenbericht
+  rekonstruiert brutto als netto plus einbehaltene Steuer. Eine ohne `price`
+  erfasste Lieferung (`inbound_delivery`/`outbound_delivery`) bewegt die Menge zum
+  Einstand null; wenn der Kurs bekannt ist, sollte er mitgegeben werden. Bei einer
+  Abgleichdifferenz sollte die fehlende Buchung der richtigen Art nachgetragen
+  werden — Kontostand-Snapshots und unbepreiste Lieferungen sind letzte Mittel,
+  die Zahlen richtig aussehen lassen und dabei den Einstand verzerren. Ein
+  Wertpapier, das über ein Geldkonto in einer
   anderen Währung abgerechnet wird (zum Beispiel ein USD-Wertpapier über ein
   EUR-Konto), wird in der eigenen Währung des Wertpapiers gebucht und trägt die
   Felder zur währungsübergreifenden Abrechnung: `security_amount` (Handelsbetrag in
