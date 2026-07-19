@@ -8,7 +8,7 @@ inputDocuments:
 amendments:
   - date: '2026-07-18'
     source: 'MCP field feedback (owner LLM agent), code-verified; owner-confirmed FR-30..FR-35'
-    stepsCompleted: [1, 2]
+    stepsCompleted: [1, 2, 3, 4]
     elicitation: 'inversion analysis + stakeholder round table (subagents); findings applied with owner approval'
 ---
 
@@ -357,6 +357,86 @@ import applier persist the parsed `Kurs` on deliveries, so imported deliveries
 stop entering the cost fold at zero — scheduled alongside the batch, reviewed
 separately (projection semantics per AGENTS.md).
 
+#### E6 DX batch stories (2026-07-18; each becomes one GitHub issue)
+
+##### Story 6.DX-1: Book any transaction kind over MCP (FR-31)
+
+As the operating LLM agent,
+I want `transactions_create` to accept all 13 ledger kinds directly,
+So that I can book dividends, deliveries and transfers without the
+create-as-buy→update detour that transits through momentarily-wrong ledger
+states.
+
+**Acceptance Criteria:**
+
+**Given** the MCP companion with a valid bearer token
+**When** I call `transactions_create` with `type: "dividend"` (security, cash account, gross_amount)
+**Then** the transaction is created in one call and the journal records the MCP actor
+**And** the same holds for every one of the 13 kinds, explicitly including `inbound_delivery` and `outbound_delivery`
+**Given** a delivery kind on MCP create
+**When** I omit `price`
+**Then** the MCP schema rejects the call (deliberately stricter than the JSON API, which stays PP-import-compatible)
+**And** the tool description states: "a delivery without a price enters the cost basis at zero; supply the price for a correct cost basis"
+**And** MCP tests cover one create per kind with synthetic fixtures; `balance_adjustment` stays excluded from the enum (the `set_balance` tool owns it)
+
+##### Story 6.DX-2: Holdings carry stable identifiers (FR-30)
+
+As the operating LLM agent,
+I want ISIN and WKN on every holdings row (JSON API + MCP),
+So that I can reconcile against broker data without a token-expensive
+client-side join over `securities_list`.
+
+**Acceptance Criteria:**
+
+**Given** a portfolio with held positions
+**When** I call `GET /api/v1/portfolios/:id/holdings` or the MCP holdings tool
+**Then** each row includes `isin` and `wkn` (nullable, `null` when the security has none)
+**And** the response shape stays backward-compatible (additive fields only)
+**And** ConnCase + MCP tests assert the fields for a security with and one without ISIN
+
+##### Story 6.DX-3: Booking semantics documented at the point of use (FR-32)
+
+As the operating LLM agent,
+I want the semantic traps written into the tool/schema descriptions I actually read,
+So that I book correctly on the first attempt instead of learning by mis-booking.
+
+**Acceptance Criteria:**
+
+**Given** the MCP tool schemas
+**When** I read the `transactions_create`/`transactions_update` descriptions
+**Then** they state that a dividend's `gross_amount` is the NET cash credited (withheld taxes ride in `taxes`; the income report reconstructs gross)
+**And** the `set_balance` and delivery tool descriptions carry the fix-it-hammer warning ("resolve differences by booking the missing transaction of the correct kind; balance snapshots and unpriced deliveries are last resorts that distort cost basis")
+**And** no field is renamed (explicit non-goal)
+**And** the API docs mirror the same semantics
+
+##### Story 6.DX-4: Slim securities listing (FR-33)
+
+As the operating LLM agent,
+I want a slim default projection for `securities_list`,
+So that routine listings stop paying tokens for logos and timestamps.
+
+**Acceptance Criteria:**
+
+**Given** the securities list endpoint/tool
+**When** I request the default listing
+**Then** rows carry a fixed slim whitelist (id, name, ISIN, WKN, ticker, currency, asset class) and omit logo/timestamp payloads
+**And** the full projection stays reachable (parameter or dedicated detail call)
+**And** scope lock holds: no generic field-selection framework — `securities_list` only
+
+##### Story 6.C-1 (companion — standalone risk-tier PR, NOT in the batch): Imported deliveries keep their price
+
+As a local portfolio maintainer importing PP history,
+I want the applier to persist the parsed `Kurs` on delivery rows,
+So that imported deliveries enter the cost fold with their real cost instead of zero.
+
+**Acceptance Criteria:**
+
+**Given** a PP CSV with an `Einlieferung` row carrying `Kurs`
+**When** I apply the import
+**Then** the created `inbound_delivery` stores that price and the holdings cost basis reflects it
+**And** a `Kurs`-less delivery row still imports (price `nil`, zero cost — unchanged behavior)
+**And** import idempotency is unaffected (content-hash regression test) — dedicated small PR, real human review
+
 ### Epic 7: Rebalancing guidance (gated)
 FR-12, both-direction guidance ranked by drift. **No issue yet** — needs the guidance-vs-action ADR/AGENTS.md clarification first (it must never place or prepare orders). Create the issue after the scope decision.
 
@@ -461,6 +541,70 @@ merger/spin-off, in that slice order; splits ONLY in the first ADR slice) may
 ride the epic batch. The E17 ADR may be DRAFTED in parallel to the E6 DX
 batch, but at most one risk-tier review is in flight at any time.
 
+#### E17 stories (issues created after ADR sign-off)
+
+##### Story 17.1: Corporate-actions decision ADR (gate)
+
+As the accountable owner,
+I want one ADR that settles how corporate actions live in the ledger,
+So that every later slice implements a reviewed model instead of improvising
+projection semantics.
+
+**Acceptance Criteria:**
+
+**Given** the pre-seeded question list
+**When** the ADR is drafted (parallel to the E6 batch is allowed)
+**Then** it decides: event representation (first-class kind vs. composed
+kinds) incl. the `Projection.effects/1` clause, AR-7/migration-immutability
+and PP round-trip (FR-5/FR-29) impact; quote-history continuity as
+APPEND-ONLY adjustment factors (never mutated history, NFR-2); the
+ISIN-change case cross-referenced with the FR-34 ADR; API/MCP booking + read
+parity (AR-11) as a binding acceptance criterion of the event layer
+**And** splits are the ONLY action modeled in this first slice (rename and
+merger/spin-off are named follow-on slices)
+**And** the owner signs off before any implementation story starts
+
+##### Story 17.2: Book a split as a ledger event (risk-tier)
+
+As a local portfolio maintainer (and the MCP agent acting for me),
+I want to record a stock split as a reproducible ledger event via API and MCP,
+So that quantities before and after the split are both true and derived, not
+hand-edited.
+
+**Acceptance Criteria:**
+
+**Given** a held position of 10 shares and a recorded 1:10 split event per the ADR's representation
+**When** holdings are derived
+**Then** the position shows 100 shares with an unchanged total cost basis (per-share cost divided accordingly), exact-Decimal
+**And** the event books identically through JSON API and MCP (AR-11), is journaled, and round-trips the PP export/import path or documents the mapping
+**And** projection changes land as dedicated small PRs (risk-tier)
+
+##### Story 17.3: Continuous charts across a split
+
+As a local portfolio maintainer,
+I want price history to display continuously across a split,
+So that charts stop showing a fictitious 90% crash on split day.
+
+**Acceptance Criteria:**
+
+**Given** stored raw quotes and a split event
+**When** the security detail chart renders
+**Then** displayed history applies the append-only adjustment factor (raw quotes stay immutable, NFR-2)
+**And** the chart-as-table view (UX-DR10) shows adjusted values with the basis stated (UX-DR11)
+
+##### Story 17.4: Guided split wizard (UI layer)
+
+As a local portfolio maintainer working in the UI,
+I want a guided flow that records a split with preview,
+So that I can book the event without knowing the ledger representation.
+
+**Acceptance Criteria:**
+
+**Given** a security detail page
+**When** I start the split wizard, enter ratio and date, and confirm the previewed effect (quantities before/after)
+**Then** the same ledger event as Story 17.2 is created — the wizard is a UI layer over the event, never a second write path
+**And** the flow meets modal-accessibility requirements (UX-DR9)
+
 ### Epic 18: Stable identities & reconciliation (FR-34/35, ADR-gated)
 A fresh PP import re-rolls IDs and orphans the owner's strategy configuration
 (classifications, target plans, cash target — the accumulated E13/E15/E16
@@ -477,3 +621,49 @@ re-import round-trip test (exact-Decimal survival of strategy config);
 dependency on E16's Targets/Plans journal arming before any E18 write path.
 Import idempotency → **risk-tier**; both E18 gates come strictly after the
 E17 ADR (reviewer WIP limit — the owner is one person).
+
+#### E18 stories (issues created after ADR sign-off)
+
+##### Story 18.1: Stable-identity decision ADR (gate, includes the FR-35 section)
+
+As the accountable owner,
+I want one decision session that settles re-import identity AND the reconcile
+question,
+So that my strategy configuration stops being disposable without queueing two
+separate gates on my desk.
+
+**Acceptance Criteria:**
+
+**Given** the FR-34 options (ISIN-keyed identity vs. strategy-config export/import)
+**When** the ADR is drafted (after the E17 ADR, per the WIP rule, with a recommended option)
+**Then** it decides the identity mechanism INCLUDING the fallback for ISIN-less securities (crypto/watch-only) and the ISIN-changed case (E17 cross-reference)
+**And** its FR-35 section delivers a verdict: build the read-only reconcile endpoint (boundary as pinned in FR-35) OR close it as a documented agent procedure — both outcomes are acceptable
+**And** the owner signs off in one session
+
+##### Story 18.2: Strategy configuration survives a re-import (risk-tier)
+
+As a local portfolio maintainer,
+I want classifications, target plans and the cash target to survive a fresh PP import,
+So that redoing my bookkeeping never destroys my strategy work.
+
+**Acceptance Criteria:**
+
+**Given** an imported fixture with attached classification, target plan and cash target
+**When** I re-import a mutated version of the same PP export (the FR-29 "restore = re-import" path)
+**Then** the surviving strategy configuration matches exactly (golden-path DataCase test, exact-Decimal equality)
+**And** ISIN-less securities follow the ADR's fallback and any unmatched leftovers are SURFACED, not silently dropped (FR-7)
+**And** all migration writes are journaled (depends on E16's Targets/Plans journal arming) and land as dedicated small PRs (risk-tier)
+
+##### Story 18.3 (conditional on the 18.1 verdict): Read-only holdings reconcile
+
+As the operating LLM agent,
+I want to submit a user-supplied external position list and get a holdings diff,
+So that discrepancies surface as bookable facts instead of guesses.
+
+**Acceptance Criteria:**
+
+**Given** pasted/file-supplied position data (ISIN + quantity)
+**When** I call the reconcile endpoint/tool
+**Then** I get per-ISIN deltas against ledger-derived holdings, read-only, with the external list never persisted and no network acquisition (NFR-4 boundary as pinned in FR-35)
+**And** the response embeds the resolution guidance ("book the missing transaction of the correct kind; balance snapshots and unpriced deliveries are last resorts")
+**And** API/MCP parity (AR-11) and synthetic-fixture tests hold
