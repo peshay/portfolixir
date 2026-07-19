@@ -99,18 +99,48 @@ plain PP still imports a quantity-correct history.
 
 ### 2. Quote continuity via append-only adjustment factors, derived at read time
 
-Raw stored quotes are **never mutated** (NFR-2). Chart display applies
-**adjustment factors derived on demand from the ledger's split events**: for
-dates before an effective date, the displayed close is the raw close divided
-by the cumulative ratio of all later splits. Nothing new is persisted — the
-factors are a pure function of `(quotes, split events)`, living in a pure
-adjustment engine in the Catalog context (engines compute, the shell reads —
-AR-2). The security chart **and** its chart-as-table show the adjusted series
-with the basis stated ("split-adjusted"; UX-DR10/11); raw values stay
-reachable. Valuation keeps using raw quotes against raw per-date quantities —
-pre-split quantity × pre-split quote and post-split quantity × post-split
-quote are each correct, so the daily valuation series and TTWROR are
+The split event never mutates stored quotes. But stored histories come in
+**two bases**, and the adjustment engine must know which one it is looking
+at — this is the trap Portfolio Performance fell into from the other side
+(double adjustment, portfolio-performance/portfolio#4223):
+
+- **Provider-synced rows** (`source` = sync): `QuoteSync.Yahoo` refetches the
+  *full* history (`period1=0`) every cycle and `Quotes.upsert_many/2`
+  overwrites existing closes, so these rows always mirror the provider's
+  **current, back-adjusted** basis. After a real-world split the stored
+  series becomes split-adjusted on the next sync, automatically. These rows
+  are a *provider mirror*, not an immutable raw record — display applies
+  **no** additional factor (the series is already continuous), and applying
+  one would double-adjust.
+- **Manual and import-sourced rows** (`source` = manual/import, never
+  overwritten by a sync): raw as-traded prices, the auditable immutable
+  input of NFR-2. For dates before an effective date, the displayed close is
+  the raw close divided by the cumulative ratio of all later splits.
+
+The per-row basis is derived from the existing `source` column — nothing new
+is persisted; the factors remain a pure function of
+`(quotes incl. source, split events)`, living in a pure adjustment engine in
+the Catalog context (engines compute, the shell reads — AR-2). The security
+chart **and** its chart-as-table show the series with the basis stated
+("split-adjusted" / "provider-adjusted"; UX-DR10/11); stored values stay
+reachable.
+
+**Valuation** must use one consistent basis per date. For raw rows,
+pre-split quantity × raw pre-split quote is correct as stored. For
+provider-adjusted rows, pre-split dates value as
+(quantity × cumulative later split ratio) × adjusted quote — the same fold,
+applied to the quantity side. This is not optional polish: today, a split on
+a synced security silently skews the historical valuation series (the
+provider divides the stored quotes while booked quantities stay pre-split),
+so booking the split event is what *repairs* history for synced securities.
+With the basis handled per row, the daily valuation series and TTWROR are
 continuous across the effective date by construction.
+
+**Misclassification guard:** the booking preview (wizard UI and the MCP
+tool's preview output) renders the stored closes around the effective date;
+a visible jump indicates a raw basis, a continuous series an adjusted one.
+If that contradicts the per-row `source` classification, the preview warns
+instead of silently adjusting — no PP-style silent double adjustment.
 
 ### 3. Cost basis: quantity multiplies, total cost is invariant
 
@@ -161,10 +191,16 @@ slices, each requiring its own ADR amendment before implementation:
 - A reverse split can leave fractional share remainders; they remain as
   fractional quantities (volume scale 6), and any cash-in-lieu is booked by
   the operator as a separate regular transaction — no hidden automation.
-- If a quote provider delivers **back-adjusted** history (post-split basis
-  for pre-split dates), raw valuation before the effective date is skewed;
-  this is a data-quality concern to surface in docs and the later wizard
-  preview, not solvable by the ledger.
+- Back-adjusted provider history is handled by the per-row basis policy of
+  §2 (sync rows = provider basis, no extra factor; manual/import rows = raw,
+  factor applies), guarded by the booking-preview warning. Residual risk:
+  a sync that stops running right after a real-world split leaves the mirror
+  on a stale basis until the next successful sync; `updated_at`/`source` on
+  the rows make that state diagnosable.
+- NFR-2 nuance made explicit: immutable-input auditability applies to
+  manual/import quote rows and to the ledger itself; provider-synced rows
+  are a refreshable mirror of an external source and are overwritten by
+  design (existing `QuoteSync` behavior, unchanged by this ADR).
 
 ## References
 
