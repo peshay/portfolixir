@@ -160,10 +160,10 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | — | cross-cutting perf; watch in perf-sensitive stories |
 | UX-DR1–14 | **#356** + #336, #337, #339, #319 | UX/a11y tracker (UI = priority 3) |
-| FR-30 | tbd | ISIN/WKN in holdings payloads (E6 DX batch, story 2) |
-| FR-31 | tbd | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
-| FR-32 | tbd | booking-semantics docs incl. fix-it-hammer warnings (E6 DX batch, story 3) |
-| FR-33 | tbd | slim `securities_list` projection, scope-locked (E6 DX batch, story 4) |
+| FR-30 | #582 | ISIN/WKN in holdings payloads (E6 DX batch, story 2) |
+| FR-31 | #581 | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
+| FR-32 | #583 | booking-semantics docs incl. fix-it-hammer warnings (E6 DX batch, story 3) |
+| FR-33 | #584 | slim `securities_list` projection, scope-locked (E6 DX batch, story 4) |
 | FR-34 | tbd | **gated** — re-import identity ADR first (E18), risk-tier |
 | FR-35 | tbd | **gated** — decided as a section of the FR-34 ADR (E18); may close as documented procedure |
 
