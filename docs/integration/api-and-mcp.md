@@ -38,10 +38,14 @@ that successful delete response.
 
 ## Securities
 
-- `GET /api/v1/securities` lists securities. Optional query params: `query`,
-  `sort`, `direction`, holding_status (`all`, `held`, or `not_held`),
-  `logo_status` (`missing` or `present` — `missing` powers the "securities
-  without a logo" overview and excludes rows explicitly set to no logo), and
+- `GET /api/v1/securities` lists securities. Rows default to a slim
+  projection — the fixed whitelist `id`, `name`, `ticker_symbol`, `isin`,
+  `wkn`, `currency_code`, `asset_class` — so routine listings stay small;
+  `view=full` returns the complete record (notes, feed config, attributes,
+  timestamps). Optional query params: `query`, `sort`, `direction`,
+  holding_status (`all`, `held`, or `not_held`), `logo_status` (`missing` or
+  `present` — `missing` powers the "securities without a logo" overview and
+  excludes rows explicitly set to no logo), `view` (`slim`/`full`), and
   `limit`/`offset` for pagination (both non-negative integers). Use these to
   page large catalogs instead of fetching the whole table at once.
 - `POST /api/v1/securities` creates a security with a `security` object.

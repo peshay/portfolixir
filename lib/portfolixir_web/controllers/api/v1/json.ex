@@ -17,6 +17,22 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Portfolios.Snapshot
   alias Portfolixir.Portfolios.TargetPlan
 
+  # Slim listing projection (FR-33): a FIXED whitelist for routine listings so
+  # notes, feed config, attributes and timestamps don't ride along on every
+  # page an LLM operator requests. Deliberately not a generic field selector —
+  # scope-locked to the securities list; `?view=full` returns `security/1`.
+  def security_listing(%Security{} = security) do
+    %{
+      id: security.id,
+      name: security.name,
+      ticker_symbol: security.ticker_symbol,
+      isin: security.isin,
+      wkn: security.wkn,
+      currency_code: security.currency_code,
+      asset_class: security.asset_class
+    }
+  end
+
   def security(%Security{} = security) do
     %{
       id: security.id,

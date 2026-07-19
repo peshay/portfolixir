@@ -39,10 +39,15 @@ Löschantwort keinen JSON-Body parsen.
 
 ## Wertpapiere
 
-- `GET /api/v1/securities` listet Wertpapiere. Optionale Query-Parameter: `query`,
-  `sort`, `direction`, holding_status (`all`, `held` oder `not_held`) und
-  `limit`/`offset` zur Paginierung (beides nichtnegative Ganzzahlen). Nutze diese,
-  um große Kataloge zu paginieren, statt die ganze Tabelle auf einmal zu holen.
+- `GET /api/v1/securities` listet Wertpapiere. Zeilen kommen standardmäßig als
+  schlanke Projektion — die feste Whitelist `id`, `name`, `ticker_symbol`,
+  `isin`, `wkn`, `currency_code`, `asset_class` — damit Routineabfragen klein
+  bleiben; `view=full` liefert den vollständigen Datensatz (Notizen,
+  Feed-Konfiguration, Attribute, Zeitstempel). Optionale Query-Parameter:
+  `query`, `sort`, `direction`, holding_status (`all`, `held` oder `not_held`),
+  `view` (`slim`/`full`) und `limit`/`offset` zur Paginierung (beides
+  nichtnegative Ganzzahlen). Nutze diese, um große Kataloge zu paginieren,
+  statt die ganze Tabelle auf einmal zu holen.
 - `POST /api/v1/securities` legt ein Wertpapier mit einem `security`-Objekt an.
   `asset_class` ist ein stabiler String-Code: `equity`, `etf`, `fund`,
   `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus die
