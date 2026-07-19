@@ -160,16 +160,20 @@ const transactionZ = z.object({
             message: `quantity is required for ${tx.type}`
           });
         }
+      }
 
-        if (!tx.price) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["price"],
-            message:
-              "price is required for delivery kinds over MCP: a delivery without a price " +
-              "enters the cost basis at zero — supply the price for a correct cost basis"
-          });
-        }
+      // Only INBOUND deliveries read the price (it sets the acquisition
+      // cost); outbound deliveries remove cost at the position's running
+      // average and ignore price entirely — forcing a fabricated value
+      // there would persist a meaningless number.
+      if (tx.type === "inbound_delivery" && !tx.price) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["price"],
+          message:
+            "price is required for inbound_delivery over MCP: an unpriced inbound delivery " +
+            "enters the cost basis at zero — supply the acquisition price"
+        });
       }
     })
 });
@@ -518,24 +522,7 @@ const transactionUpdateSchema = {
         counter_cash_account_id: { type: "integer", minimum: 1 },
         counter_securities_account_id: { type: "integer", minimum: 1 },
         security_id: { type: "integer", minimum: 1 },
-        type: {
-          type: "string",
-          enum: [
-            "buy",
-            "sell",
-            "dividend",
-            "interest",
-            "deposit",
-            "removal",
-            "fee",
-            "tax",
-            "tax_refund",
-            "cash_transfer",
-            "inbound_delivery",
-            "outbound_delivery",
-            "security_transfer"
-          ]
-        },
+        type: { type: "string", enum: [...bookableKinds] },
         date: { type: "string", format: "date" },
         quantity: { type: "string" },
         price: { type: "string" },
@@ -554,42 +541,42 @@ const transactionUpdateSchema = {
 
 const transactionUpdateZ = z.object({
   id: z.number().int().positive(),
-  transaction: z.object({
-    portfolio_id: z.number().int().positive().optional(),
-    securities_account_id: z.number().int().positive().optional(),
-    cash_account_id: z.number().int().positive().optional(),
-    counter_cash_account_id: z.number().int().positive().optional(),
-    counter_securities_account_id: z.number().int().positive().optional(),
-    security_id: z.number().int().positive().optional(),
-    type: z
-      .enum([
-        "buy",
-        "sell",
-        "dividend",
-        "interest",
-        "deposit",
-        "removal",
-        "fee",
-        "tax",
-        "tax_refund",
-        "cash_transfer",
-        "inbound_delivery",
-        "outbound_delivery",
-        "security_transfer"
-      ])
-      .optional(),
-    date: optionalString(),
-    quantity: optionalString(),
-    price: optionalString(),
-    gross_amount: optionalString(),
-    fees: optionalString(),
-    taxes: optionalString(),
-    currency_code: optionalString(),
-    security_amount: optionalString(),
-    settlement_amount: optionalString(),
-    settlement_fx_rate: optionalString(),
-    notes: optionalString()
-  })
+  transaction: z
+    .object({
+      portfolio_id: z.number().int().positive().optional(),
+      securities_account_id: z.number().int().positive().optional(),
+      cash_account_id: z.number().int().positive().optional(),
+      counter_cash_account_id: z.number().int().positive().optional(),
+      counter_securities_account_id: z.number().int().positive().optional(),
+      security_id: z.number().int().positive().optional(),
+      type: z.enum(bookableKinds).optional(),
+      date: optionalString(),
+      quantity: optionalString(),
+      price: optionalString(),
+      gross_amount: optionalString(),
+      fees: optionalString(),
+      taxes: optionalString(),
+      currency_code: optionalString(),
+      security_amount: optionalString(),
+      settlement_amount: optionalString(),
+      settlement_fx_rate: optionalString(),
+      notes: optionalString()
+    })
+    .superRefine((tx, ctx) => {
+      // Closes the create-guard bypass: re-typing an existing booking into an
+      // inbound delivery without supplying a price would leave a silent
+      // zero-cost acquisition. Patches that don't change the type are
+      // unaffected (the existing price stays in place).
+      if (tx.type === "inbound_delivery" && !tx.price) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["price"],
+          message:
+            "price is required when changing a transaction's type to inbound_delivery: " +
+            "an unpriced inbound delivery enters the cost basis at zero"
+        });
+      }
+    })
 });
 
 const cashAccountUpdateSchema = {
@@ -1185,7 +1172,7 @@ const snapshotComparisonZ = z.object({
 });
 
 const toolDefinitions: ToolDefinition[] = [
-  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass view=full only when you need notes, feed config, attributes or timestamps. Use limit/offset to page large catalogs.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Use limit/offset to page large catalogs.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -1193,7 +1180,7 @@ const toolDefinitions: ToolDefinition[] = [
       sort: { type: "string" },
       direction: { type: "string", enum: ["asc", "desc"] },
       holding_status: { type: "string", enum: ["held", "not_held", "all"] },
-      view: { type: "string", enum: ["slim", "full"] },
+      projection: { type: "string", enum: ["slim", "full"] },
       limit: { type: "integer", minimum: 0 },
       offset: { type: "integer", minimum: 0 }
     }
@@ -1202,7 +1189,7 @@ const toolDefinitions: ToolDefinition[] = [
     sort: optionalString(),
     direction: z.enum(["asc", "desc"]).optional(),
     holding_status: z.enum(["held", "not_held", "all"]).optional(),
-    view: z.enum(["slim", "full"]).optional(),
+    projection: z.enum(["slim", "full"]).optional(),
     limit: z.number().int().min(0).optional(),
     offset: z.number().int().min(0).optional()
   })),
@@ -1298,8 +1285,8 @@ const toolDefinitions: ToolDefinition[] = [
     security_id: z.number().int().positive().optional(),
     securities_account_id: z.number().int().positive().optional()
   })),
-  tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id, quantity AND price (a delivery without a price enters the cost basis at zero, so this tool requires it); security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. Semantics: for dividend/interest/tax_refund bookings, gross_amount is the NET cash credited to the account — record withheld taxes in the taxes field; the income report reconstructs gross as net plus withheld tax. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
-  tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking). Semantics as on create: a dividend's gross_amount is the NET cash credited (withheld taxes ride in the taxes field), and a delivery without a price enters the cost basis at zero.", transactionUpdateSchema, transactionUpdateZ),
+  tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id and quantity — inbound_delivery additionally REQUIRES price (an unpriced inbound delivery enters the cost basis at zero), while outbound_delivery removes cost at the position's running average and treats price as informational; security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. For buy/sell, omit cash_account_id — it is derived from the depot's linked account. Amounts are positive magnitudes; the kind implies the direction (removal/fee/tax debit, deposit/dividend/interest credit) — never send negative values (set_balance is the only negative-capable amount). Semantics: for dividend/interest/tax_refund bookings, gross_amount is the NET cash credited to the account — record withheld taxes in the taxes field; the income report reconstructs gross as net plus withheld tax. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
+  tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking). Semantics as on create: a dividend's gross_amount is the NET cash credited (withheld taxes ride in the taxes field), and an unpriced inbound delivery enters the cost basis at zero (changing a type to inbound_delivery therefore requires a price).", transactionUpdateSchema, transactionUpdateZ),
   tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction.", idSchema, idZ),
   tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings in each security's own currency (no FX conversion), with moving-average cost basis, latest price, market value and unrealized P&L. Each row carries the security's stable identifiers isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
     type: "object",
@@ -1409,7 +1396,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.cash_accounts.set_balance",
     "Set cash balance",
-    "Record an absolute cash-balance snapshot for one account (the current balance as of a date), instead of mirroring every booking. amount is a Decimal string and may be negative. When a reconciliation shows a difference, prefer booking the missing transaction of the correct kind — balance snapshots (and unpriced deliveries) are last resorts: they make the balance look right while hiding what actually happened and distorting cost basis.",
+    "Record an absolute cash-balance snapshot for one account (the current balance as of a date), instead of mirroring every booking. amount is a Decimal string and may be negative. When a reconciliation shows a difference, prefer booking the missing transaction of the correct kind — balance snapshots (and unpriced inbound deliveries) are last resorts: they make the balance look right while hiding what actually happened and distorting cost basis.",
     cashBalanceSchema,
     cashBalanceZ
   ),
@@ -1659,7 +1646,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "sort",
           "direction",
           "holding_status",
-          "view",
+          "projection",
           "limit",
           "offset"
         ])

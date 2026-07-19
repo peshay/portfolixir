@@ -447,8 +447,10 @@ describe("Portfolixir MCP tools", () => {
   //
   // Acceptance criteria:
   // - Every one of the 13 kinds creates in one call, deliveries included.
-  // - Delivery kinds REQUIRE a price on MCP create (an unpriced delivery
-  //   enters the cost basis at zero) — deliberately stricter than the API.
+  // - inbound_delivery REQUIRES a price on MCP create (an unpriced inbound
+  //   delivery enters the cost basis at zero) — deliberately stricter than
+  //   the API. outbound_delivery does not: the cost fold removes cost at the
+  //   running average and ignores its price.
   // - balance_adjustment stays excluded (the set_balance tool owns it).
   it("creates every ledger kind directly (FR-31)", async () => {
     const transactionCreate = listTools().find(
@@ -469,7 +471,11 @@ describe("Portfolixir MCP tools", () => {
       "outbound_delivery",
       "security_transfer"
     ]);
-    assert.match(String(transactionCreate?.description), /delivery without a price/i);
+    assert.match(
+      String(transactionCreate?.description),
+      /unpriced inbound delivery enters the cost basis at zero/i
+    );
+    assert.match(String(transactionCreate?.description), /positive magnitudes/i);
 
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
 
@@ -484,6 +490,8 @@ describe("Portfolixir MCP tools", () => {
         currency_code: "EUR"
       }
     });
+    // Outbound deliveries need no price — the cost fold removes cost at the
+    // running average; a fabricated price would just persist a dead number.
     await callTool(client, "portfolixir.transactions.create", {
       transaction: {
         portfolio_id: 3,
@@ -492,7 +500,6 @@ describe("Portfolixir MCP tools", () => {
         type: "outbound_delivery",
         date: "2026-05-12",
         quantity: "615",
-        price: "17.50",
         currency_code: "EUR"
       }
     });
@@ -570,6 +577,15 @@ describe("Portfolixir MCP tools", () => {
           quantity: "50",
           currency_code: "EUR"
         }
+      }),
+      /price/i
+    );
+    // Re-typing an existing booking into an inbound delivery without a price
+    // would bypass the create guard — the update schema closes that path.
+    await assert.rejects(
+      callTool(client, "portfolixir.transactions.update", {
+        id: 7,
+        transaction: { type: "inbound_delivery", quantity: "50" }
       }),
       /price/i
     );
