@@ -1,0 +1,130 @@
+---
+layout: docs
+title: "ADR-0030: position-level SOLL targets — positions as the source of truth, categories as a derived roll-up"
+description: Decision to extend portfolio_targets with a nullable security_id so a target row steers either a classification category (unchanged) or an individual position under that category, with a category's effective target rolling up from its position rows, the explicit/position conflict stored non-destructively and surfaced by the target-consistency advisory, delivered as a data-model + context + API/MCP foundation ahead of the editor UI.
+---
+
+# ADR-0030: position-level SOLL targets — positions as the source of truth, categories as a derived roll-up
+
+- **Status:** Accepted (owner-directed 2026-07-20; design per owner-authored
+  [#481](https://github.com/peshay/portfolixir/issues/481))
+- **Date:** 2026-07-20
+
+## Context
+
+Today SOLL target weights ([ADR-0020](0020-view-bound-soll-plans.html),
+[ADR-0008](0008-target-weights-and-allocation.html)) are settable only per
+classification **category**: `portfolio_targets` is keyed by
+`(plan_id, category_id)`, and the allocation engine rolls category targets up to
+their parents. Issue #481 (owner, PM hat) records that this does not match how
+the maintainer actually steers a portfolio, which is **per individual position**:
+the classification should behave like a pivot table over positions, where SOLL is
+defined primarily on securities and the category/level SOLL is the auto-summed
+roll-up of the positions underneath — the maintainer's real question is *which
+position to trim or top up*.
+
+That vision is larger than one slice (auto-distribution, a 100%-per-level UX, an
+all-positions SOLL layer, and the allocation-view display of position drift). It
+is a **risk-tier money-domain change** to the target model, so it is delivered as
+dedicated small PRs with real human review, not inside an epic batch
+([ADR-0026](0026-epic-batch-workflow.html) risk-tier exception). This ADR decides
+the **foundation** — the data model, context, and machine-usable API/MCP surface —
+and explicitly defers the UI and convenience behaviours to named later slices.
+
+## Decision
+
+### 1. Data model — one nullable `security_id` on `portfolio_targets`
+
+`portfolio_targets` gains a nullable `security_id`. A row targets either:
+
+- a **category** (`security_id` NULL) — unchanged behaviour, today's category
+  weight; or
+- a **position** (`security_id` set) — a SOLL weight on that individual security,
+  which must sit **under** the row's `category_id` (its assignment in the
+  classification is that category or a descendant of it; an unassigned or foreign
+  security is rejected).
+
+The single `(plan_id, category_id)` uniqueness is replaced by **two partial
+unique indexes** so one category row and N distinct position rows coexist per
+category:
+
+- `(plan_id, category_id) WHERE security_id IS NULL` — at most one category row;
+- `(plan_id, category_id, security_id) WHERE security_id IS NOT NULL` — at most
+  one row per position.
+
+Positions are the **source of truth**. A category's **effective** target is:
+
+- the **sum of its position rows** when any position row exists (the roll-up); else
+- its explicit category-row value (or none).
+
+This reproduces today's behaviour exactly for a category steered without
+positions, while making the pivot's position-first steering the resolved number
+once positions are present.
+
+### 2. Conflict rule (the #481 open question) — store both, position sum wins, surface the mismatch
+
+When **both** a category row and position rows carry explicit weights, both are
+stored **non-destructively** — neither is dropped or overwritten, preserving
+auditability. The effective/steering number is defined: **the position sum
+wins** (positions are the source of truth). The divergence between the explicit
+category weight and the position sum is **surfaced**, never silently dropped, via
+the existing **target-consistency advisory** (the display-only Σ/`child_target_sum`
+family in `Portfolixir.Portfolios.Allocation`): the effective-target roll-up
+exposes the explicit weight, the position sum, the resolved effective weight, and
+a `conflict` flag. Nothing blocks saving either row; the maintainer sees the
+mismatch and decides.
+
+### 3. Scope of this slice — data model + context + API/MCP only
+
+Delivered here:
+
+- the migration, schema/changeset, and `Portfolixir.Portfolios.Targets` context
+  functions to set/read/delete position targets and compute a category's
+  effective roll-up, on the same actor-first, journaled write path
+  ([ADR-0017](0017-append-only-audit-journal.html)) as the category functions —
+  position-target writes are journaled;
+- the JSON API and MCP companion coverage (AR-11): position targets are written
+  through the existing `set` endpoint/tool by adding a `security_id` to an entry,
+  and read through a dedicated position-targets endpoint/tool that also returns
+  the per-category effective roll-up (financial weights as strings). Category-only
+  payloads are unchanged (back-compat).
+
+Explicitly **deferred** to later slices, each its own reviewed change:
+
+- the **classifications editor UI** for per-position SOLL entry;
+- **auto-distribution** of a category weight evenly across its positions
+  (#481 "evenly by default") — and the weight-by-IST / manual-override variants;
+- the **100%-per-level firmness UX** (the "Summenspiel"), including graceful
+  handling of new/not-yet-bought positions;
+- any **allocation-view** position-level SOLL/IST/drift display (this slice does
+  not change the `Allocation` breakdown; category reads stay category-only so the
+  existing roll-up is untouched).
+
+The gated rebalancing guidance (FR-12, [ADR-0023](0023-drift-sign-and-display-only-rebalancing-hints.html))
+boundary is unchanged: this model is display/steering input only — nothing here
+creates, stores, or transmits an order.
+
+## Consequences
+
+- Positive: the maintainer's position-first mental model is representable and
+  fully usable over the API/MCP now; a category's effective target derives from
+  its positions instead of being hand-maintained; the conflict case is auditable
+  rather than lossy. The change is additive — existing category plans, their
+  reads/writes, and the allocation breakdown behave exactly as before.
+- Negative / accepted: `portfolio_targets` now carries two row kinds behind two
+  partial indexes, so the upsert conflict target is chosen per row kind and
+  category-only reads must filter `security_id IS NULL` to avoid corrupting the
+  category-keyed maps that callers (the allocation engine) build. The
+  effective/roll-up and 100%-per-level semantics for the allocation view are not
+  yet wired in — that is a named follow-on slice.
+- Risk tier: this and every follow-on slice ship as dedicated small PRs with
+  human review; the owner reviews behaviour on the PR against #481.
+
+## References
+
+- [ADR-0008](0008-target-weights-and-allocation.html) — target weights and target/actual allocation
+- [ADR-0017](0017-append-only-audit-journal.html) — journaled financial writes this write path follows
+- [ADR-0020](0020-view-bound-soll-plans.html) — view-bound SOLL plans the target rows hang off
+- [ADR-0023](0023-drift-sign-and-display-only-rebalancing-hints.html) — the display-only rebalancing-hint boundary
+- [ADR-0026](0026-epic-batch-workflow.html) — risk-tier dedicated-PR delivery
+- Issue #481 — owner-authored product direction (position-first SOLL, categories as a derived pivot); #335 — cash in the 100% basis
