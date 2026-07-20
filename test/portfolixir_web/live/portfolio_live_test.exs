@@ -2054,4 +2054,157 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     view |> element(~s([data-role="allocation-mode-tree"])) |> render_click()
     assert has_element?(view, ".drift-table")
   end
+
+  # -- Allocation view state survives a LiveView reconnect ---------------------
+
+  # User story:
+  # As a local portfolio maintainer checking my allocation on mobile Safari,
+  # I want the selected classification tree and the tree/positions mode to ride
+  # in the URL,
+  # so that when Safari backgrounds the tab and the LiveView socket reconnects —
+  # remounting at the current URL — my Allocation view comes back exactly as I
+  # left it instead of snapping back to the default tree and Tree mode.
+  #
+  # Acceptance criteria:
+  # - Selecting a non-default classification and switching to Positions patches
+  #   the URL to carry ?classification=<id> and ?alloc=positions (with
+  #   ?tab=allocation).
+  # - A fresh mount at that patched URL (the reconnect equivalent) comes up on
+  #   the SAME classification and in Positions mode, not the mount defaults.
+  test "persists the classification and allocation mode across a reconnect",
+       %{conn: conn} do
+    world = seed_world()
+
+    {:ok, other_classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Alternative"})
+
+    # "Strategy" (the first custom tree) is the default, so "Alternative" is a
+    # genuinely non-default choice.
+    assert Classifications.default_classification().id == world.classification.id
+    refute other_classification.id == world.classification.id
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    # Pick the non-default classification: the choice round-trips through the URL.
+    view
+    |> form("#portfolio-allocation form", %{
+      "classification_id" => to_string(other_classification.id)
+    })
+    |> render_change()
+
+    assert_patched(
+      view,
+      "/portfolio?tab=allocation&classification=#{other_classification.id}&alloc=tree"
+    )
+
+    render_async(view)
+
+    # Switch to the flat positions mode: it round-trips too.
+    view |> element(~s([data-role="allocation-mode-flat"])) |> render_click()
+
+    reconnect_path =
+      "/portfolio?tab=allocation&classification=#{other_classification.id}&alloc=positions"
+
+    assert_patched(view, reconnect_path)
+
+    # Simulate the mobile-Safari reconnect: a brand-new mount at the patched URL.
+    {:ok, reconnected, _html} = live(conn, reconnect_path)
+    render_async(reconnected)
+
+    # The classification select comes up on "Alternative", not the default tree.
+    assert has_element?(
+             reconnected,
+             ~s(#allocation-classification option[value="#{other_classification.id}"][selected])
+           )
+
+    refute has_element?(
+             reconnected,
+             ~s(#allocation-classification option[value="#{world.classification.id}"][selected])
+           )
+
+    # And the flat positions view is showing, not the tree/sunburst.
+    assert has_element?(reconnected, ~s([data-role="allocation-mode-flat"][aria-pressed="true"]))
+    assert has_element?(reconnected, ~s([data-role="flat-positions"]))
+    refute has_element?(reconnected, "#allocation-sunburst")
+  end
+
+  # User story:
+  # As a maintainer whose URL names a classification tree that was since deleted,
+  # I want the allocation to open on the default tree instead of crashing,
+  # so a stale reconnect URL degrades gracefully.
+  #
+  # Acceptance criteria:
+  # - ?classification=<unknown id> falls back to the default tree, no crash.
+  test "falls back to the default classification when the URL names an unknown tree",
+       %{conn: conn} do
+    world = seed_world()
+    missing_id = world.classification.id + 99_999
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&classification=#{missing_id}")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(#allocation-classification option[value="#{world.classification.id}"][selected])
+           )
+  end
+
+  # User story:
+  # As a maintainer arriving with a garbled ?alloc= value,
+  # I want the allocation to open in the default Tree mode,
+  # so an invalid URL never leaves the page in an unknown mode.
+  #
+  # Acceptance criteria:
+  # - An invalid ?alloc= value falls back to Tree mode (never String.to_atom on
+  #   raw input).
+  test "falls back to tree mode when the URL alloc value is invalid", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&alloc=bogus")
+    render_async(view)
+
+    assert has_element?(view, ~s([data-role="allocation-mode-tree"][aria-pressed="true"]))
+    assert has_element?(view, "#allocation-sunburst")
+    refute has_element?(view, ~s([data-role="flat-positions"]))
+  end
+
+  # User story:
+  # As a maintainer on a scoped view in the positions mode,
+  # I want the allocation tab and my active view to resolve alongside the new
+  # persistence params,
+  # so the reconnect fix does not regress the existing ?tab= and ?view= state.
+  #
+  # Acceptance criteria:
+  # - ?tab=allocation, an active ?view=, ?classification= and ?alloc=positions
+  #   resolve together.
+  # - The view-switcher hrefs carry the tab, classification and alloc params so a
+  #   view switch keeps them.
+  test "keeps the tab and active view alongside the persisted allocation params",
+       %{conn: conn} do
+    world = viewer_world()
+
+    path =
+      "/portfolio?tab=allocation&view=#{world.scoped_view.id}" <>
+        "&classification=#{world.classification.id}&alloc=positions"
+
+    conn = get(conn, path)
+    {:ok, view, _html} = live(conn, path)
+    render_async(view)
+
+    # The active view resolved and the positions mode applied.
+    assert has_element?(view, ~s([data-role="active-view"]))
+    assert has_element?(view, ~s([data-role="allocation-mode-flat"][aria-pressed="true"]))
+    assert has_element?(view, ~s([data-role="flat-positions"]))
+
+    # The view-switcher chips carry every relevant param, so switching the view
+    # does not drop the tab, classification, or mode.
+    assert has_element?(view, ~s(#view-switch-total[href*="tab=allocation"]))
+    assert has_element?(view, ~s(#view-switch-total[href*="alloc=positions"]))
+
+    assert has_element?(
+             view,
+             ~s(#view-switch-total[href*="classification=#{world.classification.id}"])
+           )
+  end
 end
