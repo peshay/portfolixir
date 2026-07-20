@@ -642,7 +642,11 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
       |> json_response(200)
       |> Map.fetch!("data")
 
-    assert [%{"security_id" => psid, "target_weight" => "0.5"}] = data["position_targets"]
+    # The row is self-sufficient (UAT polish round): it names its security so a
+    # client does not need a second call to render "Core Equity 0.5".
+    assert [%{"security_id" => psid, "security_name" => "Core Equity", "target_weight" => "0.5"}] =
+             data["position_targets"]
+
     assert psid == security.id
 
     assert [effective] = data["effective_targets"]
@@ -689,7 +693,10 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
       })
 
     assert %{"errors" => %{"detail" => detail}} = json_response(response, 422)
-    assert detail =~ "not under"
+    # UAT polish round: the 422 names BOTH ids so the operator can act on it
+    # without re-deriving which entry was rejected.
+    assert detail =~ "security #{other.id} is not under category #{core.id}"
+    assert detail =~ "assign it there (or a descendant) first"
   end
 
   # User story:
