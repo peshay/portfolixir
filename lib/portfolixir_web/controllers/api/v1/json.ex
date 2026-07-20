@@ -391,10 +391,23 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   end
 
   @doc """
+  A **position** target row (ADR-0030, #481): the target fields plus the
+  `stale` flag (#481 fix round) — `true` when the security no longer sits under
+  the stored category in the row's classification, so a reclassified security's
+  row is visibly steering its old category instead of being silently miscounted.
+  """
+  def position_target(%Target{} = target) do
+    target
+    |> target()
+    |> Map.put(:stale, target.stale == true)
+  end
+
+  @doc """
   A category's **effective** target roll-up (ADR-0030, #481) with financial
   weights as strings: the explicit category weight (or `null`), the position
-  sum (or `null`), the resolved effective weight and the `conflict` flag that
-  surfaces an explicit/position mismatch.
+  sum (or `null`), the resolved effective weight, the `conflict` flag that
+  surfaces an explicit/position mismatch, and the `has_stale` flag (#481 fix
+  round) marking a category whose position rows include a stale one.
   """
   def effective_target(effective) do
     %{
@@ -402,7 +415,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       explicit: decimal(effective.explicit),
       position_sum: decimal(effective.position_sum),
       effective: decimal(effective.effective),
-      conflict: effective.conflict
+      conflict: effective.conflict,
+      has_stale: effective.has_stale
     }
   end
 
