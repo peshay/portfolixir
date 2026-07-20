@@ -311,13 +311,18 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     %{portfolio: portfolio, classification: classification, core: core, satellite: satellite} =
       setup_world()
 
-    # Assigned to Satellite, not under Core.
+    # Assigned to Satellite, not under Core. The error names the offending
+    # (security, category) pair so the caller can render an actionable message
+    # (UAT polish round).
     foreign = create_assigned_security(classification, satellite, "Beta")
 
-    assert {:error, :security_category_mismatch} =
+    assert {:error, {:security_category_mismatch, security_id, category_id}} =
              Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
                %{"category_id" => core.id, "security_id" => foreign.id, "target_weight" => "0.3"}
              ])
+
+    assert security_id == foreign.id
+    assert category_id == core.id
 
     assert Targets.list_position_targets(portfolio.id) == []
 
@@ -330,10 +335,12 @@ defmodule Portfolixir.Portfolios.TargetsTest do
         asset_class: "equity"
       })
 
-    assert {:error, :security_category_mismatch} =
+    assert {:error, {:security_category_mismatch, floating_id, _category_id}} =
              Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
                %{"category_id" => core.id, "security_id" => floating.id, "target_weight" => "0.3"}
              ])
+
+    assert floating_id == floating.id
   end
 
   test "accepts a position target on an ancestor category the security sits under" do

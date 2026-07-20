@@ -175,8 +175,16 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   defp render_error(conn, :category_mismatch),
     do: unprocessable(conn, %{detail: "category does not belong to the classification"})
 
-  defp render_error(conn, :security_category_mismatch),
-    do: unprocessable(conn, %{detail: "security is not under the target category"})
+  # UAT polish round: name both ids so the operator can act on the 422 without
+  # re-deriving which entry of the batch was rejected.
+  defp render_error(conn, {:security_category_mismatch, security_id, category_id}),
+    do:
+      unprocessable(conn, %{
+        detail:
+          "security #{security_id} is not under category #{category_id} in this " <>
+            "classification — assign it there (or a descendant) first, or file the " <>
+            "target under its current category"
+      })
 
   defp render_error(conn, :invalid_entry),
     do:

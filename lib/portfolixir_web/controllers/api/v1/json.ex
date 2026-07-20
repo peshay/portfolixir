@@ -394,13 +394,21 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   A **position** target row (ADR-0030, #481): the target fields plus the
   `stale` flag (#481 fix round) — `true` when the security no longer sits under
   the stored category in the row's classification, so a reclassified security's
-  row is visibly steering its old category instead of being silently miscounted.
+  row is visibly steering its old category instead of being silently miscounted
+  — and `security_name` (UAT polish round), read from the batch-preloaded
+  security association so a client can name the position without a second call.
   """
   def position_target(%Target{} = target) do
     target
     |> target()
+    |> Map.put(:security_name, position_security_name(target))
     |> Map.put(:stale, target.stale == true)
   end
+
+  # The association is batch-preloaded by `Targets.list_position_targets/2`;
+  # a not-loaded or vanished security serializes as `nil` rather than raising.
+  defp position_security_name(%Target{security: %Security{name: name}}), do: name
+  defp position_security_name(%Target{}), do: nil
 
   @doc """
   A category's **effective** target roll-up (ADR-0030, #481) with financial
