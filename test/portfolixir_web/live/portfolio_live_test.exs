@@ -82,7 +82,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
 
-    Map.merge(world, %{classification: classification, core: core})
+    Map.merge(world, %{classification: classification, core: core, security: security})
   end
 
   test "loads the holdings figures asynchronously and shows the totals", %{conn: conn} do
@@ -2078,6 +2078,25 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, other_classification} =
       Classifications.create_classification(Actor.owner_ui(), %{name: "Alternative"})
 
+    # A category name unique to the Alternative tree, with the security
+    # assigned to it: the reconnect assertion below checks the loaded
+    # allocation DATA belongs to the chosen tree, not just the selector
+    # attribute (adversarial-review hardening).
+    {:ok, alt_bucket} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: other_classification.id,
+        name: "Alt Satellites",
+        color: "#0d9488"
+      })
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        world.security.id,
+        other_classification.id,
+        alt_bucket.id
+      )
+
     # "Strategy" (the first custom tree) is the default, so "Alternative" is a
     # genuinely non-default choice.
     assert Classifications.default_classification().id == world.classification.id
@@ -2110,7 +2129,11 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # Simulate the mobile-Safari reconnect: a brand-new mount at the patched URL.
     {:ok, reconnected, _html} = live(conn, reconnect_path)
-    render_async(reconnected)
+    reconnected_html = render_async(reconnected)
+
+    # The loaded allocation DATA belongs to the Alternative tree: its unique
+    # category name shows in the flat positions worklist.
+    assert reconnected_html =~ "Alt Satellites"
 
     # The classification select comes up on "Alternative", not the default tree.
     assert has_element?(
@@ -2206,5 +2229,254 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
              view,
              ~s(#view-switch-total[href*="classification=#{world.classification.id}"])
            )
+  end
+
+  # -- Async and URL hardening (adversarial review follow-up) ------------------
+
+  # User story:
+  # As a maintainer who switches the classification tree while the page is
+  # still loading,
+  # I want a stale mount-era :overview result to leave the newer tree's
+  # allocation alone,
+  # so the page never shows the default tree's allocation while the URL and
+  # selector say the tree I picked.
+  #
+  # Acceptance criteria:
+  # - An :overview result computed for another classification updates the
+  #   valuation (classification-independent) but NOT the allocation.
+  # - An :overview result computed for the current classification updates both.
+  test "a stale :overview result does not overwrite a newer tree's allocation" do
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{
+        __changed__: %{},
+        classification_id: 2,
+        allocation: :allocation_for_tree_2,
+        valuation: nil
+      }
+    }
+
+    valuation = %{total_with_cash: Decimal.new("1")}
+    stale_allocation = %{categories: []}
+
+    {:noreply, updated} =
+      PortfolixirWeb.PortfolioLive.handle_async(
+        :overview,
+        {:ok, {valuation, 1, stale_allocation}},
+        socket
+      )
+
+    # The classification-independent valuation lands; the stale allocation is
+    # dropped in favour of tree 2's (already loaded or still in flight).
+    assert updated.assigns.valuation == valuation
+    assert updated.assigns.allocation == :allocation_for_tree_2
+  end
+
+  test "a matching :overview result assigns valuation and allocation" do
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{
+        __changed__: %{},
+        classification_id: 1,
+        allocation: nil,
+        valuation: nil
+      }
+    }
+
+    valuation = %{total_with_cash: Decimal.new("1")}
+
+    {:noreply, updated} =
+      PortfolixirWeb.PortfolioLive.handle_async(
+        :overview,
+        {:ok, {valuation, 1, %{categories: []}}},
+        socket
+      )
+
+    assert updated.assigns.valuation == valuation
+    assert %{categories: []} = updated.assigns.allocation
+  end
+
+  # User story:
+  # As a maintainer who deleted a classification tree in another tab,
+  # I want selecting that tree here to degrade to the default tree with a
+  # small notice,
+  # so a cross-tab deletion never crashes the async read or shows the generic
+  # error toast.
+  #
+  # Acceptance criteria:
+  # - The allocation read's {:error, :not_found} degrades: the tree list is
+  #   refreshed, the selection falls back to the default tree, and the
+  #   allocation reloads.
+  # - A notice explains the fallback; no generic "Couldn't load" toast shows.
+  test "selecting a tree deleted in another tab degrades to the default with a notice",
+       %{conn: conn} do
+    world = seed_world()
+
+    {:ok, doomed} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Doomed"})
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    # Deleted "in another tab": this LiveView's classification list still
+    # offers the tree.
+    {:ok, _} = Classifications.delete_classification(Actor.owner_ui(), doomed)
+
+    view
+    |> element("form[phx-change='select_classification']")
+    |> render_change(%{"classification_id" => to_string(doomed.id)})
+
+    render_async(view)
+    html = render_async(view)
+
+    assert has_element?(view, ~s([data-role="classification-gone-notice"]))
+
+    # Degraded to the default tree; the deleted tree is no longer offered.
+    assert has_element?(
+             view,
+             ~s(#allocation-classification option[value="#{world.classification.id}"][selected])
+           )
+
+    refute has_element?(view, ~s(#allocation-classification option[value="#{doomed.id}"]))
+
+    # The allocation reloaded for the default tree; no generic error toast.
+    assert html =~ "Core"
+    refute html =~ "Couldn&#39;t load the wealth figures."
+  end
+
+  # User story:
+  # As a maintainer whose selector event carries an id that is not a loaded
+  # tree,
+  # I want the event to be a no-op,
+  # so the address bar can never end up on ?classification=<unknown> while the
+  # page shows the default tree.
+  #
+  # Acceptance criteria:
+  # - An unknown classification id produces no patch (validated BEFORE
+  #   push_patch); the next valid selection produces the first patch.
+  test "an unknown classification id in the selector never patches the URL",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, other} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Alternative"})
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    view
+    |> element("form[phx-change='select_classification']")
+    |> render_change(%{"classification_id" => "999999"})
+
+    # No patch happened for the unknown id (validated before push_patch).
+    assert_raise ArgumentError, ~r/but got none/, fn -> assert_patch(view, 50) end
+
+    # Positive control: a valid selection still patches.
+    view
+    |> element("form[phx-change='select_classification']")
+    |> render_change(%{"classification_id" => to_string(other.id)})
+
+    assert_patched(view, "/portfolio?tab=allocation&classification=#{other.id}&alloc=tree")
+  end
+
+  # User story:
+  # As a maintainer clicking the already-active tree or mode button,
+  # I want the click to be a no-op,
+  # so re-selecting the current state does not pile up duplicate history
+  # entries.
+  #
+  # Acceptance criteria:
+  # - Re-selecting the active classification patches nothing.
+  # - Clicking the active mode button patches nothing.
+  # - The next real change is the first patch observed.
+  test "re-selecting the active tree or mode adds no history entry", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    # Re-select the already-active default tree: no patch.
+    view
+    |> element("form[phx-change='select_classification']")
+    |> render_change(%{"classification_id" => to_string(world.classification.id)})
+
+    assert_raise ArgumentError, ~r/but got none/, fn -> assert_patch(view, 50) end
+
+    # Click the already-active Tree mode: no patch either.
+    view |> element(~s([data-role="allocation-mode-tree"])) |> render_click()
+
+    assert_raise ArgumentError, ~r/but got none/, fn -> assert_patch(view, 50) end
+
+    # Positive control: the real mode switch still patches.
+    view |> element(~s([data-role="allocation-mode-flat"])) |> render_click()
+
+    assert_patched(
+      view,
+      "/portfolio?tab=allocation&classification=#{world.classification.id}&alloc=positions"
+    )
+  end
+
+  # User story:
+  # As a maintainer opening a stale URL whose params fell back to defaults,
+  # I want the URL rewritten once (replacing the history entry) to the
+  # canonical state,
+  # so the address bar and the page never disagree after a stale reconnect.
+  #
+  # Acceptance criteria:
+  # - Present-but-invalid ?classification=/?alloc= params trigger exactly one
+  #   replace patch to the canonical path.
+  # - The canonical params round-trip cleanly (no patch loop).
+  test "canonicalizes a stale URL once with a replace patch", %{conn: conn} do
+    world = seed_world()
+    missing_id = world.classification.id + 99_999
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    # A stale URL arrives over the live socket (back/forward navigation to a
+    # since-deleted tree, plus a garbled mode value).
+    stale_path = "/portfolio?tab=allocation&classification=#{missing_id}&alloc=bogus"
+    render_patch(view, stale_path)
+
+    # render_patch echoes the browser-side URL change first; the server's
+    # canonicalizing replace patch follows.
+    assert assert_patch(view, 100) == stale_path
+
+    assert_patched(
+      view,
+      "/portfolio?tab=allocation&classification=#{world.classification.id}&alloc=tree"
+    )
+
+    render_async(view)
+
+    # Exactly once: the canonical params produce no further patch.
+    assert_raise ArgumentError, ~r/but got none/, fn -> assert_patch(view, 100) end
+
+    assert has_element?(
+             view,
+             ~s(#allocation-classification option[value="#{world.classification.id}"][selected])
+           )
+  end
+
+  # User story:
+  # As a maintainer whose websocket receives a forged allocation event payload,
+  # I want the LiveView to ignore it,
+  # so a malformed event degrades instead of crashing the process (parity with
+  # the set_chart_mode fallback).
+  #
+  # Acceptance criteria:
+  # - set_allocation_mode with an unknown mode or missing key is a no-op.
+  # - select_classification with a missing key is a no-op.
+  test "forged allocation events degrade instead of crashing the LiveView",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    render_click(view, "set_allocation_mode", %{"mode" => "evil"})
+    render_click(view, "set_allocation_mode", %{})
+    render_change(view, "select_classification", %{"unexpected" => "payload"})
+
+    assert Process.alive?(view.pid)
+    assert has_element?(view, "#portfolio-allocation")
   end
 end
