@@ -1396,7 +1396,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.targets.set",
     "Set target weights",
-    "Upsert target weights for one portfolio and classification. Each target_weight is a string fraction in [0,1]. A target entry with only a category_id sets that category's weight; adding a security_id (ADR-0030, #481) sets a position-level weight on that security under the category (the security must sit under it). Category and position rows coexist; a category's effective target rolls up from its positions.",
+    "Upsert target weights for one portfolio and classification. Each target_weight is a string fraction in [0,1]. A target entry with only a category_id sets that category's weight; adding a security_id (ADR-0030, #481) sets a position-level weight on that security under the category (the security must sit under it). Category and position rows coexist; a category's effective target rolls up from its positions. A plan carries at most one position row per security (filing it under a second category, or twice in one batch, is rejected). Weight sums are NOT enforced in this slice — neither per category nor per level (the 100%-per-level check is a later slice), so verify sums yourself if they matter.",
     targetsSetSchema,
     targetsSetZ
   ),
@@ -1410,7 +1410,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.targets.list_positions",
     "List position targets",
-    "List a portfolio's position-level SOLL targets (ADR-0030, #481): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan.",
+    "List a portfolio's position-level SOLL targets (ADR-0030, #481): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Sums are NOT enforced in this slice (the 100%-per-level check is a later slice), so a category's position sum may not match its explicit weight or 1. Each position row carries a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed, so react to stale rows by re-filing them (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan.",
     positionTargetsListSchema,
     positionTargetsListZ
   ),

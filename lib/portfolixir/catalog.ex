@@ -18,6 +18,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios.Targets, as: PortfolioTargets
   alias Portfolixir.Repo
 
   @doc """
@@ -300,8 +301,27 @@ defmodule Portfolixir.Catalog do
   Deletes a security on behalf of `actor` (FR-28). The deletion is journaled
   with the full `before` snapshot, so a removed security stays traceable in the
   audit journal.
+
+  Any position-target rows referencing the security (ADR-0030, #481 fix round)
+  are removed **explicitly and journaled per row** in the same transaction —
+  across active, draft and archived SOLL plans — via
+  `Portfolixir.Portfolios.Targets.delete_position_targets_for_security/2`,
+  mirroring how other dependent records are handled instead of leaving the
+  cleanup to the silent `security_id` FK cascade (which remains as a backstop).
   """
   def delete_security(%Actor{} = actor, %Security{} = security) do
+    Repo.transaction(fn ->
+      with {:ok, _count} <-
+             PortfolioTargets.delete_position_targets_for_security(actor, security.id),
+           {:ok, deleted} <- delete_security_row(actor, security) do
+        deleted
+      else
+        {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp delete_security_row(%Actor{} = actor, %Security{} = security) do
     multi =
       Multi.new()
       |> Multi.delete(:security, Security.delete_changeset(security))

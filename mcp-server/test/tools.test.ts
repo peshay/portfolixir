@@ -179,6 +179,17 @@ describe("Portfolixir MCP tools", () => {
     const targetsDelete = tools.find((tool) => tool.name === "portfolixir.targets.delete");
     assert.equal(targetsDelete?.inputSchema.properties.view.type, "integer");
 
+    // #481 fix round: the position-target tool descriptions state the [0,1]
+    // string-fraction weight, that per-category/per-level sums are NOT enforced
+    // in this slice, and the stale flag so an operating LLM reacts to it.
+    const listPositions = tools.find(
+      (tool) => tool.name === "portfolixir.targets.list_positions"
+    );
+    assert.match(listPositions?.description ?? "", /string fraction in \[0, ?1\]/);
+    assert.match(listPositions?.description ?? "", /not enforced/i);
+    assert.match(listPositions?.description ?? "", /stale/);
+    assert.match(targetsSet?.description ?? "", /not enforced/i);
+
     const cashTargetGet = tools.find((tool) => tool.name === "portfolixir.portfolios.cash_target");
     assert.equal(cashTargetGet?.inputSchema.properties.view.type, "integer");
     const setCashTarget = tools.find(
