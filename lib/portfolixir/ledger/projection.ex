@@ -26,6 +26,10 @@ defmodule Portfolixir.Ledger.Projection do
 
   @zero Decimal.new("0")
 
+  # ADR-0028 §3: the one named exception to ADR-0016's no-intermediate-rounding
+  # rule — a scale leg's resulting quantity quantizes once at volume scale 6.
+  @volume_scale 6
+
   @typedoc """
   The canonical effect of one transaction.
 
@@ -33,14 +37,23 @@ defmodule Portfolixir.Ledger.Projection do
       the account's own currency. Stored amounts are positive magnitudes; the
       sign of a delta comes from the kind. `{:set, absolute}` anchors the
       account to a stated balance (a `balance_adjustment` snapshot).
-    * `:quantities` — `{securities_account_id, security_id, signed_delta}`
-      legs moving held shares.
+    * `:quantities` — additive `{securities_account_id, security_id,
+      signed_delta}` legs moving held shares, or the multiplicative
+      `{:scale, %{portfolio_id: id, security_id: id, ratio: {p, q}}}` leg of
+      a `split` (ADR-0028). The scale leg is deliberately a tagged shape,
+      structurally distinct from the 3-tuple, so a fold that has not been
+      taught it fails loudly instead of silently dropping it. It scales only
+      the `{account, security}` positions of its own portfolio, from each
+      fold's own pre-split state.
     * `:external` — whether the applied effects are external flows that a
       time-weighted return must neutralise.
   """
+  @type scale_leg ::
+          {:scale,
+           %{portfolio_id: term(), security_id: term(), ratio: {pos_integer(), pos_integer()}}}
   @type effect :: %{
           cash: [{term(), {:add | :set, Decimal.t()}}],
-          quantities: [{term(), term(), Decimal.t()}],
+          quantities: [{term(), term(), Decimal.t()} | scale_leg()],
           external: boolean()
         }
 
@@ -114,16 +127,90 @@ defmodule Portfolixir.Ledger.Projection do
   def effects(%{type: "balance_adjustment"} = tx),
     do: effect(cash: [{tx.cash_account_id, {:set, gross(tx)}}], external: true)
 
+  # A split (ADR-0028) is a multiplicative quantity event: nothing enters or
+  # leaves the portfolio (`external: false`), so TTWROR needs no flow
+  # neutralisation. The tagged leg carries the row's portfolio because the
+  # scale is scoped to it — a split row scales only its own portfolio's
+  # positions of the security.
+  def effects(%{type: "split"} = tx) do
+    effect(
+      quantities: [
+        {:scale,
+         %{
+           portfolio_id: tx.portfolio_id,
+           security_id: tx.security_id,
+           ratio: {tx.split_ratio_numerator, tx.split_ratio_denominator}
+         }}
+      ]
+    )
+  end
+
   defp effect(parts), do: Map.merge(%{cash: [], quantities: [], external: false}, Map.new(parts))
 
   @doc """
-  Replay order within one day: a balance snapshot states the balance
-  *including* the rest of its day, so it applies after the day's other
-  bookings. Sort by `{intra_day_order(tx), tx.id}` within a day.
+  Replay order within one day: a split applies first (start-of-day, ADR-0028
+  §3 — same-day trades are booked in post-split units), and a balance
+  snapshot states the balance *including* the rest of its day, so it applies
+  after the day's other bookings. Sort by `{intra_day_order(tx), tx.id}`
+  within a day — or use `replay_sort/1` for the full chronological order.
   """
-  @spec intra_day_order(map()) :: 0 | 1
-  def intra_day_order(%{type: "balance_adjustment"}), do: 1
-  def intra_day_order(%{type: _other}), do: 0
+  @spec intra_day_order(map()) :: 0 | 1 | 2
+  def intra_day_order(%{type: "split"}), do: 0
+  def intra_day_order(%{type: "balance_adjustment"}), do: 2
+  def intra_day_order(%{type: _other}), do: 1
+
+  @doc """
+  The shared chronological replay key, `{date, intra_day_order, id}`
+  (ADR-0028 §3). Multiplicative legs do not commute with additive ones, so
+  **every** fold over the projection's quantity or cash legs must replay in
+  this order — sorting by `{date, id}` alone would apply a same-day split
+  after the day's trades.
+  """
+  @spec replay_key(map()) :: {:calendar.date(), 0 | 1 | 2, term()}
+  def replay_key(tx), do: {Date.to_erl(tx.date), intra_day_order(tx), Map.get(tx, :id, 0)}
+
+  @doc "Sorts transactions by `replay_key/1`, oldest first."
+  @spec replay_sort([map()]) :: [map()]
+  def replay_sort(transactions) when is_list(transactions),
+    do: Enum.sort_by(transactions, &replay_key/1)
+
+  @doc """
+  Applies a scale leg's ratio `{p, q}` to a held quantity: the result is
+  `quantity * p / q`, quantized once at volume scale #{@volume_scale} — the
+  narrow, named exception to ADR-0016 (ADR-0028 §3). Deterministic
+  quantization at the fold lets a subsequent broker-stated sell (e.g.
+  `3.333333` after `10 x 1:3`) zero the position exactly instead of leaving
+  an undroppable dust row. Prices and cost totals keep full precision.
+  """
+  @spec scale_quantity(Decimal.t(), {pos_integer(), pos_integer()}) :: Decimal.t()
+  def scale_quantity(%Decimal{} = quantity, {numerator, denominator}) do
+    quantity
+    |> Decimal.mult(numerator)
+    |> Decimal.div(denominator)
+    |> Decimal.round(@volume_scale)
+  end
+
+  @doc """
+  `%{securities_account_id => portfolio_id}` derived from a transaction
+  stream. Scale legs are scoped per portfolio while position folds key on
+  `{account, security}`; every account was introduced to a fold by some
+  transaction of its own portfolio (enforced by FK), so the stream itself
+  carries the mapping.
+  """
+  @spec account_portfolios([map()]) :: %{term() => term()}
+  def account_portfolios(transactions) when is_list(transactions) do
+    Enum.reduce(transactions, %{}, fn tx, acc ->
+      portfolio_id = Map.get(tx, :portfolio_id)
+
+      acc
+      |> put_account(Map.get(tx, :securities_account_id), portfolio_id)
+      |> put_account(Map.get(tx, :counter_securities_account_id), portfolio_id)
+    end)
+  end
+
+  defp put_account(acc, nil, _portfolio_id), do: acc
+  defp put_account(acc, _account_id, nil), do: acc
+  defp put_account(acc, account_id, portfolio_id), do: Map.put_new(acc, account_id, portfolio_id)
 
   @doc """
   Folds transactions into `%{cash_account_id => balance}`, each balance in
@@ -135,7 +222,7 @@ defmodule Portfolixir.Ledger.Projection do
   @spec cash_balances([map()]) :: %{term() => Decimal.t()}
   def cash_balances(transactions) when is_list(transactions) do
     transactions
-    |> Enum.sort_by(&{Date.to_erl(&1.date), intra_day_order(&1), &1.id})
+    |> replay_sort()
     |> Enum.reduce(%{}, fn transaction, balances ->
       Enum.reduce(effects(transaction).cash, balances, &apply_cash_leg/2)
     end)

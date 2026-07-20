@@ -28,6 +28,7 @@ defmodule Portfolixir.Ledger.ProjectionTest do
   @depot 11
   @depot_b 12
   @security 21
+  @portfolio 31
 
   defp dec(value), do: Decimal.new(value)
 
@@ -38,6 +39,7 @@ defmodule Portfolixir.Ledger.ProjectionTest do
         type: kind,
         date: ~D[2026-04-01],
         currency_code: "EUR",
+        portfolio_id: @portfolio,
         cash_account_id: nil,
         counter_cash_account_id: nil,
         securities_account_id: nil,
@@ -103,6 +105,14 @@ defmodule Portfolixir.Ledger.ProjectionTest do
       counter_securities_account_id: @depot_b,
       security_id: @security,
       quantity: dec("3")
+    })
+  end
+
+  defp representative("split") do
+    tx("split", %{
+      security_id: @security,
+      split_ratio_numerator: 2,
+      split_ratio_denominator: 1
     })
   end
 
@@ -217,6 +227,20 @@ defmodule Portfolixir.Ledger.ProjectionTest do
       assert effect.external
     end
 
+    # ADR-0028 §1: the multiplicative leg is a tagged shape, structurally
+    # distinct from the additive 3-tuple, so an untaught fold fails loudly
+    # instead of silently dropping it.
+    test "a split emits a tagged scale leg, no cash, internal" do
+      effect = Projection.effects(representative("split"))
+
+      assert effect.cash == []
+      assert [{:scale, scale}] = effect.quantities
+      assert scale.portfolio_id == @portfolio
+      assert scale.security_id == @security
+      assert scale.ratio == {2, 1}
+      refute effect.external
+    end
+
     test "covers every supported booking kind" do
       for kind <- Transaction.kinds() do
         effect = Projection.effects(representative(kind))
@@ -322,6 +346,11 @@ defmodule Portfolixir.Ledger.ProjectionTest do
 
         expected =
           Enum.reduce(Projection.effects(transaction).quantities, %{}, fn
+            # A scale leg multiplies existing positions; over an empty state
+            # it changes nothing (ADR-0028 §1).
+            {:scale, _scale}, acc ->
+              acc
+
             {account_id, security_id, delta}, acc ->
               Map.update(acc, {account_id, security_id}, delta, &Decimal.add(&1, delta))
           end)
@@ -331,10 +360,35 @@ defmodule Portfolixir.Ledger.ProjectionTest do
       end
     end
 
-    test "snapshots replay after the other bookings of their day" do
+    test "a scale leg multiplies same-portfolio positions from the fold's own pre-split state" do
+      buy = %{representative("buy") | id: 1, date: ~D[2026-03-01]}
+      split = %{representative("split") | id: 2, date: ~D[2026-04-01]}
+      foreign_split = %{representative("split") | id: 3, date: ~D[2026-04-01], portfolio_id: 99}
+
+      assert Positions.calculate([buy, split]) ==
+               %{{@depot, @security} => dec("20.000000")}
+
+      # A split row of another portfolio leaves the position untouched
+      # (per-portfolio row semantics, ADR-0028 §1).
+      assert Positions.calculate([buy, foreign_split]) == %{{@depot, @security} => dec("10")}
+    end
+
+    test "a same-day split applies before the day's trades, regardless of id order" do
+      early_buy = %{representative("buy") | id: 1, date: ~D[2026-03-01]}
+      same_day_buy = %{representative("buy") | id: 2, date: ~D[2026-04-01]}
+      # Highest id, same day as the buy: still replays first (start-of-day).
+      split = %{representative("split") | id: 3, date: ~D[2026-04-01]}
+
+      assert Positions.calculate([early_buy, same_day_buy, split]) ==
+               %{{@depot, @security} => dec("30.000000")}
+    end
+
+    test "snapshots replay after the other bookings of their day, splits before them" do
       snapshot = representative("balance_adjustment")
       booking = representative("deposit")
+      split = representative("split")
 
+      assert Projection.intra_day_order(split) < Projection.intra_day_order(booking)
       assert Projection.intra_day_order(booking) < Projection.intra_day_order(snapshot)
     end
   end

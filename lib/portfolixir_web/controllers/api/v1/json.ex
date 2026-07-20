@@ -149,6 +149,11 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       security_amount: decimal(transaction.security_amount),
       settlement_amount: decimal(transaction.settlement_amount),
       settlement_fx_rate: decimal(transaction.settlement_fx_rate),
+      # Split ratio (ADR-0028): a pair of positive integers, normalized to
+      # lowest terms at write time; null for every other kind. Integers, not
+      # financial decimals, so they serialize as JSON numbers.
+      split_ratio_numerator: transaction.split_ratio_numerator,
+      split_ratio_denominator: transaction.split_ratio_denominator,
       notes: transaction.notes,
       import_hash: transaction.import_hash,
       inserted_at: timestamp(transaction.inserted_at),
