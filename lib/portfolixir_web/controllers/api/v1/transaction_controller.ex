@@ -26,33 +26,60 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     end
   end
 
+  # A `split` (ADR-0028) must be booked through the dedicated per-portfolio
+  # fan-out flow (§1) — never as a single generic transaction row — and its
+  # quote/price-basis adjustment engine (§2, issue #590) is not in yet, so a
+  # split booked through the generic endpoint would produce a phantom
+  # valuation/TTWROR spike. Reject it at this public boundary, before any
+  # write. The domain `Ledger.create_transaction/2` stays permissive so the
+  # fan-out shell (later slice) and the fold tests can create splits through it.
+  @split_rejection %{
+    type: [
+      "split transactions are booked via the dedicated split flow, not the generic transaction endpoint"
+    ]
+  }
+
   def create(conn, params) do
     attrs = Map.get(params, "transaction", %{})
 
-    case Ledger.create_transaction(conn.assigns.actor, attrs) do
-      {:ok, transaction} ->
-        conn
-        |> put_status(:created)
-        |> json(%{data: JSON.transaction(transaction)})
+    if split?(attrs) do
+      unprocessable(conn, @split_rejection)
+    else
+      case Ledger.create_transaction(conn.assigns.actor, attrs) do
+        {:ok, transaction} ->
+          conn
+          |> put_status(:created)
+          |> json(%{data: JSON.transaction(transaction)})
 
-      {:error, changeset} ->
-        unprocessable(conn, JSON.errors(changeset))
+        {:error, changeset} ->
+          unprocessable(conn, JSON.errors(changeset))
+      end
     end
   end
 
   def update(conn, %{"id" => id} = params) do
     attrs = Map.get(params, "transaction", %{})
 
-    with {:ok, tid} <- parse_id(id),
-         %Transaction{} = transaction <- Ledger.get_transaction(tid),
-         {:ok, updated} <- Ledger.update_transaction(conn.assigns.actor, transaction, attrs) do
-      json(conn, %{data: JSON.transaction(updated)})
+    if split?(attrs) do
+      unprocessable(conn, @split_rejection)
     else
-      nil -> not_found(conn)
-      :error -> not_found(conn)
-      {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+      with {:ok, tid} <- parse_id(id),
+           %Transaction{} = transaction <- Ledger.get_transaction(tid),
+           {:ok, updated} <- Ledger.update_transaction(conn.assigns.actor, transaction, attrs) do
+        json(conn, %{data: JSON.transaction(updated)})
+      else
+        nil -> not_found(conn)
+        :error -> not_found(conn)
+        {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+      end
     end
   end
+
+  defp split?(attrs) when is_map(attrs) do
+    Map.get(attrs, "type") == "split" or Map.get(attrs, :type) == "split"
+  end
+
+  defp split?(_attrs), do: false
 
   def delete(conn, %{"id" => id}) do
     with {:ok, tid} <- parse_id(id),

@@ -154,6 +154,28 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       end
     end
 
+    # Defense in depth (#589): the DB CHECK mirrors the changeset's
+    # forbidden-field set exactly, so a split row written OUTSIDE the changeset
+    # (raw SQL) still cannot carry a counter/settlement field that would let
+    # Projection.account_portfolios mis-scope the multiplicative leg.
+    test "the DB CHECK rejects a forbidden counter field on a split written outside the changeset" do
+      world = setup_world()
+      tx = split!(world, world.security, numerator: 2, denominator: 1)
+
+      assert_raise Postgrex.Error, ~r/transactions_split_required_fields_check/, fn ->
+        Repo.transaction(fn ->
+          # Arm the transaction-local journal actor so the write clears the
+          # journal-actor guard and reaches the field CHECK we are exercising.
+          Repo.query!("SELECT set_config('portfolixir.journal_actor', 'system', true)")
+
+          Repo.query!(
+            "UPDATE transactions SET counter_securities_account_id = $1 WHERE id = $2",
+            [world.depot.id, tx.id]
+          )
+        end)
+      end
+    end
+
     test "rejects ratio fields on a non-split kind" do
       world = setup_world()
 

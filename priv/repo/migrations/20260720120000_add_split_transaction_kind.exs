@@ -27,7 +27,14 @@ defmodule Portfolixir.Repo.Migrations.AddSplitTransactionKind do
 
     # A split records exactly security + date + normalized ratio: both ratio
     # parts positive, not equal (a normalized 1:1 pair is meaningless), and
-    # none of the cash/price/quantity fields of the additive kinds.
+    # none of the cash/price/quantity/settlement/counter fields of the additive
+    # kinds. The forbidden-field set mirrors `@split_blank_fields` in
+    # Portfolixir.Ledger.Transaction exactly, so the DB is a true backstop for a
+    # split row written outside the changeset (e.g. raw SQL): a stray
+    # counter_securities_account_id here would let Projection.account_portfolios
+    # mis-scope the multiplicative leg. `fees`/`taxes` are NOT NULL with a `0`
+    # default, so the changeset requires them zero rather than null; forcing
+    # them NULL here would reject valid rows, so they stay out of this CHECK.
     create(
       constraint(:transactions, :transactions_split_required_fields_check,
         check: """
@@ -41,8 +48,13 @@ defmodule Portfolixir.Repo.Migrations.AddSplitTransactionKind do
           quantity IS NULL AND
           price IS NULL AND
           gross_amount IS NULL AND
+          security_amount IS NULL AND
+          settlement_amount IS NULL AND
+          settlement_fx_rate IS NULL AND
           cash_account_id IS NULL AND
-          securities_account_id IS NULL
+          counter_cash_account_id IS NULL AND
+          securities_account_id IS NULL AND
+          counter_securities_account_id IS NULL
         )
         """
       )
