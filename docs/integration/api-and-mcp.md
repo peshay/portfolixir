@@ -384,10 +384,28 @@ Example account payloads:
   that view's plan (omitted = Gesamt). Each `target_weight` is a string fraction
   in `[0, 1]`; targets need not sum to `1`. Only the supplied categories are
   changed. A category from another tree returns `422 Unprocessable Entity`, and an
-  unknown classification returns `404 Not Found`.
+  unknown classification returns `404 Not Found`. **Position-level SOLL
+  (ADR-0030):** a target entry that also carries a `"security_id"` sets a weight
+  on that individual position under the category (the security must sit under it,
+  else `422`); a category entry (no `security_id`) and its position entries are
+  stored side by side. Each serialized target carries `security_id` (`null` for a
+  category row).
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` removes a
-  portfolio's target weight for one category and returns `{deleted}` (the number
-  of rows removed). Optional `view` selects the plan (omitted = Gesamt).
+  portfolio's **category** target for one category and returns `{deleted}` (the
+  number of rows removed). Position rows for the category are left in place.
+  Optional `view` selects the plan (omitted = Gesamt).
+- `GET /api/v1/portfolios/:portfolio_id/position_targets` lists a portfolio's
+  **position-level** SOLL targets (ADR-0030): `{"position_targets": [...],
+  "effective_targets": [...]}`. Each `position_targets` row is a target on a
+  security under a category (with `security_id`); each `effective_targets` entry
+  is a category's roll-up — `explicit` (the category-row weight or `null`),
+  `position_sum` (the sum of its positions), `effective` (the resolved steering
+  weight — the position sum wins) and `conflict` (`true` when explicit and
+  position sum disagree, surfacing the mismatch). Weights are Decimal strings.
+  Optional `classification_id` / `view` scope as above.
+- `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
+  removes one position target and returns `{deleted}`. The category row and the
+  category's other positions are untouched. Optional `view` selects the plan.
 - `GET /api/v1/portfolios/:portfolio_id/plans` lists a portfolio's SOLL **plan
   versions** (ADR-0027): active first, then drafts and archived plans, each with
   `name`, `status` (`active` / `draft` / `archived`), its scope (`view_id`,
@@ -782,6 +800,8 @@ in MCP schemas are strings.
 - `portfolixir.targets.list`
 - `portfolixir.targets.set`
 - `portfolixir.targets.delete`
+- `portfolixir.targets.list_positions`
+- `portfolixir.targets.delete_position`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.risk`
 - `portfolixir.portfolios.cash_target`
@@ -838,6 +858,14 @@ the plan, but `portfolixir.portfolios.set_cash_target` without a `view` still
 steers the Gesamt cash target, so it keeps the same effect as the legacy
 portfolio `cash_target_weight` field. All cash targets and target weights are
 exposed and accepted as Decimal strings.
+
+Since ADR-0030 (#481) the same tools carry **position-level** SOLL: a
+`portfolixir.targets.set` entry that adds a `security_id` sets a weight on that
+individual position under its category, `portfolixir.targets.list_positions`
+reads the position rows plus each category's effective roll-up (explicit,
+position sum, effective steering weight, and a `conflict` flag surfacing an
+explicit/position mismatch), and `portfolixir.targets.delete_position` removes
+one position target. Category-only calls are unchanged.
 
 Since ADR-0027 the plan tools (`portfolixir.plans.list`,
 `portfolixir.plans.duplicate`, `portfolixir.plans.activate`,

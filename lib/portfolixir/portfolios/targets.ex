@@ -47,52 +47,146 @@ defmodule Portfolixir.Portfolios.Targets do
   Loads **only** the addressed plan's targets.
   """
   def list_targets(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
+    portfolio_id
+    |> scoped_query(opts)
+    |> where([t], is_nil(t.security_id))
+    |> filter_classification(Keyword.get(opts, :classification_id))
+    |> order_by([t], asc: t.classification_id, asc: t.category_id)
+    |> select([t], t)
+    |> Repo.all()
+  end
+
+  @doc """
+  Fetches a single **category** target for `category_id` within the addressed
+  plan (default `view: nil` = the active Gesamt plan; `plan:` addresses a
+  specific version), or `nil`. Position rows (ADR-0030) are excluded — read them
+  with `list_position_targets/2` / `get_position_target/4`.
+  """
+  def get_target(portfolio_id, category_id, opts \\ [])
+      when is_integer(portfolio_id) and is_integer(category_id) do
+    portfolio_id
+    |> scoped_query(opts)
+    |> where([t], t.category_id == ^category_id and is_nil(t.security_id))
+    |> select([t], t)
+    |> Repo.one()
+  end
+
+  @doc """
+  Lists a portfolio's **position** targets (ADR-0030, #481): the rows that carry
+  a `security_id`, i.e. SOLL weights on individual securities under a category.
+  Same scoping options as `list_targets/2` (`classification_id:`, `view:`,
+  `plan:`).
+  """
+  def list_position_targets(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
+    portfolio_id
+    |> scoped_query(opts)
+    |> where([t], not is_nil(t.security_id))
+    |> filter_classification(Keyword.get(opts, :classification_id))
+    |> order_by([t], asc: t.classification_id, asc: t.category_id, asc: t.security_id)
+    |> select([t], t)
+    |> Repo.all()
+  end
+
+  @doc """
+  Fetches a single **position** target for `(category_id, security_id)` within
+  the addressed plan (ADR-0030), or `nil`.
+  """
+  def get_position_target(portfolio_id, category_id, security_id, opts \\ [])
+      when is_integer(portfolio_id) and is_integer(category_id) and is_integer(security_id) do
+    portfolio_id
+    |> scoped_query(opts)
+    |> where([t], t.category_id == ^category_id and t.security_id == ^security_id)
+    |> select([t], t)
+    |> Repo.one()
+  end
+
+  @doc """
+  Computes a category's **effective** target (ADR-0030, #481) within the
+  addressed plan, or `nil` when the category has neither an explicit category
+  target nor any position targets.
+
+  Positions are the source of truth: when position rows exist, their **sum** is
+  the effective steering number; otherwise the explicit category-row weight is
+  used. Both the explicit weight and the position sum are returned, and
+  `:conflict` is `true` when both are present and disagree, so a mismatch is
+  **surfaced, never silently dropped** (the target-consistency advisory). Fields:
+
+    * `:category_id`
+    * `:explicit` — the category-row weight, or `nil`;
+    * `:position_sum` — the sum of the category's position rows, or `nil` when
+      it has none;
+    * `:effective` — the resolved steering weight (position sum wins);
+    * `:conflict` — `true` when explicit and position sum both exist and differ.
+  """
+  def effective_target(portfolio_id, category_id, opts \\ [])
+      when is_integer(portfolio_id) and is_integer(category_id) do
+    explicit = get_target(portfolio_id, category_id, opts)
+
+    positions =
+      portfolio_id
+      |> scoped_query(opts)
+      |> where([t], t.category_id == ^category_id and not is_nil(t.security_id))
+      |> Repo.all()
+
+    build_effective(category_id, explicit, positions)
+  end
+
+  @doc """
+  The effective target roll-up (ADR-0030) for **every category that carries
+  position targets** within the addressed plan, one `effective_target/3` map per
+  category (in `list_position_targets/2` order). Categories steered only at the
+  category level are not included — read those with `list_targets/2`.
+  """
+  def effective_targets(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
+    portfolio_id
+    |> list_position_targets(opts)
+    |> Enum.map(& &1.category_id)
+    |> Enum.uniq()
+    |> Enum.map(&effective_target(portfolio_id, &1, opts))
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp build_effective(category_id, explicit, positions) do
+    explicit_weight = explicit && explicit.target_weight
+
+    position_sum =
+      case positions do
+        [] -> nil
+        rows -> Enum.reduce(rows, Decimal.new(0), &Decimal.add(&2, &1.target_weight))
+      end
+
+    effective = position_sum || explicit_weight
+
+    if is_nil(effective) do
+      nil
+    else
+      %{
+        category_id: category_id,
+        explicit: explicit_weight,
+        position_sum: position_sum,
+        effective: effective,
+        conflict:
+          not is_nil(position_sum) and not is_nil(explicit_weight) and
+            not Decimal.equal?(position_sum, explicit_weight)
+      }
+    end
+  end
+
+  # A target query scoped to the addressed plan: the active plan for the view
+  # (default `view: nil` = Gesamt), or a specific `plan:` version. Callers add
+  # the category / security filters. The first binding is always the target, so
+  # category-only clauses read `[t]` in both branches.
+  defp scoped_query(portfolio_id, opts) do
     case plan_ref(opts) do
       nil ->
         Target
         |> join(:inner, [t], p in TargetPlan, on: p.id == t.plan_id)
         |> where([t, p], t.portfolio_id == ^portfolio_id and p.status == "active")
         |> filter_plan_view(view_id(Keyword.get(opts, :view)))
-        |> filter_classification(Keyword.get(opts, :classification_id))
-        |> order_by([t], asc: t.classification_id, asc: t.category_id)
-        |> select([t], t)
-        |> Repo.all()
 
       plan_id ->
         Target
         |> where([t], t.plan_id == ^plan_id and t.portfolio_id == ^portfolio_id)
-        |> filter_classification(Keyword.get(opts, :classification_id))
-        |> order_by([t], asc: t.classification_id, asc: t.category_id)
-        |> Repo.all()
-    end
-  end
-
-  @doc """
-  Fetches a single target for `category_id` within the addressed plan
-  (default `view: nil` = the active Gesamt plan; `plan:` addresses a specific
-  version), or `nil`.
-  """
-  def get_target(portfolio_id, category_id, opts \\ [])
-      when is_integer(portfolio_id) and is_integer(category_id) do
-    case plan_ref(opts) do
-      nil ->
-        Target
-        |> join(:inner, [t], p in TargetPlan, on: p.id == t.plan_id)
-        |> where(
-          [t, p],
-          t.portfolio_id == ^portfolio_id and t.category_id == ^category_id and
-            p.status == "active"
-        )
-        |> filter_plan_view(view_id(Keyword.get(opts, :view)))
-        |> select([t], t)
-        |> Repo.one()
-
-      plan_id ->
-        Repo.get_by(Target,
-          plan_id: plan_id,
-          portfolio_id: portfolio_id,
-          category_id: category_id
-        )
     end
   end
 
@@ -168,16 +262,24 @@ defmodule Portfolixir.Portfolios.Targets do
   whole batch (including a just-created empty plan); each upsert commits with
   its audit-journal entry.
 
+  An entry may carry a `security_id` (ADR-0030, #481): the row then targets that
+  individual position **under** `category_id`. The security must sit under the
+  category (its assignment in this classification is `category_id` or a
+  descendant of it); an unassigned or foreign security is rejected. A category
+  row (no `security_id`) and its position rows are stored side by side.
+
   Returns `{:ok, [%Target{}]}`, `{:error, :not_found}` (unknown classification),
   `{:error, :category_mismatch}` (a category from another tree),
-  `{:error, :plan_mismatch}` (a `plan:` that does not belong to the addressed
-  portfolio/classification), or `{:error, %Ecto.Changeset{}}`.
+  `{:error, :security_category_mismatch}` (a position whose security is not under
+  the named category), `{:error, :plan_mismatch}` (a `plan:` that does not belong
+  to the addressed portfolio/classification), or `{:error, %Ecto.Changeset{}}`.
   """
   def set_targets(%Actor{} = actor, portfolio_id, classification_id, entries, opts \\ [])
       when is_integer(portfolio_id) and is_integer(classification_id) and is_list(entries) do
     with {:ok, _classification} <- fetch_classification(classification_id),
          :ok <- ensure_entries_are_maps(entries),
-         :ok <- ensure_categories(classification_id, entries) do
+         :ok <- ensure_categories(classification_id, entries),
+         :ok <- ensure_positions(classification_id, entries) do
       batch = fn -> run_targets_batch(actor, portfolio_id, classification_id, entries, opts) end
       retry_once_on_plan_race(batch.(), batch)
     end
@@ -215,30 +317,38 @@ defmodule Portfolixir.Portfolios.Targets do
   defp retry_once_on_plan_race(result, _retry), do: result
 
   @doc """
-  Removes a target for one category within the addressed plan (default
-  `view: nil` = the active Gesamt plan; `plan:` addresses a version), on behalf
-  of `actor`. Returns `{:ok, count}`. Leaves the plan row itself in place.
+  Removes the **category** target for one category within the addressed plan
+  (default `view: nil` = the active Gesamt plan; `plan:` addresses a version), on
+  behalf of `actor`. Position rows (ADR-0030) for the category are left in place;
+  remove those with `delete_position_target/5`. Returns `{:ok, count}`. Leaves
+  the plan row itself in place.
   """
   def delete_target(%Actor{} = actor, portfolio_id, category_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(category_id) do
-    base =
-      Target
-      |> join(:inner, [t], p in TargetPlan, on: p.id == t.plan_id)
-      |> where([t, p], t.portfolio_id == ^portfolio_id and t.category_id == ^category_id)
+    portfolio_id
+    |> scoped_query(opts)
+    |> where([t], t.category_id == ^category_id and is_nil(t.security_id))
+    |> select([t], t)
+    |> Repo.all()
+    |> delete_targets(actor)
+  end
 
-    targets =
-      case plan_ref(opts) do
-        nil ->
-          base
-          |> where([_t, p], p.status == "active")
-          |> filter_plan_view(view_id(Keyword.get(opts, :view)))
-          |> select([t], t)
-          |> Repo.all()
+  @doc """
+  Removes a single **position** target for `(category_id, security_id)` within
+  the addressed plan (ADR-0030), on behalf of `actor`. Returns `{:ok, count}`
+  (0 when none existed). The category row and other positions are untouched.
+  """
+  def delete_position_target(%Actor{} = actor, portfolio_id, category_id, security_id, opts \\ [])
+      when is_integer(portfolio_id) and is_integer(category_id) and is_integer(security_id) do
+    portfolio_id
+    |> scoped_query(opts)
+    |> where([t], t.category_id == ^category_id and t.security_id == ^security_id)
+    |> select([t], t)
+    |> Repo.all()
+    |> delete_targets(actor)
+  end
 
-        plan_id ->
-          base |> where([t], t.plan_id == ^plan_id) |> select([t], t) |> Repo.all()
-      end
-
+  defp delete_targets(targets, actor) do
     Repo.transaction(fn ->
       Enum.each(targets, fn target ->
         case journaled_delete(actor, target, "target") do
@@ -340,6 +450,7 @@ defmodule Portfolixir.Portfolios.Targets do
               portfolio_id: target.portfolio_id,
               classification_id: target.classification_id,
               category_id: target.category_id,
+              security_id: target.security_id,
               target_weight: target.target_weight
             })
 
@@ -683,28 +794,95 @@ defmodule Portfolixir.Portfolios.Targets do
     end
   end
 
-  # Upsert one category target into the plan, journaled as an :upsert with the
-  # pre-image (nil for a first write) — `returning: true` so the after-image
-  # carries the replaced row's identity on conflict.
+  # ADR-0030 (#481): a position entry (one carrying a `security_id`) must name a
+  # category the security actually sits **under** — its assignment in this
+  # classification is `category_id` itself or a descendant of it. An unassigned
+  # or otherwise foreign security is rejected, so a position target can never be
+  # filed against a category the security is not in. Category-only entries (no
+  # `security_id`) skip this check entirely, keeping the legacy behaviour intact.
+  defp ensure_positions(classification_id, entries) do
+    position_entries = Enum.filter(entries, &position_entry?/1)
+
+    if position_entries == [] do
+      :ok
+    else
+      {:ok, security_categories} = Classifications.security_category_map(classification_id)
+      ancestor_sets = ancestor_sets(Classifications.list_categories(classification_id))
+
+      Enum.reduce_while(position_entries, :ok, fn entry, :ok ->
+        security_id = normalize_id(entry["security_id"] || entry[:security_id])
+        category_id = normalize_id(entry["category_id"] || entry[:category_id])
+
+        if position_under_category?(security_id, category_id, security_categories, ancestor_sets) do
+          {:cont, :ok}
+        else
+          {:halt, {:error, :security_category_mismatch}}
+        end
+      end)
+    end
+  end
+
+  defp position_entry?(entry) do
+    not is_nil(normalize_id(entry["security_id"] || entry[:security_id]))
+  end
+
+  # The security sits under `category_id` when its assigned category (in this
+  # classification) is `category_id` or one of its descendants — i.e. the target
+  # category is in the assigned category's self-and-ancestors set.
+  defp position_under_category?(security_id, category_id, security_categories, ancestor_sets) do
+    with assigned_id when not is_nil(assigned_id) <- Map.get(security_categories, security_id),
+         ancestors when not is_nil(ancestors) <- Map.get(ancestor_sets, assigned_id) do
+      MapSet.member?(ancestors, category_id)
+    else
+      _ -> false
+    end
+  end
+
+  # For each category, the set of its own id plus all its ancestors' ids (walking
+  # `parent_id` up to a root), so an assigned leaf can be checked against a target
+  # set at any level above it. The `seen` guard makes a corrupt parent cycle safe.
+  defp ancestor_sets(categories) do
+    parent_by_id = Map.new(categories, &{&1.id, &1.parent_id})
+
+    Map.new(categories, fn %{id: id} ->
+      {id, self_and_ancestors(id, parent_by_id, MapSet.new())}
+    end)
+  end
+
+  defp self_and_ancestors(nil, _parent_by_id, acc), do: acc
+
+  defp self_and_ancestors(id, parent_by_id, acc) do
+    if MapSet.member?(acc, id) do
+      acc
+    else
+      self_and_ancestors(Map.get(parent_by_id, id), parent_by_id, MapSet.put(acc, id))
+    end
+  end
+
+  # Upsert one target into the plan, journaled as an :upsert with the pre-image
+  # (nil for a first write) — `returning: true` so the after-image carries the
+  # replaced row's identity on conflict. A category row (security_id NULL) and a
+  # position row (security_id set) are backed by different partial unique indexes
+  # (ADR-0030), so the ON CONFLICT target names the matching partial index.
   defp upsert_target(actor, %TargetPlan{id: plan_id}, portfolio_id, classification_id, entry) do
+    security_id = normalize_id(entry["security_id"] || entry[:security_id])
+
     attrs = %{
       "plan_id" => plan_id,
       "portfolio_id" => portfolio_id,
       "classification_id" => classification_id,
       "category_id" => entry["category_id"] || entry[:category_id],
+      "security_id" => security_id,
       "target_weight" => entry["target_weight"] || entry[:target_weight]
     }
 
-    before =
-      case normalize_id(attrs["category_id"]) do
-        nil -> nil
-        category_id -> Repo.get_by(Target, plan_id: plan_id, category_id: category_id)
-      end
+    {conflict_target, before} =
+      upsert_conflict(plan_id, normalize_id(attrs["category_id"]), security_id)
 
     Multi.new()
     |> Multi.insert(:record, Target.changeset(%Target{}, attrs),
       on_conflict: {:replace, [:classification_id, :target_weight, :updated_at]},
-      conflict_target: [:plan_id, :category_id],
+      conflict_target: conflict_target,
       returning: true
     )
     |> Journal.record(actor,
@@ -715,6 +893,33 @@ defmodule Portfolixir.Portfolios.Targets do
     )
     |> Repo.transaction()
     |> normalize_write()
+  end
+
+  @category_conflict {:unsafe_fragment, "(plan_id, category_id) WHERE security_id IS NULL"}
+  @position_conflict {:unsafe_fragment,
+                      "(plan_id, category_id, security_id) WHERE security_id IS NOT NULL"}
+
+  # A missing category id: the changeset rejects the row, so no pre-image lookup.
+  defp upsert_conflict(_plan_id, nil, _security_id), do: {@category_conflict, nil}
+
+  # A category row: the pre-image is the existing category row (security_id NULL).
+  defp upsert_conflict(plan_id, category_id, nil) do
+    before =
+      Repo.one(
+        from(t in Target,
+          where: t.plan_id == ^plan_id and t.category_id == ^category_id and is_nil(t.security_id)
+        )
+      )
+
+    {@category_conflict, before}
+  end
+
+  # A position row: the pre-image is the existing (category, security) position.
+  defp upsert_conflict(plan_id, category_id, security_id) do
+    before =
+      Repo.get_by(Target, plan_id: plan_id, category_id: category_id, security_id: security_id)
+
+    {@position_conflict, before}
   end
 
   defp normalize_id(value) when is_integer(value), do: value

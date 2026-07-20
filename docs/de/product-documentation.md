@@ -264,6 +264,19 @@ Wertpapiere werden in einem Topf für nicht Zugeordnetes summiert. Nur die Ziele
 werden gespeichert; die Ist-Seite wird beim Lesen aus der Live-Bewertung
 abgeleitet.
 
+> **Ziele je Position (ADR-0030, #481).** Zielgewichte lassen sich nun bis auf
+> eine **einzelne Position** setzen (ein Wertpapier unter einer Kategorie), nicht
+> mehr nur je Kategorie. Positionen sind die Quelle der Wahrheit: das *effektive*
+> Ziel einer Kategorie rollt aus ihren Positionen auf (deren Summe); trägt eine
+> Kategorie zusätzlich ein eigenes explizites Gewicht, wird die Abweichung
+> sichtbar gemacht statt stillschweigend verworfen. Dieser erste Schritt liefert
+> nur das Datenmodell und die **API/MCP**-Oberfläche: ein Positionsziel setzt man,
+> indem man einem Zieleintrag eine `security_id` hinzufügt; die Positionszeilen
+> und die Kategorie-Aufrollung liest man über den Positions-Ziel-Endpunkt bzw.
+> das entsprechende Werkzeug (siehe Integrationsleitfaden). Die Editor-Oberfläche
+> für die Eingabe je Position, die gleichmäßige Auto-Verteilung und die Anzeige
+> der Positions-Drift in der Allokationsansicht folgen in späteren Schritten.
+
 ### Einen SOLL-Plan auf der Klassifizierungsseite bearbeiten
 
 Zielgewichte sind nicht global: ein **SOLL-Plan gehört zu einer Sicht** (siehe
