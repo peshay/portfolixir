@@ -97,14 +97,20 @@ defmodule PortfolixirWeb.PortfolioLive do
           # accumulates; the period buttons still offer it.
           |> assign(:period, "1y")
           |> assign(:chart_mode, "ttwror")
-          |> assign(:classification_id, default_classification_id(classifications))
+          # The classification tree and the tree/positions mode round-trip
+          # through the URL (mobile-reconnect fix): a socket reconnect remounts
+          # at the current URL, so reading them from the mount params here
+          # reconstructs the user's selection instead of snapping back to the
+          # defaults. handle_params re-reads the same params (idempotent on the
+          # initial mount) and is the only path that reloads on a later change.
+          |> assign(:classification_id, param_classification_id(params, classifications))
           |> assign(:valuation, nil)
           |> assign(:allocation, nil)
           |> assign(:analysis, nil)
           |> assign(:performance, nil)
           |> assign(:selected_segment, nil)
           |> assign(:expanded_categories, MapSet.new())
-          |> assign(:allocation_mode, :tree)
+          |> assign(:allocation_mode, param_allocation_mode(params))
           |> assign(:flat_sort, {:drift, :desc})
           |> assign(:fx_syncing, false)
           |> assign(:fx_sync_result, nil)
@@ -143,6 +149,109 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp keep_view_param(path, _params), do: path
+
+  @impl true
+  # URL → state for the allocation selections (mobile-reconnect fix). mount
+  # already reads the same params, so on the initial mount this is idempotent:
+  # the classification matches what mount set, so the expensive allocation read
+  # is NOT re-triggered here (the overview/performance async reads stay in
+  # mount's start_loading and never run in handle_params). A later push_patch
+  # from `select_classification`/`set_allocation_mode` is the only path that
+  # actually changes a selection — a classification change reloads the
+  # allocation exactly once; a mode change reloads nothing.
+  def handle_params(_params, _uri, %{assigns: %{portfolio: nil}} = socket) do
+    {:noreply, socket}
+  end
+
+  def handle_params(params, _uri, socket) do
+    classification_id = param_classification_id(params, socket.assigns.classifications)
+    allocation_mode = param_allocation_mode(params)
+
+    current_path =
+      case socket.assigns.wealth_tab do
+        :allocation ->
+          allocation_current_path(params["view"], classification_id, allocation_mode)
+
+        # Other tabs have no allocation controls; keep mount's tab+view path.
+        _other ->
+          socket.assigns.current_path
+      end
+
+    socket =
+      socket
+      |> assign(:allocation_mode, allocation_mode)
+      |> assign(:current_path, current_path)
+
+    socket =
+      if classification_id == socket.assigns.classification_id do
+        socket
+      else
+        socket
+        |> assign(:classification_id, classification_id)
+        |> assign(:selected_segment, nil)
+        |> assign(:expanded_categories, MapSet.new())
+        |> assign_planned_view_ids()
+        |> load_allocation()
+      end
+
+    {:noreply, socket}
+  end
+
+  # Reads the classification tree from the URL, validating it still names a
+  # loaded tree; a missing, malformed, or stale (deleted) id degrades to the
+  # default tree instead of crashing.
+  defp param_classification_id(params, classifications) do
+    with id when is_binary(id) <- Map.get(params, "classification"),
+         {:ok, parsed} <- coerce_id(id),
+         true <- Enum.any?(classifications, &(&1.id == parsed)) do
+      parsed
+    else
+      _ -> default_classification_id(classifications)
+    end
+  end
+
+  # Reads the tree/positions mode from the URL. Explicit whitelist match — never
+  # `String.to_atom/1` on external input (AGENTS.md). Default `:tree`.
+  defp param_allocation_mode(%{"alloc" => "positions"}), do: :flat
+  defp param_allocation_mode(%{"alloc" => "tree"}), do: :tree
+  defp param_allocation_mode(_params), do: :tree
+
+  # The internal mode atom as the short URL value (`:flat` reads as "positions",
+  # matching the button label and the flat worklist).
+  defp allocation_mode_param(:flat), do: "positions"
+  defp allocation_mode_param(:tree), do: "tree"
+
+  # The tree/positions toggle button values map to the internal atoms without
+  # `String.to_atom/1` on raw input (AGENTS.md): explicit whitelist only.
+  defp allocation_mode_atom("flat"), do: :flat
+  defp allocation_mode_atom("tree"), do: :tree
+
+  # The allocation tab's canonical path: tab, the active view (only when
+  # explicitly chosen), the classification and the mode, in a deterministic
+  # order so the switchers merge cleanly and a reconnect reconstructs the state.
+  defp allocation_current_path(view, classification_id, allocation_mode) do
+    pairs =
+      [{"tab", "allocation"}] ++
+        view_pairs(view) ++
+        [
+          {"classification", Integer.to_string(classification_id)},
+          {"alloc", allocation_mode_param(allocation_mode)}
+        ]
+
+    "/portfolio?" <> URI.encode_query(pairs)
+  end
+
+  defp view_pairs(view) when is_binary(view) and view != "", do: [{"view", view}]
+  defp view_pairs(_view), do: []
+
+  # The `?view=` value carried by the current path, so an allocation patch keeps
+  # the active view alongside the classification/mode it changes.
+  defp current_view_param(path) do
+    case URI.parse(path).query do
+      nil -> nil
+      query -> query |> URI.decode_query() |> Map.get("view")
+    end
+  end
 
   # The one-time ADR-0024 migration notice: shown while the seeded views exist
   # and the maintainer has not dismissed it yet; two cheap indexed reads.
@@ -1406,16 +1515,22 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_event("set_chart_mode", _params, socket), do: {:noreply, socket}
 
+  # Round-trips the chosen tree through the URL (mobile-reconnect fix) so a
+  # socket reconnect restores it; handle_params applies the change, resets the
+  # tree's transient state (selected segment, expanded rows), refreshes the plan
+  # markers, and reloads the allocation exactly once.
   def handle_event("select_classification", %{"classification_id" => id}, socket) do
     case coerce_id(id) do
       {:ok, classification_id} ->
         {:noreply,
-         socket
-         |> assign(:classification_id, classification_id)
-         |> assign(:selected_segment, nil)
-         |> assign(:expanded_categories, MapSet.new())
-         |> assign_planned_view_ids()
-         |> load_allocation()}
+         push_patch(socket,
+           to:
+             allocation_current_path(
+               current_view_param(socket.assigns.current_path),
+               classification_id,
+               socket.assigns.allocation_mode
+             )
+         )}
 
       :error ->
         {:noreply, socket}
@@ -1536,10 +1651,20 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, assign(socket, :expanded_categories, expanded)}
   end
 
-  # Tree = structure check, Positions = flat rebalancing worklist.
+  # Tree = structure check, Positions = flat rebalancing worklist. The choice
+  # round-trips through the URL (mobile-reconnect fix) so a reconnect restores
+  # it; handle_params switches the mode (pure presentation — no reload).
   def handle_event("set_allocation_mode", %{"mode" => mode}, socket)
       when mode in ["tree", "flat"] do
-    {:noreply, assign(socket, :allocation_mode, String.to_existing_atom(mode))}
+    {:noreply,
+     push_patch(socket,
+       to:
+         allocation_current_path(
+           current_view_param(socket.assigns.current_path),
+           socket.assigns.classification_id,
+           allocation_mode_atom(mode)
+         )
+     )}
   end
 
   # Clicking the active sort key flips its direction; a new numeric key starts
