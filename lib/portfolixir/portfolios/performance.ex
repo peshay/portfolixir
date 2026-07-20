@@ -267,8 +267,11 @@ defmodule Portfolixir.Portfolios.Performance do
     |> Map.new(&{&1.id, &1.currency_code})
   end
 
-  # A balance snapshot states the balance *including* the rest of its day, so
-  # it is applied after the day's other bookings (mirrors Ledger.cash_balances).
+  # The shared intra-day replay order (ADR-0028 §3): a split applies first
+  # (start-of-day, so same-day trades book in post-split units), and a
+  # balance snapshot states the balance *including* the rest of its day, so
+  # it is applied after the day's other bookings (mirrors
+  # Ledger.cash_balances).
   defp sort_within_day(transactions) do
     Enum.sort_by(transactions, &{Projection.intra_day_order(&1), &1.id})
   end
@@ -315,7 +318,10 @@ defmodule Portfolixir.Portfolios.Performance do
     {state, kept_cash_base} = apply_kept_cash(kept_cash, tx, state, context)
 
     state =
-      Enum.reduce(kept_qty, state, fn {_acct, sec, delta}, st -> add_qty(st, sec, delta) end)
+      Enum.reduce(kept_qty, state, fn
+        {:scale, %{security_id: sec, ratio: ratio}}, st -> scale_qty(st, sec, ratio)
+        {_acct, sec, delta}, st -> add_qty(st, sec, delta)
+      end)
 
     flow =
       cond do
@@ -342,6 +348,13 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp cash_leg_in_scope?({account_id, _op}, scope),
     do: not is_nil(account_id) and Buckets.cash_in_scope?(scope, account_id)
+
+  # A scale leg (ADR-0028) is handled explicitly — the tagged shape must
+  # never be silently dropped by the same-arity tuple filter below. It is
+  # always kept: the scoped state only ever holds in-view quantities, and
+  # multiplication distributes over whatever subset is held, so scaling the
+  # in-view quantity is exactly the in-view effect of the split.
+  defp qty_leg_in_scope?({:scale, _scale}, _scope), do: true
 
   defp qty_leg_in_scope?({account_id, security_id, _delta}, scope),
     do: Buckets.position_in_scope?(scope, account_id, security_id)
@@ -423,15 +436,25 @@ defmodule Portfolixir.Portfolios.Performance do
   # Quantities are tracked per security, so the two legs of a security
   # transfer net out at portfolio level.
   defp apply_quantity_legs(legs, state, context, external?) do
-    Enum.reduce(legs, {state, @zero}, fn {_account_id, security_id, delta}, {state, flow} ->
-      flow =
-        if external? do
-          Decimal.add(flow, security_value(security_id, delta, context))
-        else
-          flow
-        end
+    Enum.reduce(legs, {state, @zero}, fn
+      # A split's scale leg (ADR-0028) multiplies the held quantity; it is
+      # never an external flow, so it contributes nothing to the day's flow.
+      # The walk is per portfolio, so the row's per-portfolio scope holds by
+      # construction. The walk aggregates quantities per security across the
+      # portfolio's accounts; scaling the aggregate equals the sum of the
+      # per-account scaled quantities up to the volume-scale-6 quantization.
+      {:scale, %{security_id: security_id, ratio: ratio}}, {state, flow} ->
+        {scale_qty(state, security_id, ratio), flow}
 
-      {add_qty(state, security_id, delta), flow}
+      {_account_id, security_id, delta}, {state, flow} ->
+        flow =
+          if external? do
+            Decimal.add(flow, security_value(security_id, delta, context))
+          else
+            flow
+          end
+
+        {add_qty(state, security_id, delta), flow}
     end)
   end
 
@@ -439,7 +462,17 @@ defmodule Portfolixir.Portfolios.Performance do
   # is actually held — with long histories most securities are closed.
   defp add_qty(state, security_id, delta) do
     qty = state.qty |> Map.get(security_id, @zero) |> Decimal.add(delta)
+    put_qty(state, security_id, qty)
+  end
 
+  defp scale_qty(state, security_id, ratio) do
+    case Map.get(state.qty, security_id) do
+      nil -> state
+      qty -> put_qty(state, security_id, Projection.scale_quantity(qty, ratio))
+    end
+  end
+
+  defp put_qty(state, security_id, qty) do
     qty_map =
       if Decimal.equal?(qty, @zero) do
         Map.delete(state.qty, security_id)
@@ -679,7 +712,7 @@ defmodule Portfolixir.Portfolios.Performance do
   defp sorted_transactions(portfolio_id) do
     portfolio_id
     |> Ledger.list_transactions_for_portfolio()
-    |> Enum.sort_by(&{Date.to_erl(&1.date), &1.id})
+    |> Projection.replay_sort()
   end
 
   defp base_currency(portfolio_id) do

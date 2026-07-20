@@ -9,11 +9,13 @@ defmodule Portfolixir.Ledger do
 
   Held quantities — `positions_for_portfolio/1` and the holdings views —
   move with trades, deliveries and security transfers (the projection's
-  quantity legs, ADR-0011). The moving-average cost basis follows the
-  shares through the same kinds (`cost_lots/1`): only priced acquisitions
-  add cost, removals take it out at the running average, and a transfer
-  carries it into the counter depot. The FIFO trade matcher still considers
-  only the priced `buy`/`sell` kinds.
+  quantity legs, ADR-0011), and scale with `split` events (ADR-0028). The
+  moving-average cost basis follows the shares through the same kinds
+  (`cost_lots/1`): only priced acquisitions add cost, removals take it out
+  at the running average, a transfer carries it into the counter depot, and
+  a split scales quantity while leaving total cost invariant. The FIFO trade
+  matcher still considers only the priced `buy`/`sell` kinds for matching;
+  a split scales its open lots.
   """
 
   import Ecto.Query
@@ -344,33 +346,79 @@ defmodule Portfolixir.Ledger do
 
   defp put_depot(acc, _not_loaded_or_nil, _portfolio), do: acc
 
-  # Moving-average cost lots per `{securities_account, security}`, folded
-  # chronologically over the quantity-moving kinds (the cost companion of
-  # `Positions.calculate/1` — the caller feeds both from the same ascending
-  # transaction stream). The cost follows the shares: buys and priced inbound
+  # The cash-only kinds that are explicitly cost-neutral: they move no
+  # shares, so the moving-average cost fold ignores them by name. Every kind
+  # in `Transaction.kinds/0` must be either handled by an `apply_cost_effect`
+  # clause or listed here — there is deliberately no catch-all (ADR-0028 §3),
+  # enforced by `test/invariants/cost_fold_kind_coverage_test.exs`, so a new
+  # kind with cost semantics fails loudly instead of silently folding to
+  # a no-op.
+  @cost_neutral_kinds [
+    "dividend",
+    "interest",
+    "deposit",
+    "removal",
+    "fee",
+    "tax",
+    "tax_refund",
+    "cash_transfer",
+    "balance_adjustment"
+  ]
+
+  # Moving-average cost lots per `{securities_account, security}`, folded in
+  # the shared `{date, intra_day_order, id}` replay order (the cost companion
+  # of `Positions.calculate/1`; a same-day split applies before the day's
+  # trades, ADR-0028 §3). The cost follows the shares: buys and priced inbound
   # deliveries add `quantity * price`, sells and outbound deliveries remove at
   # the lot's running average, a `security_transfer` carries the removed cost
   # into the counter depot, and an unpriced delivery moves quantity at zero
-  # cost. A lot's cost never goes below zero: a removal beyond the held
-  # quantity takes out the full remaining cost, so an over-sold or
-  # over-delivered (negative) lot always carries a zero basis.
-  defp cost_lots(transactions), do: Enum.reduce(transactions, %{}, &apply_cost_effect/2)
+  # cost. A `split` scales the lot quantity of its own portfolio and leaves
+  # the lot's total cost unchanged, so the per-share average divides. A lot's
+  # cost never goes below zero: a removal beyond the held quantity takes out
+  # the full remaining cost, so an over-sold or over-delivered (negative) lot
+  # always carries a zero basis.
+  defp cost_lots(transactions) do
+    ordered = Projection.replay_sort(transactions)
+    accounts = Projection.account_portfolios(ordered)
+    Enum.reduce(ordered, %{}, &apply_cost_effect(&1, &2, accounts))
+  end
 
-  defp apply_cost_effect(%{type: "buy"} = tx, lots),
+  defp apply_cost_effect(%{type: "buy"} = tx, lots, _accounts),
     do: add_cost(lots, lot_key(tx), tx.quantity, Decimal.mult(tx.quantity, tx.price))
 
-  defp apply_cost_effect(%{type: "inbound_delivery"} = tx, lots),
+  defp apply_cost_effect(%{type: "inbound_delivery"} = tx, lots, _accounts),
     do: add_cost(lots, lot_key(tx), tx.quantity, Decimal.mult(tx.quantity, tx.price || @zero))
 
-  defp apply_cost_effect(%{type: type} = tx, lots) when type in ["sell", "outbound_delivery"],
-    do: lots |> remove_cost(lot_key(tx), tx.quantity) |> elem(0)
+  defp apply_cost_effect(%{type: type} = tx, lots, _accounts)
+       when type in ["sell", "outbound_delivery"],
+       do: lots |> remove_cost(lot_key(tx), tx.quantity) |> elem(0)
 
-  defp apply_cost_effect(%{type: "security_transfer"} = tx, lots) do
+  defp apply_cost_effect(%{type: "security_transfer"} = tx, lots, _accounts) do
     {lots, moved_cost} = remove_cost(lots, lot_key(tx), tx.quantity)
     add_cost(lots, {tx.counter_securities_account_id, tx.security_id}, tx.quantity, moved_cost)
   end
 
-  defp apply_cost_effect(_cash_only_kind, lots), do: lots
+  # ADR-0028 §3: the lot's quantity scales by the ratio (quantized once at
+  # volume scale 6), its total cost basis is invariant, so the per-share
+  # average cost divides. Scoped to the split row's own portfolio.
+  defp apply_cost_effect(%{type: "split"} = tx, lots, accounts) do
+    ratio = {tx.split_ratio_numerator, tx.split_ratio_denominator}
+
+    Map.new(lots, fn {key, lot} ->
+      {key, maybe_scale_lot(key, lot, tx, ratio, accounts)}
+    end)
+  end
+
+  defp apply_cost_effect(%{type: type}, lots, _accounts) when type in @cost_neutral_kinds,
+    do: lots
+
+  defp maybe_scale_lot({account_id, security_id}, lot, tx, ratio, accounts) do
+    if security_id == tx.security_id and Map.get(accounts, account_id) == tx.portfolio_id do
+      %{lot | quantity: Projection.scale_quantity(lot.quantity, ratio)}
+    else
+      lot
+    end
+  end
 
   defp lot_key(tx), do: {tx.securities_account_id, tx.security_id}
 
@@ -446,13 +494,17 @@ defmodule Portfolixir.Ledger do
 
   defp transaction_for_matcher(%Transaction{} = tx) do
     %{
+      id: tx.id,
+      portfolio_id: tx.portfolio_id,
       type: tx.type,
       date: tx.date,
       quantity: tx.quantity,
       price: tx.price,
       fees: tx.fees,
       taxes: tx.taxes,
-      currency_code: tx.currency_code
+      currency_code: tx.currency_code,
+      split_ratio_numerator: tx.split_ratio_numerator,
+      split_ratio_denominator: tx.split_ratio_denominator
     }
   end
 
