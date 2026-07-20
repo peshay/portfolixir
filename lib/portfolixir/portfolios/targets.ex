@@ -76,6 +76,11 @@ defmodule Portfolixir.Portfolios.Targets do
   a `security_id`, i.e. SOLL weights on individual securities under a category.
   Same scoping options as `list_targets/2` (`classification_id:`, `view:`,
   `plan:`).
+
+  Each row's virtual `:stale` flag is populated (#481 fix round): `true` when
+  the security no longer sits under the stored category in that classification
+  (reassigned elsewhere or unassigned). A stale row keeps counting where it was
+  filed — re-filing it is the operator's move; the flag only surfaces it.
   """
   def list_position_targets(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     portfolio_id
@@ -85,6 +90,7 @@ defmodule Portfolixir.Portfolios.Targets do
     |> order_by([t], asc: t.classification_id, asc: t.category_id, asc: t.security_id)
     |> select([t], t)
     |> Repo.all()
+    |> annotate_stale()
   end
 
   @doc """
@@ -116,7 +122,10 @@ defmodule Portfolixir.Portfolios.Targets do
     * `:position_sum` — the sum of the category's position rows, or `nil` when
       it has none;
     * `:effective` — the resolved steering weight (position sum wins);
-    * `:conflict` — `true` when explicit and position sum both exist and differ.
+    * `:conflict` — `true` when explicit and position sum both exist and differ;
+    * `:has_stale` — `true` when any of the category's position rows is stale
+      (its security no longer sits under this category — #481 fix round). The
+      stale row still counts in `:position_sum`; the flag surfaces it.
   """
   def effective_target(portfolio_id, category_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(category_id) do
@@ -127,6 +136,7 @@ defmodule Portfolixir.Portfolios.Targets do
       |> scoped_query(opts)
       |> where([t], t.category_id == ^category_id and not is_nil(t.security_id))
       |> Repo.all()
+      |> annotate_stale()
 
     build_effective(category_id, explicit, positions)
   end
@@ -167,9 +177,51 @@ defmodule Portfolixir.Portfolios.Targets do
         effective: effective,
         conflict:
           not is_nil(position_sum) and not is_nil(explicit_weight) and
-            not Decimal.equal?(position_sum, explicit_weight)
+            not Decimal.equal?(position_sum, explicit_weight),
+        has_stale: Enum.any?(positions, & &1.stale)
       }
     end
+  end
+
+  # Populates each position row's virtual `:stale` flag (#481 fix round): a row
+  # is stale when its security's CURRENT assignment in the row's classification
+  # no longer sits under the stored category. Rows keep their query order; the
+  # per-classification lookups are built once per classification in the batch.
+  # A vanished classification (unresolvable lookup) marks its rows stale rather
+  # than crashing — the row is then by definition steering nothing current.
+  defp annotate_stale([]), do: []
+
+  defp annotate_stale(rows) do
+    lookups =
+      rows
+      |> Enum.map(& &1.classification_id)
+      |> Enum.uniq()
+      |> Map.new(fn classification_id -> {classification_id, stale_lookup(classification_id)} end)
+
+    Enum.map(rows, fn row ->
+      %{row | stale: stale?(row, Map.fetch!(lookups, row.classification_id))}
+    end)
+  end
+
+  defp stale_lookup(classification_id) do
+    case Classifications.security_category_map(classification_id) do
+      {:ok, security_categories} ->
+        {security_categories, ancestor_sets(Classifications.list_categories(classification_id))}
+
+      {:error, :not_found} ->
+        :missing
+    end
+  end
+
+  defp stale?(_row, :missing), do: true
+
+  defp stale?(row, {security_categories, ancestor_sets}) do
+    not position_under_category?(
+      row.security_id,
+      row.category_id,
+      security_categories,
+      ancestor_sets
+    )
   end
 
   # A target query scoped to the addressed plan: the active plan for the view
@@ -266,18 +318,28 @@ defmodule Portfolixir.Portfolios.Targets do
   individual position **under** `category_id`. The security must sit under the
   category (its assignment in this classification is `category_id` or a
   descendant of it); an unassigned or foreign security is rejected. A category
-  row (no `security_id`) and its position rows are stored side by side.
+  row (no `security_id`) and its position rows are stored side by side. A
+  present `security_id` must normalize to a positive integer (`nil` keeps
+  meaning "category row"); garbage is rejected, never silently coerced into a
+  category write. A plan carries at most **one** position row per security:
+  filing a security under a second category — within the batch or against an
+  existing row — is rejected, as is naming the same `(category, security)`
+  twice in one batch.
 
   Returns `{:ok, [%Target{}]}`, `{:error, :not_found}` (unknown classification),
   `{:error, :category_mismatch}` (a category from another tree),
   `{:error, :security_category_mismatch}` (a position whose security is not under
-  the named category), `{:error, :plan_mismatch}` (a `plan:` that does not belong
-  to the addressed portfolio/classification), or `{:error, %Ecto.Changeset{}}`.
+  the named category), `{:error, :invalid_security_id}` (a present but
+  non-positive-integer `security_id`), `{:error, {:duplicate_position,
+  security_id}}` (a second position row for one security), `{:error,
+  :plan_mismatch}` (a `plan:` that does not belong to the addressed
+  portfolio/classification), or `{:error, %Ecto.Changeset{}}`.
   """
   def set_targets(%Actor{} = actor, portfolio_id, classification_id, entries, opts \\ [])
       when is_integer(portfolio_id) and is_integer(classification_id) and is_list(entries) do
     with {:ok, _classification} <- fetch_classification(classification_id),
          :ok <- ensure_entries_are_maps(entries),
+         :ok <- ensure_security_ids(entries),
          :ok <- ensure_categories(classification_id, entries),
          :ok <- ensure_positions(classification_id, entries) do
       batch = fn -> run_targets_batch(actor, portfolio_id, classification_id, entries, opts) end
@@ -291,19 +353,55 @@ defmodule Portfolixir.Portfolios.Targets do
   # the Wealth page from IST-only into SOLL mode.
   defp run_targets_batch(actor, portfolio_id, classification_id, entries, opts) do
     Repo.transaction(fn ->
-      case resolve_write_plan(actor, portfolio_id, classification_id, opts) do
-        {:ok, plan} ->
-          Enum.map(entries, fn entry ->
-            case upsert_target(actor, plan, portfolio_id, classification_id, entry) do
-              {:ok, target} -> target
-              {:error, changeset} -> Repo.rollback(changeset)
-            end
-          end)
-
-        {:error, reason} ->
-          Repo.rollback(reason)
+      with {:ok, plan} <- resolve_write_plan(actor, portfolio_id, classification_id, opts),
+           :ok <- ensure_single_position_per_security(plan.id, entries) do
+        Enum.map(entries, fn entry ->
+          case upsert_target(actor, plan, portfolio_id, classification_id, entry) do
+            {:ok, target} -> target
+            {:error, changeset} -> Repo.rollback(changeset)
+          end
+        end)
+      else
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
+  end
+
+  # One position row per (plan, security) — #481 fix round. A position entry
+  # whose security already carries a position row under a DIFFERENT category of
+  # the same plan is rejected; the same (category, security) pair stays a
+  # legitimate upsert. Runs inside the batch transaction, after the plan is
+  # resolved (in-batch duplicates are rejected earlier, before any write).
+  defp ensure_single_position_per_security(plan_id, entries) do
+    pairs =
+      for entry <- entries,
+          sid = normalize_id(entry["security_id"] || entry[:security_id]),
+          not is_nil(sid),
+          do: {sid, normalize_id(entry["category_id"] || entry[:category_id])}
+
+    if pairs == [] do
+      :ok
+    else
+      security_ids = Enum.map(pairs, &elem(&1, 0))
+
+      existing_categories =
+        from(t in Target,
+          where: t.plan_id == ^plan_id and t.security_id in ^security_ids,
+          select: {t.security_id, t.category_id}
+        )
+        |> Repo.all()
+        |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+      Enum.reduce_while(pairs, :ok, fn {security_id, category_id}, :ok ->
+        stored = Map.get(existing_categories, security_id, [])
+
+        if Enum.all?(stored, &(&1 == category_id)) do
+          {:cont, :ok}
+        else
+          {:halt, {:error, {:duplicate_position, security_id}}}
+        end
+      end)
+    end
   end
 
   # A racing first-writer beat this call to the active-unique index: one fresh
@@ -344,6 +442,25 @@ defmodule Portfolixir.Portfolios.Targets do
     |> scoped_query(opts)
     |> where([t], t.category_id == ^category_id and t.security_id == ^security_id)
     |> select([t], t)
+    |> Repo.all()
+    |> delete_targets(actor)
+  end
+
+  @doc """
+  Removes **every** position-target row referencing `security_id` — across all
+  portfolios, plans and plan statuses (active, draft, archived) — on behalf of
+  `actor`, journaled per row (ADR-0017), in one transaction. Returns
+  `{:ok, count}`.
+
+  This is the explicit seam `Portfolixir.Catalog.delete_security/2` calls
+  (#481 fix round) so removing a security leaves a `"target"` journal delete
+  entry for each SOLL row it takes with it, instead of relying on the silent
+  `ON DELETE CASCADE` of the `security_id` foreign key (which stays in place as
+  a backstop only).
+  """
+  def delete_position_targets_for_security(%Actor{} = actor, security_id)
+      when is_integer(security_id) do
+    from(t in Target, where: t.security_id == ^security_id)
     |> Repo.all()
     |> delete_targets(actor)
   end
@@ -772,6 +889,49 @@ defmodule Portfolixir.Portfolios.Targets do
     if Enum.all?(entries, &is_map/1), do: :ok, else: {:error, :invalid_entry}
   end
 
+  # #481 fix round: an entry whose `security_id` KEY is present must carry a
+  # value that normalizes to a positive integer (or an explicit `nil`, which
+  # keeps meaning "category row" — the JSON-null back-compat). Garbage (`"abc"`,
+  # a float, `true`, zero, a negative id) is rejected here; letting
+  # `normalize_id/1`'s nil-on-garbage fallback swallow it would silently turn
+  # the position write into a category write that overwrites the category row.
+  # The nil fallback stays correct for ABSENT keys.
+  defp ensure_security_ids(entries) do
+    if Enum.all?(entries, &valid_security_id_entry?/1) do
+      :ok
+    else
+      {:error, :invalid_security_id}
+    end
+  end
+
+  defp valid_security_id_entry?(entry) do
+    case fetch_present(entry, :security_id) do
+      :absent ->
+        true
+
+      {:present, nil} ->
+        true
+
+      {:present, value} ->
+        case normalize_id(value) do
+          id when is_integer(id) and id > 0 -> true
+          _ -> false
+        end
+    end
+  end
+
+  # Fetches a key that may arrive as a string (API) or an atom (internal),
+  # distinguishing "absent" from "present with any value" (including nil).
+  defp fetch_present(entry, key) do
+    string_key = Atom.to_string(key)
+
+    cond do
+      Map.has_key?(entry, string_key) -> {:present, Map.get(entry, string_key)}
+      Map.has_key?(entry, key) -> {:present, Map.get(entry, key)}
+      true -> :absent
+    end
+  end
+
   defp ensure_categories(classification_id, entries) do
     valid =
       classification_id
@@ -806,19 +966,44 @@ defmodule Portfolixir.Portfolios.Targets do
     if position_entries == [] do
       :ok
     else
-      {:ok, security_categories} = Classifications.security_category_map(classification_id)
-      ancestor_sets = ancestor_sets(Classifications.list_categories(classification_id))
+      # A racing classification delete between fetch_classification/1 and here
+      # degrades to the existing not-found error instead of a MatchError
+      # (#481 fix round).
+      with :ok <- ensure_unique_batch_positions(position_entries),
+           {:ok, security_categories} <- Classifications.security_category_map(classification_id) do
+        ancestor_sets = ancestor_sets(Classifications.list_categories(classification_id))
 
-      Enum.reduce_while(position_entries, :ok, fn entry, :ok ->
-        security_id = normalize_id(entry["security_id"] || entry[:security_id])
-        category_id = normalize_id(entry["category_id"] || entry[:category_id])
+        Enum.reduce_while(position_entries, :ok, fn entry, :ok ->
+          security_id = normalize_id(entry["security_id"] || entry[:security_id])
+          category_id = normalize_id(entry["category_id"] || entry[:category_id])
 
-        if position_under_category?(security_id, category_id, security_categories, ancestor_sets) do
-          {:cont, :ok}
-        else
-          {:halt, {:error, :security_category_mismatch}}
-        end
-      end)
+          if position_under_category?(
+               security_id,
+               category_id,
+               security_categories,
+               ancestor_sets
+             ) do
+            {:cont, :ok}
+          else
+            {:halt, {:error, :security_category_mismatch}}
+          end
+        end)
+      end
+    end
+  end
+
+  # #481 fix round: one batch may name a security at most once as a position.
+  # Twice under the same category would be a silent last-wins write; under two
+  # different categories it would violate one-position-row-per-security. Both
+  # are rejected outright before anything is written.
+  defp ensure_unique_batch_positions(position_entries) do
+    position_entries
+    |> Enum.map(&normalize_id(&1["security_id"] || &1[:security_id]))
+    |> Enum.frequencies()
+    |> Enum.find(fn {_security_id, count} -> count > 1 end)
+    |> case do
+      nil -> :ok
+      {security_id, _count} -> {:error, {:duplicate_position, security_id}}
     end
   end
 

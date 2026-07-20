@@ -40,6 +40,15 @@ defmodule Portfolixir.Portfolios.Target do
   schema "portfolio_targets" do
     field(:target_weight, :decimal)
 
+    # Read-side annotation (#481 fix round): a position row is stale when its
+    # security no longer sits under the stored `category_id` in the row's
+    # classification (reassigned elsewhere or unassigned). The row keeps
+    # counting where it was filed — staleness is surfaced, never auto-resolved.
+    # Populated by `Portfolixir.Portfolios.Targets.list_position_targets/2` and
+    # the effective-target roll-up; virtual, so it never reaches the DB or the
+    # journal snapshot.
+    field(:stale, :boolean, virtual: true)
+
     belongs_to(:plan, TargetPlan)
     belongs_to(:portfolio, Portfolio)
     belongs_to(:classification, Classification)

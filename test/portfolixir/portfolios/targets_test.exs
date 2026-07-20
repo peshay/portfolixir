@@ -420,4 +420,230 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     assert {:ok, 0} =
              Targets.delete_position_target(Actor.owner_ui(), portfolio.id, core.id, alpha.id)
   end
+
+  # User story:
+  # As a local portfolio maintainer steering per position (#481 fix round),
+  # I want an entry whose security_id is present but garbage to be rejected,
+  # so that a typo can never be silently coerced into a category-level write
+  # that overwrites my category target.
+  #
+  # Acceptance criteria:
+  # - A present security_id that does not normalize to a positive integer
+  #   (non-numeric string, float, boolean, zero, negative) rejects the batch.
+  # - Nothing is written: no position row and no silently coerced category row.
+  # - An explicit nil security_id (JSON null) stays a category write.
+  test "rejects a present-but-invalid security_id instead of coercing to a category write" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    for bad <- ["abc", "12x", 12.5, 12.0, true, 0, -3, "-3"] do
+      assert {:error, :invalid_security_id} =
+               Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+                 %{"category_id" => core.id, "security_id" => bad, "target_weight" => "0.3"}
+               ]),
+             "expected #{inspect(bad)} to be rejected as an invalid security_id"
+    end
+
+    # Nothing was written — neither a position row nor a coerced category row.
+    assert Targets.list_targets(portfolio.id) == []
+    assert Targets.list_position_targets(portfolio.id) == []
+
+    # An explicit nil (JSON null) keeps meaning "category row" (back-compat).
+    assert {:ok, [target]} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{"category_id" => core.id, "security_id" => nil, "target_weight" => "0.5"}
+             ])
+
+    assert target.security_id == nil
+  end
+
+  # User story:
+  # As a local portfolio maintainer steering per position (#481 fix round),
+  # I want a plan to carry at most one position row per security,
+  # so that a security can never steer two categories at once and the roll-up
+  # stays interpretable.
+  #
+  # Acceptance criteria:
+  # - A position entry for a security that already has a position row under a
+  #   DIFFERENT category in the same plan is rejected with a clear error.
+  # - Re-writing the same (category, security) row stays a legitimate upsert.
+  # - Two entries for the same security under different categories within one
+  #   batch are rejected.
+  # - A batch naming the same (category, security) twice is rejected, not
+  #   silently last-wins.
+  test "rejects a second position row for the same security under a different category" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    {:ok, tech} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Tech",
+        parent_id: core.id
+      })
+
+    alpha = create_assigned_security(classification, tech, "Alpha")
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => tech.id, "security_id" => alpha.id, "target_weight" => "0.3"}
+      ])
+
+    # Filing the same security a second time under the ancestor Core (a valid
+    # placement on its own) is rejected: one position row per (plan, security).
+    assert {:error, {:duplicate_position, sid}} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.2"}
+             ])
+
+    assert sid == alpha.id
+    assert [row] = Targets.list_position_targets(portfolio.id)
+    assert row.category_id == tech.id
+    assert Decimal.equal?(row.target_weight, Decimal.new("0.3"))
+
+    # The same (category, security) pair stays a legitimate upsert.
+    assert {:ok, _} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{"category_id" => tech.id, "security_id" => alpha.id, "target_weight" => "0.4"}
+             ])
+
+    assert [row] = Targets.list_position_targets(portfolio.id)
+    assert Decimal.equal?(row.target_weight, Decimal.new("0.4"))
+  end
+
+  test "rejects one batch filing the same security under two different categories" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    {:ok, tech} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Tech",
+        parent_id: core.id
+      })
+
+    alpha = create_assigned_security(classification, tech, "Alpha")
+
+    assert {:error, {:duplicate_position, sid}} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{"category_id" => tech.id, "security_id" => alpha.id, "target_weight" => "0.3"},
+               %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.2"}
+             ])
+
+    assert sid == alpha.id
+    assert Targets.list_position_targets(portfolio.id) == []
+  end
+
+  test "rejects one batch naming the same (category, security) position twice" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    alpha = create_assigned_security(classification, core, "Alpha")
+
+    assert {:error, {:duplicate_position, sid}} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.3"},
+               %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.4"}
+             ])
+
+    assert sid == alpha.id
+    # Rejected outright — no silent last-wins write.
+    assert Targets.list_position_targets(portfolio.id) == []
+  end
+
+  # User story:
+  # As a local portfolio maintainer auditing my SOLL history (#481 fix round),
+  # I want deleting a security to remove its position-target rows explicitly and
+  # journaled, in every plan version,
+  # so that the audit journal shows why a SOLL row vanished instead of a silent
+  # FK cascade.
+  #
+  # Acceptance criteria:
+  # - Deleting a security removes its position rows from active AND archived
+  #   plans in the same transaction.
+  # - Each removed row gets its own "target" journal delete entry.
+  test "deleting a security journals the removal of its position rows in every plan" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    alpha = create_assigned_security(classification, core, "Alpha")
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.3"}
+      ])
+
+    # Duplicate into a draft (copies the position row) and activate it, so the
+    # original plan is archived — the security now has a position row in an
+    # active AND an archived plan.
+    [original] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    {:ok, copy} = Targets.duplicate_plan(Actor.owner_ui(), original)
+    {:ok, _} = Targets.activate_plan(Actor.owner_ui(), copy)
+
+    assert length(Targets.list_position_targets(portfolio.id, plan: original.id)) == 1
+    assert length(Targets.list_position_targets(portfolio.id, plan: copy.id)) == 1
+
+    assert {:ok, _} = Catalog.delete_security(Actor.owner_ui(), alpha)
+
+    # Both rows are gone...
+    assert Targets.list_position_targets(portfolio.id, plan: original.id) == []
+    assert Targets.list_position_targets(portfolio.id, plan: copy.id) == []
+
+    # ...and each removal is journaled as its own "target" delete entry.
+    deletes =
+      Journal.list_entries(resource_type: "target")
+      |> Enum.filter(fn entry ->
+        entry.operation == :delete and entry.before["security_id"] == alpha.id
+      end)
+
+    assert length(deletes) == 2
+  end
+
+  # User story:
+  # As a local portfolio maintainer reclassifying securities (#481 fix round),
+  # I want a position row whose security no longer sits under its stored
+  # category to be flagged as stale,
+  # so that the "never silently dropped" promise holds: the row keeps counting
+  # where it was filed, and I see that re-filing it is my move.
+  #
+  # Acceptance criteria:
+  # - A position row is flagged stale: true when its security is reassigned to a
+  #   category outside the stored one, and stale: false while it still sits
+  #   under it.
+  # - An unassigned security's row is stale.
+  # - The category roll-up carries has_stale.
+  # - The math is unchanged: the stale row keeps counting in the position sum.
+  test "flags position rows as stale when their security is reassigned or unassigned" do
+    %{portfolio: portfolio, classification: classification, core: core, satellite: satellite} =
+      setup_world()
+
+    alpha = create_assigned_security(classification, core, "Alpha")
+    beta = create_assigned_security(classification, core, "Beta")
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.3"},
+        %{"category_id" => core.id, "security_id" => beta.id, "target_weight" => "0.2"}
+      ])
+
+    assert [a, b] = Targets.list_position_targets(portfolio.id)
+    refute a.stale
+    refute b.stale
+    effective = Targets.effective_target(portfolio.id, core.id)
+    refute effective.has_stale
+
+    # Reassign Alpha out from under Core: its row now steers the old category.
+    {:ok, _} =
+      Classifications.assign_security(Actor.owner_ui(), alpha.id, classification.id, satellite.id)
+
+    assert [a, b] = Targets.list_position_targets(portfolio.id)
+    stale_by_security = %{a.security_id => a.stale, b.security_id => b.stale}
+    assert stale_by_security[alpha.id] == true
+    assert stale_by_security[beta.id] == false
+
+    effective = Targets.effective_target(portfolio.id, core.id)
+    assert effective.has_stale
+    # No math change: the stale row keeps counting where it is (auditability).
+    assert Decimal.equal?(effective.position_sum, Decimal.new("0.5"))
+
+    # An unassigned security's row is stale too.
+    {:ok, _} = Classifications.unassign_security(Actor.owner_ui(), beta.id, classification.id)
+
+    assert [a, b] = Targets.list_position_targets(portfolio.id)
+    assert a.stale
+    assert b.stale
+  end
 end

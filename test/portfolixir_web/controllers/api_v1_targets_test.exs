@@ -692,6 +692,124 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert detail =~ "not under"
   end
 
+  # User story:
+  # As an API client (#481 fix round),
+  # I want a present-but-garbage security_id to fail loudly with 422,
+  # so that a malformed position write can never be silently coerced into a
+  # category write that overwrites my stored category target.
+  #
+  # Acceptance criteria:
+  # - A non-numeric string security_id returns 422.
+  # - A float security_id (a JSON number like 12.5) returns 422.
+  # - The stored category row is untouched and no position row appears.
+  test "rejects a present-but-invalid security_id with 422 and leaves the category row untouched",
+       %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+      "classification_id" => classification.id,
+      "targets" => [%{"category_id" => core.id, "target_weight" => "0.6"}]
+    })
+
+    for bad <- ["abc", 12.5] do
+      response =
+        put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+          "classification_id" => classification.id,
+          "targets" => [
+            %{"category_id" => core.id, "security_id" => bad, "target_weight" => "0.9"}
+          ]
+        })
+
+      assert %{"errors" => %{"targets" => [message]}} = json_response(response, 422)
+      assert message =~ "security_id"
+    end
+
+    # The category row still carries its original weight; no position row exists.
+    assert %{"data" => %{"targets" => [%{"target_weight" => "0.6"}]}} =
+             get_json(
+               conn,
+               "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}"
+             )
+             |> json_response(200)
+
+    assert %{"data" => %{"position_targets" => []}} =
+             get_json(conn, "/api/v1/portfolios/#{portfolio.id}/position_targets")
+             |> json_response(200)
+  end
+
+  # User story:
+  # As an API client (#481 fix round),
+  # I want duplicate position rows for one security rejected with a helpful 422,
+  # so that a plan never carries the same security steering two categories.
+  test "rejects duplicate position entries for one security with 422", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core, security: security} =
+      setup_world()
+
+    response =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+        "classification_id" => classification.id,
+        "targets" => [
+          %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.3"},
+          %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.4"}
+        ]
+      })
+
+    assert %{"errors" => %{"detail" => detail}} = json_response(response, 422)
+    assert detail =~ "one position row per security"
+
+    assert %{"data" => %{"position_targets" => []}} =
+             get_json(conn, "/api/v1/portfolios/#{portfolio.id}/position_targets")
+             |> json_response(200)
+  end
+
+  # User story:
+  # As an API client (#481 fix round),
+  # I want stale position rows surfaced in the position-targets read,
+  # so that a reclassified security's row is visibly steering its old category
+  # instead of being silently miscounted or dropped.
+  #
+  # Acceptance criteria:
+  # - Each position_targets row carries stale (false while the security sits
+  #   under the stored category, true after it is reassigned elsewhere).
+  # - Each effective_targets entry carries has_stale.
+  test "surfaces stale position rows through the position-targets endpoint", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core, security: security} =
+      setup_world()
+
+    put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+      "classification_id" => classification.id,
+      "targets" => [
+        %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.5"}
+      ]
+    })
+
+    data =
+      get_json(conn, "/api/v1/portfolios/#{portfolio.id}/position_targets")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert [%{"stale" => false}] = data["position_targets"]
+    assert [%{"has_stale" => false}] = data["effective_targets"]
+
+    # Reassign the security to another category: the stored row goes stale.
+    {:ok, edge} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Edge"
+      })
+
+    {:ok, _} =
+      Classifications.assign_security(Actor.owner_ui(), security.id, classification.id, edge.id)
+
+    data =
+      get_json(conn, "/api/v1/portfolios/#{portfolio.id}/position_targets")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert [%{"stale" => true}] = data["position_targets"]
+    assert [%{"has_stale" => true}] = data["effective_targets"]
+  end
+
   test "rejects an out-of-range cash target with 422", %{conn: conn} do
     %{portfolio: portfolio} = setup_world()
 

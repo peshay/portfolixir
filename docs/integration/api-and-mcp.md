@@ -388,7 +388,12 @@ Example account payloads:
   (ADR-0030):** a target entry that also carries a `"security_id"` sets a weight
   on that individual position under the category (the security must sit under it,
   else `422`); a category entry (no `security_id`) and its position entries are
-  stored side by side. Each serialized target carries `security_id` (`null` for a
+  stored side by side. A present `security_id` must be a positive integer or
+  `null` (`null` = category row) — anything else (a non-numeric string, a float)
+  returns `422` instead of being coerced into a category write. A plan carries
+  at most **one position row per security**: filing a security under a second
+  category, or naming the same `(category, security)` twice in one batch,
+  returns `422`. Each serialized target carries `security_id` (`null` for a
   category row).
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` removes a
   portfolio's **category** target for one category and returns `{deleted}` (the
@@ -401,7 +406,10 @@ Example account payloads:
   is a category's roll-up — `explicit` (the category-row weight or `null`),
   `position_sum` (the sum of its positions), `effective` (the resolved steering
   weight — the position sum wins) and `conflict` (`true` when explicit and
-  position sum disagree, surfacing the mismatch). Weights are Decimal strings.
+  position sum disagree, surfacing the mismatch). Each position row also carries
+  `stale` (`true` when its security no longer sits under the stored category —
+  reclassified or unassigned; the row still counts where it was filed, re-filing
+  it is your move) and each roll-up `has_stale`. Weights are Decimal strings.
   Optional `classification_id` / `view` scope as above.
 - `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
   removes one position target and returns `{deleted}`. The category row and the
@@ -864,8 +872,10 @@ Since ADR-0030 (#481) the same tools carry **position-level** SOLL: a
 individual position under its category, `portfolixir.targets.list_positions`
 reads the position rows plus each category's effective roll-up (explicit,
 position sum, effective steering weight, and a `conflict` flag surfacing an
-explicit/position mismatch), and `portfolixir.targets.delete_position` removes
-one position target. Category-only calls are unchanged.
+explicit/position mismatch — plus per-row `stale` and per-category `has_stale`
+flags marking rows whose security no longer sits under the stored category),
+and `portfolixir.targets.delete_position` removes one position target.
+Category-only calls are unchanged.
 
 Since ADR-0027 the plan tools (`portfolixir.plans.list`,
 `portfolixir.plans.duplicate`, `portfolixir.plans.activate`,

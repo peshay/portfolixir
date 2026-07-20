@@ -253,7 +253,10 @@ targets are stored; the actual side is derived from the live valuation on read.
 > first slice ships the data model and the **API/MCP** surface only — set a
 > position target by adding a `security_id` to a target entry, read the position
 > rows and category roll-up via the position-targets endpoint/tool (see the
-> integration guide). The editor UI for per-position entry, even-split
+> integration guide). If a security is later reclassified or unassigned, its
+> position target keeps counting under the category it was filed under and is
+> flagged as *stale* in the position-targets read — re-file it to move the
+> weight. The editor UI for per-position entry, even-split
 > auto-distribution, and the allocation-view display of position drift are
 > coming in later slices.
 

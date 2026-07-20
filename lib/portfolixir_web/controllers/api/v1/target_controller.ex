@@ -66,7 +66,8 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
 
       json(conn, %{
         data: %{
-          position_targets: Enum.map(Targets.list_position_targets(pid, opts), &JSON.target/1),
+          position_targets:
+            Enum.map(Targets.list_position_targets(pid, opts), &JSON.position_target/1),
           effective_targets:
             Enum.map(Targets.effective_targets(pid, opts), &JSON.effective_target/1)
         }
@@ -180,6 +181,19 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   defp render_error(conn, :invalid_entry),
     do:
       unprocessable(conn, %{targets: ["must be a list of {category_id, target_weight} objects"]})
+
+  # #481 fix round: a present-but-garbage security_id is rejected instead of
+  # being silently coerced into a category write.
+  defp render_error(conn, :invalid_security_id),
+    do: unprocessable(conn, %{targets: ["security_id must be a positive integer or null"]})
+
+  defp render_error(conn, {:duplicate_position, security_id}),
+    do:
+      unprocessable(conn, %{
+        detail:
+          "a plan carries one position row per security: security #{security_id} already has " <>
+            "a position target under a different category, or appears more than once in this batch"
+      })
 
   defp parse_id(value) when is_integer(value), do: {:ok, value}
 
