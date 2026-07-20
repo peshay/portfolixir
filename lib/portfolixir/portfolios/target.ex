@@ -16,12 +16,22 @@ defmodule Portfolixir.Portfolios.Target do
   classification)` it belongs to. `view_id NULL` on the plan is the Gesamt plan,
   today's portfolio-wide behaviour. The denormalised `portfolio_id` and
   `classification_id` columns are kept on the target for query convenience and
-  match the plan they belong to. A category is unique **within a plan**.
+  match the plan they belong to.
+
+  Since ADR-0030 (#481) a row targets either a **category** (`security_id` NULL —
+  the original behaviour) or an individual **position** (`security_id` set, the
+  security sitting under that category). Two partial unique indexes keep them
+  independent: a category is unique within a plan among category rows
+  (`security_id` NULL), and a position is unique within a plan per
+  `(category, security)`. So one category row and N position rows can coexist for
+  the same category; a category's effective target rolls up from its positions
+  (see `Portfolixir.Portfolios.Targets`).
   """
 
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Portfolios.Portfolio
@@ -34,13 +44,21 @@ defmodule Portfolixir.Portfolios.Target do
     belongs_to(:portfolio, Portfolio)
     belongs_to(:classification, Classification)
     belongs_to(:category, Category)
+    belongs_to(:security, Security)
 
     timestamps()
   end
 
   def changeset(target, attrs) do
     target
-    |> cast(attrs, [:plan_id, :portfolio_id, :classification_id, :category_id, :target_weight])
+    |> cast(attrs, [
+      :plan_id,
+      :portfolio_id,
+      :classification_id,
+      :category_id,
+      :security_id,
+      :target_weight
+    ])
     |> validate_required([
       :plan_id,
       :portfolio_id,
@@ -56,8 +74,15 @@ defmodule Portfolixir.Portfolios.Target do
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:classification)
     |> assoc_constraint(:category)
+    |> assoc_constraint(:security)
+    # Two partial unique indexes (ADR-0030): a category row (security_id NULL)
+    # and a position row (security_id set) for the same (plan, category) never
+    # collide, so each maps to its own friendly error.
     |> unique_constraint([:plan_id, :category_id],
-      name: :portfolio_targets_plan_id_category_id_index
+      name: :portfolio_targets_plan_category_index
+    )
+    |> unique_constraint([:plan_id, :category_id, :security_id],
+      name: :portfolio_targets_plan_category_security_index
     )
   end
 end

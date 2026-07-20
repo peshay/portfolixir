@@ -653,6 +653,9 @@ const targetsListZ = z.object({
   view: z.number().int().positive().optional()
 });
 
+// A target entry sets a category weight (category_id only) or, since ADR-0030
+// (#481), a position weight when it also carries a security_id — the security
+// must sit under the named category.
 const targetsSetSchema = {
   type: "object",
   additionalProperties: false,
@@ -668,6 +671,7 @@ const targetsSetSchema = {
         required: ["category_id", "target_weight"],
         properties: {
           category_id: { type: "integer", minimum: 1 },
+          security_id: { type: "integer", minimum: 1 },
           target_weight: { type: "string" }
         },
         additionalProperties: false
@@ -684,6 +688,7 @@ const targetsSetZ = z.object({
     .array(
       z.object({
         category_id: z.number().int().positive(),
+        security_id: z.number().int().positive().optional(),
         target_weight: z.string()
       })
     )
@@ -704,6 +709,43 @@ const targetsDeleteSchema = {
 const targetsDeleteZ = z.object({
   portfolio_id: z.number().int().positive(),
   category_id: z.number().int().positive(),
+  view: z.number().int().positive().optional()
+});
+
+// Position-level SOLL reads/deletes (ADR-0030, #481).
+const positionTargetsListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    classification_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 }
+  }
+};
+
+const positionTargetsListZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  classification_id: z.number().int().positive().optional(),
+  view: z.number().int().positive().optional()
+});
+
+const positionTargetDeleteSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id", "category_id", "security_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    category_id: { type: "integer", minimum: 1 },
+    security_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 }
+  }
+};
+
+const positionTargetDeleteZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  category_id: z.number().int().positive(),
+  security_id: z.number().int().positive(),
   view: z.number().int().positive().optional()
 });
 
@@ -1354,7 +1396,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.targets.set",
     "Set target weights",
-    "Upsert target weights for one portfolio and classification. Each target_weight is a string fraction in [0,1].",
+    "Upsert target weights for one portfolio and classification. Each target_weight is a string fraction in [0,1]. A target entry with only a category_id sets that category's weight; adding a security_id (ADR-0030, #481) sets a position-level weight on that security under the category (the security must sit under it). Category and position rows coexist; a category's effective target rolls up from its positions.",
     targetsSetSchema,
     targetsSetZ
   ),
@@ -1364,6 +1406,20 @@ const toolDefinitions: ToolDefinition[] = [
     "Remove a portfolio's target weight for one category.",
     targetsDeleteSchema,
     targetsDeleteZ
+  ),
+  tool(
+    "portfolixir.targets.list_positions",
+    "List position targets",
+    "List a portfolio's position-level SOLL targets (ADR-0030, #481): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan.",
+    positionTargetsListSchema,
+    positionTargetsListZ
+  ),
+  tool(
+    "portfolixir.targets.delete_position",
+    "Delete position target",
+    "Remove a portfolio's position-level SOLL target for one security under a category (ADR-0030, #481). The category target and the category's other positions are left in place.",
+    positionTargetDeleteSchema,
+    positionTargetDeleteZ
   ),
   tool(
     "portfolixir.portfolios.allocation",
@@ -1807,6 +1863,23 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "DELETE",
         withQuery(
           `/api/v1/portfolios/${args.portfolio_id}/targets/${args.category_id}`,
+          args,
+          ["view"]
+        )
+      );
+    case "portfolixir.targets.list_positions":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/position_targets`, args, [
+          "classification_id",
+          "view"
+        ])
+      );
+    case "portfolixir.targets.delete_position":
+      return client.request(
+        "DELETE",
+        withQuery(
+          `/api/v1/portfolios/${args.portfolio_id}/position_targets/${args.category_id}/${args.security_id}`,
           args,
           ["view"]
         )

@@ -51,7 +51,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     buy!(world, security, quantity: "10", price: "100")
     put_quote!(security, ~D[2026-06-01], "120")
 
-    Map.merge(world, %{classification: classification, core: core})
+    Map.merge(world, %{classification: classification, core: core, security: security})
   end
 
   # User story:
@@ -582,6 +582,114 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
       })
 
     assert %{"data" => %{"cash_target_weight" => nil}} = json_response(cleared, 200)
+  end
+
+  # User story:
+  # As an API client (and the LLM I connect over MCP) steering per position (#481),
+  # I want to set SOLL targets on individual positions and read the category
+  # roll-up over the API (ADR-0030),
+  # so that the position-first SOLL model is machine-usable before the editor UI
+  # ships.
+  #
+  # Acceptance criteria (ADR-0030, #481 slice 1):
+  # - PUT /targets accepts a security_id in an entry and stores a position target
+  #   (financials as strings); category-only writes are unchanged.
+  # - GET /position_targets returns the position rows AND the per-category
+  #   effective roll-up, surfacing an explicit/position conflict.
+  # - DELETE /position_targets/:category_id/:security_id removes one position row.
+  # - A position target for a security not under the category returns 422.
+  test "stores, reads and deletes per-position targets through the API", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core, security: security} =
+      setup_world()
+
+    # A category target coexists with the position targets under it.
+    put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+      "classification_id" => classification.id,
+      "targets" => [%{"category_id" => core.id, "target_weight" => "0.6"}]
+    })
+
+    set =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+        "classification_id" => classification.id,
+        "targets" => [
+          %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.5"}
+        ]
+      })
+
+    assert %{"data" => %{"targets" => [target]}} = json_response(set, 200)
+    assert target["security_id"] == security.id
+    assert target["target_weight"] == "0.5"
+
+    # The category list endpoint stays category-only (back-compat).
+    category_read =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}"
+      )
+      |> json_response(200)
+
+    assert %{"data" => %{"targets" => [category_row]}} = category_read
+    assert category_row["category_id"] == core.id
+    assert category_row["security_id"] == nil
+    assert category_row["target_weight"] == "0.6"
+
+    # The position endpoint returns the position rows plus the effective roll-up.
+    data =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/position_targets?classification_id=#{classification.id}"
+      )
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert [%{"security_id" => psid, "target_weight" => "0.5"}] = data["position_targets"]
+    assert psid == security.id
+
+    assert [effective] = data["effective_targets"]
+    assert effective["category_id"] == core.id
+    assert effective["explicit"] == "0.6"
+    assert effective["position_sum"] == "0.5"
+    assert effective["effective"] == "0.5"
+    assert effective["conflict"] == true
+
+    # Delete the single position row; the category row is untouched.
+    deleted =
+      delete_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/position_targets/#{core.id}/#{security.id}"
+      )
+      |> json_response(200)
+
+    assert deleted == %{"data" => %{"deleted" => 1}}
+
+    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/position_targets")
+           |> json_response(200) ==
+             %{"data" => %{"position_targets" => [], "effective_targets" => []}}
+
+    assert %{"data" => %{"targets" => [_]}} =
+             get_json(
+               conn,
+               "/api/v1/portfolios/#{portfolio.id}/targets?classification_id=#{classification.id}"
+             )
+             |> json_response(200)
+  end
+
+  test "rejects a position target for a security not under the category with 422", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    # A security that is not assigned under Core.
+    other = create_security!(name: "Unrelated", ticker: "UNRL", asset_class: "equity")
+
+    response =
+      put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+        "classification_id" => classification.id,
+        "targets" => [
+          %{"category_id" => core.id, "security_id" => other.id, "target_weight" => "0.5"}
+        ]
+      })
+
+    assert %{"errors" => %{"detail" => detail}} = json_response(response, 422)
+    assert detail =~ "not under"
   end
 
   test "rejects an out-of-range cash target with 422", %{conn: conn} do

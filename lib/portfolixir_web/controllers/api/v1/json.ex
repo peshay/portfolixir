@@ -383,7 +383,26 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       portfolio_id: target.portfolio_id,
       classification_id: target.classification_id,
       category_id: target.category_id,
+      # `null` for a category target; the security id for a position target
+      # (ADR-0030, #481).
+      security_id: target.security_id,
       target_weight: decimal(target.target_weight)
+    }
+  end
+
+  @doc """
+  A category's **effective** target roll-up (ADR-0030, #481) with financial
+  weights as strings: the explicit category weight (or `null`), the position
+  sum (or `null`), the resolved effective weight and the `conflict` flag that
+  surfaces an explicit/position mismatch.
+  """
+  def effective_target(effective) do
+    %{
+      category_id: effective.category_id,
+      explicit: decimal(effective.explicit),
+      position_sum: decimal(effective.position_sum),
+      effective: decimal(effective.effective),
+      conflict: effective.conflict
     }
   end
 
