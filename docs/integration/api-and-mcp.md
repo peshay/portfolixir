@@ -402,9 +402,11 @@ Example account payloads:
 - `GET /api/v1/portfolios/:portfolio_id/position_targets` lists a portfolio's
   **position-level** SOLL targets (ADR-0030): `{"position_targets": [...],
   "effective_targets": [...]}`. Each `position_targets` row is a target on a
-  security under a category (with `security_id`); each `effective_targets` entry
+  security under a category (with `security_id` and `security_name`); each
+  `effective_targets` entry
   is a category's roll-up — `explicit` (the category-row weight or `null`),
-  `position_sum` (the sum of its positions), `effective` (the resolved steering
+  `position_sum` (the sum of the position rows filed directly under it —
+  descendants' rows roll up to their own category), `effective` (the resolved steering
   weight — the position sum wins) and `conflict` (`true` when explicit and
   position sum disagree, surfacing the mismatch). Each position row also carries
   `stale` (`true` when its security no longer sits under the stored category —
@@ -506,7 +508,10 @@ Example account payloads:
   side reflects the **active view's plan**: passing `view=<id>` reports that
   view's target weights, cash target and `top_level_target_sum` (omitting it uses
   the Gesamt plan), so the drift table steers against one coherent 100% plan per
-  view. Unknown portfolios or classifications return `404 Not Found`.
+  view. Category targets here are the explicit category rows; when a plan is
+  steered per position (ADR-0030), the effective roll-up (which may differ)
+  comes from the `position_targets` endpoint above. Unknown portfolios or
+  classifications return `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` returns a **risk/concentration
   lens** for one portfolio over the **steerable basis** (the valued positions,
   scoped by the active `view`, the same
@@ -755,6 +760,8 @@ deliberately **not** journaled.
   persisted what-if writes; real writes only by default). The response is
   self-describing: a `meta` object echoes the `as_of` instant, the `order`
   (`inserted_at:desc,id:desc`), the `count` and the `filters` applied.
+  SOLL target writes (category and position rows alike) are journaled under
+  `resource_type=target`; plan-version writes under `resource_type=target_plan`.
 
 The journal currently covers the Catalog/Fx contexts (security master-data
 writes); the remaining write contexts are armed in sequence.

@@ -81,6 +81,9 @@ defmodule Portfolixir.Portfolios.Targets do
   the security no longer sits under the stored category in that classification
   (reassigned elsewhere or unassigned). A stale row keeps counting where it was
   filed — re-filing it is the operator's move; the flag only surfaces it.
+
+  Each row's `:security` association is preloaded (one batched query, no
+  per-row lookup) so serializers can name the position without a second fetch.
   """
   def list_position_targets(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     portfolio_id
@@ -90,6 +93,7 @@ defmodule Portfolixir.Portfolios.Targets do
     |> order_by([t], asc: t.classification_id, asc: t.category_id, asc: t.security_id)
     |> select([t], t)
     |> Repo.all()
+    |> Repo.preload(:security)
     |> annotate_stale()
   end
 
@@ -328,8 +332,9 @@ defmodule Portfolixir.Portfolios.Targets do
 
   Returns `{:ok, [%Target{}]}`, `{:error, :not_found}` (unknown classification),
   `{:error, :category_mismatch}` (a category from another tree),
-  `{:error, :security_category_mismatch}` (a position whose security is not under
-  the named category), `{:error, :invalid_security_id}` (a present but
+  `{:error, {:security_category_mismatch, security_id, category_id}}` (a
+  position whose security is not under the named category — the ids identify
+  the offending pair), `{:error, :invalid_security_id}` (a present but
   non-positive-integer `security_id`), `{:error, {:duplicate_position,
   security_id}}` (a second position row for one security), `{:error,
   :plan_mismatch}` (a `plan:` that does not belong to the addressed
@@ -985,7 +990,7 @@ defmodule Portfolixir.Portfolios.Targets do
              ) do
             {:cont, :ok}
           else
-            {:halt, {:error, :security_category_mismatch}}
+            {:halt, {:error, {:security_category_mismatch, security_id, category_id}}}
           end
         end)
       end
