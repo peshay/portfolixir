@@ -22,7 +22,23 @@ defmodule Portfolixir.Ledger.Transaction do
     "inbound_delivery",
     "outbound_delivery",
     "security_transfer",
-    "balance_adjustment"
+    "balance_adjustment",
+    "split"
+  ]
+
+  # A split (ADR-0028) records only security + date + ratio; every
+  # cash/price/quantity field of the additive kinds must stay blank.
+  @split_blank_fields [
+    :quantity,
+    :price,
+    :gross_amount,
+    :security_amount,
+    :settlement_amount,
+    :settlement_fx_rate,
+    :cash_account_id,
+    :counter_cash_account_id,
+    :securities_account_id,
+    :counter_securities_account_id
   ]
 
   schema "transactions" do
@@ -45,6 +61,12 @@ defmodule Portfolixir.Ledger.Transaction do
     field(:settlement_fx_rate, :decimal)
     field(:notes, :string)
     field(:import_hash, :string)
+    # Split ratio as a pair of positive integers (ADR-0028): 10:1 forward,
+    # 1:10 reverse. Normalized to lowest terms at write time; nil for every
+    # other kind. Integers keep a 1:3 reverse split exact where a decimal
+    # ratio cannot.
+    field(:split_ratio_numerator, :integer)
+    field(:split_ratio_denominator, :integer)
 
     belongs_to(:portfolio, Portfolio)
     belongs_to(:securities_account, SecuritiesAccount)
@@ -169,7 +191,9 @@ defmodule Portfolixir.Ledger.Transaction do
       :settlement_amount,
       :settlement_fx_rate,
       :notes,
-      :import_hash
+      :import_hash,
+      :split_ratio_numerator,
+      :split_ratio_denominator
     ])
     |> normalize_currency_code()
     |> put_decimal_default(:fees)
@@ -178,6 +202,7 @@ defmodule Portfolixir.Ledger.Transaction do
     |> validate_inclusion(:type, @kinds)
     |> validate_length(:currency_code, is: 3)
     |> validate_required_for_kind()
+    |> validate_split_ratio_scope()
     |> validate_decimal_signs()
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:security)
@@ -204,7 +229,13 @@ defmodule Portfolixir.Ledger.Transaction do
     |> check_constraint(:type, name: :transactions_delivery_required_fields_check)
     |> check_constraint(:type, name: :transactions_security_transfer_required_fields_check)
     |> check_constraint(:type, name: :transactions_balance_adjustment_required_fields_check)
+    |> check_constraint(:type, name: :transactions_split_required_fields_check)
+    |> check_constraint(:type, name: :transactions_split_ratio_only_for_split_check)
     |> unique_constraint(:import_hash, name: :transactions_import_hash_unique_index)
+    |> unique_constraint(:date,
+      name: :transactions_one_split_per_portfolio_security_day_index,
+      message: "a split for this security and portfolio is already booked on this date"
+    )
   end
 
   # Per-kind required-field matrix. Keep this aligned with the per-kind
@@ -264,8 +295,94 @@ defmodule Portfolixir.Ledger.Transaction do
         |> validate_distinct_accounts(:securities_account_id, :counter_securities_account_id)
         |> validate_number(:quantity, greater_than: 0)
 
+      # A split (ADR-0028 §1) is security + effective date + positive integer
+      # ratio pair, normalized to lowest terms at write time. It has no cash
+      # leg and no price, so every additive-kind field must stay blank.
+      "split" ->
+        changeset
+        |> validate_required([:security_id, :split_ratio_numerator, :split_ratio_denominator])
+        |> validate_number(:split_ratio_numerator, greater_than: 0)
+        |> validate_number(:split_ratio_denominator, greater_than: 0)
+        |> normalize_split_ratio()
+        |> validate_split_changes_share_count()
+        |> validate_blank_split_fields()
+
       _other ->
         changeset
+    end
+  end
+
+  # Marker encoding, import dedup identity and event equality all use the
+  # normalized pair (ADR-0028 §1), so lowest terms are enforced at write time.
+  defp normalize_split_ratio(changeset) do
+    numerator = get_field(changeset, :split_ratio_numerator)
+    denominator = get_field(changeset, :split_ratio_denominator)
+
+    if is_integer(numerator) and is_integer(denominator) and numerator > 0 and denominator > 0 do
+      gcd = Integer.gcd(numerator, denominator)
+
+      changeset
+      |> put_change(:split_ratio_numerator, div(numerator, gcd))
+      |> put_change(:split_ratio_denominator, div(denominator, gcd))
+    else
+      changeset
+    end
+  end
+
+  # A pair that normalizes to 1:1 (1:1, 5:5, ...) scales nothing and is
+  # rejected as meaningless.
+  defp validate_split_changes_share_count(changeset) do
+    numerator = get_field(changeset, :split_ratio_numerator)
+    denominator = get_field(changeset, :split_ratio_denominator)
+
+    if numerator == 1 and denominator == 1 do
+      add_error(
+        changeset,
+        :split_ratio_numerator,
+        "must change the share count (a 1:1 split is meaningless)"
+      )
+    else
+      changeset
+    end
+  end
+
+  defp validate_blank_split_fields(changeset) do
+    changeset =
+      Enum.reduce(@split_blank_fields, changeset, fn field, acc ->
+        case get_field(acc, field) do
+          nil -> acc
+          _present -> add_error(acc, field, "must be blank for a split")
+        end
+      end)
+
+    # Fees and taxes default to zero on every kind; a split just may not
+    # carry a non-zero amount (it has no cash leg).
+    Enum.reduce([:fees, :taxes], changeset, fn field, acc ->
+      case get_field(acc, field) do
+        nil -> acc
+        %Decimal{} = value -> if Decimal.equal?(value, 0), do: acc, else: blank_error(acc, field)
+        _other -> blank_error(acc, field)
+      end
+    end)
+  end
+
+  defp blank_error(changeset, field), do: add_error(changeset, field, "must be blank for a split")
+
+  # The ratio columns exist only for splits (mirrors the
+  # `transactions_split_ratio_only_for_split_check` constraint).
+  defp validate_split_ratio_scope(changeset) do
+    case get_field(changeset, :type) do
+      "split" ->
+        changeset
+
+      _other ->
+        Enum.reduce([:split_ratio_numerator, :split_ratio_denominator], changeset, fn field,
+                                                                                      acc ->
+          case get_field(acc, field) do
+            nil -> acc
+            _present -> add_error(acc, field, "is only allowed for a split")
+          end
+        end)
     end
   end
 
