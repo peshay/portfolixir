@@ -13,22 +13,35 @@ defmodule Portfolixir.Ledger.TradeMatcher do
                       data
 
   All math is `Decimal`. The matcher is pure and database-agnostic.
+
+  Matching still considers only the priced `buy`/`sell` kinds. A `split`
+  (ADR-0028 §3) is a named mandatory change site: it scales open lot
+  quantities by its ratio and divides the per-share `buy_price`, keeping
+  each lot's total cost invariant (`decorate_open_lot` computes
+  quantity x buy_price); a split row scales only lots of its own portfolio.
   """
+
+  alias Portfolixir.Ledger.Projection
 
   @type tx :: %{
           required(:type) => String.t(),
           required(:date) => Date.t(),
           required(:quantity) => Decimal.t(),
           required(:price) => Decimal.t(),
+          optional(:id) => term(),
+          optional(:portfolio_id) => term(),
           optional(:fees) => Decimal.t(),
           optional(:taxes) => Decimal.t(),
-          optional(:currency_code) => String.t()
+          optional(:currency_code) => String.t(),
+          optional(:split_ratio_numerator) => pos_integer(),
+          optional(:split_ratio_denominator) => pos_integer()
         }
 
   @doc """
   Match `transactions` (any chronological order — they will be sorted by
-  date and id-stable order, oldest first) into open lots, closed trades
-  and orphan sells.
+  the shared `{date, intra_day_order, id}` replay order, oldest first, so a
+  split applies before its day's trades) into open lots, closed trades and
+  orphan sells.
   """
   @spec match([tx()]) :: %{
           open_lots: list(map()),
@@ -36,7 +49,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
           orphan_sells: list(map())
         }
   def match(transactions) when is_list(transactions) do
-    sorted = Enum.sort_by(transactions, & &1.date, Date)
+    sorted = Projection.replay_sort(transactions)
 
     state = %{lots: :queue.new(), closed: [], orphans: []}
 
@@ -45,6 +58,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
         case tx.type do
           "buy" -> handle_buy(acc, tx)
           "sell" -> handle_sell(acc, tx)
+          "split" -> handle_split(acc, tx)
           _ -> acc
         end
       end)
@@ -64,10 +78,44 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       buy_price: tx.price,
       buy_fees: fee(tx, :fees),
       buy_taxes: fee(tx, :taxes),
-      currency_code: Map.get(tx, :currency_code)
+      currency_code: Map.get(tx, :currency_code),
+      # Carried so a split — booked one row per portfolio (ADR-0028 §1) —
+      # scales only its own portfolio's lots.
+      portfolio_id: Map.get(tx, :portfolio_id)
     }
 
     %{state | lots: :queue.in(lot, state.lots)}
+  end
+
+  # Scales the open lots of the split's own portfolio: lot quantity
+  # multiplies by p/q (quantized once at volume scale 6, ADR-0028 §3), the
+  # per-share buy_price divides by the ratio at full precision, so the lot's
+  # total cost stays invariant. Fee/tax prorating stays consistent because
+  # `original_quantity` scales alongside `quantity`.
+  defp handle_split(state, tx) do
+    ratio = {tx.split_ratio_numerator, tx.split_ratio_denominator}
+    portfolio_id = Map.get(tx, :portfolio_id)
+
+    lots =
+      state.lots
+      |> :queue.to_list()
+      |> Enum.map(&scale_lot(&1, portfolio_id, ratio))
+      |> :queue.from_list()
+
+    %{state | lots: lots}
+  end
+
+  defp scale_lot(lot, portfolio_id, {numerator, denominator} = ratio) do
+    if Map.get(lot, :portfolio_id) == portfolio_id do
+      %{
+        lot
+        | quantity: Projection.scale_quantity(lot.quantity, ratio),
+          original_quantity: Projection.scale_quantity(lot.original_quantity, ratio),
+          buy_price: lot.buy_price |> Decimal.mult(denominator) |> Decimal.div(numerator)
+      }
+    else
+      lot
+    end
   end
 
   defp handle_sell(state, tx) do
