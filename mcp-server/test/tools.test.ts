@@ -190,6 +190,14 @@ describe("Portfolixir MCP tools", () => {
     assert.match(listPositions?.description ?? "", /stale/);
     assert.match(targetsSet?.description ?? "", /not enforced/i);
 
+    // UAT polish round: each position row names its security, and the
+    // allocation tool cross-references the effective roll-up so an operating
+    // LLM knows the explicit category weight steering here may differ from the
+    // per-position roll-up during a conflict window.
+    assert.match(listPositions?.description ?? "", /security_name/);
+    const allocation = tools.find((tool) => tool.name === "portfolixir.portfolios.allocation");
+    assert.match(allocation?.description ?? "", /targets\.list_positions/);
+
     const cashTargetGet = tools.find((tool) => tool.name === "portfolixir.portfolios.cash_target");
     assert.equal(cashTargetGet?.inputSchema.properties.view.type, "integer");
     const setCashTarget = tools.find(
