@@ -273,7 +273,11 @@ abgeleitet.
 > nur das Datenmodell und die **API/MCP**-Oberfläche: ein Positionsziel setzt man,
 > indem man einem Zieleintrag eine `security_id` hinzufügt; die Positionszeilen
 > und die Kategorie-Aufrollung liest man über den Positions-Ziel-Endpunkt bzw.
-> das entsprechende Werkzeug (siehe Integrationsleitfaden). Die Editor-Oberfläche
+> das entsprechende Werkzeug (siehe Integrationsleitfaden). Wird ein Wertpapier
+> später umklassifiziert oder die Zuordnung entfernt, zählt sein Positionsziel
+> weiter unter der Kategorie, unter der es abgelegt wurde, und wird beim Lesen
+> der Positionsziele als *stale* (veraltet) markiert — zum Verschieben des
+> Gewichts legt man es neu ab. Die Editor-Oberfläche
 > für die Eingabe je Position, die gleichmäßige Auto-Verteilung und die Anzeige
 > der Positions-Drift in der Allokationsansicht folgen in späteren Schritten.
 

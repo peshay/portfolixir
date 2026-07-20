@@ -52,6 +52,13 @@ category:
 - `(plan_id, category_id, security_id) WHERE security_id IS NOT NULL` — at most
   one row per position.
 
+A plan additionally carries at most **one position row per security** (fix
+round): filing the same security under a second category — against an existing
+row or twice within one write batch — is rejected, and a batch naming the same
+`(category, security)` pair twice is rejected rather than resolved last-wins;
+the ancestor-placement freedom governs where the single row sits, not how many
+there are.
+
 Positions are the **source of truth**. A category's **effective** target is:
 
 - the **sum of its position rows** when any position row exists (the roll-up); else
@@ -73,6 +80,17 @@ family in `Portfolixir.Portfolios.Allocation`): the effective-target roll-up
 exposes the explicit weight, the position sum, the resolved effective weight, and
 a `conflict` flag. Nothing blocks saving either row; the maintainer sees the
 mismatch and decides.
+
+The same store-and-surface stance covers **stale position rows** (fix round):
+reclassifying or unassigning a security does not move or drop its stored
+position rows — a row keeps counting under the category it was filed under
+(auditability, no silent math change) — but the roll-up surfaces it: each
+position row carries a `stale` flag (`true` when its security no longer sits
+under the stored category in that classification) and the category roll-up a
+`has_stale` flag; re-filing the row is the operator's move. `duplicate_plan`
+copies rows as-is without re-validating them during the copy — a stale or
+since-invalidated row survives the copy deliberately, and the carried
+`stale`/`has_stale` flags provide the visibility on the copy.
 
 ### 3. Scope of this slice — data model + context + API/MCP only
 
@@ -116,7 +134,11 @@ creates, stores, or transmits an order.
   category-only reads must filter `security_id IS NULL` to avoid corrupting the
   category-keyed maps that callers (the allocation engine) build. The
   effective/roll-up and 100%-per-level semantics for the allocation view are not
-  yet wired in — that is a named follow-on slice.
+  yet wired in — that is a named follow-on slice. The classifications-page
+  "copy from view" prefill shows blanks for categories steered only through
+  position rows (the slice-2 editor picks this up). A positions-only first
+  write materialises an active plan whose category list looks empty —
+  consistent with the pre-existing empty-plan state.
 - Risk tier: this and every follow-on slice ship as dedicated small PRs with
   human review; the owner reviews behaviour on the PR against #481.
 
