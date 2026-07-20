@@ -85,6 +85,15 @@ defmodule PortfolixirWeb.Router do
     get("/portfolios/:portfolio_id/targets", TargetController, :index)
     put("/portfolios/:portfolio_id/targets", TargetController, :set)
     delete("/portfolios/:portfolio_id/targets/:category_id", TargetController, :delete)
+
+    get("/portfolios/:portfolio_id/position_targets", TargetController, :index_positions)
+
+    delete(
+      "/portfolios/:portfolio_id/position_targets/:category_id/:security_id",
+      TargetController,
+      :delete_position
+    )
+
     get("/portfolios/:portfolio_id/cash_target", TargetController, :show_cash_target)
     put("/portfolios/:portfolio_id/cash_target", TargetController, :set_cash_target)
 

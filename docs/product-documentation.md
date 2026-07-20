@@ -245,6 +245,18 @@ reach the target. Securities held but not
 assigned in the chosen tree are summed into an unassigned bucket. Only the
 targets are stored; the actual side is derived from the live valuation on read.
 
+> **Per-position targets (ADR-0030, #481).** Target weights can now be set down
+> to an **individual position** (a security under a category), not just per
+> category. Positions are the source of truth: a category's *effective* target
+> rolls up from its positions (their sum), and if a category also carries its own
+> explicit weight the mismatch is surfaced rather than silently dropped. This
+> first slice ships the data model and the **API/MCP** surface only — set a
+> position target by adding a `security_id` to a target entry, read the position
+> rows and category roll-up via the position-targets endpoint/tool (see the
+> integration guide). The editor UI for per-position entry, even-split
+> auto-distribution, and the allocation-view display of position drift are
+> coming in later slices.
+
 ### Editing a target plan on the Classifications page
 
 Target weights are not global: a **target plan belongs to a view** (see ADR-0020).

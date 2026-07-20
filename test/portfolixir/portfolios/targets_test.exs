@@ -3,7 +3,9 @@ defmodule Portfolixir.Portfolios.TargetsTest do
 
   alias Portfolixir.Actor
 
+  alias Portfolixir.Catalog
   alias Portfolixir.Classifications
+  alias Portfolixir.Journal
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
 
@@ -195,5 +197,227 @@ defmodule Portfolixir.Portfolios.TargetsTest do
 
     assert %{category_id: [_ | _]} = errors_on(changeset)
     assert Targets.list_targets(portfolio.id) == []
+  end
+
+  # User story:
+  # As a local portfolio maintainer who steers per individual position (#481),
+  # I want to store SOLL weights down to the individual security under a
+  # category, with the category's effective target rolling up from its
+  # positions,
+  # so that categories become a derived pivot over positions instead of a
+  # figure I have to hand-maintain.
+  #
+  # Acceptance criteria (ADR-0030, #481 slice 1):
+  # - A per-position target is stored and read back with the exact Decimal.
+  # - Category-only reads never see position rows (back-compat).
+  # - A category's effective target rolls up from its position rows.
+  # - When both a category row and position rows carry explicit weights, both
+  #   are stored non-destructively; the position sum wins as the steering
+  #   number and the mismatch is surfaced (never silently dropped).
+  # - A position target for a security not under the category is rejected.
+  # - Both partial unique indexes are enforced: a category row and N position
+  #   rows coexist, and each upserts independently.
+  # - Position-target writes are journaled (ADR-0017).
+
+  defp create_assigned_security(classification, category, name) do
+    {:ok, security} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: name,
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        security.id,
+        classification.id,
+        category.id
+      )
+
+    security
+  end
+
+  test "sets a per-position target and reads it back with an exact Decimal" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    security = create_assigned_security(classification, core, "Alpha")
+
+    assert {:ok, [target]} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.3"}
+             ])
+
+    assert target.security_id == security.id
+    assert target.category_id == core.id
+
+    got = Targets.get_position_target(portfolio.id, core.id, security.id)
+    assert got.security_id == security.id
+    assert Decimal.equal?(got.target_weight, Decimal.new("0.3"))
+
+    # Category-only reads never see the position row (back-compat with callers
+    # like the allocation engine, which key targets by category_id).
+    assert Targets.list_targets(portfolio.id) == []
+    assert Targets.get_target(portfolio.id, core.id) == nil
+
+    assert [listed] = Targets.list_position_targets(portfolio.id)
+    assert listed.security_id == security.id
+  end
+
+  test "a category's effective target rolls up from its position rows" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    alpha = create_assigned_security(classification, core, "Alpha")
+    beta = create_assigned_security(classification, core, "Beta")
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.3"},
+        %{"category_id" => core.id, "security_id" => beta.id, "target_weight" => "0.2"}
+      ])
+
+    effective = Targets.effective_target(portfolio.id, core.id)
+    assert effective.explicit == nil
+    assert Decimal.equal?(effective.position_sum, Decimal.new("0.5"))
+    assert Decimal.equal?(effective.effective, Decimal.new("0.5"))
+    refute effective.conflict
+  end
+
+  test "stores and surfaces a category/position conflict instead of dropping either" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    alpha = create_assigned_security(classification, core, "Alpha")
+    beta = create_assigned_security(classification, core, "Beta")
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"},
+        %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.3"},
+        %{"category_id" => core.id, "security_id" => beta.id, "target_weight" => "0.2"}
+      ])
+
+    # Non-destructive: the explicit category row AND both position rows survive.
+    assert [category_row] = Targets.list_targets(portfolio.id)
+    assert Decimal.equal?(category_row.target_weight, Decimal.new("0.6"))
+    assert length(Targets.list_position_targets(portfolio.id)) == 2
+
+    effective = Targets.effective_target(portfolio.id, core.id)
+    assert Decimal.equal?(effective.explicit, Decimal.new("0.6"))
+    assert Decimal.equal?(effective.position_sum, Decimal.new("0.5"))
+    # The position sum wins as the steering number (positions are the source of
+    # truth, #481), and the mismatch is surfaced.
+    assert Decimal.equal?(effective.effective, Decimal.new("0.5"))
+    assert effective.conflict
+  end
+
+  test "rejects a position target for a security not under the category" do
+    %{portfolio: portfolio, classification: classification, core: core, satellite: satellite} =
+      setup_world()
+
+    # Assigned to Satellite, not under Core.
+    foreign = create_assigned_security(classification, satellite, "Beta")
+
+    assert {:error, :security_category_mismatch} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{"category_id" => core.id, "security_id" => foreign.id, "target_weight" => "0.3"}
+             ])
+
+    assert Targets.list_position_targets(portfolio.id) == []
+
+    # An unassigned security is likewise rejected — a position target must name a
+    # category the security actually sits in.
+    {:ok, floating} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Floating",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    assert {:error, :security_category_mismatch} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{"category_id" => core.id, "security_id" => floating.id, "target_weight" => "0.3"}
+             ])
+  end
+
+  test "accepts a position target on an ancestor category the security sits under" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    {:ok, tech} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Tech",
+        parent_id: core.id
+      })
+
+    # Assigned to the child Tech; steering it at the ancestor Core is valid.
+    security = create_assigned_security(classification, tech, "Alpha")
+
+    assert {:ok, [target]} =
+             Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+               %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.4"}
+             ])
+
+    assert target.category_id == core.id
+    assert target.security_id == security.id
+  end
+
+  test "enforces both partial unique indexes: category and position rows coexist and upsert" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    alpha = create_assigned_security(classification, core, "Alpha")
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"},
+        %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.3"}
+      ])
+
+    assert length(Targets.list_targets(portfolio.id)) == 1
+    assert length(Targets.list_position_targets(portfolio.id)) == 1
+
+    # Re-setting upserts each index independently rather than duplicating.
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.7"},
+        %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.4"}
+      ])
+
+    assert [category_row] = Targets.list_targets(portfolio.id)
+    assert Decimal.equal?(category_row.target_weight, Decimal.new("0.7"))
+    assert [position_row] = Targets.list_position_targets(portfolio.id)
+    assert Decimal.equal?(position_row.target_weight, Decimal.new("0.4"))
+  end
+
+  test "journals a position-target write" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    alpha = create_assigned_security(classification, core, "Alpha")
+
+    {:ok, [target]} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.3"}
+      ])
+
+    entries = Journal.list_entries(resource_type: "target")
+
+    assert Enum.any?(entries, fn entry ->
+             entry.resource_id == to_string(target.id) and entry.after["security_id"] == alpha.id
+           end)
+  end
+
+  test "deletes a single position target and leaves the category row" do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+    alpha = create_assigned_security(classification, core, "Alpha")
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.6"},
+        %{"category_id" => core.id, "security_id" => alpha.id, "target_weight" => "0.3"}
+      ])
+
+    assert {:ok, 1} =
+             Targets.delete_position_target(Actor.owner_ui(), portfolio.id, core.id, alpha.id)
+
+    assert Targets.list_position_targets(portfolio.id) == []
+    # The category row is untouched.
+    assert [_category_row] = Targets.list_targets(portfolio.id)
+
+    assert {:ok, 0} =
+             Targets.delete_position_target(Actor.owner_ui(), portfolio.id, core.id, alpha.id)
   end
 end

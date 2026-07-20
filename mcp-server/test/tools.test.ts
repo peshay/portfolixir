@@ -52,6 +52,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.targets.list",
       "portfolixir.targets.set",
       "portfolixir.targets.delete",
+      "portfolixir.targets.list_positions",
+      "portfolixir.targets.delete_position",
       "portfolixir.portfolios.allocation",
       "portfolixir.portfolios.risk",
       "portfolixir.portfolios.cash_target",
@@ -729,6 +731,50 @@ describe("Portfolixir MCP tools", () => {
       targets: [{ category_id: 9, target_weight: "0.25" }]
     });
     assert.equal(requests[2].path, "/api/v1/portfolios/3/targets/9?view=7");
+  });
+
+  it("routes position target tools and forwards a position security_id (ADR-0030, #481)", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { position_targets: [], effective_targets: [] }
+    });
+
+    await callTool(client, "portfolixir.targets.set", {
+      portfolio_id: 3,
+      classification_id: 5,
+      targets: [{ category_id: 9, security_id: 12, target_weight: "0.25" }]
+    });
+    await callTool(client, "portfolixir.targets.list_positions", {
+      portfolio_id: 3,
+      classification_id: 5
+    });
+    await callTool(client, "portfolixir.targets.delete_position", {
+      portfolio_id: 3,
+      category_id: 9,
+      security_id: 12
+    });
+
+    // A position target flows through the same set endpoint, carrying security_id.
+    assert.deepEqual(requests[0], {
+      method: "PUT",
+      path: "/api/v1/portfolios/3/targets",
+      body: {
+        classification_id: 5,
+        targets: [{ category_id: 9, security_id: 12, target_weight: "0.25" }]
+      },
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[1], {
+      method: "GET",
+      path: "/api/v1/portfolios/3/position_targets?classification_id=5",
+      body: undefined,
+      token: "Bearer api-token"
+    });
+    assert.deepEqual(requests[2], {
+      method: "DELETE",
+      path: "/api/v1/portfolios/3/position_targets/9/12",
+      body: undefined,
+      token: "Bearer api-token"
+    });
   });
 
   it("routes cash_target read/write to the /cash_target endpoint with a view scope", async () => {

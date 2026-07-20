@@ -54,6 +54,57 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
     end
   end
 
+  # Position-level SOLL (ADR-0030, #481): the position rows (a target per
+  # security under a category) plus each affected category's effective roll-up
+  # (explicit-or-sum, with the conflict flag). Position targets are written
+  # through the same `set` endpoint by adding a `security_id` to a target entry.
+  def index_positions(conn, %{"portfolio_id" => portfolio_id} = params) do
+    with {:ok, pid} <- parse_id(portfolio_id),
+         %Portfolio{} <- Portfolios.get_portfolio(pid),
+         {:ok, view} <- ViewParam.resolve(params) do
+      opts = list_opts(params, view)
+
+      json(conn, %{
+        data: %{
+          position_targets: Enum.map(Targets.list_position_targets(pid, opts), &JSON.target/1),
+          effective_targets:
+            Enum.map(Targets.effective_targets(pid, opts), &JSON.effective_target/1)
+        }
+      })
+    else
+      :error -> not_found(conn)
+      nil -> not_found(conn)
+      {:error, :view} -> invalid_view(conn)
+      :view_not_found -> not_found(conn)
+    end
+  end
+
+  def delete_position(
+        conn,
+        %{
+          "portfolio_id" => portfolio_id,
+          "category_id" => category_id,
+          "security_id" => security_id
+        } =
+          params
+      ) do
+    with {:ok, pid} <- parse_id(portfolio_id),
+         %Portfolio{} <- Portfolios.get_portfolio(pid),
+         {:ok, view} <- ViewParam.resolve(params),
+         {:ok, cid} <- parse_id(category_id),
+         {:ok, sid} <- parse_id(security_id) do
+      {:ok, count} =
+        Targets.delete_position_target(conn.assigns.actor, pid, cid, sid, ViewParam.opts(view))
+
+      json(conn, %{data: %{deleted: count}})
+    else
+      :error -> not_found(conn)
+      nil -> not_found(conn)
+      {:error, :view} -> invalid_view(conn)
+      :view_not_found -> not_found(conn)
+    end
+  end
+
   # The per-plan cash target moved out of the portfolio object (ADR-0020). It is
   # readable/writable here per view; `view` omitted reads/writes the Gesamt
   # cash plan, which is the same value the legacy portfolio `cash_target_weight`
@@ -122,6 +173,9 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
 
   defp render_error(conn, :category_mismatch),
     do: unprocessable(conn, %{detail: "category does not belong to the classification"})
+
+  defp render_error(conn, :security_category_mismatch),
+    do: unprocessable(conn, %{detail: "security is not under the target category"})
 
   defp render_error(conn, :invalid_entry),
     do:
