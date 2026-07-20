@@ -68,6 +68,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:error, nil)
       |> assign(:success, nil)
       |> assign(:view_gone_notice, false)
+      |> assign(:classification_gone_notice, false)
       |> assign_migration_notice()
 
     # ADR-0024: the empty state keys on the bookkeeping entities (depots and
@@ -194,8 +195,36 @@ defmodule PortfolixirWeb.PortfolioLive do
         |> load_allocation()
       end
 
-    {:noreply, socket}
+    {:noreply, maybe_canonicalize_patch(socket, params)}
   end
+
+  # URL ↔ state convergence (async-hardening round): when a requested param was
+  # present but fell back (stale tree id, garbled mode), replace-patch the URL
+  # once to the canonical path so the address bar never keeps advertising a
+  # state the page does not show. Loop-safe: the patch only fires when a
+  # requested value is present AND differs from the canonical one, and the
+  # canonical params round-trip verbatim. Connected sockets only — the dead
+  # render must not turn into an HTTP redirect.
+  defp maybe_canonicalize_patch(%{assigns: %{wealth_tab: :allocation}} = socket, params) do
+    stale? =
+      present_but_stale?(
+        params["classification"],
+        Integer.to_string(socket.assigns.classification_id)
+      ) or
+        present_but_stale?(params["alloc"], allocation_mode_param(socket.assigns.allocation_mode))
+
+    if connected?(socket) and stale? do
+      # current_path IS the canonical allocation path (assigned above).
+      push_patch(socket, to: socket.assigns.current_path, replace: true)
+    else
+      socket
+    end
+  end
+
+  defp maybe_canonicalize_patch(socket, _params), do: socket
+
+  defp present_but_stale?(nil, _canonical), do: false
+  defp present_but_stale?(requested, canonical), do: requested != canonical
 
   # Reads the classification tree from the URL, validating it still names a
   # loaded tree; a missing, malformed, or stale (deleted) id degrades to the
@@ -296,13 +325,18 @@ defmodule PortfolixirWeb.PortfolioLive do
       # when none is picked — deduplicated at the account level. The allocation
       # stays on the portfolio-bound read (its per-portfolio SOLL plans,
       # ADR-0020) filtered by the same view. A view deleted between the check
-      # above and this read degrades via `handle_async` (fix round).
+      # above and this read degrades via `handle_async` (fix round). The result
+      # carries the classification it was computed for, so a stale mount-era
+      # completion can never overwrite a newer tree's allocation
+      # (async-hardening round). A tree deleted mid-read degrades the same way
+      # the allocation read does.
       with %{} = valuation <- Valuation.for_view(view_id, base_currency: base_currency),
            {:ok, allocation} <-
              Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
-        {valuation, allocation}
+        {valuation, classification_id, allocation}
       else
         {:error, :view_not_found} -> :view_not_found
+        {:error, :not_found} -> :classification_not_found
       end
     end)
   end
@@ -317,6 +351,10 @@ defmodule PortfolixirWeb.PortfolioLive do
       case Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
         {:ok, allocation} -> allocation
         {:error, :view_not_found} -> :view_not_found
+        # The tree was deleted in another tab between selection and this read
+        # (async-hardening round): degrade via `handle_async` instead of
+        # crashing the async with a CaseClauseError.
+        {:error, :not_found} -> :classification_not_found
       end
     end)
   end
@@ -352,6 +390,22 @@ defmodule PortfolixirWeb.PortfolioLive do
     |> assign(:view_gone_notice, true)
   end
 
+  # The selected classification tree was deleted in another tab while this
+  # page still offered it (async-hardening round, mirroring the view-gone
+  # pattern): refresh the tree list, fall back to the default tree, and say so
+  # with a small notice instead of the generic error toast.
+  defp degrade_to_default_classification(socket) do
+    classifications = Classifications.list_classifications()
+
+    socket
+    |> assign(:classifications, classifications)
+    |> assign(:classification_id, default_classification_id(classifications))
+    |> assign(:selected_segment, nil)
+    |> assign(:expanded_categories, MapSet.new())
+    |> assign_planned_view_ids()
+    |> assign(:classification_gone_notice, true)
+  end
+
   @impl true
   # The view vanished mid-read (fix round TOCTOU): degrade and re-load the
   # section under the Everything scope.
@@ -367,8 +421,33 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, socket |> degrade_to_everything() |> load_performance()}
   end
 
-  def handle_async(:overview, {:ok, {valuation, allocation}}, socket) do
-    {:noreply, socket |> assign(:valuation, valuation) |> assign_allocation(allocation)}
+  # The tree vanished mid-read (async-hardening round): degrade to the default
+  # tree and re-load the affected section under it.
+  def handle_async(:overview, {:ok, :classification_not_found}, socket) do
+    {:noreply, socket |> degrade_to_default_classification() |> load_overview()}
+  end
+
+  def handle_async(:allocation, {:ok, :classification_not_found}, socket) do
+    {:noreply, socket |> degrade_to_default_classification() |> load_allocation()}
+  end
+
+  def handle_async(:overview, {:ok, {valuation, classification_id, allocation}}, socket) do
+    socket = assign(socket, :valuation, valuation)
+
+    # Cross-key staleness guard (async-hardening round): LiveView's ref pruning
+    # only cancels same-key tasks, so a mount-era :overview can land after the
+    # user already patched to another tree and its :allocation task delivered.
+    # The valuation is classification-independent and always lands; the
+    # allocation only lands when it still matches the selected tree — on a
+    # mismatch the newer tree's allocation (loaded or in flight) is kept.
+    socket =
+      if classification_id == socket.assigns.classification_id do
+        assign_allocation(socket, allocation)
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   def handle_async(:allocation, {:ok, allocation}, socket) do
@@ -517,6 +596,18 @@ defmodule PortfolixirWeb.PortfolioLive do
              degraded to the Everything scope instead of a dead error toast. --%>
         <p :if={@view_gone_notice} class="hint" data-role="view-gone-notice" role="status">
           <%= gettext("The selected view no longer exists — showing Everything.") %>
+        </p>
+
+        <%!-- The picked classification tree was deleted (another tab,
+             async-hardening round): the page degraded to the default tree
+             instead of a dead error toast. --%>
+        <p
+          :if={@classification_gone_notice}
+          class="hint"
+          data-role="classification-gone-notice"
+          role="status"
+        >
+          <%= gettext("The selected classification no longer exists — showing the default tree.") %>
         </p>
 
         <%!-- Matches-nothing hint (fix round): the active view resolves to
@@ -1518,24 +1609,32 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Round-trips the chosen tree through the URL (mobile-reconnect fix) so a
   # socket reconnect restores it; handle_params applies the change, resets the
   # tree's transient state (selected segment, expanded rows), refreshes the plan
-  # markers, and reloads the allocation exactly once.
+  # markers, and reloads the allocation exactly once. The id is validated
+  # against the loaded trees BEFORE the patch (async-hardening round), so the
+  # address bar can never end up on an unknown ?classification= while the page
+  # shows the default; re-selecting the active tree is a no-op — no duplicate
+  # history entry.
   def handle_event("select_classification", %{"classification_id" => id}, socket) do
-    case coerce_id(id) do
-      {:ok, classification_id} ->
-        {:noreply,
-         push_patch(socket,
-           to:
-             allocation_current_path(
-               current_view_param(socket.assigns.current_path),
-               classification_id,
-               socket.assigns.allocation_mode
-             )
-         )}
-
-      :error ->
-        {:noreply, socket}
+    with {:ok, classification_id} <- coerce_id(id),
+         true <- Enum.any?(socket.assigns.classifications, &(&1.id == classification_id)),
+         false <- classification_id == socket.assigns.classification_id do
+      {:noreply,
+       push_patch(socket,
+         to:
+           allocation_current_path(
+             current_view_param(socket.assigns.current_path),
+             classification_id,
+             socket.assigns.allocation_mode
+           )
+       )}
+    else
+      _invalid_or_current -> {:noreply, socket}
     end
   end
+
+  # Forged-event parity with the set_chart_mode fallback (async-hardening
+  # round): a malformed payload degrades instead of crashing the LiveView.
+  def handle_event("select_classification", _params, socket), do: {:noreply, socket}
 
   # Expands/collapses a drift-table category into its member securities
   # (ADR-0023). Pure display state; nothing is persisted. The unassigned
@@ -1656,16 +1755,28 @@ defmodule PortfolixirWeb.PortfolioLive do
   # it; handle_params switches the mode (pure presentation — no reload).
   def handle_event("set_allocation_mode", %{"mode" => mode}, socket)
       when mode in ["tree", "flat"] do
-    {:noreply,
-     push_patch(socket,
-       to:
-         allocation_current_path(
-           current_view_param(socket.assigns.current_path),
-           socket.assigns.classification_id,
-           allocation_mode_atom(mode)
-         )
-     )}
+    requested = allocation_mode_atom(mode)
+
+    # Clicking the already-active mode button is a no-op (async-hardening
+    # round): no patch, no duplicate history entry.
+    if requested == socket.assigns.allocation_mode do
+      {:noreply, socket}
+    else
+      {:noreply,
+       push_patch(socket,
+         to:
+           allocation_current_path(
+             current_view_param(socket.assigns.current_path),
+             socket.assigns.classification_id,
+             requested
+           )
+       )}
+    end
   end
+
+  # Forged-event parity with the set_chart_mode fallback (async-hardening
+  # round): a malformed payload degrades instead of crashing the LiveView.
+  def handle_event("set_allocation_mode", _params, socket), do: {:noreply, socket}
 
   # Clicking the active sort key flips its direction; a new numeric key starts
   # desc (worklist semantics: biggest lever first), the category label starts
