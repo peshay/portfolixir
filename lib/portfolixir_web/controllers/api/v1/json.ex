@@ -531,6 +531,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  # `target_weight` is the category's EFFECTIVE target (ADR-0030 slice 2a):
+  # the sum of its position rows when any exist, else the explicit category
+  # weight. `conflict` flags a diverging explicit weight, `has_stale` a stale
+  # position row filed under the category.
   defp allocation_category(category) do
     %{
       category_id: category.category_id,
@@ -545,14 +549,21 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       drift_weight: decimal(category.drift_weight),
       drift_value: decimal(category.drift_value),
       child_target_sum: decimal(category.child_target_sum),
+      conflict: category.conflict,
+      has_stale: category.has_stale,
       positions: Enum.map(category.positions, &allocation_position/1)
     }
   end
 
-  # `drift_value` is the position's share of its category's drift and
-  # `rebalance_quantity` the indicative quantity to sell (positive) or buy
-  # (negative) at the implied unit price — display-only hints (ADR-0023), nil
-  # without a plan and for `unassigned` positions.
+  # Without a position SOLL, `drift_value` is the position's share of its
+  # category's drift and `rebalance_quantity` the indicative quantity to sell
+  # (positive) or buy (negative) at the implied unit price — display-only
+  # hints (ADR-0023), nil without a plan and for `unassigned` positions.
+  # With a position SOLL (ADR-0030 slice 2a) the row carries `target_weight`
+  # and its own `drift_weight` (actual − target), and both hints derive from
+  # that own drift; `held` is false for a SOLL-only row (IST 0 — a position
+  # planned but not yet bought), whose hint prices at the latest stored quote
+  # (null when no price exists). All financial decimals are strings.
   defp allocation_position(position) do
     %{
       security_id: position.security_id,
@@ -560,8 +571,11 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       quantity: decimal(position.quantity),
       market_value: decimal(position.market_value),
       weight: decimal(position.weight),
+      target_weight: decimal(position.target_weight),
+      drift_weight: decimal(position.drift_weight),
       drift_value: decimal(position.drift_value),
-      rebalance_quantity: decimal(position.rebalance_quantity)
+      rebalance_quantity: decimal(position.rebalance_quantity),
+      held: position.held
     }
   end
 

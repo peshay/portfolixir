@@ -423,6 +423,20 @@ Beispiel-Payloads für Konten:
   sind ohne Plan und für `unassigned`-Positionen `null`. Einträge kommen größte
   zuerst, Wertpapiere über Depots
   zusammengeführt; das ist es, was der äußerste Ring des Sunburst rendert.
+  **Positions-Soll (ADR-0030 Slice 2a):** die `positions` einer Kategorie sind
+  die Vereinigung ihrer gehaltenen Positionen und der Positions-Ziel-Zeilen des
+  aktiven Plans, je Wertpapier zusammengeführt. Jeder Eintrag trägt zusätzlich
+  `target_weight` (sein Positions-Soll, `null` ohne eines), `drift_weight`
+  (`IST-Gewicht − SOLL-Gewicht`, ADR-0023-Vorzeichen) und `held`. Ein Eintrag
+  mit eigenem Soll leitet `drift_value` und `rebalance_quantity` aus dieser
+  eigenen Drift ab statt aus dem Kategorie-Anteil. Eine Position mit Soll > 0
+  ohne Bestand erscheint mit IST 0 (`held: false`, Menge/Wert/Gewicht `"0"`)
+  und voller Untergewichts-Drift — „hier muss gekauft werden" — mit ihrer
+  indikativen Stückzahl zum **letzten gespeicherten Kurs** (`null` ohne Kurs;
+  keiner wird erfunden). Eine Position wird nur ausgeblendet, wenn ihr Soll
+  0/fehlend ist **und** ihr Bestand null. Jede Kategorie-Zeile trägt zudem
+  `conflict` (explizites Gewicht und Positions-Summe weichen ab — die Summe
+  steuert) und `has_stale` (eine hier abgelegte Positions-Zeile ist veraltet).
   Gehaltene, aber im Baum nicht zugeordnete Wertpapiere werden in `unassigned`
   summiert. Gewichte sind Anteile der **Steuerbasis**: der Gesamtwert der
   bewerteten Positionen (eingeschränkt durch die aktive `view`, sofern angegeben),
@@ -451,7 +465,13 @@ Beispiel-Payloads für Konten:
   `view=<id>` werden die Zielgewichte, das Cash-Ziel und der
   `top_level_target_sum` dieser View ausgewiesen (ohne `view` der Gesamt-Plan),
   sodass die Drift-Tabelle pro View gegen einen kohärenten 100 %-Plan steuert.
-  Unbekannte Portfolios oder Klassifizierungen liefern `404 Not
+  Die `target_weight`-Werte der Kategorien sind die **effektiven** Ziele
+  (ADR-0030): die Summe der Positions-Zeilen einer Kategorie, sobald welche
+  existieren (Positionen sind die Quelle der Wahrheit), sonst ihr explizites
+  Kategorien-Gewicht — die Σ-Werte verwenden dieselben effektiven Zahlen. Für
+  die rohen Positions-Ziel-Zeilen und den Roll-up je Kategorie (die
+  Pflege-Sicht) dient der `position_targets`-Endpunkt oben. Unbekannte
+  Portfolios oder Klassifizierungen liefern `404 Not
   Found`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` liefert eine
   **Risiko-/Konzentrationssicht** für ein Portfolio über die **Steuerbasis** (der

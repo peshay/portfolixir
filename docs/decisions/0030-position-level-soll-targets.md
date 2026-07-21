@@ -116,11 +116,48 @@ Explicitly **deferred** to later slices, each its own reviewed change:
   handling of new/not-yet-bought positions;
 - any **allocation-view** position-level SOLL/IST/drift display (this slice does
   not change the `Allocation` breakdown; category reads stay category-only so the
-  existing roll-up is untouched).
+  existing roll-up is untouched). *Delivered by slice 2a below (2026-07-21).*
 
 The gated rebalancing guidance (FR-12, [ADR-0023](0023-drift-sign-and-display-only-rebalancing-hints.html))
 boundary is unchanged: this model is display/steering input only — nothing here
 creates, stores, or transmits an order.
+
+### 4. Slice 2a (2026-07-21) — allocation-view wiring
+
+The deferred **allocation-view display** is now live (#481 slice 2a), driven by
+an owner-reported bug: the allocation page showed only positions with holdings,
+so SOLL set on not-yet-owned positions — the point of position-level SOLL — was
+invisible. The owner's display rule is the binding acceptance criterion,
+verbatim:
+
+- A position row is shown when it has holdings in scope OR a position SOLL
+  target > 0 in the active view's plan.
+- A position with SOLL > 0 and zero holdings shows with IST 0 (weight 0,
+  value 0) and full underweight drift — it tells the owner "this needs buying".
+- A position is hidden ONLY when SOLL is 0/absent AND holdings are zero.
+
+Concretely, in `Portfolixir.Portfolios.Allocation` (and through the JSON API
+and MCP allocation surfaces, additively):
+
+- per category, the position rows are the **union** of the in-scope held
+  positions and the active plan's position-target rows, matched by security;
+  each row carries `target_weight` (its position SOLL, `nil` when none),
+  `held`, and — with its own SOLL — its own ADR-0023 drift
+  (`drift_weight`/`drift_value`) plus the indicative rebalance quantity. A
+  SOLL-only row prices that quantity at the **latest stored quote** (base
+  currency); without a price no quantity is invented (`nil`);
+- the category's SOLL in the allocation is now the **effective** target from
+  §1 (explicit-or-position-sum; the position sum wins when position rows
+  exist), with `conflict` and `has_stale` carried through so the view badges
+  them — this closes the UAT conflict-window finding where the allocation
+  steered by the explicit weight while the roll-up disagreed. The Σ family
+  (`child_target_sum`, `top_level_target_sum`, parent roll-up) consumes the
+  same effective values. Categories without position rows behave exactly as
+  before (explicit weight; asserted by test).
+
+Still **deferred** to named later slices: the **classifications editor UI** for
+per-position SOLL entry, **auto-distribution** (even split and its variants),
+and the **100%-per-level firmness UX**.
 
 ## Consequences
 

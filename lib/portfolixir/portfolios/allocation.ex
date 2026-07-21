@@ -78,9 +78,43 @@ defmodule Portfolixir.Portfolios.Allocation do
   target, a zero `top_level_target_sum`, and `has_plan: false` so callers can hide
   the SOLL/drift columns. Loading happens in this impure shell; the pure builder
   receives the plan as injected data (AR-2).
+
+  ## Position-level SOLL (ADR-0030 slice 2a, #481)
+
+  When the active plan carries **position rows** (SOLL on individual securities),
+  the breakdown reflects them:
+
+  - A category's `target_weight` is the **effective** target (ADR-0030): the sum
+    of its position rows when any exist (positions are the source of truth),
+    else the explicit category-row weight. `conflict` flags a category whose
+    explicit weight and position sum disagree, `has_stale` one whose position
+    rows include a stale row (its security no longer sits under the filed
+    category); both are display-only, nothing is resolved or dropped. The
+    Σ figures (`child_target_sum`, `top_level_target_sum`) consume the same
+    effective values, so no surface disagrees with another.
+  - A category's `positions` are the **union** of its in-scope held positions
+    and the plan's position-target rows, matched by security. Each entry carries
+    `target_weight` (its position SOLL, `nil` when none), `held`, and — when it
+    has its own SOLL — its own `drift_weight` (actual weight − target weight,
+    ADR-0023) with `drift_value` and the indicative `rebalance_quantity`.
+    Entries without their own SOLL keep the category-share hints unchanged.
+  - The owner's display rule (binding, #481): a position row is **shown** when
+    it has holdings in scope OR a position SOLL target > 0 in the active plan;
+    a SOLL-only row shows with IST 0 (quantity, value, weight all zero) and the
+    full underweight drift — "this needs buying". A row is **hidden** only when
+    its SOLL is 0/absent AND its holdings are zero.
+  - A SOLL-only (unheld) entry's indicative quantity is priced at the security's
+    **latest stored quote** converted to the base currency; without a price no
+    quantity is invented (`nil`). A held entry keeps the valuation's implied
+    unit price. A target row whose security is held under a *different* category
+    (an ancestor filing, or a stale row) attaches its SOLL to the security's
+    held entry — IST is never faked to zero for a security that is held —
+    while the target keeps counting toward the category it was filed under.
   """
 
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Classifications
+  alias Portfolixir.Fx
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
 
@@ -110,18 +144,10 @@ defmodule Portfolixir.Portfolios.Allocation do
         # A vanished view degrades to `{:error, :view_not_found}` (fix round)
         # instead of raising out of an async render or API request.
         with %{} = valuation <- Valuation.for_portfolio(portfolio_id, opts) do
-          {targets, cash_target, has_plan} = plan_soll(portfolio_id, classification_id, view)
+          soll = plan_soll(portfolio_id, classification_id, view)
+          soll = put_unheld_prices(soll, valuation, opts)
 
-          {:ok,
-           build(
-             valuation,
-             classification,
-             categories,
-             security_categories,
-             targets,
-             cash_target,
-             has_plan
-           )}
+          {:ok, build(valuation, classification, categories, security_categories, soll)}
         end
     end
   end
@@ -131,39 +157,107 @@ defmodule Portfolixir.Portfolios.Allocation do
   # a portfolio-wide cash target (the legacy cash-target home, which may be
   # steered without any category targets — the prior Gesamt behaviour). With no
   # plan at all, the breakdown is IST-only: no targets, no cash target,
-  # `has_plan: false`, so callers can hide the SOLL/drift columns. The plan is
-  # read here, in the impure shell, and injected into the pure `build/7` as data
-  # (AR-2).
+  # `has_plan: false`, so callers can hide the SOLL/drift columns. The plan —
+  # explicit category rows AND position rows (ADR-0030 slice 2a) — is read here,
+  # in the impure shell, and injected into the pure `build/5` as data (AR-2).
   defp plan_soll(portfolio_id, classification_id, view) do
     cash_target = Targets.get_cash_target(portfolio_id, view: view)
     category_plan? = Targets.plan_exists?(portfolio_id, classification_id, view: view)
 
     cond do
       category_plan? ->
-        targets =
+        explicit =
           portfolio_id
           |> Targets.list_targets(classification_id: classification_id, view: view)
           |> Map.new(&{&1.category_id, &1.target_weight})
 
-        {targets, cash_target, true}
+        position_targets =
+          Targets.list_position_targets(portfolio_id,
+            classification_id: classification_id,
+            view: view
+          )
+
+        %{
+          explicit: explicit,
+          position_targets: position_targets,
+          unheld_prices: %{},
+          cash_target: cash_target,
+          has_plan: true
+        }
 
       not is_nil(cash_target) ->
-        {%{}, cash_target, true}
+        %{
+          explicit: %{},
+          position_targets: [],
+          unheld_prices: %{},
+          cash_target: cash_target,
+          has_plan: true
+        }
 
       true ->
-        {%{}, nil, false}
+        %{
+          explicit: %{},
+          position_targets: [],
+          unheld_prices: %{},
+          cash_target: nil,
+          has_plan: false
+        }
     end
   end
 
-  defp build(
-         valuation,
-         classification,
-         categories,
-         security_categories,
-         targets,
-         cash_target,
-         has_plan
-       ) do
+  # Base-currency unit prices for the plan's SOLL-only securities (position
+  # targets whose security carries no valued holding in scope): the indicative
+  # ADR-0023 quantity for "this needs buying" is priced at the latest stored
+  # quote (or the test `:prices` override), converted via the EUR hub. A missing
+  # quote, currency or FX path yields `nil` — no price is ever invented. Impure
+  # (quote + FX reads), so it lives in the shell next to the other loads (AR-2).
+  defp put_unheld_prices(%{position_targets: []} = soll, _valuation, _opts), do: soll
+
+  defp put_unheld_prices(soll, valuation, opts) do
+    held =
+      for position <- valuation.positions, position.valued, into: MapSet.new() do
+        position.security_id
+      end
+
+    price_overrides = Keyword.get(opts, :prices, %{})
+
+    unheld_prices =
+      soll.position_targets
+      |> Enum.reject(&MapSet.member?(held, &1.security_id))
+      |> Map.new(fn target ->
+        {target.security_id, unheld_base_price(target, price_overrides, valuation.base_currency)}
+      end)
+
+    %{soll | unheld_prices: unheld_prices}
+  end
+
+  defp unheld_base_price(target, price_overrides, base_currency) do
+    native =
+      case Map.get(price_overrides, target.security_id) do
+        %Decimal{} = price -> price
+        _no_override -> latest_quote_close(target.security_id)
+      end
+
+    currency = target.security && target.security.currency_code
+
+    with %Decimal{} <- native,
+         true <- is_binary(currency) and is_binary(base_currency),
+         {:ok, converted} <- Fx.convert(native, currency, base_currency) do
+      converted
+    else
+      _missing -> nil
+    end
+  end
+
+  defp latest_quote_close(security_id) do
+    case Quotes.latest(security_id) do
+      %{close: %Decimal{} = close} -> close
+      _none -> nil
+    end
+  end
+
+  defp build(valuation, classification, categories, security_categories, soll) do
+    %{cash_target: cash_target, has_plan: has_plan} = soll
     steering_positions = Enum.filter(valuation.positions, & &1.valued)
 
     # The steering basis (the 100%) is the (possibly view-scoped) valued
@@ -189,6 +283,17 @@ defmodule Portfolixir.Portfolios.Allocation do
       end)
       |> merge_currency_cash(classification, categories, valuation.cash_balances)
 
+    # ADR-0030 slice 2a: the SOLL side resolves to the EFFECTIVE targets —
+    # a category with position rows is steered by their sum (positions are the
+    # source of truth), everything else by its explicit weight. `kept`,
+    # `child_target_sums` and `top_level_target_sum` all consume the same
+    # effective map, so the Σ family never disagrees with the rows.
+    position_rows_by_category = Enum.group_by(soll.position_targets, & &1.category_id)
+    position_sums = position_sums(position_rows_by_category)
+    targets = Map.merge(soll.explicit, position_sums)
+    category_flags = category_flags(position_rows_by_category, position_sums, soll.explicit)
+    position_soll = position_soll(soll, steering_positions)
+
     children_by_parent = Enum.group_by(categories, & &1.parent_id)
     rolled = rolled_values(categories, children_by_parent, own_value_by_category)
     kept = kept_categories(categories, rolled, targets)
@@ -206,7 +311,13 @@ defmodule Portfolixir.Portfolios.Allocation do
           Map.get(rolled, category.id, @zero),
           Map.get(targets, category.id),
           Map.get(child_target_sums, category.id),
-          position_entries(Map.get(positions_by_category, category.id, []), total),
+          Map.get(category_flags, category.id),
+          category_position_entries(
+            Map.get(positions_by_category, category.id, []),
+            category.id,
+            position_soll,
+            total
+          ),
           total
         )
         |> with_rebalance_hints(has_plan)
@@ -349,6 +460,8 @@ defmodule Portfolixir.Portfolios.Allocation do
   # e.g. the outermost sunburst ring. `drift_value` and `rebalance_quantity`
   # stay nil here; category rows overwrite them when the view has a plan
   # (ADR-0023), so every entry has a uniform shape for the UI/API.
+  # `target_weight`/`drift_weight` (ADR-0030 slice 2a) stay nil until a
+  # position SOLL row attaches; `held` is true by construction here.
   defp position_entries(positions, total) do
     positions
     |> Enum.group_by(&{&1.security_id, &1.security_name})
@@ -361,11 +474,150 @@ defmodule Portfolixir.Portfolios.Allocation do
         quantity: sum_quantities(grouped),
         market_value: value,
         weight: weight(value, total),
+        target_weight: nil,
+        drift_weight: nil,
         drift_value: nil,
-        rebalance_quantity: nil
+        rebalance_quantity: nil,
+        held: true
       }
     end)
     |> Enum.sort_by(& &1.market_value, {:desc, Decimal})
+  end
+
+  # The sum of each category's position rows — the effective steering number
+  # once positions exist (ADR-0030: positions are the source of truth).
+  defp position_sums(position_rows_by_category) do
+    Map.new(position_rows_by_category, fn {category_id, rows} ->
+      {category_id, Enum.reduce(rows, @zero, &Decimal.add(&2, &1.target_weight))}
+    end)
+  end
+
+  # Per-category advisory flags (ADR-0030): `conflict` when an explicit
+  # category weight coexists with a differing position sum (the sum steers,
+  # the mismatch is surfaced, nothing is dropped), `has_stale` when any of the
+  # category's position rows is stale. Categories without position rows are
+  # absent — their rows default both flags to false.
+  defp category_flags(position_rows_by_category, position_sums, explicit) do
+    Map.new(position_rows_by_category, fn {category_id, rows} ->
+      explicit_weight = Map.get(explicit, category_id)
+      sum = Map.fetch!(position_sums, category_id)
+
+      {category_id,
+       %{
+         conflict: not is_nil(explicit_weight) and not Decimal.equal?(explicit_weight, sum),
+         has_stale: Enum.any?(rows, & &1.stale)
+       }}
+    end)
+  end
+
+  # The position-SOLL lookup the row builder joins against: every position
+  # target by security (a held entry attaches its SOLL wherever it renders),
+  # plus the SOLL-only rows — securities without a valued holding in scope —
+  # grouped under the category they were filed under, with their injected
+  # latest-quote base prices.
+  defp position_soll(soll, steering_positions) do
+    held_ids = MapSet.new(steering_positions, & &1.security_id)
+
+    %{
+      by_security: Map.new(soll.position_targets, &{&1.security_id, &1}),
+      unheld_by_category:
+        soll.position_targets
+        |> Enum.reject(&MapSet.member?(held_ids, &1.security_id))
+        |> Enum.group_by(& &1.category_id),
+      unheld_prices: soll.unheld_prices
+    }
+  end
+
+  # The union of a category's in-scope held positions and the plan's position
+  # SOLL rows (ADR-0030 slice 2a), with the owner's display rule applied:
+  # shown when held in scope OR SOLL > 0; hidden only when SOLL is 0/absent
+  # AND holdings are zero. Held entries come largest first as before; the
+  # SOLL-only rows follow, largest target first.
+  defp category_position_entries(held_positions, category_id, position_soll, total) do
+    held_entries =
+      held_positions
+      |> position_entries(total)
+      |> Enum.map(&attach_position_soll(&1, position_soll.by_security, total))
+
+    unheld_entries =
+      position_soll.unheld_by_category
+      |> Map.get(category_id, [])
+      |> Enum.map(&unheld_entry(&1, position_soll.unheld_prices, total))
+      |> Enum.sort_by(& &1.target_weight, {:desc, Decimal})
+
+    Enum.reject(held_entries ++ unheld_entries, &hidden_position?/1)
+  end
+
+  # The owner's hide rule (#481, binding): a row disappears only when it has
+  # neither holdings nor a positive SOLL — everything else stays visible.
+  defp hidden_position?(entry) do
+    zero_soll? = is_nil(entry.target_weight) or Decimal.equal?(entry.target_weight, @zero)
+    zero_soll? and Decimal.equal?(entry.quantity, @zero)
+  end
+
+  # A held entry with its own position SOLL gets its own drift (ADR-0023 sign:
+  # actual weight − target weight, positive = overweight), restated in the
+  # base currency, and the indicative quantity at the valuation's implied unit
+  # price. Entries without a SOLL row pass through untouched and later receive
+  # the category-share hints exactly as before.
+  defp attach_position_soll(entry, by_security, total) do
+    case Map.get(by_security, entry.security_id) do
+      nil ->
+        entry
+
+      target ->
+        drift_weight = Decimal.sub(entry.weight, target.target_weight)
+        drift_value = Decimal.mult(drift_weight, total)
+
+        %{
+          entry
+          | target_weight: target.target_weight,
+            drift_weight: drift_weight,
+            drift_value: drift_value,
+            rebalance_quantity: implied_price_quantity(entry, drift_value)
+        }
+    end
+  end
+
+  # drift_value / (market_value / quantity) = drift_value × quantity /
+  # market_value — multiplications before the division so exact fixtures stay
+  # exact (ADR-0016). No hint without a defined implied unit price.
+  defp implied_price_quantity(entry, drift_value) do
+    if Decimal.equal?(entry.quantity, @zero) or Decimal.equal?(entry.market_value, @zero) do
+      nil
+    else
+      drift_value |> Decimal.mult(entry.quantity) |> Decimal.div(entry.market_value)
+    end
+  end
+
+  # A SOLL-only row (#481: "this needs buying"): IST 0 across the board, the
+  # full underweight drift, and — where a latest-quote base price exists — the
+  # indicative buy quantity. Without a price the quantity stays nil; a price
+  # is never invented.
+  defp unheld_entry(target, unheld_prices, total) do
+    drift_weight = Decimal.sub(@zero, target.target_weight)
+    drift_value = Decimal.mult(drift_weight, total)
+    price = Map.get(unheld_prices, target.security_id)
+
+    rebalance_quantity =
+      if is_nil(price) or Decimal.equal?(price, @zero) do
+        nil
+      else
+        Decimal.div(drift_value, price)
+      end
+
+    %{
+      security_id: target.security_id,
+      security_name: target.security && target.security.name,
+      quantity: @zero,
+      market_value: @zero,
+      weight: @zero,
+      target_weight: target.target_weight,
+      drift_weight: drift_weight,
+      drift_value: drift_value,
+      rebalance_quantity: rebalance_quantity,
+      held: false
+    }
   end
 
   defp sum_quantities(positions) do
@@ -454,7 +706,17 @@ defmodule Portfolixir.Portfolios.Allocation do
     end)
   end
 
-  defp row(category, depth, own_value, rolled_value, target, child_target_sum, positions, total) do
+  defp row(
+         category,
+         depth,
+         own_value,
+         rolled_value,
+         target,
+         child_target_sum,
+         flags,
+         positions,
+         total
+       ) do
     actual = weight(rolled_value, total)
     target_weight = target || @zero
     drift_weight = Decimal.sub(actual, target_weight)
@@ -468,10 +730,15 @@ defmodule Portfolixir.Portfolios.Allocation do
       own_market_value: own_value,
       market_value: rolled_value,
       actual_weight: actual,
+      # The EFFECTIVE target (ADR-0030): the position sum when position rows
+      # exist, else the explicit category weight; `conflict`/`has_stale`
+      # surface a divergent explicit weight or a stale position row.
       target_weight: target_weight,
       drift_weight: drift_weight,
       drift_value: Decimal.mult(drift_weight, total),
       child_target_sum: child_target_sum,
+      conflict: (flags && flags.conflict) || false,
+      has_stale: (flags && flags.has_stale) || false,
       positions: positions
     }
   end
@@ -490,16 +757,23 @@ defmodule Portfolixir.Portfolios.Allocation do
     if Decimal.equal?(row.market_value, @zero) do
       row
     else
+      # An entry with its own position SOLL (ADR-0030 slice 2a) already
+      # carries its own drift/hint from `attach_position_soll` — only the
+      # SOLL-less entries receive the category-share figures, unchanged.
       positions =
-        Enum.map(row.positions, fn position ->
-          %{
+        Enum.map(row.positions, fn
+          %{target_weight: %Decimal{}} = position ->
             position
-            | drift_value:
-                row.drift_value
-                |> Decimal.mult(position.market_value)
-                |> Decimal.div(row.market_value),
-              rebalance_quantity: rebalance_quantity(position, row)
-          }
+
+          position ->
+            %{
+              position
+              | drift_value:
+                  row.drift_value
+                  |> Decimal.mult(position.market_value)
+                  |> Decimal.div(row.market_value),
+                rebalance_quantity: rebalance_quantity(position, row)
+            }
         end)
 
       %{row | positions: positions}

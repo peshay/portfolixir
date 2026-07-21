@@ -190,13 +190,20 @@ describe("Portfolixir MCP tools", () => {
     assert.match(listPositions?.description ?? "", /stale/);
     assert.match(targetsSet?.description ?? "", /not enforced/i);
 
-    // UAT polish round: each position row names its security, and the
-    // allocation tool cross-references the effective roll-up so an operating
-    // LLM knows the explicit category weight steering here may differ from the
-    // per-position roll-up during a conflict window.
+    // UAT polish round: each position row names its security.
     assert.match(listPositions?.description ?? "", /security_name/);
+
+    // #481 slice 2a: the allocation reports the EFFECTIVE targets (ADR-0030)
+    // including per-position SOLL/drift and the not-yet-held rows, so the
+    // slice-1 "explicit category rows" breadcrumb must be gone; the pointer
+    // to targets.list_positions stays for the maintenance view.
     const allocation = tools.find((tool) => tool.name === "portfolixir.portfolios.allocation");
     assert.match(allocation?.description ?? "", /targets\.list_positions/);
+    assert.match(allocation?.description ?? "", /effective/i);
+    assert.match(allocation?.description ?? "", /conflict/);
+    assert.match(allocation?.description ?? "", /has_stale/);
+    assert.match(allocation?.description ?? "", /not yet held/i);
+    assert.doesNotMatch(allocation?.description ?? "", /explicit category rows/);
 
     const cashTargetGet = tools.find((tool) => tool.name === "portfolixir.portfolios.cash_target");
     assert.equal(cashTargetGet?.inputSchema.properties.view.type, "integer");

@@ -269,17 +269,19 @@ abgeleitet.
 > mehr nur je Kategorie. Positionen sind die Quelle der Wahrheit: das *effektive*
 > Ziel einer Kategorie rollt aus ihren Positionen auf (deren Summe); trägt eine
 > Kategorie zusätzlich ein eigenes explizites Gewicht, wird die Abweichung
-> sichtbar gemacht statt stillschweigend verworfen. Dieser erste Schritt liefert
-> nur das Datenmodell und die **API/MCP**-Oberfläche: ein Positionsziel setzt man,
+> sichtbar gemacht statt stillschweigend verworfen. Der erste Schritt liefert
+> das Datenmodell und die **API/MCP**-Oberfläche: ein Positionsziel setzt man,
 > indem man einem Zieleintrag eine `security_id` hinzufügt; die Positionszeilen
 > und die Kategorie-Aufrollung liest man über den Positions-Ziel-Endpunkt bzw.
 > das entsprechende Werkzeug (siehe Integrationsleitfaden). Wird ein Wertpapier
 > später umklassifiziert oder die Zuordnung entfernt, zählt sein Positionsziel
 > weiter unter der Kategorie, unter der es abgelegt wurde, und wird beim Lesen
 > der Positionsziele als *stale* (veraltet) markiert — zum Verschieben des
-> Gewichts legt man es neu ab. Die Editor-Oberfläche
-> für die Eingabe je Position, die gleichmäßige Auto-Verteilung und die Anzeige
-> der Positions-Drift in der Allokationsansicht folgen in späteren Schritten.
+> Gewichts legt man es neu ab. Seit Schritt 2a **zeigt die Allokationsansicht**
+> die Positions-Soll/Drift an — auch für noch nicht gehaltene Positionen (IST 0,
+> Marker *ohne Bestand*) — und die Kategorie-Zeilen steuern nach der effektiven
+> Aufrollung. Die Editor-Oberfläche für die Eingabe je Position und die
+> gleichmäßige Auto-Verteilung folgen in späteren Schritten.
 
 ### Einen SOLL-Plan auf der Klassifizierungsseite bearbeiten
 
@@ -529,7 +531,21 @@ Kategorie-Drift und einem reinen **Anzeige-Rebalancing-Hinweis**: die indikative
 Stückzahl, die zum Bewertungskurs zu verkaufen (positive Drift) oder zu kaufen
 (negative) wäre, um die Lücke zu schließen (ADR-0023). Der Hinweis modelliert
 keine Gebühren oder Steuern, und hinter ihm steht bewusst kein Order-Knopf —
-das Handeln bleibt vollständig manuell. Der Cash-Abschnitt
+das Handeln bleibt vollständig manuell.
+
+**Positions-Ziele erscheinen im Plan (ADR-0030 Schritt 2a).** Trägt der aktive
+Plan Soll-Gewichte je Position, zeigt jede solche Positions-Zeile ihr eigenes
+Ziel und ihre eigene Drift (Ist-Gewicht minus ihr Ziel) — und eine Position,
+auf die du ein Soll gesetzt hast, die du aber **noch nicht besitzt**, erscheint
+trotzdem: mit IST 0, dem Marker *ohne Bestand*, der vollen Untergewichts-Drift
+und einem Kauf-Hinweis zum letzten gespeicherten Kurs (kein Hinweis ohne Kurs).
+Ausgeblendet wird eine Positions-Zeile nur, wenn ihr Soll 0 oder nicht gesetzt
+ist **und** ihr Bestand null ist. Die Ziel-Spalte der Kategorie zeigt dann das
+**effektive** Ziel — die Summe ihrer Positions-Ziele (Positionen sind die
+Quelle der Wahrheit); weicht das gespeicherte Kategorien-Gewicht ab oder ist
+ein Positions-Ziel veraltet (sein Wertpapier wurde verschoben oder die
+Zuordnung entfernt), erklärt ein kleines Badge an der Kategorie-Zeile den
+Grund. Der Cash-Abschnitt
 listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: tippe den
 Saldo ein, den deine Bank zeigt, und der Snapshot wird ohne Buchung einzelner
 Transaktionen erfasst.

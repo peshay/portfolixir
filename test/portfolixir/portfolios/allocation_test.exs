@@ -1145,4 +1145,351 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       assert Decimal.compare(crypto_alloc.top_level_target_sum, Decimal.new("1")) != :gt
     end
   end
+
+  # User story (#481 slice 2a, ADR-0030 — the owner's own words):
+  # As the portfolio owner steering per position,
+  # I set SOLL on positions I do not own yet — that is the point of
+  # position-level SOLL — and those positions must be visible in the
+  # allocation view's plan, not silently dropped because I hold nothing yet.
+  #
+  # Acceptance criteria (binding display rule):
+  # - A position row is shown when it has holdings in scope OR a position SOLL
+  #   target > 0 in the active view's plan.
+  # - A position with SOLL > 0 and zero holdings shows with IST 0 (weight 0,
+  #   value 0) and the full underweight drift — it tells the owner "this needs
+  #   buying". Where a price is available the indicative ADR-0023 quantity uses
+  #   the latest quote; without a price no quantity is invented (nil).
+  # - A position is hidden ONLY when SOLL is 0/absent AND holdings are zero.
+  # - The category's SOLL is the EFFECTIVE target (explicit-or-position-sum;
+  #   the position sum wins when position rows exist), with `conflict` and
+  #   `has_stale` carried through; categories without position rows keep
+  #   today's explicit-weight behaviour unchanged.
+  # - Target rows come from the active view's plan only (ADR-0020).
+  describe "position-level SOLL in the allocation view (ADR-0030 slice 2a, #481)" do
+    test "position SOLL: the union row for an unheld target with IST 0 and full underweight drift" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+
+      held = equity!("Held ETF", "HELD")
+      wanted = equity!("Wanted ETF", "WANT")
+      unpriced = equity!("Unpriced Co", "UNPR")
+
+      for security <- [held, wanted, unpriced] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            core.id
+          )
+      end
+
+      # Fund exactly: cash ends at zero, basis = the held security only (1000).
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, held, "10", "100")
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "security_id" => held.id, "target_weight" => "0.5"},
+          %{"category_id" => core.id, "security_id" => wanted.id, "target_weight" => "0.4"},
+          %{"category_id" => core.id, "security_id" => unpriced.id, "target_weight" => "0.1"}
+        ])
+
+      # `wanted` has a price but no holdings; `unpriced` has neither.
+      prices = %{held.id => Decimal.new("100"), wanted.id => Decimal.new("50")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      core_row = fetch_category(allocation, core.id)
+
+      # The category target is the position sum (0.5 + 0.4 + 0.1 = 1.0).
+      assert Decimal.equal?(core_row.target_weight, Decimal.new("1.0"))
+      assert core_row.conflict == false
+      assert core_row.has_stale == false
+
+      # The union: the held position first (largest value), then the two
+      # target-only rows.
+      assert [held_entry | rest] = core_row.positions
+      assert held_entry.security_name == "Held ETF"
+      assert held_entry.held == true
+      assert Decimal.equal?(held_entry.target_weight, Decimal.new("0.5"))
+      # Its own SOLL drift: actual 1000/1000 = 1 vs 0.5 → +0.5 → +500 EUR,
+      # sell 500 / 100 = 5 units at the implied unit price.
+      assert Decimal.equal?(held_entry.drift_weight, Decimal.new("0.5"))
+      assert Decimal.equal?(Decimal.round(held_entry.drift_value, 2), Decimal.new("500"))
+      assert Decimal.equal?(Decimal.round(held_entry.rebalance_quantity, 4), Decimal.new("5"))
+
+      wanted_entry = Enum.find(rest, &(&1.security_name == "Wanted ETF"))
+      unpriced_entry = Enum.find(rest, &(&1.security_name == "Unpriced Co"))
+
+      # The unheld target renders with IST 0 (quantity, value, weight all 0)
+      # and the full underweight drift: 0 - 0.4 = -0.4 → -400 EUR; at the
+      # latest quote (50) that is an indicative buy of 8 units.
+      assert wanted_entry.held == false
+      assert Decimal.equal?(wanted_entry.quantity, Decimal.new("0"))
+      assert Decimal.equal?(wanted_entry.market_value, Decimal.new("0"))
+      assert Decimal.equal?(wanted_entry.weight, Decimal.new("0"))
+      assert Decimal.equal?(wanted_entry.target_weight, Decimal.new("0.4"))
+      assert Decimal.equal?(wanted_entry.drift_weight, Decimal.new("-0.4"))
+      assert Decimal.equal?(Decimal.round(wanted_entry.drift_value, 2), Decimal.new("-400"))
+      assert Decimal.equal?(Decimal.round(wanted_entry.rebalance_quantity, 4), Decimal.new("-8"))
+
+      # No price -> no indicative quantity is ever invented; the drift still
+      # shows (-0.1 → -100 EUR).
+      assert unpriced_entry.held == false
+      assert Decimal.equal?(unpriced_entry.drift_weight, Decimal.new("-0.1"))
+      assert Decimal.equal?(Decimal.round(unpriced_entry.drift_value, 2), Decimal.new("-100"))
+      assert is_nil(unpriced_entry.rebalance_quantity)
+    end
+
+    test "position SOLL: the hide rule works in both directions" do
+      world = setup_world()
+      %{classification: classification, core: core, satellite: satellite} = world
+
+      held_plain = equity!("Held Plain", "HPLN")
+      held_zero = equity!("Held Zero Target", "HZRO")
+      hidden = equity!("Hidden Wish", "HIDN")
+      satellite_wish = equity!("Satellite Wish", "SWSH")
+
+      for security <- [held_plain, held_zero, hidden] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            core.id
+          )
+      end
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          satellite_wish.id,
+          classification.id,
+          satellite.id
+        )
+
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, held_plain, "5", "100")
+      buy!(world, held_zero, "5", "100")
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "security_id" => held_zero.id, "target_weight" => "0"},
+          %{"category_id" => core.id, "security_id" => hidden.id, "target_weight" => "0"},
+          %{
+            "category_id" => satellite.id,
+            "security_id" => satellite_wish.id,
+            "target_weight" => "0.2"
+          }
+        ])
+
+      prices = %{held_plain.id => Decimal.new("100"), held_zero.id => Decimal.new("100")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      core_names = Enum.map(fetch_category(allocation, core.id).positions, & &1.security_name)
+
+      # Shown: holdings in scope (with or without a SOLL target).
+      assert "Held Plain" in core_names
+      assert "Held Zero Target" in core_names
+      # Hidden ONLY when SOLL is 0/absent AND holdings are zero.
+      refute "Hidden Wish" in core_names
+
+      # Shown: SOLL > 0 without holdings — even in a category that holds
+      # nothing at all (the category is kept for its position target).
+      satellite_row = fetch_category(allocation, satellite.id)
+      assert satellite_row != nil
+      assert Decimal.equal?(satellite_row.target_weight, Decimal.new("0.2"))
+      assert [wish] = satellite_row.positions
+      assert wish.security_name == "Satellite Wish"
+      assert wish.held == false
+    end
+
+    test "position SOLL: the category target is the effective roll-up, carrying conflict and stale" do
+      world = setup_world()
+      %{classification: classification, core: core, satellite: satellite} = world
+
+      held = equity!("Held ETF", "HELD")
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          held.id,
+          classification.id,
+          core.id
+        )
+
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, held, "10", "100")
+
+      # Explicit category weight 0.5 AND a position row 0.3: the position sum
+      # wins (ADR-0030), the mismatch is surfaced, never silently dropped.
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "target_weight" => "0.5"},
+          %{"category_id" => core.id, "security_id" => held.id, "target_weight" => "0.3"}
+        ])
+
+      prices = %{held.id => Decimal.new("100")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      core_row = fetch_category(allocation, core.id)
+      assert Decimal.equal?(core_row.target_weight, Decimal.new("0.3"))
+      assert core_row.conflict == true
+      assert core_row.has_stale == false
+
+      # The drift and the Σ consume the effective value: actual 1 - 0.3 = 0.7
+      # → +700 EUR; Σ top level = 0.3, not the explicit 0.5.
+      assert Decimal.equal?(core_row.drift_weight, Decimal.new("0.7"))
+      assert Decimal.equal?(Decimal.round(core_row.drift_value, 2), Decimal.new("700"))
+      assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0.3"))
+
+      # Reassigning the security elsewhere leaves the row counting where it was
+      # filed (auditability) but flags the category as carrying a stale row.
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          held.id,
+          classification.id,
+          satellite.id
+        )
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      core_row = fetch_category(allocation, core.id)
+      assert Decimal.equal?(core_row.target_weight, Decimal.new("0.3"))
+      assert core_row.has_stale == true
+    end
+
+    test "position SOLL: a category without position rows behaves exactly as before" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+
+      sec_a = equity!("Alpha ETF", "ALPH")
+      sec_b = equity!("Beta ETF", "BETA")
+
+      for security <- [sec_a, sec_b] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            core.id
+          )
+      end
+
+      deposit!(world, "1200", ~D[2026-01-01])
+      buy!(world, sec_a, "10", "80")
+      buy!(world, sec_b, "40", "10")
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "target_weight" => "0.6"}
+        ])
+
+      prices = %{sec_a.id => Decimal.new("80"), sec_b.id => Decimal.new("10")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      core_row = fetch_category(allocation, core.id)
+
+      # The explicit category weight steers unchanged; no conflict, no stale.
+      assert Decimal.equal?(core_row.target_weight, Decimal.new("0.6"))
+      assert core_row.conflict == false
+      assert core_row.has_stale == false
+      assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0.6"))
+
+      # The positions carry NO position SOLL (nil target/drift weight) and keep
+      # the pre-slice category-share drift and hint byte-identical: Core is
+      # 1200/1200 = 1 vs 0.6 → +480; Alpha 480 × 800/1200 = 320, sell 4 units.
+      assert [alpha, beta] = core_row.positions
+      assert is_nil(alpha.target_weight)
+      assert is_nil(alpha.drift_weight)
+      assert alpha.held == true
+      assert Decimal.equal?(Decimal.round(alpha.drift_value, 2), Decimal.new("320"))
+      assert Decimal.equal?(Decimal.round(alpha.rebalance_quantity, 4), Decimal.new("4"))
+      assert is_nil(beta.target_weight)
+      assert Decimal.equal?(Decimal.round(beta.drift_value, 2), Decimal.new("160"))
+      assert Decimal.equal?(Decimal.round(beta.rebalance_quantity, 4), Decimal.new("16"))
+    end
+
+    test "position SOLL: a target in view A's plan does not appear under view B or Gesamt" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+      view_a = named_view("Plan A")
+      view_b = named_view("Plan B")
+
+      held = equity!("Held ETF", "HELD")
+      wanted = equity!("Wanted ETF", "WANT")
+
+      for security <- [held, wanted] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            core.id
+          )
+      end
+
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, held, "10", "100")
+
+      # Only view A's plan carries the position SOLL for the unheld security.
+      {:ok, _} =
+        Targets.set_targets(
+          Actor.owner_ui(),
+          world.portfolio.id,
+          classification.id,
+          [%{"category_id" => core.id, "security_id" => wanted.id, "target_weight" => "0.4"}],
+          view: view_a.id
+        )
+
+      # View B carries its own (category-only) plan, so it is not IST-only.
+      {:ok, _} =
+        Targets.set_targets(
+          Actor.owner_ui(),
+          world.portfolio.id,
+          classification.id,
+          [%{"category_id" => core.id, "target_weight" => "0.5"}],
+          view: view_b.id
+        )
+
+      prices = %{held.id => Decimal.new("100"), wanted.id => Decimal.new("50")}
+
+      {:ok, under_a} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id,
+          prices: prices,
+          view: view_a.id
+        )
+
+      {:ok, under_b} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id,
+          prices: prices,
+          view: view_b.id
+        )
+
+      {:ok, gesamt} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      names = fn allocation ->
+        Enum.map(fetch_category(allocation, core.id).positions, & &1.security_name)
+      end
+
+      assert "Wanted ETF" in names.(under_a)
+      refute "Wanted ETF" in names.(under_b)
+      refute "Wanted ETF" in names.(gesamt)
+
+      # View A's category target is the position sum; view B keeps its own plan.
+      assert Decimal.equal?(fetch_category(under_a, core.id).target_weight, Decimal.new("0.4"))
+      assert Decimal.equal?(fetch_category(under_b, core.id).target_weight, Decimal.new("0.5"))
+    end
+  end
 end
