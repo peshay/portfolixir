@@ -363,17 +363,20 @@ defmodule Portfolixir.Portfolios.Allocation do
         category
         |> row(
           depth,
-          Map.get(own_value_by_category, category.id, @zero),
-          Map.get(rolled, category.id, @zero),
-          Map.get(targets, category.id),
-          Map.get(child_target_sums, category.id),
-          Map.get(category_flags, category.id),
-          category_position_entries(
-            Map.get(positions_by_category, category.id, []),
-            category.id,
-            position_soll,
-            total
-          ),
+          %{
+            own_value: Map.get(own_value_by_category, category.id, @zero),
+            rolled_value: Map.get(rolled, category.id, @zero),
+            target: Map.get(targets, category.id),
+            child_target_sum: Map.get(child_target_sums, category.id),
+            flags: Map.get(category_flags, category.id),
+            positions:
+              category_position_entries(
+                Map.get(positions_by_category, category.id, []),
+                category.id,
+                position_soll,
+                total
+              )
+          },
           total
         )
         |> with_rebalance_hints(has_plan)
@@ -804,19 +807,9 @@ defmodule Portfolixir.Portfolios.Allocation do
     end)
   end
 
-  defp row(
-         category,
-         depth,
-         own_value,
-         rolled_value,
-         target,
-         child_target_sum,
-         flags,
-         positions,
-         total
-       ) do
-    actual = weight(rolled_value, total)
-    target_weight = target || @zero
+  defp row(category, depth, %{flags: flags} = values, total) do
+    actual = weight(values.rolled_value, total)
+    target_weight = values.target || @zero
     drift_weight = Decimal.sub(actual, target_weight)
 
     %{
@@ -825,8 +818,8 @@ defmodule Portfolixir.Portfolios.Allocation do
       depth: depth,
       name: category.name,
       color: category.color,
-      own_market_value: own_value,
-      market_value: rolled_value,
+      own_market_value: values.own_value,
+      market_value: values.rolled_value,
       actual_weight: actual,
       # The EFFECTIVE target (ADR-0030): the position sum when position rows
       # exist, else the explicit category weight; `conflict`/`has_stale`
@@ -834,10 +827,10 @@ defmodule Portfolixir.Portfolios.Allocation do
       target_weight: target_weight,
       drift_weight: drift_weight,
       drift_value: Decimal.mult(drift_weight, total),
-      child_target_sum: child_target_sum,
+      child_target_sum: values.child_target_sum,
       conflict: (flags && flags.conflict) || false,
       has_stale: (flags && flags.has_stale) || false,
-      positions: positions
+      positions: values.positions
     }
   end
 
