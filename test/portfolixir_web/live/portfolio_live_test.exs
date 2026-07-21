@@ -1436,6 +1436,131 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     refute has_element?(view, ~s([data-role="allocation-position"]))
   end
 
+  # User story (#481 slice 2a, ADR-0030 — the owner's own words):
+  # As the portfolio owner steering per position,
+  # I set SOLL on positions I do not own yet — that is the point of
+  # position-level SOLL — and those positions must be visible in the
+  # allocation view's plan, with IST 0 and their full underweight drift,
+  # so the plan tells me what needs buying.
+  #
+  # Acceptance criteria (binding display rule):
+  # - A position row is shown when it has holdings in scope OR a position SOLL
+  #   target > 0 in the active view's plan; the not-yet-held row renders with
+  #   IST 0, its drift, a buy hint at the latest quote, and a text "not held"
+  #   marker (never hue alone, UX-DR7) in the tree AND the flat table.
+  # - The category row shows the EFFECTIVE target (position sum wins) and
+  #   badges an explicit/position conflict with focusable microcopy (UX-DR11).
+  # - A position is hidden ONLY when SOLL is 0/absent AND holdings are zero.
+  test "renders a not-yet-held position SOLL row with IST 0 and a not-held marker",
+       %{conn: conn} do
+    world = seed_world()
+
+    moon = WorldFixtures.create_security!(name: "Moon ETF", ticker: "MOON")
+    WorldFixtures.put_quote!(moon, Date.utc_today(), "50")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        moon.id,
+        world.classification.id,
+        world.core.id
+      )
+
+    # Position SOLL: held World ETF 0.5, unheld Moon ETF 0.2. The explicit
+    # Core weight (0.6, from seed_world) stays stored — the position sum (0.7)
+    # steers and the mismatch is badged (ADR-0030).
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
+        %{
+          "category_id" => world.core.id,
+          "security_id" => world.security.id,
+          "target_weight" => "0.5"
+        },
+        %{"category_id" => world.core.id, "security_id" => moon.id, "target_weight" => "0.2"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    # The category row shows the effective target (70%) and the conflict badge
+    # with its focusable UX-DR11 microcopy.
+    drift_table = view |> element(".drift-table") |> render()
+    assert drift_table =~ "70.0"
+    assert has_element?(view, ~s([data-role="category-target-badge"]))
+    badge = view |> element(~s([data-role="category-target-badge"])) |> render()
+    assert badge =~ "position targets"
+
+    view
+    |> element(~s(.drift-table [data-role="toggle-positions"]))
+    |> render_click()
+
+    drift_table = view |> element(".drift-table") |> render()
+
+    # The not-yet-held row: IST 0, the "not held" text marker, the full
+    # underweight drift (-0.2 × 1080 = -216) and a buy hint at the latest
+    # quote (216 / 50 = 4.32 units).
+    assert drift_table =~ "Moon ETF"
+    assert has_element?(view, ~s([data-role="not-held"]))
+    moon_row = view |> element(~s(tr[data-role="allocation-position"]), "Moon ETF") |> render()
+    assert moon_row =~ "Moon ETF"
+    assert moon_row =~ "not held"
+    assert moon_row =~ "216.00"
+    assert moon_row =~ "Buy"
+    assert moon_row =~ "4.32"
+
+    # The held row carries its own SOLL drift: 880 - 0.5 × 1080 = +340,
+    # sell 340 × 8 / 880 ≈ 3.09 units.
+    world_row = view |> element(~s(tr[data-role="allocation-position"]), "World ETF") |> render()
+    assert world_row =~ "World ETF"
+    assert world_row =~ "50.0"
+    assert world_row =~ "340.00"
+    assert world_row =~ "Sell"
+    assert world_row =~ "3.09"
+    refute world_row =~ "not held"
+
+    # The flat positions table shows the same row with the marker and hint.
+    {:ok, flat_view, _html} = live(conn, "/portfolio?tab=allocation&alloc=positions")
+    render_async(flat_view)
+
+    flat_table = flat_view |> element(~s([data-role="flat-positions"])) |> render()
+    assert flat_table =~ "Moon ETF"
+    assert flat_table =~ "not held"
+    assert flat_table =~ "216.00"
+    assert flat_table =~ "4.32"
+  end
+
+  test "hides a position only when its SOLL is zero and it is not held", %{conn: conn} do
+    world = seed_world()
+
+    moon = WorldFixtures.create_security!(name: "Moon ETF", ticker: "MOON")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        moon.id,
+        world.classification.id,
+        world.core.id
+      )
+
+    # SOLL 0 and zero holdings: the owner's hide rule drops the row.
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
+        %{"category_id" => world.core.id, "security_id" => moon.id, "target_weight" => "0"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    view
+    |> element(~s(.drift-table [data-role="toggle-positions"]))
+    |> render_click()
+
+    drift_table = view |> element(".drift-table") |> render()
+    # The held position still renders; the zero-SOLL unheld one does not.
+    assert drift_table =~ "World ETF"
+    refute drift_table =~ "Moon ETF"
+  end
+
   # User story:
   # As a local portfolio maintainer steering a named view,
   # I want the SOLL/Target/Drift columns and the Σ check to reflect that

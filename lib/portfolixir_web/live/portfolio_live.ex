@@ -1000,6 +1000,28 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <%= Format.percent(row.child_target_sum) %>% <%= gettext("of") %>
                         <%= Format.percent(row.target_weight) %>%
                       </span>
+                      <%!-- ADR-0030 slice 2a: badge a category whose SOLL is
+                           position-steered against a diverging explicit weight
+                           (conflict) or carries a stale position row. Focusable
+                           text badge with microcopy (UX-DR7/UX-DR11); the
+                           details/summary pattern matches the drift tooltip. --%>
+                      <details
+                        :if={@allocation.has_plan and (row.conflict or row.has_stale)}
+                        class="metric-tooltip target-plan-badge"
+                        data-role="category-target-badge"
+                      >
+                        <summary aria-label={gettext("Position-target notice")}>
+                          <%= category_badge_label(row) %>
+                        </summary>
+                        <p role="tooltip">
+                          <%= if row.conflict do %>
+                            <%= gettext("The category's position targets steer here: their sum overrides the stored category weight (ADR-0030). Align the position targets and the category weight on the Classifications page.") %>
+                          <% end %>
+                          <%= if row.has_stale do %>
+                            <%= gettext("A position target filed here is stale: its security was moved or unassigned. It keeps counting here until you re-file it on the Classifications page.") %>
+                          <% end %>
+                        </p>
+                      </details>
                     </td>
                     <td class="num"><%= Format.money(row.market_value) %></td>
                     <td class="num"><%= Format.percent(row.actual_weight) %>%</td>
@@ -1033,24 +1055,34 @@ defmodule PortfolixirWeb.PortfolioLive do
                       <tr class="is-position is-muted" data-role="allocation-position">
                         <td style={"padding-left:#{2.0 + row.depth * 1.25}rem"}>
                           <%= position.security_name %>
+                          <%!-- ADR-0030 slice 2a: a SOLL-only row (IST 0) is
+                               marked with text, never hue alone (UX-DR7). --%>
+                          <span :if={not position.held} class="not-held-chip" data-role="not-held">
+                            <%= gettext("not held") %>
+                          </span>
                         </td>
                         <td class="num"><%= Format.money(position.market_value) %></td>
                         <td class="num"><%= Format.percent(position.weight) %>%</td>
                         <%= if @allocation.has_plan do %>
-                          <td class="num"></td>
+                          <td class="num">
+                            <%!-- The position's own SOLL (ADR-0030 slice 2a);
+                                 blank without one, as before. --%>
+                            <%= if position.target_weight do %>
+                              <%= Format.percent(position.target_weight) %>%
+                            <% end %>
+                          </td>
                           <td class={[
                             "num",
                             position.drift_value &&
                               Decimal.compare(position.drift_value, 0) == :lt &&
                               "is-negative"
                           ]}>
-                            <%= if Decimal.equal?(row.target_weight, 0) or
-                                     is_nil(position.drift_value) do %>
-                              —
-                            <% else %>
+                            <%= if position_drift_shown?(position, row) do %>
                               <%= Format.money(position.drift_value) %>
                               <%= if @valuation, do: @valuation.base_currency %>
                               <.rebalance_hint quantity={position.rebalance_quantity} />
+                            <% else %>
+                              —
                             <% end %>
                           </td>
                         <% end %>
@@ -1215,7 +1247,14 @@ defmodule PortfolixirWeb.PortfolioLive do
                     class={entry.cash? && "is-muted"}
                     data-role={if entry.cash?, do: "flat-cash", else: "flat-position"}
                   >
-                    <td><%= entry.security_name %></td>
+                    <td>
+                      <%= entry.security_name %>
+                      <%!-- ADR-0030 slice 2a: SOLL-only rows are marked with
+                           text, never hue alone (UX-DR7). --%>
+                      <span :if={not entry.held} class="not-held-chip" data-role="not-held">
+                        <%= gettext("not held") %>
+                      </span>
+                    </td>
                     <td>
                       <%= if entry.category_name do %>
                         <span
@@ -1834,12 +1873,18 @@ defmodule PortfolixirWeb.PortfolioLive do
         untargeted? = Decimal.equal?(row.target_weight, 0)
 
         Enum.map(row.positions, fn position ->
+          # A position with its own SOLL (ADR-0030 slice 2a) keeps its own
+          # drift/hint even in an untargeted category; only the SOLL-less
+          # category-share figures are blanked as before.
+          own_soll? = not is_nil(position.target_weight)
+
           Map.merge(position, %{
             category_name: row.name,
             category_color: row.color,
             cash?: false,
-            drift_value: if(untargeted?, do: nil, else: position.drift_value),
-            rebalance_quantity: if(untargeted?, do: nil, else: position.rebalance_quantity)
+            drift_value: if(untargeted? and not own_soll?, do: nil, else: position.drift_value),
+            rebalance_quantity:
+              if(untargeted? and not own_soll?, do: nil, else: position.rebalance_quantity)
           })
         end)
       end)
@@ -1875,7 +1920,8 @@ defmodule PortfolixirWeb.PortfolioLive do
         rebalance_quantity: nil,
         category_name: nil,
         category_color: nil,
-        cash?: true
+        cash?: true,
+        held: true
       }
     ]
   end
@@ -1919,6 +1965,25 @@ defmodule PortfolixirWeb.PortfolioLive do
     </span>
     """
   end
+
+  # A position's drift cell renders when the position carries its OWN SOLL
+  # (ADR-0030 slice 2a — its drift is actual weight − its target, meaningful
+  # even in an otherwise untargeted category), or — for SOLL-less entries —
+  # when the category is targeted and a category-share drift exists (the
+  # pre-slice behaviour, unchanged).
+  defp position_drift_shown?(%{target_weight: %Decimal{}}, _row), do: true
+
+  defp position_drift_shown?(position, row) do
+    not Decimal.equal?(row.target_weight, 0) and not is_nil(position.drift_value)
+  end
+
+  # The compact text label of the category's position-target badge (UX-DR7:
+  # words, never hue alone). Both conditions can hold at once.
+  defp category_badge_label(%{conflict: true, has_stale: true}),
+    do: gettext("Σ conflict · stale")
+
+  defp category_badge_label(%{conflict: true}), do: gettext("Σ conflict")
+  defp category_badge_label(_row), do: gettext("stale target")
 
   defp rebalance_hint_parts(nil), do: nil
 
