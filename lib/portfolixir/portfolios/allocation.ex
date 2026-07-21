@@ -103,13 +103,30 @@ defmodule Portfolixir.Portfolios.Allocation do
     a SOLL-only row shows with IST 0 (quantity, value, weight all zero) and the
     full underweight drift — "this needs buying". A row is **hidden** only when
     its SOLL is 0/absent AND its holdings are zero.
+  - **Held means holdings presence** (fix round): any in-scope position with a
+    non-zero quantity, valued or not. A held-but-unpriceable security is never
+    re-labelled "not held" and never receives a fabricated latest-quote buy
+    hint; it keeps the existing unvalued surfaces (`unvalued_count`) and stays
+    off the valued rows.
   - A SOLL-only (unheld) entry's indicative quantity is priced at the security's
-    **latest stored quote** converted to the base currency; without a price no
-    quantity is invented (`nil`). A held entry keeps the valuation's implied
-    unit price. A target row whose security is held under a *different* category
-    (an ancestor filing, or a stale row) attaches its SOLL to the security's
-    held entry — IST is never faked to zero for a security that is held —
-    while the target keeps counting toward the category it was filed under.
+    **latest stored quote** converted to the base currency; the entry carries
+    that quote's date as `quote_date` (nil without a stored quote) so the hint
+    can state its price basis. Without a price no quantity is invented (`nil`).
+    A held entry keeps the valuation's implied unit price. A target row whose
+    security is held under a *different* category (an ancestor filing, or a
+    stale row) attaches its SOLL to the security's held entry — IST is never
+    faked to zero for a security that is held — while the target keeps counting
+    toward the category it was filed under. Each entry with an attached SOLL
+    row carries that row's `stale` flag so the affected row itself can be
+    marked, not only the category.
+  - **Unassigned entries attach their position SOLL too** (fix round): a
+    held-but-unassigned security whose (stale) SOLL row still steers a
+    category's Σ shows that SOLL — target, own drift, hint — on its unassigned
+    row instead of hiding it.
+  - `deep_target_sum` (fix round) is the per-subtree topmost targeted level,
+    summed across the tree: when no top-level category carries an effective
+    target but deeper categories do, the header can explain the 0% top-level Σ
+    instead of contradicting the visible plan.
   """
 
   alias Portfolixir.Catalog.Quotes
@@ -144,7 +161,9 @@ defmodule Portfolixir.Portfolios.Allocation do
         # A vanished view degrades to `{:error, :view_not_found}` (fix round)
         # instead of raising out of an async render or API request.
         with %{} = valuation <- Valuation.for_portfolio(portfolio_id, opts) do
-          soll = plan_soll(portfolio_id, classification_id, view)
+          soll =
+            plan_soll(portfolio_id, classification_id, view, security_categories, categories)
+
           soll = put_unheld_prices(soll, valuation, opts)
 
           {:ok, build(valuation, classification, categories, security_categories, soll)}
@@ -160,7 +179,9 @@ defmodule Portfolixir.Portfolios.Allocation do
   # `has_plan: false`, so callers can hide the SOLL/drift columns. The plan —
   # explicit category rows AND position rows (ADR-0030 slice 2a) — is read here,
   # in the impure shell, and injected into the pure `build/5` as data (AR-2).
-  defp plan_soll(portfolio_id, classification_id, view) do
+  # The already-loaded classification data is handed to the stale annotation
+  # (`lookup:`) so it is not re-derived per call (fix round, perf).
+  defp plan_soll(portfolio_id, classification_id, view, security_categories, categories) do
     cash_target = Targets.get_cash_target(portfolio_id, view: view)
     category_plan? = Targets.plan_exists?(portfolio_id, classification_id, view: view)
 
@@ -174,7 +195,8 @@ defmodule Portfolixir.Portfolios.Allocation do
         position_targets =
           Targets.list_position_targets(portfolio_id,
             classification_id: classification_id,
-            view: view
+            view: view,
+            lookup: {classification_id, security_categories, categories}
           )
 
         %{
@@ -206,54 +228,86 @@ defmodule Portfolixir.Portfolios.Allocation do
   end
 
   # Base-currency unit prices for the plan's SOLL-only securities (position
-  # targets whose security carries no valued holding in scope): the indicative
-  # ADR-0023 quantity for "this needs buying" is priced at the latest stored
-  # quote (or the test `:prices` override), converted via the EUR hub. A missing
-  # quote, currency or FX path yields `nil` — no price is ever invented. Impure
-  # (quote + FX reads), so it lives in the shell next to the other loads (AR-2).
+  # targets whose security carries no holding in scope — "held" is holdings
+  # presence, fix round): the indicative ADR-0023 quantity for "this needs
+  # buying" is priced at the latest stored quote (or the test `:prices`
+  # override), converted via the EUR hub, and each price carries the quote's
+  # date (`quote_date`) so the hint can state its basis (fix round). A
+  # missing quote, currency or FX path yields a `nil` price — no price is ever
+  # invented. Impure (quote + FX reads), so it lives in the shell next to the
+  # other loads (AR-2); the quotes come from ONE batched query and the FX rate
+  # is resolved once per currency (fix round, perf — `Fx.convert/3` is
+  # rate-then-multiply, so the cached-rate multiplication is Decimal-identical).
   defp put_unheld_prices(%{position_targets: []} = soll, _valuation, _opts), do: soll
 
   defp put_unheld_prices(soll, valuation, opts) do
-    held =
-      for position <- valuation.positions, position.valued, into: MapSet.new() do
-        position.security_id
-      end
-
+    held = held_security_ids(valuation)
     price_overrides = Keyword.get(opts, :prices, %{})
 
+    unheld_targets = Enum.reject(soll.position_targets, &MapSet.member?(held, &1.security_id))
+    quotes = Quotes.latest_by_security_ids(Enum.map(unheld_targets, & &1.security_id))
+    rates = base_rates_by_currency(unheld_targets, valuation.base_currency)
+
     unheld_prices =
-      soll.position_targets
-      |> Enum.reject(&MapSet.member?(held, &1.security_id))
-      |> Map.new(fn target ->
-        {target.security_id, unheld_base_price(target, price_overrides, valuation.base_currency)}
+      Map.new(unheld_targets, fn target ->
+        {target.security_id, unheld_price_info(target, price_overrides, quotes, rates)}
       end)
 
     %{soll | unheld_prices: unheld_prices}
   end
 
-  defp unheld_base_price(target, price_overrides, base_currency) do
-    native =
-      case Map.get(price_overrides, target.security_id) do
-        %Decimal{} = price -> price
-        _no_override -> latest_quote_close(target.security_id)
-      end
-
-    currency = target.security && target.security.currency_code
-
-    with %Decimal{} <- native,
-         true <- is_binary(currency) and is_binary(base_currency),
-         {:ok, converted} <- Fx.convert(native, currency, base_currency) do
-      converted
-    else
-      _missing -> nil
+  # "Held" means holdings presence (fix round): any in-scope position with a
+  # non-zero quantity, valued or not. A held-but-unpriceable security must
+  # never be re-labelled "not held" or given a fabricated latest-quote buy
+  # hint; valuation stays a separate concern on the valued set.
+  defp held_security_ids(valuation) do
+    for position <- valuation.positions,
+        not Decimal.equal?(position.quantity, @zero),
+        into: MapSet.new() do
+      position.security_id
     end
   end
 
-  defp latest_quote_close(security_id) do
-    case Quotes.latest(security_id) do
-      %{close: %Decimal{} = close} -> close
-      _none -> nil
-    end
+  # One FX-rate read per distinct security currency (fix round). A currency
+  # without a rate path to the base is simply absent from the map.
+  defp base_rates_by_currency(targets, base_currency) do
+    targets
+    |> Enum.map(&(&1.security && &1.security.currency_code))
+    |> Enum.uniq()
+    |> Enum.reduce(%{}, fn currency, acc ->
+      with true <- is_binary(currency) and is_binary(base_currency),
+           {:ok, rate} <- Fx.rate(currency, base_currency) do
+        Map.put(acc, currency, rate)
+      else
+        _missing -> acc
+      end
+    end)
+  end
+
+  defp unheld_price_info(target, price_overrides, quotes, rates) do
+    {native, quote_date} =
+      case Map.get(price_overrides, target.security_id) do
+        %Decimal{} = price ->
+          # A test override is not a stored quote — no quote date to state.
+          {price, nil}
+
+        _no_override ->
+          case Map.get(quotes, target.security_id) do
+            %{close: %Decimal{} = close, date: date} -> {close, date}
+            _none -> {nil, nil}
+          end
+      end
+
+    rate = Map.get(rates, target.security && target.security.currency_code)
+
+    price =
+      if is_nil(native) or is_nil(rate) do
+        nil
+      else
+        Decimal.mult(native, rate)
+      end
+
+    %{price: price, quote_date: quote_date}
   end
 
   defp build(valuation, classification, categories, security_categories, soll) do
@@ -292,7 +346,9 @@ defmodule Portfolixir.Portfolios.Allocation do
     position_sums = position_sums(position_rows_by_category)
     targets = Map.merge(soll.explicit, position_sums)
     category_flags = category_flags(position_rows_by_category, position_sums, soll.explicit)
-    position_soll = position_soll(soll, steering_positions)
+    # Held is holdings presence (fix round), so the "unheld" SOLL-only rows
+    # are exactly the targets on securities with no in-scope holding at all.
+    position_soll = position_soll(soll, held_security_ids(valuation))
 
     children_by_parent = Enum.group_by(categories, & &1.parent_id)
     rolled = rolled_values(categories, children_by_parent, own_value_by_category)
@@ -337,7 +393,8 @@ defmodule Portfolixir.Portfolios.Allocation do
       cash: cash_row(counting_cash, cash_target, total, distribute_cash?),
       top_level_target_sum:
         top_level_target_sum_for(children_by_parent, targets, cash_target, distribute_cash?),
-      unassigned: unassigned(unassigned_positions, total)
+      deep_target_sum: deep_target_sum(children_by_parent, targets),
+      unassigned: unassigned(unassigned_positions, total, position_soll)
     }
   end
 
@@ -425,6 +482,38 @@ defmodule Portfolixir.Portfolios.Allocation do
     sum_targets(roots, targets) || @zero
   end
 
+  # The per-subtree topmost targeted level, summed across the tree (fix round
+  # F5): a root contributes its own effective target when it carries one, else
+  # the sum of its subtree's topmost targeted descendants — never both, so
+  # nested targets are not double-counted. The UI uses it to explain a 0%
+  # top-level Σ that hides a plan steered deeper in the tree. Cycles/orphans
+  # are unreachable from the roots and thus simply not counted, like the
+  # top-level sum itself.
+  defp deep_target_sum(children_by_parent, targets) do
+    roots = Map.get(children_by_parent, nil, [])
+    subtree_target_sum(roots, children_by_parent, targets) || @zero
+  end
+
+  defp subtree_target_sum(categories, children_by_parent, targets) do
+    Enum.reduce(categories, nil, fn category, acc ->
+      subtree =
+        case Map.get(targets, category.id) do
+          nil ->
+            children_by_parent
+            |> Map.get(category.id, [])
+            |> subtree_target_sum(children_by_parent, targets)
+
+          weight ->
+            weight
+        end
+
+      case subtree do
+        nil -> acc
+        value -> Decimal.add(acc || @zero, value)
+      end
+    end)
+  end
+
   # Adds the target weights of the categories that actually carry one. Returns
   # nil when none of them do, so callers can tell "no targets" from "sum is 0".
   defp sum_targets(categories, targets) do
@@ -460,8 +549,10 @@ defmodule Portfolixir.Portfolios.Allocation do
   # e.g. the outermost sunburst ring. `drift_value` and `rebalance_quantity`
   # stay nil here; category rows overwrite them when the view has a plan
   # (ADR-0023), so every entry has a uniform shape for the UI/API.
-  # `target_weight`/`drift_weight` (ADR-0030 slice 2a) stay nil until a
-  # position SOLL row attaches; `held` is true by construction here.
+  # `target_weight`/`drift_weight`/`stale` (ADR-0030 slice 2a) stay nil/false
+  # until a position SOLL row attaches; `held` is true by construction here and
+  # `quote_date` (the unheld hint's price basis, fix round) stays nil — held
+  # entries price at the valuation.
   defp position_entries(positions, total) do
     positions
     |> Enum.group_by(&{&1.security_id, &1.security_name})
@@ -478,7 +569,9 @@ defmodule Portfolixir.Portfolios.Allocation do
         drift_weight: nil,
         drift_value: nil,
         rebalance_quantity: nil,
-        held: true
+        held: true,
+        stale: false,
+        quote_date: nil
       }
     end)
     |> Enum.sort_by(& &1.market_value, {:desc, Decimal})
@@ -512,12 +605,10 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   # The position-SOLL lookup the row builder joins against: every position
   # target by security (a held entry attaches its SOLL wherever it renders),
-  # plus the SOLL-only rows — securities without a valued holding in scope —
-  # grouped under the category they were filed under, with their injected
-  # latest-quote base prices.
-  defp position_soll(soll, steering_positions) do
-    held_ids = MapSet.new(steering_positions, & &1.security_id)
-
+  # plus the SOLL-only rows — securities without ANY holding in scope (held =
+  # presence, fix round) — grouped under the category they were filed under,
+  # with their injected latest-quote base prices.
+  defp position_soll(soll, held_ids) do
     %{
       by_security: Map.new(soll.position_targets, &{&1.security_id, &1}),
       unheld_by_category:
@@ -558,8 +649,9 @@ defmodule Portfolixir.Portfolios.Allocation do
   # A held entry with its own position SOLL gets its own drift (ADR-0023 sign:
   # actual weight − target weight, positive = overweight), restated in the
   # base currency, and the indicative quantity at the valuation's implied unit
-  # price. Entries without a SOLL row pass through untouched and later receive
-  # the category-share hints exactly as before.
+  # price. The SOLL row's stale flag rides along (fix round) so the affected
+  # row itself can be marked. Entries without a SOLL row pass through untouched
+  # and later receive the category-share hints exactly as before.
   defp attach_position_soll(entry, by_security, total) do
     case Map.get(by_security, entry.security_id) do
       nil ->
@@ -574,7 +666,8 @@ defmodule Portfolixir.Portfolios.Allocation do
           | target_weight: target.target_weight,
             drift_weight: drift_weight,
             drift_value: drift_value,
-            rebalance_quantity: implied_price_quantity(entry, drift_value)
+            rebalance_quantity: implied_price_quantity(entry, drift_value),
+            stale: target.stale == true
         }
     end
   end
@@ -592,12 +685,15 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   # A SOLL-only row (#481: "this needs buying"): IST 0 across the board, the
   # full underweight drift, and — where a latest-quote base price exists — the
-  # indicative buy quantity. Without a price the quantity stays nil; a price
-  # is never invented.
+  # indicative buy quantity, with the quote's date as its stated price basis
+  # (fix round). Without a price the quantity stays nil; a price is never
+  # invented.
   defp unheld_entry(target, unheld_prices, total) do
     drift_weight = Decimal.sub(@zero, target.target_weight)
     drift_value = Decimal.mult(drift_weight, total)
-    price = Map.get(unheld_prices, target.security_id)
+
+    %{price: price, quote_date: quote_date} =
+      Map.get(unheld_prices, target.security_id) || %{price: nil, quote_date: nil}
 
     rebalance_quantity =
       if is_nil(price) or Decimal.equal?(price, @zero) do
@@ -616,7 +712,9 @@ defmodule Portfolixir.Portfolios.Allocation do
       drift_weight: drift_weight,
       drift_value: drift_value,
       rebalance_quantity: rebalance_quantity,
-      held: false
+      held: false,
+      stale: target.stale == true,
+      quote_date: quote_date
     }
   end
 
@@ -794,14 +892,21 @@ defmodule Portfolixir.Portfolios.Allocation do
     end
   end
 
-  defp unassigned(positions, total) do
+  # Unassigned entries attach their position SOLL too (fix round): a
+  # held-but-unassigned security with a (stale) SOLL row still steers its filed
+  # category's Σ, so the unassigned row must show that SOLL — target, own
+  # drift, hint — instead of hiding it behind the category badge.
+  defp unassigned(positions, total, position_soll) do
     value = sum_values(positions)
 
     if positive?(value) do
       %{
         market_value: value,
         actual_weight: weight(value, total),
-        positions: position_entries(positions, total)
+        positions:
+          positions
+          |> position_entries(total)
+          |> Enum.map(&attach_position_soll(&1, position_soll.by_security, total))
       }
     else
       nil

@@ -84,6 +84,12 @@ defmodule Portfolixir.Portfolios.Targets do
 
   Each row's `:security` association is preloaded (one batched query, no
   per-row lookup) so serializers can name the position without a second fetch.
+
+  A caller that already holds a classification's category data (the allocation
+  breakdown does) can pass `lookup: {classification_id, security_categories,
+  categories}` so the stale annotation reuses it instead of re-deriving the
+  category map per call (#481 slice 2a fix round, perf). Without the option the
+  lookups are built here as before.
   """
   def list_position_targets(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     portfolio_id
@@ -94,7 +100,7 @@ defmodule Portfolixir.Portfolios.Targets do
     |> select([t], t)
     |> Repo.all()
     |> Repo.preload(:security)
-    |> annotate_stale()
+    |> annotate_stale(preloaded_lookups(opts))
   end
 
   @doc """
@@ -187,20 +193,41 @@ defmodule Portfolixir.Portfolios.Targets do
     end
   end
 
+  # An injected `lookup: {classification_id, security_categories, categories}`
+  # (from a caller that already loaded the classification's category data)
+  # becomes a preloaded per-classification stale lookup; anything else means
+  # "derive everything here" (#481 slice 2a fix round, perf).
+  defp preloaded_lookups(opts) do
+    case Keyword.get(opts, :lookup) do
+      {classification_id, security_categories, categories}
+      when is_integer(classification_id) and is_map(security_categories) and is_list(categories) ->
+        %{classification_id => {security_categories, ancestor_sets(categories)}}
+
+      _none ->
+        %{}
+    end
+  end
+
   # Populates each position row's virtual `:stale` flag (#481 fix round): a row
   # is stale when its security's CURRENT assignment in the row's classification
   # no longer sits under the stored category. Rows keep their query order; the
-  # per-classification lookups are built once per classification in the batch.
-  # A vanished classification (unresolvable lookup) marks its rows stale rather
-  # than crashing — the row is then by definition steering nothing current.
-  defp annotate_stale([]), do: []
+  # per-classification lookups are built once per classification in the batch
+  # (reusing a preloaded lookup when the caller injected one). A vanished
+  # classification (unresolvable lookup) marks its rows stale rather than
+  # crashing — the row is then by definition steering nothing current.
+  defp annotate_stale(rows, preloaded \\ %{})
 
-  defp annotate_stale(rows) do
+  defp annotate_stale([], _preloaded), do: []
+
+  defp annotate_stale(rows, preloaded) do
     lookups =
       rows
       |> Enum.map(& &1.classification_id)
       |> Enum.uniq()
-      |> Map.new(fn classification_id -> {classification_id, stale_lookup(classification_id)} end)
+      |> Map.new(fn classification_id ->
+        {classification_id,
+         Map.get_lazy(preloaded, classification_id, fn -> stale_lookup(classification_id) end)}
+      end)
 
     Enum.map(rows, fn row ->
       %{row | stale: stale?(row, Map.fetch!(lookups, row.classification_id))}

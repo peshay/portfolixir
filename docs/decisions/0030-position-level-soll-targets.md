@@ -145,7 +145,21 @@ and MCP allocation surfaces, additively):
   `held`, and — with its own SOLL — its own ADR-0023 drift
   (`drift_weight`/`drift_value`) plus the indicative rebalance quantity. A
   SOLL-only row prices that quantity at the **latest stored quote** (base
-  currency); without a price no quantity is invented (`nil`);
+  currency) and carries that quote's date as `quote_date` so the hint states
+  its price basis; without a price no quantity is invented (`nil`);
+- **held means holdings presence** (fix round): any in-scope position with a
+  non-zero quantity counts as held, valued or not — a held-but-unpriceable
+  security is never re-labelled "not held" and never receives a fabricated
+  latest-quote buy hint (it keeps the existing unvalued surfaces). Inside a
+  named view the not-held marker reads scope-aware ("not held in this view"),
+  since view-scoped absence says nothing about the whole depot;
+- **unassigned entries attach their position SOLL too** (fix round): a
+  held-but-unassigned security whose (stale) SOLL row still steers its filed
+  category's Σ shows that SOLL on its unassigned row. Each entry with an
+  attached SOLL row carries the row's `stale` flag so the affected row itself
+  is markable, and the breakdown's `deep_target_sum` (the per-subtree topmost
+  targeted level, summed) lets the header explain a 0% top-level Σ over a
+  plan steered deeper in the tree;
 - the category's SOLL in the allocation is now the **effective** target from
   §1 (explicit-or-position-sum; the position sum wins when position rows
   exist), with `conflict` and `has_stale` carried through so the view badges

@@ -537,15 +537,27 @@ das Handeln bleibt vollständig manuell.
 Plan Soll-Gewichte je Position, zeigt jede solche Positions-Zeile ihr eigenes
 Ziel und ihre eigene Drift (Ist-Gewicht minus ihr Ziel) — und eine Position,
 auf die du ein Soll gesetzt hast, die du aber **noch nicht besitzt**, erscheint
-trotzdem: mit IST 0, dem Marker *ohne Bestand*, der vollen Untergewichts-Drift
-und einem Kauf-Hinweis zum letzten gespeicherten Kurs (kein Hinweis ohne Kurs).
-Ausgeblendet wird eine Positions-Zeile nur, wenn ihr Soll 0 oder nicht gesetzt
-ist **und** ihr Bestand null ist. Die Ziel-Spalte der Kategorie zeigt dann das
-**effektive** Ziel — die Summe ihrer Positions-Ziele (Positionen sind die
-Quelle der Wahrheit); weicht das gespeicherte Kategorien-Gewicht ab oder ist
-ein Positions-Ziel veraltet (sein Wertpapier wurde verschoben oder die
-Zuordnung entfernt), erklärt ein kleines Badge an der Kategorie-Zeile den
-Grund. Der Cash-Abschnitt
+trotzdem: mit IST 0, dem Marker *ohne Bestand* (in einer benannten Ansicht
+*ohne Bestand in dieser Ansicht*, denn die Ansicht sagt nichts über das ganze
+Depot), der vollen Untergewichts-Drift und einem Kauf-Hinweis zum letzten
+gespeicherten Kurs — der Tooltip des Hinweises nennt das Kursdatum, zu dem er
+gepreist ist. Ganz ohne Kurs erklärt ein Chip *kein Kurs* den fehlenden
+Stück-Hinweis (Kurs hinterlegen, um einen zu bekommen). „Im Bestand" heißt:
+du hältst die Position überhaupt — ein gehaltenes Wertpapier, dessen Preis
+sich nicht ermitteln lässt, behält seine Datenqualitäts-Hinweise und wird nie
+als *ohne Bestand* umetikettiert. Ausgeblendet wird eine Positions-Zeile nur,
+wenn ihr Soll 0 oder nicht gesetzt ist **und** ihr Bestand null ist. Die
+Ziel-Spalte der Kategorie zeigt dann das **effektive** Ziel — die Summe ihrer
+Positions-Ziele (Positionen sind die Quelle der Wahrheit); weicht das
+gespeicherte Kategorien-Gewicht ab oder ist ein Positions-Ziel veraltet (sein
+Wertpapier wurde verschoben oder die Zuordnung entfernt), erklärt ein kleines
+Badge an der Kategorie-Zeile den Grund, und die betroffene Positions-Zeile
+selbst trägt einen Chip *veraltetes Soll*. Ein gehaltenes, aber nicht
+zugeordnetes Wertpapier mit einem (veralteten) Positions-Ziel zeigt dieses
+Ziel auch an seiner Zeile im Bereich *Nicht zugeordnet*. Trägt keine
+Top-Level-Kategorie ein Ziel, wohl aber tiefere Kategorien, ergänzt die
+Σ-Kopfzeile die Summe der tieferen Ziele („Ziele tiefer im Baum") statt ein
+nacktes 0 % zu zeigen. Der Cash-Abschnitt
 listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: tippe den
 Saldo ein, den deine Bank zeigt, und der Snapshot wird ohne Buchung einzelner
 Transaktionen erfasst.
