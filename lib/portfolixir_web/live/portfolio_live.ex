@@ -883,12 +883,28 @@ defmodule PortfolixirWeb.PortfolioLive do
               >
                 <%= gettext("Σ target top level:") %>
                 <%= Format.percent(@allocation.top_level_target_sum) %>%
+                <%!-- A 0% top level over a plan steered deeper in the tree is
+                     explained, not left as a contradiction (fix round). --%>
+                <%= if deep_targets_below?(@allocation) do %>
+                  — <%= gettext("targets deeper in the tree:") %>
+                  <%= Format.percent(@allocation.deep_target_sum) %>%
+                <% end %>
               </p>
             <% else %>
+              <%!-- Scope-aware copy (fix round): only a named view may talk
+                   about "this view"; the Gesamt scope speaks plainly. --%>
               <p class="hint no-plan-hint" data-role="no-plan-hint" role="status">
-                <%= gettext("No target plan for this view — showing actual allocation only.") %>
+                <%= if @active_view_id do %>
+                  <%= gettext("No target plan for this view — showing actual allocation only.") %>
+                <% else %>
+                  <%= gettext("No target plan yet — showing actual allocation only.") %>
+                <% end %>
                 <.link navigate={plan_editor_path(@classification_id, @active_view_id)}>
-                  <%= gettext("Create a plan for this view") %>
+                  <%= if @active_view_id do %>
+                    <%= gettext("Create a plan for this view") %>
+                  <% else %>
+                    <%= gettext("Create a plan") %>
+                  <% end %>
                 </.link>
               </p>
             <% end %>
@@ -991,14 +1007,23 @@ defmodule PortfolixirWeb.PortfolioLive do
                       >
                       </span>
                       <%= row.name %>
+                      <%!-- A parent without an own weight gets an honest hint
+                           (fix round): its children's Σ is stated without
+                           the nonsensical "of 0.0%" comparison. --%>
                       <span
                         :if={@allocation.has_plan and row.child_target_sum}
-                        class={["hint", "target-consistency", target_mismatch?(row.child_target_sum, row.target_weight) && "is-target-mismatch"]}
+                        class={["hint", "target-consistency", subcategory_mismatch?(row) && "is-target-mismatch"]}
                         data-role="target-consistency-hint"
                       >
-                        <%= gettext("subcategories:") %>
-                        <%= Format.percent(row.child_target_sum) %>% <%= gettext("of") %>
-                        <%= Format.percent(row.target_weight) %>%
+                        <%= if Decimal.equal?(row.target_weight, 0) do %>
+                          <%= gettext("subcategories Σ") %>
+                          <%= Format.percent(row.child_target_sum) %>%
+                          <%= gettext("(no own weight)") %>
+                        <% else %>
+                          <%= gettext("subcategories:") %>
+                          <%= Format.percent(row.child_target_sum) %>% <%= gettext("of") %>
+                          <%= Format.percent(row.target_weight) %>%
+                        <% end %>
                       </span>
                       <%!-- ADR-0030 slice 2a: badge a category whose SOLL is
                            position-steered against a diverging explicit weight
@@ -1014,8 +1039,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                           <%= category_badge_label(row) %>
                         </summary>
                         <p role="tooltip">
+                          <%!-- Position-sum-wins rule per ADR-0030; the ADR
+                               reference stays out of user-facing copy. --%>
                           <%= if row.conflict do %>
-                            <%= gettext("The category's position targets steer here: their sum overrides the stored category weight (ADR-0030). Align the position targets and the category weight on the Classifications page.") %>
+                            <%= gettext("The category's position targets steer here: their sum overrides the stored category weight. Align the position targets and the category weight on the Classifications page.") %>
                           <% end %>
                           <%= if row.has_stale do %>
                             <%= gettext("A position target filed here is stale: its security was moved or unassigned. It keeps counting here until you re-file it on the Classifications page.") %>
@@ -1056,10 +1083,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <td style={"padding-left:#{2.0 + row.depth * 1.25}rem"}>
                           <%= position.security_name %>
                           <%!-- ADR-0030 slice 2a: a SOLL-only row (IST 0) is
-                               marked with text, never hue alone (UX-DR7). --%>
+                               marked with text, never hue alone (UX-DR7);
+                               scope-aware inside a view (fix round). --%>
                           <span :if={not position.held} class="not-held-chip" data-role="not-held">
-                            <%= gettext("not held") %>
+                            <%= not_held_label(@active_view_id) %>
                           </span>
+                          <.position_soll_chips position={position} />
                         </td>
                         <td class="num"><%= Format.money(position.market_value) %></td>
                         <td class="num"><%= Format.percent(position.weight) %>%</td>
@@ -1080,7 +1109,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                             <%= if position_drift_shown?(position, row) do %>
                               <%= Format.money(position.drift_value) %>
                               <%= if @valuation, do: @valuation.base_currency %>
-                              <.rebalance_hint quantity={position.rebalance_quantity} />
+                              <.rebalance_hint
+                                quantity={position.rebalance_quantity}
+                                quote_date={position.quote_date}
+                              />
                             <% else %>
                               —
                             <% end %>
@@ -1131,8 +1163,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <% end %>
                 <%= if @allocation.unassigned do %>
                   <%!-- The unassigned bucket expands like a category row (UAT
-                       fix round), keyed by the "unassigned" sentinel id; its
-                       positions carry no target/drift by definition. --%>
+                       fix round), keyed by the "unassigned" sentinel id. An
+                       unassigned position can still carry a (stale) position
+                       SOLL (fix round) — that SOLL steers its filed
+                       category's Σ, so the row shows it instead of a dash. --%>
                   <tr class="is-muted">
                     <td
                       class="is-clickable"
@@ -1166,12 +1200,35 @@ defmodule PortfolixirWeb.PortfolioLive do
                       <tr class="is-position is-muted" data-role="allocation-position">
                         <td style="padding-left:2.0rem">
                           <%= position.security_name %>
+                          <.position_soll_chips position={position} />
                         </td>
                         <td class="num"><%= Format.money(position.market_value) %></td>
                         <td class="num"><%= Format.percent(position.weight) %>%</td>
                         <%= if @allocation.has_plan do %>
-                          <td class="num">—</td>
-                          <td class="num">—</td>
+                          <td class="num">
+                            <%= if position.target_weight do %>
+                              <%= Format.percent(position.target_weight) %>%
+                            <% else %>
+                              —
+                            <% end %>
+                          </td>
+                          <td class={[
+                            "num",
+                            position.drift_value &&
+                              Decimal.compare(position.drift_value, 0) == :lt &&
+                              "is-negative"
+                          ]}>
+                            <%= if position.drift_value do %>
+                              <%= Format.money(position.drift_value) %>
+                              <%= if @valuation, do: @valuation.base_currency %>
+                              <.rebalance_hint
+                                quantity={position.rebalance_quantity}
+                                quote_date={position.quote_date}
+                              />
+                            <% else %>
+                              —
+                            <% end %>
+                          </td>
                         <% end %>
                       </tr>
                     <% end %>
@@ -1250,10 +1307,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <td>
                       <%= entry.security_name %>
                       <%!-- ADR-0030 slice 2a: SOLL-only rows are marked with
-                           text, never hue alone (UX-DR7). --%>
+                           text, never hue alone (UX-DR7); scope-aware inside
+                           a view (fix round). --%>
                       <span :if={not entry.held} class="not-held-chip" data-role="not-held">
-                        <%= gettext("not held") %>
+                        <%= not_held_label(@active_view_id) %>
                       </span>
+                      <.position_soll_chips position={entry} />
                     </td>
                     <td>
                       <%= if entry.category_name do %>
@@ -1286,7 +1345,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                       </td>
                       <td class="num">
                         <%= if rebalance_hint_parts(entry.rebalance_quantity) do %>
-                          <.rebalance_hint quantity={entry.rebalance_quantity} />
+                          <.rebalance_hint
+                            quantity={entry.rebalance_quantity}
+                            quote_date={Map.get(entry, :quote_date)}
+                          />
                         <% else %>
                           —
                         <% end %>
@@ -1921,7 +1983,9 @@ defmodule PortfolixirWeb.PortfolioLive do
         category_name: nil,
         category_color: nil,
         cash?: true,
-        held: true
+        held: true,
+        stale: false,
+        quote_date: nil
       }
     ]
   end
@@ -1952,18 +2016,90 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # Display-only rebalancing hint (ADR-0023), rendered in aligned parts —
   # verb | ≈ | right-aligned quantity | unit — so the columns line up
-  # vertically across rows (UAT fix round).
+  # vertically across rows (UAT fix round). An unheld row's hint is priced at
+  # a stored quote, so it states that quote's date as its basis (fix round
+  # F7/UX-DR11); held rows price at the live valuation and carry no date.
   defp rebalance_hint(assigns) do
-    assigns = assign(assigns, :parts, rebalance_hint_parts(assigns.quantity))
+    assigns =
+      assigns
+      |> assign(:parts, rebalance_hint_parts(assigns.quantity))
+      |> assign_new(:quote_date, fn -> nil end)
 
     ~H"""
-    <span :if={@parts} class="rebalance-hint" data-role="rebalance-hint">
+    <span
+      :if={@parts}
+      class="rebalance-hint"
+      data-role="rebalance-hint"
+      title={@quote_date && gettext("at quote from %{date}", date: @quote_date)}
+    >
       <span class="rebalance-verb"><%= @parts.verb %></span>
       <span class="rebalance-approx">≈</span>
       <span class="rebalance-qty"><%= @parts.quantity %></span>
       <span class="rebalance-unit"><%= gettext("units") %></span>
     </span>
     """
+  end
+
+  # Row-level position-SOLL markers (fix round): the stale chip names the row
+  # whose SOLL row went stale (UAT — the category badge alone made the reader
+  # hunt), the no-quote chip explains a missing unit hint on a SOLL-only row.
+  # Text chips, never hue alone (UX-DR7).
+  defp position_soll_chips(assigns) do
+    ~H"""
+    <span
+      :if={Map.get(@position, :stale, false)}
+      class="stale-chip"
+      data-role="stale-target"
+      title={
+        gettext(
+          "This position target is stale: the security was moved or unassigned. It keeps counting under the category it was filed under until you re-file it on the Classifications page."
+        )
+      }
+    >
+      <%= gettext("stale target") %>
+    </span>
+    <span
+      :if={no_quote?(@position)}
+      class="no-quote-chip"
+      data-role="no-quote"
+      title={gettext("no quote — add a price to get a unit hint")}
+    >
+      <%= gettext("no quote") %>
+    </span>
+    """
+  end
+
+  # Scope-aware not-held chip (fix round): inside a named view "not held"
+  # only means "not held in this view"; the plain label is reserved for the
+  # Gesamt scope, where it really means not held at all.
+  defp not_held_label(nil), do: gettext("not held")
+  defp not_held_label(_view_id), do: gettext("not held in this view")
+
+  # A SOLL-only row whose hint cell would stay blank because no quote exists
+  # at all (fix round, UAT): quote_date nil distinguishes "no stored quote"
+  # from "quote present but unconvertible" (no FX path — no chip, the missing
+  # rate is a data-quality concern the FX surfaces own).
+  defp no_quote?(position) do
+    not position.held and is_nil(position.rebalance_quantity) and
+      is_nil(Map.get(position, :quote_date))
+  end
+
+  # The Σ header explains a 0% top level that hides a deeper plan (fix round
+  # F5): only when no top-level category carries an effective target while
+  # deeper categories do.
+  defp deep_targets_below?(allocation) do
+    deep = Map.get(allocation, :deep_target_sum)
+
+    Decimal.equal?(allocation.top_level_target_sum, 0) and
+      not is_nil(deep) and Decimal.compare(deep, 0) == :gt
+  end
+
+  # The subcategory-Σ hint only flags a mismatch when the parent actually
+  # carries an own weight to compare against (fix round): with no own
+  # weight the hint states the children's Σ, and there is nothing to miss.
+  defp subcategory_mismatch?(row) do
+    not Decimal.equal?(row.target_weight, 0) and
+      target_mismatch?(row.child_target_sum, row.target_weight)
   end
 
   # A position's drift cell renders when the position carries its OWN SOLL

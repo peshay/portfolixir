@@ -4527,8 +4527,12 @@ button.income-bar-label.is-active {
   right: auto;
 }
 /* ADR-0030 slice 2a: SOLL-only positions (planned, not yet bought) render
-   with IST 0 and this text marker — never hue alone (UX-DR7). */
-.not-held-chip {
+   with IST 0 and this text marker — never hue alone (UX-DR7). The fix-round
+   row chips share the shape: stale-chip marks a row whose SOLL row went
+   stale, no-quote-chip explains a missing unit hint on a SOLL-only row. */
+.not-held-chip,
+.stale-chip,
+.no-quote-chip {
   display: inline-block;
   margin-left: 0.35rem;
   padding: 0 0.35rem;
@@ -4538,6 +4542,9 @@ button.income-bar-label.is-active {
   color: var(--color-text-muted);
   font-size: 0.72rem;
   white-space: nowrap;
+}
+.stale-chip {
+  border-style: dashed;
 }
 @media (pointer: coarse) {
   .metric-tooltip summary {

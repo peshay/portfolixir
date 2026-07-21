@@ -1492,4 +1492,405 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       assert Decimal.equal?(fetch_category(under_b, core.id).target_weight, Decimal.new("0.5"))
     end
   end
+
+  # User story (#481 slice 2a fix round — review + UAT findings):
+  # As the portfolio owner steering per position,
+  # I want every rendered position row to carry its SOLL — including a held
+  # security that fell out of its category (unassigned) — plus honest markers
+  # for stale rows and the price basis of buy hints,
+  # so that no SOLL silently steers a Σ without a visible row and no hint is
+  # fabricated for a security I already hold.
+  describe "position SOLL fix round (#481 slice 2a review + UAT)" do
+    # Acceptance criteria (F1):
+    # - A held-but-unassigned security with a (stale) SOLL row shows that SOLL
+    #   on its unassigned row: target_weight, its own drift, and stale: true.
+    test "an unassigned held security's row carries its (stale) position SOLL" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+
+      drifted = equity!("Drifted ETF", "DRFT")
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          drifted.id,
+          classification.id,
+          core.id
+        )
+
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, drifted, "10", "100")
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "security_id" => drifted.id, "target_weight" => "0.6"}
+        ])
+
+      # Unassigning leaves the SOLL row counting under Core (stale), while the
+      # held position falls into the unassigned bucket.
+      {:ok, _} =
+        Classifications.unassign_security(
+          Portfolixir.Actor.owner_ui(),
+          drifted.id,
+          classification.id
+        )
+
+      prices = %{drifted.id => Decimal.new("100")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      # The stale row still steers Core's Σ …
+      core_row = fetch_category(allocation, core.id)
+      assert Decimal.equal?(core_row.target_weight, Decimal.new("0.6"))
+      assert core_row.has_stale == true
+
+      # … and the unassigned row now SHOWS that SOLL instead of hiding it:
+      # actual 1 vs target 0.6 → +0.4 → +400 EUR, sell 4 units at 100.
+      assert [entry] = allocation.unassigned.positions
+      assert entry.security_name == "Drifted ETF"
+      assert Decimal.equal?(entry.target_weight, Decimal.new("0.6"))
+      assert Decimal.equal?(entry.drift_weight, Decimal.new("0.4"))
+      assert Decimal.equal?(Decimal.round(entry.drift_value, 2), Decimal.new("400"))
+      assert Decimal.equal?(Decimal.round(entry.rebalance_quantity, 4), Decimal.new("4"))
+      assert entry.stale == true
+    end
+
+    # Acceptance criteria (F2):
+    # - "Held" means holdings presence (quantity ≠ 0), not "valued": a held but
+    #   unpriceable security is never re-labelled "not held" and never gets a
+    #   fabricated latest-quote buy hint.
+    # - The unvalued position keeps its existing unvalued surfaces
+    #   (unvalued_count); it does not enter the valued category rows.
+    test "a held but unpriceable security is not turned into a not-held SOLL row" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+
+      held = equity!("Held ETF", "HELD")
+      # USD-quoted with no EUR/USD rate: held, but unpriceable in EUR.
+      unpriceable = create_security!(name: "Unpriceable Co", ticker: "UNPR", currency: "USD")
+
+      for security <- [held, unpriceable] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            core.id
+          )
+      end
+
+      deposit!(world, "1100", ~D[2026-01-01])
+      buy!(world, held, "10", "100")
+      buy!(world, unpriceable, "10", "10")
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "security_id" => held.id, "target_weight" => "0.5"},
+          %{"category_id" => core.id, "security_id" => unpriceable.id, "target_weight" => "0.3"}
+        ])
+
+      # The USD price override cannot be converted (no rate) → unvalued.
+      prices = %{held.id => Decimal.new("100"), unpriceable.id => Decimal.new("10")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      assert allocation.unvalued_count == 1
+
+      core_row = fetch_category(allocation, core.id)
+
+      # No entry pretends the held security is "not held": no held: false row,
+      # no IST-0 row, no fabricated buy hint for it.
+      refute Enum.any?(core_row.positions, fn entry ->
+               entry.security_id == unpriceable.id and entry.held == false
+             end)
+
+      # The unvalued holding stays off the valued rows entirely (existing
+      # unvalued surfaces cover it); only the held, valued entry renders.
+      assert [held_entry] = core_row.positions
+      assert held_entry.security_id == held.id
+      assert held_entry.held == true
+    end
+
+    # Acceptance criteria (F3):
+    # - A held entry whose attached SOLL row is stale carries stale: true, so
+    #   the row itself can be marked, not only the category badge.
+    test "a reassigned security's held entry carries the stale flag" do
+      world = setup_world()
+      %{classification: classification, core: core, satellite: satellite} = world
+
+      held = equity!("Held ETF", "HELD")
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          held.id,
+          classification.id,
+          core.id
+        )
+
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, held, "10", "100")
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "security_id" => held.id, "target_weight" => "0.5"}
+        ])
+
+      # Reassigning the security moves its held row to Satellite while the SOLL
+      # row keeps counting under Core (stale).
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          held.id,
+          classification.id,
+          satellite.id
+        )
+
+      prices = %{held.id => Decimal.new("100")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      assert fetch_category(allocation, core.id).has_stale == true
+
+      assert [entry] = fetch_category(allocation, satellite.id).positions
+      assert entry.security_id == held.id
+      assert Decimal.equal?(entry.target_weight, Decimal.new("0.5"))
+      assert entry.stale == true
+
+      # A non-stale attached SOLL row keeps stale: false — re-file and check.
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          held.id,
+          classification.id,
+          core.id
+        )
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      assert [entry] = fetch_category(allocation, core.id).positions
+      assert entry.stale == false
+    end
+
+    # Acceptance criteria (F7):
+    # - An unheld entry states the quote date its buy hint is priced at
+    #   (quote_date), nil when no stored quote exists.
+    test "an unheld entry carries the date of the quote its hint is priced at" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+
+      held = equity!("Held ETF", "HELD")
+      wanted = equity!("Wanted ETF", "WANT")
+
+      for security <- [held, wanted] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            core.id
+          )
+      end
+
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, held, "10", "100")
+
+      # The stored quote history: the hint must be priced at (and name) the
+      # LATEST stored quote's date.
+      Portfolixir.WorldFixtures.put_quotes!(wanted, [
+        {~D[2026-07-01], "40"},
+        {~D[2026-07-18], "50"}
+      ])
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "security_id" => held.id, "target_weight" => "0.5"},
+          %{"category_id" => core.id, "security_id" => wanted.id, "target_weight" => "0.4"}
+        ])
+
+      prices = %{held.id => Decimal.new("100")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      core_row = fetch_category(allocation, core.id)
+      wanted_entry = Enum.find(core_row.positions, &(&1.security_id == wanted.id))
+      held_entry = Enum.find(core_row.positions, &(&1.security_id == held.id))
+
+      # Priced at the 2026-07-18 close (50): drift -0.4 × 1000 = -400 → buy 8.
+      assert wanted_entry.quote_date == ~D[2026-07-18]
+      assert Decimal.equal?(Decimal.round(wanted_entry.rebalance_quantity, 4), Decimal.new("-8"))
+
+      # A held entry prices at the valuation, not a quote-date lookup.
+      assert is_nil(held_entry.quote_date)
+    end
+
+    # Acceptance criteria (F9, red-team gap):
+    # - A USD-quoted unheld target in a EUR-based portfolio converts its hint
+    #   price at the stored rate (exact Decimal).
+    test "a cross-currency unheld target prices its hint through the stored rate" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+
+      held = equity!("Held ETF", "HELD")
+      usd_wanted = create_security!(name: "US Wanted", ticker: "USWT", currency: "USD")
+
+      for security <- [held, usd_wanted] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            core.id
+          )
+      end
+
+      deposit!(world, "600", ~D[2026-01-01])
+      buy!(world, held, "10", "60")
+
+      Portfolixir.WorldFixtures.put_quote!(usd_wanted, ~D[2026-07-18], "50")
+
+      # 1 EUR = 1.25 USD → 50 USD = 40 EUR exactly.
+      {:ok, _} =
+        Portfolixir.Fx.upsert_many([
+          %{
+            base_currency: "EUR",
+            quote_currency: "USD",
+            rate: "1.25",
+            date: ~D[2026-07-18],
+            source: "manual"
+          }
+        ])
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "security_id" => held.id, "target_weight" => "0.6"},
+          %{"category_id" => core.id, "security_id" => usd_wanted.id, "target_weight" => "0.4"}
+        ])
+
+      prices = %{held.id => Decimal.new("60")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      core_row = fetch_category(allocation, core.id)
+      entry = Enum.find(core_row.positions, &(&1.security_id == usd_wanted.id))
+
+      # Basis 600; drift -0.4 × 600 = -240 EUR; at 40 EUR/unit → buy 6 exactly.
+      assert entry.held == false
+      assert Decimal.equal?(Decimal.round(entry.drift_value, 2), Decimal.new("-240"))
+      assert Decimal.equal?(Decimal.round(entry.rebalance_quantity, 4), Decimal.new("-6"))
+      assert entry.quote_date == ~D[2026-07-18]
+    end
+
+    # Acceptance criteria (F9, red-team gap):
+    # - With a quote but no FX path, no quantity is invented (nil) and the row
+    #   still shows with its drift.
+    test "a cross-currency unheld target without an FX rate shows without a quantity" do
+      world = setup_world()
+      %{classification: classification, core: core} = world
+
+      held = equity!("Held ETF", "HELD")
+      usd_wanted = create_security!(name: "US Wanted", ticker: "USWT", currency: "USD")
+
+      for security <- [held, usd_wanted] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            core.id
+          )
+      end
+
+      deposit!(world, "600", ~D[2026-01-01])
+      buy!(world, held, "10", "60")
+
+      Portfolixir.WorldFixtures.put_quote!(usd_wanted, ~D[2026-07-18], "50")
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "security_id" => held.id, "target_weight" => "0.6"},
+          %{"category_id" => core.id, "security_id" => usd_wanted.id, "target_weight" => "0.4"}
+        ])
+
+      prices = %{held.id => Decimal.new("60")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      entry =
+        allocation
+        |> fetch_category(core.id)
+        |> Map.fetch!(:positions)
+        |> Enum.find(&(&1.security_id == usd_wanted.id))
+
+      # The row shows (SOLL > 0) with its drift, but no rate → no quantity.
+      assert entry != nil
+      assert Decimal.equal?(Decimal.round(entry.drift_value, 2), Decimal.new("-240"))
+      assert is_nil(entry.rebalance_quantity)
+    end
+
+    # Acceptance criteria (F5):
+    # - When no top-level category carries a target but deeper categories do,
+    #   the breakdown exposes deep_target_sum (the per-subtree topmost targeted
+    #   level, summed) so the header can explain the 0% top-level Σ.
+    test "exposes the deeper effective target sum behind an untargeted top level" do
+      world = setup_world()
+      %{classification: classification, core: parent} = world
+
+      {:ok, child} =
+        Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: "Child",
+          parent_id: parent.id
+        })
+
+      planned = equity!("Planned ETF", "PLND")
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          planned.id,
+          classification.id,
+          child.id
+        )
+
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, planned, "10", "100")
+
+      # The whole plan lives one level down: a position SOLL of 0.8 on the
+      # child; no root category carries a target.
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => child.id, "security_id" => planned.id, "target_weight" => "0.8"}
+        ])
+
+      prices = %{planned.id => Decimal.new("100")}
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      # The top-level Σ stays honest (no root target → 0) …
+      assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0"))
+      # … and deep_target_sum carries the 0.8 steered deeper in the tree.
+      assert Decimal.equal?(allocation.deep_target_sum, Decimal.new("0.8"))
+
+      # With a targeted root, the root's own target represents its subtree.
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => parent.id, "target_weight" => "0.9"}
+        ])
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0.9"))
+      assert Decimal.equal?(allocation.deep_target_sum, Decimal.new("0.9"))
+    end
+  end
 end

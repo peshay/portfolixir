@@ -1561,6 +1561,267 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     refute drift_table =~ "Moon ETF"
   end
 
+  # User story (#481 slice 2a fix round — UAT):
+  # As the portfolio owner reading the drift table,
+  # I want the affected position row itself to say when its SOLL row is stale,
+  # so that I can spot the row to re-file without hunting through category
+  # badges.
+  #
+  # Acceptance criteria:
+  # - A position row whose SOLL row is stale (its security was reassigned)
+  #   carries a "stale target" chip on the row itself.
+  test "marks the position row itself when its SOLL row is stale", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, edge} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: world.classification.id,
+        name: "Edge",
+        color: "#dc2626"
+      })
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
+        %{
+          "category_id" => world.core.id,
+          "security_id" => world.security.id,
+          "target_weight" => "0.5"
+        }
+      ])
+
+    # Reassigning the security to Edge leaves the SOLL row stale under Core.
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        world.security.id,
+        world.classification.id,
+        edge.id
+      )
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    # Two category rows render (Core keeps the stale target, Edge the value):
+    # expand everything at once.
+    view
+    |> element(~s([data-role="toggle-all-categories"]))
+    |> render_click()
+
+    # The row itself carries the stale chip, not only the category badge.
+    row = view |> element(~s(tr[data-role="allocation-position"]), "World ETF") |> render()
+    assert row =~ ~s(data-role="stale-target")
+    assert row =~ "stale target"
+  end
+
+  # User story (#481 slice 2a fix round — UAT):
+  # As the portfolio owner planning a position that has no quote yet,
+  # I want the row to explain WHY there is no unit hint,
+  # so that a blank hint cell reads as "add a price", not as a bug.
+  #
+  # Acceptance criteria:
+  # - A SOLL-only row without any stored quote carries a "no quote" marker
+  #   with the explanation as its tooltip.
+  # - A SOLL-only row WITH a quote states the quote date its hint is priced at.
+  test "explains a missing quote and states the hint's quote date", %{conn: conn} do
+    world = seed_world()
+
+    quoteless = WorldFixtures.create_security!(name: "Quoteless Co", ticker: "QLES")
+    moon = WorldFixtures.create_security!(name: "Moon ETF", ticker: "MOON")
+    WorldFixtures.put_quote!(moon, ~D[2026-07-18], "50")
+
+    for security <- [quoteless, moon] do
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          security.id,
+          world.classification.id,
+          world.core.id
+        )
+    end
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
+        %{
+          "category_id" => world.core.id,
+          "security_id" => quoteless.id,
+          "target_weight" => "0.1"
+        },
+        %{"category_id" => world.core.id, "security_id" => moon.id, "target_weight" => "0.2"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    view
+    |> element(~s(.drift-table [data-role="toggle-positions"]))
+    |> render_click()
+
+    # No quote: the marker renders with the actionable explanation.
+    quoteless_row =
+      view |> element(~s(tr[data-role="allocation-position"]), "Quoteless Co") |> render()
+
+    assert quoteless_row =~ ~s(data-role="no-quote")
+    assert quoteless_row =~ "no quote"
+    assert quoteless_row =~ "add a price to get a unit hint"
+
+    # With a quote: the buy hint names the quote date it is priced at.
+    moon_row = view |> element(~s(tr[data-role="allocation-position"]), "Moon ETF") |> render()
+    assert moon_row =~ "at quote from 2026-07-18"
+  end
+
+  # User story (#481 slice 2a fix round — UAT):
+  # As the portfolio owner steering positions deep in a category tree,
+  # I want the Σ header and the parent-row hint to stay coherent when the top
+  # level carries no own weight,
+  # so that "Σ target top level: 0.0%" against an 80% position plan reads as
+  # an explanation, not a contradiction.
+  #
+  # Acceptance criteria:
+  # - With no root target but deeper effective targets, the header adds
+  #   "targets deeper in the tree: 80.0%".
+  # - A parent without an own weight hints "subcategories Σ 80.0% (no own
+  #   weight)" instead of "subcategories: 80.0% of 0.0%".
+  test "the Σ header and parent hint explain a plan that lives deeper in the tree",
+       %{conn: conn} do
+    %{portfolio: portfolio} =
+      world = WorldFixtures.base_world(name: "Deep Depot", cash_name: "Giro", depot_name: "Depot")
+
+    security = WorldFixtures.create_security!(name: "Deep ETF", ticker: "DEEP")
+    WorldFixtures.deposit!(world, "1000", Date.add(Date.utc_today(), -10))
+    WorldFixtures.buy!(world, security, quantity: "10", price: "100")
+    WorldFixtures.put_quote!(security, Date.utc_today(), "100")
+
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, parent} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Top"
+      })
+
+    {:ok, child} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Sub",
+        parent_id: parent.id
+      })
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        security.id,
+        classification.id,
+        child.id
+      )
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => child.id, "security_id" => security.id, "target_weight" => "0.8"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    html = render_async(view)
+
+    # The header explains where the plan lives instead of a bare 0.0%.
+    header = view |> element(~s([data-role="target-sum-top-level"])) |> render()
+    assert header =~ "0.0"
+    assert header =~ "targets deeper in the tree"
+    assert header =~ "80.0"
+
+    # The parent-row hint drops the nonsensical "of 0.0%".
+    assert html =~ "subcategories Σ"
+    assert html =~ "(no own weight)"
+    refute html =~ "of 0.0%"
+  end
+
+  # User story (#481 slice 2a fix round — correctness F3 + UAT copy):
+  # As the portfolio owner reading a view-scoped allocation,
+  # I want the not-held chip and the no-plan hint to name their scope honestly,
+  # so that "not held" in a view never reads as "not held at all", and the
+  # Gesamt scope never talks about "this view".
+  #
+  # Acceptance criteria:
+  # - In an active view, the chip reads "not held in this view"; in the Gesamt
+  #   scope it stays the plain "not held".
+  # - In the Gesamt scope with no plan, the hint does not say "for this view".
+  test "the not-held chip and no-plan hint are scope-aware", %{conn: conn} do
+    world = viewer_world()
+
+    moon = WorldFixtures.create_security!(name: "Moon ETF", ticker: "MOON")
+    WorldFixtures.put_quote!(moon, Date.utc_today(), "50")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        moon.id,
+        world.classification.id,
+        world.core.id
+      )
+
+    # The same unheld SOLL row in the view's plan AND the Gesamt plan.
+    for view_opt <- [world.scoped_view.id, nil] do
+      {:ok, _} =
+        Targets.set_targets(
+          Actor.owner_ui(),
+          world.portfolio.id,
+          world.classification.id,
+          [%{"category_id" => world.core.id, "security_id" => moon.id, "target_weight" => "0.2"}],
+          view: view_opt
+        )
+    end
+
+    # Active view: the chip names the scope.
+    conn_view = get(conn, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
+
+    {:ok, scoped, _html} =
+      live(conn_view, "/portfolio?tab=allocation&view=#{world.scoped_view.id}")
+
+    render_async(scoped)
+
+    scoped
+    |> element(~s(.drift-table [data-role="toggle-positions"]))
+    |> render_click()
+
+    chip = scoped |> element(~s([data-role="not-held"])) |> render()
+    assert chip =~ "not held in this view"
+
+    # Gesamt: the plain chip, no view talk.
+    {:ok, gesamt, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(gesamt)
+
+    gesamt
+    |> element(~s(.drift-table [data-role="toggle-positions"]))
+    |> render_click()
+
+    chip = gesamt |> element(~s([data-role="not-held"])) |> render()
+    assert chip =~ "not held"
+    refute chip =~ "in this view"
+  end
+
+  test "the Gesamt no-plan hint does not talk about a view", %{conn: conn} do
+    # A world with a classification but no plan at all, in the Gesamt scope.
+    %{portfolio: _portfolio} =
+      world =
+      WorldFixtures.base_world(name: "Planless", cash_name: "Giro", depot_name: "Depot")
+
+    security = WorldFixtures.create_security!(name: "World ETF", ticker: "WLD")
+    WorldFixtures.deposit!(world, "1000", Date.add(Date.utc_today(), -10))
+    WorldFixtures.buy!(world, security, quantity: "8", price: "100")
+    WorldFixtures.put_quote!(security, Date.utc_today(), "110")
+
+    {:ok, _classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    hint = view |> element(~s([data-role="no-plan-hint"])) |> render()
+    assert hint =~ "No target plan yet"
+    refute hint =~ "for this view"
+    refute hint =~ "in this view"
+  end
+
   # User story:
   # As a local portfolio maintainer steering a named view,
   # I want the SOLL/Target/Drift columns and the Σ check to reflect that

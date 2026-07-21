@@ -26,6 +26,25 @@ defmodule Portfolixir.Catalog.Quotes do
     |> Repo.one()
   end
 
+  @doc """
+  Most recent quote per security for `security_ids`, as a map
+  `%{security_id => %Quote{}}`; securities without quotes are absent.
+
+  One `DISTINCT ON` query regardless of list size (#481 slice 2a fix round):
+  the allocation breakdown prices its unheld SOLL rows from this instead of a
+  per-security `latest/1` loop.
+  """
+  def latest_by_security_ids([]), do: %{}
+
+  def latest_by_security_ids(security_ids) when is_list(security_ids) do
+    SecurityQuote
+    |> where([q], q.security_id in ^security_ids)
+    |> distinct([q], q.security_id)
+    |> order_by([q], asc: q.security_id, desc: q.date)
+    |> Repo.all()
+    |> Map.new(&{&1.security_id, &1})
+  end
+
   @doc "Up to the two most recent quotes, descending by date."
   def latest_two(security_id) when is_integer(security_id) do
     SecurityQuote
