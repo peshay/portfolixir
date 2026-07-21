@@ -250,15 +250,16 @@ targets are stored; the actual side is derived from the live valuation on read.
 > category. Positions are the source of truth: a category's *effective* target
 > rolls up from its positions (their sum), and if a category also carries its own
 > explicit weight the mismatch is surfaced rather than silently dropped. This
-> first slice ships the data model and the **API/MCP** surface only — set a
+> first slice ships the data model and the **API/MCP** surface — set a
 > position target by adding a `security_id` to a target entry, read the position
 > rows and category roll-up via the position-targets endpoint/tool (see the
 > integration guide). If a security is later reclassified or unassigned, its
 > position target keeps counting under the category it was filed under and is
 > flagged as *stale* in the position-targets read — re-file it to move the
-> weight. The editor UI for per-position entry, even-split
-> auto-distribution, and the allocation-view display of position drift are
-> coming in later slices.
+> weight. Since slice 2a the **allocation view displays** position SOLL/drift —
+> including positions not yet held (IST 0, *not held* marker) — and the
+> category rows steer by the effective roll-up. The editor UI for per-position
+> entry and even-split auto-distribution are coming in later slices.
 
 ### Editing a target plan on the Classifications page
 
@@ -495,7 +496,19 @@ weight, its share of the category drift, and a display-only **rebalancing
 hint**: the indicative number of units to sell (positive drift) or buy
 (negative) at the valuation's price to close the gap (ADR-0023). The hint
 models no fees or taxes, and there is deliberately no order button behind it —
-acting on it stays entirely manual. The cash section lists each account's balance and carries
+acting on it stays entirely manual.
+
+**Position targets show in the plan (ADR-0030 slice 2a).** When the active
+plan carries per-position SOLL weights, each such position row shows its own
+target and its own drift (actual weight minus its target), and a position you
+have set a SOLL on but **do not own yet** still appears — with IST 0, a *not
+held* marker, the full underweight drift, and a buy hint priced at the latest
+stored quote (no hint when no quote exists). A position row is hidden only
+when its SOLL is 0 or absent **and** its holdings are zero. The category's
+Target column then shows the **effective** target — the sum of its position
+targets (positions are the source of truth); if the stored category weight
+disagrees, or a position target has gone stale (its security was moved or
+unassigned), a small badge on the category row explains it. The cash section lists each account's balance and carries
 the **set-balance form**: type the balance your bank shows and the snapshot is
 recorded without booking individual transactions.
 

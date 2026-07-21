@@ -480,7 +480,21 @@ Example account payloads:
   price; no fee/tax modelling, never an order). Both hints are `null` without
   a plan and for `unassigned` positions. Entries come largest first,
   securities merged across depots;
-  this is what the sunburst's outermost ring renders. Securities held but not
+  this is what the sunburst's outermost ring renders. **Position-level SOLL
+  (ADR-0030 slice 2a):** a category's `positions` are the union of its held
+  positions and the active plan's position-target rows, matched by security.
+  Each entry additionally carries `target_weight` (its position SOLL, `null`
+  when none), `drift_weight` (`actual weight − target weight`, ADR-0023 sign)
+  and `held`. An entry with its own SOLL derives `drift_value` and
+  `rebalance_quantity` from that own drift instead of the category share. A
+  position with SOLL > 0 that is not yet held appears with IST 0 (`held:
+  false`, quantity/value/weight `"0"`) and full underweight drift — "this
+  needs buying" — with its indicative quantity priced at the **latest stored
+  quote** (`null` when no price exists; none is invented). A position is
+  hidden only when its SOLL is 0/absent **and** its holdings are zero. Each
+  category row also carries `conflict` (its explicit weight and position sum
+  disagree — the sum steers) and `has_stale` (a position row filed under it is
+  stale). Securities held but not
   assigned in the tree are summed into `unassigned`. Weights are shares of the
   **steering basis**: the valued positions' total (scoped by the active `view`
   when one is passed), **plus the deployable cash** (`free_cash`
@@ -508,9 +522,12 @@ Example account payloads:
   side reflects the **active view's plan**: passing `view=<id>` reports that
   view's target weights, cash target and `top_level_target_sum` (omitting it uses
   the Gesamt plan), so the drift table steers against one coherent 100% plan per
-  view. Category targets here are the explicit category rows; when a plan is
-  steered per position (ADR-0030), the effective roll-up (which may differ)
-  comes from the `position_targets` endpoint above. Unknown portfolios or
+  view. Category `target_weight` values are the **effective** targets
+  (ADR-0030): the sum of a category's position rows when any exist (positions
+  are the source of truth), else its explicit category weight — the Σ figures
+  consume the same effective values. For the raw position-target rows and
+  per-category roll-up (the maintenance view) use the `position_targets`
+  endpoint above. Unknown portfolios or
   classifications return `404 Not Found`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` returns a **risk/concentration
   lens** for one portfolio over the **steerable basis** (the valued positions,

@@ -678,6 +678,89 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
              |> json_response(200)
   end
 
+  # User story (#481 slice 2a, ADR-0030 — the owner's own words):
+  # As an API client (and the LLM I connect over MCP),
+  # I want the allocation to report position SOLL — including positions I do
+  # not own yet, visible with IST 0 — and the category's EFFECTIVE target,
+  # so that the machine-readable plan view matches what the owner steers.
+  #
+  # Acceptance criteria:
+  # - Each allocation category carries `conflict` and `has_stale`; its
+  #   `target_weight` is the effective target (position sum wins).
+  # - Each position row carries `target_weight`, `drift_weight` (strings) and
+  #   `held`; a SOLL-only row reports IST 0 and the indicative quantity at the
+  #   latest quote (or null without a price). All decimals are strings.
+  test "reports position SOLL and effective targets in the allocation", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core, security: security} =
+      setup_world()
+
+    next_buy = create_security!(name: "Next Buy", ticker: "NEXT", asset_class: "equity")
+    put_quote!(next_buy, ~D[2026-06-01], "60")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        next_buy.id,
+        classification.id,
+        core.id
+      )
+
+    # Explicit category weight 0.6 plus position rows summing to 0.75: the
+    # position sum steers and the conflict is surfaced (ADR-0030).
+    put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+      "classification_id" => classification.id,
+      "targets" => [%{"category_id" => core.id, "target_weight" => "0.6"}]
+    })
+
+    put_json(conn, "/api/v1/portfolios/#{portfolio.id}/targets", %{
+      "classification_id" => classification.id,
+      "targets" => [
+        %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.5"},
+        %{"category_id" => core.id, "security_id" => next_buy.id, "target_weight" => "0.25"}
+      ]
+    })
+
+    data =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{portfolio.id}/allocation?classification_id=#{classification.id}"
+      )
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert [category] = data["categories"]
+    # The effective target (0.5 + 0.25), not the explicit 0.6; the mismatch is
+    # flagged, and the Σ consumes the same effective value.
+    assert category["target_weight"] == "0.75"
+    assert category["conflict"] == true
+    assert category["has_stale"] == false
+    assert data["top_level_target_sum"] == "0.75"
+
+    positions = Map.new(category["positions"], &{&1["security_name"], &1})
+
+    # The held position with its own SOLL drift: actual 1 - 0.5 = 0.5 →
+    # +600 EUR, sell 600 × 10 / 1200 = 5 units.
+    held = positions["Core Equity"]
+    assert held["held"] == true
+    assert held["target_weight"] == "0.5"
+    assert held["drift_weight"] == "0.5"
+    assert held["drift_value"] == "600"
+    assert held["rebalance_quantity"] == "5"
+    assert is_binary(held["target_weight"]) and is_binary(held["drift_weight"])
+
+    # The not-yet-held position: IST 0, full underweight drift (-0.25 →
+    # -300 EUR), indicative buy of 300 / 60 = 5 units at the latest quote.
+    wanted = positions["Next Buy"]
+    assert wanted["held"] == false
+    assert wanted["quantity"] == "0"
+    assert wanted["market_value"] == "0"
+    assert wanted["weight"] == "0"
+    assert wanted["target_weight"] == "0.25"
+    assert wanted["drift_weight"] == "-0.25"
+    assert wanted["drift_value"] == "-300"
+    assert wanted["rebalance_quantity"] == "-5"
+  end
+
   test "rejects a position target for a security not under the category with 422", %{conn: conn} do
     %{portfolio: portfolio, classification: classification, core: core} = setup_world()
 
