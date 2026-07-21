@@ -513,6 +513,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       categories: Enum.map(allocation.categories, &allocation_category/1),
       cash: allocation_cash(allocation.cash),
       top_level_target_sum: decimal(allocation.top_level_target_sum),
+      # The per-subtree topmost targeted level, summed (#481 slice 2a fix
+      # round): explains a 0% top-level Σ over a plan steered deeper down.
+      deep_target_sum: decimal(Map.get(allocation, :deep_target_sum)),
       unassigned: allocation_unassigned(allocation.unassigned)
     }
   end
@@ -558,12 +561,16 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   # Without a position SOLL, `drift_value` is the position's share of its
   # category's drift and `rebalance_quantity` the indicative quantity to sell
   # (positive) or buy (negative) at the implied unit price — display-only
-  # hints (ADR-0023), nil without a plan and for `unassigned` positions.
-  # With a position SOLL (ADR-0030 slice 2a) the row carries `target_weight`
-  # and its own `drift_weight` (actual − target), and both hints derive from
-  # that own drift; `held` is false for a SOLL-only row (IST 0 — a position
-  # planned but not yet bought), whose hint prices at the latest stored quote
-  # (null when no price exists). All financial decimals are strings.
+  # hints (ADR-0023), nil without a plan and for SOLL-less `unassigned`
+  # positions. With a position SOLL (ADR-0030 slice 2a) the row carries
+  # `target_weight` and its own `drift_weight` (actual − target), and both
+  # hints derive from that own drift; `held` is false for a SOLL-only row
+  # (IST 0 — a position planned but not yet bought), whose hint prices at the
+  # latest stored quote (null when no price exists) with `quote_date` naming
+  # that quote's date (#481 slice 2a fix round). `held` means holdings
+  # presence, not "valued". `stale` marks a row whose attached SOLL row no
+  # longer matches the security's current category. Unassigned entries attach
+  # their position SOLL too. All financial decimals are strings.
   defp allocation_position(position) do
     %{
       security_id: position.security_id,
@@ -575,7 +582,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       drift_weight: decimal(position.drift_weight),
       drift_value: decimal(position.drift_value),
       rebalance_quantity: decimal(position.rebalance_quantity),
-      held: position.held
+      held: position.held,
+      stale: Map.get(position, :stale, false),
+      quote_date: date(Map.get(position, :quote_date))
     }
   end
 

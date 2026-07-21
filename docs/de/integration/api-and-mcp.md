@@ -420,8 +420,8 @@ Beispiel-Payloads für Konten:
   der Kategorie-Drift) und `rebalance_quantity` (indikative Stückzahl, die zum
   impliziten Stückpreis der Bewertung zu verkaufen (positiv) oder zu kaufen
   (negativ) wäre; ohne Gebühren-/Steuermodell, nie eine Order). Beide Hinweise
-  sind ohne Plan und für `unassigned`-Positionen `null`. Einträge kommen größte
-  zuerst, Wertpapiere über Depots
+  sind ohne Plan und für `unassigned`-Positionen ohne eigenes Positions-Soll
+  `null`. Einträge kommen größte zuerst, Wertpapiere über Depots
   zusammengeführt; das ist es, was der äußerste Ring des Sunburst rendert.
   **Positions-Soll (ADR-0030 Slice 2a):** die `positions` einer Kategorie sind
   die Vereinigung ihrer gehaltenen Positionen und der Positions-Ziel-Zeilen des
@@ -433,12 +433,22 @@ Beispiel-Payloads für Konten:
   ohne Bestand erscheint mit IST 0 (`held: false`, Menge/Wert/Gewicht `"0"`)
   und voller Untergewichts-Drift — „hier muss gekauft werden" — mit ihrer
   indikativen Stückzahl zum **letzten gespeicherten Kurs** (`null` ohne Kurs;
-  keiner wird erfunden). Eine Position wird nur ausgeblendet, wenn ihr Soll
-  0/fehlend ist **und** ihr Bestand null. Jede Kategorie-Zeile trägt zudem
-  `conflict` (explizites Gewicht und Positions-Summe weichen ab — die Summe
-  steuert) und `has_stale` (eine hier abgelegte Positions-Zeile ist veraltet).
+  keiner wird erfunden); `quote_date` nennt das Datum dieses Kurses (`null`,
+  wenn der Hinweis nicht kursbasiert ist). `held` heißt Bestand vorhanden: ein
+  gehaltenes Wertpapier ohne ermittelbaren Preis wird nie als ohne Bestand
+  gemeldet (es bleibt auf den Unbewertet-Flächen). Jeder Eintrag trägt zudem
+  `stale` (`true`, wenn seine abgelegte Positions-Ziel-Zeile nicht mehr zur
+  aktuellen Kategorie des Wertpapiers passt). Eine Position wird nur
+  ausgeblendet, wenn ihr Soll 0/fehlend ist **und** ihr Bestand null. Jede
+  Kategorie-Zeile trägt zudem `conflict` (explizites Gewicht und
+  Positions-Summe weichen ab — die Summe steuert) und `has_stale` (eine hier
+  abgelegte Positions-Zeile ist veraltet), und die Aufschlüsselung trägt
+  `deep_target_sum` — die Summe der effektiven Ziele auf der obersten
+  gezielten Ebene je Teilbaum, die eine `top_level_target_sum` von `0` über
+  einem tiefer gesteckten Plan erklärt.
   Gehaltene, aber im Baum nicht zugeordnete Wertpapiere werden in `unassigned`
-  summiert. Gewichte sind Anteile der **Steuerbasis**: der Gesamtwert der
+  summiert; auch `unassigned`-Einträge tragen ihr Positions-Soll.
+  Gewichte sind Anteile der **Steuerbasis**: der Gesamtwert der
   bewerteten Positionen (eingeschränkt durch die aktive `view`, sofern angegeben),
   **plus das verfügbare Cash** (`free_cash`-Konten mit
   nicht-negativem Saldo). `total_value` ist hier diese

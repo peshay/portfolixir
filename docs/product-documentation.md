@@ -502,13 +502,23 @@ acting on it stays entirely manual.
 plan carries per-position SOLL weights, each such position row shows its own
 target and its own drift (actual weight minus its target), and a position you
 have set a SOLL on but **do not own yet** still appears — with IST 0, a *not
-held* marker, the full underweight drift, and a buy hint priced at the latest
-stored quote (no hint when no quote exists). A position row is hidden only
-when its SOLL is 0 or absent **and** its holdings are zero. The category's
-Target column then shows the **effective** target — the sum of its position
-targets (positions are the source of truth); if the stored category weight
-disagrees, or a position target has gone stale (its security was moved or
-unassigned), a small badge on the category row explains it. The cash section lists each account's balance and carries
+held* marker (inside a named view it reads *not held in this view*, since the
+view says nothing about the whole depot), the full underweight drift, and a
+buy hint priced at the latest stored quote — the hint's tooltip names the
+quote date it is priced at. Without any quote a *no quote* chip explains the
+missing unit hint (add a price to get one). "Held" means you hold the
+position at all: a held security whose price cannot be determined keeps its
+data-quality hints and is never re-labelled *not held*. A position row is
+hidden only when its SOLL is 0 or absent **and** its holdings are zero. The
+category's Target column then shows the **effective** target — the sum of its
+position targets (positions are the source of truth); if the stored category
+weight disagrees, or a position target has gone stale (its security was moved
+or unassigned), a small badge on the category row explains it and the
+affected position row itself carries a *stale target* chip. A
+held-but-unassigned security with a (stale) position target shows that target
+on its row in the *Unassigned* bucket too. When no top-level category carries
+a target but deeper categories do, the Σ header adds the deeper targets'
+sum ("targets deeper in the tree") instead of showing a bare 0%. The cash section lists each account's balance and carries
 the **set-balance form**: type the balance your bank shows and the snapshot is
 recorded without booking individual transactions.
 

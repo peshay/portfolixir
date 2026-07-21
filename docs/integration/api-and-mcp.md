@@ -478,7 +478,8 @@ Example account payloads:
   category drift) and `rebalance_quantity` (indicative units to sell
   (positive) or buy (negative) at the valuation's implied base-currency unit
   price; no fee/tax modelling, never an order). Both hints are `null` without
-  a plan and for `unassigned` positions. Entries come largest first,
+  a plan and for `unassigned` positions without their own position SOLL.
+  Entries come largest first,
   securities merged across depots;
   this is what the sunburst's outermost ring renders. **Position-level SOLL
   (ADR-0030 slice 2a):** a category's `positions` are the union of its held
@@ -490,12 +491,21 @@ Example account payloads:
   position with SOLL > 0 that is not yet held appears with IST 0 (`held:
   false`, quantity/value/weight `"0"`) and full underweight drift — "this
   needs buying" — with its indicative quantity priced at the **latest stored
-  quote** (`null` when no price exists; none is invented). A position is
+  quote** (`null` when no price exists; none is invented); `quote_date` names
+  that quote's date (`null` when the hint is not quote-based). `held` means
+  holdings presence: a held security whose price cannot be determined is never
+  reported as unheld (it stays on the unvalued surfaces instead). Each entry
+  also carries `stale` (`true` when its attached position-target row no longer
+  matches the security's current category). A position is
   hidden only when its SOLL is 0/absent **and** its holdings are zero. Each
   category row also carries `conflict` (its explicit weight and position sum
   disagree — the sum steers) and `has_stale` (a position row filed under it is
-  stale). Securities held but not
-  assigned in the tree are summed into `unassigned`. Weights are shares of the
+  stale), and the breakdown carries `deep_target_sum` — the effective targets'
+  sum at the topmost targeted level per subtree, which explains a `0`
+  `top_level_target_sum` over a plan steered deeper in the tree.
+  Securities held but not
+  assigned in the tree are summed into `unassigned`; unassigned entries attach
+  their position SOLL too. Weights are shares of the
   **steering basis**: the valued positions' total (scoped by the active `view`
   when one is passed), **plus the deployable cash** (`free_cash`
   accounts with a non-negative balance). `total_value`
