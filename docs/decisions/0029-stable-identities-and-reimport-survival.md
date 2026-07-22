@@ -6,8 +6,9 @@ description: Decision that strategy configuration survives a PP re-import throug
 
 # ADR-0029: stable identities and re-import survival — an identity ladder with ISIN-change aliases
 
-- **Status:** Proposed (owner sign-off pending; [ADR-0026](0026-epic-batch-workflow.html)
-  decision gate — E18 implementation stories start only after sign-off)
+- **Status:** Accepted (owner sign-off 2026-07-22, following the three-method
+  adversarial review round; [ADR-0026](0026-epic-batch-workflow.html)
+  decision gate passed)
 - **Date:** 2026-07-19
 
 ## Context

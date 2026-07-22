@@ -168,8 +168,8 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-31 | #581 | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
 | FR-32 | #583 | booking-semantics docs incl. fix-it-hammer warnings (E6 DX batch, story 3) |
 | FR-33 | #584 | slim `securities_list` projection, scope-locked (E6 DX batch, story 4) |
-| FR-34 | tbd | **gated** — re-import identity ADR first (E18), risk-tier |
-| FR-35 | tbd | **gated** — decided as a section of the FR-34 ADR (E18); may close as documented procedure |
+| FR-34 | #600, #601 | ADR-0029 accepted 2026-07-22 — identity ladder + alias record, risk-tier |
+| FR-35 | #602 | ADR-0029 §6 verdict: build the read-only reconcile endpoint |
 
 ## Implementation Status — reconciled with code (2026-06-18)
 
@@ -352,7 +352,7 @@ Epics are organized by the PRD's five phases plus cross-cutting concerns, ordere
 | **E15 — View-bound SOLL plans (ADR-0020)** | 2 | next | #463 (#464–#468) |
 | **E16 — Plan versions & depot snapshots (ADR-0027)** | 2/5 bridge | next | ADR-0027 (decision gate; issues after sign-off) |
 | **E17 — Corporate actions as ledger events** | 2/4 bridge | next (ADR-0028 accepted) | #338 (tracker), #588–#591 |
-| **E18 — Stable identities & reconciliation** | 2 | next (ADR-gated, after E17 ADR) | FR-34, FR-35 (issues after ADR sign-off) |
+| **E18 — Stable identities & reconciliation** | 2 | next (ADR-0029 accepted 2026-07-22) | #603 (tracker), #600–#602 |
 
 ## Epic Detail
 
