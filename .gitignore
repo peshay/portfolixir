@@ -44,6 +44,10 @@ erl_crash.dump
 real-data/
 private-data/
 
+# Personal agent state (never commit — see "Privacy And Disclosure" in AGENTS.md)
+/_bmad/config.user.toml
+/_bmad/memory/
+
 # OS
 .DS_Store
 

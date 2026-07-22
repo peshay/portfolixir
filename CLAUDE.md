@@ -4,8 +4,18 @@ Guidance for Claude Code (and any agent that reads this file) when working in
 this repository.
 
 The canonical, tool-agnostic rules live in @AGENTS.md — read and follow them as
-the single source of truth. This file only restates the rule that must never be
-worked around.
+the single source of truth. This file only restates the rules that must never
+be worked around.
+
+## Non-negotiable: no personal or private data in the repo
+
+This repository is public. Never commit the maintainer's (or anyone's) real
+financial data (balances, net worth, positions, performance figures, credit
+lines), names of household members or pets, personal banking/broker details,
+local machine paths or usernames, or personal agent state
+(`_bmad/config.user.toml`, `_bmad/memory/**`). Agent-generated artifacts
+(BMAD sessions, decision logs, design notes) must be scrubbed before they are
+committed. See "Privacy And Disclosure" in AGENTS.md for the full rule.
 
 ## Non-negotiable: commit authorship
 

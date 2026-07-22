@@ -64,6 +64,46 @@ New functionality must stay small, reviewed, locally tested, and documented.
   descriptions, commit messages, ADRs, code comments, and documentation.
   Translated end-user documentation (the EN/DE docs site) keeps English
   as the source baseline.
+- Never commit personal or private data. See "Privacy And Disclosure"
+  below — it applies to every artifact, including agent-generated ones.
+
+## Privacy And Disclosure
+
+This is a public repository. Nothing that describes the maintainer's (or any
+other real person's) private life or finances may be committed — in any
+artifact: code, tests, fixtures, docs, ADRs, commit messages, issues text
+mirrored into the repo, and especially agent-generated output (`_bmad-output/`
+planning artifacts, design-session notes, decision logs, brainstorming
+results, epics, implementation artifacts).
+
+Forbidden in committed content:
+
+- Real portfolio data: net worth, account balances, invested capital,
+  performance/IRR figures, wealth multiples, credit lines, position
+  quantities, real security positions, real transactions. Never label test
+  data or examples as "the owner's real case" — synthetic data must be
+  synthetic all the way down, including its description.
+- Names of household members, partners, children, or pets, and any other
+  family or personal details. Use generic placeholders (`Family`, `Guest`,
+  "a non-owner") in examples and fixtures.
+- The maintainer's personal banking relationships and private tooling:
+  which banks/brokers hold their accounts, private sync scripts, credential
+  or TAN setups. Naming a provider as a generic integration target
+  ("a comdirect CSV export looks like …") is fine; attaching it to the
+  owner's accounts is not.
+- Local machine details: absolute home-directory paths, local usernames,
+  hostnames, internal IPs.
+- Personal configuration and agent memory: `_bmad/config.user.toml`,
+  `_bmad/memory/**` (agent sanctums: `MEMORY.md`, `BOND.md`, `PERSONA.md`
+  and friends), and any file whose header marks it as scoped to a person.
+  These are gitignored — never force-add them.
+
+Agent sessions (brainstorming, design sessions, PRD interviews, walkthroughs
+on the live instance) routinely surface real data. Before committing any
+session artifact, scrub it: replace real figures with qualitative wording
+("absurdly high", "the credit line") and real names with placeholders. If a
+document only works with the real numbers, it belongs on the live instance
+or in a private note — not in this repo. When in doubt, leave it out.
 
 ## Active Architecture
 
