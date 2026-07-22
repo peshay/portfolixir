@@ -824,6 +824,25 @@ Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
   überlagert.
 - Einem Button *Sync prices for this security*.
 
+**Aktiensplits und die Kursbasis (ADR-0028).** Nach dem Buchen eines Splits
+zeigen Chart und Kurse-Tab eine **split-bereinigte** Serie, die zur Lesezeit
+abgeleitet wird: manuell erfasste (rohe, wie gehandelte) Schlusskurse vor dem
+Wirksamkeitsdatum werden durch das kumulierte Verhältnis aller späteren
+Splits geteilt, während anbieter-synchronisierte Zeilen — vom Anbieter
+bereits rückwirkend angepasst — unverändert durchlaufen; nichts wird doppelt
+angepasst. Die wirksame Basis („split-bereinigt“, „anbieterbereinigt“ oder
+gemischt) steht unter dem Chart und auf dem Kurse-Tab, dessen Tabelle eine
+Spalte *Gespeichert* mit den unveränderten Werten behält — gespeicherte
+Kurshistorie wird nie verändert, und das Löschen eines versehentlich
+gebuchten Splits stellt jeden Chart und jede Kennzahl exakt wieder her.
+Bestände, Bewertungen, Performance-Serien, Snapshot-Vergleiche und die
+Kennzahlen der Wertpapierliste preisen über dieselbe basisbewusste Engine,
+sodass ein alter Vor-Split-Kurs (oder der Rückgriff auf den letzten eigenen
+Handelspreis) eine Nach-Split-Position nie zum unbereinigten Preis bewertet.
+Für Anbieter, die ihre Historie nie rückwirkend anpassen, bietet der
+Overview-Tab des Wertpapiers den Schalter **Synchronisierte Kurse als roh
+behandeln**, der die Roh-Basis für dessen synchronisierte Zeilen erzwingt.
+
 ## Verhalten der Oberfläche
 
 - Der aktive Seitentitel und eine kurze Kontextzeile leben in der oberen Leiste.

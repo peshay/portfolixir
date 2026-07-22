@@ -514,6 +514,11 @@ const securityUpdateSchema = {
         feed_url: { type: "string" },
         provider: { type: "string" },
         online_id: { type: "string" },
+        treat_quotes_as_raw: {
+          type: "boolean",
+          description:
+            "ADR-0028 escape hatch: treat this security's provider-synced quote history as raw (as-traded). Set it when the provider never back-adjusts closes after a stock split, so the split-adjustment factors apply to its synced rows too. Default false (synced rows are trusted as an already-adjusted provider mirror)."
+        },
         attributes: { type: "object", additionalProperties: true }
       }
     }
@@ -535,6 +540,7 @@ const securityUpdateZ = z.object({
     feed_url: optionalString(),
     provider: optionalString(),
     online_id: optionalString(),
+    treat_quotes_as_raw: z.boolean().optional(),
     attributes: z.record(z.unknown()).optional()
   })
 });
@@ -1285,7 +1291,7 @@ const toolDefinitions: ToolDefinition[] = [
     required: ["security_id"],
     properties: { security_id: { type: "integer", minimum: 1 } }
   }, z.object({ security_id: z.number().int().positive() })),
-  tool("portfolixir.quotes.list", "List quotes", "List quote history for one security.", {
+  tool("portfolixir.quotes.list", "List quotes", "List quote history for one security. Each row is self-describing about stock splits (ADR-0028): close is the STORED value (never mutated), adjusted_close is the split-adjusted display value (Decimal string), basis states the row's storage basis (raw = as-traded manual rows, provider_mirror = back-adjusted sync rows) and adjusted whether a split factor applied. Chart or value with adjusted_close; audit with close.", {
     type: "object",
     additionalProperties: false,
     required: ["security_id"],
@@ -1365,7 +1371,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.splits.preview",
     "Preview stock split",
-    "Read-only preview of a stock split booking (ADR-0028): shows, per portfolio holding the security, the quantity immediately before and after the effective date and the resulting current position, plus warnings — nothing is written. ALWAYS call this before portfolixir.splits.create and read the numbers: the effective_date_before_history warning means the effective date predates the security's earliest recorded transaction, so the stored quantities may already be post-split (Portfolio Performance's split wizard rewrites history destructively before export) — booking the split then would double-adjust; do not book when before/after are 0 and the current position already looks post-split. The ratio is a pair of positive integers (10:1 forward, 1:10 reverse), normalized to lowest terms; all quantities in the response are Decimal strings.",
+    "Read-only preview of a stock split booking (ADR-0028): shows, per portfolio holding the security, the quantity immediately before and after the effective date and the resulting current position, plus warnings — nothing is written. ALWAYS call this before portfolixir.splits.create and read the numbers: the effective_date_before_history warning means the effective date predates the security's earliest recorded transaction, so the stored quantities may already be post-split (Portfolio Performance's split wizard rewrites history destructively before export) — booking the split then would double-adjust; do not book when before/after are 0 and the current position already looks post-split. The preview also renders the stored closes around the effective date (quotes_around) and a quote_basis_check comparing the observed jump against each row's basis classification: a quote_basis_contradiction warning means the stored series contradicts its source classification (e.g. a synced series that never back-adjusted) — resolve it (for never-adjusting providers set the security's treat_quotes_as_raw flag via portfolixir.securities.update) instead of booking blindly; insufficient_quotes_to_verify_basis means too few closes existed to verify. The ratio is a pair of positive integers (10:1 forward, 1:10 reverse), normalized to lowest terms; all quantities in the response are Decimal strings.",
     splitRequestSchema,
     splitRequestZ()
   ),

@@ -59,7 +59,9 @@ defmodule Portfolixir.Ledger.SplitsTest do
     assert preview.date == ~D[2026-02-02]
     assert preview.ratio_numerator == 2
     assert preview.ratio_denominator == 1
-    assert preview.warnings == []
+    # No quotes exist in this world, so the §2 basis guard reports exactly
+    # the insufficient-quotes warning — and nothing else.
+    assert preview.warnings == [:insufficient_quotes_to_verify_basis]
 
     assert [row_a, row_b] = Enum.sort_by(preview.portfolios, & &1.portfolio_id)
     assert row_a.portfolio_id == world_a.portfolio.id
@@ -267,7 +269,11 @@ defmodule Portfolixir.Ledger.SplitsTest do
     buy!(world, security, quantity: "30", price: "100", date: ~D[2026-01-10])
 
     assert {:ok, preview} = Splits.preview_split(split_attrs(security, date: ~D[2026-01-05]))
-    assert preview.warnings == [:effective_date_before_history]
+
+    assert preview.warnings == [
+             :effective_date_before_history,
+             :insufficient_quotes_to_verify_basis
+           ]
 
     assert [row] = preview.portfolios
     assert row.portfolio_id == world.portfolio.id

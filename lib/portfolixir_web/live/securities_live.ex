@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.LogoStore
+  alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
@@ -18,6 +19,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Classifications
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Components.SecurityChart
@@ -65,6 +67,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_ma, %{30 => false, 50 => false, 200 => false})
      |> assign(:detail_cost_basis?, false)
      |> assign(:detail_quotes, [])
+     |> assign(:detail_series_basis, :empty)
      |> assign(:detail_transactions, [])
      |> assign(:detail_transaction_rows, [])
      |> assign(:detail_trades, %{open_lots: [], closed_trades: [], orphan_sells: []})
@@ -610,6 +613,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
             show_transactions?={@detail_show_transactions?}
             currency_code={@selected_security.currency_code}
           />
+          <p
+            :if={series_basis_label(@detail_series_basis)}
+            class="detail-tab-hint"
+            data-role="chart-basis"
+          >
+            <%= gettext("Price basis: %{basis}. Stored quotes are never modified (see the Quotes tab).",
+              basis: series_basis_label(@detail_series_basis)
+            ) %>
+          </p>
         </section>
       <% end %>
 
@@ -637,6 +649,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           quotes={@detail_quotes}
           currency_code={@selected_security.currency_code}
           range={@detail_range}
+          series_basis={@detail_series_basis}
         />
       <% end %>
 
@@ -716,6 +729,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <option value={code} selected={@security.asset_class == code}><%= label %></option>
               <% end %>
             </select>
+          </label>
+          <label class="overview-edit-field">
+            <span><%= gettext("Treat synced quotes as raw") %></span>
+            <%!-- ADR-0028 §2 escape hatch for providers that never back-adjust
+                  after a split: forces the raw basis (split factors apply) for
+                  this security's synced rows. Hidden false + checkbox true is
+                  the standard unchecked-submits-false pattern. --%>
+            <input type="hidden" name="security[treat_quotes_as_raw]" value="false" />
+            <input
+              type="checkbox"
+              name="security[treat_quotes_as_raw]"
+              value="true"
+              checked={@security.treat_quotes_as_raw}
+            />
           </label>
         </div>
         <button type="submit" class="button"><%= gettext("Save changes") %></button>
@@ -1204,6 +1231,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:quotes, :list, required: true)
   attr(:currency_code, :string, default: nil)
   attr(:range, :string, default: nil)
+  attr(:series_basis, :atom, default: :empty)
 
   defp quotes_tab_panel(assigns) do
     assigns = assign(assigns, :rows, Enum.reverse(assigns.quotes))
@@ -1223,12 +1251,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <%= gettext("Showing range %{range}. Adjust the Chart tab to change which quotes appear here.",
             range: @range || gettext("default")) %>
         </p>
+        <p :if={series_basis_label(@series_basis)} class="detail-tab-hint" data-role="quotes-basis">
+          <%= gettext("Price basis: %{basis}. The stored column keeps the unmodified values.",
+            basis: series_basis_label(@series_basis)
+          ) %>
+        </p>
         <div class="data-table-wrap">
           <table class="data-table detail-quotes-table">
             <thead>
               <tr>
                 <th><%= gettext("Date") %></th>
                 <th class="num"><%= gettext("Closing price") %></th>
+                <th class="num"><%= gettext("Stored") %></th>
                 <th><%= gettext("Source") %></th>
               </tr>
             </thead>
@@ -1239,6 +1273,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <td class="num">
                     <%= Format.decimal(q.close, 2) %>
                     <small><%= @currency_code %></small>
+                  </td>
+                  <td class="num">
+                    <%= Format.decimal(q.stored_close, 2) %>
+                    <small :if={q.adjusted?}><%= gettext("as stored") %></small>
                   </td>
                   <td><span class="badge quote-source"><%= quote_source_label(q.source) %></span></td>
                 </tr>
@@ -1368,37 +1406,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp cost_basis_series(quotes, transactions) when transactions != [] do
-    sorted_txs = Enum.sort_by(transactions, & &1.date, Date)
+    # Replay order (ADR-0028 §3): a same-day split applies before the day's
+    # trades, exactly like every ledger quantity fold.
+    sorted_txs = Projection.replay_sort(transactions)
 
     series =
       sorted_txs
-      |> Enum.reduce({Decimal.new(0), Decimal.new(0), []}, fn tx, {qty_held, avg_cost, points} ->
-        case tx.type do
-          "buy" ->
-            new_qty = Decimal.add(qty_held, tx.quantity)
-
-            new_avg =
-              if Decimal.equal?(new_qty, 0) do
-                Decimal.new(0)
-              else
-                numerator =
-                  Decimal.add(
-                    Decimal.mult(qty_held, avg_cost),
-                    Decimal.mult(tx.quantity, tx.price)
-                  )
-
-                Decimal.div(numerator, new_qty)
-              end
-
-            {new_qty, new_avg, [{tx.date, Decimal.to_float(new_avg)} | points]}
-
-          "sell" ->
-            new_qty = Decimal.sub(qty_held, tx.quantity)
-            {new_qty, avg_cost, [{tx.date, Decimal.to_float(avg_cost)} | points]}
-
-          _ ->
-            {qty_held, avg_cost, points}
-        end
+      |> Enum.reduce({Decimal.new(0), Decimal.new(0), []}, fn tx, acc ->
+        apply_cost_basis_point(tx, acc)
       end)
       |> elem(2)
       |> Enum.reverse()
@@ -1420,6 +1435,39 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp cost_basis_series(_quotes, _empty), do: []
+
+  defp apply_cost_basis_point(%{type: "buy"} = tx, {qty_held, avg_cost, points}) do
+    new_qty = Decimal.add(qty_held, tx.quantity)
+
+    new_avg =
+      if Decimal.equal?(new_qty, 0) do
+        Decimal.new(0)
+      else
+        numerator =
+          Decimal.add(Decimal.mult(qty_held, avg_cost), Decimal.mult(tx.quantity, tx.price))
+
+        Decimal.div(numerator, new_qty)
+      end
+
+    {new_qty, new_avg, [{tx.date, Decimal.to_float(new_avg)} | points]}
+  end
+
+  defp apply_cost_basis_point(%{type: "sell"} = tx, {qty_held, avg_cost, points}) do
+    {Decimal.sub(qty_held, tx.quantity), avg_cost,
+     [{tx.date, Decimal.to_float(avg_cost)} | points]}
+  end
+
+  # ADR-0028 §3 for the overlay: quantity scales by the ratio, total cost is
+  # invariant, so the per-share average divides — the overlay line then meets
+  # the split-adjusted price series without a cliff.
+  defp apply_cost_basis_point(%{type: "split"} = tx, {qty_held, avg_cost, points}) do
+    {p, q} = {tx.split_ratio_numerator, tx.split_ratio_denominator}
+    new_avg = avg_cost |> Decimal.mult(q) |> Decimal.div(p)
+    new_qty = qty_held |> Decimal.mult(p) |> Decimal.div(q)
+    {new_qty, new_avg, [{tx.date, Decimal.to_float(new_avg)} | points]}
+  end
+
+  defp apply_cost_basis_point(_tx, acc), do: acc
 
   defp detail_tabs do
     [
@@ -2467,6 +2515,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:selected_security, nil)
     |> assign(:detail_fullscreen?, false)
     |> assign(:detail_quotes, [])
+    |> assign(:detail_series_basis, :empty)
     |> assign(:detail_transactions, [])
     |> assign(:detail_transaction_rows, [])
     |> assign(:detail_trades, %{open_lots: [], closed_trades: [], orphan_sells: []})
@@ -2488,10 +2537,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
         _ -> range_to_dates(socket.assigns.detail_range, id)
       end
 
-    quotes =
-      id
-      |> Quotes.range(from, to)
-      |> Enum.map(&%{date: &1.date, close: &1.close, source: &1.source})
+    # Display-basis series (ADR-0028 §2): raw rows divided by later split
+    # ratios, provider mirrors untouched; each row keeps `stored_close`
+    # reachable and the series basis is stated next to chart and table
+    # (UX-DR10/11).
+    quotes = Quotes.adjusted_range(id, from, to)
 
     transaction_rows =
       id
@@ -2519,10 +2569,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
       decorate_holdings_with_buckets(Ledger.holdings_for_security(id), id)
     )
     |> assign(:buckets, Buckets.list_buckets())
-    |> assign(:detail_latest, Quotes.latest(id))
+    # Display basis (ADR-0028 §2): a stale raw close from before a split's
+    # effective date is shown divided by the cumulative later ratio.
+    |> assign(:detail_latest, Quotes.adjusted_latest(id))
+    |> assign(:detail_series_basis, QuoteAdjustment.series_basis(quotes))
     |> assign(:detail_metrics, metrics)
     |> assign(:detail_classifications, load_security_classifications(id))
   end
+
+  # UX-DR11 basis labels for the chart and its chart-as-table.
+  defp series_basis_label(:raw), do: gettext("split-adjusted")
+  defp series_basis_label(:provider_mirror), do: gettext("provider-adjusted")
+
+  defp series_basis_label(:mixed),
+    do: gettext("mixed (split-adjusted and provider-adjusted rows)")
+
+  defp series_basis_label(_empty), do: nil
 
   # Joins each holding row's per-position bucket override state and its depot's
   # default set, so the holdings tab can present inherit / explicit-empty /

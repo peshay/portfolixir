@@ -37,6 +37,8 @@ defmodule Portfolixir.Ledger.Splits do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.QuoteAdjustment
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Positions
@@ -172,17 +174,43 @@ defmodule Portfolixir.Ledger.Splits do
         {:error, :no_position}
 
       rows ->
+        {quotes_around, basis_check} = quote_basis_guard(security, date, {p, q})
+
         {:ok,
          %{
            security_id: security.id,
            date: date,
            ratio_numerator: p,
            ratio_denominator: q,
-           warnings: warnings(transactions, date),
+           warnings: warnings(transactions, date) ++ basis_warnings(basis_check),
+           quotes_around: quotes_around,
+           quote_basis_check: basis_check,
            portfolios: rows
          }}
     end
   end
+
+  # ADR-0028 §2 misclassification guard: the preview renders the stored
+  # closes around the effective date and checks the observed jump against the
+  # per-row basis classification (a jump indicates raw, continuity an
+  # adjusted mirror). A contradiction warns instead of silently adjusting; a
+  # missing close on either side reports "insufficient" instead of implying a
+  # clean check. The escape hatch for never-adjusting providers is the
+  # per-security `treat_quotes_as_raw` override (named in the shells' copy).
+  defp quote_basis_guard(security, date, ratio) do
+    window = QuoteAdjustment.basis_check_window_days()
+
+    quotes_around =
+      security.id
+      |> Quotes.range(Date.add(date, -window), Date.add(date, window))
+      |> Enum.map(&Map.take(&1, [:date, :close, :source]))
+
+    {quotes_around, QuoteAdjustment.basis_check(quotes_around, date, ratio, security)}
+  end
+
+  defp basis_warnings(%{status: :contradiction}), do: [:quote_basis_contradiction]
+  defp basis_warnings(%{status: :insufficient_quotes}), do: [:insufficient_quotes_to_verify_basis]
+  defp basis_warnings(_consistent), do: []
 
   # The split applies first within its day (start-of-day, ADR-0028 §3), so
   # the position it scales — and the one shown as "before" — derives from

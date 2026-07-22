@@ -778,6 +778,23 @@ The detail pane shows a server-rendered SVG price chart with:
   ledger.
 - A *Sync prices for this security* button.
 
+**Stock splits and the price basis (ADR-0028).** After a split is booked, the
+chart and the Quotes tab show a **split-adjusted** series derived at read
+time: manually entered (raw, as-traded) closes from before the effective date
+are divided by the cumulative ratio of all later splits, while provider-synced
+rows — already back-adjusted by the provider — pass through unchanged, so
+nothing is ever adjusted twice. The basis in effect ("split-adjusted",
+"provider-adjusted", or mixed) is stated under the chart and on the Quotes
+tab, whose table keeps a *Stored* column with the unmodified values — stored
+quote history is never mutated, and deleting a mistakenly booked split
+restores every chart and figure exactly. Holdings, valuations, performance
+series, snapshot comparisons and the securities-list metrics all price
+through the same basis-aware engine, so a stale pre-split close (or the
+latest-own-trade-price fallback) never values a post-split position at the
+unsplit price. For providers that never back-adjust their history, the
+security's Overview tab offers a **Treat synced quotes as raw** toggle that
+forces the raw basis for its synced rows.
+
 ## Interface behavior
 
 - The active page title and short context line live in the top bar. Page content

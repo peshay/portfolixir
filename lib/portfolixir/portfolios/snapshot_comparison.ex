@@ -29,9 +29,11 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Snapshots
@@ -63,9 +65,20 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
       candidates = frozen_quantities(portfolio_id, as_of, scope)
       fx = init_fx(candidates, base, as_of, today)
       {included, gaps} = split_by_valuability(candidates, as_of, base, fx)
-      pricing = init_pricing(included, as_of, today)
 
-      snapshot_series = walk(included, pricing, fx, base, as_of, today)
+      # Security-level split events (ADR-0028 §2): the frozen buy-and-hold
+      # holder experiences every split after the as-of date, regardless of
+      # what the real portfolio did — quantities scale at the effective date
+      # and the pricing walk changes basis era at the same day. This engine
+      # does not dispatch through `Projection.effects/1`, so nothing fails
+      # loudly here; the split handling is explicit (a named §2 change site).
+      events_by_security =
+        included |> Enum.map(& &1.security_id) |> Quotes.split_events_by_security()
+
+      pricing = init_pricing(included, as_of, today, events_by_security)
+      scale_schedule = scale_schedule(events_by_security, as_of, today)
+
+      snapshot_series = walk(included, pricing, fx, base, as_of, today, scale_schedule)
       real = real_side(portfolio_id, snapshot.view_id, as_of, today)
 
       {:ok, build_result(snapshot, base, snapshot_series, real, gaps, today)}
@@ -100,7 +113,9 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
         security_id: security_id,
         security_name: security.name,
         currency: security.currency_code,
-        quantity: qty
+        quantity: qty,
+        # Kept for the split-adjustment basis mapping (per-security override).
+        security: security
       }
     end)
   end
@@ -143,21 +158,56 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
 
   # Per-security price pointers: the seed is the last close on-or-before the
   # as-of date, upcoming points advance the walk (mirrors Performance).
-  defp init_pricing(positions, as_of, today) do
-    Map.new(positions, fn %{security_id: security_id} ->
+  #
+  # Split basis (ADR-0028 §2, mirrors the Performance walk): every point is
+  # converted to its own date's as-traded basis (provider mirrors multiply
+  # back up by the cumulative later ratio, raw rows pass through), and a
+  # rank -1 rescale point moves the carried price into the post-split era on
+  # the effective date — the same day the frozen quantities scale.
+  defp init_pricing(positions, as_of, today, events_by_security) do
+    Map.new(positions, fn %{security_id: security_id, security: security} ->
+      events = Map.get(events_by_security, security_id, [])
+
       carried =
         case Quotes.at_or_before(security_id, as_of) do
-          %{close: %Decimal{} = close} -> close
-          _ -> nil
+          %{close: %Decimal{}} = quote_row ->
+            quote_row
+            |> raw_basis_close(security, events)
+            |> QuoteAdjustment.rebase_close(quote_row.date, as_of, events)
+
+          _ ->
+            nil
         end
 
-      points =
+      quote_points =
         security_id
         |> Quotes.range(Date.add(as_of, 1), today)
-        |> Enum.map(&%{date: &1.date, close: &1.close})
+        |> Enum.map(&%{date: &1.date, close: raw_basis_close(&1, security, events), rank: 1})
+
+      rescale_points =
+        for %{date: eff, ratio: ratio} <- events,
+            Date.compare(eff, as_of) == :gt and Date.compare(eff, today) != :gt,
+            do: %{date: eff, rescale: ratio, rank: -1}
+
+      points = Enum.sort_by(quote_points ++ rescale_points, &{Date.to_erl(&1.date), &1.rank})
 
       {security_id, %{price: carried, upcoming: points}}
     end)
+  end
+
+  defp raw_basis_close(quote_row, security, events) do
+    basis = QuoteAdjustment.basis(quote_row.source, security)
+    QuoteAdjustment.raw_close(quote_row.close, quote_row.date, basis, events)
+  end
+
+  # `%{effective_date => [{security_id, ratio}]}` for splits inside the walk.
+  defp scale_schedule(events_by_security, as_of, today) do
+    for {security_id, events} <- events_by_security,
+        %{date: eff, ratio: ratio} <- events,
+        Date.compare(eff, as_of) == :gt and Date.compare(eff, today) != :gt,
+        reduce: %{} do
+      acc -> Map.update(acc, eff, [{security_id, ratio}], &[{security_id, ratio} | &1])
+    end
   end
 
   # EUR-hub rate pointers per non-hub currency (GBX prices through GBP × 100).
@@ -187,19 +237,37 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
 
   # -- the pure daily walk -----------------------------------------------------
 
-  defp walk([], _pricing, _fx, _base, _as_of, _today), do: []
+  defp walk([], _pricing, _fx, _base, _as_of, _today, _scale_schedule), do: []
 
-  defp walk(positions, pricing, fx, base, as_of, today) do
+  defp walk(positions, pricing, fx, base, as_of, today, scale_schedule) do
     as_of
     |> Date.range(today)
-    |> Enum.reduce({[], pricing, fx}, fn day, {acc, pricing, fx} ->
+    |> Enum.reduce({[], positions, pricing, fx}, fn day, {acc, positions, pricing, fx} ->
+      positions = apply_scales(positions, Map.get(scale_schedule, day, []))
       pricing = advance_map(pricing, day, &advance_price/2)
       fx = advance_map(fx, day, &advance_rate/2)
       value = day_value(positions, pricing, fx, base)
-      {[%{date: day, value: value} | acc], pricing, fx}
+      {[%{date: day, value: value} | acc], positions, pricing, fx}
     end)
     |> elem(0)
     |> Enum.reverse()
+  end
+
+  # ADR-0028 §2/§3: the frozen quantity scales at the effective date, exactly
+  # like the ledger folds — via the shared `Projection.scale_quantity/2`
+  # (quantized once at volume scale 6).
+  defp apply_scales(positions, []), do: positions
+
+  defp apply_scales(positions, scales) do
+    Enum.map(positions, fn position ->
+      Enum.reduce(scales, position, fn {security_id, ratio}, pos ->
+        if pos.security_id == security_id do
+          %{pos | quantity: Projection.scale_quantity(pos.quantity, ratio)}
+        else
+          pos
+        end
+      end)
+    end)
   end
 
   defp day_value(positions, pricing, fx, base) do
@@ -224,6 +292,17 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
     end)
   end
 
+  # A rescale point (ADR-0028 §2) divides the carried price by the split
+  # ratio; it sorts before a same-day close point, which — already post-split
+  # basis — then wins as usual.
+  defp advance_price(%{upcoming: [%{rescale: ratio, date: date} | rest]} = entry, day) do
+    if Date.compare(date, day) in [:lt, :eq] do
+      advance_price(%{entry | price: rescale_carried(entry.price, ratio), upcoming: rest}, day)
+    else
+      entry
+    end
+  end
+
   defp advance_price(%{upcoming: [%{date: date, close: close} | rest]} = entry, day) do
     if Date.compare(date, day) in [:lt, :eq] do
       advance_price(%{entry | price: close, upcoming: rest}, day)
@@ -233,6 +312,11 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
   end
 
   defp advance_price(entry, _day), do: entry
+
+  defp rescale_carried(nil, _ratio), do: nil
+
+  defp rescale_carried(%Decimal{} = close, {p, q}),
+    do: close |> Decimal.mult(q) |> Decimal.div(p)
 
   defp advance_rate(%{upcoming: [%{date: date, rate: rate} | rest]} = entry, day) do
     if Date.compare(date, day) in [:lt, :eq] do

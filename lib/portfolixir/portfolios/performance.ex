@@ -44,6 +44,7 @@ defmodule Portfolixir.Portfolios.Performance do
   """
 
   alias Portfolixir.Buckets
+  alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
@@ -496,31 +497,92 @@ defmodule Portfolixir.Portfolios.Performance do
   # points merge the quote series with the portfolio's own trade prices; a
   # quote wins over a trade on the same day (rank 1 is consumed after rank 0,
   # and the last consumed point sticks).
+  #
+  # Split basis (ADR-0028 §2): every point is converted to its own date's
+  # **as-traded (raw) basis** — provider-mirror closes multiply back up by
+  # the cumulative ratio of strictly-later splits, manual closes and trade
+  # prices are already as-traded — so each day's price matches the basis the
+  # day's booked quantities are in. §2 states this as "(quantity x cumulative
+  # later split ratio) x adjusted quote"; applying the same factor on the
+  # price side is the identical product and fits the walk's price pointers.
+  # When the walk crosses an effective date, a rank -1 rescale point moves
+  # the carried price into the post-split era, exactly when the quantity
+  # fold scales — the events are security-level (deduplicated across the
+  # per-portfolio fan-out), so a portfolio without its own split row still
+  # prices every era correctly.
   defp init_pricing(transactions, walk_start) do
+    events_by_security =
+      transactions
+      |> Enum.map(& &1.security_id)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Quotes.split_events_by_security()
+
     transactions
     |> Enum.filter(& &1.security_id)
     |> Enum.group_by(& &1.security_id)
     |> Map.new(fn {security_id, txs} ->
-      currency = security_currency(hd(txs))
-
-      carried =
-        case Quotes.at_or_before(security_id, Date.add(walk_start, -1)) do
-          %{close: %Decimal{} = close} -> %{close: close, currency: currency}
-          _ -> nil
-        end
-
-      quote_points =
-        security_id
-        |> Quotes.range(walk_start, ~D[9999-12-31])
-        |> Enum.map(&%{date: &1.date, close: &1.close, currency: currency, rank: 1})
-
-      points =
-        (trade_points(txs, walk_start) ++ quote_points)
-        |> Enum.sort_by(&{Date.to_erl(&1.date), &1.rank})
-
-      {security_id, %{price: carried, upcoming: points}}
+      events = Map.get(events_by_security, security_id, [])
+      {security_id, init_security_pricing(security_id, txs, walk_start, events)}
     end)
   end
+
+  defp init_security_pricing(security_id, txs, walk_start, events) do
+    currency = security_currency(hd(txs))
+    security = security_struct(hd(txs))
+
+    quote_points =
+      security_id
+      |> Quotes.range(walk_start, ~D[9999-12-31])
+      |> Enum.map(
+        &%{
+          date: &1.date,
+          close: raw_basis_close(&1, security, events),
+          currency: currency,
+          rank: 1
+        }
+      )
+
+    rescale_points =
+      for %{date: eff, ratio: ratio} <- events,
+          Date.compare(eff, walk_start) != :lt,
+          do: %{date: eff, rescale: ratio, rank: -1}
+
+    points =
+      (trade_points(txs, walk_start) ++ quote_points ++ rescale_points)
+      |> Enum.sort_by(&{Date.to_erl(&1.date), &1.rank})
+
+    carried = carried_seed(security_id, walk_start, currency, security, events)
+    %{price: carried, upcoming: points}
+  end
+
+  # The seed close (last close before the walk) converted into the basis era
+  # of the day before the walk starts: as-traded at its own date, then
+  # rebased across any effective date between the quote and the walk.
+  defp carried_seed(security_id, walk_start, currency, security, events) do
+    seed_day = Date.add(walk_start, -1)
+
+    case Quotes.at_or_before(security_id, seed_day) do
+      %{close: %Decimal{}} = quote_row ->
+        close =
+          quote_row
+          |> raw_basis_close(security, events)
+          |> QuoteAdjustment.rebase_close(quote_row.date, seed_day, events)
+
+        %{close: close, currency: currency}
+
+      _ ->
+        nil
+    end
+  end
+
+  defp raw_basis_close(quote_row, security, events) do
+    basis = QuoteAdjustment.basis(quote_row.source, security)
+    QuoteAdjustment.raw_close(quote_row.close, quote_row.date, basis, events)
+  end
+
+  defp security_struct(%{security: %Portfolixir.Catalog.Security{} = security}), do: security
+  defp security_struct(_tx), do: nil
 
   defp trade_points(transactions, walk_start) do
     transactions
@@ -549,6 +611,18 @@ defmodule Portfolixir.Portfolios.Performance do
     end)
   end
 
+  # A rescale point (ADR-0028 §2) moves the *carried* price across a split's
+  # effective date (divide by the ratio) instead of setting an absolute close.
+  # It sorts at rank -1, so a same-day trade or quote point — already in the
+  # post-split basis — consumes afterwards and wins as usual.
+  defp advance_entry(%{upcoming: [%{rescale: ratio, date: date} | rest]} = entry, day) do
+    if Date.compare(date, day) in [:lt, :eq] do
+      advance_entry(%{entry | price: rescale_carried(entry.price, ratio), upcoming: rest}, day)
+    else
+      entry
+    end
+  end
+
   defp advance_entry(%{upcoming: [%{date: date} = point | rest]} = entry, day) do
     if Date.compare(date, day) in [:lt, :eq] do
       advance_entry(
@@ -561,6 +635,11 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   defp advance_entry(entry, _day), do: entry
+
+  defp rescale_carried(nil, _ratio), do: nil
+
+  defp rescale_carried(%{close: close, currency: currency}, {p, q}),
+    do: %{close: close |> Decimal.mult(q) |> Decimal.div(p), currency: currency}
 
   defp portfolio_value(state, context) do
     securities =

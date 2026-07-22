@@ -11,10 +11,12 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
          security when not is_nil(security) <- Catalog.get_security(id),
          {:ok, from} <- parse_date(Map.get(params, "from"), ~D[0001-01-01], :from),
          {:ok, to} <- parse_date(Map.get(params, "to"), ~D[9999-12-31], :to) do
-      quotes =
-        id
-        |> Quotes.range(from, to)
-        |> Enum.map(&JSON.quote/1)
+      # Stored rows plus their display-basis adjustment (ADR-0028 §2): both
+      # reads return the same rows in the same order, so the zip pairs each
+      # stored row with its adjusted view.
+      stored = Quotes.range(id, from, to)
+      adjusted = Quotes.adjusted_range(id, from, to)
+      quotes = Enum.zip_with(stored, adjusted, &JSON.quote/2)
 
       json(conn, %{data: quotes})
     else

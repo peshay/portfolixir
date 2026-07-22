@@ -61,6 +61,11 @@ that successful delete response.
   view.
 - `GET /api/v1/securities/:id` returns one security.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
+  The boolean `treat_quotes_as_raw` (default `false`) is the ADR-0028 escape
+  hatch for providers that never back-adjust their history after a stock
+  split: with the flag set, the security's provider-synced quote rows are
+  treated as raw (as-traded), so the split-adjustment factors apply to them
+  too.
 - `DELETE /api/v1/securities/:id` deletes a security when no dependent
   transactions or quote history reference it; referenced securities return
   `409 Conflict`.
@@ -106,6 +111,14 @@ Example create payload:
 - `GET /api/v1/securities/:security_id/quotes` lists quote history for one
   security. Optional query params: `from` and `to`, formatted as ISO dates.
   Invalid date filters return `422 Unprocessable Entity` with field errors.
+  Each row is self-describing about stock splits (ADR-0028): `close` is the
+  **stored** value (never mutated), `adjusted_close` the split-adjusted
+  display value, `basis` the row's storage basis (`raw` for as-traded manual
+  rows, `provider_mirror` for back-adjusted sync rows) and `adjusted`
+  whether a split factor applied. Chart or value with `adjusted_close`;
+  audit against `close`. A security whose provider never back-adjusts can be
+  flagged with `treat_quotes_as_raw` (see Securities), which forces the raw
+  basis for its synced rows.
 - `PUT /api/v1/securities/:security_id/quotes` upserts manual quote rows.
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
   one security. The response includes `status` (`ok`, `skipped`, or `error`);
@@ -275,7 +288,15 @@ Example account payloads:
   predates the security's earliest recorded transaction — the stored
   quantities may already be post-split (Portfolio Performance's split wizard
   rewrites history destructively), so booking would double-adjust. Check the
-  preview before booking.
+  preview before booking. The preview also renders the stored closes around
+  the effective date (`quotes_around`) and a `quote_basis_check`
+  (misclassification guard, ADR-0028 §2): a visible jump indicates a raw
+  series, continuity an already-adjusted one; when that contradicts the
+  per-row `source` classification the preview warns with
+  `quote_basis_contradiction` (for synced series that never back-adjust, set
+  the security's `treat_quotes_as_raw` flag instead of booking blindly), and
+  with too few closes on either side it reports
+  `insufficient_quotes_to_verify_basis` instead of implying a clean check.
 - `POST /api/v1/splits` books the split: **one** call fans the event out
   across all portfolios holding a position in the security at the effective
   date — one journaled `split` row per portfolio, inserted atomically — and

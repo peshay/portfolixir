@@ -61,7 +61,11 @@ defmodule PortfolixirWeb.ApiV1SplitsTest do
     assert data["date"] == "2026-02-02"
     assert data["ratio_numerator"] == 2
     assert data["ratio_denominator"] == 1
-    assert data["warnings"] == []
+    # No quotes exist in this world: the §2 basis guard says so explicitly
+    # instead of implying a clean check (issue #590).
+    assert data["warnings"] == ["insufficient_quotes_to_verify_basis"]
+    assert data["quote_basis_check"]["status"] == "insufficient_quotes"
+    assert data["quotes_around"] == []
 
     rows = Enum.sort_by(data["portfolios"], & &1["portfolio_id"])
     assert [row_a, row_b] = rows

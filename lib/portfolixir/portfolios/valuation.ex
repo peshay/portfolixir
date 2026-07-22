@@ -45,7 +45,8 @@ defmodule Portfolixir.Portfolios.Valuation do
 
   Options (for tests):
     * `:prices` – `%{security_id => Decimal}` native price overrides; missing
-      securities fall back to `Catalog.Quotes.latest/1`.
+      securities fall back to `Catalog.Quotes.adjusted_latest/1`
+      (split-adjusted display basis, ADR-0028 §2).
   """
   def holdings_by_security(opts \\ []) do
     prices = Keyword.get(opts, :prices, %{})
@@ -104,7 +105,8 @@ defmodule Portfolixir.Portfolios.Valuation do
 
   Options (for tests):
     * `:prices` – `%{security_id => Decimal}` native prices; missing securities
-      fall back to `Catalog.Quotes.latest/1`.
+      fall back to `Catalog.Quotes.adjusted_latest/1`
+      (split-adjusted display basis, ADR-0028 §2).
     * `:base_currency` – overrides the portfolio's base currency.
   """
   def for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
@@ -194,7 +196,8 @@ defmodule Portfolixir.Portfolios.Valuation do
 
   Options (for tests):
     * `:prices` – `%{security_id => Decimal}` native prices; missing securities
-      fall back to `Catalog.Quotes.latest/1`.
+      fall back to `Catalog.Quotes.adjusted_latest/1`
+      (split-adjusted display basis, ADR-0028 §2).
     * `:base_currency` – overrides the EUR-hub default.
   """
   def for_view(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
@@ -394,8 +397,13 @@ defmodule Portfolixir.Portfolios.Valuation do
     end
   end
 
+  # The latest close in the current display basis (ADR-0028 §2): a stale raw
+  # close from before a split's effective date is divided by the cumulative
+  # later ratio, so it never prices the post-split quantity at the unsplit
+  # value. The trade fallback below is already basis-adjusted by
+  # `Ledger.latest_trade_prices`.
   defp quote_price(security_id, security_currency) do
-    case Quotes.latest(security_id) do
+    case Quotes.adjusted_latest(security_id) do
       %{close: %Decimal{} = close} -> {close, security_currency, :quote}
       _ -> nil
     end
