@@ -29,6 +29,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Securities.LogoOverrideDialog
   alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
+  alias PortfolixirWeb.Securities.SplitWizardDialog
 
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
@@ -53,6 +54,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:visible_columns, SecurityFields.visible_default())
      |> assign(:open_popover, nil)
      |> assign(:dialog_open?, false)
+     |> assign(:split_dialog_open?, false)
      |> assign(:flash_message, nil)
      |> assign(:flash_kind, :success)
      |> assign(:sync_running?, false)
@@ -377,6 +379,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
+      <%= if @split_dialog_open? and @selected_security do %>
+        <.live_component
+          module={SplitWizardDialog}
+          id="split-wizard-dialog"
+          security={@selected_security}
+        />
+      <% end %>
+
       <%= if @delete_blocked do %>
         <RowContextMenu.delete_blocked_dialog security={@delete_blocked} />
       <% end %>
@@ -422,6 +432,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </div>
         </div>
         <div class="detail-pane-head__actions">
+          <button
+            type="button"
+            id="detail-record-split"
+            class="button-ghost"
+            phx-click="open_split_wizard"
+            title={gettext("Record a stock split for this security")}
+          >
+            <%= gettext("Record split") %>
+          </button>
           <button
             type="button"
             id="detail-pane-fullscreen-toggle"
@@ -1810,6 +1829,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:open_popover, nil)}
   end
 
+  def handle_event("open_split_wizard", _params, socket) do
+    {:noreply, assign(socket, :split_dialog_open?, true)}
+  end
+
   def handle_event("sync_now", _params, socket) do
     parent = self()
 
@@ -2425,6 +2448,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:filters, filters)
      |> assign(:open_popover, nil)
      |> load_securities()}
+  end
+
+  def handle_info({:dialog, "split-wizard-dialog", :close}, socket) do
+    {:noreply, assign(socket, :split_dialog_open?, false)}
+  end
+
+  # A booked split changes holdings, chart basis and the transactions list —
+  # reload the whole detail pane from the ledger (single source of truth).
+  def handle_info({:dialog, "split-wizard-dialog", {:split_booked, count}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:split_dialog_open?, false)
+     |> assign(:flash_kind, :success)
+     |> assign(
+       :flash_message,
+       ngettext("Split booked for one portfolio.", "Split booked for %{count} portfolios.", count)
+     )
+     |> load_detail_data()}
   end
 
   def handle_info({:dialog, _id, :close}, socket) do
