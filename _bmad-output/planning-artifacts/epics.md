@@ -10,6 +10,10 @@ amendments:
     source: 'MCP field feedback (owner LLM agent), code-verified; owner-confirmed FR-30..FR-35'
     stepsCompleted: [1, 2, 3, 4]
     elicitation: 'inversion analysis + stakeholder round table (subagents); findings applied with owner approval'
+  - date: '2026-07-22'
+    source: 'owner decisions (FR-29 rescope) + ADR-0029 review-hardening + backlog hygiene'
+    stepsCompleted: [1, 2, 3, 4]
+    elicitation: 'three-method adversarial review of ADR-0029 (red team vs blue team, pre-mortem, edge-case walk; subagents)'
 ---
 
 # Portfolixir - Epic Breakdown
@@ -35,7 +39,7 @@ This document provides the complete epic and story breakdown for Portfolixir, de
 - FR-5: PP exports import losslessly: CSV/JSON v1 (shipped) and XML with classifications, quote history, master data (#333). **Scope gate:** XML intake requires AGENTS.md amendment + ADR.
 - FR-6: Imports are previewed, idempotent (content-hash; re-import no-op), and atomic.
 - FR-7: Import gaps are surfaced, not silently defaulted: unclassified securities, missing logos (#326), unknown kinds.
-- FR-29: Documented backup/restore + full PP-compatible export (roundtrip Portfolixir → PP → Portfolixir), via UI and MCP. Ships before/with the workflows it replaces.
+- FR-29: Documented backup/restore + full PP-compatible export (roundtrip Portfolixir → PP → Portfolixir), via UI and MCP. Ships before/with the workflows it replaces. **Rescoped 2026-07-22 (owner decision):** the PP-compatible export is dropped — Portfolixir is a one-way import destination; backup/restore = documented `pg_dump` (which also restores strategy configuration wholesale); data egress for external consumers = the JSON API (#354).
 
 **C. Analytics engine**
 - FR-8: Performance: TTWROR (shipped) and IRR/money-weighted (#316) per portfolio, depot, security, over selectable periods.
@@ -152,7 +156,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-26 | — | **future** (Phase 5 retirement projection) |
 | FR-27 | #332 | what-if simulator |
 | FR-28 | **#353** | audit journal (new) |
-| FR-29 | **#354** | backup + PP export (new) |
+| FR-29 | #354 | **rescoped 2026-07-22**: documented `pg_dump` backup/restore only; PP export dropped |
 | NFR-1 | #347, #348, #314, #344 | correctness suites + gates |
 | NFR-2 | #353 | auditability = audit journal |
 | NFR-3 | #346, #347, #350 | AI-agentic guards |
@@ -297,6 +301,33 @@ ADR + AGENTS.md amendment (and, for FR-22–26, a discovery story) before code.
   `Kurs` for deliveries but the applier persists only `quantity` — imported
   deliveries therefore carry no price and enter the cost fold at zero cost.
   Carrying the price through is a candidate story in the E6 DX batch or E17.
+
+## Owner decisions and review round — 2026-07-22
+
+- **FR-29 rescoped (owner decision):** the PP-compatible export is dropped.
+  Portfolixir is a one-way import destination; whoever needs data out builds
+  their own exporter against the JSON API. Remaining #354 scope: a
+  documented, verified `pg_dump` backup/restore for the compose deployment —
+  which also covers fresh-database restore of strategy configuration
+  (ADR-0029's former "FR-29 native export" references were amended
+  accordingly). Success Metric 1 is now backed by pg_dump plus the E18
+  re-import survival work, not an export roundtrip.
+- **ADR-0029 review-hardened:** the three-method adversarial review (red
+  team vs blue team, pre-mortem, edge-case walk) ran; all six decisions
+  survived. Confirmed findings amended into the ADR: the ADR-0030
+  position-target class was missing from the §4 survival contract
+  (blocker), a stronger-identifier veto for weaker ladder tiers (blocker),
+  a bidirectional alias-uniqueness guard shipping in the same PR as the
+  alias-consulting tier (blocker), the wrong-ordering double-insert repair
+  path (blocker), preview→apply revalidation, a pre-apply inverse check for
+  signal-free renames, identifier normalization, and a hardened reconcile
+  request/response contract. The ADR awaits owner sign-off.
+- **UAT-label audit:** `needs-uat` kept on #328, #330, #332, #333, #354,
+  #412, #564 (owner judgment or risk-tier); #414, #561, #563, #565, #566
+  relabeled `agentic` (objective acceptance criteria, agent UAT-persona
+  walkthrough suffices); #471 de-labeled (parked pending its ADR-0024
+  re-cut). Backlog trackers (#321, #338, #417–#419, #481, #398) reconciled
+  with the real issue states; #399 closed as complete.
 
 ## Epic List
 
@@ -656,7 +687,7 @@ So that redoing my bookkeeping never destroys my strategy work.
 **Acceptance Criteria:**
 
 **Given** an imported fixture with attached classification, target plan and cash target
-**When** I re-import a mutated version of the same PP export (the FR-29 "restore = re-import" path)
+**When** I re-import a mutated version of the same PP export (the golden-path mutated re-import)
 **Then** the surviving strategy configuration matches exactly (golden-path DataCase test, exact-Decimal equality)
 **And** ISIN-less securities follow the ADR's fallback and any unmatched leftovers are SURFACED, not silently dropped (FR-7)
 **And** all migration writes are journaled (depends on E16's Targets/Plans journal arming) and land as dedicated small PRs (risk-tier)

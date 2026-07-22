@@ -37,14 +37,21 @@ So the golden path — re-import a mutated export into a **live** database —
 already mostly works for ISIN-bearing securities. What is actually at risk,
 verified against the schemas:
 
-1. **Stored category assignments** are the only strategy data keyed to a
-   security (`security_category_assignments.security_id`, FK
-   `on_delete: :delete_all`). Built-in trees (`asset_class`, `currency`) are
-   derived on read ([ADR-0006](0006-classifications-with-target-weights.html))
-   and cannot orphan. Target plans, targets, and cash targets hang off
+1. **Two strategy-data classes are keyed to a security** (both FK
+   `on_delete: :delete_all`): stored category assignments
+   (`security_category_assignments.security_id`) and position-level SOLL
+   targets (`portfolio_targets.security_id`,
+   [ADR-0030](0030-position-level-soll-targets.html)) — a duplicated
+   security strands both alike *(the position-target class was added by the
+   2026-07-22 review round; the original draft missed it)*. Built-in trees
+   (`asset_class`, `currency`) are derived on read
+   ([ADR-0006](0006-classifications-with-target-weights.html)) and cannot
+   orphan. Plans, category-level targets, and cash targets hang off
    `(portfolio, view, classification, category)` — a re-import never touches
-   them. The survival problem is therefore precisely a **security identity**
-   problem.
+   them. The *unmapped* survival problem is therefore the **security
+   identity** problem; bucket/view membership keys to depots/cash accounts,
+   whose renames are covered by the existing user-driven mapping step (which
+   any future non-interactive path must mirror, see §2).
 2. **ISIN-less securities** (crypto, watch-only, some certificates): `isin`
    is nullable and only unique-when-present. The `(name, currency)` fallback
    breaks on any rename in PP — the import then creates a duplicate and the
@@ -55,12 +62,14 @@ verified against the schemas:
    created. [ADR-0028](0028-corporate-actions-as-ledger-events.html) §4
    explicitly deferred this slice to this record.
 
-Out of scope here, recorded as the honest limit of any import-time matching:
-restoring strategy configuration into a **fresh** database. The PP export
-does not carry Portfolixir's strategy data, so no matcher can resurrect what
-the database no longer contains — that is FR-29's native backup/export
-(#354, still unbuilt), which will serialize strategy config keyed by the
-same stable identities decided here. Follow-up note, not FR-34 scope.
+Out of scope here: restoring strategy configuration into a **fresh**
+database. Since the FR-29 rescope (owner decision 2026-07-22, #354) that is
+an operational concern, not a matching concern: the documented `pg_dump`
+backup/restore carries the whole database — strategy configuration
+included, internal ids intact — and needs no identity matching at all. The
+former plan to serialize strategy config keyed by stable identities is
+dropped together with the PP-compatible export; data egress for external
+consumers is the JSON API. Follow-up note, not FR-34 scope.
 
 Dependencies, verified in code on 2026-07-19:
 
@@ -92,8 +101,9 @@ orphans the config); it introduces a second serialization format to
 version and round-trip-test; and it cannot dodge the identity question —
 re-attaching an exported assignment still requires deciding *which*
 security "the BTC position" now is, i.e. it presupposes the ladder anyway.
-Its one real strength, fresh-database restore, is FR-29's backup scope
-(see Context) and will reuse the identities decided here.
+Its one real strength, fresh-database restore, is already covered by
+FR-29's documented `pg_dump` backup (rescoped 2026-07-22, see Context) —
+which removes the last argument for a config-export format.
 
 ### 2. The identity ladder, and the fallback for ISIN-less securities
 
@@ -126,6 +136,59 @@ Determinism rules, all binding:
   the export updates nothing implicitly (the owner edits, journaled, when
   intended).
 
+Hardened by the 2026-07-22 adversarial-review round, equally binding:
+
+- **Stronger-identifier veto:** a weaker-tier match is accepted silently
+  only when no stronger identifier is present on both sides with
+  *differing* values. A contradicted match (entry ISIN ≠ candidate ISIN,
+  or entry WKN ≠ candidate WKN) and any cross-tier disagreement (WKN
+  selects security A, ticker+currency selects B) are surfaced as conflicts
+  — with the offer to record a §3 ISIN change where that is the likely
+  cause — never accepted silently. Without this veto the ladder would
+  convert today's safe duplicate into a silent wrong merge (the
+  same-name/same-currency share-class case). A tier with zero candidates
+  falls through to the next tier.
+- **Normalization:** all tier comparisons and alias values use the catalog
+  normal form (trimmed, uppercased ISIN/WKN/ticker; trimmed name), applied
+  identically to import entries and §6 reconcile identifiers. An entry
+  without a currency does not enter the currency-qualified tiers 3–4.
+- **Config-at-risk trigger and shape:** the warning covers stored category
+  assignments **and position targets (ADR-0030)**; config-at-risk rows
+  require a per-row explicit acknowledgment (not just the global apply),
+  while plain unambiguous creations are collapsed/summarized so the
+  warning rows are the only thing demanding attention.
+- **Pre-apply inverse check:** the preview also lists every existing
+  config-bearing security (assignments or position targets) that matches
+  *zero* entries in the import — a rename that changes ISIN, name, and WKN
+  at once fires no similarity warning, but it always leaves such an
+  untouched row behind. The panel's instruction: "if one of these was
+  renamed/ISIN-changed in PP, abort, record the ISIN change (§3), re-run
+  the preview." Leftover surfacing is scoped to securities affected by the
+  import, so standing watch-only assignments do not drown the signal.
+- **Preview→apply revalidation:** apply re-runs the ladder inside the
+  import transaction and aborts back to the preview whenever any entry's
+  resolution (or an override's target) differs from what was approved —
+  previews live for up to two hours; consent must not go stale.
+- **Override durability:** a preview remap whose entry ISIN differs from
+  the matched security's current ISIN offers to record it as a §3 ISIN
+  change in the same flow, so the decision persists for future imports
+  instead of being repeated every time.
+- **N:1 resolution:** several file rows may resolve to one security (an
+  old and a new ISIN of the same paper in one file); the preview shows one
+  merged target, and within one apply run rows collapsing to an identical
+  resolved dedup key are deduplicated and surfaced in the result, not
+  double-inserted.
+- **Non-interactive paths fail closed:** no API/MCP import path exists
+  today (the applier's "JSON-API entry point" auto-resolve is a stale
+  premise — there is no `/api/v1` imports route); if one ships, entries
+  the ladder cannot resolve silently (ambiguity, veto conflict,
+  config-at-risk) are reported as unresolved (FR-7) and are resolvable
+  only via explicit per-entry mappings in the request — never
+  auto-created, never auto-matched (AR-11 parity).
+- **Implementation note:** lookup structures must be multi-valued
+  (grouped); the applier's current single-valued `Map.new` pattern
+  silently keeps the last row and cannot express ambiguity.
+
 This answers the mandatory ISIN-less question: crypto and watch-only
 positions ride tiers 2–4, and where those are absent or ambiguous the
 outcome is a *surfaced decision*, not a silent orphan.
@@ -151,9 +214,38 @@ the preview ("matched via former ISIN"). A plain rename needs no alias at
 all — it is a journaled edit of `name`, and matching does not depend on the
 name when a stronger tier holds.
 
-Guards: an alias value that collides with a live ISIN or another security's
-alias is rejected; the unique-when-present property of the identity space
-is preserved across current ISINs and aliases together.
+Guards, made precise by the 2026-07-22 review round:
+
+- **Uniqueness, both directions:** `former_isin` carries a unique index; an
+  alias value that collides with any live ISIN (including the owning
+  security's own — recording A→A is rejected) or another alias is
+  rejected. Symmetrically, **every security-ISIN write path — including the
+  import's create path — rejects an ISIN that exists in the alias table**,
+  naming the aliased security in the error. The cross-table invariant
+  cannot live in one index; it is held as a serialized check inside the
+  same journaled transaction as the write. Together this preserves the
+  unique-when-present property across current ISINs and aliases, and makes
+  "current ISINs first, then aliases" provably unambiguous.
+- **Chains and reverts:** a security may carry multiple aliases (A→B→C).
+  Recording a change whose new ISIN equals one of the same security's own
+  aliases consumes (deletes, journaled) that alias row in the same
+  transaction — so a B→A revert works instead of deadlocking on the guard.
+- **Correctability:** aliases are not write-once — a journaled alias
+  delete/reassign exists at UI/API/MCP parity (AR-11); already-applied
+  imports are not retroactively rewired (cleanup is surfaced by the §2
+  inverse check). Alias rows ride the security's existing delete guard: a
+  security holding transactions or quotes cannot be deleted anyway; where
+  deletion is allowed, its alias rows delete with it, journaled.
+- **Ordering and repair:** §3 assumes the change is recorded *before* the
+  re-import. The wrong order — importing an export that already carries
+  the new identity — is defended by the §2 veto and the pre-apply inverse
+  check; if a duplicate is created regardless, the repair is: delete the
+  duplicated transactions and the duplicate security row, record the
+  alias, re-import (the alias-write collision error names the duplicate so
+  the repair is discoverable; a journaled security merge stays a named
+  follow-up — the securities analogue of #328 — per scope lock). The §4
+  round-trip test gains a wrong-ordering variant asserting the conflict is
+  surfaced, not silently merged.
 
 **Rejected: a first-class ledger kind** (`isin_change`). Unlike a split it
 has **no projection effect** — no quantity leg, no cash leg, no external
@@ -182,6 +274,10 @@ security rows resolve per §2/§3:
 - **Per-view cash targets:** every plan's `cash_target_weight`, including
   the portfolio-wide cash-only plan
   ([ADR-0020](0020-view-bound-soll-plans.html)).
+- **Position-level SOLL targets
+  ([ADR-0030](0030-position-level-soll-targets.html)):** every position
+  row's `(plan, category, security)` and weight — unchanged rows, same
+  ids, exactly like category assignments.
 - **Leftovers are surfaced, never dropped (FR-7):** a security that ends up
   with stored assignments but no position after the re-import, and every
   entry the ladder could not resolve unambiguously, appear in the import
@@ -189,12 +285,18 @@ security rows resolve per §2/§3:
 
 **Epic acceptance criterion — the golden-path round-trip test:** a
 `DataCase` test imports a synthetic fixture, attaches a custom
-classification with assignments, a multi-version target plan, and a cash
-target, then re-imports a **mutated** fixture (renamed ISIN-less security,
-one changed ISIN routed through a §3 alias, drifted decimal formatting) and
-asserts the surviving strategy configuration matches **exactly** — Decimal
-values compared with `Decimal.eq?`-exactness, ids unchanged, plan versions
-and statuses intact — plus the surfaced-leftover assertions above.
+classification with assignments, a multi-version target plan, a cash
+target, and position targets (ADR-0030) on both the to-be-renamed
+ISIN-less security and the to-be-ISIN-changed security, then re-imports a
+**mutated** fixture (renamed ISIN-less security, one changed ISIN routed
+through a §3 alias, drifted decimal formatting) and asserts the surviving
+strategy configuration matches **exactly** — Decimal values compared with
+`Decimal.eq?`-exactness, ids unchanged, plan versions and statuses intact —
+plus the surfaced-leftover assertions above. Companion fixtures required by
+the review round: two securities sharing a WKN and two sharing
+`(name, currency)` (both surfaced as decisions, neither matched nor created
+silently), the wrong-ordering variant from §3, and the §2 preview→apply
+divergence abort.
 
 ### 5. Sequencing and risk tier
 
@@ -205,12 +307,20 @@ and statuses intact — plus the surfaced-leftover assertions above.
 - Everything touching the applier's matching and idempotency is
   **risk-tier**: dedicated small PRs with real human review (AGENTS.md
   risk-tier exception), not epic-batch content. The two-layer idempotency
-  is load-bearing here and must be re-asserted in tests: after an ISIN
-  change, a new export carries the new ISIN, so content hashes drift — the
-  resolved dedup key (#533) keeps the re-import a no-op **because** the
-  alias tier resolves the same `security_id`. That interaction gets its own
-  test.
-- Order inside E18: §3 alias slice first (it feeds the §2 ladder), then the
+  is load-bearing here and must be re-asserted in tests, **in both
+  directions** (the review round caught the original sentence describing
+  the wrong tier): (a) change recorded, then a *new* export re-imported —
+  the new ISIN resolves via the **current-ISIN** tier; content hashes
+  drift, the resolved dedup key (#533) keeps it a no-op; (b) change
+  recorded, then an *old* export re-imported — the former ISIN resolves
+  via the **alias** tier, dedup likewise holds. Both tests assert
+  `skipped_duplicates` and zero created securities; the unrecorded-change
+  wrong ordering is covered by the §3/§4 variant.
+- Order inside E18: the §3 alias slice ships first — **in the same
+  risk-tier PR as the ladder's alias-consulting ISIN tier and the
+  bidirectional guard** (the alias table must never exist without the tier
+  that reads it and the guard that protects it, or a stale export can mint
+  a duplicate carrying a retired ISIN in the window) — then the full
   ladder + preview overrides, then the §4 round-trip test closes the epic.
 
 ### 6. FR-35 verdict: build the read-only reconcile endpoint
@@ -245,13 +355,33 @@ It is **rejected** for three reasons:
    matching them through the identical ladder — alias hits included —
    dogfoods FR-34's mechanism and keeps one identity semantics, not two.
 
-Shape (binding for Story 18.3): `POST /api/v1/holdings/reconcile` plus an
-MCP tool at AR-11 parity; request rows of `identifier` + `quantity`
-(optional currency); response per row: the ladder-matched security, ledger
-quantity, external quantity, and delta as Decimal **strings**, plus
-unmatched external rows and ledger positions absent from the list — both
-surfaced, per FR-7 — and the embedded guidance block. Read-only, gap-marker
-contract (AR-4), synthetic fixtures only.
+Shape (binding for Story 18.3, hardened 2026-07-22):
+`POST /api/v1/holdings/reconcile` plus an MCP tool at AR-11 parity.
+
+- **Request:** rows of `identifier` + `quantity` (optional `currency`,
+  optional explicit `security_id` to pin a match); quantities are
+  canonical dot-decimal Decimal strings (any other format is a 422 —
+  locale parsing is the client's job); an empty row list is a 422; an
+  optional portfolio/view scope parameter bounds the compare (default: the
+  whole instance, stated in the response basis).
+- **Identifier typing:** a string that validates as an ISIN enters tier 1
+  only; anything else is tried per tier in ladder order with the §2
+  exactly-one rule applied **across the union of the remaining tiers** — a
+  string matching one security's WKN and another's ticker is ambiguous,
+  never a pick; a currency-less row cannot enter tiers 3–4 and is reported
+  unmatched rather than guessed.
+- **Response per row:** the ladder-matched security, the **matched tier**
+  (`matched_via`: `isin` | `former_isin` | `wkn` | `ticker` | `name`),
+  ledger quantity, external quantity, and delta as Decimal **strings**;
+  tier-3/4 matches carry an explicit weak-match caveat inside the guidance
+  ("confirm the security before booking"); ambiguous rows carry an
+  `ambiguous` status with the candidate securities. Rows resolving to the
+  same security are aggregated (external quantities summed, noted in the
+  response) so an agent never sees two contradictory deltas for one
+  position.
+- Unmatched external rows and ledger positions absent from the list are
+  both surfaced, per FR-7, alongside the embedded guidance block.
+  Read-only, gap-marker contract (AR-4), synthetic fixtures only.
 
 ## Consequences
 
@@ -266,18 +396,26 @@ contract (AR-4), synthetic fixtures only.
   identities and an ISIN-less security renamed *and* re-tickered in PP will
   still surface as "decide me" in the preview — deliberate, since the
   silent alternative is worse. The preview grows a security-mapping step
-  (more UI surface, mirroring the existing account mapping).
+  (more UI surface, mirroring the existing account mapping), plus the
+  per-row config-at-risk acknowledgment and the untouched-config inverse
+  check added by the review round.
 - Fresh-database restore of strategy configuration is explicitly **not**
-  solved here; it lands with FR-29's native backup/export (#354), keyed by
-  the identities this ADR fixes. Follow-up note per scope lock.
+  solved here — and no longer needs to be: FR-29 as rescoped (owner
+  decision 2026-07-22, #354) covers it with the documented `pg_dump`
+  backup/restore, ids preserved verbatim, no identity mapping involved.
+  Data egress for external consumers is the JSON API.
 - Import-idempotency and matcher changes are risk-tier throughout (§5);
   weakening either dedup layer to make a batch pass is a review reject.
-- **Review status:** per the ADR-0028 precedent, the three-method
-  adversarial review round (red team vs. blue team, pre-mortem, edge-case
-  walk) runs **before** owner sign-off and is scheduled for the next
-  session — this draft is decision-complete but **not yet
-  review-hardened**; findings land as amendments to the sections above
-  ahead of the sign-off.
+- **Review status:** the three-method adversarial review round (red team
+  vs. blue team, pre-mortem, edge-case walk; ADR-0028 precedent) ran on
+  2026-07-22. All six decisions survived as decisions; the confirmed
+  findings — ADR-0030 position targets in the survival contract, the
+  stronger-identifier veto, the bidirectional alias guard with
+  same-PR-as-tier sequencing, the wrong-ordering repair path, the
+  pre-apply inverse check, preview→apply revalidation, the hardened
+  reconcile request/response contract, identifier normalization, and the
+  FR-29 rescope wording — are applied to the sections above. The draft is
+  review-hardened and ready for owner sign-off.
 
 ## References
 
@@ -287,6 +425,7 @@ contract (AR-4), synthetic fixtures only.
 - [ADR-0026](0026-epic-batch-workflow.html) — decision-gate workflow this ADR follows
 - [ADR-0027](0027-plan-versions-and-depot-snapshots.html) — plan versions (all of which survive per §4); E16 journal arming verified landed
 - [ADR-0028](0028-corporate-actions-as-ledger-events.html) — §4 defers the rename/ISIN-change slice decided in §3 here
-- FR-34/FR-35 — section H in `_bmad-output/planning-artifacts/epics.md`; FR-29 — fresh-DB restore follow-up (#354); FR-30 — shipped ISIN/WKN holdings payloads (#582); FR-7 — surfaced import gaps
+- [ADR-0030](0030-position-level-soll-targets.html) — position-level SOLL targets keyed to securities; part of the §4 survival contract
+- FR-34/FR-35 — section H in `_bmad-output/planning-artifacts/epics.md`; FR-29 — rescoped 2026-07-22 to documented `pg_dump` backup/restore, PP export dropped (#354); FR-30 — shipped ISIN/WKN holdings payloads (#582); FR-7 — surfaced import gaps
 - `Portfolixir.Imports.Applier` — current matching and the two-layer idempotency (#533) this decision hardens
 - Epic tracking: E18 in `_bmad-output/planning-artifacts/epics.md`
