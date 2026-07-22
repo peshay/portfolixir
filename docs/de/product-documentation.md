@@ -843,6 +843,23 @@ Für Anbieter, die ihre Historie nie rückwirkend anpassen, bietet der
 Overview-Tab des Wertpapiers den Schalter **Synchronisierte Kurse als roh
 behandeln**, der die Roh-Basis für dessen synchronisierte Zeilen erzwingt.
 
+**Einen Split erfassen.** Der Button **Split erfassen** in der Detailansicht
+öffnet einen geführten Assistenten: Verhältnis als neu:alt eingeben (2:1
+verdoppelt die Stückzahl, 1:10 ist ein Reverse Split) und den Stichtag
+wählen — der Dialog zeigt die Wirkung live als Vorschau: Stückzahl vor und
+nach dem Stichtag plus die resultierende aktuelle Position, eine Zeile je
+betroffenem Portfolio — zusammen mit jeder Warnung, bevor irgendetwas
+geschrieben wird: ein Stichtag vor der importierten Historie (die
+Stückzahlen können bereits nach-Split sein) und die Kursbasis-Prüfung der
+gespeicherten Schlusskurse rund um den Stichtag (Widerspruch oder zu wenige
+Kurse zur Prüfung). Das Bestätigen bucht dasselbe erstklassige
+Split-Ledger-Ereignis, das auch API und MCP-Werkzeuge anlegen — eine
+journalisierte Transaktion je positioniertem Portfolio, atomar — und Chart,
+Bestände und Transaktionen aktualisieren sich sofort. Ungültige Eingaben
+(ein 1:1-Verhältnis, ein Datum in der Zukunft, keine gehaltene Position oder
+ein zweiter Split am selben Tag, der unter Nennung des bereits gebuchten
+Ereignisses abgelehnt wird) bleiben inline im Dialog.
+
 ## Verhalten der Oberfläche
 
 - Der aktive Seitentitel und eine kurze Kontextzeile leben in der oberen Leiste.

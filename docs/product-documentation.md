@@ -795,6 +795,21 @@ unsplit price. For providers that never back-adjust their history, the
 security's Overview tab offers a **Treat synced quotes as raw** toggle that
 forces the raw basis for its synced rows.
 
+**Recording a split.** The detail pane's **Record split** button opens a
+guided wizard: enter the ratio as new:old shares (2:1 doubles the share
+count, 1:10 is a reverse split) and the effective date, and the dialog
+previews the effect live — quantity before and after the effective date plus
+the resulting current position, one row per affected portfolio — together
+with every warning before anything is written: an effective date that
+predates the imported history (the quantities may already be post-split), and
+the quote-basis check on the stored closes around the effective date
+(contradiction or too few quotes to verify). Confirming books the same
+first-class split ledger event the API and MCP tools create — one journaled
+transaction per positioned portfolio, atomically — and the chart, holdings
+and transactions refresh immediately. Invalid input (a 1:1 ratio, a future
+date, no held position, or a second split on the same day, which is rejected
+naming the already-booked event) stays inline in the dialog.
+
 ## Interface behavior
 
 - The active page title and short context line live in the top bar. Page content
