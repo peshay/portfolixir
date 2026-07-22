@@ -167,6 +167,15 @@ effective date plus the resulting current position, and warns when the
 effective date predates the imported history's earliest transaction — the
 quantities may already be post-split.
 
+> **Note 2026-07-22 (FR-29 rescope, owner decision, #354):** the
+> PP-compatible export was dropped entirely — Portfolixir is a one-way
+> import destination; backup/restore is a documented `pg_dump`. The
+> export-side marker degradation and the import-side marker reconstitution
+> above therefore have no producer and are **dropped from the E17.2 scope**
+> (they remain recorded here as the spec should a PP-compatible export ever
+> return). The PP-rewritten-history preview behavior in the previous
+> paragraph is unaffected and stays binding.
+
 ### 2. Quote continuity via append-only adjustment factors, derived at read time
 
 The split event never mutates stored quotes. But stored histories come in
@@ -321,7 +330,8 @@ slices, each requiring its own ADR amendment before implementation:
 - The PP round-trip behavior of §1 is documented and covered by tests
   (export → re-import reconstitutes the split; split rows dedup on the §1
   identity `(portfolio, security, date, normalized ratio)`, content-hash
-  idempotency for all other rows).
+  idempotency for all other rows). *Dropped 2026-07-22 with the FR-29
+  rescope — see the §1 note; no PP-compatible export exists to round-trip.*
 - A TTWROR-continuity test replays a synthetic 10:1 split: quantity ×10,
   total cost basis unchanged, per-share cost /10, no jump in the daily
   series on the effective date — exact `Decimal` expectations.
