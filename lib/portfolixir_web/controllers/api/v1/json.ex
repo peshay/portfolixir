@@ -161,6 +161,32 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  @doc """
+  The split booking preview (ADR-0028 §1, issue #589): the normalized ratio
+  as integers, the warnings as strings, and one row per affected portfolio
+  with all quantities as Decimal strings.
+  """
+  def split_preview(preview) do
+    %{
+      security_id: preview.security_id,
+      date: date(preview.date),
+      ratio_numerator: preview.ratio_numerator,
+      ratio_denominator: preview.ratio_denominator,
+      warnings: Enum.map(preview.warnings, &Atom.to_string/1),
+      portfolios: Enum.map(preview.portfolios, &split_preview_row/1)
+    }
+  end
+
+  defp split_preview_row(row) do
+    %{
+      portfolio_id: row.portfolio_id,
+      portfolio_name: row.portfolio_name,
+      quantity_before: decimal(row.quantity_before),
+      quantity_after: decimal(row.quantity_after),
+      current_position: decimal(row.current_position)
+    }
+  end
+
   def trades(%{open_lots: lots, closed_trades: closed, orphan_sells: orphans}) do
     %{
       # FR-13: state the matching method so a consumer never has to assume how

@@ -263,6 +263,30 @@ Example account payloads:
   mis-imported booking); the per-kind validation still applies.
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
   holdings are derived, correcting or removing the transaction fixes them too.
+- `POST /api/v1/splits/preview` previews a stock split booking (ADR-0028)
+  without writing anything. The request carries `security_id`, the effective
+  `date` (ISO, not in the future) and the ratio as a pair of positive
+  integers `ratio_numerator`/`ratio_denominator` (`10:1` forward, `1:10`
+  reverse; normalized to lowest terms, so `10:5` previews and books as
+  `2:1`). The response shows, per portfolio holding the security, the
+  quantity immediately before and after the effective date and the resulting
+  current position (all Decimal strings; the ratio parts stay integers),
+  plus `warnings`: `effective_date_before_history` means the effective date
+  predates the security's earliest recorded transaction — the stored
+  quantities may already be post-split (Portfolio Performance's split wizard
+  rewrites history destructively), so booking would double-adjust. Check the
+  preview before booking.
+- `POST /api/v1/splits` books the split: **one** call fans the event out
+  across all portfolios holding a position in the security at the effective
+  date — one journaled `split` row per portfolio, inserted atomically — and
+  returns the created transactions (`201`, regular transaction shape). A
+  portfolio with zero position at the effective date gets no row. A second
+  same-day split for the same security is rejected with `422` naming the
+  existing event (a retried timeout cannot compound the multiplicative
+  event); a future-dated effective date and a security nobody held at the
+  effective date are rejected with `422` too. The generic
+  `POST /api/v1/transactions` endpoint rejects the `split` kind — these two
+  routes are the only split write path.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
   portfolio, one row per (depot, security). Each row carries `quantity`, a
   moving-average `avg_cost` and `cost_basis` (price-based, so fees and taxes are
@@ -823,6 +847,8 @@ in MCP schemas are strings.
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`
 - `portfolixir.transactions.delete`
+- `portfolixir.splits.preview`
+- `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.holdings.by_security`
 - `portfolixir.portfolios.valuation`

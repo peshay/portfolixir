@@ -33,6 +33,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.transactions.create",
       "portfolixir.transactions.update",
       "portfolixir.transactions.delete",
+      "portfolixir.splits.preview",
+      "portfolixir.splits.create",
       "portfolixir.holdings.list",
       "portfolixir.holdings.by_security",
       "portfolixir.portfolios.valuation",
@@ -633,6 +635,101 @@ describe("Portfolixir MCP tools", () => {
     );
 
     assert.equal(requests.length, 0);
+  });
+
+  // User story (ADR-0028 §1/§5, issue #589):
+  // As an MCP agent operating the ledger without a UI,
+  // I want dedicated split preview/create tools with integer ratio parts,
+  // string quantities and descriptions that explain the fan-out, the
+  // same-day rejection and the before-history warning,
+  // so that I preview and book a corporate action safely in two calls.
+  //
+  // Acceptance criteria:
+  // - Both tools expose integer ratio fields (never Decimal strings) and a
+  //   closed schema (additionalProperties: false) plus a zod validator.
+  // - preview POSTs to /api/v1/splits/preview, create POSTs to /api/v1/splits.
+  // - The descriptions state the all-positioned-portfolios fan-out, the
+  //   second-same-day rejection and that the before-history warning means the
+  //   quantities may already be post-split (check the preview before booking).
+  it("exposes the split flow as preview/create tools with integer ratio schemas", async () => {
+    const tools = listTools();
+
+    for (const name of ["portfolixir.splits.preview", "portfolixir.splits.create"]) {
+      const tool = tools.find((candidate) => candidate.name === name);
+      assert.ok(tool, `${name} is missing`);
+      assert.equal(tool?.inputSchema.additionalProperties, false);
+      assert.deepEqual(tool?.inputSchema.required, [
+        "security_id",
+        "date",
+        "ratio_numerator",
+        "ratio_denominator"
+      ]);
+      assert.equal(tool?.inputSchema.properties.ratio_numerator.type, "integer");
+      assert.equal(tool?.inputSchema.properties.ratio_denominator.type, "integer");
+      assert.equal(tool?.inputSchema.properties.date.type, "string");
+
+      // Zod mirrors the schema: non-positive or missing ratio parts fail
+      // before any API call is made.
+      assert.throws(() =>
+        tool?.zodSchema.parse({
+          security_id: 1,
+          date: "2026-02-02",
+          ratio_numerator: 0,
+          ratio_denominator: 1
+        })
+      );
+      assert.doesNotThrow(() =>
+        tool?.zodSchema.parse({
+          security_id: 1,
+          date: "2026-02-02",
+          ratio_numerator: 10,
+          ratio_denominator: 5
+        })
+      );
+    }
+
+    const create = tools.find((tool) => tool.name === "portfolixir.splits.create");
+    assert.match(create?.description ?? "", /all portfolios (holding|with) a position/i);
+    assert.match(create?.description ?? "", /second .*same[- ]day .*(split|booking).*reject/i);
+    assert.match(create?.description ?? "", /preview/i);
+
+    const preview = tools.find((tool) => tool.name === "portfolixir.splits.preview");
+    assert.match(preview?.description ?? "", /already .*post-split/i);
+    assert.match(preview?.description ?? "", /effective_date_before_history/);
+  });
+
+  it("routes the split tools to POST /splits/preview and POST /splits", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.splits.preview", {
+      security_id: 9,
+      date: "2026-02-02",
+      ratio_numerator: 10,
+      ratio_denominator: 5
+    });
+    await callTool(client, "portfolixir.splits.create", {
+      security_id: 9,
+      date: "2026-02-02",
+      ratio_numerator: 2,
+      ratio_denominator: 1
+    });
+
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/splits/preview");
+    assert.deepEqual(requests[0].body, {
+      security_id: 9,
+      date: "2026-02-02",
+      ratio_numerator: 10,
+      ratio_denominator: 5
+    });
+    assert.equal(requests[1].method, "POST");
+    assert.equal(requests[1].path, "/api/v1/splits");
+    assert.deepEqual(requests[1].body, {
+      security_id: 9,
+      date: "2026-02-02",
+      ratio_numerator: 2,
+      ratio_denominator: 1
+    });
   });
 
   it("routes update/delete tools to PATCH/DELETE on the right paths", async () => {
