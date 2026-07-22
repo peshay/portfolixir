@@ -49,6 +49,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       latest_feed: security.latest_feed,
       latest_feed_url: security.latest_feed_url,
       is_retired: security.is_retired,
+      # ADR-0028 §2 escape hatch: forces the raw quote basis for this
+      # security's provider-synced rows (providers that never back-adjust).
+      treat_quotes_as_raw: security.treat_quotes_as_raw,
       online_id: security.online_id,
       provider: security.provider,
       attributes: security.attributes || %{},
@@ -173,8 +176,42 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       ratio_numerator: preview.ratio_numerator,
       ratio_denominator: preview.ratio_denominator,
       warnings: Enum.map(preview.warnings, &Atom.to_string/1),
+      quotes_around: Enum.map(preview.quotes_around, &preview_quote/1),
+      quote_basis_check: quote_basis_check(preview.quote_basis_check),
       portfolios: Enum.map(preview.portfolios, &split_preview_row/1)
     }
+  end
+
+  defp preview_quote(row) do
+    %{date: date(row.date), close: decimal(row.close), source: row.source}
+  end
+
+  # ADR-0028 §2 misclassification guard: stored closes around the effective
+  # date checked against the per-row basis classification. The note names the
+  # `treat_quotes_as_raw` escape hatch, so an agent seeing a contradiction on
+  # a synced series knows the sanctioned fix.
+  defp quote_basis_check(check) do
+    %{
+      status: Atom.to_string(check.status),
+      expected_basis: check.expected_basis && Atom.to_string(check.expected_basis),
+      observed: check.observed && Atom.to_string(check.observed),
+      note: quote_basis_note(check.status)
+    }
+  end
+
+  defp quote_basis_note(:contradiction) do
+    "The stored closes around the effective date contradict the per-row source " <>
+      "classification. If this synced series never back-adjusts after splits, set the " <>
+      "security's treat_quotes_as_raw flag to force the raw basis; do not book blindly " <>
+      "(risk of double adjustment)."
+  end
+
+  defp quote_basis_note(:insufficient_quotes) do
+    "Insufficient quotes around the effective date to verify the quote basis."
+  end
+
+  defp quote_basis_note(_consistent) do
+    "The stored closes around the effective date match the per-row source classification."
   end
 
   defp split_preview_row(row) do
@@ -252,6 +289,22 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       inserted_at: timestamp(quote.inserted_at),
       updated_at: timestamp(quote.updated_at)
     }
+  end
+
+  @doc """
+  A stored quote row plus its split-adjustment view (ADR-0028 §2, FR-13):
+  `close` stays the stored value (NFR-2), `adjusted_close` is the display
+  basis, `basis` states the row's storage basis (`raw`/`provider_mirror`)
+  and `adjusted` whether a factor applied.
+  """
+  def quote(%SecurityQuote{} = quote, adjusted_row) do
+    quote
+    |> __MODULE__.quote()
+    |> Map.merge(%{
+      adjusted_close: decimal(adjusted_row.close),
+      basis: Atom.to_string(adjusted_row.basis),
+      adjusted: adjusted_row.adjusted?
+    })
   end
 
   def holdings(holdings, portfolio_id) when is_list(holdings) do

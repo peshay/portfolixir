@@ -22,6 +22,7 @@ defmodule Portfolixir.Ledger do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.Positions
@@ -129,16 +130,12 @@ defmodule Portfolixir.Ledger do
   and any orphan sells.
 
   Pass `:latest_price` (Decimal) to inject the comparison price for
-  tests; otherwise the function reads it from `Catalog.Quotes.latest/1`.
+  tests; otherwise the function reads it from `Catalog.Quotes.adjusted_latest/1`
+  (the split-adjusted display basis, ADR-0028 §2).
   """
   def list_trades_for_security(security_id, opts \\ []) when is_integer(security_id) do
     latest_price =
-      Keyword.get_lazy(opts, :latest_price, fn ->
-        case Quotes.latest(security_id) do
-          %{close: close} -> close
-          _ -> nil
-        end
-      end)
+      Keyword.get_lazy(opts, :latest_price, fn -> adjusted_latest_close(security_id) end)
 
     transactions =
       security_id
@@ -173,7 +170,8 @@ defmodule Portfolixir.Ledger do
   price never distorts the rest of the list.
 
   Pass `:prices` (`%{security_id => Decimal}`) to inject comparison prices for
-  tests; missing securities fall back to `Catalog.Quotes.latest/1`.
+  tests; missing securities fall back to `Catalog.Quotes.adjusted_latest/1`
+  (the split-adjusted display basis, ADR-0028 §2).
   """
   def holdings_for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     prices = Keyword.get(opts, :prices, %{})
@@ -273,12 +271,15 @@ defmodule Portfolixir.Ledger do
   defp holding_price(security_id, prices) do
     case Map.get(prices, security_id) do
       %Decimal{} = price -> price
-      _ -> holding_latest_close(security_id)
+      _ -> adjusted_latest_close(security_id)
     end
   end
 
-  defp holding_latest_close(security_id) do
-    case Quotes.latest(security_id) do
+  # Latest close in the current display basis (ADR-0028 §2): a stale raw
+  # close from before a split's effective date is divided by the cumulative
+  # later ratio before it prices a post-split quantity.
+  defp adjusted_latest_close(security_id) do
+    case Quotes.adjusted_latest(security_id) do
       %{close: %Decimal{} = close} -> close
       _ -> nil
     end
@@ -293,17 +294,13 @@ defmodule Portfolixir.Ledger do
   The moving-average cost basis follows the shares through the same kinds
   (see `cost_lots/1`), per depot.
 
-  Pass `:latest_price` to inject the comparison price for tests;
-  otherwise reads it from `Catalog.Quotes.latest/1`.
+  Pass `:latest_price` to inject the comparison price for tests; otherwise
+  reads it from `Catalog.Quotes.adjusted_latest/1` (the split-adjusted
+  display basis, ADR-0028 §2).
   """
   def holdings_for_security(security_id, opts \\ []) when is_integer(security_id) do
     latest_price =
-      Keyword.get_lazy(opts, :latest_price, fn ->
-        case Quotes.latest(security_id) do
-          %{close: close} -> close
-          _ -> nil
-        end
-      end)
+      Keyword.get_lazy(opts, :latest_price, fn -> adjusted_latest_close(security_id) end)
 
     transactions = list_transactions_for_security(security_id)
     lots = cost_lots(transactions)
@@ -760,7 +757,7 @@ defmodule Portfolixir.Ledger do
         select: {t.security_id, %{price: t.price, currency: t.currency_code, date: t.date}}
       )
     )
-    |> Map.new()
+    |> adjust_trade_prices()
   end
 
   @doc """
@@ -781,7 +778,25 @@ defmodule Portfolixir.Ledger do
         select: {t.security_id, %{price: t.price, currency: t.currency_code, date: t.date}}
       )
     )
-    |> Map.new()
+    |> adjust_trade_prices()
+  end
+
+  # A fallback trade price is always raw basis (ADR-0028 §2): divide it by
+  # the cumulative ratio of splits effective after the trade's date so it
+  # prices post-split quantities in the current basis.
+  defp adjust_trade_prices(rows) do
+    events_by_security = rows |> Enum.map(&elem(&1, 0)) |> Quotes.split_events_by_security()
+
+    Map.new(rows, fn {security_id, entry} ->
+      case Map.get(events_by_security, security_id) do
+        nil ->
+          {security_id, entry}
+
+        events ->
+          price = QuoteAdjustment.display_trade_price(entry.price, entry.date, events)
+          {security_id, %{entry | price: price}}
+      end
+    end)
   end
 
   defp ordered_transactions do

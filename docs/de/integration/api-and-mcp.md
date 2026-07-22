@@ -62,7 +62,11 @@ Löschantwort keinen JSON-Body parsen.
   dieser Ansicht.
 - `GET /api/v1/securities/:id` liefert ein Wertpapier.
 - `PATCH /api/v1/securities/:id` aktualisiert ein Wertpapier mit einem
-  `security`-Objekt.
+  `security`-Objekt. Das Boolean `treat_quotes_as_raw` (Standard `false`) ist
+  die ADR-0028-Notluke für Anbieter, die ihre Historie nach einem
+  Aktiensplit nie rückwirkend anpassen: Mit gesetztem Flag werden die
+  synchronisierten Kurszeilen des Wertpapiers als roh (wie gehandelt)
+  behandelt, sodass die Split-Anpassungsfaktoren auch auf sie wirken.
 - `DELETE /api/v1/securities/:id` löscht ein Wertpapier, wenn keine abhängigen
   Transaktionen oder keine Kurshistorie darauf verweisen; referenzierte
   Wertpapiere liefern `409 Conflict`.
@@ -87,7 +91,16 @@ Beispiel-Payload zum Anlegen:
 - `GET /api/v1/securities/:security_id/quotes` listet die Kurshistorie eines
   Wertpapiers. Optionale Query-Parameter: `from` und `to`, als ISO-Daten
   formatiert. Ungültige Datumsfilter liefern `422 Unprocessable Entity` mit
-  Feldfehlern.
+  Feldfehlern. Jede Zeile beschreibt ihren Split-Status selbst (ADR-0028):
+  `close` ist der **gespeicherte** Wert (wird nie verändert),
+  `adjusted_close` der split-bereinigte Anzeigewert, `basis` die
+  Speicherbasis der Zeile (`raw` für wie gehandelt erfasste manuelle Zeilen,
+  `provider_mirror` für rückwirkend angepasste Sync-Zeilen) und `adjusted`,
+  ob ein Split-Faktor angewendet wurde. Charts und Bewertungen nutzen
+  `adjusted_close`; Audits prüfen gegen `close`. Ein Wertpapier, dessen
+  Anbieter nie rückwirkend anpasst, lässt sich mit `treat_quotes_as_raw`
+  markieren (siehe Wertpapiere), was die Roh-Basis für seine
+  synchronisierten Zeilen erzwingt.
 - `PUT /api/v1/securities/:security_id/quotes` führt manuelle Kurszeilen ein
   (Upsert).
 - `POST /api/v1/securities/:security_id/sync_quotes` löst die
@@ -272,7 +285,16 @@ Beispiel-Payloads für Konten:
   gespeicherten Stückzahlen können bereits post-split sein (der
   Split-Assistent von Portfolio Performance schreibt die Historie destruktiv
   um), eine Buchung würde dann doppelt anpassen. Vor dem Buchen die Vorschau
-  prüfen.
+  prüfen. Die Vorschau zeigt außerdem die gespeicherten Schlusskurse rund um
+  das Wirksamkeitsdatum (`quotes_around`) und einen `quote_basis_check`
+  (Fehlklassifikations-Wächter, ADR-0028 §2): ein sichtbarer Sprung deutet
+  auf eine Roh-Serie hin, Kontinuität auf eine bereits angepasste; steht das
+  im Widerspruch zur Klassifikation über die `source` der Zeilen, warnt die
+  Vorschau mit `quote_basis_contradiction` (für Sync-Serien, die nie
+  rückwirkend anpassen, das Flag `treat_quotes_as_raw` des Wertpapiers
+  setzen statt blind zu buchen), und bei zu wenigen Kursen auf einer Seite
+  meldet sie `insufficient_quotes_to_verify_basis`, statt eine saubere
+  Prüfung zu suggerieren.
 - `POST /api/v1/splits` bucht den Split: **ein** Aufruf fächert das Ereignis
   über alle Portfolios mit Bestand am Wirksamkeitsdatum auf — eine
   journalisierte `split`-Zeile je Portfolio, atomar eingefügt — und liefert

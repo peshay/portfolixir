@@ -245,7 +245,11 @@ defmodule Portfolixir.Portfolios.Allocation do
     price_overrides = Keyword.get(opts, :prices, %{})
 
     unheld_targets = Enum.reject(soll.position_targets, &MapSet.member?(held, &1.security_id))
-    quotes = Quotes.latest_by_security_ids(Enum.map(unheld_targets, & &1.security_id))
+
+    # Display-basis closes (ADR-0028 §2): a stale raw close from before a
+    # split's effective date is served divided by the later ratio, so a buy
+    # hint is never priced at the unsplit value.
+    quotes = Quotes.adjusted_latest_by_security_ids(Enum.map(unheld_targets, & &1.security_id))
     rates = base_rates_by_currency(unheld_targets, valuation.base_currency)
 
     unheld_prices =

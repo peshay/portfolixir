@@ -775,6 +775,34 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[4].path, "/api/v1/securities/9");
   });
 
+  // ADR-0028 §2 (issue #590): the per-security quote-basis override is
+  // settable over MCP, and the quote/preview tools describe the adjusted
+  // basis fields so an agent can act on them.
+  it("forwards the treat_quotes_as_raw override and documents the quote basis (ADR-0028)", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 9 } });
+
+    await callTool(client, "portfolixir.securities.update", {
+      id: 9,
+      security: { treat_quotes_as_raw: true }
+    });
+
+    assert.deepEqual(requests[0], {
+      method: "PATCH",
+      path: "/api/v1/securities/9",
+      body: { security: { treat_quotes_as_raw: true } },
+      token: "Bearer api-token"
+    });
+
+    const tools = listTools();
+    const quotesList = tools.find((tool) => tool.name === "portfolixir.quotes.list");
+    assert.match(quotesList!.description, /adjusted_close/);
+    assert.match(quotesList!.description, /provider_mirror/);
+
+    const preview = tools.find((tool) => tool.name === "portfolixir.splits.preview");
+    assert.match(preview!.description, /quote_basis_check/);
+    assert.match(preview!.description, /treat_quotes_as_raw/);
+  });
+
   it("passes list filters through as query params", async () => {
     const { client, requests } = createRecordingClient({ data: [] });
 
