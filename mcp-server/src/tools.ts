@@ -185,6 +185,38 @@ const idSchema = {
   properties: { id: { type: "integer", minimum: 1 } }
 };
 
+// The dedicated split booking flow (ADR-0028 §1): the ratio is a pair of
+// positive INTEGERS (10:1 forward, 1:10 reverse) — integers keep a 1:3
+// reverse split exact where a decimal ratio cannot, so these two fields are
+// deliberately not Decimal strings. All returned quantities are strings.
+const splitRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id", "date", "ratio_numerator", "ratio_denominator"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    date: {
+      type: "string",
+      format: "date",
+      description: "Effective date (YYYY-MM-DD), not in the future."
+    },
+    ratio_numerator: {
+      type: "integer",
+      minimum: 1,
+      description: "New share count per ratio_denominator old shares (10 for a 10:1 forward split, 1 for a 1:10 reverse split)."
+    },
+    ratio_denominator: { type: "integer", minimum: 1 }
+  }
+};
+
+const splitRequestZ = () =>
+  z.object({
+    security_id: z.number().int().positive(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    ratio_numerator: z.number().int().positive(),
+    ratio_denominator: z.number().int().positive()
+  });
+
 const securitySchema = objectWith("security", {
   type: "object",
   required: ["name", "currency_code"],
@@ -1330,6 +1362,20 @@ const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id and quantity — inbound_delivery additionally REQUIRES price (an unpriced inbound delivery enters the cost basis at zero), while outbound_delivery removes cost at the position's running average and treats price as informational; security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. For buy/sell, omit cash_account_id — it is derived from the depot's linked account. Amounts are positive magnitudes; the kind implies the direction (removal/fee/tax debit, deposit/dividend/interest credit) — never send negative values (set_balance is the only negative-capable amount). Semantics: for dividend/interest/tax_refund bookings, gross_amount is the NET cash credited to the account — record withheld taxes in the taxes field; the income report reconstructs gross as net plus withheld tax. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking). Semantics as on create: a dividend's gross_amount is the NET cash credited (withheld taxes ride in the taxes field), and an unpriced inbound delivery enters the cost basis at zero (changing a type to inbound_delivery therefore requires a price).", transactionUpdateSchema, transactionUpdateZ),
   tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction.", idSchema, idZ),
+  tool(
+    "portfolixir.splits.preview",
+    "Preview stock split",
+    "Read-only preview of a stock split booking (ADR-0028): shows, per portfolio holding the security, the quantity immediately before and after the effective date and the resulting current position, plus warnings — nothing is written. ALWAYS call this before portfolixir.splits.create and read the numbers: the effective_date_before_history warning means the effective date predates the security's earliest recorded transaction, so the stored quantities may already be post-split (Portfolio Performance's split wizard rewrites history destructively before export) — booking the split then would double-adjust; do not book when before/after are 0 and the current position already looks post-split. The ratio is a pair of positive integers (10:1 forward, 1:10 reverse), normalized to lowest terms; all quantities in the response are Decimal strings.",
+    splitRequestSchema,
+    splitRequestZ()
+  ),
+  tool(
+    "portfolixir.splits.create",
+    "Book stock split",
+    "Book a stock split as a first-class ledger event (ADR-0028): ONE call fans the split out across all portfolios holding a position in the security at the effective date — one journaled split row per portfolio, inserted atomically; do not call once per portfolio. A second same-day split for the same security is rejected with the existing event named (write idempotency — a retried timeout cannot compound the split), so a 422 naming an existing transaction means the split is already booked. A future-dated effective date is rejected, and a security nobody held at the effective date returns a no-position error. Check portfolixir.splits.preview first — especially its effective_date_before_history warning, which signals quantities that may already be post-split. The ratio parts are positive integers (never Decimal strings); the response returns the created transactions with all financial values as strings.",
+    splitRequestSchema,
+    splitRequestZ()
+  ),
   tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings in each security's own currency (no FX conversion), with moving-average cost basis, latest price, market value and unrealized P&L. Each row carries the security's stable identifiers isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
     type: "object",
     additionalProperties: false,
@@ -1774,6 +1820,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       });
     case "portfolixir.transactions.delete":
       return client.request("DELETE", `/api/v1/transactions/${args.id}`);
+    case "portfolixir.splits.preview":
+      return client.request("POST", "/api/v1/splits/preview", splitRequestBody(args));
+    case "portfolixir.splits.create":
+      return client.request("POST", "/api/v1/splits", splitRequestBody(args));
     case "portfolixir.holdings.list":
       return client.request(
         "GET",
@@ -2030,6 +2080,15 @@ function tool(
   zodSchema: ZodTypeAny
 ): ToolDefinition {
   return { name, title, description, inputSchema, zodSchema };
+}
+
+function splitRequestBody(args: Record<string, any>): Record<string, unknown> {
+  return {
+    security_id: args.security_id,
+    date: args.date,
+    ratio_numerator: args.ratio_numerator,
+    ratio_denominator: args.ratio_denominator
+  };
 }
 
 function objectWith(property: string, schema: JsonSchema): JsonSchema {

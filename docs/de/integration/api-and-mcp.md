@@ -258,6 +258,33 @@ Beispiel-Payloads für Konten:
 - `DELETE /api/v1/transactions/:id` löscht eine Transaktion. Da Trades und
   Bestände abgeleitet sind, korrigiert oder entfernt das Korrigieren oder Entfernen
   der Transaktion auch sie.
+- `POST /api/v1/splits/preview` zeigt eine Aktiensplit-Buchung (ADR-0028) als
+  Vorschau, ohne etwas zu schreiben. Die Anfrage trägt `security_id`, das
+  Wirksamkeitsdatum `date` (ISO, nicht in der Zukunft) und das Verhältnis als
+  Paar positiver Ganzzahlen `ratio_numerator`/`ratio_denominator` (`10:1`
+  vorwärts, `1:10` Reverse-Split; auf kleinste Terme normalisiert, `10:5`
+  wird also als `2:1` gebucht). Die Antwort zeigt je Portfolio mit Bestand
+  die Stückzahl unmittelbar vor und nach dem Wirksamkeitsdatum sowie den
+  resultierenden aktuellen Bestand (alles Decimal-Strings; die
+  Verhältnis-Teile bleiben Ganzzahlen), plus `warnings`:
+  `effective_date_before_history` bedeutet, dass das Wirksamkeitsdatum vor
+  der frühesten erfassten Transaktion des Wertpapiers liegt — die
+  gespeicherten Stückzahlen können bereits post-split sein (der
+  Split-Assistent von Portfolio Performance schreibt die Historie destruktiv
+  um), eine Buchung würde dann doppelt anpassen. Vor dem Buchen die Vorschau
+  prüfen.
+- `POST /api/v1/splits` bucht den Split: **ein** Aufruf fächert das Ereignis
+  über alle Portfolios mit Bestand am Wirksamkeitsdatum auf — eine
+  journalisierte `split`-Zeile je Portfolio, atomar eingefügt — und liefert
+  die erzeugten Transaktionen (`201`, reguläres Transaktionsformat). Ein
+  Portfolio ohne Bestand am Wirksamkeitsdatum erhält keine Zeile. Ein
+  zweiter Split am selben Tag für dasselbe Wertpapier wird mit `422`
+  abgelehnt und benennt das bestehende Ereignis (ein wiederholter Timeout
+  kann den multiplikativen Effekt nicht verdoppeln); ein Datum in der
+  Zukunft und ein Wertpapier ohne Bestand am Wirksamkeitsdatum werden
+  ebenfalls mit `422` abgelehnt. Der generische Endpunkt
+  `POST /api/v1/transactions` lehnt die Art `split` ab — diese beiden Routen
+  sind der einzige Schreibpfad für Splits.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` listet abgeleitete Bestände
   eines Portfolios, eine Zeile je (Depot, Wertpapier). Jede Zeile trägt
   `quantity`, einen gleitenden Durchschnitt `avg_cost` und `cost_basis`
@@ -760,6 +787,8 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`
 - `portfolixir.transactions.delete`
+- `portfolixir.splits.preview`
+- `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.holdings.by_security`
 - `portfolixir.portfolios.valuation`
