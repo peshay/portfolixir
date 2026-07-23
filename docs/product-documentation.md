@@ -700,6 +700,52 @@ uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
 
+### Security matching and the mapping step
+
+Securities in the file resolve against your existing records through a
+deterministic **stable-identity ladder** (ADR-0029): ISIN first — current
+ISINs, then recorded former-ISIN aliases —, then WKN, then ticker+currency,
+then name+currency. Each tier only applies when the identifier is present on
+both sides, and only when it selects exactly one candidate. Matching never
+changes the matched security's master data: a rename in the export updates
+nothing implicitly.
+
+The preview's **Securities from the export** panel shows the outcome:
+
+- **Matches** are summarized in a collapsible list, each labeled with the
+  tier that matched it (for example *matched via former ISIN* after a
+  recorded ISIN change).
+- **Plain new securities** stay collapsed as a summary; expand the list to
+  remap any of them onto an existing security instead.
+- **Decisions** are surfaced prominently and block the import until you
+  decide: an ambiguous identifier (two securities share a WKN or a
+  name+currency), or a candidate that contradicts a stronger identifier —
+  the typical shape of an ISIN change that has not been recorded yet. The
+  import never picks silently in these cases.
+- **Configuration-at-risk warnings**: when a to-be-created security
+  near-matches an existing one that carries category assignments or position
+  targets, the row requires its own explicit confirmation — a duplicate
+  would strand that configuration on a position-less row.
+
+When you remap an entry whose ISIN differs from the chosen security's
+current ISIN, the preview offers to **record the difference as an ISIN
+change** in the same step, so the decision persists for future imports
+instead of being repeated every time.
+
+A second panel lists every **configured security the import does not
+touch**: securities carrying assignments or position targets that match no
+entry in the file. If one of them was renamed or ISIN-changed in Portfolio
+Performance, discard the preview, record the ISIN change on the security,
+and re-run the import.
+
+Two more safeguards run at apply time: the matching is **re-checked inside
+the import transaction** and the apply aborts back to the preview if
+anything resolved differently than what you approved (previews can sit open
+for a while); and rows that resolve to the **same booking on the same
+security** — an export listing one paper under both its old and its new
+ISIN — are collapsed to a single transaction and reported, never
+double-imported.
+
 Inbound and outbound **delivery** rows keep their parsed per-share price (the
 CSV `Kurs` column), so a priced inbound delivery enters the holdings cost
 basis with its real cost. A delivery row without a price still imports and

@@ -348,6 +348,18 @@ defmodule Portfolixir.Classifications do
   defp assignment_result({:error, :assignment, %Ecto.Changeset{} = changeset, _}),
     do: {:error, changeset}
 
+  @doc """
+  The set of security ids carrying at least one stored (custom-tree) category
+  assignment. Used by the import ladder's config-at-risk warning and pre-apply
+  inverse check (ADR-0029 §2): these are the securities whose strategy
+  configuration a duplicated import row would strand.
+  """
+  def security_ids_with_assignments do
+    from(a in Assignment, distinct: true, select: a.security_id)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
   @doc "Returns the stored assignment for a `(security, classification)` pair, or nil."
   def get_assignment(security_id, classification_id) do
     Repo.get_by(Assignment, security_id: security_id, classification_id: classification_id)

@@ -22,10 +22,30 @@ defmodule Portfolixir.Imports do
   alias Portfolixir.Imports.Applier
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Imports.SecurityResolver
 
   @spec parse_portfolio_performance(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse_portfolio_performance(body, opts \\ []) when is_binary(body) do
     PortfolioPerformance.parse(body, opts)
+  end
+
+  @doc """
+  Runs the ADR-0029 §2 identity ladder over a parsed preview against the
+  current database: one classified resolution row per unique security
+  reference (matched / create / needs-decision / config-at-risk), plus the
+  pre-apply inverse check (config-bearing securities matched by zero
+  entries). Read-only — the preview UI uses it to drive the security-mapping
+  step before `apply/2`.
+  """
+  @spec resolve_securities(Preview.t()) :: %{resolutions: [map()], unmatched_config: [map()]}
+  def resolve_securities(%Preview{} = preview) do
+    index = SecurityResolver.load_index()
+    resolutions = SecurityResolver.resolution_plan(preview, index)
+
+    %{
+      resolutions: resolutions,
+      unmatched_config: SecurityResolver.unmatched_config_securities(resolutions, index)
+    }
   end
 
   @spec apply(Preview.t(), Applier.apply_params()) :: {:ok, Applier.Result.t()} | {:error, term()}

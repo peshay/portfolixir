@@ -532,6 +532,22 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  The set of security ids referenced by at least one booking. The import
+  preview's pre-apply inverse check (ADR-0029 §2) uses it to scope leftover
+  surfacing to securities affected by imports — a watch-only security without
+  bookings legitimately matches no export row and must not drown the signal.
+  """
+  def security_ids_with_transactions do
+    from(t in Transaction,
+      where: not is_nil(t.security_id),
+      distinct: true,
+      select: t.security_id
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc """
   Records a transaction on behalf of `actor` (FR-28). The `transactions` row and
   its audit-journal entry commit in one transaction (ADR-0017); the table is
   guard-armed, so every ledger write is attributable.

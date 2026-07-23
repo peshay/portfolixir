@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "DEPOSIT",
+      "account": "Test-Cash",
+      "date": "2024-01-02",
+      "currency": "EUR",
+      "amount": 10000.00
+    },
+    {
+      "type": "PURCHASE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2024-02-01",
+      "currency": "EUR",
+      "amount": 3000.00,
+      "shares": 0.10,
+      "security": {
+        "name": "Bitcoin",
+        "currency": "EUR"
+      }
+    },
+    {
+      "type": "PURCHASE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2024-03-01",
+      "currency": "EUR",
+      "amount": 1500.00,
+      "shares": 10.0,
+      "security": {
+        "name": "Acme AG",
+        "isin": "DE000ACME001",
+        "wkn": "ACM111",
+        "ticker": "ACM",
+        "currency": "EUR"
+      }
+    }
+  ]
+}
