@@ -70,6 +70,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_cost_basis?, false)
      |> assign(:detail_quotes, [])
      |> assign(:detail_series_basis, :empty)
+     |> assign(:detail_split_events, [])
      |> assign(:detail_transactions, [])
      |> assign(:detail_transaction_rows, [])
      |> assign(:detail_trades, %{open_lots: [], closed_trades: [], orphan_sells: []})
@@ -625,7 +626,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
             quotes={@detail_quotes}
             transactions={@detail_transactions}
             overlays={
-              build_chart_overlays(@detail_quotes, @detail_transaction_rows, @detail_ma, @detail_cost_basis?)
+              build_chart_overlays(
+                @detail_quotes,
+                @detail_transaction_rows,
+                @detail_ma,
+                @detail_cost_basis?,
+                @detail_split_events
+              )
             }
             log_scale?={@detail_log_scale? and not @detail_percent_mode?}
             percent_mode?={@detail_percent_mode?}
@@ -633,12 +640,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
             currency_code={@selected_security.currency_code}
           />
           <p
-            :if={series_basis_label(@detail_series_basis)}
+            :if={series_basis_label(@detail_series_basis, @detail_split_events)}
             class="detail-tab-hint"
             data-role="chart-basis"
           >
             <%= gettext("Price basis: %{basis}. Stored quotes are never modified (see the Quotes tab).",
-              basis: series_basis_label(@detail_series_basis)
+              basis: series_basis_label(@detail_series_basis, @detail_split_events)
             ) %>
           </p>
         </section>
@@ -669,6 +676,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           currency_code={@selected_security.currency_code}
           range={@detail_range}
           series_basis={@detail_series_basis}
+          split_events={@detail_split_events}
         />
       <% end %>
 
@@ -870,14 +878,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       <%= tx_type_label(tx.type) %>
                     </span>
                   </td>
-                  <td class="num"><%= Format.decimal(tx.quantity, 4) %></td>
-                  <td class="num">
-                    <%= Format.decimal(tx.price, 2) %>
-                    <small><%= tx.currency_code %></small>
-                  </td>
-                  <td class="num"><%= Format.decimal(tx.fees, 2) %></td>
-                  <td class="num"><%= Format.decimal(tx.taxes, 2) %></td>
-                  <td class="num"><%= Format.decimal(tx_gross(tx), 2) %></td>
+                  <%= if tx.type == "split" do %>
+                    <%!-- A split has no money legs: the quantity column
+                          carries the ratio, the money columns stay empty
+                          instead of rendering "— EUR" / 0.00 clutter (E17
+                          review, finding 7). --%>
+                    <td class="num" data-role="split-ratio"><%= split_ratio_label(tx) %></td>
+                    <td class="num">—</td>
+                    <td class="num">—</td>
+                    <td class="num">—</td>
+                    <td class="num">—</td>
+                  <% else %>
+                    <td class="num"><%= Format.decimal(tx.quantity, 4) %></td>
+                    <td class="num">
+                      <%= Format.decimal(tx.price, 2) %>
+                      <small><%= tx.currency_code %></small>
+                    </td>
+                    <td class="num"><%= Format.decimal(tx.fees, 2) %></td>
+                    <td class="num"><%= Format.decimal(tx.taxes, 2) %></td>
+                    <td class="num"><%= Format.decimal(tx_gross(tx), 2) %></td>
+                  <% end %>
                   <td><%= depot_name(tx) %></td>
                   <td><%= tx.notes %></td>
                 </tr>
@@ -1251,6 +1271,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:currency_code, :string, default: nil)
   attr(:range, :string, default: nil)
   attr(:series_basis, :atom, default: :empty)
+  attr(:split_events, :list, default: [])
 
   defp quotes_tab_panel(assigns) do
     assigns = assign(assigns, :rows, Enum.reverse(assigns.quotes))
@@ -1270,9 +1291,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <%= gettext("Showing range %{range}. Adjust the Chart tab to change which quotes appear here.",
             range: @range || gettext("default")) %>
         </p>
-        <p :if={series_basis_label(@series_basis)} class="detail-tab-hint" data-role="quotes-basis">
+        <p
+          :if={series_basis_label(@series_basis, @split_events)}
+          class="detail-tab-hint"
+          data-role="quotes-basis"
+        >
           <%= gettext("Price basis: %{basis}. The stored column keeps the unmodified values.",
-            basis: series_basis_label(@series_basis)
+            basis: series_basis_label(@series_basis, @split_events)
           ) %>
         </p>
         <div class="data-table-wrap">
@@ -1335,7 +1360,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp tx_type_label("buy"), do: gettext("Buy")
   defp tx_type_label("sell"), do: gettext("Sell")
+  defp tx_type_label("split"), do: gettext("Split")
   defp tx_type_label(other), do: to_string(other)
+
+  defp split_ratio_label(%{split_ratio_numerator: p, split_ratio_denominator: q})
+       when is_integer(p) and is_integer(q),
+       do: "#{p}:#{q}"
+
+  defp split_ratio_label(_tx), do: "—"
 
   defp tx_gross(%{quantity: q, price: p} = tx) do
     with %Decimal{} = quantity <- decimal_for_display(q),
@@ -1381,7 +1413,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp build_chart_overlays(quotes, transactions, ma_toggles, cost_basis?) do
+  defp build_chart_overlays(quotes, transactions, ma_toggles, cost_basis?, split_events) do
     ma_overlays =
       for {window, true} <- ma_toggles do
         %{
@@ -1397,7 +1429,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           %{
             class: "chart-cost-basis",
             label: "Cost basis",
-            points: cost_basis_series(quotes, transactions)
+            points: cost_basis_series(quotes, transactions, split_events)
           }
         ]
       else
@@ -1424,18 +1456,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> Enum.reverse()
   end
 
-  defp cost_basis_series(quotes, transactions) when transactions != [] do
+  defp cost_basis_series(quotes, transactions, split_events) when transactions != [] do
     # Replay order (ADR-0028 §3): a same-day split applies before the day's
-    # trades, exactly like every ledger quantity fold.
-    sorted_txs = Projection.replay_sort(transactions)
-
+    # trades, exactly like every ledger quantity fold. The fan-out rows of
+    # one booking dedupe into one security-level event first — the fold must
+    # apply each ratio once per EVENT, not once per portfolio row (E17
+    # review, finding 1a).
     series =
-      sorted_txs
-      |> Enum.reduce({Decimal.new(0), Decimal.new(0), []}, fn tx, acc ->
-        apply_cost_basis_point(tx, acc)
-      end)
+      transactions
+      |> dedupe_split_rows()
+      |> Projection.replay_sort()
+      |> Enum.reduce({Decimal.new(0), Decimal.new(0), []}, &apply_cost_basis_point/2)
       |> elem(2)
       |> Enum.reverse()
+      |> Enum.map(&display_basis_point(&1, split_events))
 
     # Extend the last value to the last visible quote date so the line is
     # visible across the chart.
@@ -1453,7 +1487,31 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp cost_basis_series(_quotes, _empty), do: []
+  defp cost_basis_series(_quotes, _empty, _events), do: []
+
+  # One row per (date, normalized ratio) — the identity quote consumers use
+  # for security-level split events; non-split rows pass through untouched.
+  defp dedupe_split_rows(transactions) do
+    Enum.uniq_by(transactions, fn
+      %{type: "split"} = tx ->
+        {:split, tx.date, tx.split_ratio_numerator, tx.split_ratio_denominator}
+
+      tx ->
+        {:tx, tx.id}
+    end)
+  end
+
+  # Each fold point carries the raw (as-traded) basis of its own era, but
+  # the chart's price series is display basis — rebase by the cumulative
+  # ratio of all strictly-later split events, exactly like a raw close (E17
+  # review, finding 1b). Float conversion happens only here, at the chart
+  # boundary.
+  defp display_basis_point({date, %Decimal{} = value}, split_events) do
+    {date,
+     value
+     |> QuoteAdjustment.display_close(date, :raw, split_events)
+     |> Decimal.to_float()}
+  end
 
   defp apply_cost_basis_point(%{type: "buy"} = tx, {qty_held, avg_cost, points}) do
     new_qty = Decimal.add(qty_held, tx.quantity)
@@ -1468,22 +1526,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
         Decimal.div(numerator, new_qty)
       end
 
-    {new_qty, new_avg, [{tx.date, Decimal.to_float(new_avg)} | points]}
+    {new_qty, new_avg, [{tx.date, new_avg} | points]}
   end
 
   defp apply_cost_basis_point(%{type: "sell"} = tx, {qty_held, avg_cost, points}) do
-    {Decimal.sub(qty_held, tx.quantity), avg_cost,
-     [{tx.date, Decimal.to_float(avg_cost)} | points]}
+    {Decimal.sub(qty_held, tx.quantity), avg_cost, [{tx.date, avg_cost} | points]}
   end
 
   # ADR-0028 §3 for the overlay: quantity scales by the ratio, total cost is
-  # invariant, so the per-share average divides — the overlay line then meets
-  # the split-adjusted price series without a cliff.
+  # invariant, so the per-share average divides — the running average moves
+  # into the post-split era, and `display_basis_point/2` rebases every
+  # emitted point onto the display scale afterwards.
   defp apply_cost_basis_point(%{type: "split"} = tx, {qty_held, avg_cost, points}) do
     {p, q} = {tx.split_ratio_numerator, tx.split_ratio_denominator}
     new_avg = avg_cost |> Decimal.mult(q) |> Decimal.div(p)
     new_qty = qty_held |> Decimal.mult(p) |> Decimal.div(q)
-    {new_qty, new_avg, [{tx.date, Decimal.to_float(new_avg)} | points]}
+    {new_qty, new_avg, [{tx.date, new_avg} | points]}
   end
 
   defp apply_cost_basis_point(_tx, acc), do: acc
@@ -2557,6 +2615,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_fullscreen?, false)
     |> assign(:detail_quotes, [])
     |> assign(:detail_series_basis, :empty)
+    |> assign(:detail_split_events, [])
     |> assign(:detail_transactions, [])
     |> assign(:detail_transaction_rows, [])
     |> assign(:detail_trades, %{open_lots: [], closed_trades: [], orphan_sells: []})
@@ -2584,6 +2643,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # (UX-DR10/11).
     quotes = Quotes.adjusted_range(id, from, to)
 
+    # Security-level split events (deduplicated across the per-portfolio
+    # fan-out): the cost-basis overlay and the basis hint both key off them
+    # (E17 review, findings 1 and 11).
+    split_events = Quotes.split_events(id)
+
     transaction_rows =
       id
       |> Ledger.list_transactions_for_security()
@@ -2602,6 +2666,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     socket
     |> assign(:detail_quotes, quotes)
+    |> assign(:detail_split_events, split_events)
     |> assign(:detail_transactions, transactions)
     |> assign(:detail_transaction_rows, transaction_rows)
     |> assign(:detail_trades, Ledger.list_trades_for_security(id))
@@ -2618,14 +2683,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_classifications, load_security_classifications(id))
   end
 
-  # UX-DR11 basis labels for the chart and its chart-as-table.
-  defp series_basis_label(:raw), do: gettext("split-adjusted")
-  defp series_basis_label(:provider_mirror), do: gettext("provider-adjusted")
+  # UX-DR11 basis labels for the chart and its chart-as-table. Without any
+  # booked split event nothing is (or could be) adjusted — the hint says
+  # "as recorded" instead of claiming a split adjustment (E17 review,
+  # finding 11).
+  defp series_basis_label(:empty, _split_events), do: nil
+  defp series_basis_label(_basis, []), do: gettext("as recorded")
+  defp series_basis_label(:raw, _split_events), do: gettext("split-adjusted")
+  defp series_basis_label(:provider_mirror, _split_events), do: gettext("provider-adjusted")
 
-  defp series_basis_label(:mixed),
+  defp series_basis_label(:mixed, _split_events),
     do: gettext("mixed (split-adjusted and provider-adjusted rows)")
-
-  defp series_basis_label(_empty), do: nil
 
   # Joins each holding row's per-position bucket override state and its depot's
   # default set, so the holdings tab can present inherit / explicit-empty /

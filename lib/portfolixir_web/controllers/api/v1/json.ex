@@ -220,7 +220,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       portfolio_name: row.portfolio_name,
       quantity_before: decimal(row.quantity_before),
       quantity_after: decimal(row.quantity_after),
-      current_position: decimal(row.current_position)
+      current_position: decimal(row.current_position),
+      # Booking creates a row only for portfolios positioned at the effective
+      # date; false means this row would not be booked (E17 review, finding 5).
+      bookable: row.bookable
     }
   end
 

@@ -87,6 +87,30 @@ defmodule PortfolixirWeb.FormatTest do
     assert Format.signed_decimal(nil, 2, "en") == "—"
   end
 
+  # User story (E17 closing-act review, finding 10):
+  # As a German-locale user reading a dialog error that names a date,
+  # I want dates formatted under the active locale,
+  # so that copy does not mix German text with bare ISO dates.
+  #
+  # Acceptance criteria:
+  # - "de" renders DD.MM.YYYY, other locales the ISO form.
+  # - Without an explicit locale the current gettext locale applies.
+  # - Non-dates render as an em dash.
+  test "Format.date/2 localizes dates (German dotted, ISO elsewhere)" do
+    assert Format.date(~D[2026-07-22], "de") == "22.07.2026"
+    assert Format.date(~D[2026-07-22], "en") == "2026-07-22"
+    assert Format.date(nil, "de") == "—"
+
+    previous = Gettext.get_locale(PortfolixirWeb.Gettext)
+
+    try do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+      assert Format.date(~D[2026-01-05]) == "05.01.2026"
+    after
+      Gettext.put_locale(PortfolixirWeb.Gettext, previous)
+    end
+  end
+
   test "Format.decimal/2 and Format.signed_decimal/2 default to current gettext locale" do
     previous = Gettext.get_locale(PortfolixirWeb.Gettext)
 

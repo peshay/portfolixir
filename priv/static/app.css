@@ -1595,6 +1595,21 @@ li + li {
   border-color: color-mix(in srgb, var(--color-accent) 88%, black);
 }
 
+/* A disabled primary action reads as muted and non-clickable in both themes:
+   the accent washes toward the surface tokens instead of hard-coded colours
+   (E17 review, finding 10). */
+.button-primary:disabled {
+  background: color-mix(in srgb, var(--color-accent) 35%, var(--color-bg-muted));
+  border-color: transparent;
+  color: color-mix(in srgb, var(--color-on-accent) 75%, var(--color-bg-muted));
+  cursor: not-allowed;
+}
+
+.button-primary:disabled:hover {
+  background: color-mix(in srgb, var(--color-accent) 35%, var(--color-bg-muted));
+  border-color: transparent;
+}
+
 .button-ghost {
   background: transparent;
   border-color: var(--color-border);

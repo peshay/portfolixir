@@ -2,7 +2,7 @@ defmodule Portfolixir.Ledger.SplitsTest do
   use Portfolixir.DataCase, async: true
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, sell!: 3]
+    only: [base_world: 1, buy!: 3, create_security!: 1, put_quote!: 3, sell!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Journal
@@ -180,10 +180,11 @@ defmodule Portfolixir.Ledger.SplitsTest do
   # so that a retry can never compound the multiplicative event.
   #
   # Acceptance criteria:
-  # - Booking the same split twice fails with {:error, {:existing_split, tx}}
-  #   where tx is the already-booked row.
-  # - The failed booking writes nothing (atomic fan-out): a conflict on one
-  #   portfolio rolls back the whole request.
+  # - A half-landed retry (one portfolio already carries the identical row)
+  #   is completed idempotently: only the missing rows are inserted, the
+  #   existing row is never duplicated (E17 review, finding 2).
+  # - Once every positioned portfolio carries the row, booking again fails
+  #   with {:error, {:existing_split, tx}} naming an already-booked row.
   test "rejects a second same-day split naming the existing event, atomically" do
     world_a = base_world(name: "Retry A", cash_name: "RA Cash", depot_name: "RA Depot")
     world_b = base_world(name: "Retry B", cash_name: "RB Cash", depot_name: "RB Depot")
@@ -192,7 +193,7 @@ defmodule Portfolixir.Ledger.SplitsTest do
     buy!(world_b, security, quantity: "6", price: "100", date: ~D[2026-01-02])
 
     # Portfolio B already carries the split (e.g. a half-landed retry booked
-    # manually): the fan-out must conflict on B and leave A without a row.
+    # manually): re-booking completes the fan-out with A's missing row only.
     {:ok, existing} =
       Ledger.create_transaction(Actor.owner_ui(), %{
         portfolio_id: world_b.portfolio.id,
@@ -204,28 +205,27 @@ defmodule Portfolixir.Ledger.SplitsTest do
         split_ratio_denominator: 1
       })
 
-    assert {:error, {:existing_split, named}} =
-             Splits.book_split(Actor.owner_ui(), split_attrs(security))
-
-    assert named.id == existing.id
-    assert named.type == "split"
-    assert named.split_ratio_numerator == 2
-    assert named.split_ratio_denominator == 1
+    assert {:ok, [completion]} = Splits.book_split(Actor.owner_ui(), split_attrs(security))
+    assert completion.portfolio_id == world_a.portfolio.id
 
     split_rows =
       Ledger.list_transactions(security_id: security.id)
       |> Enum.filter(&(&1.type == "split"))
 
-    assert [%{id: id}] = split_rows
-    assert id == existing.id
+    assert split_rows |> Enum.map(& &1.id) |> Enum.sort() ==
+             Enum.sort([existing.id, completion.id])
 
-    # A clean retry against a fully booked split is rejected the same way.
-    {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), existing)
-    assert {:ok, booked} = Splits.book_split(Actor.owner_ui(), split_attrs(security))
-    assert length(booked) == 2
-
-    assert {:error, {:existing_split, %Transaction{}}} =
+    # With every positioned portfolio booked, a retry names the existing
+    # event and writes nothing.
+    assert {:error, {:existing_split, %Transaction{type: "split"}}} =
              Splits.book_split(Actor.owner_ui(), split_attrs(security))
+
+    assert length(
+             Enum.filter(
+               Ledger.list_transactions(security_id: security.id),
+               &(&1.type == "split")
+             )
+           ) == 2
   end
 
   # User story (ADR-0028 §5, issue #589):
@@ -272,11 +272,13 @@ defmodule Portfolixir.Ledger.SplitsTest do
 
     assert preview.warnings == [
              :effective_date_before_history,
+             :no_position_at_effective_date,
              :insufficient_quotes_to_verify_basis
            ]
 
     assert [row] = preview.portfolios
     assert row.portfolio_id == world.portfolio.id
+    assert row.bookable == false
     assert Decimal.equal?(row.quantity_before, Decimal.new("0"))
     assert Decimal.equal?(row.quantity_after, Decimal.new("0"))
     assert Decimal.equal?(row.current_position, Decimal.new("30"))
@@ -322,6 +324,193 @@ defmodule Portfolixir.Ledger.SplitsTest do
 
     assert {:error, :invalid_ratio} =
              Splits.book_split(Actor.owner_ui(), split_attrs(security, numerator: 0))
+  end
+
+  # User story (E17 closing-act review, finding 2 — extend fan-out):
+  # As a local portfolio maintainer who backdated a buy into a portfolio
+  # after booking the security's split,
+  # I want re-booking the identical split to insert only the missing
+  # portfolio rows,
+  # so that the late-positioned portfolio's holdings scale without me
+  # deleting and re-creating the whole event.
+  #
+  # Acceptance criteria:
+  # - Re-booking an identical (security, date, normalized ratio) split skips
+  #   portfolios that already carry the row and inserts only the missing ones.
+  # - When no portfolio is missing the booking still returns
+  #   {:error, {:existing_split, tx}}.
+  test "re-booking an identical split extends the fan-out to newly positioned portfolios" do
+    world_a = base_world(name: "Extend A", cash_name: "XA Cash", depot_name: "XA Depot")
+    world_b = base_world(name: "Extend B", cash_name: "XB Cash", depot_name: "XB Depot")
+    world_c = base_world(name: "Extend C", cash_name: "XC Cash", depot_name: "XC Depot")
+    security = create_security!(name: "Extend Co", ticker: "XTD")
+    buy!(world_a, security, quantity: "10", price: "100", date: ~D[2026-01-02])
+    buy!(world_b, security, quantity: "4", price: "100", date: ~D[2026-01-02])
+
+    assert {:ok, first} = Splits.book_split(Actor.owner_ui(), split_attrs(security))
+    assert length(first) == 2
+
+    # Portfolio C becomes positioned at the effective date only afterwards,
+    # via a backdated booking.
+    buy!(world_c, security, quantity: "6", price: "100", date: ~D[2026-01-15])
+
+    assert {:ok, [extension]} = Splits.book_split(Actor.owner_ui(), split_attrs(security))
+    assert extension.portfolio_id == world_c.portfolio.id
+    assert extension.type == "split"
+    assert Decimal.equal?(position(world_c, security), Decimal.new("12"))
+
+    # Existing rows were not duplicated.
+    split_rows =
+      Ledger.list_transactions(security_id: security.id)
+      |> Enum.filter(&(&1.type == "split"))
+
+    assert length(split_rows) == 3
+
+    # With every positioned portfolio already booked the retry answer stays
+    # the existing-event rejection.
+    assert {:error, {:existing_split, %Transaction{}}} =
+             Splits.book_split(Actor.owner_ui(), split_attrs(security))
+  end
+
+  # User story (E17 closing-act review, finding 2 — same-day ratio guard):
+  # As a maintainer of an auditable quote history,
+  # I want a booking with a different ratio on a day that already carries a
+  # split rejected (and flagged in the preview),
+  # so that conflicting security-level events can never corrupt the quote
+  # consumers that dedupe rows into one event per (security, date).
+  #
+  # Acceptance criteria:
+  # - Booking a different normalized ratio on the same (security, date)
+  #   returns {:error, {:conflicting_split_ratio, tx}} naming an existing row.
+  # - The preview of such a booking warns with :conflicting_split_ratio.
+  test "rejects a same-day split with a different ratio and warns in preview" do
+    world = base_world(name: "Conflict World", cash_name: "CF Cash", depot_name: "CF Depot")
+    security = create_security!(name: "Conflict Co", ticker: "CFL")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-02])
+
+    assert {:ok, [existing]} = Splits.book_split(Actor.owner_ui(), split_attrs(security))
+
+    conflicting = split_attrs(security, numerator: 3, denominator: 1)
+
+    assert {:error, {:conflicting_split_ratio, %Transaction{id: id}}} =
+             Splits.book_split(Actor.owner_ui(), conflicting)
+
+    assert id == existing.id
+
+    assert {:ok, preview} = Splits.preview_split(conflicting)
+    assert :conflicting_split_ratio in preview.warnings
+  end
+
+  # User story (E17 closing-act review, finding 3 — re-preview double-scale):
+  # As a local portfolio maintainer re-opening the split wizard after booking,
+  # I want the preview of an already-booked split to show the real resulting
+  # position and say the event is already booked,
+  # so that the simulation never stacks a synthetic split on top of the
+  # booked row and shows a double-scaled position.
+  #
+  # Acceptance criteria:
+  # - Re-previewing a booked 2:1 split on a 10-share buy shows
+  #   current_position 20, not 40.
+  # - The preview carries the :already_booked warning.
+  test "re-previewing an already-booked split does not double-scale the current position" do
+    world = base_world(name: "Reprev World", cash_name: "RP Cash", depot_name: "RP Depot")
+    security = create_security!(name: "Reprev Co", ticker: "RPV")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-02])
+
+    assert {:ok, _} = Splits.book_split(Actor.owner_ui(), split_attrs(security))
+
+    assert {:ok, preview} = Splits.preview_split(split_attrs(security))
+    assert :already_booked in preview.warnings
+
+    assert [row] = preview.portfolios
+    assert Decimal.equal?(row.quantity_before, Decimal.new("10"))
+    assert Decimal.equal?(row.quantity_after, Decimal.new("20"))
+    assert Decimal.equal?(row.current_position, Decimal.new("20"))
+  end
+
+  # User story (E17 closing-act review, finding 4 — int4 bound):
+  # As an API consumer sending an oversized ratio part,
+  # I want values beyond the int4 column range rejected as :invalid_ratio,
+  # so that the request fails with a clean validation error instead of a
+  # database exception.
+  #
+  # Acceptance criteria:
+  # - Ratio parts above 2_147_483_647 (integer or string-encoded) return
+  #   {:error, :invalid_ratio} from preview and book.
+  test "rejects ratio parts beyond the int4 range as invalid" do
+    world = base_world(name: "Int4 World", cash_name: "I4 Cash", depot_name: "I4 Depot")
+    security = create_security!(name: "Int4 Co", ticker: "IN4")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-02])
+
+    assert {:error, :invalid_ratio} =
+             Splits.preview_split(split_attrs(security, numerator: 3_000_000_000))
+
+    assert {:error, :invalid_ratio} =
+             Splits.preview_split(split_attrs(security, denominator: 3_000_000_000))
+
+    assert {:error, :invalid_ratio} =
+             Splits.preview_split(%{split_attrs(security) | ratio_numerator: "3000000000"})
+
+    assert {:error, :invalid_ratio} =
+             Splits.book_split(Actor.owner_ui(), split_attrs(security, numerator: 3_000_000_000))
+
+    # The upper bound itself is still a valid integer.
+    assert {:ok, _} =
+             Splits.preview_split(split_attrs(security, numerator: 2_147_483_647))
+  end
+
+  # User story (E17 closing-act review, finding 5 — preview/book divergence):
+  # As an operator whose portfolios were all flat at the effective date while
+  # one holds the security today,
+  # I want each preview row to say whether booking would create a row for it
+  # and the preview to warn when nothing is bookable,
+  # so that a warning-free preview can never diverge silently from a booking
+  # that fails with :no_position.
+  #
+  # Acceptance criteria:
+  # - Every preview row carries bookable: true/false (false when
+  #   quantity_before is zero).
+  # - With no bookable row the preview warns :no_position_at_effective_date
+  #   while book returns {:error, :no_position}.
+  test "preview flags unbookable rows and warns when book would return :no_position" do
+    world_a = base_world(name: "Div A", cash_name: "DivA Cash", depot_name: "DivA Depot")
+    world_b = base_world(name: "Div B", cash_name: "DivB Cash", depot_name: "DivB Depot")
+    security = create_security!(name: "Div Co", ticker: "DIV")
+
+    # A sold out before the effective date, B bought only after it.
+    buy!(world_a, security, quantity: "10", price: "100", date: ~D[2026-01-05])
+    sell!(world_a, security, quantity: "10", price: "100", date: ~D[2026-01-10])
+    buy!(world_b, security, quantity: "5", price: "50", date: ~D[2026-02-01])
+
+    # Clean 2:1 jump across the effective date, so the §2 basis guard reports
+    # :consistent and cannot mask the missing warning.
+    put_quote!(security, ~D[2026-01-19], "100")
+    put_quote!(security, ~D[2026-01-20], "50")
+
+    attrs = %{
+      security_id: security.id,
+      date: ~D[2026-01-20],
+      ratio_numerator: 2,
+      ratio_denominator: 1
+    }
+
+    assert {:ok, preview} = Splits.preview_split(attrs)
+    assert :no_position_at_effective_date in preview.warnings
+
+    assert [row] = preview.portfolios
+    assert row.portfolio_id == world_b.portfolio.id
+    assert row.bookable == false
+    assert Decimal.equal?(row.quantity_before, Decimal.new("0"))
+
+    assert {:error, :no_position} = Splits.book_split(Actor.owner_ui(), attrs)
+
+    # A positioned portfolio previews as bookable.
+    buy!(world_a, security, quantity: "3", price: "100", date: ~D[2026-01-15])
+    assert {:ok, preview} = Splits.preview_split(attrs)
+    refute :no_position_at_effective_date in preview.warnings
+
+    assert %{bookable: true} =
+             Enum.find(preview.portfolios, &(&1.portfolio_id == world_a.portfolio.id))
   end
 
   # User story (ADR-0028 §1, issue #589):

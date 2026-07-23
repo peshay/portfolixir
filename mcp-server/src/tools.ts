@@ -189,6 +189,10 @@ const idSchema = {
 // positive INTEGERS (10:1 forward, 1:10 reverse) — integers keep a 1:3
 // reverse split exact where a decimal ratio cannot, so these two fields are
 // deliberately not Decimal strings. All returned quantities are strings.
+// The parts persist into int4 columns, hence the 2147483647 cap (E17
+// review, finding 4).
+const INT4_MAX = 2147483647;
+
 const splitRequestSchema = {
   type: "object",
   additionalProperties: false,
@@ -203,9 +207,10 @@ const splitRequestSchema = {
     ratio_numerator: {
       type: "integer",
       minimum: 1,
+      maximum: INT4_MAX,
       description: "New share count per ratio_denominator old shares (10 for a 10:1 forward split, 1 for a 1:10 reverse split)."
     },
-    ratio_denominator: { type: "integer", minimum: 1 }
+    ratio_denominator: { type: "integer", minimum: 1, maximum: INT4_MAX }
   }
 };
 
@@ -213,8 +218,8 @@ const splitRequestZ = () =>
   z.object({
     security_id: z.number().int().positive(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    ratio_numerator: z.number().int().positive(),
-    ratio_denominator: z.number().int().positive()
+    ratio_numerator: z.number().int().positive().max(INT4_MAX),
+    ratio_denominator: z.number().int().positive().max(INT4_MAX)
   });
 
 const securitySchema = objectWith("security", {
@@ -1371,7 +1376,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.splits.preview",
     "Preview stock split",
-    "Read-only preview of a stock split booking (ADR-0028): shows, per portfolio holding the security, the quantity immediately before and after the effective date and the resulting current position, plus warnings — nothing is written. ALWAYS call this before portfolixir.splits.create and read the numbers: the effective_date_before_history warning means the effective date predates the security's earliest recorded transaction, so the stored quantities may already be post-split (Portfolio Performance's split wizard rewrites history destructively before export) — booking the split then would double-adjust; do not book when before/after are 0 and the current position already looks post-split. The preview also renders the stored closes around the effective date (quotes_around) and a quote_basis_check comparing the observed jump against each row's basis classification: a quote_basis_contradiction warning means the stored series contradicts its source classification (e.g. a synced series that never back-adjusted) — resolve it (for never-adjusting providers set the security's treat_quotes_as_raw flag via portfolixir.securities.update) instead of booking blindly; insufficient_quotes_to_verify_basis means too few closes existed to verify. The ratio is a pair of positive integers (10:1 forward, 1:10 reverse), normalized to lowest terms; all quantities in the response are Decimal strings.",
+    "Read-only preview of a stock split booking (ADR-0028): shows, per portfolio holding the security, the quantity immediately before and after the effective date and the resulting current position, plus warnings — nothing is written. ALWAYS call this before portfolixir.splits.create and read the numbers: the effective_date_before_history warning means the effective date predates the security's earliest recorded transaction, so the stored quantities may already be post-split (Portfolio Performance's split wizard rewrites history destructively before export) — booking the split then would double-adjust; do not book when before/after are 0 and the current position already looks post-split. The preview also renders the stored closes around the effective date (quotes_around) and a quote_basis_check comparing the observed jump against each row's basis classification: a quote_basis_contradiction warning means the stored series contradicts its source classification (e.g. a synced series that never back-adjusted) — resolve it (for never-adjusting providers set the security's treat_quotes_as_raw flag via portfolixir.securities.update) instead of booking blindly; insufficient_quotes_to_verify_basis means too few closes existed to verify. Each portfolio row carries a bookable flag: false means the portfolio held nothing at the effective date, so booking would create no row for it — when NO row is bookable the preview warns no_position_at_effective_date and splits.create would fail with a no-position error. The ratio is a pair of positive integers (10:1 forward, 1:10 reverse), normalized to lowest terms; all quantities in the response are Decimal strings.",
     splitRequestSchema,
     splitRequestZ()
   ),

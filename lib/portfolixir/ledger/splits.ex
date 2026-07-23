@@ -19,14 +19,25 @@ defmodule Portfolixir.Ledger.Splits do
 
   Validation is deterministic and shell-friendly: a future effective date is
   rejected (`{:error, :future_effective_date}`), a security nobody holds at
-  the effective date is rejected (`{:error, :no_position}`), and a retried
-  booking hitting the partial unique index (one split per portfolio,
-  security and day) returns `{:error, {:existing_split, transaction}}`
-  naming the already-booked event. The preview additionally warns with
+  the effective date is rejected (`{:error, :no_position}`), and a same-day
+  booking with a **different** normalized ratio is rejected
+  (`{:error, {:conflicting_split_ratio, transaction}}`) — conflicting
+  security-level events would corrupt every quote consumer that dedupes the
+  fan-out rows into one event per `(security, date)`. Re-booking the
+  **identical** split is an extend operation: portfolios that already carry
+  the row are skipped and only the missing ones are inserted (so a portfolio
+  positioned later via backdated bookings can be added by re-booking); when
+  no portfolio is missing the booking returns
+  `{:error, {:existing_split, transaction}}` naming the already-booked
+  event. The preview additionally warns with
   `:effective_date_before_history` when the effective date predates the
   security's earliest transaction — an imported history may already carry
   post-split quantities, because Portfolio Performance's own split wizard
-  rewrites history destructively (ADR-0028, Prior art).
+  rewrites history destructively (ADR-0028, Prior art) — with
+  `:already_booked` when identical rows exist, with
+  `:conflicting_split_ratio` when a same-day row carries a different ratio,
+  and with `:no_position_at_effective_date` when no row is bookable (the
+  preview would otherwise diverge silently from a `:no_position` booking).
 
   The PP round-trip marker mapping of ADR-0028 §1 is dropped (FR-29 rescope,
   see the ADR's dated 2026-07-22 note): no marker or export code exists here.
@@ -59,10 +70,11 @@ defmodule Portfolixir.Ledger.Splits do
   warnings and one row per portfolio holding a non-zero position at the
   effective date or currently — each with `quantity_before` (entering the
   effective date), `quantity_after` (scaled, quantized once at volume scale
-  6 like the fold, ADR-0028 §3) and the `current_position` the booking would
-  result in. Errors: `:security_not_found`, `:invalid_date`,
-  `:future_effective_date`, `:invalid_ratio`, `:identity_ratio`,
-  `:no_position`.
+  6 like the fold, ADR-0028 §3), the `current_position` the booking would
+  result in and a `bookable` flag (false when `quantity_before` is zero, so
+  booking would create no row for it). Errors: `:security_not_found`,
+  `:invalid_date`, `:future_effective_date`, `:invalid_ratio`,
+  `:identity_ratio`, `:no_position`.
   """
   def preview_split(attrs) when is_map(attrs) do
     with {:ok, params} <- validate(attrs) do
@@ -76,15 +88,26 @@ defmodule Portfolixir.Ledger.Splits do
   one `Ecto.Multi` with one journal entry per row (ADR-0017). Validation
   matches `preview_split/1`; portfolios positioned only after the effective
   date get no row (there is nothing to scale), and no positioned portfolio
-  at all returns `{:error, :no_position}`. A same-day conflict returns
+  at all returns `{:error, :no_position}`. A same-day row with a different
+  normalized ratio returns `{:error, {:conflicting_split_ratio, transaction}}`.
+  Re-booking the identical split inserts only rows for positioned portfolios
+  that do not carry one yet; when none is missing it returns
   `{:error, {:existing_split, transaction}}` naming the existing event.
 
-  Returns `{:ok, transactions}` sorted by portfolio id.
+  Returns `{:ok, transactions}` (the newly inserted rows) sorted by
+  portfolio id.
   """
   def book_split(%Actor{} = actor, attrs) when is_map(attrs) do
     with {:ok, params} <- validate(attrs),
+         existing = existing_split_rows(params),
+         :ok <- check_ratio_conflict(params, existing),
          {:ok, positions} <- positioned_portfolios(params) do
-      insert_rows(actor, params, positions)
+      already_booked = MapSet.new(existing, & &1.portfolio_id)
+
+      case Enum.reject(positions, &MapSet.member?(already_booked, &1)) do
+        [] -> {:error, {:existing_split, hd(existing)}}
+        missing -> insert_rows(actor, params, missing)
+      end
     end
   end
 
@@ -148,26 +171,79 @@ defmodule Portfolixir.Ledger.Splits do
     end
   end
 
-  defp parse_positive_integer(value) when is_integer(value) and value > 0, do: value
+  # The ratio parts persist into int4 columns; anything beyond that range is
+  # rejected here as :invalid_ratio instead of surfacing as a database
+  # exception (E17 review, finding 4).
+  @max_ratio_part 2_147_483_647
+
+  defp parse_positive_integer(value)
+       when is_integer(value) and value > 0 and value <= @max_ratio_part,
+       do: value
 
   defp parse_positive_integer(value) when is_binary(value) do
     case Integer.parse(value) do
-      {int, ""} when int > 0 -> int
+      {int, ""} when int > 0 and int <= @max_ratio_part -> int
       _invalid -> nil
     end
   end
 
   defp parse_positive_integer(_other), do: nil
 
+  ## Existing same-day rows (extend / conflict handling)
+
+  # All split rows already stored for (security, date), portfolio preloaded
+  # so rejections can name the event like the unique-index path does.
+  defp existing_split_rows(%{security: security, date: date}) do
+    Repo.all(
+      from(t in Transaction,
+        where: t.type == "split" and t.security_id == ^security.id and t.date == ^date,
+        order_by: t.portfolio_id,
+        preload: [:portfolio]
+      )
+    )
+  end
+
+  # A same-day row with a DIFFERENT normalized ratio is a conflicting
+  # security-level event: quote consumers dedupe the fan-out rows by
+  # (security, date, ratio), so two ratios on one day would corrupt every
+  # adjusted read. Rejected outright (E17 review, finding 2).
+  defp check_ratio_conflict(%{ratio: ratio}, existing) do
+    case Enum.find(existing, &(normalized_row_ratio(&1) != ratio)) do
+      nil -> :ok
+      conflicting -> {:error, {:conflicting_split_ratio, conflicting}}
+    end
+  end
+
+  # Stored rows are normalized at write time, but rows created through the
+  # generic ledger path may not be — normalize before comparing.
+  defp normalized_row_ratio(%Transaction{split_ratio_numerator: p, split_ratio_denominator: q}) do
+    gcd = Integer.gcd(p, q)
+    {div(p, gcd), div(q, gcd)}
+  end
+
   ## Preview
 
   defp build_preview(%{security: security, date: date, ratio: {p, q}} = params) do
     transactions = Ledger.list_transactions_for_security(security.id)
+    {identical, conflicting} = partition_existing_rows(params)
     accounts = Projection.account_portfolios(transactions)
     before_by_account = positions_before(transactions, date)
     before = sum_by_portfolio(before_by_account, accounts)
     scaled = before_by_account |> scale_positions(params) |> sum_by_portfolio(accounts)
-    current = simulate_current(transactions, params, positioned_ids(before), accounts)
+
+    # Portfolios that already carry the identical row are excluded from the
+    # synthetic set: their booked row is in `transactions` already, so adding
+    # a synthetic twin would double-scale the simulated current position
+    # (E17 review, finding 3).
+    already_booked_ids = Enum.map(identical, & &1.portfolio_id)
+
+    current =
+      simulate_current(
+        transactions,
+        params,
+        positioned_ids(before) -- already_booked_ids,
+        accounts
+      )
 
     case preview_rows(transactions, before, scaled, current) do
       [] ->
@@ -182,12 +258,38 @@ defmodule Portfolixir.Ledger.Splits do
            date: date,
            ratio_numerator: p,
            ratio_denominator: q,
-           warnings: warnings(transactions, date) ++ basis_warnings(basis_check),
+           warnings:
+             warnings(transactions, date) ++
+               divergence_warnings(rows) ++
+               existing_row_warnings(identical, conflicting) ++
+               basis_warnings(basis_check),
            quotes_around: quotes_around,
            quote_basis_check: basis_check,
            portfolios: rows
          }}
     end
+  end
+
+  # The stored same-day rows split into the identical event (re-preview /
+  # extend) and conflicting-ratio rows (rejected on booking).
+  defp partition_existing_rows(%{ratio: ratio} = params) do
+    params
+    |> existing_split_rows()
+    |> Enum.split_with(&(normalized_row_ratio(&1) == ratio))
+  end
+
+  # Booking creates rows only for portfolios positioned at the effective
+  # date; when no preview row is bookable the booking would fail with
+  # :no_position — say so up front instead of diverging silently (E17
+  # review, finding 5).
+  defp divergence_warnings(rows) do
+    if Enum.any?(rows, & &1.bookable), do: [], else: [:no_position_at_effective_date]
+  end
+
+  defp existing_row_warnings(identical, conflicting) do
+    already = if identical == [], do: [], else: [:already_booked]
+    conflict = if conflicting == [], do: [], else: [:conflicting_split_ratio]
+    already ++ conflict
   end
 
   # ADR-0028 §2 misclassification guard: the preview renders the stored
@@ -276,12 +378,17 @@ defmodule Portfolixir.Ledger.Splits do
     |> Enum.uniq()
     |> Enum.sort()
     |> Enum.map(fn portfolio_id ->
+      quantity_before = Map.get(before, portfolio_id, @zero)
+
       %{
         portfolio_id: portfolio_id,
         portfolio_name: Map.get(names, portfolio_id),
-        quantity_before: Map.get(before, portfolio_id, @zero),
+        quantity_before: quantity_before,
         quantity_after: Map.get(scaled, portfolio_id, @zero),
-        current_position: Map.get(current, portfolio_id, @zero)
+        current_position: Map.get(current, portfolio_id, @zero),
+        # Booking creates a row only for portfolios positioned at the
+        # effective date (E17 review, finding 5).
+        bookable: not Decimal.equal?(quantity_before, @zero)
       }
     end)
   end

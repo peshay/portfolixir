@@ -3,7 +3,9 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias Portfolixir.Actor
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Splits
   alias Portfolixir.WorldFixtures
 
   # User story (ADR-0024, supersedes #471):
@@ -790,5 +792,34 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert html =~ "Deposit"
     assert html =~ "52,000.00"
     refute html =~ "52000.000000"
+  end
+
+  # User story (E17 closing-act review, finding 7):
+  # As a maintainer scanning the global transaction history,
+  # I want a split row to show its translated type and the ratio instead of
+  # a bare "split" key with a dash for quantity,
+  # so that the corporate action is recognisable in every transaction table.
+  #
+  # Acceptance criteria:
+  # - The split row renders the label "Split" (translated) and the ratio
+  #   "10:1" in the quantity column.
+  test "renders a split row with its translated label and ratio", %{conn: conn} do
+    world = WorldFixtures.base_world()
+    security = WorldFixtures.create_security!(name: "Ratio Co", ticker: "RTO")
+    WorldFixtures.buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-03])
+
+    {:ok, _split_txs} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: ~D[2026-01-10],
+        ratio_numerator: 10,
+        ratio_denominator: 1
+      })
+
+    {:ok, _view, html} = live(conn, "/transactions")
+
+    assert html =~ "Split"
+    refute html =~ ~r/>\s*split\s*</
+    assert html =~ "10:1"
   end
 end

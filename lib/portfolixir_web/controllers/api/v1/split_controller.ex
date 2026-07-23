@@ -47,6 +47,12 @@ defmodule PortfolixirWeb.Api.V1.SplitController do
   defp error_response(conn, {:existing_split, %Transaction{} = existing}),
     do: unprocessable(conn, %{date: [existing_split_message(existing)]})
 
+  # A same-day split with a different normalized ratio would corrupt every
+  # quote consumer that dedupes rows into one security-level event (E17
+  # review, finding 2).
+  defp error_response(conn, {:conflicting_split_ratio, %Transaction{} = existing}),
+    do: unprocessable(conn, %{ratio: [conflicting_ratio_message(existing)]})
+
   defp error_response(conn, %Ecto.Changeset{} = changeset),
     do: unprocessable(conn, JSON.errors(changeset))
 
@@ -72,6 +78,13 @@ defmodule PortfolixirWeb.Api.V1.SplitController do
     do: " for portfolio \"#{name}\""
 
   defp existing_portfolio_suffix(_existing), do: ""
+
+  defp conflicting_ratio_message(%Transaction{} = existing) do
+    "a split with a different ratio is already booked for this security on " <>
+      "#{Date.to_iso8601(existing.date)}: transaction ##{existing.id} records ratio " <>
+      "#{existing.split_ratio_numerator}:#{existing.split_ratio_denominator}. " <>
+      "Delete that event first if it is wrong."
+  end
 
   defp unprocessable(conn, errors) do
     conn

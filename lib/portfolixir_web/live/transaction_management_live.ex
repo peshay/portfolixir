@@ -311,8 +311,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                         <td><%= transaction.date %></td>
                         <td><%= tx_type_label(transaction.type) %></td>
                         <td><%= transaction.security && transaction.security.name %></td>
-                        <td><%= format_decimal(transaction.quantity) %></td>
-                        <td><%= format_decimal(transaction.price) %></td>
+                        <%= if transaction.type == "split" do %>
+                          <%!-- A split carries no quantity/price of its own:
+                                show the ratio where the quantity would be
+                                (E17 review, finding 7). --%>
+                          <td data-role="split-ratio"><%= split_ratio_label(transaction) %></td>
+                          <td>—</td>
+                        <% else %>
+                          <td><%= format_decimal(transaction.quantity) %></td>
+                          <td><%= format_decimal(transaction.price) %></td>
+                        <% end %>
                         <td><%= transaction.currency_code %></td>
                       </tr>
                     <% end %>
@@ -596,7 +604,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp tx_type_label("outbound_delivery"), do: gettext("Outbound delivery")
   defp tx_type_label("security_transfer"), do: gettext("Security transfer")
   defp tx_type_label("balance"), do: gettext("Balance snapshot")
+  defp tx_type_label("split"), do: gettext("Split")
   defp tx_type_label(other), do: to_string(other)
+
+  defp split_ratio_label(%{split_ratio_numerator: p, split_ratio_denominator: q})
+       when is_integer(p) and is_integer(q),
+       do: "#{p}:#{q}"
+
+  defp split_ratio_label(_transaction), do: "—"
 
   # Normalized, so holdings show "200" instead of the stored scale
   # ("200.000000000000"); nil stays blank.

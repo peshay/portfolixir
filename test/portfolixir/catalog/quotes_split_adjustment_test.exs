@@ -248,6 +248,41 @@ defmodule Portfolixir.Catalog.QuotesSplitAdjustmentTest do
   # I want deleting the whole per-portfolio row group to restore every chart
   # and figure exactly,
   # so that the PP failure mode (wrong ratio, no way back) cannot occur.
+  # User story (E17 closing-act review, finding 6):
+  # As an API consumer requesting a security's quote history,
+  # I want the adjusted view computed from the SAME stored rows the response
+  # pairs it with,
+  # so that a concurrent upsert between two reads can never misalign the
+  # stored/adjusted zip.
+  #
+  # Acceptance criteria:
+  # - `adjust_rows/2` is a pure function of the rows passed in: it returns
+  #   one adjusted view per input row, in order, regardless of what is
+  #   stored meanwhile.
+  # - Its output matches `adjusted_range/3` for the same rows.
+  test "adjust_rows/2 adjusts exactly the rows given, immune to concurrent inserts" do
+    {_world, security} = world_with_split()
+    insert_quote!(security, ~D[2026-01-10], "110", "manual")
+    insert_quote!(security, ~D[2026-02-02], "11", "manual")
+
+    stored = Quotes.range(security.id, ~D[2026-01-01], ~D[2026-12-31])
+    security = Catalog.get_security(security.id)
+    adjusted = Quotes.adjust_rows(stored, security)
+
+    assert length(adjusted) == length(stored)
+    assert Enum.map(adjusted, & &1.date) == Enum.map(stored, & &1.date)
+    assert closes(adjusted) == ["11", "11"]
+    assert stored_closes(adjusted) == ["110", "11"]
+
+    # Same result as the range-loading read path for the same rows.
+    assert adjusted == Quotes.adjusted_range(security.id, ~D[2026-01-01], ~D[2026-12-31])
+
+    # A row stored AFTER the fetch does not leak into the adjusted view —
+    # the function only sees the list it was handed.
+    insert_quote!(security, ~D[2026-01-15], "105", "manual")
+    assert Quotes.adjust_rows(stored, security) == adjusted
+  end
+
   test "deleting the fanned-out split group restores the displayed series exactly" do
     world_a = base_world(name: "Del A", cash_name: "DA Cash", depot_name: "DA Depot")
     world_b = base_world(name: "Del B", cash_name: "DB Cash", depot_name: "DB Depot")
