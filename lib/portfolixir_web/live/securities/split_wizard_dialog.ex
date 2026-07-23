@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.SecuritiesLive
 
   @impl true
   def mount(socket) do
@@ -105,7 +106,8 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
               <button
                 type="submit"
                 class="button-primary"
-                disabled={is_nil(@preview)}
+                disabled={is_nil(@preview) or submit_blocker(@preview) != nil}
+                title={@preview && submit_blocker(@preview)}
                 phx-disable-with={gettext("Booking…")}
               >
                 <%= gettext("Book split") %>
@@ -141,13 +143,20 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
           <tr>
             <th><%= gettext("Portfolio") %></th>
             <th class="num"><%= gettext("Quantity before") %></th>
-            <th class="num"><%= gettext("Quantity after") %></th>
-            <th class="num"><%= gettext("Resulting position") %></th>
+            <th class="num"><%= gettext("Quantity after (at date)") %></th>
+            <th class="num"><%= gettext("Resulting position (today)") %></th>
           </tr>
         </thead>
         <tbody>
-          <tr :for={row <- @preview.portfolios}>
-            <td data-role="portfolio"><%= row.portfolio_name %></td>
+          <%!-- Rows booking would skip are muted (the retired-row visual)
+                and labelled with the skip reason (E17 UX review, finding 2). --%>
+          <tr :for={row <- @preview.portfolios} class={skipped_row_class(row)}>
+            <td data-role="portfolio">
+              <%= row.portfolio_name %>
+              <%= if flag = row_flag(row) do %>
+                <span class="badge badge--retired" data-role="row-flag"><%= flag %></span>
+              <% end %>
+            </td>
             <td class="num" data-role="qty-before"><%= quantity(row.quantity_before) %></td>
             <td class="num" data-role="qty-after"><%= quantity(row.quantity_after) %></td>
             <td class="num" data-role="qty-current"><%= quantity(row.current_position) %></td>
@@ -175,9 +184,12 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
         </thead>
         <tbody>
           <tr :for={quote_row <- @preview.quotes_around}>
-            <td><%= Date.to_iso8601(quote_row.date) %></td>
-            <td class="num"><%= Format.decimal(quote_row.close, 2) %></td>
-            <td><%= quote_row.source %></td>
+            <td><%= Format.date(quote_row.date) %></td>
+            <td class="num">
+              <%= Format.decimal(quote_row.close, 2) %>
+              <small><%= @security.currency_code %></small>
+            </td>
+            <td><%= SecuritiesLive.quote_source_label(quote_row.source) %></td>
           </tr>
         </tbody>
       </table>
@@ -233,6 +245,40 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
     }
   end
 
+  # -- submit gating and row flags (E17 UX review, findings 1 and 2) --------
+
+  # A booking that can only fail keeps the Book button disabled, with the
+  # blocker named in the title: a same-day conflicting ratio is rejected
+  # outright, and without any row that would be newly booked the booking
+  # returns :no_position or {:existing_split, _}.
+  defp submit_blocker(%{warnings: warnings, portfolios: rows}) do
+    cond do
+      :conflicting_split_ratio in warnings ->
+        gettext(
+          "Booking is blocked: a split with a different ratio is already booked on this date."
+        )
+
+      Enum.any?(rows, &(&1.bookable and not &1.already_booked)) ->
+        nil
+
+      :already_booked in warnings ->
+        gettext(
+          "Booking is blocked: this split is already booked for every positioned portfolio."
+        )
+
+      true ->
+        gettext("Booking is blocked: no portfolio holds a position at the effective date.")
+    end
+  end
+
+  defp skipped_row_class(row) do
+    if row_flag(row), do: "security-row is-retired"
+  end
+
+  defp row_flag(%{already_booked: true}), do: gettext("already booked")
+  defp row_flag(%{bookable: false}), do: gettext("no position at date")
+  defp row_flag(_row), do: nil
+
   # -- copy -----------------------------------------------------------------
 
   defp warning_message(:effective_date_before_history) do
@@ -242,10 +288,11 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   end
 
   # §2 escape hatch: the contradiction copy names the per-security override
-  # flag, as the ADR requires.
+  # flag, as the ADR requires, and tells the user what to look for in the
+  # quotes table (E17 UX review, finding 4).
   defp warning_message(:quote_basis_contradiction) do
     gettext(
-      "The stored closes around the effective date contradict their price-basis classification. Nothing is adjusted silently — review the quotes below, or force the raw basis via the security's \"Treat synced quotes as raw\" setting."
+      "The stored closes around the effective date contradict their price-basis classification. Nothing is adjusted silently — review the quotes below, or force the raw basis via the security's \"Treat synced quotes as raw\" setting. If prices drop by roughly the split ratio at the effective date, the stored quotes are raw (as traded); if the series is continuous, they are already split-adjusted."
     )
   end
 

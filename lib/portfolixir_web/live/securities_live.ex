@@ -770,6 +770,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
               value="true"
               checked={@security.treat_quotes_as_raw}
             />
+            <small class="dialog-help">
+              <%= gettext(
+                "Only for providers that do not rewrite pre-split quotes after a split — the display then applies the split factors itself."
+              ) %>
+            </small>
           </label>
         </div>
         <button type="submit" class="button"><%= gettext("Save changes") %></button>
@@ -1320,7 +1325,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   </td>
                   <td class="num">
                     <%= Format.decimal(q.stored_close, 2) %>
-                    <small :if={q.adjusted?}><%= gettext("as stored") %></small>
                   </td>
                   <td><span class="badge quote-source"><%= quote_source_label(q.source) %></span></td>
                 </tr>
@@ -1333,12 +1337,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
     """
   end
 
-  defp quote_source_label("auto"), do: gettext("Auto")
-  defp quote_source_label("manual"), do: gettext("Manual")
-  defp quote_source_label("coingecko"), do: "CoinGecko"
-  defp quote_source_label("portfolio_performance"), do: "Portfolio Performance"
-  defp quote_source_label(other) when is_binary(other), do: other
-  defp quote_source_label(_), do: ""
+  @doc """
+  Localized display label for a quote's source code — shared with the split
+  wizard dialog so both quote tables render the same labels (E17 UX review,
+  finding 6).
+  """
+  def quote_source_label("auto"), do: gettext("Auto")
+  def quote_source_label("manual"), do: gettext("Manual")
+  def quote_source_label("coingecko"), do: "CoinGecko"
+  def quote_source_label("portfolio_performance"), do: "Portfolio Performance"
+  def quote_source_label(other) when is_binary(other), do: other
+  def quote_source_label(_), do: ""
 
   defp pnl_class(value) do
     case decimal_for_display(value) do
@@ -1383,7 +1392,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp tx_gross(_), do: nil
 
   defp depot_name(%{securities_account: %{name: name}}), do: name
-  defp depot_name(_), do: nil
+  # Rows without a depot (e.g. splits) render an em dash like the money
+  # columns instead of an empty cell (E17 UX review, finding 8).
+  defp depot_name(_), do: "—"
 
   attr(:label, :string, required: true)
   attr(:value, :any, default: nil)
@@ -1428,7 +1439,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         [
           %{
             class: "chart-cost-basis",
-            label: "Cost basis",
+            label: gettext("Cost basis"),
             points: cost_basis_series(quotes, transactions, split_events)
           }
         ]

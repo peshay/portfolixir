@@ -71,8 +71,10 @@ defmodule Portfolixir.Ledger.Splits do
   effective date or currently — each with `quantity_before` (entering the
   effective date), `quantity_after` (scaled, quantized once at volume scale
   6 like the fold, ADR-0028 §3), the `current_position` the booking would
-  result in and a `bookable` flag (false when `quantity_before` is zero, so
-  booking would create no row for it). Errors: `:security_not_found`,
+  result in, a `bookable` flag (false when `quantity_before` is zero, so
+  booking would create no row for it) and an `already_booked` flag (true when
+  the portfolio already carries the identical row, so booking would skip it,
+  E17 UX review finding 2). Errors: `:security_not_found`,
   `:invalid_date`, `:future_effective_date`, `:invalid_ratio`,
   `:identity_ratio`, `:no_position`.
   """
@@ -245,7 +247,7 @@ defmodule Portfolixir.Ledger.Splits do
         accounts
       )
 
-    case preview_rows(transactions, before, scaled, current) do
+    case preview_rows(transactions, before, scaled, current, already_booked_ids) do
       [] ->
         {:error, :no_position}
 
@@ -371,7 +373,7 @@ defmodule Portfolixir.Ledger.Splits do
   # set) or currently — the latter so a preview against an already-adjusted
   # history (before 0 → after 0, current unchanged) stays visible next to
   # the before-history warning instead of erroring opaquely.
-  defp preview_rows(transactions, before, scaled, current) do
+  defp preview_rows(transactions, before, scaled, current, already_booked_ids) do
     names = portfolio_names(transactions)
 
     (positioned_ids(before) ++ positioned_ids(current))
@@ -388,7 +390,11 @@ defmodule Portfolixir.Ledger.Splits do
         current_position: Map.get(current, portfolio_id, @zero),
         # Booking creates a row only for portfolios positioned at the
         # effective date (E17 review, finding 5).
-        bookable: not Decimal.equal?(quantity_before, @zero)
+        bookable: not Decimal.equal?(quantity_before, @zero),
+        # Booking skips portfolios that already carry the identical row
+        # (extend semantics) — the shells mark those rows (E17 UX review,
+        # finding 2).
+        already_booked: portfolio_id in already_booked_ids
       }
     end)
   end

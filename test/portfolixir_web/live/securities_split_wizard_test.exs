@@ -290,4 +290,101 @@ defmodule PortfolixirWeb.SecuritiesSplitWizardTest do
     assert error =~ Calendar.strftime(effective_date, "%d.%m.%Y")
     refute error =~ Date.to_iso8601(effective_date)
   end
+
+  # User story (E17 UX review, finding 1):
+  # As a local portfolio maintainer previewing a split the ledger is
+  # guaranteed to reject,
+  # I want the Book button disabled with a title naming the blocker,
+  # so that I never submit a booking that can only fail.
+  #
+  # Acceptance criteria:
+  # - A same-day preview with a conflicting ratio disables Book and the
+  #   button's title names the conflicting-ratio blocker.
+  # - A clean preview keeps Book enabled without a blocker title.
+  test "a conflicting-ratio preview disables Book with a blocker title", %{conn: conn} do
+    {_world, security} = world_with_position()
+    effective_date = Date.add(Date.utc_today(), -10)
+
+    {:ok, _transactions} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: effective_date,
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    view = open_wizard(conn, security)
+    wizard_change(view, "3", "1", effective_date)
+
+    assert has_element?(view, "#split-wizard-warnings [data-warning='conflicting_split_ratio']")
+    assert has_element?(view, "#split-wizard-form button[type='submit'][disabled][title]")
+
+    button = view |> element("#split-wizard-form button[type='submit']") |> render()
+    assert button =~ "different ratio"
+
+    # A clean preview on another date re-enables the button without a title.
+    wizard_change(view, "3", "1", Date.add(Date.utc_today(), -5))
+    refute has_element?(view, "#split-wizard-form button[type='submit'][disabled]")
+    refute has_element?(view, "#split-wizard-form button[type='submit'][title]")
+  end
+
+  # User story (E17 UX review, finding 2):
+  # As a maintainer re-opening the wizard on an already-booked split,
+  # I want the preview rows that booking would skip visibly marked,
+  # so that I can tell which portfolios would actually get a new row.
+  #
+  # Acceptance criteria:
+  # - The already-booked portfolio row is muted and labelled "already booked".
+  # - With every row skipped the Book button is disabled with a blocker title.
+  test "an already-booked preview row is muted and labelled", %{conn: conn} do
+    {_world, security} = world_with_position()
+    effective_date = Date.add(Date.utc_today(), -10)
+
+    {:ok, _transactions} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: effective_date,
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    view = open_wizard(conn, security)
+    wizard_change(view, "2", "1", effective_date)
+
+    assert has_element?(view, "#split-wizard-preview [data-role='row-flag']", "already booked")
+    assert has_element?(view, "#split-wizard-preview tr.is-retired")
+    assert has_element?(view, "#split-wizard-form button[type='submit'][disabled][title]")
+  end
+
+  # User story (E17 UX review, findings 1 and 2):
+  # As a maintainer whose only position was opened after the effective date,
+  # I want the unbookable row marked and the doomed booking blocked,
+  # so that the preview and the booking outcome never diverge silently.
+  #
+  # Acceptance criteria:
+  # - The row of a portfolio positioned only after the effective date is
+  #   muted and labelled "no position at date".
+  # - The Book button is disabled with a title naming the blocker.
+  test "a portfolio positioned only after the date is marked and Book disabled", %{conn: conn} do
+    world = base_world(name: "Late World", cash_name: "Late Cash", depot_name: "Late Depot")
+    security = create_security!(name: "Late Co", ticker: "LATE", asset_class: "equity")
+    buy!(world, security, quantity: "10", price: "100", date: Date.add(Date.utc_today(), -5))
+
+    view = open_wizard(conn, security)
+    wizard_change(view, "2", "1", Date.add(Date.utc_today(), -10))
+
+    assert has_element?(
+             view,
+             "#split-wizard-warnings [data-warning='no_position_at_effective_date']"
+           )
+
+    assert has_element?(
+             view,
+             "#split-wizard-preview [data-role='row-flag']",
+             "no position at date"
+           )
+
+    assert has_element?(view, "#split-wizard-preview tr.is-retired")
+    assert has_element?(view, "#split-wizard-form button[type='submit'][disabled][title]")
+  end
 end
