@@ -131,13 +131,22 @@ defmodule Portfolixir.Catalog.Quotes do
   """
   def adjusted_range(security_id, %Date{} = from, %Date{} = to)
       when is_integer(security_id) do
-    events = split_events(security_id)
-    security = Repo.get(Security, security_id)
-
     security_id
     |> range(from, to)
+    |> adjust_rows(Repo.get(Security, security_id))
+  end
+
+  @doc """
+  The display-basis view of already-loaded stored rows (`%{date, close,
+  source}` or `%Quote{}`), one adjusted row per input row in order. Read
+  paths that pair stored and adjusted values MUST derive both from the same
+  fetched list through this function — two independent queries can interleave
+  with a concurrent upsert and misalign the pairing (E17 review, finding 6).
+  """
+  def adjust_rows(rows, %Security{} = security) when is_list(rows) do
+    rows
     |> Enum.map(&Map.take(&1, [:date, :close, :source]))
-    |> QuoteAdjustment.adjust_series(events, security)
+    |> QuoteAdjustment.adjust_series(split_events(security.id), security)
   end
 
   @doc """

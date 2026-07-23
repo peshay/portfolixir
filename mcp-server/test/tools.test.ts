@@ -668,13 +668,26 @@ describe("Portfolixir MCP tools", () => {
       assert.equal(tool?.inputSchema.properties.ratio_denominator.type, "integer");
       assert.equal(tool?.inputSchema.properties.date.type, "string");
 
-      // Zod mirrors the schema: non-positive or missing ratio parts fail
-      // before any API call is made.
+      // int4 bound (E17 review, finding 4): the ratio parts persist into
+      // int4 columns — schema and zod both cap them there.
+      assert.equal(tool?.inputSchema.properties.ratio_numerator.maximum, 2147483647);
+      assert.equal(tool?.inputSchema.properties.ratio_denominator.maximum, 2147483647);
+
+      // Zod mirrors the schema: non-positive, oversized or missing ratio
+      // parts fail before any API call is made.
       assert.throws(() =>
         tool?.zodSchema.parse({
           security_id: 1,
           date: "2026-02-02",
           ratio_numerator: 0,
+          ratio_denominator: 1
+        })
+      );
+      assert.throws(() =>
+        tool?.zodSchema.parse({
+          security_id: 1,
+          date: "2026-02-02",
+          ratio_numerator: 3000000000,
           ratio_denominator: 1
         })
       );
@@ -696,6 +709,10 @@ describe("Portfolixir MCP tools", () => {
     const preview = tools.find((tool) => tool.name === "portfolixir.splits.preview");
     assert.match(preview?.description ?? "", /already .*post-split/i);
     assert.match(preview?.description ?? "", /effective_date_before_history/);
+    // E17 review, finding 5: the per-row bookable flag makes the
+    // preview/book divergence explicit.
+    assert.match(preview?.description ?? "", /bookable/);
+    assert.match(preview?.description ?? "", /no_position_at_effective_date/);
   });
 
   it("routes the split tools to POST /splits/preview and POST /splits", async () => {

@@ -213,7 +213,10 @@ defmodule Portfolixir.Catalog.QuoteAdjustment do
   defp compare_bases(before_quote, after_quote, {p, q}, security) do
     expected = basis(before_quote.source, security)
 
-    if Decimal.equal?(after_quote.close, 0) do
+    # A zero close on EITHER side makes the jump factor meaningless (zero
+    # numerator as much as zero denominator) — report insufficient instead
+    # of a false verdict (E17 review, finding 9).
+    if Decimal.equal?(before_quote.close, 0) or Decimal.equal?(after_quote.close, 0) do
       %{status: :insufficient_quotes, expected_basis: expected, observed: nil}
     else
       observed = observe_jump(Decimal.div(before_quote.close, after_quote.close), {p, q})

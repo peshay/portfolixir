@@ -102,7 +102,12 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
               <button type="button" class="button-ghost" phx-click={close_js(@myself)}>
                 <%= gettext("Cancel") %>
               </button>
-              <button type="submit" class="button-primary" disabled={is_nil(@preview)}>
+              <button
+                type="submit"
+                class="button-primary"
+                disabled={is_nil(@preview)}
+                phx-disable-with={gettext("Booking…")}
+              >
                 <%= gettext("Book split") %>
               </button>
             </div>
@@ -164,7 +169,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
         <thead>
           <tr>
             <th><%= gettext("Date") %></th>
-            <th class="num"><%= gettext("Close") %></th>
+            <th class="num"><%= gettext("Closing price") %></th>
             <th><%= gettext("Source") %></th>
           </tr>
         </thead>
@@ -248,6 +253,30 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
     gettext("Insufficient quotes around the effective date to verify the price basis.")
   end
 
+  # E17 review, finding 3: a re-opened wizard on a booked split simulates
+  # against the real rows; the warning says why nothing doubles.
+  defp warning_message(:already_booked) do
+    gettext(
+      "An identical split is already booked on this date. Portfolios that already carry it are shown as booked and will be skipped — only newly positioned portfolios would get a row."
+    )
+  end
+
+  # E17 review, finding 5: booking creates rows only for portfolios
+  # positioned at the effective date; say up front when that set is empty.
+  defp warning_message(:no_position_at_effective_date) do
+    gettext(
+      "No portfolio holds a position at the effective date — booking would create no rows and be rejected."
+    )
+  end
+
+  # E17 review, finding 2: conflicting security-level events would corrupt
+  # every split-adjusted quote read.
+  defp warning_message(:conflicting_split_ratio) do
+    gettext(
+      "A split with a different ratio is already booked for this security on this date. Booking will be rejected — delete the existing event first if it is wrong."
+    )
+  end
+
   defp warning_message(other), do: to_string(other)
 
   defp error_message(:invalid_ratio),
@@ -267,10 +296,24 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   defp error_message(:security_not_found), do: gettext("This security no longer exists.")
 
   # Write idempotency (ADR-0028 §1): the rejection names the existing event.
+  # The date renders through the locale-aware formatter (E17 review,
+  # finding 10), not as a bare ISO string.
   defp error_message({:existing_split, %Transaction{} = existing}) do
     gettext(
       "A split for this security is already booked on %{date}: transaction #%{id} records ratio %{ratio}%{portfolio}. Delete that event first if it is wrong.",
-      date: Date.to_iso8601(existing.date),
+      date: Format.date(existing.date),
+      id: existing.id,
+      ratio: "#{existing.split_ratio_numerator}:#{existing.split_ratio_denominator}",
+      portfolio: existing_portfolio_suffix(existing)
+    )
+  end
+
+  # E17 review, finding 2: a same-day event with a different ratio is never
+  # booked over — the copy names the conflicting event.
+  defp error_message({:conflicting_split_ratio, %Transaction{} = existing}) do
+    gettext(
+      "A split with a different ratio is already booked on %{date}: transaction #%{id} records ratio %{ratio}%{portfolio}. Delete that event first if it is wrong.",
+      date: Format.date(existing.date),
       id: existing.id,
       ratio: "#{existing.split_ratio_numerator}:#{existing.split_ratio_denominator}",
       portfolio: existing_portfolio_suffix(existing)

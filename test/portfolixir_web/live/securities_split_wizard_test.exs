@@ -246,4 +246,48 @@ defmodule PortfolixirWeb.SecuritiesSplitWizardTest do
     assert length(split_transactions(security)) == 1
     assert has_element?(view, "#split-wizard-dialog")
   end
+
+  # User story (E17 closing-act review, findings 8 and 10):
+  # As a German-locale user working through the split wizard,
+  # I want the quotes column labelled "Schlusskurs" (not the close-button's
+  # "Schließen"), dates in error copy formatted for my locale, and the Book
+  # button visibly busy while submitting,
+  # so that the dialog copy reads correctly and double-submits are
+  # discouraged.
+  #
+  # Acceptance criteria:
+  # - The DE quotes table header says "Schlusskurs"; the close button keeps
+  #   "Schließen".
+  # - The Book button carries phx-disable-with.
+  # - The existing-split error renders the date as DD.MM.YYYY under de.
+  test "DE copy uses Schlusskurs, a localized error date and a busy Book button", %{conn: conn} do
+    {_world, security} = world_with_position()
+    effective_date = Date.add(Date.utc_today(), -10)
+    put_quote!(security, Date.add(effective_date, -2), "100")
+    put_quote!(security, Date.add(effective_date, 1), "50")
+
+    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    view = open_wizard(conn, security)
+
+    assert has_element?(view, "#split-wizard-form button[type='submit'][phx-disable-with]")
+
+    wizard_change(view, "2", "1", effective_date)
+    quotes_table = view |> element("#split-wizard-quotes") |> render()
+    assert quotes_table =~ "Schlusskurs"
+    refute quotes_table =~ "Schließen"
+    assert has_element?(view, "button[aria-label='Schließen']")
+
+    {:ok, _transactions} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: effective_date,
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    wizard_submit(view, "2", "1", effective_date)
+    error = view |> element("#split-wizard-error") |> render()
+    assert error =~ Calendar.strftime(effective_date, "%d.%m.%Y")
+    refute error =~ Date.to_iso8601(effective_date)
+  end
 end

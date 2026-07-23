@@ -300,6 +300,35 @@ defmodule Portfolixir.Catalog.QuoteAdjustmentTest do
                QuoteAdjustment.basis_check(quotes, ~D[2026-02-01], {1, 3}, %Security{})
     end
 
+    # User story (E17 closing-act review, finding 9):
+    # As a maintainer whose stored history carries a zero close on either
+    # side of the effective date,
+    # I want the basis check to report :insufficient_quotes for a zero
+    # BEFORE-close exactly like it does for a zero after-close,
+    # so that a division-by-zero guard on one side cannot produce a false
+    # consistent/contradiction verdict on the other.
+    #
+    # Acceptance criteria:
+    # - A zero close before the effective date reports :insufficient_quotes.
+    # - A zero close after the effective date reports :insufficient_quotes.
+    test "a zero close on either side of the effective date reports insufficient quotes" do
+      zero_before = [
+        quote_row(~D[2026-01-30], "0", "manual"),
+        quote_row(~D[2026-02-01], "10", "manual")
+      ]
+
+      assert %{status: :insufficient_quotes} =
+               QuoteAdjustment.basis_check(zero_before, ~D[2026-02-01], {10, 1}, %Security{})
+
+      zero_after = [
+        quote_row(~D[2026-01-30], "100", "manual"),
+        quote_row(~D[2026-02-01], "0", "manual")
+      ]
+
+      assert %{status: :insufficient_quotes} =
+               QuoteAdjustment.basis_check(zero_after, ~D[2026-02-01], {10, 1}, %Security{})
+    end
+
     test "too few quotes around the effective date report insufficient instead of a clean check" do
       only_before = [quote_row(~D[2026-01-30], "100", "manual")]
 

@@ -83,6 +83,22 @@ defmodule PortfolixirWeb.Format do
 
   def signed_decimal(_value, _places, _locale), do: "—"
 
+  @doc """
+  Formats a date under the locale: German reads `22.07.2026`, every other
+  locale keeps the unambiguous ISO form `2026-07-22`. Non-dates render as an
+  em dash.
+  """
+  def date(value, locale \\ nil)
+
+  def date(%Date{} = value, locale) do
+    case locale || current_locale() do
+      "de" -> Calendar.strftime(value, "%d.%m.%Y")
+      _locale -> Date.to_iso8601(value)
+    end
+  end
+
+  def date(_value, _locale), do: "—"
+
   defp current_locale, do: Gettext.get_locale(PortfolixirWeb.Gettext)
 
   defp localize(plain, locale) do

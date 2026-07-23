@@ -74,10 +74,12 @@ defmodule PortfolixirWeb.ApiV1SplitsTest do
     assert row_a["quantity_before"] == "10"
     assert row_a["quantity_after"] == "20"
     assert row_a["current_position"] == "20"
+    assert row_a["bookable"] == true
     assert row_b["portfolio_id"] == world_b.portfolio.id
     assert row_b["quantity_before"] == "4"
     assert row_b["quantity_after"] == "8"
     assert row_b["current_position"] == "8"
+    assert row_b["bookable"] == true
 
     # Read-only: nothing was booked.
     assert [] ==
@@ -235,5 +237,72 @@ defmodule PortfolixirWeb.ApiV1SplitsTest do
     assert message =~ "##{existing.id}"
     assert message =~ "2:1"
     assert message =~ "2026-02-02"
+
+    # A same-day booking with a DIFFERENT ratio is a conflicting security-
+    # level event (E17 review, finding 2): 422 naming the existing row.
+    ratio_conflict =
+      conn
+      |> api_conn()
+      |> post(
+        "/api/v1/splits",
+        Jason.encode!(split_body(security, %{"ratio_numerator" => 3, "ratio_denominator" => 1}))
+      )
+      |> json_response(422)
+
+    assert [message] = ratio_conflict["errors"]["ratio"]
+    assert message =~ "different ratio"
+    assert message =~ "2:1"
+  end
+
+  # User story (E17 closing-act review, finding 4 — int4 bound):
+  # As an API consumer sending an oversized split ratio,
+  # I want values beyond the int4 column range answered with a 422
+  # validation error on preview AND create,
+  # so that no request can crash into a database exception (500).
+  #
+  # Acceptance criteria:
+  # - ratio parts above 2_147_483_647 return 422 with the ratio error shape
+  #   from both endpoints.
+  test "split endpoints reject ratio parts beyond int4 with 422, not 500", %{conn: conn} do
+    %{security: security} = split_world()
+
+    for path <- ["/api/v1/splits/preview", "/api/v1/splits"] do
+      response =
+        conn
+        |> api_conn()
+        |> post(path, Jason.encode!(split_body(security, %{"ratio_numerator" => 3_000_000_000})))
+        |> json_response(422)
+
+      assert [message] = response["errors"]["ratio"]
+      assert message =~ "positive integers"
+    end
+  end
+
+  # User story (E17 closing-act review, finding 5 — divergence made explicit):
+  # As an agent previewing a split nobody held at the effective date,
+  # I want each row's bookable flag serialized and the
+  # no_position_at_effective_date warning present,
+  # so that I can tell from the preview alone that booking would fail.
+  #
+  # Acceptance criteria:
+  # - Rows with quantity_before 0 serialize "bookable": false.
+  # - The warning list contains "no_position_at_effective_date".
+  test "preview serializes bookable rows and the no-position warning", %{conn: conn} do
+    world = base_world(name: "Api Div", cash_name: "ADV Cash", depot_name: "ADV Depot")
+    security = create_security!(name: "Api Div Co", ticker: "ADV")
+    # Positioned only AFTER the effective date.
+    buy!(world, security, quantity: "5", price: "50", date: ~D[2026-03-01])
+
+    response =
+      conn
+      |> api_conn()
+      |> post("/api/v1/splits/preview", Jason.encode!(split_body(security)))
+      |> json_response(200)
+
+    data = response["data"]
+    assert "no_position_at_effective_date" in data["warnings"]
+    assert [row] = data["portfolios"]
+    assert row["bookable"] == false
+    assert row["quantity_before"] == "0"
   end
 end
