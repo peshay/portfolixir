@@ -20,6 +20,10 @@ defmodule PortfolixirWeb.Api.V1.HoldingsReconcileController do
 
   @quantity_format ~r/^-?\d+(\.\d+)?$/
 
+  # DoS hardening: an external list is user-supplied paste/file content; cap it
+  # so an oversized payload cannot exhaust server resources.
+  @max_rows 10_000
+
   def create(conn, params) do
     with {:ok, rows} <- parse_rows(Map.get(params, "rows")),
          {:ok, scope} <- scope_opts(params) do
@@ -38,6 +42,10 @@ defmodule PortfolixirWeb.Api.V1.HoldingsReconcileController do
   end
 
   # -- Rows -------------------------------------------------------------------
+
+  defp parse_rows(rows) when is_list(rows) and length(rows) > @max_rows do
+    {:error, %{rows: ["too many rows: at most #{@max_rows} rows are accepted per request"]}}
+  end
 
   defp parse_rows(rows) when is_list(rows) and rows != [] do
     rows

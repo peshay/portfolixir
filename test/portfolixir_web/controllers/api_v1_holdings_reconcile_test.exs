@@ -212,6 +212,30 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
   end
 
   # User story:
+  # As the operator of a self-hosted instance,
+  # I want the read-only reconcile to cap the number of external rows,
+  # so that an oversized paste cannot be used to exhaust server resources
+  # (DoS hardening).
+  #
+  # Acceptance criteria:
+  # - More than 10,000 rows is a 422 naming the limit.
+  test "rejects more than 10,000 rows with a 422 naming the limit", %{conn: conn} do
+    seed!()
+
+    rows =
+      for _ <- 1..10_001, do: %{"identifier" => "DE0007100000", "quantity" => "1"}
+
+    body =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{"rows" => rows})
+      |> json_response(422)
+
+    assert [message] = body["errors"]["rows"]
+    assert message =~ "10000"
+  end
+
+  # User story:
   # As the operating agent reconciling one depot's list,
   # I want an optional portfolio scope on the compare,
   # so that other portfolios' positions do not bleed into the deltas.

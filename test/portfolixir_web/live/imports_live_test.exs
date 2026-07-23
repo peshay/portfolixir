@@ -877,6 +877,41 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       refute html =~ "security: "
     end
 
+    test "security count summaries are grammatical for a single item (ngettext)", %{conn: conn} do
+      _portfolio = setup_portfolio()
+
+      # Singular create: ambiguous_wkn.json references exactly one security and
+      # nothing pre-exists to match it.
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_payload(
+        view,
+        "ambiguous_wkn.json",
+        fixture!("ambiguous_wkn.json"),
+        "application/json"
+      )
+
+      html = render(view)
+      assert html =~ "1 new security will be created"
+      refute html =~ "1 new securities will be created"
+
+      # Singular match: pre-create the one referenced security so it matches via
+      # the WKN tier and the matched summary renders in the singular.
+      create_security!(%{name: "Ambiguous Fund", wkn: "AMB001", currency_code: "EUR"})
+      {:ok, view2, _html} = live(conn, "/imports")
+
+      upload_payload(
+        view2,
+        "ambiguous_wkn.json",
+        fixture!("ambiguous_wkn.json"),
+        "application/json"
+      )
+
+      html2 = render(view2)
+      assert html2 =~ "1 security matches existing records"
+      refute html2 =~ "1 securities match existing records"
+    end
+
     test "an ambiguous identifier requires a decision before apply", %{conn: conn} do
       _portfolio = setup_portfolio()
       chosen = create_security!(%{name: "Share Class A", wkn: "AMB001"})
@@ -976,6 +1011,54 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       assert has_element?(view, "#import-unmatched-config")
       assert html =~ "Leftover AG"
       assert html =~ "record the ISIN change"
+      # The guidance must also reach the ISIN-less case (crypto), where
+      # recording an ISIN change is impossible: rename in-app or remap.
+      assert html =~ "rename"
+      assert html =~ "remap"
+    end
+
+    test "a failed security creation surfaces a friendly per-field message, not a raw tuple",
+         %{conn: conn} do
+      _portfolio = setup_portfolio()
+
+      # Two securities share WKN AMB001, so the second file row is ambiguous and
+      # the user must decide. The first row plain-creates ISIN DE000COLL001; the
+      # user then deliberately forces the ambiguous row to ALSO create with the
+      # same ISIN, which collides on the now-live unique ISIN index and makes the
+      # applier return {:security_create_failed, changeset}.
+      _a = create_security!(%{name: "Share Class A", wkn: "AMB001"})
+      _b = create_security!(%{name: "Share Class B", wkn: "AMB001"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_payload(
+        view,
+        "duplicate_isin_create.json",
+        fixture!("duplicate_isin_create.json"),
+        "application/json"
+      )
+
+      decision_key =
+        resolution_key!("duplicate_isin_create.json", &(&1.status == :needs_decision))
+
+      mapping = %{
+        "cash" => %{"Test-Cash" => "create:Test-Cash"},
+        "depot" => %{
+          "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"}
+        },
+        "security" => %{decision_key => %{"choice" => "create"}}
+      }
+
+      view |> element("form#pp-import-apply") |> render_change(mapping)
+      view |> element("form#pp-import-apply") |> render_submit(mapping)
+
+      html = render_async(view, 1_000)
+
+      # The friendly message names the offending field; the raw tuple leaks
+      # neither the tag nor an inspected struct.
+      assert html =~ "isin"
+      refute html =~ "security_create_failed"
+      refute html =~ "Ecto.Changeset"
     end
 
     test "remapping onto an existing security can record the ISIN change end-to-end",

@@ -3,6 +3,7 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Classifications
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier.Result
   alias Portfolixir.Imports.Entry
@@ -52,6 +53,27 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
   defp preview(entries), do: %Preview{format: :json, entries: entries}
 
   defp ref_key(entry), do: SecurityResolver.key(SecurityResolver.effective_ref(entry))
+
+  defp attach_assignment!(security) do
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        security.id,
+        classification.id,
+        category.id
+      )
+
+    :ok
+  end
 
   # User story:
   # As a local portfolio maintainer re-importing a PP export,
@@ -426,6 +448,37 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
                  portfolio_id: portfolio.id,
                  approved_resolutions: %{ref_key(entry) => {:matched, security.id}}
                })
+    end
+
+    test "aborts when an approved plain create becomes config-at-risk before apply" do
+      portfolio = setup_portfolio()
+
+      entry =
+        buy_entry(%{
+          isin: nil,
+          wkn: nil,
+          ticker: nil,
+          name: "Emergent AG",
+          currency: "EUR"
+        })
+
+      # Approved at preview as a plain, unambiguous create (no near-match then).
+      approved = %{ref_key(entry) => :create}
+
+      # Between preview and apply a config-bearing security with the same name
+      # (in a different currency) appears: the create is now config-at-risk and
+      # must abort back to the preview (ADR-0029 §2), never be silently dropped
+      # into unresolved_entries.
+      near = security!(%{name: "Emergent AG", currency_code: "USD"})
+      attach_assignment!(near)
+
+      assert {:error, {:resolution_diverged, _key}} =
+               Imports.apply(preview([entry]), %{
+                 portfolio_id: portfolio.id,
+                 approved_resolutions: approved
+               })
+
+      assert Ledger.count_transactions() == 0
     end
 
     test "aborts when an entry key is missing from the approved baseline" do

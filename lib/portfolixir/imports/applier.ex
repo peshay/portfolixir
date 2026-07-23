@@ -614,9 +614,21 @@ defmodule Portfolixir.Imports.Applier do
   defp revalidate_against_approval(ref, key, %{approved_resolutions: approved} = state) do
     digest =
       case SecurityResolver.resolve(ref, state.pristine_index) do
-        {:match, security, _tier} -> {:matched, security.id}
-        :create -> :create
-        {:conflict, _conflict} -> :conflict
+        {:match, security, _tier} ->
+          {:matched, security.id}
+
+        :create ->
+          # A plain create that has become config-at-risk since the preview is
+          # a divergence from the approved `:create`, not a silent drop into
+          # unresolved_entries: fold the risk into the digest so it aborts back
+          # to the preview (ADR-0029 §2).
+          case SecurityResolver.config_at_risk(ref, state.pristine_index) do
+            [] -> :create
+            _at_risk -> :create_at_risk
+          end
+
+        {:conflict, _conflict} ->
+          :conflict
       end
 
     if Map.get(approved, key) == digest do

@@ -13,10 +13,12 @@ defmodule Portfolixir.Imports.SecurityResolver do
     * a tier matching **ambiguously** (>= 2 candidates) neither picks nor
       falls through — the entry becomes a surfaced decision;
     * **stronger-identifier veto**: a weaker-tier unique match whose candidate
-      differs on a stronger identifier present on both sides (entry ISIN vs.
-      candidate ISIN, entry WKN vs. candidate WKN), and any cross-tier
-      disagreement (WKN selects A, ticker+currency selects B), is surfaced as
-      a conflict, never accepted silently;
+      differs on a *strictly stronger* identifier present on both sides (entry
+      ISIN vs. candidate ISIN, entry WKN vs. candidate WKN, and — at the name
+      tier — entry ticker vs. candidate ticker, since ticker+currency is
+      stronger than name+currency), and any cross-tier disagreement (WKN
+      selects A, ticker+currency selects B), is surfaced as a conflict, never
+      accepted silently;
     * an entry without a currency does not enter tiers 3–4;
     * matching never mutates matched master data — the resolver is read-only.
 
@@ -277,7 +279,8 @@ defmodule Portfolixir.Imports.SecurityResolver do
     stronger =
       case tier do
         :wkn -> [:isin]
-        _ticker_or_name -> [:isin, :wkn]
+        :ticker -> [:isin, :wkn]
+        :name -> [:isin, :wkn, :ticker]
       end
 
     case Enum.find(stronger, &identifier_mismatch?(&1, ref, security)) do
@@ -292,6 +295,11 @@ defmodule Portfolixir.Imports.SecurityResolver do
 
   defp identifier_mismatch?(:wkn, ref, security) do
     is_binary(ref.wkn) and is_binary(security.wkn) and ref.wkn != security.wkn
+  end
+
+  defp identifier_mismatch?(:ticker, ref, security) do
+    is_binary(ref.ticker) and is_binary(security.ticker_symbol) and
+      ref.ticker != security.ticker_symbol
   end
 
   # Cross-tier disagreement: a weaker applicable tier uniquely selecting a

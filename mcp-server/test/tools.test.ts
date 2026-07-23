@@ -378,6 +378,7 @@ describe("Portfolixir MCP tools", () => {
     const rows = reconcile?.inputSchema.properties.rows;
     assert.equal(rows.type, "array");
     assert.equal(rows.minItems, 1);
+    assert.equal(rows.maxItems, 10000);
     assert.equal(rows.items.additionalProperties, false);
     assert.deepEqual(rows.items.required, ["identifier", "quantity"]);
     assert.equal(rows.items.properties.identifier.type, "string");
@@ -433,6 +434,21 @@ describe("Portfolixir MCP tools", () => {
     );
 
     await assert.rejects(callTool(client, "portfolixir.holdings.reconcile", { rows: [] }));
+
+    assert.equal(requests.length, 0);
+  });
+
+  // DoS hardening (ADR-0029 §6): the external list is user-supplied content, so
+  // the row count is capped before any API request.
+  it("rejects more than 10,000 reconcile rows before any API request", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    const rows = Array.from({ length: 10001 }, () => ({
+      identifier: "DE0007100000",
+      quantity: "1"
+    }));
+
+    await assert.rejects(callTool(client, "portfolixir.holdings.reconcile", { rows }));
 
     assert.equal(requests.length, 0);
   });

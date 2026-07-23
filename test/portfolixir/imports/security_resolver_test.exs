@@ -212,6 +212,53 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
 
       assert matched.id == security.id
     end
+
+    test "a name match with a differing entry ticker is surfaced, not booked onto the twin" do
+      # Two share classes with no ISIN/WKN, same name+currency, distinct
+      # tickers: the ticker+currency tier (3) is strictly stronger than
+      # name+currency (4), so a name hit contradicted by the ticker must be a
+      # surfaced decision, never a silent merge onto TWNA (ADR-0029 §2).
+      twna = security!(%{name: "Twin Fund", currency_code: "EUR", ticker_symbol: "TWNA"})
+
+      assert {:conflict, %{type: :identifier_veto, tier: :name, candidates: [candidate]}} =
+               resolve(%{
+                 isin: nil,
+                 wkn: nil,
+                 ticker: "TWNB",
+                 name: "Twin Fund",
+                 currency: "EUR"
+               })
+
+      assert candidate.id == twna.id
+    end
+
+    test "a name match with a matching entry ticker still resolves cleanly" do
+      twna = security!(%{name: "Twin Fund", currency_code: "EUR", ticker_symbol: "TWNA"})
+
+      # A matching ticker rides tier 3 directly; assert it matches the same
+      # security and is not vetoed.
+      assert {:match, matched, :ticker} =
+               resolve(%{
+                 isin: nil,
+                 wkn: nil,
+                 ticker: "TWNA",
+                 name: "Twin Fund",
+                 currency: "EUR"
+               })
+
+      assert matched.id == twna.id
+    end
+
+    test "a name match with the ticker absent on one side still matches" do
+      twna = security!(%{name: "Twin Fund", currency_code: "EUR", ticker_symbol: "TWNA"})
+
+      # Entry carries no ticker: tier 3 cannot contradict, so the name tier
+      # matches cleanly.
+      assert {:match, matched, :name} =
+               resolve(%{isin: nil, wkn: nil, ticker: nil, name: "Twin Fund", currency: "EUR"})
+
+      assert matched.id == twna.id
+    end
   end
 
   # User story:

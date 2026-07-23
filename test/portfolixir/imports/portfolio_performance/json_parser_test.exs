@@ -177,6 +177,18 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       assert message =~ "MYSTERY_KIND"
     end
 
+    # The parser-warning body is app-generated prose (not raw PP passthrough),
+    # so it is routed through gettext and localized; the interpolated PP type
+    # is kept verbatim as data.
+    test "localizes the app-generated unknown-type warning while keeping the PP type" do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      body = read!("unknown_kind.json")
+      assert {:ok, %Preview{errors: [%{message: message}]}} = JsonParser.parse(body)
+      assert message =~ "Unbekannter PP-Transaktionstyp"
+      assert message =~ "MYSTERY_KIND"
+    end
+
     test "reports invalid JSON" do
       assert {:error, {:invalid_json, _}} = JsonParser.parse("{not-json")
     end

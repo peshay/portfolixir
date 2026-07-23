@@ -304,7 +304,11 @@ defmodule PortfolixirWeb.ImportsLive do
           <%= if @matched_resolutions != [] do %>
             <details data-role="matched-securities">
               <summary>
-                <%= gettext("%{n} securities match existing records", n: length(@matched_resolutions)) %>
+                <%= ngettext(
+                  "%{count} security matches existing records",
+                  "%{count} securities match existing records",
+                  length(@matched_resolutions)
+                ) %>
               </summary>
               <ul>
                 <%= for res <- @matched_resolutions do %>
@@ -320,7 +324,11 @@ defmodule PortfolixirWeb.ImportsLive do
           <%= if @plain_create_resolutions != [] do %>
             <details data-role="plain-creates">
               <summary>
-                <%= gettext("%{n} new securities will be created", n: length(@plain_create_resolutions)) %>
+                <%= ngettext(
+                  "%{count} new security will be created",
+                  "%{count} new securities will be created",
+                  length(@plain_create_resolutions)
+                ) %>
               </summary>
               <div class="mapping-grid">
                 <%= for res <- @plain_create_resolutions do %>
@@ -380,7 +388,7 @@ defmodule PortfolixirWeb.ImportsLive do
             <h3><%= gettext("Configured securities this import does not touch") %></h3>
             <p class="muted">
               <%= gettext(
-                "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file. If one of them was renamed or ISIN-changed in Portfolio Performance, discard this preview, record the ISIN change on the security, and re-run the import."
+                "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file. If one of them was renamed or ISIN-changed in Portfolio Performance, discard this preview, record the ISIN change on the security — or, for a security without an ISIN, rename it in-app to match or remap it below — and re-run the import."
               ) %>
             </p>
             <ul>
@@ -1246,6 +1254,13 @@ defmodule PortfolixirWeb.ImportsLive do
     )
   end
 
+  # A forced :create override collided with an existing security (e.g. a
+  # live-ISIN unique constraint): surface the rejecting changeset's field
+  # messages instead of an opaque tuple dump.
+  defp apply_error_message({:security_create_failed, %Ecto.Changeset{} = changeset}) do
+    gettext("Creating the security failed: %{errors}", errors: changeset_error_text(changeset))
+  end
+
   defp apply_error_message(reason), do: inspect(reason)
 
   defp changeset_error_text(%Ecto.Changeset{} = changeset) do
@@ -1262,7 +1277,9 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp parser_warning_text(errors) do
     errors
-    |> Enum.map(fn err -> "Row #{err.row || "?"}: #{err.message}" end)
+    |> Enum.map(fn err ->
+      gettext("Row %{row}: %{message}", row: err.row || "?", message: err.message)
+    end)
     |> Enum.join("\n")
   end
 end

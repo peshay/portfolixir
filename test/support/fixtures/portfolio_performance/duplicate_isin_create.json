@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "transactions": [
+  {
+   "type": "PURCHASE",
+   "account": "Test-Cash",
+   "portfolio": "Test-Depot",
+   "date": "2024-04-01",
+   "currency": "EUR",
+   "amount": 500.0,
+   "shares": 5.0,
+   "security": {
+    "name": "First AG",
+    "isin": "DE000COLL001",
+    "currency": "EUR"
+   }
+  },
+  {
+   "type": "PURCHASE",
+   "account": "Test-Cash",
+   "portfolio": "Test-Depot",
+   "date": "2024-04-02",
+   "currency": "EUR",
+   "amount": 300.0,
+   "shares": 3.0,
+   "security": {
+    "name": "Second AG",
+    "wkn": "AMB001",
+    "isin": "DE000COLL001",
+    "currency": "EUR"
+   }
+  }
+ ]
+}

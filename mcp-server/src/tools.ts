@@ -1314,9 +1314,11 @@ const reconcileSchema = {
     rows: {
       type: "array",
       minItems: 1,
+      maxItems: 10000,
       description:
         "The external position list, one row per line of the source document. " +
-        "Parse locale formats client-side: quantity must be a canonical dot-decimal string.",
+        "Parse locale formats client-side: quantity must be a canonical dot-decimal string. " +
+        "At most 10000 rows per request.",
       items: {
         type: "object",
         additionalProperties: false,
@@ -1377,7 +1379,8 @@ const reconcileZ = z.object({
         security_id: z.number().int().positive().optional()
       })
     )
-    .min(1),
+    .min(1)
+    .max(10000),
   portfolio_id: z.number().int().positive().optional(),
   view: z.number().int().positive().optional()
 });
