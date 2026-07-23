@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Ecto.Changeset
   alias Portfolixir.Buckets.Bucket
   alias Portfolixir.Buckets.View
+  alias Portfolixir.Catalog.IdentifierAlias
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
@@ -55,8 +56,29 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       online_id: security.online_id,
       provider: security.provider,
       attributes: security.attributes || %{},
+      # Recorded former-ISIN aliases (ADR-0029 §3); a list only when preloaded
+      # (the detail route), `null` on responses that did not load them.
+      identifier_aliases: identifier_aliases_field(security),
       inserted_at: timestamp(security.inserted_at),
       updated_at: timestamp(security.updated_at)
+    }
+  end
+
+  defp identifier_aliases_field(%Security{identifier_aliases: aliases}) when is_list(aliases) do
+    Enum.map(aliases, &identifier_alias/1)
+  end
+
+  defp identifier_aliases_field(_security), do: nil
+
+  def identifier_alias(%IdentifierAlias{} = alias_row) do
+    %{
+      id: alias_row.id,
+      security_id: alias_row.security_id,
+      former_isin: alias_row.former_isin,
+      changed_on: date(alias_row.changed_on),
+      note: alias_row.note,
+      inserted_at: timestamp(alias_row.inserted_at),
+      updated_at: timestamp(alias_row.updated_at)
     }
   end
 

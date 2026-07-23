@@ -12,9 +12,12 @@ describe("Portfolixir MCP tools", () => {
 
     assert.deepEqual(names, [
       "portfolixir.securities.list",
+      "portfolixir.securities.get",
       "portfolixir.securities.create",
       "portfolixir.securities.update",
       "portfolixir.securities.delete",
+      "portfolixir.securities.isin_change",
+      "portfolixir.securities.delete_isin_alias",
       "portfolixir.securities.search_online",
       "portfolixir.quotes.sync",
       "portfolixir.quotes.list",
@@ -1342,5 +1345,62 @@ describe("Portfolixir MCP tools", () => {
       }),
       /Portfolixir API request failed/
     );
+  });
+
+  // User story:
+  // As an MCP operator whose security got a new ISIN through a corporate
+  // action, I want a dedicated isin_change tool plus alias visibility and a
+  // journaled alias delete (ADR-0029 §3, AR-11 parity), so that imports keep
+  // matching the security via its former ISIN.
+  it("routes securities.get to GET /api/v1/securities/:id", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 7 } });
+
+    await callTool(client, "portfolixir.securities.get", { id: 7 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/securities/7");
+  });
+
+  it("routes isin_change to POST /securities/:id/isin-change with the body", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 7 } });
+
+    await callTool(client, "portfolixir.securities.isin_change", {
+      security_id: 7,
+      new_isin: "DE0007654321",
+      changed_on: "2026-07-01",
+      note: "merger rename"
+    });
+
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/securities/7/isin-change");
+    assert.deepEqual(requests[0].body, {
+      isin_change: {
+        new_isin: "DE0007654321",
+        changed_on: "2026-07-01",
+        note: "merger rename"
+      }
+    });
+  });
+
+  it("rejects an isin_change call without new_isin before any API request", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 7 } });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.securities.isin_change", { security_id: 7 })
+    );
+
+    assert.equal(requests.length, 0);
+  });
+
+  it("routes delete_isin_alias to DELETE /securities/:id/identifier_aliases/:alias_id", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.securities.delete_isin_alias", {
+      security_id: 7,
+      alias_id: 3
+    });
+
+    assert.equal(requests[0].method, "DELETE");
+    assert.equal(requests[0].path, "/api/v1/securities/7/identifier_aliases/3");
   });
 });

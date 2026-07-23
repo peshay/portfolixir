@@ -31,6 +31,8 @@ defmodule Portfolixir.Catalog.Security do
     field(:provider, :string)
     field(:attributes, :map, default: %{})
 
+    has_many(:identifier_aliases, Portfolixir.Catalog.IdentifierAlias)
+
     timestamps()
   end
 

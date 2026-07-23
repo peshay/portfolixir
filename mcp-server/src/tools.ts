@@ -185,6 +185,50 @@ const idSchema = {
   properties: { id: { type: "integer", minimum: 1 } }
 };
 
+// ISIN-change recording (ADR-0029 §3): the current ISIN moves into a journaled
+// former-ISIN alias and the new ISIN is written onto the security.
+const isinChangeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id", "new_isin"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    new_isin: {
+      type: "string",
+      minLength: 1,
+      description: "The security's new ISIN (normalized to trimmed uppercase server-side)."
+    },
+    changed_on: {
+      type: "string",
+      format: "date",
+      description: "Effective date of the ISIN change (YYYY-MM-DD); defaults to today."
+    },
+    note: { type: "string", description: "Optional note, e.g. the corporate action." }
+  }
+};
+
+const isinChangeZ = z.object({
+  security_id: z.number().int().positive(),
+  new_isin: z.string().min(1),
+  changed_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  note: optionalString()
+});
+
+const isinAliasDeleteSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id", "alias_id"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    alias_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const isinAliasDeleteZ = z.object({
+  security_id: z.number().int().positive(),
+  alias_id: z.number().int().positive()
+});
+
 // The dedicated split booking flow (ADR-0028 §1): the ratio is a pair of
 // positive INTEGERS (10:1 forward, 1:10 reverse) — integers keep a 1:3
 // reverse split exact where a decimal ratio cannot, so these two fields are
@@ -1278,9 +1322,12 @@ const toolDefinitions: ToolDefinition[] = [
     limit: z.number().int().min(0).optional(),
     offset: z.number().int().min(0).optional()
   })),
+  tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security.", idSchema, idZ),
   tool("portfolixir.securities.create", "Create security", "Create a local security. To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view.", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view.", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view. Do NOT use this to change an ISIN after a corporate action — use portfolixir.securities.isin_change instead, which keeps the former ISIN as an import-matching alias; a plain rename is just a name edit here.", securityUpdateSchema, securityUpdateZ),
   tool("portfolixir.securities.delete", "Delete security", "Delete a local security when no transactions or quotes reference it.", idSchema, idZ),
+  tool("portfolixir.securities.isin_change", "Record ISIN change", "Record a corporate-action ISIN change (merger rename, re-domiciliation): the current ISIN becomes a journaled former-ISIN alias and new_isin is written onto the same security, so re-imports of OLD exports (former ISIN) and NEW exports (new ISIN) both keep matching this security instead of duplicating it. Use this whenever a broker/PP export starts carrying a new ISIN for an existing position; a plain rename needs no ISIN change — edit the name via portfolixir.securities.update. Rejected with a named conflict when new_isin equals the current ISIN, is live on another security, or is aliased to another security; recording a change back to one of this security's own former ISINs consumes that alias (revert).", isinChangeSchema, isinChangeZ),
+  tool("portfolixir.securities.delete_isin_alias", "Delete ISIN alias", "Delete one recorded former-ISIN alias of a security (journaled) — use when an ISIN change was recorded by mistake. After deletion, imports no longer match the security via that former ISIN.", isinAliasDeleteSchema, isinAliasDeleteZ),
   tool("portfolixir.securities.search_online", "Search online securities", "Search configured online security providers.", {
     type: "object",
     additionalProperties: false,
@@ -1764,8 +1811,19 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "offset"
         ])
       );
+    case "portfolixir.securities.get":
+      return client.request("GET", `/api/v1/securities/${args.id}`);
     case "portfolixir.securities.create":
       return client.request("POST", "/api/v1/securities", { security: args.security });
+    case "portfolixir.securities.isin_change":
+      return client.request("POST", `/api/v1/securities/${args.security_id}/isin-change`, {
+        isin_change: isinChangeBody(args)
+      });
+    case "portfolixir.securities.delete_isin_alias":
+      return client.request(
+        "DELETE",
+        `/api/v1/securities/${args.security_id}/identifier_aliases/${args.alias_id}`
+      );
     case "portfolixir.securities.update":
       return client.request("PATCH", `/api/v1/securities/${args.id}`, { security: args.security });
     case "portfolixir.securities.delete":
@@ -2091,6 +2149,13 @@ function tool(
   zodSchema: ZodTypeAny
 ): ToolDefinition {
   return { name, title, description, inputSchema, zodSchema };
+}
+
+function isinChangeBody(args: Record<string, any>): Record<string, unknown> {
+  const body: Record<string, unknown> = { new_isin: args.new_isin };
+  if (args.changed_on !== undefined) body.changed_on = args.changed_on;
+  if (args.note !== undefined) body.note = args.note;
+  return body;
 }
 
 function splitRequestBody(args: Record<string, any>): Record<string, unknown> {

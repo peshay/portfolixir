@@ -128,6 +128,21 @@ single characters, minimum four tokens) and collapses the tokens before
 heuristics run, so legal-form suffixes are reliably detected even from such
 exports.
 
+### ISIN changes (former-ISIN aliases)
+
+When a corporate action gives a security a new ISIN (a merger rename, a
+re-domiciliation), record the change instead of editing the ISIN in place:
+`POST /api/v1/securities/:security_id/isin-change` (or the
+`portfolixir.securities.isin_change` MCP tool) moves the current ISIN into a
+journaled **former-ISIN alias** and writes the new ISIN onto the same
+security. Imports then keep matching in both directions: an old export still
+carrying the former ISIN resolves through the alias, and a new export with
+the new ISIN resolves through the current ISIN — no duplicate security, no
+duplicate bookings (the import marks such rows as "matched via former ISIN").
+Aliases are correctable: they are listed on the security detail
+(`GET /api/v1/securities/:id`) and can be deleted (journaled) when recorded
+by mistake. A plain rename needs no ISIN change — it is just a name edit.
+
 ## Accounts and Depots
 
 The bookkeeping entities are cash accounts and depots:

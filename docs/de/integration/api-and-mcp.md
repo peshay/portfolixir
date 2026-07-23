@@ -60,7 +60,10 @@ Löschantwort keinen JSON-Body parsen.
   Wertspeicher gehaltener Bitcoin —, versiehst du sie mit einem Bucket und
   schließt diesen Bucket aus einer Ansicht aus; lies die Allokation dann unter
   dieser Ansicht.
-- `GET /api/v1/securities/:id` liefert ein Wertpapier.
+- `GET /api/v1/securities/:id` liefert ein Wertpapier, einschließlich seiner
+  `identifier_aliases` — der über den ISIN-Wechsel-Endpunkt unten
+  aufgezeichneten früheren ISINs (jeweils mit `id`, `former_isin`,
+  `changed_on`, `note`).
 - `PATCH /api/v1/securities/:id` aktualisiert ein Wertpapier mit einem
   `security`-Objekt. Das Boolean `treat_quotes_as_raw` (Standard `false`) ist
   die ADR-0028-Notluke für Anbieter, die ihre Historie nach einem
@@ -73,6 +76,44 @@ Löschantwort keinen JSON-Body parsen.
 - `GET /api/v1/securities/search` durchsucht konfigurierte
   Online-Wertpapieranbieter. Query-Parameter: `query`; optional `type` mit
   `security` oder `crypto`.
+
+### ISIN-Wechsel (Identifier-Aliasse)
+
+Wenn eine Kapitalmaßnahme einem bestehenden Wertpapier eine neue ISIN gibt,
+zeichne den Wechsel auf, statt die ISIN direkt zu editieren: Die frühere ISIN
+wird ein journalisierter Alias, und das ISIN-Matching des Imports prüft erst
+aktuelle ISINs, dann die Aliasse — Re-Importe alter Exporte (frühere ISIN) und
+neuer Exporte (neue ISIN) treffen so weiter dasselbe Wertpapier, statt ein
+Duplikat anzulegen (ADR-0029). Eine bloße Umbenennung braucht keinen
+ISIN-Wechsel — sie ist nur eine Namensänderung.
+
+- `POST /api/v1/securities/:security_id/isin-change` zeichnet den Wechsel mit
+  einem `isin_change`-Objekt auf: Pflichtfeld `new_isin` (normalisiert auf
+  getrimmte Großschreibung), optional `changed_on` (ISO-Datum, Standard heute)
+  und `note`. Liefert das aktualisierte Wertpapier einschließlich seiner
+  `identifier_aliases`. Abgelehnt mit `422` und benanntem Konflikt, wenn
+  `new_isin` der aktuellen ISIN entspricht, auf einem anderen Wertpapier live
+  ist oder als frühere ISIN eines anderen Wertpapiers aufgezeichnet ist; ein
+  Wechsel zurück auf eine eigene frühere ISIN verbraucht diesen Alias (ein
+  Revert). Jeder Wertpapier-ISIN-Schreibpfad — Anlegen, Aktualisieren und der
+  Anlege-Pfad des Imports — lehnt symmetrisch eine ISIN ab, die als Alias
+  existiert, und benennt das Alias-Wertpapier.
+- `DELETE /api/v1/securities/:security_id/identifier_aliases/:id` löscht einen
+  aufgezeichneten Alias (journalisiert), wenn ein ISIN-Wechsel versehentlich
+  aufgezeichnet wurde; liefert `204 No Content` oder `404`, wenn der Alias
+  nicht zu dem Wertpapier gehört.
+
+Beispiel-Payload für einen ISIN-Wechsel:
+
+```json
+{
+  "isin_change": {
+    "new_isin": "IE000XZSV718",
+    "changed_on": "2026-07-01",
+    "note": "merger rename"
+  }
+}
+```
 
 Beispiel-Payload zum Anlegen:
 
@@ -785,9 +826,16 @@ Der MCP-Begleitdienst stellt denselben lokalen Kontrakt als Tool-Aufrufe bereit.
 Decimal-Eingaben in MCP-Schemata sind Strings.
 
 - `portfolixir.securities.list`
+- `portfolixir.securities.get` — vollständiger Datensatz eines Wertpapiers
+  einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs).
 - `portfolixir.securities.create`
 - `portfolixir.securities.update`
 - `portfolixir.securities.delete`
+- `portfolixir.securities.isin_change` — zeichnet einen
+  Kapitalmaßnahmen-ISIN-Wechsel auf, damit Importe über die frühere ISIN
+  weiter zuordnen (ADR-0029).
+- `portfolixir.securities.delete_isin_alias` — journalisiertes Löschen eines
+  aufgezeichneten Früher-ISIN-Alias.
 - `portfolixir.securities.search_online`
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`

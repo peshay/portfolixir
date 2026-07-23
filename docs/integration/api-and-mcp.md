@@ -59,7 +59,9 @@ that successful delete response.
   and performance — e.g. a Bitcoin held as a store of value — tag it with a
   bucket and exclude that bucket from a view, then read allocation under that
   view.
-- `GET /api/v1/securities/:id` returns one security.
+- `GET /api/v1/securities/:id` returns one security, including its
+  `identifier_aliases` — the former ISINs recorded via the ISIN-change
+  endpoint below (each with `id`, `former_isin`, `changed_on`, `note`).
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
   The boolean `treat_quotes_as_raw` (default `false`) is the ADR-0028 escape
   hatch for providers that never back-adjust their history after a stock
@@ -71,6 +73,42 @@ that successful delete response.
   `409 Conflict`.
 - `GET /api/v1/securities/search` searches configured online security providers.
   Query params: `query`; optional `type` with `security` or `crypto`.
+
+### ISIN changes (identifier aliases)
+
+When a corporate action gives an existing security a new ISIN, record the
+change instead of editing the ISIN in place: the former ISIN becomes a
+journaled alias, and the import's ISIN matching consults current ISINs first,
+then the aliases — so re-imports of old exports (former ISIN) and new exports
+(new ISIN) both keep matching the same security instead of duplicating it
+(ADR-0029). A plain rename needs no ISIN change — it is just a name edit.
+
+- `POST /api/v1/securities/:security_id/isin-change` records the change with an
+  `isin_change` object: required `new_isin` (normalized to trimmed uppercase),
+  optional `changed_on` (ISO date, defaults to today) and `note`. Returns the
+  updated security including its `identifier_aliases`. Guarded with `422` and a
+  named conflict when `new_isin` equals the current ISIN, is live on another
+  security, or is recorded as another security's former ISIN; recording a
+  change back to one of the same security's own former ISINs consumes that
+  alias (a revert). Every security-ISIN write path — create, update, and the
+  import's create path — symmetrically rejects an ISIN that exists as an
+  alias, naming the aliased security.
+- `DELETE /api/v1/securities/:security_id/identifier_aliases/:id` deletes one
+  recorded alias (journaled) when an ISIN change was recorded by mistake;
+  returns `204 No Content`, or `404` when the alias does not belong to the
+  security.
+
+Example ISIN-change payload:
+
+```json
+{
+  "isin_change": {
+    "new_isin": "IE000XZSV718",
+    "changed_on": "2026-07-01",
+    "note": "merger rename"
+  }
+}
+```
 
 ### Logos
 
@@ -844,9 +882,15 @@ The MCP companion exposes the same local contract as tool calls. Decimal inputs
 in MCP schemas are strings.
 
 - `portfolixir.securities.list`
+- `portfolixir.securities.get` — one security's full record including its
+  `identifier_aliases` (recorded former ISINs).
 - `portfolixir.securities.create`
 - `portfolixir.securities.update`
 - `portfolixir.securities.delete`
+- `portfolixir.securities.isin_change` — records a corporate-action ISIN
+  change so imports keep matching via the former ISIN (ADR-0029).
+- `portfolixir.securities.delete_isin_alias` — journaled delete of one
+  recorded former-ISIN alias.
 - `portfolixir.securities.search_online`
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`

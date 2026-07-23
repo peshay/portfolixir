@@ -6,6 +6,8 @@ defmodule Portfolixir.Catalog do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.IdentifierAlias
+  alias Portfolixir.Catalog.IdentifierAliases
   alias Portfolixir.Catalog.LogoDiscovery
   alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.LogoStore
@@ -201,9 +203,12 @@ defmodule Portfolixir.Catalog do
   guard-armed, so this is the only sanctioned create path.
   """
   def create_security(%Actor{} = actor, attrs) when is_map(attrs) do
+    changeset = Security.changeset(%Security{}, attrs)
+
     multi =
       Multi.new()
-      |> Multi.insert(:security, Security.changeset(%Security{}, attrs))
+      |> alias_guard(changeset)
+      |> Multi.insert(:security, changeset)
       |> Journal.record(actor, resource_type: "security", operation: :create, source: :security)
 
     case Repo.transaction(multi) do
@@ -211,9 +216,19 @@ defmodule Portfolixir.Catalog do
         maybe_enrich_security(security)
         {:ok, security}
 
-      {:error, :security, %Ecto.Changeset{} = changeset, _changes} ->
+      {:error, _step, %Ecto.Changeset{} = changeset, _changes} ->
         {:error, changeset}
     end
+  end
+
+  # The bidirectional alias guard (ADR-0029 §3): every security-ISIN write —
+  # create, update, and the import applier's create path (which calls
+  # `create_security/2`) — rejects an ISIN recorded as a former ISIN of any
+  # security, inside the same write transaction as the journaled write.
+  defp alias_guard(multi, changeset) do
+    Multi.run(multi, :alias_guard, fn repo, _changes ->
+      IdentifierAliases.guard_isin_not_aliased(repo, changeset)
+    end)
   end
 
   @doc false
@@ -281,9 +296,12 @@ defmodule Portfolixir.Catalog do
   journal entry (with the pre-image as `before`) commit in one transaction.
   """
   def update_security(%Actor{} = actor, %Security{} = security, attrs) when is_map(attrs) do
+    changeset = Security.changeset(security, attrs)
+
     multi =
       Multi.new()
-      |> Multi.update(:security, Security.changeset(security, attrs))
+      |> alias_guard(changeset)
+      |> Multi.update(:security, changeset)
       |> Journal.record(actor,
         resource_type: "security",
         operation: :update,
@@ -293,7 +311,7 @@ defmodule Portfolixir.Catalog do
 
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
-      {:error, :security, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
     end
   end
 
@@ -313,12 +331,43 @@ defmodule Portfolixir.Catalog do
     Repo.transaction(fn ->
       with {:ok, _count} <-
              PortfolioTargets.delete_position_targets_for_security(actor, security.id),
+           {:ok, _} <- IdentifierAliases.delete_all_for_security(actor, security.id),
            {:ok, deleted} <- delete_security_row(actor, security) do
         deleted
       else
         {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
       end
     end)
+  end
+
+  @doc """
+  Records an ISIN change (ADR-0029 §3): the current ISIN becomes a journaled
+  alias row and `new_isin` is written onto the security, one transaction. See
+  `Portfolixir.Catalog.IdentifierAliases.record_isin_change/4` for the guards.
+  """
+  defdelegate record_isin_change(actor, security, new_isin, opts \\ []), to: IdentifierAliases
+
+  @doc "Lists a security's recorded former-ISIN aliases, newest change first."
+  defdelegate list_identifier_aliases(security), to: IdentifierAliases, as: :list_for_security
+
+  @doc "Fetches one identifier alias scoped to its security (nil when absent)."
+  defdelegate get_identifier_alias(security_id, alias_id),
+    to: IdentifierAliases,
+    as: :get_for_security
+
+  @doc "Deletes an identifier alias, journaled (ADR-0029 §3 correctability)."
+  defdelegate delete_identifier_alias(actor, alias_row), to: IdentifierAliases, as: :delete_alias
+
+  @doc "Updates/reassigns an identifier alias, journaled."
+  defdelegate update_identifier_alias(actor, alias_row, attrs),
+    to: IdentifierAliases,
+    as: :update_alias
+
+  @doc "Preloads the security's identifier aliases (newest change first)."
+  def with_identifier_aliases(%Security{} = security) do
+    Repo.preload(security,
+      identifier_aliases: from(a in IdentifierAlias, order_by: [desc: a.changed_on, desc: a.id])
+    )
   end
 
   defp delete_security_row(%Actor{} = actor, %Security{} = security) do

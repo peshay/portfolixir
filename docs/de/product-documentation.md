@@ -137,6 +137,23 @@ Tokens sind einzelne Zeichen, mindestens vier Tokens) und führt die Tokens
 zusammen, bevor die Heuristiken laufen, sodass Rechtsform-Suffixe auch aus
 solchen Exporten zuverlässig erkannt werden.
 
+### ISIN-Wechsel (Früher-ISIN-Aliasse)
+
+Wenn eine Kapitalmaßnahme einem Wertpapier eine neue ISIN gibt (eine
+Fusions-Umbenennung, ein Sitzwechsel), zeichne den Wechsel auf, statt die ISIN
+direkt zu editieren: `POST /api/v1/securities/:security_id/isin-change` (oder
+das MCP-Tool `portfolixir.securities.isin_change`) verschiebt die aktuelle
+ISIN in einen journalisierten **Früher-ISIN-Alias** und schreibt die neue ISIN
+auf dasselbe Wertpapier. Importe treffen danach in beide Richtungen weiter:
+Ein alter Export mit der früheren ISIN löst über den Alias auf, ein neuer
+Export mit der neuen ISIN über die aktuelle ISIN — kein dupliziertes
+Wertpapier, keine duplizierten Buchungen (der Import markiert solche Zeilen
+als „über frühere ISIN zugeordnet"). Aliasse sind korrigierbar: Sie werden im
+Wertpapier-Detail (`GET /api/v1/securities/:id`) gelistet und können
+(journalisiert) gelöscht werden, wenn sie versehentlich aufgezeichnet wurden.
+Eine bloße Umbenennung braucht keinen ISIN-Wechsel — sie ist nur eine
+Namensänderung.
+
 ## Konten und Depots
 
 Die Buchhaltungs-Entitäten sind Geldkonten und Depots:

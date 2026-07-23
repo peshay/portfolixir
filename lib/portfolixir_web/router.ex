@@ -60,6 +60,16 @@ defmodule PortfolixirWeb.Router do
     patch("/securities/:id", SecurityController, :update)
     delete("/securities/:id", SecurityController, :delete)
 
+    # ISIN-change aliases (ADR-0029 §3): record a corporate-action ISIN change
+    # and correct recorded aliases; imports keep matching via former ISINs.
+    post("/securities/:security_id/isin-change", IsinChangeController, :create)
+
+    delete(
+      "/securities/:security_id/identifier_aliases/:id",
+      IsinChangeController,
+      :delete_alias
+    )
+
     get("/securities/:security_id/logo", LogoController, :show)
     put("/securities/:security_id/logo", LogoController, :update)
     delete("/securities/:security_id/logo", LogoController, :delete)

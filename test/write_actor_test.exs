@@ -62,6 +62,7 @@ defmodule Portfolixir.WriteActorTest do
   # Portfolios-owned tables that are not yet actor-first (architecture amendment 1).
   @armed_tables MapSet.new([
                   "securities",
+                  "security_identifier_aliases",
                   "buckets",
                   "portfolios",
                   "cash_accounts",

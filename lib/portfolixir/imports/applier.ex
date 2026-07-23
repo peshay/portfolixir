@@ -16,8 +16,11 @@ defmodule Portfolixir.Imports.Applier do
 
   Scope of this story (#5):
 
-  - Resolves securities by ISIN (preferred) or by (name, currency).
-    Missing securities are created from the entry's `security` ref.
+  - Resolves securities by ISIN (preferred; current ISINs first, then
+    the recorded former-ISIN aliases of ADR-0029 §3, compared in catalog
+    normal form) or by (name, currency). Missing securities are created
+    from the entry's `security` ref; the journaled create path rejects
+    an ISIN recorded as a former ISIN (bidirectional guard).
   - Resolves cash accounts and depots by name *within the chosen
     portfolio*. Missing ones are created.
   - Inserts one ledger row per entry, branching by kind.
@@ -36,6 +39,8 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.IdentifierAlias
+  alias Portfolixir.Catalog.IdentifierAliases
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
@@ -53,6 +58,7 @@ defmodule Portfolixir.Imports.Applier do
     defstruct created_securities: 0,
               created_security_ids: [],
               resolved_security_ids: [],
+              alias_matches: [],
               created_cash_accounts: 0,
               created_cash_account_ids: [],
               created_securities_accounts: 0,
@@ -121,6 +127,7 @@ defmodule Portfolixir.Imports.Applier do
           portfolio_id: portfolio_id,
           default_currency: default_currency,
           securities_by_isin: load_securities_by_isin(),
+          securities_by_former_isin: IdentifierAliases.by_former_isin(),
           securities_by_name: load_securities_by_name(),
           cash_by_name: cash_by_pp_name,
           depot_by_name: depot_by_pp_name,
@@ -157,6 +164,7 @@ defmodule Portfolixir.Imports.Applier do
         portfolio_id: portfolio_id,
         default_currency: default_currency,
         securities_by_isin: load_securities_by_isin(),
+        securities_by_former_isin: IdentifierAliases.by_former_isin(),
         securities_by_name: load_securities_by_name(),
         cash_by_name: load_cash_by_name(portfolio_id),
         depot_by_name: load_depots_by_name(portfolio_id),
@@ -505,11 +513,19 @@ defmodule Portfolixir.Imports.Applier do
 
   defp resolve_security(%Entry{security: nil}, state), do: {:ok, state, nil}
 
+  # Identity ladder ISIN tier (ADR-0029 §2/§3): comparison in catalog normal
+  # form (trimmed, upcased), current ISINs first, then the former-ISIN alias
+  # table. An alias hit resolves to the aliased security and is labeled in the
+  # result ("matched via former ISIN"). Only a miss on both falls through to
+  # creating the security — whose journaled create path re-checks the alias
+  # table (bidirectional guard).
   defp resolve_security(%Entry{security: %{isin: isin}} = entry, state)
        when is_binary(isin) and isin != "" do
-    case Map.fetch(state.securities_by_isin, isin) do
+    normalized = IdentifierAlias.normalize_isin(isin)
+
+    case Map.fetch(state.securities_by_isin, normalized) do
       {:ok, id} -> {:ok, track_resolved_security(state, id), id}
-      :error -> create_security(entry, state)
+      :error -> resolve_security_by_former_isin(entry, normalized, state)
     end
   end
 
@@ -524,6 +540,31 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp resolve_security(_entry, state), do: {:ok, state, nil}
+
+  defp resolve_security_by_former_isin(%Entry{} = entry, normalized, state) do
+    case Map.fetch(state.securities_by_former_isin, normalized) do
+      {:ok, id} ->
+        state =
+          state
+          |> track_resolved_security(id)
+          |> record_alias_match(entry, normalized, id)
+
+        {:ok, state, id}
+
+      :error ->
+        create_security(entry, state)
+    end
+  end
+
+  # Labels an alias-tier hit in the result ("matched via former ISIN") so the
+  # imports view can surface which entries resolved through a recorded
+  # ISIN change (ADR-0029 §3).
+  defp record_alias_match(state, %Entry{} = entry, former_isin, security_id) do
+    Map.update!(state, :result, fn %Result{} = r ->
+      match = %{row: entry.source_row, former_isin: former_isin, security_id: security_id}
+      %Result{r | alias_matches: r.alias_matches ++ [match]}
+    end)
+  end
 
   defp create_security(%Entry{security: ref} = _entry, state) do
     # Tag PP-imported securities so `Portfolixir.Catalog.QuoteSync`

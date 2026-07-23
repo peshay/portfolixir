@@ -335,6 +335,12 @@ defmodule PortfolixirWeb.ImportsLive do
         <%= gettext("Skipped duplicates: %{n}", n: @result.skipped_duplicates) %>
       </p>
 
+      <%= if @result.alias_matches != [] do %>
+        <p class="muted" data-role="alias-matches">
+          <%= gettext("%{n} record(s) matched via former ISIN.", n: length(@result.alias_matches)) %>
+        </p>
+      <% end %>
+
       <%= if @result.skipped_entries != [] do %>
         <div class="import-skipped" data-role="skipped-entries">
           <p class="muted">

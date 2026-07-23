@@ -42,8 +42,12 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   def show(conn, %{"id" => id}) do
     case Catalog.get_security(id) do
-      nil -> not_found(conn)
-      security -> json(conn, %{data: JSON.security(security)})
+      nil ->
+        not_found(conn)
+
+      security ->
+        # The detail carries the recorded former-ISIN aliases (ADR-0029 §3).
+        json(conn, %{data: JSON.security(Catalog.with_identifier_aliases(security))})
     end
   end
 
