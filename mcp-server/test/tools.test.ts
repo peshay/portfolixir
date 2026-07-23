@@ -40,6 +40,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.splits.create",
       "portfolixir.holdings.list",
       "portfolixir.holdings.by_security",
+      "portfolixir.holdings.reconcile",
       "portfolixir.portfolios.valuation",
       "portfolixir.exchange_rates.list",
       "portfolixir.exchange_rates.sync",
@@ -359,6 +360,81 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/holdings/by_security");
     assert.equal(requests[0].token, "Bearer api-token");
     assert.match(result.content[0].text, /1000/);
+  });
+
+  // User story:
+  // As the operating LLM agent holding an external broker position list,
+  // I want a read-only reconcile tool whose description steers me toward
+  // booking the missing transaction of the correct kind (ADR-0029 6, FR-35),
+  // so that the fix-it hammer lands at the moment of temptation instead of a
+  // balance snapshot or unpriced delivery distorting the cost basis.
+  it("exposes portfolixir.holdings.reconcile with a strict schema and steering description", () => {
+    const reconcile = listTools().find((tool) => tool.name === "portfolixir.holdings.reconcile");
+
+    assert.ok(reconcile);
+    assert.equal(reconcile?.inputSchema.additionalProperties, false);
+    assert.deepEqual(reconcile?.inputSchema.required, ["rows"]);
+
+    const rows = reconcile?.inputSchema.properties.rows;
+    assert.equal(rows.type, "array");
+    assert.equal(rows.minItems, 1);
+    assert.equal(rows.items.additionalProperties, false);
+    assert.deepEqual(rows.items.required, ["identifier", "quantity"]);
+    assert.equal(rows.items.properties.identifier.type, "string");
+    assert.equal(rows.items.properties.quantity.type, "string");
+    assert.equal(rows.items.properties.currency.type, "string");
+    assert.equal(rows.items.properties.security_id.type, "integer");
+    assert.equal(reconcile?.inputSchema.properties.portfolio_id.type, "integer");
+    assert.equal(reconcile?.inputSchema.properties.view.type, "integer");
+
+    // FR-35: the steering must live in the description the agent reads at the
+    // moment of temptation.
+    const description = reconcile?.description ?? "";
+    assert.match(description, /read-only/i);
+    assert.match(description, /booking the missing transaction of the correct kind/);
+    assert.match(description, /balance snapshots/);
+    assert.match(description, /unpriced/);
+    assert.match(description, /last resorts/);
+    assert.match(description, /distort/);
+    assert.match(description, /confirm/i);
+  });
+
+  it("routes portfolixir.holdings.reconcile to POST /holdings/reconcile with the rows body", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { guidance: "resolve a difference by booking", matched: [], unmatched: [] }
+    });
+
+    await callTool(client, "portfolixir.holdings.reconcile", {
+      rows: [
+        { identifier: "DE0007100000", quantity: "12.5" },
+        { identifier: "BTC", quantity: "0.25", currency: "EUR", security_id: 4 }
+      ],
+      portfolio_id: 3
+    });
+
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/holdings/reconcile");
+    assert.deepEqual(requests[0].body, {
+      rows: [
+        { identifier: "DE0007100000", quantity: "12.5" },
+        { identifier: "BTC", quantity: "0.25", currency: "EUR", security_id: 4 }
+      ],
+      portfolio_id: 3
+    });
+  });
+
+  it("rejects a comma-decimal reconcile quantity before any API request", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.holdings.reconcile", {
+        rows: [{ identifier: "DE0007100000", quantity: "12,5" }]
+      })
+    );
+
+    await assert.rejects(callTool(client, "portfolixir.holdings.reconcile", { rows: [] }));
+
+    assert.equal(requests.length, 0);
   });
 
   it("issues a GET to /income for portfolixir.portfolios.income", async () => {

@@ -454,6 +454,40 @@ defmodule Portfolixir.DocsTest do
   end
 
   # User story:
+  # As an API or MCP client reconciling an external position list,
+  # I want the docs to document the read-only reconcile endpoint and tool,
+  # so that I know the request contract, the ladder matching, the boundary
+  # (nothing persisted or logged) and the booking guidance without reading
+  # source (ADR-0029 6, FR-35).
+  #
+  # Acceptance criteria:
+  # - EN and DE pages document the endpoint, the tool, matched_via, the
+  #   dot-decimal 422 contract and the read-only boundary.
+  # - The EN page carries the resolution guidance and the weak-match caveat.
+  test "docs document the read-only holdings reconcile endpoint and tool" do
+    en_api = File.read!("docs/integration/api-and-mcp.md")
+    de_api = File.read!("docs/de/integration/api-and-mcp.md")
+
+    for page <- [en_api, de_api] do
+      assert page =~ "POST /api/v1/holdings/reconcile"
+      assert page =~ "portfolixir.holdings.reconcile"
+      assert page =~ "matched_via"
+      assert page =~ "missing_from_list"
+      assert page =~ "currency_required"
+    end
+
+    en_normalized = String.replace(en_api, ~r/\s+/, " ")
+    assert en_normalized =~ "never persisted or logged"
+    assert en_normalized =~ "canonical dot-decimal string"
+
+    assert en_normalized =~
+             "resolve a difference by booking the missing transaction of the correct kind"
+
+    assert en_normalized =~ "balance snapshots and unpriced deliveries are last resorts"
+    assert en_normalized =~ "confirm the security before booking"
+  end
+
+  # User story:
   # As a German-speaking reader of the Portfolixir docs,
   # I want the core product handbook and the API/MCP reference available in
   # German alongside English with a language switcher,

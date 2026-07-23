@@ -83,6 +83,10 @@ defmodule PortfolixirWeb.Router do
 
     get("/holdings/by_security", HoldingsBySecurityController, :index)
 
+    # Read-only reconcile of a user-supplied external position list against
+    # the ledger (ADR-0029 §6, FR-35): body-only input, nothing persisted.
+    post("/holdings/reconcile", HoldingsReconcileController, :create)
+
     get("/portfolios", PortfolioController, :index)
     post("/portfolios", PortfolioController, :create)
     patch("/portfolios/:portfolio_id", PortfolioController, :update)

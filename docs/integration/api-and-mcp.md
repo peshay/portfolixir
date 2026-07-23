@@ -372,6 +372,39 @@ Example account payloads:
   the cross-portfolio, base-currency counterpart to the per-portfolio holdings
   list (which stays in each security's own currency with no FX); for one
   portfolio's totals and weights use the valuation endpoint instead.
+- `POST /api/v1/holdings/reconcile` compares a **user-supplied external
+  position list** (a broker statement or depot overview, parsed client-side
+  into rows) against the ledger-derived holdings — **strictly read-only**:
+  the list arrives only in the request body, is never persisted or logged,
+  and no data is fetched from anywhere (ADR-0029 §6, FR-35). Each row is
+  `{identifier, quantity}` with optional `currency` and an optional pinning
+  `security_id`; `quantity` must be a **canonical dot-decimal string**
+  (anything else — comma decimals, thousands separators, exponents — is a
+  `422` naming the row; locale parsing is the client's job), and an empty
+  `rows` list is a `422`. Identifiers match through the same stable-identity
+  ladder the import uses: an ISIN-shaped string (format and check digit)
+  matches via the ISIN tier only (current ISINs first, then recorded former
+  ISINs — `matched_via: "former_isin"`); any other string is tried against
+  WKN, ticker+currency and name+currency with the exactly-one rule applied
+  across the union of those tiers — a string matching one security's WKN and
+  another's ticker lands under `ambiguous` with the candidate securities,
+  never a silent pick, and a currency-less row cannot match by ticker or name
+  (`unmatched` with reason `currency_required`). The response is
+  self-describing (`basis` with `as_of`, `scope`, and a delta note) and
+  reports: `matched` rows (one per security — rows resolving to the same
+  security are aggregated with their external quantities summed and the
+  contributing rows listed) with the `matched_via` tier (`isin`,
+  `former_isin`, `wkn`, `ticker`, `name`, or `pinned`), `ledger_quantity`,
+  `external_quantity` and `delta` (`external - ledger`) as exact Decimal
+  strings — ticker/name matches carry `weak_match: true` and the caveat
+  "confirm the security before booking" —, `ambiguous` and `unmatched` rows,
+  and `missing_from_list` (held ledger positions the external list does not
+  cover). The embedded `guidance` is part of the contract: resolve a
+  difference by booking the missing transaction of the correct kind; balance
+  snapshots and unpriced deliveries are last resorts that distort cost basis.
+  Optional scope: `portfolio_id` or `view` (a view id; mutually exclusive —
+  both at once is a `422`), default the whole instance; an unknown portfolio
+  or view is a `404`.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` returns a live valuation of a
   portfolio: each held position priced from its latest quote close, a
   `total_value`, and each valued position's `weight` (its share of the total).
@@ -916,6 +949,10 @@ in MCP schemas are strings.
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.holdings.by_security`
+- `portfolixir.holdings.reconcile` — read-only compare of a pasted external
+  position list against the ledger; its description steers the agent toward
+  booking the missing transaction of the correct kind instead of balance
+  snapshots or unpriced deliveries.
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`

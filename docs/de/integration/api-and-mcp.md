@@ -378,6 +378,42 @@ Beispiel-Payloads für Konten:
   einzelnen Portfolios (die in der eigenen Währung jedes Wertpapiers ohne FX
   bleibt); für Summen und Gewichte eines Portfolios nutze stattdessen den
   Bewertungs-Endpunkt.
+- `POST /api/v1/holdings/reconcile` vergleicht eine **vom Nutzer gelieferte
+  externe Positionsliste** (Brokerauszug oder Depotübersicht, clientseitig in
+  Zeilen geparst) mit den aus dem Ledger abgeleiteten Beständen — **strikt
+  lesend**: die Liste kommt ausschließlich im Request-Body an, wird nie
+  gespeichert oder geloggt, und es werden keine Daten von irgendwoher geholt
+  (ADR-0029 §6, FR-35). Jede Zeile ist `{identifier, quantity}` mit optionaler
+  `currency` und optionalem festnagelndem `security_id`; `quantity` muss ein
+  **kanonischer Dezimal-String mit Punkt** sein (alles andere —
+  Komma-Dezimalzahlen, Tausendertrennzeichen, Exponenten — ist ein `422`, das
+  die Zeile benennt; Locale-Parsing ist Aufgabe des Clients), und eine leere
+  `rows`-Liste ist ein `422`. Identifier laufen durch dieselbe
+  Identitätsleiter wie der Import: ein ISIN-förmiger String (Format und
+  Prüfziffer) matcht nur über die ISIN-Stufe (aktuelle ISINs zuerst, dann
+  erfasste frühere ISINs — `matched_via: "former_isin"`); jeder andere String
+  wird gegen WKN, Ticker+Währung und Name+Währung geprüft, mit der
+  Genau-eine-Regel über die Vereinigung dieser Stufen — ein String, der die
+  WKN des einen und den Ticker eines anderen Wertpapiers trifft, landet unter
+  `ambiguous` mit den Kandidaten, nie als stille Wahl, und eine Zeile ohne
+  Währung kann nicht über Ticker oder Name matchen (`unmatched` mit Grund
+  `currency_required`). Die Antwort ist selbstbeschreibend (`basis` mit
+  `as_of`, `scope` und einer Delta-Notiz) und liefert: `matched`-Zeilen (eine
+  je Wertpapier — Zeilen, die auf dasselbe Wertpapier auflösen, werden
+  aggregiert, externe Mengen summiert, die beitragenden Zeilen gelistet) mit
+  der `matched_via`-Stufe (`isin`, `former_isin`, `wkn`, `ticker`, `name`
+  oder `pinned`), `ledger_quantity`, `external_quantity` und `delta`
+  (`extern - Ledger`) als exakte Decimal-Strings — Ticker-/Name-Treffer
+  tragen `weak_match: true` und den Hinweis, das Wertpapier vor jeder Buchung
+  zu bestätigen —, `ambiguous`- und `unmatched`-Zeilen sowie
+  `missing_from_list` (gehaltene Ledger-Positionen, die die externe Liste
+  nicht abdeckt). Die eingebettete `guidance` ist Teil des Vertrags: eine
+  Differenz wird durch Buchen der fehlenden Transaktion der richtigen Art
+  gelöst; Saldo-Snapshots und unbepreiste Einlieferungen sind letzte Mittel,
+  die die Kostenbasis verzerren. Optionaler Scope: `portfolio_id` oder `view`
+  (eine View-Id; sich gegenseitig ausschließend — beide zugleich sind ein
+  `422`), Standard ist die gesamte Instanz; ein unbekanntes Portfolio oder
+  eine unbekannte View ist ein `404`.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` liefert eine Live-Bewertung
   eines Portfolios: jede gehaltene Position bepreist aus ihrem letzten
   Kurs-Schlusswert, ein `total_value` und das `weight` jeder bewerteten Position
@@ -861,6 +897,10 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.holdings.by_security`
+- `portfolixir.holdings.reconcile` — rein lesender Vergleich einer
+  eingefügten externen Positionsliste mit dem Ledger; die Tool-Beschreibung
+  lenkt den Agenten darauf, die fehlende Transaktion der richtigen Art zu
+  buchen statt Saldo-Snapshots oder unbepreiste Einlieferungen zu nutzen.
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`
