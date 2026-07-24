@@ -44,7 +44,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
         <div class="modal-body">
           <p class="dialog-help">
             <%= gettext(
-              "Record a stock split for %{security}. Enter the ratio as new:old shares — 2:1 doubles the share count, 1:10 is a reverse split.",
+              "Stock split for %{security}. Ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split.",
               security: @security.name
             ) %>
           </p>
@@ -288,11 +288,16 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   end
 
   # §2 escape hatch: the contradiction copy names the per-security override
-  # flag, as the ADR requires, and tells the user what to look for in the
-  # quotes table (E17 UX review, finding 4).
+  # flag, as the ADR requires (E17 UX review, finding 4). The evidence table
+  # (`render_quotes/1`) shows the jump itself, so the inline warning stays a
+  # terse fact + remedy — the "how to grade the jump" tutorial is dropped
+  # rather than moved into an ⓘ tooltip: the existing `.metric-tooltip`
+  # pattern is CSS-anchored to `.stat`/`.drift-table` contexts and a modal
+  # `alert-warning` establishes no positioning context to reuse it without
+  # new CSS (owner microcopy rule 2026-07-23, UX-DR11).
   defp warning_message(:quote_basis_contradiction) do
     gettext(
-      "The stored closes around the effective date contradict their price-basis classification. Nothing is adjusted silently — review the quotes below, or force the raw basis via the security's \"Treat synced quotes as raw\" setting. If prices drop by roughly the split ratio at the effective date, the stored quotes are raw (as traded); if the series is continuous, they are already split-adjusted."
+      "The stored closes around the effective date contradict their price-basis classification. Nothing is adjusted silently — review the quotes below; if they are raw (as traded), force it via the security's \"Treat synced quotes as raw\" setting."
     )
   end
 
