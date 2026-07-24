@@ -613,10 +613,16 @@ between trades, and the day a new trade sets a different price the whole
 previously-held quantity would re-price in one step. That step is a change of
 valuation basis, not a market move, so it is neutralised the same way a deposit
 is and does not enter the return — otherwise those steps compound into a
-percentage no market ever produced. What still counts: every quoted day, and
-the quantity actually bought or sold on the trade day itself, so a realised
-gain is never swallowed. Loading quote history for the position turns its price
-movement back into measured performance. Value, net external flows and the €
+percentage no market ever produced. What still counts: **selling**. A sale turns
+the position into real cash, so its gain against the price the position was
+carried at stays in the return and is never swallowed. Everything else the day
+re-prices — the quantity still held, the quantity bought, the quantity delivered
+out — is basis. This applies to a position with **no quote at all**. Once a
+quote has landed the position is measured: later gaps in the feed are just gaps,
+and the trades filling them count as return again. The **first** quote for a
+previously unquoted position is itself a basis step, not a one-day jump —
+loading history that only covers recent dates would otherwise report years of
+accumulated drift as a single day of return. Value, net external flows and the €
 gain beside the percentage are unaffected — they keep reporting the money as
 booked, so a trade-price-valued portfolio can show a substantial € gain next to
 a near-zero TTWROR.

@@ -140,20 +140,56 @@ third component `B_d` of the return base:
 
     r_d = V_d / (V_{d−1} + F_d + B_d) − 1
 
-`B_d` is emitted only when all three hold, each derived from explicitly threaded
-price provenance (`price_source: :trade | :quote`), never re-derived
-heuristically:
+`B_d` is decided by **one gate** and then measured by **replaying the day**.
+Both work off explicitly threaded price provenance
+(`price_source: :trade | :quote`) and the day's actual bookings, never a
+re-derived heuristic.
 
-1. **The day ends on a trade point.** Quote points sort after trade points in
-   the walk's rank order, so a quote on the same day is consumed last and wins —
-   the day is then a normal market day and carries no basis step.
-2. **The price being replaced was itself trade-sourced** (or the position had no
-   price at all). A quote-priced position is *measured*; its steps stay return.
-   This is what keeps quoted portfolios byte-identical.
-3. **Only the quantity still held at the end of the day** is covered:
-   `retained = held_at_end − max(0, quantity acquired today)`. What was bought
-   today entered at the new price, and what was sold today became **real cash**
-   at it — neutralising either would swallow a genuinely realised gain.
+**The gate — is the security measured?** A basis step is emitted only for a
+security that carries **no quote from any earlier day**. Such a position is
+priced by the portfolio's own bookings alone: every re-pricing of it restates a
+fabricated basis, including the arrival of its **first quote ever**. Once a
+quote has landed the security is *measured*; from then on gaps in the feed are
+just gaps, and the trade prices filling them stay return. That asymmetry is
+deliberate: it is what keeps a quoted portfolio's TTWROR byte-identical, and it
+stops the documented remedy ("load quote history") from re-creating the very
+explosion this amendment removes — a forward-only quote load, the normal shape
+when a feed only covers recent dates, would otherwise discharge years of
+accumulated drift as a single day of four-digit return.
+
+**The measurement — a lot queue per day.** For each stepping security the day is
+replayed as a queue of lots: the sleeve carried in from yesterday at the old
+price `from`, plus whatever the day's quantity legs added at their own price (a
+buy or sell at its booked price; a delivery or depot transfer at the day's
+price, which is what values it in `F_d` or in the counter depot). A disposal
+consumes the **most recently acquired** lot first, so what a day buys nets
+against what the same day sells and only the residual reaches yesterday's
+sleeve. Then
+
+    B_d = Σ  quantity × (to − lot basis)
+
+over every unit that ends the day marked at the day's price **without having
+become cash**: the retained sleeve, the quantity acquired today, and the
+quantity delivered out. A **sale** contributes nothing — it turned its slice
+into real cash, and its gain against the basis it consumed is genuine return
+that must not be swallowed. With exactly one trade point on the day this reduces
+to `retained × (to − from)`.
+
+Replacing the earlier "net the day's quantity" shortcut fixed four defects found
+in review, each reproduced numerically: several trade points on one day (a
+same-day sell-and-rebuy read −66.7 % where nothing happened), sign-blind
+netting (an oversell into a short read +300 % instead of +100 %, and buying that
+short back at a loss reported no loss at all), an outbound delivery being
+treated as a realisation (+66.7 % for a removal that produced no cash), and the
+first-quote transition above (+4,900 %).
+
+**Currency.** `B_d` restates *yesterday's* closing value into the new price
+basis, so it is converted at **yesterday's** rates. Converting it at the day's
+rate would cancel the retained sleeve's own exchange-rate move out of the
+return: a position whose currency halved on the same day a buy re-priced it read
+−47.6 % instead of the correct −50 %. A currency whose rate series starts today
+has no carried rate and falls back to today's, so the step is still converted
+rather than collapsing to zero on the walk's first day.
 
 `B_d` enters the return chain only. `value`, `start_value`, `end_value` and
 `net_external_flows` are untouched, so the money facts and the €-gain derived
@@ -163,8 +199,11 @@ from them stay exactly as booked.
 the carried opening price is captured *after* the day's rank −1 rescale points,
 so the opening price and the price replacing it are already in the same
 post-split as-traded basis, and a rescaled trade price stays a trade price. A
-pure split day emits no basis step — the rescale and the quantity scale cancel
-by construction.
+split replays first within the day (`intra_day_order`), so its scale leg meets a
+queue holding only the opening sleeve, already at the rescaled price — the leg
+scales lot quantities and leaves lot prices alone. A pure split day emits no
+basis step: no price point is consumed, and the rescale and the quantity scale
+cancel by construction.
 
 `day_factor/2` is now public and shared: the ADR-0027 snapshot comparison
 previously carried a duplicate of the old formula and would otherwise have kept
@@ -180,7 +219,23 @@ realised gain. The operational remedy remains loading quote history (goals
 #6/#7); this amendment makes the figure degrade gracefully when quotes are
 missing instead of exploding.
 
-**Known residual.** A security that *was* quoted and later loses its feed still
-books subsequent trade-price steps as return, because rule 2 keys off the price
-being replaced. That is forced by the byte-identical guarantee for quoted
-portfolios and is the conservative direction; tracked as a follow-up.
+**Known residuals.** Each is the conservative direction and is tracked as a
+follow-up rather than special-cased:
+
+- A security that *was* quoted and later loses its feed keeps booking its
+  trade-price steps as return. Forced by the byte-identical guarantee for
+  quoted portfolios.
+- On the day a security's first quote ever lands, quantity bought that same day
+  is marked to the quote and that difference is neutralised with the rest. The
+  whole day is the transition from unmeasured to measured, and the day's own
+  move cannot be separated from the drift it discharges.
+- A partial write-off and a full one do not report the same percentage: selling
+  4 of 10 at price 0 reads −28.6 %, selling all 10 reads −50 %. Only the sold
+  slice is realised; the retained slice's mark-down restates the base instead of
+  counting as loss. This follows directly from treating trade-price marks as
+  basis and sales as realisation, so no zero-price special case was added.
+- Same-day netting follows the ledger's replay order (`{date, kind, id}`), so a
+  day that both buys and sells the same unmeasured security splits its change
+  between return and basis according to the order the bookings were recorded in.
+  The order is stable and re-import-idempotent, but it is an ordering
+  convention, not a law.
