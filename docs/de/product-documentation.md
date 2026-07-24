@@ -654,6 +654,21 @@ verkettet. Das Ergebnis misst, wie gut die **Investitionen** abgeschnitten haben
 unabhängig davon, wann Geld bewegt wurde — Dividenden, Zinsen, Gebühren und
 Steuern zählen als Teil der Rendite.
 
+**Positionen ohne Kurshistorie** werden mit ihrem eigenen letzten Handelspreis
+bewertet (derselbe Rückfall, den die Datenqualitäts-Karte auflistet). Eine
+solche Position liegt zwischen zwei Trades flach, und an dem Tag, an dem ein
+neuer Trade einen anderen Preis setzt, würde die gesamte bereits gehaltene
+Stückzahl in einem Schritt neu bewertet. Dieser Schritt ist ein Wechsel der
+Bewertungsbasis, keine Marktbewegung, und wird deshalb genauso neutralisiert
+wie eine Einzahlung — sonst verketten sich diese Sprünge zu einem Prozentsatz,
+den kein Markt je hergegeben hat. Was weiter zählt: jeder Kurstag sowie die am
+Handelstag tatsächlich gekaufte oder verkaufte Stückzahl, sodass ein
+realisierter Gewinn nie verschluckt wird. Kurshistorie zur Position macht ihre
+Preisbewegung wieder zu gemessener Performance. Wert, Netto-Zahlungsströme und
+der €-Gewinn neben dem Prozentwert bleiben unberührt — sie melden das Geld
+weiterhin so, wie es gebucht wurde. Ein rein handelspreisbewertetes Portfolio
+kann daher einen deutlichen €-Gewinn neben einer TTWROR nahe null zeigen.
+
 Daneben zeigt Portfolixir die **geldgewichtete Rendite (IRR)** — die einzelne
 annualisierte Rate, die die datierten Einzahlungen, Auszahlungen und den Endwert
 des Zeitraums auf null abzinst, die Zahl, die Portfolio Performance neben TTWROR

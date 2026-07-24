@@ -118,3 +118,69 @@ cashflows themselves stay `Decimal`. Degenerate inputs — fewer than two flows,
 all flows the same sign, no sign change across the bracket, or non-convergence
 within the iteration budget — return `nil` (`null` over the API), never an
 error.
+
+## Amendment (2026-07-24): trade-price basis steps are not return
+
+Issue #545. Portfolios holding securities **without quote history** produced an
+absurd `max` TTWROR — thousands of percent with no real market move.
+
+A position with no quotes is valued at its own **last trade price**
+(`Ledger.latest_trade_prices`). It then sits flat between trades, and on the day
+a new trade sets a different price the **entire previously-held quantity
+re-prices at once**. Because a buy or a sell is an internal cash↔security move,
+that day's external flow is zero, so the formula above scored the whole
+re-pricing as a one-day market return — and over a long history those steps
+compound geometrically. A synthetic four-year fixture (buys at 100 → 1,000 →
+8,000) chained to **+2,567.5 %**.
+
+The re-pricing of an already-held position is a change of valuation **basis**,
+not a market move: nothing was observed except the price of the portfolio's own
+trade. It is therefore neutralised the way an external flow already is, as a
+third component `B_d` of the return base:
+
+    r_d = V_d / (V_{d−1} + F_d + B_d) − 1
+
+`B_d` is emitted only when all three hold, each derived from explicitly threaded
+price provenance (`price_source: :trade | :quote`), never re-derived
+heuristically:
+
+1. **The day ends on a trade point.** Quote points sort after trade points in
+   the walk's rank order, so a quote on the same day is consumed last and wins —
+   the day is then a normal market day and carries no basis step.
+2. **The price being replaced was itself trade-sourced** (or the position had no
+   price at all). A quote-priced position is *measured*; its steps stay return.
+   This is what keeps quoted portfolios byte-identical.
+3. **Only the quantity still held at the end of the day** is covered:
+   `retained = held_at_end − max(0, quantity acquired today)`. What was bought
+   today entered at the new price, and what was sold today became **real cash**
+   at it — neutralising either would swallow a genuinely realised gain.
+
+`B_d` enters the return chain only. `value`, `start_value`, `end_value` and
+`net_external_flows` are untouched, so the money facts and the €-gain derived
+from them stay exactly as booked.
+
+**Composition with splits** ([ADR-0028](0028-corporate-actions-as-ledger-events.html) §2):
+the carried opening price is captured *after* the day's rank −1 rescale points,
+so the opening price and the price replacing it are already in the same
+post-split as-traded basis, and a rescaled trade price stays a trade price. A
+pure split day emits no basis step — the rescale and the quantity scale cancel
+by construction.
+
+`day_factor/2` is now public and shared: the ADR-0027 snapshot comparison
+previously carried a duplicate of the old formula and would otherwise have kept
+reporting the uncorrected figure.
+
+**Accepted consequence.** For a purely trade-priced portfolio the TTWROR now
+reads near 0 % next to a large positive €-gain and a large IRR. That divergence
+is truthful — an unquoted holding has no observed market return, while the cash
+from a sale is genuinely there — and it is documented in the user
+documentation. Subtracting `B_d` from the €-gain to force reconciliation was
+considered and **rejected**: after a real sale it would understate an actual
+realised gain. The operational remedy remains loading quote history (goals
+#6/#7); this amendment makes the figure degrade gracefully when quotes are
+missing instead of exploding.
+
+**Known residual.** A security that *was* quoted and later loses its feed still
+books subsequent trade-price steps as return, because rule 2 keys off the price
+being replaced. That is forced by the byte-identical guarantee for quoted
+portfolios and is the conservative direction; tracked as a follow-up.

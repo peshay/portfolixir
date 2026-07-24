@@ -607,6 +607,20 @@ balance-snapshot jumps) is neutralised, and the daily returns are chained. The
 result measures how well the **investments** performed, regardless of when cash
 moved — dividends, interest, fees and taxes count as part of the return.
 
+**Holdings without quote history** are valued at their own last trade price
+(the same fallback the data-quality panel lists). Such a position sits flat
+between trades, and the day a new trade sets a different price the whole
+previously-held quantity would re-price in one step. That step is a change of
+valuation basis, not a market move, so it is neutralised the same way a deposit
+is and does not enter the return — otherwise those steps compound into a
+percentage no market ever produced. What still counts: every quoted day, and
+the quantity actually bought or sold on the trade day itself, so a realised
+gain is never swallowed. Loading quote history for the position turns its price
+movement back into measured performance. Value, net external flows and the €
+gain beside the percentage are unaffected — they keep reporting the money as
+booked, so a trade-price-valued portfolio can show a substantial € gain next to
+a near-zero TTWROR.
+
 Next to it Portfolixir shows the **money-weighted return (IRR)** — the single
 annualised rate that discounts the period's dated deposits, withdrawals and the
 terminal value back to zero, the figure Portfolio Performance shows beside
