@@ -772,7 +772,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             />
             <small class="dialog-help">
               <%= gettext(
-                "Only for providers that do not rewrite pre-split quotes after a split — the display then applies the split factors itself."
+                "For providers that never back-adjust pre-split quotes — the display applies the split factors instead."
               ) %>
             </small>
           </label>
