@@ -185,6 +185,50 @@ const idSchema = {
   properties: { id: { type: "integer", minimum: 1 } }
 };
 
+// ISIN-change recording (ADR-0029 §3): the current ISIN moves into a journaled
+// former-ISIN alias and the new ISIN is written onto the security.
+const isinChangeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id", "new_isin"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    new_isin: {
+      type: "string",
+      minLength: 1,
+      description: "The security's new ISIN (normalized to trimmed uppercase server-side)."
+    },
+    changed_on: {
+      type: "string",
+      format: "date",
+      description: "Effective date of the ISIN change (YYYY-MM-DD); defaults to today."
+    },
+    note: { type: "string", description: "Optional note, e.g. the corporate action." }
+  }
+};
+
+const isinChangeZ = z.object({
+  security_id: z.number().int().positive(),
+  new_isin: z.string().min(1),
+  changed_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  note: optionalString()
+});
+
+const isinAliasDeleteSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id", "alias_id"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    alias_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const isinAliasDeleteZ = z.object({
+  security_id: z.number().int().positive(),
+  alias_id: z.number().int().positive()
+});
+
 // The dedicated split booking flow (ADR-0028 §1): the ratio is a pair of
 // positive INTEGERS (10:1 forward, 1:10 reverse) — integers keep a 1:3
 // reverse split exact where a decimal ratio cannot, so these two fields are
@@ -1256,6 +1300,91 @@ const snapshotComparisonZ = z.object({
   snapshot_id: z.number().int().positive()
 });
 
+// FR-35 / ADR-0029 §6 read-only holdings reconcile: the external list arrives
+// ONLY in the request body (paste/file content parsed client-side into rows);
+// quantities are canonical dot-decimal strings — locale parsing happens on the
+// client, so the strict pattern rejects comma decimals before any API call.
+const reconcileQuantityPattern = /^-?\d+(\.\d+)?$/;
+
+const reconcileSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["rows"],
+  properties: {
+    rows: {
+      type: "array",
+      minItems: 1,
+      maxItems: 10000,
+      description:
+        "The external position list, one row per line of the source document. " +
+        "Parse locale formats client-side: quantity must be a canonical dot-decimal string. " +
+        "At most 10000 rows per request.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["identifier", "quantity"],
+        properties: {
+          identifier: {
+            type: "string",
+            minLength: 1,
+            description:
+              "The row's security identifier as the external document shows it: an ISIN, " +
+              "WKN, ticker or name. ISIN-shaped strings match via the ISIN tier only " +
+              "(recorded former ISINs included)."
+          },
+          quantity: {
+            type: "string",
+            pattern: "^-?\\d+(\\.\\d+)?$",
+            description: 'External quantity as a canonical dot-decimal string (e.g. "12.5").'
+          },
+          currency: {
+            type: "string",
+            description:
+              "The row's currency (e.g. EUR). Required for ticker/name matching — a " +
+              "currency-less row can only match by ISIN or WKN and is otherwise unmatched."
+          },
+          security_id: {
+            type: "integer",
+            minimum: 1,
+            description: "Optional pin: match this row to the given security, bypassing the ladder."
+          }
+        }
+      }
+    },
+    portfolio_id: {
+      type: "integer",
+      minimum: 1,
+      description: "Optional scope: compare against this portfolio's ledger quantities only."
+    },
+    view: {
+      type: "integer",
+      minimum: 1,
+      description:
+        "Optional scope: compare against the holdings matching this bucket view. " +
+        "Mutually exclusive with portfolio_id."
+    }
+  }
+};
+
+const reconcileZ = z.object({
+  rows: z
+    .array(
+      z.object({
+        identifier: z.string().min(1),
+        quantity: z.string().regex(reconcileQuantityPattern, {
+          message:
+            "quantity must be a canonical dot-decimal string (parse locale formats client-side)"
+        }),
+        currency: optionalString(),
+        security_id: z.number().int().positive().optional()
+      })
+    )
+    .min(1)
+    .max(10000),
+  portfolio_id: z.number().int().positive().optional(),
+  view: z.number().int().positive().optional()
+});
+
 const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Use limit/offset to page large catalogs.", {
     type: "object",
@@ -1278,9 +1407,12 @@ const toolDefinitions: ToolDefinition[] = [
     limit: z.number().int().min(0).optional(),
     offset: z.number().int().min(0).optional()
   })),
+  tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security.", idSchema, idZ),
   tool("portfolixir.securities.create", "Create security", "Create a local security. To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view.", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view.", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view. Do NOT use this to change an ISIN after a corporate action — use portfolixir.securities.isin_change instead, which keeps the former ISIN as an import-matching alias; a plain rename is just a name edit here.", securityUpdateSchema, securityUpdateZ),
   tool("portfolixir.securities.delete", "Delete security", "Delete a local security when no transactions or quotes reference it.", idSchema, idZ),
+  tool("portfolixir.securities.isin_change", "Record ISIN change", "Record a corporate-action ISIN change (merger rename, re-domiciliation): the current ISIN becomes a journaled former-ISIN alias and new_isin is written onto the same security, so re-imports of OLD exports (former ISIN) and NEW exports (new ISIN) both keep matching this security instead of duplicating it. Use this whenever a broker/PP export starts carrying a new ISIN for an existing position; a plain rename needs no ISIN change — edit the name via portfolixir.securities.update. Rejected with a named conflict when new_isin equals the current ISIN, is live on another security, or is aliased to another security; recording a change back to one of this security's own former ISINs consumes that alias (revert).", isinChangeSchema, isinChangeZ),
+  tool("portfolixir.securities.delete_isin_alias", "Delete ISIN alias", "Delete one recorded former-ISIN alias of a security (journaled) — use when an ISIN change was recorded by mistake. After deletion, imports no longer match the security via that former ISIN.", isinAliasDeleteSchema, isinAliasDeleteZ),
   tool("portfolixir.securities.search_online", "Search online securities", "Search configured online security providers.", {
     type: "object",
     additionalProperties: false,
@@ -1402,6 +1534,7 @@ const toolDefinitions: ToolDefinition[] = [
     securities_account_id: z.number().int().positive().optional()
   })),
   tool("portfolixir.holdings.by_security", "Holdings by security (global EUR)", "Global per-security valuation across ALL portfolios: each held security's total quantity and current market value converted to the EUR hub, with a valued flag (false when a quote, trade price or EUR rate path is missing). Self-describing: currency EUR, an as_of read date and a note; market_value is a Decimal string. Differs from portfolixir.holdings.list (per-portfolio holdings in the security's own currency, no FX) and from portfolixir.portfolios.valuation (one portfolio's totals/weights in its base currency).", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.holdings.reconcile", "Reconcile external position list (read-only)", "Compare a user-supplied external position list (broker statement, depot overview) against the ledger-derived holdings — strictly read-only, nothing is stored. Each row's identifier is matched through the stable-identity ladder (ISIN incl. recorded former ISINs, then WKN / ticker+currency / name+currency with an exactly-one rule across those tiers); the response reports per matched security the matched_via tier, the exact ledger quantity, external quantity and delta as Decimal strings, plus ambiguous rows with candidates, unmatched rows, and held ledger positions absent from the list. Rows resolving to the same security are aggregated so there is never more than one delta per position. Resolve a difference by booking the missing transaction of the correct kind (buy, sell, delivery with price, transfer, dividend, ...) via portfolixir.transactions.create — balance snapshots (set_balance) and unpriced deliveries are last resorts that distort cost basis; do NOT reach for them just to make numbers match. Weak (ticker/name) matches carry a caveat: confirm the security before booking anything. Quantities must be canonical dot-decimal strings — parse locale formats (comma decimals, thousands separators) client-side before calling. Optional scope: portfolio_id or view (mutually exclusive); default is the whole instance, and the response states its basis (as_of, scope).", reconcileSchema, reconcileZ),
   tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, actual weights per position, plus the base-currency portfolio total, cash balances and the cash quote (use this, not holdings.list, for base-currency totals). The valued/price_source flags mark stale or unpriceable positions. Pass an optional view (a view id) to scope the result to the holdings matching that bucket view; the response then echoes the active view.", {
     type: "object",
     additionalProperties: false,
@@ -1764,8 +1897,19 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "offset"
         ])
       );
+    case "portfolixir.securities.get":
+      return client.request("GET", `/api/v1/securities/${args.id}`);
     case "portfolixir.securities.create":
       return client.request("POST", "/api/v1/securities", { security: args.security });
+    case "portfolixir.securities.isin_change":
+      return client.request("POST", `/api/v1/securities/${args.security_id}/isin-change`, {
+        isin_change: isinChangeBody(args)
+      });
+    case "portfolixir.securities.delete_isin_alias":
+      return client.request(
+        "DELETE",
+        `/api/v1/securities/${args.security_id}/identifier_aliases/${args.alias_id}`
+      );
     case "portfolixir.securities.update":
       return client.request("PATCH", `/api/v1/securities/${args.id}`, { security: args.security });
     case "portfolixir.securities.delete":
@@ -1845,6 +1989,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       );
     case "portfolixir.holdings.by_security":
       return client.request("GET", "/api/v1/holdings/by_security");
+    case "portfolixir.holdings.reconcile":
+      return client.request("POST", "/api/v1/holdings/reconcile", reconcileBody(args));
     case "portfolixir.portfolios.valuation":
       return client.request(
         "GET",
@@ -2091,6 +2237,20 @@ function tool(
   zodSchema: ZodTypeAny
 ): ToolDefinition {
   return { name, title, description, inputSchema, zodSchema };
+}
+
+function isinChangeBody(args: Record<string, any>): Record<string, unknown> {
+  const body: Record<string, unknown> = { new_isin: args.new_isin };
+  if (args.changed_on !== undefined) body.changed_on = args.changed_on;
+  if (args.note !== undefined) body.note = args.note;
+  return body;
+}
+
+function reconcileBody(args: Record<string, any>): Record<string, unknown> {
+  const body: Record<string, unknown> = { rows: args.rows };
+  if (args.portfolio_id !== undefined) body.portfolio_id = args.portfolio_id;
+  if (args.view !== undefined) body.view = args.view;
+  return body;
 }
 
 function splitRequestBody(args: Record<string, any>): Record<string, unknown> {

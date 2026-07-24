@@ -104,6 +104,17 @@ defmodule Portfolixir.Portfolios.Targets do
   end
 
   @doc """
+  The set of security ids carrying at least one position-level SOLL target row
+  (ADR-0030), across all plan versions. Used by the import ladder's
+  config-at-risk warning and pre-apply inverse check (ADR-0029 §2).
+  """
+  def security_ids_with_position_targets do
+    from(t in Target, where: not is_nil(t.security_id), distinct: true, select: t.security_id)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc """
   Fetches a single **position** target for `(category_id, security_id)` within
   the addressed plan (ADR-0030), or `nil`.
   """

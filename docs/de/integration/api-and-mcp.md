@@ -60,7 +60,10 @@ Löschantwort keinen JSON-Body parsen.
   Wertspeicher gehaltener Bitcoin —, versiehst du sie mit einem Bucket und
   schließt diesen Bucket aus einer Ansicht aus; lies die Allokation dann unter
   dieser Ansicht.
-- `GET /api/v1/securities/:id` liefert ein Wertpapier.
+- `GET /api/v1/securities/:id` liefert ein Wertpapier, einschließlich seiner
+  `identifier_aliases` — der über den ISIN-Wechsel-Endpunkt unten
+  aufgezeichneten früheren ISINs (jeweils mit `id`, `former_isin`,
+  `changed_on`, `note`).
 - `PATCH /api/v1/securities/:id` aktualisiert ein Wertpapier mit einem
   `security`-Objekt. Das Boolean `treat_quotes_as_raw` (Standard `false`) ist
   die ADR-0028-Notluke für Anbieter, die ihre Historie nach einem
@@ -73,6 +76,44 @@ Löschantwort keinen JSON-Body parsen.
 - `GET /api/v1/securities/search` durchsucht konfigurierte
   Online-Wertpapieranbieter. Query-Parameter: `query`; optional `type` mit
   `security` oder `crypto`.
+
+### ISIN-Wechsel (Identifier-Aliasse)
+
+Wenn eine Kapitalmaßnahme einem bestehenden Wertpapier eine neue ISIN gibt,
+den Wechsel aufzeichnen, statt die ISIN direkt zu editieren: Die frühere ISIN
+wird ein journalisierter Alias, und das ISIN-Matching des Imports prüft erst
+aktuelle ISINs, dann die Aliasse — Re-Importe alter Exporte (frühere ISIN) und
+neuer Exporte (neue ISIN) treffen so weiter dasselbe Wertpapier, statt ein
+Duplikat anzulegen (ADR-0029). Eine bloße Umbenennung braucht keinen
+ISIN-Wechsel — sie ist nur eine Namensänderung.
+
+- `POST /api/v1/securities/:security_id/isin-change` zeichnet den Wechsel mit
+  einem `isin_change`-Objekt auf: Pflichtfeld `new_isin` (normalisiert auf
+  getrimmte Großschreibung), optional `changed_on` (ISO-Datum, Standard heute)
+  und `note`. Liefert das aktualisierte Wertpapier einschließlich seiner
+  `identifier_aliases`. Abgelehnt mit `422` und benanntem Konflikt, wenn
+  `new_isin` der aktuellen ISIN entspricht, auf einem anderen Wertpapier live
+  ist oder als frühere ISIN eines anderen Wertpapiers aufgezeichnet ist; ein
+  Wechsel zurück auf eine eigene frühere ISIN verbraucht diesen Alias (ein
+  Revert). Jeder Wertpapier-ISIN-Schreibpfad — Anlegen, Aktualisieren und der
+  Anlege-Pfad des Imports — lehnt symmetrisch eine ISIN ab, die als Alias
+  existiert, und benennt das Alias-Wertpapier.
+- `DELETE /api/v1/securities/:security_id/identifier_aliases/:id` löscht einen
+  aufgezeichneten Alias (journalisiert), wenn ein ISIN-Wechsel versehentlich
+  aufgezeichnet wurde; liefert `204 No Content` oder `404`, wenn der Alias
+  nicht zu dem Wertpapier gehört.
+
+Beispiel-Payload für einen ISIN-Wechsel:
+
+```json
+{
+  "isin_change": {
+    "new_isin": "IE000XZSV718",
+    "changed_on": "2026-07-01",
+    "note": "merger rename"
+  }
+}
+```
 
 Beispiel-Payload zum Anlegen:
 
@@ -337,6 +378,42 @@ Beispiel-Payloads für Konten:
   einzelnen Portfolios (die in der eigenen Währung jedes Wertpapiers ohne FX
   bleibt); für Summen und Gewichte eines Portfolios nutze stattdessen den
   Bewertungs-Endpunkt.
+- `POST /api/v1/holdings/reconcile` vergleicht eine **vom Nutzer gelieferte
+  externe Positionsliste** (Brokerauszug oder Depotübersicht, clientseitig in
+  Zeilen geparst) mit den aus dem Ledger abgeleiteten Beständen — **strikt
+  lesend**: die Liste kommt ausschließlich im Request-Body an, wird nie
+  gespeichert oder geloggt, und es werden keine Daten von irgendwoher geholt
+  (ADR-0029 §6, FR-35). Jede Zeile ist `{identifier, quantity}` mit optionaler
+  `currency` und optionalem festnagelndem `security_id`; `quantity` muss ein
+  **kanonischer Dezimal-String mit Punkt** sein (alles andere —
+  Komma-Dezimalzahlen, Tausendertrennzeichen, Exponenten — ist ein `422`, das
+  die Zeile benennt; Locale-Parsing ist Aufgabe des Clients), und eine leere
+  `rows`-Liste ist ein `422`. Identifier laufen durch dieselbe
+  Identitätsleiter wie der Import: ein ISIN-förmiger String (Format und
+  Prüfziffer) matcht nur über die ISIN-Stufe (aktuelle ISINs zuerst, dann
+  erfasste frühere ISINs — `matched_via: "former_isin"`); jeder andere String
+  wird gegen WKN, Ticker+Währung und Name+Währung geprüft, mit der
+  Genau-eine-Regel über die Vereinigung dieser Stufen — ein String, der die
+  WKN des einen und den Ticker eines anderen Wertpapiers trifft, landet unter
+  `ambiguous` mit den Kandidaten, nie als stille Wahl, und eine Zeile ohne
+  Währung kann nicht über Ticker oder Name matchen (`unmatched` mit Grund
+  `currency_required`). Die Antwort ist selbstbeschreibend (`basis` mit
+  `as_of`, `scope` und einer Delta-Notiz) und liefert: `matched`-Zeilen (eine
+  je Wertpapier — Zeilen, die auf dasselbe Wertpapier auflösen, werden
+  aggregiert, externe Mengen summiert, die beitragenden Zeilen gelistet) mit
+  der `matched_via`-Stufe (`isin`, `former_isin`, `wkn`, `ticker`, `name`
+  oder `pinned`), `ledger_quantity`, `external_quantity` und `delta`
+  (`extern - Ledger`) als exakte Decimal-Strings — Ticker-/Name-Treffer
+  tragen `weak_match: true` und den Hinweis, das Wertpapier vor jeder Buchung
+  zu bestätigen —, `ambiguous`- und `unmatched`-Zeilen sowie
+  `missing_from_list` (gehaltene Ledger-Positionen, die die externe Liste
+  nicht abdeckt). Die eingebettete `guidance` ist Teil des Vertrags: eine
+  Differenz wird durch Buchen der fehlenden Transaktion der richtigen Art
+  gelöst; Saldo-Snapshots und unbepreiste Einlieferungen sind letzte Mittel,
+  die die Kostenbasis verzerren. Optionaler Scope: `portfolio_id` oder `view`
+  (eine View-Id; sich gegenseitig ausschließend — beide zugleich sind ein
+  `422`), Standard ist die gesamte Instanz; ein unbekanntes Portfolio oder
+  eine unbekannte View ist ein `404`.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` liefert eine Live-Bewertung
   eines Portfolios: jede gehaltene Position bepreist aus ihrem letzten
   Kurs-Schlusswert, ein `total_value` und das `weight` jeder bewerteten Position
@@ -785,9 +862,16 @@ Der MCP-Begleitdienst stellt denselben lokalen Kontrakt als Tool-Aufrufe bereit.
 Decimal-Eingaben in MCP-Schemata sind Strings.
 
 - `portfolixir.securities.list`
+- `portfolixir.securities.get` — vollständiger Datensatz eines Wertpapiers
+  einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs).
 - `portfolixir.securities.create`
 - `portfolixir.securities.update`
 - `portfolixir.securities.delete`
+- `portfolixir.securities.isin_change` — zeichnet einen
+  Kapitalmaßnahmen-ISIN-Wechsel auf, damit Importe über die frühere ISIN
+  weiter zuordnen (ADR-0029).
+- `portfolixir.securities.delete_isin_alias` — journalisiertes Löschen eines
+  aufgezeichneten Früher-ISIN-Alias.
 - `portfolixir.securities.search_online`
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
@@ -813,6 +897,10 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.holdings.by_security`
+- `portfolixir.holdings.reconcile` — rein lesender Vergleich einer
+  eingefügten externen Positionsliste mit dem Ledger; die Tool-Beschreibung
+  lenkt den Agenten darauf, die fehlende Transaktion der richtigen Art zu
+  buchen statt Saldo-Snapshots oder unbepreiste Einlieferungen zu nutzen.
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`

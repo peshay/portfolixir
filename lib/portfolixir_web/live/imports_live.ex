@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.ImportsLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Buckets
+  alias Portfolixir.Catalog
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.Preview
@@ -38,6 +39,7 @@ defmodule PortfolixirWeb.ImportsLive do
       |> reload_lookups()
       |> assign(:mapping, mapping)
       |> maybe_assign_preview_pp_names(preview)
+      |> assign_security_resolutions(preview)
       |> allow_upload(:pp_file,
         accept: ~w(.csv .json application/json text/csv text/plain),
         max_entries: 1,
@@ -115,11 +117,17 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp render_preview(assigns) do
+    resolutions = assigns.security_resolutions
+
     assigns =
       assign(assigns,
         kind_counts: Enum.sort(Preview.counts_by_kind(assigns.preview)),
         unique_securities_count: length(Preview.unique_securities(assigns.preview)),
-        total_entries: total_entries(assigns.preview)
+        total_entries: total_entries(assigns.preview),
+        matched_resolutions: Enum.filter(resolutions, &(&1.status == :matched)),
+        plain_create_resolutions: Enum.filter(resolutions, &(&1.status == :create)),
+        decision_resolutions:
+          Enum.filter(resolutions, &(&1.status in [:needs_decision, :config_at_risk]))
       )
 
     ~H"""
@@ -286,9 +294,112 @@ defmodule PortfolixirWeb.ImportsLive do
           </section>
         <% end %>
 
-        <p class="muted">
-          <%= gettext("Missing securities will be created automatically.") %>
-        </p>
+        <section class="panel inner" id="import-security-mapping">
+          <h3><%= gettext("Securities from the export") %></h3>
+
+          <%= if @matched_resolutions == [] and @plain_create_resolutions == [] and @decision_resolutions == [] do %>
+            <p class="muted"><%= gettext("This import references no securities.") %></p>
+          <% end %>
+
+          <%= if @matched_resolutions != [] do %>
+            <details data-role="matched-securities">
+              <summary>
+                <%= ngettext(
+                  "%{count} security matches existing records",
+                  "%{count} securities match existing records",
+                  length(@matched_resolutions)
+                ) %>
+              </summary>
+              <ul>
+                <%= for res <- @matched_resolutions do %>
+                  <li>
+                    <%= res.label %> → <%= res.security.name %>
+                    <span class="muted">(<%= tier_label(res.matched.tier) %>)</span>
+                  </li>
+                <% end %>
+              </ul>
+            </details>
+          <% end %>
+
+          <%= if @plain_create_resolutions != [] do %>
+            <details data-role="plain-creates">
+              <summary>
+                <%= ngettext(
+                  "%{count} new security will be created",
+                  "%{count} new securities will be created",
+                  length(@plain_create_resolutions)
+                ) %>
+              </summary>
+              <div class="mapping-grid">
+                <%= for res <- @plain_create_resolutions do %>
+                  <div class="mapping-row">
+                    <div class="source">
+                      <small><%= gettext("PP security") %></small>
+                      <%= res.label %>
+                    </div>
+                    <.security_choice_select mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                    <.isin_change_offer mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                  </div>
+                <% end %>
+              </div>
+            </details>
+          <% end %>
+
+          <%= for res <- @decision_resolutions do %>
+            <div class="mapping-row" data-role="security-decision">
+              <div class="source">
+                <small><%= gettext("PP security") %></small>
+                <%= res.label %>
+              </div>
+              <div>
+                <p class="muted"><%= decision_text(res) %></p>
+                <%= if res.candidates != [] do %>
+                  <ul>
+                    <%= for candidate <- res.candidates do %>
+                      <li><%= security_option_label(candidate) %></li>
+                    <% end %>
+                  </ul>
+                <% end %>
+                <.security_choice_select mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                <.isin_change_offer mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                <%= if res.status == :config_at_risk and security_choice(@mapping, res) == "create" do %>
+                  <label>
+                    <input type="hidden" name={"security[#{res.key}][ack]"} value="false" />
+                    <input
+                      type="checkbox"
+                      name={"security[#{res.key}][ack]"}
+                      value="true"
+                      checked={security_ack?(@mapping, res)}
+                    />
+                    <span>
+                      <%= gettext(
+                        "Create anyway (existing configuration stays unchanged)"
+                      ) %>
+                    </span>
+                  </label>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </section>
+
+        <%= if @unmatched_config != [] do %>
+          <section class="import-warning-box" id="import-unmatched-config">
+            <h3><%= gettext("Configured securities this import does not touch") %></h3>
+            <p class="muted">
+              <%= gettext(
+                "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file — likely a rename or ISIN change in Portfolio Performance. Remedy: record the ISIN change on the security (or, without an ISIN, rename it in-app to match, or remap it below), then re-run the import."
+              ) %>
+            </p>
+            <ul>
+              <%= for row <- @unmatched_config do %>
+                <li>
+                  <%= row.security.name %><%= if row.security.isin do %> · <%= row.security.isin %><% end %>
+                </li>
+              <% end %>
+            </ul>
+          </section>
+        <% end %>
 
         <% missing = missing_mappings(assigns) %>
         <%= if not @applying and missing != [] do %>
@@ -334,6 +445,43 @@ defmodule PortfolixirWeb.ImportsLive do
         ·
         <%= gettext("Skipped duplicates: %{n}", n: @result.skipped_duplicates) %>
       </p>
+
+      <%= if @result.alias_matches != [] do %>
+        <p class="muted" data-role="alias-matches">
+          <%= gettext("%{n} record(s) matched via former ISIN.", n: length(@result.alias_matches)) %>
+        </p>
+      <% end %>
+
+      <%= if @result.security_overrides != [] do %>
+        <p class="muted" data-role="security-overrides">
+          <%= gettext("%{n} securities were mapped manually.", n: length(@result.security_overrides)) %>
+        </p>
+      <% end %>
+
+      <%= if @result.collapsed_duplicates != [] do %>
+        <p class="muted" data-role="collapsed-duplicates">
+          <%= gettext("%{n} row(s) collapsed onto the same resolved booking within this file.",
+            n: length(@result.collapsed_duplicates)
+          ) %>
+        </p>
+      <% end %>
+
+      <%= if @result.unresolved_entries != [] do %>
+        <div class="import-skipped" data-role="unresolved-entries">
+          <p class="muted">
+            <%= gettext("%{n} record(s) could not be resolved to a security and were not imported:",
+              n: length(@result.unresolved_entries)
+            ) %>
+          </p>
+          <ul>
+            <%= for unresolved <- @result.unresolved_entries do %>
+              <li>
+                <%= gettext("Row %{row}: %{reason}", row: unresolved.row, reason: unresolved.reason) %>
+              </li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
 
       <%= if @result.skipped_entries != [] do %>
         <div class="import-skipped" data-role="skipped-entries">
@@ -441,6 +589,7 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:result, nil)
      |> assign(:error, nil)
      |> assign(:mapping, blank_mapping())
+     |> assign_security_resolutions(nil)
      |> reload_lookups()}
   end
 
@@ -466,6 +615,22 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:result, result)
      |> assign(:error, nil)
      |> reload_lookups()}
+  end
+
+  # Preview→apply revalidation abort (ADR-0029 §2): the data changed while
+  # the preview was open. Re-run the ladder so the user reviews the CURRENT
+  # resolutions before confirming again.
+  def handle_async(:apply_import, {:ok, {:error, {:resolution_diverged, _key}}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:applying, false)
+     |> assign_security_resolutions(socket.assigns.preview)
+     |> assign(
+       :error,
+       gettext(
+         "Security data changed while this preview was open — the re-checked matching differs from the approved set. The refreshed preview needs a fresh review before confirming."
+       )
+     )}
   end
 
   def handle_async(:apply_import, {:ok, {:error, reason}}, socket) do
@@ -501,6 +666,7 @@ defmodule PortfolixirWeb.ImportsLive do
             |> assign(:error, nil)
             |> reload_lookups()
             |> assign_preview_pp_names(preview)
+            |> assign_security_resolutions(preview)
             |> assign(:mapping, initial_mapping_for(preview, socket))
 
           PreviewStore.put(socket.assigns.session_token, preview, socket.assigns.mapping)
@@ -539,12 +705,33 @@ defmodule PortfolixirWeb.ImportsLive do
   defp maybe_assign_preview_pp_names(socket, preview),
     do: assign_preview_pp_names(socket, preview)
 
+  # The ADR-0029 §2 security-mapping step: one classified resolution row per
+  # unique security reference plus the pre-apply inverse check, recomputed on
+  # every parse/remount (the ladder runs against the CURRENT database).
+  defp assign_security_resolutions(socket, nil) do
+    socket
+    |> assign(:security_resolutions, [])
+    |> assign(:unmatched_config, [])
+    |> assign(:existing_securities, [])
+  end
+
+  defp assign_security_resolutions(socket, %Preview{} = preview) do
+    %{resolutions: resolutions, unmatched_config: unmatched} =
+      Imports.resolve_securities(preview)
+
+    socket
+    |> assign(:security_resolutions, resolutions)
+    |> assign(:unmatched_config, unmatched)
+    |> assign(:existing_securities, Catalog.list_securities())
+  end
+
   defp blank_mapping do
     %{
       bucket_tag: default_bucket_tag(),
       bucket_skip: false,
       cash: %{},
-      depot: %{}
+      depot: %{},
+      security: %{}
     }
   end
 
@@ -596,12 +783,157 @@ defmodule PortfolixirWeb.ImportsLive do
       bucket_tag: Map.get(params, "bucket_tag", current.bucket_tag),
       bucket_skip: parse_bucket_skip(Map.get(params, "bucket_skip"), current.bucket_skip),
       cash: Map.merge(current.cash, Map.get(params, "cash", %{})),
-      depot: Map.merge(current.depot, Map.get(params, "depot", %{}))
+      depot: Map.merge(current.depot, Map.get(params, "depot", %{})),
+      security: merge_security_mapping(Map.get(current, :security, %{}), params)
     }
+  end
+
+  # Per-key deep merge so a change event carrying only some of a row's fields
+  # (choice / ack / record_isin_change) never drops the others.
+  defp merge_security_mapping(current, params) do
+    Map.merge(current, Map.get(params, "security", %{}), fn _key, old, new ->
+      if is_map(old) and is_map(new), do: Map.merge(old, new), else: new
+    end)
   end
 
   defp parse_bucket_skip(nil, current), do: current
   defp parse_bucket_skip(value, _current), do: value == "true"
+
+  # --- security mapping step helpers (ADR-0029 §2) ---
+
+  defp security_choice(mapping, res) do
+    case get_in(Map.get(mapping, :security, %{}), [res.key, "choice"]) do
+      nil -> default_security_choice(res)
+      value -> value
+    end
+  end
+
+  # A surfaced decision starts undecided; creations (plain and config-at-risk)
+  # default to "create" — the config-at-risk row additionally needs its
+  # per-row acknowledgment before apply unblocks.
+  defp default_security_choice(%{status: :needs_decision}), do: ""
+  defp default_security_choice(_res), do: "create"
+
+  defp security_ack?(mapping, res) do
+    get_in(Map.get(mapping, :security, %{}), [res.key, "ack"]) == "true"
+  end
+
+  defp security_record_isin_change?(mapping, res) do
+    get_in(Map.get(mapping, :security, %{}), [res.key, "record_isin_change"]) == "true"
+  end
+
+  defp chosen_existing_security(mapping, res, existing_securities) do
+    case security_choice(mapping, res) do
+      "existing:" <> id_str ->
+        case Integer.parse(id_str) do
+          {id, ""} -> Enum.find(existing_securities, &(&1.id == id))
+          _other -> nil
+        end
+
+      _other ->
+        nil
+    end
+  end
+
+  # Override durability (§2): offer recording the remap as a §3 ISIN change
+  # exactly when the entry carries an ISIN that differs from the chosen
+  # security's current ISIN (an ISIN-less target has nothing to alias).
+  defp isin_change_applicable?(res, target) do
+    is_binary(res.ref.isin) and not is_nil(target) and is_binary(target.isin) and
+      target.isin != res.ref.isin
+  end
+
+  attr(:mapping, :map, required: true)
+  attr(:existing_securities, :list, required: true)
+  attr(:res, :map, required: true)
+
+  defp security_choice_select(assigns) do
+    assigns = assign(assigns, :choice, security_choice(assigns.mapping, assigns.res))
+
+    ~H"""
+    <select name={"security[#{@res.key}][choice]"}>
+      <%= if @res.status == :needs_decision do %>
+        <option value="" selected={@choice == ""}><%= gettext("Decide…") %></option>
+      <% end %>
+      <option value="create" selected={@choice == "create"}>
+        <%= gettext("+ Create new: %{name}", name: @res.label) %>
+      </option>
+      <%= for s <- @existing_securities do %>
+        <option value={"existing:#{s.id}"} selected={@choice == "existing:#{s.id}"}>
+          <%= security_option_label(s) %>
+        </option>
+      <% end %>
+    </select>
+    """
+  end
+
+  attr(:mapping, :map, required: true)
+  attr(:existing_securities, :list, required: true)
+  attr(:res, :map, required: true)
+
+  defp isin_change_offer(assigns) do
+    target = chosen_existing_security(assigns.mapping, assigns.res, assigns.existing_securities)
+    assigns = assign(assigns, :target, target)
+
+    ~H"""
+    <%= if isin_change_applicable?(@res, @target) do %>
+      <label>
+        <input type="hidden" name={"security[#{@res.key}][record_isin_change]"} value="false" />
+        <input
+          type="checkbox"
+          name={"security[#{@res.key}][record_isin_change]"}
+          value="true"
+          checked={security_record_isin_change?(@mapping, @res)}
+        />
+        <span>
+          <%= gettext("Record %{isin} as an ISIN change (the current ISIN %{current} becomes a former-ISIN alias)",
+            isin: @res.ref.isin,
+            current: @target.isin
+          ) %>
+        </span>
+      </label>
+    <% end %>
+    """
+  end
+
+  defp security_option_label(security) do
+    [security.name, security.currency_code, security.isin]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp tier_label(:isin), do: gettext("matched via ISIN")
+  defp tier_label(:former_isin), do: gettext("matched via former ISIN")
+  defp tier_label(:wkn), do: gettext("matched via WKN")
+  defp tier_label(:ticker), do: gettext("matched via ticker")
+  defp tier_label(:name), do: gettext("matched via name")
+
+  defp decision_text(%{status: :config_at_risk} = res) do
+    names = Enum.map_join(res.at_risk, ", ", & &1.security.name)
+
+    gettext(
+      "Creating this security would leave strategy configuration (category assignments or position targets) stranded on: %{names}. Map it to the existing security, or explicitly confirm the creation.",
+      names: names
+    )
+  end
+
+  defp decision_text(%{conflict: %{type: :ambiguous}}) do
+    gettext(
+      "Several existing securities share this identifier — pick the right one or create a new security."
+    )
+  end
+
+  defp decision_text(%{conflict: %{type: :identifier_veto}}) do
+    gettext(
+      "A likely match differs on a stronger identifier — possibly an ISIN change that has not been recorded yet. Map it explicitly (optionally recording the ISIN change) or create a new security."
+    )
+  end
+
+  defp decision_text(%{conflict: %{type: :cross_tier}}) do
+    gettext(
+      "Different identifiers point at different existing securities. Decide which one this entry belongs to."
+    )
+  end
 
   defp cash_value(mapping, pp_name), do: Map.get(mapping.cash, pp_name)
 
@@ -625,7 +957,7 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # True iff every dropdown is filled: every depot row needs a `target` and
   # a `cash`. The bucket tag never blocks — blank behaves like skip.
-  defp mapping_complete?(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots}) do
+  defp mapping_complete?(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots} = assigns) do
     cash_ok? = Enum.all?(cashes, fn pp -> is_binary(Map.get(m.cash, pp)) end)
 
     depot_ok? =
@@ -640,14 +972,40 @@ defmodule PortfolixirWeb.ImportsLive do
         end
       end)
 
-    cash_ok? and depot_ok?
+    cash_ok? and depot_ok? and security_decisions_complete?(assigns)
   end
+
+  # ADR-0029 §2: a surfaced decision requires an explicit choice; a
+  # config-at-risk creation requires a remap or the per-row acknowledgment.
+  defp security_decisions_complete?(%{security_resolutions: resolutions, mapping: m}) do
+    Enum.all?(resolutions, &security_row_complete?(&1, m))
+  end
+
+  defp security_row_complete?(%{status: :needs_decision} = res, m) do
+    security_choice(m, res) != ""
+  end
+
+  defp security_row_complete?(%{status: :config_at_risk} = res, m) do
+    case security_choice(m, res) do
+      "existing:" <> _id -> true
+      "create" -> security_ack?(m, res)
+      _other -> false
+    end
+  end
+
+  defp security_row_complete?(_res, _m), do: true
 
   # The human-readable list of still-missing mappings, derived from the SAME
   # data `mapping_complete?/1` inspects, so the Confirm hint can never disagree
   # with the button's disabled state (#475).
-  defp missing_mappings(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots}) do
-    cash_missing(m, cashes) ++ depot_missing(m, depots)
+  defp missing_mappings(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots} = assigns) do
+    cash_missing(m, cashes) ++ depot_missing(m, depots) ++ security_missing(assigns)
+  end
+
+  defp security_missing(%{security_resolutions: resolutions, mapping: m}) do
+    for res <- resolutions, not security_row_complete?(res, m) do
+      gettext("security: %{name}", name: res.label)
+    end
   end
 
   defp cash_missing(m, cashes) do
@@ -683,14 +1041,74 @@ defmodule PortfolixirWeb.ImportsLive do
   defp build_apply_params(mapping, assigns) do
     with {:ok, cash_params} <- cash_params(mapping, assigns.cash_pp_names),
          {:ok, depot_params} <- depot_params(mapping, assigns.depot_pp_names),
+         {:ok, security_mappings, approved} <- security_params(mapping, assigns),
          bucket_tag = effective_bucket_tag(mapping),
          :ok <- validate_bucket_tag(bucket_tag) do
       {:ok,
        %{
          cash_accounts: cash_params,
          depots: depot_params,
-         bucket_tag: bucket_tag
+         bucket_tag: bucket_tag,
+         security_mappings: security_mappings,
+         approved_resolutions: approved
        }}
+    end
+  end
+
+  # Splits the reviewed security resolutions into the applier's explicit
+  # `security_mappings` (user decisions: remaps, acknowledged creations) and
+  # the `approved_resolutions` baseline the apply revalidates in-transaction
+  # (ADR-0029 §2). Every resolution lands in exactly one of the two maps.
+  defp security_params(mapping, %{security_resolutions: resolutions}) do
+    Enum.reduce_while(resolutions, {:ok, %{}, %{}}, fn res, {:ok, mappings, approved} ->
+      case security_apply_decision(res, mapping) do
+        {:mapping, value} ->
+          {:cont, {:ok, Map.put(mappings, res.key, value), approved}}
+
+        {:approved, digest} ->
+          {:cont, {:ok, mappings, Map.put(approved, res.key, digest)}}
+
+        {:error, _message} = error ->
+          {:halt, error}
+      end
+    end)
+  end
+
+  defp security_apply_decision(%{status: :matched} = res, _mapping) do
+    {:approved, {:matched, res.matched.security_id}}
+  end
+
+  defp security_apply_decision(res, mapping) do
+    case {res.status, security_choice(mapping, res)} do
+      {_status, "existing:" <> id_str} ->
+        case Integer.parse(id_str) do
+          {id, ""} -> {:mapping, existing_security_mapping(res, mapping, id)}
+          _other -> {:error, gettext("Invalid security id.")}
+        end
+
+      {:create, "create"} ->
+        {:approved, :create}
+
+      {:needs_decision, "create"} ->
+        {:mapping, :create}
+
+      {:config_at_risk, "create"} ->
+        if security_ack?(mapping, res) do
+          {:mapping, :create}
+        else
+          {:error, gettext("Confirm the flagged creation of security %{name}.", name: res.label)}
+        end
+
+      _other ->
+        {:error, gettext("Decide how to import security %{name}.", name: res.label)}
+    end
+  end
+
+  defp existing_security_mapping(res, mapping, id) do
+    if security_record_isin_change?(mapping, res) do
+      {:existing, id, :record_isin_change}
+    else
+      {:existing, id}
     end
   end
 
@@ -823,6 +1241,26 @@ defmodule PortfolixirWeb.ImportsLive do
     gettext("Bucket tag: %{errors}", errors: changeset_error_text(changeset))
   end
 
+  # A selected override target vanished between preview and apply.
+  defp apply_error_message({:invalid_security_mapping, _key}) do
+    gettext(
+      "A selected security no longer exists — review the security mapping and confirm again."
+    )
+  end
+
+  defp apply_error_message({:record_isin_change_failed, _key, %Ecto.Changeset{} = changeset}) do
+    gettext("Recording the ISIN change failed: %{errors}",
+      errors: changeset_error_text(changeset)
+    )
+  end
+
+  # A forced :create override collided with an existing security (e.g. a
+  # live-ISIN unique constraint): surface the rejecting changeset's field
+  # messages instead of an opaque tuple dump.
+  defp apply_error_message({:security_create_failed, %Ecto.Changeset{} = changeset}) do
+    gettext("Creating the security failed: %{errors}", errors: changeset_error_text(changeset))
+  end
+
   defp apply_error_message(reason), do: inspect(reason)
 
   defp changeset_error_text(%Ecto.Changeset{} = changeset) do
@@ -839,7 +1277,9 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp parser_warning_text(errors) do
     errors
-    |> Enum.map(fn err -> "Row #{err.row || "?"}: #{err.message}" end)
+    |> Enum.map(fn err ->
+      gettext("Row %{row}: %{message}", row: err.row || "?", message: err.message)
+    end)
     |> Enum.join("\n")
   end
 end

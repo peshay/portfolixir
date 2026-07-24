@@ -806,6 +806,312 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     refute has_element?(view, "#pp-import-confirm[disabled]")
   end
 
+  # User story (ADR-0029 §2 — the security-mapping override step):
+  # As a local portfolio maintainer reviewing an import,
+  # I want every to-be-created security listed with its ladder result,
+  # ambiguity/veto conflicts to REQUIRE a decision before apply,
+  # config-at-risk creations to require a per-row acknowledgment,
+  # and the pre-apply inverse check to list configured securities the import
+  # does not touch,
+  # so that a re-import can never silently duplicate a security or strand my
+  # strategy configuration.
+
+  describe "security mapping step (ADR-0029 §2)" do
+    defp fixture!(name), do: File.read!(Path.join(@fixtures, name))
+
+    defp create_security!(attrs) do
+      {:ok, security} =
+        Portfolixir.Catalog.create_security(
+          Portfolixir.Actor.owner_ui(),
+          Map.merge(%{name: "Example AG", currency_code: "EUR"}, attrs)
+        )
+
+      security
+    end
+
+    defp attach_assignment!(security) do
+      {:ok, classification} =
+        Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+          name: "Strategy #{System.unique_integer([:positive])}"
+        })
+
+      {:ok, category} =
+        Portfolixir.Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: "Core"
+        })
+
+      {:ok, _} =
+        Portfolixir.Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          security.id,
+          classification.id,
+          category.id
+        )
+
+      :ok
+    end
+
+    defp resolution_key!(fixture_name, finder) do
+      {:ok, preview} =
+        Portfolixir.Imports.parse_portfolio_performance(fixture!(fixture_name),
+          filename: fixture_name
+        )
+
+      %{resolutions: resolutions} = Portfolixir.Imports.resolve_securities(preview)
+      Enum.find(resolutions, finder).key
+    end
+
+    test "plain unambiguous creations stay collapsed as a summary", %{conn: conn} do
+      _portfolio = setup_portfolio()
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_sample(view)
+
+      html = render(view)
+      assert has_element?(view, "#import-security-mapping")
+      assert has_element?(view, "details[data-role='plain-creates']")
+      assert html =~ "2 new securities will be created"
+      refute has_element?(view, "[data-role='security-decision']")
+      # Plain creations demand no attention: the still-to-map hint (driven by
+      # sample.json's unmapped counter depot) lists no security rows.
+      refute html =~ "security: "
+    end
+
+    test "security count summaries are grammatical for a single item (ngettext)", %{conn: conn} do
+      _portfolio = setup_portfolio()
+
+      # Singular create: ambiguous_wkn.json references exactly one security and
+      # nothing pre-exists to match it.
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_payload(
+        view,
+        "ambiguous_wkn.json",
+        fixture!("ambiguous_wkn.json"),
+        "application/json"
+      )
+
+      html = render(view)
+      assert html =~ "1 new security will be created"
+      refute html =~ "1 new securities will be created"
+
+      # Singular match: pre-create the one referenced security so it matches via
+      # the WKN tier and the matched summary renders in the singular.
+      create_security!(%{name: "Ambiguous Fund", wkn: "AMB001", currency_code: "EUR"})
+      {:ok, view2, _html} = live(conn, "/imports")
+
+      upload_payload(
+        view2,
+        "ambiguous_wkn.json",
+        fixture!("ambiguous_wkn.json"),
+        "application/json"
+      )
+
+      html2 = render(view2)
+      assert html2 =~ "1 security matches existing records"
+      refute html2 =~ "1 securities match existing records"
+    end
+
+    test "an ambiguous identifier requires a decision before apply", %{conn: conn} do
+      _portfolio = setup_portfolio()
+      chosen = create_security!(%{name: "Share Class A", wkn: "AMB001"})
+      _other = create_security!(%{name: "Share Class B", wkn: "AMB001"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_payload(
+        view,
+        "ambiguous_wkn.json",
+        fixture!("ambiguous_wkn.json"),
+        "application/json"
+      )
+
+      html = render(view)
+      assert has_element?(view, "[data-role='security-decision']")
+      assert html =~ "Share Class A"
+      assert has_element?(view, "#pp-import-confirm[disabled]")
+      assert html =~ "Still to map before import:"
+      assert html =~ "security: Ambiguous Fund"
+
+      key = resolution_key!("ambiguous_wkn.json", &(&1.status == :needs_decision))
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_change(%{"security" => %{key => %{"choice" => "existing:#{chosen.id}"}}})
+
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+    end
+
+    test "a config-at-risk creation requires the per-row acknowledgment", %{conn: conn} do
+      _portfolio = setup_portfolio()
+      at_risk = create_security!(%{name: "Ambiguous Fund", currency_code: "USD"})
+      attach_assignment!(at_risk)
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_payload(
+        view,
+        "ambiguous_wkn.json",
+        fixture!("ambiguous_wkn.json"),
+        "application/json"
+      )
+
+      html = render(view)
+      assert has_element?(view, "[data-role='security-decision']")
+      assert html =~ "strategy configuration"
+      assert has_element?(view, "#pp-import-confirm[disabled]")
+
+      key = resolution_key!("ambiguous_wkn.json", &(&1.status == :config_at_risk))
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_change(%{"security" => %{key => %{"choice" => "create", "ack" => "true"}}})
+
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+    end
+
+    test "the pre-apply inverse check lists configured securities the import misses",
+         %{conn: conn} do
+      portfolio = setup_portfolio()
+      leftover = create_security!(%{name: "Leftover AG", isin: "DE000LEFT001"})
+      attach_assignment!(leftover)
+
+      {:ok, cash} =
+        Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          name: "Cash",
+          currency_code: "EUR"
+        })
+
+      {:ok, depot} =
+        Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          name: "Depot"
+        })
+
+      {:ok, _} =
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          type: "buy",
+          date: ~D[2024-01-02],
+          currency_code: "EUR",
+          security_id: leftover.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          quantity: Decimal.new("1"),
+          price: Decimal.new("10"),
+          gross_amount: Decimal.new("10")
+        })
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_sample(view)
+
+      html = render(view)
+      assert has_element?(view, "#import-unmatched-config")
+      assert html =~ "Leftover AG"
+      assert html =~ "record the ISIN change"
+      # The guidance must also reach the ISIN-less case (crypto), where
+      # recording an ISIN change is impossible: rename in-app or remap.
+      assert html =~ "rename"
+      assert html =~ "remap"
+    end
+
+    test "a failed security creation surfaces a friendly per-field message, not a raw tuple",
+         %{conn: conn} do
+      _portfolio = setup_portfolio()
+
+      # Two securities share WKN AMB001, so the second file row is ambiguous and
+      # the user must decide. The first row plain-creates ISIN DE000COLL001; the
+      # user then deliberately forces the ambiguous row to ALSO create with the
+      # same ISIN, which collides on the now-live unique ISIN index and makes the
+      # applier return {:security_create_failed, changeset}.
+      _a = create_security!(%{name: "Share Class A", wkn: "AMB001"})
+      _b = create_security!(%{name: "Share Class B", wkn: "AMB001"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_payload(
+        view,
+        "duplicate_isin_create.json",
+        fixture!("duplicate_isin_create.json"),
+        "application/json"
+      )
+
+      decision_key =
+        resolution_key!("duplicate_isin_create.json", &(&1.status == :needs_decision))
+
+      mapping = %{
+        "cash" => %{"Test-Cash" => "create:Test-Cash"},
+        "depot" => %{
+          "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"}
+        },
+        "security" => %{decision_key => %{"choice" => "create"}}
+      }
+
+      view |> element("form#pp-import-apply") |> render_change(mapping)
+      view |> element("form#pp-import-apply") |> render_submit(mapping)
+
+      html = render_async(view, 1_000)
+
+      # The friendly message names the offending field; the raw tuple leaks
+      # neither the tag nor an inspected struct.
+      assert html =~ "isin"
+      refute html =~ "security_create_failed"
+      refute html =~ "Ecto.Changeset"
+    end
+
+    test "remapping onto an existing security can record the ISIN change end-to-end",
+         %{conn: conn} do
+      _portfolio = setup_portfolio()
+      acme = create_security!(%{name: "Acme AG", isin: "DE000ACME001", wkn: "ACM111"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_payload(
+        view,
+        "wrong_ordering_new_identity.json",
+        fixture!("wrong_ordering_new_identity.json"),
+        "application/json"
+      )
+
+      assert has_element?(view, "[data-role='security-decision']")
+      assert has_element?(view, "#pp-import-confirm[disabled]")
+
+      key = resolution_key!("wrong_ordering_new_identity.json", &(&1.status == :needs_decision))
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_change(%{"security" => %{key => %{"choice" => "existing:#{acme.id}"}}})
+
+      # The remap's entry ISIN differs from the security's current ISIN: the
+      # record-as-ISIN-change offer appears (override durability).
+      assert has_element?(
+               view,
+               "input[type='checkbox'][name=\"security[#{key}][record_isin_change]\"]"
+             )
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_submit(%{
+        "security" => %{
+          key => %{"choice" => "existing:#{acme.id}", "record_isin_change" => "true"}
+        }
+      })
+
+      html = render_async(view, 1_000)
+      assert html =~ "Import complete"
+
+      updated = Portfolixir.Catalog.get_security!(acme.id)
+      assert updated.isin == "DE000ACME119"
+      assert [alias_row] = Portfolixir.Catalog.list_identifier_aliases(updated)
+      assert alias_row.former_isin == "DE000ACME001"
+
+      assert [transaction] = Ledger.list_transactions()
+      assert transaction.security_id == acme.id
+    end
+  end
+
   defp setup_portfolio do
     {:ok, p} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{

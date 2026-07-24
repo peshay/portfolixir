@@ -34,6 +34,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   rather than as silent `Entry` skips.
   """
 
+  use Gettext, backend: PortfolixirWeb.Gettext
+
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
@@ -99,11 +101,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         build_entry(kind, raw, row)
 
       :error ->
-        {:error, "unknown PP transaction type #{inspect(pp_type)}"}
+        {:error, gettext("unknown PP transaction type %{type}", type: inspect(pp_type))}
     end
   end
 
-  defp to_entry(_other, _row), do: {:error, "missing transaction type"}
+  defp to_entry(_other, _row), do: {:error, gettext("missing transaction type")}
 
   defp build_entry(kind, raw, row) do
     with {:ok, date} <- parse_date(Map.get(raw, "date")),
@@ -171,7 +173,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     case Date.from_iso8601(value) do
       {:ok, %Date{year: year}} when year < 1900 ->
         {:error,
-         "implausible date #{value} (before 1900) — fix the booking in the source and re-import"}
+         gettext(
+           "implausible date %{date} (before 1900) — fix the booking in the source and re-import",
+           date: value
+         )}
 
       {:ok, _date} = ok ->
         ok

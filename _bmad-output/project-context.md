@@ -81,6 +81,18 @@ the gates. The rules below cause **silent failures** no gate catches:
 - **Gettext workflow:** user-facing strings go through `gettext` (single `de`
   locale; enforced by `localization_test.exs`). After adding strings run
   `mix gettext.extract --merge` and translate in `priv/gettext/de/`.
+- **Microcopy voice (owner rule 2026-07-23):** write UI and doc text
+  **impersonally** — state the fact/state/consequence, do not address the
+  user. Prefer no address at all ("Konfiguration bleibt unverändert", not
+  "mir ist klar, dass…"; "Mapping required", not "you must map"). Where
+  address is genuinely unavoidable, use **du**, never Sie. Keep it **terse
+  and self-explanatory**: the UI is not a tutorial. A control that is clear
+  from its label carries no helper prose; genuinely needed domain
+  explanation (TTWROR, split basis, cost-basis effects) lives in an
+  on-demand **ⓘ tooltip** (UX-DR11), not permanently in the sightline.
+  Warnings are a statement of fact plus the remedy, not a paragraph. This
+  is a review-blocking standard: second-person address and tutorial prose
+  in user-facing strings are findings.
 - **Error idiom:** tagged tuples (`{:ok, _}`/`{:error, changeset}`) for
   create/update/delete; `get_*!` bang variants for fetch-or-404. Web layers
   translate both to user feedback.

@@ -24,6 +24,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     on the German type label.
   """
 
+  use Gettext, backend: PortfolixirWeb.Gettext
+
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
@@ -107,7 +109,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         build_entry(kind, cells, source_row)
 
       :error ->
-        {:error, "unknown PP CSV type #{inspect(pp_type)}"}
+        {:error, gettext("unknown PP CSV type %{type}", type: inspect(pp_type))}
     end
   end
 
@@ -235,7 +237,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     case Date.from_iso8601(String.trim(value)) do
       {:ok, %Date{year: year}} when year < 1900 ->
         {:error,
-         "implausible date #{String.trim(value)} (before 1900) — fix the booking in the source and re-import"}
+         gettext(
+           "implausible date %{date} (before 1900) — fix the booking in the source and re-import",
+           date: String.trim(value)
+         )}
 
       other ->
         other

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "PURCHASE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2024-04-01",
+      "currency": "EUR",
+      "amount": 500.00,
+      "shares": 5.0,
+      "security": {
+        "name": "Ambiguous Fund",
+        "wkn": "AMB001",
+        "currency": "EUR"
+      }
+    }
+  ]
+}

@@ -3,6 +3,11 @@ import Config
 config :portfolixir,
   ecto_repos: [Portfolixir.Repo]
 
+# The reconcile endpoint's external position list must never be logged
+# (ADR-0029 §6 boundary / NFR-4): filter the `rows` request parameter from
+# Phoenix parameter logging alongside the default password filter.
+config :phoenix, :filter_parameters, ["password", "rows"]
+
 config :portfolixir, PortfolixirWeb.Endpoint,
   render_errors: [
     formats: [html: PortfolixirWeb.ErrorView, json: PortfolixirWeb.ErrorView],

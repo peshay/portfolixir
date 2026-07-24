@@ -59,7 +59,9 @@ that successful delete response.
   and performance — e.g. a Bitcoin held as a store of value — tag it with a
   bucket and exclude that bucket from a view, then read allocation under that
   view.
-- `GET /api/v1/securities/:id` returns one security.
+- `GET /api/v1/securities/:id` returns one security, including its
+  `identifier_aliases` — the former ISINs recorded via the ISIN-change
+  endpoint below (each with `id`, `former_isin`, `changed_on`, `note`).
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
   The boolean `treat_quotes_as_raw` (default `false`) is the ADR-0028 escape
   hatch for providers that never back-adjust their history after a stock
@@ -71,6 +73,42 @@ that successful delete response.
   `409 Conflict`.
 - `GET /api/v1/securities/search` searches configured online security providers.
   Query params: `query`; optional `type` with `security` or `crypto`.
+
+### ISIN changes (identifier aliases)
+
+When a corporate action gives an existing security a new ISIN, record the
+change instead of editing the ISIN in place: the former ISIN becomes a
+journaled alias, and the import's ISIN matching consults current ISINs first,
+then the aliases — so re-imports of old exports (former ISIN) and new exports
+(new ISIN) both keep matching the same security instead of duplicating it
+(ADR-0029). A plain rename needs no ISIN change — it is just a name edit.
+
+- `POST /api/v1/securities/:security_id/isin-change` records the change with an
+  `isin_change` object: required `new_isin` (normalized to trimmed uppercase),
+  optional `changed_on` (ISO date, defaults to today) and `note`. Returns the
+  updated security including its `identifier_aliases`. Guarded with `422` and a
+  named conflict when `new_isin` equals the current ISIN, is live on another
+  security, or is recorded as another security's former ISIN; recording a
+  change back to one of the same security's own former ISINs consumes that
+  alias (a revert). Every security-ISIN write path — create, update, and the
+  import's create path — symmetrically rejects an ISIN that exists as an
+  alias, naming the aliased security.
+- `DELETE /api/v1/securities/:security_id/identifier_aliases/:id` deletes one
+  recorded alias (journaled) when an ISIN change was recorded by mistake;
+  returns `204 No Content`, or `404` when the alias does not belong to the
+  security.
+
+Example ISIN-change payload:
+
+```json
+{
+  "isin_change": {
+    "new_isin": "IE000XZSV718",
+    "changed_on": "2026-07-01",
+    "note": "merger rename"
+  }
+}
+```
 
 ### Logos
 
@@ -334,6 +372,39 @@ Example account payloads:
   the cross-portfolio, base-currency counterpart to the per-portfolio holdings
   list (which stays in each security's own currency with no FX); for one
   portfolio's totals and weights use the valuation endpoint instead.
+- `POST /api/v1/holdings/reconcile` compares a **user-supplied external
+  position list** (a broker statement or depot overview, parsed client-side
+  into rows) against the ledger-derived holdings — **strictly read-only**:
+  the list arrives only in the request body, is never persisted or logged,
+  and no data is fetched from anywhere (ADR-0029 §6, FR-35). Each row is
+  `{identifier, quantity}` with optional `currency` and an optional pinning
+  `security_id`; `quantity` must be a **canonical dot-decimal string**
+  (anything else — comma decimals, thousands separators, exponents — is a
+  `422` naming the row; locale parsing is the client's job), and an empty
+  `rows` list is a `422`. Identifiers match through the same stable-identity
+  ladder the import uses: an ISIN-shaped string (format and check digit)
+  matches via the ISIN tier only (current ISINs first, then recorded former
+  ISINs — `matched_via: "former_isin"`); any other string is tried against
+  WKN, ticker+currency and name+currency with the exactly-one rule applied
+  across the union of those tiers — a string matching one security's WKN and
+  another's ticker lands under `ambiguous` with the candidate securities,
+  never a silent pick, and a currency-less row cannot match by ticker or name
+  (`unmatched` with reason `currency_required`). The response is
+  self-describing (`basis` with `as_of`, `scope`, and a delta note) and
+  reports: `matched` rows (one per security — rows resolving to the same
+  security are aggregated with their external quantities summed and the
+  contributing rows listed) with the `matched_via` tier (`isin`,
+  `former_isin`, `wkn`, `ticker`, `name`, or `pinned`), `ledger_quantity`,
+  `external_quantity` and `delta` (`external - ledger`) as exact Decimal
+  strings — ticker/name matches carry `weak_match: true` and the caveat
+  "confirm the security before booking" —, `ambiguous` and `unmatched` rows,
+  and `missing_from_list` (held ledger positions the external list does not
+  cover). The embedded `guidance` is part of the contract: resolve a
+  difference by booking the missing transaction of the correct kind; balance
+  snapshots and unpriced deliveries are last resorts that distort cost basis.
+  Optional scope: `portfolio_id` or `view` (a view id; mutually exclusive —
+  both at once is a `422`), default the whole instance; an unknown portfolio
+  or view is a `404`.
 - `GET /api/v1/portfolios/:portfolio_id/valuation` returns a live valuation of a
   portfolio: each held position priced from its latest quote close, a
   `total_value`, and each valued position's `weight` (its share of the total).
@@ -844,9 +915,15 @@ The MCP companion exposes the same local contract as tool calls. Decimal inputs
 in MCP schemas are strings.
 
 - `portfolixir.securities.list`
+- `portfolixir.securities.get` — one security's full record including its
+  `identifier_aliases` (recorded former ISINs).
 - `portfolixir.securities.create`
 - `portfolixir.securities.update`
 - `portfolixir.securities.delete`
+- `portfolixir.securities.isin_change` — records a corporate-action ISIN
+  change so imports keep matching via the former ISIN (ADR-0029).
+- `portfolixir.securities.delete_isin_alias` — journaled delete of one
+  recorded former-ISIN alias.
 - `portfolixir.securities.search_online`
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
@@ -872,6 +949,10 @@ in MCP schemas are strings.
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.holdings.by_security`
+- `portfolixir.holdings.reconcile` — read-only compare of a pasted external
+  position list against the ledger; its description steers the agent toward
+  booking the missing transaction of the correct kind instead of balance
+  snapshots or unpriced deliveries.
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync`

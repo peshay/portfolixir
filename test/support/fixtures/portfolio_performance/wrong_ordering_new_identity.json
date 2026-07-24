@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "PURCHASE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2024-03-01",
+      "currency": "EUR",
+      "amount": 1500.00,
+      "shares": 10.0,
+      "security": {
+        "name": "Acme AG",
+        "isin": "DE000ACME119",
+        "wkn": "ACM111",
+        "ticker": "ACM",
+        "currency": "EUR"
+      }
+    }
+  ]
+}

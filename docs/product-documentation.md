@@ -128,6 +128,21 @@ single characters, minimum four tokens) and collapses the tokens before
 heuristics run, so legal-form suffixes are reliably detected even from such
 exports.
 
+### ISIN changes (former-ISIN aliases)
+
+When a corporate action gives a security a new ISIN (a merger rename, a
+re-domiciliation), record the change instead of editing the ISIN in place:
+`POST /api/v1/securities/:security_id/isin-change` (or the
+`portfolixir.securities.isin_change` MCP tool) moves the current ISIN into a
+journaled **former-ISIN alias** and writes the new ISIN onto the same
+security. Imports then keep matching in both directions: an old export still
+carrying the former ISIN resolves through the alias, and a new export with
+the new ISIN resolves through the current ISIN — no duplicate security, no
+duplicate bookings (the import marks such rows as "matched via former ISIN").
+Aliases are correctable: they are listed on the security detail
+(`GET /api/v1/securities/:id`) and can be deleted (journaled) when recorded
+by mistake. A plain rename needs no ISIN change — it is just a name edit.
+
 ## Accounts and Depots
 
 The bookkeeping entities are cash accounts and depots:
@@ -684,6 +699,53 @@ Parser warnings appear in a scrollable box with a copy button. The copied text
 uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
+
+### Security matching and the mapping step
+
+Securities in the file resolve against existing records through a
+deterministic **stable-identity ladder** (ADR-0029): ISIN first — current
+ISINs, then recorded former-ISIN aliases —, then WKN, then ticker+currency,
+then name+currency. Each tier only applies when the identifier is present on
+both sides, and only when it selects exactly one candidate. Matching never
+changes the matched security's master data: a rename in the export updates
+nothing implicitly.
+
+The preview's **Securities from the export** panel shows the outcome:
+
+- **Matches** are summarized in a collapsible list, each labeled with the
+  tier that matched it (for example *matched via former ISIN* after a
+  recorded ISIN change).
+- **Plain new securities** stay collapsed as a summary; expand the list to
+  remap any of them onto an existing security instead.
+- **Decisions** are surfaced prominently and block the import until
+  resolved: an ambiguous identifier (two securities share a WKN or a
+  name+currency), or a candidate that contradicts a stronger identifier —
+  the typical shape of an ISIN change that has not been recorded yet. The
+  import never picks silently in these cases.
+- **Configuration-at-risk warnings**: when a to-be-created security
+  near-matches an existing one that carries category assignments or position
+  targets, the row requires its own explicit confirmation — a duplicate
+  would strand that configuration on a position-less row.
+
+When an entry is remapped and its ISIN differs from the chosen security's
+current ISIN, the preview offers to **record the difference as an ISIN
+change** in the same step, so the decision persists for future imports
+instead of being repeated every time.
+
+A second panel lists every **configured security the import does not
+touch**: securities carrying assignments or position targets that match no
+entry in the file — likely a rename or ISIN change in Portfolio
+Performance. Remedy: record the ISIN change on the security (or, without an
+ISIN, rename it in-app to match, or remap it in the preview), then re-run
+the import.
+
+Two more safeguards run at apply time: the matching is **re-checked inside
+the import transaction** and the apply aborts back to the preview if
+anything resolved differently than the approved set (previews can sit open
+for a while); and rows that resolve to the **same booking on the same
+security** — an export listing one paper under both its old and its new
+ISIN — are collapsed to a single transaction and reported, never
+double-imported.
 
 Inbound and outbound **delivery** rows keep their parsed per-share price (the
 CSV `Kurs` column), so a priced inbound delivery enters the holdings cost

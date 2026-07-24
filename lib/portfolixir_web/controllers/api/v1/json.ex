@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Ecto.Changeset
   alias Portfolixir.Buckets.Bucket
   alias Portfolixir.Buckets.View
+  alias Portfolixir.Catalog.IdentifierAlias
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
@@ -55,8 +56,29 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       online_id: security.online_id,
       provider: security.provider,
       attributes: security.attributes || %{},
+      # Recorded former-ISIN aliases (ADR-0029 §3); a list only when preloaded
+      # (the detail route), `null` on responses that did not load them.
+      identifier_aliases: identifier_aliases_field(security),
       inserted_at: timestamp(security.inserted_at),
       updated_at: timestamp(security.updated_at)
+    }
+  end
+
+  defp identifier_aliases_field(%Security{identifier_aliases: aliases}) when is_list(aliases) do
+    Enum.map(aliases, &identifier_alias/1)
+  end
+
+  defp identifier_aliases_field(_security), do: nil
+
+  def identifier_alias(%IdentifierAlias{} = alias_row) do
+    %{
+      id: alias_row.id,
+      security_id: alias_row.security_id,
+      former_isin: alias_row.former_isin,
+      changed_on: date(alias_row.changed_on),
+      note: alias_row.note,
+      inserted_at: timestamp(alias_row.inserted_at),
+      updated_at: timestamp(alias_row.updated_at)
     }
   end
 
@@ -357,6 +379,82 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       valued: row.valued
     }
   end
+
+  @doc """
+  Serializes a `Portfolixir.Portfolios.Reconcile` result (ADR-0029 §6): the
+  self-describing basis, the verbatim resolution guidance, matched rows with
+  their `matched_via` tier and Decimal-string quantities/delta, ambiguous rows
+  with candidates, unmatched rows with a reason, and held ledger positions
+  absent from the external list.
+  """
+  def reconcile(result) do
+    %{
+      basis: %{
+        as_of: date(result.basis.as_of),
+        scope: Atom.to_string(result.basis.scope),
+        portfolio_id: result.basis.portfolio_id,
+        view_id: result.basis.view_id,
+        note: result.basis.note
+      },
+      guidance: result.guidance,
+      matched: Enum.map(result.matched, &reconcile_match/1),
+      ambiguous: Enum.map(result.ambiguous, &reconcile_ambiguous/1),
+      unmatched: Enum.map(result.unmatched, &reconcile_unmatched/1),
+      missing_from_list: Enum.map(result.missing_from_list, &reconcile_missing/1)
+    }
+  end
+
+  defp reconcile_match(match) do
+    %{
+      security: reconcile_security(match.security),
+      matched_via: Atom.to_string(match.matched_via),
+      weak_match: match.weak_match,
+      caveat: match.caveat,
+      ledger_quantity: decimal(match.ledger_quantity),
+      external_quantity: decimal(match.external_quantity),
+      delta: decimal(match.delta),
+      aggregated: match.aggregated,
+      rows:
+        Enum.map(match.rows, fn row ->
+          %{
+            index: row.index,
+            identifier: row.identifier,
+            quantity: decimal(row.quantity),
+            matched_via: Atom.to_string(row.matched_via)
+          }
+        end)
+    }
+  end
+
+  defp reconcile_ambiguous(entry) do
+    %{
+      identifier: entry.identifier,
+      quantity: decimal(entry.quantity),
+      currency: entry.currency,
+      row_index: entry.row_index,
+      candidates: Enum.map(entry.candidates, &reconcile_security/1)
+    }
+  end
+
+  defp reconcile_unmatched(entry) do
+    %{
+      identifier: entry.identifier,
+      quantity: decimal(entry.quantity),
+      currency: entry.currency,
+      row_index: entry.row_index,
+      reason: Atom.to_string(entry.reason)
+    }
+  end
+
+  defp reconcile_missing(entry) do
+    %{
+      security: reconcile_security(entry.security),
+      ledger_quantity: decimal(entry.ledger_quantity)
+    }
+  end
+
+  defp reconcile_security(nil), do: nil
+  defp reconcile_security(%Security{} = security), do: security_listing(security)
 
   def valuation(%{positions: positions} = valuation) do
     %{

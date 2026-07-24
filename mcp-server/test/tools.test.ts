@@ -12,9 +12,12 @@ describe("Portfolixir MCP tools", () => {
 
     assert.deepEqual(names, [
       "portfolixir.securities.list",
+      "portfolixir.securities.get",
       "portfolixir.securities.create",
       "portfolixir.securities.update",
       "portfolixir.securities.delete",
+      "portfolixir.securities.isin_change",
+      "portfolixir.securities.delete_isin_alias",
       "portfolixir.securities.search_online",
       "portfolixir.quotes.sync",
       "portfolixir.quotes.list",
@@ -37,6 +40,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.splits.create",
       "portfolixir.holdings.list",
       "portfolixir.holdings.by_security",
+      "portfolixir.holdings.reconcile",
       "portfolixir.portfolios.valuation",
       "portfolixir.exchange_rates.list",
       "portfolixir.exchange_rates.sync",
@@ -356,6 +360,97 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/holdings/by_security");
     assert.equal(requests[0].token, "Bearer api-token");
     assert.match(result.content[0].text, /1000/);
+  });
+
+  // User story:
+  // As the operating LLM agent holding an external broker position list,
+  // I want a read-only reconcile tool whose description steers me toward
+  // booking the missing transaction of the correct kind (ADR-0029 6, FR-35),
+  // so that the fix-it hammer lands at the moment of temptation instead of a
+  // balance snapshot or unpriced delivery distorting the cost basis.
+  it("exposes portfolixir.holdings.reconcile with a strict schema and steering description", () => {
+    const reconcile = listTools().find((tool) => tool.name === "portfolixir.holdings.reconcile");
+
+    assert.ok(reconcile);
+    assert.equal(reconcile?.inputSchema.additionalProperties, false);
+    assert.deepEqual(reconcile?.inputSchema.required, ["rows"]);
+
+    const rows = reconcile?.inputSchema.properties.rows;
+    assert.equal(rows.type, "array");
+    assert.equal(rows.minItems, 1);
+    assert.equal(rows.maxItems, 10000);
+    assert.equal(rows.items.additionalProperties, false);
+    assert.deepEqual(rows.items.required, ["identifier", "quantity"]);
+    assert.equal(rows.items.properties.identifier.type, "string");
+    assert.equal(rows.items.properties.quantity.type, "string");
+    assert.equal(rows.items.properties.currency.type, "string");
+    assert.equal(rows.items.properties.security_id.type, "integer");
+    assert.equal(reconcile?.inputSchema.properties.portfolio_id.type, "integer");
+    assert.equal(reconcile?.inputSchema.properties.view.type, "integer");
+
+    // FR-35: the steering must live in the description the agent reads at the
+    // moment of temptation.
+    const description = reconcile?.description ?? "";
+    assert.match(description, /read-only/i);
+    assert.match(description, /booking the missing transaction of the correct kind/);
+    assert.match(description, /balance snapshots/);
+    assert.match(description, /unpriced/);
+    assert.match(description, /last resorts/);
+    assert.match(description, /distort/);
+    assert.match(description, /confirm/i);
+  });
+
+  it("routes portfolixir.holdings.reconcile to POST /holdings/reconcile with the rows body", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { guidance: "resolve a difference by booking", matched: [], unmatched: [] }
+    });
+
+    await callTool(client, "portfolixir.holdings.reconcile", {
+      rows: [
+        { identifier: "DE0007100000", quantity: "12.5" },
+        { identifier: "BTC", quantity: "0.25", currency: "EUR", security_id: 4 }
+      ],
+      portfolio_id: 3
+    });
+
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/holdings/reconcile");
+    assert.deepEqual(requests[0].body, {
+      rows: [
+        { identifier: "DE0007100000", quantity: "12.5" },
+        { identifier: "BTC", quantity: "0.25", currency: "EUR", security_id: 4 }
+      ],
+      portfolio_id: 3
+    });
+  });
+
+  it("rejects a comma-decimal reconcile quantity before any API request", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.holdings.reconcile", {
+        rows: [{ identifier: "DE0007100000", quantity: "12,5" }]
+      })
+    );
+
+    await assert.rejects(callTool(client, "portfolixir.holdings.reconcile", { rows: [] }));
+
+    assert.equal(requests.length, 0);
+  });
+
+  // DoS hardening (ADR-0029 §6): the external list is user-supplied content, so
+  // the row count is capped before any API request.
+  it("rejects more than 10,000 reconcile rows before any API request", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    const rows = Array.from({ length: 10001 }, () => ({
+      identifier: "DE0007100000",
+      quantity: "1"
+    }));
+
+    await assert.rejects(callTool(client, "portfolixir.holdings.reconcile", { rows }));
+
+    assert.equal(requests.length, 0);
   });
 
   it("issues a GET to /income for portfolixir.portfolios.income", async () => {
@@ -1342,5 +1437,62 @@ describe("Portfolixir MCP tools", () => {
       }),
       /Portfolixir API request failed/
     );
+  });
+
+  // User story:
+  // As an MCP operator whose security got a new ISIN through a corporate
+  // action, I want a dedicated isin_change tool plus alias visibility and a
+  // journaled alias delete (ADR-0029 §3, AR-11 parity), so that imports keep
+  // matching the security via its former ISIN.
+  it("routes securities.get to GET /api/v1/securities/:id", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 7 } });
+
+    await callTool(client, "portfolixir.securities.get", { id: 7 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/securities/7");
+  });
+
+  it("routes isin_change to POST /securities/:id/isin-change with the body", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 7 } });
+
+    await callTool(client, "portfolixir.securities.isin_change", {
+      security_id: 7,
+      new_isin: "DE0007654321",
+      changed_on: "2026-07-01",
+      note: "merger rename"
+    });
+
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/securities/7/isin-change");
+    assert.deepEqual(requests[0].body, {
+      isin_change: {
+        new_isin: "DE0007654321",
+        changed_on: "2026-07-01",
+        note: "merger rename"
+      }
+    });
+  });
+
+  it("rejects an isin_change call without new_isin before any API request", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 7 } });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.securities.isin_change", { security_id: 7 })
+    );
+
+    assert.equal(requests.length, 0);
+  });
+
+  it("routes delete_isin_alias to DELETE /securities/:id/identifier_aliases/:alias_id", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.securities.delete_isin_alias", {
+      security_id: 7,
+      alias_id: 3
+    });
+
+    assert.equal(requests[0].method, "DELETE");
+    assert.equal(requests[0].path, "/api/v1/securities/7/identifier_aliases/3");
   });
 });
