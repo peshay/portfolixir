@@ -343,4 +343,56 @@ defmodule Portfolixir.Portfolios.ReconcileTest do
     assert Decimal.eq?(scoped_match.ledger_quantity, Decimal.new("10"))
     assert Decimal.eq?(scoped_match.delta, Decimal.new("4"))
   end
+
+  # User story:
+  # As a maintainer of the reconcile engine and its API/MCP presenters,
+  # I want the verbatim guidance and weak-match caveat exposed as pure helpers,
+  # so that every surface embeds the exact same ADR-0029 6 text without
+  # re-deriving it.
+  #
+  # Acceptance criteria:
+  # - guidance/0 and weak_match_caveat/0 return the canonical strings.
+  test "exposes the verbatim guidance and weak-match caveat as helpers" do
+    assert Reconcile.guidance() == @guidance
+    assert Reconcile.weak_match_caveat() == @weak_caveat
+  end
+
+  # User story:
+  # As the operating agent,
+  # I want only strings that validate as ISINs (format AND check digit) to
+  # enter tier 1,
+  # so that an ISIN-shaped-but-invalid string or a non-string never masquerades
+  # as an ISIN match (ADR-0029 6).
+  #
+  # Acceptance criteria:
+  # - isin?/1 accepts a valid ISIN, rejects a bad check digit, a wrong shape,
+  #   and any non-string value.
+  test "isin?/1 accepts valid ISINs and rejects bad ones and non-strings" do
+    assert Reconcile.isin?("DE0007100000")
+    refute Reconcile.isin?("DE0007100001")
+    refute Reconcile.isin?("NOTANISIN")
+    refute Reconcile.isin?(nil)
+    refute Reconcile.isin?(123)
+  end
+
+  # User story:
+  # As the operating agent,
+  # I want an identifier that normalizes to blank kept out of every tier,
+  # so that a whitespace-only identifier is reported unmatched rather than
+  # matched against an empty key (ADR-0029 6 normalization boundary).
+  #
+  # Acceptance criteria:
+  # - A whitespace-only identifier carrying a currency is unmatched (:no_match),
+  #   never matched.
+  test "a whitespace-only identifier normalizes to blank and stays unmatched" do
+    accounts = accounts!("Blank")
+    security = security!(%{name: "Blank Boundary AG", ticker_symbol: "BBA"})
+    buy!(accounts, security, "1")
+
+    result = Reconcile.run([row("   ", "1", %{currency: "EUR"})])
+
+    assert result.matched == []
+    assert [unmatched] = result.unmatched
+    assert unmatched.reason == :no_match
+  end
 end

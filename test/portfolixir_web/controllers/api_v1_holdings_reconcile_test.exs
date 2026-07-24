@@ -347,4 +347,274 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
     })
     |> json_response(401)
   end
+
+  # User story:
+  # As the operating agent,
+  # I want malformed rows and mistyped row fields rejected with a 422 that
+  # names the offending row,
+  # so that a bad external list is a precise, actionable error and never a
+  # silently misread position (ADR-0029 6).
+  #
+  # Acceptance criteria:
+  # - A row that is not a {identifier, quantity} object is a 422 naming it.
+  # - A blank identifier and a non-string identifier are 422s.
+  # - A non-string currency and a non-positive-integer security_id are 422s.
+  test "rejects malformed rows and mistyped fields with a naming 422", %{conn: conn} do
+    seed!()
+
+    reject = fn rows ->
+      [message] =
+        conn
+        |> api_conn()
+        |> post("/api/v1/holdings/reconcile", %{"rows" => rows})
+        |> json_response(422)
+        |> get_in(["errors", "rows"])
+
+      message
+    end
+
+    non_object = reject.(["not an object"])
+    assert non_object =~ "row 1"
+    assert non_object =~ "must be a {identifier, quantity} object"
+
+    assert reject.([%{"identifier" => "   ", "quantity" => "1"}]) =~
+             "identifier must be a non-empty string"
+
+    assert reject.([%{"identifier" => 123, "quantity" => "1"}]) =~
+             "identifier must be a non-empty string"
+
+    assert reject.([%{"identifier" => "X", "quantity" => "1", "currency" => 5}]) =~
+             "currency must be a string"
+
+    assert reject.([%{"identifier" => "X", "quantity" => "1", "security_id" => "abc"}]) =~
+             "security_id must be a positive integer"
+
+    assert reject.([%{"identifier" => "X", "quantity" => "1", "security_id" => -3}]) =~
+             "security_id must be a positive integer"
+  end
+
+  # User story:
+  # As the operating agent who has already decided a security's identity,
+  # I want to pin a row to a security via a positive security_id,
+  # so that the ladder is skipped and the decided identity sticks (ADR-0029 6).
+  #
+  # Acceptance criteria:
+  # - A row with a valid positive security_id matches that security with
+  #   matched_via "pinned", regardless of its identifier text.
+  test "an explicit positive security_id pins the match", %{conn: conn} do
+    %{security: security} = seed!()
+
+    data =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{
+        "rows" => [
+          %{
+            "identifier" => "whatever the broker calls it",
+            "quantity" => "10",
+            "security_id" => security.id
+          }
+        ]
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert [matched] = data["matched"]
+    assert matched["security"]["id"] == security.id
+    assert matched["matched_via"] == "pinned"
+    assert matched["delta"] == "0"
+  end
+
+  # User story:
+  # As the operating agent scoping a compare,
+  # I want the scope params validated,
+  # so that an ambiguous or malformed scope is a precise error rather than a
+  # silently wrong basis (ADR-0029 6, FR-13).
+  #
+  # Acceptance criteria:
+  # - portfolio_id and view given together is a 422 ("not both").
+  # - A non-numeric or non-integer portfolio_id is a 422 ("is invalid").
+  # - A valid string portfolio_id resolves and bounds the compare.
+  test "scope params reject both-given and malformed portfolio ids", %{conn: conn} do
+    %{portfolio: portfolio} = seed!()
+    rows = [%{"identifier" => "DE0007100000", "quantity" => "10"}]
+
+    both =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{
+        "portfolio_id" => portfolio.id,
+        "view" => 1,
+        "rows" => rows
+      })
+      |> json_response(422)
+
+    assert both["errors"]["scope"] == ["pass either portfolio_id or view, not both"]
+
+    invalid =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{"portfolio_id" => "abc", "rows" => rows})
+      |> json_response(422)
+
+    assert invalid["errors"]["portfolio_id"] == ["is invalid"]
+
+    float =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{"portfolio_id" => 1.5, "rows" => rows})
+      |> json_response(422)
+
+    assert float["errors"]["portfolio_id"] == ["is invalid"]
+
+    data =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{
+        "portfolio_id" => to_string(portfolio.id),
+        "rows" => rows
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert data["basis"]["scope"] == "portfolio"
+    assert data["basis"]["portfolio_id"] == portfolio.id
+    assert [matched] = data["matched"]
+    assert matched["delta"] == "0"
+  end
+
+  # User story:
+  # As the operating agent reconciling one saved view's positions,
+  # I want an optional view scope on the compare,
+  # so that only the positions inside that view count and the basis states it
+  # (FR-13).
+  #
+  # Acceptance criteria:
+  # - A valid view id bounds the ledger side; the basis states scope "view".
+  # - An empty view param is treated as the unscoped instance default.
+  # - A malformed view id is a 422; an unknown view id is a 404.
+  test "view scope bounds the compare; empty is instance, invalid 422, unknown 404", %{conn: conn} do
+    seed!()
+
+    {:ok, view} =
+      Portfolixir.Buckets.create_view(Portfolixir.Actor.owner_ui(), %{
+        name: "Reconcile View",
+        include_all: true
+      })
+
+    rows = [%{"identifier" => "DE0007100000", "quantity" => "10"}]
+
+    scoped =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{"view" => view.id, "rows" => rows})
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert scoped["basis"]["scope"] == "view"
+    assert scoped["basis"]["view_id"] == view.id
+    assert [matched] = scoped["matched"]
+    assert matched["ledger_quantity"] == "10"
+    assert matched["delta"] == "0"
+
+    instance =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{"view" => "", "rows" => rows})
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert instance["basis"]["scope"] == "instance"
+
+    invalid =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{"view" => "abc", "rows" => rows})
+      |> json_response(422)
+
+    assert invalid["errors"]["view"] == ["is invalid"]
+
+    conn
+    |> api_conn()
+    |> post("/api/v1/holdings/reconcile", %{"view" => 999_999, "rows" => rows})
+    |> json_response(404)
+  end
+
+  # User story:
+  # As the operating agent,
+  # I want a cross-tier ambiguous row surfaced with its candidates over the API,
+  # so that a string matching two securities is a visible decision, never a
+  # silent pick (ADR-0029 6).
+  #
+  # Acceptance criteria:
+  # - A WKN-of-A / ticker-of-B identifier is returned under "ambiguous" with
+  #   both candidate securities and the row's identifier/index.
+  test "an ambiguous row is serialized with its candidates", %{conn: conn} do
+    %{portfolio: portfolio} = seed!()
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Ambig Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Ambig Depot"
+      })
+
+    {:ok, a} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Alpha AG",
+        wkn: "AMBIG1",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, b} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Beta AG",
+        ticker_symbol: "AMBIG1",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    for security <- [a, b] do
+      {:ok, _} =
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-01-05],
+          quantity: "1",
+          price: "10",
+          fees: "0",
+          taxes: "0",
+          currency_code: "EUR"
+        })
+    end
+
+    data =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{
+        "rows" => [%{"identifier" => "AMBIG1", "quantity" => "2", "currency" => "EUR"}]
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert data["matched"] == []
+    assert [ambiguous] = data["ambiguous"]
+    assert ambiguous["identifier"] == "AMBIG1"
+    assert ambiguous["quantity"] == "2"
+    assert ambiguous["currency"] == "EUR"
+
+    candidate_ids = ambiguous["candidates"] |> Enum.map(& &1["id"]) |> Enum.sort()
+    assert candidate_ids == Enum.sort([a.id, b.id])
+  end
 end

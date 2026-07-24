@@ -179,4 +179,44 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
 
     assert response["errors"]["detail"] == "not found"
   end
+
+  # User story:
+  # As an API/MCP operator,
+  # I want a non-object isin_change payload rejected with a clear 422,
+  # so that a malformed request is a precise error, never a silent no-op
+  # (AR-11 parity).
+  #
+  # Acceptance criteria:
+  # - POST isin-change with a non-object isin_change is a 422 naming the field.
+  test "rejects a non-object isin_change payload with 422", %{conn: conn} do
+    security = create_security!(%{isin: "DE0001234567"})
+
+    response =
+      conn
+      |> post_json("/api/v1/securities/#{security.id}/isin-change", %{
+        "isin_change" => "not an object"
+      })
+      |> json_response(422)
+
+    assert response["errors"]["isin_change"] == ["is invalid"]
+  end
+
+  # User story:
+  # As an API/MCP operator,
+  # I want a malformed alias id on the delete path rejected as not found,
+  # so that a non-numeric path segment is a 404 rather than a crash.
+  #
+  # Acceptance criteria:
+  # - DELETE identifier_aliases/<non-numeric> returns a 404 not-found.
+  test "alias delete returns 404 for a malformed alias id", %{conn: conn} do
+    security = create_security!(%{isin: "DE0001234567"})
+
+    response =
+      conn
+      |> api_conn()
+      |> delete("/api/v1/securities/#{security.id}/identifier_aliases/not-a-number")
+      |> json_response(404)
+
+    assert response["errors"]["detail"] == "not found"
+  end
 end

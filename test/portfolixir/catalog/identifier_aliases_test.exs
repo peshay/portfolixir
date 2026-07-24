@@ -230,6 +230,28 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert entry.after["security_id"] == other.id
     end
 
+    test "corrects an alias former_isin to a value live on no security" do
+      security = create_security!(%{isin: "DE0001234567"})
+
+      {:ok, %{alias: alias_row}} =
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+
+      assert {:ok, corrected} =
+               Catalog.update_identifier_alias(Actor.owner_ui(), alias_row, %{
+                 former_isin: "DE0001111111"
+               })
+
+      assert corrected.former_isin == "DE0001111111"
+
+      assert [entry | _] =
+               Journal.list_entries(
+                 resource_type: "security_identifier_alias",
+                 operation: :update
+               )
+
+      assert entry.after["former_isin"] == "DE0001111111"
+    end
+
     test "rejects updating an alias onto a live ISIN" do
       security = create_security!(%{isin: "DE0001234567"})
       _other = create_security!(%{name: "Other AG", isin: "DE0009999999"})
