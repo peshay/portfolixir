@@ -373,7 +373,7 @@ defmodule PortfolixirWeb.ImportsLive do
                     />
                     <span>
                       <%= gettext(
-                        "Create it anyway — I understand the existing configuration stays where it is"
+                        "Create anyway (existing configuration stays unchanged)"
                       ) %>
                     </span>
                   </label>
@@ -388,7 +388,7 @@ defmodule PortfolixirWeb.ImportsLive do
             <h3><%= gettext("Configured securities this import does not touch") %></h3>
             <p class="muted">
               <%= gettext(
-                "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file. If one of them was renamed or ISIN-changed in Portfolio Performance, discard this preview, record the ISIN change on the security — or, for a security without an ISIN, rename it in-app to match or remap it below — and re-run the import."
+                "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file — likely a rename or ISIN change in Portfolio Performance. Remedy: record the ISIN change on the security (or, without an ISIN, rename it in-app to match, or remap it below), then re-run the import."
               ) %>
             </p>
             <ul>
@@ -628,7 +628,7 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(
        :error,
        gettext(
-         "The security data changed while this preview was open — the matching was re-checked and differs from what you approved. Review the refreshed preview and confirm again."
+         "Security data changed while this preview was open — the re-checked matching differs from the approved set. The refreshed preview needs a fresh review before confirming."
        )
      )}
   end

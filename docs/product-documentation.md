@@ -702,7 +702,7 @@ duplicates on re-run.
 
 ### Security matching and the mapping step
 
-Securities in the file resolve against your existing records through a
+Securities in the file resolve against existing records through a
 deterministic **stable-identity ladder** (ADR-0029): ISIN first — current
 ISINs, then recorded former-ISIN aliases —, then WKN, then ticker+currency,
 then name+currency. Each tier only applies when the identifier is present on
@@ -717,8 +717,8 @@ The preview's **Securities from the export** panel shows the outcome:
   recorded ISIN change).
 - **Plain new securities** stay collapsed as a summary; expand the list to
   remap any of them onto an existing security instead.
-- **Decisions** are surfaced prominently and block the import until you
-  decide: an ambiguous identifier (two securities share a WKN or a
+- **Decisions** are surfaced prominently and block the import until
+  resolved: an ambiguous identifier (two securities share a WKN or a
   name+currency), or a candidate that contradicts a stronger identifier —
   the typical shape of an ISIN change that has not been recorded yet. The
   import never picks silently in these cases.
@@ -727,20 +727,21 @@ The preview's **Securities from the export** panel shows the outcome:
   targets, the row requires its own explicit confirmation — a duplicate
   would strand that configuration on a position-less row.
 
-When you remap an entry whose ISIN differs from the chosen security's
+When an entry is remapped and its ISIN differs from the chosen security's
 current ISIN, the preview offers to **record the difference as an ISIN
 change** in the same step, so the decision persists for future imports
 instead of being repeated every time.
 
 A second panel lists every **configured security the import does not
 touch**: securities carrying assignments or position targets that match no
-entry in the file. If one of them was renamed or ISIN-changed in Portfolio
-Performance, discard the preview, record the ISIN change on the security,
-and re-run the import.
+entry in the file — likely a rename or ISIN change in Portfolio
+Performance. Remedy: record the ISIN change on the security (or, without an
+ISIN, rename it in-app to match, or remap it in the preview), then re-run
+the import.
 
 Two more safeguards run at apply time: the matching is **re-checked inside
 the import transaction** and the apply aborts back to the preview if
-anything resolved differently than what you approved (previews can sit open
+anything resolved differently than the approved set (previews can sit open
 for a while); and rows that resolve to the **same booking on the same
 security** — an export listing one paper under both its old and its new
 ISIN — are collapsed to a single transaction and reported, never

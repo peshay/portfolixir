@@ -4478,12 +4478,12 @@ msgstr "%{n} Wertpapiere wurden manuell zugeordnet."
 #: lib/portfolixir_web/live/imports_live.ex:927
 #, elixir-autogen, elixir-format
 msgid "A likely match differs on a stronger identifier — possibly an ISIN change that has not been recorded yet. Map it explicitly (optionally recording the ISIN change) or create a new security."
-msgstr "Ein wahrscheinlicher Treffer weicht bei einem stärkeren Identifikator ab — möglicherweise ein noch nicht erfasster ISIN-Wechsel. Ordne ihn ausdrücklich zu (optional mit Erfassen des ISIN-Wechsels) oder lege ein neues Wertpapier an."
+msgstr "Ein wahrscheinlicher Treffer weicht bei einem stärkeren Identifikator ab — möglicherweise ein noch nicht erfasster ISIN-Wechsel. Ausdrücklich zuordnen (optional mit Erfassen des ISIN-Wechsels) oder ein neues Wertpapier anlegen."
 
 #: lib/portfolixir_web/live/imports_live.ex:1246
 #, elixir-autogen, elixir-format
 msgid "A selected security no longer exists — review the security mapping and confirm again."
-msgstr "Ein ausgewähltes Wertpapier existiert nicht mehr — prüfe die Wertpapier-Zuordnung und bestätige erneut."
+msgstr "Ein ausgewähltes Wertpapier existiert nicht mehr — Wertpapier-Zuordnung prüfen und erneut bestätigen."
 
 #: lib/portfolixir_web/live/imports_live.ex:388
 #, elixir-autogen, elixir-format
@@ -4493,22 +4493,17 @@ msgstr "Konfigurierte Wertpapiere, die dieser Import nicht berührt"
 #: lib/portfolixir_web/live/imports_live.ex:1099
 #, elixir-autogen, elixir-format
 msgid "Confirm the flagged creation of security %{name}."
-msgstr "Bestätige das markierte Anlegen des Wertpapiers %{name}."
-
-#: lib/portfolixir_web/live/imports_live.ex:375
-#, elixir-autogen, elixir-format
-msgid "Create it anyway — I understand the existing configuration stays where it is"
-msgstr "Trotzdem anlegen — mir ist klar, dass die bestehende Konfiguration bleibt, wo sie ist"
+msgstr "Das markierte Anlegen des Wertpapiers %{name} bestätigen."
 
 #: lib/portfolixir_web/live/imports_live.ex:914
 #, elixir-autogen, elixir-format
 msgid "Creating this security would leave strategy configuration (category assignments or position targets) stranded on: %{names}. Map it to the existing security, or explicitly confirm the creation."
-msgstr "Das Anlegen dieses Wertpapiers würde Strategie-Konfiguration (Kategorie-Zuordnungen oder Positionsziele) stranden lassen auf: %{names}. Ordne es dem bestehenden Wertpapier zu oder bestätige das Anlegen ausdrücklich."
+msgstr "Das Anlegen dieses Wertpapiers würde Strategie-Konfiguration (Kategorie-Zuordnungen oder Positionsziele) stranden lassen auf: %{names}. Dem bestehenden Wertpapier zuordnen oder das Anlegen ausdrücklich bestätigen."
 
 #: lib/portfolixir_web/live/imports_live.ex:1103
 #, elixir-autogen, elixir-format
 msgid "Decide how to import security %{name}."
-msgstr "Entscheide, wie das Wertpapier %{name} importiert wird."
+msgstr "Entscheiden, wie das Wertpapier %{name} importiert wird."
 
 #: lib/portfolixir_web/live/imports_live.ex:856
 #, elixir-autogen, elixir-format
@@ -4518,7 +4513,7 @@ msgstr "Entscheiden…"
 #: lib/portfolixir_web/live/imports_live.ex:933
 #, elixir-autogen, elixir-format
 msgid "Different identifiers point at different existing securities. Decide which one this entry belongs to."
-msgstr "Verschiedene Identifikatoren zeigen auf verschiedene bestehende Wertpapiere. Entscheide, zu welchem dieser Eintrag gehört."
+msgstr "Verschiedene Identifikatoren zeigen auf verschiedene bestehende Wertpapiere. Entscheiden, zu welchem dieser Eintrag gehört."
 
 #: lib/portfolixir_web/live/imports_live.ex:1086
 #, elixir-autogen, elixir-format
@@ -4549,12 +4544,7 @@ msgstr "Wertpapiere aus dem Export"
 #: lib/portfolixir_web/live/imports_live.ex:921
 #, elixir-autogen, elixir-format
 msgid "Several existing securities share this identifier — pick the right one or create a new security."
-msgstr "Mehrere bestehende Wertpapiere teilen diesen Identifikator — wähle das richtige aus oder lege ein neues Wertpapier an."
-
-#: lib/portfolixir_web/live/imports_live.ex:630
-#, elixir-autogen, elixir-format
-msgid "The security data changed while this preview was open — the matching was re-checked and differs from what you approved. Review the refreshed preview and confirm again."
-msgstr "Die Wertpapierdaten haben sich geändert, während diese Vorschau offen war — das Matching wurde erneut geprüft und weicht von deiner Bestätigung ab. Prüfe die aktualisierte Vorschau und bestätige erneut."
+msgstr "Mehrere bestehende Wertpapiere teilen diesen Identifikator — das richtige auswählen oder ein neues Wertpapier anlegen."
 
 #: lib/portfolixir_web/live/imports_live.ex:301
 #, elixir-autogen, elixir-format
@@ -4615,11 +4605,6 @@ msgstr "Anlegen des Wertpapiers fehlgeschlagen: %{errors}"
 msgid "Row %{row}: %{message}"
 msgstr "Zeile %{row}: %{message}"
 
-#: lib/portfolixir_web/live/imports_live.ex:390
-#, elixir-autogen, elixir-format
-msgid "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file. If one of them was renamed or ISIN-changed in Portfolio Performance, discard this preview, record the ISIN change on the security — or, for a security without an ISIN, rename it in-app to match or remap it below — and re-run the import."
-msgstr "Diese Wertpapiere tragen Strategie-Konfiguration (Kategorie-Zuordnungen oder Positionsziele), passen aber zu keinem Eintrag dieser Datei. Wurde eines davon in Portfolio Performance umbenannt oder ISIN-gewechselt, verwirf diese Vorschau, erfasse den ISIN-Wechsel am Wertpapier — oder benenne ein Wertpapier ohne ISIN in der App passend um bzw. ordne es unten neu zu — und starte den Import erneut."
-
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:240
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:176
 #, elixir-autogen, elixir-format
@@ -4640,3 +4625,18 @@ msgstr "Unbekannter PP-CSV-Typ %{type}"
 #, elixir-autogen, elixir-format
 msgid "unknown PP transaction type %{type}"
 msgstr "Unbekannter PP-Transaktionstyp %{type}"
+
+#: lib/portfolixir_web/live/imports_live.ex:375
+#, elixir-autogen, elixir-format
+msgid "Create anyway (existing configuration stays unchanged)"
+msgstr "Trotzdem anlegen (bestehende Konfiguration bleibt unverändert)"
+
+#: lib/portfolixir_web/live/imports_live.ex:630
+#, elixir-autogen, elixir-format
+msgid "Security data changed while this preview was open — the re-checked matching differs from the approved set. The refreshed preview needs a fresh review before confirming."
+msgstr "Die Wertpapierdaten haben sich geändert, während diese Vorschau offen war — das erneut geprüfte Matching weicht vom bestätigten Stand ab. Die aktualisierte Vorschau muss vor dem erneuten Bestätigen geprüft werden."
+
+#: lib/portfolixir_web/live/imports_live.ex:390
+#, elixir-autogen, elixir-format
+msgid "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file — likely a rename or ISIN change in Portfolio Performance. Remedy: record the ISIN change on the security (or, without an ISIN, rename it in-app to match, or remap it below), then re-run the import."
+msgstr "Diese Wertpapiere tragen Strategie-Konfiguration (Kategorie-Zuordnungen oder Positionsziele), passen aber zu keinem Eintrag dieser Datei — vermutlich eine Umbenennung oder ein ISIN-Wechsel in Portfolio Performance. Abhilfe: den ISIN-Wechsel am Wertpapier erfassen (oder, ohne ISIN, das Wertpapier in der App passend umbenennen bzw. unten neu zuordnen), dann den Import erneut starten."

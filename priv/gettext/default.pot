@@ -4494,11 +4494,6 @@ msgstr ""
 msgid "Confirm the flagged creation of security %{name}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:375
-#, elixir-autogen, elixir-format
-msgid "Create it anyway — I understand the existing configuration stays where it is"
-msgstr ""
-
 #: lib/portfolixir_web/live/imports_live.ex:914
 #, elixir-autogen, elixir-format
 msgid "Creating this security would leave strategy configuration (category assignments or position targets) stranded on: %{names}. Map it to the existing security, or explicitly confirm the creation."
@@ -4548,11 +4543,6 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:921
 #, elixir-autogen, elixir-format
 msgid "Several existing securities share this identifier — pick the right one or create a new security."
-msgstr ""
-
-#: lib/portfolixir_web/live/imports_live.ex:630
-#, elixir-autogen, elixir-format
-msgid "The security data changed while this preview was open — the matching was re-checked and differs from what you approved. Review the refreshed preview and confirm again."
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:301
@@ -4614,11 +4604,6 @@ msgstr ""
 msgid "Row %{row}: %{message}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:390
-#, elixir-autogen, elixir-format
-msgid "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file. If one of them was renamed or ISIN-changed in Portfolio Performance, discard this preview, record the ISIN change on the security — or, for a security without an ISIN, rename it in-app to match or remap it below — and re-run the import."
-msgstr ""
-
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:240
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:176
 #, elixir-autogen, elixir-format
@@ -4638,4 +4623,19 @@ msgstr ""
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:104
 #, elixir-autogen, elixir-format
 msgid "unknown PP transaction type %{type}"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:375
+#, elixir-autogen, elixir-format
+msgid "Create anyway (existing configuration stays unchanged)"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:630
+#, elixir-autogen, elixir-format
+msgid "Security data changed while this preview was open — the re-checked matching differs from the approved set. The refreshed preview needs a fresh review before confirming."
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:390
+#, elixir-autogen, elixir-format
+msgid "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file — likely a rename or ISIN change in Portfolio Performance. Remedy: record the ISIN change on the security (or, without an ISIN, rename it in-app to match, or remap it below), then re-run the import."
 msgstr ""

@@ -80,7 +80,7 @@ Löschantwort keinen JSON-Body parsen.
 ### ISIN-Wechsel (Identifier-Aliasse)
 
 Wenn eine Kapitalmaßnahme einem bestehenden Wertpapier eine neue ISIN gibt,
-zeichne den Wechsel auf, statt die ISIN direkt zu editieren: Die frühere ISIN
+den Wechsel aufzeichnen, statt die ISIN direkt zu editieren: Die frühere ISIN
 wird ein journalisierter Alias, und das ISIN-Matching des Imports prüft erst
 aktuelle ISINs, dann die Aliasse — Re-Importe alter Exporte (frühere ISIN) und
 neuer Exporte (neue ISIN) treffen so weiter dasselbe Wertpapier, statt ein

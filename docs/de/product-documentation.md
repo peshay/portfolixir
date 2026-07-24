@@ -140,7 +140,7 @@ solchen Exporten zuverlässig erkannt werden.
 ### ISIN-Wechsel (Früher-ISIN-Aliasse)
 
 Wenn eine Kapitalmaßnahme einem Wertpapier eine neue ISIN gibt (eine
-Fusions-Umbenennung, ein Sitzwechsel), zeichne den Wechsel auf, statt die ISIN
+Fusions-Umbenennung, ein Sitzwechsel), den Wechsel aufzeichnen, statt die ISIN
 direkt zu editieren: `POST /api/v1/securities/:security_id/isin-change` (oder
 das MCP-Tool `portfolixir.securities.isin_change`) verschiebt die aktuelle
 ISIN in einen journalisierten **Früher-ISIN-Alias** und schreibt die neue ISIN
@@ -148,7 +148,7 @@ auf dasselbe Wertpapier. Importe treffen danach in beide Richtungen weiter:
 Ein alter Export mit der früheren ISIN löst über den Alias auf, ein neuer
 Export mit der neuen ISIN über die aktuelle ISIN — kein dupliziertes
 Wertpapier, keine duplizierten Buchungen (der Import markiert solche Zeilen
-als „über frühere ISIN zugeordnet"). Aliasse sind korrigierbar: Sie werden im
+als „über frühere ISIN zugeordnet"). Aliasse sind korrigierbar: sie werden im
 Wertpapier-Detail (`GET /api/v1/securities/:id`) gelistet und können
 (journalisiert) gelöscht werden, wenn sie versehentlich aufgezeichnet wurden.
 Eine bloße Umbenennung braucht keinen ISIN-Wechsel — sie ist nur eine
@@ -751,7 +751,7 @@ Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
 ### Wertpapier-Matching und der Zuordnungsschritt
 
 Wertpapiere in der Datei werden über eine deterministische **Leiter stabiler
-Identitäten** (ADR-0029) gegen deine bestehenden Einträge aufgelöst: zuerst
+Identitäten** (ADR-0029) gegen die bestehenden Einträge aufgelöst: zuerst
 ISIN — aktuelle ISINs, dann erfasste Alt-ISIN-Aliase —, dann WKN, dann
 Ticker+Währung, dann Name+Währung. Jede Stufe greift nur, wenn der
 Identifikator auf beiden Seiten vorhanden ist und genau einen Kandidaten
@@ -764,10 +764,10 @@ Das Vorschau-Panel **Wertpapiere aus dem Export** zeigt das Ergebnis:
   Stufe beschriftet, die ihn getroffen hat (zum Beispiel *über frühere ISIN
   zugeordnet* nach einem erfassten ISIN-Wechsel).
 - **Einfache neue Wertpapiere** bleiben als Zusammenfassung eingeklappt;
-  klappe die Liste auf, um einzelne stattdessen auf ein bestehendes
+  die Liste aufklappen, um einzelne stattdessen auf ein bestehendes
   Wertpapier umzumappen.
 - **Entscheidungen** werden prominent angezeigt und blockieren den Import,
-  bis du entscheidest: ein mehrdeutiger Identifikator (zwei Wertpapiere
+  bis sie aufgelöst sind: ein mehrdeutiger Identifikator (zwei Wertpapiere
   teilen eine WKN oder Name+Währung) oder ein Kandidat, der einem stärkeren
   Identifikator widerspricht — die typische Form eines noch nicht erfassten
   ISIN-Wechsels. Der Import wählt in diesen Fällen nie stillschweigend aus.
@@ -776,20 +776,22 @@ Das Vorschau-Panel **Wertpapiere aus dem Export** zeigt das Ergebnis:
   verlangt die Zeile eine eigene ausdrückliche Bestätigung — ein Duplikat
   würde diese Konfiguration auf einer bestandslosen Zeile stranden lassen.
 
-Wenn du einen Eintrag ummappst, dessen ISIN von der aktuellen ISIN des
+Wird ein Eintrag ummappt, dessen ISIN von der aktuellen ISIN des
 gewählten Wertpapiers abweicht, bietet die Vorschau an, die Differenz im
 selben Schritt **als ISIN-Wechsel zu erfassen**, sodass die Entscheidung für
 künftige Importe erhalten bleibt statt jedes Mal wiederholt zu werden.
 
 Ein zweites Panel listet jedes **konfigurierte Wertpapier, das der Import
 nicht berührt**: Wertpapiere mit Zuordnungen oder Positionszielen, die zu
-keinem Eintrag der Datei passen. Wurde eines davon in Portfolio Performance
-umbenannt oder ISIN-gewechselt, verwirf die Vorschau, erfasse den
-ISIN-Wechsel am Wertpapier und starte den Import erneut.
+keinem Eintrag der Datei passen — vermutlich eine Umbenennung oder ein
+ISIN-Wechsel in Portfolio Performance. Abhilfe: den ISIN-Wechsel am
+Wertpapier erfassen (oder, ohne ISIN, das Wertpapier in der App passend
+umbenennen bzw. in der Vorschau neu zuordnen), dann den Import erneut
+starten.
 
 Zwei weitere Sicherungen greifen beim Anwenden: Das Matching wird **in der
 Import-Transaktion erneut geprüft**, und das Anwenden bricht zur Vorschau
-ab, wenn sich etwas anders auflöst als von dir bestätigt (Vorschauen können
+ab, wenn sich etwas anders auflöst als im bestätigten Stand (Vorschauen können
 länger offen stehen); und Zeilen, die sich zur **selben Buchung auf
 demselben Wertpapier** auflösen — ein Export, der ein Papier unter alter
 und neuer ISIN führt — werden zu einer Transaktion zusammengefasst und
