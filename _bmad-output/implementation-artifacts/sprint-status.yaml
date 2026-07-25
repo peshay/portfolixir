@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-07-25
+last_updated: 2026-07-25 (story 19.2 contexted)
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -133,7 +133,7 @@ development_status:
   # E19 -- gate #612 signed off 2026-07-25; ADR-0031 merged (629b222), stories unblocked
   epic-19: in-progress
   19-1-tax-statement-snapshot-decision-adr: done
-  19-2-tax-parameters-taxpayer-profile-and-configured-allowance-orders: backlog
+  19-2-tax-parameters-taxpayer-profile-and-configured-allowance-orders: ready-for-dev
   19-3-record-a-tax-statement-snapshot: backlog
   19-4-a-recorded-snapshot-checks-its-own-arithmetic: backlog
   19-5-trim-budget-over-api-and-mcp: backlog
