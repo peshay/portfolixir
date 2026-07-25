@@ -1,0 +1,141 @@
+# generated: 2026-07-25
+# last_updated: 2026-07-25
+# project: portfolixir
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+#
+# PROJECT NOTE (2026-07-25):
+# Epics 1-5 and 7-16 carry no story-level breakdown in epics.md -- their work
+# unit is the GitHub issue (see the FR Coverage Map). Only E6, E17, E18 and E19
+# have '##### Story' entries, so only those produce story rows here. Statuses
+# were verified against `main` (224f442) and the open-issue list, not assumed.
+
+generated: 2026-07-25
+last_updated: 2026-07-25
+project: portfolixir
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # E1 -- open: #314 (coverage ratchet + Credo thresholds)
+  epic-1: in-progress
+  epic-1-retrospective: optional
+
+  # E2 -- open: #354 (pg_dump backup/restore, rescoped); #353 audit journal done
+  epic-2: in-progress
+  epic-2-retrospective: optional
+
+  # E3 -- open: #328 (merge/rename/delete accounts, needs-uat)
+  epic-3: in-progress
+  epic-3-retrospective: optional
+
+  # E4 -- open: #333 (PP XML import) -- GATED, needs ADR + AGENTS.md amendment
+  epic-4: backlog
+  epic-4-retrospective: optional
+
+  # E5 -- #316/#331/#318/#329/#335/#334 all closed
+  epic-5: done
+  epic-5-retrospective: optional
+
+  # E6 -- DX batch #581-#585 all closed; verified in mcp-server/src/tools.ts
+  epic-6: done
+  6-dx-1-book-any-transaction-kind-over-mcp: done
+  6-dx-2-holdings-carry-stable-identifiers: done
+  6-dx-3-booking-semantics-documented-at-the-point-of-use: done
+  6-dx-4-slim-securities-listing: done
+  6-c-1-imported-deliveries-keep-their-price: done
+  epic-6-retrospective: optional
+
+  # E7 -- ADR-0023 display-only hints shipped; ranked both-direction cash guidance open
+  epic-7: in-progress
+  epic-7-retrospective: optional
+
+  # E8 -- read-only sync, GATED (#320)
+  epic-8: backlog
+  epic-8-retrospective: optional
+
+  # E9 -- product types, discovery-first (#330, #340)
+  epic-9: backlog
+  epic-9-retrospective: optional
+
+  # E10 -- planning & simulation (#332)
+  epic-10: backlog
+  epic-10-retrospective: optional
+
+  # E11 -- open: #356 tracker + the unattached UI/UX issues (#412 #491 #560 #566 #606)
+  epic-11: in-progress
+  epic-11-retrospective: optional
+
+  # E12 -- #313 closed; bilingual docs site live (ADR-0014)
+  epic-12: done
+  epic-12-retrospective: optional
+
+  epic-13: done
+  epic-13-retrospective: optional
+
+  epic-14: done
+  epic-14-retrospective: optional
+
+  epic-15: done
+  epic-15-retrospective: optional
+
+  # E16 -- ADR-0027 shipped (snapshots_live.ex, plan versions)
+  epic-16: done
+  epic-16-retrospective: optional
+
+  # E17 -- #588-#591 closed and merged to main; tracker #338 still open
+  epic-17: done
+  17-1-corporate-actions-decision-adr: done
+  17-2-book-a-split-as-a-ledger-event: done
+  17-3-continuous-charts-across-a-split: done
+  17-4-guided-split-wizard: done
+  epic-17-retrospective: optional
+
+  # E18 -- #600-#602/#605 closed and merged to main; tracker #603 still open
+  epic-18: done
+  18-1-stable-identity-decision-adr: done
+  18-2-strategy-configuration-survives-a-re-import: done
+  18-3-read-only-holdings-reconcile: done
+  epic-18-retrospective: optional
+
+  # E19 -- gate #612 open, ADR-0031 on PR #613 awaiting owner sign-off
+  epic-19: in-progress
+  19-1-tax-statement-snapshot-decision-adr: review
+  19-2-tax-parameters-taxpayer-profile-and-configured-allowance-orders: backlog
+  19-3-record-a-tax-statement-snapshot: backlog
+  19-4-a-recorded-snapshot-checks-its-own-arithmetic: backlog
+  19-5-trim-budget-over-api-and-mcp: backlog
+  19-6-entry-surface-and-documentation: backlog
+  19-7-forward-projection-and-tax-bucket: backlog
+  epic-19-retrospective: optional
