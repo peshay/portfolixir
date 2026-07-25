@@ -84,7 +84,7 @@ This document provides the complete epic and story breakdown for Portfolixir, de
 - FR-35: Read-only holdings reconciliation against an external position list (preview-style compare, no write-back). Boundary pinned NOW, not deferred to the ADR: the external list arrives ONLY as user-supplied paste/file content — no network acquisition, no credential storage, the external list is never persisted (NFR-4). The reconcile response embeds resolution guidance ("resolve a difference by booking the missing transaction of the correct kind; balance snapshots and unpriced deliveries are last resorts that distort cost basis") so the operating LLM is steered away from the fix-it hammer at the moment of temptation; FR-32's doc story extends the same warning into the `set_balance` and delivery tool descriptions. The decision rides as a SECTION of the FR-34 ADR (one owner decision session, not a separate gate) and must explicitly re-evaluate whether FR-30 plus the established agent reconcile procedure already covers the need — "close as documented procedure, no feature" is an acceptable outcome.
 
 **I. Tax position recording (added 2026-07-25, source: owner design conversation; decision gate ADR-0031)**
-- FR-36: The broker's German capital-gains tax block — the loss pots (Aktien / Sonstige), the certified prior-year carry-forward, the Freistellungsauftrag granted/used, the Quellensteuertopf and credited foreign withholding, and the withheld Kapitalertragsteuer / Solidaritätszuschlag / Kirchensteuer — is **recorded** as a dated snapshot per (institution, holder, tax year, as-of), never derived. **The derivation is structurally impossible and the ADR must say so:** Portfolixir folds cost basis as a running average while German taxation mandates strict FIFO, so any multi-tranche position that was partially sold yields a systematically wrong — and invisibly wrong — pot; and Teilfreistellung, Vorabpauschale, chronological allowance consumption, and prior-year carry-forward are not present in transaction data at all. Each recorded snapshot is validated at read time against the closed § 32d Abs. 1 EStG withholding formula `(e − 4q)/(4 + k)` plus the 5.5 % Soli and church-tax ratios, as an **advisory** transcription-error check inside a `max(1.00, 0.05 %)` band that never blocks a save (Teilfreistellung applied at source and mid-year allowance changes legitimately break the identity). Derived and displayed with its as-of date and staleness: `tax_free_trim_budget = loss_pot_equities + (allowance_granted − allowance_used)` — the volume of realised equity gain still free of Kapitalertragsteuer, which is decision input only and stays inside the ADR-0023 display-only boundary. The `holder` key exists so a second taxpayer's depot can be compared for allowance optimisation. **Deferred to its own gate:** forward projection from the last snapshot and the `tax_bucket` security attribute (`equity`/`other`/`tax_free`) it needs — a projection may never be labelled as a pot balance, only as an estimate with its drift basis stated. Scope lock: no tax-lot/FIFO tracking, no liability computation, nothing filed or transmitted, not tax advice.
+- FR-36: The broker's German capital-gains tax block — the loss pots (Aktien / Sonstige), the certified prior-year carry-forward, the Freistellungsauftrag granted/used, the Quellensteuertopf and credited foreign withholding, and the withheld Kapitalertragsteuer / Solidaritätszuschlag / Kirchensteuer — is **recorded** as a dated snapshot per (institution, holder, tax year, as-of), never derived. **The derivation is structurally impossible and the ADR must say so:** Portfolixir folds cost basis as a running average while German taxation mandates strict FIFO, so any multi-tranche position that was partially sold yields a systematically wrong — and invisibly wrong — pot; and Teilfreistellung, Vorabpauschale, chronological allowance consumption, and prior-year carry-forward are not present in transaction data at all. Each recorded snapshot is validated at read time against the closed § 32d Abs. 1 EStG withholding formula `(e − 4q)/(4 + k)` plus the Soli and church-tax ratios, as an **advisory** transcription-error check inside a `max(1.00, 0.05 %)` band that never blocks a save (Teilfreistellung applied at source and mid-year allowance changes legitimately break the identity). **Nothing statutory is hardcoded and nothing personal is assumed:** rates and the Sparer-Pauschbetrag ceilings live in a seeded, operator-editable `tax_parameters` table keyed by `(jurisdiction, tax_year)` — the allowance was 801/1.602 € through 2022 and 1.000/2.000 € from 2023, so a hardcoded ceiling cannot even validate a pre-2023 statement; the taxpayer's own situation lives in an **effective-dated** `tax_profiles` table keyed by `(holder, valid_from)` carrying church-tax liability (**default: not liable**), the rate (8 % in Bavaria and Baden-Württemberg, 9 % elsewhere) and single/joint assessment, so that moving state, marrying, or joining/leaving a church takes effect from a date and never retroactively rewrites what a past statement reconstructs to — the snapshot freezes the resolved rate on its own row. The Freistellungsauftrag is **configured**, not only observed: an `allowance_orders` table per `(holder, institution, tax_year)` records what the taxpayer instructed each bank, which the checks compare against what the bank reports it applied (C7) and against the year's statutory ceiling across all banks (C8). Derived and displayed with its as-of date and staleness: `tax_free_trim_budget = loss_pot_equities + (allowance_granted − allowance_used)` — the volume of realised equity gain still free of Kapitalertragsteuer, which is decision input only and stays inside the ADR-0023 display-only boundary. The `holder` key exists so a second taxpayer's depot can be compared for allowance optimisation. **Deferred to its own gate:** forward projection from the last snapshot and the `tax_bucket` security attribute (`equity`/`other`/`tax_free`) it needs — a projection may never be labelled as a pot balance, only as an estimate with its drift basis stated. Scope lock: no tax-lot/FIFO tracking, no liability computation, nothing filed or transmitted, not tax advice.
 
 **FR-23 sharpened (no new FR):** corporate actions are **ledger events first, wizard second** (reframed 2026-07-18 after stakeholder round table + inversion analysis: a UI wizard is unreachable for the MCP-first operator, and the event representation IS projection semantics). The E17 ADR must decide the event representation (first-class kind vs. composed existing kinds), its projection semantics, and quote-history continuity as APPEND-ONLY adjustment factors (never mutated history — NFR-2), and mandates API/MCP booking + read parity (AR-11) in the acceptance criteria. The guided wizard (split, rename/ISIN change, merger/spin-off) is the subsequent UI layer. Scope lock: splits ONLY in the first ADR slice; rename/ISIN-change (cross-referenced by the FR-34 ADR) and merger/spin-off are follow-on slices. Priority raised from "later" to "next": a split silently distorts every chart and holdings figure, and no delivery pair can compensate for that. The phantom-holdings defect formerly motivating urgency here was a projection bug, not a missing feature — fixed 2026-07-18 (see reconciliation below), NOT part of this feature scope.
 
@@ -728,7 +728,13 @@ invisibly so.
 The epic therefore **records** the statement block as a dated snapshot per
 (institution, holder, tax year, as-of) and validates it against the closed
 § 32d Abs. 1 EStG formula — a self-checking transcription at nearly zero extra
-cost. Forward projection and the `tax_bucket` security attribute it needs are
+cost. Around it sit three configuration tables that exist because none of this
+is constant: year-scoped statutory `tax_parameters` (the Sparer-Pauschbetrag
+alone changed in 2023, so constants cannot validate an older statement), an
+effective-dated `tax_profiles` row per taxpayer (church tax defaults to **not
+liable**; state, marital status and church membership change on a date and must
+not rewrite the past), and configured `allowance_orders` so the Freistellungs-
+auftrag is comparable against what the bank actually applied. Forward projection and the `tax_bucket` security attribute it needs are
 deliberately OUT of this epic and behind their own gate. Epic ACs: every write
 journaled (FR-28/AR-1), every money column Decimal (ADR-0003), API/MCP parity
 (AR-11), EN/DE documentation, and no number ever presented as a computed pot
@@ -750,11 +756,30 @@ plausible-looking derivations.
 **Given** the FIFO-vs-average-cost disqualifier and the four inputs absent from transaction data
 **When** ADR-0031 is reviewed
 **Then** it fixes the `tax_statement_snapshots` schema (identity keys, the eleven money columns, the magnitude sign convention, the uniqueness rule) and the `Portfolixir.Tax` context boundary including the `AGENTS.md` Active-Architecture amendment
+**And** it fixes the configuration layer that has to survive time: year-scoped `tax_parameters`, effective-dated `tax_profiles` with church-tax liability defaulting to not-liable, and configured `allowance_orders`
 **And** it fixes the hard-vs-advisory split of the consistency rules and the tolerance band
 **And** it names forward projection and `tax_bucket` as deferred behind a separate gate
 **And** the owner signs off in one session
 
-##### Story 19.2: Record a tax-statement snapshot
+##### Story 19.2: Tax parameters, taxpayer profile and configured Freistellungsaufträge
+
+As a local portfolio maintainer,
+I want the statutory numbers and my own tax situation to be data with a
+validity period rather than constants in the code,
+So that a statement from an earlier year still validates correctly and a change
+in my situation does not rewrite the past.
+
+**Acceptance Criteria:**
+
+**Given** the seeded `tax_parameters` rows per (jurisdiction, tax_year)
+**When** the consistency engine evaluates a snapshot
+**Then** it receives the year's rates and Sparer-Pauschbetrag ceilings as an argument and hardcodes nothing — a pre-2023 statement validates against 801/1.602 €, a 2023+ statement against 1.000/2.000 €
+**And** `tax_profiles` is effective-dated per (holder, valid_from): church-tax liability defaults to **not liable**, the rate is 0 in that case (DB CHECK), and single/joint assessment selects the ceiling
+**And** a snapshot resolves the profile in force at its `as_of` and freezes the resulting church-tax rate on its own row, so later profile edits change future prefills and never a recorded transcription (asserted by test)
+**And** `allowance_orders` records the instructed amount per (holder, institution, tax_year)
+**And** all four write paths are journaled, including `tax_parameters` — a rate edit changes every finding for that year and must be traceable
+
+##### Story 19.3: Record a tax-statement snapshot
 
 As a local portfolio maintainer,
 I want to record the tax block of a broker statement with its as-of date,
@@ -769,7 +794,7 @@ instead of a PDF I have to find again.
 **And** the write is journaled with the acting actor, enforced by the journal trigger (an unjournaled write fails loudly)
 **And** a negative input and an `as_of` in the future are rejected with a message naming the convention — never silently normalised
 
-##### Story 19.3: A recorded snapshot checks its own arithmetic
+##### Story 19.4: A recorded snapshot checks its own arithmetic
 
 As a local portfolio maintainer,
 I want a transposed digit or a stale statement to surface when I record it,
@@ -782,10 +807,12 @@ So that a wrong number does not sit in the app looking correct.
 **Then** `allowance_used > allowance_granted` and church tax withheld at a zero church-tax rate are hard changeset errors
 **And** the withheld Kapitalertragsteuer, Solidaritätszuschlag and Kirchensteuer are reconstructed via `(e − 4q)/(4 + k)`, `× 5.5 %` and `× k`, with disagreement outside `max(1.00, 0.05 %)` reported as an advisory that names both numbers and the gap
 **And** a later as-of reporting lower year-to-date withheld tax or allowance use raises the monotonicity advisory
+**And** a recorded `allowance_granted` that disagrees with the configured `allowance_orders` row raises the instruction-vs-reality advisory (C7)
+**And** configured allowance orders summing above the year's statutory ceiling for the profile's assessment type raise the budget advisory (C8)
 **And** no advisory blocks the save, and no advisory proposes a corrected value
 **And** the engine is pure — no Repo, no clock, no config (AR-2) — with exact-Decimal fixtures
 
-##### Story 19.4: Trim budget over API and MCP
+##### Story 19.5: Trim budget over API and MCP
 
 As the operating LLM agent,
 I want the recorded snapshots and the derived trim budget over the API and MCP,
@@ -799,7 +826,7 @@ So that I can size a trim without scraping PDFs.
 **And** the tool description states that the pots are recorded, not derived, and why (FIFO), so the agent does not attempt to compute them from holdings
 **And** create/update/delete reach full API/MCP parity (AR-11) with tests on synthetic fixtures only
 
-##### Story 19.5: Entry surface and documentation
+##### Story 19.6: Entry surface and documentation
 
 As a local portfolio maintainer,
 I want to enter and review the snapshots in the app,
@@ -814,7 +841,7 @@ So that recording a new statement is a two-minute job once a year.
 **And** consistency advisories are shown as fact-plus-remedy, terse and impersonal, with domain terms behind ⓘ tooltips (UX-DR11)
 **And** `product-documentation.md` and its German mirror gain a section stating that these numbers are recorded, that they are not tax advice, and that the recorded statement remains the authority
 
-##### Story 19.6 (deferred, separate gate): Forward projection and `tax_bucket`
+##### Story 19.7 (deferred, separate gate): Forward projection and `tax_bucket`
 
 As a local portfolio maintainer,
 I want an estimate of where the pots stand since the last statement,

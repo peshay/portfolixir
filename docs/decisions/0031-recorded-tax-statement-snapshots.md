@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0031: recorded tax-statement snapshots — capture the broker's tax pots, never derive them"
-description: Decision to record German capital-gains tax pot balances (Verlustverrechnungstöpfe, Freistellungsauftrag, Quellensteuertopf, withheld taxes) as manually entered per-institution, per-tax-year, as-of snapshots in a new Portfolixir.Tax context, validated at read time against the statutory §32d EStG withholding formula as an advisory consistency check, with any forward projection deferred to a separate, explicitly-labelled-as-estimate slice.
+description: Decision to record German capital-gains tax pot balances (Verlustverrechnungstöpfe, Freistellungsauftrag, Quellensteuertopf, withheld taxes) as manually entered per-institution, per-tax-year, as-of snapshots in a new Portfolixir.Tax context, validated at read time against the statutory §32d EStG withholding formula as an advisory consistency check, with statutory rates and allowance ceilings held as year-scoped parameters, the taxpayer's church-tax liability and assessment type as an effective-dated profile, the Freistellungsauftrag configured per institution, and any forward projection deferred to a separate, explicitly-labelled-as-estimate slice.
 ---
 
 # ADR-0031: recorded tax-statement snapshots — capture the broker's tax pots, never derive them
@@ -108,7 +108,7 @@ Identity and provenance:
 | `tax_year` | `:integer`, NOT NULL | CHECK `BETWEEN 1990 AND 2200` (int4 bound discipline, cf. ADR-0028 fix round). |
 | `as_of` | `:date`, NOT NULL | The statement's stated position date. Not in the future — validated against a `today` injected by the context shell, never a clock inside the schema (AR-2). |
 | `source` | `:string`, NOT NULL, default `"manual"` | `manual` today; `pdf_import` reserved for [ADR-0021](0021-pdf-transaction-intake.html) intake. `validate_inclusion` + DB CHECK. |
-| `church_tax_rate` | `:decimal(6,4)`, NOT NULL, default `0` | `k` in the §32d formula below. CHECK `IN (0, 0.08, 0.09)`. |
+| `church_tax_rate` | `:decimal(6,4)`, NOT NULL, default `0` | `k` in the §32d formula below; `0` means not liable, which is the default. CHECK `>= 0 AND < 1` — a *range*, not a value list, because the rate is not a constant of nature (see §3). Prefilled from the holder's tax profile in force at `as_of`, then frozen on the row. |
 | `note` | `:text`, nullable | Free-form provenance ("page 4 of the annual report"). |
 
 The **eleven recorded money fields**, each `:decimal, precision: 20, scale: 6,
@@ -150,7 +150,76 @@ statement's sign so the recorded row is visually comparable to the paper.
 **Nothing about a real position, security, or transaction is stored here.** The
 row is a transcription of an aggregate statement block.
 
-### 3. Consistency checks — the free win
+### 3. Configuration that changes over time — parameters, profile, allowance orders
+
+Tax rates, statutory allowances and a person's own tax situation are **not
+constants**. They change by legislation, by where the taxpayer lives, and by
+what happens in their life. Two consequences follow, and both are binding.
+
+**Nothing statutory is hardcoded in the engine.** A new table
+`tax_parameters`, keyed by `(jurisdiction, tax_year)` and unique on that pair,
+carries the numbers the consistency checks need:
+
+| Column | Meaning | German values today |
+| --- | --- | --- |
+| `jurisdiction` | ISO country code; `"DE"` is the only value today | — |
+| `tax_year` | the year the row governs | — |
+| `capital_gains_tax_rate` | Kapitalertragsteuer | `0.25` |
+| `solidarity_surcharge_rate` | Solidaritätszuschlag on the withheld KESt | `0.055` (unchanged for Abgeltungsteuer by the 2021 partial abolition) |
+| `saver_allowance_single` | Sparer-Pauschbetrag, single assessment | `801.00` through 2022, `1000.00` from 2023 |
+| `saver_allowance_joint` | Sparer-Pauschbetrag, joint assessment | `1602.00` through 2022, `2000.00` from 2023 |
+| `church_tax_rates` | the rates in force, for prefill and an advisory | `{0.08, 0.09}` — 8 % in Bavaria and Baden-Württemberg, 9 % elsewhere |
+
+Rows are **seeded** with the known German history and are editable by the
+operator, so a rate change never requires a code release. The allowance history
+is not academic: recording a statement for a year before 2023 against a
+hardcoded 1.000 € would flag every correct transcription as inconsistent.
+`Tax.Consistency` takes the resolved parameter row as an **argument** — it stays
+a pure engine with no config lookup inside (AR-2). Rows for a closed tax year
+are not edited; a legislative correction is a new row for the affected year.
+
+**The taxpayer's own situation is effective-dated.** A second table
+`tax_profiles`, keyed by `(holder, valid_from)`, records what is true of a
+person from a date onwards:
+
+| Column | Meaning |
+| --- | --- |
+| `holder` | the taxpayer label, same key as the snapshot |
+| `valid_from` | `:date`, NOT NULL — the row governs from here until the next row's `valid_from` |
+| `jurisdiction` | `"DE"` today |
+| `church_tax_liable` | `:boolean`, NOT NULL, default `false` — **not liable is the default**; no church tax is the plain, unremarkable case |
+| `church_tax_rate` | `:decimal(6,4)`, NOT NULL, default `0`; CHECK `>= 0 AND < 1`, and CHECK `church_tax_liable OR church_tax_rate = 0` |
+| `assessment_type` | `single` or `joint` — selects which `saver_allowance_*` ceiling applies |
+
+Effective dating is the point, not decoration: moving between federal states
+changes 9 % to 8 %, marrying changes the assessment type and doubles the
+allowance ceiling, joining or leaving a church changes liability. Each of those
+happens on a date, and **none of them may retroactively rewrite what a past
+statement reconstructs to**. A snapshot resolves the profile in force at its
+`as_of` and freezes the resulting `church_tax_rate` onto its own row (§2), so
+editing a profile later changes future prefills and never a recorded
+transcription. This is the same as-of discipline quotes and exchange rates
+already follow.
+
+**The Freistellungsauftrag is configured, not only observed.** The statutory
+allowance is one budget per taxpayer that they distribute across their banks by
+instruction. A third table `allowance_orders`, unique on
+`(holder, institution, tax_year)`, records that instruction:
+
+| Column | Meaning |
+| --- | --- |
+| `holder`, `institution`, `tax_year` | the key |
+| `amount_granted` | `:decimal(20,6)`, NOT NULL, CHECK `>= 0` — the amount instructed to that bank |
+| `note` | free-form |
+
+This is deliberately a **separate axis** from the snapshot's recorded
+`allowance_granted`: the order is what the taxpayer instructed, the snapshot is
+what the bank reports it applied. Holding both is what makes the comparison in
+§4 possible — a divergence means either the instruction never landed or the
+configuration is stale, and either way it is worth knowing before the allowance
+is silently missed for a year.
+
+### 4. Consistency checks — the free win
 
 The statement block is internally reconstructable, because withholding follows
 the closed formula of **§ 32d Abs. 1 EStG**:
@@ -158,15 +227,23 @@ the closed formula of **§ 32d Abs. 1 EStG**:
 ```text
 e = taxable_income − allowance_used        (assessment base after allowance)
 q = withholding_tax_credited               (creditable foreign withholding)
-k = church_tax_rate                        (0, 0.08 or 0.09)
+k = church_tax_rate                        (0 when not liable — the default)
+s = solidarity_surcharge_rate              (from tax_parameters for the year)
 
 expected KESt = (e − 4q) / (4 + k)
-expected Soli = capital_gains_tax_withheld × 0.055
+expected Soli = capital_gains_tax_withheld × s
 expected KiSt = capital_gains_tax_withheld × k
 ```
 
-With `k = 0` this collapses to the familiar `e × 25 % − q`. Worked synthetic
-example:
+`k` and `s` are **resolved, never hardcoded**: `k` from the snapshot's own
+frozen rate (§2), `s` and the allowance ceilings from the `tax_parameters` row
+for `(jurisdiction, tax_year)` (§3). The `4` in the formula is the statute's
+own algebra for the 25 % rate, so a future change of the capital-gains rate
+means a new formula clause keyed to the year, not an edited constant — the ADR
+that changes it is the place to decide that.
+
+With `k = 0` — no church tax, the default case — this collapses to the familiar
+`e × 25 % − q`. Worked synthetic example:
 
 ```text
 taxable_income        12,000.00
@@ -189,6 +266,8 @@ config — AR-2) returning a list of findings for a snapshot:
 | C4 | advisory | recorded `solidarity_surcharge_withheld` vs. expected Soli. |
 | C5 | advisory | recorded `church_tax_withheld` vs. expected KiSt. |
 | C6 | advisory | year-to-date monotonicity: for the same `(institution, holder, tax_year)`, a later `as_of` must not report a lower `capital_gains_tax_withheld` or `allowance_used`. Catches "recorded the wrong year's statement". |
+| C7 | advisory | **instruction vs. reality:** the snapshot's recorded `allowance_granted` matches the `allowance_orders` row for the same `(holder, institution, tax_year)`. A divergence means the instruction never landed at the bank, or the configuration is stale. |
+| C8 | advisory | **allowance budget:** `SUM(allowance_orders.amount_granted)` over `(holder, tax_year)` does not exceed the `saver_allowance_single` / `saver_allowance_joint` ceiling for that year, selected by the profile's `assessment_type`. Over-allocating across banks is an error the taxpayer must correct with the banks — the app states it, it does not fix it. Advisory rather than hard, because the recorded set of institutions may be incomplete and a planned redistribution can legitimately overlap for a moment. |
 
 **Tolerance band** for the advisory rules: `max(1.00, 0.05 % of expected)` in the
 statement currency. Withholding is rounded to cents on every individual
@@ -206,7 +285,7 @@ Findings are computed **at read time** and are not stored
 ([ADR-0012](0012-asset-class-inference-at-read-time.html) precedent). Write
 functions keep the plain `{:ok, struct}` / `{:error, changeset}` contract.
 
-### 4. Derived read model
+### 5. Derived read model
 
 Two figures are derived from a snapshot, both carrying the snapshot's `as_of`
 and its staleness:
@@ -228,10 +307,19 @@ institution. Its presentation is bound by two honesty rules:
   [ADR-0023](0023-drift-sign-and-display-only-rebalancing-hints.html) boundary
   holds unchanged: nothing here creates, stores, or transmits an order.
 
+Across institutions, the same two figures roll up per `(holder, tax_year)` —
+the loss pots summed, and the allowance budget taken from the year's statutory
+ceiling for the profile's `assessment_type` minus the consumption the snapshots
+report. That roll-up is what makes cross-taxpayer allowance comparison a
+listing rather than a project, and it is only correct when a snapshot exists
+for every institution: the roll-up therefore always states **which institutions
+it covers and as of when**, and is marked incomplete when an `allowance_orders`
+row exists for an institution with no snapshot for that year.
+
 Placement next to the allocation drift is a named follow-on slice, not part of
 the foundation.
 
-### 5. Write path, API and MCP
+### 6. Write path, API and MCP
 
 Writes follow the established shape exactly — `Actor` as the first positional
 argument, `Ecto.Multi` with `Journal.record/3` in the same DB transaction
@@ -246,20 +334,40 @@ Tax.delete_statement_snapshot(actor, snapshot_or_id)
 Tax.list_statement_snapshots(opts)      # filter: institution, holder, tax_year
 Tax.fetch_statement_snapshot(id)
 Tax.latest_statement_snapshot(institution, holder, tax_year)
+
+Tax.list_parameters(opts) / Tax.fetch_parameters(jurisdiction, tax_year)
+Tax.upsert_parameters(actor, attrs)
+
+Tax.list_profiles(holder) / Tax.profile_in_force(holder, on_date)
+Tax.create_profile(actor, attrs) / Tax.update_profile(actor, profile, attrs)
+
+Tax.list_allowance_orders(opts)
+Tax.put_allowance_order(actor, attrs) / Tax.delete_allowance_order(actor, order)
 ```
 
-Per **AR-11**, the JSON API gets `/api/v1/tax/statement-snapshots` (list,
-create, show, update, delete) behind `ApiAuthPlug`, serialized through the
+`tax_parameters` is **statutory reference data, not financial state** — it is
+seeded, jurisdiction-wide, and describes the law rather than the maintainer's
+money. It is journaled anyway, because an edit to a rate changes what every
+consistency finding for that year says, and an unexplained flip of findings is
+exactly the kind of thing the journal exists to make traceable.
+`tax_profiles` and `allowance_orders` are the taxpayer's own configuration and
+are journaled on the same grounds as any other financial write.
+
+Per **AR-11**, the JSON API gets `/api/v1/tax/statement-snapshots`,
+`/api/v1/tax/parameters`, `/api/v1/tax/profiles` and
+`/api/v1/tax/allowance-orders` (list, create, show, update, delete) behind
+`ApiAuthPlug`, serialized through the
 shared `Api.V1.JSON` presenter with every financial decimal as a
 `Decimal.to_string(:normal)` string, and the MCP companion gets matching
-`portfolixir.tax_snapshots.{list,create,update,delete}` tools with hand-written
+`portfolixir.tax_snapshots.*`, `portfolixir.tax_parameters.*`,
+`portfolixir.tax_profiles.*` and `portfolixir.tax_allowance_orders.*` tools with hand-written
 JSON Schema plus parallel zod validators, calling the JSON API only
 ([ADR-0002](0002-thin-mcp-over-json-api.html)). Consistency findings and the
 derived read model ride on the read payloads. The MCP tool description states
 the recorded-not-derived nature and the FIFO reason, so an operating LLM does
 not attempt to compute the pots from holdings.
 
-### 6. Explicitly deferred — forward projection (Layer B)
+### 7. Explicitly deferred — forward projection (Layer B)
 
 Projecting the pots forward from the last snapshot (booked `tax` /`tax_refund`
 amounts plus a coarse per-bucket gain estimate) is **not** part of this
@@ -277,7 +385,7 @@ If it is ever built, two constraints are binding from here:
 - it is a separate ADR with its own decision gate, because it is the point at
   which a computed number re-enters the picture.
 
-### 7. Scope lock
+### 8. Scope lock
 
 This feature records numbers and checks their internal arithmetic. It does not:
 
@@ -304,6 +412,17 @@ This feature records numbers and checks their internal arithmetic. It does not:
   feature; if one ever lands, these become FKs in a follow-up migration.
   The advisory band cannot detect a statement transcribed *correctly* for the
   wrong period beyond the C6 monotonicity rule.
+- **Configuration cost — accepted.** The feature is four tables, not one:
+  the snapshot plus year-scoped statutory parameters, an effective-dated
+  taxpayer profile, and the allowance orders. That is more than the "cheap"
+  first sketch, and it is the minimum that survives contact with time. The
+  alternative — constants in the engine — cannot record a pre-2023 statement
+  correctly, cannot represent a taxpayer who is not liable for church tax
+  without a special case, and silently rewrites the meaning of past records
+  whenever the maintainer's situation changes. Seeded reference data is its
+  own small risk: a wrong `tax_parameters` row makes every finding for that
+  year wrong, which is why those writes are journaled and why the seed carries
+  the German history rather than leaving the operator to type it.
 - **Jurisdiction coupling — the real trade-off.** These are the first columns in
   Portfolixir that encode one country's tax law. That is accepted because the
   alternative (a generic "tax attributes" bag) would be unvalidatable, and the
