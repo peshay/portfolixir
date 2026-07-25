@@ -41,18 +41,26 @@ while staying a local, auditable, decimal-correct tool.
 
 - **PP is a migration bridge, not the destination.** Long-term we replace it.
 
-- **Working hypothesis about German-bank source data, unverified (OD-2):**
-  the only structured CSV export offered by a typical German bank is an
-  **IST/holdings snapshot** (positions + current value), and transaction-grade
-  data — purchase price, shares & date, fees, taxes on sale, dividends — is
-  reachable only from PDFs (Wertpapierabrechnung, Steuerreport). If that holds,
-  a generic CSV mapper cannot replace PP for such banks and only helps brokers
-  that export structured trades (IBKR Flex, Trade Republic, Scalable).
+- **Source-data reality, confirmed (OD-2, closed 2026-07-25 by operator
+  observation):** the structured CSV export offered by the operator's German
+  bank contains **holdings only — no trades**. Transaction-grade data
+  (purchase price, shares & date, fees, taxes on sale, dividends) is not in
+  the CSV and is reachable only from PDFs (Wertpapierabrechnung,
+  Steuerreport). A generic CSV mapper therefore cannot replace PP for such
+  banks; it helps only brokers that export structured trades (IBKR Flex,
+  Trade Republic, Scalable).
 
-  **This is a hypothesis, not an established fact, and it is load-bearing.**
-  It is the sole justification offered for Feature D — and ADR-0021 was
-  *accepted*, and AGENTS.md *amended*, before OD-2 was closed. Verifying it
-  costs one export click and an afternoon. See the re-open trigger in §6.
+  Two consequences follow. **Feature D's justification holds** — this was the
+  premise ADR-0021's Option A rested on, and it survived contact with reality,
+  so the re-open trigger does not fire. **Feature B has a real source** — the
+  bank's CSV *is* a holdings snapshot, which is exactly what the reconcile
+  path consumes.
+
+  *Process note, recorded rather than smoothed over: ADR-0021 was accepted and
+  AGENTS.md amended before this verification happened. The answer came back
+  favourable; the sequencing was still backwards, and the re-open trigger
+  below exists so that a future decision of this shape is not taken the same
+  way.*
 
 - **Considered and not chosen: the official broker REST API.** The founding
   PRD's FR-17 already commits to "comdirect: depot positions **and
@@ -62,15 +70,18 @@ while staying a local, auditable, decimal-correct tool.
   arguments for still doing PDF intake:
   - **History depth.** An API is unlikely to reach back far enough to
     reconstruct a full transaction history; PDFs of old statements do.
-    `[ASSUMPTION]` — part of OD-2.
+    `[ASSUMPTION]` — still unverified; the CSV half of OD-2 is closed, the API
+    half is not.
   - **Unattended operation.** PhotoTAN may force interactive sessions
     (founding PRD OQ-6), so an API path may not run unattended.
   - **Gate timing.** The API sits behind the Phase 3 hard gate, which also
     requires built-in web-UI auth (founding PRD OQ-8); PDF intake does not.
 
-  These are arguments, not yet evidence. If OD-2 shows the CSV or the official
-  API carries transaction substance, the cost/benefit that selected Option A
-  inverts and the choice is re-litigated.
+  The CSV route is now settled: it carries no trades, so it cannot displace
+  Feature D. The **API route remains open** but is not urgent — it lives
+  behind the Phase 3 gate either way. If it later turns out to carry deep
+  transaction history and can run unattended, Feature D's scope is worth
+  revisiting before more per-broker parsers are written.
 
 - **Owner decision, recorded:** in-app broker-PDF intake is **adopted**
   (ADR-0021, Accepted 2026-06-21, Option A), sandboxed / text-extraction-only /
@@ -104,8 +115,9 @@ backup/restore (Feature E), PP-import hardening (Feature F).
 
 - **binary `.portfolio` workspace intake — hard out**, permanently
   (ADR-0021, AGENTS.md)
-- **PP XML — gated**, requires ADR + AGENTS.md amendment before any
-  implementation work (#333; founding PRD OQ-1a)
+- **PP XML — parked and gated.** No priority (owner decision 2026-07-25;
+  JSON v1 is the live data base). If revived, requires ADR + AGENTS.md
+  amendment before any implementation work (#333; founding PRD OQ-1a)
 - live broker/bank sync, trading, orders, payments (founding PRD Phase 3
   governs sync separately)
 - external LLM calls *from the app*
@@ -216,6 +228,10 @@ fields, without per-broker code.
 ### Feature B — External position list for reconciliation (IST only)
 
 Compare a bank's snapshot against derived holdings. **This is not an import.**
+
+The input source is confirmed: the operator's bank exports a holdings CSV and
+nothing else (OD-2), so this is the one thing that export is actually good
+for.
 
 Three representations were considered for storing a snapshot and all are
 closed: storing positions is forbidden (holdings are never stored, ADR-0004,
@@ -376,11 +392,13 @@ preview-then-confirm.
   one transaction and lists the skipped row with a reason; re-importing after
   correcting the source inserts exactly that row.
 
-- **FR-DI-21 PP XML — gated.** `[ASSUMPTION]` Evaluate PP XML full import
-  (#333) for richer master data, classifications and quote history.
-  **Hard gate:** PP XML is on AGENTS.md's forbidden document-intake list and
-  requires the ADR + AGENTS.md amendment (founding PRD OQ-1a) before any
-  implementation work. Evaluation is allowed; building is not.
+- **FR-DI-21 PP XML — parked and gated.** **No priority** (owner decision
+  2026-07-25): **PP JSON v1 is the operator's live data base** and has proven
+  the better path, so richer XML master data, classifications and quote
+  history (#333) buy nothing right now. May return to the list later.
+  **Hard gate if it does:** PP XML is on AGENTS.md's forbidden
+  document-intake list and requires the ADR + AGENTS.md amendment (founding
+  PRD OQ-1a) before any implementation work.
 
 ### Follow-up notes (not in scope, no requirement)
 
@@ -397,21 +415,30 @@ explicitly asking for nothing.)*
   no-broker-PDF rule. §2 and §9 are written in past tense against this; there
   is no decision left to schedule.
 
-- **OD-2 — the critical one.** Verify empirically what a typical German bank
-  exports as CSV (snapshot only, or any transaction substance), and whether
-  its official API carries transaction history and how far back. This is the
-  evidence base for §2, for Feature A's reach, for Feature B's existence, and
-  above all for ADR-0021.
-  **Re-open trigger:** if the CSV or the official API carries transaction
-  substance, ADR-0021's Option A/B/API choice is re-litigated **before the
-  first Feature D story**.
-  **Handling rule for the verification file:** it is inspected **locally,
-  never committed**. Only a **synthetic fixture derived from its structure**
-  enters the repository — no real statement, in any form, at any time.
+- **OD-2 — RESOLVED (2026-07-25, operator observation).** The bank's
+  structured CSV export contains **holdings only, no trades**. Feature D's
+  premise holds, Feature A's reach for such banks is confirmed limited, and
+  Feature B has a real source. The re-open trigger did not fire.
+  **Still open, split out:** whether the official broker REST API carries deep
+  transaction history and can run unattended (founding PRD FR-17, OQ-6). Not
+  urgent — it sits behind the Phase 3 gate — but if it later proves rich and
+  unattended, revisit Feature D's scope before writing more per-broker
+  parsers.
+  **Handling rule, standing:** any real statement or export used for
+  verification is inspected **locally and never committed**. Only a
+  **synthetic fixture derived from its structure** enters the repository.
 
-- **OD-3.** Is a saved mapping (FR-DI-4) MVP or later? The answer changes the
-  data model and FR-DI-6's re-import contract, so it is decided before Feature
-  A starts rather than during it.
+- **OD-3 — open, no owner preference yet (2026-07-25).** Is a saved mapping
+  (FR-DI-4) MVP or later? The owner has no current view, and nothing is
+  blocked: Feature A sits late in the phasing. What will decide it, when the
+  time comes:
+  - **For MVP:** without saved mappings every import of the same source needs
+    full re-mapping, which is the friction that pushes a user back to PP.
+  - **For later:** saved mappings make "re-import with a changed mapping" the
+    designed workflow, and that is precisely the case that changes resolved
+    ids and stresses FR-DI-6's dedup layer. Shipping without them keeps the
+    first version's idempotency surface smaller.
+  Decide at Feature A kickoff, not before.
 
 - **OD-4.** Write authorization model for Feature C: does the shared bearer
   token stay sufficient, or do writes need a distinct token or scope? Bound to
@@ -420,13 +447,13 @@ explicitly asking for nothing.)*
 **Assumption register.** Load-bearing means: if this is wrong, a feature
 changes shape or disappears.
 
-| `[ASSUMPTION]` | Where | Load-bearing | What breaks if false |
+| `[ASSUMPTION]` | Where | Load-bearing | Status / what breaks if false |
 |---|---|---|---|
-| German-bank CSV is snapshot-only; transactions are PDF-locked | §2, OD-2 | **Yes** | Feature D's justification, and with it ADR-0021's accepted option |
-| Official broker API lacks history depth | §2 | **Yes** | Same as above — the API becomes the cheaper path |
-| Saved mappings are wanted | FR-DI-4, OD-3 | **Yes** | Data model and re-import contract both change |
-| Snapshot seeding is wanted at all | FR-DI-8 | Moderate | Feature B reduces to reconciliation only |
-| PP XML is worth evaluating | FR-DI-21 | No | Evaluation is cheap; the gate blocks building either way |
+| German-bank CSV is snapshot-only; transactions are PDF-locked | §2, OD-2 | **Yes** | **CONFIRMED 2026-07-25** — holdings only, no trades. No longer an assumption |
+| Official broker API lacks history depth | §2 | Moderate | Still open. If false, the API is the cheaper path and Feature D's scope shrinks — but it sits behind the Phase 3 gate, so nothing is blocked today |
+| Saved mappings are wanted | FR-DI-4, OD-3 | **Yes** | Open, deliberately undecided (OD-3). Data model and re-import contract both change; decided at Feature A kickoff |
+| Snapshot seeding is wanted at all | FR-DI-8 | Moderate | Open. If not wanted, Feature B is reconciliation only — which the confirmed OD-2 answer makes the more likely shape |
+| PP XML is worth evaluating | FR-DI-21 | No | **Parked 2026-07-25** — no priority; JSON v1 is the live data base |
 
 ## 7. Success metrics & counter-metrics
 
@@ -464,19 +491,23 @@ changes shape or disappears.
 
 ## 9. Phasing sketch (smallest validating first)
 
-1. **Verify the source-data reality** (OD-2) — cheap, and it decides whether
-   Feature D is justified at all. Moved to the front: everything downstream
-   assumes its answer.
-2. **Harden the PP bridge** (#482, FR-DI-20) — keep migration reliable.
-3. **Audit journal** (#353) — prerequisite for any programmatic write.
-4. **API/MCP write-parity** (Feature C) — unlocks the LLM push path.
-5. **PDF dependency decision** — its own reviewed PR, before any Feature D
-   story.
-6. **Feature D** (in-app PDF) per ADR-0021, gated on OD-2's answer.
-7. **Generic CSV import** (Feature A) for structured brokers, after OD-3.
-8. **Backup/restore** (Feature E).
-9. **Reconciliation UI** (Feature B) as a small, clearly-scoped add.
+*Step 0 — verify the source-data reality (OD-2) — is **done**: the bank's CSV
+carries holdings only. Feature D is justified and stays in.*
 
-*(Step 6 in the earlier draft called Feature E "the true leave-PP milestone".
-With the PP-compatible export dropped, that milestone no longer exists as
-phrased — leaving PP is now achieved by Features A/C/D covering intake.)*
+1. **Harden the PP bridge** (#482, FR-DI-20) — keep migration reliable.
+2. **Audit journal** (#353) — prerequisite for any programmatic write.
+3. **API/MCP write-parity** (Feature C) — unlocks the LLM push path.
+4. **PDF dependency decision** — its own reviewed PR, before any Feature D
+   story.
+5. **Feature D** (in-app PDF) per ADR-0021 — now the primary route to
+   transaction-grade German-bank data, since the CSV has none.
+6. **Generic CSV import** (Feature A) for structured brokers; decide OD-3 at
+   kickoff.
+7. **Backup/restore** (Feature E).
+8. **Reconciliation UI** (Feature B) as a small, clearly-scoped add — the
+   bank's holdings CSV is its input.
+
+*(An earlier draft called Feature E "the true leave-PP milestone". With the
+PP-compatible export dropped, that milestone no longer exists as phrased —
+leaving PP is achieved by Features A/C/D covering intake. PP XML is parked
+and is not part of any step above.)*

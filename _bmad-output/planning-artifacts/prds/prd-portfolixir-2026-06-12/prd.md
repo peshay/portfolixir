@@ -149,18 +149,21 @@ record (ADR-0024). One instance, one operator, several scopes.
 Phases are sequential priorities. Most are soft — work can start when capacity
 allows. **Three are hard gates and cannot be entered without their ADR:**
 Phase 3 (sync), FR-5's XML intake, and FR-12's rebalancing guidance (the last
-of which has since been opened by ADR-0023). Delivery unit is the **epic
-batch** per ADR-0026, not story-sized increments; the roadmap issue (#321)
-predates that decision.
+of which has since been opened by ADR-0023). A gate blocks *building*, not
+*wanting*; XML additionally carries no priority right now, so its gate is
+dormant. Delivery unit is the **epic batch** per ADR-0026, not story-sized
+increments; the roadmap issue (#321) predates that decision.
 
 **Phase 1 — Correctness & data completeness (now).**
 Invariant hardening (#343 currency consistency, #344 rounding ADR, #346–#348
 gate suites, #350 Unicode gate), write audit journal (FR-28), documented
-backup/restore (FR-29), PP XML full import (#333 — **hard gate:** XML intake
-is on the AGENTS.md forbidden list and requires the ADR + AGENTS.md amendment
-(OQ-1a) before implementation; this blocks Phase 1 work, it does not merely
-precede it), account lifecycle tools (#327, #328 — reframed by ADR-0024),
-import data quality (#326 logos).
+backup/restore (FR-29), account lifecycle tools (#327, #328 — reframed by
+ADR-0024), import data quality (#326 logos).
+
+*PP XML full import (#333) was removed from Phase 1 on 2026-07-25 (owner
+decision): it carries no priority. **PP JSON v1 is the operator's actual data
+base** and has proven the better path. XML may return to the list later; until
+then its scope gate (OQ-1a) is dormant rather than blocking.*
 
 **Phase 2 — LLM-first consumption.**
 MCP/API analytics audit and exposure (#349), IRR (#316), income report (#331),
@@ -197,10 +200,11 @@ Early-retirement projection (wealth-at-age, sustainable withdrawal),
 benchmark comparison ("vs. 2% fixed deposit") as a first-class analytic,
 what-if simulator incl. blind-follow backtesting (#332).
 
-**Deprioritized / parked:** Dashboard v2 (#337 — explicitly after data/LLM
-tracks), algotrading (vision only; **forbidden until a dedicated scope
-decision** — this applies wherever it is mentioned, including the addendum),
-iOS/macOS apps, cloud hosting, multi-user (#340).
+**Deprioritized / parked:** PP XML full import (#333 — no priority as of
+2026-07-25; JSON v1 covers the operator's needs), Dashboard v2 (#337 —
+explicitly after data/LLM tracks), algotrading (vision only; **forbidden until
+a dedicated scope decision** — this applies wherever it is mentioned,
+including the addendum), iOS/macOS apps, cloud hosting, multi-user (#340).
 
 ## 5. Functional Requirements
 
@@ -243,11 +247,13 @@ maps every FR to its issue. This section is the founding set as corrected on
 
 ### B. Import & reconciliation
 
-- **FR-5** Portfolio Performance exports import losslessly: CSV/JSON v1
-  (shipped) and XML with classifications, quote history, and master data
-  (#333). **Hard gate:** XML intake requires the AGENTS.md amendment + ADR
-  (OQ-1a) before any implementation work (it is on the current forbidden list;
-  CSV/JSON v1 is the standing exception).
+- **FR-5** Portfolio Performance exports import losslessly. **CSV/JSON v1 is
+  shipped and is the operator's live data base** — JSON holdings import has
+  proven the better path in practice. XML with classifications, quote history
+  and master data (#333) is **parked, no priority** (owner decision
+  2026-07-25); **hard gate** if it ever returns: XML intake is on the AGENTS.md
+  forbidden list and requires the amendment + ADR (OQ-1a) before any
+  implementation work. CSV/JSON v1 is the standing exception.
 - **FR-6** Imports are previewed (what will be created), idempotent, and
   atomic. Idempotency is **two-layered** (#533, ADR-0029): a per-record
   `import_hash` over stable identity, plus a formatting-tolerant dedup key
@@ -484,10 +490,11 @@ is an intent, not a metric.
 
 ## 8. Open Questions
 
-- **OQ-1a** **[Phase-1 blocker]** FR-5 XML intake: ADR + AGENTS.md amendment
-  wording. #333 sits inside Phase 1, so this blocks current work rather than
-  merely preceding it. Owner: maintainer, **due before any #333 story is
-  scheduled**.
+- **OQ-1a** **[dormant]** FR-5 XML intake: ADR + AGENTS.md amendment wording.
+  *Was a Phase-1 blocker until 2026-07-25, when the owner removed PP XML from
+  the roadmap for lack of priority.* Nothing is blocked while XML stays
+  parked; the question reactivates the moment #333 returns to a phase. Owner:
+  maintainer, due before any #333 story is scheduled.
 - **OQ-1b** Phase 3 sync scope ADR: which rules relax, which stay absolute.
   Owner: maintainer, before Phase 3. Bundled with OQ-8 and NFR-9.
 - **OQ-1c** Advanced-reports amendment covering FR-9/FR-10/FR-26/FR-27 and the
