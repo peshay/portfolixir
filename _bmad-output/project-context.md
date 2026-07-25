@@ -194,8 +194,14 @@ What agents must know beyond "run the gates":
   per-function `# sobelow_skip` annotations require a written reason. Never
   add a skip without one.
 - **Pre-commit hooks modify files** (whitespace/EOF/line-ending fixers) —
-  re-stage and re-commit. The `llm-commit-footer` hook rejects commits without
-  the `Model:`/`Thinking level:` footer.
+  re-stage and re-commit. The `commit-authorship` hook (commit-msg stage)
+  rejects commits that are not authored by an accountable human on
+  `.github/commit-authorship-allowlist.txt`, and rejects AI-identity trailers.
+  **Do not add `Model:` / `Thinking level:` / `Co-authored-by:` (AI) /
+  `Claude-Session:` footers** — AGENTS.md and CLAUDE.md forbid them; record
+  model and reasoning level in the PR description instead. (An earlier
+  `llm-commit-footer` hook required the opposite; it is gone, and this file
+  said so until 2026-07-25.)
 - **Repository language is English** for ALL artifacts — commits, PRs, issues,
   ADRs, docs, code comments (repo contract, PR #341).
 - **`docs/` is a published Jekyll site** (GitHub Pages): pages need YAML
