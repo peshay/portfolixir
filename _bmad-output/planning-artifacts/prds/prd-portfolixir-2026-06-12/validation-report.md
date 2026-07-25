@@ -6,6 +6,11 @@
 - **Run at:** 2026-07-25T13:04:34Z
 - **Grade:** Poor (derived from severity counts alone — no dimension verdicts were produced)
 
+> **Format note.** An HTML twin of this report was generated and removed again on
+> 2026-07-25: the two reports shared ~309 identical lines of inline CSS and
+> boilerplate, which tripped SonarCloud's new-code duplication gate. This
+> markdown file is the canonical form and carries the same content.
+
 > **Resolved 2026-07-25.** All 20 findings were addressed in a fix round on the
 > same day; see `.decision-log.md` for what was applied and for the three
 > agent-made judgment calls flagged for owner review. The privacy finding
