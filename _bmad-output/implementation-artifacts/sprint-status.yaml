@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-07-25
+# last_updated: 2026-07-25 (revised after #611 and #613 merged)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -38,7 +38,8 @@
 # Epics 1-5 and 7-16 carry no story-level breakdown in epics.md -- their work
 # unit is the GitHub issue (see the FR Coverage Map). Only E6, E17, E18 and E19
 # have '##### Story' entries, so only those produce story rows here. Statuses
-# were verified against `main` (224f442) and the open-issue list, not assumed.
+# were verified against `main` (ff4d809), the open-issue list AND open pull
+# requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
 last_updated: 2026-07-25
@@ -129,9 +130,9 @@ development_status:
   18-3-read-only-holdings-reconcile: done
   epic-18-retrospective: optional
 
-  # E19 -- gate #612 open, ADR-0031 on PR #613 awaiting owner sign-off
+  # E19 -- gate #612 signed off 2026-07-25; ADR-0031 merged (629b222), stories unblocked
   epic-19: in-progress
-  19-1-tax-statement-snapshot-decision-adr: review
+  19-1-tax-statement-snapshot-decision-adr: done
   19-2-tax-parameters-taxpayer-profile-and-configured-allowance-orders: backlog
   19-3-record-a-tax-statement-snapshot: backlog
   19-4-a-recorded-snapshot-checks-its-own-arithmetic: backlog
