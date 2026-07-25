@@ -6,6 +6,14 @@
 - **Run at:** 2026-07-25T13:04:34Z
 - **Grade:** Poor (derived from severity counts alone — no dimension verdicts were produced)
 
+> **Resolved 2026-07-25.** All 20 findings were addressed in a fix round on the
+> same day; see `.decision-log.md` for what was applied and for the two
+> agent-made judgment calls flagged for owner review (FR-DI-n prefixing,
+> Feature B reframed to reconciliation). The privacy finding was **narrowed by
+> owner decision**: naming the operator and comdirect is acceptable, so only
+> OD-2's missing file-handling rule was fixed. This report is the record of
+> what was found, not a list of open items.
+
 ## Overall verdict
 
 This PRD is a strategy memo wearing a requirements document's clothes. Its

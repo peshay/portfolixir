@@ -6,6 +6,13 @@
 - **Run at:** 2026-07-25T13:04:34Z
 - **Grade:** Poor (derived from severity counts alone — no dimension verdicts were produced)
 
+> **Resolved 2026-07-25.** All 20 findings were addressed in a fix round on the
+> same day; see `.decision-log.md` for what was applied and for the three
+> agent-made judgment calls flagged for owner review. The privacy finding
+> (F-12) was **narrowed by owner decision**: naming the operator and naming
+> brokers is acceptable; concrete financial values and household details are
+> not. This report is the record of what was found, not a list of open items.
+
 ## Overall verdict
 
 The document is well written and, in its June form, was an honest artifact. It is

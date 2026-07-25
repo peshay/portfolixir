@@ -1,11 +1,17 @@
-# PRD Addendum — Portfolixir (2026-06-12)
+# PRD Addendum — Portfolixir (2026-06-12, revised 2026-07-25)
 
 Depth that informs downstream documents (architecture, UX, epics) but does not
-belong in the PRD narrative itself. Personal details were deliberately
-redacted on 2026-06-13 (public repo); what remains is the product-shaping
-essence.
+belong in the PRD narrative itself.
 
-## Origin story (condensed, anonymized)
+**Privacy scope (owner decision, 2026-07-25).** This is a public repo. The
+operator is named openly and named integration targets stay — that is a
+deliberate, recorded choice. What stays out, permanently: **concrete financial
+values** of any kind (balances, net worth, invested capital, position sizes,
+performance figures, credit lines) and **anything about the operator's family
+or household**. Illustrative amounts in journeys are hypothetical and carry no
+information about real holdings.
+
+## Origin story (condensed)
 
 - Started as a Portfolio Performance (PP) user driven by one question: **"Is
   my investing actually beating the alternative?"** — e.g. vs. 2% fixed
@@ -22,7 +28,7 @@ essence.
 - The operator runs a self-hosted LLM agent with several MCP integrations;
   the always-on self-hosted app is the data backbone that agent attaches to.
 
-## Investor profile (persona depth, anonymized)
+## Investor profile (persona depth)
 
 - Strategy until retirement: **maximum risk performance** with stocks +
   Bitcoin — deliberately high-risk, consciously chosen. Long-horizon goal is
@@ -31,7 +37,10 @@ essence.
   allocation is a feature, not a bug to correct.)
 - German pension context matters: gesetzliche Rentenpunkte, private
   Zusatzversicherungen, payout-option questions (lump sum vs. monthly, from
-  which age, marginal value of additional contributions).
+  which age, marginal value of additional contributions). The PRD specifies
+  FR-24/FR-25 around **operator-maintained, effective-dated parameter
+  tables**, because these parameters are revalued annually and a derived
+  number would be confidently wrong (ADR-0031).
 
 ## Tech-stack motivation (for architecture context)
 
@@ -41,11 +50,19 @@ essence.
   owner does not read the code himself, so mechanical guards (gates,
   invariant tests, scope locks) are load-bearing, not optional. Calling it a
   "playground" understates the stakes; modern AI-driven development methods
-  are part of the product's point, with production-grade discipline.
+  are part of the product's point.
+- **Precision on the quality claim:** what the evidence supports is
+  *engineering discipline* — Decimal-exact math, invariant meta-tests, CI
+  gates, reviewed ADRs. It is **not** production readiness, which AGENTS.md
+  forbids claiming and which the unauthenticated web UI (NFR-4, OQ-8) and the
+  missing release/upgrade story (OQ-10) would not support anyway.
 
 ## Future visions (explicitly Zukunftsmusik, not roadmap)
 
-- Algotrading on top of the data backbone.
+- **Algotrading on top of the data backbone — forbidden until a dedicated
+  scope decision.** AGENTS.md's no-trading/no-order rules stand unamended;
+  this note travels with the item so the line cannot be quoted out of context
+  as a roadmap entry.
 - "Everything countable as wealth or passive income" managed in one place
   (insurance, real estate, passive income streams — parking lot #340).
 - iOS/macOS app; possibly cloud-hosted service IF genuine outside interest
@@ -57,3 +74,6 @@ essence.
   at date Y, where would I be today?" — blind-follow simulation as a what-if
   scenario class with real quote history, plus an aggregate per-source
   verdict (hit rate, P/L distribution) over all tips of a source.
+- **Unfunded dependency:** this needs price history for securities the
+  operator has never held — a breadth/depth/licence problem that ADR-0005's
+  provider split was not designed for. Tracked as OQ-11.
