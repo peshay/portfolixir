@@ -336,7 +336,15 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     {:ok, quoted} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10])
 
     assert Decimal.equal?(quoted.end_value, Decimal.new("1200"))
-    assert rounded(quoted.ttwror, 6) |> Decimal.equal?(Decimal.new("0.2"))
+
+    # The valuation jumps to 1,200 — but the 100 it jumped from was never a
+    # market price, only the portfolio's own buy. The first quote ever for a
+    # trade-priced position is therefore a basis step, not a one-day +20 %
+    # (issue #545, ADR-0010 amendment rule 2). Before that rule this read
+    # 0.2, and on a real forward-only quote load — the normal shape, where
+    # the feed only covers recent dates — the same mechanism discharged years
+    # of accumulated drift as a four-digit percentage in one day.
+    assert Decimal.equal?(quoted.ttwror, Decimal.new("0"))
   end
 
   test "applies implausibly dated bookings on the first plausible day" do

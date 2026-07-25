@@ -654,6 +654,28 @@ verkettet. Das Ergebnis misst, wie gut die **Investitionen** abgeschnitten haben
 unabhängig davon, wann Geld bewegt wurde — Dividenden, Zinsen, Gebühren und
 Steuern zählen als Teil der Rendite.
 
+**Positionen ohne Kurshistorie** werden mit ihrem eigenen letzten Handelspreis
+bewertet (derselbe Rückfall, den die Datenqualitäts-Karte auflistet). Eine
+solche Position liegt zwischen zwei Trades flach, und an dem Tag, an dem ein
+neuer Trade einen anderen Preis setzt, würde die gesamte bereits gehaltene
+Stückzahl in einem Schritt neu bewertet. Dieser Schritt ist ein Wechsel der
+Bewertungsbasis, keine Marktbewegung, und wird deshalb genauso neutralisiert
+wie eine Einzahlung — sonst verketten sich diese Sprünge zu einem Prozentsatz,
+den kein Markt je hergegeben hat. Was weiter zählt: der **Verkauf**. Ein Verkauf
+macht die Position zu echtem Geld, deshalb bleibt sein Gewinn gegenüber dem
+Preis, zu dem die Position geführt wurde, in der Rendite und wird nie
+verschluckt. Alles andere, was der Tag neu bewertet — die weiter gehaltene, die
+gekaufte, die ausgelieferte Stückzahl — ist Basis. Das gilt für eine Position
+**ganz ohne Kurs**. Sobald ein Kurs vorliegt, ist die Position gemessen: spätere
+Lücken in der Kursreihe sind nur Lücken, und die Trades darin zählen wieder als
+Rendite. Der **erste** Kurs zu einer bis dahin kurslosen Position ist selbst ein
+Basis-Schritt und kein Tagessprung — sonst meldete eine Kurshistorie, die nur
+die jüngste Zeit abdeckt, den über Jahre aufgelaufenen Versatz als Rendite eines
+einzigen Tages. Wert, Netto-Zahlungsströme und
+der €-Gewinn neben dem Prozentwert bleiben unberührt — sie melden das Geld
+weiterhin so, wie es gebucht wurde. Ein rein handelspreisbewertetes Portfolio
+kann daher einen deutlichen €-Gewinn neben einer TTWROR nahe null zeigen.
+
 Daneben zeigt Portfolixir die **geldgewichtete Rendite (IRR)** — die einzelne
 annualisierte Rate, die die datierten Einzahlungen, Auszahlungen und den Endwert
 des Zeitraums auf null abzinst, die Zahl, die Portfolio Performance neben TTWROR

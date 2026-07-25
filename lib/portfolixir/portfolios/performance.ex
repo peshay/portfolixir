@@ -34,6 +34,28 @@ defmodule Portfolixir.Portfolios.Performance do
       empty days, and the dates are reported as `suspect_dates`.
     * A day whose return base (`V_{d−1} + F_d`) is zero or negative
       contributes no return.
+    * A **trade-price basis step** is neutralised like a flow (issue #545).
+      A position held at its own last trade price sits flat between trades;
+      the day a new price lands, the whole previously-held quantity re-prices
+      at once. That step is a change of valuation *basis*, not a market move
+      — nothing was observed except the price of the portfolio's own trade —
+      so the day carries a `basis` component that enters the return base next
+      to the flow:
+
+          r_d = V_d / (V_{d−1} + F_d + B_d) − 1
+
+      `B_d` applies to a security that is **unmeasured** coming into the day
+      (no quote has ever landed on an earlier day) and covers every unit that
+      ends the day marked at the day's price without having become cash: the
+      sleeve carried in from yesterday, whatever was acquired today at its own
+      price, and whatever left as an external delivery (valued at the day's
+      price in `F_d`). A sale is the exception — it turns the position into
+      real cash, so its gain against the basis it consumed stays return.
+      `B_d` is converted at **yesterday's** exchange rates, because it
+      restates yesterday's closing value; the retained sleeve's own currency
+      move therefore stays in the return. `B_d` never touches `value`,
+      `start_value`, `end_value` or `net_external_flows`: the money facts (and
+      the €-gain badge derived from them) stay exactly as booked.
 
   The expensive daily walk is computed once per portfolio via `analysis/2`;
   every period (`ytd`/`1y`/…) is then a cheap pure `summarise/2` over that
@@ -85,7 +107,7 @@ defmodule Portfolixir.Portfolios.Performance do
   @doc """
   The expensive, period-independent part: one full daily walk.
 
-  Returns a map with the raw `daily` series (`%{date, value, flow}`),
+  Returns a map with the raw `daily` series (`%{date, value, flow, basis}`),
   `first_date`/`today`, the base currency, and `suspect_dates` (dates of
   bookings older than #{inspect(@earliest_plausible)}, applied on the first
   plausible day). Feed it to `summarise/2` once per period.
@@ -249,17 +271,20 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   defp walk_day(by_day, day, {acc, state, context}) do
-    context = %{
-      context
-      | pricing: advance_map(context.pricing, day, &advance_entry/2),
-        fx: advance_map(context.fx, day, &advance_rate/2)
-    }
+    {pricing, steps} = advance_pricing(context.pricing, day)
+    carried_fx = context.fx
+
+    context = %{context | pricing: pricing, fx: advance_map(context.fx, day, &advance_rate/2)}
 
     context = Map.put(context, :day, day)
     day_txs = by_day |> Map.get(day, []) |> sort_within_day()
-    {state, flow} = apply_transactions(day_txs, state, context)
+    # The quantities held *before* the day's bookings: the sleeve a basis step
+    # restates. Captured here because `apply_transactions/3` mutates them.
+    opening = state.qty
+    {state, flow, legs} = apply_transactions(day_txs, state, context)
     value = portfolio_value(state, context)
-    {[%{date: day, value: value, flow: flow} | acc], state, context}
+    basis = basis_adjustment(steps, opening, legs, context, carried_fx)
+    {[%{date: day, value: value, flow: flow, basis: basis} | acc], state, context}
   end
 
   defp account_currencies(portfolio_id) do
@@ -277,12 +302,38 @@ defmodule Portfolixir.Portfolios.Performance do
     Enum.sort_by(transactions, &{Projection.intra_day_order(&1), &1.id})
   end
 
+  # Returns the day's state, its net external flow and the day's quantity legs
+  # per security, **in replay order**. The trade-price basis step (issue #545)
+  # needs the individual legs, not their net: a day can carry several trades at
+  # different prices, and what a leg did with the quantity it moved — paid cash
+  # for it, delivered it out, netted it against the same day's own purchase —
+  # decides whether its re-pricing is return or basis.
   defp apply_transactions(transactions, state, context) do
-    Enum.reduce(transactions, {state, @zero}, fn tx, {state, flow} ->
-      {state, tx_flow} = apply_transaction(tx, state, context)
-      {state, Decimal.add(flow, tx_flow)}
+    {state, flow, legs} =
+      Enum.reduce(transactions, {state, @zero, %{}}, fn tx, {state, flow, legs} ->
+        {state, tx_flow, tx_legs} = apply_transaction(tx, state, context)
+        {state, Decimal.add(flow, tx_flow), merge_legs(legs, tx_legs)}
+      end)
+
+    {state, flow,
+     Map.new(legs, fn {security_id, booked} -> {security_id, Enum.reverse(booked)} end)}
+  end
+
+  defp merge_legs(legs, booked) do
+    Enum.reduce(booked, legs, fn {security_id, leg}, acc ->
+      Map.update(acc, security_id, [leg], &[leg | &1])
     end)
   end
+
+  # One quantity leg as the basis walk sees it. A buy or a sell moved cash at
+  # its own booked price; every other kind (deliveries, depot transfers) moved
+  # quantity only and is valued at the day's price wherever it shows up — in
+  # the day's external flow, or in the counter depot.
+  defp quantity_leg(%{type: type, price: %Decimal{} = price} = tx, delta)
+       when type in ["buy", "sell"],
+       do: {:trade, delta, %{close: price, currency: tx.currency_code}}
+
+  defp quantity_leg(_tx, delta), do: {:mark, delta}
 
   # -- canonical effects (ADR-0011): {new_state, external_flow_in_base} -------
 
@@ -294,8 +345,11 @@ defmodule Portfolixir.Portfolios.Performance do
   defp apply_transaction(tx, state, %{scope: :unscoped} = context) do
     effect = Projection.effects(tx)
     {state, cash_flow} = apply_cash_legs(effect.cash, tx, state, context, effect.external)
-    {state, qty_flow} = apply_quantity_legs(effect.quantities, state, context, effect.external)
-    {state, Decimal.add(cash_flow, qty_flow)}
+
+    {state, qty_flow, legs} =
+      apply_quantity_legs(effect.quantities, tx, state, context, effect.external)
+
+    {state, Decimal.add(cash_flow, qty_flow), legs}
   end
 
   # Scoped walk (#444, ADR-0019): only in-view legs touch the state, so the daily
@@ -318,10 +372,13 @@ defmodule Portfolixir.Portfolios.Performance do
     # for an internal trade.
     {state, kept_cash_base} = apply_kept_cash(kept_cash, tx, state, context)
 
-    state =
-      Enum.reduce(kept_qty, state, fn
-        {:scale, %{security_id: sec, ratio: ratio}}, st -> scale_qty(st, sec, ratio)
-        {_acct, sec, delta}, st -> add_qty(st, sec, delta)
+    {state, legs} =
+      Enum.reduce(kept_qty, {state, []}, fn
+        {:scale, %{security_id: sec, ratio: ratio}}, {st, legs} ->
+          {scale_qty(st, sec, ratio), [{sec, {:scale, ratio}} | legs]}
+
+        {_acct, sec, delta}, {st, legs} ->
+          {add_qty(st, sec, delta), [{sec, quantity_leg(tx, delta)} | legs]}
       end)
 
     flow =
@@ -336,7 +393,7 @@ defmodule Portfolixir.Portfolios.Performance do
           @zero
       end
 
-    {state, flow}
+    {state, flow, Enum.reverse(legs)}
   end
 
   defp apply_kept_cash(legs, tx, state, context) do
@@ -436,27 +493,31 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # Quantities are tracked per security, so the two legs of a security
   # transfer net out at portfolio level.
-  defp apply_quantity_legs(legs, state, context, external?) do
-    Enum.reduce(legs, {state, @zero}, fn
-      # A split's scale leg (ADR-0028) multiplies the held quantity; it is
-      # never an external flow, so it contributes nothing to the day's flow.
-      # The walk is per portfolio, so the row's per-portfolio scope holds by
-      # construction. The walk aggregates quantities per security across the
-      # portfolio's accounts; scaling the aggregate equals the sum of the
-      # per-account scaled quantities up to the volume-scale-6 quantization.
-      {:scale, %{security_id: security_id, ratio: ratio}}, {state, flow} ->
-        {scale_qty(state, security_id, ratio), flow}
+  defp apply_quantity_legs(legs, tx, state, context, external?) do
+    {state, flow, booked} =
+      Enum.reduce(legs, {state, @zero, []}, fn
+        # A split's scale leg (ADR-0028) multiplies the held quantity; it is
+        # never an external flow, so it contributes nothing to the day's flow.
+        # The walk is per portfolio, so the row's per-portfolio scope holds by
+        # construction. The walk aggregates quantities per security across the
+        # portfolio's accounts; scaling the aggregate equals the sum of the
+        # per-account scaled quantities up to the volume-scale-6 quantization.
+        {:scale, %{security_id: security_id, ratio: ratio}}, {state, flow, booked} ->
+          {scale_qty(state, security_id, ratio), flow, [{security_id, {:scale, ratio}} | booked]}
 
-      {_account_id, security_id, delta}, {state, flow} ->
-        flow =
-          if external? do
-            Decimal.add(flow, security_value(security_id, delta, context))
-          else
-            flow
-          end
+        {_account_id, security_id, delta}, {state, flow, booked} ->
+          flow =
+            if external? do
+              Decimal.add(flow, security_value(security_id, delta, context))
+            else
+              flow
+            end
 
-        {add_qty(state, security_id, delta), flow}
-    end)
+          {add_qty(state, security_id, delta), flow,
+           [{security_id, quantity_leg(tx, delta)} | booked]}
+      end)
+
+    {state, flow, Enum.reverse(booked)}
   end
 
   # Sold-out positions are dropped so the daily valuation only touches what
@@ -539,6 +600,7 @@ defmodule Portfolixir.Portfolios.Performance do
           date: &1.date,
           close: raw_basis_close(&1, security, events),
           currency: currency,
+          price_source: :quote,
           rank: 1
         }
       )
@@ -553,7 +615,10 @@ defmodule Portfolixir.Portfolios.Performance do
       |> Enum.sort_by(&{Date.to_erl(&1.date), &1.rank})
 
     carried = carried_seed(security_id, walk_start, currency, security, events)
-    %{price: carried, upcoming: points}
+    # `measured?` records whether a **quote** has ever landed on an earlier
+    # day: `carried_seed/5` only ever returns a quote, so seeding it from the
+    # carried price is exact. It gates the basis step (issue #545).
+    %{price: carried, upcoming: points, measured?: not is_nil(carried)}
   end
 
   # The seed close (last close before the walk) converted into the basis era
@@ -569,7 +634,7 @@ defmodule Portfolixir.Portfolios.Performance do
           |> raw_basis_close(security, events)
           |> QuoteAdjustment.rebase_close(quote_row.date, seed_day, events)
 
-        %{close: close, currency: currency}
+        %{close: close, currency: currency, price_source: :quote}
 
       _ ->
         nil
@@ -592,6 +657,7 @@ defmodule Portfolixir.Portfolios.Performance do
         date: effective_date(&1, walk_start),
         close: &1.price,
         currency: &1.currency_code,
+        price_source: :trade,
         rank: 0
       }
     )
@@ -611,35 +677,218 @@ defmodule Portfolixir.Portfolios.Performance do
     end)
   end
 
+  # Advances every security's price pointer to `day` and collects the day's
+  # trade-price basis steps (issue #545) as `security_id => {from, to}`. Like
+  # `advance_map/3` it only re-inserts entries that actually consumed a point.
+  defp advance_pricing(pricing, day) do
+    Enum.reduce(pricing, {pricing, %{}}, fn {security_id, entry}, {prices, steps} = unchanged ->
+      case advance_entry(entry, day) do
+        {^entry, _step} ->
+          unchanged
+
+        {advanced, nil} ->
+          {Map.put(prices, security_id, advanced), steps}
+
+        {advanced, step} ->
+          {Map.put(prices, security_id, advanced), Map.put(steps, security_id, step)}
+      end
+    end)
+  end
+
+  # Returns `{advanced_entry, basis_step | nil}` — the pair of prices
+  # bracketing the day's re-pricing, reported only for a security that is
+  # **unmeasured** coming into the day. Measurement is evaluated before the
+  # day's own points are consumed, so the transition from a fabricated trade
+  # price to the security's first quote ever is itself a basis step.
+  defp advance_entry(entry, day) do
+    measured? = entry.measured?
+    {entry, opening} = consume_points(entry, day, :none)
+    {entry, basis_step(measured?, opening, entry.price)}
+  end
+
   # A rescale point (ADR-0028 §2) moves the *carried* price across a split's
   # effective date (divide by the ratio) instead of setting an absolute close.
   # It sorts at rank -1, so a same-day trade or quote point — already in the
-  # post-split basis — consumes afterwards and wins as usual.
-  defp advance_entry(%{upcoming: [%{rescale: ratio, date: date} | rest]} = entry, day) do
+  # post-split basis — consumes afterwards and wins as usual. That ordering is
+  # what makes `opening` (captured at the day's first price point) share the
+  # day's post-split basis with the price replacing it.
+  defp consume_points(%{upcoming: [%{rescale: ratio, date: date} | rest]} = entry, day, open) do
     if Date.compare(date, day) in [:lt, :eq] do
-      advance_entry(%{entry | price: rescale_carried(entry.price, ratio), upcoming: rest}, day)
+      entry = %{entry | price: rescale_carried(entry.price, ratio), upcoming: rest}
+      consume_points(entry, day, open)
     else
-      entry
+      {entry, open}
     end
   end
 
-  defp advance_entry(%{upcoming: [%{date: date} = point | rest]} = entry, day) do
+  defp consume_points(%{upcoming: [%{date: date} = point | rest]} = entry, day, open) do
     if Date.compare(date, day) in [:lt, :eq] do
-      advance_entry(
-        %{entry | price: %{close: point.close, currency: point.currency}, upcoming: rest},
-        day
-      )
+      # Captured before the point overwrites it: `open` is the price the day's
+      # *first* price point replaced, in the day's post-split basis.
+      open = opening(open, entry.price)
+      price = %{close: point.close, currency: point.currency, price_source: point.price_source}
+      entry = %{entry | price: price, upcoming: rest, measured?: measured?(entry, point)}
+      consume_points(entry, day, open)
     else
-      entry
+      {entry, open}
     end
   end
 
-  defp advance_entry(entry, _day), do: entry
+  defp consume_points(entry, _day, open), do: {entry, open}
+
+  defp measured?(_entry, %{price_source: :quote}), do: true
+  defp measured?(entry, _point), do: entry.measured?
+
+  # The price the day's first price point replaced — `:none` until one is
+  # consumed.
+  defp opening(:none, replaced), do: {:price, replaced}
+  defp opening(open, _replaced), do: open
+
+  # A security that has never carried a quote from an earlier day is priced by
+  # its own bookings alone; every re-pricing of it restates a fabricated basis
+  # rather than observing a market — including its very first quote, which
+  # would otherwise discharge the whole accumulated drift as one day of return.
+  # Once a quote has landed the security is measured: later gaps in the feed
+  # are just gaps, and the trade prices filling them stay return (issue #545
+  # AC 2, quoted portfolios byte-identical).
+  defp basis_step(false, {:price, from}, to), do: {from, to}
+  defp basis_step(_measured, _opening, _to), do: nil
 
   defp rescale_carried(nil, _ratio), do: nil
 
-  defp rescale_carried(%{close: close, currency: currency}, {p, q}),
-    do: %{close: close |> Decimal.mult(q) |> Decimal.div(p), currency: currency}
+  # The currency and the `price_source` ride along: a rescaled trade price is
+  # still a trade price, just restated in the post-split basis.
+  defp rescale_carried(%{close: close} = price, {p, q}),
+    do: %{price | close: close |> Decimal.mult(q) |> Decimal.div(p)}
+
+  # -- trade-price basis steps (issue #545) -----------------------------------
+
+  # The day's valuation-basis step in base currency: the part of the value
+  # change that only re-states a fabricated price. `day_factor/2` neutralises
+  # it exactly the way it neutralises an external flow — no market was
+  # observed, so it is not return.
+  #
+  # Per security with a step, the day is replayed as a queue of lots: the
+  # sleeve carried in from yesterday at `from`, plus whatever today's legs
+  # added at their own price. Every unit that ends the day marked at `to`
+  # without having become cash contributes `quantity x (to - basis)`; a sale
+  # contributes nothing, because it turned its slice into real cash and its
+  # gain against the basis it consumed is genuine return.
+  defp basis_adjustment(steps, opening, legs, context, carried_fx) when map_size(steps) > 0 do
+    context = carried_rates_context(context, carried_fx)
+
+    Enum.reduce(steps, @zero, fn {security_id, {from, to}}, acc ->
+      held = Map.get(opening, security_id, @zero)
+      booked = Map.get(legs, security_id, [])
+      Decimal.add(acc, security_basis(held, from, to, booked, context))
+    end)
+  end
+
+  defp basis_adjustment(_steps, _opening, _legs, _context, _carried_fx), do: @zero
+
+  # A basis step restates *yesterday's* closing value into the new price basis,
+  # so it converts at yesterday's rates — converting it at today's would cancel
+  # the retained sleeve's own currency move out of the return. A currency whose
+  # series starts today has no carried rate and falls back to today's, so the
+  # step is still converted instead of collapsing to zero on the walk's first
+  # day.
+  defp carried_rates_context(context, carried_fx) do
+    fx =
+      Map.new(context.fx, fn {currency, entry} ->
+        case Map.get(carried_fx, currency) do
+          %{rate: %Decimal{}} = carried -> {currency, carried}
+          _absent -> {currency, entry}
+        end
+      end)
+
+    %{context | fx: fx}
+  end
+
+  defp security_basis(held, from, to, legs, context) do
+    mark = %{price: to, context: context}
+
+    {lots, delivered} =
+      Enum.reduce(legs, {open_lots(held, from), @zero}, &place_leg(&1, &2, mark))
+
+    Enum.reduce(lots, delivered, fn {quantity, basis}, acc ->
+      Decimal.add(acc, step_value(quantity, basis, mark))
+    end)
+  end
+
+  defp open_lots(quantity, price) do
+    if Decimal.equal?(quantity, @zero), do: [], else: [{quantity, price}]
+  end
+
+  defp step_value(quantity, basis, %{price: to, context: context}),
+    do: Decimal.sub(priced(quantity, to, context), priced(quantity, basis, context))
+
+  # A split's scale leg (ADR-0028) multiplies the held quantity. Prices are
+  # left alone: the carried price was already rescaled at rank -1 before the
+  # day's points, and a split replays first within the day (`intra_day_order`),
+  # so the only lot in the queue is the opening sleeve at that already-rescaled
+  # `from`.
+  defp place_leg({:scale, ratio}, {lots, delivered}, _mark) do
+    {Enum.map(lots, fn {qty, basis} -> {Projection.scale_quantity(qty, ratio), basis} end),
+     delivered}
+  end
+
+  defp place_leg({:trade, delta, price}, acc, mark),
+    do: settle_leg(acc, delta, price, false, mark)
+
+  defp place_leg({:mark, delta}, acc, mark), do: settle_leg(acc, delta, mark.price, true, mark)
+
+  # Places one quantity leg on the security's lot queue. A disposal consumes
+  # the **most recently acquired** lot first: what a day buys is netted against
+  # what the same day sells, and only the residual reaches the sleeve carried
+  # in from yesterday. `carried?` marks a disposal that produced no cash (an
+  # outbound delivery, a depot transfer) — those units are still marked at the
+  # day's price, in the day's external flow or in the counter depot, so their
+  # re-pricing stays a basis step.
+  defp settle_leg({[], delivered}, delta, price, _carried?, _mark),
+    do: {new_lot(delta, price), delivered}
+
+  defp settle_leg({[{quantity, basis} | rest] = lots, delivered}, delta, price, carried?, mark) do
+    if closing?(quantity, delta) do
+      taken = closed_quantity(quantity, delta)
+
+      delivered =
+        if carried?,
+          do: Decimal.add(delivered, step_value(Decimal.negate(taken), basis, mark)),
+          else: delivered
+
+      remaining = keep_lot(Decimal.add(quantity, taken), basis, rest)
+      settle_leg({remaining, delivered}, Decimal.sub(delta, taken), price, carried?, mark)
+    else
+      {new_lot(delta, price) ++ lots, delivered}
+    end
+  end
+
+  # The queue only ever holds lots of one sign — an opposite leg consumes
+  # rather than joins — so testing the head decides the whole queue.
+  defp closing?(quantity, delta) do
+    (Decimal.positive?(quantity) and Decimal.negative?(delta)) or
+      (Decimal.negative?(quantity) and Decimal.positive?(delta))
+  end
+
+  # The signed slice of `delta` this lot absorbs: `delta`'s sign, magnitude
+  # capped by the lot.
+  defp closed_quantity(quantity, delta) do
+    magnitude = Decimal.min(Decimal.abs(quantity), Decimal.abs(delta))
+    if Decimal.negative?(delta), do: Decimal.negate(magnitude), else: magnitude
+  end
+
+  defp keep_lot(quantity, basis, rest) do
+    if Decimal.equal?(quantity, @zero), do: rest, else: [{quantity, basis} | rest]
+  end
+
+  defp new_lot(delta, price) do
+    if Decimal.equal?(delta, @zero), do: [], else: [{delta, price}]
+  end
+
+  defp priced(_quantity, nil, _context), do: @zero
+
+  defp priced(quantity, %{close: close, currency: currency}, context),
+    do: to_base(Decimal.mult(quantity, close), currency, context)
 
   defp portfolio_value(state, context) do
     securities =
@@ -755,11 +1004,20 @@ defmodule Portfolixir.Portfolios.Performance do
   defp end_value([], start_value), do: start_value
   defp end_value(series, _start_value), do: List.last(series).value
 
-  # r_d = V_d / (V_{d-1} + F_d) − 1, flows at the start of the day. A day whose
-  # base is zero or negative (nothing meaningfully invested) contributes no
-  # return — a near-zero base would otherwise explode the chain.
-  defp day_factor(point, prev) do
-    denominator = Decimal.add(prev, point.flow)
+  @doc """
+  One day's return factor `1 + r_d` against the previous day's value.
+
+  `r_d = V_d / (V_{d−1} + F_d + B_d) − 1`, with the day's external flow `F_d`
+  and its trade-price basis step `B_d` (issue #545) both assumed at the start
+  of the day. A day whose base is zero or negative (nothing meaningfully
+  invested) contributes no return — a near-zero base would otherwise explode
+  the chain.
+
+  Public so every chaining caller shares one definition; `SnapshotComparison`
+  chains the same daily points from the as-of date.
+  """
+  def day_factor(point, prev) do
+    denominator = prev |> Decimal.add(point.flow) |> Decimal.add(basis_of(point))
 
     if Decimal.compare(denominator, @zero) == :gt do
       Decimal.div(point.value, denominator)
@@ -767,6 +1025,8 @@ defmodule Portfolixir.Portfolios.Performance do
       @one
     end
   end
+
+  defp basis_of(point), do: Map.get(point, :basis, @zero)
 
   # -- periods ----------------------------------------------------------------
 

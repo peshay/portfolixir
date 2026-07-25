@@ -372,10 +372,11 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
 
   # The scope's TTWROR chained since the as-of date, from the shared daily
   # walk. The baseline is the value on the as-of day; each later day chains
-  # r_d = V_d / (V_{d−1} + F_d) − 1 — exactly `Performance.summarise/2`'s
-  # period chaining with the as-of date as the period start. Returns a map of
-  # date → growth factor since as-of (1 on the as-of day) plus the overall
-  # since-as-of TTWROR.
+  # `Performance.day_factor/2` — the one shared definition, so the trade-price
+  # basis neutralisation (issue #545) applies here too — which is exactly
+  # `Performance.summarise/2`'s period chaining with the as-of date as the
+  # period start. Returns a map of date → growth factor since as-of (1 on the
+  # as-of day) plus the overall since-as-of TTWROR.
   defp real_side(portfolio_id, view_id, as_of, today) do
     case Performance.analysis(portfolio_id, view: view_id, today: today) do
       %{daily: [_ | _] = daily} ->
@@ -390,7 +391,7 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
             {factors, _prev, growth} =
               Enum.reduce(since, {%{as_of => @one}, baseline, @one}, fn point,
                                                                         {factors, prev, growth} ->
-                growth = Decimal.mult(growth, day_factor(point, prev))
+                growth = Decimal.mult(growth, Performance.day_factor(point, prev))
                 {Map.put(factors, point.date, growth), point.value, growth}
               end)
 
@@ -399,18 +400,6 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
 
       _ ->
         %{factors: %{}, ttwror: nil}
-    end
-  end
-
-  # r_d = V_d / (V_{d−1} + F_d) − 1, flows at the start of the day; a zero or
-  # negative base contributes no return (mirrors Performance).
-  defp day_factor(point, prev) do
-    denominator = Decimal.add(prev, point.flow)
-
-    if Decimal.compare(denominator, @zero) == :gt do
-      Decimal.div(point.value, denominator)
-    else
-      @one
     end
   end
 
