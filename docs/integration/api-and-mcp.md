@@ -393,7 +393,10 @@ Example account payloads:
   self-describing (`basis` with `as_of`, `scope`, and a delta note) and
   reports: `matched` rows (one per security — rows resolving to the same
   security are aggregated with their external quantities summed and the
-  contributing rows listed) with the `matched_via` tier (`isin`,
+  contributing rows listed), ordered by the **lowest input row index** each
+  match aggregates so a finding maps back to the line you sent, each embedding
+  the security's identity only (`id`, `name`, `ticker_symbol`, `isin`, `wkn`,
+  `currency_code`), with the `matched_via` tier (`isin`,
   `former_isin`, `wkn`, `ticker`, `name`, or `pinned`), `ledger_quantity`,
   `external_quantity` and `delta` (`external - ledger`) as exact Decimal
   strings — ticker/name matches carry `weak_match: true` and the caveat
