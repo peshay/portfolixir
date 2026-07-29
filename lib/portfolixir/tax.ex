@@ -3,16 +3,17 @@ defmodule Portfolixir.Tax do
   Recorded tax-statement data and the configuration it is checked against
   (ADR-0031, FR-36).
 
-  This story (19.2) ships the configuration layer only: year-scoped statutory
+  Four tables: the recorded `tax_statement_snapshots` themselves, plus the
+  configuration they are checked against — year-scoped statutory
   `tax_parameters`, effective-dated `tax_profiles`, and configured
-  `allowance_orders`. It ships **before** the snapshot table because checking a
-  transcribed statement requires the law of its year — the Sparer-Pauschbetrag
-  changed in 2023, so a hardcoded ceiling would flag every correct
-  transcription of a pre-2023 statement as inconsistent.
+  `allowance_orders`. The configuration exists because checking a transcribed
+  statement requires the law of its year: the Sparer-Pauschbetrag changed in
+  2023, so a hardcoded ceiling would flag every correct transcription of a
+  pre-2023 statement as inconsistent.
 
   Two rules hold across the whole context:
 
-  - **Writes are actor-first and journaled** (ADR-0017, FR-28). All three
+  - **Writes are actor-first and journaled** (ADR-0017, FR-28). All four
     tables are guard-armed, `tax_parameters` deliberately: a statutory-rate
     edit silently changes every consistency finding for that year.
   - **Nothing here is derived.** ADR-0031 rejects computing the German tax pots
@@ -31,9 +32,12 @@ defmodule Portfolixir.Tax do
   alias Portfolixir.Journal
   alias Portfolixir.Repo
   alias Portfolixir.Tax.AllowanceOrder
+  alias Portfolixir.Tax.Budget
+  alias Portfolixir.Tax.Consistency
   alias Portfolixir.Tax.Identity
   alias Portfolixir.Tax.Parameters
   alias Portfolixir.Tax.Profile
+  alias Portfolixir.Tax.StatementSnapshot
 
   @default_jurisdiction "DE"
 
@@ -385,6 +389,219 @@ defmodule Portfolixir.Tax do
     end
   end
 
+  # -- statement snapshots ---------------------------------------------------
+
+  @doc """
+  Lists recorded statement snapshots, newest `as_of` first. Filters (all
+  optional, case-folded for the free-text ones): `:holder`, `:institution`,
+  `:tax_year`.
+  """
+  @spec list_snapshots(keyword()) :: [StatementSnapshot.t()]
+  def list_snapshots(opts \\ []) do
+    StatementSnapshot
+    |> filter_folded(:holder, opts[:holder])
+    |> filter_folded(:institution, opts[:institution])
+    |> filter_eq(:tax_year, opts[:tax_year])
+    |> order_by([s], desc: s.as_of, desc: s.id)
+    |> Repo.all()
+  end
+
+  @doc "Fetches one snapshot, or `{:error, :not_found}`."
+  @spec fetch_snapshot(StatementSnapshot.t() | integer()) ::
+          {:ok, StatementSnapshot.t()} | {:error, :not_found}
+  def fetch_snapshot(snapshot_or_id), do: fetch_one(StatementSnapshot, snapshot_or_id)
+
+  @doc """
+  The most recent statement recorded for an institution, holder and tax year,
+  or `nil`. This is the row a trim budget is read off — story 19.6 states its
+  `as_of` next to the number rather than presenting a bare balance.
+  """
+  @spec latest_snapshot(String.t(), String.t(), integer()) :: StatementSnapshot.t() | nil
+  def latest_snapshot(institution, holder, tax_year) do
+    StatementSnapshot
+    |> filter_folded(:institution, institution)
+    |> filter_folded(:holder, holder)
+    |> where([s], s.tax_year == ^tax_year)
+    |> order_by([s], desc: s.as_of, desc: s.id)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @doc """
+  Records a statement snapshot on behalf of `actor`.
+
+  `opts[:today]` injects the clock (AR-2) and defaults to `Date.utc_today/0`;
+  an `as_of` after it is rejected. When the caller supplies no
+  `church_tax_rate`, the holder's profile in force at `as_of` supplies it and
+  the resolved value is then **frozen on the row** — a later profile edit
+  changes future prefills, never a recorded transcription.
+  """
+  @spec create_snapshot(Actor.t(), map(), keyword()) ::
+          {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t()}
+  def create_snapshot(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
+    today = Keyword.get(opts, :today, Date.utc_today())
+
+    Multi.new()
+    |> Multi.insert(:snapshot, snapshot_changeset(attrs, today))
+    |> Journal.record(actor,
+      resource_type: "tax_statement_snapshot",
+      operation: :create,
+      source: :snapshot
+    )
+    |> Repo.transaction()
+    |> normalize(:snapshot)
+  end
+
+  @doc """
+  Updates a recorded snapshot on behalf of `actor` — a corrected re-issue for
+  the same statement date. The frozen `church_tax_rate` is not re-resolved.
+  """
+  @spec update_snapshot(Actor.t(), StatementSnapshot.t(), map(), keyword()) ::
+          {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t()}
+  def update_snapshot(%Actor{} = actor, %StatementSnapshot{} = snapshot, attrs, opts \\ [])
+      when is_map(attrs) do
+    today = Keyword.get(opts, :today, Date.utc_today())
+
+    Multi.new()
+    |> Multi.update(:snapshot, StatementSnapshot.changeset(snapshot, attrs, today))
+    |> Journal.record(actor,
+      resource_type: "tax_statement_snapshot",
+      operation: :update,
+      source: :snapshot,
+      before: snapshot
+    )
+    |> Repo.transaction()
+    |> normalize(:snapshot)
+  end
+
+  @doc "Deletes a recorded snapshot on behalf of `actor`."
+  @spec delete_snapshot(Actor.t(), StatementSnapshot.t() | integer()) ::
+          {:ok, StatementSnapshot.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
+  def delete_snapshot(%Actor{} = actor, snapshot_or_id) do
+    with {:ok, snapshot} <- fetch_one(StatementSnapshot, snapshot_or_id) do
+      Multi.new()
+      |> Multi.delete(:snapshot, snapshot)
+      |> Journal.record(actor,
+        resource_type: "tax_statement_snapshot",
+        operation: :delete,
+        source: :snapshot,
+        before: snapshot
+      )
+      |> Repo.transaction()
+      |> normalize(:snapshot)
+    end
+  end
+
+  @doc """
+  The advisory consistency findings for a recorded snapshot (ADR-0031 §4).
+
+  This is the impure shell around the pure `Portfolixir.Tax.Consistency`
+  engine: it gathers the year's statutory parameters, the earlier statements
+  for the same identity, the configured allowance orders and the holder's
+  assessment type, then hands them over. Findings are computed at read time and
+  never stored, and they never block a write.
+  """
+  @spec findings_for(StatementSnapshot.t()) :: [Consistency.Finding.t()]
+  def findings_for(%StatementSnapshot{} = snapshot) do
+    Consistency.evaluate(snapshot, consistency_context(snapshot))
+  end
+
+  defp consistency_context(%StatementSnapshot{} = snapshot) do
+    holder_orders = list_allowance_orders(holder: snapshot.holder, tax_year: snapshot.tax_year)
+
+    %{
+      parameters: parameters_for(snapshot),
+      earlier_snapshots: earlier_snapshots(snapshot),
+      allowance_order: Enum.find(holder_orders, &same_institution?(&1, snapshot)),
+      holder_orders: holder_orders,
+      assessment_type: assessment_type_for(snapshot)
+    }
+  end
+
+  defp parameters_for(%StatementSnapshot{} = snapshot) do
+    case fetch_parameters(@default_jurisdiction, snapshot.tax_year) do
+      {:ok, parameters} -> parameters
+      {:error, :not_found} -> nil
+    end
+  end
+
+  defp earlier_snapshots(%StatementSnapshot{} = snapshot) do
+    StatementSnapshot
+    |> filter_folded(:institution, snapshot.institution)
+    |> filter_folded(:holder, snapshot.holder)
+    |> where([s], s.tax_year == ^snapshot.tax_year and s.as_of < ^snapshot.as_of)
+    |> Repo.all()
+  end
+
+  defp same_institution?(order, snapshot) do
+    Identity.fold(order.institution) == Identity.fold(snapshot.institution)
+  end
+
+  defp assessment_type_for(%StatementSnapshot{} = snapshot) do
+    case profile_in_force(snapshot.holder, snapshot.as_of) do
+      nil -> "single"
+      profile -> profile.assessment_type
+    end
+  end
+
+  @doc """
+  Rolls every institution's latest statement up to one `(holder, tax_year)`
+  view (ADR-0031 §5).
+
+  The roll-up is only correct when a snapshot exists for every institution, so
+  it reports which institutions it covers and marks itself incomplete when a
+  configured allowance order has no matching snapshot for the year.
+  """
+  @spec holder_summary(String.t(), integer()) :: Budget.roll_up()
+  def holder_summary(holder, tax_year) when is_binary(holder) do
+    snapshots = list_snapshots(holder: holder, tax_year: tax_year)
+    expected = list_allowance_orders(holder: holder, tax_year: tax_year)
+
+    Budget.roll_up(
+      snapshots,
+      Enum.map(expected, & &1.institution),
+      parameters_for_year(tax_year),
+      assessment_type_at(holder, snapshots)
+    )
+  end
+
+  defp parameters_for_year(tax_year) do
+    case fetch_parameters(@default_jurisdiction, tax_year) do
+      {:ok, parameters} -> parameters
+      {:error, :not_found} -> nil
+    end
+  end
+
+  defp assessment_type_at(_holder, []), do: "single"
+
+  defp assessment_type_at(holder, [snapshot | _rest]) do
+    case profile_in_force(holder, snapshot.as_of) do
+      nil -> "single"
+      profile -> profile.assessment_type
+    end
+  end
+
+  # Two passes only when the caller supplied no rate: the first reads holder and
+  # as_of back out of the cast, the second is built with the profile-resolved
+  # rate injected, so the hard C2 rule validates against the rate the row will
+  # actually carry. Re-casting rather than `put_change` keeps atom- and
+  # string-keyed attrs both working.
+  defp snapshot_changeset(attrs, today) do
+    probe = StatementSnapshot.changeset(%StatementSnapshot{}, attrs, today)
+    holder = Ecto.Changeset.get_field(probe, :holder)
+    as_of = Ecto.Changeset.get_field(probe, :as_of)
+
+    with nil <- Ecto.Changeset.get_change(probe, :church_tax_rate),
+         true <- is_binary(holder) and match?(%Date{}, as_of),
+         %Profile{} = profile <- profile_in_force(holder, as_of) do
+      StatementSnapshot.changeset(%StatementSnapshot{}, attrs, today,
+        default_church_tax_rate: profile.church_tax_rate
+      )
+    else
+      _otherwise -> probe
+    end
+  end
+
   # -- internals -------------------------------------------------------------
 
   defp for_holder(query, holder) do
@@ -404,6 +621,7 @@ defmodule Portfolixir.Tax do
 
   defp fetch_one(_schema, %Profile{} = profile), do: {:ok, profile}
   defp fetch_one(_schema, %AllowanceOrder{} = order), do: {:ok, order}
+  defp fetch_one(_schema, %StatementSnapshot{} = snapshot), do: {:ok, snapshot}
 
   defp fetch_one(schema, id) when is_integer(id) do
     case Repo.get(schema, id) do

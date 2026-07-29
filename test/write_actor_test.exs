@@ -77,7 +77,8 @@ defmodule Portfolixir.WriteActorTest do
                   "portfolio_targets",
                   "tax_parameters",
                   "tax_profiles",
-                  "allowance_orders"
+                  "allowance_orders",
+                  "tax_statement_snapshots"
                 ])
 
   # `Repo.transaction` is deliberately NOT a write marker: a read-only
