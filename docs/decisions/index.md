@@ -60,3 +60,4 @@ already in force in the codebase.
 | [0029](0029-stable-identities-and-reimport-survival.html) | Stable identities and re-import survival — identity ladder with ISIN-change aliases | Accepted |
 | [0030](0030-position-level-soll-targets.html) | Position-level SOLL targets — positions as source of truth, categories as derived roll-up | Accepted |
 | [0031](0031-recorded-tax-statement-snapshots.html) | Recorded tax-statement snapshots — capture the broker's tax pots, never derive them | Proposed |
+| [0032](0032-derived-series-memoization.html) | Memoized derived series — cache the daily TTWROR walk in volatile memory | Proposed |
