@@ -6,8 +6,9 @@ description: Decision to record German capital-gains tax pot balances (Verlustve
 
 # ADR-0031: recorded tax-statement snapshots — capture the broker's tax pots, never derive them
 
-- **Status:** Proposed (decision gate per
-  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off pending)
+- **Status:** Accepted (decision gate per
+  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off 2026-07-25, issue
+  #612)
 - **Date:** 2026-07-25
 
 ## Context

@@ -124,13 +124,18 @@ defmodule Portfolixir.JournalTest do
   test "market-data writes (quotes) are not journaled (allowlist)" do
     actor = Actor.owner_ui()
     {:ok, security} = Catalog.create_security(actor, valid_attrs())
-    creates = Journal.list_entries(resource_type: "security")
+    assert [%{operation: :create}] = Journal.list_entries(resource_type: "security")
+
+    # Baseline over ALL entries, not just this test's: migration-seeded rows
+    # (e.g. the built-in tax parameters) are journaled outside the sandbox and
+    # are legitimately present here.
+    before = Journal.list_entries()
 
     {:ok, _count} =
       Quotes.upsert_many(security.id, [%{date: ~D[2026-01-02], close: "12.34", source: "manual"}])
 
     # No new journal entries appear for the quote write.
-    assert Journal.list_entries() == creates
+    assert Journal.list_entries() == before
   end
 
   test "list_entries/1 filters real writes by default and includes scenarios on request" do
