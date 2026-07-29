@@ -410,6 +410,20 @@ defmodule Portfolixir.Tax do
     |> Repo.all()
   end
 
+  @doc """
+  The distinct holders that have at least one recorded statement, alphabetical.
+  The entry surface uses it to offer the taxpayers already on file instead of
+  making the operator retype a free-text key.
+  """
+  @spec list_snapshot_holders() :: [String.t()]
+  def list_snapshot_holders do
+    StatementSnapshot
+    |> select([s], s.holder)
+    |> distinct(true)
+    |> order_by([s], asc: s.holder)
+    |> Repo.all()
+  end
+
   @doc "Fetches one snapshot, or `{:error, :not_found}`."
   @spec fetch_snapshot(StatementSnapshot.t() | integer()) ::
           {:ok, StatementSnapshot.t()} | {:error, :not_found}

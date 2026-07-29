@@ -211,7 +211,8 @@ defmodule PortfolixirWeb.AppShell do
         current: current == :allocation
       },
       %{label: gettext("Income"), href: "/income", current: current == :income},
-      %{label: gettext("Snapshots"), href: "/snapshots", current: current == :snapshots}
+      %{label: gettext("Snapshots"), href: "/snapshots", current: current == :snapshots},
+      %{label: gettext("Tax"), href: "/tax", current: current == :tax}
     ]
   end
 
@@ -300,7 +301,7 @@ defmodule PortfolixirWeb.AppShell do
   defp nav_current?(path, %{section: :portfolio}),
     do:
       path == "/portfolio" or String.starts_with?(path, "/portfolio?") or
-        String.starts_with?(path, "/income")
+        String.starts_with?(path, "/income") or String.starts_with?(path, "/tax")
 
   defp nav_current?(path, %{section: :securities}), do: String.starts_with?(path, "/securities")
   defp nav_current?(path, %{section: :portfolios}), do: String.starts_with?(path, "/portfolios")

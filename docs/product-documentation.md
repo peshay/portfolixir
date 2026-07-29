@@ -694,6 +694,74 @@ Securities without a usable quote or exchange rate at the as-of date are
 **excluded and listed** rather than silently valued at zero. The same
 comparison is available over the [API and MCP](integration/api-and-mcp.html).
 
+## Tax (recorded broker statements)
+
+The **Tax** tab of the Wealth area records the tax block of a broker statement
+— the `Verlustverrechnungstöpfe` / `Freistellungsauftrag` section of an annual
+`Steuerreport` or `Erträgnisaufstellung` — and reads the **tax-free trim
+budget** off it: how much realised equity gain is still free of
+Kapitalertragsteuer at that institution.
+
+**These numbers are recorded, never derived.** Portfolixir cannot compute the
+German tax pots from your ledger, and does not try. German capital-gains
+taxation mandates strict **FIFO** per depot, while Portfolixir folds cost basis
+as a **running average** (ADR-0004/ADR-0011); on any position built in several
+tranches and partly sold, the two diverge systematically. Teilfreistellung,
+Vorabpauschale, chronological allowance consumption and certified prior-year
+carry-forward are not in transaction data at all. A derived pot would be wrong,
+and invisibly so — so the statement is transcribed instead. **The recorded
+statement remains the authority, and none of this is tax advice.**
+
+What you record, per institution, taxpayer, tax year and statement date: the
+taxable investment income, the allowance granted and used, the equity and other
+loss pots, the certified loss carry-forward, the foreign-withholding pot and
+the amount credited, and the withheld Kapitalertragsteuer, Solidaritätszuschlag
+and Kirchensteuer.
+
+**Enter every amount without its sign.** A loss pot is stored as the *volume of
+loss available for offsetting*, not as the negative number the statement
+prints. A negative input is rejected with a message saying so rather than
+silently flipped — silent sign normalisation is how a transcription error
+becomes a permanently wrong number. The list view then renders the pots with
+the statement's printed sign, so a recorded row stays visually comparable to
+the paper.
+
+**The trim budget** is the equity loss pot plus the remaining allowance
+(`granted − used`). It is always shown **with its as-of date** and marked
+**stale** as soon as a later day exists: dividends and interest consume the
+allowance chronologically, so the figure decays without any action by you.
+Across institutions it rolls up per taxpayer and year — always naming which
+institutions it covers, quoting the as-of of its **oldest** component, and
+marking itself **incomplete** when an institution has a configured
+Freistellungsauftrag but no recorded statement for the year. It is a **decision
+input, never an instruction**: Portfolixir does not place, store or transmit
+orders.
+
+**Self-checking transcription.** Withholding follows the closed formula of
+§ 32d Abs. 1 EStG, so a recorded statement can check its own arithmetic. Two
+contradictions **block the save**: allowance used above allowance granted, and
+church tax withheld while the church-tax rate is zero. Everything else is an
+**advisory** that never blocks anything — the withheld tax, surcharge and
+church tax reconstructed from the statement, year-to-date figures that fall
+between two statements of the same year, a recorded allowance that disagrees
+with the configured Freistellungsauftrag, and configured orders exceeding the
+year's statutory ceiling. An advisory names the two numbers and the gap; it
+never proposes a "corrected" value. A tolerance band of `max(1.00, 0.05 %)`
+absorbs the cents that legitimately accumulate from per-settlement rounding.
+
+**Configuration behind it.** The statutory rates and Sparer-Pauschbetrag
+ceilings are **year-scoped data**, seeded for 2009–2026 — the allowance changed
+from 801/1.602 € to 1.000/2.000 € in 2023, so an older statement is checked
+against the law that actually applied to it. A year with no data is reported as
+missing rather than approximated from a neighbouring year. Your own situation
+is an **effective-dated profile** per taxpayer: church-tax liability (defaulting
+to *not liable*) and single or joint assessment. A snapshot freezes the
+church-tax rate in force at its statement date, so editing the profile later
+changes future entries and never rewrites a recorded one.
+
+Everything on this page is available over the
+[API and MCP](integration/api-and-mcp.html).
+
 ## Imports
 
 The Imports page accepts Portfolio Performance transaction exports in CSV or

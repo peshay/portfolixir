@@ -748,6 +748,81 @@ zum Stichtag werden **ausgeschlossen und aufgeführt**, statt still mit null
 bewertet zu werden. Derselbe Vergleich steht über die
 [API und MCP](../integration/api-and-mcp.html) bereit.
 
+## Steuern (erfasste Bankabrechnungen)
+
+Der Reiter **Steuern** im Vermögens-Bereich erfasst den Steuerblock einer
+Bankabrechnung — den Abschnitt `Verlustverrechnungstöpfe` /
+`Freistellungsauftrag` eines Steuerreports oder einer Erträgnisaufstellung —
+und liest daraus den **steuerfreien Verkaufsspielraum** ab: wie viel
+realisierter Aktiengewinn bei diesem Institut noch frei von
+Kapitalertragsteuer ist.
+
+**Diese Zahlen werden erfasst, nicht berechnet.** Portfolixir kann die
+deutschen Steuertöpfe nicht aus dem Buchungsbestand herleiten und versucht es
+auch nicht. Das deutsche Steuerrecht schreibt strikt **FIFO** je Depot vor,
+während Portfolixir die Anschaffungskosten als **laufenden Durchschnitt**
+fortschreibt (ADR-0004/ADR-0011); bei jeder in Tranchen aufgebauten und
+teilweise verkauften Position laufen beide systematisch auseinander.
+Teilfreistellung, Vorabpauschale, die chronologische Verrechnung des
+Freistellungsauftrags und der bescheinigte Verlustvortrag stehen in den
+Transaktionsdaten überhaupt nicht. Ein berechneter Topf wäre falsch, und zwar
+unsichtbar falsch — deshalb wird die Abrechnung übernommen. **Maßgeblich bleibt
+die Abrechnung; dies ist keine Steuerberatung.**
+
+Erfasst werden je Institut, steuerpflichtiger Person, Steuerjahr und Stichtag:
+die steuerpflichtigen Kapitalerträge, der erteilte und der verbrauchte
+Freistellungsauftrag, die Verlustverrechnungstöpfe Aktien und Sonstige, der
+bescheinigte Verlustvortrag, der Quellensteuertopf und die angerechnete
+ausländische Quellensteuer sowie die abgeführte Kapitalertragsteuer, der
+Solidaritätszuschlag und die Kirchensteuer.
+
+**Alle Beträge ohne Vorzeichen eintragen.** Ein Verlusttopf wird als
+*verrechenbares Verlustvolumen* gespeichert, nicht als die negative Zahl auf
+dem Papier. Eine negative Eingabe wird mit einem entsprechenden Hinweis
+abgelehnt statt still gedreht — stilles Umdrehen eines Vorzeichens macht aus
+einem Übertragungsfehler eine dauerhaft falsche Zahl. Die Übersicht stellt die
+Töpfe anschließend mit dem gedruckten Vorzeichen dar, damit eine erfasste Zeile
+mit dem Papier vergleichbar bleibt.
+
+**Der Verkaufsspielraum** ist der Verlusttopf Aktien plus der verbleibende
+Freistellungsauftrag (`erteilt − verbraucht`). Er wird immer **mit seinem
+Stichtag** gezeigt und als **veraltet** markiert, sobald ein späterer Tag
+existiert: Dividenden und Zinsen verbrauchen den Freistellungsauftrag
+chronologisch, die Zahl altert also ohne jedes Zutun. Über mehrere Institute
+wird je Person und Jahr summiert — mit Angabe der erfassten Institute, dem
+Stichtag der **ältesten** Teilzahl und dem Hinweis **unvollständig**, wenn für
+ein Institut ein Freistellungsauftrag hinterlegt, aber keine Abrechnung erfasst
+ist. Die Zahl ist eine **Entscheidungsgrundlage, keine Handlungsanweisung**:
+Portfolixir erteilt, speichert und überträgt keine Orders.
+
+**Selbstprüfende Übernahme.** Die Abgeltungsteuer folgt der geschlossenen
+Formel des § 32d Abs. 1 EStG, eine erfasste Abrechnung kann ihre eigene
+Arithmetik also prüfen. Zwei Widersprüche **verhindern das Speichern**: ein
+verbrauchter Freistellungsauftrag über dem erteilten, und Kirchensteuer bei
+einem Kirchensteuersatz von null. Alles andere ist ein **Hinweis**, der nichts
+blockiert — die aus der Abrechnung rekonstruierte Kapitalertragsteuer, der
+Solidaritätszuschlag und die Kirchensteuer, sinkende Jahreswerte zwischen zwei
+Abrechnungen desselben Jahres, ein erfasster Freistellungsauftrag, der vom
+hinterlegten abweicht, und hinterlegte Aufträge über dem gesetzlichen
+Höchstbetrag des Jahres. Ein Hinweis nennt beide Zahlen und die Abweichung; er
+schlägt nie einen „korrigierten" Wert vor. Eine Toleranz von
+`max(1,00, 0,05 %)` fängt die Cent-Beträge ab, die sich aus der Rundung je
+Abrechnungsvorgang legitim ansammeln.
+
+**Die Konfiguration dahinter.** Die gesetzlichen Sätze und die
+Sparer-Pauschbeträge sind **jahresbezogene Daten**, für 2009–2026 hinterlegt —
+der Pauschbetrag stieg 2023 von 801/1.602 € auf 1.000/2.000 €, eine ältere
+Abrechnung wird also gegen das Recht geprüft, das für sie galt. Ein Jahr ohne
+Daten wird als fehlend gemeldet und nicht aus einem Nachbarjahr geschätzt. Die
+eigene Situation ist ein **zeitlich gültiges Profil** je Person:
+Kirchensteuerpflicht (Voreinstellung: nicht pflichtig) sowie Einzel- oder
+Zusammenveranlagung. Eine erfasste Abrechnung friert den zum Stichtag geltenden
+Kirchensteuersatz ein, ein späteres Ändern des Profils wirkt also nur nach vorn
+und schreibt nie eine erfasste Abrechnung um.
+
+Alles auf dieser Seite ist auch über
+[API und MCP](integration/api-and-mcp.html) verfügbar.
+
 ## Imports
 
 Die Imports-Seite akzeptiert Portfolio-Performance-Transaktionsexporte im Format
