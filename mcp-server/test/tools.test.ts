@@ -94,7 +94,22 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.snapshots.list",
       "portfolixir.snapshots.create",
       "portfolixir.snapshots.delete",
-      "portfolixir.snapshots.comparison"
+      "portfolixir.snapshots.comparison",
+      "portfolixir.tax_parameters.list",
+      "portfolixir.tax_parameters.upsert",
+      "portfolixir.tax_profiles.list",
+      "portfolixir.tax_profiles.create",
+      "portfolixir.tax_profiles.update",
+      "portfolixir.tax_profiles.delete",
+      "portfolixir.allowance_orders.list",
+      "portfolixir.allowance_orders.put",
+      "portfolixir.allowance_orders.delete",
+      "portfolixir.tax_snapshots.list",
+      "portfolixir.tax_snapshots.get",
+      "portfolixir.tax_snapshots.create",
+      "portfolixir.tax_snapshots.update",
+      "portfolixir.tax_snapshots.delete",
+      "portfolixir.tax_snapshots.trim_budget"
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
@@ -1494,5 +1509,142 @@ describe("Portfolixir MCP tools", () => {
 
     assert.equal(requests[0].method, "DELETE");
     assert.equal(requests[0].path, "/api/v1/securities/7/identifier_aliases/3");
+  });
+
+  // User story (2026-07-25, ADR-0031, story 19.5):
+  // As the operating LLM agent,
+  // I want the recorded tax snapshots and the trim budget over MCP,
+  // so that I can size a trim without scraping PDFs.
+  it("routes the tax configuration tools to their /tax endpoints", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.tax_parameters.list", { jurisdiction: "DE" });
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/tax/parameters?jurisdiction=DE");
+
+    await callTool(client, "portfolixir.tax_parameters.upsert", {
+      tax_year: 2027,
+      capital_gains_tax_rate: "0.25",
+      solidarity_surcharge_rate: "0.055",
+      saver_allowance_single: "1100.00",
+      saver_allowance_joint: "2200.00"
+    });
+    assert.equal(requests[1].method, "PUT");
+    assert.equal(requests[1].path, "/api/v1/tax/parameters");
+    assert.equal(requests[1].body.parameters.jurisdiction, "DE");
+    assert.equal(requests[1].body.parameters.saver_allowance_single, "1100.00");
+
+    await callTool(client, "portfolixir.tax_profiles.create", {
+      holder: "Owner",
+      valid_from: "2024-01-01"
+    });
+    assert.equal(requests[2].method, "POST");
+    assert.equal(requests[2].path, "/api/v1/tax/profiles");
+    assert.deepEqual(requests[2].body, {
+      profile: { holder: "Owner", valid_from: "2024-01-01" }
+    });
+
+    await callTool(client, "portfolixir.tax_profiles.update", {
+      profile_id: 4,
+      church_tax_liable: true,
+      church_tax_rate: "0.09"
+    });
+    assert.equal(requests[3].method, "PATCH");
+    assert.equal(requests[3].path, "/api/v1/tax/profiles/4");
+    // The path id does not ride along in the body.
+    assert.deepEqual(requests[3].body, {
+      profile: { church_tax_liable: true, church_tax_rate: "0.09" }
+    });
+
+    await callTool(client, "portfolixir.allowance_orders.put", {
+      holder: "Owner",
+      institution: "Example Bank",
+      tax_year: 2025,
+      amount_granted: "1000.00"
+    });
+    assert.equal(requests[4].method, "PUT");
+    assert.equal(requests[4].path, "/api/v1/tax/allowance_orders");
+    assert.equal(requests[4].body.allowance_order.amount_granted, "1000.00");
+
+    await callTool(client, "portfolixir.allowance_orders.delete", { allowance_order_id: 9 });
+    assert.equal(requests[5].method, "DELETE");
+    assert.equal(requests[5].path, "/api/v1/tax/allowance_orders/9");
+  });
+
+  it("routes the tax snapshot tools and exposes every money field as a string", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.tax_snapshots.list", { holder: "Owner", tax_year: 2025 });
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/tax/statement_snapshots?holder=Owner&tax_year=2025");
+
+    await callTool(client, "portfolixir.tax_snapshots.create", {
+      institution: "Example Bank",
+      holder: "Owner",
+      tax_year: 2025,
+      as_of: "2025-12-31",
+      loss_pot_equities: "2500.00"
+    });
+    assert.equal(requests[1].method, "POST");
+    assert.equal(requests[1].path, "/api/v1/tax/statement_snapshots");
+    assert.equal(requests[1].body.statement_snapshot.loss_pot_equities, "2500.00");
+
+    await callTool(client, "portfolixir.tax_snapshots.update", {
+      snapshot_id: 3,
+      allowance_used: "400.00"
+    });
+    assert.equal(requests[2].method, "PATCH");
+    assert.equal(requests[2].path, "/api/v1/tax/statement_snapshots/3");
+    assert.deepEqual(requests[2].body, { statement_snapshot: { allowance_used: "400.00" } });
+
+    await callTool(client, "portfolixir.tax_snapshots.trim_budget", {
+      holder: "Owner",
+      tax_year: 2025
+    });
+    assert.equal(requests[3].method, "GET");
+    assert.equal(requests[3].path, "/api/v1/tax/trim_budget?holder=Owner&tax_year=2025");
+
+    const tools = listTools();
+    const create = tools.find((tool) => tool.name === "portfolixir.tax_snapshots.create");
+
+    for (const field of [
+      "taxable_income",
+      "allowance_granted",
+      "allowance_used",
+      "loss_pot_equities",
+      "loss_pot_other",
+      "loss_carryforward_prior_years",
+      "withholding_tax_pot",
+      "withholding_tax_credited",
+      "capital_gains_tax_withheld",
+      "solidarity_surcharge_withheld",
+      "church_tax_withheld"
+    ]) {
+      assert.equal(create?.inputSchema.properties[field].type, "string", field);
+    }
+  });
+
+  // The agent must not try to reconstruct the pots from holdings: average cost
+  // vs. mandated FIFO makes a derived pot wrong and invisibly so.
+  it("tells the agent the tax pots are recorded, not derived, and why", async () => {
+    const tools = listTools();
+    const list = tools.find((tool) => tool.name === "portfolixir.tax_snapshots.list");
+
+    assert.ok(list?.description.includes("RECORDED, NOT DERIVED"));
+    assert.ok(list?.description.includes("FIFO"));
+
+    const budget = tools.find((tool) => tool.name === "portfolixir.tax_snapshots.trim_budget");
+    assert.ok(budget?.description.includes("as_of"));
+    assert.ok(budget?.description.includes("DECISION INPUT"));
+  });
+
+  it("rejects a tax snapshot without its identity before any API request", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.tax_snapshots.create", { institution: "Example Bank" })
+    );
+
+    assert.equal(requests.length, 0);
   });
 });

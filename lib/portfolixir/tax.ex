@@ -252,6 +252,10 @@ defmodule Portfolixir.Tax do
     |> Repo.all()
   end
 
+  @doc "Fetches one profile, or `{:error, :not_found}`."
+  @spec fetch_profile(Profile.t() | integer()) :: {:ok, Profile.t()} | {:error, :not_found}
+  def fetch_profile(profile_or_id), do: fetch_one(Profile, profile_or_id)
+
   @doc "Creates a taxpayer profile on behalf of `actor`."
   @spec create_profile(Actor.t(), map()) :: {:ok, Profile.t()} | {:error, Ecto.Changeset.t()}
   def create_profile(%Actor{} = actor, attrs) when is_map(attrs) do

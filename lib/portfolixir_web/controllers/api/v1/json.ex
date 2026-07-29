@@ -17,6 +17,13 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount, Target}
   alias Portfolixir.Portfolios.Snapshot
   alias Portfolixir.Portfolios.TargetPlan
+  alias Portfolixir.Tax.AllowanceOrder
+  alias Portfolixir.Tax.Budget, as: TaxBudget
+  alias Portfolixir.Tax.Consistency, as: TaxConsistency
+  alias Portfolixir.Tax.Consistency.Finding, as: TaxFinding
+  alias Portfolixir.Tax.Parameters, as: TaxParameters
+  alias Portfolixir.Tax.Profile, as: TaxProfile
+  alias Portfolixir.Tax.StatementSnapshot
 
   # Slim listing projection (FR-33): a FIXED whitelist for routine listings so
   # notes, feed config, attributes and timestamps don't ride along on every
@@ -1027,6 +1034,121 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   @doc "The active `view` scope echoed into a scoped analytics response (FR-13)."
   def active_view(%View{} = view), do: %{id: view.id, name: view.name}
+
+  # -- tax (ADR-0031) --------------------------------------------------------
+
+  @doc "Year-scoped statutory parameters; rates are fractions, as strings."
+  def tax_parameters(%TaxParameters{} = parameters) do
+    %{
+      id: parameters.id,
+      jurisdiction: parameters.jurisdiction,
+      tax_year: parameters.tax_year,
+      capital_gains_tax_rate: decimal(parameters.capital_gains_tax_rate),
+      solidarity_surcharge_rate: decimal(parameters.solidarity_surcharge_rate),
+      saver_allowance_single: decimal(parameters.saver_allowance_single),
+      saver_allowance_joint: decimal(parameters.saver_allowance_joint),
+      church_tax_rates: Enum.map(parameters.church_tax_rates, &decimal/1),
+      built_in: parameters.built_in
+    }
+  end
+
+  @doc "An effective-dated taxpayer profile."
+  def tax_profile(%TaxProfile{} = profile) do
+    %{
+      id: profile.id,
+      holder: profile.holder,
+      valid_from: date(profile.valid_from),
+      jurisdiction: profile.jurisdiction,
+      church_tax_liable: profile.church_tax_liable,
+      church_tax_rate: decimal(profile.church_tax_rate),
+      assessment_type: profile.assessment_type,
+      note: profile.note
+    }
+  end
+
+  @doc "A configured Freistellungsauftrag — the instructed amount."
+  def allowance_order(%AllowanceOrder{} = order) do
+    %{
+      id: order.id,
+      holder: order.holder,
+      institution: order.institution,
+      tax_year: order.tax_year,
+      amount_granted: decimal(order.amount_granted),
+      note: order.note
+    }
+  end
+
+  @doc """
+  A recorded tax statement plus the two derived figures and the advisory
+  findings (ADR-0031 §4/§5).
+
+  `allowance_remaining` and `tax_free_trim_budget` are derived at read time and
+  always travel with the `as_of` they rest on and a `stale` flag — the
+  allowance is consumed chronologically by dividends and interest, so the
+  number decays without any action by the maintainer. The recorded pots are
+  transcriptions, never derived from holdings.
+  """
+  def tax_statement_snapshot(%StatementSnapshot{} = snapshot, opts \\ []) do
+    findings = Keyword.get(opts, :findings, [])
+    today = Keyword.get(opts, :today, Date.utc_today())
+
+    snapshot
+    |> Map.take(StatementSnapshot.money_fields())
+    |> Map.new(fn {field, value} -> {field, decimal(value)} end)
+    |> Map.merge(%{
+      id: snapshot.id,
+      institution: snapshot.institution,
+      holder: snapshot.holder,
+      tax_year: snapshot.tax_year,
+      as_of: date(snapshot.as_of),
+      source: snapshot.source,
+      church_tax_rate: decimal(snapshot.church_tax_rate),
+      note: snapshot.note,
+      allowance_remaining: decimal(TaxBudget.allowance_remaining(snapshot)),
+      tax_free_trim_budget: decimal(TaxBudget.tax_free_trim_budget(snapshot)),
+      expected_capital_gains_tax: decimal(TaxConsistency.expected_capital_gains_tax(snapshot)),
+      stale: TaxBudget.stale?(snapshot, today),
+      findings: Enum.map(findings, &tax_finding/1)
+    })
+  end
+
+  @doc """
+  One advisory consistency finding: which two numbers disagree, and by how
+  much. Never a proposed correction — the recorded statement stays the
+  authority.
+  """
+  def tax_finding(%TaxFinding{} = finding) do
+    %{
+      code: Atom.to_string(finding.code),
+      severity: Atom.to_string(finding.severity),
+      field: Atom.to_string(finding.field),
+      recorded: decimal(finding.recorded),
+      expected: decimal(finding.expected),
+      gap: decimal(finding.gap)
+    }
+  end
+
+  @doc """
+  The per-holder roll-up (ADR-0031 §5). Always states which institutions it
+  covers and whether it is complete: a configured allowance order with no
+  snapshot for the year makes the sum a partial picture, and it says so rather
+  than presenting a confident total.
+  """
+  def tax_trim_budget(summary) do
+    %{
+      holder: summary.holder,
+      tax_year: summary.tax_year,
+      institutions: summary.institutions,
+      as_of: date(summary.as_of),
+      loss_pot_equities: decimal(summary.loss_pot_equities),
+      loss_pot_other: decimal(summary.loss_pot_other),
+      allowance_remaining: decimal(summary.allowance_remaining),
+      tax_free_trim_budget: decimal(summary.tax_free_trim_budget),
+      allowance_ceiling: decimal(summary.allowance_ceiling),
+      complete: summary.complete?,
+      missing_institutions: summary.missing_institutions
+    }
+  end
 
   def errors(%Changeset{} = changeset) do
     Changeset.traverse_errors(changeset, fn {message, opts} ->
