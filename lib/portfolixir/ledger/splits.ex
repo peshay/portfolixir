@@ -51,6 +51,7 @@ defmodule Portfolixir.Ledger.Splits do
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
@@ -132,7 +133,9 @@ defmodule Portfolixir.Ledger.Splits do
 
   defp fetch_date(attrs) do
     with {:ok, date} <- parse_date(get_attr(attrs, :date)) do
-      if Date.compare(date, Date.utc_today()) == :gt do
+      # The host's local day, not UTC: east of UTC a split effective today would
+      # otherwise be rejected as future between local and UTC midnight (#609).
+      if Date.compare(date, Clock.today()) == :gt do
         {:error, :future_effective_date}
       else
         {:ok, date}

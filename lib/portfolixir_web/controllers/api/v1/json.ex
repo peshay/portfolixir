@@ -404,7 +404,13 @@ defmodule PortfolixirWeb.Api.V1.JSON do
         note: result.basis.note
       },
       guidance: result.guidance,
-      matched: Enum.map(result.matched, &reconcile_match/1),
+      # Input row order, not security id (#609): a finding maps back to the
+      # line the caller sent by position, and each match is keyed by the
+      # lowest input index it aggregates.
+      matched:
+        result.matched
+        |> Enum.sort_by(&lowest_row_index/1)
+        |> Enum.map(&reconcile_match/1),
       ambiguous: Enum.map(result.ambiguous, &reconcile_ambiguous/1),
       unmatched: Enum.map(result.unmatched, &reconcile_unmatched/1),
       missing_from_list: Enum.map(result.missing_from_list, &reconcile_missing/1)
@@ -460,8 +466,26 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  defp lowest_row_index(match) do
+    match.rows |> Enum.map(& &1.index) |> Enum.min()
+  end
+
+  # Identity only (#609): the reconcile rows exist to be matched back to an
+  # external list, so the listing projection's `asset_class` rode along as a
+  # mostly-null filler on every row. Deliberately narrower than
+  # `security_listing/1`.
   defp reconcile_security(nil), do: nil
-  defp reconcile_security(%Security{} = security), do: security_listing(security)
+
+  defp reconcile_security(%Security{} = security) do
+    %{
+      id: security.id,
+      name: security.name,
+      ticker_symbol: security.ticker_symbol,
+      isin: security.isin,
+      wkn: security.wkn,
+      currency_code: security.currency_code
+    }
+  end
 
   def valuation(%{positions: positions} = valuation) do
     %{

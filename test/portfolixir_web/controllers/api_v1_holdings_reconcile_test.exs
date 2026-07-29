@@ -617,4 +617,73 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
     candidate_ids = ambiguous["candidates"] |> Enum.map(& &1["id"]) |> Enum.sort()
     assert candidate_ids == Enum.sort([a.id, b.id])
   end
+
+  # User story (2026-07-29, issue #609):
+  # As the operating LLM agent reading a reconcile response,
+  # I want matched rows in the order I sent them and no filler fields,
+  # so that mapping a finding back to my input line is trivial and every row
+  # costs only the tokens it needs.
+  #
+  # Acceptance criteria:
+  # - matched[] is ordered by the lowest input row index of each match, not by
+  #   security id.
+  # - The embedded security carries identity only; no null asset_class filler.
+  test "matched rows follow input order and carry identity only", %{conn: conn} do
+    %{portfolio: portfolio, security: first} = seed!()
+
+    {:ok, second} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Second AG",
+        isin: "DE0008404005",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Second Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Second Depot"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: second.id,
+        type: "buy",
+        date: ~D[2026-01-02],
+        quantity: "5",
+        price: "50",
+        fees: "0",
+        taxes: "0",
+        currency_code: "EUR"
+      })
+
+    # Sent second-then-first: the response must keep that order, not id order.
+    body =
+      conn
+      |> api_conn()
+      |> post("/api/v1/holdings/reconcile", %{
+        "rows" => [
+          %{"identifier" => second.isin, "quantity" => "5"},
+          %{"identifier" => first.isin, "quantity" => "10"}
+        ]
+      })
+      |> json_response(200)
+
+    assert Enum.map(body["data"]["matched"], & &1["security"]["id"]) == [second.id, first.id]
+
+    embedded = hd(body["data"]["matched"])["security"]
+    refute Map.has_key?(embedded, "asset_class")
+    assert Map.keys(embedded) |> Enum.sort() == ~w(currency_code id isin name ticker_symbol wkn)
+  end
 end

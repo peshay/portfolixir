@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
 
   alias Phoenix.LiveView.JS
   alias Portfolixir.Actor
+  alias Portfolixir.Clock
   alias Portfolixir.Ledger.Splits
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.AppShell
@@ -82,7 +83,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
                   type="date"
                   name="split[date]"
                   value={@form["date"]}
-                  max={Date.to_iso8601(Date.utc_today())}
+                  max={Date.to_iso8601(Clock.today())}
                   required
                   phx-debounce="300"
                 />

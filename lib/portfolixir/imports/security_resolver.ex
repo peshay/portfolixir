@@ -352,6 +352,8 @@ defmodule Portfolixir.Imports.SecurityResolver do
     * `rows` — the source rows carrying it,
     * `status` — `:matched` | `:create` | `:needs_decision` | `:config_at_risk`,
     * `matched` — `%{security_id:, tier:}` for `:matched`,
+    * `name_differs` — the file's name when it differs from the stored one
+      (matched rows only; matching never renames stored master data),
     * `conflict` / `candidates` — the surfaced decision for `:needs_decision`,
     * `at_risk` — the `config_at_risk/2` list for `:config_at_risk`.
   """
@@ -386,6 +388,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
       label: ref.name || ref.isin || ref.wkn || ref.ticker,
       rows: Enum.sort(rows),
       matched: nil,
+      name_differs: nil,
       conflict: nil,
       candidates: [],
       at_risk: []
@@ -396,6 +399,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
         base
         |> Map.put(:status, :matched)
         |> Map.put(:matched, %{security_id: security.id, tier: tier})
+        |> Map.put(:name_differs, differing_name(ref, security))
         |> Map.put(:security, security)
 
       {:conflict, conflict} ->
@@ -412,12 +416,29 @@ defmodule Portfolixir.Imports.SecurityResolver do
     end
   end
 
+  # Matching never mutates stored master data (ADR-0029 §2), so a renamed
+  # export would otherwise match silently and leave no trace that the file now
+  # calls the security something else. The row carries the file's name; the
+  # stored one is untouched (#609).
+  defp differing_name(%{name: name}, security) when is_binary(name) do
+    if comparable_name(name) == comparable_name(security.name), do: nil, else: name
+  end
+
+  defp differing_name(_ref, _security), do: nil
+
+  defp comparable_name(nil), do: nil
+  defp comparable_name(name), do: name |> String.split() |> Enum.join(" ") |> String.downcase()
+
   # Decisions first, then warnings, creations, matches — the order the
   # preview renders attention in.
   defp status_rank(:needs_decision), do: 0
   defp status_rank(:config_at_risk), do: 1
   defp status_rank(:create), do: 2
   defp status_rank(:matched), do: 3
+
+  # Below this many leftovers the list is readable, so it is shown even for an
+  # incremental file — the noise problem #607 describes starts at dozens.
+  @leftover_noise_floor 5
 
   @doc """
   The §2 pre-apply inverse check: every config-bearing security (stored
@@ -430,6 +451,50 @@ defmodule Portfolixir.Imports.SecurityResolver do
   """
   @spec unmatched_config_securities([map()], Index.t()) :: [map()]
   def unmatched_config_securities(resolutions, %Index{} = index) do
+    case unmatched_config_scope(resolutions, index) do
+      :incremental -> []
+      :full_export -> leftovers(resolutions, index)
+    end
+  end
+
+  @doc """
+  Whether the import looks like a **full re-export** — the case the §2 inverse
+  check is written for — or an **incremental** file (issue #607).
+
+  The check lists every transacted, config-bearing security the import does not
+  touch. On a full re-export that is exactly the renamed or ISIN-changed
+  security. On a small incremental file it is every *other* configured security
+  in the portfolio, so the one real signal drowns in dozens of irrelevant rows.
+
+  Two conditions must BOTH hold for the check to be skipped:
+
+    * the file references fewer than half of the transacted securities, so it
+      reads as adding bookings rather than re-exporting a history; and
+    * the resulting list would be long enough to actually drown the signal
+      (more than #{@leftover_noise_floor} rows).
+
+  A short leftover list is signal, not noise, and is shown whatever the file
+  looks like. Coverage rather than portfolio/depot scoping because a preview's
+  accounts are still unmapped PP names at this point — the security references
+  are the only resolved thing available before apply. Both thresholds lean
+  toward showing: a false `:full_export` costs noise, a false `:incremental`
+  hides a rename.
+  """
+  @spec unmatched_config_scope([map()], Index.t()) :: :full_export | :incremental
+  def unmatched_config_scope(resolutions, %Index{} = index) do
+    transacted = index.transacted_ids
+    covered = MapSet.size(MapSet.intersection(touched_ids(resolutions), transacted))
+    total = MapSet.size(transacted)
+    broad? = total == 0 or covered * 2 >= total
+
+    if broad? or length(leftovers(resolutions, index)) <= @leftover_noise_floor do
+      :full_export
+    else
+      :incremental
+    end
+  end
+
+  defp leftovers(resolutions, %Index{} = index) do
     touched = touched_ids(resolutions)
 
     index.securities_by_id

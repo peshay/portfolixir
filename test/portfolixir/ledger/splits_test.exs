@@ -5,6 +5,7 @@ defmodule Portfolixir.Ledger.SplitsTest do
     only: [base_world: 1, buy!: 3, create_security!: 1, put_quote!: 3, sell!: 3]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Clock
   alias Portfolixir.Journal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Splits
@@ -236,12 +237,26 @@ defmodule Portfolixir.Ledger.SplitsTest do
   # Acceptance criteria:
   # - A future effective date returns {:error, :future_effective_date} from
   #   both preview and book.
+  # Issue #609: the boundary is the HOST's day. East of UTC, a split effective
+  # today used to be rejected as future between local and UTC midnight.
+  test "accepts a split effective on the host's local today" do
+    world = base_world(name: "Local World", cash_name: "L Cash", depot_name: "L Depot")
+    security = create_security!(name: "Local Co", ticker: "LOC")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-02])
+
+    assert {:ok, _preview} =
+             Splits.preview_split(split_attrs(security, date: Clock.today()))
+
+    assert {:ok, _booked} =
+             Splits.book_split(Actor.owner_ui(), split_attrs(security, date: Clock.today()))
+  end
+
   test "rejects a future-dated effective date in preview and book" do
     world = base_world(name: "Future World", cash_name: "F Cash", depot_name: "F Depot")
     security = create_security!(name: "Future Co", ticker: "FUT")
     buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-02])
 
-    tomorrow = Date.add(Date.utc_today(), 1)
+    tomorrow = Date.add(Clock.today(), 1)
 
     assert {:error, :future_effective_date} =
              Splits.preview_split(split_attrs(security, date: tomorrow))

@@ -1017,6 +1017,91 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       assert html =~ "remap"
     end
 
+    # User story (2026-07-29, issue #607):
+    # As a maintainer importing a small file that adds a few bookings,
+    # I want the leftover-configuration check to stay quiet and say why,
+    # so that the panel does not bury a real rename under every other
+    # configured security in the portfolio.
+    #
+    # Acceptance criteria:
+    # - An incremental file renders no leftover panel.
+    # - It renders the reason instead of nothing at all.
+    test "an incremental file skips the leftover check and says so", %{conn: conn} do
+      portfolio = setup_portfolio()
+
+      # Six transacted, configured securities the sample file does not touch:
+      # below half coverage AND above the noise floor, so the check is skipped.
+      for index <- 1..6 do
+        security = create_security!(%{name: "Configured #{index} AG", isin: "DE000CFG00#{index}"})
+        attach_assignment!(security)
+        transact!(portfolio, security, index)
+      end
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_sample(view)
+
+      html = render(view)
+
+      refute has_element?(view, "#import-unmatched-config")
+      assert has_element?(view, "#import-unmatched-config-skipped")
+      assert html =~ "incremental import rather than a full re-export"
+      # The panel's own heading is what must be absent; the security names
+      # still appear in the remap dropdowns, which is unrelated.
+      refute html =~ "Configured securities this import does not touch"
+    end
+
+    # User story (2026-07-29, issue #609):
+    # As a maintainer importing an export in which a security was renamed,
+    # I want the matched preview row to say the file calls it something else,
+    # so that the rename is visible even though the import never renames my
+    # stored master data (ADR-0029 §2).
+    #
+    # Acceptance criteria:
+    # - The matched row notes the file's name and says the stored one is kept.
+    # - The stored security is unchanged.
+    test "a matched row notes a name that differs in the file", %{conn: conn} do
+      _portfolio = setup_portfolio()
+      stored = create_security!(%{name: "Renamed Long Ago AG", isin: "US0378331005"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_sample(view)
+
+      html = render(view)
+
+      assert html =~ "file name: Apple Inc.; stored name kept"
+      assert Portfolixir.Catalog.get_security(stored.id).name == "Renamed Long Ago AG"
+    end
+
+    defp transact!(portfolio, security, index) do
+      {:ok, cash} =
+        Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          name: "Cash #{index}",
+          currency_code: "EUR"
+        })
+
+      {:ok, depot} =
+        Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          name: "Depot #{index}"
+        })
+
+      {:ok, _} =
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          type: "buy",
+          date: ~D[2024-01-02],
+          currency_code: "EUR",
+          security_id: security.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          quantity: Decimal.new("1"),
+          price: Decimal.new("10"),
+          gross_amount: Decimal.new("10")
+        })
+    end
+
     test "a failed security creation surfaces a friendly per-field message, not a raw tuple",
          %{conn: conn} do
       _portfolio = setup_portfolio()
