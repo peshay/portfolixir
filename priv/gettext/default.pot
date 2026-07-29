@@ -4863,11 +4863,6 @@ msgstr ""
 msgid "Taxpayer"
 msgstr ""
 
-#: lib/portfolixir_web/live/tax_live.ex:371
-#, elixir-autogen, elixir-format
-msgid "These pots are transcribed from the broker statement, never computed from the ledger: German taxation applies strict FIFO per depot while Portfolixir folds cost basis as a running average, and Teilfreistellung, Vorabpauschale and prior-year carry-forward are not in the transaction data at all. The statement remains the authority. This is not tax advice."
-msgstr ""
-
 #: lib/portfolixir_web/live/tax_live.ex:503
 #, elixir-autogen, elixir-format
 msgid "What was instructed per institution, for comparison against what the bank applied."
@@ -4891,4 +4886,9 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:322
 #, elixir-autogen, elixir-format
 msgid "file name: %{name}; stored name kept"
+msgstr ""
+
+#: lib/portfolixir_web/live/tax_live.ex:371
+#, elixir-autogen, elixir-format
+msgid "These pots are transcribed from the broker statement, never computed from the ledger. Not for want of FIFO — lots are matched FIFO already, on the trade list — but that yields a gross gain, and a gross gain is not a tax pot. Teilfreistellung, Vorabpauschale, chronological allowance consumption and prior-year carry-forward are absent from transaction data, and the pots are kept per institution. The statement remains the authority. This is not tax advice."
 msgstr ""

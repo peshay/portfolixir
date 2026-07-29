@@ -17,8 +17,11 @@ defmodule Portfolixir.Tax do
     tables are guard-armed, `tax_parameters` deliberately: a statutory-rate
     edit silently changes every consistency finding for that year.
   - **Nothing here is derived.** ADR-0031 rejects computing the German tax pots
-    from the ledger (average cost vs. mandated FIFO), so these rows are
-    recorded inputs, never calculated ones.
+    from the ledger — not for want of FIFO (`Ledger.TradeMatcher` has it), but
+    because Teilfreistellung, Vorabpauschale, chronological allowance
+    consumption and prior-year carry-forward are absent from transaction data
+    and the pots are per institution. These rows are recorded inputs, never
+    calculated ones.
 
   `fetch_parameters/2` never falls back to a neighbouring year or to a default.
   An unseeded year is an error the caller handles — a silently wrong ceiling is

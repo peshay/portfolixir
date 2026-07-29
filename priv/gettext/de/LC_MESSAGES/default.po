@@ -4864,11 +4864,6 @@ msgstr "Steuerpflichtige Kapitalerträge"
 msgid "Taxpayer"
 msgstr "Steuerpflichtige Person"
 
-#: lib/portfolixir_web/live/tax_live.ex:371
-#, elixir-autogen, elixir-format
-msgid "These pots are transcribed from the broker statement, never computed from the ledger: German taxation applies strict FIFO per depot while Portfolixir folds cost basis as a running average, and Teilfreistellung, Vorabpauschale and prior-year carry-forward are not in the transaction data at all. The statement remains the authority. This is not tax advice."
-msgstr "Diese Töpfe werden aus der Abrechnung der Bank übernommen, nie aus dem Buchungsbestand berechnet: das deutsche Steuerrecht schreibt strikt FIFO je Depot vor, während Portfolixir die Anschaffungskosten als laufenden Durchschnitt fortschreibt, und Teilfreistellung, Vorabpauschale und Verlustvortrag stehen in den Transaktionsdaten überhaupt nicht. Maßgeblich bleibt die Abrechnung. Dies ist keine Steuerberatung."
-
 #: lib/portfolixir_web/live/tax_live.ex:503
 #, elixir-autogen, elixir-format
 msgid "What was instructed per institution, for comparison against what the bank applied."
@@ -4893,3 +4888,8 @@ msgstr "Prüfung auf verwaiste Konfiguration übersprungen: diese Datei enthält
 #, elixir-autogen, elixir-format
 msgid "file name: %{name}; stored name kept"
 msgstr "Name in der Datei: %{name}; gespeicherter Name bleibt"
+
+#: lib/portfolixir_web/live/tax_live.ex:371
+#, elixir-autogen, elixir-format
+msgid "These pots are transcribed from the broker statement, never computed from the ledger. Not for want of FIFO — lots are matched FIFO already, on the trade list — but that yields a gross gain, and a gross gain is not a tax pot. Teilfreistellung, Vorabpauschale, chronological allowance consumption and prior-year carry-forward are absent from transaction data, and the pots are kept per institution. The statement remains the authority. This is not tax advice."
+msgstr "Diese Töpfe werden aus der Abrechnung der Bank übernommen, nie aus dem Buchungsbestand berechnet. Nicht mangels FIFO — die Lots werden längst nach FIFO zugeordnet, siehe Trade-Liste — sondern weil daraus ein Rohgewinn entsteht, und ein Rohgewinn ist kein Steuertopf. Teilfreistellung, Vorabpauschale, die chronologische Verrechnung des Freistellungsauftrags und der Verlustvortrag fehlen in den Transaktionsdaten, und die Töpfe führt die Bank je Institut. Maßgeblich bleibt die Abrechnung. Dies ist keine Steuerberatung."

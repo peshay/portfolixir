@@ -565,12 +565,15 @@ Example account payloads:
 
 ### Recorded tax statements (ADR-0031)
 
-**These pots are recorded, not derived.** Portfolixir folds cost basis as a
-running average while German capital-gains taxation mandates strict FIFO, and
-Teilfreistellung, Vorabpauschale, chronological allowance consumption and
-prior-year carry-forward are not in the transaction data at all. A derived pot
-would be wrong, and invisibly so — so these endpoints transcribe a broker
-statement, they never compute one from holdings. Every money value is a
+**These pots are recorded, not derived** — and the reason is *not* a missing
+FIFO. Portfolixir matches lots FIFO already (`GET
+/api/v1/securities/:id/trades`), and that gives a **gross gain**. A gross gain
+is not a tax pot: Teilfreistellung, Vorabpauschale, chronological allowance
+consumption and certified prior-year carry-forward are not in the transaction
+data at all, and the pots are kept per tax-reporting institution, which
+Portfolixir does not model. A derived pot would be wrong, and invisibly so — so
+these endpoints transcribe a broker statement, they never compute one from
+holdings. Every money value is a
 **positive magnitude** Decimal string: a loss pot is the volume of loss
 available for offsetting, not the negative number the statement prints, and a
 negative input is rejected rather than silently flipped. Nothing here is tax

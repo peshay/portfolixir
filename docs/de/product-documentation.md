@@ -759,15 +759,22 @@ Kapitalertragsteuer ist.
 
 **Diese Zahlen werden erfasst, nicht berechnet.** Portfolixir kann die
 deutschen Steuertöpfe nicht aus dem Buchungsbestand herleiten und versucht es
-auch nicht. Das deutsche Steuerrecht schreibt strikt **FIFO** je Depot vor,
-während Portfolixir die Anschaffungskosten als **laufenden Durchschnitt**
-fortschreibt (ADR-0004/ADR-0011); bei jeder in Tranchen aufgebauten und
-teilweise verkauften Position laufen beide systematisch auseinander.
-Teilfreistellung, Vorabpauschale, die chronologische Verrechnung des
-Freistellungsauftrags und der bescheinigte Verlustvortrag stehen in den
-Transaktionsdaten überhaupt nicht. Ein berechneter Topf wäre falsch, und zwar
-unsichtbar falsch — deshalb wird die Abrechnung übernommen. **Maßgeblich bleibt
-die Abrechnung; dies ist keine Steuerberatung.**
+auch nicht — aber nicht aus dem Grund, den man zuerst vermutet. Portfolixir
+rechnet sehr wohl **FIFO**, also nach der Methode, die das deutsche Steuerrecht
+vorschreibt: die [Trade-Liste](integration/api-and-mcp.html) weist aus, welche
+Stücke ein Verkauf verbraucht hat und zu welchen Kosten. (Die Bestandsbewertung
+nutzt daneben einen laufenden Durchschnitt, weil „was hat meine Position im
+Schnitt gekostet" eine andere Frage ist; ADR-0004/ADR-0011.)
+
+Was FIFO liefert, ist ein **Rohgewinn** — und ein Rohgewinn ist kein Steuertopf.
+Dazwischen stehen vier Dinge, von denen keines in den Transaktionsdaten steht:
+Teilfreistellung (die anteilige Befreiung je Fondstyp), Vorabpauschale, die
+chronologische Verrechnung des Freistellungsauftrags über *alle* Erträge bei
+dieser Bank, und der bescheinigte Verlustvortrag aus Jahren vor der ersten
+erfassten Buchung. Hinzu kommt: die Töpfe führt die Bank je **Institut**,
+Portfolixir modelliert Depots. Ein berechneter Topf wäre deshalb falsch, und
+zwar unsichtbar falsch — deshalb wird die Abrechnung übernommen. **Maßgeblich
+bleibt die Abrechnung; dies ist keine Steuerberatung.**
 
 Erfasst werden je Institut, steuerpflichtiger Person, Steuerjahr und Stichtag:
 die steuerpflichtigen Kapitalerträge, der erteilte und der verbrauchte

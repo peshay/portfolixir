@@ -3,12 +3,14 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
   Recorded tax-statement snapshots and the derived trim budget over the JSON
   API (ADR-0031, AR-11).
 
-  **These pots are recorded, not derived.** Portfolixir folds cost basis as a
-  running average while German capital-gains taxation mandates strict FIFO, and
+  **These pots are recorded, not derived** — and not because FIFO is missing:
+  `Ledger.TradeMatcher` matches lots FIFO and its gross gain is available at
+  `/api/v1/securities/:id/trades`. A gross gain is not a tax pot.
   Teilfreistellung, Vorabpauschale, chronological allowance consumption and
-  prior-year carry-forward are not in the transaction data at all — so a
-  derived pot would be wrong, and invisibly so. Do not attempt to compute these
-  numbers from holdings; transcribe the statement.
+  certified prior-year carry-forward are not in the transaction data at all,
+  and the pots are kept per tax-reporting institution, which Portfolixir does
+  not model — so a derived pot would be wrong, and invisibly so. Do not attempt
+  to compute these numbers from holdings; transcribe the statement.
 
   Every financial decimal serializes as a string. Each snapshot travels with
   `allowance_remaining`, `tax_free_trim_budget`, the `as_of` they rest on, a

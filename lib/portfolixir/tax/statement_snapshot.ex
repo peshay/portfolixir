@@ -5,11 +5,13 @@ defmodule Portfolixir.Tax.StatementSnapshot do
   `(institution, holder, tax_year, as_of)`.
 
   This row is a **transcription**, never a derivation. ADR-0031 rejects
-  computing the German tax pots from the ledger because Portfolixir folds cost
-  basis as a running average while the tax code mandates strict FIFO, and
+  computing the German tax pots from the ledger, and the reason is *not* a
+  missing FIFO: `Ledger.TradeMatcher` matches lots FIFO already. It is that
   Teilfreistellung, Vorabpauschale, chronological allowance consumption and
-  prior-year carry-forward are not in the transaction data at all. Nothing
-  about a real position, security or transaction is stored here.
+  certified prior-year carry-forward never enter the transaction data, and that
+  the pots are kept per tax-reporting institution, which Portfolixir does not
+  model. FIFO yields a gross gain; a gross gain is not a tax pot. Nothing about
+  a real position, security or transaction is stored here.
 
   **Sign convention — magnitudes only.** A loss pot is the *volume of loss
   available for offsetting*, not the negative number the statement prints. A

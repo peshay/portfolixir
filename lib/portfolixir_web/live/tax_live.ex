@@ -369,7 +369,7 @@ defmodule PortfolixirWeb.TaxLive do
             <summary aria-label={gettext("About this figure")}>ⓘ <%= gettext("About this figure") %></summary>
             <p>
               <%= gettext(
-                "These pots are transcribed from the broker statement, never computed from the ledger: German taxation applies strict FIFO per depot while Portfolixir folds cost basis as a running average, and Teilfreistellung, Vorabpauschale and prior-year carry-forward are not in the transaction data at all. The statement remains the authority. This is not tax advice."
+                "These pots are transcribed from the broker statement, never computed from the ledger. Not for want of FIFO — lots are matched FIFO already, on the trade list — but that yields a gross gain, and a gross gain is not a tax pot. Teilfreistellung, Vorabpauschale, chronological allowance consumption and prior-year carry-forward are absent from transaction data, and the pots are kept per institution. The statement remains the authority. This is not tax advice."
               ) %>
             </p>
           </details>

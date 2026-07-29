@@ -1260,10 +1260,11 @@ const snapshotsListSchema = {
 const snapshotsListZ = z.object({});
 
 // -- tax (ADR-0031) ---------------------------------------------------------
-// The pots are RECORDED, never derived: Portfolixir folds cost basis as a
-// running average while German capital-gains taxation mandates strict FIFO, so
-// a computed pot would be wrong and invisibly so. Every money value is a
-// Decimal string.
+// The pots are RECORDED, never derived. Not for want of FIFO - the ledger has
+// a FIFO lot matcher - but because Teilfreistellung, Vorabpauschale,
+// chronological allowance consumption and prior-year carry-forward are absent
+// from transaction data, and the pots are per institution. Every money value is
+// a Decimal string.
 
 const taxMoney = {
   type: "string",
@@ -2203,7 +2204,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.tax_snapshots.list",
     "List recorded tax statements",
-    "List recorded broker tax statements (Verlustverrechnungstoepfe / Freistellungsauftrag block), newest as-of first. THESE POTS ARE RECORDED, NOT DERIVED: Portfolixir folds cost basis as a running average while German taxation mandates strict FIFO, and Teilfreistellung, Vorabpauschale, chronological allowance consumption and prior-year carry-forward are not in the transaction data at all - so do NOT try to compute them from holdings. Each row carries allowance_remaining, tax_free_trim_budget, its as_of basis, a stale flag and the advisory consistency findings. All money values are Decimal strings.",
+    "List recorded broker tax statements (Verlustverrechnungstoepfe / Freistellungsauftrag block), newest as-of first. THESE POTS ARE RECORDED, NOT DERIVED. Note carefully WHY, because the obvious objection is wrong: Portfolixir DOES match lots FIFO (see portfolixir.trades.list), so the missing piece is not the cost method. It is that Teilfreistellung, Vorabpauschale, chronological allowance consumption and certified prior-year carry-forward are not in the transaction data at all, and that the pots are kept per tax-reporting institution, which Portfolixir does not model. FIFO gives you a GROSS GAIN; a gross gain is not a tax pot. So do NOT try to compute these from holdings or from trades - read the recorded statement. Each row carries allowance_remaining, tax_free_trim_budget, its as_of basis, a stale flag and the advisory consistency findings. All money values are Decimal strings.",
     taxSnapshotsListSchema,
     taxSnapshotsListZ
   ),

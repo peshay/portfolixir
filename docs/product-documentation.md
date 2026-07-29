@@ -703,14 +703,24 @@ budget** off it: how much realised equity gain is still free of
 Kapitalertragsteuer at that institution.
 
 **These numbers are recorded, never derived.** Portfolixir cannot compute the
-German tax pots from your ledger, and does not try. German capital-gains
-taxation mandates strict **FIFO** per depot, while Portfolixir folds cost basis
-as a **running average** (ADR-0004/ADR-0011); on any position built in several
-tranches and partly sold, the two diverge systematically. Teilfreistellung,
-Vorabpauschale, chronological allowance consumption and certified prior-year
-carry-forward are not in transaction data at all. A derived pot would be wrong,
-and invisibly so — so the statement is transcribed instead. **The recorded
-statement remains the authority, and none of this is tax advice.**
+German tax pots from your ledger, and does not try — but not for the reason you
+might expect. Portfolixir *does* match lots **FIFO**, the method German
+capital-gains taxation mandates: the [trade
+list](integration/api-and-mcp.html) reports which stock each sale consumed and
+at what cost. (Holdings valuation separately uses a running average, because
+"what did my position cost on average" is a different question; ADR-0004 /
+ADR-0011.)
+
+What FIFO gives you is a **gross gain** — and a gross gain is not a tax pot.
+Four things stand between them, and none is in your transaction data:
+Teilfreistellung (the partial exemption by fund type), Vorabpauschale, the
+chronological order in which your allowance was consumed across *all* income at
+that bank, and certified loss carry-forward from years before your first
+recorded booking. On top of that, the pots are kept by the bank per
+**tax-reporting institution**, and Portfolixir models depots, not institutions.
+A derived pot would therefore be wrong, and invisibly so — so the statement is
+transcribed instead. **The recorded statement remains the authority, and none
+of this is tax advice.**
 
 What you record, per institution, taxpayer, tax year and statement date: the
 taxable investment income, the allowance granted and used, the equity and other
