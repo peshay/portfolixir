@@ -22,6 +22,44 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
     security
   end
 
+  defp transact!(security) do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{
+        name: "P " <> security.isin,
+        base_currency_code: "EUR"
+      })
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Cash " <> security.isin,
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot " <> security.isin
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        type: "buy",
+        date: ~D[2024-01-02],
+        currency_code: "EUR",
+        security_id: security.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        quantity: Decimal.new("1"),
+        price: Decimal.new("10"),
+        gross_amount: Decimal.new("10")
+      })
+
+    security
+  end
+
   defp resolve(ref) do
     SecurityResolver.resolve(SecurityResolver.normalize_ref(ref), SecurityResolver.load_index())
   end
@@ -525,6 +563,169 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
       assert [create_row] = by_status[:create]
       assert create_row.rows == [3, 4]
       assert create_row.key =~ ~r/^[a-f0-9]+$/
+    end
+
+    # User story (2026-07-29, issue #609):
+    # As a maintainer importing an export in which a security was renamed,
+    # I want the matched row to say the file calls it something else,
+    # so that a rename is visible even though matching deliberately never
+    # mutates stored master data (ADR-0029 §2).
+    #
+    # Acceptance criteria:
+    # - A matched row whose file name differs from the stored name carries
+    #   name_differs with the file's name.
+    # - An identical name (ignoring case and surrounding whitespace) does not.
+    # - Nothing about the stored security changes.
+    test "a matched row flags a name that differs in the file" do
+      stored = security!(%{isin: "DE000RENAME1", name: "Stored AG"})
+
+      entry = fn row, name ->
+        %Entry{
+          source_row: row,
+          kind: "buy",
+          date: ~D[2024-05-01],
+          currency_code: "EUR",
+          gross_amount: Decimal.new("10"),
+          quantity: Decimal.new("1"),
+          price: Decimal.new("10"),
+          security: %{
+            isin: "DE000RENAME1",
+            wkn: nil,
+            ticker: nil,
+            name: name,
+            currency: "EUR"
+          },
+          pp_portfolio_name: "Depot",
+          pp_account_name: "Cash"
+        }
+      end
+
+      preview = %Preview{format: :json, entries: [entry.(1, "Renamed AG")]}
+      %{resolutions: [row]} = Imports.resolve_securities(preview)
+
+      assert row.status == :matched
+      assert row.name_differs == "Renamed AG"
+      assert Catalog.get_security(stored.id).name == "Stored AG"
+
+      same = %Preview{format: :json, entries: [entry.(1, "  stored ag ")]}
+      %{resolutions: [unchanged]} = Imports.resolve_securities(same)
+
+      assert unchanged.status == :matched
+      assert unchanged.name_differs == nil
+    end
+  end
+
+  describe "unmatched_config_securities/2 scoping (#607)" do
+    # User story (2026-07-29, issue #607):
+    # As a maintainer adding a few bookings from a small export,
+    # I want the untouched-config panel to stay quiet,
+    # so that the one genuinely renamed security is not buried under every
+    # other configured security in the portfolio.
+    #
+    # Acceptance criteria:
+    # - A full re-export (covering most transacted, config-bearing securities)
+    #   still surfaces its leftovers.
+    # - An incremental import surfaces none, and reports the scope decision so
+    #   the surface can say why rather than silently showing nothing.
+
+    defp configured!(name, isin) do
+      security = security!(%{name: name, isin: isin})
+
+      {:ok, classification} =
+        Classifications.create_classification(Actor.owner_ui(), %{name: "Tree " <> isin})
+
+      {:ok, category} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: "Cat " <> isin
+        })
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Actor.owner_ui(),
+          security.id,
+          classification.id,
+          category.id
+        )
+
+      transact!(security)
+      security
+    end
+
+    defp import_of(securities) do
+      entries =
+        securities
+        |> Enum.with_index(1)
+        |> Enum.map(fn {security, row} ->
+          %Entry{
+            source_row: row,
+            kind: "buy",
+            date: ~D[2024-05-01],
+            currency_code: "EUR",
+            gross_amount: Decimal.new("10"),
+            quantity: Decimal.new("1"),
+            price: Decimal.new("10"),
+            security: %{
+              isin: security.isin,
+              wkn: nil,
+              ticker: nil,
+              name: security.name,
+              currency: "EUR"
+            },
+            pp_portfolio_name: "Depot",
+            pp_account_name: "Cash"
+          }
+        end)
+
+      %Preview{format: :json, entries: entries}
+    end
+
+    test "a full re-export still surfaces its leftovers" do
+      a = configured!("Alpha AG", "DE000SCOPE01")
+      b = configured!("Beta AG", "DE000SCOPE02")
+      _left = configured!("Gamma AG", "DE000SCOPE03")
+
+      result = Imports.resolve_securities(import_of([a, b]))
+
+      assert result.unmatched_config_scope == :full_export
+      assert Enum.map(result.unmatched_config, & &1.security.name) == ["Gamma AG"]
+    end
+
+    test "a short leftover list is shown even on an incremental file" do
+      a = configured!("Alpha AG", "DE000SCOPE21")
+      _left = configured!("Beta AG", "DE000SCOPE22")
+
+      # Coverage is 1 of 2 here; the point of the assertion is the floor, so
+      # add transacted securities the import does not touch to push it down.
+      for isin <- ~w(DE000SCOPE23 DE000SCOPE24 DE000SCOPE25 DE000SCOPE26) do
+        isin |> then(&security!(%{name: "Plain " <> &1, isin: &1})) |> transact!()
+      end
+
+      result = Imports.resolve_securities(import_of([a]))
+
+      assert result.unmatched_config_scope == :full_export
+      assert Enum.map(result.unmatched_config, & &1.security.name) == ["Beta AG"]
+    end
+
+    test "an incremental import surfaces none and says the scope it decided" do
+      a = configured!("Alpha AG", "DE000SCOPE11")
+
+      for {name, isin} <- [
+            {"Beta AG", "DE000SCOPE12"},
+            {"Gamma AG", "DE000SCOPE13"},
+            {"Delta AG", "DE000SCOPE14"},
+            {"Epsilon AG", "DE000SCOPE15"},
+            {"Zeta AG", "DE000SCOPE16"},
+            {"Eta AG", "DE000SCOPE17"},
+            {"Theta AG", "DE000SCOPE18"}
+          ] do
+        configured!(name, isin)
+      end
+
+      result = Imports.resolve_securities(import_of([a]))
+
+      assert result.unmatched_config_scope == :incremental
+      assert result.unmatched_config == []
     end
   end
 end

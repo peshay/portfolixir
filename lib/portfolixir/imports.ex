@@ -37,14 +37,19 @@ defmodule Portfolixir.Imports do
   entries). Read-only — the preview UI uses it to drive the security-mapping
   step before `apply/2`.
   """
-  @spec resolve_securities(Preview.t()) :: %{resolutions: [map()], unmatched_config: [map()]}
+  @spec resolve_securities(Preview.t()) :: %{
+          resolutions: [map()],
+          unmatched_config: [map()],
+          unmatched_config_scope: :full_export | :incremental
+        }
   def resolve_securities(%Preview{} = preview) do
     index = SecurityResolver.load_index()
     resolutions = SecurityResolver.resolution_plan(preview, index)
 
     %{
       resolutions: resolutions,
-      unmatched_config: SecurityResolver.unmatched_config_securities(resolutions, index)
+      unmatched_config: SecurityResolver.unmatched_config_securities(resolutions, index),
+      unmatched_config_scope: SecurityResolver.unmatched_config_scope(resolutions, index)
     }
   end
 
