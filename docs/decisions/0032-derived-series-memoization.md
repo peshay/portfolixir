@@ -86,7 +86,7 @@ structurally hard rather than a matter of discipline.
 ### 2. Key
 
 ```text
-{portfolio_id, view_scope_key, today, data_version}
+{portfolio_id, view_scope_key, today, portfolio_data_version}
 ```
 
 - `view_scope_key` — the view id, or `:unscoped` for the "everything" scope, so
@@ -94,7 +94,7 @@ structurally hard rather than a matter of discipline.
 - `today` — the walk's end date, already an explicit option on `analysis/2`
   (`:today`, injected in tests). Including it means a day rollover misses
   naturally, with no timer and no staleness window.
-- `data_version` — see §3.
+- `data_version` — **this portfolio's** version counter, see §3.
 
 Entries whose `data_version` is not current can never be read *as current*,
 because a read always composes the current version into the key. They are not
@@ -106,44 +106,87 @@ The sweep therefore keeps **one previous generation per
 generations is the whole bound: enough to show something instead of a
 skeleton, not enough to accumulate history.
 
-### 3. Invalidation: one global counter, bumped at the write seams
+### 3. Invalidation: targeted, with a global fallback that cannot be forgotten
 
-**A single monotonic `data_version` counter, bumped by every write that can
-change any walk.** Not per-portfolio, not per-security, not dependency-tracked.
+**Owner decision, 2026-07-29.** An earlier draft proposed one global counter
+bumped by every write, on the grounds that over-invalidation is cheap and
+mis-targeted invalidation is dangerous. The owner chose **targeted
+invalidation** — only the affected portfolios lose their memo. This section is
+rewritten to that decision, and its job is to make the dangerous half
+structurally hard rather than a matter of care.
 
-Fine-grained invalidation is where cache bugs live: a quote write affects every
-portfolio holding that security, an FX write affects every portfolio whose base
-currency differs from any holding, a view edit re-scopes an arbitrary set. The
-dependency graph is real work to compute and easy to get subtly wrong, and the
-failure mode is *a wrong number the maintainer cannot tell is wrong*.
+The danger is real and worth stating plainly: a write whose blast radius is
+computed too narrowly leaves a stale series readable *as current*, and nothing
+on screen would reveal it. So the design does not rest on getting every case
+right. It rests on **failing toward recomputation**.
 
-Over-invalidation costs one recomputation — the exact cost we have today. The
-asymmetry is overwhelming, so the coarse counter wins.
+#### 3.1 Per-portfolio versions, not one counter
 
-Bump sites:
+Each portfolio carries its own `data_version`. The memo key (§2) uses that
+portfolio's version, so invalidating one portfolio leaves every other memo
+readable.
+
+#### 3.2 "Affected" is defined per write kind — and historically
+
+The blast radius of a write is **not** "the portfolios currently holding the
+thing". The series is historical, so a portfolio that held a security in 2019
+and sold it in 2020 is still affected by a 2019 quote for it. Every rule below
+therefore reads *ever held*, not *holds now*:
+
+| Write | Portfolios invalidated |
+| --- | --- |
+| Transaction create / update / delete | the transaction's portfolio, **plus** the counter-portfolio of a transfer (both legs move quantity) |
+| Split booking | every portfolio that has ever transacted the security |
+| Quote upsert | every portfolio that has ever transacted the security |
+| Exchange-rate upsert | every portfolio whose base currency differs from the currency of any account or ever-held security |
+| Cash account / depot create, update, delete | the owning portfolio |
+| Portfolio update (base currency!) | that portfolio |
+| Bucket / view definition change | every portfolio reachable through that view's scope |
+| Import apply | the union of the above, per applied transaction |
+
+`ever transacted` is a cheap indexed query the codebase already has in one
+form (`Ledger.security_ids_with_transactions/0`); the inverse direction is the
+same index read the other way round.
+
+#### 3.3 The fallback: anything unlisted invalidates everything
+
+The table above is an **allowlist of narrow cases**. The resolver's default
+clause — every write kind not explicitly listed, and every listed case whose
+lookup raises or returns an incomplete answer — invalidates **all** portfolios.
+
+This is the whole safety argument, and it inverts the usual failure direction:
+
+- forgetting to add a new write kind to the table costs **a recomputation**,
+  which is exactly today's behaviour;
+- there is no path in which a write silently affects nothing.
+
+A default clause that narrowed instead of widened would be the one design
+mistake this section exists to prevent, so the resolver has no catch-all that
+returns an empty list. That is enforced by an AST meta-test, the same technique
+that keeps `Ledger.Projection.effects/1` free of a defensive fallback.
+
+#### 3.4 Where the bump happens
 
 | Write | Seam |
 | --- | --- |
-| Any journaled financial write (transactions, portfolios, accounts, splits, classifications, targets, tax) | `Portfolixir.Journal.record/3` — every such write is already required to pass through it (ADR-0017), so this is one seam that cannot be forgotten |
+| Any journaled financial write | `Portfolixir.Journal.record/3` — every such write must already pass through it (ADR-0017), so the seam cannot be bypassed without also failing the journal guard trigger |
 | Quote upserts | `Catalog.Quotes.upsert_many/3` — allowlisted out of the journal (market data), so it needs its own bump |
 | Exchange-rate upserts | `Fx.upsert_many/1` — same reason |
-| Import apply | already journaled per transaction; no extra site |
 
-The journal seam is the load-bearing part: "every financial write is journaled"
-is an invariant this repo already enforces with a per-table guard trigger and a
-meta-test. Hanging invalidation off it means a new write path cannot silently
-skip invalidation without also skipping the journal, which fails loudly.
-
-The two market-data seams are the deliberate exception and are named in the
-implementation's test list.
+The journal seam stays load-bearing: it is the reason a *new* write path cannot
+skip invalidation entirely. What §3.2 adds is only *how narrow* the
+invalidation may be, and §3.3 guarantees that "narrow" degrades to "everything"
+rather than to "nothing".
 
 ### 4. Staleness contract
 
 - **Within a request:** none. A read either finds an entry for the current
   version or computes one.
-- **Across a write:** the next read after a committed write sees the new
-  version and recomputes. No read is ever served a pre-write series *silently*
-  — the bump happens in the same transaction as the journal insert.
+- **Across a write:** the next read for an affected portfolio sees its new
+  version and recomputes; unaffected portfolios keep their memo. No read is
+  ever served a pre-write series *silently* — the bump happens in the same
+  transaction as the journal insert, and §3.3 makes "affected" default to
+  "all" whenever the answer is not certain.
 - **The one accepted window (§6):** while that recomputation runs, the surface
   may render the previous series — **labelled with its as-of and marked as
   recomputing**, never unmarked. The window closes on its own when the fresh
@@ -201,10 +244,21 @@ already states "as of <date>" plus a stale marker, for the same reason (a
 number that decays without the maintainer acting). This reuses that pattern
 rather than inventing a second one.
 
-**Scope limit.** This applies to the performance series and its chart. It is
-deliberately *not* extended here to figures a decision is sized against on the
-spot — those either recompute or say nothing. Extending it is a later
-decision, not an implied one.
+**Scope (owner decision, 2026-07-29).** This applies to the performance series
+and its chart **and to the dashboard tiles** that render derived figures. The
+draft limited it to the chart; the owner extended it, on the reasoning that the
+overview page is exactly where the wait is felt most.
+
+The honesty rules above are what make the wider scope defensible, and they are
+therefore not optional on a tile: a tile showing a superseded figure carries
+the same as-of and recomputing marker as the chart. A tile too small for both
+does not qualify for this treatment and recomputes instead — shrinking the
+label is not an option, because an unlabelled stale number is precisely the
+failure this section is built to avoid.
+
+Still out of scope: figures a decision is sized against on the spot, such as
+the tax trim budget, which already has its own recorded as-of and must not
+acquire a second, different notion of "old".
 
 ### 7. What must be proven, not assumed
 
@@ -225,8 +279,18 @@ Implementation is gated on an **output-identical** test, not on a benchmark:
    application serving.
 5. A superseded series must never render without its as-of and its recomputing
    marker, and a failed recomputation must surface as an error rather than
-   leaving the stale number standing (§6). Asserted on the surface, not only in
-   the engine.
+   leaving the stale number standing (§6). Asserted on the surface — chart and
+   dashboard tile — not only in the engine.
+6. **One invalidation test per row of the §3.2 table**, each written as
+   "write, then read, and assert the post-write series" — including the two
+   historical cases that are easy to get wrong: a quote for a date in a
+   portfolio's past that it no longer holds, and an FX rate affecting a
+   portfolio through an account currency rather than a holding.
+7. **The resolver has no narrowing catch-all.** An AST meta-test asserts that
+   its default clause invalidates all portfolios, mirroring the meta-test that
+   keeps `Ledger.Projection.effects/1` free of a defensive fallback. A future
+   write kind nobody wired up must degrade to full invalidation, never to
+   none.
 
 ## Consequences
 
@@ -237,15 +301,22 @@ Implementation is gated on an **output-identical** test, not on a benchmark:
 - ADR-0004 is untouched and explicitly reaffirmed: no derived holdings are
   persisted. A reviewer checking that principle only has to confirm the memo is
   volatile and keyed by an input version.
-- The dashboard's combined async block benefits without being restructured; if
-  it still feels slow afterwards, that is a separate finding about its other
-  three computations, not about this cache.
+- The dashboard's combined async block benefits without being restructured.
+  Its other three computations (valuation, drift alerts, data quality) are
+  tracked separately as
+  [#619](https://github.com/peshay/portfolixir/issues/619), to be measured once
+  this lands rather than optimised on suspicion.
 - Memory: one analysis map per `(portfolio, scope, day)` actually visited,
   swept on every bump. For a self-hosted single-maintainer instance this is
   small; a bound (max entries, oldest evicted) is part of the implementation,
   not of this decision.
-- One accepted staleness window, bounded and visible (§6). It is the price of
-  never showing a skeleton, and it is paid only where a previous series exists.
+- One accepted staleness window, bounded and visible (§6), now spanning the
+  chart and the dashboard tiles. It is the price of never showing a skeleton,
+  and it is paid only where a previous series exists.
+- Targeted invalidation (§3) keeps unrelated portfolios warm across a write.
+  The cost is a per-write blast-radius resolver that must be maintained as new
+  write kinds appear — bounded by §3.3, which turns neglect into a
+  recomputation rather than a wrong number.
 - **Not decided here, deliberately:** persisting the series across restarts,
   incremental/append-only extension of a walk (see Alternatives), caching
   valuation or allocation, and extending §6 to figures other than the
@@ -253,9 +324,14 @@ Implementation is gated on an **output-identical** test, not on a benchmark:
 
 ## Alternatives considered
 
-- **Per-portfolio invalidation.** Rejected: quotes and FX rates are global
-  inputs, so the "which portfolios does this write affect?" query is itself
-  non-trivial and its failure mode is a silently wrong number.
+- **One global counter for all invalidation.** This was the draft's proposal
+  and the owner rejected it in favour of targeted invalidation (§3). The
+  concern that motivated it stands — "which portfolios does this write affect?"
+  is a non-trivial query for quotes and FX rates, and getting it too narrow
+  yields a silently wrong number — so it is answered structurally instead of
+  by argument: §3.3 makes every unlisted or uncertain case invalidate
+  everything, which is exactly the global behaviour, reached automatically
+  whenever the targeted path cannot prove a narrower answer.
 - **Incrementally extending a cached walk instead of recomputing it.**
   Rejected, and this is the sharpest trade-off in the decision. It is the
   obvious optimisation — the walk is chronological, so why not append the new
