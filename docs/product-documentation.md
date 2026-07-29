@@ -643,6 +643,18 @@ over the API
 valuation series for charting. The method and its trade-offs are recorded in
 [ADR-0010](decisions/0010-ttwror-performance-series.html).
 
+### While a series recomputes
+
+The daily performance series is remembered between page loads and recomputed
+when data changes (a booking, a quote, an exchange rate). While that
+recomputation runs, the page shows the **last computed series** instead of a
+loading skeleton — always labelled with exactly what it contains: how many
+bookings, through which date, computed when, as of which day. The label is the
+contract: a superseded number never appears without it, the swap to the fresh
+series happens in one update, and if the recomputation fails the label becomes
+an error instead of letting the old number stand. The overview page's wealth
+card serves its last known YTD figure the same way. (ADR-0032.)
+
 ## Income (dividends and interest)
 
 The **Income** page is the retrospective income report: the dividends and

@@ -166,9 +166,22 @@ defmodule Portfolixir.Portfolios.Performance do
           today: today,
           first_date: start,
           suspect_dates: suspects,
+          basis: basis(transactions),
           daily: daily_series(portfolio_id, transactions, start, today, base, scope)
         }
     end
+  end
+
+  # What a served series CONTAINS, so a superseded one is never a bare number
+  # (ADR-0032 §6, owner requirement): the booking count and the newest booking
+  # date at compute time, plus the compute instant. A stale banner renders
+  # these, which makes "what is missing" readable instead of implied.
+  defp basis(transactions) do
+    %{
+      booking_count: length(transactions),
+      last_booking_date: transactions |> Enum.map(& &1.date) |> Enum.max(Date, fn -> nil end),
+      computed_at: DateTime.truncate(DateTime.utc_now(), :second)
+    }
   end
 
   @doc """
@@ -224,6 +237,7 @@ defmodule Portfolixir.Portfolios.Performance do
       today: today,
       first_date: nil,
       suspect_dates: suspects,
+      basis: basis([]),
       daily: []
     }
   end

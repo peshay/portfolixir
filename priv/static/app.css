@@ -5646,3 +5646,17 @@ select:disabled {
   gap: var(--space-4);
   align-items: end;
 }
+
+/* ADR-0032 §6: the superseded-series banner. Visibly provisional, never a
+   plain paragraph a stale number could hide behind. */
+.perf-stale-banner {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}

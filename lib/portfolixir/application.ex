@@ -14,6 +14,8 @@ defmodule Portfolixir.Application do
       {Portfolixir.Fx.RateSync, Application.get_env(:portfolixir, Portfolixir.Fx.RateSync, [])},
       Portfolixir.Imports.PreviewStore,
       Portfolixir.Portfolios.Performance.Cache,
+      {Portfolixir.Portfolios.Performance.Warmup,
+       Application.get_env(:portfolixir, Portfolixir.Portfolios.Performance.Warmup, [])},
       PortfolixirWeb.Endpoint
     ]
 

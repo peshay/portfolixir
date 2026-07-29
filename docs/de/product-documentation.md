@@ -691,6 +691,19 @@ MCP-Tool `portfolixir.portfolios.performance`, optional mit der vollständigen
 täglichen Bewertungsreihe zum Charting. Die Methode und ihre Abwägungen sind in
 [ADR-0010](/decisions/0010-ttwror-performance-series.html) festgehalten.
 
+### Während eine Kurve neu berechnet wird
+
+Die tägliche Performance-Kurve wird zwischen Seitenaufrufen gemerkt und bei
+Datenänderungen (Buchung, Kurs, Wechselkurs) neu berechnet. Während die
+Neuberechnung läuft, zeigt die Seite die **zuletzt berechnete Kurve** statt
+einer Ladeanzeige — immer beschriftet mit dem, was sie enthält: wie viele
+Buchungen, bis zu welchem Datum, wann berechnet, mit welchem Stand. Die
+Beschriftung ist der Vertrag: eine überholte Zahl erscheint nie ohne sie, der
+Wechsel zur frischen Kurve passiert in einem Schritt, und schlägt die
+Neuberechnung fehl, wird die Beschriftung zum Fehler statt die alte Zahl stehen
+zu lassen. Die Vermögens-Kachel der Übersicht zeigt ihre zuletzt bekannte
+YTD-Zahl auf dieselbe Weise. (ADR-0032.)
+
 ## Income (Dividenden und Zinsen)
 
 Die **Income**-Seite ist der retrospektive Ertragsbericht: die bereits in deinem

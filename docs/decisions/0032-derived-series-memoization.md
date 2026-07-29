@@ -6,9 +6,10 @@ description: Proposed decision to cache the period-independent daily performance
 
 # ADR-0032: memoized derived series — cache the daily TTWROR walk in volatile memory, warm it at boot, and never make the maintainer wait on a skeleton
 
-- **Status:** Proposed (decision gate per
-  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off pending —
-  [#562](https://github.com/peshay/portfolixir/issues/562))
+- **Status:** Accepted (decision gate per
+  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off 2026-07-29 —
+  [#562](https://github.com/peshay/portfolixir/issues/562), design decisions
+  §3/§6 owner-directed the same day)
 - **Date:** 2026-07-29
 
 ## Context
