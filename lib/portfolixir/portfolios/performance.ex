@@ -72,6 +72,7 @@ defmodule Portfolixir.Portfolios.Performance do
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Performance.Cache
   alias Portfolixir.Portfolios.Performance.IRR
 
   @zero Decimal.new("0")
@@ -117,9 +118,35 @@ defmodule Portfolixir.Portfolios.Performance do
     # `nil` -> `:unscoped` -> the walk takes the unchanged code path (#444).
     # A vanished view returns `{:error, :view_not_found}` (fix round).
     case Buckets.load_scope(portfolio_id, Keyword.get(opts, :view)) do
-      {:error, :view_not_found} = error -> error
-      scope -> scoped_analysis(portfolio_id, scope, opts)
+      {:error, :view_not_found} = error ->
+        error
+
+      scope ->
+        # Memoised per (portfolio, scope, end date, that portfolio's data
+        # version) -- ADR-0032. The memo is volatile and switchable off; with it
+        # off this is a plain call to `scoped_analysis/3` and the numbers are
+        # identical, which is what the cache-off suite run proves.
+        Cache.fetch(
+          portfolio_id,
+          Keyword.get(opts, :view) || :unscoped,
+          Keyword.get(opts, :today, Date.utc_today()),
+          fn -> scoped_analysis(portfolio_id, scope, opts) end
+        )
     end
+  end
+
+  @doc """
+  The most recent superseded analysis for a scope, or `nil` (ADR-0032 §6).
+
+  A surface renders this immediately -- labelled with its as-of and marked as
+  recomputing -- rather than a skeleton, while the fresh series computes.
+  """
+  def previous_analysis(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
+    Cache.previous(
+      portfolio_id,
+      Keyword.get(opts, :view) || :unscoped,
+      Keyword.get(opts, :today, Date.utc_today())
+    )
   end
 
   defp scoped_analysis(portfolio_id, scope, opts) do

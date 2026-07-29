@@ -30,6 +30,7 @@ defmodule Portfolixir.Catalog.Quotes do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios.Performance.Invalidation
   alias Portfolixir.Repo
 
   @doc "Most recent quote for the security, or nil."
@@ -232,6 +233,11 @@ defmodule Portfolixir.Catalog.Quotes do
             on_conflict: on_conflict(protect_manual?),
             conflict_target: [:security_id, :date]
           )
+
+        # Quotes are allowlisted out of the audit journal (market data), so they
+        # cannot ride the journal seam and drop the affected performance memos
+        # themselves (ADR-0032 §3.4).
+        Invalidation.after_quote_write(security_id)
 
         if protect_manual? do
           {:ok, count, length(prepared) - count}

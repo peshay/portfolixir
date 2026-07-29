@@ -22,6 +22,7 @@ defmodule Portfolixir.Journal do
   alias Portfolixir.Actor
   alias Portfolixir.Journal.Entry
   alias Portfolixir.Journal.Serializer
+  alias Portfolixir.Portfolios.Performance.Invalidation
   alias Portfolixir.Repo
 
   @actor_setting "portfolixir.journal_actor"
@@ -60,6 +61,14 @@ defmodule Portfolixir.Journal do
     |> Multi.run(journal_step, fn repo, changes ->
       record = Map.fetch!(changes, source)
       insert_entry(repo, actor, operation, resource_type, record, before, scenario_id)
+    end)
+    |> Multi.run(:performance_invalidation, fn _repo, changes ->
+      # ADR-0032 §3.4: the memo of every portfolio this write can affect is
+      # dropped here, inside the writing transaction, so no read after a
+      # committed write can be served a pre-write series. A write kind the
+      # resolver does not know widens to "every portfolio" rather than to none.
+      Invalidation.after_write(resource_type, Map.fetch!(changes, source))
+      {:ok, :invalidated}
     end)
     |> Multi.run(:journal_reset_actor, fn repo, _changes -> reset_actor(repo) end)
   end
