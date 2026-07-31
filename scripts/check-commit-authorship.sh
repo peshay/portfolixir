@@ -36,9 +36,12 @@ if [ "${#ALLOWED[@]}" -eq 0 ]; then
   exit 1
 fi
 
+# Identity matching is case-insensitive throughout.
+to_lower() { printf '%s' "$1" | tr 'A-Z' 'a-z'; }
+
 is_allowed() {
   local email a
-  email="$(printf '%s' "$1" | tr 'A-Z' 'a-z')"
+  email="$(to_lower "$1")"
   for a in "${ALLOWED[@]}"; do
     [ "$email" = "$a" ] && return 0
   done
@@ -54,7 +57,7 @@ is_allowed() {
 PLATFORM_MERGE_COMMITTER="noreply@github.com"
 
 is_platform_merge_committer() {
-  [ "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" = "$PLATFORM_MERGE_COMMITTER" ]
+  [ "$(to_lower "$1")" = "$PLATFORM_MERGE_COMMITTER" ]
 }
 
 violations=0
@@ -81,7 +84,7 @@ check_message() {
   # $1 = ref, $2 = full commit message
   local ref="$1" line low email
   while IFS= read -r line; do
-    low="$(printf '%s' "$line" | tr 'A-Z' 'a-z')"
+    low="$(to_lower "$line")"
     case "$low" in
       co-authored-by:*)
         email="$(email_of "$line")"
