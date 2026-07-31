@@ -164,6 +164,26 @@ check took an afternoon instead of ten minutes.
 3. **The triaged analytics wishlist**, in whatever order Lane C's
    prioritisation pass produces.
 
+## Addendum — same day, after the owner's go
+
+Three of the "decisions needed" above were resolved on 2026-07-31:
+
+- **Authorship gate:** fixed (`ee51260`) — GitHub's web-flow merge committer
+  is accepted for the committer role only, and only when the author is
+  allowlisted. Goes green with the next squash-merge to `main`; watch that
+  first run.
+- **`#570` rescope:** confirmed and recorded in the issue body — the
+  data-quality item links to the security's transactions; repair wizards
+  beyond splits stay gated behind ADR-0028.
+- **Retrospective:** the combined E17–E19 session ran — see
+  `epic-17-18-19-retro-2026-07-31.md`. Its action items extend the closing
+  act with a bookkeeping close-out (AGENTS.md amendment) and codify the
+  check-PRs-not-issues planning rule.
+
+Still genuinely open for the owner: the `#569` ADR sign-off (the Sprint 2
+gate), `#610`, and the UAT pile — now including the tax entry surface (19.6)
+per the retro's action item 5.
+
 ## Standing findings
 
 1. **Planning artifacts drift silently.** `sprint-status.yaml` sat at "awaiting

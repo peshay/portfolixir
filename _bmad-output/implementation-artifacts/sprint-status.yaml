@@ -50,7 +50,7 @@
 # (empty) open-PR list.
 
 generated: 2026-07-25
-last_updated: 2026-07-31 (Sprint 1 merged: E19 19.2-19.6, #607/#609, #562/ADR-0032)
+last_updated: 2026-07-31 (Sprint 1 merged; combined E17-E19 retro run, see epic-17-18-19-retro-2026-07-31.md)
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -130,7 +130,8 @@ development_status:
   17-2-book-a-split-as-a-ledger-event: done
   17-3-continuous-charts-across-a-split: done
   17-4-guided-split-wizard: done
-  epic-17-retrospective: optional
+  # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
+  epic-17-retrospective: done
 
   # E18 -- #600-#602/#605 closed and merged; review debt (#607, #609) cleared in
   # Sprint 1; tracker #603 closed 2026-07-31
@@ -138,7 +139,8 @@ development_status:
   18-1-stable-identity-decision-adr: done
   18-2-strategy-configuration-survives-a-re-import: done
   18-3-read-only-holdings-reconcile: done
-  epic-18-retrospective: optional
+  # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
+  epic-18-retrospective: done
 
   # E19 -- gate #612 signed off 2026-07-25; ADR-0031 Accepted; 19.2-19.6
   # (#621-#625) merged to main in 02dde3b and closed. Epic stays in-progress:
@@ -151,4 +153,5 @@ development_status:
   19-5-trim-budget-over-api-and-mcp: done
   19-6-entry-surface-and-documentation: done
   19-7-forward-projection-and-tax-bucket: backlog
-  epic-19-retrospective: optional
+  # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
+  epic-19-retrospective: done

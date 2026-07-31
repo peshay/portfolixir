@@ -1,0 +1,10 @@
+# Team override for bmad-sprint-planning.
+# Source: combined E17-E19 retrospective, 2026-07-31 (action item 3) --
+# _bmad-output/implementation-artifacts/epic-17-18-19-retro-2026-07-31.md
+
+[workflow]
+
+persistent_facts = [
+  "Sprint planning consults open pull requests and the CI runs on main, never issue state alone: an issue's state lags the PR that fixes it. This lesson was learned on 2026-07-25 (the plan's first cut called #545 unfixed while the fix sat in an open PR) and repeated on 2026-07-31 (#607/#609 open with their fixes merged), so it is codified here instead of in a dated plan file.",
+  "Status claims are verified against the merge commits on main, not taken from labels or tracking files -- sprint-status.yaml itself has been observed lagging a merged batch.",
+]

@@ -245,6 +245,15 @@ reviews decisions and behavior, agents review code:
 4. **Acceptance:** the owner reviews behavior against the briefing, feedback
    lands as a UAT fix round on the same branch, and the maintainer
    squash-merges. Agents never merge.
+5. **Bookkeeping close-out (mandatory, after the merge):** in the same pass
+   as the post-merge cleanup, the batch's agent updates
+   `sprint-status.yaml` and the epics document (including the FR Coverage
+   Map), closes the story issues and the epic tracker, records a short
+   retrospective section, and confirms the merge's own CI runs — required
+   checks included — are green. The batch ends at the merge; the epic ends
+   here. (Added 2026-07-31 from the combined E17–E19 retrospective: all
+   observed process failures of that period sat in the unowned space after
+   the merge.)
 
 **Risk-tier exceptions — dedicated small PRs with real human review:**
 ledger/money-domain math and invariants, security-relevant changes,
