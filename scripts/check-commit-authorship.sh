@@ -45,6 +45,18 @@ is_allowed() {
   return 1
 }
 
+# GitHub's web UI performs squash/rebase/merge commits with itself as the
+# committer (web-flow, `GitHub <noreply@github.com>`). ADR-0026 prescribes that
+# the owner squash-merges through that UI, so this committer cannot be a
+# human's identity by construction. It is accepted for the COMMITTER role only,
+# and only when the commit's AUTHOR is an accountable human -- authorship stays
+# the accountable record. It is never accepted as an author or co-author.
+PLATFORM_MERGE_COMMITTER="noreply@github.com"
+
+is_platform_merge_committer() {
+  [ "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" = "$PLATFORM_MERGE_COMMITTER" ]
+}
+
 violations=0
 report() { echo "  - $1" >&2; violations=$((violations + 1)); }
 
@@ -55,6 +67,14 @@ check_identity() {
   if [ -z "$4" ] || ! is_allowed "$4"; then
     report "$1: $2 is not an accountable human: ${3:-?} <${4:-?}>"
   fi
+}
+
+check_committer() {
+  # $1 = ref, $2 = name, $3 = email, $4 = author email
+  if is_platform_merge_committer "$3" && [ -n "$4" ] && is_allowed "$4"; then
+    return 0
+  fi
+  check_identity "$1" committer "$2" "$3"
 }
 
 check_message() {
@@ -87,8 +107,9 @@ if [ "${1:-}" = "--range" ]; then
   range="${2:?usage: check-commit-authorship.sh --range <git-range>}"
   for sha in $(git rev-list "$range"); do
     ref="$(git log -1 --format='%h %s' "$sha")"
-    check_identity "$ref" author    "$(git log -1 --format='%an' "$sha")" "$(git log -1 --format='%ae' "$sha")"
-    check_identity "$ref" committer "$(git log -1 --format='%cn' "$sha")" "$(git log -1 --format='%ce' "$sha")"
+    author_email="$(git log -1 --format='%ae' "$sha")"
+    check_identity "$ref" author "$(git log -1 --format='%an' "$sha")" "$author_email"
+    check_committer "$ref" "$(git log -1 --format='%cn' "$sha")" "$(git log -1 --format='%ce' "$sha")" "$author_email"
     check_message  "$ref" "$(git log -1 --format='%B' "$sha")"
   done
 else
@@ -98,8 +119,9 @@ else
   committer_ident="$(git var GIT_COMMITTER_IDENT)"
   check_identity "pending commit" author \
     "$(printf '%s' "$author_ident" | sed 's/ <.*//')" "$(email_of "$author_ident")"
-  check_identity "pending commit" committer \
-    "$(printf '%s' "$committer_ident" | sed 's/ <.*//')" "$(email_of "$committer_ident")"
+  check_committer "pending commit" \
+    "$(printf '%s' "$committer_ident" | sed 's/ <.*//')" \
+    "$(email_of "$committer_ident")" "$(email_of "$author_ident")"
   if [ -n "$msg_file" ] && [ -f "$msg_file" ]; then
     check_message "pending commit" "$(cat "$msg_file")"
   fi
