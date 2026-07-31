@@ -1,6 +1,6 @@
 # Story 19.2: Tax parameters, taxpayer profile and configured Freistellungsaufträge
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -49,43 +49,43 @@ The German history is seeded by a migration (not `priv/repo/seeds.exs` — see D
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Migrations (AC: 1, 2, 5, 6, 7)**
-  - [ ] 1.1 `priv/repo/migrations/20260725120000_create_tax_configuration.exs` — DDL for all three tables (`change/0`; pure schema). Column specs in Dev Notes §3.
-  - [ ] 1.2 `priv/repo/migrations/20260725130000_arm_tax_journal.exs` — attach `portfolixir_require_journal_actor()` to all three tables. Copy the shape of `priv/repo/migrations/20260716130000_arm_targets_journal.exs:18-33` verbatim (`up/0` + `down/0`).
-  - [ ] 1.3 `priv/repo/migrations/20260725140000_seed_tax_parameters.exs` — `up/0` calls `Tax.seed_builtin_parameters(Actor.system_job("tax_parameters_seed"))`, `down/0` calls the rollback. **Separate file from 1.1 on purpose:** the seed goes through the context on a separate Repo connection and cannot share the DDL transaction (same reason as `20260712120000` / `20260712130000`).
-  - [ ] 1.4 Run `MIX_ENV=test mix ecto.migrate` — `mix test` does **not** migrate (there is no `test:` alias; see Dev Notes §1).
-  - [ ] 1.5 Verify the roundtrip locally: `MIX_ENV=test mix ecto.migrate && MIX_ENV=test mix ecto.rollback && MIX_ENV=test mix ecto.migrate`.
+- [x] **Task 1 — Migrations (AC: 1, 2, 5, 6, 7)**
+  - [x] 1.1 `priv/repo/migrations/20260725120000_create_tax_configuration.exs` — DDL for all three tables (`change/0`; pure schema). Column specs in Dev Notes §3.
+  - [x] 1.2 `priv/repo/migrations/20260725130000_arm_tax_journal.exs` — attach `portfolixir_require_journal_actor()` to all three tables. Copy the shape of `priv/repo/migrations/20260716130000_arm_targets_journal.exs:18-33` verbatim (`up/0` + `down/0`).
+  - [x] 1.3 `priv/repo/migrations/20260725140000_seed_tax_parameters.exs` — `up/0` calls `Tax.seed_builtin_parameters(Actor.system_job("tax_parameters_seed"))`, `down/0` calls the rollback. **Separate file from 1.1 on purpose:** the seed goes through the context on a separate Repo connection and cannot share the DDL transaction (same reason as `20260712120000` / `20260712130000`).
+  - [x] 1.4 Run `MIX_ENV=test mix ecto.migrate` — `mix test` does **not** migrate (there is no `test:` alias; see Dev Notes §1).
+  - [x] 1.5 Verify the roundtrip locally: `MIX_ENV=test mix ecto.migrate && MIX_ENV=test mix ecto.rollback && MIX_ENV=test mix ecto.migrate`.
 
-- [ ] **Task 2 — Meta-test lists (AC: 6) — DO THIS BEFORE RUNNING THE SUITE**
-  - [ ] 2.1 `test/write_actor_test.exs:63-76` — add `tax_parameters`, `tax_profiles`, `allowance_orders` to `@armed_tables`. The test asserts `armed_tables_in_db() == @armed_tables` **exactly**; arming without this edit fails the suite with a confusing diff.
-  - [ ] 2.2 `test/write_actor_test.exs:16-24` — add `Portfolixir.Tax => "lib/portfolixir/tax.ex"` to `@context_files`, so every public writer is checked for actor-first shape.
-  - [ ] 2.3 Do **not** touch `lib/portfolixir/journal/allowlist.ex` — it is the *exemption* list (quote/FX sync only) and is pinned by `test/portfolixir/journal/allowlist_test.exs`.
+- [x] **Task 2 — Meta-test lists (AC: 6) — DO THIS BEFORE RUNNING THE SUITE**
+  - [x] 2.1 `test/write_actor_test.exs:63-76` — add `tax_parameters`, `tax_profiles`, `allowance_orders` to `@armed_tables`. The test asserts `armed_tables_in_db() == @armed_tables` **exactly**; arming without this edit fails the suite with a confusing diff.
+  - [x] 2.2 `test/write_actor_test.exs:16-24` — add `Portfolixir.Tax => "lib/portfolixir/tax.ex"` to `@context_files`, so every public writer is checked for actor-first shape.
+  - [x] 2.3 Do **not** touch `lib/portfolixir/journal/allowlist.ex` — it is the *exemption* list (quote/FX sync only) and is pinned by `test/portfolixir/journal/allowlist_test.exs`.
 
-- [ ] **Task 3 — Tests first (AC: all)**
-  - [ ] 3.1 `test/portfolixir/tax/parameters_test.exs` — user-story comment block, then: seeded years resolve the right ceilings (801/1602 for ≤2022, 1000/2000 for ≥2023, exact `Decimal`); unseeded year → `{:error, :not_found}`; upsert is journaled.
-  - [ ] 3.2 `test/portfolixir/tax/profiles_test.exs` — default is not liable with rate 0; `church_tax_liable: false` + non-zero rate rejected; `profile_in_force/2` picks the greatest `valid_from <= date` across three rows; adding a newer row leaves an earlier lookup unchanged (AC-4).
-  - [ ] 3.3 `test/portfolixir/tax/allowance_orders_test.exs` — put/list/delete, uniqueness on the triple, negative amount rejected, journaled, and `"comdirect"` vs `"Comdirect"` resolve to the SAME order (§5a).
-  - [ ] 3.4 `test/portfolixir/tax/seed_test.exs` — re-running the seed is a no-op; an operator-edited row is not overwritten by a re-run.
-  - [ ] 3.5 Confirm each test fails for the expected reason before writing implementation.
+- [x] **Task 3 — Tests first (AC: all)**
+  - [x] 3.1 `test/portfolixir/tax/parameters_test.exs` — user-story comment block, then: seeded years resolve the right ceilings (801/1602 for ≤2022, 1000/2000 for ≥2023, exact `Decimal`); unseeded year → `{:error, :not_found}`; upsert is journaled.
+  - [x] 3.2 `test/portfolixir/tax/profiles_test.exs` — default is not liable with rate 0; `church_tax_liable: false` + non-zero rate rejected; `profile_in_force/2` picks the greatest `valid_from <= date` across three rows; adding a newer row leaves an earlier lookup unchanged (AC-4).
+  - [x] 3.3 `test/portfolixir/tax/allowance_orders_test.exs` — put/list/delete, uniqueness on the triple, negative amount rejected, journaled, and `"comdirect"` vs `"Comdirect"` resolve to the SAME order (§5a).
+  - [x] 3.4 `test/portfolixir/tax/seed_test.exs` — re-running the seed is a no-op; an operator-edited row is not overwritten by a re-run.
+  - [x] 3.5 Confirm each test fails for the expected reason before writing implementation.
 
-- [ ] **Task 4 — Schemas (AC: 1, 2, 5)**
-  - [ ] 4.1 `lib/portfolixir/tax/parameters.ex`
-  - [ ] 4.2 `lib/portfolixir/tax/profile.ex`
-  - [ ] 4.3 `lib/portfolixir/tax/allowance_order.ex`
-  - [ ] Each: `@type t :: %__MODULE__{}`, parenthesised `field(...)` calls, `@moduledoc` citing ADR-0031 §3, `unique_constraint` named to match the migration index, `check_constraint` echoing each DB CHECK.
+- [x] **Task 4 — Schemas (AC: 1, 2, 5)**
+  - [x] 4.1 `lib/portfolixir/tax/parameters.ex`
+  - [x] 4.2 `lib/portfolixir/tax/profile.ex`
+  - [x] 4.3 `lib/portfolixir/tax/allowance_order.ex`
+  - [x] Each: `@type t :: %__MODULE__{}`, parenthesised `field(...)` calls, `@moduledoc` citing ADR-0031 §3, `unique_constraint` named to match the migration index, `check_constraint` echoing each DB CHECK.
 
-- [ ] **Task 5 — Context (AC: 1, 3, 5, 6, 8)**
-  - [ ] 5.1 `lib/portfolixir/tax.ex` with the public API in Dev Notes §4. Every writer takes `%Actor{}` first.
-  - [ ] 5.2 `seed_builtin_parameters/1` + `rollback_builtin_parameters/1`, idempotent, marker-scoped.
-  - [ ] 5.3 No `Date.utc_today()` inside schemas or query builders — inject `today`/`on_date` from the context shell (AR-2).
+- [x] **Task 5 — Context (AC: 1, 3, 5, 6, 8)**
+  - [x] 5.1 `lib/portfolixir/tax.ex` with the public API in Dev Notes §4. Every writer takes `%Actor{}` first.
+  - [x] 5.2 `seed_builtin_parameters/1` + `rollback_builtin_parameters/1`, idempotent, marker-scoped.
+  - [x] 5.3 No `Date.utc_today()` inside schemas or query builders — inject `today`/`on_date` from the context shell (AR-2).
 
-- [ ] **Task 6 — Repo contract updates (AC: 6)**
-  - [ ] 6.1 `AGENTS.md` "Active Architecture" — add `Portfolixir.Tax  # recorded tax-statement snapshots and consistency checks`.
-  - [ ] 6.2 `docs/decisions/0031-recorded-tax-statement-snapshots.md` — flip Status from `Proposed (… owner sign-off pending)` to `Accepted` with the sign-off date 2026-07-25 (issue #612, closed by the owner). Update the row in `docs/decisions/index.md` to `Accepted`.
+- [x] **Task 6 — Repo contract updates (AC: 6)**
+  - [x] 6.1 `AGENTS.md` "Active Architecture" — add `Portfolixir.Tax  # recorded tax-statement snapshots and consistency checks`.
+  - [x] 6.2 `docs/decisions/0031-recorded-tax-statement-snapshots.md` — flip Status from `Proposed (… owner sign-off pending)` to `Accepted` with the sign-off date 2026-07-25 (issue #612, closed by the owner). Update the row in `docs/decisions/index.md` to `Accepted`.
 
-- [ ] **Task 7 — Gates**
-  - [ ] `mix format` · `mix test` · `mix coveralls` · `mix credo --strict` · `mix dialyzer --format short` · `mix sobelow --skip --exit --ignore Config.CSP,Config.HTTPS` · `pre-commit run --all-files`
-  - [ ] mcp-server gates are **n/a** (untouched) — say so explicitly in the PR.
+- [x] **Task 7 — Gates**
+  - [x] `mix format` · `mix test` · `mix coveralls` · `mix credo --strict` · `mix dialyzer --format short` · `mix sobelow --skip --exit --ignore Config.CSP,Config.HTTPS` · `pre-commit run --all-files`
+  - [x] mcp-server gates are **n/a** (untouched) — say so explicitly in the PR.
 
 ## Dev Notes
 
@@ -324,8 +324,60 @@ ADR-0031 rejects deriving the German tax pots because Portfolixir folds cost bas
 
 ### Agent Model Used
 
+Recorded in the pull-request description, per the repo commit-authorship policy.
+
 ### Debug Log References
+
+- Red confirmed before implementation: `MIX_ENV=test mix test test/portfolixir/tax/`
+  failed with `Portfolixir.Tax.Parameters.__struct__/1 is undefined` — the
+  expected reason (no schemas, no context).
+- Migration roundtrip verified locally:
+  `MIX_ENV=test mix ecto.rollback --to 20260725120000 && MIX_ENV=test mix ecto.migrate`.
 
 ### Completion Notes List
 
+- **AC-1/AC-7/AC-8** — `tax_parameters` seeded 2009-2026 by migration
+  `20260725140000`; the 2023 ceiling change is data, and an unseeded year
+  returns `{:error, :not_found}` with no fallback.
+- **AC-2/AC-3/AC-4** — `tax_profiles` is effective-dated; `profile_in_force/2`
+  is the repo's `at_or_before` idiom, so a newer row cannot change what an
+  earlier date resolves to.
+- **AC-5** — `allowance_orders` unique on the case-folded triple;
+  `put_allowance_order/2` replaces the instruction rather than duplicating it.
+- **AC-6** — all three tables armed by `20260725130000`; `write_actor_test`
+  `@armed_tables` and `@context_files` updated accordingly.
+- **§5a decided and enforced** — `Portfolixir.Tax.Identity`: normalise on write,
+  store case-preserving, match case-folded. Story 19.3 inherits this module.
+- **Out-of-scope confirmed untouched** — no API route, no MCP tool, no LiveView,
+  no gettext string, no `tax_statement_snapshots`, no consistency engine.
+- **Adjacent meta-test fix** — `journal_test.exs` "market-data writes are not
+  journaled" compared the whole journal against a locally built list; the
+  migration-seeded parameter entries legitimately live outside the sandbox, so
+  it now baselines before the quote write. Intent unchanged.
+- **API/MCP coverage** — deliberately n/a for this story (scope lock); story
+  19.5 carries it. `mcp-server/` untouched, so its gates are n/a.
+- **User documentation** — n/a: no user-visible surface ships here (story 19.6).
+- **Security pass** — no atoms from external input, no raw SQL interpolation
+  (the journal actor is bound through `set_config($1, $2, true)`), Decimal-only
+  persistence with explicit precision/scale, no network calls, no new
+  dependency.
+
 ### File List
+
+- `priv/repo/migrations/20260725120000_create_tax_configuration.exs` (new)
+- `priv/repo/migrations/20260725130000_arm_tax_journal.exs` (new)
+- `priv/repo/migrations/20260725140000_seed_tax_parameters.exs` (new)
+- `lib/portfolixir/tax.ex` (new)
+- `lib/portfolixir/tax/identity.ex` (new)
+- `lib/portfolixir/tax/parameters.ex` (new)
+- `lib/portfolixir/tax/profile.ex` (new)
+- `lib/portfolixir/tax/allowance_order.ex` (new)
+- `test/portfolixir/tax/parameters_test.exs` (new)
+- `test/portfolixir/tax/profiles_test.exs` (new)
+- `test/portfolixir/tax/allowance_orders_test.exs` (new)
+- `test/portfolixir/tax/seed_test.exs` (new)
+- `test/write_actor_test.exs` (modified)
+- `test/portfolixir/journal/journal_test.exs` (modified)
+- `AGENTS.md` (modified)
+- `docs/decisions/0031-recorded-tax-statement-snapshots.md` (modified)
+- `docs/decisions/index.md` (modified)

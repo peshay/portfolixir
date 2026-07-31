@@ -20,7 +20,8 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Portfolios => "lib/portfolixir/portfolios.ex",
     Portfolixir.Classifications => "lib/portfolixir/classifications.ex",
     Portfolixir.Imports => "lib/portfolixir/imports.ex",
-    Portfolixir.Buckets => "lib/portfolixir/buckets.ex"
+    Portfolixir.Buckets => "lib/portfolixir/buckets.ex",
+    Portfolixir.Tax => "lib/portfolixir/tax.ex"
   }
 
   # Contexts whose actor-first refactor + table arming has landed (leaf-first:
@@ -31,7 +32,8 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Fx,
     Portfolixir.Portfolios,
     Portfolixir.Ledger,
-    Portfolixir.Classifications
+    Portfolixir.Classifications,
+    Portfolixir.Tax
   ]
 
   # Migration-only data backfills: arity locked by immutable migrations (which run
@@ -72,7 +74,11 @@ defmodule Portfolixir.WriteActorTest do
                   "classification_categories",
                   "security_category_assignments",
                   "portfolio_target_plans",
-                  "portfolio_targets"
+                  "portfolio_targets",
+                  "tax_parameters",
+                  "tax_profiles",
+                  "allowance_orders",
+                  "tax_statement_snapshots"
                 ])
 
   # `Repo.transaction` is deliberately NOT a write marker: a read-only

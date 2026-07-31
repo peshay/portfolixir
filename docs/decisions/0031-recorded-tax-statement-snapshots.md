@@ -6,8 +6,9 @@ description: Decision to record German capital-gains tax pot balances (Verlustve
 
 # ADR-0031: recorded tax-statement snapshots — capture the broker's tax pots, never derive them
 
-- **Status:** Proposed (decision gate per
-  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off pending)
+- **Status:** Accepted (decision gate per
+  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off 2026-07-25, issue
+  #612)
 - **Date:** 2026-07-25
 
 ## Context
@@ -31,20 +32,38 @@ The obvious move — derive the loss pots from the ledger Portfolixir already ha
 
 ### Why Portfolixir cannot derive the tax pots
 
-**1. Cost-basis method mismatch (the disqualifier).** Portfolixir folds cost
-basis as a **running average** (`Ledger.Projection` / `Ledger.TradeMatcher`;
-[ADR-0011](0011-unified-ledger-projection.html),
-[ADR-0004](0004-holdings-derived-from-transactions.html)). German capital-gains
-taxation mandates strict **FIFO** per depot. For any position built in several
-tranches and then partially sold, the average-cost gain and the FIFO taxable
-gain diverge — not by rounding, but systematically and in an amount that depends
-on the whole tranche history. A derived loss pot would therefore be *wrong*, and
-wrong in a way nothing in the UI would reveal. An invisible wrong number is
-worse than an absent one.
+> **Correction (2026-07-29, owner review).** The first version of this section
+> called the cost-basis method "the disqualifier" and stated that Portfolixir
+> has no FIFO. **That was wrong**, and the error mattered because it made the
+> whole decision rest on a premise that does not hold. Portfolixir has carried
+> a real FIFO lot matcher (`Ledger.TradeMatcher`) since before this ADR,
+> surfaced at `GET /api/v1/securities/:id/trades`. The decision is unchanged —
+> the reasons below are sufficient on their own — but its argument is not the
+> one originally written down. Point 1 is restated accordingly.
 
-**2. Four inputs are simply not in the transaction data.** Even with FIFO lot
-tracking, the pots would still not reconstruct, because these facts never enter
-the ledger:
+**1. Cost-basis method mismatch (a real gap, not the disqualifier).**
+Portfolixir maintains **two** cost models, each for its own question:
+
+- `Ledger.cost_lots/1` folds a **running average** for holdings valuation
+  ([ADR-0011](0011-unified-ledger-projection.html),
+  [ADR-0004](0004-holdings-derived-from-transactions.html)) — "what did the
+  position I hold cost on average?";
+- `Ledger.TradeMatcher` matches **FIFO, lot by lot**, including split scaling —
+  "which stock did this sale actually consume?".
+
+German capital-gains taxation mandates strict FIFO per depot, so the *taxable*
+question is the matcher's, not the average's. Reading the average-cost gain as
+a tax figure would be systematically wrong for any position built in tranches
+and partly sold.
+
+But that is a **presentation** gap, not a derivation blocker: the FIFO gross
+gain per sale is already computed. What the matcher yields is a **gross gain**,
+and a gross gain is not a tax pot. Points 2 and 3 are what actually disqualify
+derivation, and they hold no matter how exact the lot matching is.
+
+**2. Four inputs are simply not in the transaction data (the disqualifier).**
+Even with the exact FIFO lot tracking Portfolixir already has, the pots do not
+reconstruct, because these facts never enter the ledger at all:
 
 - **Teilfreistellung** — the 0 / 15 / 30 / 60 % partial exemption by fund type.
   It is a property of the fund's asset ratio, visible only because the broker

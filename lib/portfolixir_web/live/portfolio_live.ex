@@ -109,6 +109,8 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:allocation, nil)
           |> assign(:analysis, nil)
           |> assign(:performance, nil)
+          |> assign(:performance_stale, false)
+          |> assign(:performance_failed, false)
           |> assign(:selected_segment, nil)
           |> assign(:expanded_categories, MapSet.new())
           |> assign(:allocation_mode, param_allocation_mode(params))
@@ -364,9 +366,33 @@ defmodule PortfolixirWeb.PortfolioLive do
     portfolio_id = socket.assigns.portfolio.id
     view_id = socket.assigns[:active_view_id]
 
-    start_async(socket, :performance, fn ->
+    socket
+    |> serve_previous_analysis(portfolio_id, view_id)
+    |> start_async(:performance, fn ->
       Performance.analysis(portfolio_id, view: view_id)
     end)
+  end
+
+  # ADR-0032 §6: while the fresh walk computes, render the superseded series
+  # instead of a skeleton -- ALWAYS labelled (as-of, booking basis, recomputing
+  # marker), swapped atomically when the fresh one lands, and turned into an
+  # error state if the recomputation dies. Never an unlabelled old number.
+  defp serve_previous_analysis(socket, portfolio_id, view_id) do
+    case Performance.previous_analysis(portfolio_id, view: view_id) do
+      %{daily: [_ | _]} = previous ->
+        {:ok, performance} = Performance.summarise(previous, socket.assigns.period)
+
+        socket
+        |> assign(:analysis, previous)
+        |> assign(:performance, performance)
+        |> assign(:performance_stale, true)
+        |> assign(:performance_failed, false)
+
+      _none ->
+        socket
+        |> assign(:performance_stale, false)
+        |> assign(:performance_failed, false)
+    end
   end
 
   # The active view can be deleted in another tab while this page still holds
@@ -456,7 +482,14 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_async(:performance, {:ok, analysis}, socket) do
     {:ok, performance} = Performance.summarise(analysis, socket.assigns.period)
-    {:noreply, assign(socket, analysis: analysis, performance: performance)}
+
+    {:noreply,
+     assign(socket,
+       analysis: analysis,
+       performance: performance,
+       performance_stale: false,
+       performance_failed: false
+     )}
   end
 
   # The background rate sync (issue #432, UAT fix rounds): the outcome lands
@@ -485,6 +518,12 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_async(:sync_rates, {:exit, _reason}, socket) do
     {:noreply, assign(socket, fx_syncing: false, fx_sync_result: :error)}
+  end
+
+  def handle_async(:performance, {:exit, _reason}, socket) do
+    # §6: a failed recomputation becomes an ERROR state; the superseded series
+    # may stay on screen but its marker must say failed, never quietly settle.
+    {:noreply, assign(socket, performance_failed: true)}
   end
 
   def handle_async(_name, {:exit, _reason}, socket) do
@@ -783,6 +822,29 @@ defmodule PortfolixirWeb.PortfolioLive do
               </div>
             </div>
           </header>
+          <%!-- ADR-0032 §6: a superseded series never renders unlabelled. The
+               banner names the data it CONTAINS (booking count, newest booking,
+               compute time), not just its age; a failed recomputation flips to
+               an error state instead of letting the old number settle. --%>
+          <p
+            :if={@performance_stale and not @performance_failed and @analysis}
+            class="perf-stale-banner"
+            role="status"
+            data-role="performance-stale"
+          >
+            <%= stale_series_label(@analysis) %>
+          </p>
+          <p
+            :if={@performance_failed and @analysis}
+            class="alert-error"
+            role="alert"
+            data-role="performance-failed"
+          >
+            <%= gettext(
+              "Recomputation failed. The shown series is superseded: %{basis}. Reload retries.",
+              basis: series_basis_label(@analysis)
+            ) %>
+          </p>
           <%= if @performance do %>
             <p
               class={["perf-badge", perf_sign_class(@performance.ttwror)]}
@@ -2568,5 +2630,27 @@ defmodule PortfolixirWeb.PortfolioLive do
     changeset.errors
     |> Enum.map(fn {field, {message, _opts}} -> "#{field} #{message}" end)
     |> Enum.join(", ")
+  end
+
+  # ADR-0032 §6 provenance: what the shown series contains, stated, so a
+  # superseded number is never bare. "Bookings" is the honest unit -- the memo
+  # key's version says WHETHER data changed; this says WHAT was included.
+  defp stale_series_label(analysis) do
+    gettext("Superseded series — %{basis}. Recomputing.",
+      basis: series_basis_label(analysis)
+    )
+  end
+
+  defp series_basis_label(%{basis: basis, today: today}) do
+    gettext("%{count} bookings through %{last}, computed %{at}, as of %{date}",
+      count: basis.booking_count,
+      last: Format.date(basis.last_booking_date),
+      at: Calendar.strftime(basis.computed_at, "%Y-%m-%d %H:%M UTC"),
+      date: Format.date(today)
+    )
+  end
+
+  defp series_basis_label(%{today: today}) do
+    gettext("as of %{date}", date: Format.date(today))
   end
 end

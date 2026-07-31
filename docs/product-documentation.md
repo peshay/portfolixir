@@ -643,6 +643,18 @@ over the API
 valuation series for charting. The method and its trade-offs are recorded in
 [ADR-0010](decisions/0010-ttwror-performance-series.html).
 
+### While a series recomputes
+
+The daily performance series is remembered between page loads and recomputed
+when data changes (a booking, a quote, an exchange rate). While that
+recomputation runs, the page shows the **last computed series** instead of a
+loading skeleton — always labelled with exactly what it contains: how many
+bookings, through which date, computed when, as of which day. The label is the
+contract: a superseded number never appears without it, the swap to the fresh
+series happens in one update, and if the recomputation fails the label becomes
+an error instead of letting the old number stand. The overview page's wealth
+card serves its last known YTD figure the same way. (ADR-0032.)
+
 ## Income (dividends and interest)
 
 The **Income** page is the retrospective income report: the dividends and
@@ -693,6 +705,84 @@ positions would have paid are not yet included, and the page says so.
 Securities without a usable quote or exchange rate at the as-of date are
 **excluded and listed** rather than silently valued at zero. The same
 comparison is available over the [API and MCP](integration/api-and-mcp.html).
+
+## Tax (recorded broker statements)
+
+The **Tax** tab of the Wealth area records the tax block of a broker statement
+— the `Verlustverrechnungstöpfe` / `Freistellungsauftrag` section of an annual
+`Steuerreport` or `Erträgnisaufstellung` — and reads the **tax-free trim
+budget** off it: how much realised equity gain is still free of
+Kapitalertragsteuer at that institution.
+
+**These numbers are recorded, never derived.** Portfolixir cannot compute the
+German tax pots from your ledger, and does not try — but not for the reason you
+might expect. Portfolixir *does* match lots **FIFO**, the method German
+capital-gains taxation mandates: the [trade
+list](integration/api-and-mcp.html) reports which stock each sale consumed and
+at what cost. (Holdings valuation separately uses a running average, because
+"what did my position cost on average" is a different question; ADR-0004 /
+ADR-0011.)
+
+What FIFO gives you is a **gross gain** — and a gross gain is not a tax pot.
+Four things stand between them, and none is in your transaction data:
+Teilfreistellung (the partial exemption by fund type), Vorabpauschale, the
+chronological order in which your allowance was consumed across *all* income at
+that bank, and certified loss carry-forward from years before your first
+recorded booking. On top of that, the pots are kept by the bank per
+**tax-reporting institution**, and Portfolixir models depots, not institutions.
+A derived pot would therefore be wrong, and invisibly so — so the statement is
+transcribed instead. **The recorded statement remains the authority, and none
+of this is tax advice.**
+
+What you record, per institution, taxpayer, tax year and statement date: the
+taxable investment income, the allowance granted and used, the equity and other
+loss pots, the certified loss carry-forward, the foreign-withholding pot and
+the amount credited, and the withheld Kapitalertragsteuer, Solidaritätszuschlag
+and Kirchensteuer.
+
+**Enter every amount without its sign.** A loss pot is stored as the *volume of
+loss available for offsetting*, not as the negative number the statement
+prints. A negative input is rejected with a message saying so rather than
+silently flipped — silent sign normalisation is how a transcription error
+becomes a permanently wrong number. The list view then renders the pots with
+the statement's printed sign, so a recorded row stays visually comparable to
+the paper.
+
+**The trim budget** is the equity loss pot plus the remaining allowance
+(`granted − used`). It is always shown **with its as-of date** and marked
+**stale** as soon as a later day exists: dividends and interest consume the
+allowance chronologically, so the figure decays without any action by you.
+Across institutions it rolls up per taxpayer and year — always naming which
+institutions it covers, quoting the as-of of its **oldest** component, and
+marking itself **incomplete** when an institution has a configured
+Freistellungsauftrag but no recorded statement for the year. It is a **decision
+input, never an instruction**: Portfolixir does not place, store or transmit
+orders.
+
+**Self-checking transcription.** Withholding follows the closed formula of
+§ 32d Abs. 1 EStG, so a recorded statement can check its own arithmetic. Two
+contradictions **block the save**: allowance used above allowance granted, and
+church tax withheld while the church-tax rate is zero. Everything else is an
+**advisory** that never blocks anything — the withheld tax, surcharge and
+church tax reconstructed from the statement, year-to-date figures that fall
+between two statements of the same year, a recorded allowance that disagrees
+with the configured Freistellungsauftrag, and configured orders exceeding the
+year's statutory ceiling. An advisory names the two numbers and the gap; it
+never proposes a "corrected" value. A tolerance band of `max(1.00, 0.05 %)`
+absorbs the cents that legitimately accumulate from per-settlement rounding.
+
+**Configuration behind it.** The statutory rates and Sparer-Pauschbetrag
+ceilings are **year-scoped data**, seeded for 2009–2026 — the allowance changed
+from 801/1.602 € to 1.000/2.000 € in 2023, so an older statement is checked
+against the law that actually applied to it. A year with no data is reported as
+missing rather than approximated from a neighbouring year. Your own situation
+is an **effective-dated profile** per taxpayer: church-tax liability (defaulting
+to *not liable*) and single or joint assessment. A snapshot freezes the
+church-tax rate in force at its statement date, so editing the profile later
+changes future entries and never rewrites a recorded one.
+
+Everything on this page is available over the
+[API and MCP](integration/api-and-mcp.html).
 
 ## Imports
 

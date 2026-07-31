@@ -28,6 +28,14 @@ config :phoenix, :plug_init_mode, :runtime
 
 config :portfolixir, :api_token, "test-api-token"
 
+# The performance memo (ADR-0032) is OFF in tests by default. Two reasons: a
+# process-global memo would leak results across sandboxed tests, and ADR-0032
+# §7.3 requires the whole suite to pass with the cache off — which is what
+# makes "dropping it changes only latency" a checked claim. The cache's own
+# tests switch it on for their duration.
+config :portfolixir, Portfolixir.Portfolios.Performance.Cache, enabled?: false
+config :portfolixir, Portfolixir.Portfolios.Performance.Warmup, enabled?: false
+
 config :portfolixir, Portfolixir.Catalog.SecuritySearch,
   providers: [Portfolixir.Catalog.SecuritySearch.Fake],
   timeout_ms: 1000

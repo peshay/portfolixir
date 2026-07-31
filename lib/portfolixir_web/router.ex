@@ -34,6 +34,7 @@ defmodule PortfolixirWeb.Router do
       live("/transactions", TransactionManagementLive)
       live("/income", IncomeLive)
       live("/snapshots", SnapshotsLive)
+      live("/tax", TaxLive)
       live("/imports", ImportsLive)
       live("/buckets", BucketsLive)
       live("/classifications", ClassificationsLive, :index)
@@ -128,6 +129,24 @@ defmodule PortfolixirWeb.Router do
       SnapshotController,
       :comparison
     )
+
+    # Recorded tax-statement snapshots and their configuration (ADR-0031).
+    # The pots are transcribed, never derived — see TaxSnapshotController.
+    get("/tax/parameters", TaxConfigurationController, :index_parameters)
+    put("/tax/parameters", TaxConfigurationController, :upsert_parameters)
+    get("/tax/profiles", TaxConfigurationController, :index_profiles)
+    post("/tax/profiles", TaxConfigurationController, :create_profile)
+    patch("/tax/profiles/:id", TaxConfigurationController, :update_profile)
+    delete("/tax/profiles/:id", TaxConfigurationController, :delete_profile)
+    get("/tax/allowance_orders", TaxConfigurationController, :index_allowance_orders)
+    put("/tax/allowance_orders", TaxConfigurationController, :put_allowance_order)
+    delete("/tax/allowance_orders/:id", TaxConfigurationController, :delete_allowance_order)
+    get("/tax/statement_snapshots", TaxSnapshotController, :index)
+    post("/tax/statement_snapshots", TaxSnapshotController, :create)
+    get("/tax/trim_budget", TaxSnapshotController, :trim_budget)
+    get("/tax/statement_snapshots/:id", TaxSnapshotController, :show)
+    patch("/tax/statement_snapshots/:id", TaxSnapshotController, :update)
+    delete("/tax/statement_snapshots/:id", TaxSnapshotController, :delete)
 
     get("/exchange_rates", ExchangeRateController, :index)
     post("/exchange_rates/sync", ExchangeRateController, :sync)

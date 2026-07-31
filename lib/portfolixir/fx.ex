@@ -16,6 +16,7 @@ defmodule Portfolixir.Fx do
   import Ecto.Query
 
   alias Portfolixir.Fx.ExchangeRate
+  alias Portfolixir.Portfolios.Performance.Invalidation
   alias Portfolixir.Repo
 
   @hub "EUR"
@@ -41,6 +42,10 @@ defmodule Portfolixir.Fx do
             on_conflict: {:replace, [:rate, :source, :updated_at]},
             conflict_target: [:base_currency, :quote_currency, :date]
           )
+
+        # Allowlisted out of the journal for the same reason as quotes, so the
+        # invalidation is announced here (ADR-0032 §3.4).
+        Invalidation.after_exchange_rate_write()
 
         {:ok, count}
 

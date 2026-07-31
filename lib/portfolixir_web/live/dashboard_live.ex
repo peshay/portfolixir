@@ -26,6 +26,7 @@ defmodule PortfolixirWeb.DashboardLive do
       |> assign(:wealth_card, nil)
       |> assign(:drift_alerts, nil)
       |> assign(:data_quality, nil)
+      |> assign_stale_ttwror()
       |> start_loading()
 
     {:ok, socket}
@@ -51,6 +52,33 @@ defmodule PortfolixirWeb.DashboardLive do
       end)
     else
       socket
+    end
+  end
+
+  # ADR-0032 §6 on the dashboard tile: while the overview computes, the last
+  # known YTD figure renders immediately -- labelled with the data it contains,
+  # never bare (owner requirement). Only the TTWROR half is served this way:
+  # the valuation is not memoised, and a figure §6 cannot label honestly
+  # recomputes instead of being guessed.
+  defp assign_stale_ttwror(%{assigns: %{transactions_count: 0}} = socket) do
+    assign(socket, :stale_ttwror, nil)
+  end
+
+  defp assign_stale_ttwror(socket) do
+    first = Portfolios.first_portfolio()
+    view_id = Settings.default_view_id()
+
+    with %{} = portfolio <- first,
+         %{daily: [_ | _]} = previous <-
+           Performance.previous_analysis(portfolio.id, view: view_id),
+         {:ok, %{ttwror: %Decimal{} = ttwror}} <- Performance.summarise(previous, "ytd") do
+      assign(socket, :stale_ttwror, %{
+        ttwror: ttwror,
+        basis: previous.basis,
+        as_of: previous.today
+      })
+    else
+      _none -> assign(socket, :stale_ttwror, nil)
     end
   end
 
@@ -159,7 +187,28 @@ defmodule PortfolixirWeb.DashboardLive do
 
       <section class="workspace-section grid" aria-label={gettext("Wealth value")}>
         <%= if is_nil(@wealth_card) do %>
-          <article class="stat section-skeleton" data-role="overview-skeleton">
+          <article
+            :if={@stale_ttwror}
+            class="stat section-skeleton"
+            role="status"
+            data-role="overview-stale"
+          >
+            <span><%= gettext("Loading…") %></span>
+            <small data-role="stale-ttwror">
+              <%= gettext(
+                "Last known: %{ttwror}% YTD — %{count} bookings through %{last}, as of %{date}. Recomputing.",
+                ttwror: signed_percent(@stale_ttwror.ttwror),
+                count: @stale_ttwror.basis.booking_count,
+                last: Format.date(@stale_ttwror.basis.last_booking_date),
+                date: Format.date(@stale_ttwror.as_of)
+              ) %>
+            </small>
+          </article>
+          <article
+            :if={is_nil(@stale_ttwror)}
+            class="stat section-skeleton"
+            data-role="overview-skeleton"
+          >
             <span><%= gettext("Loading…") %></span>
           </article>
         <% else %>

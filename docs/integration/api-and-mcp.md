@@ -393,7 +393,10 @@ Example account payloads:
   self-describing (`basis` with `as_of`, `scope`, and a delta note) and
   reports: `matched` rows (one per security — rows resolving to the same
   security are aggregated with their external quantities summed and the
-  contributing rows listed) with the `matched_via` tier (`isin`,
+  contributing rows listed), ordered by the **lowest input row index** each
+  match aggregates so a finding maps back to the line you sent, each embedding
+  the security's identity only (`id`, `name`, `ticker_symbol`, `isin`, `wkn`,
+  `currency_code`), with the `matched_via` tier (`isin`,
   `former_isin`, `wkn`, `ticker`, `name`, or `pinned`), `ledger_quantity`,
   `external_quantity` and `delta` (`external - ledger`) as exact Decimal
   strings — ticker/name matches carry `weak_match: true` and the caveat
@@ -559,6 +562,80 @@ Example account payloads:
   `422 Unprocessable Entity`.
 - `DELETE /api/v1/snapshots/:id` deletes one marker; no transactions or
   holdings are affected.
+
+### Recorded tax statements (ADR-0031)
+
+**These pots are recorded, not derived** — and the reason is *not* a missing
+FIFO. Portfolixir matches lots FIFO already (`GET
+/api/v1/securities/:id/trades`), and that gives a **gross gain**. A gross gain
+is not a tax pot: Teilfreistellung, Vorabpauschale, chronological allowance
+consumption and certified prior-year carry-forward are not in the transaction
+data at all, and the pots are kept per tax-reporting institution, which
+Portfolixir does not model. A derived pot would be wrong, and invisibly so — so
+these endpoints transcribe a broker statement, they never compute one from
+holdings. Every money value is a
+**positive magnitude** Decimal string: a loss pot is the volume of loss
+available for offsetting, not the negative number the statement prints, and a
+negative input is rejected rather than silently flipped. Nothing here is tax
+advice, and the recorded statement remains the authority.
+
+- `GET /api/v1/tax/parameters` lists the year-scoped statutory parameters
+  (optional `jurisdiction`, currently only `DE`): `capital_gains_tax_rate`,
+  `solidarity_surcharge_rate` and the `saver_allowance_single` /
+  `saver_allowance_joint` ceilings. Rates are Decimal string **fractions**
+  (`"0.25"`, never `"25"`). Seeded 2009–2026; a year with no row is simply
+  absent — the API never substitutes a neighbouring year's ceiling.
+- `PUT /api/v1/tax/parameters` inserts or replaces one year's parameters
+  (`{"parameters": {"tax_year": 2027, ...}}`).
+- `GET /api/v1/tax/profiles` lists a holder's effective-dated tax profiles
+  (required `holder`; a missing one returns `422 Unprocessable Entity`), newest
+  `valid_from` first. The profile in force for a date is the row with the
+  greatest `valid_from` at or before it — never an exact match. Church-tax
+  liability defaults to **not liable** with rate `0`.
+- `POST /api/v1/tax/profiles` records a profile from a date
+  (`{"profile": {"holder": "...", "valid_from": "2024-01-01"}}`). A non-zero
+  `church_tax_rate` on a not-liable profile is rejected.
+- `PATCH /api/v1/tax/profiles/:id` corrects one profile row. To record a
+  *change* in the situation, create a new row with a later `valid_from` —
+  editing rewrites history, adding does not.
+- `DELETE /api/v1/tax/profiles/:id` deletes one profile row. Snapshots already
+  recorded keep their frozen church-tax rate and are unaffected.
+- `GET /api/v1/tax/allowance_orders` lists the Freistellungsaufträge the
+  taxpayer **instructed** (optional `holder`, `institution`, `tax_year`;
+  free-text filters fold case, so `comdirect` and `Comdirect` are one
+  institution).
+- `PUT /api/v1/tax/allowance_orders` records or replaces the instructed amount
+  for one `(holder, institution, tax_year)`
+  (`{"allowance_order": {...}}`).
+- `DELETE /api/v1/tax/allowance_orders/:id` deletes one configured order.
+- `GET /api/v1/tax/statement_snapshots` lists recorded statements (optional
+  `holder`, `institution`, `tax_year`), newest `as_of` first. Each row carries
+  the eleven recorded figures plus `allowance_remaining`,
+  `tax_free_trim_budget`, `expected_capital_gains_tax`, the `as_of` they rest
+  on, a `stale` flag, and the advisory `findings`.
+- `POST /api/v1/tax/statement_snapshots` records a statement
+  (`{"statement_snapshot": {"institution": "...", "holder": "...",
+  "tax_year": 2025, "as_of": "2025-12-31", ...}}`). `as_of` must not lie in the
+  future. Omit `church_tax_rate` to take the holder's profile in force at
+  `as_of`; the resolved rate is then frozen on the row, so a later profile edit
+  never rewrites a recorded transcription. Re-recording the same
+  `(institution, holder, tax_year, as_of)` is a `422`, not a silent duplicate.
+- `GET /api/v1/tax/trim_budget` rolls the latest statement per institution up
+  to one holder and year (required `holder` and `tax_year`). It reports which
+  `institutions` it covers, the `as_of` of its **oldest** component, and
+  `complete: false` with `missing_institutions` when a configured allowance
+  order has no recorded statement for the year — the total is then a partial
+  picture and says so.
+- `GET /api/v1/tax/statement_snapshots/:id` reads one recorded statement.
+- `PATCH /api/v1/tax/statement_snapshots/:id` corrects one recorded statement
+  in place — the re-issued-statement case.
+- `DELETE /api/v1/tax/statement_snapshots/:id` deletes one recorded statement.
+
+Consistency findings are advisory and computed at read time. A finding names
+the `recorded` and the `expected` number and the `gap`; it never proposes a
+corrected value and never blocks a write. Two rules are hard instead, and come
+back as `422` changeset errors: allowance used above allowance granted, and
+church tax withheld at a zero church-tax rate.
 - `GET /api/v1/portfolios/:portfolio_id/snapshots/:id/comparison` answers
   "would I have done better keeping what I had?": the snapshot's frozen
   holdings valued **buy-and-hold** over the stored quote history (daily, EUR-hub
@@ -1006,6 +1083,21 @@ in MCP schemas are strings.
 - `portfolixir.snapshots.create`
 - `portfolixir.snapshots.delete`
 - `portfolixir.snapshots.comparison`
+- `portfolixir.tax_parameters.list`
+- `portfolixir.tax_parameters.upsert`
+- `portfolixir.tax_profiles.list`
+- `portfolixir.tax_profiles.create`
+- `portfolixir.tax_profiles.update`
+- `portfolixir.tax_profiles.delete`
+- `portfolixir.allowance_orders.list`
+- `portfolixir.allowance_orders.put`
+- `portfolixir.allowance_orders.delete`
+- `portfolixir.tax_snapshots.list`
+- `portfolixir.tax_snapshots.get`
+- `portfolixir.tax_snapshots.create`
+- `portfolixir.tax_snapshots.update`
+- `portfolixir.tax_snapshots.delete`
+- `portfolixir.tax_snapshots.trim_budget`
 
 The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
 `portfolixir.portfolios.performance` and `portfolixir.portfolios.risk` tools

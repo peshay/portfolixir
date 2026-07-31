@@ -1259,6 +1259,289 @@ const snapshotsListSchema = {
 
 const snapshotsListZ = z.object({});
 
+// -- tax (ADR-0031) ---------------------------------------------------------
+// The pots are RECORDED, never derived. Not for want of FIFO - the ledger has
+// a FIFO lot matcher - but because Teilfreistellung, Vorabpauschale,
+// chronological allowance consumption and prior-year carry-forward are absent
+// from transaction data, and the pots are per institution. Every money value is
+// a Decimal string.
+
+const taxMoney = {
+  type: "string",
+  description: "Decimal string, positive magnitude (e.g. \"1000.00\")"
+} as const;
+
+const taxParametersListSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: { jurisdiction: { type: "string", enum: ["DE"] } }
+};
+
+const taxParametersListZ = z.object({ jurisdiction: z.enum(["DE"]).optional() });
+
+const taxParametersUpsertSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "tax_year",
+    "capital_gains_tax_rate",
+    "solidarity_surcharge_rate",
+    "saver_allowance_single",
+    "saver_allowance_joint"
+  ],
+  properties: {
+    jurisdiction: { type: "string", enum: ["DE"] },
+    tax_year: { type: "integer", minimum: 1990, maximum: 2200 },
+    capital_gains_tax_rate: {
+      type: "string",
+      description: "Decimal string fraction in [0,1) - \"0.25\", never \"25\""
+    },
+    solidarity_surcharge_rate: { type: "string", description: "Decimal string fraction in [0,1)" },
+    saver_allowance_single: taxMoney,
+    saver_allowance_joint: taxMoney,
+    church_tax_rates: { type: "array", items: { type: "string" } }
+  }
+};
+
+const taxParametersUpsertZ = z.object({
+  jurisdiction: z.enum(["DE"]).optional(),
+  tax_year: z.number().int().min(1990).max(2200),
+  capital_gains_tax_rate: z.string(),
+  solidarity_surcharge_rate: z.string(),
+  saver_allowance_single: z.string(),
+  saver_allowance_joint: z.string(),
+  church_tax_rates: z.array(z.string()).optional()
+});
+
+const taxHolderSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["holder"],
+  properties: { holder: { type: "string", minLength: 1 } }
+};
+
+const taxHolderZ = z.object({ holder: z.string().min(1) });
+
+const taxProfileCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["holder", "valid_from"],
+  properties: {
+    holder: { type: "string", minLength: 1 },
+    valid_from: { type: "string", description: "ISO date (YYYY-MM-DD)" },
+    church_tax_liable: { type: "boolean" },
+    church_tax_rate: { type: "string", description: "Decimal string fraction; 0 when not liable" },
+    assessment_type: { type: "string", enum: ["single", "joint"] },
+    note: { type: "string" }
+  }
+};
+
+const taxProfileCreateZ = z.object({
+  holder: z.string().min(1),
+  valid_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  church_tax_liable: z.boolean().optional(),
+  church_tax_rate: z.string().optional(),
+  assessment_type: z.enum(["single", "joint"]).optional(),
+  note: z.string().optional()
+});
+
+const taxProfileUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["profile_id"],
+  properties: {
+    profile_id: { type: "integer", minimum: 1 },
+    valid_from: { type: "string", description: "ISO date (YYYY-MM-DD)" },
+    church_tax_liable: { type: "boolean" },
+    church_tax_rate: { type: "string" },
+    assessment_type: { type: "string", enum: ["single", "joint"] },
+    note: { type: "string" }
+  }
+};
+
+const taxProfileUpdateZ = z.object({
+  profile_id: z.number().int().positive(),
+  valid_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  church_tax_liable: z.boolean().optional(),
+  church_tax_rate: z.string().optional(),
+  assessment_type: z.enum(["single", "joint"]).optional(),
+  note: z.string().optional()
+});
+
+const taxProfileIdSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["profile_id"],
+  properties: { profile_id: { type: "integer", minimum: 1 } }
+};
+
+const taxProfileIdZ = z.object({ profile_id: z.number().int().positive() });
+
+const allowanceOrdersListSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    holder: { type: "string" },
+    institution: { type: "string" },
+    tax_year: { type: "integer", minimum: 1990, maximum: 2200 }
+  }
+};
+
+const allowanceOrdersListZ = z.object({
+  holder: z.string().optional(),
+  institution: z.string().optional(),
+  tax_year: z.number().int().min(1990).max(2200).optional()
+});
+
+const allowanceOrderPutSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["holder", "institution", "tax_year", "amount_granted"],
+  properties: {
+    holder: { type: "string", minLength: 1 },
+    institution: { type: "string", minLength: 1 },
+    tax_year: { type: "integer", minimum: 1990, maximum: 2200 },
+    amount_granted: taxMoney,
+    note: { type: "string" }
+  }
+};
+
+const allowanceOrderPutZ = z.object({
+  holder: z.string().min(1),
+  institution: z.string().min(1),
+  tax_year: z.number().int().min(1990).max(2200),
+  amount_granted: z.string(),
+  note: z.string().optional()
+});
+
+const allowanceOrderIdSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["allowance_order_id"],
+  properties: { allowance_order_id: { type: "integer", minimum: 1 } }
+};
+
+const allowanceOrderIdZ = z.object({ allowance_order_id: z.number().int().positive() });
+
+const taxSnapshotMoneyProperties = {
+  taxable_income: taxMoney,
+  allowance_granted: taxMoney,
+  allowance_used: taxMoney,
+  loss_pot_equities: taxMoney,
+  loss_pot_other: taxMoney,
+  loss_carryforward_prior_years: taxMoney,
+  withholding_tax_pot: taxMoney,
+  withholding_tax_credited: taxMoney,
+  capital_gains_tax_withheld: taxMoney,
+  solidarity_surcharge_withheld: taxMoney,
+  church_tax_withheld: taxMoney
+};
+
+const taxSnapshotMoneyZ = {
+  taxable_income: z.string().optional(),
+  allowance_granted: z.string().optional(),
+  allowance_used: z.string().optional(),
+  loss_pot_equities: z.string().optional(),
+  loss_pot_other: z.string().optional(),
+  loss_carryforward_prior_years: z.string().optional(),
+  withholding_tax_pot: z.string().optional(),
+  withholding_tax_credited: z.string().optional(),
+  capital_gains_tax_withheld: z.string().optional(),
+  solidarity_surcharge_withheld: z.string().optional(),
+  church_tax_withheld: z.string().optional()
+};
+
+const taxSnapshotsListSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    holder: { type: "string" },
+    institution: { type: "string" },
+    tax_year: { type: "integer", minimum: 1990, maximum: 2200 }
+  }
+};
+
+const taxSnapshotsListZ = z.object({
+  holder: z.string().optional(),
+  institution: z.string().optional(),
+  tax_year: z.number().int().min(1990).max(2200).optional()
+});
+
+const taxSnapshotIdSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["snapshot_id"],
+  properties: { snapshot_id: { type: "integer", minimum: 1 } }
+};
+
+const taxSnapshotIdZ = z.object({ snapshot_id: z.number().int().positive() });
+
+const taxSnapshotCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["institution", "holder", "tax_year", "as_of"],
+  properties: {
+    institution: { type: "string", minLength: 1 },
+    holder: { type: "string", minLength: 1 },
+    tax_year: { type: "integer", minimum: 1990, maximum: 2200 },
+    as_of: { type: "string", description: "ISO date (YYYY-MM-DD), not in the future" },
+    source: { type: "string", enum: ["manual", "pdf_import"] },
+    church_tax_rate: {
+      type: "string",
+      description: "Decimal string fraction; omit to take the holder's profile in force at as_of"
+    },
+    note: { type: "string" },
+    ...taxSnapshotMoneyProperties
+  }
+};
+
+const taxSnapshotCreateZ = z.object({
+  institution: z.string().min(1),
+  holder: z.string().min(1),
+  tax_year: z.number().int().min(1990).max(2200),
+  as_of: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  source: z.enum(["manual", "pdf_import"]).optional(),
+  church_tax_rate: z.string().optional(),
+  note: z.string().optional(),
+  ...taxSnapshotMoneyZ
+});
+
+const taxSnapshotUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["snapshot_id"],
+  properties: {
+    snapshot_id: { type: "integer", minimum: 1 },
+    source: { type: "string", enum: ["manual", "pdf_import"] },
+    church_tax_rate: { type: "string" },
+    note: { type: "string" },
+    ...taxSnapshotMoneyProperties
+  }
+};
+
+const taxSnapshotUpdateZ = z.object({
+  snapshot_id: z.number().int().positive(),
+  source: z.enum(["manual", "pdf_import"]).optional(),
+  church_tax_rate: z.string().optional(),
+  note: z.string().optional(),
+  ...taxSnapshotMoneyZ
+});
+
+const taxTrimBudgetSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["holder", "tax_year"],
+  properties: {
+    holder: { type: "string", minLength: 1 },
+    tax_year: { type: "integer", minimum: 1990, maximum: 2200 }
+  }
+};
+
+const taxTrimBudgetZ = z.object({
+  holder: z.string().min(1),
+  tax_year: z.number().int().min(1990).max(2200)
+});
+
 const snapshotCreateSchema = {
   type: "object",
   additionalProperties: false,
@@ -1854,7 +2137,111 @@ const toolDefinitions: ToolDefinition[] = [
     "Snapshot counterfactual comparison",
     "Answer 'would I have done better keeping what I had?': values the snapshot's frozen holdings buy-and-hold over the real stored quote history (daily, EUR-hub FX) and compares against the scope's real TTWROR since the as-of date. Gross, price-return only (v1); all financial values are Decimal strings; the response is self-describing (basis, base_currency) and lists securities excluded for missing quotes/FX under gaps.",
     snapshotComparisonSchema,
-    snapshotComparisonZ
+    snapshotComparisonZ  ),
+  tool(
+    "portfolixir.tax_parameters.list",
+    "List statutory tax parameters",
+    "List the year-scoped German statutory tax parameters (ADR-0031): capital-gains and solidarity rates, and the Sparer-Pauschbetrag ceilings for single and joint assessment. Rates are Decimal string FRACTIONS ('0.25', not '25'). Seeded 2009-2026; a year with no row is absent rather than approximated - never substitute a neighbouring year's ceiling.",
+    taxParametersListSchema,
+    taxParametersListZ
+  ),
+  tool(
+    "portfolixir.tax_parameters.upsert",
+    "Record statutory tax parameters for a year",
+    "Insert or replace the statutory parameters of one tax year. Use this only when the law for a year is known and missing (e.g. a newly legislated year); the built-in German history is already seeded. Rates are Decimal string fractions in [0,1).",
+    taxParametersUpsertSchema,
+    taxParametersUpsertZ
+  ),
+  tool(
+    "portfolixir.tax_profiles.list",
+    "List taxpayer profiles",
+    "List a holder's effective-dated tax profiles, newest valid_from first. The profile in force for a date is the one with the greatest valid_from at or before it - never an exact match. Church-tax liability defaults to NOT liable with rate 0.",
+    taxHolderSchema,
+    taxHolderZ
+  ),
+  tool(
+    "portfolixir.tax_profiles.create",
+    "Record a taxpayer profile from a date",
+    "Record the taxpayer situation in force from valid_from: church-tax liability and rate, and single/joint assessment (which selects the Sparer-Pauschbetrag ceiling). Effective-dated on purpose - a new row never rewrites what an already-recorded statement reconstructs to. A non-zero church_tax_rate on a not-liable profile is rejected.",
+    taxProfileCreateSchema,
+    taxProfileCreateZ
+  ),
+  tool(
+    "portfolixir.tax_profiles.update",
+    "Correct a taxpayer profile",
+    "Correct one profile row. To record a CHANGE in the taxpayer's situation, create a new row with a later valid_from instead - editing rewrites history, adding does not.",
+    taxProfileUpdateSchema,
+    taxProfileUpdateZ
+  ),
+  tool(
+    "portfolixir.tax_profiles.delete",
+    "Delete a taxpayer profile",
+    "Delete one profile row by id. Snapshots already recorded keep the church-tax rate frozen on them and are unaffected.",
+    taxProfileIdSchema,
+    taxProfileIdZ
+  ),
+  tool(
+    "portfolixir.allowance_orders.list",
+    "List configured Freistellungsauftraege",
+    "List the Freistellungsauftraege the taxpayer INSTRUCTED, per holder, institution and tax year. This is the instruction side; what the bank actually applied is recorded on the statement snapshot. Filters fold case, so 'comdirect' and 'Comdirect' are the same institution.",
+    allowanceOrdersListSchema,
+    allowanceOrdersListZ
+  ),
+  tool(
+    "portfolixir.allowance_orders.put",
+    "Record a configured Freistellungsauftrag",
+    "Record or replace the instructed allowance for one (holder, institution, tax_year). amount_granted is a non-negative Decimal string. Recording the same triple again updates it - identity folds case, so it never silently becomes a second order.",
+    allowanceOrderPutSchema,
+    allowanceOrderPutZ
+  ),
+  tool(
+    "portfolixir.allowance_orders.delete",
+    "Delete a configured Freistellungsauftrag",
+    "Delete one configured allowance order by id.",
+    allowanceOrderIdSchema,
+    allowanceOrderIdZ
+  ),
+  tool(
+    "portfolixir.tax_snapshots.list",
+    "List recorded tax statements",
+    "List recorded broker tax statements (Verlustverrechnungstoepfe / Freistellungsauftrag block), newest as-of first. THESE POTS ARE RECORDED, NOT DERIVED. Note carefully WHY, because the obvious objection is wrong: Portfolixir DOES match lots FIFO (see portfolixir.trades.list), so the missing piece is not the cost method. It is that Teilfreistellung, Vorabpauschale, chronological allowance consumption and certified prior-year carry-forward are not in the transaction data at all, and that the pots are kept per tax-reporting institution, which Portfolixir does not model. FIFO gives you a GROSS GAIN; a gross gain is not a tax pot. So do NOT try to compute these from holdings or from trades - read the recorded statement. Each row carries allowance_remaining, tax_free_trim_budget, its as_of basis, a stale flag and the advisory consistency findings. All money values are Decimal strings.",
+    taxSnapshotsListSchema,
+    taxSnapshotsListZ
+  ),
+  tool(
+    "portfolixir.tax_snapshots.get",
+    "Read one recorded tax statement",
+    "Read one recorded statement by id with its derived figures (allowance_remaining, tax_free_trim_budget), its as_of basis, staleness, and the advisory findings. A finding names the recorded and the expected number and the gap; it never proposes a corrected value.",
+    taxSnapshotIdSchema,
+    taxSnapshotIdZ
+  ),
+  tool(
+    "portfolixir.tax_snapshots.create",
+    "Record a tax statement",
+    "Transcribe the tax block of a broker statement for one (institution, holder, tax_year, as_of). Every money field is a POSITIVE MAGNITUDE Decimal string - a loss pot is the volume of loss available for offsetting, NOT the negative number the statement prints; a negative input is rejected rather than silently flipped. as_of must not be in the future. Omit church_tax_rate to take the holder's profile in force at as_of, which is then frozen on the row. Arithmetic advisories come back in the response and never block the write.",
+    taxSnapshotCreateSchema,
+    taxSnapshotCreateZ
+  ),
+  tool(
+    "portfolixir.tax_snapshots.update",
+    "Correct a recorded tax statement",
+    "Correct a recorded statement in place - the case of a re-issued statement for the same position date. Same magnitude rules as create.",
+    taxSnapshotUpdateSchema,
+    taxSnapshotUpdateZ
+  ),
+  tool(
+    "portfolixir.tax_snapshots.delete",
+    "Delete a recorded tax statement",
+    "Delete one recorded statement by id.",
+    taxSnapshotIdSchema,
+    taxSnapshotIdZ
+  ),
+  tool(
+    "portfolixir.tax_snapshots.trim_budget",
+    "Tax-free trim budget for a holder and year",
+    "The volume of realised EQUITY gain still free of Kapitalertragsteuer, rolled up across institutions for one holder and tax year: the latest statement per institution, its equity loss pot plus its remaining allowance. Always read the as_of and the coverage before acting on it - the figure decays without any action by the maintainer (dividends and interest consume the allowance chronologically), and complete=false with missing_institutions lists banks that have a configured allowance order but no recorded statement, so the total is a partial picture. This is a DECISION INPUT, never an instruction: nothing here creates, stores or transmits an order.",
+    taxTrimBudgetSchema,
+    taxTrimBudgetZ
   )
 ];
 
@@ -2224,9 +2611,77 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         `/api/v1/portfolios/${args.portfolio_id}/snapshots/${args.snapshot_id}/comparison`
       );
+    case "portfolixir.tax_parameters.list":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/tax/parameters", args, ["jurisdiction"])
+      );
+    case "portfolixir.tax_parameters.upsert":
+      return client.request("PUT", "/api/v1/tax/parameters", {
+        parameters: { jurisdiction: "DE", ...args }
+      });
+    case "portfolixir.tax_profiles.list":
+      return client.request("GET", withQuery("/api/v1/tax/profiles", args, ["holder"]));
+    case "portfolixir.tax_profiles.create":
+      return client.request("POST", "/api/v1/tax/profiles", { profile: args });
+    case "portfolixir.tax_profiles.update":
+      return client.request("PATCH", `/api/v1/tax/profiles/${args.profile_id}`, {
+        profile: withoutKeys(args, ["profile_id"])
+      });
+    case "portfolixir.tax_profiles.delete":
+      return client.request("DELETE", `/api/v1/tax/profiles/${args.profile_id}`);
+    case "portfolixir.allowance_orders.list":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/tax/allowance_orders", args, ["holder", "institution", "tax_year"])
+      );
+    case "portfolixir.allowance_orders.put":
+      return client.request("PUT", "/api/v1/tax/allowance_orders", { allowance_order: args });
+    case "portfolixir.allowance_orders.delete":
+      return client.request(
+        "DELETE",
+        `/api/v1/tax/allowance_orders/${args.allowance_order_id}`
+      );
+    case "portfolixir.tax_snapshots.list":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/tax/statement_snapshots", args, [
+          "holder",
+          "institution",
+          "tax_year"
+        ])
+      );
+    case "portfolixir.tax_snapshots.get":
+      return client.request("GET", `/api/v1/tax/statement_snapshots/${args.snapshot_id}`);
+    case "portfolixir.tax_snapshots.create":
+      return client.request("POST", "/api/v1/tax/statement_snapshots", {
+        statement_snapshot: args
+      });
+    case "portfolixir.tax_snapshots.update":
+      return client.request("PATCH", `/api/v1/tax/statement_snapshots/${args.snapshot_id}`, {
+        statement_snapshot: withoutKeys(args, ["snapshot_id"])
+      });
+    case "portfolixir.tax_snapshots.delete":
+      return client.request("DELETE", `/api/v1/tax/statement_snapshots/${args.snapshot_id}`);
+    case "portfolixir.tax_snapshots.trim_budget":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/tax/trim_budget", args, ["holder", "tax_year"])
+      );
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);
   }
+}
+
+function withoutKeys(
+  args: Record<string, any>,
+  keys: string[]
+): Record<string, unknown> {
+  const rest: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(args)) {
+    if (!keys.includes(key)) rest[key] = value;
+  }
+  return rest;
 }
 
 function tool(

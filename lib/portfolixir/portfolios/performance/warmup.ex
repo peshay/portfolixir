@@ -1,0 +1,114 @@
+defmodule Portfolixir.Portfolios.Performance.Warmup do
+  @moduledoc """
+  Warms the performance memo at boot and on each day rollover (ADR-0032 §5).
+
+  The memo (`Performance.Cache`) removes the repeat wait; this removes the
+  first wait after a restart, so the first page of the day opens warm.
+
+  Rules from the ADR, all load-bearing:
+
+  - it runs **after** the supervision tree is up and never blocks it — the
+    work happens in `handle_continue`, and every scope is warmed inside a
+    `try/rescue`, so a failing portfolio cannot take the process (or the app)
+    down with it;
+  - it warms **through the same API a request uses** (`Performance.analysis/2`)
+    — there is no second computation path that could disagree with a request;
+  - it is **bounded**: every portfolio at the `:unscoped` scope plus the
+    default view where one is set — the scopes the dashboard and Wealth page
+    actually open. Periods cost nothing (`summarise/2` re-chains);
+  - it is disabled by the **same switch** as the cache, so "cache off" is one
+    testable state, not two.
+
+  Day rollover: `today` is part of the memo key, so yesterday's entries simply
+  stop matching at midnight. This process re-warms shortly after local
+  midnight so the first visit of the new day is warm too.
+  """
+
+  use GenServer
+
+  require Logger
+
+  alias Portfolixir.Buckets
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.Performance.Cache
+  alias Portfolixir.Settings
+
+  # A minute past local midnight: comfortably on the new day without assuming
+  # anything about clock precision at the boundary.
+  @rollover_slack_ms 60_000
+
+  @doc false
+  def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+
+  @doc """
+  Warms every portfolio's unscoped analysis plus the default view's, through
+  the request path. Returns `:ok` always — a scope that raises is logged and
+  skipped, never fatal (§5: a failing warm-up must not prevent serving).
+  """
+  @spec warm() :: :ok
+  def warm do
+    if Cache.enabled?() do
+      default_view_id = default_view_id()
+
+      Enum.each(Portfolios.list_portfolios(), fn portfolio ->
+        warm_scope(portfolio.id, nil)
+        if default_view_id, do: warm_scope(portfolio.id, default_view_id)
+      end)
+    end
+
+    :ok
+  end
+
+  @impl true
+  def init(opts) do
+    if Keyword.get(opts, :enabled?, true) and Cache.enabled?() do
+      {:ok, %{}, {:continue, :warm}}
+    else
+      :ignore
+    end
+  end
+
+  @impl true
+  def handle_continue(:warm, state) do
+    warm()
+    schedule_rollover()
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:rollover, state) do
+    warm()
+    schedule_rollover()
+    {:noreply, state}
+  end
+
+  defp warm_scope(portfolio_id, view_id) do
+    Performance.analysis(portfolio_id, view: view_id)
+  rescue
+    error ->
+      Logger.warning(
+        "performance warm-up skipped portfolio #{portfolio_id} " <>
+          "(view #{inspect(view_id)}): #{Exception.message(error)}"
+      )
+
+      :ok
+  end
+
+  defp default_view_id do
+    Settings.default_view_id() && Buckets.get_view(Settings.default_view_id()) &&
+      Settings.default_view_id()
+  rescue
+    _error -> nil
+  end
+
+  defp schedule_rollover do
+    Process.send_after(self(), :rollover, ms_until_next_local_day())
+  end
+
+  defp ms_until_next_local_day do
+    {_date, {hours, minutes, seconds}} = :calendar.local_time()
+    elapsed_ms = ((hours * 60 + minutes) * 60 + seconds) * 1000
+    max(:timer.hours(24) - elapsed_ms + @rollover_slack_ms, @rollover_slack_ms)
+  end
+end

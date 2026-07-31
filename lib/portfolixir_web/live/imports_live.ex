@@ -315,6 +315,12 @@ defmodule PortfolixirWeb.ImportsLive do
                   <li>
                     <%= res.label %> → <%= res.security.name %>
                     <span class="muted">(<%= tier_label(res.matched.tier) %>)</span>
+                    <%!-- Matching never renames stored master data (ADR-0029
+                         §2), so a renamed export would otherwise match with no
+                         trace of the new name (#609). --%>
+                    <span :if={res.name_differs} class="muted">
+                      — <%= gettext("file name: %{name}; stored name kept", name: res.name_differs) %>
+                    </span>
                   </li>
                 <% end %>
               </ul>
@@ -382,6 +388,20 @@ defmodule PortfolixirWeb.ImportsLive do
             </div>
           <% end %>
         </section>
+
+        <%!-- Skipped on an incremental file (#607): the check lists every
+             transacted, configured security the import does not touch, which on
+             a small file is every other security in the portfolio. --%>
+        <p
+          :if={@unmatched_config == [] and @unmatched_config_scope == :incremental}
+          id="import-unmatched-config-skipped"
+          class="form-help"
+          role="status"
+        >
+          <%= gettext(
+            "Leftover-configuration check skipped: this file references only part of the transacted securities, so it reads as an incremental import rather than a full re-export. Re-run with a full export to check for renames."
+          ) %>
+        </p>
 
         <%= if @unmatched_config != [] do %>
           <section class="import-warning-box" id="import-unmatched-config">
@@ -712,16 +732,18 @@ defmodule PortfolixirWeb.ImportsLive do
     socket
     |> assign(:security_resolutions, [])
     |> assign(:unmatched_config, [])
+    |> assign(:unmatched_config_scope, :full_export)
     |> assign(:existing_securities, [])
   end
 
   defp assign_security_resolutions(socket, %Preview{} = preview) do
-    %{resolutions: resolutions, unmatched_config: unmatched} =
+    %{resolutions: resolutions, unmatched_config: unmatched, unmatched_config_scope: scope} =
       Imports.resolve_securities(preview)
 
     socket
     |> assign(:security_resolutions, resolutions)
     |> assign(:unmatched_config, unmatched)
+    |> assign(:unmatched_config_scope, scope)
     |> assign(:existing_securities, Catalog.list_securities())
   end
 
