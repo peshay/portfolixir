@@ -17,7 +17,7 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 ALLOWLIST_FILE="${ALLOWLIST_FILE:-$ROOT/.github/commit-authorship-allowlist.txt}"
 
-if [ ! -f "$ALLOWLIST_FILE" ]; then
+if [[ ! -f "$ALLOWLIST_FILE" ]]; then
   echo "commit-authorship: allowlist file not found: $ALLOWLIST_FILE" >&2
   exit 1
 fi
@@ -31,41 +31,78 @@ while IFS= read -r line; do
 done < <(sed -e 's/#.*//' -e 's/[[:space:]]//g' "$ALLOWLIST_FILE" \
   | grep -v '^$' | tr 'A-Z' 'a-z')
 
-if [ "${#ALLOWED[@]}" -eq 0 ]; then
+if [[ "${#ALLOWED[@]}" -eq 0 ]]; then
   echo "commit-authorship: allowlist is empty: $ALLOWLIST_FILE" >&2
   exit 1
 fi
 
+# Identity matching is case-insensitive throughout.
+to_lower() {
+  local value="$1"
+  printf '%s' "$value" | tr 'A-Z' 'a-z'
+}
+
 is_allowed() {
-  local email a
-  email="$(printf '%s' "$1" | tr 'A-Z' 'a-z')"
-  for a in "${ALLOWED[@]}"; do
-    [ "$email" = "$a" ] && return 0
+  local candidate="$1"
+  local email entry
+  email="$(to_lower "$candidate")"
+  for entry in "${ALLOWED[@]}"; do
+    [[ "$email" == "$entry" ]] && return 0
   done
   return 1
 }
 
-violations=0
-report() { echo "  - $1" >&2; violations=$((violations + 1)); }
+# GitHub's web UI performs squash/rebase/merge commits with itself as the
+# committer (web-flow, `GitHub <noreply@github.com>`). ADR-0026 prescribes that
+# the owner squash-merges through that UI, so this committer cannot be a
+# human's identity by construction. It is accepted for the COMMITTER role only,
+# and only when the commit's AUTHOR is an accountable human -- authorship stays
+# the accountable record. It is never accepted as an author or co-author.
+PLATFORM_MERGE_COMMITTER="noreply@github.com"
 
-email_of() { printf '%s' "$1" | sed -n 's/.*<\(.*\)>.*/\1/p'; }
+is_platform_merge_committer() {
+  local email="$1"
+  [[ "$(to_lower "$email")" == "$PLATFORM_MERGE_COMMITTER" ]]
+}
+
+violations=0
+
+report() {
+  local message="$1"
+  echo "  - $message" >&2
+  violations=$((violations + 1))
+}
+
+email_of() {
+  local ident="$1"
+  printf '%s' "$ident" | sed -n 's/.*<\(.*\)>.*/\1/p'
+}
 
 check_identity() {
-  # $1 = ref, $2 = role, $3 = name, $4 = email
-  if [ -z "$4" ] || ! is_allowed "$4"; then
-    report "$1: $2 is not an accountable human: ${3:-?} <${4:-?}>"
+  local ref="$1" role="$2" name="$3" email="$4"
+  if [[ -z "$email" ]] || ! is_allowed "$email"; then
+    report "$ref: $role is not an accountable human: ${name:-?} <${email:-?}>"
   fi
 }
 
+check_committer() {
+  local ref="$1" name="$2" email="$3" author_email="$4"
+  if is_platform_merge_committer "$email" && [[ -n "$author_email" ]] \
+    && is_allowed "$author_email"; then
+    return 0
+  fi
+  check_identity "$ref" committer "$name" "$email"
+}
+
 check_message() {
-  # $1 = ref, $2 = full commit message
-  local ref="$1" line low email
+  local ref="$1" message="$2"
+  local line low email
   while IFS= read -r line; do
-    low="$(printf '%s' "$line" | tr 'A-Z' 'a-z')"
+    low="$(to_lower "$line")"
     case "$low" in
       co-authored-by:*)
         email="$(email_of "$line")"
-        if [ -z "$email" ] || ! is_allowed "$email"; then
+        if [[ -z "$email" ]] || ! is_allowed "$email"; then
           report "$ref: co-author is not an accountable human: ${line#*: }"
         fi
         ;;
@@ -79,33 +116,37 @@ check_message() {
       *claude.ai/code/session_*) report "$ref: remove AI session link: $line" ;;
     esac
   done <<EOF
-$2
+$message
 EOF
 }
 
-if [ "${1:-}" = "--range" ]; then
+mode="${1:-}"
+
+if [[ "$mode" == "--range" ]]; then
   range="${2:?usage: check-commit-authorship.sh --range <git-range>}"
   for sha in $(git rev-list "$range"); do
     ref="$(git log -1 --format='%h %s' "$sha")"
-    check_identity "$ref" author    "$(git log -1 --format='%an' "$sha")" "$(git log -1 --format='%ae' "$sha")"
-    check_identity "$ref" committer "$(git log -1 --format='%cn' "$sha")" "$(git log -1 --format='%ce' "$sha")"
-    check_message  "$ref" "$(git log -1 --format='%B' "$sha")"
+    author_email="$(git log -1 --format='%ae' "$sha")"
+    check_identity "$ref" author "$(git log -1 --format='%an' "$sha")" "$author_email"
+    check_committer "$ref" "$(git log -1 --format='%cn' "$sha")" "$(git log -1 --format='%ce' "$sha")" "$author_email"
+    check_message "$ref" "$(git log -1 --format='%B' "$sha")"
   done
 else
   # commit-msg hook mode: $1 is the message file (may be absent in ad-hoc runs).
-  msg_file="${1:-}"
+  msg_file="$mode"
   author_ident="$(git var GIT_AUTHOR_IDENT)"
   committer_ident="$(git var GIT_COMMITTER_IDENT)"
   check_identity "pending commit" author \
     "$(printf '%s' "$author_ident" | sed 's/ <.*//')" "$(email_of "$author_ident")"
-  check_identity "pending commit" committer \
-    "$(printf '%s' "$committer_ident" | sed 's/ <.*//')" "$(email_of "$committer_ident")"
-  if [ -n "$msg_file" ] && [ -f "$msg_file" ]; then
+  check_committer "pending commit" \
+    "$(printf '%s' "$committer_ident" | sed 's/ <.*//')" \
+    "$(email_of "$committer_ident")" "$(email_of "$author_ident")"
+  if [[ -n "$msg_file" && -f "$msg_file" ]]; then
     check_message "pending commit" "$(cat "$msg_file")"
   fi
 fi
 
-if [ "$violations" -gt 0 ]; then
+if [[ "$violations" -gt 0 ]]; then
   {
     echo ""
     echo "commit-authorship: $violations violation(s)."

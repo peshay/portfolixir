@@ -40,9 +40,17 @@
 # have '##### Story' entries, so only those produce story rows here. Statuses
 # were verified against `main` (ff4d809), the open-issue list AND open pull
 # requests, not assumed -- an issue's state lags the PR that fixes it.
+#
+# RECONCILED (2026-07-31, `main` at 02dde3b):
+# Sprint 1 merged in full -- all three lanes, not just lane A. Lane A shipped
+# E19 stories 19.2-19.6 (#621-#625), lane B shipped #607/#609, lane C shipped
+# #562 with ADR-0032. This file had been left at "awaiting review" while the
+# work was already on `main`; the story rows below now follow the merge, not
+# the branch. Verified against the merge commit, the closed-issue list and the
+# (empty) open-PR list.
 
 generated: 2026-07-25
-last_updated: 2026-07-29 (E19 batch 19.2-19.6 on agent branch, awaiting review)
+last_updated: 2026-07-31 (Sprint 1 merged; combined E17-E19 retro run, see epic-17-18-19-retro-2026-07-31.md)
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -115,28 +123,35 @@ development_status:
   epic-16: done
   epic-16-retrospective: optional
 
-  # E17 -- #588-#591 closed and merged to main; tracker #338 still open
+  # E17 -- #588-#591 closed and merged; review debt (#609) cleared in Sprint 1;
+  # tracker #338 closed 2026-07-31
   epic-17: done
   17-1-corporate-actions-decision-adr: done
   17-2-book-a-split-as-a-ledger-event: done
   17-3-continuous-charts-across-a-split: done
   17-4-guided-split-wizard: done
-  epic-17-retrospective: optional
+  # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
+  epic-17-retrospective: done
 
-  # E18 -- #600-#602/#605 closed and merged to main; tracker #603 still open
+  # E18 -- #600-#602/#605 closed and merged; review debt (#607, #609) cleared in
+  # Sprint 1; tracker #603 closed 2026-07-31
   epic-18: done
   18-1-stable-identity-decision-adr: done
   18-2-strategy-configuration-survives-a-re-import: done
   18-3-read-only-holdings-reconcile: done
-  epic-18-retrospective: optional
+  # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
+  epic-18-retrospective: done
 
-  # E19 -- gate #612 signed off 2026-07-25; ADR-0031 merged (629b222), stories unblocked
+  # E19 -- gate #612 signed off 2026-07-25; ADR-0031 Accepted; 19.2-19.6
+  # (#621-#625) merged to main in 02dde3b and closed. Epic stays in-progress:
+  # 19.7 is deferred behind its own decision gate, by design.
   epic-19: in-progress
   19-1-tax-statement-snapshot-decision-adr: done
-  19-2-tax-parameters-taxpayer-profile-and-configured-allowance-orders: review
-  19-3-record-a-tax-statement-snapshot: review
-  19-4-a-recorded-snapshot-checks-its-own-arithmetic: review
-  19-5-trim-budget-over-api-and-mcp: review
-  19-6-entry-surface-and-documentation: review
+  19-2-tax-parameters-taxpayer-profile-and-configured-allowance-orders: done
+  19-3-record-a-tax-statement-snapshot: done
+  19-4-a-recorded-snapshot-checks-its-own-arithmetic: done
+  19-5-trim-budget-over-api-and-mcp: done
+  19-6-entry-surface-and-documentation: done
   19-7-forward-projection-and-tax-bucket: backlog
-  epic-19-retrospective: optional
+  # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
+  epic-19-retrospective: done

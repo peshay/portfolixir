@@ -169,7 +169,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-3 | #346, #347, #350 | AI-agentic guards |
 | NFR-4–6 | — | foundational (security, self-hosted, single-user) |
 | NFR-7 | #313 | localization / docs site |
-| NFR-8 | — | cross-cutting perf; watch in perf-sensitive stories |
+| NFR-8 | #562 (ADR-0032), #619 | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. #562 shipped; #619 (the dashboard's other three mount computations) is the deliberately-unmeasured follow-up |
 | UX-DR1–14 | **#356** + #336, #337, #339, #319 | UX/a11y tracker (UI = priority 3) |
 | FR-30 | #582 | ISIN/WKN in holdings payloads (E6 DX batch, story 2) |
 | FR-31 | #581 | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
@@ -177,6 +177,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-33 | #584 | slim `securities_list` projection, scope-locked (E6 DX batch, story 4) |
 | FR-34 | #600, #601 | ADR-0029 accepted 2026-07-22 — identity ladder + alias record, risk-tier |
 | FR-35 | #602 | ADR-0029 §6 verdict: build the read-only reconcile endpoint |
+| FR-36 | #612 (gate), #621–#625 | recorded tax-statement snapshots — ADR-0031 accepted 2026-07-25. Stories 19.2–19.6 shipped: configuration layer, snapshot table, consistency engine, API/MCP parity, entry surface + EN/DE docs. Forward projection and `tax_bucket` (19.7) are deferred behind a separate gate |
 
 ## Implementation Status — reconciled with code (2026-06-18)
 
@@ -336,6 +337,47 @@ ADR + AGENTS.md amendment (and, for FR-22–26, a discovery story) before code.
   re-cut). Backlog trackers (#321, #338, #417–#419, #481, #398) reconciled
   with the real issue states; #399 closed as complete.
 
+## Implementation Status — reconciled with code (2026-07-31)
+
+> Fourth additive reconciliation. Trigger: a status check before Sprint 2
+> planning found the planning artifacts describing a state two weeks behind
+> `main`. Verified against the merge commit, the closed-issue list and the
+> (empty) open-PR list — the lesson from the 2026-07-25 plan revision, applied.
+
+Ground truth: `main` at `02dde3b`.
+
+- **Sprint 1 landed in full — all three lanes, not only the epic batch.**
+  Lane A: E19 stories 19.2–19.6 (`#621`–`#625`), ADR-0031 flipped to
+  *Accepted*, `Portfolixir.Tax` amended into the AGENTS.md Active
+  Architecture. Lane B: `#607` (scoped leftover check) and `#609` (local date
+  boundary, reconcile response ordering, name-differs hint). Lane C: `#562`,
+  the memoized daily walk.
+- **ADR-0032 is new and had no home in this document.** Accepted 2026-07-29:
+  the daily TTWROR walk is memoized in volatile memory with warm-up, targeted
+  invalidation on writes and a labelled stale-while-revalidate serve. It is
+  cross-cutting performance work, so it is recorded against NFR-8 rather than
+  given an epic of its own. Two follow-ups were opened deliberately *before*
+  measuring, so the findings do not get lost: `#619` (the dashboard's other
+  three mount computations) and `#620` (show which FIFO lots a sale consumes).
+- **E17/E18 trackers closed.** `#338` and `#603` had all children merged and
+  their review debt cleared; both closed 2026-07-31.
+- **The commit-authorship gate has been red on `main` since 2026-07-24.** Not
+  a flake and not an author problem: a squash-merge through the GitHub UI sets
+  the *committer* to `GitHub <noreply@github.com>`, which
+  `scripts/check-commit-authorship.sh` rejects. The author is correct on every
+  commit. ADR-0026 prescribes owner squash-merge, so the policy and its
+  enforcement currently contradict each other by construction. Owner decision
+  pending: exempt GitHub's merge committer, or move merges local. Left open
+  here rather than silently patched — weakening a quality gate to make a batch
+  pass is a review reject (ADR-0026), and so is weakening one to make a merge
+  button work.
+- **Still open, unchanged from the 2026-07-25 standing findings:** `epics.md`
+  defines E1–E19 while GitHub carries a separate tracker set (`#416`–`#420`,
+  `#470`, `#398`, `#356`), and roughly twenty open issues hang off neither —
+  now including `#619` and `#620`. `#321` (roadmap index) is stale. One
+  reconciliation pass is still owed; it is Sprint 2 work, not a side effect of
+  this one.
+
 ## Epic List
 
 Epics are organized by the PRD's five phases plus cross-cutting concerns, ordered by the maintainer priority (#321): **data completeness & correctness first, LLM-first consumption second, UI/sync/modeling later.** Each epic's stories are the GitHub issues above.
@@ -360,7 +402,7 @@ Epics are organized by the PRD's five phases plus cross-cutting concerns, ordere
 | **E16 — Plan versions & depot snapshots (ADR-0027)** | 2/5 bridge | next | ADR-0027 (decision gate; issues after sign-off) |
 | **E17 — Corporate actions as ledger events** | 2/4 bridge | next (ADR-0028 accepted) | #338 (tracker), #588–#591 |
 | **E18 — Stable identities & reconciliation** | 2 | next (ADR-0029 accepted 2026-07-22) | #603 (tracker), #600–#602 |
-| **E19 — Recorded tax-statement snapshots (FR-36)** | 2 | gated (ADR-0031 proposed 2026-07-25 — owner sign-off pending) | ADR-0031 (decision gate; issues after sign-off) |
+| **E19 — Recorded tax-statement snapshots (FR-36)** | 2 | in progress (ADR-0031 accepted 2026-07-25, gate #612 signed off) | #621–#625 (19.2–19.6, merged); 19.7 deferred behind its own gate |
 
 ## Epic Detail
 
@@ -741,9 +783,9 @@ journaled (FR-28/AR-1), every money column Decimal (ADR-0003), API/MCP parity
 balance. Not risk-tier — no ledger, projection or import-idempotency change —
 but it is money-domain data and reviewed as such.
 
-#### E19 stories (issues created after ADR sign-off)
+#### E19 stories (issue numbers backfilled 2026-07-31; 19.2–19.6 merged in 02dde3b)
 
-##### Story 19.1: Tax-statement snapshot decision ADR (gate)
+##### Story 19.1 (#612): Tax-statement snapshot decision ADR (gate)
 
 As the accountable owner,
 I want the recorded-not-derived stance, the schema and the validation rules
@@ -761,7 +803,7 @@ plausible-looking derivations.
 **And** it names forward projection and `tax_bucket` as deferred behind a separate gate
 **And** the owner signs off in one session
 
-##### Story 19.2: Tax parameters, taxpayer profile and configured Freistellungsaufträge
+##### Story 19.2 (#621): Tax parameters, taxpayer profile and configured Freistellungsaufträge
 
 As a local portfolio maintainer,
 I want the statutory numbers and my own tax situation to be data with a
@@ -779,7 +821,7 @@ in my situation does not rewrite the past.
 **And** `allowance_orders` records the instructed amount per (holder, institution, tax_year)
 **And** all four write paths are journaled, including `tax_parameters` — a rate edit changes every finding for that year and must be traceable
 
-##### Story 19.3: Record a tax-statement snapshot
+##### Story 19.3 (#622): Record a tax-statement snapshot
 
 As a local portfolio maintainer,
 I want to record the tax block of a broker statement with its as-of date,
@@ -794,7 +836,7 @@ instead of a PDF I have to find again.
 **And** the write is journaled with the acting actor, enforced by the journal trigger (an unjournaled write fails loudly)
 **And** a negative input and an `as_of` in the future are rejected with a message naming the convention — never silently normalised
 
-##### Story 19.4: A recorded snapshot checks its own arithmetic
+##### Story 19.4 (#623): A recorded snapshot checks its own arithmetic
 
 As a local portfolio maintainer,
 I want a transposed digit or a stale statement to surface when I record it,
@@ -812,7 +854,7 @@ So that a wrong number does not sit in the app looking correct.
 **And** no advisory blocks the save, and no advisory proposes a corrected value
 **And** the engine is pure — no Repo, no clock, no config (AR-2) — with exact-Decimal fixtures
 
-##### Story 19.5: Trim budget over API and MCP
+##### Story 19.5 (#624): Trim budget over API and MCP
 
 As the operating LLM agent,
 I want the recorded snapshots and the derived trim budget over the API and MCP,
@@ -826,7 +868,7 @@ So that I can size a trim without scraping PDFs.
 **And** the tool description states that the pots are recorded, not derived, and why (FIFO), so the agent does not attempt to compute them from holdings
 **And** create/update/delete reach full API/MCP parity (AR-11) with tests on synthetic fixtures only
 
-##### Story 19.6: Entry surface and documentation
+##### Story 19.6 (#625): Entry surface and documentation
 
 As a local portfolio maintainer,
 I want to enter and review the snapshots in the app,

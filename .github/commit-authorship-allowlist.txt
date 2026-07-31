@@ -1,7 +1,12 @@
 # Commit authorship allowlist
 #
 # Every commit's author AND committer email must appear here, and every
-# Co-authored-by trailer must reference one of these addresses. Each entry is a
+# Co-authored-by trailer must reference one of these addresses. One committer
+# is exempt by construction: GitHub's web-flow merge committer
+# (`GitHub <noreply@github.com>`), which the UI stamps on every squash-merge
+# ADR-0026 prescribes -- it is accepted as COMMITTER only, and only when the
+# commit's author is listed here. It is never a valid author or co-author.
+# Each entry is a
 # verified email of a real person's GitHub account, so that a human is always
 # accountable for the change -- including changes produced with an LLM or coding
 # agent. The agent commits AS the human; it never commits under a bot identity
