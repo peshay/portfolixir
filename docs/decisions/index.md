@@ -61,3 +61,4 @@ already in force in the codebase.
 | [0030](0030-position-level-soll-targets.html) | Position-level SOLL targets — positions as source of truth, categories as derived roll-up | Accepted |
 | [0031](0031-recorded-tax-statement-snapshots.html) | Recorded tax-statement snapshots — capture the broker's tax pots, never derive them | Accepted |
 | [0032](0032-derived-series-memoization.html) | Memoized derived series — cache the daily TTWROR walk in volatile memory | Accepted |
+| [0033](0033-per-position-pnl-fx-decomposition.html) | Per-position P&L decomposed — price return and currency return over a security-currency cost basis | Proposed |

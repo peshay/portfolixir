@@ -158,7 +158,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-16 | — | convention (API/MCP parity, PR review) |
 | FR-17–21 | #320 | **gated** (Phase 3 sync, tracking) |
 | FR-22 | #330 | bonds (Phase 4, discovery-first) |
-| FR-23 | #338 (#588–#591) | corporate actions — ADR-0028 accepted 2026-07-19; #338 repurposed as the E17 tracker |
+| FR-23 | #338 (#588–#591) | corporate actions — ADR-0028 accepted 2026-07-19; #338 repurposed as the E17 tracker. #588–#591 shipped; #338 closed 2026-07-31 |
 | FR-24, FR-25 | #340 | pension modeling (Phase 4, parked/discovery) |
 | FR-26 | — | **future** (Phase 5 retirement projection) |
 | FR-27 | #332 | what-if simulator |
@@ -400,8 +400,8 @@ Epics are organized by the PRD's five phases plus cross-cutting concerns, ordere
 | **E14 — CSS consistency & design-system** | — | priority 3 | #451 (#449, #450) |
 | **E15 — View-bound SOLL plans (ADR-0020)** | 2 | next | #463 (#464–#468) |
 | **E16 — Plan versions & depot snapshots (ADR-0027)** | 2/5 bridge | next | ADR-0027 (decision gate; issues after sign-off) |
-| **E17 — Corporate actions as ledger events** | 2/4 bridge | next (ADR-0028 accepted) | #338 (tracker), #588–#591 |
-| **E18 — Stable identities & reconciliation** | 2 | next (ADR-0029 accepted 2026-07-22) | #603 (tracker), #600–#602 |
+| **E17 — Corporate actions as ledger events** | 2/4 bridge | done (stories merged; tracker #338 closed 2026-07-31) | #338 (tracker), #588–#591 |
+| **E18 — Stable identities & reconciliation** | 2 | done (stories merged; tracker #603 closed 2026-07-31) | #603 (tracker), #600–#602 |
 | **E19 — Recorded tax-statement snapshots (FR-36)** | 2 | in progress (ADR-0031 accepted 2026-07-25, gate #612 signed off) | #621–#625 (19.2–19.6, merged); 19.7 deferred behind its own gate |
 
 ## Epic Detail
