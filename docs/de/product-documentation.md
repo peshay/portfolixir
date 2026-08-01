@@ -437,15 +437,30 @@ Zentralbank), und andere Paare werden darüber trianguliert. Die Live-Bewertung 
 Portfolios rechnet den Marktwert jeder Position und jeden Cash-Saldo in die
 Basiswährung des Portfolios um.
 
-Ein Wertpapier ohne jeden Kurs wird mit deinem **zuletzt eigenen Handelspreis**
-bepreist — ein Kauf oder Verkauf ist eine Preisbeobachtung, genau so, wie
-Portfolio Performance Preise aus Buchungen ableitet — sodass ein frisch
-importiertes Portfolio nicht mit null bewertet wird, während Kurse noch geholt
-werden. Solche Positionen tragen `price_source: "trade"` in der API und werden in
-`trade_priced_count` gezählt; die Vermögensseite markiert sie als
-Datenqualitäts-Hinweis. Eine Position mit weder Kurs noch Handelspreis oder ohne
-Kurspfad zur Basiswährung wird als unbewertet gemeldet, sodass ein fehlender Preis
-oder Kurs nie still den Gesamtwert oder die Gewichte verzerrt.
+Ein Wertpapier ohne jeden Kurs wird mit deinem **zuletzt eigenen Handelspreis
+über alle Portfolios** bepreist — ein Kauf oder Verkauf ist eine
+Preisbeobachtung, genau so, wie Portfolio Performance Preise aus Buchungen
+ableitet — sodass ein frisch importiertes Portfolio nicht mit null bewertet
+wird, während Kurse noch geholt werden. Der Fallback ist bewusst global: die
+Portfoliosummen und die Wertpapier-Detailansicht lösen Preise mit derselben
+Logik auf, sodass die beiden Ansichten nie uneinig sein können, ob ein Preis
+existiert. Solche Positionen tragen `price_source: "trade"` in der API und
+werden in `trade_priced_count` gezählt; die Vermögensseite markiert sie als
+Datenqualitäts-Hinweis und die Detailansicht nennt den Handelspreis, mit dem
+bewertet wird.
+
+Eine Position mit weder Kurs noch Handelspreis oder ohne Kurspfad zur
+Basiswährung wird als unbewertet gemeldet, sodass ein fehlender Preis oder
+Kurs nie still den Gesamtwert oder die Gewichte verzerrt. Die beiden Fälle
+werden ehrlich getrennt gemeldet (`unvalued_reason` in der API): **gar kein
+Preis** (nichts auflösbar — kein Kurs und kein eigener Handel) oder **Preis
+bekannt, aber kein Wechselkurs gespeichert** — der native Preis wird
+weiterhin mit seiner Währung angezeigt, und eine Wechselkurs-Synchronisierung
+holt die Position in die Summen. Eine Position mit Preis, aber ohne
+Wechselkurs zählt in den Basiswährungs-Summen als *nicht bewertet*. Die
+Detailansicht zeigt die passende Statuszeile ("Nicht in den Summen
+berücksichtigt — …"), sodass beide Ansichten einen fehlenden Wert gleich
+erklären.
 
 ## Cash und Cash-Quote
 
@@ -641,8 +656,20 @@ Englisch `1,234,567.89`; Geld immer mit zwei Nachkommastellen).
 Ein **Datenqualitäts-Panel** erscheint über dem Chart, wenn etwas die Zahlen
 sonst still verzerren würde: Positionen, die mit ihrem letzten Handelspreis
 bewertet werden, weil noch kein Kurs existiert, Positionen ganz ohne Preis (aus
-den Summen ausgenommen, namentlich gelistet) und Buchungen mit unplausiblen Daten
-(vor 1970), die stattdessen am ersten plausiblen Tag angewendet wurden.
+den Summen ausgenommen, namentlich gelistet), Positionen mit bekanntem Preis,
+aber ohne Wechselkurs zur Basiswährung (aus den Summen ausgenommen; mit ihrem
+nativen Preis gelistet, damit sichtbar ist, was eine Kurssynchronisierung
+einbringen würde), Wertpapiere mit **negativer** abgeleiteter Bestandsmenge —
+für einen echten Bestand unmöglich, meist Import-Altlasten aus einer nicht
+modellierten Kapitalmaßnahme — je Depot gelistet mit der Gesamtmenge des
+Wertpapiers über alle Depots und verlinkt auf die Transaktionen des
+Wertpapiers, damit du die Historie reparieren kannst (nichts wird
+automatisch repariert; der Split-Assistent bleibt die einzige geführte
+Reparatur), sowie Buchungen mit unplausiblen Daten (vor 1970), die
+stattdessen am ersten plausiblen Tag angewendet wurden. Positionen mit
+negativer Menge sind zusätzlich überall dort mit einem Chip „negative
+Menge" markiert, wo sie auftauchen: in der Allokationstabelle, im
+Klassifikationsbaum und im Bestände-Tab des Wertpapiers.
 
 ## Performance (TTWROR)
 

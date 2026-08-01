@@ -11,14 +11,23 @@ defmodule Portfolixir.Portfolios.Valuation do
   from transactions, quote history, and exchange rates on read (see ADR-0004,
   ADR-0007).
 
-  A security without any quote is priced at the portfolio's **latest own
-  trade price** (a buy or sell is a price observation — Portfolio Performance
-  seeds prices from bookings the same way); such positions carry
+  A security without any quote is priced at the **latest own trade price
+  across all portfolios** (a buy or sell is a price observation — Portfolio
+  Performance seeds prices from bookings the same way); such positions carry
   `price_source: :trade` and are counted in `trade_priced_count` so the UI
-  can flag the value as stale. A held position is reported as unvalued only
-  when it has neither a quote nor a trade price **or** no exchange-rate path
-  to the base currency, so a missing price or rate never silently distorts
-  the total or the weights.
+  can flag the value as stale. The fallback is deliberately global (#406):
+  the portfolio totals and the security detail resolve prices with the same
+  semantics, so the two surfaces can never disagree about whether a price
+  exists.
+
+  A held position is reported as unvalued only when it has neither a quote
+  nor a trade price **or** no exchange-rate path to the base currency, so a
+  missing price or rate never silently distorts the total or the weights.
+  Each position says which of the two it is (#406, owner decision
+  2026-07-31): `unvalued_reason` is `:no_price` when no price resolves at
+  all, and `:missing_fx` when a native price exists (kept in `latest_price`
+  with its `price_currency`) but no stored FX path reaches the base
+  currency — such positions count as NOT valued in base-currency totals.
   """
 
   alias Portfolixir.Buckets
@@ -39,9 +48,13 @@ defmodule Portfolixir.Portfolios.Valuation do
   (a single ledger read plus the shared quote/trade-price/FX path), so a view
   that joins valuation onto a security tree never queries per node. Each
   security id maps to `%{quantity: Decimal, market_value: Decimal | nil,
-  valued: boolean}`; `market_value` is `nil` (and `valued` false) when the
-  security has neither a quote nor a trade price, or no exchange-rate path to
-  the EUR hub. Securities not currently held are absent from the map.
+  valued: boolean, latest_price: Decimal | nil, price_currency: String.t()
+  | nil, price_source: :quote | :trade | nil, unvalued_reason: :no_price |
+  :missing_fx | nil}`; `market_value` is `nil` (and `valued` false) when the
+  security has neither a quote nor a trade price (`unvalued_reason:
+  :no_price`), or no exchange-rate path to the EUR hub (`:missing_fx`, with
+  the native price kept so callers can show it). Securities not currently
+  held are absent from the map.
 
   Options (for tests):
     * `:prices` – `%{security_id => Decimal}` native price overrides; missing
@@ -85,19 +98,105 @@ defmodule Portfolixir.Portfolios.Valuation do
     %{currency: @hub, as_of: Date.utc_today(), note: report_note(), holdings: holdings}
   end
 
+  @doc """
+  The global valuation status of one security (#406).
+
+  Resolves the price with exactly the semantics the portfolio totals use
+  (latest quote, then the global latest own trade price) and reports whether
+  a stored FX path reaches every given base currency — pass the base
+  currencies of the portfolios actually holding the security (review fix: a
+  USD-base portfolio counts a USD position without any stored rate, so
+  checking only the EUR hub could contradict that portfolio's totals). The
+  default is the EUR hub. Powers the security detail's "counted in totals?"
+  status line, so the detail and the portfolio totals can never disagree.
+
+  Returns `%{latest_price: Decimal | nil, price_currency: String.t() | nil,
+  price_source: :quote | :trade | nil, price_date: Date.t() | nil,
+  valued: boolean, unvalued_reason: :no_price | :missing_fx | nil,
+  missing_rate_currencies: [String.t()]}` — `missing_rate_currencies` lists
+  the bases the known price cannot be converted into.
+  """
+  def security_status(security_id, bases \\ [@hub]) when is_integer(security_id) do
+    bases = if bases == [], do: [@hub], else: bases
+    security = Catalog.get_security(security_id)
+    security_currency = security && security.currency_code
+    trade_prices = Ledger.latest_trade_prices()
+
+    {price, price_currency, price_source} =
+      price_for(security_id, {%{}, trade_prices}, security_currency)
+
+    # Quantity 1: only the convertibility of the price matters here.
+    conversions =
+      Enum.map(bases, fn base ->
+        {base, market_value(Decimal.new("1"), price, price_currency, base)}
+      end)
+
+    missing_rate_currencies =
+      for {base, {_value, false, :missing_fx}} <- conversions, do: base
+
+    valued? = Enum.all?(conversions, fn {_base, {_value, valued?, _reason}} -> valued? end)
+
+    unvalued_reason =
+      cond do
+        valued? -> nil
+        is_nil(price) -> :no_price
+        true -> :missing_fx
+      end
+
+    %{
+      latest_price: price,
+      price_currency: price_currency,
+      price_source: price_source,
+      price_date: price_date(security_id, price_source, trade_prices),
+      valued: valued?,
+      unvalued_reason: unvalued_reason,
+      missing_rate_currencies: missing_rate_currencies
+    }
+  end
+
+  defp price_date(security_id, :quote, _trade_prices) do
+    case Quotes.adjusted_latest(security_id) do
+      %{date: %Date{} = date} -> date
+      _ -> nil
+    end
+  end
+
+  defp price_date(security_id, :trade, trade_prices) do
+    case Map.get(trade_prices, security_id) do
+      %{date: %Date{} = date} -> date
+      _ -> nil
+    end
+  end
+
+  defp price_date(_security_id, _source, _trade_prices), do: nil
+
   defp report_note do
     "Each held security's global quantity and market value converted to the " <>
       "EUR hub at the latest stored rate; valued is false when a quote, trade " <>
-      "price or rate path to EUR is missing."
+      "price or rate path to EUR is missing — unvalued_reason says which " <>
+      "(no_price: nothing resolves; missing_fx: latest_price/price_currency " <>
+      "are known but no stored rate path reaches EUR)."
   end
 
   defp value_security(security_id, quantity, price_maps) do
     security = Catalog.get_security(security_id)
     security_currency = security && security.currency_code
-    {price, price_currency, _source} = price_for(security_id, price_maps, security_currency)
-    {market_value, valued?} = market_value(quantity, price, price_currency, @hub)
 
-    %{quantity: quantity, market_value: market_value, valued: valued?}
+    {price, price_currency, price_source} =
+      price_for(security_id, price_maps, security_currency)
+
+    {market_value, valued?, unvalued_reason} =
+      market_value(quantity, price, price_currency, @hub)
+
+    %{
+      quantity: quantity,
+      market_value: market_value,
+      valued: valued?,
+      latest_price: price,
+      price_currency: price_currency,
+      price_source: price_source,
+      unvalued_reason: unvalued_reason
+    }
   end
 
   @doc """
@@ -126,7 +225,12 @@ defmodule Portfolixir.Portfolios.Valuation do
     base_currency =
       Keyword.get_lazy(opts, :base_currency, fn -> base_currency_for(portfolio_id) end)
 
-    trade_prices = Ledger.latest_trade_prices(portfolio_id)
+    # Global trade-price fallback (#406): the portfolio totals resolve prices
+    # exactly like the security detail and the global holdings view, so the
+    # surfaces can never disagree about whether a price exists. A holding
+    # whose only priced trade lives in another portfolio (delivery, transfer)
+    # is therefore valued here too.
+    trade_prices = Ledger.latest_trade_prices()
 
     positions =
       portfolio_id
@@ -178,10 +282,9 @@ defmodule Portfolixir.Portfolios.Valuation do
   single-count position universe under one instance-wide scope
   (`Portfolixir.Buckets.load_global_scope/1`) values the deduplicated union of
   the view's accounts — an account tagged into several included buckets counts
-  once, by construction. Pricing fallbacks (quote, then latest own trade
-  price) and the EUR-hub FX path are exactly `for_portfolio/2`'s: each
-  portfolio's positions fall back to **that portfolio's** latest own trade
-  price (fix round), so a quote-less security is valued — or reported
+  once, by construction. Pricing fallbacks (quote, then the **global** latest
+  own trade price, #406) and the EUR-hub FX path are exactly
+  `for_portfolio/2`'s, so a quote-less security is valued — or reported
   unvalued — exactly as in the portfolio's own valuation.
 
   With `view_id == nil` the result is the "everything" scope: the unscoped
@@ -211,16 +314,16 @@ defmodule Portfolixir.Portfolios.Valuation do
     prices = Keyword.get(opts, :prices, %{})
     base_currency = Keyword.get(opts, :base_currency, @hub)
 
-    # Per-portfolio trade-price fallback (fix round): each portfolio's
-    # positions are valued with that portfolio's own latest trade price, so
-    # `for_view(nil)` stays Decimal-equal to the sum of the unscoped
+    # Global trade-price fallback (#406), shared across the portfolio loop:
+    # the same resolution as `for_portfolio/2` and `holdings_by_security/1`,
+    # so `for_view(nil)` stays Decimal-equal to the sum of the unscoped
     # `for_portfolio/2` totals even for quote-less securities held in one
     # portfolio but traded only in another.
+    trade_prices = Ledger.latest_trade_prices()
+
     positions =
       Portfolios.list_portfolios()
       |> Enum.flat_map(fn portfolio ->
-        trade_prices = Ledger.latest_trade_prices(portfolio.id)
-
         portfolio.id
         |> Ledger.positions_for_portfolio()
         |> Enum.filter(fn {{securities_account_id, security_id}, _quantity} ->
@@ -352,7 +455,8 @@ defmodule Portfolixir.Portfolios.Valuation do
     {price, price_currency, price_source} =
       price_for(security_id, price_maps, security_currency)
 
-    {market_value, valued?} = market_value(quantity, price, price_currency, base_currency)
+    {market_value, valued?, unvalued_reason} =
+      market_value(quantity, price, price_currency, base_currency)
 
     %{
       securities_account_id: securities_account_id,
@@ -362,10 +466,12 @@ defmodule Portfolixir.Portfolios.Valuation do
       security_currency: security_currency,
       quantity: quantity,
       latest_price: price,
+      price_currency: price_currency,
       price_source: price_source,
       market_value: market_value,
       weight: nil,
-      valued: valued?
+      valued: valued?,
+      unvalued_reason: unvalued_reason
     }
   end
 
@@ -374,12 +480,16 @@ defmodule Portfolixir.Portfolios.Valuation do
     native = Decimal.mult(quantity, price)
 
     case Fx.convert(native, from, base) do
-      {:ok, converted} -> {converted, true}
-      {:error, _reason} -> {nil, false}
+      {:ok, converted} -> {converted, true, nil}
+      {:error, _reason} -> {nil, false, :missing_fx}
     end
   end
 
-  defp market_value(_quantity, _price, _from, _base), do: {nil, false}
+  # No resolvable price at all — distinct from a priced position that only
+  # lacks a rate path (#406). A resolved price with a nil currency cannot be
+  # converted either; it is reported as :missing_fx because a price exists.
+  defp market_value(_quantity, nil, _from, _base), do: {nil, false, :no_price}
+  defp market_value(_quantity, _price, _from, _base), do: {nil, false, :missing_fx}
 
   # Price resolution order: explicit test override, latest quote, latest own
   # trade (each with the currency the price is denominated in).

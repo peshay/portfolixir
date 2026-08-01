@@ -2443,6 +2443,20 @@ img.security-logo {
   font-size: 12px;
 }
 
+/* "Counted in totals?" status under the detail title (issue 406). The warning
+   states reuse .badge-warning colours; the trade-priced state stays muted. */
+.detail-pane-status {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.detail-pane-status.badge-warning {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
 .detail-pane-tabs {
   display: flex;
   gap: 2px;
@@ -4547,7 +4561,8 @@ button.income-bar-label.is-active {
    stale, no-quote-chip explains a missing unit hint on a SOLL-only row. */
 .not-held-chip,
 .stale-chip,
-.no-quote-chip {
+.no-quote-chip,
+.negative-holding-chip {
   display: inline-block;
   margin-left: 0.35rem;
   padding: 0 0.35rem;
@@ -4560,6 +4575,16 @@ button.income-bar-label.is-active {
 }
 .stale-chip {
   border-style: dashed;
+}
+/* Issue 570: import debris — an impossible negative derived quantity. Warning
+   colours plus the text label (never hue alone, UX-DR7). */
+.negative-holding-chip {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+.dq-negative-entry {
+  display: inline-block;
+  margin-right: 0.5rem;
 }
 @media (pointer: coarse) {
   .metric-tooltip summary {

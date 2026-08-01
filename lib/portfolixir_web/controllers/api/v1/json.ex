@@ -383,7 +383,49 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       security_id: row.security_id,
       quantity: decimal(row.quantity),
       market_value: decimal(row.market_value),
-      valued: row.valued
+      valued: row.valued,
+      # #406: the resolved native price and the honest unvalued reason
+      # ("no_price" | "missing_fx" | null) — a missing-FX security keeps its
+      # price visible instead of being reported as priceless.
+      latest_price: decimal(row.latest_price),
+      price_currency: row.price_currency,
+      price_source: row.price_source,
+      unvalued_reason: row.unvalued_reason
+    }
+  end
+
+  @doc """
+  Serializes the negative-holdings data-quality report (#570): every
+  (depot, security) position with a negative derived quantity plus each
+  listed security's total across all depots, quantities as Decimal strings.
+  """
+  def negative_holdings(report) do
+    %{
+      as_of: date(report.as_of),
+      note: report.note,
+      rows: Enum.map(report.rows, &negative_holding_row/1),
+      totals: Enum.map(report.totals, &negative_holding_total/1)
+    }
+  end
+
+  defp negative_holding_row(row) do
+    %{
+      portfolio_id: row.portfolio_id,
+      securities_account_id: row.securities_account_id,
+      depot_name: row.depot_name,
+      security_id: row.security_id,
+      security_name: row.security_name,
+      isin: row.isin,
+      quantity: decimal(row.quantity),
+      total_quantity: decimal(row.total_quantity)
+    }
+  end
+
+  defp negative_holding_total(total) do
+    %{
+      security_id: total.security_id,
+      security_name: total.security_name,
+      total_quantity: decimal(total.total_quantity)
     }
   end
 
@@ -511,7 +553,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   defp valuation_note(base_currency) do
     "Totals are in #{base_currency} (base_currency), converted via the EUR " <>
       "hub at each position's stored rate; `price_source` and `valued` " <>
-      "indicate per-position price staleness."
+      "indicate per-position price staleness, and `unvalued_reason` says " <>
+      "why a position is unvalued (no_price: nothing resolves; missing_fx: " <>
+      "latest_price/price_currency are known but no stored rate path " <>
+      "reaches the base currency)."
   end
 
   @doc """
@@ -549,7 +594,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       "EUR hub; each account matching the view counts exactly once, however " <>
       "many included buckets it carries (`overlap` lists the multi-bucket " <>
       "accounts). `price_source` and `valued` indicate per-position price " <>
-      "staleness."
+      "staleness, and `unvalued_reason` says why a position is unvalued " <>
+      "(no_price | missing_fx)."
   end
 
   defp view_overlap(overlap) do
@@ -582,10 +628,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       security_currency: position.security_currency,
       quantity: decimal(position.quantity),
       latest_price: decimal(position.latest_price),
+      # #406: the currency the resolved price is denominated in, and the
+      # honest unvalued reason ("no_price" | "missing_fx" | null) — a
+      # missing-FX position keeps its native price visible.
+      price_currency: position.price_currency,
       price_source: position.price_source,
       market_value: decimal(position.market_value),
       weight: decimal(position.weight),
-      valued: position.valued
+      valued: position.valued,
+      unvalued_reason: position.unvalued_reason
     }
   end
 

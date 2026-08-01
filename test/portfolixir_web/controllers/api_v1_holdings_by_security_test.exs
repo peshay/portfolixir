@@ -73,4 +73,63 @@ defmodule PortfolixirWeb.ApiV1HoldingsBySecurityTest do
     assert unvalued_row["market_value"] == nil
     assert unvalued_row["valued"] == false
   end
+
+  # User story (#406):
+  # As an API client (and the LLM I connect over MCP),
+  # I want each unvalued row to say WHY it is unvalued — no price at all vs. a
+  # known native price without a stored FX path to EUR,
+  # so that automation can tell import gaps from missing exchange rates the
+  # same way the UI does.
+  #
+  # Acceptance criteria:
+  # - Rows carry latest_price, price_currency, price_source and
+  #   unvalued_reason ("no_price" | "missing_fx" | null).
+  # - Financial values stay Decimal strings.
+  test "rows carry the honest unvalued reason and native price", %{conn: conn} do
+    world = WorldFixtures.base_world(currency: "EUR")
+
+    usd =
+      WorldFixtures.create_security!(
+        name: "US Co.",
+        ticker: "USCO",
+        currency: "USD",
+        asset_class: "equity"
+      )
+
+    dark =
+      WorldFixtures.create_security!(name: "Dark Co.", ticker: "DARK", asset_class: "equity")
+
+    for {security, currency} <- [{usd, "USD"}, {dark, "EUR"}] do
+      {:ok, _} =
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          security_id: security.id,
+          type: "inbound_delivery",
+          date: ~D[2026-01-02],
+          quantity: "5",
+          currency_code: currency
+        })
+    end
+
+    WorldFixtures.put_quote!(usd, ~D[2026-06-01], "120")
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/holdings/by_security")
+      |> json_response(200)
+
+    usd_row = Enum.find(body["data"]["holdings"], &(&1["security_id"] == usd.id))
+    assert usd_row["valued"] == false
+    assert usd_row["unvalued_reason"] == "missing_fx"
+    assert usd_row["latest_price"] == "120"
+    assert usd_row["price_currency"] == "USD"
+    assert usd_row["price_source"] == "quote"
+
+    dark_row = Enum.find(body["data"]["holdings"], &(&1["security_id"] == dark.id))
+    assert dark_row["unvalued_reason"] == "no_price"
+    assert dark_row["latest_price"] == nil
+    assert dark_row["price_source"] == nil
+  end
 end
