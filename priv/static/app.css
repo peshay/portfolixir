@@ -2443,6 +2443,20 @@ img.security-logo {
   font-size: 12px;
 }
 
+/* "Counted in totals?" status under the detail title (#406). The warning
+   states reuse .badge-warning colours; the trade-priced state stays muted. */
+.detail-pane-status {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.detail-pane-status.badge-warning {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
 .detail-pane-tabs {
   display: flex;
   gap: 2px;

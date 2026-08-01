@@ -224,20 +224,21 @@ defmodule Portfolixir.Portfolios.ViewValuationTest do
            }
   end
 
-  # User story (fix round, per-portfolio trade-price fallback):
+  # User story (#406, supersedes the per-portfolio fallback fix round):
   # As a local portfolio maintainer,
-  # I want the cross-portfolio view valuation to price each portfolio's
-  # quote-less positions with THAT portfolio's own latest trade price,
-  # so that the everything scope stays Decimal-identical to the sum of the
-  # unscoped portfolio totals — a position with no price observation in its
-  # own portfolio must stay unvalued, not borrow another portfolio's price.
+  # I want the cross-portfolio view valuation to price quote-less positions
+  # with the GLOBAL latest trade price — the same resolution the portfolio
+  # totals and the security detail use,
+  # so that a position delivered into one portfolio but priced by a trade in
+  # another is valued the same everywhere, and no surface can claim it has
+  # no price while another shows one (owner decision 2026-07-31).
   #
   # Acceptance criteria:
   # - A quote-less security delivered into portfolio A but traded only in
-  #   portfolio B is unvalued in A and trade-priced in B under `for_view/2`.
+  #   portfolio B is trade-priced in BOTH portfolios under `for_view/2`.
   # - `for_view(nil)` equals the Decimal-exact sum of the unscoped
   #   `for_portfolio/2` totals.
-  test "quote-less positions use each portfolio's own trade price, never a global one" do
+  test "quote-less positions use the global latest trade price on every surface" do
     alpha = base_world(name: "Alpha", cash_name: "Alpha Cash", depot_name: "Alpha Depot")
     beta = base_world(name: "Beta", cash_name: "Beta Cash", depot_name: "Beta Depot")
 
@@ -255,7 +256,8 @@ defmodule Portfolixir.Portfolios.ViewValuationTest do
         currency_code: "EUR"
       })
 
-    # Traded only in Beta: the trade price belongs to Beta's universe.
+    # Traded only in Beta: the price observation lives in Beta, but it is a
+    # price observation for the security, not for one portfolio (#406).
     deposit!(beta, "500", ~D[2026-01-01], [])
     buy!(beta, ghost, quantity: "2", price: "30")
 
@@ -264,23 +266,24 @@ defmodule Portfolixir.Portfolios.ViewValuationTest do
     alpha_row = Enum.find(everything.positions, &(&1.securities_account_id == alpha.depot.id))
     beta_row = Enum.find(everything.positions, &(&1.securities_account_id == beta.depot.id))
 
-    # Alpha's delivered position stays unvalued (no price in Alpha's own
-    # portfolio); Beta's is valued at its own trade price.
-    refute alpha_row.valued
+    # Both holdings are valued at the one global trade price.
+    assert alpha_row.valued
+    assert alpha_row.price_source == :trade
+    assert Decimal.equal?(alpha_row.market_value, Decimal.new("210"))
     assert beta_row.valued
     assert beta_row.price_source == :trade
-    assert everything.unvalued_count == 1
-    assert everything.trade_priced_count == 1
+    assert everything.unvalued_count == 0
+    assert everything.trade_priced_count == 2
 
     # Decimal-exact parity with the sum of the unscoped portfolio totals:
-    # Beta 60 position + 440 cash = 500; Alpha contributes nothing valued.
+    # Alpha 210 position; Beta 60 position + 440 cash.
     unscoped_sum =
       [alpha.portfolio.id, beta.portfolio.id]
       |> Enum.map(&Valuation.for_portfolio(&1, []))
       |> Enum.reduce(Decimal.new("0"), &Decimal.add(&2, &1.total_with_cash))
 
     assert Decimal.equal?(everything.total_with_cash, unscoped_sum)
-    assert Decimal.equal?(everything.total_with_cash, Decimal.new("500"))
+    assert Decimal.equal?(everything.total_with_cash, Decimal.new("710"))
   end
 
   # User story (fix round, deleted-view degradation):

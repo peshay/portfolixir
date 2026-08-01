@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
@@ -430,6 +431,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
               (<%= Date.to_iso8601(@detail_latest.date) %>)
             <% end %>
           </p>
+          <.detail_valuation_status
+            status={@detail_status}
+            held?={@detail_holdings != []}
+          />
           </div>
         </div>
         <div class="detail-pane-head__actions">
@@ -710,6 +715,53 @@ defmodule PortfolixirWeb.SecuritiesLive do
     </aside>
     """
   end
+
+  # The "counted in totals?" status line (#406): rendered from the valuation's
+  # own price-resolution result, so this pane and the portfolio data-quality
+  # warning always tell the same story. Nothing renders for a security that
+  # is not held (nothing could be counted) or valued from a current quote.
+  attr(:status, :map, default: nil)
+  attr(:held?, :boolean, required: true)
+
+  defp detail_valuation_status(%{held?: false} = assigns), do: ~H""
+  defp detail_valuation_status(%{status: nil} = assigns), do: ~H""
+
+  defp detail_valuation_status(%{status: %{unvalued_reason: :no_price}} = assigns) do
+    ~H"""
+    <p class="detail-pane-status badge-warning" data-role="detail-valuation-status">
+      <%= gettext(
+        "Not counted in the portfolio totals — no price is known for this security (no quote and no own trade)."
+      ) %>
+    </p>
+    """
+  end
+
+  defp detail_valuation_status(%{status: %{unvalued_reason: :missing_fx}} = assigns) do
+    ~H"""
+    <p class="detail-pane-status badge-warning" data-role="detail-valuation-status">
+      <%= gettext(
+        "Not counted in the portfolio totals — latest price %{price} %{currency} is known, but no exchange rate to EUR is stored. Sync exchange rates to include it.",
+        price: Format.decimal(@status.latest_price, 2),
+        currency: @status.price_currency
+      ) %>
+    </p>
+    """
+  end
+
+  defp detail_valuation_status(%{status: %{price_source: :trade}} = assigns) do
+    ~H"""
+    <p class="detail-pane-status" data-role="detail-valuation-status">
+      <%= gettext(
+        "No current quote — counted in the portfolio totals at the last own trade price of %{price} %{currency}%{date}.",
+        price: Format.decimal(@status.latest_price, 2),
+        currency: @status.price_currency,
+        date: if(@status.price_date, do: " (#{Date.to_iso8601(@status.price_date)})", else: "")
+      ) %>
+    </p>
+    """
+  end
+
+  defp detail_valuation_status(assigns), do: ~H""
 
   attr(:security, :map, required: true)
   attr(:latest, :map, default: nil)
@@ -2633,6 +2685,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_holdings, [])
     |> assign(:detail_latest, nil)
     |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
+    |> assign(:detail_status, nil)
     |> assign(:detail_classifications, [])
     |> assign(:detail_new_category_for, nil)
   end
@@ -2691,6 +2744,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_latest, Quotes.adjusted_latest(id))
     |> assign(:detail_series_basis, QuoteAdjustment.series_basis(quotes))
     |> assign(:detail_metrics, metrics)
+    # The shared price-resolution status (#406): computed by the valuation's
+    # own semantics so this pane and the portfolio totals cannot disagree.
+    |> assign(:detail_status, Valuation.security_status(id))
     |> assign(:detail_classifications, load_security_classifications(id))
   end
 

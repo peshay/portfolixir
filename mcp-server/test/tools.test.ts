@@ -377,6 +377,48 @@ describe("Portfolixir MCP tools", () => {
     assert.match(result.content[0].text, /1000/);
   });
 
+  // User story (#406):
+  // As the operating LLM agent,
+  // I want the holdings/valuation tools to teach me the honest unvalued
+  // states (no_price vs missing_fx with the native price kept visible),
+  // so that I can tell an import gap from a missing exchange rate instead of
+  // reporting "no price at all" for a priced position.
+  it("passes the unvalued_reason fields through and documents them", async () => {
+    const { client } = createRecordingClient({
+      data: {
+        currency: "EUR",
+        as_of: "2026-06-14",
+        note: "unvalued_reason says which",
+        holdings: [
+          {
+            security_id: 9,
+            quantity: "5",
+            market_value: null,
+            valued: false,
+            latest_price: "120",
+            price_currency: "USD",
+            price_source: "quote",
+            unvalued_reason: "missing_fx"
+          }
+        ]
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.holdings.by_security", {});
+    assert.match(result.content[0].text, /missing_fx/);
+    assert.match(result.content[0].text, /120/);
+
+    const bySecurity = listTools().find((tool) => tool.name === "portfolixir.holdings.by_security");
+    assert.match(bySecurity?.description ?? "", /unvalued_reason/);
+    assert.match(bySecurity?.description ?? "", /missing_fx/);
+
+    const valuation = listTools().find((tool) => tool.name === "portfolixir.portfolios.valuation");
+    assert.match(valuation?.description ?? "", /unvalued_reason/);
+
+    const viewValuation = listTools().find((tool) => tool.name === "portfolixir.views.valuation");
+    assert.match(viewValuation?.description ?? "", /unvalued_reason/);
+  });
+
   // User story:
   // As the operating LLM agent holding an external broker position list,
   // I want a read-only reconcile tool whose description steers me toward

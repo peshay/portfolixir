@@ -407,15 +407,28 @@ stored against a EUR hub (with European Central Bank sync), and other pairs are
 triangulated through it. The live portfolio valuation converts each position's
 market value and each cash balance into the portfolio base currency.
 
-A security without any quote yet is priced at your **latest own trade price**
-— a buy or sell is a price observation, exactly how Portfolio Performance
-seeds prices from bookings — so a freshly imported portfolio is not valued at
-zero while quotes are still being fetched. Such positions carry
-`price_source: "trade"` in the API and are counted in `trade_priced_count`;
-the Wealth page flags them as a data-quality hint. A position with neither
-a quote nor a trade price, or with no rate path to the base currency, is
-reported as unvalued, so a missing price or rate never silently distorts the
-total or the weights.
+A security without any quote yet is priced at your **latest own trade price
+across all portfolios** — a buy or sell is a price observation, exactly how
+Portfolio Performance seeds prices from bookings — so a freshly imported
+portfolio is not valued at zero while quotes are still being fetched. The
+fallback is deliberately global: the portfolio totals and the security detail
+resolve prices with the same semantics, so the two screens can never disagree
+about whether a price exists. Such positions carry `price_source: "trade"` in
+the API and are counted in `trade_priced_count`; the Wealth page flags them
+as a data-quality hint and the security detail states the trade price it is
+valued at.
+
+A position with neither a quote nor a trade price, or with no rate path to
+the base currency, is reported as unvalued, so a missing price or rate never
+silently distorts the total or the weights. The two cases are reported
+honestly and separately (`unvalued_reason` in the API): **no price at all**
+(nothing resolves — no quote and no own trade), or **price known but no
+exchange rate stored** — the native price is still shown with its currency,
+and syncing exchange rates brings the position into the totals. A position
+with a price but no exchange rate counts as *not valued* in base-currency
+totals. The security detail shows the matching status line ("Not counted in
+the portfolio totals — …"), so both surfaces explain a missing value the
+same way.
 
 ## Cash and cash quote
 
@@ -595,8 +608,11 @@ decimals).
 A **data-quality panel** appears above the chart when something would
 otherwise silently skew the figures: positions valued at their last trade
 price because no quote exists yet, positions with no price at all (excluded
-from the totals, listed by name), and bookings with implausible dates (before
-1970) that were applied on the first plausible day instead.
+from the totals, listed by name), positions whose price is known but that
+lack an exchange rate to the base currency (excluded from the totals; listed
+with their native price so you can see what a rate sync would bring in), and
+bookings with implausible dates (before 1970) that were applied on the first
+plausible day instead.
 
 ## Performance (TTWROR)
 

@@ -383,7 +383,14 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       security_id: row.security_id,
       quantity: decimal(row.quantity),
       market_value: decimal(row.market_value),
-      valued: row.valued
+      valued: row.valued,
+      # #406: the resolved native price and the honest unvalued reason
+      # ("no_price" | "missing_fx" | null) — a missing-FX security keeps its
+      # price visible instead of being reported as priceless.
+      latest_price: decimal(row.latest_price),
+      price_currency: row.price_currency,
+      price_source: row.price_source,
+      unvalued_reason: row.unvalued_reason
     }
   end
 
@@ -511,7 +518,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   defp valuation_note(base_currency) do
     "Totals are in #{base_currency} (base_currency), converted via the EUR " <>
       "hub at each position's stored rate; `price_source` and `valued` " <>
-      "indicate per-position price staleness."
+      "indicate per-position price staleness, and `unvalued_reason` says " <>
+      "why a position is unvalued (no_price: nothing resolves; missing_fx: " <>
+      "latest_price/price_currency are known but no stored rate path " <>
+      "reaches the base currency)."
   end
 
   @doc """
@@ -549,7 +559,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       "EUR hub; each account matching the view counts exactly once, however " <>
       "many included buckets it carries (`overlap` lists the multi-bucket " <>
       "accounts). `price_source` and `valued` indicate per-position price " <>
-      "staleness."
+      "staleness, and `unvalued_reason` says why a position is unvalued " <>
+      "(no_price | missing_fx)."
   end
 
   defp view_overlap(overlap) do
@@ -582,10 +593,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       security_currency: position.security_currency,
       quantity: decimal(position.quantity),
       latest_price: decimal(position.latest_price),
+      # #406: the currency the resolved price is denominated in, and the
+      # honest unvalued reason ("no_price" | "missing_fx" | null) — a
+      # missing-FX position keeps its native price visible.
+      price_currency: position.price_currency,
       price_source: position.price_source,
       market_value: decimal(position.market_value),
       weight: decimal(position.weight),
-      valued: position.valued
+      valued: position.valued,
+      unvalued_reason: position.unvalued_reason
     }
   end
 

@@ -692,6 +692,91 @@ defmodule PortfolixirWeb.ApiV1Test do
     assert missing == %{"errors" => %{"detail" => "not found"}}
   end
 
+  # User story (#406):
+  # As an API client (and the LLM behind it),
+  # I want each valuation position to say WHY it is unvalued — no price at
+  # all vs. a known native price without a stored FX path to the base,
+  # so that automation reads the same honest states the UI shows.
+  #
+  # Acceptance criteria:
+  # - Positions carry price_currency and unvalued_reason
+  #   ("no_price" | "missing_fx" | null).
+  # - A missing-FX position keeps its native latest_price as a Decimal string.
+  test "valuation positions carry the honest unvalued reason", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Reason Portfolio",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Cash EUR",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, usd} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "US Co.",
+        ticker_symbol: "USCO",
+        currency_code: "USD",
+        asset_class: "equity"
+      })
+
+    {:ok, dark} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Dark Co.",
+        ticker_symbol: "DARK",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    for {security, currency} <- [{usd, "USD"}, {dark, "EUR"}] do
+      {:ok, _} =
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          security_id: security.id,
+          type: "inbound_delivery",
+          date: ~D[2026-01-02],
+          quantity: "5",
+          currency_code: currency
+        })
+    end
+
+    {:ok, _} =
+      Quotes.upsert_many(usd.id, [%{date: ~D[2026-06-01], close: "120", source: "manual"}])
+
+    valuation =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/valuation")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    by_id = Map.new(valuation["positions"], &{&1["security_id"], &1})
+
+    usd_row = by_id[usd.id]
+    assert usd_row["valued"] == false
+    assert usd_row["unvalued_reason"] == "missing_fx"
+    assert usd_row["latest_price"] == "120"
+    assert usd_row["price_currency"] == "USD"
+
+    dark_row = by_id[dark.id]
+    assert dark_row["unvalued_reason"] == "no_price"
+    assert dark_row["latest_price"] == nil
+
+    assert valuation["valuation_note"] =~ "unvalued_reason"
+  end
+
   # User story:
   # As an API/MCP client managing a depot,
   # I want cash balances surfaced per account and folded into the valuation,

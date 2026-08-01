@@ -1527,20 +1527,26 @@ defmodule PortfolixirWeb.PortfolioLive do
   # -- components -------------------------------------------------------------
 
   # Surfaces why the totals can deviate from the user's expectation: positions
-  # valued at a stale trade price, positions with no price at all, bookings
-  # whose dates are implausible (import typos like 0217-12-05), and cash
-  # accounts excluded because no FX rate to the base currency exists.
+  # valued at a stale trade price, positions with no price at all, positions
+  # priced in a currency without a stored FX path (#406 — a distinct, honest
+  # state: the price exists and is shown), bookings whose dates are
+  # implausible (import typos like 0217-12-05), and cash accounts excluded
+  # because no FX rate to the base currency exists.
   defp data_quality(assigns) do
     assigns =
       assigns
-      |> assign(:unpriced, unpriced_names(assigns.valuation))
+      |> assign(:no_price, unvalued_entries(assigns.valuation, :no_price))
+      |> assign(:missing_fx, unvalued_entries(assigns.valuation, :missing_fx))
       |> assign(:trade_priced, trade_priced_count(assigns.valuation))
       |> assign(:suspect_dates, suspect_dates(assigns.analysis))
       |> assign(:unvalued_cash, unvalued_cash(assigns.valuation))
 
     ~H"""
     <section
-      :if={@unpriced != [] or @trade_priced > 0 or @suspect_dates != [] or @unvalued_cash != []}
+      :if={
+        @no_price.count > 0 or @missing_fx.count > 0 or @trade_priced > 0 or
+          @suspect_dates != [] or @unvalued_cash != []
+      }
       id="portfolio-data-quality"
       class="workspace-section data-quality"
     >
@@ -1552,11 +1558,19 @@ defmodule PortfolixirWeb.PortfolioLive do
             count: @trade_priced
           ) %>
         </li>
-        <li :if={@unpriced != []}>
+        <li :if={@no_price.count > 0} data-role="dq-no-price">
           <%= gettext("%{count} held positions have no price at all and are missing from the totals:",
-            count: length(@unpriced)
+            count: @no_price.count
           ) %>
-          <%= Enum.join(@unpriced, ", ") %>
+          <%= Enum.join(@no_price.names, ", ") %>
+        </li>
+        <li :if={@missing_fx.count > 0} data-role="dq-missing-fx">
+          <%= gettext(
+            "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}. Sync exchange rates to include them.",
+            count: @missing_fx.count,
+            base: @valuation.base_currency,
+            entries: Enum.join(@missing_fx.names, ", ")
+          ) %>
         </li>
         <li :if={@suspect_dates != []}>
           <%= gettext(
@@ -2213,15 +2227,30 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # -- data quality helpers ----------------------------------------------------
 
-  defp unpriced_names(nil), do: []
+  # Unvalued positions of one honest state (#406): `:no_price` lists names
+  # only (there is nothing to show), `:missing_fx` shows each position's
+  # known native price with its currency (owner decision 2026-07-31). The
+  # count is taken before the display list is shortened, so it stays truthful
+  # when names are elided.
+  defp unvalued_entries(nil, _reason), do: %{count: 0, names: []}
 
-  defp unpriced_names(valuation) do
-    valuation.positions
-    |> Enum.reject(& &1.valued)
-    |> Enum.map(&(&1.security_name || gettext("Unsorted")))
-    |> Enum.uniq()
-    |> shorten_list()
+  defp unvalued_entries(valuation, reason) do
+    names =
+      valuation.positions
+      |> Enum.filter(&(&1.unvalued_reason == reason))
+      |> Enum.map(&unvalued_entry_label(&1, reason))
+      |> Enum.uniq()
+
+    %{count: length(names), names: shorten_list(names)}
   end
+
+  defp unvalued_entry_label(position, :missing_fx) do
+    name = position.security_name || gettext("Unsorted")
+    "#{name} (#{Format.decimal(position.latest_price, 2)} #{position.price_currency})"
+  end
+
+  defp unvalued_entry_label(position, _reason),
+    do: position.security_name || gettext("Unsorted")
 
   defp shorten_list(names) when length(names) <= @unpriced_names_shown, do: names
 
