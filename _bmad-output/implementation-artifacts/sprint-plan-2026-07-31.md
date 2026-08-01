@@ -219,3 +219,32 @@ open questions:
   pair; the `#406` part gets focused review). `#398` closes with that PR.
 - Lane B (`#619`) is measured, Lane C is delivered, and the analysis package
   (ADR, measurement report, reconciliation) is on PR `#627`.
+
+## Addendum 3 — 2026-08-01: Lane A merged; bookkeeping close-out and mini-retro
+
+Sprint 2's remaining code landed: `#406` + `#570` merged as the combined
+PR `#629` (`ba6a046`) after the mandatory UAT persona walkthrough (screenshots
+under `uat-sprint2-lane-a-2026-08-01/`). Close-out per the closing act:
+
+- `#406` and `#570` closed with the merge; tracker `#398` closed — both
+  sub-issues complete, as this plan's Lane A predicted.
+- `sprint-status.yaml` and `epics.md` reconciled with `main` at `ba6a046`
+  **same-day**, addressing standing finding 1 (planning artifacts drift
+  silently) instead of re-observing it.
+- CI on the merge is green **including the commit-authorship gate** — this
+  was the first squash-merge after fix `ee51260`, the run this plan said to
+  watch. The gate's policy-vs-enforcement contradiction is resolved.
+
+Mini-retro for the batch (short, per the E17–E19 retro's cadence):
+
+- **Worked:** front-loading the decisions (gate ADR, `#406` behaviour,
+  delivery override) in Addendum 2 meant the implementation session started
+  with zero open questions; the combined-PR override kept one reviewer's load
+  bounded while the `#406` part still got focused review.
+- **Worked:** running the close-out in the same pass as the merge — the first
+  time since the rule was written that no reconciliation debt was carried.
+- **Carry forward:** Sprint 3 sequence stands as previewed — `#606` as its
+  own batch, then the `#569` implementation followed by `#620` (both
+  risk-tier, now unblocked by ADR-0033), then the triaged analytics wishlist.
+- **Still with the owner:** `#610` and the UAT pile (`#328`, `#330`, `#332`,
+  `#333`, `#354`, `#412`, `#564`, plus the 19.6 tax entry surface).
