@@ -48,9 +48,22 @@
 # work was already on `main`; the story rows below now follow the merge, not
 # the branch. Verified against the merge commit, the closed-issue list and the
 # (empty) open-PR list.
+#
+# CLOSE-OUT (2026-08-01, `main` at ba6a046):
+# Sprint 2 Lane A merged same-day as the owner-approved combined PR #629:
+# #406 (truthful "no price" warning, detail/totals reconciled on the same
+# price-resolution semantics) and #570 (negative holdings flagged per depot
+# and total, linked to the security's transactions). Tracker #398 closed with
+# them -- its second sub-issue (cash-to-currency) had already shipped. UAT
+# walkthrough artifacts: uat-sprint2-lane-a-2026-08-01/. ADR-0033 accepted
+# (58c90f5), unblocking #569 + #620 for Sprint 3. The commit-authorship gate
+# ran GREEN on ba6a046 -- the first squash-merge after fix ee51260; the
+# red-gate standing finding is resolved. #406/#570/#398 hang off no epic row
+# (the two-parallel-structures finding, see
+# epic-structure-reconciliation-2026-07-31.md), so no story rows change.
 
 generated: 2026-07-25
-last_updated: 2026-07-31 (Sprint 1 merged; combined E17-E19 retro run, see epic-17-18-19-retro-2026-07-31.md)
+last_updated: 2026-08-01 (Sprint 2 Lane A merged and closed out; #398/#406/#570 closed; authorship gate green on ba6a046)
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system

@@ -378,6 +378,34 @@ Ground truth: `main` at `02dde3b`.
   reconciliation pass is still owed; it is Sprint 2 work, not a side effect of
   this one.
 
+## Implementation Status — reconciled with code (2026-08-01)
+
+> Fifth additive reconciliation, part of the Sprint 2 Lane A bookkeeping
+> close-out (the closing-act step added by the combined E17–E19 retro).
+
+Ground truth: `main` at `ba6a046`.
+
+- **Sprint 2 Lane A merged (`ba6a046`, PR #629).** `#406` — the "no price"
+  warning now distinguishes two honest states ("no price at all" vs. "price
+  available, no exchange rate to the base currency stored"), and securities
+  detail and portfolio totals unify on the same price-resolution semantics
+  (global trade-price fallback on both surfaces). `#570` — negative holdings
+  are listed in the data-quality report per depot and total, link to the
+  security's transactions, and are visibly marked on allocation, valuation and
+  classification surfaces. Shipped as one combined PR per the owner override
+  recorded in the sprint plan; UAT persona walkthrough archived under
+  `implementation-artifacts/uat-sprint2-lane-a-2026-08-01/`. Tracker `#398`
+  closed with both sub-issues complete.
+- **ADR-0033 accepted (2026-08-01, `58c90f5`).** Per-position P&L decomposes
+  into price return and currency return over a security-currency cost basis
+  (Option A). Unblocks the `#569` implementation and `#620` — both Sprint 3,
+  each risk-tier.
+- **The commit-authorship gate is green again.** `ee51260` accepts GitHub's
+  web-flow merge committer for the committer role only, and only when the
+  author is allowlisted. The first squash-merge after the fix (`ba6a046`)
+  passed on 2026-08-01 — the policy-vs-enforcement contradiction recorded in
+  the 2026-07-31 reconciliation is resolved.
+
 ## Epic List
 
 Epics are organized by the PRD's five phases plus cross-cutting concerns, ordered by the maintainer priority (#321): **data completeness & correctness first, LLM-first consumption second, UI/sync/modeling later.** Each epic's stories are the GitHub issues above.
