@@ -757,6 +757,117 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  Data-quality report of impossible negative holdings (#570).
+
+  An imported history can leave a derived holding quantity below zero — an
+  unmodeled corporate action or rename chain booked more units out of a
+  depot than ever went in. Such positions are import debris to repair, not
+  data to classify, so this report surfaces them instead of letting them
+  flow silently into holdings, allocation and valuation.
+
+  Returns `%{as_of, note, rows, totals}`: `rows` is every (depot, security)
+  position with a negative derived quantity (depot and security names
+  included, sorted by security name then depot name), and `totals` carries
+  each listed security's total quantity across **all** depots — so
+  transfer debris (negative in one depot, positive in another) is
+  distinguishable from a truly negative total. Quantities are Decimals.
+  There is no repair wizard beyond splits (ADR-0028); the UI links to the
+  security's transactions instead.
+  """
+  def negative_holdings_report do
+    rows =
+      list_transactions()
+      |> Positions.calculate()
+      |> Enum.group_by(
+        fn {{_account_id, security_id}, _quantity} -> security_id end,
+        fn {{account_id, _security_id}, quantity} -> {account_id, quantity} end
+      )
+      |> Enum.flat_map(&negative_rows_for_security/1)
+
+    security_ids = rows |> Enum.map(& &1.security_id) |> Enum.uniq()
+    securities = load_securities_by_id(security_ids)
+    depots = securities_accounts_by_id(Enum.map(rows, & &1.securities_account_id))
+
+    rows =
+      rows
+      |> Enum.map(fn row ->
+        security = Map.get(securities, row.security_id)
+        depot = Map.get(depots, row.securities_account_id)
+
+        row
+        |> Map.put(:security_name, security && security.name)
+        |> Map.put(:isin, security && security.isin)
+        |> Map.put(:depot_name, depot && depot.name)
+        |> Map.put(:portfolio_id, depot && depot.portfolio_id)
+      end)
+      |> Enum.sort_by(&{&1.security_name, &1.depot_name})
+
+    totals =
+      rows
+      |> Enum.map(&{&1.security_id, &1.security_name})
+      |> Enum.uniq()
+      |> Enum.map(fn {security_id, security_name} ->
+        %{
+          security_id: security_id,
+          security_name: security_name,
+          total_quantity: total_quantity_for(rows, security_id)
+        }
+      end)
+      |> Enum.sort_by(& &1.security_name)
+
+    %{
+      as_of: Date.utc_today(),
+      note:
+        "Positions whose derived holding quantity is negative — import " <>
+          "debris from unmodeled corporate actions, listed per depot with " <>
+          "each security's total across all depots. Repair the security's " <>
+          "transaction history; nothing is changed automatically.",
+      rows: rows,
+      totals: totals
+    }
+  end
+
+  # Per-security fold: keeps the negative depot rows and remembers the total
+  # across all depots so the report can show both.
+  defp negative_rows_for_security({security_id, account_quantities}) do
+    total =
+      Enum.reduce(account_quantities, @zero, fn {_account_id, quantity}, acc ->
+        Decimal.add(acc, quantity)
+      end)
+
+    account_quantities
+    |> Enum.filter(fn {_account_id, quantity} -> Decimal.compare(quantity, @zero) == :lt end)
+    |> Enum.map(fn {account_id, quantity} ->
+      %{
+        securities_account_id: account_id,
+        security_id: security_id,
+        quantity: quantity,
+        total_quantity: total
+      }
+    end)
+  end
+
+  defp total_quantity_for(rows, security_id) do
+    rows
+    |> Enum.find(&(&1.security_id == security_id))
+    |> Map.fetch!(:total_quantity)
+  end
+
+  defp load_securities_by_id([]), do: %{}
+
+  defp load_securities_by_id(ids) do
+    Repo.all(from(s in Portfolixir.Catalog.Security, where: s.id in ^ids))
+    |> Map.new(&{&1.id, &1})
+  end
+
+  defp securities_accounts_by_id([]), do: %{}
+
+  defp securities_accounts_by_id(ids) do
+    Repo.all(from(a in SecuritiesAccount, where: a.id in ^Enum.uniq(ids)))
+    |> Map.new(&{&1.id, &1})
+  end
+
+  @doc """
   The most recent own trade price per security across all portfolios.
 
   Like `latest_trade_prices/1` but global: the classification view values

@@ -116,4 +116,102 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     assert html =~ "valued at their last trade price"
     refute html =~ "no price at all"
   end
+
+  # User story (#570):
+  # As a local portfolio maintainer with an imported history,
+  # I want the data-quality report to list securities whose derived holding
+  # quantity is negative — per depot and in total — with a link to the
+  # security's transactions,
+  # so that import debris from unmodeled corporate actions is surfaced for
+  # repair instead of flowing silently into holdings and valuation.
+  #
+  # Acceptance criteria:
+  # - The data-quality section lists the negative position with its depot
+  #   name, the negative quantity and the security's total across depots.
+  # - The entry links to the security's transactions
+  #   (/securities/:id?tab=transactions). No repair wizard is offered
+  #   (rescope 2026-07-31; wizards beyond splits stay gated by ADR-0028).
+  test "lists negative holdings per depot with totals, linking to the transactions",
+       %{conn: conn} do
+    world = seed_world()
+
+    {:ok, doomed} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Doomed Co.",
+        ticker_symbol: "DOOM",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    deliver!(world, doomed, "100", "EUR")
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: doomed.id,
+        type: "outbound_delivery",
+        date: Date.add(Date.utc_today(), -2),
+        quantity: "500",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    negative = view |> element(~s([data-role="dq-negative-holdings"])) |> render()
+    assert negative =~ "Doomed Co."
+    assert negative =~ "Depot"
+    assert negative =~ "-400"
+    assert negative =~ ~s(href="/securities/#{doomed.id}?tab=transactions")
+    refute negative =~ "wizard"
+  end
+
+  # User story (#570):
+  # As a local portfolio maintainer,
+  # I want negative-quantity positions visibly marked on the allocation
+  # surfaces instead of blending in,
+  # so that a valued-but-impossible position is recognisable as import
+  # debris wherever its value shows up.
+  #
+  # Acceptance criteria:
+  # - The flat allocation worklist marks the negative position with a
+  #   text chip (no colour-only signal, UX-DR7).
+  test "marks negative-quantity positions in the allocation worklist", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, doomed} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Doomed Co.",
+        ticker_symbol: "DOOM",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    deliver!(world, doomed, "100", "EUR")
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: doomed.id,
+        type: "outbound_delivery",
+        date: Date.add(Date.utc_today(), -2),
+        quantity: "500",
+        currency_code: "EUR"
+      })
+
+    # A quote makes the negative position valued, so it reaches allocation.
+    WorldFixtures.put_quote!(doomed, Date.utc_today(), "10")
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    view |> element(~s([data-role="allocation-mode-flat"])) |> render_click()
+    flat = view |> element(~s([data-role="flat-positions"])) |> render()
+
+    assert flat =~ "Doomed Co."
+    assert flat =~ ~s(data-role="negative-holding")
+    assert flat =~ "negative quantity"
+  end
 end

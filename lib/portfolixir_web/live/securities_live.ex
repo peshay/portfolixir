@@ -1118,8 +1118,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <tbody>
               <%= for h <- @holdings do %>
                 <tr>
-                  <td><%= h.depot && h.depot.name %></td>
-                  <td class="num"><%= Format.decimal(h.quantity, 4) %></td>
+                  <td>
+                    <%= h.depot && h.depot.name %>
+                    <span
+                      :if={Decimal.compare(h.quantity, 0) == :lt}
+                      class="negative-holding-chip"
+                      data-role="negative-holding"
+                      title={
+                        gettext(
+                          "The derived holding quantity is negative — likely an unmodeled corporate action from an imported history. Repair the security's transaction history."
+                        )
+                      }
+                    >
+                      <%= gettext("negative quantity") %>
+                    </span>
+                  </td>
+                  <td class={["num", Decimal.compare(h.quantity, 0) == :lt && "is-negative"]}>
+                    <%= Format.decimal(h.quantity, 4) %>
+                  </td>
                   <td class="num">
                     <%= Format.decimal(h.avg_cost, 2) %>
                     <small><%= @currency_code %></small>

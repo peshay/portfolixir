@@ -369,8 +369,12 @@ Beispiel-Payloads für Konten:
   `valued`-Flag. `valued` ist `false` (und `market_value` ist `null`), wenn das
   Wertpapier weder einen Kurs noch einen Handelspreis hat oder kein
   Wechselkurspfad nach EUR existiert, sodass ein fehlender Kurs oder Kurs einen
-  Wert nie stillschweigend verfälscht. Die Zeilen sind nach `security_id`
-  sortiert. Die Antwort ist selbstbeschreibend: ein `currency` auf oberster
+  Wert nie stillschweigend verfälscht. Jede Zeile trägt außerdem den
+  aufgelösten nativen `latest_price` mit `price_currency` und `price_source`
+  sowie einen `unvalued_reason`, der sagt, *warum* eine Zeile unbewertet ist:
+  `"no_price"` (nichts auflösbar) oder `"missing_fx"` (der Preis ist bekannt,
+  aber kein gespeicherter Kurspfad erreicht EUR); `null`, wenn bewertet. Die
+  Zeilen sind nach `security_id` sortiert. Die Antwort ist selbstbeschreibend: ein `currency` auf oberster
   Ebene mit `"EUR"`, ein `as_of`-Lesedatum (der Bericht wird beim Lesen
   abgeleitet, daher ist `as_of` das heutige Datum, kein gespeicherter
   Zeitpunkt) und ein `note`, das die Hub-Umrechnung beschreibt. Dies ist das
@@ -378,6 +382,17 @@ Beispiel-Payloads für Konten:
   einzelnen Portfolios (die in der eigenen Währung jedes Wertpapiers ohne FX
   bleibt); für Summen und Gewichte eines Portfolios nutze stattdessen den
   Bewertungs-Endpunkt.
+- `GET /api/v1/holdings/negative` liefert den **Datenqualitätsbericht zu
+  negativen Beständen**: jede (Depot, Wertpapier)-Position mit abgeleiteter
+  Menge unter null — Import-Altlasten aus nicht modellierten
+  Kapitalmaßnahmen — als `rows` (mit `depot_name`, `security_name`, `isin`,
+  `portfolio_id` und der negativen `quantity` als Decimal-String) plus
+  `totals` mit der Gesamtmenge jedes gelisteten Wertpapiers über **alle**
+  Depots, sodass Transfer-Altlasten (negativ in einem Depot, positiv in
+  einem anderen) von einer wirklich negativen Gesamtmenge unterscheidbar
+  sind. Selbstbeschreibend mit `as_of`-Lesedatum und `note`. Nichts wird
+  automatisch repariert; korrigiere die Transaktionshistorie des
+  Wertpapiers.
 - `POST /api/v1/holdings/reconcile` vergleicht eine **vom Nutzer gelieferte
   externe Positionsliste** (Brokerauszug oder Depotübersicht, clientseitig in
   Zeilen geparst) mit den aus dem Ledger abgeleiteten Beständen — **strikt
@@ -897,6 +912,7 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.holdings.by_security`
+- `portfolixir.holdings.negative`
 - `portfolixir.holdings.reconcile` — rein lesender Vergleich einer
   eingefügten externen Positionsliste mit dem Ledger; die Tool-Beschreibung
   lenkt den Agenten darauf, die fehlende Transaktion der richtigen Art zu

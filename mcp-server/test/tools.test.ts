@@ -40,6 +40,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.splits.create",
       "portfolixir.holdings.list",
       "portfolixir.holdings.by_security",
+      "portfolixir.holdings.negative",
       "portfolixir.holdings.reconcile",
       "portfolixir.portfolios.valuation",
       "portfolixir.exchange_rates.list",
@@ -417,6 +418,41 @@ describe("Portfolixir MCP tools", () => {
 
     const viewValuation = listTools().find((tool) => tool.name === "portfolixir.views.valuation");
     assert.match(viewValuation?.description ?? "", /unvalued_reason/);
+  });
+
+  // User story (#570):
+  // As the operating LLM agent,
+  // I want the negative-holdings data-quality report as a tool,
+  // so that import debris from unmodeled corporate actions is visible to
+  // automation the same way the Wealth page reports it.
+  it("issues a GET to /holdings/negative for portfolixir.holdings.negative", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        as_of: "2026-08-01",
+        note: "negative holdings are import debris",
+        rows: [
+          {
+            portfolio_id: 1,
+            securities_account_id: 4,
+            depot_name: "Main Depot",
+            security_id: 9,
+            security_name: "Doomed Co.",
+            isin: null,
+            quantity: "-400",
+            total_quantity: "-350"
+          }
+        ],
+        totals: [{ security_id: 9, security_name: "Doomed Co.", total_quantity: "-350" }]
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.holdings.negative", {});
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/holdings/negative");
+    assert.equal(requests[0].token, "Bearer api-token");
+    assert.match(result.content[0].text, /-400/);
+    assert.match(result.content[0].text, /Doomed Co./);
   });
 
   // User story:

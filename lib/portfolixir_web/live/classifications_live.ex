@@ -350,6 +350,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       class={["dnd-row", @assignable && "is-draggable"]}
       draggable={if @assignable, do: "true", else: nil}
       data-drag-security={if @assignable, do: @security.id, else: nil}
+      data-security-id={@security.id}
       data-role="security-row"
     >
       <span class="row-name" title={@security.name}><%= @security.name %></span>
@@ -357,6 +358,18 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <small class="row-ticker"><%= @security.ticker_symbol %></small>
       <% end %>
       <small class="row-ccy"><%= @security.currency_code %></small>
+      <span
+        :if={match?(%Decimal{}, @security.quantity) and Decimal.compare(@security.quantity, 0) == :lt}
+        class="negative-holding-chip"
+        data-role="negative-holding"
+        title={
+          gettext(
+            "The derived holding quantity is negative — likely an unmodeled corporate action from an imported history. Repair the security's transaction history."
+          )
+        }
+      >
+        <%= gettext("negative quantity") %>
+      </span>
       <span class="row-quantity" data-role="security-quantity">
         <%= Format.money(@security.quantity) %>
       </span>

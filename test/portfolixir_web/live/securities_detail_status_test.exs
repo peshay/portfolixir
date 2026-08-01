@@ -98,6 +98,46 @@ defmodule PortfolixirWeb.SecuritiesDetailStatusTest do
     assert status =~ "EUR"
   end
 
+  # User story (#570):
+  # As a local portfolio maintainer,
+  # I want a negative per-depot holding visibly marked on the security's
+  # holdings tab instead of blending in,
+  # so that import debris from an unmodeled corporate action is recognisable
+  # right where I inspect the position.
+  #
+  # Acceptance criteria:
+  # - The depot row with a negative derived quantity carries a text marker
+  #   (no colour-only signal, UX-DR7).
+  test "marks a negative per-depot quantity on the holdings tab", %{conn: conn} do
+    world = WorldFixtures.base_world(depot_name: "Main Depot")
+
+    {:ok, doomed} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Doomed Co.",
+        ticker_symbol: "DOOM",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: doomed.id,
+        type: "outbound_delivery",
+        date: ~D[2026-02-02],
+        quantity: "500",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/securities/#{doomed.id}?tab=holdings")
+
+    panel = element(view, "#detail-tab-panel-holdings") |> render()
+    assert panel =~ "Main Depot"
+    assert panel =~ ~s(data-role="negative-holding")
+    assert panel =~ "negative quantity"
+  end
+
   test "a quote-valued or not-held security shows no status line", %{conn: conn} do
     world = WorldFixtures.base_world()
 

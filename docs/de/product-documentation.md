@@ -659,8 +659,17 @@ bewertet werden, weil noch kein Kurs existiert, Positionen ganz ohne Preis (aus
 den Summen ausgenommen, namentlich gelistet), Positionen mit bekanntem Preis,
 aber ohne Wechselkurs zur Basiswährung (aus den Summen ausgenommen; mit ihrem
 nativen Preis gelistet, damit sichtbar ist, was eine Kurssynchronisierung
-einbringen würde) und Buchungen mit unplausiblen Daten (vor 1970), die
-stattdessen am ersten plausiblen Tag angewendet wurden.
+einbringen würde), Wertpapiere mit **negativer** abgeleiteter Bestandsmenge —
+für einen echten Bestand unmöglich, meist Import-Altlasten aus einer nicht
+modellierten Kapitalmaßnahme — je Depot gelistet mit der Gesamtmenge des
+Wertpapiers über alle Depots und verlinkt auf die Transaktionen des
+Wertpapiers, damit du die Historie reparieren kannst (nichts wird
+automatisch repariert; der Split-Assistent bleibt die einzige geführte
+Reparatur), sowie Buchungen mit unplausiblen Daten (vor 1970), die
+stattdessen am ersten plausiblen Tag angewendet wurden. Positionen mit
+negativer Menge sind zusätzlich überall dort mit einem Chip „negative
+Menge" markiert, wo sie auftauchen: in der Allokationstabelle, im
+Klassifikationsbaum und im Bestände-Tab des Wertpapiers.
 
 ## Performance (TTWROR)
 

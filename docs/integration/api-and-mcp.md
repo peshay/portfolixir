@@ -365,13 +365,27 @@ Example account payloads:
   `market_value` converted to the **EUR hub**, plus a `valued` flag. `valued`
   is `false` (and `market_value` is `null`) when the security has neither a
   quote nor a trade price, or no exchange-rate path to EUR, so a missing quote
-  or rate never silently distorts a value. Rows are sorted by `security_id`.
+  or rate never silently distorts a value. Each row also carries the resolved
+  native `latest_price` with `price_currency` and `price_source`, and an
+  `unvalued_reason` that says *why* a row is unvalued: `"no_price"` (nothing
+  resolves at all) or `"missing_fx"` (the price is known but no stored rate
+  path reaches EUR); `null` when valued. Rows are sorted by `security_id`.
   The response is self-describing: a top-level `currency` of `"EUR"`, an
   `as_of` read date (the report is derived on read, so `as_of` is today's date,
   not a stored snapshot), and a `note` describing the hub conversion. This is
   the cross-portfolio, base-currency counterpart to the per-portfolio holdings
   list (which stays in each security's own currency with no FX); for one
   portfolio's totals and weights use the valuation endpoint instead.
+- `GET /api/v1/holdings/negative` returns the **negative-holdings
+  data-quality report**: every (depot, security) position whose derived
+  quantity is below zero — import debris from unmodeled corporate actions —
+  as `rows` (with `depot_name`, `security_name`, `isin`, `portfolio_id` and
+  the negative `quantity` as a Decimal string) plus `totals` with each listed
+  security's total quantity across **all** depots, so transfer debris
+  (negative in one depot, positive in another) is distinguishable from a
+  truly negative total. Self-describing with an `as_of` read date and a
+  `note`. Nothing is repaired automatically; fix the security's transaction
+  history.
 - `POST /api/v1/holdings/reconcile` compares a **user-supplied external
   position list** (a broker statement or depot overview, parsed client-side
   into rows) against the ledger-derived holdings — **strictly read-only**:
@@ -1026,6 +1040,7 @@ in MCP schemas are strings.
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.holdings.by_security`
+- `portfolixir.holdings.negative`
 - `portfolixir.holdings.reconcile` — read-only compare of a pasted external
   position list against the ledger; its description steers the agent toward
   booking the missing transaction of the correct kind instead of balance

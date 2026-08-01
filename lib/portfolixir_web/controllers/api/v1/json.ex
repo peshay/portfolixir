@@ -395,6 +395,41 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   end
 
   @doc """
+  Serializes the negative-holdings data-quality report (#570): every
+  (depot, security) position with a negative derived quantity plus each
+  listed security's total across all depots, quantities as Decimal strings.
+  """
+  def negative_holdings(report) do
+    %{
+      as_of: date(report.as_of),
+      note: report.note,
+      rows: Enum.map(report.rows, &negative_holding_row/1),
+      totals: Enum.map(report.totals, &negative_holding_total/1)
+    }
+  end
+
+  defp negative_holding_row(row) do
+    %{
+      portfolio_id: row.portfolio_id,
+      securities_account_id: row.securities_account_id,
+      depot_name: row.depot_name,
+      security_id: row.security_id,
+      security_name: row.security_name,
+      isin: row.isin,
+      quantity: decimal(row.quantity),
+      total_quantity: decimal(row.total_quantity)
+    }
+  end
+
+  defp negative_holding_total(total) do
+    %{
+      security_id: total.security_id,
+      security_name: total.security_name,
+      total_quantity: decimal(total.total_quantity)
+    }
+  end
+
+  @doc """
   Serializes a `Portfolixir.Portfolios.Reconcile` result (ADR-0029 §6): the
   self-describing basis, the verbatim resolution guidance, matched rows with
   their `matched_via` tier and Decimal-string quantities/delta, ambiguous rows

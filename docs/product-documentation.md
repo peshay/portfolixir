@@ -610,9 +610,16 @@ otherwise silently skew the figures: positions valued at their last trade
 price because no quote exists yet, positions with no price at all (excluded
 from the totals, listed by name), positions whose price is known but that
 lack an exchange rate to the base currency (excluded from the totals; listed
-with their native price so you can see what a rate sync would bring in), and
-bookings with implausible dates (before 1970) that were applied on the first
-plausible day instead.
+with their native price so you can see what a rate sync would bring in),
+securities whose derived holding quantity is **negative** — impossible for a
+real holding, usually import debris from an unmodeled corporate action —
+listed per depot with the security's total across all depots and linked to
+the security's transactions so you can repair the history (nothing is
+repaired automatically; the split wizard remains the only guided repair),
+and bookings with implausible dates (before 1970) that were applied on the
+first plausible day instead. Negative-quantity positions are also marked
+with a "negative quantity" chip wherever they appear: in the allocation
+table, in the classification tree and on the security's holdings tab.
 
 ## Performance (TTWROR)
 

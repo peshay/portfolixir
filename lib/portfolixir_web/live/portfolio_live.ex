@@ -106,6 +106,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           # initial mount) and is the only path that reloads on a later change.
           |> assign(:classification_id, param_classification_id(params, classifications))
           |> assign(:valuation, nil)
+          |> assign(:negative_report, nil)
           |> assign(:allocation, nil)
           |> assign(:analysis, nil)
           |> assign(:performance, nil)
@@ -335,7 +336,10 @@ defmodule PortfolixirWeb.PortfolioLive do
       with %{} = valuation <- Valuation.for_view(view_id, base_currency: base_currency),
            {:ok, allocation} <-
              Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
-        {valuation, classification_id, allocation}
+        # Negative-holdings debris (#570) is a property of the dataset, not
+        # of the active view, so the report is global and loads with the
+        # other data-quality inputs.
+        {valuation, classification_id, allocation, Ledger.negative_holdings_report()}
       else
         {:error, :view_not_found} -> :view_not_found
         {:error, :not_found} -> :classification_not_found
@@ -457,8 +461,15 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, socket |> degrade_to_default_classification() |> load_allocation()}
   end
 
-  def handle_async(:overview, {:ok, {valuation, classification_id, allocation}}, socket) do
-    socket = assign(socket, :valuation, valuation)
+  def handle_async(
+        :overview,
+        {:ok, {valuation, classification_id, allocation, negative_report}},
+        socket
+      ) do
+    socket =
+      socket
+      |> assign(:valuation, valuation)
+      |> assign(:negative_report, negative_report)
 
     # Cross-key staleness guard (async-hardening round): LiveView's ref pruning
     # only cancels same-key tasks, so a mount-era :overview can land after the
@@ -767,7 +778,7 @@ defmodule PortfolixirWeb.PortfolioLive do
              data quality and cash; Allocation & targets carries the sunburst
              and drift table. KPIs and the view switcher head both. --%>
         <%= if @wealth_tab == :holdings do %>
-          <.data_quality valuation={@valuation} analysis={@analysis} />
+          <.data_quality valuation={@valuation} analysis={@analysis} negative={@negative_report} />
         <% end %>
 
         <%= if @wealth_tab == :holdings do %>
@@ -1540,12 +1551,13 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:trade_priced, trade_priced_count(assigns.valuation))
       |> assign(:suspect_dates, suspect_dates(assigns.analysis))
       |> assign(:unvalued_cash, unvalued_cash(assigns.valuation))
+      |> assign(:negative_entries, negative_entries(assigns.negative))
 
     ~H"""
     <section
       :if={
         @no_price.count > 0 or @missing_fx.count > 0 or @trade_priced > 0 or
-          @suspect_dates != [] or @unvalued_cash != []
+          @suspect_dates != [] or @unvalued_cash != [] or @negative_entries != []
       }
       id="portfolio-data-quality"
       class="workspace-section data-quality"
@@ -1585,6 +1597,22 @@ defmodule PortfolixirWeb.PortfolioLive do
             base: @valuation.base_currency,
             names: Enum.map_join(@unvalued_cash, ", ", &"#{&1.name} (#{&1.currency})")
           ) %>
+        </li>
+        <li :if={@negative_entries != []} data-role="dq-negative-holdings">
+          <%= gettext(
+            "%{count} securities have an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
+            count: length(@negative_entries)
+          ) %>
+          <span :for={entry <- @negative_entries} class="dq-negative-entry">
+            <.link navigate={"/securities/#{entry.security_id}?tab=transactions"}>
+              <%= entry.name %>
+            </.link>
+            (<%= Enum.map_join(
+              entry.depots,
+              ", ",
+              &"#{&1.depot_name}: #{Format.decimal(&1.quantity, 2)}"
+            ) %> · <%= gettext("total across depots") %> <%= Format.decimal(entry.total, 2) %>)
+          </span>
         </li>
       </ul>
     </section>
@@ -2142,8 +2170,27 @@ defmodule PortfolixirWeb.PortfolioLive do
     >
       <%= gettext("no quote") %>
     </span>
+    <span
+      :if={negative_quantity?(@position)}
+      class="negative-holding-chip"
+      data-role="negative-holding"
+      title={
+        gettext(
+          "The derived holding quantity is negative — likely an unmodeled corporate action from an imported history. Repair the security's transaction history."
+        )
+      }
+    >
+      <%= gettext("negative quantity") %>
+    </span>
     """
   end
+
+  # Import debris marker (#570): a derived quantity below zero is impossible
+  # for a real holding and must not blend into the allocation.
+  defp negative_quantity?(%{quantity: %Decimal{} = quantity}),
+    do: Decimal.compare(quantity, 0) == :lt
+
+  defp negative_quantity?(_position), do: false
 
   # Scope-aware not-held chip (fix round): inside a named view "not held"
   # only means "not held in this view"; the plain label is reserved for the
@@ -2251,6 +2298,26 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp unvalued_entry_label(position, _reason),
     do: position.security_name || gettext("Unsorted")
+
+  # Negative-holdings debris grouped per security (#570): each entry keeps
+  # its negative depot rows and the security's total across all depots, so
+  # the report shows both, and links to the transaction history (no repair
+  # wizard beyond splits, ADR-0028).
+  defp negative_entries(nil), do: []
+
+  defp negative_entries(report) do
+    report.rows
+    |> Enum.group_by(&{&1.security_id, &1.security_name})
+    |> Enum.map(fn {{security_id, security_name}, rows} ->
+      %{
+        security_id: security_id,
+        name: security_name || gettext("Unsorted"),
+        depots: rows,
+        total: hd(rows).total_quantity
+      }
+    end)
+    |> Enum.sort_by(& &1.name)
+  end
 
   defp shorten_list(names) when length(names) <= @unpriced_names_shown, do: names
 

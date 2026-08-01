@@ -896,7 +896,10 @@ defmodule Portfolixir.Portfolios.Allocation do
   defp unassigned(positions, total, position_soll) do
     value = sum_values(positions)
 
-    if positive?(value) do
+    # Non-zero, not positive (#570): a pot whose value went NEGATIVE through
+    # import debris must stay visible — dropping it would also hide any
+    # healthy unassigned positions grouped with the debris.
+    if not Decimal.equal?(value, @zero) do
       %{
         market_value: value,
         actual_weight: weight(value, total),
