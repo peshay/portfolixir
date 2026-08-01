@@ -1,14 +1,14 @@
 ---
 layout: docs
 title: "ADR-0033: per-position P&L decomposed — price return and currency return over a security-currency cost basis"
-description: Proposed decision on how per-position P&L stops mixing price moves with purchase-date FX. Two candidates are worked through on the same synthetic fixture — (A) decompose each position's P&L into a price-return and a currency-return component that sum Decimal-exactly to the base-currency total, and (B) keep the cost basis in the security's own currency and convert both sides at the current rate — with the recommendation to adopt A, because it contains B as its price leg and is the only option whose per-position figures reconcile with the portfolio total without an extra aggregate line. Decision gate per ADR-0026; awaiting owner sign-off on issue #569.
+description: Proposed decision on how per-position P&L stops mixing price moves with purchase-date FX. Two candidates are worked through on the same synthetic fixture — (A) decompose each position's P&L into a price-return and a currency-return component that sum Decimal-exactly to the base-currency total, and (B) keep the cost basis in the security's own currency and convert both sides at the current rate — with A adopted, because it contains B as its price leg and is the only option whose per-position figures reconcile with the portfolio total without an extra aggregate line. Decision gate per ADR-0026; owner signed off 2026-07-31 on issue #569.
 ---
 
 # ADR-0033: per-position P&L decomposed — price return and currency return over a security-currency cost basis
 
-- **Status:** Proposed (decision gate per
-  [ADR-0026](0026-epic-batch-workflow.html); awaiting owner sign-off —
-  [#569](https://github.com/peshay/portfolixir/issues/569))
+- **Status:** Accepted (owner sign-off 2026-07-31 —
+  [#569](https://github.com/peshay/portfolixir/issues/569); decision gate
+  per [ADR-0026](0026-epic-batch-workflow.html))
 - **Date:** 2026-07-31
 
 ## Context
@@ -265,10 +265,10 @@ EUR 90.00). The day-one phantom reads 0.00 % — correct.
 
 ## Decision
 
-**Proposed, not decided — the owner signs this off (or overrules it), as
-with the ADR-0031 and ADR-0032 gates.**
+**Accepted — owner sign-off 2026-07-31, as with the ADR-0031 and ADR-0032
+gates.**
 
-The recommendation is **Option A**: per-position P&L is decomposed into a
+The decision is **Option A**: per-position P&L is decomposed into a
 price-return and a currency-return component over a security-currency cost
 basis, with the residual-free convention fixed above (price leg at the
 current rate, currency leg on the invested native cost), the base-currency
@@ -293,7 +293,7 @@ committed to in substance:
 
 ## Consequences
 
-If accepted as recommended:
+As accepted:
 
 - The cost fold in `lib/portfolixir/ledger.ex` carries a
   `{native_cost, base_cost}` pair per lot; sells, outbound deliveries and
