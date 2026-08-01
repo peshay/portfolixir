@@ -740,9 +740,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
     ~H"""
     <p class="detail-pane-status badge-warning" data-role="detail-valuation-status">
       <%= gettext(
-        "Not counted in the portfolio totals — latest price %{price} %{currency} is known, but no exchange rate to EUR is stored. Sync exchange rates to include it.",
+        "Not counted in the portfolio totals — latest price %{price} %{currency} is known, but no exchange rate to %{bases} is stored. Sync exchange rates to include it.",
         price: Format.decimal(@status.latest_price, 2),
-        currency: @status.price_currency
+        currency: @status.price_currency,
+        bases: Enum.join(@status.missing_rate_currencies, ", ")
       ) %>
     </p>
     """
@@ -2744,16 +2745,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
         _ -> SecurityWithMetrics.empty_metrics()
       end
 
+    holdings = decorate_holdings_with_buckets(Ledger.holdings_for_security(id), id)
+
     socket
     |> assign(:detail_quotes, quotes)
     |> assign(:detail_split_events, split_events)
     |> assign(:detail_transactions, transactions)
     |> assign(:detail_transaction_rows, transaction_rows)
     |> assign(:detail_trades, Ledger.list_trades_for_security(id))
-    |> assign(
-      :detail_holdings,
-      decorate_holdings_with_buckets(Ledger.holdings_for_security(id), id)
-    )
+    |> assign(:detail_holdings, holdings)
     |> assign(:buckets, Buckets.list_buckets())
     # Display basis (ADR-0028 §2): a stale raw close from before a split's
     # effective date is shown divided by the cumulative later ratio.
@@ -2761,9 +2761,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_series_basis, QuoteAdjustment.series_basis(quotes))
     |> assign(:detail_metrics, metrics)
     # The shared price-resolution status (#406): computed by the valuation's
-    # own semantics so this pane and the portfolio totals cannot disagree.
-    |> assign(:detail_status, Valuation.security_status(id))
+    # own semantics, against the base currencies of the portfolios actually
+    # holding the security, so this pane and those portfolios' totals cannot
+    # disagree (review fix: a USD-base portfolio counts a USD position
+    # without any stored rate).
+    |> assign(:detail_status, Valuation.security_status(id, holding_base_currencies(holdings)))
     |> assign(:detail_classifications, load_security_classifications(id))
+  end
+
+  defp holding_base_currencies(holdings) do
+    holdings
+    |> Enum.map(& &1.portfolio.base_currency_code)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
   end
 
   # UX-DR11 basis labels for the chart and its chart-as-table. Without any

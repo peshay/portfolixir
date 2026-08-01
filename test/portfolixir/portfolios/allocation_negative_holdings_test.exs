@@ -58,4 +58,40 @@ defmodule Portfolixir.Portfolios.AllocationNegativeHoldingsTest do
     healthy_entry = Enum.find(positions, &(&1.security_id == healthy.id))
     assert Decimal.equal?(healthy_entry.quantity, Decimal.new("8"))
   end
+
+  # Review fix (#570 edge): debris that nets the pot to EXACTLY zero must not
+  # hide it either — the boundary of the same failure mode.
+  test "reports the unassigned bucket when debris nets its value to exactly zero" do
+    world = base_world()
+
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+    healthy = create_security!(name: "World ETF", ticker: "WLD", asset_class: "etf")
+    doomed = create_security!(name: "Doomed Co.", ticker: "DOOM", asset_class: "equity")
+
+    buy!(world, healthy, quantity: "8", price: "100")
+    put_quote!(healthy, ~D[2026-06-01], "110")
+
+    # −88 × 10 = −880 exactly cancels the healthy 8 × 110 = 880.
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: doomed.id,
+        type: "outbound_delivery",
+        date: ~D[2026-02-02],
+        quantity: "88",
+        currency_code: "EUR"
+      })
+
+    put_quote!(doomed, ~D[2026-06-01], "10")
+
+    {:ok, allocation} = Allocation.for_portfolio(world.portfolio.id, classification.id, [])
+
+    assert %{positions: positions} = allocation.unassigned
+    assert Decimal.equal?(allocation.unassigned.market_value, Decimal.new("0"))
+    assert Enum.find(positions, &(&1.security_id == doomed.id))
+    assert Enum.find(positions, &(&1.security_id == healthy.id))
+  end
 end

@@ -191,6 +191,56 @@ defmodule Portfolixir.Portfolios.ValuationUnvaluedReasonTest do
            )
   end
 
+  # User story (#406, review fix):
+  # As a local portfolio maintainer with a non-EUR-base portfolio,
+  # I want the security detail's "counted in totals?" status resolved against
+  # the base currencies of the portfolios that actually hold the security,
+  # so that the detail line never claims a position is missing from totals
+  # that do count it (or vice versa).
+  #
+  # Acceptance criteria:
+  # - For a USD-base portfolio holding a USD-priced security with no stored
+  #   rates at all, the status is valued (USD->USD needs no rate), matching
+  #   for_portfolio/2.
+  # - With a mixed set of bases, the failing bases are reported in
+  #   missing_rate_currencies and the status is unvalued (:missing_fx).
+  test "security_status resolves against the holding portfolios' base currencies" do
+    world = base_world()
+
+    usd = create_security!(name: "US Co.", ticker: "USCO", currency: "USD", asset_class: "equity")
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: usd.id,
+        type: "inbound_delivery",
+        date: ~D[2026-01-02],
+        quantity: "3",
+        currency_code: "USD"
+      })
+
+    put_quote!(usd, ~D[2026-06-01], "120")
+
+    # A USD-base portfolio counts the USD position without any stored rate.
+    status = Valuation.security_status(usd.id, ["USD"])
+    assert status.valued
+    assert is_nil(status.unvalued_reason)
+    assert status.missing_rate_currencies == []
+
+    # Against EUR (the default hub) the rate is genuinely missing.
+    status = Valuation.security_status(usd.id)
+    refute status.valued
+    assert status.unvalued_reason == :missing_fx
+    assert status.missing_rate_currencies == ["EUR"]
+
+    # Mixed bases: only the failing base is reported.
+    status = Valuation.security_status(usd.id, ["EUR", "USD"])
+    refute status.valued
+    assert status.unvalued_reason == :missing_fx
+    assert status.missing_rate_currencies == ["EUR"]
+  end
+
   # User story (#406):
   # As a local portfolio maintainer (and the LLM I connect over MCP),
   # I want the global holdings-by-security valuation to carry the same honest

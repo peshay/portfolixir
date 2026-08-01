@@ -2465,7 +2465,23 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp unassigned_node(nil, _roots), do: []
 
-  defp unassigned_node(%{actual_weight: weight, market_value: value}, roots) do
+  # A pot whose value is not positive (import debris, #570 review fix) has no
+  # drawable angular span: skip the slice — and with it the outer ring and
+  # legend entry — instead of laying its healthy members' arcs over the span
+  # the Cash slice occupies.
+  defp unassigned_node(%{market_value: value}, _roots)
+       when not is_struct(value, Decimal),
+       do: []
+
+  defp unassigned_node(%{market_value: value} = unassigned, roots) do
+    if Decimal.compare(value, 0) == :gt do
+      positive_unassigned_node(unassigned, roots)
+    else
+      []
+    end
+  end
+
+  defp positive_unassigned_node(%{actual_weight: weight, market_value: value}, roots) do
     fraction = Decimal.to_float(weight)
     last_root_end = roots |> Enum.map(& &1.fraction_end) |> Enum.max(fn -> 0.0 end)
 
@@ -2527,6 +2543,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp unassigned_security_nodes(nil, _nodes, _depth), do: []
+
+  # No slice was drawn for the pot (non-positive value, #570 review fix):
+  # no outer ring either.
+  defp unassigned_security_nodes(_unassigned, [], _depth), do: []
 
   defp unassigned_security_nodes(%{positions: positions}, [node], depth) do
     layout_positions(positions, node.fraction_start, @unassigned_color, depth)
@@ -2614,18 +2634,24 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     with_unassigned =
       case allocation.unassigned do
-        nil ->
-          roots
+        # No legend entry for a pot without a drawable slice (non-positive
+        # value, #570 review fix) — the data-quality report carries it.
+        %{actual_weight: weight, market_value: %Decimal{} = value} ->
+          if Decimal.compare(value, 0) == :gt do
+            roots ++
+              [
+                %{
+                  name: gettext("Unassigned"),
+                  color: @unassigned_color,
+                  percent: Format.percent(weight)
+                }
+              ]
+          else
+            roots
+          end
 
-        %{actual_weight: weight} ->
-          roots ++
-            [
-              %{
-                name: gettext("Unassigned"),
-                color: @unassigned_color,
-                percent: Format.percent(weight)
-              }
-            ]
+        _ ->
+          roots
       end
 
     # Cash distributed into currency buckets (issue #407): no separate Cash

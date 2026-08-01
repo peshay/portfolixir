@@ -103,15 +103,21 @@ defmodule Portfolixir.Portfolios.Valuation do
 
   Resolves the price with exactly the semantics the portfolio totals use
   (latest quote, then the global latest own trade price) and reports whether
-  a stored FX path reaches the EUR hub. Powers the security detail's
-  "counted in totals?" status line, so the detail and the portfolio totals
-  can never disagree about whether a price exists.
+  a stored FX path reaches every given base currency — pass the base
+  currencies of the portfolios actually holding the security (review fix: a
+  USD-base portfolio counts a USD position without any stored rate, so
+  checking only the EUR hub could contradict that portfolio's totals). The
+  default is the EUR hub. Powers the security detail's "counted in totals?"
+  status line, so the detail and the portfolio totals can never disagree.
 
   Returns `%{latest_price: Decimal | nil, price_currency: String.t() | nil,
   price_source: :quote | :trade | nil, price_date: Date.t() | nil,
-  valued: boolean, unvalued_reason: :no_price | :missing_fx | nil}`.
+  valued: boolean, unvalued_reason: :no_price | :missing_fx | nil,
+  missing_rate_currencies: [String.t()]}` — `missing_rate_currencies` lists
+  the bases the known price cannot be converted into.
   """
-  def security_status(security_id) when is_integer(security_id) do
+  def security_status(security_id, bases \\ [@hub]) when is_integer(security_id) do
+    bases = if bases == [], do: [@hub], else: bases
     security = Catalog.get_security(security_id)
     security_currency = security && security.currency_code
     trade_prices = Ledger.latest_trade_prices()
@@ -120,8 +126,22 @@ defmodule Portfolixir.Portfolios.Valuation do
       price_for(security_id, {%{}, trade_prices}, security_currency)
 
     # Quantity 1: only the convertibility of the price matters here.
-    {_value, valued?, unvalued_reason} =
-      market_value(Decimal.new("1"), price, price_currency, @hub)
+    conversions =
+      Enum.map(bases, fn base ->
+        {base, market_value(Decimal.new("1"), price, price_currency, base)}
+      end)
+
+    missing_rate_currencies =
+      for {base, {_value, false, :missing_fx}} <- conversions, do: base
+
+    valued? = Enum.all?(conversions, fn {_base, {_value, valued?, _reason}} -> valued? end)
+
+    unvalued_reason =
+      cond do
+        valued? -> nil
+        is_nil(price) -> :no_price
+        true -> :missing_fx
+      end
 
     %{
       latest_price: price,
@@ -129,7 +149,8 @@ defmodule Portfolixir.Portfolios.Valuation do
       price_source: price_source,
       price_date: price_date(security_id, price_source, trade_prices),
       valued: valued?,
-      unvalued_reason: unvalued_reason
+      unvalued_reason: unvalued_reason,
+      missing_rate_currencies: missing_rate_currencies
     }
   end
 
