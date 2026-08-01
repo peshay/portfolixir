@@ -197,3 +197,25 @@ per the retro's action item 5.
    merged. Check open pull requests when planning, never issue state alone.
 3. **Two parallel epic structures.** See Lane C. Unchanged since 2026-07-25 and
    now slightly worse — `#619` and `#620` joined the unattached pile.
+
+## Addendum 2 — 2026-07-31, evening: gate cleared, Lane A decisions made
+
+The Sprint 2 gate and the Lane A behaviour questions were resolved by owner
+sign-off; recorded here so the implementation session inherits decisions, not
+open questions:
+
+- **ADR-0033 accepted** (the `#569` gate): per-position P&L is decomposed into
+  a price-return and a currency-return component over a security-currency cost
+  basis, Option A. This unblocks the `#569` implementation and `#620` — both
+  remain Sprint 3, each risk-tier.
+- **`#406` behaviour decided:** a position with a resolvable native price but
+  no stored FX path to the base currency counts as **not valued** in
+  base-currency totals; the warning distinguishes two honest states ("no price
+  at all" vs. "price available, no exchange rate to EUR stored"); totals and
+  security detail unify on the same price-resolution semantics (global
+  trade-price fallback on both surfaces).
+- **Delivery decision:** the remaining Sprint 2 code — `#406` + `#570` — ships
+  as **one combined PR** (owner override of the risk-tier separation for this
+  pair; the `#406` part gets focused review). `#398` closes with that PR.
+- Lane B (`#619`) is measured, Lane C is delivered, and the analysis package
+  (ADR, measurement report, reconciliation) is on PR `#627`.
