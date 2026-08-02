@@ -116,7 +116,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     <AppShell.shell
       current_path="/securities"
       page_title={gettext("Securities")}
-      page_subtitle={gettext("Search, filter and curate your investable universe.")}
+      page_subtitle={gettext("Search, filter and curate the investable universe.")}
       main_class="app-main--workspace"
     >
       <section class="workspace-panel" id="securities-panel">
@@ -1138,7 +1138,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     >
       <%= if @holdings == [] do %>
         <p class="detail-tab-empty">
-          <%= gettext("No open positions for this security across your depots.") %>
+          <%= gettext("No open positions for this security in any depot.") %>
         </p>
       <% else %>
         <%!-- ADR-0033: the committed decomposition explanation lives in the

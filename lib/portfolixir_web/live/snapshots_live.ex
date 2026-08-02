@@ -279,7 +279,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
           </header>
           <p class="muted">
             <%= gettext(
-              "A snapshot freezes which holdings you had on a date — as a marker on the ledger, copying nothing. Compare it later to see whether keeping them would have beaten your real performance."
+              "A snapshot freezes the holdings held on a date — as a marker on the ledger, copying nothing. A later comparison shows whether keeping them would have beaten the real performance."
             ) %>
           </p>
 

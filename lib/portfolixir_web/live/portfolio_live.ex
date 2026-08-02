@@ -683,7 +683,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           data-role="migration-notice"
           role="status"
         >
-          <h2><%= gettext("Your portfolios are now views") %></h2>
+          <h2><%= gettext("Portfolios are now views") %></h2>
           <p>
             <%= gettext(
               "The one-time migration turned each portfolio into a bucket and a view of the same name — fully editable, nothing was deleted. Pick a view above to scope this page."
@@ -1146,7 +1146,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                             <%= gettext("The category's position targets steer here: their sum overrides the stored category weight. Align the position targets and the category weight on the Classifications page.") %>
                           <% end %>
                           <%= if row.has_stale do %>
-                            <%= gettext("A position target filed here is stale: its security was moved or unassigned. It keeps counting here until you re-file it on the Classifications page.") %>
+                            <%= gettext("A position target filed here is stale: its security was moved or unassigned. It keeps counting here until re-filed on the Classifications page.") %>
                           <% end %>
                         </p>
                       </details>
@@ -1519,7 +1519,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               </button>
             </form>
             <p class="hint">
-              <%= gettext("State the balance your bank shows; only later bookings adjust it.") %>
+              <%= gettext("State the balance the bank shows; only later bookings adjust it.") %>
             </p>
 
             <div class="cash-actions">
@@ -2205,7 +2205,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       data-role="stale-target"
       title={
         gettext(
-          "This position target is stale: the security was moved or unassigned. It keeps counting under the category it was filed under until you re-file it on the Classifications page."
+          "This position target is stale: the security was moved or unassigned. It keeps counting under the category it was filed under until re-filed on the Classifications page."
         )
       }
     >

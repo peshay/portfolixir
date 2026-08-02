@@ -596,11 +596,6 @@ msgstr ""
 msgid "Search stocks, ETFs, funds and bonds via Portfolio Performance."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:119
-#, elixir-autogen, elixir-format
-msgid "Search, filter and curate your investable universe."
-msgstr ""
-
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:158
 #, elixir-autogen, elixir-format
 msgid "Searching…"
@@ -1403,11 +1398,6 @@ msgstr ""
 msgid "CSV missing columns: %{cols}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:98
-#, elixir-autogen, elixir-format
-msgid "CSV or JSON v1 · max 20 MB · nothing is saved before you confirm"
-msgstr ""
-
 #: lib/portfolixir_web/live/imports_live.ex:232
 #, elixir-autogen, elixir-format
 msgid "Cash accounts from the export"
@@ -1879,11 +1869,6 @@ msgstr ""
 msgid "Updating…"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1522
-#, elixir-autogen
-msgid "State the balance your bank shows; only later bookings adjust it."
-msgstr ""
-
 #: lib/portfolixir_web/live/portfolio_live.ex:1957
 #, elixir-autogen
 msgid "Account not found"
@@ -2146,11 +2131,6 @@ msgstr ""
 #: lib/portfolixir_web/live/securities_live.ex:1388
 #, elixir-autogen, elixir-format
 msgid "No classifications yet."
-msgstr ""
-
-#: lib/portfolixir_web/live/classifications_live.ex:272
-#, elixir-autogen, elixir-format
-msgid "No securities match your search."
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:1727
@@ -2435,11 +2415,6 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:1252
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{errors}"
-msgstr ""
-
-#: lib/portfolixir_web/live/classifications_live.ex:407
-#, elixir-autogen, elixir-format
-msgid "Assigned securities you no longer hold, hidden by the filter"
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:57
@@ -2835,11 +2810,6 @@ msgstr ""
 msgid "1. Buckets"
 msgstr ""
 
-#: lib/portfolixir_web/live/buckets_live.ex:62
-#, elixir-autogen, elixir-format
-msgid "1. Create buckets — tags you put on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Portfolio page, so you need both."
-msgstr ""
-
 #: lib/portfolixir_web/live/buckets_live.ex:154
 #, elixir-autogen, elixir-format
 msgid "2. Views"
@@ -2853,11 +2823,6 @@ msgstr ""
 #: lib/portfolixir_web/components/view_switcher.ex:110
 #, elixir-autogen, elixir-format
 msgid "No views yet —"
-msgstr ""
-
-#: lib/portfolixir_web/live/buckets_live.ex:76
-#, elixir-autogen, elixir-format
-msgid "Tags you assign to depots, cash accounts and individual positions."
 msgstr ""
 
 #: lib/portfolixir_web/components/view_switcher.ex:44
@@ -3444,11 +3409,6 @@ msgstr ""
 msgid "Wealth value"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:686
-#, elixir-autogen, elixir-format
-msgid "Your portfolios are now views"
-msgstr ""
-
 #: lib/portfolixir_web/live/portfolio_live.ex:913
 #, elixir-autogen, elixir-format
 msgid "the view's current bucket membership is applied to the whole history."
@@ -3516,19 +3476,9 @@ msgstr ""
 msgid "Internal compatibility records kept for the deprecated API surface. Grouping happens through buckets and views."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:1141
-#, elixir-autogen, elixir-format
-msgid "No open positions for this security across your depots."
-msgstr ""
-
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:206
 #, elixir-autogen, elixir-format
 msgid "Portfolio records (compatibility)"
-msgstr ""
-
-#: lib/portfolixir_web/live/buckets_live.ex:156
-#, elixir-autogen, elixir-format
-msgid "Saved include/exclude filters over buckets. A view is what you pick in the view switcher on the Wealth page."
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:744
@@ -3690,11 +3640,6 @@ msgstr ""
 msgid "New tag (optional)"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:78
-#, elixir-autogen, elixir-format
-msgid "No accounts yet — add your first depot and cash account."
-msgstr ""
-
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:165
 #, elixir-autogen, elixir-format
 msgid "No cash account linked"
@@ -3714,11 +3659,6 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:415
 #, elixir-autogen, elixir-format
 msgid "Remove bucket %{name}"
-msgstr ""
-
-#: lib/portfolixir_web/live/buckets_live.ex:49
-#, elixir-autogen, elixir-format
-msgid "Saved filters that scope your analytics, built from bucket tags"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:164
@@ -3898,11 +3838,6 @@ msgstr ""
 msgid "Up to date"
 msgstr ""
 
-#: lib/portfolixir_web/live/snapshots_live.ex:281
-#, elixir-autogen, elixir-format
-msgid "A snapshot freezes which holdings you had on a date — as a marker on the ledger, copying nothing. Compare it later to see whether keeping them would have beaten your real performance."
-msgstr ""
-
 #: lib/portfolixir_web/live/classifications_live.ex:570
 #, elixir-autogen, elixir-format
 msgid "Activate this plan"
@@ -3962,11 +3897,6 @@ msgstr ""
 #: lib/portfolixir_web/live/snapshots_live.ex:362
 #, elixir-autogen, elixir-format
 msgid "Delete this snapshot marker? No transactions are affected."
-msgstr ""
-
-#: lib/portfolixir_web/live/classifications_live.ex:1620
-#, elixir-autogen, elixir-format
-msgid "Draft — the Wealth page keeps following the active plan until you activate it."
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:549
@@ -4144,11 +4074,6 @@ msgstr ""
 msgid "The selected classification no longer exists — showing the default tree."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1149
-#, elixir-autogen, elixir-format
-msgid "A position target filed here is stale: its security was moved or unassigned. It keeps counting here until you re-file it on the Classifications page."
-msgstr ""
-
 #: lib/portfolixir_web/live/portfolio_live.ex:1139
 #, elixir-autogen, elixir-format
 msgid "Position-target notice"
@@ -4193,11 +4118,6 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_live.ex:1146
 #, elixir-autogen, elixir-format
 msgid "The category's position targets steer here: their sum overrides the stored category weight. Align the position targets and the category weight on the Classifications page."
-msgstr ""
-
-#: lib/portfolixir_web/live/portfolio_live.ex:2207
-#, elixir-autogen, elixir-format
-msgid "This position target is stale: the security was moved or unassigned. It keeps counting under the category it was filed under until you re-file it on the Classifications page."
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:2186
@@ -5076,4 +4996,84 @@ msgstr ""
 #: lib/portfolixir_web/live/transaction_management_live.ex:225
 #, elixir-autogen, elixir-format
 msgid "Total (base)"
+msgstr ""
+
+#: lib/portfolixir_web/live/buckets_live.ex:62
+#, elixir-autogen, elixir-format
+msgid "1. Create buckets — tags on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Portfolio page, so both are needed."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:1149
+#, elixir-autogen, elixir-format
+msgid "A position target filed here is stale: its security was moved or unassigned. It keeps counting here until re-filed on the Classifications page."
+msgstr ""
+
+#: lib/portfolixir_web/live/snapshots_live.ex:281
+#, elixir-autogen, elixir-format
+msgid "A snapshot freezes the holdings held on a date — as a marker on the ledger, copying nothing. A later comparison shows whether keeping them would have beaten the real performance."
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:407
+#, elixir-autogen, elixir-format
+msgid "Assigned securities no longer held, hidden by the filter"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:98
+#, elixir-autogen, elixir-format
+msgid "CSV or JSON v1 · max 20 MB · nothing is saved before confirmation"
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:1620
+#, elixir-autogen, elixir-format
+msgid "Draft — the Wealth page keeps following the active plan until this one is activated."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:78
+#, elixir-autogen, elixir-format
+msgid "No accounts yet — add a first depot and cash account."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:1141
+#, elixir-autogen, elixir-format
+msgid "No open positions for this security in any depot."
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:272
+#, elixir-autogen, elixir-format
+msgid "No securities match the search."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:686
+#, elixir-autogen, elixir-format
+msgid "Portfolios are now views"
+msgstr ""
+
+#: lib/portfolixir_web/live/buckets_live.ex:49
+#, elixir-autogen, elixir-format
+msgid "Saved filters that scope the analytics, built from bucket tags"
+msgstr ""
+
+#: lib/portfolixir_web/live/buckets_live.ex:156
+#, elixir-autogen, elixir-format
+msgid "Saved include/exclude filters over buckets, selectable in the view switcher on the Wealth page."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:119
+#, elixir-autogen, elixir-format
+msgid "Search, filter and curate the investable universe."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:1522
+#, elixir-autogen, elixir-format
+msgid "State the balance the bank shows; only later bookings adjust it."
+msgstr ""
+
+#: lib/portfolixir_web/live/buckets_live.ex:76
+#, elixir-autogen, elixir-format
+msgid "Tags assigned to depots, cash accounts and individual positions."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:2207
+#, elixir-autogen, elixir-format
+msgid "This position target is stale: the security was moved or unassigned. It keeps counting under the category it was filed under until re-filed on the Classifications page."
 msgstr ""

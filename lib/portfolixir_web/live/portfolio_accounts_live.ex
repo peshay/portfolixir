@@ -75,7 +75,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
           <%= if @rows == [] do %>
             <p class="hint" data-role="accounts-empty">
-              <%= gettext("No accounts yet — add your first depot and cash account.") %>
+              <%= gettext("No accounts yet — add a first depot and cash account.") %>
             </p>
           <% else %>
             <div class="data-table-wrapper">
