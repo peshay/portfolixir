@@ -93,6 +93,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           # 1y default (UAT fix round): "max" grows unreadable as history
           # accumulates; the period buttons still offer it.
           |> assign(:period, "1y")
+          |> assign(:range_error, false)
           |> assign(:chart_mode, "ttwror")
           # The classification tree and the tree/positions mode round-trip
           # through the URL (mobile-reconnect fix): a socket reconnect remounts
@@ -814,8 +815,52 @@ defmodule PortfolixirWeb.PortfolioLive do
                   </button>
                 <% end %>
               </div>
+              <%!-- #563: a single previous year and a custom range are pure
+                   re-chains of the cached analysis, exactly like the buttons
+                   — no new walk. --%>
+              <form class="period-year" phx-change="select_year" data-role="period-year">
+                <label class="visually-hidden" for="performance-year"><%= gettext("Year") %></label>
+                <select
+                  id="performance-year"
+                  name="year"
+                  disabled={available_years(@analysis) == []}
+                >
+                  <option value="" selected={not match?({:year, _year}, @period)}>
+                    <%= gettext("Year…") %>
+                  </option>
+                  <option
+                    :for={year <- available_years(@analysis)}
+                    value={year}
+                    selected={@period == {:year, year}}
+                  >
+                    <%= year %>
+                  </option>
+                </select>
+              </form>
+              <form class="period-range" phx-submit="select_range" data-role="period-range">
+                <label class="visually-hidden" for="performance-from"><%= gettext("From") %></label>
+                <input
+                  type="date"
+                  id="performance-from"
+                  name="from"
+                  value={range_from(@period, @performance)}
+                />
+                <label class="visually-hidden" for="performance-to"><%= gettext("To") %></label>
+                <input
+                  type="date"
+                  id="performance-to"
+                  name="to"
+                  value={range_to(@period, @performance)}
+                />
+                <button type="submit" class="button-mini"><%= gettext("Apply") %></button>
+              </form>
             </div>
           </header>
+          <%!-- #563: a backwards or unparsable range is refused with a terse
+               note; the shown period keeps. --%>
+          <p :if={@range_error} class="hint" data-role="range-error" role="alert">
+            <%= gettext("Invalid range — from must be on or before to.") %>
+          </p>
           <%!-- ADR-0032 §6: a superseded series never renders unlabelled. The
                banner names the data it CONTAINS (booking count, newest booking,
                compute time), not just its age; a failed recomputation flips to
@@ -1769,19 +1814,40 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   @impl true
   def handle_event("select_period", %{"period" => period}, socket) do
-    cond do
-      period not in Performance.periods() ->
-        {:noreply, socket}
-
-      # The analysis is cached — re-chaining a period is pure and instant.
-      socket.assigns.analysis ->
-        {:ok, performance} = Performance.summarise(socket.assigns.analysis, period)
-        {:noreply, assign(socket, period: period, performance: performance)}
-
-      # Still computing; the async completion summarises the chosen period.
-      true ->
-        {:noreply, assign(socket, :period, period)}
+    if period in Performance.periods() do
+      apply_period(socket, period)
+    else
+      {:noreply, socket}
     end
+  end
+
+  # #563: a single calendar year, offered for every year with data. The picked
+  # year is validated against the cached analysis' own range.
+  def handle_event("select_year", %{"year" => raw}, socket) do
+    with {year, ""} <- Integer.parse(raw),
+         true <- year in available_years(socket.assigns.analysis) do
+      apply_period(socket, {:year, year})
+    else
+      _invalid -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("select_year", _params, socket), do: {:noreply, socket}
+
+  # #563: a custom from/to range. A backwards or unparsable range is refused
+  # with a terse inline note; the shown period keeps.
+  def handle_event("select_range", %{"from" => from, "to" => to}, socket) do
+    with {:ok, from} <- Date.from_iso8601(from),
+         {:ok, to} <- Date.from_iso8601(to),
+         false <- Date.compare(from, to) == :gt do
+      apply_period(socket, {:range, from, to})
+    else
+      _invalid -> {:noreply, assign(socket, :range_error, true)}
+    end
+  end
+
+  def handle_event("select_range", _params, socket) do
+    {:noreply, assign(socket, :range_error, true)}
   end
 
   # Switching the chart series (% TTWROR ↔ € value) is pure presentation — the
@@ -2700,11 +2766,45 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp liquidity_role_hint("reserve"), do: gettext("reserve")
   defp liquidity_role_hint(_role), do: gettext("not in cash quote")
 
+  # One landing spot for a validated period term (a button string, a year or a
+  # range): re-chain the cached analysis instantly, or — while the walk is
+  # still computing — remember the choice for the async completion.
+  defp apply_period(socket, period) do
+    socket = assign(socket, :range_error, false)
+
+    if socket.assigns.analysis do
+      # The analysis is cached — re-chaining a period is pure and instant.
+      {:ok, performance} = Performance.summarise(socket.assigns.analysis, period)
+      {:noreply, assign(socket, period: period, performance: performance)}
+    else
+      {:noreply, assign(socket, :period, period)}
+    end
+  end
+
   defp period_label("ytd"), do: gettext("YTD")
   defp period_label("1y"), do: gettext("1Y")
   defp period_label("3y"), do: gettext("3Y")
   defp period_label("5y"), do: gettext("5Y")
   defp period_label("max"), do: gettext("Max")
+  defp period_label({:year, year}), do: Integer.to_string(year)
+  defp period_label({:range, from, to}), do: "#{from} – #{to}"
+
+  # The years the cached analysis can chain (#563): first walked year through
+  # today's, newest first. Empty while the walk still computes.
+  defp available_years(%{first_date: %Date{} = first, today: %Date{} = today}),
+    do: Enum.to_list(today.year..first.year//-1)
+
+  defp available_years(_analysis), do: []
+
+  # Prefill for the range inputs: the picked range, else the shown period's
+  # effective bounds (honest clamping included), else blank.
+  defp range_from({:range, from, _to}, _performance), do: from
+  defp range_from(_period, %{start_date: %Date{} = start_date}), do: start_date
+  defp range_from(_period, _performance), do: nil
+
+  defp range_to({:range, _from, to}, _performance), do: to
+  defp range_to(_period, %{end_date: %Date{} = end_date}), do: end_date
+  defp range_to(_period, _performance), do: nil
 
   defp coerce_id(value) when is_binary(value) do
     case Integer.parse(value) do

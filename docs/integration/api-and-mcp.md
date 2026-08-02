@@ -465,7 +465,10 @@ Example account payloads:
   removals, deliveries, and balance-snapshot jumps — are neutralised, and daily
   returns chain geometrically (see ADR-0010). Optional query params: `period`
   (`ytd`, `1y`, `3y`, `5y`, `max` — default `max`; an unknown period returns
-  `422 Unprocessable Entity`) and `series=true` to include the daily points
+  `422 Unprocessable Entity`), `year=YYYY` for one calendar year, `from=`/`to=`
+  (ISO dates, both required, `from <= to`) for a custom range — both clamped
+  honestly to the available history, with a backwards or malformed range
+  returning `422` — and `series=true` to include the daily points
   (`date`, `value`, `flow`, `cumulative_ttwror`). The response carries
   `ttwror`, `start_date`/`end_date`, `start_value`/`end_value`,
   `net_external_flows` as Decimal strings, and `suspect_dates` — dates of
@@ -929,10 +932,11 @@ writes are deliberately not journaled (ADR-0018 §5).
   account scope the view valuation covers, so the total and the return always
   speak about the same accounts. Money crossing the view boundary counts as an
   external flow (ADR-0019); money moving between two in-scope accounts nets
-  out. `?period=` (`ytd|1y|3y|5y|max`, default `max`) and `?series=true`
-  behave like the portfolio performance endpoint; the shape mirrors it with
-  `view_id` in place of `portfolio_id`, and all financial values are Decimal
-  strings. Unknown and malformed view ids return `404`; a bad period `422`.
+  out. `?period=` (`ytd|1y|3y|5y|max`, default `max`), `?year=YYYY`,
+  `?from=`/`?to=` (custom range) and `?series=true` behave like the portfolio
+  performance endpoint; the shape mirrors it with `view_id` in place of
+  `portfolio_id`, and all financial values are Decimal strings. Unknown and
+  malformed view ids return `404`; a bad period `422`.
 - `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
   bucket set (the buckets each position inherits unless overridden). Body:
   `{"bucket_ids": [..]}`. At most one of the ids may be a scope-dimension

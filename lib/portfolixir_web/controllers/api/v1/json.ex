@@ -967,7 +967,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   def performance(result, include_series? \\ false) do
     base = %{
       portfolio_id: result.portfolio_id,
-      period: result.period,
+      period: period_field(result.period),
       base_currency: result.base_currency,
       start_date: date(result.start_date),
       end_date: date(result.end_date),
@@ -985,6 +985,13 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       base
     end
   end
+
+  # The #563 period terms serialized for JSON: a year as its string, a custom
+  # range as "from..to" (the requested bounds; start_date/end_date carry the
+  # clamped effective ones). Fixed periods pass through unchanged.
+  defp period_field({:year, year}), do: Integer.to_string(year)
+  defp period_field({:range, from, to}), do: "#{from}..#{to}"
+  defp period_field(period) when is_binary(period), do: period
 
   @doc """
   The cross-portfolio view performance (#577): the `performance/2` shape keyed

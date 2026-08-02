@@ -398,6 +398,105 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     assert Decimal.equal?(result.ttwror, Decimal.new("0"))
   end
 
+  # User story (#563):
+  # As a local portfolio maintainer,
+  # I want to chain the performance over a previous year (any single year with
+  # data) or a custom from/to date range,
+  # so that I can answer "how was 2025?" without reading it off the max chart.
+  #
+  # Acceptance criteria:
+  # - `{:year, y}` chains exactly that calendar year, starting from the value
+  #   just before Jan 1 and ending Dec 31 (clamped to today for the current
+  #   year, and to the available history when the year starts earlier).
+  # - `{:range, from, to}` chains exactly the days from..to (same clamping).
+  # - A range with from > to is rejected as `{:error, :invalid_period}`.
+  # - Both stay pure re-chains of the cached analysis — no new daily walk.
+  test "chains a single calendar year from the value just before it" do
+    world = setup_world()
+
+    # 2024: 1000 in at 100. 2024-12-31: 110. 2025-12-31: 121 (+10% in 2025).
+    # 2026-01-20: 133.1 (+10% in 2026 so far).
+    deposit!(world, "1000", ~D[2024-06-01])
+    buy!(world, "10", "100", ~D[2024-06-01])
+    quote!(world, "100", ~D[2024-06-01])
+    quote!(world, "110", ~D[2024-12-31])
+    quote!(world, "121", ~D[2025-12-31])
+    quote!(world, "133.1", ~D[2026-01-20])
+
+    analysis = Performance.analysis(world.portfolio.id, today: ~D[2026-01-20])
+
+    {:ok, year_2025} = Performance.summarise(analysis, {:year, 2025})
+
+    assert year_2025.start_date == ~D[2025-01-01]
+    assert year_2025.end_date == ~D[2025-12-31]
+    assert Decimal.equal?(year_2025.start_value, Decimal.new("1100"))
+    assert Decimal.equal?(year_2025.end_value, Decimal.new("1210"))
+    assert rounded(year_2025.ttwror, 6) |> Decimal.equal?(Decimal.new("0.1"))
+    assert length(year_2025.series) == 365
+
+    # The current year clamps to today and equals ytd.
+    {:ok, year_2026} = Performance.summarise(analysis, {:year, 2026})
+    {:ok, ytd} = Performance.summarise(analysis, "ytd")
+
+    assert year_2026.end_date == ~D[2026-01-20]
+    assert Decimal.equal?(year_2026.ttwror, ytd.ttwror)
+    assert Decimal.equal?(year_2026.end_value, ytd.end_value)
+
+    # A year fully before the history clamps to nothing, honestly: no days,
+    # no return, never an invented number.
+    {:ok, year_2023} = Performance.summarise(analysis, {:year, 2023})
+
+    assert year_2023.series == []
+    assert Decimal.equal?(year_2023.ttwror, Decimal.new("0"))
+
+    # for_portfolio accepts the same period term (same validate + re-chain).
+    {:ok, direct} =
+      Performance.for_portfolio(world.portfolio.id, period: {:year, 2025}, today: ~D[2026-01-20])
+
+    assert direct == year_2025
+  end
+
+  test "chains a custom from/to range and rejects a backwards one" do
+    world = setup_world()
+
+    deposit!(world, "1000", ~D[2024-06-01])
+    buy!(world, "10", "100", ~D[2024-06-01])
+    quote!(world, "100", ~D[2024-06-01])
+    quote!(world, "110", ~D[2024-12-31])
+    quote!(world, "121", ~D[2025-12-31])
+
+    analysis = Performance.analysis(world.portfolio.id, today: ~D[2026-01-20])
+
+    # A range spelling out 2025 equals the year period.
+    {:ok, range} = Performance.summarise(analysis, {:range, ~D[2025-01-01], ~D[2025-12-31]})
+    {:ok, year} = Performance.summarise(analysis, {:year, 2025})
+
+    assert Decimal.equal?(range.ttwror, year.ttwror)
+    assert Decimal.equal?(range.start_value, year.start_value)
+    assert Decimal.equal?(range.end_value, year.end_value)
+    assert range.start_date == year.start_date
+    assert range.end_date == year.end_date
+
+    # An end date in the future clamps to today; a start before the history
+    # clamps to the first walked day.
+    {:ok, clamped} = Performance.summarise(analysis, {:range, ~D[2020-01-01], ~D[2030-01-01]})
+    {:ok, max} = Performance.summarise(analysis, "max")
+
+    assert clamped.start_date == ~D[2024-06-01]
+    assert clamped.end_date == ~D[2026-01-20]
+    assert Decimal.equal?(clamped.ttwror, max.ttwror)
+
+    # from > to is invalid, never a silent empty chain.
+    assert {:error, :invalid_period} =
+             Performance.summarise(analysis, {:range, ~D[2025-06-01], ~D[2025-01-01]})
+
+    assert {:error, :invalid_period} =
+             Performance.for_portfolio(world.portfolio.id,
+               period: {:range, ~D[2025-06-01], ~D[2025-01-01]},
+               today: ~D[2026-01-20]
+             )
+  end
+
   test "analysis plus summarise equals for_portfolio for every period" do
     world = setup_world()
 

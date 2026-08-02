@@ -1437,6 +1437,35 @@ describe("Portfolixir MCP tools", () => {
     assert.equal((result.structuredContent as any).data.ttwror, "0.15");
   });
 
+  // User story (#563): as an MCP client I want a previous year or a custom
+  // from/to range as the performance period, matching the UI's period picker.
+  it("forwards year and from/to period params on the performance tools", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { portfolio_id: 1, ttwror: "0.1" }
+    });
+
+    await callTool(client, "portfolixir.portfolios.performance", {
+      portfolio_id: 1,
+      year: 2025
+    });
+    await callTool(client, "portfolixir.portfolios.performance", {
+      portfolio_id: 1,
+      from: "2025-01-01",
+      to: "2025-12-31"
+    });
+    await callTool(client, "portfolixir.views.performance", {
+      id: 2,
+      year: 2025
+    });
+
+    assert.equal(requests[0].path, "/api/v1/portfolios/1/performance?year=2025");
+    assert.equal(
+      requests[1].path,
+      "/api/v1/portfolios/1/performance?from=2025-01-01&to=2025-12-31"
+    );
+    assert.equal(requests[2].path, "/api/v1/views/2/performance?year=2025");
+  });
+
   it("defaults omitted view bucket sets to empty arrays", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 2 } });
 

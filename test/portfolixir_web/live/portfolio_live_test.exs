@@ -502,6 +502,63 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "8.0"
   end
 
+  # User story (#563):
+  # As a local portfolio maintainer,
+  # I want a previous-year picker and a custom from/to range next to the
+  # fixed period buttons,
+  # so that I can answer "how was last year?" without reading it off the max
+  # chart.
+  #
+  # Acceptance criteria:
+  # - A year dropdown offers every year with data; picking one re-chains the
+  #   cached analysis over that calendar year (no new walk).
+  # - A from/to date range re-chains the same way, clamped to the history.
+  # - from > to is rejected with a terse inline note; the period keeps.
+  test "re-chains a previous year and a custom range from the period picker", %{conn: conn} do
+    Classifications.ensure_builtins()
+
+    world =
+      WorldFixtures.base_world(name: "Jahres Depot", cash_name: "Giro J", depot_name: "Depot J")
+
+    security = WorldFixtures.create_security!(name: "Year ETF", ticker: "YRE")
+
+    today = Date.utc_today()
+    last_year = today.year - 1
+    start = Date.new!(last_year, 1, 10)
+    year_end = Date.new!(last_year, 12, 31)
+
+    # Last year: 1000 in at 100, closing at 110 (+10%). This year: 121 (+10%).
+    WorldFixtures.deposit!(world, "1000", start)
+    WorldFixtures.buy!(world, security, quantity: "10", price: "100", date: start)
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {year_end, "110"}, {today, "121"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # The year dropdown offers exactly the years with data.
+    assert has_element?(view, "#performance-year option[value='#{last_year}']")
+    assert has_element?(view, "#performance-year option[value='#{today.year}']")
+    refute has_element?(view, "#performance-year option[value='#{last_year - 1}']")
+
+    # Picking last year re-chains that calendar year: +10%.
+    html = render_change(view, "select_year", %{"year" => Integer.to_string(last_year)})
+    assert html =~ "+10.0"
+    assert html =~ "(#{last_year})"
+
+    # A custom range from last year's close to today: 1100 -> 1210 on a 1000
+    # base at the range start = +21%.
+    html =
+      render_submit(view, "select_range", %{"from" => "#{year_end}", "to" => "#{today}"})
+
+    assert html =~ "+21.0"
+    refute html =~ ~s(data-role="range-error")
+
+    # Backwards range: terse note, the shown period stays.
+    html = render_submit(view, "select_range", %{"from" => "#{today}", "to" => "#{year_end}"})
+    assert html =~ ~s(data-role="range-error")
+    assert html =~ "+21.0"
+  end
+
   test "records a balance snapshot from the cash section", %{conn: conn} do
     %{cash: cash} = seed_world()
 

@@ -978,6 +978,9 @@ const incomeZ = z.object({
   portfolio_id: z.number().int().positive()
 });
 
+// Period selection (#563): besides the fixed period strings, a single
+// calendar year or a custom from/to date range (both dates required, from
+// on or before to; the server clamps to the available history).
 const performanceSchema = {
   type: "object",
   additionalProperties: false,
@@ -986,6 +989,9 @@ const performanceSchema = {
     portfolio_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
     period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    year: { type: "integer", minimum: 1970 },
+    from: { type: "string", format: "date" },
+    to: { type: "string", format: "date" },
     series: { type: "boolean" }
   }
 };
@@ -994,6 +1000,9 @@ const performanceZ = z.object({
   portfolio_id: z.number().int().positive(),
   view: z.number().int().positive().optional(),
   period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
+  year: z.number().int().min(1970).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
   series: z.boolean().optional()
 });
 
@@ -1005,6 +1014,9 @@ const viewPerformanceSchema = {
   properties: {
     id: { type: "integer", minimum: 1 },
     period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    year: { type: "integer", minimum: 1970 },
+    from: { type: "string", format: "date" },
+    to: { type: "string", format: "date" },
     series: { type: "boolean" }
   }
 };
@@ -1012,6 +1024,9 @@ const viewPerformanceSchema = {
 const viewPerformanceZ = z.object({
   id: z.number().int().positive(),
   period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
+  year: z.number().int().min(1970).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
   series: z.boolean().optional()
 });
 
@@ -1958,7 +1973,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.performance",
     "Portfolio performance (TTWROR + IRR)",
-    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). Set series=true to include the daily valuation series. Pass an optional view (a view id) to scope the series to the holdings matching that bucket view; the response then echoes the active view.",
+    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max; or year=YYYY for one calendar year, or from/to ISO dates for a custom range clamped to the available history). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). Set series=true to include the daily valuation series. Pass an optional view (a view id) to scope the series to the holdings matching that bucket view; the response then echoes the active view.",
     performanceSchema,
     performanceZ
   ),
@@ -2056,7 +2071,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.views.performance",
     "View performance (cross-portfolio TTWROR + IRR)",
-    "True time-weighted return (TTWROR) and money-weighted IRR of a bucket view across ALL portfolios (id is the view id): the same deduplicated account scope as portfolixir.views.valuation, so the view's total and its return always cover the same accounts. Money crossing the view boundary counts as an external flow (a deposit/withdrawal to the slice); money moving between two in-scope accounts nets out. period is ytd|1y|3y|5y|max (default max); series=true adds the daily points. All financial values are Decimal strings.",
+    "True time-weighted return (TTWROR) and money-weighted IRR of a bucket view across ALL portfolios (id is the view id): the same deduplicated account scope as portfolixir.views.valuation, so the view's total and its return always cover the same accounts. Money crossing the view boundary counts as an external flow (a deposit/withdrawal to the slice); money moving between two in-scope accounts nets out. period is ytd|1y|3y|5y|max (default max), or year=YYYY for one calendar year, or from/to ISO dates for a custom range; series=true adds the daily points. All financial values are Decimal strings.",
     viewPerformanceSchema,
     viewPerformanceZ
   ),
@@ -2539,6 +2554,9 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/performance`, args, [
           "period",
+          "year",
+          "from",
+          "to",
           "series",
           "view"
         ])
@@ -2580,7 +2598,13 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.views.performance":
       return client.request(
         "GET",
-        withQuery(`/api/v1/views/${args.id}/performance`, args, ["period", "series"])
+        withQuery(`/api/v1/views/${args.id}/performance`, args, [
+          "period",
+          "year",
+          "from",
+          "to",
+          "series"
+        ])
       );
     case "portfolixir.views.set_buckets":
       return client.request("PUT", `/api/v1/views/${args.id}/buckets`, {

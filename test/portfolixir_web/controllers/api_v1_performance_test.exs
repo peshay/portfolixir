@@ -1,6 +1,9 @@
 defmodule PortfolixirWeb.ApiV1PerformanceTest do
   use PortfolixirWeb.ConnCase
 
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 1, create_security!: 1, buy!: 3, deposit!: 4, put_quotes!: 2]
+
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger
@@ -208,6 +211,71 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
       |> Map.fetch!("data")
 
     assert empty_data["irr"] == nil
+  end
+
+  # User story (#563):
+  # As an API client (and the LLM I connect over MCP),
+  # I want a previous year or a custom from/to range as the performance
+  # period,
+  # so that "how was 2025?" is one call, matching the UI's period picker.
+  #
+  # Acceptance criteria:
+  # - ?year=YYYY chains exactly that calendar year.
+  # - ?from=&to= (ISO dates) chain the custom range, clamped to the history.
+  # - A backwards range and a malformed year return 422.
+  test "chains a single year and a custom range", %{conn: conn} do
+    world = base_world(name: "Year P", cash_name: "Year Cash", depot_name: "Year Depot")
+    security = create_security!(name: "Year Fund", ticker: "YRF")
+
+    today = Date.utc_today()
+    last_year = today.year - 1
+    start = Date.new!(last_year, 1, 10)
+    year_end = Date.new!(last_year, 12, 31)
+
+    deposit!(world, "1000", start, [])
+    buy!(world, security, quantity: "10", price: "100", date: start)
+    put_quotes!(security, [{start, "100"}, {year_end, "110"}, {today, "121"}])
+
+    year_data =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/performance?year=#{last_year}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert year_data["period"] == Integer.to_string(last_year)
+    # start_date reports the honest clamp: the history starts Jan 10, so the
+    # year chains from there, not from an invented Jan 1.
+    assert year_data["start_date"] == Date.to_iso8601(start)
+    assert year_data["end_date"] == Date.to_iso8601(year_end)
+    assert year_data["ttwror"] |> Decimal.new() |> Decimal.round(6) |> Decimal.equal?("0.1")
+    assert year_data["end_value"] == "1100"
+
+    range_data =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/performance?from=#{year_end}&to=#{today}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert range_data["period"] == "#{year_end}..#{today}"
+    assert range_data["ttwror"] |> Decimal.new() |> Decimal.round(6) |> Decimal.equal?("0.21")
+
+    backwards =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/performance?from=#{today}&to=#{year_end}")
+      |> json_response(422)
+
+    assert backwards == %{"errors" => %{"period" => ["is invalid"]}}
+
+    bad_year =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/performance?year=20xx")
+      |> json_response(422)
+
+    assert bad_year == %{"errors" => %{"period" => ["is invalid"]}}
   end
 
   test "rejects an unknown period and an unknown portfolio", %{conn: conn} do

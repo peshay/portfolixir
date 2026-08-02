@@ -529,7 +529,11 @@ Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab zeigt den
 Gesamtwert inklusive Cash, die Cash-Quote sowie sowohl die TTWROR als auch den
 geldgewichteten **IRR** für einen wählbaren Zeitraum (laufendes Jahr, ein/drei/fünf
 Jahre oder seit der ersten Transaktion; ein Jahr ist die Voreinstellung) mit
-dem kumulativen Performance-Chart.
+dem kumulativen Performance-Chart. Neben den festen Buttons verkettet ein
+Jahres-Dropdown jedes einzelne Kalenderjahr mit Daten, und ein Von/Bis-
+Datumsbereich verkettet eine eigene Spanne — beides sind reine Neuverkettungen
+der bereits berechneten Reihe, ehrlich auf die vorhandene Historie begrenzt
+(ein rückwärts gerichteter Bereich wird mit kurzem Hinweis abgelehnt).
 Auf dem Tab **Allokation & Ziele** zeigt der **Allokations-Sunburst** die Klassifizierung als
 konzentrische Ringe — der innere Ring sind die obersten Kategorien, jeder äußere
 Ring bricht eine Ebene weiter herunter mit in ihren Eltern verschachtelten
@@ -712,8 +716,10 @@ Zeitpunkten bewegt wurde. Der IRR zeigt `—`, wenn es keine Rate zu berechnen g
 (keine Flüsse beider Vorzeichen oder der Solver konvergiert nicht).
 
 Die Performance wird auf der Vermögensseite gezeigt und ist je Zeitraum
-verfügbar — laufendes Jahr, ein, drei oder fünf Jahre oder seit der ersten
-Transaktion — über die API (`GET /api/v1/portfolios/:id/performance`) und das
+verfügbar — laufendes Jahr, ein, drei oder fünf Jahre, seit der ersten
+Transaktion, ein einzelnes Kalenderjahr (`year=YYYY`) oder ein eigener
+`from`/`to`-Datumsbereich — über die API
+(`GET /api/v1/portfolios/:id/performance`) und das
 MCP-Tool `portfolixir.portfolios.performance`, optional mit der vollständigen
 täglichen Bewertungsreihe zum Charting. Die Methode und ihre Abwägungen sind in
 [ADR-0010](/decisions/0010-ttwror-performance-series.html) festgehalten.

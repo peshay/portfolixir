@@ -76,6 +76,20 @@ defmodule PortfolixirWeb.ApiV1ViewPerformanceTest do
 
     refute Map.has_key?(lean, "series")
 
+    # The #563 period parameters work here too: a single year chains that
+    # calendar year, and a backwards custom range is rejected.
+    this_year = Date.utc_today().year
+
+    year_data =
+      get_json(conn, "/api/v1/views/#{view.id}/performance?year=#{this_year}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert year_data["period"] == Integer.to_string(this_year)
+
+    assert get_json(conn, "/api/v1/views/#{view.id}/performance?from=2026-05-01&to=2026-01-01")
+           |> json_response(422)
+
     # Unknown and non-integer ids 404; a bad period 422.
     assert get_json(conn, "/api/v1/views/999999/performance") |> json_response(404)
     assert get_json(conn, "/api/v1/views/abc/performance") |> json_response(404)

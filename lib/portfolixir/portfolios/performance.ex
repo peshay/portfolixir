@@ -333,8 +333,11 @@ defmodule Portfolixir.Portfolios.Performance do
   @doc """
   Chains one period out of an `analysis/2` result.
 
-  Pure and cheap — switching periods needs no new queries or daily walk.
-  Returns `{:ok, result}` or `{:error, :invalid_period}`.
+  `period` is one of #{inspect(@periods)}, `{:year, year}` for one calendar
+  year (#563 — clamped to today for the current year), or
+  `{:range, from, to}` for a custom date range (`from <= to`, clamped to the
+  available history). Pure and cheap — switching periods needs no new queries
+  or daily walk. Returns `{:ok, result}` or `{:error, :invalid_period}`.
   """
   def summarise(analysis, period) do
     with :ok <- validate_period(period) do
@@ -343,6 +346,13 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   defp validate_period(period) when period in @periods, do: :ok
+
+  defp validate_period({:year, year}) when is_integer(year) and year >= 1970, do: :ok
+
+  defp validate_period({:range, %Date{} = from, %Date{} = to}) do
+    if Date.compare(from, to) == :gt, do: {:error, :invalid_period}, else: :ok
+  end
+
   defp validate_period(_period), do: {:error, :invalid_period}
 
   defp do_summarise(%{daily: []} = analysis, period) do
@@ -351,7 +361,11 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp do_summarise(%{daily: daily} = analysis, period) do
     start_date = clamp_start(period_start(period, analysis.today), analysis.first_date)
-    {before, in_period} = Enum.split_with(daily, &(Date.compare(&1.date, start_date) == :lt))
+    # Bounded periods (#563: a previous year, a custom range) end before
+    # today; the walk's tail after `end_date` simply stays unchained.
+    end_date = period_end(period, analysis.today)
+    {before, rest} = Enum.split_with(daily, &(Date.compare(&1.date, start_date) == :lt))
+    in_period = Enum.take_while(rest, &(Date.compare(&1.date, end_date) != :gt))
     start_value = baseline(before)
 
     {points, growth, flows, _prev} =
@@ -365,7 +379,7 @@ defmodule Portfolixir.Portfolios.Performance do
       period: period,
       base_currency: analysis.base_currency,
       start_date: start_date,
-      end_date: analysis.today,
+      end_date: end_date,
       start_value: start_value,
       end_value: end_value(series, start_value),
       net_external_flows: flows,
@@ -1224,6 +1238,19 @@ defmodule Portfolixir.Portfolios.Performance do
   defp period_start("1y", today), do: years_ago(today, 1)
   defp period_start("3y", today), do: years_ago(today, 3)
   defp period_start("5y", today), do: years_ago(today, 5)
+  defp period_start({:year, year}, _today), do: Date.new!(year, 1, 1)
+  defp period_start({:range, from, _to}, _today), do: from
+
+  # Where the chained period ends: today, except for the bounded periods
+  # (#563), which clamp to today so a current year or an open-ended range
+  # never claims days that have not happened yet.
+  defp period_end({:year, year}, today), do: clamp_end(Date.new!(year, 12, 31), today)
+  defp period_end({:range, _from, to}, today), do: clamp_end(to, today)
+  defp period_end(_period, today), do: today
+
+  defp clamp_end(date, today) do
+    if Date.compare(date, today) == :gt, do: today, else: date
+  end
 
   defp years_ago(%Date{} = date, years) do
     case Date.new(date.year - years, date.month, date.day) do

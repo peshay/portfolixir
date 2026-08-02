@@ -13,23 +13,25 @@ defmodule PortfolixirWeb.Api.V1.ViewPerformanceController do
   alias Portfolixir.Buckets.View
   alias Portfolixir.Portfolios.Performance
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.PeriodParam
   alias PortfolixirWeb.Api.V1.ViewParam
 
   def show(conn, %{"view_id" => view_id} = params) do
     with {:ok, vid} <- parse_id(view_id),
          %View{} = view <- Buckets.get_view(vid) do
-      period = Map.get(params, "period", "max")
       include_series? = Map.get(params, "series") in ["true", "1"]
 
-      case Performance.for_view(view.id, period: period) do
-        {:ok, result} ->
-          data =
-            result
-            |> JSON.view_performance(include_series?)
-            |> ViewParam.put_active(view)
+      with {:ok, period} <- PeriodParam.resolve(params),
+           {:ok, result} <- Performance.for_view(view.id, period: period) do
+        data =
+          result
+          |> JSON.view_performance(include_series?)
+          |> ViewParam.put_active(view)
 
-          json(conn, %{data: data})
-
+        json(conn, %{data: data})
+      else
+        # An unknown period string, a malformed year, or a backwards range
+        # (#563) share the 422 contract.
         {:error, :invalid_period} ->
           conn
           |> put_status(:unprocessable_entity)

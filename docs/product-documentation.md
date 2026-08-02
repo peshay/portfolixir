@@ -494,7 +494,11 @@ received dividends and interest report). The Holdings tab shows the
 total value including cash, the cash quote, and both the TTWROR and the
 money-weighted **IRR** for a selectable period (year-to-date, one/three/five
 years, or since the first transaction; one year is the default) with the
-cumulative performance chart. On the **Allocation & targets** tab, the **allocation sunburst**
+cumulative performance chart. Beside the fixed buttons, a year dropdown
+chains any single calendar year with data, and a from/to date range chains a
+custom span — both are pure re-chains of the already-computed series, clamped
+honestly to the available history (a backwards range is refused with a short
+note). On the **Allocation & targets** tab, the **allocation sunburst**
 shows the classification as concentric rings — the inner ring is the top-level
 categories, each outer ring breaks one level down with sub-category arcs nested
 inside their parent, and the **outermost ring shows the individual positions**
@@ -660,7 +664,8 @@ the two read differently when money moved at good or bad moments. The IRR shows
 not converge).
 
 Performance is shown on the Wealth page and available per period —
-year-to-date, one, three, or five years, or since the first transaction —
+year-to-date, one, three, or five years, since the first transaction, a
+single calendar year (`year=YYYY`), or a custom `from`/`to` date range —
 over the API
 (`GET /api/v1/portfolios/:id/performance`) and the
 `portfolixir.portfolios.performance` MCP tool, optionally with the full daily
