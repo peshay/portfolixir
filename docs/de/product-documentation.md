@@ -243,6 +243,20 @@ oder lege eines an. Hier findet keine Wechselkursumrechnung gespeicherter Beträ
 statt — Wechselkurse werden nur angewendet, wenn ein Portfolio in seiner
 Basiswährung bewertet wird.
 
+Während ein **Verkauf** erfasst wird, zeigt das Formular eine Vorschau,
+welche FIFO-Kauftranchen (Lots) der Verkauf verbrauchen würde und den
+**Bruttogewinn** je Tranche und in Summe — Verkaufserlös minus
+FIFO-Anschaffungskosten der verbrauchten Lots, vor Gebühren, zum
+eingegebenen Preis (oder zum zuletzt gespeicherten Preis, bis einer getippt
+ist). Die Zahl ist indikativ und keine Netto-Größe; das Buchen des Verkaufs
+ändert nichts daran, wie der Einstand gespeichert wird (Bestände behalten
+ihren gleitenden Durchschnitt, der Trades-Tab das FIFO-Matching). Lots
+werden first-in, first-out über alle Depots gematcht, wie in der
+Trades-Ansicht split-skaliert, und währungsübergreifende Tranchen tragen
+dieselbe Kurs-/Währungszerlegung wie die Bestände — oder einen ehrlichen
+Strich, wenn sie nicht ableitbar ist. Eine eingegebene Menge über den
+offenen Lots wird mit dem ungedeckten Fehlbetrag markiert.
+
 ### Bestandsberechnung
 
 Aktuelle Bestände werden nicht manuell erfasst. Sie werden aus allen

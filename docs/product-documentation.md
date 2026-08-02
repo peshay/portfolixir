@@ -227,6 +227,19 @@ the same currency, or add one. No exchange-rate conversion of stored amounts
 happens here — exchange rates are only applied when valuing a portfolio in its
 base currency.
 
+While entering a **sell**, the form previews which FIFO purchase tranches
+(lots) the sale would consume and the resulting **gross gain** per tranche
+and in total — sale proceeds minus the FIFO purchase cost of the consumed
+lots, before fees, priced at the entered price (or the latest stored price
+until one is typed). The figure is indicative and not a net figure; booking
+the sale changes nothing about how the cost basis is stored (holdings keep
+their moving-average basis, the trades tab keeps the FIFO matching). Lots
+are matched first-in, first-out across all depots, split-scaled like the
+trades view, and cross-currency tranches carry the same price/currency
+decomposition as the holdings — or an honest dash when it cannot be derived.
+An entered quantity larger than the open lots is flagged with the uncovered
+shortfall.
+
 ### Holdings Calculation
 
 Current holdings are not entered manually. They are derived from all

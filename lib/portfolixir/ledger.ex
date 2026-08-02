@@ -906,6 +906,123 @@ defmodule Portfolixir.Ledger do
     end
   end
 
+  @doc """
+  Previews which FIFO purchase tranches a sale of `quantity` would consume,
+  with the resulting **gross** gain per tranche (issue #620).
+
+  Presentational and read-only: the walk mirrors `TradeMatcher`'s FIFO
+  order (splits scale the lots, ADR-0028) over the same decorated open lots
+  the trades surface exposes, so the two surfaces cannot disagree — and
+  nothing about how cost basis is stored or projected changes. The figure is
+  a gross gain — sale proceeds minus the FIFO purchase cost of the consumed
+  tranches, before fees — and deliberately **not** a tax figure (ADR-0031
+  correction 1: a gross gain is not a tax pot).
+
+  Lot figures adopt the ADR-0033 currency basis: `buy_price_native` and
+  `gross_gain` are in the security's own currency, and each cross-currency
+  tranche carries the same price/currency decomposition as the holdings and
+  lot surfaces (against the EUR hub), or is honestly unavailable.
+
+  Options: `:price` (Decimal, the intended sale price in the security's own
+  currency — the same currency a bookable manual sell is priced in; falls
+  back to the latest stored close), `:latest_price` and `:fx_rates` (test
+  injection, as in `list_trades_for_security/2`).
+
+  Returns `%{security_id, requested_quantity, sell_price, price_source
+  (:entered | :latest | nil), security_currency, lots, total_gross_gain,
+  shortfall}`; `total_gross_gain` is nil when any tranche's gain is
+  unavailable, and `shortfall` names the quantity not covered by open lots.
+  """
+  def sell_consumption_preview(security_id, %Decimal{} = quantity, opts \\ [])
+      when is_integer(security_id) do
+    fx_rates = Keyword.get(opts, :fx_rates, %{})
+
+    latest_price =
+      Keyword.get_lazy(opts, :latest_price, fn -> adjusted_latest_close(security_id) end)
+
+    {sell_price, price_source} =
+      case {Keyword.get(opts, :price), latest_price} do
+        {%Decimal{} = entered, _latest} -> {entered, :entered}
+        {_none, %Decimal{} = latest} -> {latest, :latest}
+        {_none, _no_latest} -> {nil, nil}
+      end
+
+    security = Repo.get(Security, security_id)
+    security_currency = security && security.currency_code
+
+    open_lots =
+      security_id
+      |> list_transactions_for_security()
+      |> Enum.map(&transaction_for_matcher(&1, security_currency))
+      |> TradeMatcher.match()
+      |> Map.fetch!(:open_lots)
+
+    {consumed, shortfall} =
+      consume_preview_lots(open_lots, quantity, sell_price, security_currency, fx_rates)
+
+    %{
+      security_id: security_id,
+      requested_quantity: quantity,
+      sell_price: sell_price,
+      price_source: price_source,
+      security_currency: security_currency,
+      lots: consumed,
+      total_gross_gain: preview_total(consumed, sell_price),
+      shortfall: shortfall
+    }
+  end
+
+  # FIFO walk over the open lots: each tranche is a slice of a lot, priced
+  # by decorating the slice exactly like an open lot — same math, same
+  # honesty rules, no second implementation to drift.
+  defp consume_preview_lots(open_lots, quantity, sell_price, security_currency, fx_rates) do
+    {reversed, remaining} =
+      Enum.reduce_while(open_lots, {[], quantity}, fn lot, {acc, remaining} ->
+        if Decimal.compare(remaining, @zero) != :gt do
+          {:halt, {acc, remaining}}
+        else
+          consumed_quantity = Decimal.min(lot.quantity, remaining)
+
+          slice =
+            decorate_open_lot(
+              %{lot | quantity: consumed_quantity},
+              sell_price,
+              security_currency,
+              fx_rates
+            )
+
+          tranche = %{
+            open_date: slice.open_date,
+            quantity: consumed_quantity,
+            buy_price: slice.buy_price,
+            buy_price_native: slice.buy_price_native,
+            gross_gain: slice.unrealized_pnl_abs,
+            base_cost: slice.base_cost,
+            base_currency: slice.base_currency,
+            price_return_abs: slice.price_return_abs,
+            currency_return_abs: slice.currency_return_abs,
+            total_return_base_abs: slice.total_return_base_abs,
+            decomposed: slice.decomposed,
+            undecomposed_reason: slice.undecomposed_reason
+          }
+
+          {:cont, {[tranche | acc], Decimal.sub(remaining, consumed_quantity)}}
+        end
+      end)
+
+    {Enum.reverse(reversed), Decimal.max(remaining, @zero)}
+  end
+
+  defp preview_total(_lots, nil), do: nil
+
+  defp preview_total(lots, _sell_price) do
+    if Enum.any?(lots, &is_nil(&1.gross_gain)) do
+      nil
+    else
+      Enum.reduce(lots, @zero, fn lot, acc -> Decimal.add(acc, lot.gross_gain) end)
+    end
+  end
+
   def count_transactions do
     Repo.aggregate(Transaction, :count, :id)
   end
