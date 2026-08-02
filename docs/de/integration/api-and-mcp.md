@@ -57,9 +57,9 @@ Löschantwort keinen JSON-Body parsen.
   Name/ISIN/Ticker inferiert wird. Um eine Position aus der
   Allokations-Steuerbasis (den 100 %) und der Drift-Tabelle herauszuhalten,
   während sie in den Bewertungssummen und der Performance bleibt — z. B. ein als
-  Wertspeicher gehaltener Bitcoin —, versiehst du sie mit einem Bucket und
-  schließt diesen Bucket aus einer Ansicht aus; lies die Allokation dann unter
-  dieser Ansicht.
+  Wertspeicher gehaltener Bitcoin —, die Position mit einem Bucket versehen und
+  diesen Bucket aus einer Ansicht ausschließen; die Allokation dann unter
+  dieser Ansicht lesen.
 - `GET /api/v1/securities/:id` liefert ein Wertpapier, einschließlich seiner
   `identifier_aliases` — der über den ISIN-Wechsel-Endpunkt unten
   aufgezeichneten früheren ISINs (jeweils mit `id`, `former_isin`,
@@ -211,7 +211,7 @@ Beispiel-Antwort für Kurssynchronisierung:
   sein (ein Überziehungskredit). Es speichert eine
   `balance_adjustment`-Transaktion und gibt sie zurück. Der Saldo verankert sich
   dann an diesem Betrag, und nur Buchungen mit einem Datum strikt nach dem Snapshot
-  verändern ihn, sodass Geld zwischen deinen eigenen Konten zu verschieben keine
+  verändern ihn, sodass Geld zwischen eigenen Konten zu verschieben keine
   Übertragungsbuchung braucht. Unbekannte Konten liefern `404 Not Found`.
 - `POST /api/v1/cash_accounts` legt ein Geldkonto mit einem `cash_account`-Objekt
   an. `portfolio_id` ist optional (ADR-0024): fehlt sie, wird das Konto an das
@@ -609,9 +609,9 @@ Beispiel-Payloads für Konten:
   `top_level_target_sum` ist die Summe der Ziele der Wurzelkategorien **plus das
   Cash-Ziel** (außer im Währungs-Baum, wo Cash in Kategorien verteilt wird),
   verglichen mit `1`. Um einen Bestand aus der Steuerbasis herauszuhalten,
-  während er weiterhin zum Gesamtvermögen zählt, versiehst du ihn mit einem
-  Bucket und schließt diesen Bucket aus der `view` aus, unter der du die
-  Allokation liest — er fällt dann aus den eingeschränkten Positionen. Seit
+  während er weiterhin zum Gesamtvermögen zählt, den Bestand mit einem
+  Bucket versehen und diesen Bucket aus der `view` ausschließen, unter der die
+  Allokation gelesen wird — er fällt dann aus den eingeschränkten Positionen. Seit
   ADR-0020 spiegelt die **SOLL**-Seite den **Plan der aktiven View** wider: Mit
   `view=<id>` werden die Zielgewichte, das Cash-Ziel und der
   `top_level_target_sum` dieser View ausgewiesen (ohne `view` der Gesamt-Plan),
@@ -714,7 +714,7 @@ Klassifizierungsbäume ordnen Wertpapiere wie Ordner. Integrierte Bäume
 gesperrt; das Bearbeiten der Struktur eines integrierten Baums liefert
 `422 Unprocessable Entity`. Die **Mitgliedschaft** des **Anlageklassen**-Baums
 ist jedoch nur eine Sicht auf das `asset_class`-Feld jedes Wertpapiers: in der UI
-kannst du ein Wertpapier zwischen seinen Kategorien ziehen (was dieses Feld
+wird ein Wertpapier zwischen seinen Kategorien gezogen (was dieses Feld
 setzt), und derselbe Effekt wird über die API mit `PATCH /api/v1/securities/:id`
 (`{"security": {"asset_class": "etf"}}`) oder dem MCP-Tool `securities.update`
 erzielt. Setze es auf leer/`null` für „automatisch", was die Klasse beim Lesen aus

@@ -120,8 +120,8 @@ Anlageklasse-Spalte (`operator: :is_nil`). Er liefert alle Zeilen, bei denen der
 gespeicherte Wert nil ist und `effective_asset_class` ebenfalls nil ergab — d. h.
 die Heuristiken haben keine sichere Übereinstimmung. Für jede solche Zeile zeigt
 die Anlageklasse-Zelle ein eingebettetes **Schnellzuweisungs-Dropdown**, sodass
-du die Klasse direkt aus der Liste setzen kannst, ohne die Wertpapier-Detailseite
-zu öffnen.
+sich die Klasse direkt aus der Liste setzen lässt, ohne die
+Wertpapier-Detailseite zu öffnen.
 
 Eine gespeicherte Klasse ist eine dauerhafte Überschreibung: einmal gesetzt, wird
 sie von `effective_asset_class` zurückgegeben, unabhängig davon, was die
@@ -250,7 +250,7 @@ Transaktionen im Zeitverlauf abgeleitet, sodass der Zustand reproduzierbar und
 nachvollziehbar ist. Gehaltene Mengen bewegen sich mit Käufen und Verkäufen, mit
 ein-/ausgehenden **Lieferungen** (Anteile, die ohne Geld-Bein ein- oder
 austreten, z. B. ein Depotübertrag von einer anderen Bank) und mit
-**Wertpapierübertragungen** zwischen deinen eigenen Depots. Jeder Bestand trägt
+**Wertpapierübertragungen** zwischen eigenen Depots. Jeder Bestand trägt
 außerdem einen gleitenden Durchschnitts-Einstandswert und den nicht realisierten
 Gewinn/Verlust (absolut und prozentual) gegen den zuletzt gespeicherten Preis, in
 der eigenen Währung des Wertpapiers. Der Einstandswert wandert mit den Anteilen:
@@ -303,10 +303,10 @@ abgeleitet.
 ### Einen SOLL-Plan auf der Klassifizierungsseite bearbeiten
 
 Zielgewichte sind nicht global: ein **SOLL-Plan gehört zu einer Sicht** (siehe
-ADR-0020). Du bearbeitest einen Plan auf der **Klassifizierungsseite**, im
+ADR-0020). Ein Plan wird auf der **Klassifizierungsseite** bearbeitet, im
 Bereich **Soll-Plan** der Detailansicht eines eigenen Baums. Oben in diesem
 Bereich wählt ein **Sicht-Selektor** („Soll-Plan für Sicht: [Gesamt ▾]“),
-welchen Plan du bearbeitest; die Voreinstellung **Gesamt** ist der
+welcher Plan bearbeitet wird; die Voreinstellung **Gesamt** ist der
 portfolioweite Plan, der sich wie ein einziges globales Zielset verhält. Wechselt
 man den Selektor, werden die gespeicherten Gewichte und das Cash-Ziel dieses
 `(Sicht, Klassifizierung)`-Plans geladen — Gesamt und jede benannte Sicht tragen
@@ -336,7 +336,7 @@ fokussierbar, und derselbe Plan ist über die API/MCP-Ziel-Endpunkte mit einem
 
 Seit ADR-0027 ist ein Plan eine **benannte Version** mit Status — *aktiv*,
 *Entwurf* oder *archiviert* — und je Geltungsbereich gibt es höchstens einen
-aktiven Plan. So baust du eine Strategie um, ohne den alten Plan zu verlieren:
+aktiven Plan. So wird eine Strategie umgebaut, ohne den alten Plan zu verlieren:
 
 - **Plan duplizieren** kopiert den aktuellen Plan (Kategoriegewichte und
   Cash-Ziel) in einen **Entwurf**; der Editor wechselt dorthin, und sobald ein
@@ -361,17 +361,17 @@ Jede Plan-Änderung wird im Audit-Journal festgehalten.
 
 > **Migrationshinweis (ADR-0020).** Der Wechsel zu Plänen je Sicht ist
 > **verlustfrei**: alle bereits vorhandenen Zielgewichte und das frühere
-> portfolioweite Cash-Ziel werden zu deinem **Gesamt**-Plan (`view = null`). Am
-> Verhalten ändert sich nichts — dein bestehendes Setup erscheint einfach unter
+> portfolioweite Cash-Ziel werden zum **Gesamt**-Plan (`view = null`). Am
+> Verhalten ändert sich nichts — das bestehende Setup erscheint einfach unter
 > *Gesamt*, und die Vermögensseite liest es unter der Sicht **Total** genau wie
-> zuvor. Benannte Sichten starten **ohne Plan**, bis du einen anlegst oder
-> kopierst.
+> zuvor. Benannte Sichten starten **ohne Plan**, bis einer angelegt oder
+> kopiert wird.
 
 Um eine Position **aus der Allokations-Steuerbasis** herauszuhalten, während sie
 weiterhin zum Gesamtvermögen zählt — zum Beispiel ein als langfristiger
-Wertspeicher gehaltener Bitcoin statt Teil des gesteuerten Mix — versiehst du das
-Wertpapier mit einem **Bucket** und **schließt diesen Bucket aus der
-Strategie-Ansicht aus**; betrachte die Allokation dann unter dieser Ansicht. Die
+Wertspeicher gehaltener Bitcoin statt Teil des gesteuerten Mix — das
+Wertpapier mit einem **Bucket** versehen und **diesen Bucket aus der
+Strategie-Ansicht ausschließen**; die Allokation dann unter dieser Ansicht lesen. Die
 Position fällt dann aus dem Geltungsbereich der Ansicht: sie verschwindet aus den
 100 % und der Drift-Tabelle und hebt den Ist-Prozentsatz jeder anderen Kategorie
 konsistent an, während Gesamtwert, Bestände und Performance (ohne die Ansicht
@@ -381,7 +381,7 @@ Schalter „von Allokationszielen ausgeschlossen“; siehe ADR-0013/ADR-0018.)
 Klassifizierungsbäume sind **hierarchisch**, und die Allokation rollt sie auf:
 eine einer Unterkategorie zugeordnete Position zählt zu dieser Unterkategorie
 **und jeder übergeordneten Kategorie darüber**. Hält *Growth* also ein Ziel von
-50 % und du ordnest Bestände nur seinen Unterkategorien zu (*Tech*, *Emerging*,
+50 % und sind Bestände nur seinen Unterkategorien zugeordnet (*Tech*, *Emerging*,
 …), ist das Ist-Gewicht von *Growth* deren Summe — nicht 0 % — und seine Drift
 wird gegen diese Summe gemessen. Die Drift-Tabelle listet Kategorien in
 Baumreihenfolge mit unter ihren Eltern eingerückten Unterkategorien; da jede
@@ -389,8 +389,8 @@ Baumreihenfolge mit unter ihren Eltern eingerückten Unterkategorien; da jede
 angezeigten Ist-Prozentsätze nur über die Blätter (plus nicht Zugeordnetes) zu
 100 %, nicht über jede Ebene.
 
-Ziele bleiben **bewusst locker**: du kannst ein Gewicht auf oberster Ebene und auf
-Unterebenen setzen, ohne dass die App sie zur Summe 100 % zwingt. Um diese
+Ziele bleiben **bewusst locker**: ein Gewicht kann auf oberster Ebene und auf
+Unterebenen gesetzt werden, ohne dass die App sie zur Summe 100 % zwingt. Um diese
 Freiheit zu bewahren und zugleich Abweichungen sichtbar zu machen, zeigt die
 Vermögensseite zwei **beratende Konsistenzhinweise** — schreibgeschützt, ein
 Speichern nie blockierend:
@@ -437,7 +437,7 @@ Zentralbank), und andere Paare werden darüber trianguliert. Die Live-Bewertung 
 Portfolios rechnet den Marktwert jeder Position und jeden Cash-Saldo in die
 Basiswährung des Portfolios um.
 
-Ein Wertpapier ohne jeden Kurs wird mit deinem **zuletzt eigenen Handelspreis
+Ein Wertpapier ohne jeden Kurs wird mit dem **zuletzt eigenen Handelspreis
 über alle Portfolios** bepreist — ein Kauf oder Verkauf ist eine
 Preisbeobachtung, genau so, wie Portfolio Performance Preise aus Buchungen
 ableitet — sodass ein frisch importiertes Portfolio nicht mit null bewertet
@@ -467,23 +467,23 @@ erklären.
 Cash ist Teil des Portfolios, kein Nachgedanke. Jedes Portfolio hat ein oder
 mehrere Geldkonten, und die Live-Bewertung meldet das **gesamte Cash**, den
 **Gesamtwert inklusive Cash** und die **Cash-Quote** — Cash als Anteil am
-Gesamtportfolio — sodass du Liquidität und trockenes Pulver auf einen Blick
-siehst, umgerechnet in die Basiswährung des Portfolios.
+Gesamtportfolio — Liquidität und trockenes Pulver auf einen Blick,
+umgerechnet in die Basiswährung des Portfolios.
 
 Das Verrechnungs-Cash eines Depots bleibt von selbst aktuell: Käufe, Verkäufe,
-Dividenden, Zinsen, Gebühren und Steuern bewegen es, sobald du diese
-Transaktionen erfasst, sodass das zum Investieren gehörende Cash keine separate
-Pflege braucht.
+Dividenden, Zinsen, Gebühren und Steuern bewegen es, sobald diese
+Transaktionen erfasst werden, sodass das zum Investieren gehörende Cash keine
+separate Pflege braucht.
 
 Für externe Konten (ein Girokonto, Sparkonto, ein Geschäftskonto) ist das Ziel
-Sichtbarkeit ohne Buchhaltung. Statt jede Buchung zu spiegeln, **setzt du den
-Saldo eines Kontos direkt** — tippe die Zahl ein, die deine Banking-App zeigt, als
-datierten **Snapshot** (das Saldo-setzen-Formular auf der Vermögensseite,
-`POST /api/v1/cash_accounts/:id/balance` oder das MCP-Tool
+Sichtbarkeit ohne Buchhaltung. Statt jede Buchung zu spiegeln, wird der
+**Saldo eines Kontos direkt gesetzt** — die Zahl, die die Banking-App zeigt,
+erfasst als datierter **Snapshot** (das Saldo-setzen-Formular auf der
+Vermögensseite, `POST /api/v1/cash_accounts/:id/balance` oder das MCP-Tool
 `cash_accounts.set_balance`). Der Saldo verankert sich dann an diesem Betrag, und
 nur Buchungen mit einem Datum strikt nach dem Snapshot verändern ihn; so braucht
-Geld zwischen deinen eigenen Konten zu verschieben keine Übertragungsbuchung — du
-gibst jeden Saldo nur ab und zu neu an. Der Betrag darf negativ sein (ein
+Geld zwischen eigenen Konten zu verschieben keine Übertragungsbuchung — jeder
+Saldo wird nur ab und zu neu angegeben. Der Betrag darf negativ sein (ein
 Überziehungskredit), und derselbe Snapshot kann später automatisch über die API
 befüllt werden (ein Skript oder ein nur lesender Bankexport) — ohne Portfolixir in
 eine Banking-App zu verwandeln. Dies folgt dem in
@@ -498,7 +498,7 @@ sichtbarer, aber ausgeschlossener Topf, z. B. ein Geschäftskonto). Nur
 free-cash-Konten mit nicht-negativem Saldo zählen als verfügbares Cash und gehen
 in die Cash-Quote ein; eine Kreditlinie zählt nie (auch bei positivem Saldo —
 der Typ schlägt das Vorzeichen), und eine Reserve ist immer ausgeschlossen. Jedes
-Konto bleibt im gesamten Cash, sodass eine gezogene Kreditlinie dein
+Konto bleibt im gesamten Cash, sodass eine gezogene Kreditlinie das
 Nettovermögen korrekt mindert, aber die Quote wird nur über das verfügbare Cash
 berechnet und meldet nie Schein-Liquidität. Die Vermögensseite dämpft nicht
 verfügbare Zeilen und beschriftet sie mit ihrer Rolle.
@@ -509,7 +509,7 @@ Der Eintrag **Übersicht** (die Startseite) beantwortet „Hat sich etwas
 geändert, braucht etwas meine Aufmerksamkeit?" (ADR-0022). Bei leerer
 Datenbank ist sie der Onboarding-Assistent (der geordnete Workflow-Pfad plus
 Zähler). Sobald Transaktionen existieren, zeigt sie eine **Wert-Karte,
-eingegrenzt auf deine Standard-Ansicht** — **Alles**, wenn keine gesetzt ist
+eingegrenzt auf die Standard-Ansicht** — **Alles**, wenn keine gesetzt ist
 (ADR-0024: Ansichten, nicht Portfolios, sind das, worüber die Übersicht
 aggregiert) — mit dem Gesamtwert inkl. Cash, der **YTD-TTWROR** als
 Änderungssignal und der Cash-Quote, eine Liste
@@ -567,15 +567,15 @@ das Handeln bleibt vollständig manuell.
 
 **Positions-Ziele erscheinen im Plan (ADR-0030 Schritt 2a).** Trägt der aktive
 Plan Soll-Gewichte je Position, zeigt jede solche Positions-Zeile ihr eigenes
-Ziel und ihre eigene Drift (Ist-Gewicht minus ihr Ziel) — und eine Position,
-auf die du ein Soll gesetzt hast, die du aber **noch nicht besitzt**, erscheint
+Ziel und ihre eigene Drift (Ist-Gewicht minus ihr Ziel) — und eine Position
+mit gesetztem Soll, aber **noch ohne Bestand**, erscheint
 trotzdem: mit IST 0, dem Marker *ohne Bestand* (in einer benannten Ansicht
 *ohne Bestand in dieser Ansicht*, denn die Ansicht sagt nichts über das ganze
 Depot), der vollen Untergewichts-Drift und einem Kauf-Hinweis zum letzten
 gespeicherten Kurs — der Tooltip des Hinweises nennt das Kursdatum, zu dem er
 gepreist ist. Ganz ohne Kurs erklärt ein Chip *kein Kurs* den fehlenden
 Stück-Hinweis (Kurs hinterlegen, um einen zu bekommen). „Im Bestand" heißt:
-du hältst die Position überhaupt — ein gehaltenes Wertpapier, dessen Preis
+die Position wird überhaupt gehalten — ein gehaltenes Wertpapier, dessen Preis
 sich nicht ermitteln lässt, behält seine Datenqualitäts-Hinweise und wird nie
 als *ohne Bestand* umetikettiert. Ausgeblendet wird eine Positions-Zeile nur,
 wenn ihr Soll 0 oder nicht gesetzt ist **und** ihr Bestand null ist. Die
@@ -590,8 +590,8 @@ Ziel auch an seiner Zeile im Bereich *Nicht zugeordnet*. Trägt keine
 Top-Level-Kategorie ein Ziel, wohl aber tiefere Kategorien, ergänzt die
 Σ-Kopfzeile die Summe der tieferen Ziele („Ziele tiefer im Baum") statt ein
 nacktes 0 % zu zeigen. Der Cash-Abschnitt
-listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: tippe den
-Saldo ein, den deine Bank zeigt, und der Snapshot wird ohne Buchung einzelner
+listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: den
+Saldo eingeben, den die Bank zeigt, und der Snapshot wird ohne Buchung einzelner
 Transaktionen erfasst.
 
 **Die Seite ist auf eine Ansicht eingegrenzt (ADR-0024).** Die Kopf-Summen und
@@ -602,7 +602,7 @@ jede Position, jedes Konto genau einmal gezählt. Wähle eine Ansicht im
 Ansichten-Seite, auf der Ansichten und ihre Buckets bearbeitet werden;
 **Als Standard festlegen** merkt sich
 die Wahl serverseitig, sodass Vermögensseite und Übersicht mit dieser Ansicht
-öffnen, solange du nicht ausdrücklich eine andere wählst (eine ausdrückliche
+öffnen, solange keine andere ausdrücklich gewählt ist (eine ausdrückliche
 Wahl — auch von „Alles" — gewinnt immer). Teilen sich die Buckets der aktiven
 Ansicht ein Konto, erinnert ein Badge neben der Summe — *Überlappende Buckets –
 Konten nur einmal gezählt* — daran, dass sich Werte je Bucket überschneiden und
@@ -626,21 +626,21 @@ Strategie-Ansichten, PP-Migrationsgewohnheiten) stehen im Leitfaden
 **Die SOLL-Seite folgt der aktiven Sicht (ADR-0020).** Die Spalten Ziel, Drift
 und *Σ target top level* der Drift-Tabelle spiegeln den **Plan der aktiven
 Sicht** für die gewählte Klassifizierung wider — IST und SOLL bewegen sich immer
-zusammen. Wechselst du den **Sicht-Umschalter** oben auf der Seite, springen
+zusammen. Beim Wechsel des **Sicht-Umschalters** oben auf der Seite springen
 beide Seiten gleichzeitig auf den Plan dieser Sicht, sodass nie zwei Pläne zu
 einer Σ über 100 % oder einer Geisterzeile vermischt werden. Die eingebaute
 Ansicht **Alles** (früher *Total*) liest den portfolioweiten **Gesamt**-Plan. Ein dezenter Punkt auf einem
 Sicht-Chip markiert die Sichten, die bereits einen Plan für die aktuelle
-Klassifizierung tragen, sodass du gesteuerte und reine IST-Sichten auf einen
-Blick unterscheidest.
+Klassifizierung tragen, sodass gesteuerte und reine IST-Sichten auf einen
+Blick unterscheidbar sind.
 
 **Kein Plan für die aktive Sicht?** Hat die aktive Sicht keinen Plan für die
 gewählte Klassifizierung, bleibt die Allokation **nur IST**: Sunburst und die
-Spalten Wert/Ist zeigen weiter deine tatsächliche Aufteilung, aber es gibt keine
+Spalten Wert/Ist zeigen weiter die tatsächliche Aufteilung, aber es gibt keine
 Spalten Ziel, Drift oder Σ. An ihrer Stelle erklärt ein Hinweis — *Kein Soll-Plan
 für diese Sicht* — die leere SOLL-Seite und **verlinkt direkt in den
 Klassifizierungs-Plan-Editor, mit dieser Sicht und Klassifizierung bereits
-vorausgewählt**, sodass du den Plan anlegen kannst, ohne beides erneut zu wählen.
+vorausgewählt**, sodass sich der Plan anlegen lässt, ohne beides erneut zu wählen.
 Auch das Ziel der Cash-Zeile stammt aus dem Cash-Ziel des Plans der aktiven Sicht
 (oder zeigt einen Strich, wenn keines gesetzt ist).
 
@@ -663,7 +663,7 @@ einbringen würde), Wertpapiere mit **negativer** abgeleiteter Bestandsmenge —
 für einen echten Bestand unmöglich, meist Import-Altlasten aus einer nicht
 modellierten Kapitalmaßnahme — je Depot gelistet mit der Gesamtmenge des
 Wertpapiers über alle Depots und verlinkt auf die Transaktionen des
-Wertpapiers, damit du die Historie reparieren kannst (nichts wird
+Wertpapiers, damit sich die Historie reparieren lässt (nichts wird
 automatisch repariert; der Split-Assistent bleibt die einzige geführte
 Reparatur), sowie Buchungen mit unplausiblen Daten (vor 1970), die
 stattdessen am ersten plausiblen Tag angewendet wurden. Positionen mit
@@ -675,7 +675,7 @@ Klassifikationsbaum und im Bestände-Tab des Wertpapiers.
 
 Portfolixir meldet die **echte zeitgewichtete Rendite** so, wie es Portfolio
 Performance tut: das Portfolio wird ab der ersten Transaktion jeden Tag bewertet,
-Geld, das du ein- oder auszahlst (Einzahlungen, Entnahmen, Lieferungen und
+ein- oder ausgezahltes Geld (Einzahlungen, Entnahmen, Lieferungen und
 Saldo-Snapshot-Sprünge), wird neutralisiert, und die täglichen Renditen werden
 verkettet. Das Ergebnis misst, wie gut die **Investitionen** abgeschnitten haben,
 unabhängig davon, wann Geld bewegt wurde — Dividenden, Zinsen, Gebühren und
@@ -706,7 +706,7 @@ kann daher einen deutlichen €-Gewinn neben einer TTWROR nahe null zeigen.
 Daneben zeigt Portfolixir die **geldgewichtete Rendite (IRR)** — die einzelne
 annualisierte Rate, die die datierten Einzahlungen, Auszahlungen und den Endwert
 des Zeitraums auf null abzinst, die Zahl, die Portfolio Performance neben TTWROR
-zeigt. Wo TTWROR das Timing deines Geldes ignoriert, spiegelt der IRR es wider,
+zeigt. Wo TTWROR das Timing der Geldflüsse ignoriert, spiegelt der IRR es wider,
 sodass die beiden unterschiedlich ausfallen, wenn Geld zu guten oder schlechten
 Zeitpunkten bewegt wurde. Der IRR zeigt `—`, wenn es keine Rate zu berechnen gibt
 (keine Flüsse beider Vorzeichen oder der Solver konvergiert nicht).
@@ -733,7 +733,7 @@ YTD-Zahl auf dieselbe Weise. (ADR-0032.)
 
 ## Income (Dividenden und Zinsen)
 
-Die **Income**-Seite ist der retrospektive Ertragsbericht: die bereits in deinem
+Die **Income**-Seite ist der retrospektive Ertragsbericht: die bereits im
 Ledger gebuchten Dividenden und Zinsen, ohne externe Daten oder Prognose. Sie
 zeigt einen **Jahresüberblick** — eine Jahr-×-Monat-Matrix, aufgeteilt in eine
 *Dividends*- und eine *Interest*-Reihe, jedes Jahr mit einer Summenspalte — und
@@ -756,14 +756,14 @@ MCP-Tool `portfolixir.portfolios.income` verfügbar.
 Der Reiter **Snapshots** im Vermögensbereich friert „die Bestände, die ich
 gerade habe" als benannten Marker ein und beantwortet später: **wäre ich besser
 gefahren, wenn ich genau diese Bestände behalten hätte?** Lege einen Snapshot
-an, bevor du eine Strategie umbaust, handle weiter, und komm zum Vergleich
+an, bevor eine Strategie umgebaut wird, handle weiter, und komm zum Vergleich
 zurück.
 
 Ein Snapshot ist ein reiner **Ledger-Marker** — ein Name, ein Geltungsbereich
 (eine Bucket-Sicht oder *Alles*) und ein Stichtag. Er kopiert **keine**
 Transaktionen, Stückzahlen oder Kurse: der Zustand, den er repräsentiert, wird
 bei Bedarf aus dem Transaktions-Ledger abgeleitet. Ein Snapshot kann also nie
-von deinen Daten abweichen, und ihn zu löschen berührt nie eine Transaktion.
+von den Daten abweichen, und ihn zu löschen berührt nie eine Transaktion.
 Namen sind je Geltungsbereich eindeutig; der Stichtag darf nicht in der
 Zukunft liegen.
 
@@ -774,7 +774,7 @@ Zukunft liegen.
   Kurshistorie (tägliche Schlusskurse, EUR-Hub-Wechselkurse des jeweiligen
   Tags).
 - **Snapshot-Rendite (Kurs)** gegen **Echte TTWROR seitdem** — die
-  Kursrendite des eingefrorenen Bestands gegen deine echte zeitgewichtete
+  Kursrendite des eingefrorenen Bestands gegen die echte zeitgewichtete
   Performance seit dem Stichtag. TTWROR neutralisiert Ein- und Auszahlungen,
   frisches Geld verzerrt den Vergleich also nicht.
 - Ein Chart mit beiden Serien, **indexiert auf 100 %** am Stichtag
@@ -1090,7 +1090,7 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   für den ganzen Baum geladen, nachdem die Seite verbunden ist, sodass ein großer
   Baum nie eine Abfrage je Zeile auslöst.
 - Ein Schalter **Current positions only** ist standardmäßig an. Er verbirgt
-  Wertpapiere, die du nicht mehr hältst (aktuelle Menge null), sodass alte oder
+  Wertpapiere, die nicht mehr gehalten werden (aktuelle Menge null), sodass alte oder
   vollständig verkaufte Zuordnungen den Baum nicht überladen. Nichts wird still
   verworfen: jede Kategorie zeigt einen Zähler **+N without holdings** für die
   verborgenen Wertpapiere, und das Ausschalten des Schalters zeigt sie wieder.
