@@ -63,6 +63,7 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Fx
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.SecurityResolver
@@ -1015,6 +1016,7 @@ defmodule Portfolixir.Imports.Applier do
             quantity: entry.quantity,
             price: entry.price
           }
+          |> Map.merge(settlement_legs(entry, state, ids.security_id))
 
         "dividend" ->
           %{
@@ -1063,6 +1065,40 @@ defmodule Portfolixir.Imports.Applier do
       end
 
     Map.merge(base, extras)
+  end
+
+  # ADR-0033 (issue #569): a Portfolio Performance export books a
+  # cross-currency trade in the ACCOUNT currency, so the row alone carries no
+  # security-currency leg. Persist the ADR-0015 settlement fields at write
+  # time — `settlement_amount` is the account-currency trade amount
+  # (quantity x price), `security_amount` is that amount converted through
+  # the STORED hub rate at the booking date, `settlement_fx_rate` their
+  # ratio — so the cost fold can carry an honest cost pair without any
+  # read-time rate lookup. No stored rate for the booking date means no
+  # derivable native leg: the fields stay nil and the position's
+  # decomposition reads honestly unavailable, never a guess (requirement 4).
+  defp settlement_legs(%Entry{} = entry, state, security_id) do
+    entry_currency = entry.currency_code || state.default_currency
+
+    with true <- is_integer(security_id),
+         %Security{currency_code: security_currency} <-
+           Map.get(state.live_index.securities_by_id, security_id),
+         true <- is_binary(security_currency) and security_currency != entry_currency,
+         %Decimal{} = quantity <- entry.quantity,
+         %Decimal{} = price <- entry.price,
+         %Date{} = date <- entry.date,
+         settlement_amount = Decimal.mult(quantity, price),
+         {:ok, %Decimal{} = security_amount} <-
+           Fx.convert(settlement_amount, entry_currency, security_currency, date),
+         false <- Decimal.equal?(security_amount, 0) do
+      %{
+        security_amount: security_amount,
+        settlement_amount: settlement_amount,
+        settlement_fx_rate: settlement_amount |> Decimal.div(security_amount) |> Decimal.round(6)
+      }
+    else
+      _no_derivable_native_leg -> %{}
+    end
   end
 
   defp insert_transaction(entry, attrs, state) do

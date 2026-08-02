@@ -24,16 +24,22 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.Security
+  alias Portfolixir.Fx
   alias Portfolixir.Journal
+  alias Portfolixir.Ledger.PnlDecomposition
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.TradeMatcher
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
   @zero Decimal.new("0")
+  @one Decimal.new("1")
+  @hub "EUR"
 
   def list_transactions(opts \\ []) when is_list(opts) do
     ordered_transactions()
@@ -88,7 +94,13 @@ defmodule Portfolixir.Ledger do
       from(transaction in Transaction,
         where: transaction.security_id == ^security_id,
         order_by: [asc: transaction.date, asc: transaction.id],
-        preload: [:portfolio, :securities_account, :cash_account, :counter_securities_account]
+        preload: [
+          :portfolio,
+          :securities_account,
+          :cash_account,
+          :counter_securities_account,
+          :security
+        ]
       )
     )
   end
@@ -129,24 +141,41 @@ defmodule Portfolixir.Ledger do
   remaining lots (with unrealised P&L vs. the latest known quote close),
   and any orphan sells.
 
+  Open lots carry their basis in the security's own currency
+  (`buy_price_native`, derived from the ADR-0015 settlement legs for
+  cross-currency bookings) and the ADR-0033 price/currency decomposition
+  against the EUR hub; a lot whose native leg is not derivable is reported
+  honestly unavailable (`decomposed: false`, `undecomposed_reason`), never
+  compared blindly across currencies.
+
   Pass `:latest_price` (Decimal) to inject the comparison price for
   tests; otherwise the function reads it from `Catalog.Quotes.adjusted_latest/1`
-  (the split-adjusted display basis, ADR-0028 §2).
+  (the split-adjusted display basis, ADR-0028 §2). Pass `:fx_rates`
+  (`%{currency => Decimal}`, EUR per 1 unit) to inject the current hub rate
+  for tests; otherwise it resolves from the stored rates.
   """
   def list_trades_for_security(security_id, opts \\ []) when is_integer(security_id) do
     latest_price =
       Keyword.get_lazy(opts, :latest_price, fn -> adjusted_latest_close(security_id) end)
 
+    fx_rates = Keyword.get(opts, :fx_rates, %{})
+    security = Repo.get(Security, security_id)
+    security_currency = security && security.currency_code
+
     transactions =
       security_id
       |> list_transactions_for_security()
-      |> Enum.map(&transaction_for_matcher/1)
+      |> Enum.map(&transaction_for_matcher(&1, security_currency))
 
     result = TradeMatcher.match(transactions)
 
     %{
       result
-      | open_lots: Enum.map(result.open_lots, &decorate_open_lot(&1, latest_price))
+      | open_lots:
+          Enum.map(
+            result.open_lots,
+            &decorate_open_lot(&1, latest_price, security_currency, fx_rates)
+          )
     }
   end
 
@@ -163,18 +192,35 @@ defmodule Portfolixir.Ledger do
   priced inbound deliveries add cost, sells and outbound deliveries remove
   it at the running average, a security transfer carries it into the counter
   depot, and unpriced deliveries move quantity at zero cost. Fees and taxes
-  are not folded into the basis, and every monetary figure is in the
-  security's own currency — no FX conversion is applied here (that is the
-  job of `Portfolixir.Portfolios.Valuation`). A holding whose security has
-  no quote is returned with `nil` price, market value and P&L, so a missing
-  price never distorts the rest of the list.
+  are not folded into the basis. A holding whose security has no quote is
+  returned with `nil` price, market value and P&L, so a missing price never
+  distorts the rest of the list.
+
+  Currency basis (ADR-0033): `cost_basis`, `avg_cost`, `latest_price`,
+  `market_value` and the unrealized P&L are in the security's **own**
+  currency — enforced by the cost pair the fold carries, no longer assumed.
+  Each row additionally carries the base-currency decomposition: `base_cost`
+  (the settlement-leg amount actually paid, with its `base_currency`),
+  `price_return_abs/pct`, `currency_return_abs/pct` and
+  `total_return_base_abs/pct`, which satisfy `total = price + currency`
+  Decimal-exactly (`Portfolixir.Ledger.PnlDecomposition`). A row whose
+  decomposition is not derivable (no native leg, settlement leg outside the
+  portfolio base currency, or no current rate) is reported honestly
+  unavailable via `decomposed: false` and `undecomposed_reason` — never a
+  guessed number; when the native leg itself is missing,
+  `cost_basis`/`avg_cost`/unrealized P&L are nil too.
 
   Pass `:prices` (`%{security_id => Decimal}`) to inject comparison prices for
   tests; missing securities fall back to `Catalog.Quotes.adjusted_latest/1`
-  (the split-adjusted display basis, ADR-0028 §2).
+  (the split-adjusted display basis, ADR-0028 §2). Pass `:fx_rates`
+  (`%{currency => Decimal}`, base units per 1 security-currency unit) to
+  inject the current hub rate for tests; otherwise rates resolve from the
+  stored EUR-hub rates exactly like the valuation.
   """
   def holdings_for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     prices = Keyword.get(opts, :prices, %{})
+    fx_rates = Keyword.get(opts, :fx_rates, %{})
+    base_currency = portfolio_base_currency(portfolio_id)
     transactions = portfolio_transactions_with_security(portfolio_id)
     lots = cost_lots(transactions)
     securities = securities_by_id(transactions)
@@ -187,48 +233,133 @@ defmodule Portfolixir.Ledger do
         security_id,
         Map.get(securities, security_id),
         quantity,
-        lot_cost(lots, key),
-        holding_price(security_id, prices)
+        lot_for(lots, key),
+        holding_price(security_id, prices),
+        base_currency,
+        fx_rates
       )
     end)
     |> Enum.sort_by(&{&1.security_id, &1.securities_account_id})
   end
 
+  defp portfolio_base_currency(portfolio_id) do
+    case Repo.get(Portfolio, portfolio_id) do
+      %Portfolio{base_currency_code: code} -> code
+      _missing -> nil
+    end
+  end
+
   # All transactions of one portfolio in chronological order, with the
-  # security preloaded so each holding can carry its name and currency.
-  # Ordering ascending is required for the moving-average fold to be correct.
+  # security preloaded so each holding can carry its name and currency, and
+  # the cash account so the fold can name the settlement-leg currency of an
+  # ADR-0015 booking. Ordering ascending is required for the moving-average
+  # fold to be correct.
   defp portfolio_transactions_with_security(portfolio_id) do
     Repo.all(
       from(transaction in Transaction,
         where: transaction.portfolio_id == ^portfolio_id,
         order_by: [asc: transaction.date, asc: transaction.id],
-        preload: [:security]
+        preload: [:security, :cash_account]
       )
     )
   end
 
   defp securities_by_id(transactions) do
-    for %{security: %Portfolixir.Catalog.Security{} = security} <- transactions,
+    for %{security: %Security{} = security} <- transactions,
         into: %{},
         do: {security.id, security}
   end
 
-  defp build_holding_row(account_id, security_id, security, quantity, cost_basis, latest_price) do
-    base = %{
-      securities_account_id: account_id,
-      security_id: security_id,
-      security_name: security && security.name,
-      # Stable external identifiers so API/MCP consumers can reconcile against
-      # broker data without joining the securities list (FR-30).
-      isin: security && security.isin,
-      wkn: security && security.wkn,
-      currency_code: security && security.currency_code,
-      quantity: quantity,
-      avg_cost: average_unit_cost(quantity, cost_basis),
-      cost_basis: cost_basis
-    }
+  defp build_holding_row(
+         account_id,
+         security_id,
+         security,
+         quantity,
+         lot,
+         latest_price,
+         base_currency,
+         fx_rates
+       ) do
+    security_currency = security && security.currency_code
+    cost_basis = if lot.cost_known, do: lot.cost, else: nil
 
-    put_holding_valuation(base, latest_price)
+    base =
+      %{
+        securities_account_id: account_id,
+        security_id: security_id,
+        security_name: security && security.name,
+        # Stable external identifiers so API/MCP consumers can reconcile against
+        # broker data without joining the securities list (FR-30).
+        isin: security && security.isin,
+        wkn: security && security.wkn,
+        currency_code: security_currency,
+        quantity: quantity,
+        avg_cost: cost_basis && average_unit_cost(quantity, cost_basis),
+        cost_basis: cost_basis
+      }
+      |> Map.merge(base_cost_fields(lot, base_currency))
+
+    base
+    |> put_holding_valuation(latest_price)
+    |> put_decomposition(:market_value, lot, security_currency, base_currency, fx_rates)
+  end
+
+  # The settlement-leg cost and the single currency it is denominated in. A
+  # zero-cost lot constrains no currency, so it reports the row's base
+  # currency; a mixed or unknown settlement leg reports nil (honesty over
+  # availability, ADR-0033 requirement 4).
+  defp base_cost_fields(%{base: %{known: false}}, _base_currency),
+    do: %{base_cost: nil, base_currency: nil}
+
+  defp base_cost_fields(%{base: base}, base_currency),
+    do: %{base_cost: base.amount, base_currency: base.currency || base_currency}
+
+  # The ADR-0033 decomposition of one holding row, over the lot's cost pair
+  # and the current hub rate (the same rate source the valuation uses; rates
+  # are looked up at decoration time only — the fold stays pure).
+  defp put_decomposition(row, value_key, lot, security_currency, base_currency, fx_rates) do
+    market_value = Map.get(row, value_key)
+
+    decomposition =
+      cond do
+        not lot.cost_known ->
+          PnlDecomposition.unavailable(:missing_native_cost)
+
+        is_nil(market_value) ->
+          PnlDecomposition.unavailable(:no_price)
+
+        not base_leg_in_base_currency?(lot, base_currency) ->
+          PnlDecomposition.unavailable(:missing_base_cost)
+
+        true ->
+          case base_rate(security_currency, base_currency, fx_rates) do
+            {:ok, rate} ->
+              PnlDecomposition.decompose(market_value, lot.cost, lot.base.amount, rate)
+
+            {:error, :no_rate} ->
+              PnlDecomposition.unavailable(:missing_fx)
+          end
+      end
+
+    Map.merge(row, decomposition)
+  end
+
+  defp base_leg_in_base_currency?(%{base: base}, base_currency) do
+    base.known and not is_nil(base_currency) and
+      (base.currency == nil or base.currency == base_currency)
+  end
+
+  # The current rate converting one security-currency unit into the base
+  # currency: identity for same-currency rows (exactly 1, no lookup), an
+  # injected test override, or the stored EUR-hub triangulation (ADR-0007).
+  defp base_rate(nil, _base_currency, _fx_rates), do: {:error, :no_rate}
+  defp base_rate(currency, currency, _fx_rates), do: {:ok, @one}
+
+  defp base_rate(security_currency, base_currency, fx_rates) do
+    case Map.get(fx_rates, security_currency) do
+      %Decimal{} = rate -> {:ok, rate}
+      _none -> Fx.rate(security_currency, base_currency)
+    end
   end
 
   # The displayed per-unit cost is derived from the folded total, never the
@@ -246,6 +377,18 @@ defmodule Portfolixir.Ledger do
     Map.merge(row, %{
       latest_price: nil,
       market_value: nil,
+      unrealized_pnl_abs: nil,
+      unrealized_pnl_pct: nil
+    })
+  end
+
+  # A row without a derivable security-currency cost basis (ADR-0033
+  # requirement 4) keeps its price-derived market value but reports no P&L —
+  # a blind cross-currency comparison is never resurrected.
+  defp put_holding_valuation(%{cost_basis: nil} = row, %Decimal{} = latest_price) do
+    Map.merge(row, %{
+      latest_price: latest_price,
+      market_value: Decimal.mult(row.quantity, latest_price),
       unrealized_pnl_abs: nil,
       unrealized_pnl_pct: nil
     })
@@ -294,14 +437,22 @@ defmodule Portfolixir.Ledger do
   The moving-average cost basis follows the shares through the same kinds
   (see `cost_lots/1`), per depot.
 
+  Rows carry the same security-currency basis and ADR-0033 base-currency
+  decomposition as `holdings_for_portfolio/2` (each row against its own
+  portfolio's base currency), so the two surfaces cannot disagree.
+
   Pass `:latest_price` to inject the comparison price for tests; otherwise
   reads it from `Catalog.Quotes.adjusted_latest/1` (the split-adjusted
-  display basis, ADR-0028 §2).
+  display basis, ADR-0028 §2). Pass `:fx_rates` to inject current hub rates
+  for tests (see `holdings_for_portfolio/2`).
   """
   def holdings_for_security(security_id, opts \\ []) when is_integer(security_id) do
     latest_price =
       Keyword.get_lazy(opts, :latest_price, fn -> adjusted_latest_close(security_id) end)
 
+    fx_rates = Keyword.get(opts, :fx_rates, %{})
+    security = Repo.get(Security, security_id)
+    security_currency = security && security.currency_code
     transactions = list_transactions_for_security(security_id)
     lots = cost_lots(transactions)
     depots = depots_by_id(transactions)
@@ -310,18 +461,20 @@ defmodule Portfolixir.Ledger do
     |> Positions.calculate()
     |> Enum.map(fn {{account_id, _security_id} = key, quantity} ->
       %{portfolio: portfolio, depot: depot} = Map.fetch!(depots, account_id)
-      cost_basis = lot_cost(lots, key)
+      lot = lot_for(lots, key)
+      cost_basis = if lot.cost_known, do: lot.cost, else: nil
+      base_currency = portfolio.base_currency_code
 
-      decorate_holding(
-        %{
-          portfolio: portfolio,
-          depot: depot,
-          quantity: quantity,
-          avg_cost: average_unit_cost(quantity, cost_basis),
-          cost_basis: cost_basis
-        },
-        latest_price
-      )
+      %{
+        portfolio: portfolio,
+        depot: depot,
+        quantity: quantity,
+        avg_cost: cost_basis && average_unit_cost(quantity, cost_basis),
+        cost_basis: cost_basis
+      }
+      |> Map.merge(base_cost_fields(lot, base_currency))
+      |> decorate_holding(latest_price)
+      |> put_decomposition(:current_value, lot, security_currency, base_currency, fx_rates)
     end)
     |> Enum.sort_by(& &1.portfolio.name)
   end
@@ -366,14 +519,23 @@ defmodule Portfolixir.Ledger do
   # the shared `{date, intra_day_order, id}` replay order (the cost companion
   # of `Positions.calculate/1`; a same-day split applies before the day's
   # trades, ADR-0028 §3). The cost follows the shares: buys and priced inbound
-  # deliveries add `quantity * price`, sells and outbound deliveries remove at
-  # the lot's running average, a `security_transfer` carries the removed cost
+  # deliveries add their cost, sells and outbound deliveries remove at the
+  # lot's running average, a `security_transfer` carries the removed cost
   # into the counter depot, and an unpriced delivery moves quantity at zero
   # cost. A `split` scales the lot quantity of its own portfolio and leaves
   # the lot's total cost unchanged, so the per-share average divides. A lot's
   # cost never goes below zero: a removal beyond the held quantity takes out
   # the full remaining cost, so an over-sold or over-delivered (negative) lot
   # always carries a zero basis.
+  #
+  # ADR-0033: every lot carries a cost PAIR — `cost` in the security's own
+  # currency (`cost_known` false when a contributing acquisition had no
+  # derivable security-currency leg) and `base` (the settlement-leg cost,
+  # its single currency, and whether it is well-defined). Removals slice both
+  # proportionally; splits scale quantity and leave both invariant. The fold
+  # is pure: the legs come from transaction data (price, ADR-0015
+  # `security_amount`/`settlement_amount`, the preloaded cash-account
+  # currency) — rates are never looked up inside the reducer.
   defp cost_lots(transactions) do
     ordered = Projection.replay_sort(transactions)
     accounts = Projection.account_portfolios(ordered)
@@ -381,10 +543,10 @@ defmodule Portfolixir.Ledger do
   end
 
   defp apply_cost_effect(%{type: "buy"} = tx, lots, _accounts),
-    do: add_cost(lots, lot_key(tx), tx.quantity, Decimal.mult(tx.quantity, tx.price))
+    do: add_cost(lots, lot_key(tx), tx.quantity, acquisition_legs(tx, tx.price))
 
   defp apply_cost_effect(%{type: "inbound_delivery"} = tx, lots, _accounts),
-    do: add_cost(lots, lot_key(tx), tx.quantity, Decimal.mult(tx.quantity, tx.price || @zero))
+    do: add_cost(lots, lot_key(tx), tx.quantity, acquisition_legs(tx, tx.price || @zero))
 
   defp apply_cost_effect(%{type: type} = tx, lots, _accounts)
        when type in ["sell", "outbound_delivery"],
@@ -409,6 +571,67 @@ defmodule Portfolixir.Ledger do
   defp apply_cost_effect(%{type: type}, lots, _accounts) when type in @cost_neutral_kinds,
     do: lots
 
+  # The two legs of an acquisition (ADR-0033), from transaction data only.
+  #
+  # Security-currency leg: `quantity * price` when the booking is in the
+  # security's own currency (manual ADR-0015 bookings and the same-currency
+  # majority), else the stored ADR-0015 `security_amount`; a cross-currency
+  # booking without one has no derivable native leg — flagged, never guessed.
+  #
+  # Settlement leg: the stored `settlement_amount` in the cash account's
+  # currency, else `quantity * price` in the transaction currency (the
+  # degenerate same-currency pair). A zero-cost contribution constrains no
+  # currency.
+  defp acquisition_legs(tx, price) do
+    gross = Decimal.mult(tx.quantity, price)
+    security_currency = transaction_security_currency(tx)
+
+    {native_cost, native_known} =
+      cond do
+        is_nil(security_currency) or tx.currency_code == security_currency -> {gross, true}
+        match?(%Decimal{}, tx.security_amount) -> {tx.security_amount, true}
+        true -> {@zero, false}
+      end
+
+    base =
+      case tx.settlement_amount do
+        %Decimal{} = amount ->
+          case settlement_leg_currency(tx, security_currency) do
+            :unknown -> %{amount: amount, currency: nil, known: false}
+            currency -> normalize_base(%{amount: amount, currency: currency, known: true})
+          end
+
+        _none ->
+          normalize_base(%{amount: gross, currency: tx.currency_code, known: true})
+      end
+
+    %{cost: native_cost, cost_known: native_known, base: base}
+  end
+
+  defp transaction_security_currency(%{security: %Security{currency_code: currency}}),
+    do: currency
+
+  defp transaction_security_currency(_transaction), do: nil
+
+  # The currency the settlement leg is denominated in: the linked cash
+  # account's (preloaded by every fold caller); for a booking already in the
+  # account currency (the backfilled import form) the transaction currency is
+  # that same currency. Unresolvable is flagged, not guessed.
+  defp settlement_leg_currency(%{cash_account: %CashAccount{currency_code: currency}}, _native),
+    do: currency
+
+  defp settlement_leg_currency(%{currency_code: currency}, security_currency)
+       when currency != security_currency,
+       do: currency
+
+  defp settlement_leg_currency(_transaction, _security_currency), do: :unknown
+
+  # A zero settlement leg constrains no currency, so e.g. an unpriced
+  # delivery can never poison a lot's settlement currency.
+  defp normalize_base(%{amount: amount} = base) do
+    if Decimal.equal?(amount, @zero), do: %{base | currency: nil}, else: base
+  end
+
   defp maybe_scale_lot({account_id, security_id}, lot, tx, ratio, accounts) do
     if security_id == tx.security_id and Map.get(accounts, account_id) == tx.portfolio_id do
       %{lot | quantity: Projection.scale_quantity(lot.quantity, ratio)}
@@ -419,54 +642,133 @@ defmodule Portfolixir.Ledger do
 
   defp lot_key(tx), do: {tx.securities_account_id, tx.security_id}
 
-  defp lot_cost(lots, key), do: Map.get(lots, key, %{cost: @zero}).cost
+  defp lot_for(lots, key), do: Map.get(lots, key, empty_lot())
 
   # Shares that merely cover a short (negative) lot carry no cost forward;
   # only the portion that ends up above zero enters at the addition's unit
   # cost. A negative lot always has zero cost (see `remove_cost/3`), so the
-  # positive branch never mixes in stale cost.
-  defp add_cost(lots, key, quantity, cost) do
+  # positive branch never mixes in stale cost. Both legs of the cost pair
+  # follow the same rule; the availability flags travel with the cost they
+  # describe.
+  defp add_cost(lots, key, quantity, legs) do
     lot = Map.get(lots, key, empty_lot())
     new_quantity = Decimal.add(lot.quantity, quantity)
 
-    new_cost =
+    new_lot =
       cond do
-        Decimal.compare(lot.quantity, @zero) != :lt -> Decimal.add(lot.cost, cost)
-        Decimal.compare(new_quantity, @zero) != :gt -> @zero
-        true -> cost |> Decimal.mult(new_quantity) |> Decimal.div(quantity)
+        Decimal.compare(lot.quantity, @zero) != :lt ->
+          %{
+            quantity: new_quantity,
+            cost: Decimal.add(lot.cost, legs.cost),
+            cost_known: lot.cost_known and legs.cost_known,
+            base: merge_base(lot.base, legs.base)
+          }
+
+        Decimal.compare(new_quantity, @zero) != :gt ->
+          %{empty_lot() | quantity: new_quantity}
+
+        true ->
+          %{
+            quantity: new_quantity,
+            cost: legs.cost |> Decimal.mult(new_quantity) |> Decimal.div(quantity),
+            cost_known: legs.cost_known,
+            base:
+              normalize_base(%{
+                legs.base
+                | amount: legs.base.amount |> Decimal.mult(new_quantity) |> Decimal.div(quantity)
+              })
+          }
       end
 
-    Map.put(lots, key, %{quantity: new_quantity, cost: new_cost})
+    Map.put(lots, key, new_lot)
   end
 
+  # Two settlement legs merge only when they are denominated in one single
+  # currency (a zero leg constrains none); anything else is a mixed —
+  # ill-defined — base cost and is flagged, never summed into a number
+  # denominated in no currency at all (ADR-0033 requirement 5).
+  defp merge_base(a, b) do
+    case merged_base_currency(a, b) do
+      :mixed ->
+        %{amount: Decimal.add(a.amount, b.amount), currency: nil, known: false}
+
+      currency ->
+        %{amount: Decimal.add(a.amount, b.amount), currency: currency, known: a.known and b.known}
+    end
+  end
+
+  defp merged_base_currency(%{currency: nil}, %{currency: currency}), do: currency
+  defp merged_base_currency(%{currency: currency}, %{currency: nil}), do: currency
+  defp merged_base_currency(%{currency: currency}, %{currency: currency}), do: currency
+  defp merged_base_currency(_a, _b), do: :mixed
+
   # Removes shares at the lot's running average and returns the removed cost
-  # (a `security_transfer` hands it to the receiving depot). Removing the
-  # whole lot — or more — takes the exact remaining cost, so closing a
-  # position never leaves a rounding residue behind.
+  # pair (a `security_transfer` hands it to the receiving depot). Removing
+  # the whole lot — or more — takes the exact remaining cost, so closing a
+  # position never leaves a rounding residue behind; a closed or negative
+  # lot's zero basis is a defined, exact value, so its flags reset clean.
   defp remove_cost(lots, key, quantity) do
     lot = Map.get(lots, key, empty_lot())
 
-    removed_cost =
+    {removed_cost, removed_base} =
       if Decimal.compare(lot.quantity, quantity) == :gt do
-        quantity |> Decimal.mult(lot.cost) |> Decimal.div(lot.quantity)
+        {quantity |> Decimal.mult(lot.cost) |> Decimal.div(lot.quantity),
+         quantity |> Decimal.mult(lot.base.amount) |> Decimal.div(lot.quantity)}
       else
-        lot.cost
+        {lot.cost, lot.base.amount}
       end
 
-    updated = %{
-      quantity: Decimal.sub(lot.quantity, quantity),
-      cost: Decimal.sub(lot.cost, removed_cost)
+    new_quantity = Decimal.sub(lot.quantity, quantity)
+
+    updated =
+      if Decimal.compare(new_quantity, @zero) != :gt do
+        %{empty_lot() | quantity: new_quantity}
+      else
+        %{
+          quantity: new_quantity,
+          cost: Decimal.sub(lot.cost, removed_cost),
+          cost_known: lot.cost_known,
+          base: normalize_base(%{lot.base | amount: Decimal.sub(lot.base.amount, removed_base)})
+        }
+      end
+
+    moved = %{
+      cost: removed_cost,
+      cost_known: lot.cost_known,
+      base:
+        normalize_base(%{
+          amount: removed_base,
+          currency: lot.base.currency,
+          known: lot.base.known
+        })
     }
 
-    {Map.put(lots, key, updated), removed_cost}
+    {Map.put(lots, key, updated), moved}
   end
 
-  defp empty_lot, do: %{quantity: @zero, cost: @zero}
+  defp empty_lot do
+    %{
+      quantity: @zero,
+      cost: @zero,
+      cost_known: true,
+      base: %{amount: @zero, currency: nil, known: true}
+    }
+  end
 
   defp decorate_holding(row, nil) do
     Map.merge(row, %{
       latest_price: nil,
       current_value: nil,
+      unrealized_pnl_abs: nil,
+      unrealized_pnl_pct: nil
+    })
+  end
+
+  # See `put_holding_valuation/2` — a missing native leg reports no P&L.
+  defp decorate_holding(%{cost_basis: nil} = row, %Decimal{} = latest_price) do
+    Map.merge(row, %{
+      latest_price: latest_price,
+      current_value: Decimal.mult(row.quantity, latest_price),
       unrealized_pnl_abs: nil,
       unrealized_pnl_pct: nil
     })
@@ -489,7 +791,7 @@ defmodule Portfolixir.Ledger do
     })
   end
 
-  defp transaction_for_matcher(%Transaction{} = tx) do
+  defp transaction_for_matcher(%Transaction{} = tx, security_currency) do
     %{
       id: tx.id,
       portfolio_id: tx.portfolio_id,
@@ -501,30 +803,107 @@ defmodule Portfolixir.Ledger do
       taxes: tx.taxes,
       currency_code: tx.currency_code,
       split_ratio_numerator: tx.split_ratio_numerator,
-      split_ratio_denominator: tx.split_ratio_denominator
+      split_ratio_denominator: tx.split_ratio_denominator,
+      # ADR-0033 lot legs: the per-unit security-currency price (nil when no
+      # native leg is derivable) and the per-unit settlement leg with its
+      # currency, so open lots carry the same cost pair as the holdings fold.
+      native_unit_price: native_unit_price(tx, security_currency),
+      settlement_unit_price: settlement_unit_price(tx),
+      settlement_currency: matcher_settlement_currency(tx, security_currency)
     }
   end
 
-  defp decorate_open_lot(lot, nil) do
-    Map.merge(lot, %{
-      latest_price: nil,
-      unrealized_pnl_abs: nil,
-      unrealized_pnl_pct: nil
-    })
+  defp native_unit_price(tx, security_currency) do
+    cond do
+      is_nil(security_currency) or tx.currency_code == security_currency ->
+        tx.price
+
+      match?(%Decimal{}, tx.security_amount) and positive_decimal?(tx.quantity) ->
+        Decimal.div(tx.security_amount, tx.quantity)
+
+      true ->
+        nil
+    end
   end
 
-  defp decorate_open_lot(lot, %Decimal{} = latest_price) do
-    basis_per_unit = lot.buy_price
-    current_value = Decimal.mult(lot.quantity, latest_price)
-    cost = Decimal.mult(lot.quantity, basis_per_unit)
-    abs_pnl = Decimal.sub(current_value, cost)
-    pct_pnl = if Decimal.equal?(cost, 0), do: Decimal.new(0), else: Decimal.div(abs_pnl, cost)
+  defp settlement_unit_price(tx) do
+    case tx.settlement_amount do
+      %Decimal{} = amount ->
+        if positive_decimal?(tx.quantity), do: Decimal.div(amount, tx.quantity), else: nil
 
-    Map.merge(lot, %{
-      latest_price: latest_price,
-      unrealized_pnl_abs: abs_pnl,
-      unrealized_pnl_pct: pct_pnl
-    })
+      _none ->
+        tx.price
+    end
+  end
+
+  defp matcher_settlement_currency(tx, security_currency) do
+    case tx.settlement_amount do
+      %Decimal{} ->
+        case settlement_leg_currency(tx, security_currency) do
+          :unknown -> nil
+          currency -> currency
+        end
+
+      _none ->
+        tx.currency_code
+    end
+  end
+
+  defp positive_decimal?(%Decimal{} = value), do: Decimal.compare(value, @zero) == :gt
+  defp positive_decimal?(_other), do: false
+
+  # Open-lot decoration (ADR-0033): the unrealised P&L compares the latest
+  # close against the lot's SECURITY-currency basis (`buy_price_native`), and
+  # each lot carries the same price/currency decomposition as the holdings —
+  # against the EUR hub, since FIFO lots are matched per security across
+  # portfolios. A lot without a derivable native leg, a hub-currency
+  # settlement leg or a current rate is honestly unavailable.
+  defp decorate_open_lot(lot, latest_price, security_currency, fx_rates) do
+    base_cost = lot.settlement_unit_price && Decimal.mult(lot.quantity, lot.settlement_unit_price)
+
+    lot =
+      Map.merge(lot, %{
+        latest_price: latest_price,
+        base_cost: base_cost,
+        base_currency: lot.settlement_currency
+      })
+
+    cond do
+      is_nil(lot.buy_price_native) ->
+        lot
+        |> Map.merge(%{unrealized_pnl_abs: nil, unrealized_pnl_pct: nil})
+        |> Map.merge(PnlDecomposition.unavailable(:missing_native_cost))
+
+      is_nil(latest_price) ->
+        lot
+        |> Map.merge(%{unrealized_pnl_abs: nil, unrealized_pnl_pct: nil})
+        |> Map.merge(PnlDecomposition.unavailable(:no_price))
+
+      true ->
+        current_value = Decimal.mult(lot.quantity, latest_price)
+        cost = Decimal.mult(lot.quantity, lot.buy_price_native)
+        abs_pnl = Decimal.sub(current_value, cost)
+        pct_pnl = if Decimal.equal?(cost, 0), do: Decimal.new(0), else: Decimal.div(abs_pnl, cost)
+
+        lot
+        |> Map.merge(%{unrealized_pnl_abs: abs_pnl, unrealized_pnl_pct: pct_pnl})
+        |> Map.merge(
+          open_lot_decomposition(lot, current_value, cost, security_currency, fx_rates)
+        )
+    end
+  end
+
+  defp open_lot_decomposition(lot, current_value, cost, security_currency, fx_rates) do
+    cond do
+      is_nil(lot.base_cost) or lot.settlement_currency != @hub ->
+        PnlDecomposition.unavailable(:missing_base_cost)
+
+      true ->
+        case base_rate(security_currency, @hub, fx_rates) do
+          {:ok, rate} -> PnlDecomposition.decompose(current_value, cost, lot.base_cost, rate)
+          {:error, :no_rate} -> PnlDecomposition.unavailable(:missing_fx)
+        end
+    end
   end
 
   def count_transactions do

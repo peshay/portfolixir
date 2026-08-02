@@ -636,7 +636,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 @detail_transaction_rows,
                 @detail_ma,
                 @detail_cost_basis?,
-                @detail_split_events
+                @detail_split_events,
+                @selected_security.currency_code
               )
             }
             log_scale?={@detail_log_scale? and not @detail_percent_mode?}
@@ -986,6 +987,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
       <%= if @trades.open_lots != [] do %>
         <h3 class="detail-section-title"><%= gettext("Open positions (FIFO)") %></h3>
+        <%!-- ADR-0033: lots carry the same decomposition as the holdings —
+             the committed copy sits behind the ⓘ tooltip. --%>
+        <details class="metric-tooltip" data-role="lot-decomposition-info">
+          <summary aria-label={gettext("About price and currency return")}>ⓘ <%= gettext("Price & currency return") %></summary>
+          <p role="tooltip">
+            <%= gettext(
+              "Price return — the change of the security's own price, converted at today's rate. Currency return — the effect of the exchange rate on the amount originally invested. Together they equal the position's total gain or loss in EUR. A dash marks a lot whose decomposition cannot be derived from the recorded data."
+            ) %>
+          </p>
+        </details>
         <div class="data-table-wrap">
           <table class="data-table detail-trades-table">
             <thead>
@@ -996,6 +1007,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <th class="num"><%= gettext("Latest") %></th>
                 <th class="num"><%= gettext("Unrealised P&L") %></th>
                 <th class="num">%</th>
+                <th class="num"><%= gettext("Price return") %></th>
+                <th class="num"><%= gettext("Currency return") %></th>
+                <th class="num"><%= gettext("Total (base)") %></th>
               </tr>
             </thead>
             <tbody>
@@ -1003,7 +1017,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <tr>
                   <td><%= Date.to_iso8601(lot.open_date) %></td>
                   <td class="num"><%= Format.decimal(lot.quantity, 4) %></td>
-                  <td class="num"><%= Format.decimal(lot.buy_price, 2) %></td>
+                  <%!-- The security-currency basis (ADR-0033): comparable to
+                       the Latest column; a dash means no native leg is
+                       derivable from the recorded booking. --%>
+                  <td class="num" data-role="lot-buy-price-native">
+                    <%= if lot.buy_price_native do %>
+                      <%= Format.decimal(lot.buy_price_native, 2) %>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
                   <td class="num">
                     <%= if lot.latest_price do %>
                       <%= Format.decimal(lot.latest_price, 2) %>
@@ -1016,6 +1039,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   </td>
                   <td class={["num", pnl_class(lot.unrealized_pnl_abs)]}>
                     <%= signed_percent_or_dash(lot.unrealized_pnl_pct) %>
+                  </td>
+                  <td class={["num", pnl_class(lot.price_return_abs)]} data-role="price-return">
+                    <%= signed_decimal_or_dash(lot.price_return_abs, 2) %>
+                  </td>
+                  <td class={["num", pnl_class(lot.currency_return_abs)]} data-role="currency-return">
+                    <%= signed_decimal_or_dash(lot.currency_return_abs, 2) %>
+                  </td>
+                  <td
+                    class={["num", pnl_class(lot.total_return_base_abs)]}
+                    data-role="total-return-base"
+                    title={undecomposed_hint(lot)}
+                  >
+                    <%= signed_decimal_or_dash(lot.total_return_base_abs, 2) %>
+                    <small :if={lot.decomposed}><%= lot.base_currency %></small>
                   </td>
                 </tr>
               <% end %>
@@ -1104,6 +1141,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <%= gettext("No open positions for this security across your depots.") %>
         </p>
       <% else %>
+        <%!-- ADR-0033: the committed decomposition explanation lives in the
+             ⓘ tooltip, not inline. --%>
+        <details class="metric-tooltip" data-role="pnl-decomposition-info">
+          <summary aria-label={gettext("About price and currency return")}>ⓘ <%= gettext("Price & currency return") %></summary>
+          <p role="tooltip">
+            <%= gettext(
+              "Price return — the change of the security's own price, converted at today's rate. Currency return — the effect of the exchange rate on the amount originally invested. Together they equal the position's total gain or loss in EUR. A dash marks a position whose decomposition cannot be derived from the recorded data."
+            ) %>
+          </p>
+        </details>
         <div class="data-table-wrap">
           <table class="data-table detail-holdings-table">
             <thead>
@@ -1114,6 +1161,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <th class="num"><%= gettext("Current value") %></th>
                 <th class="num"><%= gettext("Unrealised P&L") %></th>
                 <th class="num">%</th>
+                <th class="num"><%= gettext("Price return") %></th>
+                <th class="num"><%= gettext("Currency return") %></th>
+                <th class="num"><%= gettext("Total (base)") %></th>
               </tr>
             </thead>
             <tbody>
@@ -1155,9 +1205,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <td class={["num", pnl_class(h.unrealized_pnl_abs)]}>
                     <%= signed_percent_or_dash(h.unrealized_pnl_pct) %>
                   </td>
+                  <td class={["num", pnl_class(h.price_return_abs)]} data-role="price-return">
+                    <%= signed_decimal_or_dash(h.price_return_abs, 2) %>
+                  </td>
+                  <td class={["num", pnl_class(h.currency_return_abs)]} data-role="currency-return">
+                    <%= signed_decimal_or_dash(h.currency_return_abs, 2) %>
+                  </td>
+                  <td
+                    class={["num", pnl_class(h.total_return_base_abs)]}
+                    data-role="total-return-base"
+                    title={undecomposed_hint(h)}
+                  >
+                    <%= signed_decimal_or_dash(h.total_return_base_abs, 2) %>
+                    <small :if={h.decomposed}><%= h.base_currency %></small>
+                  </td>
                 </tr>
                 <tr :if={h.depot} class="bucket-override-row" id={"position-buckets-#{h.depot.id}"}>
-                  <td colspan="6">
+                  <td colspan="9">
                     <.position_bucket_override holding={h} buckets={@buckets} />
                   </td>
                 </tr>
@@ -1173,7 +1237,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <td class={["num", pnl_class(@total_pnl)]}>
                   <%= signed_decimal_or_dash(@total_pnl, 2) %>
                 </td>
-                <td class="num"></td>
+                <td class="num" colspan="4"></td>
               </tr>
             </tfoot>
           </table>
@@ -1436,6 +1500,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
     Format.signed_decimal(decimal_for_display(value), places)
   end
 
+  # Why a row's ADR-0033 decomposition is unavailable — terse, impersonal,
+  # shown as the dash's title. Nil (no hint) for decomposed rows.
+  defp undecomposed_hint(%{decomposed: true}), do: nil
+
+  defp undecomposed_hint(%{undecomposed_reason: :missing_native_cost}),
+    do:
+      gettext(
+        "No security-currency cost is derivable from the recorded booking (no settlement legs, no stored rate at the booking date)."
+      )
+
+  defp undecomposed_hint(%{undecomposed_reason: :missing_base_cost}),
+    do: gettext("The recorded settlement leg is not in the base currency.")
+
+  defp undecomposed_hint(%{undecomposed_reason: :missing_fx}),
+    do: gettext("No stored exchange rate reaches the base currency.")
+
+  defp undecomposed_hint(%{undecomposed_reason: :no_price}),
+    do: gettext("No price is available for this security.")
+
+  defp undecomposed_hint(_row), do: nil
+
   defp tx_type_label("buy"), do: gettext("Buy")
   defp tx_type_label("sell"), do: gettext("Sell")
   defp tx_type_label("split"), do: gettext("Split")
@@ -1493,7 +1578,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp build_chart_overlays(quotes, transactions, ma_toggles, cost_basis?, split_events) do
+  defp build_chart_overlays(
+         quotes,
+         transactions,
+         ma_toggles,
+         cost_basis?,
+         split_events,
+         security_currency
+       ) do
     ma_overlays =
       for {window, true} <- ma_toggles do
         %{
@@ -1509,7 +1601,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           %{
             class: "chart-cost-basis",
             label: gettext("Cost basis"),
-            points: cost_basis_series(quotes, transactions, split_events)
+            points: cost_basis_series(quotes, transactions, split_events, security_currency)
           }
         ]
       else
@@ -1536,38 +1628,87 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> Enum.reverse()
   end
 
-  defp cost_basis_series(quotes, transactions, split_events) when transactions != [] do
-    # Replay order (ADR-0028 §3): a same-day split applies before the day's
-    # trades, exactly like every ledger quantity fold. The fan-out rows of
-    # one booking dedupe into one security-level event first — the fold must
-    # apply each ratio once per EVENT, not once per portfolio row (E17
-    # review, finding 1a).
-    series =
-      transactions
-      |> dedupe_split_rows()
-      |> Projection.replay_sort()
-      |> Enum.reduce({Decimal.new(0), Decimal.new(0), []}, &apply_cost_basis_point/2)
-      |> elem(2)
-      |> Enum.reverse()
-      |> Enum.map(&display_basis_point(&1, split_events))
-
-    # Extend the last value to the last visible quote date so the line is
-    # visible across the chart.
-    case {series, List.last(quotes)} do
-      {[], _} ->
+  defp cost_basis_series(quotes, transactions, split_events, security_currency)
+       when transactions != [] do
+    # ADR-0033: the overlay folds SECURITY-currency prices onto a chart whose
+    # quote series is in the security currency — a cross-currency buy without
+    # a derivable native leg would poison the running average, so the overlay
+    # is then honestly unavailable rather than wrong.
+    case native_priced_for_overlay(transactions, security_currency) do
+      :unavailable ->
         []
 
-      {_, nil} ->
-        Enum.map(series, fn {d, v} -> %{date: d, value: v} end)
+      native_transactions ->
+        # Replay order (ADR-0028 §3): a same-day split applies before the day's
+        # trades, exactly like every ledger quantity fold. The fan-out rows of
+        # one booking dedupe into one security-level event first — the fold must
+        # apply each ratio once per EVENT, not once per portfolio row (E17
+        # review, finding 1a).
+        series =
+          native_transactions
+          |> dedupe_split_rows()
+          |> Projection.replay_sort()
+          |> Enum.reduce({Decimal.new(0), Decimal.new(0), []}, &apply_cost_basis_point/2)
+          |> elem(2)
+          |> Enum.reverse()
+          |> Enum.map(&display_basis_point(&1, split_events))
 
-      {points, last_quote} ->
-        {_d, last_v} = List.last(points)
-        ext = points ++ [{last_quote.date, last_v}]
-        Enum.map(ext, fn {d, v} -> %{date: d, value: v} end)
+        # Extend the last value to the last visible quote date so the line is
+        # visible across the chart.
+        case {series, List.last(quotes)} do
+          {[], _} ->
+            []
+
+          {_, nil} ->
+            Enum.map(series, fn {d, v} -> %{date: d, value: v} end)
+
+          {points, last_quote} ->
+            {_d, last_v} = List.last(points)
+            ext = points ++ [{last_quote.date, last_v}]
+            Enum.map(ext, fn {d, v} -> %{date: d, value: v} end)
+        end
     end
   end
 
-  defp cost_basis_series(_quotes, _empty, _events), do: []
+  defp cost_basis_series(_quotes, _empty, _events, _security_currency), do: []
+
+  # Rewrites each buy's price to its security-currency per-unit value: the
+  # price itself for a same-currency booking, else the ADR-0015
+  # `security_amount` divided by the quantity. A buy with no derivable
+  # native leg makes the whole overlay unavailable (never a mixed fold).
+  defp native_priced_for_overlay(transactions, security_currency) do
+    transactions
+    |> Enum.reduce_while([], fn tx, acc ->
+      case tx.type do
+        "buy" ->
+          case overlay_native_price(tx, security_currency) do
+            nil -> {:halt, :unavailable}
+            price -> {:cont, [%{tx | price: price} | acc]}
+          end
+
+        _other ->
+          {:cont, [tx | acc]}
+      end
+    end)
+    |> case do
+      :unavailable -> :unavailable
+      reversed -> Enum.reverse(reversed)
+    end
+  end
+
+  defp overlay_native_price(tx, security_currency) do
+    cond do
+      is_nil(security_currency) or tx.currency_code == security_currency ->
+        tx.price
+
+      match?(%Decimal{}, tx.security_amount) and match?(%Decimal{}, tx.quantity) and
+          not Decimal.equal?(tx.quantity, 0) ->
+        Decimal.div(tx.security_amount, tx.quantity)
+
+      true ->
+        nil
+    end
+  end
 
   # One row per (date, normalized ratio) — the identity quote consumers use
   # for security-level split events; non-split rows pass through untouched.

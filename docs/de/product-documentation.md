@@ -260,6 +260,20 @@ Wertpapierübertragung nimmt den Einstand der bewegten Anteile mit ins Zieldepot
 Eine ohne Preis erfasste Lieferung bewegt die Menge zum Einstand null, da für
 sie kein eigener Anschaffungswert bekannt ist.
 
+Für ein Wertpapier, das in einer anderen Währung notiert als das Geld, das es
+bezahlt hat, zerlegt jeder Bestand seinen Gewinn oder Verlust in Basiswährung
+zusätzlich in zwei benannte Teile (ADR-0033): den **Kursbeitrag** — die
+Veränderung des eigenen Kurses des Wertpapiers, zum heutigen Wechselkurs
+umgerechnet — und den **Währungsbeitrag** — die Wirkung des Wechselkurses auf
+den ursprünglich investierten Betrag. Zusammen ergeben sie exakt den gesamten
+Gewinn oder Verlust der Position in Basiswährung. Für Positionen in der
+Basiswährung ist der Währungsbeitrag exakt null. Eine Position, deren
+Zerlegung sich nicht aus den erfassten Buchungen ableiten lässt (etwa ein
+importierter währungsübergreifender Handel ohne gespeicherten Kurs am
+Buchungstag), zeigt einen Strich statt einer geratenen Zahl; die Aufgabe
+`mix portfolixir.backfill_settlement_legs` leitet die fehlenden Beine für
+historische Importe ab, sobald Kurse für die Buchungstage gespeichert sind.
+
 ## Klassifizierungen, Ziele und Allokation
 
 Wertpapiere können in **Klassifizierungsbäume** geordnet werden. Eigene Bäume

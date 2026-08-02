@@ -242,6 +242,19 @@ it out at the running average, and a security transfer carries the cost of the
 moved shares into the receiving depot. A delivery recorded without a price
 moves quantity at zero cost, since no own purchase cost is known for it.
 
+For a security quoted in another currency than the money that paid for it,
+each holding additionally splits its base-currency gain or loss into two
+named parts (ADR-0033): the **price return** — the change of the security's
+own price, converted at today's rate — and the **currency return** — the
+effect of the exchange rate on the amount originally invested. Together they
+equal the position's total gain or loss in the base currency, exactly. For
+positions in the base currency the currency return is exactly zero. A
+position whose split cannot be derived from the recorded bookings (for
+example an imported cross-currency trade with no stored rate at its booking
+date) shows a dash instead of a guessed number; the
+`mix portfolixir.backfill_settlement_legs` task derives the missing legs
+for historic imports once rates for the booking dates are stored.
+
 ## Classifications, Targets, and Allocation
 
 Securities can be organised into **classification trees**. Custom trees are

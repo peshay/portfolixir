@@ -267,18 +267,34 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  # `buy_price` stays the recorded transaction-currency price;
+  # `buy_price_native` is the security-currency basis the unrealized P&L is
+  # computed against (ADR-0033 — nil when no native leg is derivable, in
+  # which case the P&L is nil too, never a blind cross-currency comparison).
+  # The decomposition fields mirror `holding/2`, against the EUR hub.
   defp open_lot(lot) do
     %{
       open_date: date(lot.open_date),
       quantity: decimal(lot.quantity),
       original_quantity: decimal(lot.original_quantity),
       buy_price: decimal(lot.buy_price),
+      buy_price_native: decimal(lot.buy_price_native),
       buy_fees: decimal(lot.buy_fees),
       buy_taxes: decimal(lot.buy_taxes),
       latest_price: decimal(lot.latest_price),
       unrealized_pnl_abs: decimal(lot.unrealized_pnl_abs),
       unrealized_pnl_pct: decimal(lot.unrealized_pnl_pct),
-      currency_code: lot.currency_code
+      currency_code: lot.currency_code,
+      base_cost: decimal(lot.base_cost),
+      base_currency: lot.base_currency,
+      price_return_abs: decimal(lot.price_return_abs),
+      price_return_pct: decimal(lot.price_return_pct),
+      currency_return_abs: decimal(lot.currency_return_abs),
+      currency_return_pct: decimal(lot.currency_return_pct),
+      total_return_base_abs: decimal(lot.total_return_base_abs),
+      total_return_base_pct: decimal(lot.total_return_base_pct),
+      decomposed: lot.decomposed,
+      undecomposed_reason: reason(lot.undecomposed_reason)
     }
   end
 
@@ -341,13 +357,27 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   def holdings(holdings, portfolio_id) when is_list(holdings) do
     %{
-      # FR-13: state the currency basis and read date so a consumer knows the
-      # rows carry no FX conversion (see the valuation for base-currency totals).
-      # There is no stored snapshot, so `as_of` documents the read date.
+      # FR-13/ADR-0033: state the currency basis and read date so a consumer
+      # never has to assume which figure is in which currency. The label is
+      # enforced by the cost pair the ledger fold carries — no longer an
+      # assumption. There is no stored snapshot, so `as_of` documents the
+      # read date.
       currency_basis: "security_currency",
+      currency_basis_note: holdings_currency_basis_note(),
       as_of: date(Date.utc_today()),
       data: Enum.map(holdings, &holding(&1, portfolio_id))
     }
+  end
+
+  defp holdings_currency_basis_note do
+    "cost_basis, avg_cost, latest_price, market_value and unrealized_pnl_* " <>
+      "are in each security's own currency (currency_code). base_cost is the " <>
+      "settlement-leg amount actually paid, and price_return_*/" <>
+      "currency_return_*/total_return_base_* are in base_currency; total = " <>
+      "price + currency exactly (ADR-0033). decomposed false with " <>
+      "undecomposed_reason (missing_native_cost | missing_base_cost | " <>
+      "missing_fx | no_price) marks a row whose figure is honestly " <>
+      "unavailable, never guessed."
   end
 
   def holding(holding, portfolio_id) do
@@ -365,9 +395,25 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       latest_price: decimal(holding.latest_price),
       market_value: decimal(holding.market_value),
       unrealized_pnl_abs: decimal(holding.unrealized_pnl_abs),
-      unrealized_pnl_pct: decimal(holding.unrealized_pnl_pct)
+      unrealized_pnl_pct: decimal(holding.unrealized_pnl_pct),
+      # ADR-0033: the base-currency P&L decomposition (strings, full
+      # precision); nil components with decomposed false and a named reason
+      # when not derivable — honesty over availability.
+      base_cost: decimal(holding.base_cost),
+      base_currency: holding.base_currency,
+      price_return_abs: decimal(holding.price_return_abs),
+      price_return_pct: decimal(holding.price_return_pct),
+      currency_return_abs: decimal(holding.currency_return_abs),
+      currency_return_pct: decimal(holding.currency_return_pct),
+      total_return_base_abs: decimal(holding.total_return_base_abs),
+      total_return_base_pct: decimal(holding.total_return_base_pct),
+      decomposed: holding.decomposed,
+      undecomposed_reason: reason(holding.undecomposed_reason)
     }
   end
+
+  defp reason(nil), do: nil
+  defp reason(reason) when is_atom(reason), do: Atom.to_string(reason)
 
   def holdings_by_security(%{holdings: holdings} = report) do
     %{

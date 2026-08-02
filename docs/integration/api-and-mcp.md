@@ -351,14 +351,28 @@ Example account payloads:
   moving-average `avg_cost` and `cost_basis` (price-based, so fees and taxes are
   not folded into the unit cost), the `latest_price`, `market_value`, and
   `unrealized_pnl_abs`/`unrealized_pnl_pct` against that price, plus
-  `security_name` and `currency_code`. All monetary figures are in the security's
-  own currency (no FX conversion — see the valuation for base-currency totals); a
-  holding whose security has no quote returns `null` price, market value and P&L.
-  The response is self-describing (FR-13): it carries `currency_basis:
-  "security_currency"` (so a client never has to assume whether FX was applied)
-  and an `as_of` date. Holdings are derived on read with no stored snapshot, so
-  `as_of` is the read date. Unknown portfolios return `404 Not Found`. Optional
-  filters: `security_id`, `securities_account_id`.
+  `security_name` and `currency_code`. Those figures are in the security's
+  **own** currency — enforced by the cost pair the ledger fold carries
+  (ADR-0033), no longer an assumption; a holding whose security has no quote
+  returns `null` price, market value and P&L. Each row additionally carries
+  the ADR-0033 base-currency P&L decomposition: `base_cost` (the
+  settlement-leg amount actually paid, with its `base_currency`),
+  `price_return_abs`/`price_return_pct` (the security's own price move,
+  converted at today's rate), `currency_return_abs`/`currency_return_pct`
+  (the FX effect on the amount originally invested) and
+  `total_return_base_abs`/`total_return_base_pct` — with
+  `total = price + currency` holding Decimal-exactly. A row whose
+  decomposition is not derivable reports `decomposed: false` with an
+  `undecomposed_reason` (`"missing_native_cost"` — no security-currency leg
+  in the recorded booking, in which case `cost_basis`/`avg_cost`/P&L are
+  `null` too; `"missing_base_cost"` — the settlement leg is not in the base
+  currency; `"missing_fx"` — no stored current rate; `"no_price"`), never a
+  guessed number. The response is self-describing (FR-13): it carries
+  `currency_basis: "security_currency"` plus a `currency_basis_note` naming
+  which field is in which currency, and an `as_of` date. Holdings are derived
+  on read with no stored snapshot, so `as_of` is the read date. Unknown
+  portfolios return `404 Not Found`. Optional filters: `security_id`,
+  `securities_account_id`.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
@@ -808,7 +822,15 @@ church tax withheld at a zero church-tax rate.
   `GET`/`POST /api/v1/portfolios` (the Gesamt cash target).
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
-  period in days) and any orphan sells. The response is self-describing (FR-13):
+  period in days) and any orphan sells. Each open lot carries `buy_price` (as
+  recorded, transaction currency) plus `buy_price_native` — the
+  security-currency basis its `unrealized_pnl_*` is computed against
+  (ADR-0033) — and the same base-currency decomposition fields as the
+  holdings rows (`base_cost`, `price_return_*`, `currency_return_*`,
+  `total_return_base_*`, `decomposed`/`undecomposed_reason`, against the EUR
+  hub, since FIFO lots are matched per security across portfolios). A lot
+  with no derivable native leg reports `null` P&L instead of a blind
+  cross-currency figure. The response is self-describing (FR-13):
   it carries `method: "fifo"`, so a client never has to assume how lots were
   paired against sells. Optional `from`/`to` (ISO dates) filter each leg by its
   own date: open lots by open date, closed round-trips by close date, orphan

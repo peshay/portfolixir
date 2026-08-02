@@ -1835,7 +1835,7 @@ const toolDefinitions: ToolDefinition[] = [
     splitRequestSchema,
     splitRequestZ()
   ),
-  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings in each security's own currency (no FX conversion), with moving-average cost basis, latest price, market value and unrealized P&L. Each row carries the security's stable identifiers isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
+  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings with moving-average cost basis, latest price, market value and unrealized P&L in each security's OWN currency, plus the ADR-0033 base-currency P&L decomposition per row: base_cost (the settlement-leg amount actually paid, in base_currency), price_return_* (the security's own price move at today's rate), currency_return_* (the FX effect on the invested amount) and total_return_base_* — total = price + currency exactly. decomposed false with undecomposed_reason (missing_native_cost | missing_base_cost | missing_fx | no_price) marks a row whose figure is honestly unavailable, never guessed; the response's currency_basis_note states which field is in which currency. All financial values are Decimal strings. Each row carries the security's stable identifiers isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
@@ -1876,7 +1876,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.trades.list",
     "List trades",
-    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells, with realized P&L per FIFO-matched round-trip. For unrealized P&L on current positions use portfolixir.holdings.list. Optional from/to (ISO dates) filter each leg by its own date.",
+    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells, with realized P&L per FIFO-matched round-trip. Each open lot carries buy_price (as recorded, transaction currency) plus buy_price_native — the security-currency basis its unrealized P&L is computed against (ADR-0033) — and the same base-currency decomposition fields as portfolixir.holdings.list (base_cost, price_return_*, currency_return_*, total_return_base_*, decomposed/undecomposed_reason, against the EUR hub). A lot with no derivable native leg reports null P&L instead of a blind cross-currency figure. For unrealized P&L on current positions use portfolixir.holdings.list. Optional from/to (ISO dates) filter each leg by its own date.",
     {
       type: "object",
       additionalProperties: false,

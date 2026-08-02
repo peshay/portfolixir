@@ -353,15 +353,31 @@ Beispiel-Payloads für Konten:
   `quantity`, einen gleitenden Durchschnitt `avg_cost` und `cost_basis`
   (preisbasiert, sodass Gebühren und Steuern nicht in die Stückkosten einfließen),
   den `latest_price`, `market_value` und `unrealized_pnl_abs`/`unrealized_pnl_pct`
-  gegen diesen Preis, plus `security_name` und `currency_code`. Alle monetären
-  Größen sind in der eigenen Währung des Wertpapiers (keine FX-Umrechnung — siehe
-  die Bewertung für Summen in Basiswährung); ein Bestand, dessen Wertpapier keinen
-  Kurs hat, liefert `null` für Preis, Marktwert und G/V. Die Antwort ist
-  selbstbeschreibend (FR-13): sie trägt `currency_basis: "security_currency"`
-  (sodass ein Client nie annehmen muss, ob FX angewendet wurde) und ein
-  `as_of`-Datum. Bestände werden beim Lesen abgeleitet, ohne gespeicherten
-  Snapshot, daher ist `as_of` das Lesedatum. Unbekannte Portfolios liefern
-  `404 Not Found`. Optionale Filter: `security_id`, `securities_account_id`.
+  gegen diesen Preis, plus `security_name` und `currency_code`. Diese Größen
+  sind in der **eigenen** Währung des Wertpapiers — durch das Kostenpaar der
+  Ledger-Faltung erzwungen (ADR-0033), nicht länger eine Annahme; ein
+  Bestand, dessen Wertpapier keinen Kurs hat, liefert `null` für Preis,
+  Marktwert und G/V. Jede Zeile trägt zusätzlich die
+  ADR-0033-Zerlegung des G/V in Basiswährung: `base_cost` (der tatsächlich
+  gezahlte Abrechnungsbetrag, mit seiner `base_currency`),
+  `price_return_abs`/`price_return_pct` (die eigene Kursbewegung des
+  Wertpapiers, zum heutigen Kurs umgerechnet),
+  `currency_return_abs`/`currency_return_pct` (der Wechselkurseffekt auf den
+  ursprünglich investierten Betrag) und
+  `total_return_base_abs`/`total_return_base_pct` — wobei
+  `total = price + currency` Decimal-exakt gilt. Eine Zeile, deren Zerlegung
+  nicht ableitbar ist, meldet `decomposed: false` mit einem
+  `undecomposed_reason` (`"missing_native_cost"` — kein
+  Wertpapierwährungs-Leg in der erfassten Buchung, dann sind auch
+  `cost_basis`/`avg_cost`/G/V `null`; `"missing_base_cost"` — das
+  Abrechnungs-Leg ist nicht in der Basiswährung; `"missing_fx"` — kein
+  gespeicherter aktueller Kurs; `"no_price"`) und niemals eine geratene
+  Zahl. Die Antwort ist selbstbeschreibend (FR-13): sie trägt
+  `currency_basis: "security_currency"` plus eine `currency_basis_note`, die
+  benennt, welches Feld in welcher Währung ist, und ein `as_of`-Datum.
+  Bestände werden beim Lesen abgeleitet, ohne gespeicherten Snapshot, daher
+  ist `as_of` das Lesedatum. Unbekannte Portfolios liefern `404 Not Found`.
+  Optionale Filter: `security_id`, `securities_account_id`.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
@@ -690,7 +706,15 @@ Beispiel-Payloads für Konten:
   (das Gesamt-Cash-Ziel).
 - `GET /api/v1/securities/:security_id/trades` liefert FIFO-gematchte Trades eines
   Wertpapiers: offene Lots, geschlossene Round-Trips (mit realisiertem G/V und
-  Haltedauer in Tagen) und etwaige verwaiste Verkäufe. Die Antwort ist
+  Haltedauer in Tagen) und etwaige verwaiste Verkäufe. Jedes offene Lot trägt
+  `buy_price` (wie erfasst, Transaktionswährung) plus `buy_price_native` — die
+  Basis in Wertpapierwährung, gegen die sein `unrealized_pnl_*` gerechnet wird
+  (ADR-0033) — und dieselben Zerlegungsfelder in Basiswährung wie die
+  Bestandszeilen (`base_cost`, `price_return_*`, `currency_return_*`,
+  `total_return_base_*`, `decomposed`/`undecomposed_reason`, gegen den
+  EUR-Hub, da FIFO-Lots je Wertpapier über Portfolios hinweg gematcht
+  werden). Ein Lot ohne ableitbares Wertpapierwährungs-Leg meldet `null`-G/V
+  statt eines blinden währungsübergreifenden Vergleichs. Die Antwort ist
   selbstbeschreibend (FR-13): sie trägt `method: "fifo"`, sodass ein Client nie
   annehmen muss, wie Lots gegen Verkäufe gepaart wurden. Optionales `from`/`to`
   (ISO-Daten) filtert jedes Bein nach seinem eigenen Datum: offene Lots nach
