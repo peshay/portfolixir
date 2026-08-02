@@ -112,7 +112,7 @@ The securities list accepts an **"is unclassified"** filter on the asset-class
 column (`operator: :is_nil`). It returns all rows where the stored value is nil
 and `effective_asset_class` also returned nil — i.e. the heuristics have no
 confident match. For each such row the asset-class cell shows an inline
-**quick-assign** dropdown so you can set the class directly from the list
+**quick-assign** dropdown, so the class can be set directly from the list
 without opening the security detail page.
 
 A stored class is a permanent override: once set it is returned by
@@ -233,7 +233,7 @@ Current holdings are not entered manually. They are derived from all
 transactions over time, so the state is reproducible and traceable. Held
 quantities move with buys and sells, with inbound/outbound **deliveries**
 (shares entering or leaving without a cash leg, e.g. a depot transfer from
-another bank), and with **security transfers** between your own depots. Each
+another bank), and with **security transfers** between own depots. Each
 holding also carries a moving-average cost basis and the unrealized
 profit/loss (absolute and percentage) against the latest stored price, in the
 security's own currency. The cost basis follows the shares: buys (and inbound
@@ -279,10 +279,10 @@ targets are stored; the actual side is derived from the live valuation on read.
 ### Editing a target plan on the Classifications page
 
 Target weights are not global: a **target plan belongs to a view** (see ADR-0020).
-You edit a plan on the **Classifications page**, in the **Target plan**
+A plan is edited on the **Classifications page**, in the **Target plan**
 section of a custom tree's detail pane. At the top of that section a **view
 selector** ("Target plan for view: [Gesamt ▾]" / German *Soll-Plan für Sicht*)
-chooses which plan you are editing; the default **Gesamt** is the portfolio-wide
+chooses the plan being edited; the default **Gesamt** is the portfolio-wide
 plan that behaves like a single global target set. Switching the selector loads
 that `(view, classification)` plan's stored weights and cash target — Gesamt and
 each named view carry **independent** plans, so the same tree can hold a
@@ -293,12 +293,13 @@ The states are:
 - **No plan yet.** The section shows an empty state with **Create plan**
   (*Plan anlegen*) and, when another view already has a plan for this tree, an
   **Copy from another view…** (*Aus anderer Sicht übernehmen…*) picker that
-  prefills the editor from that source plan. Nothing is written until you save.
+  prefills the editor from that source plan. Nothing is written until the
+  plan is saved.
 - **A plan exists.** Each category gets a **Target %** input and there is a
   **Cash** target input below them; **Save plan** writes the whole
   `(view, classification)` plan at once. A live **Σ** footer sums the category
   weights plus the cash target and shows a ✓ at exactly 100% or a ✗ with the
-  yellow mismatch cue otherwise, updating as you type.
+  yellow mismatch cue otherwise, updating on input.
 - **Delete plan** (*Plan löschen*) removes the view's plan; the Wealth page
   then falls back to **actual-only** (no target, no drift) for that view.
 
@@ -310,8 +311,8 @@ parameter.
 ### Plan versions: duplicate, draft, activate
 
 Since ADR-0027 a plan is a **named version** with a status — *active*, *draft*
-or *archived* — and a scope carries at most one active plan. This is how you
-restructure a strategy without losing the old plan:
+or *archived* — and a scope carries at most one active plan. This is how a
+strategy is restructured without losing the old plan:
 
 - **Duplicate plan** (*Plan duplizieren*) copies the current plan (category
   weights and cash target) into a **draft**; the editor switches to it and a
@@ -334,16 +335,16 @@ restructure a strategy without losing the old plan:
 Every plan write is recorded in the audit journal.
 
 > **Migration note (ADR-0020).** The move to per-view plans is **loss-free**:
-> any target weights and the former portfolio-wide cash target you already had
-> become your **Gesamt** plan (`view = null`). Nothing changes in behaviour —
-> your existing setup simply appears under *Gesamt*, and the Wealth page reads
+> any pre-existing target weights and the former portfolio-wide cash target
+> become the **Gesamt** plan (`view = null`). Nothing changes in behaviour —
+> the existing setup simply appears under *Gesamt*, and the Wealth page reads
 > it under the **Total** view exactly as before. Named views start with **no
-> plan** until you create or copy one.
+> plan** until one is created or copied.
 
 To keep a position **out of the allocation steering basis** while it still counts
-toward your total wealth — for example a Bitcoin held as a long-term store of
+toward total wealth — for example a Bitcoin held as a long-term store of
 value rather than part of the steered mix — tag the security with a **bucket** and
-**exclude that bucket from the strategy view**, then look at allocation under
+**exclude that bucket from the strategy view**, then read allocation under
 that view. The position then falls outside the view's scope: it disappears from
 the 100% and the drift table, raising every other category's actual percentage
 consistently, while total value, holdings, and performance (read without the
@@ -352,15 +353,15 @@ allocation targets" flag; see ADR-0013/ADR-0018.)
 
 Classification trees are **hierarchical**, and the allocation rolls them up: a
 position assigned to a sub-category counts toward that sub-category **and every
-parent above it**. So if *Growth* holds a 50% target and you only assign
-holdings to its sub-categories (*Tech*, *Emerging*, …), *Growth*'s actual
+parent above it**. So if *Growth* holds a 50% target and holdings are assigned
+only to its sub-categories (*Tech*, *Emerging*, …), *Growth*'s actual
 weight is their sum — not 0% — and its drift is measured against that sum. The
 drift table lists categories in tree order with sub-categories indented under
 their parent; because each parent already includes its children, the displayed
 actual percentages add up to 100% only across the leaves (plus unassigned),
 not across every level.
 
-Targets stay **loose on purpose**: you can set a weight at the top level and at
+Targets stay **loose on purpose**: a weight can be set at the top level and at
 sub-levels without the app forcing them to add up. To keep that freedom while
 making divergence visible, the Wealth page shows two **advisory consistency
 hints** — read-only, never blocking a save:
@@ -407,7 +408,7 @@ stored against a EUR hub (with European Central Bank sync), and other pairs are
 triangulated through it. The live portfolio valuation converts each position's
 market value and each cash balance into the portfolio base currency.
 
-A security without any quote yet is priced at your **latest own trade price
+A security without any quote yet is priced at the **latest own trade price
 across all portfolios** — a buy or sell is a price observation, exactly how
 Portfolio Performance seeds prices from bookings — so a freshly imported
 portfolio is not valued at zero while quotes are still being fetched. The
@@ -435,22 +436,22 @@ same way.
 Cash is part of the portfolio, not an afterthought. Each portfolio has one or
 more cash accounts, and the live valuation reports the **total cash**, the
 **total including cash**, and the **cash quote** — cash as a share of the whole
-portfolio — so you can see your liquidity and dry powder at a glance, converted
+portfolio — liquidity and dry powder at a glance, converted
 into the portfolio base currency.
 
 A depot's settlement cash stays up to date on its own: buys, sells, dividends,
-interest, fees and taxes move it as you record those transactions, so the cash
-that belongs to investing needs no separate upkeep.
+interest, fees and taxes move it as those transactions are recorded, so the
+cash that belongs to investing needs no separate upkeep.
 
 For external accounts (a current account, savings, a business account), the goal
-is visibility without bookkeeping. Instead of mirroring every booking, you **set
-an account's balance directly** — type the figure your banking app shows as a
-dated **snapshot** (the set-balance form on the Wealth page,
+is visibility without bookkeeping. Instead of mirroring every booking, an
+account's **balance is set directly** — the figure the banking app shows,
+entered as a dated **snapshot** (the set-balance form on the Wealth page,
 `POST /api/v1/cash_accounts/:id/balance`, or the `cash_accounts.set_balance`
 MCP tool). The balance then anchors to that amount,
 and only bookings dated strictly after the snapshot change it; so moving money
-between your own accounts needs no transfer entry — you just restate each
-balance now and then. The amount may be negative (an overdraft), and the same
+between own accounts needs no transfer entry — each balance is simply restated
+now and then. The amount may be negative (an overdraft), and the same
 snapshot can later be filled automatically over the API (a script or a read-only
 bank export) — without turning Portfolixir into a banking app. This follows the
 design recorded in
@@ -465,7 +466,7 @@ visible but excluded bucket, e.g. a business account). Only free-cash accounts
 with a non-negative balance count as deployable cash and enter the cash quote;
 a credit line never counts (even when its balance is positive — type beats
 sign), and a reserve is always excluded. Every account still shows in the total
-cash, so a drawn credit line correctly reduces your net worth, but the quote is
+cash, so a drawn credit line correctly reduces net worth, but the quote is
 computed over deployable cash only and never reports fake liquidity. The
 Wealth page mutes non-deployable rows and labels them with their role.
 
@@ -474,7 +475,7 @@ Wealth page mutes non-deployable rows and labels them with their role.
 The **Overview** entry (the start page) answers "did anything change, does
 anything need me?" (ADR-0022). With an empty database it is the onboarding
 wizard (the ordered workflow path plus entity counts). Once transactions
-exist it shows one **value card scoped to your default view** — **Everything**
+exist it shows one **value card scoped to the default view** — **Everything**
 when none is set (ADR-0024: views, not portfolios, are what the dashboard
 aggregates over) — with the total incl. cash, the **YTD TTWROR** as the
 change signal and the cash quote, a **Needs attention** list — every targeted category whose
@@ -528,14 +529,14 @@ acting on it stays entirely manual.
 
 **Position targets show in the plan (ADR-0030 slice 2a).** When the active
 plan carries per-position SOLL weights, each such position row shows its own
-target and its own drift (actual weight minus its target), and a position you
-have set a SOLL on but **do not own yet** still appears — with IST 0, a *not
+target and its own drift (actual weight minus its target), and a position with
+a SOLL set but **no holdings yet** still appears — with IST 0, a *not
 held* marker (inside a named view it reads *not held in this view*, since the
 view says nothing about the whole depot), the full underweight drift, and a
 buy hint priced at the latest stored quote — the hint's tooltip names the
 quote date it is priced at. Without any quote a *no quote* chip explains the
-missing unit hint (add a price to get one). "Held" means you hold the
-position at all: a held security whose price cannot be determined keeps its
+missing unit hint (add a price to get one). "Held" means the position is held
+at all: a held security whose price cannot be determined keeps its
 data-quality hints and is never re-labelled *not held*. A position row is
 hidden only when its SOLL is 0 or absent **and** its holdings are zero. The
 category's Target column then shows the **effective** target — the sum of its
@@ -547,7 +548,7 @@ held-but-unassigned security with a (stale) position target shows that target
 on its row in the *Unassigned* bucket too. When no top-level category carries
 a target but deeper categories do, the Σ header adds the deeper targets'
 sum ("targets deeper in the tree") instead of showing a bare 0%. The cash section lists each account's balance and carries
-the **set-balance form**: type the balance your bank shows and the snapshot is
+the **set-balance form**: enter the balance the bank shows and the snapshot is
 recorded without booking individual transactions.
 
 **The page scopes to a view (ADR-0024).** The header totals and the cash
@@ -557,10 +558,10 @@ counted exactly once. Pick a view in the **view switcher** at the top of the
 page — its **Manage…** link opens the Views page where views and their
 buckets are edited; **Set as default** (*Als Standard festlegen*) remembers the choice
 server-side, so the Wealth page and the Overview page open on that view
-whenever you have not explicitly picked another (an explicit pick — including
+whenever no other view has been explicitly picked (an explicit pick — including
 Everything — always wins). When the active view's buckets share an account, a
 badge next to the total — *Overlapping buckets — accounts counted once* —
-reminds you that per-bucket figures overlap and must not be summed; the total
+states that per-bucket figures overlap and must not be summed; the total
 itself is already deduplicated. View-scoped performance series carry the label
 *Composition as of today* (*Zusammensetzung per heute*): the view's current
 bucket membership applies retroactively to the whole history, and bucket
@@ -579,20 +580,20 @@ are in the [Buckets & Views Guide](guides/buckets-and-views.html).
 Target, Drift and *Σ target top level* columns reflect the **active view's plan**
 for the selected classification — actual and target always move together. Switch the
 **view switcher** at the top of the page and both sides swap to that view's plan
-at once, so you never see two plans mixed into a >100% Σ or a ghost row. The
+at once, so two plans are never mixed into a >100% Σ or a ghost row. The
 built-in **Everything** view (formerly labelled *Total*) reads the
 portfolio-wide **Gesamt** plan. A subtle dot on
 a view-switcher chip marks the views that already carry a plan for the current
-classification, so you can tell the steered views from the actual-only ones at a
+classification, so steered views and actual-only ones are distinguishable at a
 glance.
 
 **No plan for the active view?** When the active view has no plan for the
 selected classification, the allocation stays **actual-only**: the sunburst and the
-Value/Actual columns still show your actual allocation, but there are no Target,
+Value/Actual columns still show the actual allocation, but there are no Target,
 Drift or Σ columns. In their place a hint — *No target plan for this view*
 (German *Kein Soll-Plan für diese Sicht*) — explains the empty target side and
 **deep-links into the Classifications plan editor with that view and
-classification already selected**, so you can create the plan without re-picking
+classification already selected**, so the plan can be created without re-picking
 either. The cash row's target likewise comes from the active view's plan cash
 target (or shows a dash when none is set).
 
@@ -610,11 +611,11 @@ otherwise silently skew the figures: positions valued at their last trade
 price because no quote exists yet, positions with no price at all (excluded
 from the totals, listed by name), positions whose price is known but that
 lack an exchange rate to the base currency (excluded from the totals; listed
-with their native price so you can see what a rate sync would bring in),
+with their native price, showing what a rate sync would bring in),
 securities whose derived holding quantity is **negative** — impossible for a
 real holding, usually import debris from an unmodeled corporate action —
 listed per depot with the security's total across all depots and linked to
-the security's transactions so you can repair the history (nothing is
+the security's transactions so the history can be repaired (nothing is
 repaired automatically; the split wizard remains the only guided repair),
 and bookings with implausible dates (before 1970) that were applied on the
 first plausible day instead. Negative-quantity positions are also marked
@@ -625,7 +626,7 @@ table, in the classification tree and on the security's holdings tab.
 
 Portfolixir reports the **true time-weighted rate of return** the way Portfolio
 Performance does: the portfolio is valued every day from the first transaction
-onward, money you put in or take out (deposits, removals, deliveries, and
+onward, money put in or taken out (deposits, removals, deliveries, and
 balance-snapshot jumps) is neutralised, and the daily returns are chained. The
 result measures how well the **investments** performed, regardless of when cash
 moved — dividends, interest, fees and taxes count as part of the return.
@@ -653,7 +654,7 @@ a near-zero TTWROR.
 Next to it Portfolixir shows the **money-weighted return (IRR)** — the single
 annualised rate that discounts the period's dated deposits, withdrawals and the
 terminal value back to zero, the figure Portfolio Performance shows beside
-TTWROR. Where TTWROR ignores the timing of your cash, the IRR reflects it, so
+TTWROR. Where TTWROR ignores the timing of cash flows, the IRR reflects it, so
 the two read differently when money moved at good or bad moments. The IRR shows
 `—` when there is no rate to compute (no flows of both signs, or the solver does
 not converge).
@@ -681,7 +682,7 @@ card serves its last known YTD figure the same way. (ADR-0032.)
 ## Income (dividends and interest)
 
 The **Income** page is the retrospective income report: the dividends and
-interest already booked in your ledger, with no external data or forecast. It
+interest already booked in the ledger, with no external data or forecast. It
 shows an **annual overview** — a year × month matrix split into a *Dividends* and
 an *Interest* series, each year with a totals column — and a **per-position
 table** with, for each security, the gross paid, the withheld tax, the net, the
@@ -707,7 +708,7 @@ trade on, and come back to compare.
 A snapshot is a pure **ledger marker** — a name, a scope (a bucket view or
 *Everything*) and an as-of date. It copies **no** transactions, quantities or
 prices: the state it represents is derived from the transaction ledger on
-demand, so a snapshot can never drift from your data, and deleting one never
+demand, so a snapshot can never drift from the data, and deleting one never
 touches a transaction. Names are unique per scope and the as-of date cannot
 lie in the future.
 
@@ -717,7 +718,7 @@ lie in the future.
   as-of date and valued today, buy-and-hold over the real stored quote history
   (daily closes, EUR-hub exchange rates of each day).
 - **Snapshot return (price)** vs. **Real TTWROR since** — the frozen set's
-  price return against your real time-weighted performance since the as-of
+  price return against the real time-weighted performance since the as-of
   date. TTWROR neutralises deposits and withdrawals, so fresh money does not
   distort the comparison.
 - A chart with both series **indexed to 100%** on the as-of date (solid =
@@ -738,26 +739,26 @@ budget** off it: how much realised equity gain is still free of
 Kapitalertragsteuer at that institution.
 
 **These numbers are recorded, never derived.** Portfolixir cannot compute the
-German tax pots from your ledger, and does not try — but not for the reason you
-might expect. Portfolixir *does* match lots **FIFO**, the method German
+German tax pots from the ledger, and does not try — but not for the obvious
+reason. Portfolixir *does* match lots **FIFO**, the method German
 capital-gains taxation mandates: the [trade
 list](integration/api-and-mcp.html) reports which stock each sale consumed and
 at what cost. (Holdings valuation separately uses a running average, because
 "what did my position cost on average" is a different question; ADR-0004 /
 ADR-0011.)
 
-What FIFO gives you is a **gross gain** — and a gross gain is not a tax pot.
-Four things stand between them, and none is in your transaction data:
+What FIFO yields is a **gross gain** — and a gross gain is not a tax pot.
+Four things stand between them, and none is in the transaction data:
 Teilfreistellung (the partial exemption by fund type), Vorabpauschale, the
-chronological order in which your allowance was consumed across *all* income at
-that bank, and certified loss carry-forward from years before your first
+chronological order in which the allowance was consumed across *all* income at
+that bank, and certified loss carry-forward from years before the first
 recorded booking. On top of that, the pots are kept by the bank per
 **tax-reporting institution**, and Portfolixir models depots, not institutions.
 A derived pot would therefore be wrong, and invisibly so — so the statement is
 transcribed instead. **The recorded statement remains the authority, and none
 of this is tax advice.**
 
-What you record, per institution, taxpayer, tax year and statement date: the
+What is recorded, per institution, taxpayer, tax year and statement date: the
 taxable investment income, the allowance granted and used, the equity and other
 loss pots, the certified loss carry-forward, the foreign-withholding pot and
 the amount credited, and the withheld Kapitalertragsteuer, Solidaritätszuschlag
@@ -774,7 +775,7 @@ the paper.
 **The trim budget** is the equity loss pot plus the remaining allowance
 (`granted − used`). It is always shown **with its as-of date** and marked
 **stale** as soon as a later day exists: dividends and interest consume the
-allowance chronologically, so the figure decays without any action by you.
+allowance chronologically, so the figure decays without any action.
 Across institutions it rolls up per taxpayer and year — always naming which
 institutions it covers, quoting the as-of of its **oldest** component, and
 marking itself **incomplete** when an institution has a configured
@@ -798,8 +799,8 @@ absorbs the cents that legitimately accumulate from per-settlement rounding.
 ceilings are **year-scoped data**, seeded for 2009–2026 — the allowance changed
 from 801/1.602 € to 1.000/2.000 € in 2023, so an older statement is checked
 against the law that actually applied to it. A year with no data is reported as
-missing rather than approximated from a neighbouring year. Your own situation
-is an **effective-dated profile** per taxpayer: church-tax liability (defaulting
+missing rather than approximated from a neighbouring year. The personal
+situation is an **effective-dated profile** per taxpayer: church-tax liability (defaulting
 to *not liable*) and single or joint assessment. A snapshot freezes the
 church-tax rate in force at its statement date, so editing the profile later
 changes future entries and never rewrites a recorded one.
@@ -824,9 +825,8 @@ bucket. The internal portfolio binding happens automatically and never needs a
 choice (see the Portfolios section).
 
 The parsed preview and account mapping are preserved in memory across language
-switches. If you switch the UI language while reviewing an import, the app
-returns you to the confirmation step with your mapping intact — no re-upload
-required.
+switches. Switching the UI language while reviewing an import returns to the
+confirmation step with the mapping intact — no re-upload required.
 
 Parser warnings appear in a scrollable box with a copy button. The copied text
 uses stable `Row N: message` lines so the diagnostics can be kept with the
@@ -1024,8 +1024,8 @@ naming the already-booked event) stays inline in the dialog.
   trade price, like the portfolio valuation). Holdings and values are loaded
   **once** for the whole tree after the page connects, so a large tree never
   triggers a query per row.
-- A **Current positions only** toggle is on by default. It hides securities you
-  no longer hold (zero current quantity) so legacy or fully sold assignments do
+- A **Current positions only** toggle is on by default. It hides securities no
+  longer held (zero current quantity) so legacy or fully sold assignments do
   not clutter the tree. Nothing is silently dropped: each category shows a
   **+N without holdings** counter for the hidden securities, and turning the
   toggle off reveals them again.

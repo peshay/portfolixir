@@ -220,7 +220,7 @@ Example quote sync response:
   "4250.00"}` (`notes` optional); `amount` is a decimal string and may be
   negative (an overdraft). It stores a `balance_adjustment` transaction and
   returns it. The balance then anchors to that amount and only bookings dated
-  strictly after the snapshot change it, so moving money between your own
+  strictly after the snapshot change it, so moving money between own
   accounts needs no transfer entry. Unknown accounts return `404 Not Found`.
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
   object. `portfolio_id` is optional (ADR-0024): when omitted, the account is
@@ -408,7 +408,7 @@ Example account payloads:
   reports: `matched` rows (one per security — rows resolving to the same
   security are aggregated with their external quantities summed and the
   contributing rows listed), ordered by the **lowest input row index** each
-  match aggregates so a finding maps back to the line you sent, each embedding
+  match aggregates so a finding maps back to the submitted line, each embedding
   the security's identity only (`id`, `name`, `ticker_symbol`, `isin`, `wkn`,
   `currency_code`), with the `matched_via` tier (`isin`,
   `former_isin`, `wkn`, `ticker`, `name`, or `pinned`), `ledger_quantity`,
@@ -544,7 +544,7 @@ Example account payloads:
   position sum disagree, surfacing the mismatch). Each position row also carries
   `stale` (`true` when its security no longer sits under the stored category —
   reclassified or unassigned; the row still counts where it was filed, re-filing
-  it is your move) and each roll-up `has_stale`. Weights are Decimal strings.
+  is the remedy) and each roll-up `has_stale`. Weights are Decimal strings.
   Optional `classification_id` / `view` scope as above.
 - `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
   removes one position target and returns `{deleted}`. The category row and the
@@ -734,7 +734,7 @@ church tax withheld at a zero church-tax rate.
   targets **plus the cash target** (except for the currency classification where
   cash is distributed into categories), compared against `1`. To keep a holding
   out of the steering basis while it still counts toward total wealth, tag it
-  with a bucket and exclude that bucket from the `view` you read allocation
+  with a bucket and exclude that bucket from the `view` the allocation is read
   under — it then falls outside the scoped positions. Since ADR-0020 the **target**
   side reflects the **active view's plan**: passing `view=<id>` reports that
   view's target weights, cash target and `top_level_target_sum` (omitting it uses
@@ -826,7 +826,7 @@ Classification trees organise securities like folders. Built-in trees
 (`asset_class`, `currency`) are derived automatically and their structure is
 locked; editing the structure of a built-in tree returns `422 Unprocessable
 Entity`. The **asset-class** tree's membership, however, is just a view of each
-security's `asset_class` field: in the UI you can drag a security between its
+security's `asset_class` field: in the UI a security is dragged between its
 categories (which sets that field), and the same effect is achieved over the API
 with `PATCH /api/v1/securities/:id` (`{"security": {"asset_class": "etf"}}`) or
 the `securities.update` MCP tool. Set it to empty/`null` for "automatic", which
