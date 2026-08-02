@@ -986,6 +986,18 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     end
   end
 
+  @doc """
+  The cross-portfolio view performance (#577): the `performance/2` shape keyed
+  by `view_id` instead of `portfolio_id`, covering the deduplicated account
+  scope the view valuation covers.
+  """
+  def view_performance(result, include_series? \\ false) do
+    result
+    |> performance(include_series?)
+    |> Map.delete(:portfolio_id)
+    |> Map.put(:view_id, result.view_id)
+  end
+
   defp performance_point(point) do
     %{
       date: date(point.date),

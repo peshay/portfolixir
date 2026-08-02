@@ -924,6 +924,15 @@ writes are deliberately not journaled (ADR-0018 §5).
   `securities_account_ids`/`cash_account_ids` carrying more than one included
   bucket — the totals are already deduplicated). The active view is echoed as
   `view: {id, name}`. Unknown and malformed view ids return `404`.
+- `GET /api/v1/views/:view_id/performance` returns the view's TTWROR and
+  money-weighted IRR **across all portfolios**: exactly the deduplicated
+  account scope the view valuation covers, so the total and the return always
+  speak about the same accounts. Money crossing the view boundary counts as an
+  external flow (ADR-0019); money moving between two in-scope accounts nets
+  out. `?period=` (`ytd|1y|3y|5y|max`, default `max`) and `?series=true`
+  behave like the portfolio performance endpoint; the shape mirrors it with
+  `view_id` in place of `portfolio_id`, and all financial values are Decimal
+  strings. Unknown and malformed view ids return `404`; a bad period `422`.
 - `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
   bucket set (the buckets each position inherits unless overridden). Body:
   `{"bucket_ids": [..]}`. At most one of the ids may be a scope-dimension
@@ -1083,6 +1092,7 @@ in MCP schemas are strings.
 - `portfolixir.views.delete`
 - `portfolixir.views.set_buckets`
 - `portfolixir.views.valuation`
+- `portfolixir.views.performance`
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
@@ -1121,6 +1131,9 @@ matching that bucket view; the response then echoes the active view.
 `portfolixir.views.valuation` values a view **across all portfolios** in one
 call (each matching account counted once, EUR totals, `overlap` badge data) —
 use it instead of summing per-portfolio valuations client-side.
+`portfolixir.views.performance` computes the matching cross-portfolio
+TTWROR/IRR for the same account scope, with boundary-crossing money treated
+as an external flow (ADR-0019).
 `portfolixir.settings.get_default_view` / `portfolixir.settings.set_default_view`
 read and set the default-view preference (ADR-0024): pass a `view_id` to pin a
 view, or `null`/omit it to clear back to the built-in Everything scope.

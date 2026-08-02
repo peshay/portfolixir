@@ -89,10 +89,6 @@ defmodule PortfolixirWeb.PortfolioLive do
         socket =
           socket
           |> assign(:portfolio, portfolio)
-          # For the performance scope hint (fix round): the TTWROR/IRR walk is
-          # still portfolio-bound (documented ADR-0024 gap), so with more than
-          # one portfolio the performance figures must say what they cover.
-          |> assign(:portfolio_count, Portfolios.count_portfolios())
           |> assign(:classifications, classifications)
           # 1y default (UAT fix round): "max" grows unreadable as history
           # accumulates; the period buttons still offer it.
@@ -367,13 +363,17 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp load_performance(socket) do
     socket = ensure_live_view_scope(socket)
-    portfolio_id = socket.assigns.portfolio.id
     view_id = socket.assigns[:active_view_id]
+    # The cross-portfolio view walk (#577): the TTWROR/IRR cover exactly the
+    # accounts the header total covers — the active view's deduplicated
+    # account scope, Everything when none is picked — valued in the same base
+    # currency as the header valuation.
+    base_currency = socket.assigns.portfolio.base_currency_code
 
     socket
-    |> serve_previous_analysis(portfolio_id, view_id)
+    |> serve_previous_analysis(view_id, base_currency)
     |> start_async(:performance, fn ->
-      Performance.analysis(portfolio_id, view: view_id)
+      Performance.view_analysis(view_id, base_currency: base_currency)
     end)
   end
 
@@ -381,8 +381,8 @@ defmodule PortfolixirWeb.PortfolioLive do
   # instead of a skeleton -- ALWAYS labelled (as-of, booking basis, recomputing
   # marker), swapped atomically when the fresh one lands, and turned into an
   # error state if the recomputation dies. Never an unlabelled old number.
-  defp serve_previous_analysis(socket, portfolio_id, view_id) do
-    case Performance.previous_analysis(portfolio_id, view: view_id) do
+  defp serve_previous_analysis(socket, view_id, base_currency) do
+    case Performance.previous_view_analysis(view_id, base_currency: base_currency) do
       %{daily: [_ | _]} = previous ->
         {:ok, performance} = Performance.summarise(previous, socket.assigns.period)
 
@@ -747,10 +747,6 @@ defmodule PortfolixirWeb.PortfolioLive do
             <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
             <strong :if={@performance}><%= Format.percent(@performance.ttwror) %>%</strong>
             <strong :if={is_nil(@performance)}>…</strong>
-            <%!-- Scope disclaimer (fix round): see #portfolio-performance. --%>
-            <small :if={@portfolio_count > 1} class="hint" data-role="performance-scope-hint">
-              <%= performance_scope_hint(@portfolio.name) %>
-            </small>
             <details class="metric-tooltip">
               <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
               <p id="tip-ttwror" role="tooltip">
@@ -783,19 +779,6 @@ defmodule PortfolixirWeb.PortfolioLive do
 
         <%= if @wealth_tab == :holdings do %>
         <section id="portfolio-performance" class="workspace-section">
-          <%!-- Scope disclaimer (fix round, UAT merge condition): the TTWROR/
-               IRR walk is still bound to the first portfolio (documented
-               ADR-0024 gap), so multi-portfolio instances must say what the
-               performance figures cover. Single-portfolio instances (the
-               common migrated case) show nothing. --%>
-          <p
-            :if={@portfolio_count > 1}
-            class="hint"
-            data-role="performance-scope-hint"
-            role="note"
-          >
-            <%= performance_scope_hint(@portfolio.name) %>
-          </p>
           <header class="section-head">
             <h2><%= gettext("Performance") %></h2>
             <div class="section-head-controls">
@@ -2338,14 +2321,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   # hint). Tolerates valuations without the flag (and the pre-async nil).
   defp matches_no_accounts?(%{matches_no_accounts: true}), do: true
   defp matches_no_accounts?(_valuation), do: false
-
-  # The multi-portfolio performance disclaimer (fix round, UAT merge
-  # condition) — one message for the KPI card and the chart section.
-  defp performance_scope_hint(portfolio_name) do
-    gettext("Performance covers %{name} only — the total above spans all accounts.",
-      name: portfolio_name
-    )
-  end
 
   defp suspect_dates(nil), do: []
   defp suspect_dates(analysis), do: analysis.suspect_dates

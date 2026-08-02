@@ -70,7 +70,9 @@ defmodule PortfolixirWeb.DashboardLive do
 
     with %{} = portfolio <- first,
          %{daily: [_ | _]} = previous <-
-           Performance.previous_analysis(portfolio.id, view: view_id),
+           Performance.previous_view_analysis(view_id,
+             base_currency: portfolio.base_currency_code
+           ),
          {:ok, %{ttwror: %Decimal{} = ttwror}} <- Performance.summarise(previous, "ytd") do
       assign(socket, :stale_ttwror, %{
         ttwror: ttwror,
@@ -84,11 +86,9 @@ defmodule PortfolixirWeb.DashboardLive do
 
   # The card's data: the deduplicated cross-portfolio view valuation in the
   # first portfolio's base currency (display continuity with the Wealth page),
-  # plus the YTD TTWROR as the change signal. The TTWROR series is still
-  # portfolio-bound (ADR-0019 scopes it by view within one portfolio), so it
-  # is computed over the first portfolio under the same view — exact for
-  # single-portfolio instances, an honest approximation until the performance
-  # walk spans portfolios.
+  # plus the YTD TTWROR as the change signal — computed over the same
+  # cross-portfolio view scope as the valuation (#577), so the total and the
+  # return always cover the same accounts.
   defp wealth_card(view_id) do
     first = Portfolios.first_portfolio()
     base_currency = (first && first.base_currency_code) || "EUR"
@@ -104,7 +104,7 @@ defmodule PortfolixirWeb.DashboardLive do
       # always came out English ("EVERYTHING" after the card's CSS uppercase).
       name: view && view.name,
       valuation: everything_or_view_valuation(view_id, base_currency),
-      ttwror: first && ytd_ttwror(first.id, view_id)
+      ttwror: ytd_ttwror(view_id, base_currency)
     }
   end
 
@@ -300,10 +300,10 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # The YTD TTWROR as the card's "did anything change" signal, scoped to the
-  # default view within the portfolio (ADR-0019); nil (hidden) when the
-  # period cannot be computed yet.
-  defp ytd_ttwror(portfolio_id, view_id) do
-    case Performance.for_portfolio(portfolio_id, period: "ytd", view: view_id) do
+  # same cross-portfolio view as the valuation (#577, ADR-0019 at the view
+  # boundary); nil (hidden) when the period cannot be computed yet.
+  defp ytd_ttwror(view_id, base_currency) do
+    case Performance.for_view(view_id, period: "ytd", base_currency: base_currency) do
       {:ok, %{ttwror: %Decimal{} = ttwror}} -> ttwror
       _ -> nil
     end

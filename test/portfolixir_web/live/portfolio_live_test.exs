@@ -103,16 +103,18 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "IRR"
   end
 
-  # User story (fix round, UAT merge condition):
+  # User story (#577):
   # As a local portfolio maintainer with more than one internal portfolio,
-  # I want the performance card and chart to say which portfolio they cover,
-  # so that I never read the first portfolio's TTWROR as the whole instance's.
+  # I want the TTWROR/IRR to cover exactly the accounts the header total
+  # covers, so that the performance card needs no scope disclaimer and never
+  # shows the first portfolio's return next to an all-accounts total.
   #
   # Acceptance criteria:
-  # - With two portfolios, the performance card/section carries a visible
-  #   scope hint naming the covered portfolio.
-  # - With a single portfolio (the common migrated case) no hint renders.
-  test "the performance figures carry a scope hint on multi-portfolio instances",
+  # - With two portfolios and no view picked, the performance figures span
+  #   both portfolios (the Everything scope of the header total).
+  # - The scope disclaimer that existed because of the old first-portfolio
+  #   walk is gone.
+  test "the performance figures cover all portfolios, like the header total",
        %{conn: conn} do
     seed_world()
 
@@ -124,17 +126,13 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
 
-    assert has_element?(view, "[data-role='performance-scope-hint']")
-    assert html =~ "Performance covers Mein Depot only"
-  end
-
-  test "no performance scope hint on a single-portfolio instance", %{conn: conn} do
-    seed_world()
-
-    {:ok, view, _html} = live(conn, "/portfolio")
-    render_async(view)
-
+    # Header total spans both portfolios: 1,080 + 500.
+    assert html =~ "1,580.00"
+    # So does the TTWROR: 1000 -> 1080 with both deposits neutralised, on a
+    # 1,500 base = +5.3%, not the first portfolio's +8%.
+    assert html =~ "5.3"
     refute has_element?(view, "[data-role='performance-scope-hint']")
+    refute html =~ "Performance covers"
   end
 
   test "the Allocation & targets tab shows the donut and drift (ADR-0022)", %{conn: conn} do

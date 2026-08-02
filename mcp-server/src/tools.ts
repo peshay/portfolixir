@@ -997,6 +997,24 @@ const performanceZ = z.object({
   series: z.boolean().optional()
 });
 
+// Cross-portfolio view performance (#577): keyed by the view id.
+const viewPerformanceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    series: { type: "boolean" }
+  }
+};
+
+const viewPerformanceZ = z.object({
+  id: z.number().int().positive(),
+  period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
+  series: z.boolean().optional()
+});
+
 // -- buckets & views (ADR-0018) --------------------------------------------
 
 const bucketSchema = objectWith("bucket", {
@@ -2036,6 +2054,13 @@ const toolDefinitions: ToolDefinition[] = [
     idZ
   ),
   tool(
+    "portfolixir.views.performance",
+    "View performance (cross-portfolio TTWROR + IRR)",
+    "True time-weighted return (TTWROR) and money-weighted IRR of a bucket view across ALL portfolios (id is the view id): the same deduplicated account scope as portfolixir.views.valuation, so the view's total and its return always cover the same accounts. Money crossing the view boundary counts as an external flow (a deposit/withdrawal to the slice); money moving between two in-scope accounts nets out. period is ytd|1y|3y|5y|max (default max); series=true adds the daily points. All financial values are Decimal strings.",
+    viewPerformanceSchema,
+    viewPerformanceZ
+  ),
+  tool(
     "portfolixir.securities_accounts.set_buckets",
     "Set depot default buckets",
     "Replace a depot/securities account's default bucket set (the buckets every position inherits unless overridden). bucket_ids is an array of bucket ids (default empty); at most one may be a scope-dimension bucket (ADR-0024) — a violating set is rejected with 422.",
@@ -2552,6 +2577,11 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("DELETE", `/api/v1/views/${args.id}`);
     case "portfolixir.views.valuation":
       return client.request("GET", `/api/v1/views/${args.id}/valuation`);
+    case "portfolixir.views.performance":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/views/${args.id}/performance`, args, ["period", "series"])
+      );
     case "portfolixir.views.set_buckets":
       return client.request("PUT", `/api/v1/views/${args.id}/buckets`, {
         include: args.include ?? [],

@@ -55,6 +55,12 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
         warm_scope(portfolio.id, nil)
         if default_view_id, do: warm_scope(portfolio.id, default_view_id)
       end)
+
+      # The cross-portfolio view walk (#577) is what the Wealth page and the
+      # dashboard card open: the Everything scope plus the default view, in
+      # the base currency those surfaces request (the first portfolio's).
+      warm_view_scope(nil)
+      if default_view_id, do: warm_view_scope(default_view_id)
     end
 
     :ok
@@ -90,6 +96,24 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
       Logger.warning(
         "performance warm-up skipped portfolio #{portfolio_id} " <>
           "(view #{inspect(view_id)}): #{Exception.message(error)}"
+      )
+
+      :ok
+  end
+
+  defp warm_view_scope(view_id) do
+    case Portfolios.first_portfolio() do
+      %{base_currency_code: base_currency} ->
+        Performance.view_analysis(view_id, base_currency: base_currency)
+
+      _no_portfolio ->
+        :ok
+    end
+  rescue
+    error ->
+      Logger.warning(
+        "performance warm-up skipped view scope #{inspect(view_id)}: " <>
+          Exception.message(error)
       )
 
       :ok

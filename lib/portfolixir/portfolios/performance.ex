@@ -151,7 +151,14 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp scoped_analysis(portfolio_id, scope, opts) do
     today = Keyword.get(opts, :today, Date.utc_today())
-    base = base_currency(portfolio_id)
+    walk_portfolio(portfolio_id, scope, base_currency(portfolio_id), today)
+  end
+
+  # One portfolio's daily walk under `scope`, valued in an explicit `base`
+  # currency. The per-portfolio entry point (`analysis/2`) passes the
+  # portfolio's own base; the cross-portfolio view walk (#577) passes one
+  # common base so the slices are summable.
+  defp walk_portfolio(portfolio_id, scope, base, today) do
     transactions = sorted_transactions(portfolio_id)
     suspects = suspect_dates(transactions)
 
@@ -170,6 +177,145 @@ defmodule Portfolixir.Portfolios.Performance do
           daily: daily_series(portfolio_id, transactions, start, today, base, scope)
         }
     end
+  end
+
+  # -- cross-portfolio view walk (#577) ---------------------------------------
+
+  @doc """
+  Computes the performance of a bucket view **across all portfolios**
+  (ADR-0024): the same deduplicated account scope
+  (`Portfolixir.Buckets.load_global_scope/1`) the view valuation covers, so
+  the header total and the TTWROR/IRR always speak about the same accounts.
+
+  `view_id == nil` is the "Everything" scope. Options are `analysis/2`'s plus
+  `:base_currency` (default the EUR hub) — all portfolios' slices are valued
+  in that one currency.
+
+  Returns `{:ok, result}` (the `summarise/2` shape with `view_id` set and
+  `portfolio_id: nil`) or `{:error, :invalid_period | :view_not_found}`.
+  """
+  def for_view(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    period = Keyword.get(opts, :period, "max")
+
+    with :ok <- validate_period(period),
+         %{} = analysis <- view_analysis(view_id, opts) do
+      summarise(analysis, period)
+    end
+  end
+
+  @doc """
+  The expensive, period-independent part of `for_view/2`: one daily walk per
+  portfolio under the view's instance-wide scope, merged into one combined
+  daily series (values, flows and return-base steps sum per day — no
+  transaction can span two portfolios, so the sum of the per-portfolio scoped
+  walks is exactly the walk over the deduplicated account union). Money
+  crossing the view boundary stays an external flow per ADR-0019; money moving
+  between two in-scope accounts — of the same or of different portfolios —
+  nets out.
+
+  Memoised under the `:global` scope dimension (ADR-0032, #577): any
+  portfolio's write invalidates it, because the combined series depends on
+  every portfolio.
+  """
+  def view_analysis(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    case Buckets.load_global_scope(view_id) do
+      {:error, :view_not_found} = error ->
+        error
+
+      scope ->
+        base = Keyword.get(opts, :base_currency, @hub)
+        today = Keyword.get(opts, :today, Date.utc_today())
+
+        Cache.fetch(
+          Cache.global_scope_id(),
+          {view_id || :unscoped, base},
+          today,
+          fn -> view_scoped_analysis(view_id, scope, base, today) end
+        )
+    end
+  end
+
+  @doc "The most recent superseded view analysis for a scope, or `nil` (ADR-0032 §6)."
+  def previous_view_analysis(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    Cache.previous(
+      Cache.global_scope_id(),
+      {view_id || :unscoped, Keyword.get(opts, :base_currency, @hub)},
+      Keyword.get(opts, :today, Date.utc_today())
+    )
+  end
+
+  defp view_scoped_analysis(view_id, scope, base, today) do
+    Portfolios.list_portfolios()
+    |> Enum.map(&walk_portfolio(&1.id, scope, base, today))
+    |> merge_analyses(view_id, base, today)
+  end
+
+  defp merge_analyses(analyses, view_id, base, today) do
+    suspects = analyses |> Enum.flat_map(& &1.suspect_dates) |> Enum.uniq()
+    walked = Enum.reject(analyses, &(&1.daily == []))
+
+    merged = %{
+      portfolio_id: nil,
+      view_id: view_id,
+      base_currency: base,
+      today: today,
+      first_date: nil,
+      suspect_dates: suspects,
+      basis: merged_basis(analyses),
+      daily: []
+    }
+
+    case walked do
+      [] ->
+        merged
+
+      _some ->
+        first = walked |> Enum.map(& &1.first_date) |> Enum.min(Date)
+        %{merged | first_date: first, daily: merged_daily(walked, first, today)}
+    end
+  end
+
+  # Sums the per-portfolio points per day. A portfolio whose walk starts later
+  # has no point yet on earlier days — its value there is genuinely zero, so
+  # the day is the sum of the portfolios already walking.
+  defp merged_daily(walked, first, today) do
+    sums =
+      Enum.reduce(walked, %{}, fn analysis, acc ->
+        Enum.reduce(analysis.daily, acc, fn point, acc ->
+          Map.update(acc, point.date, point_slice(point), &add_slices(&1, point))
+        end)
+      end)
+
+    zero = %{value: @zero, flow: @zero, basis: @zero}
+
+    Enum.map(Date.range(first, today), fn date ->
+      slice = Map.get(sums, date, zero)
+      %{date: date, value: slice.value, flow: slice.flow, basis: slice.basis}
+    end)
+  end
+
+  defp point_slice(point), do: %{value: point.value, flow: point.flow, basis: basis_of(point)}
+
+  defp add_slices(slice, point) do
+    %{
+      value: Decimal.add(slice.value, point.value),
+      flow: Decimal.add(slice.flow, point.flow),
+      basis: Decimal.add(slice.basis, basis_of(point))
+    }
+  end
+
+  # What the combined series contains (ADR-0032 §6 banner): bookings across
+  # all walked portfolios.
+  defp merged_basis(analyses) do
+    %{
+      booking_count: analyses |> Enum.map(& &1.basis.booking_count) |> Enum.sum(),
+      last_booking_date:
+        analyses
+        |> Enum.map(& &1.basis.last_booking_date)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.max(Date, fn -> nil end),
+      computed_at: DateTime.truncate(DateTime.utc_now(), :second)
+    }
   end
 
   # What a served series CONTAINS, so a superseded one is never a bare number
@@ -215,6 +361,7 @@ defmodule Portfolixir.Portfolios.Performance do
 
     summary = %{
       portfolio_id: analysis.portfolio_id,
+      view_id: Map.get(analysis, :view_id),
       period: period,
       base_currency: analysis.base_currency,
       start_date: start_date,
@@ -245,6 +392,7 @@ defmodule Portfolixir.Portfolios.Performance do
   defp empty_result(analysis, period) do
     %{
       portfolio_id: analysis.portfolio_id,
+      view_id: Map.get(analysis, :view_id),
       period: period,
       base_currency: analysis.base_currency,
       start_date: nil,

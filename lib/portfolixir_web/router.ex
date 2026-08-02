@@ -214,6 +214,7 @@ defmodule PortfolixirWeb.Router do
     delete("/views/:id", ViewController, :delete)
     put("/views/:id/buckets", ViewController, :set_buckets)
     get("/views/:view_id/valuation", ViewValuationController, :show)
+    get("/views/:view_id/performance", ViewPerformanceController, :show)
 
     get("/settings/default_view", SettingsController, :show_default_view)
     put("/settings/default_view", SettingsController, :set_default_view)
