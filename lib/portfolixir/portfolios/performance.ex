@@ -245,10 +245,42 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   defp view_scoped_analysis(view_id, scope, base, today) do
+    # Only portfolios with at least one transaction touching an in-scope
+    # account are walked (#577 fix round): a fully out-of-scope portfolio
+    # contributes an all-zero walk whose sums would not change the merged
+    # series — but its span would, inheriting an older history as leading
+    # zero-value days, a wrong start_date and dataless year-picker entries.
+    # Membership is decided on legs, not values: an in-scope portfolio whose
+    # net value happens to be zero every day still walks.
     Portfolios.list_portfolios()
+    |> Enum.filter(&portfolio_scope_activity?(&1.id, scope))
     |> Enum.map(&walk_portfolio(&1.id, scope, base, today))
     |> merge_analyses(view_id, base, today)
   end
+
+  defp portfolio_scope_activity?(portfolio_id, scope) do
+    portfolio_id
+    |> sorted_transactions()
+    |> Enum.any?(&transaction_in_scope?(scope, &1))
+  end
+
+  defp transaction_in_scope?(scope, tx) do
+    tx_cash_in_scope?(scope, tx.cash_account_id) or
+      tx_cash_in_scope?(scope, tx.counter_cash_account_id) or
+      tx_position_in_scope?(scope, tx.securities_account_id, tx.security_id) or
+      tx_position_in_scope?(scope, tx.counter_securities_account_id, tx.security_id)
+  end
+
+  defp tx_cash_in_scope?(_scope, nil), do: false
+
+  defp tx_cash_in_scope?(scope, cash_account_id),
+    do: Buckets.cash_in_scope?(scope, cash_account_id)
+
+  defp tx_position_in_scope?(_scope, nil, _security_id), do: false
+  defp tx_position_in_scope?(_scope, _account_id, nil), do: false
+
+  defp tx_position_in_scope?(scope, account_id, security_id),
+    do: Buckets.position_in_scope?(scope, account_id, security_id)
 
   defp merge_analyses(analyses, view_id, base, today) do
     suspects = analyses |> Enum.flat_map(& &1.suspect_dates) |> Enum.uniq()
@@ -366,6 +398,18 @@ defmodule Portfolixir.Portfolios.Performance do
     end_date = period_end(period, analysis.today)
     {before, rest} = Enum.split_with(daily, &(Date.compare(&1.date, start_date) == :lt))
     in_period = Enum.take_while(rest, &(Date.compare(&1.date, end_date) != :gt))
+
+    # A bounded window containing no walked day (a future year, a range fully
+    # before the history) is the same honest emptiness as "nothing to walk
+    # yet" — never an inverted window carrying the current value as both ends.
+    if in_period == [] do
+      empty_result(analysis, period)
+    else
+      chain_period(analysis, period, in_period, before, start_date, end_date)
+    end
+  end
+
+  defp chain_period(analysis, period, in_period, before, start_date, end_date) do
     start_value = baseline(before)
 
     {points, growth, flows, _prev} =

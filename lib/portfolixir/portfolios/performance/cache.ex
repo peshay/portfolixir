@@ -106,8 +106,12 @@ defmodule Portfolixir.Portfolios.Performance.Cache do
     if table?(), do: GenServer.call(__MODULE__, :invalidate_all), else: :ok
   end
 
+  # An empty radius still invalidates: the cross-portfolio view walk (#577)
+  # converts every slice into one common base, so a write no single portfolio
+  # provably depends on (an FX rate, say) can still change the view series —
+  # the `:global` bump in the handler must run even for `[]` (ADR-0032 §3.3).
   def invalidate(portfolio_ids) when is_list(portfolio_ids) do
-    if table?() and portfolio_ids != [] do
+    if table?() do
       GenServer.call(__MODULE__, {:invalidate, Enum.uniq(portfolio_ids)})
     else
       :ok

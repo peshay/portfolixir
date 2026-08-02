@@ -456,6 +456,37 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     assert direct == year_2025
   end
 
+  # Fix round (#563 review): a bounded period whose window contains no walked
+  # day must be the same honest emptiness as "nothing to walk yet" — never a
+  # window with inverted dates carrying the portfolio's current value as both
+  # start and end.
+  test "a bounded period outside the walked history is empty, not invented" do
+    world = setup_world()
+
+    deposit!(world, "1000", ~D[2024-06-01])
+    buy!(world, "10", "100", ~D[2024-06-01])
+    quote!(world, "100", ~D[2024-06-01])
+    quote!(world, "121", ~D[2025-12-31])
+
+    analysis = Performance.analysis(world.portfolio.id, today: ~D[2026-01-20])
+
+    for period <- [
+          {:year, 2027},
+          {:year, 2023},
+          {:range, ~D[2026-06-01], ~D[2026-09-01]},
+          {:range, ~D[2023-01-01], ~D[2023-12-31]}
+        ] do
+      {:ok, result} = Performance.summarise(analysis, period)
+
+      assert result.series == []
+      assert is_nil(result.start_date)
+      assert Decimal.equal?(result.start_value, Decimal.new("0"))
+      assert Decimal.equal?(result.end_value, Decimal.new("0"))
+      assert Decimal.equal?(result.ttwror, Decimal.new("0"))
+      assert is_nil(result.irr)
+    end
+  end
+
   test "chains a custom from/to range and rejects a backwards one" do
     world = setup_world()
 

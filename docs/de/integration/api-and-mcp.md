@@ -489,9 +489,12 @@ Beispiel-Payloads für Konten:
   Einzahlungen, Entnahmen, Lieferungen und Saldo-Snapshot-Sprünge — werden
   neutralisiert, und tägliche Renditen werden geometrisch verkettet (siehe
   ADR-0010). Optionale Query-Parameter: `period` (`ytd`, `1y`, `3y`, `5y`, `max` —
-  Standard `max`; ein unbekannter Zeitraum liefert `422 Unprocessable Entity`) und
-  `series=true`, um die täglichen Punkte aufzunehmen (`date`, `value`, `flow`,
-  `cumulative_ttwror`). Die Antwort trägt `ttwror`, `start_date`/`end_date`,
+  Standard `max`; ein unbekannter Zeitraum liefert `422 Unprocessable Entity`),
+  `year=YYYY` für ein einzelnes Kalenderjahr, `from=`/`to=` (ISO-Daten, beide
+  erforderlich, `from <= to`) für einen freien Zeitraum — beide ehrlich auf die
+  vorhandene Historie begrenzt, ein rückwärtiger oder fehlerhafter Zeitraum
+  liefert `422` — und `series=true`, um die täglichen Punkte aufzunehmen
+  (`date`, `value`, `flow`, `cumulative_ttwror`). Die Antwort trägt `ttwror`, `start_date`/`end_date`,
   `start_value`/`end_value`, `net_external_flows` als Decimal-Strings und
   `suspect_dates` — Daten von Buchungen älter als 1970 (Import-Tippfehler), deren
   Effekte am ersten plausiblen Tag angewendet wurden. Neben `ttwror` trägt die
@@ -821,6 +824,17 @@ View-Definitions-Schreibvorgänge bewusst nicht (ADR-0018 §5).
 - `PUT /api/v1/views/:id/buckets` ersetzt die Include-/Exclude-Bucket-Sets einer
   View. Body: `{"include": [..], "exclude": [..]}` (beide optional, Standard
   `[]`, Listen von Bucket-ids). Eine fehlerhafte id-Liste ergibt `422`.
+- `GET /api/v1/views/:view_id/performance` liefert TTWROR und geldgewichtete
+  Rendite (IRR) der View **über alle Portfolios**: exakt der deduplizierte
+  Konten-Scope, den auch die View-Bewertung abdeckt, sodass Gesamtwert und
+  Rendite immer über dieselben Konten sprechen. Geld, das die View-Grenze
+  überquert, zählt als externer Fluss (ADR-0019); Geld zwischen zwei Konten
+  innerhalb der View saldiert sich. `?period=` (`ytd|1y|3y|5y|max`, Standard
+  `max`), `?year=YYYY`, `?from=`/`?to=` (freier Zeitraum) und `?series=true`
+  verhalten sich wie beim Portfolio-Performance-Endpunkt; die Antwort spiegelt
+  dessen Form mit `view_id` statt `portfolio_id`, alle Finanzwerte sind
+  Decimal-Strings. Unbekannte und fehlerhafte View-ids liefern `404`, ein
+  fehlerhafter Zeitraum `422`.
 - `PUT /api/v1/securities_accounts/:id/buckets` ersetzt das Standard-Bucket-Set
   eines Depots (die Buckets, die jede Position erbt, sofern nicht überschrieben).
   Body: `{"bucket_ids": [..]}`.
@@ -976,12 +990,17 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.views.update`
 - `portfolixir.views.delete`
 - `portfolixir.views.set_buckets`
+- `portfolixir.views.performance`
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
 - `portfolixir.securities_accounts.clear_position_buckets`
 - `portfolixir.settings.get_default_view`
 - `portfolixir.settings.set_default_view`
+
+`portfolixir.views.performance` berechnet die passende portfolioübergreifende
+TTWROR/IRR für denselben Konten-Scope; Geld, das die View-Grenze überquert,
+wird als externer Fluss behandelt (ADR-0019).
 
 `portfolixir.settings.get_default_view` /
 `portfolixir.settings.set_default_view` lesen und setzen die

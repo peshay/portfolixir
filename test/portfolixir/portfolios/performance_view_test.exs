@@ -125,6 +125,46 @@ defmodule Portfolixir.Portfolios.PerformanceViewTest do
     assert Decimal.equal?(from_view.net_external_flows, from_portfolio.net_external_flows)
   end
 
+  # Fix round (#577 review): a collapsed view must not inherit the walk span
+  # of portfolios entirely outside its scope. Alpha is older here and fully
+  # out of scope; the view over Beta alone must start where Beta starts —
+  # otherwise the merged series grows leading zero-value days, start_date
+  # lies, and the #563 year picker offers dataless years.
+  test "a collapsed view does not inherit an out-of-scope portfolio's history" do
+    a = base_world(name: "Alpha", cash_name: "Cash A", depot_name: "Depot A")
+    b = base_world(name: "Beta", cash_name: "Cash B", depot_name: "Depot B")
+
+    sec_a = create_security!(name: "Fund A", ticker: "FNA", asset_class: "etf")
+    sec_b = create_security!(name: "Fund B", ticker: "FNB", asset_class: "etf")
+
+    # Alpha walks from mid-2025; Beta only from 2026.
+    deposit!(a, "1000", ~D[2025-06-01])
+    WorldFixtures.buy!(a, sec_a, quantity: "10", price: "100", date: ~D[2025-06-01])
+    WorldFixtures.put_quotes!(sec_a, [{~D[2025-06-01], "100"}, {~D[2026-01-10], "120"}])
+
+    deposit!(b, "1000", ~D[2026-01-01])
+    WorldFixtures.buy!(b, sec_b, quantity: "10", price: "100", date: ~D[2026-01-01])
+    WorldFixtures.put_quotes!(sec_b, [{~D[2026-01-01], "100"}, {~D[2026-01-10], "110"}])
+
+    {:ok, bucket_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope B"})
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), b.depot, [bucket_b.id])
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), b.cash, [bucket_b.id])
+
+    view = view_including!([bucket_b.id], "Only B")
+
+    scoped = Performance.analysis(b.portfolio.id, view: view.id, today: ~D[2026-01-10])
+    global = Performance.view_analysis(view.id, today: ~D[2026-01-10])
+
+    assert global.first_date == scoped.first_date
+    assert length(global.daily) == length(scoped.daily)
+
+    for {gp, sp} <- Enum.zip(global.daily, scoped.daily) do
+      assert gp.date == sp.date
+      assert Decimal.equal?(gp.value, sp.value)
+      assert Decimal.equal?(gp.flow, sp.flow)
+    end
+  end
+
   # ADR-0019 at the portfolio boundary: a removal in one in-scope portfolio and
   # the matching deposit into another in-scope portfolio net to zero flow — the
   # money never left the view.
