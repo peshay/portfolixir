@@ -62,3 +62,4 @@ already in force in the codebase.
 | [0031](0031-recorded-tax-statement-snapshots.html) | Recorded tax-statement snapshots — capture the broker's tax pots, never derive them | Accepted |
 | [0032](0032-derived-series-memoization.html) | Memoized derived series — cache the daily TTWROR walk in volatile memory | Accepted |
 | [0033](0033-per-position-pnl-fx-decomposition.html) | Per-position P&L decomposed — price return and currency return over a security-currency cost basis | Accepted |
+| [0034](0034-money-weighted-metrics.html) | Money-weighted metrics — net invested capital, wealth multiple, hand-rolled XIRR next to TTWROR | Accepted |
