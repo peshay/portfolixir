@@ -22,13 +22,16 @@ defmodule Mix.Tasks.Portfolixir.BackfillSettlementLegs do
 
   use Mix.Task
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Ledger.SettlementBackfill
+
   @requirements ["app.start"]
 
   @impl Mix.Task
   def run(_args) do
-    actor = Portfolixir.Actor.system_job("settlement_backfill")
+    actor = Actor.system_job("settlement_backfill")
 
-    case Portfolixir.Ledger.SettlementBackfill.run(actor) do
+    case SettlementBackfill.run(actor) do
       {:ok, summary} ->
         Mix.shell().info("""
         Settlement-leg backfill complete:

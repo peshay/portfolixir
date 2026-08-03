@@ -894,15 +894,13 @@ defmodule Portfolixir.Ledger do
   end
 
   defp open_lot_decomposition(lot, current_value, cost, security_currency, fx_rates) do
-    cond do
-      is_nil(lot.base_cost) or lot.settlement_currency != @hub ->
-        PnlDecomposition.unavailable(:missing_base_cost)
-
-      true ->
-        case base_rate(security_currency, @hub, fx_rates) do
-          {:ok, rate} -> PnlDecomposition.decompose(current_value, cost, lot.base_cost, rate)
-          {:error, :no_rate} -> PnlDecomposition.unavailable(:missing_fx)
-        end
+    if is_nil(lot.base_cost) or lot.settlement_currency != @hub do
+      PnlDecomposition.unavailable(:missing_base_cost)
+    else
+      case base_rate(security_currency, @hub, fx_rates) do
+        {:ok, rate} -> PnlDecomposition.decompose(current_value, cost, lot.base_cost, rate)
+        {:error, :no_rate} -> PnlDecomposition.unavailable(:missing_fx)
+      end
     end
   end
 
