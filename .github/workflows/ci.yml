@@ -5,6 +5,14 @@ on:
     branches: ["main"]
   pull_request:
 
+# Least privilege for the whole workflow: every job here only reads the
+# repository. Checkout, the language toolchains and the quality gates need
+# nothing more, and the Codecov upload authenticates with its own token
+# rather than the workflow's GITHUB_TOKEN. Without this key GitHub grants the
+# default token set, which is wider than any job here uses.
+permissions:
+  contents: read
+
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
