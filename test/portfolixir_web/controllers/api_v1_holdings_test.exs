@@ -177,4 +177,254 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
     assert Map.has_key?(unidentified, "isin") and unidentified["isin"] == nil
     assert Map.has_key?(unidentified, "wkn") and unidentified["wkn"] == nil
   end
+
+  # User story (ADR-0033, issue #569):
+  # As an API client (and the LLM I connect over MCP),
+  # I want each holdings row to carry the price/currency decomposition of its
+  # base-currency P&L as Decimal strings, and the currency-basis label to say
+  # exactly which figures are in which currency,
+  # so that a consumer can attribute FX effects without deriving rates itself.
+  #
+  # Acceptance criteria (the ADR-0033 fixture through stored rates):
+  # - base_cost "800.00" EUR, price_return_abs "90", currency_return_abs
+  #   "100", total_return_base_abs "190", decomposed true.
+  # - Financial decimals serialize as strings.
+  # - The response's currency_basis note names both bases.
+  test "holdings rows carry the base-currency P&L decomposition", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "FX Decomp Portfolio",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "FX Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "FX Depot"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Synthetic US Equity",
+        ticker_symbol: "SUS",
+        currency_code: "USD",
+        asset_class: "equity"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-15],
+        quantity: "10",
+        price: "100.00",
+        currency_code: "USD",
+        security_amount: "1000.00",
+        settlement_amount: "800.00",
+        settlement_fx_rate: "0.80"
+      })
+
+    {:ok, _} =
+      Quotes.upsert_many(security.id, [
+        %{date: ~D[2026-07-31], close: "110.00", source: "manual"}
+      ])
+
+    # Stored current hub rate: 1 EUR = 1.25 USD, i.e. 0.80 EUR per USD.
+    {:ok, _} =
+      Portfolixir.Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-07-31],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    response =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/holdings")
+      |> json_response(200)
+
+    assert response["currency_basis"] == "security_currency"
+    assert response["currency_basis_note"] =~ "base_cost"
+    assert response["currency_basis_note"] =~ "security's own currency"
+
+    assert [holding] = response["data"]
+    assert holding["cost_basis"] == "1000"
+    assert holding["base_cost"] == "800"
+    assert holding["base_currency"] == "EUR"
+    # (1100 - 1000) x 0.80 = 80; 1000 x 0.80 - 800 = 0; total 80.
+    assert holding["price_return_abs"] == "80"
+    assert holding["currency_return_abs"] == "0"
+    assert holding["total_return_base_abs"] == "80"
+    assert holding["price_return_pct"] == "0.1"
+    assert holding["decomposed"] == true
+    assert holding["undecomposed_reason"] == nil
+  end
+
+  # User story (ADR-0033 requirement 4 over the API):
+  # As an API client reading a row whose decomposition is not derivable,
+  # I want decomposed false with a named reason and null components,
+  # so that no consumer ever mistakes an unavailable figure for a zero.
+  test "an underivable decomposition serializes as unavailable", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "FX Missing Portfolio",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "FXM Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "FXM Depot"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Synthetic US Legacy",
+        ticker_symbol: "SUL",
+        currency_code: "USD",
+        asset_class: "equity"
+      })
+
+    # A legacy imported row: EUR-booked buy of the USD security, no
+    # settlement legs derivable.
+    {:ok, _} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-15],
+        quantity: "10",
+        price: "80.00",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Quotes.upsert_many(security.id, [
+        %{date: ~D[2026-07-31], close: "110.00", source: "manual"}
+      ])
+
+    [holding] =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/holdings")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert holding["cost_basis"] == nil
+    assert holding["avg_cost"] == nil
+    assert holding["unrealized_pnl_abs"] == nil
+    assert holding["decomposed"] == false
+    assert holding["undecomposed_reason"] == "missing_native_cost"
+    assert holding["base_cost"] == "800"
+    assert holding["base_currency"] == "EUR"
+  end
+
+  # User story (ADR-0033 — open lots over the API):
+  # As an API client reading GET /api/v1/securities/:id/trades,
+  # I want each open lot to carry its security-currency basis and the same
+  # decomposition fields as strings,
+  # so that the lot surface and the holdings surface cannot disagree.
+  test "open lots serialize the native basis and decomposition", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "FX Lots Portfolio",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "FXL Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "FXL Depot"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Synthetic US Lots",
+        ticker_symbol: "SLT",
+        currency_code: "USD",
+        asset_class: "equity"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-01-15],
+        quantity: "10",
+        price: "80.00",
+        currency_code: "EUR",
+        security_amount: "1000.00",
+        settlement_amount: "800.00",
+        settlement_fx_rate: "0.80"
+      })
+
+    {:ok, _} =
+      Quotes.upsert_many(security.id, [
+        %{date: ~D[2026-07-31], close: "110.00", source: "manual"}
+      ])
+
+    {:ok, _} =
+      Portfolixir.Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-07-31],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    %{"data" => %{"open_lots" => [lot]}} =
+      conn
+      |> api_conn()
+      |> get("/api/v1/securities/#{security.id}/trades")
+      |> json_response(200)
+
+    assert lot["buy_price"] == "80"
+    assert lot["buy_price_native"] == "100"
+    assert lot["unrealized_pnl_abs"] == "100"
+    assert lot["base_cost"] == "800"
+    assert lot["base_currency"] == "EUR"
+    assert lot["price_return_abs"] == "80"
+    assert lot["currency_return_abs"] == "0"
+    assert lot["total_return_base_abs"] == "80"
+    assert lot["decomposed"] == true
+    assert lot["undecomposed_reason"] == nil
+  end
 end

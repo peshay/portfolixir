@@ -46,7 +46,7 @@ defmodule PortfolixirWeb.BucketsLive do
     <AppShell.shell
       current_path="/buckets"
       page_title={gettext("Views")}
-      page_subtitle={gettext("Saved filters that scope your analytics, built from bucket tags")}
+      page_subtitle={gettext("Saved filters that scope the analytics, built from bucket tags")}
     >
       <div id="buckets-workspace" class="workspace-page">
         <%= if @error do %>
@@ -60,7 +60,7 @@ defmodule PortfolixirWeb.BucketsLive do
           <p>
             <strong><%= gettext("How it works — two steps:") %></strong>
             <%= gettext(
-              "1. Create buckets — tags you put on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Portfolio page, so you need both."
+              "1. Create buckets — tags on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Portfolio page, so both are needed."
             ) %>
           </p>
           <p data-role="overlap-hint">
@@ -73,7 +73,7 @@ defmodule PortfolixirWeb.BucketsLive do
         <section id="buckets-section" class="workspace-section">
           <h2><%= gettext("1. Buckets") %></h2>
           <p class="section-hint">
-            <%= gettext("Tags you assign to depots, cash accounts and individual positions.") %>
+            <%= gettext("Tags assigned to depots, cash accounts and individual positions.") %>
           </p>
           <form id="bucket-form" phx-submit="create_bucket" class="inline-form">
             <label>
@@ -153,7 +153,7 @@ defmodule PortfolixirWeb.BucketsLive do
         <section id="views-section" class="workspace-section">
           <h2><%= gettext("2. Views") %></h2>
           <p class="section-hint">
-            <%= gettext("Saved include/exclude filters over buckets. A view is what you pick in the view switcher on the Wealth page.") %>
+            <%= gettext("Saved include/exclude filters over buckets, selectable in the view switcher on the Wealth page.") %>
           </p>
           <p class="hint">
             <%= gettext("A view includes some buckets and excludes others. Exclude always wins.") %>

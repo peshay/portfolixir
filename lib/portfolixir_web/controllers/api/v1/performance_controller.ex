@@ -4,13 +4,14 @@ defmodule PortfolixirWeb.Api.V1.PerformanceController do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.PeriodParam
   alias PortfolixirWeb.Api.V1.ViewParam
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, id} <- parse_id(portfolio_id),
          portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id),
-         {:ok, view} <- ViewParam.resolve(params) do
-      period = Map.get(params, "period", "max")
+         {:ok, view} <- ViewParam.resolve(params),
+         {:ok, period} <- PeriodParam.resolve(params) do
       include_series? = Map.get(params, "series") in ["true", "1"]
       opts = Keyword.put(ViewParam.opts(view), :period, period)
 
@@ -20,9 +21,7 @@ defmodule PortfolixirWeb.Api.V1.PerformanceController do
           json(conn, %{data: data})
 
         {:error, :invalid_period} ->
-          conn
-          |> put_status(:unprocessable_entity)
-          |> json(%{errors: %{period: ["is invalid"]}})
+          invalid_period(conn)
 
         # The view vanished between resolve and read (fix round TOCTOU):
         # still a plain 404, never a 500.
@@ -33,8 +32,15 @@ defmodule PortfolixirWeb.Api.V1.PerformanceController do
       :error -> not_found(conn)
       nil -> not_found(conn)
       {:error, :view} -> unprocessable(conn, %{view: ["is invalid"]})
+      # A malformed year or half-given range (#563) is a plain 422, matching
+      # the unknown-period contract.
+      {:error, :invalid_period} -> invalid_period(conn)
       :view_not_found -> not_found(conn)
     end
+  end
+
+  defp invalid_period(conn) do
+    unprocessable(conn, %{period: ["is invalid"]})
   end
 
   defp unprocessable(conn, errors) do

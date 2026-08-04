@@ -418,7 +418,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
       {:ok, _summary} = Buckets.seed_portfolio_scope_buckets(Actor.owner_ui())
 
       {:ok, lv, html} = live(conn, "/portfolio")
-      assert html =~ "Your portfolios are now views"
+      assert html =~ "Portfolios are now views"
       assert has_element?(lv, "[data-role='migration-views'] li", "Main")
 
       lv |> element("[data-role='dismiss-migration-notice']") |> render_click()
@@ -427,7 +427,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
       assert Settings.migration_notice_dismissed?()
 
       {:ok, _lv, html} = live(conn, "/portfolio")
-      refute html =~ "Your portfolios are now views"
+      refute html =~ "Portfolios are now views"
     end
 
     # User story (fix round, migration notice edge state):
@@ -449,7 +449,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
       end)
 
       {:ok, lv, html} = live(conn, "/portfolio")
-      refute html =~ "Your portfolios are now views"
+      refute html =~ "Portfolios are now views"
       refute has_element?(lv, "[data-role='migration-notice']")
     end
 

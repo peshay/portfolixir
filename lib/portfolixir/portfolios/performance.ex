@@ -151,7 +151,14 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp scoped_analysis(portfolio_id, scope, opts) do
     today = Keyword.get(opts, :today, Date.utc_today())
-    base = base_currency(portfolio_id)
+    walk_portfolio(portfolio_id, scope, base_currency(portfolio_id), today)
+  end
+
+  # One portfolio's daily walk under `scope`, valued in an explicit `base`
+  # currency. The per-portfolio entry point (`analysis/2`) passes the
+  # portfolio's own base; the cross-portfolio view walk (#577) passes one
+  # common base so the slices are summable.
+  defp walk_portfolio(portfolio_id, scope, base, today) do
     transactions = sorted_transactions(portfolio_id)
     suspects = suspect_dates(transactions)
 
@@ -172,6 +179,177 @@ defmodule Portfolixir.Portfolios.Performance do
     end
   end
 
+  # -- cross-portfolio view walk (#577) ---------------------------------------
+
+  @doc """
+  Computes the performance of a bucket view **across all portfolios**
+  (ADR-0024): the same deduplicated account scope
+  (`Portfolixir.Buckets.load_global_scope/1`) the view valuation covers, so
+  the header total and the TTWROR/IRR always speak about the same accounts.
+
+  `view_id == nil` is the "Everything" scope. Options are `analysis/2`'s plus
+  `:base_currency` (default the EUR hub) — all portfolios' slices are valued
+  in that one currency.
+
+  Returns `{:ok, result}` (the `summarise/2` shape with `view_id` set and
+  `portfolio_id: nil`) or `{:error, :invalid_period | :view_not_found}`.
+  """
+  def for_view(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    period = Keyword.get(opts, :period, "max")
+
+    with :ok <- validate_period(period),
+         %{} = analysis <- view_analysis(view_id, opts) do
+      summarise(analysis, period)
+    end
+  end
+
+  @doc """
+  The expensive, period-independent part of `for_view/2`: one daily walk per
+  portfolio under the view's instance-wide scope, merged into one combined
+  daily series (values, flows and return-base steps sum per day — no
+  transaction can span two portfolios, so the sum of the per-portfolio scoped
+  walks is exactly the walk over the deduplicated account union). Money
+  crossing the view boundary stays an external flow per ADR-0019; money moving
+  between two in-scope accounts — of the same or of different portfolios —
+  nets out.
+
+  Memoised under the `:global` scope dimension (ADR-0032, #577): any
+  portfolio's write invalidates it, because the combined series depends on
+  every portfolio.
+  """
+  def view_analysis(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    case Buckets.load_global_scope(view_id) do
+      {:error, :view_not_found} = error ->
+        error
+
+      scope ->
+        base = Keyword.get(opts, :base_currency, @hub)
+        today = Keyword.get(opts, :today, Date.utc_today())
+
+        Cache.fetch(
+          Cache.global_scope_id(),
+          {view_id || :unscoped, base},
+          today,
+          fn -> view_scoped_analysis(view_id, scope, base, today) end
+        )
+    end
+  end
+
+  @doc "The most recent superseded view analysis for a scope, or `nil` (ADR-0032 §6)."
+  def previous_view_analysis(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    Cache.previous(
+      Cache.global_scope_id(),
+      {view_id || :unscoped, Keyword.get(opts, :base_currency, @hub)},
+      Keyword.get(opts, :today, Date.utc_today())
+    )
+  end
+
+  defp view_scoped_analysis(view_id, scope, base, today) do
+    # Only portfolios with at least one transaction touching an in-scope
+    # account are walked (#577 fix round): a fully out-of-scope portfolio
+    # contributes an all-zero walk whose sums would not change the merged
+    # series — but its span would, inheriting an older history as leading
+    # zero-value days, a wrong start_date and dataless year-picker entries.
+    # Membership is decided on legs, not values: an in-scope portfolio whose
+    # net value happens to be zero every day still walks.
+    Portfolios.list_portfolios()
+    |> Enum.filter(&portfolio_scope_activity?(&1.id, scope))
+    |> Enum.map(&walk_portfolio(&1.id, scope, base, today))
+    |> merge_analyses(view_id, base, today)
+  end
+
+  defp portfolio_scope_activity?(portfolio_id, scope) do
+    portfolio_id
+    |> sorted_transactions()
+    |> Enum.any?(&transaction_in_scope?(scope, &1))
+  end
+
+  defp transaction_in_scope?(scope, tx) do
+    tx_cash_in_scope?(scope, tx.cash_account_id) or
+      tx_cash_in_scope?(scope, tx.counter_cash_account_id) or
+      tx_position_in_scope?(scope, tx.securities_account_id, tx.security_id) or
+      tx_position_in_scope?(scope, tx.counter_securities_account_id, tx.security_id)
+  end
+
+  defp tx_cash_in_scope?(_scope, nil), do: false
+
+  defp tx_cash_in_scope?(scope, cash_account_id),
+    do: Buckets.cash_in_scope?(scope, cash_account_id)
+
+  defp tx_position_in_scope?(_scope, nil, _security_id), do: false
+  defp tx_position_in_scope?(_scope, _account_id, nil), do: false
+
+  defp tx_position_in_scope?(scope, account_id, security_id),
+    do: Buckets.position_in_scope?(scope, account_id, security_id)
+
+  defp merge_analyses(analyses, view_id, base, today) do
+    suspects = analyses |> Enum.flat_map(& &1.suspect_dates) |> Enum.uniq()
+    walked = Enum.reject(analyses, &(&1.daily == []))
+
+    merged = %{
+      portfolio_id: nil,
+      view_id: view_id,
+      base_currency: base,
+      today: today,
+      first_date: nil,
+      suspect_dates: suspects,
+      basis: merged_basis(analyses),
+      daily: []
+    }
+
+    case walked do
+      [] ->
+        merged
+
+      _some ->
+        first = walked |> Enum.map(& &1.first_date) |> Enum.min(Date)
+        %{merged | first_date: first, daily: merged_daily(walked, first, today)}
+    end
+  end
+
+  # Sums the per-portfolio points per day. A portfolio whose walk starts later
+  # has no point yet on earlier days — its value there is genuinely zero, so
+  # the day is the sum of the portfolios already walking.
+  defp merged_daily(walked, first, today) do
+    sums =
+      Enum.reduce(walked, %{}, fn analysis, acc ->
+        Enum.reduce(analysis.daily, acc, fn point, acc ->
+          Map.update(acc, point.date, point_slice(point), &add_slices(&1, point))
+        end)
+      end)
+
+    zero = %{value: @zero, flow: @zero, basis: @zero}
+
+    Enum.map(Date.range(first, today), fn date ->
+      slice = Map.get(sums, date, zero)
+      %{date: date, value: slice.value, flow: slice.flow, basis: slice.basis}
+    end)
+  end
+
+  defp point_slice(point), do: %{value: point.value, flow: point.flow, basis: basis_of(point)}
+
+  defp add_slices(slice, point) do
+    %{
+      value: Decimal.add(slice.value, point.value),
+      flow: Decimal.add(slice.flow, point.flow),
+      basis: Decimal.add(slice.basis, basis_of(point))
+    }
+  end
+
+  # What the combined series contains (ADR-0032 §6 banner): bookings across
+  # all walked portfolios.
+  defp merged_basis(analyses) do
+    %{
+      booking_count: analyses |> Enum.map(& &1.basis.booking_count) |> Enum.sum(),
+      last_booking_date:
+        analyses
+        |> Enum.map(& &1.basis.last_booking_date)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.max(Date, fn -> nil end),
+      computed_at: DateTime.truncate(DateTime.utc_now(), :second)
+    }
+  end
+
   # What a served series CONTAINS, so a superseded one is never a bare number
   # (ADR-0032 §6, owner requirement): the booking count and the newest booking
   # date at compute time, plus the compute instant. A stale banner renders
@@ -187,8 +365,11 @@ defmodule Portfolixir.Portfolios.Performance do
   @doc """
   Chains one period out of an `analysis/2` result.
 
-  Pure and cheap — switching periods needs no new queries or daily walk.
-  Returns `{:ok, result}` or `{:error, :invalid_period}`.
+  `period` is one of #{inspect(@periods)}, `{:year, year}` for one calendar
+  year (#563 — clamped to today for the current year), or
+  `{:range, from, to}` for a custom date range (`from <= to`, clamped to the
+  available history). Pure and cheap — switching periods needs no new queries
+  or daily walk. Returns `{:ok, result}` or `{:error, :invalid_period}`.
   """
   def summarise(analysis, period) do
     with :ok <- validate_period(period) do
@@ -197,6 +378,13 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   defp validate_period(period) when period in @periods, do: :ok
+
+  defp validate_period({:year, year}) when is_integer(year) and year >= 1970, do: :ok
+
+  defp validate_period({:range, %Date{} = from, %Date{} = to}) do
+    if Date.compare(from, to) == :gt, do: {:error, :invalid_period}, else: :ok
+  end
+
   defp validate_period(_period), do: {:error, :invalid_period}
 
   defp do_summarise(%{daily: []} = analysis, period) do
@@ -205,7 +393,23 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp do_summarise(%{daily: daily} = analysis, period) do
     start_date = clamp_start(period_start(period, analysis.today), analysis.first_date)
-    {before, in_period} = Enum.split_with(daily, &(Date.compare(&1.date, start_date) == :lt))
+    # Bounded periods (#563: a previous year, a custom range) end before
+    # today; the walk's tail after `end_date` simply stays unchained.
+    end_date = period_end(period, analysis.today)
+    {before, rest} = Enum.split_with(daily, &(Date.compare(&1.date, start_date) == :lt))
+    in_period = Enum.take_while(rest, &(Date.compare(&1.date, end_date) != :gt))
+
+    # A bounded window containing no walked day (a future year, a range fully
+    # before the history) is the same honest emptiness as "nothing to walk
+    # yet" — never an inverted window carrying the current value as both ends.
+    if in_period == [] do
+      empty_result(analysis, period)
+    else
+      chain_period(analysis, period, in_period, before, start_date, end_date)
+    end
+  end
+
+  defp chain_period(analysis, period, in_period, before, start_date, end_date) do
     start_value = baseline(before)
 
     {points, growth, flows, _prev} =
@@ -215,10 +419,11 @@ defmodule Portfolixir.Portfolios.Performance do
 
     summary = %{
       portfolio_id: analysis.portfolio_id,
+      view_id: Map.get(analysis, :view_id),
       period: period,
       base_currency: analysis.base_currency,
       start_date: start_date,
-      end_date: analysis.today,
+      end_date: end_date,
       start_value: start_value,
       end_value: end_value(series, start_value),
       net_external_flows: flows,
@@ -245,6 +450,7 @@ defmodule Portfolixir.Portfolios.Performance do
   defp empty_result(analysis, period) do
     %{
       portfolio_id: analysis.portfolio_id,
+      view_id: Map.get(analysis, :view_id),
       period: period,
       base_currency: analysis.base_currency,
       start_date: nil,
@@ -1076,6 +1282,19 @@ defmodule Portfolixir.Portfolios.Performance do
   defp period_start("1y", today), do: years_ago(today, 1)
   defp period_start("3y", today), do: years_ago(today, 3)
   defp period_start("5y", today), do: years_ago(today, 5)
+  defp period_start({:year, year}, _today), do: Date.new!(year, 1, 1)
+  defp period_start({:range, from, _to}, _today), do: from
+
+  # Where the chained period ends: today, except for the bounded periods
+  # (#563), which clamp to today so a current year or an open-ended range
+  # never claims days that have not happened yet.
+  defp period_end({:year, year}, today), do: clamp_end(Date.new!(year, 12, 31), today)
+  defp period_end({:range, _from, to}, today), do: clamp_end(to, today)
+  defp period_end(_period, today), do: today
+
+  defp clamp_end(date, today) do
+    if Date.compare(date, today) == :gt, do: today, else: date
+  end
 
   defp years_ago(%Date{} = date, years) do
     case Date.new(date.year - years, date.month, date.day) do

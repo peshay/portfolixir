@@ -198,6 +198,22 @@ defmodule Portfolixir.Catalog do
   def get_security(_id), do: nil
 
   @doc """
+  `get_security/1` for many ids at once: `%{security_id => %Security{}}`.
+
+  The batched form read paths use instead of one `Repo.get` per position
+  (ADR-0035). Ids without a security are simply absent, so a caller that knows
+  which ids it asked for can still tell "no such security" from "not loaded".
+  """
+  def get_securities_by_ids([]), do: %{}
+
+  def get_securities_by_ids(ids) when is_list(ids) do
+    Security
+    |> where([s], s.id in ^Enum.uniq(ids))
+    |> Repo.all()
+    |> Map.new(&{&1.id, &1})
+  end
+
+  @doc """
   Creates a security on behalf of `actor` (FR-28). The insert and its audit
   journal entry commit in one transaction (ADR-0017, P9); the security table is
   guard-armed, so this is the only sanctioned create path.

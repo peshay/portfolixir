@@ -27,7 +27,10 @@ That vision is larger than one slice (auto-distribution, a 100%-per-level UX, an
 all-positions SOLL layer, and the allocation-view display of position drift). It
 is a **risk-tier money-domain change** to the target model, so it is delivered as
 dedicated small PRs with real human review, not inside an epic batch
-([ADR-0026](0026-epic-batch-workflow.html) risk-tier exception). This ADR decides
+([ADR-0026](0026-epic-batch-workflow.html) risk-tier exception; *delivery clause
+superseded 2026-08-04 by [ADR-0036](0036-risk-tier-rides-the-batch.html) — the
+follow-on slices ride the batch, with the risk-tier label governing review depth
+instead*). This ADR decides
 the **foundation** — the data model, context, and machine-usable API/MCP surface —
 and explicitly defers the UI and convenience behaviours to named later slices.
 
@@ -192,6 +195,9 @@ and the **100%-per-level firmness UX**.
   consistent with the pre-existing empty-plan state.
 - Risk tier: this and every follow-on slice ship as dedicated small PRs with
   human review; the owner reviews behaviour on the PR against #481.
+  *(Superseded 2026-08-04 by [ADR-0036](0036-risk-tier-rides-the-batch.html):
+  the slices ride the batch. The owner's behaviour review against #481
+  stands — only the PR granularity changes.)*
 
 ## References
 

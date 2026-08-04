@@ -141,7 +141,9 @@ defmodule Portfolixir.Portfolios.Allocation do
   Builds the allocation breakdown for `portfolio_id` against `classification_id`.
 
   Options are passed through to `Valuation.for_portfolio/2` (e.g. `:prices`,
-  `:base_currency`). `:view` (a `%View{}`, a view id, or `nil` = Gesamt) scopes
+  `:base_currency`, and `:pricing_context` — the one pricing pass a caller
+  computing both a total and its drift shares between them, ADR-0035).
+  `:view` (a `%View{}`, a view id, or `nil` = Gesamt) scopes
   **both** the IST valuation (#444) and the SOLL plan (ADR-0020): only the
   addressed view's `(view, classification)` plan is loaded. Returns
   `{:ok, breakdown}` or `{:error, :not_found}` when the classification does not

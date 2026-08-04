@@ -95,7 +95,7 @@ defmodule PortfolixirWeb.ImportsLive do
         </svg>
         <h2><%= gettext("Drop a Portfolio Performance export here") %></h2>
         <p class="muted">
-          <%= gettext("CSV or JSON v1 · max 20 MB · nothing is saved before you confirm") %>
+          <%= gettext("CSV or JSON v1 · max 20 MB · nothing is saved before confirmation") %>
         </p>
 
         <.live_file_input upload={@uploads.pp_file} class="visually-hidden" />

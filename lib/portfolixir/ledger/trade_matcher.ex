@@ -79,6 +79,13 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       buy_fees: fee(tx, :fees),
       buy_taxes: fee(tx, :taxes),
       currency_code: Map.get(tx, :currency_code),
+      # ADR-0033 lot legs: per-unit security-currency basis (nil when no
+      # native leg is derivable) and the per-unit settlement leg with its
+      # currency. Callers that pass plain trade maps default to the
+      # transaction price — the same-currency degenerate pair.
+      buy_price_native: Map.get(tx, :native_unit_price, tx.price),
+      settlement_unit_price: Map.get(tx, :settlement_unit_price, tx.price),
+      settlement_currency: Map.get(tx, :settlement_currency, Map.get(tx, :currency_code)),
       # Carried so a split — booked one row per portfolio (ADR-0028 §1) —
       # scales only its own portfolio's lots.
       portfolio_id: Map.get(tx, :portfolio_id)
@@ -111,12 +118,22 @@ defmodule Portfolixir.Ledger.TradeMatcher do
         lot
         | quantity: Projection.scale_quantity(lot.quantity, ratio),
           original_quantity: Projection.scale_quantity(lot.original_quantity, ratio),
-          buy_price: lot.buy_price |> Decimal.mult(denominator) |> Decimal.div(numerator)
+          buy_price: lot.buy_price |> Decimal.mult(denominator) |> Decimal.div(numerator),
+          # The per-unit legs divide like the buy price, so the lot's total
+          # cost pair stays invariant through the split (ADR-0028 §3).
+          buy_price_native: scale_unit_price(lot.buy_price_native, numerator, denominator),
+          settlement_unit_price:
+            scale_unit_price(lot.settlement_unit_price, numerator, denominator)
       }
     else
       lot
     end
   end
+
+  defp scale_unit_price(nil, _numerator, _denominator), do: nil
+
+  defp scale_unit_price(%Decimal{} = price, numerator, denominator),
+    do: price |> Decimal.mult(denominator) |> Decimal.div(numerator)
 
   defp handle_sell(state, tx) do
     consume(state, tx.quantity, tx, [])

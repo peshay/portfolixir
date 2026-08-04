@@ -22,6 +22,16 @@ defmodule Portfolixir.Portfolios.Performance.Cache do
   portfolio** (ADR-0032 §3, owner decision): invalidating one portfolio leaves
   every other memo readable.
 
+  ## The cross-portfolio scope dimension (#577)
+
+  The view walk spans every portfolio, so its entries live under the pseudo
+  portfolio id `:global` (with the view id and base currency folded into the
+  scope key). A cross-portfolio series depends on **all** portfolios, so its
+  narrowest sound blast radius is "any write": every targeted invalidation
+  bumps `:global` exactly once alongside the listed portfolios (ADR-0032 §3.3
+  — fail toward recomputation, never toward a stale number). Per-portfolio
+  memos keep their targeted invalidation unchanged.
+
   ## One previous generation
 
   `invalidate/1` bumps a portfolio's version, which makes its entries
@@ -34,6 +44,14 @@ defmodule Portfolixir.Portfolios.Performance.Cache do
 
   @table __MODULE__
   @version_prefix :version
+
+  # Pseudo portfolio id of the cross-portfolio view walk (#577). An atom can
+  # never collide with a real integer portfolio id.
+  @global :global
+
+  @doc "The pseudo portfolio id the cross-portfolio view walk is keyed under."
+  @spec global_scope_id() :: :global
+  def global_scope_id, do: @global
 
   # -- client ----------------------------------------------------------------
 
@@ -52,7 +70,7 @@ defmodule Portfolixir.Portfolios.Performance.Cache do
   Returns the memoised analysis for the key, computing and remembering it on a
   miss. With the memo disabled, `compute` runs every time and nothing is kept.
   """
-  @spec fetch(integer(), term(), Date.t(), (-> term())) :: term()
+  @spec fetch(integer() | :global, term(), Date.t(), (-> term())) :: term()
   def fetch(portfolio_id, scope_key, %Date{} = today, compute) when is_function(compute, 0) do
     if enabled?() and table?() do
       memoised(portfolio_id, scope_key, today, compute)
@@ -68,7 +86,7 @@ defmodule Portfolixir.Portfolios.Performance.Cache do
   recomputing — instead of a skeleton. It is deliberately only one generation
   deep: older than that is not "the last thing you saw", it is archaeology.
   """
-  @spec previous(integer(), term(), Date.t()) :: term() | nil
+  @spec previous(integer() | :global, term(), Date.t()) :: term() | nil
   def previous(portfolio_id, scope_key, %Date{} = today) do
     if enabled?() and table?() do
       lookup(portfolio_id, scope_key, today, version(portfolio_id) - 1)
@@ -88,8 +106,12 @@ defmodule Portfolixir.Portfolios.Performance.Cache do
     if table?(), do: GenServer.call(__MODULE__, :invalidate_all), else: :ok
   end
 
+  # An empty radius still invalidates: the cross-portfolio view walk (#577)
+  # converts every slice into one common base, so a write no single portfolio
+  # provably depends on (an FX rate, say) can still change the view series —
+  # the `:global` bump in the handler must run even for `[]` (ADR-0032 §3.3).
   def invalidate(portfolio_ids) when is_list(portfolio_ids) do
-    if table?() and portfolio_ids != [] do
+    if table?() do
       GenServer.call(__MODULE__, {:invalidate, Enum.uniq(portfolio_ids)})
     else
       :ok
@@ -102,8 +124,8 @@ defmodule Portfolixir.Portfolios.Performance.Cache do
     if table?(), do: GenServer.call(__MODULE__, :reset), else: :ok
   end
 
-  @doc "The current data version of a portfolio; `0` before its first write."
-  @spec version(integer()) :: integer()
+  @doc "The current data version of a portfolio (or `:global`); `0` before its first write."
+  @spec version(integer() | :global) :: integer()
   def version(portfolio_id) do
     case :ets.lookup(@table, {@version_prefix, portfolio_id}) do
       [{_key, version}] -> version
@@ -121,19 +143,28 @@ defmodule Portfolixir.Portfolios.Performance.Cache do
 
   @impl true
   def handle_call({:invalidate, portfolio_ids}, _from, state) do
-    Enum.each(portfolio_ids, &bump/1)
+    # The cross-portfolio view walk (#577) depends on every portfolio, so any
+    # targeted invalidation also bumps its `:global` pseudo portfolio — once,
+    # so `previous/3` still finds the immediately superseded generation.
+    portfolio_ids
+    |> Enum.concat([@global])
+    |> Enum.uniq()
+    |> Enum.each(&bump/1)
+
     {:reply, :ok, state}
   end
 
   def handle_call(:invalidate_all, _from, state) do
     # Both sources matter: a portfolio memoised but never yet invalidated has
     # entry rows and no version row, so matching version rows alone would miss
-    # exactly the portfolios that have something to invalidate.
+    # exactly the portfolios that have something to invalidate. `:global`
+    # (the cross-portfolio view walk, #577) is always included.
     versioned = :ets.match(@table, {{@version_prefix, :"$1"}, :_})
     memoised = :ets.match(@table, {{:"$1", :_, :_, :_}, :_})
 
     (versioned ++ memoised)
     |> Enum.map(fn [portfolio_id] -> portfolio_id end)
+    |> Enum.concat([@global])
     |> Enum.uniq()
     |> Enum.each(&bump/1)
 

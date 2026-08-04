@@ -6,7 +6,10 @@ description: Feature trees are worked agentically on a single epic branch and ac
 
 # ADR-0026: Epic-batch workflow — humans review decisions and behavior, agents review code
 
-- **Status:** Accepted
+- **Status:** Accepted; **amended by [ADR-0036](0036-risk-tier-rides-the-batch.html)**
+  (2026-08-04 — the "Risk-tier exceptions" clause below is withdrawn; risk-tier
+  work now rides the batch and the label governs review depth, not delivery
+  mode). Everything else here stands.
 - **Date:** 2026-07-12
 
 ## Context

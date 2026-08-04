@@ -10,6 +10,10 @@ on:
   push:
     branches: ["main"]
 
+# Least privilege: the check only reads the repository's commit metadata.
+permissions:
+  contents: read
+
 jobs:
   human-accountability:
     runs-on: ubuntu-latest

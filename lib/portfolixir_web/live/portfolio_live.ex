@@ -24,6 +24,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.PricingContext
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
@@ -89,14 +90,11 @@ defmodule PortfolixirWeb.PortfolioLive do
         socket =
           socket
           |> assign(:portfolio, portfolio)
-          # For the performance scope hint (fix round): the TTWROR/IRR walk is
-          # still portfolio-bound (documented ADR-0024 gap), so with more than
-          # one portfolio the performance figures must say what they cover.
-          |> assign(:portfolio_count, Portfolios.count_portfolios())
           |> assign(:classifications, classifications)
           # 1y default (UAT fix round): "max" grows unreadable as history
           # accumulates; the period buttons still offer it.
           |> assign(:period, "1y")
+          |> assign(:range_error, false)
           |> assign(:chart_mode, "ttwror")
           # The classification tree and the tree/positions mode round-trip
           # through the URL (mobile-reconnect fix): a socket reconnect remounts
@@ -333,9 +331,18 @@ defmodule PortfolixirWeb.PortfolioLive do
       # completion can never overwrite a newer tree's allocation
       # (async-hardening round). A tree deleted mid-read degrades the same way
       # the allocation read does.
-      with %{} = valuation <- Valuation.for_view(view_id, base_currency: base_currency),
+      #
+      # ADR-0035: the header total and the allocation price the same holdings,
+      # so this block loads its market data ONCE and threads it into both.
+      context = PricingContext.for_all_portfolios(base_currency)
+
+      with %{} = valuation <-
+             Valuation.for_view(view_id, base_currency: base_currency, pricing_context: context),
            {:ok, allocation} <-
-             Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
+             Allocation.for_portfolio(portfolio_id, classification_id,
+               view: view_id,
+               pricing_context: context
+             ) do
         # Negative-holdings debris (#570) is a property of the dataset, not
         # of the active view, so the report is global and loads with the
         # other data-quality inputs.
@@ -367,13 +374,17 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp load_performance(socket) do
     socket = ensure_live_view_scope(socket)
-    portfolio_id = socket.assigns.portfolio.id
     view_id = socket.assigns[:active_view_id]
+    # The cross-portfolio view walk (#577): the TTWROR/IRR cover exactly the
+    # accounts the header total covers — the active view's deduplicated
+    # account scope, Everything when none is picked — valued in the same base
+    # currency as the header valuation.
+    base_currency = socket.assigns.portfolio.base_currency_code
 
     socket
-    |> serve_previous_analysis(portfolio_id, view_id)
+    |> serve_previous_analysis(view_id, base_currency)
     |> start_async(:performance, fn ->
-      Performance.analysis(portfolio_id, view: view_id)
+      Performance.view_analysis(view_id, base_currency: base_currency)
     end)
   end
 
@@ -381,8 +392,8 @@ defmodule PortfolixirWeb.PortfolioLive do
   # instead of a skeleton -- ALWAYS labelled (as-of, booking basis, recomputing
   # marker), swapped atomically when the fresh one lands, and turned into an
   # error state if the recomputation dies. Never an unlabelled old number.
-  defp serve_previous_analysis(socket, portfolio_id, view_id) do
-    case Performance.previous_analysis(portfolio_id, view: view_id) do
+  defp serve_previous_analysis(socket, view_id, base_currency) do
+    case Performance.previous_view_analysis(view_id, base_currency: base_currency) do
       %{daily: [_ | _]} = previous ->
         {:ok, performance} = Performance.summarise(previous, socket.assigns.period)
 
@@ -682,7 +693,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           data-role="migration-notice"
           role="status"
         >
-          <h2><%= gettext("Your portfolios are now views") %></h2>
+          <h2><%= gettext("Portfolios are now views") %></h2>
           <p>
             <%= gettext(
               "The one-time migration turned each portfolio into a bucket and a view of the same name — fully editable, nothing was deleted. Pick a view above to scope this page."
@@ -747,10 +758,6 @@ defmodule PortfolixirWeb.PortfolioLive do
             <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
             <strong :if={@performance}><%= Format.percent(@performance.ttwror) %>%</strong>
             <strong :if={is_nil(@performance)}>…</strong>
-            <%!-- Scope disclaimer (fix round): see #portfolio-performance. --%>
-            <small :if={@portfolio_count > 1} class="hint" data-role="performance-scope-hint">
-              <%= performance_scope_hint(@portfolio.name) %>
-            </small>
             <details class="metric-tooltip">
               <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
               <p id="tip-ttwror" role="tooltip">
@@ -783,19 +790,6 @@ defmodule PortfolixirWeb.PortfolioLive do
 
         <%= if @wealth_tab == :holdings do %>
         <section id="portfolio-performance" class="workspace-section">
-          <%!-- Scope disclaimer (fix round, UAT merge condition): the TTWROR/
-               IRR walk is still bound to the first portfolio (documented
-               ADR-0024 gap), so multi-portfolio instances must say what the
-               performance figures cover. Single-portfolio instances (the
-               common migrated case) show nothing. --%>
-          <p
-            :if={@portfolio_count > 1}
-            class="hint"
-            data-role="performance-scope-hint"
-            role="note"
-          >
-            <%= performance_scope_hint(@portfolio.name) %>
-          </p>
           <header class="section-head">
             <h2><%= gettext("Performance") %></h2>
             <div class="section-head-controls">
@@ -831,8 +825,52 @@ defmodule PortfolixirWeb.PortfolioLive do
                   </button>
                 <% end %>
               </div>
+              <%!-- #563: a single previous year and a custom range are pure
+                   re-chains of the cached analysis, exactly like the buttons
+                   — no new walk. --%>
+              <form class="period-year" phx-change="select_year" data-role="period-year">
+                <label class="visually-hidden" for="performance-year"><%= gettext("Year") %></label>
+                <select
+                  id="performance-year"
+                  name="year"
+                  disabled={available_years(@analysis) == []}
+                >
+                  <option value="" selected={not match?({:year, _year}, @period)}>
+                    <%= gettext("Year…") %>
+                  </option>
+                  <option
+                    :for={year <- available_years(@analysis)}
+                    value={year}
+                    selected={@period == {:year, year}}
+                  >
+                    <%= year %>
+                  </option>
+                </select>
+              </form>
+              <form class="period-range" phx-submit="select_range" data-role="period-range">
+                <label class="visually-hidden" for="performance-from"><%= gettext("From") %></label>
+                <input
+                  type="date"
+                  id="performance-from"
+                  name="from"
+                  value={range_from(@period, @performance)}
+                />
+                <label class="visually-hidden" for="performance-to"><%= gettext("To") %></label>
+                <input
+                  type="date"
+                  id="performance-to"
+                  name="to"
+                  value={range_to(@period, @performance)}
+                />
+                <button type="submit" class="button-mini"><%= gettext("Apply") %></button>
+              </form>
             </div>
           </header>
+          <%!-- #563: a backwards or unparsable range is refused with a terse
+               note; the shown period keeps. --%>
+          <p :if={@range_error} class="hint" data-role="range-error" role="alert">
+            <%= gettext("Invalid range — from must be on or before to.") %>
+          </p>
           <%!-- ADR-0032 §6: a superseded series never renders unlabelled. The
                banner names the data it CONTAINS (booking count, newest booking,
                compute time), not just its age; a failed recomputation flips to
@@ -1118,7 +1156,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                             <%= gettext("The category's position targets steer here: their sum overrides the stored category weight. Align the position targets and the category weight on the Classifications page.") %>
                           <% end %>
                           <%= if row.has_stale do %>
-                            <%= gettext("A position target filed here is stale: its security was moved or unassigned. It keeps counting here until you re-file it on the Classifications page.") %>
+                            <%= gettext("A position target filed here is stale: its security was moved or unassigned. It keeps counting here until re-filed on the Classifications page.") %>
                           <% end %>
                         </p>
                       </details>
@@ -1491,7 +1529,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               </button>
             </form>
             <p class="hint">
-              <%= gettext("State the balance your bank shows; only later bookings adjust it.") %>
+              <%= gettext("State the balance the bank shows; only later bookings adjust it.") %>
             </p>
 
             <div class="cash-actions">
@@ -1786,19 +1824,40 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   @impl true
   def handle_event("select_period", %{"period" => period}, socket) do
-    cond do
-      period not in Performance.periods() ->
-        {:noreply, socket}
-
-      # The analysis is cached — re-chaining a period is pure and instant.
-      socket.assigns.analysis ->
-        {:ok, performance} = Performance.summarise(socket.assigns.analysis, period)
-        {:noreply, assign(socket, period: period, performance: performance)}
-
-      # Still computing; the async completion summarises the chosen period.
-      true ->
-        {:noreply, assign(socket, :period, period)}
+    if period in Performance.periods() do
+      apply_period(socket, period)
+    else
+      {:noreply, socket}
     end
+  end
+
+  # #563: a single calendar year, offered for every year with data. The picked
+  # year is validated against the cached analysis' own range.
+  def handle_event("select_year", %{"year" => raw}, socket) do
+    with {year, ""} <- Integer.parse(raw),
+         true <- year in available_years(socket.assigns.analysis) do
+      apply_period(socket, {:year, year})
+    else
+      _invalid -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("select_year", _params, socket), do: {:noreply, socket}
+
+  # #563: a custom from/to range. A backwards or unparsable range is refused
+  # with a terse inline note; the shown period keeps.
+  def handle_event("select_range", %{"from" => from, "to" => to}, socket) do
+    with {:ok, from} <- Date.from_iso8601(from),
+         {:ok, to} <- Date.from_iso8601(to),
+         false <- Date.compare(from, to) == :gt do
+      apply_period(socket, {:range, from, to})
+    else
+      _invalid -> {:noreply, assign(socket, :range_error, true)}
+    end
+  end
+
+  def handle_event("select_range", _params, socket) do
+    {:noreply, assign(socket, :range_error, true)}
   end
 
   # Switching the chart series (% TTWROR ↔ € value) is pure presentation — the
@@ -2156,7 +2215,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       data-role="stale-target"
       title={
         gettext(
-          "This position target is stale: the security was moved or unassigned. It keeps counting under the category it was filed under until you re-file it on the Classifications page."
+          "This position target is stale: the security was moved or unassigned. It keeps counting under the category it was filed under until re-filed on the Classifications page."
         )
       }
     >
@@ -2338,14 +2397,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   # hint). Tolerates valuations without the flag (and the pre-async nil).
   defp matches_no_accounts?(%{matches_no_accounts: true}), do: true
   defp matches_no_accounts?(_valuation), do: false
-
-  # The multi-portfolio performance disclaimer (fix round, UAT merge
-  # condition) — one message for the KPI card and the chart section.
-  defp performance_scope_hint(portfolio_name) do
-    gettext("Performance covers %{name} only — the total above spans all accounts.",
-      name: portfolio_name
-    )
-  end
 
   defp suspect_dates(nil), do: []
   defp suspect_dates(analysis), do: analysis.suspect_dates
@@ -2725,11 +2776,45 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp liquidity_role_hint("reserve"), do: gettext("reserve")
   defp liquidity_role_hint(_role), do: gettext("not in cash quote")
 
+  # One landing spot for a validated period term (a button string, a year or a
+  # range): re-chain the cached analysis instantly, or — while the walk is
+  # still computing — remember the choice for the async completion.
+  defp apply_period(socket, period) do
+    socket = assign(socket, :range_error, false)
+
+    if socket.assigns.analysis do
+      # The analysis is cached — re-chaining a period is pure and instant.
+      {:ok, performance} = Performance.summarise(socket.assigns.analysis, period)
+      {:noreply, assign(socket, period: period, performance: performance)}
+    else
+      {:noreply, assign(socket, :period, period)}
+    end
+  end
+
   defp period_label("ytd"), do: gettext("YTD")
   defp period_label("1y"), do: gettext("1Y")
   defp period_label("3y"), do: gettext("3Y")
   defp period_label("5y"), do: gettext("5Y")
   defp period_label("max"), do: gettext("Max")
+  defp period_label({:year, year}), do: Integer.to_string(year)
+  defp period_label({:range, from, to}), do: "#{from} – #{to}"
+
+  # The years the cached analysis can chain (#563): first walked year through
+  # today's, newest first. Empty while the walk still computes.
+  defp available_years(%{first_date: %Date{} = first, today: %Date{} = today}),
+    do: Enum.to_list(today.year..first.year//-1)
+
+  defp available_years(_analysis), do: []
+
+  # Prefill for the range inputs: the picked range, else the shown period's
+  # effective bounds (honest clamping included), else blank.
+  defp range_from({:range, from, _to}, _performance), do: from
+  defp range_from(_period, %{start_date: %Date{} = start_date}), do: start_date
+  defp range_from(_period, _performance), do: nil
+
+  defp range_to({:range, _from, to}, _performance), do: to
+  defp range_to(_period, %{end_date: %Date{} = end_date}), do: end_date
+  defp range_to(_period, _performance), do: nil
 
   defp coerce_id(value) when is_binary(value) do
     case Integer.parse(value) do

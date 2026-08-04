@@ -269,7 +269,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <p class="hint"><%= gettext("No categories yet.") %></p>
           <% end %>
           <%= if @tree.filtering? and @tree.nodes == [] and @tree.unsorted == [] do %>
-            <p class="hint"><%= gettext("No securities match your search.") %></p>
+            <p class="hint"><%= gettext("No securities match the search.") %></p>
           <% end %>
         </section>
 
@@ -404,7 +404,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <span
             class="cat-without-holdings"
             data-role="without-holdings"
-            title={gettext("Assigned securities you no longer hold, hidden by the filter")}
+            title={gettext("Assigned securities no longer held, hidden by the filter")}
           >+<%= hidden_count(@node) %> <%= gettext("without holdings") %></span>
         <% end %>
         <span class="cat-actions" data-no-toggle>
@@ -1617,7 +1617,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
     do: gettext("Archived — the Wealth page follows the active plan; activate to reuse it.")
 
   defp version_hint(_status),
-    do: gettext("Draft — the Wealth page keeps following the active plan until you activate it.")
+    do:
+      gettext(
+        "Draft — the Wealth page keeps following the active plan until this one is activated."
+      )
 
   defp plan_status_label("active"), do: gettext("active")
   defp plan_status_label("draft"), do: gettext("draft")

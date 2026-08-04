@@ -220,7 +220,7 @@ Example quote sync response:
   "4250.00"}` (`notes` optional); `amount` is a decimal string and may be
   negative (an overdraft). It stores a `balance_adjustment` transaction and
   returns it. The balance then anchors to that amount and only bookings dated
-  strictly after the snapshot change it, so moving money between your own
+  strictly after the snapshot change it, so moving money between own
   accounts needs no transfer entry. Unknown accounts return `404 Not Found`.
 - `POST /api/v1/cash_accounts` creates a cash account with a `cash_account`
   object. `portfolio_id` is optional (ADR-0024): when omitted, the account is
@@ -351,14 +351,28 @@ Example account payloads:
   moving-average `avg_cost` and `cost_basis` (price-based, so fees and taxes are
   not folded into the unit cost), the `latest_price`, `market_value`, and
   `unrealized_pnl_abs`/`unrealized_pnl_pct` against that price, plus
-  `security_name` and `currency_code`. All monetary figures are in the security's
-  own currency (no FX conversion — see the valuation for base-currency totals); a
-  holding whose security has no quote returns `null` price, market value and P&L.
-  The response is self-describing (FR-13): it carries `currency_basis:
-  "security_currency"` (so a client never has to assume whether FX was applied)
-  and an `as_of` date. Holdings are derived on read with no stored snapshot, so
-  `as_of` is the read date. Unknown portfolios return `404 Not Found`. Optional
-  filters: `security_id`, `securities_account_id`.
+  `security_name` and `currency_code`. Those figures are in the security's
+  **own** currency — enforced by the cost pair the ledger fold carries
+  (ADR-0033), no longer an assumption; a holding whose security has no quote
+  returns `null` price, market value and P&L. Each row additionally carries
+  the ADR-0033 base-currency P&L decomposition: `base_cost` (the
+  settlement-leg amount actually paid, with its `base_currency`),
+  `price_return_abs`/`price_return_pct` (the security's own price move,
+  converted at today's rate), `currency_return_abs`/`currency_return_pct`
+  (the FX effect on the amount originally invested) and
+  `total_return_base_abs`/`total_return_base_pct` — with
+  `total = price + currency` holding Decimal-exactly. A row whose
+  decomposition is not derivable reports `decomposed: false` with an
+  `undecomposed_reason` (`"missing_native_cost"` — no security-currency leg
+  in the recorded booking, in which case `cost_basis`/`avg_cost`/P&L are
+  `null` too; `"missing_base_cost"` — the settlement leg is not in the base
+  currency; `"missing_fx"` — no stored current rate; `"no_price"`), never a
+  guessed number. The response is self-describing (FR-13): it carries
+  `currency_basis: "security_currency"` plus a `currency_basis_note` naming
+  which field is in which currency, and an `as_of` date. Holdings are derived
+  on read with no stored snapshot, so `as_of` is the read date. Unknown
+  portfolios return `404 Not Found`. Optional filters: `security_id`,
+  `securities_account_id`.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
@@ -408,7 +422,7 @@ Example account payloads:
   reports: `matched` rows (one per security — rows resolving to the same
   security are aggregated with their external quantities summed and the
   contributing rows listed), ordered by the **lowest input row index** each
-  match aggregates so a finding maps back to the line you sent, each embedding
+  match aggregates so a finding maps back to the submitted line, each embedding
   the security's identity only (`id`, `name`, `ticker_symbol`, `isin`, `wkn`,
   `currency_code`), with the `matched_via` tier (`isin`,
   `former_isin`, `wkn`, `ticker`, `name`, or `pinned`), `ledger_quantity`,
@@ -465,7 +479,10 @@ Example account payloads:
   removals, deliveries, and balance-snapshot jumps — are neutralised, and daily
   returns chain geometrically (see ADR-0010). Optional query params: `period`
   (`ytd`, `1y`, `3y`, `5y`, `max` — default `max`; an unknown period returns
-  `422 Unprocessable Entity`) and `series=true` to include the daily points
+  `422 Unprocessable Entity`), `year=YYYY` for one calendar year, `from=`/`to=`
+  (ISO dates, both required, `from <= to`) for a custom range — both clamped
+  honestly to the available history, with a backwards or malformed range
+  returning `422` — and `series=true` to include the daily points
   (`date`, `value`, `flow`, `cumulative_ttwror`). The response carries
   `ttwror`, `start_date`/`end_date`, `start_value`/`end_value`,
   `net_external_flows` as Decimal strings, and `suspect_dates` — dates of
@@ -544,7 +561,7 @@ Example account payloads:
   position sum disagree, surfacing the mismatch). Each position row also carries
   `stale` (`true` when its security no longer sits under the stored category —
   reclassified or unassigned; the row still counts where it was filed, re-filing
-  it is your move) and each roll-up `has_stale`. Weights are Decimal strings.
+  is the remedy) and each roll-up `has_stale`. Weights are Decimal strings.
   Optional `classification_id` / `view` scope as above.
 - `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
   removes one position target and returns `{deleted}`. The category row and the
@@ -734,7 +751,7 @@ church tax withheld at a zero church-tax rate.
   targets **plus the cash target** (except for the currency classification where
   cash is distributed into categories), compared against `1`. To keep a holding
   out of the steering basis while it still counts toward total wealth, tag it
-  with a bucket and exclude that bucket from the `view` you read allocation
+  with a bucket and exclude that bucket from the `view` the allocation is read
   under — it then falls outside the scoped positions. Since ADR-0020 the **target**
   side reflects the **active view's plan**: passing `view=<id>` reports that
   view's target weights, cash target and `top_level_target_sum` (omitting it uses
@@ -805,7 +822,15 @@ church tax withheld at a zero church-tax rate.
   `GET`/`POST /api/v1/portfolios` (the Gesamt cash target).
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
   one security: open lots, closed round-trips (with realised P&L and holding
-  period in days) and any orphan sells. The response is self-describing (FR-13):
+  period in days) and any orphan sells. Each open lot carries `buy_price` (as
+  recorded, transaction currency) plus `buy_price_native` — the
+  security-currency basis its `unrealized_pnl_*` is computed against
+  (ADR-0033) — and the same base-currency decomposition fields as the
+  holdings rows (`base_cost`, `price_return_*`, `currency_return_*`,
+  `total_return_base_*`, `decomposed`/`undecomposed_reason`, against the EUR
+  hub, since FIFO lots are matched per security across portfolios). A lot
+  with no derivable native leg reports `null` P&L instead of a blind
+  cross-currency figure. The response is self-describing (FR-13):
   it carries `method: "fifo"`, so a client never has to assume how lots were
   paired against sells. Optional `from`/`to` (ISO dates) filter each leg by its
   own date: open lots by open date, closed round-trips by close date, orphan
@@ -826,7 +851,7 @@ Classification trees organise securities like folders. Built-in trees
 (`asset_class`, `currency`) are derived automatically and their structure is
 locked; editing the structure of a built-in tree returns `422 Unprocessable
 Entity`. The **asset-class** tree's membership, however, is just a view of each
-security's `asset_class` field: in the UI you can drag a security between its
+security's `asset_class` field: in the UI a security is dragged between its
 categories (which sets that field), and the same effect is achieved over the API
 with `PATCH /api/v1/securities/:id` (`{"security": {"asset_class": "etf"}}`) or
 the `securities.update` MCP tool. Set it to empty/`null` for "automatic", which
@@ -924,6 +949,16 @@ writes are deliberately not journaled (ADR-0018 §5).
   `securities_account_ids`/`cash_account_ids` carrying more than one included
   bucket — the totals are already deduplicated). The active view is echoed as
   `view: {id, name}`. Unknown and malformed view ids return `404`.
+- `GET /api/v1/views/:view_id/performance` returns the view's TTWROR and
+  money-weighted IRR **across all portfolios**: exactly the deduplicated
+  account scope the view valuation covers, so the total and the return always
+  speak about the same accounts. Money crossing the view boundary counts as an
+  external flow (ADR-0019); money moving between two in-scope accounts nets
+  out. `?period=` (`ytd|1y|3y|5y|max`, default `max`), `?year=YYYY`,
+  `?from=`/`?to=` (custom range) and `?series=true` behave like the portfolio
+  performance endpoint; the shape mirrors it with `view_id` in place of
+  `portfolio_id`, and all financial values are Decimal strings. Unknown and
+  malformed view ids return `404`; a bad period `422`.
 - `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
   bucket set (the buckets each position inherits unless overridden). Body:
   `{"bucket_ids": [..]}`. At most one of the ids may be a scope-dimension
@@ -1083,6 +1118,7 @@ in MCP schemas are strings.
 - `portfolixir.views.delete`
 - `portfolixir.views.set_buckets`
 - `portfolixir.views.valuation`
+- `portfolixir.views.performance`
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
@@ -1121,6 +1157,9 @@ matching that bucket view; the response then echoes the active view.
 `portfolixir.views.valuation` values a view **across all portfolios** in one
 call (each matching account counted once, EUR totals, `overlap` badge data) —
 use it instead of summing per-portfolio valuations client-side.
+`portfolixir.views.performance` computes the matching cross-portfolio
+TTWROR/IRR for the same account scope, with boundary-crossing money treated
+as an external flow (ADR-0019).
 `portfolixir.settings.get_default_view` / `portfolixir.settings.set_default_view`
 read and set the default-view preference (ADR-0024): pass a `view_id` to pin a
 view, or `null`/omit it to clear back to the built-in Everything scope.

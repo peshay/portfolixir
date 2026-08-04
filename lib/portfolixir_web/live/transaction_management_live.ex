@@ -28,6 +28,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:error, nil)
      |> assign(:success, nil)
      |> assign(:form_errors, %{})
+     |> assign(:sell_preview, nil)
      |> load_state()}
   end
 
@@ -181,6 +182,106 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               </label>
               <button type="submit"><%= gettext("Record transaction") %></button>
             </form>
+
+            <%!-- Issue #620: which FIFO purchase tranches this sale would
+                 consume, shown where the sale is decided. A GROSS gain —
+                 deliberately never a tax figure (ADR-0031 correction 1) —
+                 on the ADR-0033 currency basis, so this panel and the
+                 trades surface cannot disagree. --%>
+            <section
+              :if={@sell_preview && @sell_preview.lots != []}
+              id="sell-lot-preview"
+              class="workspace-section"
+              data-role="sell-lot-preview"
+            >
+              <h3><%= gettext("Lots consumed by this sale (FIFO)") %></h3>
+              <details class="metric-tooltip" data-role="gross-gain-info">
+                <summary aria-label={gettext("About the gross gain")}>ⓘ <%= gettext("Gross gain") %></summary>
+                <p role="tooltip">
+                  <%= gettext(
+                    "Gross gain if the sale executes at the given price: sale proceeds minus the FIFO purchase cost of the consumed lots, before fees. Lots are matched first-in, first-out across all depots. Indicative only — not a net figure; the stored cost basis does not change."
+                  ) %>
+                </p>
+              </details>
+              <p
+                :if={@sell_preview.price_source == :latest}
+                class="form-help"
+                data-role="preview-price-hint"
+              >
+                <%= gettext("Priced at the latest stored price: %{price}.",
+                  price: format_decimal(@sell_preview.sell_price)
+                ) %>
+              </p>
+              <table id="sell-lot-preview-table">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Open date") %></th>
+                    <th><%= gettext("Quantity used") %></th>
+                    <th><%= gettext("Buy price") %></th>
+                    <th><%= gettext("Gross gain") %></th>
+                    <%= if sell_preview_cross_currency?(@sell_preview) do %>
+                      <th><%= gettext("Price return") %></th>
+                      <th><%= gettext("Currency return") %></th>
+                      <th><%= gettext("Total (base)") %></th>
+                    <% end %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for lot <- @sell_preview.lots do %>
+                    <tr>
+                      <td><%= Date.to_iso8601(lot.open_date) %></td>
+                      <td><%= format_decimal(lot.quantity) %></td>
+                      <td data-role="preview-buy-price">
+                        <%= if lot.buy_price_native do %>
+                          <%= format_decimal(lot.buy_price_native) %>
+                          <small><%= @sell_preview.security_currency %></small>
+                        <% else %>
+                          —
+                        <% end %>
+                      </td>
+                      <td class={gain_class(lot.gross_gain)} title={sell_preview_hint(lot)}>
+                        <%= signed_or_dash(lot.gross_gain) %>
+                        <small :if={lot.gross_gain}><%= @sell_preview.security_currency %></small>
+                      </td>
+                      <%= if sell_preview_cross_currency?(@sell_preview) do %>
+                        <td class={gain_class(lot.price_return_abs)}>
+                          <%= signed_or_dash(lot.price_return_abs) %>
+                        </td>
+                        <td class={gain_class(lot.currency_return_abs)}>
+                          <%= signed_or_dash(lot.currency_return_abs) %>
+                        </td>
+                        <td class={gain_class(lot.total_return_base_abs)}>
+                          <%= signed_or_dash(lot.total_return_base_abs) %>
+                          <small :if={lot.decomposed}><%= lot.base_currency %></small>
+                        </td>
+                      <% end %>
+                    </tr>
+                  <% end %>
+                </tbody>
+                <tfoot>
+                  <tr class="totals-row">
+                    <td colspan="3"><%= gettext("Total") %></td>
+                    <td class={gain_class(@sell_preview.total_gross_gain)} data-role="preview-total">
+                      <%= signed_or_dash(@sell_preview.total_gross_gain) %>
+                      <small :if={@sell_preview.total_gross_gain}>
+                        <%= @sell_preview.security_currency %>
+                      </small>
+                    </td>
+                    <td :if={sell_preview_cross_currency?(@sell_preview)} colspan="3"></td>
+                  </tr>
+                </tfoot>
+              </table>
+              <p
+                :if={Decimal.compare(@sell_preview.shortfall, 0) == :gt}
+                class="alert-error"
+                role="alert"
+                data-role="sell-shortfall"
+              >
+                <%= gettext("%{quantity} of the entered quantity is not covered by open lots.",
+                  quantity: format_decimal(@sell_preview.shortfall)
+                ) %>
+              </p>
+            </section>
           </section>
         <% else %>
           <section id="transaction-setup-empty" class="empty-state" role="status">
@@ -348,7 +449,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   def handle_event("form_changed", %{"transaction" => params}, socket) do
     # Clear stale field errors as the user edits, so a corrected field stops
     # reading as invalid before the next submit.
-    {:noreply, socket |> assign(:transaction_form, params) |> assign(:form_errors, %{})}
+    {:noreply,
+     socket
+     |> assign(:transaction_form, params)
+     |> assign(:form_errors, %{})
+     |> assign(:sell_preview, compute_sell_preview(params))}
   end
 
   def handle_event("filter_changed", %{"filters" => filters}, socket) do
@@ -376,6 +481,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          socket
          |> assign(:transaction_form, @transaction_form)
          |> assign(:form_errors, %{})
+         |> assign(:sell_preview, nil)
          |> success(gettext("Transaction recorded"))
          |> load_state()}
 
@@ -612,6 +718,83 @@ defmodule PortfolixirWeb.TransactionManagementLive do
        do: "#{p}:#{q}"
 
   defp split_ratio_label(_transaction), do: "—"
+
+  # Issue #620: the FIFO consumption preview for the sell being entered.
+  # Computed on every form change once type=sell, a security and a positive
+  # quantity are set; the price is optional (the ledger falls back to the
+  # latest stored close). The entered price is read as the security's own
+  # currency — the same currency a bookable manual sell is priced in.
+  defp compute_sell_preview(%{"type" => "sell"} = params) do
+    with {:ok, security_id} <- parse_form_int(params["security_id"]),
+         {:ok, quantity} <- parse_form_decimal(params["quantity"]) do
+      opts =
+        case parse_form_decimal(params["price"]) do
+          {:ok, price} -> [price: price]
+          _no_price -> []
+        end
+
+      Ledger.sell_consumption_preview(security_id, quantity, opts)
+    else
+      _incomplete -> nil
+    end
+  end
+
+  defp compute_sell_preview(_params), do: nil
+
+  defp parse_form_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} -> {:ok, int}
+      _invalid -> :error
+    end
+  end
+
+  defp parse_form_int(_value), do: :error
+
+  defp parse_form_decimal(value) when is_binary(value) do
+    case value |> normalize_decimal_comma() |> String.trim() |> Decimal.parse() do
+      {%Decimal{} = decimal, ""} ->
+        if Decimal.compare(decimal, 0) == :gt, do: {:ok, decimal}, else: :error
+
+      _invalid ->
+        :error
+    end
+  end
+
+  defp parse_form_decimal(_value), do: :error
+
+  # The decomposition columns appear only when a tranche's settlement leg is
+  # denominated in another currency than the security — the same-currency
+  # majority keeps the compact four-column table.
+  defp sell_preview_cross_currency?(%{lots: lots, security_currency: security_currency}) do
+    Enum.any?(lots, fn lot ->
+      lot.base_currency != nil and lot.base_currency != security_currency
+    end)
+  end
+
+  defp signed_or_dash(value), do: PortfolixirWeb.Format.signed_decimal(value, 2)
+
+  defp gain_class(%Decimal{} = value) do
+    case Decimal.compare(value, 0) do
+      :gt -> "is-positive"
+      :lt -> "is-negative"
+      :eq -> nil
+    end
+  end
+
+  defp gain_class(_value), do: nil
+
+  # Why a tranche shows no figure — terse, impersonal (mirrors the security
+  # detail's ADR-0033 hints).
+  defp sell_preview_hint(%{gross_gain: nil, undecomposed_reason: :missing_native_cost}),
+    do:
+      gettext(
+        "No security-currency cost is derivable from the recorded booking (no settlement legs, no stored rate at the booking date)."
+      )
+
+  defp sell_preview_hint(%{gross_gain: nil, undecomposed_reason: :no_price}),
+    do: gettext("No price is available for this security.")
+
+  defp sell_preview_hint(_lot), do: nil
 
   # Normalized, so holdings show "200" instead of the stored scale
   # ("200.000000000000"); nil stays blank.

@@ -54,7 +54,7 @@ already in force in the codebase.
 | [0023](0023-drift-sign-and-display-only-rebalancing-hints.html) | Drift sign convention and display-only rebalancing hints | Accepted |
 | [0024](0024-buckets-and-views-replace-portfolios-in-the-ui.html) | Buckets and views replace portfolios as the user-facing grouping | Accepted |
 | [0025](0025-automation-recipes-boundary.html) | Automation recipes — docs in the repo, broker scripts outside | Accepted |
-| [0026](0026-epic-batch-workflow.html) | Epic-batch workflow — humans review decisions and behavior | Accepted |
+| [0026](0026-epic-batch-workflow.html) | Epic-batch workflow — humans review decisions and behavior | Accepted (risk-tier clause amended by 0036) |
 | [0027](0027-plan-versions-and-depot-snapshots.html) | Named plan versions and ledger-marker depot snapshots | Accepted |
 | [0028](0028-corporate-actions-as-ledger-events.html) | Corporate actions as ledger events — splits as a first-class kind | Accepted |
 | [0029](0029-stable-identities-and-reimport-survival.html) | Stable identities and re-import survival — identity ladder with ISIN-change aliases | Accepted |
@@ -62,3 +62,7 @@ already in force in the codebase.
 | [0031](0031-recorded-tax-statement-snapshots.html) | Recorded tax-statement snapshots — capture the broker's tax pots, never derive them | Accepted |
 | [0032](0032-derived-series-memoization.html) | Memoized derived series — cache the daily TTWROR walk in volatile memory | Accepted |
 | [0033](0033-per-position-pnl-fx-decomposition.html) | Per-position P&L decomposed — price return and currency return over a security-currency cost basis | Accepted |
+| [0034](0034-money-weighted-metrics.html) | Money-weighted metrics — net invested capital, wealth multiple, hand-rolled XIRR next to TTWROR | Accepted |
+| [0035](0035-one-pricing-pass-per-read.html) | One pricing pass per read — shared preloaded market data instead of six re-derivations | Accepted |
+| [0036](0036-risk-tier-rides-the-batch.html) | Risk-tier work rides the batch — the dedicated-small-PR exception is withdrawn | Accepted (amends 0026) |
+| [0037](0037-phoenix-18-liveview-1x.html) | Phoenix 1.8 and LiveView 1.x — taken as a security upgrade, verified in a real browser | Accepted |

@@ -54,6 +54,26 @@ defmodule Portfolixir.Portfolios.PerformanceCacheTest do
     assert Cache.fetch(1, :unscoped, ~D[2026-07-29], compute(:recomputed)) == :a
   end
 
+  # ADR-0032 §3.3, #577 fix round: a write whose provable blast radius is
+  # empty (e.g. an FX rate when every portfolio is single-currency in its own
+  # base) still changes the cross-portfolio view walk, which converts every
+  # slice into one common base. Even an empty targeted invalidation must
+  # therefore bump the :global scope — a stale view series must never be
+  # served as current after a financial write.
+  test "an empty targeted invalidation still drops the global view memo" do
+    global = Cache.global_scope_id()
+    Cache.fetch(global, {:unscoped, "EUR"}, ~D[2026-07-29], compute(:view))
+    Cache.fetch(1, :unscoped, ~D[2026-07-29], compute(:portfolio))
+
+    Cache.invalidate([])
+
+    assert Cache.fetch(global, {:unscoped, "EUR"}, ~D[2026-07-29], compute(:view_again)) ==
+             :view_again
+
+    # Portfolio memos are untouched — the radius said none of them changed.
+    assert Cache.fetch(1, :unscoped, ~D[2026-07-29], compute(:portfolio_again)) == :portfolio
+  end
+
   # The whole point of the owner's targeted-invalidation decision.
   test "invalidating one portfolio leaves the others readable" do
     Cache.fetch(1, :unscoped, ~D[2026-07-29], compute(:one))

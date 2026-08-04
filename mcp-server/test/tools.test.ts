@@ -81,6 +81,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.views.delete",
       "portfolixir.views.set_buckets",
       "portfolixir.views.valuation",
+      "portfolixir.views.performance",
       "portfolixir.securities_accounts.set_buckets",
       "portfolixir.cash_accounts.set_buckets",
       "portfolixir.securities_accounts.set_position_buckets",
@@ -1415,6 +1416,54 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].method, "GET");
     assert.equal(requests[0].path, "/api/v1/views/2/valuation");
     assert.equal((result.structuredContent as any).data.total_with_cash, "750");
+  });
+
+  // User story (#577): as an MCP client I want a view's cross-portfolio
+  // TTWROR/IRR from one tool, so that the performance figures cover exactly
+  // the accounts the view valuation covers.
+  it("issues a GET to /views/:id/performance for portfolixir.views.performance", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { view_id: 2, ttwror: "0.15", irr: "0.12" }
+    });
+
+    const result = await callTool(client, "portfolixir.views.performance", {
+      id: 2,
+      period: "ytd",
+      series: true
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/views/2/performance?period=ytd&series=true");
+    assert.equal((result.structuredContent as any).data.ttwror, "0.15");
+  });
+
+  // User story (#563): as an MCP client I want a previous year or a custom
+  // from/to range as the performance period, matching the UI's period picker.
+  it("forwards year and from/to period params on the performance tools", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { portfolio_id: 1, ttwror: "0.1" }
+    });
+
+    await callTool(client, "portfolixir.portfolios.performance", {
+      portfolio_id: 1,
+      year: 2025
+    });
+    await callTool(client, "portfolixir.portfolios.performance", {
+      portfolio_id: 1,
+      from: "2025-01-01",
+      to: "2025-12-31"
+    });
+    await callTool(client, "portfolixir.views.performance", {
+      id: 2,
+      year: 2025
+    });
+
+    assert.equal(requests[0].path, "/api/v1/portfolios/1/performance?year=2025");
+    assert.equal(
+      requests[1].path,
+      "/api/v1/portfolios/1/performance?from=2025-01-01&to=2025-12-31"
+    );
+    assert.equal(requests[2].path, "/api/v1/views/2/performance?year=2025");
   });
 
   it("defaults omitted view bucket sets to empty arrays", async () => {

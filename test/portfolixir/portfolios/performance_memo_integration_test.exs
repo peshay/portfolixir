@@ -247,4 +247,40 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
 
     assert Performance.previous_analysis(a.portfolio.id, opts(a)) == before
   end
+
+  # #577: the cross-portfolio view walk is memoised under its own scope
+  # dimension, and a write in ANY portfolio invalidates it — a view series
+  # depends on every portfolio, so its narrowest blast radius is "any write"
+  # (ADR-0032 §3.3: fail toward recomputation).
+  test "a booking in any portfolio invalidates the memoised view walk" do
+    a = world("View Walk A")
+    b = world("View Walk B")
+    security = security!(%{isin: "DE000MEMO008"})
+    buy!(a, security, ~D[2024-01-02], "100")
+    buy!(b, security, ~D[2024-01-02], "100")
+
+    before = Performance.view_analysis(nil, today: ~D[2024-06-30])
+    assert Performance.view_analysis(nil, today: ~D[2024-06-30]) == before
+
+    tx = buy!(b, security, ~D[2024-04-02], "110")
+
+    after_write = Performance.view_analysis(nil, today: ~D[2024-06-30])
+    refute after_write == before
+    assert Enum.any?(after_write.daily, &(&1.date == tx.date))
+  end
+
+  # ADR-0032 §6 for the view walk: the superseded cross-portfolio series stays
+  # readable (one generation) while the fresh one computes.
+  test "the superseded view series stays readable while a fresh one would compute" do
+    a = world("View Superseded")
+    security = security!(%{isin: "DE000MEMO009"})
+    buy!(a, security, ~D[2024-01-02], "100")
+
+    before = Performance.view_analysis(nil, today: ~D[2024-06-30])
+    assert Performance.previous_view_analysis(nil, today: ~D[2024-06-30]) == nil
+
+    buy!(a, security, ~D[2024-04-02], "110")
+
+    assert Performance.previous_view_analysis(nil, today: ~D[2024-06-30]) == before
+  end
 end

@@ -103,16 +103,18 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "IRR"
   end
 
-  # User story (fix round, UAT merge condition):
+  # User story (#577):
   # As a local portfolio maintainer with more than one internal portfolio,
-  # I want the performance card and chart to say which portfolio they cover,
-  # so that I never read the first portfolio's TTWROR as the whole instance's.
+  # I want the TTWROR/IRR to cover exactly the accounts the header total
+  # covers, so that the performance card needs no scope disclaimer and never
+  # shows the first portfolio's return next to an all-accounts total.
   #
   # Acceptance criteria:
-  # - With two portfolios, the performance card/section carries a visible
-  #   scope hint naming the covered portfolio.
-  # - With a single portfolio (the common migrated case) no hint renders.
-  test "the performance figures carry a scope hint on multi-portfolio instances",
+  # - With two portfolios and no view picked, the performance figures span
+  #   both portfolios (the Everything scope of the header total).
+  # - The scope disclaimer that existed because of the old first-portfolio
+  #   walk is gone.
+  test "the performance figures cover all portfolios, like the header total",
        %{conn: conn} do
     seed_world()
 
@@ -124,17 +126,13 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
 
-    assert has_element?(view, "[data-role='performance-scope-hint']")
-    assert html =~ "Performance covers Mein Depot only"
-  end
-
-  test "no performance scope hint on a single-portfolio instance", %{conn: conn} do
-    seed_world()
-
-    {:ok, view, _html} = live(conn, "/portfolio")
-    render_async(view)
-
+    # Header total spans both portfolios: 1,080 + 500.
+    assert html =~ "1,580.00"
+    # So does the TTWROR: 1000 -> 1080 with both deposits neutralised, on a
+    # 1,500 base = +5.3%, not the first portfolio's +8%.
+    assert html =~ "5.3"
     refute has_element?(view, "[data-role='performance-scope-hint']")
+    refute html =~ "Performance covers"
   end
 
   test "the Allocation & targets tab shows the donut and drift (ADR-0022)", %{conn: conn} do
@@ -502,6 +500,63 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # No new async round needed — the cached daily series is re-chained.
     assert view |> element(~s(button[phx-value-period="max"])) |> render() =~ "is-active"
     assert html =~ "8.0"
+  end
+
+  # User story (#563):
+  # As a local portfolio maintainer,
+  # I want a previous-year picker and a custom from/to range next to the
+  # fixed period buttons,
+  # so that I can answer "how was last year?" without reading it off the max
+  # chart.
+  #
+  # Acceptance criteria:
+  # - A year dropdown offers every year with data; picking one re-chains the
+  #   cached analysis over that calendar year (no new walk).
+  # - A from/to date range re-chains the same way, clamped to the history.
+  # - from > to is rejected with a terse inline note; the period keeps.
+  test "re-chains a previous year and a custom range from the period picker", %{conn: conn} do
+    Classifications.ensure_builtins()
+
+    world =
+      WorldFixtures.base_world(name: "Jahres Depot", cash_name: "Giro J", depot_name: "Depot J")
+
+    security = WorldFixtures.create_security!(name: "Year ETF", ticker: "YRE")
+
+    today = Date.utc_today()
+    last_year = today.year - 1
+    start = Date.new!(last_year, 1, 10)
+    year_end = Date.new!(last_year, 12, 31)
+
+    # Last year: 1000 in at 100, closing at 110 (+10%). This year: 121 (+10%).
+    WorldFixtures.deposit!(world, "1000", start)
+    WorldFixtures.buy!(world, security, quantity: "10", price: "100", date: start)
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {year_end, "110"}, {today, "121"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # The year dropdown offers exactly the years with data.
+    assert has_element?(view, "#performance-year option[value='#{last_year}']")
+    assert has_element?(view, "#performance-year option[value='#{today.year}']")
+    refute has_element?(view, "#performance-year option[value='#{last_year - 1}']")
+
+    # Picking last year re-chains that calendar year: +10%.
+    html = render_change(view, "select_year", %{"year" => Integer.to_string(last_year)})
+    assert html =~ "+10.0"
+    assert html =~ "(#{last_year})"
+
+    # A custom range from last year's close to today: 1100 -> 1210 on a 1000
+    # base at the range start = +21%.
+    html =
+      render_submit(view, "select_range", %{"from" => "#{year_end}", "to" => "#{today}"})
+
+    assert html =~ "+21.0"
+    refute html =~ ~s(data-role="range-error")
+
+    # Backwards range: terse note, the shown period stays.
+    html = render_submit(view, "select_range", %{"from" => "#{today}", "to" => "#{year_end}"})
+    assert html =~ ~s(data-role="range-error")
+    assert html =~ "+21.0"
   end
 
   test "records a balance snapshot from the cash section", %{conn: conn} do

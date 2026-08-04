@@ -327,6 +327,10 @@ slices, each requiring its own ADR amendment before implementation:
 - Every split write is journaled ([ADR-0017](0017-append-only-audit-journal.html)).
 - Projection/ledger changes land as **dedicated small risk-tier PRs** with
   real human review (AGENTS.md risk-tier exception), not inside an epic batch.
+  *(Superseded 2026-08-04 by [ADR-0036](0036-risk-tier-rides-the-batch.html):
+  risk-tier work rides the batch; the label now governs review depth — own
+  commit group, dedicated verification pass on the invariant, explicit
+  briefing callout — not PR granularity.)*
 - The PP round-trip behavior of §1 is documented and covered by tests
   (export → re-import reconstitutes the split; split rows dedup on the §1
   identity `(portfolio, security, date, normalized ratio)`, content-hash

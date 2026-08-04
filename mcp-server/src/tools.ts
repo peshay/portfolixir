@@ -978,6 +978,9 @@ const incomeZ = z.object({
   portfolio_id: z.number().int().positive()
 });
 
+// Period selection (#563): besides the fixed period strings, a single
+// calendar year or a custom from/to date range (both dates required, from
+// on or before to; the server clamps to the available history).
 const performanceSchema = {
   type: "object",
   additionalProperties: false,
@@ -986,6 +989,9 @@ const performanceSchema = {
     portfolio_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
     period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    year: { type: "integer", minimum: 1970 },
+    from: { type: "string", format: "date" },
+    to: { type: "string", format: "date" },
     series: { type: "boolean" }
   }
 };
@@ -994,6 +1000,33 @@ const performanceZ = z.object({
   portfolio_id: z.number().int().positive(),
   view: z.number().int().positive().optional(),
   period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
+  year: z.number().int().min(1970).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  series: z.boolean().optional()
+});
+
+// Cross-portfolio view performance (#577): keyed by the view id.
+const viewPerformanceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    year: { type: "integer", minimum: 1970 },
+    from: { type: "string", format: "date" },
+    to: { type: "string", format: "date" },
+    series: { type: "boolean" }
+  }
+};
+
+const viewPerformanceZ = z.object({
+  id: z.number().int().positive(),
+  period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
+  year: z.number().int().min(1970).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
   series: z.boolean().optional()
 });
 
@@ -1802,7 +1835,7 @@ const toolDefinitions: ToolDefinition[] = [
     splitRequestSchema,
     splitRequestZ()
   ),
-  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings in each security's own currency (no FX conversion), with moving-average cost basis, latest price, market value and unrealized P&L. Each row carries the security's stable identifiers isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
+  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings with moving-average cost basis, latest price, market value and unrealized P&L in each security's OWN currency, plus the ADR-0033 base-currency P&L decomposition per row: base_cost (the settlement-leg amount actually paid, in base_currency), price_return_* (the security's own price move at today's rate), currency_return_* (the FX effect on the invested amount) and total_return_base_* — total = price + currency exactly. decomposed false with undecomposed_reason (missing_native_cost | missing_base_cost | missing_fx | no_price) marks a row whose figure is honestly unavailable, never guessed; the response's currency_basis_note states which field is in which currency. All financial values are Decimal strings. Each row carries the security's stable identifiers isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
@@ -1843,7 +1876,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.trades.list",
     "List trades",
-    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells, with realized P&L per FIFO-matched round-trip. For unrealized P&L on current positions use portfolixir.holdings.list. Optional from/to (ISO dates) filter each leg by its own date.",
+    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells, with realized P&L per FIFO-matched round-trip. Each open lot carries buy_price (as recorded, transaction currency) plus buy_price_native — the security-currency basis its unrealized P&L is computed against (ADR-0033) — and the same base-currency decomposition fields as portfolixir.holdings.list (base_cost, price_return_*, currency_return_*, total_return_base_*, decomposed/undecomposed_reason, against the EUR hub). A lot with no derivable native leg reports null P&L instead of a blind cross-currency figure. For unrealized P&L on current positions use portfolixir.holdings.list. Optional from/to (ISO dates) filter each leg by its own date.",
     {
       type: "object",
       additionalProperties: false,
@@ -1940,7 +1973,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.performance",
     "Portfolio performance (TTWROR + IRR)",
-    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). Set series=true to include the daily valuation series. Pass an optional view (a view id) to scope the series to the holdings matching that bucket view; the response then echoes the active view.",
+    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max; or year=YYYY for one calendar year, or from/to ISO dates for a custom range clamped to the available history). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). Set series=true to include the daily valuation series. Pass an optional view (a view id) to scope the series to the holdings matching that bucket view; the response then echoes the active view.",
     performanceSchema,
     performanceZ
   ),
@@ -2034,6 +2067,13 @@ const toolDefinitions: ToolDefinition[] = [
     "Live valuation of a bucket view across ALL portfolios (id is the view id): the deduplicated union of every depot, position and cash account matching the view — an account tagged into several included buckets counts exactly once. Totals, weights, cash balances and the cash quote are in EUR (converted via the EUR hub); the valued/price_source flags mark stale or unpriceable positions and unvalued_reason distinguishes no_price from missing_fx, exactly as in portfolixir.portfolios.valuation. The overlap object lists the depots/cash accounts carrying more than one included bucket (badge data — the totals are already deduplicated). matches_no_accounts is true when the view's resolution matches no account at all (an empty include set or orphaned buckets), explaining a 0 total. All financial values are Decimal strings. Use this, not a client-side sum of portfolio valuations, for a view's total wealth.",
     idSchema,
     idZ
+  ),
+  tool(
+    "portfolixir.views.performance",
+    "View performance (cross-portfolio TTWROR + IRR)",
+    "True time-weighted return (TTWROR) and money-weighted IRR of a bucket view across ALL portfolios (id is the view id): the same deduplicated account scope as portfolixir.views.valuation, so the view's total and its return always cover the same accounts. Money crossing the view boundary counts as an external flow (a deposit/withdrawal to the slice); money moving between two in-scope accounts nets out. period is ytd|1y|3y|5y|max (default max), or year=YYYY for one calendar year, or from/to ISO dates for a custom range; series=true adds the daily points. All financial values are Decimal strings.",
+    viewPerformanceSchema,
+    viewPerformanceZ
   ),
   tool(
     "portfolixir.securities_accounts.set_buckets",
@@ -2514,6 +2554,9 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/performance`, args, [
           "period",
+          "year",
+          "from",
+          "to",
           "series",
           "view"
         ])
@@ -2552,6 +2595,17 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("DELETE", `/api/v1/views/${args.id}`);
     case "portfolixir.views.valuation":
       return client.request("GET", `/api/v1/views/${args.id}/valuation`);
+    case "portfolixir.views.performance":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/views/${args.id}/performance`, args, [
+          "period",
+          "year",
+          "from",
+          "to",
+          "series"
+        ])
+      );
     case "portfolixir.views.set_buckets":
       return client.request("PUT", `/api/v1/views/${args.id}/buckets`, {
         include: args.include ?? [],

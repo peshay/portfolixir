@@ -57,9 +57,9 @@ Löschantwort keinen JSON-Body parsen.
   Name/ISIN/Ticker inferiert wird. Um eine Position aus der
   Allokations-Steuerbasis (den 100 %) und der Drift-Tabelle herauszuhalten,
   während sie in den Bewertungssummen und der Performance bleibt — z. B. ein als
-  Wertspeicher gehaltener Bitcoin —, versiehst du sie mit einem Bucket und
-  schließt diesen Bucket aus einer Ansicht aus; lies die Allokation dann unter
-  dieser Ansicht.
+  Wertspeicher gehaltener Bitcoin —, die Position mit einem Bucket versehen und
+  diesen Bucket aus einer Ansicht ausschließen; die Allokation dann unter
+  dieser Ansicht lesen.
 - `GET /api/v1/securities/:id` liefert ein Wertpapier, einschließlich seiner
   `identifier_aliases` — der über den ISIN-Wechsel-Endpunkt unten
   aufgezeichneten früheren ISINs (jeweils mit `id`, `former_isin`,
@@ -211,7 +211,7 @@ Beispiel-Antwort für Kurssynchronisierung:
   sein (ein Überziehungskredit). Es speichert eine
   `balance_adjustment`-Transaktion und gibt sie zurück. Der Saldo verankert sich
   dann an diesem Betrag, und nur Buchungen mit einem Datum strikt nach dem Snapshot
-  verändern ihn, sodass Geld zwischen deinen eigenen Konten zu verschieben keine
+  verändern ihn, sodass Geld zwischen eigenen Konten zu verschieben keine
   Übertragungsbuchung braucht. Unbekannte Konten liefern `404 Not Found`.
 - `POST /api/v1/cash_accounts` legt ein Geldkonto mit einem `cash_account`-Objekt
   an. `portfolio_id` ist optional (ADR-0024): fehlt sie, wird das Konto an das
@@ -353,15 +353,31 @@ Beispiel-Payloads für Konten:
   `quantity`, einen gleitenden Durchschnitt `avg_cost` und `cost_basis`
   (preisbasiert, sodass Gebühren und Steuern nicht in die Stückkosten einfließen),
   den `latest_price`, `market_value` und `unrealized_pnl_abs`/`unrealized_pnl_pct`
-  gegen diesen Preis, plus `security_name` und `currency_code`. Alle monetären
-  Größen sind in der eigenen Währung des Wertpapiers (keine FX-Umrechnung — siehe
-  die Bewertung für Summen in Basiswährung); ein Bestand, dessen Wertpapier keinen
-  Kurs hat, liefert `null` für Preis, Marktwert und G/V. Die Antwort ist
-  selbstbeschreibend (FR-13): sie trägt `currency_basis: "security_currency"`
-  (sodass ein Client nie annehmen muss, ob FX angewendet wurde) und ein
-  `as_of`-Datum. Bestände werden beim Lesen abgeleitet, ohne gespeicherten
-  Snapshot, daher ist `as_of` das Lesedatum. Unbekannte Portfolios liefern
-  `404 Not Found`. Optionale Filter: `security_id`, `securities_account_id`.
+  gegen diesen Preis, plus `security_name` und `currency_code`. Diese Größen
+  sind in der **eigenen** Währung des Wertpapiers — durch das Kostenpaar der
+  Ledger-Faltung erzwungen (ADR-0033), nicht länger eine Annahme; ein
+  Bestand, dessen Wertpapier keinen Kurs hat, liefert `null` für Preis,
+  Marktwert und G/V. Jede Zeile trägt zusätzlich die
+  ADR-0033-Zerlegung des G/V in Basiswährung: `base_cost` (der tatsächlich
+  gezahlte Abrechnungsbetrag, mit seiner `base_currency`),
+  `price_return_abs`/`price_return_pct` (die eigene Kursbewegung des
+  Wertpapiers, zum heutigen Kurs umgerechnet),
+  `currency_return_abs`/`currency_return_pct` (der Wechselkurseffekt auf den
+  ursprünglich investierten Betrag) und
+  `total_return_base_abs`/`total_return_base_pct` — wobei
+  `total = price + currency` Decimal-exakt gilt. Eine Zeile, deren Zerlegung
+  nicht ableitbar ist, meldet `decomposed: false` mit einem
+  `undecomposed_reason` (`"missing_native_cost"` — kein
+  Wertpapierwährungs-Leg in der erfassten Buchung, dann sind auch
+  `cost_basis`/`avg_cost`/G/V `null`; `"missing_base_cost"` — das
+  Abrechnungs-Leg ist nicht in der Basiswährung; `"missing_fx"` — kein
+  gespeicherter aktueller Kurs; `"no_price"`) und niemals eine geratene
+  Zahl. Die Antwort ist selbstbeschreibend (FR-13): sie trägt
+  `currency_basis: "security_currency"` plus eine `currency_basis_note`, die
+  benennt, welches Feld in welcher Währung ist, und ein `as_of`-Datum.
+  Bestände werden beim Lesen abgeleitet, ohne gespeicherten Snapshot, daher
+  ist `as_of` das Lesedatum. Unbekannte Portfolios liefern `404 Not Found`.
+  Optionale Filter: `security_id`, `securities_account_id`.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
@@ -473,9 +489,12 @@ Beispiel-Payloads für Konten:
   Einzahlungen, Entnahmen, Lieferungen und Saldo-Snapshot-Sprünge — werden
   neutralisiert, und tägliche Renditen werden geometrisch verkettet (siehe
   ADR-0010). Optionale Query-Parameter: `period` (`ytd`, `1y`, `3y`, `5y`, `max` —
-  Standard `max`; ein unbekannter Zeitraum liefert `422 Unprocessable Entity`) und
-  `series=true`, um die täglichen Punkte aufzunehmen (`date`, `value`, `flow`,
-  `cumulative_ttwror`). Die Antwort trägt `ttwror`, `start_date`/`end_date`,
+  Standard `max`; ein unbekannter Zeitraum liefert `422 Unprocessable Entity`),
+  `year=YYYY` für ein einzelnes Kalenderjahr, `from=`/`to=` (ISO-Daten, beide
+  erforderlich, `from <= to`) für einen freien Zeitraum — beide ehrlich auf die
+  vorhandene Historie begrenzt, ein rückwärtiger oder fehlerhafter Zeitraum
+  liefert `422` — und `series=true`, um die täglichen Punkte aufzunehmen
+  (`date`, `value`, `flow`, `cumulative_ttwror`). Die Antwort trägt `ttwror`, `start_date`/`end_date`,
   `start_value`/`end_value`, `net_external_flows` als Decimal-Strings und
   `suspect_dates` — Daten von Buchungen älter als 1970 (Import-Tippfehler), deren
   Effekte am ersten plausiblen Tag angewendet wurden. Neben `ttwror` trägt die
@@ -609,9 +628,9 @@ Beispiel-Payloads für Konten:
   `top_level_target_sum` ist die Summe der Ziele der Wurzelkategorien **plus das
   Cash-Ziel** (außer im Währungs-Baum, wo Cash in Kategorien verteilt wird),
   verglichen mit `1`. Um einen Bestand aus der Steuerbasis herauszuhalten,
-  während er weiterhin zum Gesamtvermögen zählt, versiehst du ihn mit einem
-  Bucket und schließt diesen Bucket aus der `view` aus, unter der du die
-  Allokation liest — er fällt dann aus den eingeschränkten Positionen. Seit
+  während er weiterhin zum Gesamtvermögen zählt, den Bestand mit einem
+  Bucket versehen und diesen Bucket aus der `view` ausschließen, unter der die
+  Allokation gelesen wird — er fällt dann aus den eingeschränkten Positionen. Seit
   ADR-0020 spiegelt die **SOLL**-Seite den **Plan der aktiven View** wider: Mit
   `view=<id>` werden die Zielgewichte, das Cash-Ziel und der
   `top_level_target_sum` dieser View ausgewiesen (ohne `view` der Gesamt-Plan),
@@ -690,7 +709,15 @@ Beispiel-Payloads für Konten:
   (das Gesamt-Cash-Ziel).
 - `GET /api/v1/securities/:security_id/trades` liefert FIFO-gematchte Trades eines
   Wertpapiers: offene Lots, geschlossene Round-Trips (mit realisiertem G/V und
-  Haltedauer in Tagen) und etwaige verwaiste Verkäufe. Die Antwort ist
+  Haltedauer in Tagen) und etwaige verwaiste Verkäufe. Jedes offene Lot trägt
+  `buy_price` (wie erfasst, Transaktionswährung) plus `buy_price_native` — die
+  Basis in Wertpapierwährung, gegen die sein `unrealized_pnl_*` gerechnet wird
+  (ADR-0033) — und dieselben Zerlegungsfelder in Basiswährung wie die
+  Bestandszeilen (`base_cost`, `price_return_*`, `currency_return_*`,
+  `total_return_base_*`, `decomposed`/`undecomposed_reason`, gegen den
+  EUR-Hub, da FIFO-Lots je Wertpapier über Portfolios hinweg gematcht
+  werden). Ein Lot ohne ableitbares Wertpapierwährungs-Leg meldet `null`-G/V
+  statt eines blinden währungsübergreifenden Vergleichs. Die Antwort ist
   selbstbeschreibend (FR-13): sie trägt `method: "fifo"`, sodass ein Client nie
   annehmen muss, wie Lots gegen Verkäufe gepaart wurden. Optionales `from`/`to`
   (ISO-Daten) filtert jedes Bein nach seinem eigenen Datum: offene Lots nach
@@ -714,7 +741,7 @@ Klassifizierungsbäume ordnen Wertpapiere wie Ordner. Integrierte Bäume
 gesperrt; das Bearbeiten der Struktur eines integrierten Baums liefert
 `422 Unprocessable Entity`. Die **Mitgliedschaft** des **Anlageklassen**-Baums
 ist jedoch nur eine Sicht auf das `asset_class`-Feld jedes Wertpapiers: in der UI
-kannst du ein Wertpapier zwischen seinen Kategorien ziehen (was dieses Feld
+wird ein Wertpapier zwischen seinen Kategorien gezogen (was dieses Feld
 setzt), und derselbe Effekt wird über die API mit `PATCH /api/v1/securities/:id`
 (`{"security": {"asset_class": "etf"}}`) oder dem MCP-Tool `securities.update`
 erzielt. Setze es auf leer/`null` für „automatisch", was die Klasse beim Lesen aus
@@ -797,6 +824,17 @@ View-Definitions-Schreibvorgänge bewusst nicht (ADR-0018 §5).
 - `PUT /api/v1/views/:id/buckets` ersetzt die Include-/Exclude-Bucket-Sets einer
   View. Body: `{"include": [..], "exclude": [..]}` (beide optional, Standard
   `[]`, Listen von Bucket-ids). Eine fehlerhafte id-Liste ergibt `422`.
+- `GET /api/v1/views/:view_id/performance` liefert TTWROR und geldgewichtete
+  Rendite (IRR) der View **über alle Portfolios**: exakt der deduplizierte
+  Konten-Scope, den auch die View-Bewertung abdeckt, sodass Gesamtwert und
+  Rendite immer über dieselben Konten sprechen. Geld, das die View-Grenze
+  überquert, zählt als externer Fluss (ADR-0019); Geld zwischen zwei Konten
+  innerhalb der View saldiert sich. `?period=` (`ytd|1y|3y|5y|max`, Standard
+  `max`), `?year=YYYY`, `?from=`/`?to=` (freier Zeitraum) und `?series=true`
+  verhalten sich wie beim Portfolio-Performance-Endpunkt; die Antwort spiegelt
+  dessen Form mit `view_id` statt `portfolio_id`, alle Finanzwerte sind
+  Decimal-Strings. Unbekannte und fehlerhafte View-ids liefern `404`, ein
+  fehlerhafter Zeitraum `422`.
 - `PUT /api/v1/securities_accounts/:id/buckets` ersetzt das Standard-Bucket-Set
   eines Depots (die Buckets, die jede Position erbt, sofern nicht überschrieben).
   Body: `{"bucket_ids": [..]}`.
@@ -952,12 +990,17 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.views.update`
 - `portfolixir.views.delete`
 - `portfolixir.views.set_buckets`
+- `portfolixir.views.performance`
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
 - `portfolixir.securities_accounts.clear_position_buckets`
 - `portfolixir.settings.get_default_view`
 - `portfolixir.settings.set_default_view`
+
+`portfolixir.views.performance` berechnet die passende portfolioübergreifende
+TTWROR/IRR für denselben Konten-Scope; Geld, das die View-Grenze überquert,
+wird als externer Fluss behandelt (ADR-0019).
 
 `portfolixir.settings.get_default_view` /
 `portfolixir.settings.set_default_view` lesen und setzen die

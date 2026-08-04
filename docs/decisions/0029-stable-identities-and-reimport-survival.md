@@ -307,7 +307,11 @@ divergence abort.
   choices that create records) inherit journaled writes from day one.
 - Everything touching the applier's matching and idempotency is
   **risk-tier**: dedicated small PRs with real human review (AGENTS.md
-  risk-tier exception), not epic-batch content. The two-layer idempotency
+  risk-tier exception), not epic-batch content. *(Delivery clause superseded
+  2026-08-04 by [ADR-0036](0036-risk-tier-rides-the-batch.html) — risk-tier
+  work rides the batch; the idempotency verification below is unchanged and,
+  under ADR-0036, becomes the mandatory dedicated review pass.)* The two-layer
+  idempotency
   is load-bearing here and must be re-asserted in tests, **in both
   directions** (the review round caught the original sentence describing
   the wrong tier): (a) change recorded, then a *new* export re-imported —

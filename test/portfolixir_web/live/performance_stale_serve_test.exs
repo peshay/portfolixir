@@ -78,11 +78,16 @@ defmodule PortfolixirWeb.PerformanceStaleServeTest do
   end
 
   # Compute once, then supersede the memo with a booking: the previous
-  # generation is now what §6 serves.
+  # generation is now what §6 serves. The surfaces read the cross-portfolio
+  # view walk (#577), so that is the scope superseded here; the per-portfolio
+  # memo keeps its own §6 coverage in the memo integration test.
   defp supersede!(world) do
-    Performance.analysis(world.portfolio.id, [])
+    base_currency = world.portfolio.base_currency_code
+    Performance.view_analysis(nil, base_currency: base_currency)
     buy!(world, ~D[2024-04-02], "110")
-    assert %{daily: [_ | _]} = Performance.previous_analysis(world.portfolio.id, [])
+
+    assert %{daily: [_ | _]} =
+             Performance.previous_view_analysis(nil, base_currency: base_currency)
   end
 
   test "the Wealth chart serves the superseded series labelled, then swaps", %{conn: conn} do

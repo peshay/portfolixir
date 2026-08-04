@@ -56,6 +56,7 @@ Microcopy is **explanatory** (binding): the UI translates domain terms instead o
 
 - Domain metrics carry a tooltip/hover definition: TTWROR, IRR, SOLL/IST drift, cash quote. One sentence, plain language, method named. Example: "TTWROR — time-weighted return; ignores when money was added, measures only how investments performed."
 - Numbers state their basis where it is cheap: as-of date, currency, gross/net. The agent gets this via self-describing MCP responses (FR-13); the human gets the same honesty inline.
+- **Impersonal voice (owner rule 2026-07-23, binding; complements UX-DR11 tooltips).** UI and doc text states the fact/state/consequence without addressing the reader — "Mapping required", not "you must map". Where address is genuinely unavoidable: du, never Sie. Imperative labels without personal pronouns are fine. Warnings are a statement of fact plus the remedy. Second-person address and tutorial filler in user-facing strings are review-blocking findings.
 
 | Do | Don't |
 |---|---|

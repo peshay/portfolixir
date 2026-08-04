@@ -5,6 +5,14 @@ on:
     branches: ["main"]
   pull_request:
 
+# Least privilege for the whole workflow: every job here only reads the
+# repository. Checkout, the language toolchains and the quality gates need
+# nothing more, and the Codecov upload authenticates with its own token
+# rather than the workflow's GITHUB_TOKEN. Without this key GitHub grants the
+# default token set, which is wider than any job here uses.
+permissions:
+  contents: read
+
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
@@ -139,6 +147,25 @@ jobs:
 
       - name: Audit MCP server dependencies (npm)
         run: npm audit --audit-level=high --prefix mcp-server
+
+      # AGENTS.md has always required `npm test` and `npm run build` for the
+      # MCP companion, but CI only audited its dependencies — so an MCP-only
+      # change (or a transitive major bump underneath the SDK) rested on an
+      # unverifiable local claim. Under ADR-0036 "every quality gate green"
+      # replaces the per-PR human read, so the companion's own gates have to
+      # run here too. `npm ci` installs from the lockfile the audit above
+      # already checked. `--ignore-scripts` blocks dependency lifecycle
+      # scripts, which are arbitrary code execution on the runner at install
+      # time; nothing in this tree needs them (the deps are the MCP SDK,
+      # express, zod, tsx and typescript), and both gates below pass without.
+      - name: Install MCP server dependencies
+        run: npm ci --ignore-scripts --prefix mcp-server
+
+      - name: MCP server tests
+        run: npm test --prefix mcp-server
+
+      - name: MCP server build
+        run: npm run build --prefix mcp-server
 
       # Credo, Sobelow and Dialyzer are blocking quality gates. Sobelow skips
       # are per-function `# sobelow_skip` annotations with a written reason;
