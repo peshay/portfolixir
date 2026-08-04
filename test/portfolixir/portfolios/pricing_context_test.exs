@@ -505,8 +505,8 @@ defmodule Portfolixir.Portfolios.PricingContextTest do
 
       with_batched =
         Ledger.holdings_for_portfolio(portfolio.id,
-          prices: PricingContext.quote_prices(context),
-          fx_rates: PricingContext.base_rates(context, portfolio.base_currency_code)
+          prices: batched_quote_prices(context),
+          fx_rates: batched_base_rates(context, portfolio.base_currency_code)
         )
 
       assert_identical(without, with_batched)
@@ -588,5 +588,30 @@ defmodule Portfolixir.Portfolios.PricingContextTest do
       assert Fx.convert_with_hub_rates(amount, from, to, rates) == Fx.convert(amount, from, to),
              "convert #{from}->#{to} differs"
     end
+  end
+
+  # `Ledger.holdings_for_portfolio/2` is deliberately left on the per-row path
+  # (ADR-0035 names only Valuation, Allocation, Fx and the two callers), so the
+  # context carries no production adapter for its `:prices` / `:fx_rates`
+  # options. These two helpers build those maps here instead, which is what
+  # lets the test above prove the batch loaders equal the per-row lookups.
+  defp batched_quote_prices(context) do
+    for {security_id, %{close: %Decimal{} = close}} <- context.quotes,
+        into: %{},
+        do: {security_id, close}
+  end
+
+  defp batched_base_rates(context, base_currency) do
+    context.securities
+    |> Map.values()
+    |> Enum.map(& &1.currency_code)
+    |> Enum.filter(&is_binary/1)
+    |> Enum.uniq()
+    |> Enum.reduce(%{}, fn currency, acc ->
+      case PricingContext.rate(context, currency, base_currency) do
+        {:ok, rate} -> Map.put(acc, currency, rate)
+        {:error, :no_rate} -> acc
+      end
+    end)
   end
 end

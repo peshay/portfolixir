@@ -272,37 +272,4 @@ defmodule Portfolixir.Portfolios.PricingContext do
       do: {:ok, context.cash_balances}
 
   def cash_balances(%__MODULE__{}, _scope), do: :miss
-
-  @doc """
-  The preloaded latest closes as `%{security_id => Decimal}` — the shape the
-  `:prices` option of `Portfolixir.Ledger.holdings_for_portfolio/2` takes.
-
-  Securities without a quote are absent, which is exactly what that option's
-  fallback expects.
-  """
-  def quote_prices(%__MODULE__{} = context) do
-    for {security_id, %{close: %Decimal{} = close}} <- context.quotes,
-        into: %{},
-        do: {security_id, close}
-  end
-
-  @doc """
-  The preloaded rate converting one unit of each covered security currency into
-  `base_currency`, as `%{currency => Decimal}` — the shape the `:fx_rates`
-  option of `Portfolixir.Ledger.holdings_for_portfolio/2` takes. Currencies
-  with no rate path are absent.
-  """
-  def base_rates(%__MODULE__{} = context, base_currency) do
-    context.securities
-    |> Map.values()
-    |> Enum.map(& &1.currency_code)
-    |> Enum.filter(&is_binary/1)
-    |> Enum.uniq()
-    |> Enum.reduce(%{}, fn currency, acc ->
-      case rate(context, currency, base_currency) do
-        {:ok, rate} -> Map.put(acc, currency, rate)
-        {:error, :no_rate} -> acc
-      end
-    end)
-  end
 end

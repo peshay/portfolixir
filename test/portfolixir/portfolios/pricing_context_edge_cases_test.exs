@@ -1,5 +1,21 @@
-defmodule Portfolixir.Portfolios.PricingProbeTest do
+defmodule Portfolixir.Portfolios.PricingContextEdgeCasesTest do
   @moduledoc false
+
+  # User story (ADR-0035, issue #619):
+  # As a local portfolio maintainer,
+  # I want a read that preloads its market data once to return exactly what the
+  # per-row read returned,
+  # so that making the dashboard cheap never quietly changes a number.
+  #
+  # Acceptance criteria (ADR-0035 hard requirement 1, sharpened where a batch
+  # loader is most likely to diverge silently from its per-row equivalent):
+  # - A base currency that itself needs triangulation (GBX) matches.
+  # - The batched split-adjusted quote loader equals the per-row one, for
+  #   securities with split events and without.
+  # - A read whose base currency or status bases fall OUTSIDE a supplied
+  #   context's coverage falls back and still matches.
+  # - Reusing a deliberately narrow context across portfolios matches.
+  # - A portfolio with neither cash accounts nor positions matches.
   use Portfolixir.DataCase, async: true
 
   import Portfolixir.WorldFixtures,
@@ -46,7 +62,6 @@ defmodule Portfolixir.Portfolios.PricingProbeTest do
         }
       ])
   end
-
 
   defp xbuy!(w, security, quantity, price, rate, date) do
     security_amount = Decimal.mult(Decimal.new(quantity), Decimal.new(price))
@@ -128,7 +143,8 @@ defmodule Portfolixir.Portfolios.PricingProbeTest do
     batched = Quotes.adjusted_latest_by_security_ids(ids)
 
     for id <- ids do
-      assert Quotes.adjusted_latest(id) == Map.get(batched, id), "adjusted quote differs for #{id}"
+      assert Quotes.adjusted_latest(id) == Map.get(batched, id),
+             "adjusted quote differs for #{id}"
     end
 
     without = Valuation.for_portfolio(w.portfolio.id)
@@ -148,7 +164,10 @@ defmodule Portfolixir.Portfolios.PricingProbeTest do
 
     for base <- ["CHF", "GBX", "GBP", "USD", "EUR", "NOK"] do
       without = Valuation.for_portfolio(w.portfolio.id, base_currency: base)
-      with_ctx = Valuation.for_portfolio(w.portfolio.id, base_currency: base, pricing_context: ctx)
+
+      with_ctx =
+        Valuation.for_portfolio(w.portfolio.id, base_currency: base, pricing_context: ctx)
+
       assert without == with_ctx, "base #{base} differs"
 
       vwithout = Valuation.for_view(nil, base_currency: base)
@@ -185,7 +204,14 @@ defmodule Portfolixir.Portfolios.PricingProbeTest do
     a = base_world(name: "PA", currency: "EUR")
     b = base_world(name: "PB", currency: "CHF", cash_currency: "CHF")
     c = base_world(name: "PC", currency: "USD", cash_currency: "USD")
-    extra = add_depot(c.portfolio, currency: "GBP", cash_currency: "GBP", cash_name: "GBP Cash", depot_name: "GBP Depot")
+
+    extra =
+      add_depot(c.portfolio,
+        currency: "GBP",
+        cash_currency: "GBP",
+        cash_name: "GBP Cash",
+        depot_name: "GBP Depot"
+      )
 
     s_eur = create_security!(name: "SE", ticker: "SE", currency: "EUR")
     s_gbx = create_security!(name: "SG", ticker: "SG", currency: "GBX")
@@ -246,6 +272,7 @@ defmodule Portfolixir.Portfolios.PricingProbeTest do
 
   test "portfolio with no cash accounts and no positions" do
     rates()
+
     {:ok, empty} =
       Portfolixir.Portfolios.create_portfolio(Actor.owner_ui(), %{
         name: "Empty",
@@ -253,7 +280,10 @@ defmodule Portfolixir.Portfolios.PricingProbeTest do
       })
 
     ctx = PricingContext.for_all_portfolios("EUR")
-    assert Valuation.for_portfolio(empty.id) == Valuation.for_portfolio(empty.id, pricing_context: ctx)
+
+    assert Valuation.for_portfolio(empty.id) ==
+             Valuation.for_portfolio(empty.id, pricing_context: ctx)
+
     assert Valuation.for_view(nil, base_currency: "EUR") ==
              Valuation.for_view(nil, base_currency: "EUR", pricing_context: ctx)
   end

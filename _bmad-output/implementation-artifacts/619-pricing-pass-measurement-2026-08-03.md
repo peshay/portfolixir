@@ -136,7 +136,11 @@ transaction tables yet.
 
 **On the warm mount — the state almost every real mount sees — the async
 block drops from ~1,105 ms to ~265 ms (4.2×) and from 2,614 database queries
-to 115 (22.7×), with byte-identical output on every run.** The two steps
+to 115 (22.7×), with an identical sanity payload on every run.** (That payload
+is the one defined above — totals, position and alert counts, TTWROR to 30
+digits, the five drift values — not the full read output; byte-identity of the
+complete result is what the test suite pins, not what this benchmark
+measures.) The two steps
 ADR-0035 targeted carry the whole win: the view valuation falls 466 ms → 16 ms
 and the five-allocation drift loop 588 ms → 129 ms, at the cost of one 89 ms
 preloading step that replaces work the baseline did per row.
