@@ -147,7 +147,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-5 | #333 | XML import **gated**; CSV/JSON shipped |
 | FR-6 | — | shipped (preview/idempotent/atomic) |
 | FR-7 | #326 | import gaps surfaced (logos) |
-| FR-8 | #316 | IRR; TTWROR shipped |
+| FR-8 | #316, #577, #563, #568 (ADR-0034) | IRR; TTWROR shipped. **#577 shipped 2026-08-04** — TTWROR/IRR for a bucket view now cover the deduplicated account union across all portfolios, so the header total and the return always speak about the same accounts; the multi-portfolio scope disclaimer is gone. **#563 shipped** — previous-year/any-year and custom from-to periods, pure re-chains. #568 (net invested, wealth multiple, XIRR) has its design note in ADR-0034 but is **not implemented** |
 | FR-9 | — | **future** (Phase 5; OQ-3 quote source) |
 | FR-10 | #331 | income report |
 | FR-11 | #318, #329, #335, #334 | target hints, exclude flag, cash basis, classification view |
@@ -169,8 +169,8 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-3 | #346, #347, #350 | AI-agentic guards |
 | NFR-4–6 | — | foundational (security, self-hosted, single-user) |
 | NFR-7 | #313 | localization / docs site |
-| NFR-8 | #562 (ADR-0032), #619 | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. #562 shipped; #619 (the dashboard's other three mount computations) is the deliberately-unmeasured follow-up |
-| UX-DR1–14 | **#356** + #336, #337, #339, #319 | UX/a11y tracker (UI = priority 3) |
+| NFR-8 | #562 (ADR-0032), #619 (ADR-0035) | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. **#619 shipped 2026-08-04** (ADR-0035): the redundancy was removed rather than cached — market data is preloaded once per read and threaded through every valuation and allocation, replacing six re-derivations and hundreds of per-row lookups. Measured A/B: the warm dashboard block 1,105 ms → 265 ms and 2,614 → 115 queries, output identical. Nothing is memoized by this change; ADR-0032's memo is untouched |
+| UX-DR1–14 | **#356** + #336, #337, #339, #319, #606 | UX/a11y tracker (UI = priority 3). **#606 shipped 2026-08-04** — the microcopy voice rule (impersonal, terse, du never Sie, explanation in ⓘ tooltips per UX-DR11) applied retroactively to all pre-rule UI strings and the EN/DE docs, and recorded in `EXPERIENCE.md` so it is part of the design language rather than only the agent rules |
 | FR-30 | #582 | ISIN/WKN in holdings payloads (E6 DX batch, story 2) |
 | FR-31 | #581 | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
 | FR-32 | #583 | booking-semantics docs incl. fix-it-hammer warnings (E6 DX batch, story 3) |
@@ -405,6 +405,62 @@ Ground truth: `main` at `ba6a046`.
   author is allowlisted. The first squash-merge after the fix (`ba6a046`)
   passed on 2026-08-01 — the policy-vs-enforcement contradiction recorded in
   the 2026-07-31 reconciliation is resolved.
+
+## Implementation Status — reconciled with code (2026-08-04)
+
+> Sixth additive reconciliation, part of the Sprint 3 bookkeeping close-out
+> (ADR-0026 step 5).
+
+Ground truth: `main` at `1903913` (PR #631, squash-merged 2026-08-04).
+
+- **Sprint 3 shipped as one bundle.** `#569` (per-position P&L decomposed into
+  price return and currency return per ADR-0033, with the cost fold carrying a
+  native/base pair, settlement legs persisted on import and an auditable
+  backfill for existing rows), `#620` (the FIFO tranches a sale consumes, shown
+  where the sale is decided — gross gain, never a tax figure), `#577`
+  (cross-portfolio performance walk), `#563` (period picker), `#606` (microcopy
+  voice sweep) and `#619` (one pricing pass per read). All six issues closed.
+- **Four ADRs accepted.** ADR-0034 (money-weighted metrics — design note for
+  `#568`, no implementation), ADR-0035 (one pricing pass per read),
+  ADR-0036 (risk-tier work rides the batch — amends ADR-0026), ADR-0037
+  (Phoenix 1.8 / LiveView 1.x as a security upgrade).
+- **The risk-tier delivery rule was withdrawn mid-sprint (ADR-0036).** The
+  ADR-0026 exception requiring ledger/money math, security changes and
+  dependency updates to ship as dedicated small PRs with real human review did
+  not survive contact with a single reviewer: it was deviated from three times
+  in two days on this one branch. Risk-tier is now an attention label
+  governing review depth, not PR granularity, and the compensating controls
+  (TDD-first with exact `Decimal` expectations, every gate green) became
+  blocking. ADR-0028, -0029 and -0030 carried undelivered follow-on slices
+  still citing the withdrawn clause; their delivery bullets are annotated in
+  place.
+- **Dependency security was in a materially worse state than anyone knew.**
+  An advisory-aware `mix hex.audit` reported **15 advisories on `main`, five
+  HIGH** (mint, hpax, cowlib, phoenix) that **neither CI audit gate caught**:
+  `hex.audit` runs pinned to Hex 2.4.1 by deliberate design (2.5's advisory
+  gating has no ignore mechanism), making it retirement-only, and
+  `mix deps.audit`'s database does not carry them. The batch closed 13 of 15
+  — the tree is down to two cowlib entries, neither HIGH, both without an
+  upstream fix and already documented as tolerated in `ci.yml`.
+- **Phoenix 1.8 cost almost nothing, against expectation.** The last HIGH
+  (`EEF-CVE-2026-56811`) had no fix in the 1.7 line, so the upgrade was
+  unavoidable. It changed **no application code** — the codebase already used
+  the idioms LiveView 1.x requires — and needed only `lazy_html` as a test
+  dependency plus unlocking an orphaned `castore`. Because `ConnTest` and
+  `LiveViewTest` bypass the HTTP server and never run JavaScript, acceptance
+  included a real Chromium session confirming the LiveView client connects on
+  four routes with no console errors.
+- **CI gained the gates it was documented to have.** The MCP companion's
+  `npm test` / `npm run build` had been required by AGENTS.md but never run in
+  CI; they run now, with `--ignore-scripts` on the install. Both workflows
+  declare least-privilege `permissions`.
+- **Structural finding, unchanged and now overdue.** The two parallel epic
+  structures (`epics.md` E1–E19 vs. the GitHub tracker set) were partly
+  reconciled during this sprint — 17 previously unattached issues were
+  attached to their trackers — but the structural decision itself (cross-
+  reference the two, or dissolve one) is still the owner's and still open.
+  `#321` (roadmap index) remains stale; closing it needs its "working
+  agreement" section preserved somewhere first.
 
 ## Epic List
 

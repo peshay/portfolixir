@@ -49,6 +49,19 @@
 # the branch. Verified against the merge commit, the closed-issue list and the
 # (empty) open-PR list.
 #
+# CLOSE-OUT (2026-08-04, `main` at 1903913 -- Sprint 3, PR #631):
+# The whole sprint shipped as one bundle on owner instruction: #569 (ADR-0033
+# P&L decomposition + settlement backfill), #620 (FIFO tranches at the sale),
+# #577 (cross-portfolio performance walk), #563 (period picker), #606
+# (microcopy voice sweep), #619 (ADR-0035 one pricing pass per read). All six
+# closed. Four ADRs accepted: 0034 (money-weighted metrics design note for
+# #568 -- NOT implemented, issue stays open), 0035, 0036 (risk-tier rides the
+# batch, amends 0026), 0037 (Phoenix 1.8 / LiveView 1.x security upgrade).
+# None of these issues hangs off an epic row below -- E5/E11 analytics and UX
+# work is tracked by GitHub issue, not by story rows (the two-parallel-
+# structures finding), so no story row changes. E11 gains #606 as shipped.
+# Dependency posture: 15 advisories / 5 HIGH on main -> 2 / 0 HIGH.
+#
 # CLOSE-OUT (2026-08-01, `main` at ba6a046):
 # Sprint 2 Lane A merged same-day as the owner-approved combined PR #629:
 # #406 (truthful "no price" warning, detail/totals reconciled on the same
@@ -63,7 +76,7 @@
 # epic-structure-reconciliation-2026-07-31.md), so no story rows change.
 
 generated: 2026-07-25
-last_updated: 2026-08-01 (Sprint 2 Lane A merged and closed out; #398/#406/#570 closed; authorship gate green on ba6a046)
+last_updated: 2026-08-04 (Sprint 3 bundle merged as 1903913 / PR #631; #563 #569 #577 #606 #619 #620 closed; ADR-0034..0037 accepted)
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
