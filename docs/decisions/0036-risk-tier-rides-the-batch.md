@@ -109,13 +109,17 @@ human read, and therefore blocking:
   carry the advisories, so the stated posture — "all HIGH/moderate Hex
   advisories are cleared by upgrades, not by ignores" — had quietly stopped
   being true. Eleven of the fifteen were closed by the dependency update in
-  this same batch; the remaining HIGH (phoenix `EEF-CVE-2026-56811`) has no
-  fix in the 1.7 line and needs the Phoenix 1.8 / LiveView 1.x migration,
-  which is its own decision. **Until that gap is closed, the advisory gate is
-  weaker than this ADR's reliance on it assumes.** Closing it — an
-  advisory-aware audit step with an explicit, justified ignore list — is a
-  prerequisite for treating the mechanical controls as a full substitute for
-  the withdrawn human read, and is the first follow-up this decision owes.
+  this same batch, and the remaining HIGH (phoenix `EEF-CVE-2026-56811`) by
+  the Phoenix 1.8 upgrade that followed it in the same batch
+  ([ADR-0037](0037-phoenix-18-liveview-1x.html)) — the tree is now down to two
+  advisories, neither HIGH, both without an upstream fix. **The gate itself is
+  still weaker than this ADR's reliance on it assumes**, and after the upgrade
+  the reason is purely the tooling: `mix hex.audit` on Hex 2.5+ sees
+  advisories but has no ignore mechanism, so arming it would hard-fail on the
+  two unfixable cowlib entries, while `mix deps.audit` has the ignore list but
+  its database does not carry them. Until one of the two grows the missing
+  half, an advisory-aware step can be visible but not blocking. Closing this
+  properly remains the first follow-up this decision owes.
 - The MCP companion's own gates (`npm test`, `npm run build`) are added to CI
   by this batch: AGENTS.md mandated them locally, but CI ran only the npm
   audit, so an MCP-only change rested on an unverifiable local claim — not
