@@ -255,10 +255,27 @@ reviews decisions and behavior, agents review code:
    observed process failures of that period sat in the unowned space after
    the merge.)
 
-**Risk-tier exceptions — dedicated small PRs with real human review:**
-ledger/money-domain math and invariants, security-relevant changes,
-dependency updates, and anything touching import idempotency or projection
-semantics. Weakening a quality gate to make a batch pass is a review reject.
+**Risk-tier work rides the batch (ADR-0036, 2026-08-04).** Ledger/money-domain
+math and invariants, security-relevant changes, dependency updates, and
+anything touching import idempotency or projection semantics ship inside the
+epic batch like everything else — the former "dedicated small PR with real
+human review" exception is withdrawn, because with one reviewer it produced a
+queue of unread micro-PRs rather than review. "Risk-tier" is now an attention
+label, and marking a change so means:
+
+1. its own commit or commit group, never mixed into an unrelated commit, so it
+   stays independently readable and revertable;
+2. a dedicated verification pass in the agentic review on the invariant at
+   stake (the money identity, the idempotency property, the projection
+   semantics), findings verified before they are surfaced;
+3. an explicit callout in the reviewer briefing — what changed, which
+   invariant protects it, which test pins it;
+4. the decision gate unchanged: semantics-changing risk-tier work still needs
+   its ADR signed off before the batch starts.
+
+The compensating controls are therefore blocking, not aspirational: TDD first
+with exact `Decimal` expectations on money code, and every quality gate green.
+Weakening a quality gate to make a batch pass is a review reject.
 
 ## Issue Tracking Convention
 

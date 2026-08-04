@@ -64,3 +64,4 @@ already in force in the codebase.
 | [0033](0033-per-position-pnl-fx-decomposition.html) | Per-position P&L decomposed — price return and currency return over a security-currency cost basis | Accepted |
 | [0034](0034-money-weighted-metrics.html) | Money-weighted metrics — net invested capital, wealth multiple, hand-rolled XIRR next to TTWROR | Accepted |
 | [0035](0035-one-pricing-pass-per-read.html) | One pricing pass per read — shared preloaded market data instead of six re-derivations | Accepted |
+| [0036](0036-risk-tier-rides-the-batch.html) | Risk-tier work rides the batch — the dedicated-small-PR exception is withdrawn | Accepted (amends 0026) |
