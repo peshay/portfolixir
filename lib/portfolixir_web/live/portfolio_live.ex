@@ -24,6 +24,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.PricingContext
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
@@ -330,9 +331,18 @@ defmodule PortfolixirWeb.PortfolioLive do
       # completion can never overwrite a newer tree's allocation
       # (async-hardening round). A tree deleted mid-read degrades the same way
       # the allocation read does.
-      with %{} = valuation <- Valuation.for_view(view_id, base_currency: base_currency),
+      #
+      # ADR-0035: the header total and the allocation price the same holdings,
+      # so this block loads its market data ONCE and threads it into both.
+      context = PricingContext.for_all_portfolios(base_currency)
+
+      with %{} = valuation <-
+             Valuation.for_view(view_id, base_currency: base_currency, pricing_context: context),
            {:ok, allocation} <-
-             Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
+             Allocation.for_portfolio(portfolio_id, classification_id,
+               view: view_id,
+               pricing_context: context
+             ) do
         # Negative-holdings debris (#570) is a property of the dataset, not
         # of the active view, so the report is global and loads with the
         # other data-quality inputs.

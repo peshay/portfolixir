@@ -90,6 +90,110 @@ defmodule Portfolixir.Fx do
     at_or_before(@hub, quote_currency, date)
   end
 
+  @doc """
+  The latest EUR-hub rate (units of the currency per 1 EUR) for each of
+  `currencies`, in ONE query — the bulk form of the per-row lookup `rate/3`
+  issues (ADR-0035).
+
+  Returns `%{currency => Decimal}`. A currency with no stored rate path is
+  **absent** from the map, which is what makes an absent key mean exactly
+  `{:error, :no_rate}` for the callers below and nothing else. The hub itself
+  resolves to `1` and `GBX` (pence) to `GBP × 100`, so the map answers the same
+  questions `eur_rate/2` answers with `date: nil`.
+  """
+  def hub_rates(currencies) when is_list(currencies) do
+    requested = currencies |> Enum.filter(&is_binary/1) |> Enum.uniq()
+
+    stored =
+      requested
+      |> Enum.map(&hub_source_currency/1)
+      |> Enum.reject(&(&1 == @hub))
+      |> Enum.uniq()
+      |> latest_hub_rates()
+
+    Enum.reduce(requested, %{}, fn currency, acc ->
+      case hub_rate_from(currency, stored) do
+        {:ok, rate} -> Map.put(acc, currency, rate)
+        {:error, :no_rate} -> acc
+      end
+    end)
+  end
+
+  @doc """
+  `convert/4` (latest rates) resolved from a preloaded `hub_rates/1` map.
+
+  Same arithmetic, same order, same short-circuit for a same-currency pair, so
+  the result is Decimal-identical to `convert/3` — only the rate lookup moves
+  from a query to memory.
+  """
+  def convert_with_hub_rates(%Decimal{} = amount, from, to, _hub_rates) when from == to,
+    do: {:ok, amount}
+
+  def convert_with_hub_rates(%Decimal{} = amount, from, to, hub_rates) when is_map(hub_rates) do
+    with {:ok, rate} <- rate_from_hub_rates(from, to, hub_rates) do
+      {:ok, Decimal.mult(amount, rate)}
+    end
+  end
+
+  @doc """
+  `rate/3` (latest rates) resolved from a preloaded `hub_rates/1` map.
+
+  Triangulates through the hub exactly as `rate/3` does; a currency missing
+  from the map yields `{:error, :no_rate}`, the same answer the query path
+  gives for a currency with no stored rate.
+  """
+  def rate_from_hub_rates(from, to, _hub_rates) when from == to, do: {:ok, @one}
+
+  def rate_from_hub_rates(from, to, hub_rates) when is_map(hub_rates) do
+    with {:ok, from_rate} <- fetch_hub_rate(hub_rates, from),
+         {:ok, to_rate} <- fetch_hub_rate(hub_rates, to) do
+      {:ok, Decimal.div(to_rate, from_rate)}
+    end
+  end
+
+  defp fetch_hub_rate(hub_rates, currency) do
+    case Map.get(hub_rates, currency) do
+      %Decimal{} = rate -> {:ok, rate}
+      _missing -> {:error, :no_rate}
+    end
+  end
+
+  # GBX is not stored; it is derived from GBP (see `eur_rate/2`).
+  defp hub_source_currency("GBX"), do: "GBP"
+  defp hub_source_currency(currency), do: currency
+
+  defp hub_rate_from(@hub, _stored), do: {:ok, @one}
+
+  defp hub_rate_from("GBX", stored) do
+    with {:ok, gbp} <- hub_rate_from("GBP", stored) do
+      {:ok, Decimal.mult(gbp, @gbx_per_gbp)}
+    end
+  end
+
+  defp hub_rate_from(currency, stored) do
+    case Map.get(stored, currency) do
+      %Decimal{} = rate -> {:ok, rate}
+      _missing -> {:error, :no_rate}
+    end
+  end
+
+  # One `DISTINCT ON` per quote currency, ordered like `latest/2`: the row with
+  # the greatest date wins, and `(base, quote, date)` is unique, so the pick is
+  # the same row `latest/2` returns.
+  defp latest_hub_rates([]), do: %{}
+
+  defp latest_hub_rates(currencies) do
+    Repo.all(
+      from(r in ExchangeRate,
+        where: r.base_currency == ^@hub and r.quote_currency in ^currencies,
+        order_by: [asc: r.quote_currency, desc: r.date],
+        distinct: r.quote_currency,
+        select: {r.quote_currency, r.rate}
+      )
+    )
+    |> Map.new()
+  end
+
   @doc "All stored rates, most recent first."
   def list_rates do
     Repo.all(

@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.PricingContext
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
@@ -48,7 +49,16 @@ defmodule PortfolixirWeb.DashboardLive do
         # dashboard aggregates over). The drift alerts steer against the same
         # view's SOLL plans (ADR-0020: plans are view-bound).
         view_id = Settings.default_view_id()
-        {wealth_card(view_id), drift_alerts(view_id), data_quality_report()}
+        base_currency = base_currency()
+
+        # ADR-0035: the card's view-wide valuation and the per-portfolio drift
+        # loop price the same holdings, so the market data both need is loaded
+        # ONCE here and threaded into both. It is read-scoped data — it dies
+        # with this task.
+        context = PricingContext.for_all_portfolios(base_currency)
+
+        {wealth_card(view_id, base_currency, context), drift_alerts(view_id, context),
+         data_quality_report()}
       end)
     else
       socket
@@ -89,9 +99,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # plus the YTD TTWROR as the change signal — computed over the same
   # cross-portfolio view scope as the valuation (#577), so the total and the
   # return always cover the same accounts.
-  defp wealth_card(view_id) do
-    first = Portfolios.first_portfolio()
-    base_currency = (first && first.base_currency_code) || "EUR"
+  defp wealth_card(view_id, base_currency, context) do
     view = view_id && Buckets.get_view(view_id)
     # The default view can vanish between the settings read and here (fix
     # round): degrade to the Everything scope instead of crashing the async.
@@ -103,14 +111,24 @@ defmodule PortfolixirWeb.DashboardLive do
       # where the user's Gettext locale is NOT set — a gettext call here
       # always came out English ("EVERYTHING" after the card's CSS uppercase).
       name: view && view.name,
-      valuation: everything_or_view_valuation(view_id, base_currency),
+      valuation: everything_or_view_valuation(view_id, base_currency, context),
       ttwror: ytd_ttwror(view_id, base_currency)
     }
   end
 
-  defp everything_or_view_valuation(view_id, base_currency) do
-    case Valuation.for_view(view_id, base_currency: base_currency) do
-      {:error, :view_not_found} -> Valuation.for_view(nil, base_currency: base_currency)
+  # The card's base currency: the first portfolio's, for display continuity
+  # with the Wealth page. Read before the async block's pricing pass so both
+  # cover the same currency.
+  defp base_currency do
+    first = Portfolios.first_portfolio()
+    (first && first.base_currency_code) || "EUR"
+  end
+
+  defp everything_or_view_valuation(view_id, base_currency, context) do
+    opts = [base_currency: base_currency, pricing_context: context]
+
+    case Valuation.for_view(view_id, opts) do
+      {:error, :view_not_found} -> Valuation.for_view(nil, opts)
       valuation -> valuation
     end
   end
@@ -317,20 +335,25 @@ defmodule PortfolixirWeb.DashboardLive do
   # not an alert. The cash row joins under the same rule when a cash target is
   # steered. The allocation read is still portfolio-bound, so portfolios are
   # iterated as the mechanism; the view is the user-facing scope.
-  defp drift_alerts(view_id) do
+  defp drift_alerts(view_id, context) do
     case Classifications.default_classification() do
       nil ->
         []
 
       classification ->
-        Enum.flat_map(Portfolios.list_portfolios(), &alerts_for(&1, classification, view_id))
+        Enum.flat_map(
+          Portfolios.list_portfolios(),
+          &alerts_for(&1, classification, view_id, context)
+        )
     end
     |> Enum.sort_by(&Decimal.abs(&1.drift_value), {:desc, Decimal})
     |> Enum.take(@max_alerts)
   end
 
-  defp alerts_for(portfolio, classification, view_id) do
-    case Allocation.for_portfolio(portfolio.id, classification.id, view: view_id) do
+  defp alerts_for(portfolio, classification, view_id, context) do
+    opts = [view: view_id, pricing_context: context]
+
+    case Allocation.for_portfolio(portfolio.id, classification.id, opts) do
       {:ok, %{has_plan: true} = allocation} ->
         rows = allocation.categories ++ [Map.put(allocation.cash, :name, gettext("Cash"))]
 
