@@ -154,9 +154,12 @@ jobs:
       # unverifiable local claim. Under ADR-0036 "every quality gate green"
       # replaces the per-PR human read, so the companion's own gates have to
       # run here too. `npm ci` installs from the lockfile the audit above
-      # already checked.
+      # already checked. `--ignore-scripts` blocks dependency lifecycle
+      # scripts, which are arbitrary code execution on the runner at install
+      # time; nothing in this tree needs them (the deps are the MCP SDK,
+      # express, zod, tsx and typescript), and both gates below pass without.
       - name: Install MCP server dependencies
-        run: npm ci --prefix mcp-server
+        run: npm ci --ignore-scripts --prefix mcp-server
 
       - name: MCP server tests
         run: npm test --prefix mcp-server
