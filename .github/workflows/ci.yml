@@ -140,6 +140,22 @@ jobs:
       - name: Audit MCP server dependencies (npm)
         run: npm audit --audit-level=high --prefix mcp-server
 
+      # AGENTS.md has always required `npm test` and `npm run build` for the
+      # MCP companion, but CI only audited its dependencies — so an MCP-only
+      # change (or a transitive major bump underneath the SDK) rested on an
+      # unverifiable local claim. Under ADR-0036 "every quality gate green"
+      # replaces the per-PR human read, so the companion's own gates have to
+      # run here too. `npm ci` installs from the lockfile the audit above
+      # already checked.
+      - name: Install MCP server dependencies
+        run: npm ci --prefix mcp-server
+
+      - name: MCP server tests
+        run: npm test --prefix mcp-server
+
+      - name: MCP server build
+        run: npm run build --prefix mcp-server
+
       # Credo, Sobelow and Dialyzer are blocking quality gates. Sobelow skips
       # are per-function `# sobelow_skip` annotations with a written reason;
       # Config.CSP and Config.HTTPS are ignored deliberately: TLS is the

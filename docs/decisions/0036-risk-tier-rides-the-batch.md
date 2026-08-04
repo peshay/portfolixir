@@ -37,10 +37,10 @@ for a dependency update that blocked CI — three deviations from the same
 clause within two days. A rule deviated from every time it binds is not a
 control; it is paperwork that makes the record less honest.
 
-The owner's own framing (2026-08-04): *"lauter mikro PRs schaffe ich nicht zum
-review"* — many small PRs do not get reviewed, so the choice is not between a
-carefully-read small PR and a skimmed large one. It is between an unread small
-PR and a large one whose risk-tier content is deliberately surfaced. With
+The owner's own framing (2026-08-04): many small PRs simply do not get
+reviewed, so the choice is not between a carefully-read small PR and a skimmed
+large one. It is between an unread small PR and a large one whose risk-tier
+content is deliberately surfaced. With
 TDD-first discipline and the mandatory agentic review, a regression in
 money-domain code should be caught by a failing test and an adversarial
 reviewer, not by a human reading a diff they did not have time to read.
@@ -98,6 +98,28 @@ human read, and therefore blocking:
   `mix hex.audit`, `npm audit --audit-level=high`) remain blocking, and a
   transitive **major** version bump must be named explicitly in the briefing
   even when it arrives inside a lockfile-only change.
+- **Known gap in that control, recorded rather than glossed over.** On
+  2026-08-04, while this ADR was being written, `mix hex.audit` on an
+  advisory-aware Hex reported **15 advisories on `main`, five of them HIGH**
+  (mint, hpax, cowlib, phoenix) — none of which either Elixir audit gate had
+  surfaced. `mix hex.audit` runs pinned to Hex 2.4.1 by deliberate design
+  (`ci.yml`: 2.5's advisory gating has no ignore mechanism, so a permanently
+  unpatched upstream advisory would hard-fail CI with no recourse), which
+  makes that step retirement-only; and `mix deps.audit`'s database did not
+  carry the advisories, so the stated posture — "all HIGH/moderate Hex
+  advisories are cleared by upgrades, not by ignores" — had quietly stopped
+  being true. Eleven of the fifteen were closed by the dependency update in
+  this same batch; the remaining HIGH (phoenix `EEF-CVE-2026-56811`) has no
+  fix in the 1.7 line and needs the Phoenix 1.8 / LiveView 1.x migration,
+  which is its own decision. **Until that gap is closed, the advisory gate is
+  weaker than this ADR's reliance on it assumes.** Closing it — an
+  advisory-aware audit step with an explicit, justified ignore list — is a
+  prerequisite for treating the mechanical controls as a full substitute for
+  the withdrawn human read, and is the first follow-up this decision owes.
+- The MCP companion's own gates (`npm test`, `npm run build`) are added to CI
+  by this batch: AGENTS.md mandated them locally, but CI ran only the npm
+  audit, so an MCP-only change rested on an unverifiable local claim — not
+  acceptable once "every gate green" replaces the human read.
 - PR size grows further. That is the intended direction: fewer, larger,
   briefed review units instead of many unread ones.
 - AGENTS.md's "Epic-Batch Workflow" section is updated to match; ADR-0026 is
@@ -113,7 +135,13 @@ human read, and therefore blocking:
   economics argument is the same one that now removes its own exception
 - `_bmad-output/implementation-artifacts/sprint-plan-2026-08-01.md` — the
   capacity statement that made the exception's cost explicit
-- [ADR-0033](0033-per-position-pnl-fx-decomposition.html),
+- [ADR-0028](0028-corporate-actions-as-ledger-events.html),
+  [ADR-0029](0029-stable-identities-and-reimport-survival.html),
+  [ADR-0030](0030-position-level-soll-targets.html),
+  [ADR-0033](0033-per-position-pnl-fx-decomposition.html),
   [ADR-0035](0035-one-pricing-pass-per-read.html) — risk-tier decisions whose
-  "dedicated small PR" delivery clauses are superseded by this ADR; their
-  technical content is untouched
+  "dedicated small PR with real human review" **delivery** clauses are
+  superseded by this ADR; their technical content is untouched. ADR-0028,
+  -0029 and -0030 carry *undelivered* follow-on slices, so their delivery
+  bullets are annotated in place — a future agent reading them must not
+  follow a withdrawn rule.
