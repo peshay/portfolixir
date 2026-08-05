@@ -1,70 +1,118 @@
 ---
 title: Portfolixir EXPERIENCE.md
-status: final
+status: draft
 created: 2026-06-12
-updated: 2026-06-13
+updated: 2026-08-05
 name: Portfolixir
 sources:
   - _bmad-output/planning-artifacts/prds/prd-portfolixir-2026-06-12/prd.md
-  - _bmad-output/planning-artifacts/ux-designs/ux-portfolixir-2026-06-12/.decision-log.md
+  - _bmad-output/planning-artifacts/design-language/.decision-log.md
+  - _bmad-output/planning-artifacts/epics.md
+  - docs/decisions/0022-task-oriented-information-architecture.md
+  - docs/decisions/0024-buckets-and-views-replace-portfolios-in-the-ui.md
+  - docs/decisions/0038-continuous-feedback-and-design-authority.md
   - priv/static/app.css
+  - lib/portfolixir_web/router.ex
   - lib/portfolixir_web/components/app_shell.ex
   - lib/portfolixir_web/components/security_chart.ex
 ---
 
 # Portfolixir — Experience Spine
 
-> Paradigm (binding): **classic but decluttered.** Managing data stays a first-class UI task; clutter is fought with progressive disclosure, not by hiding the work. The visualization-only vision was considered and rejected. No agent-oversight UI: MCP writes are the owner's own commands executed faster.
+> Paradigm (binding): **classic but decluttered.** Managing data stays a first-class UI task; clutter is fought with progressive disclosure, not by hiding the work. The visualization-only vision was considered and rejected. No agent-oversight UI: MCP writes are the operator's own commands executed faster.
+
+> **Authority (ADR-0038).** This document plus `DESIGN.md` is the living design-language spec. Design work and the design-critic review of the agentic review closing act are held against it. It wins over mockups, over `epics.md`'s UX-DR summaries, and over anything built. Where the built UI contradicts it, that is a finding, not a precedent.
+>
+> `status: draft` until the remaining open items close. None of them blocks cutting implementation stories; each names what would close it, in place:
+>
+> - **DR4** — a route-by-route reachability pass, then a ruling on where the Cash-flow parent lives in navigation.
+> - **DR17** — three icon glyphs for the note / attention / problem severities, chosen with the `DESIGN.md` refresh.
+> - **Period control** — the per-surface token subsets of `1M 3M 6M YTD 1Y 3Y 5Y Max`; each alignment story declares its surface's subset and the answer lands back here.
+> - **Voice and Tone** — a ruling on bilingual domain labels (the `Gesamt (total)` pattern, which also governs Freistellungsauftrag, Verlustverrechnungstopf and SOLL/IST).
+> - **State Patterns → stale data** — the backend source for "last quote sync", open since 2026-06-13 and owned by architecture rather than by this document.
 
 ## Foundation
 
-Responsive web, three target surfaces: desktop browser (primary analysis seat), iPad, iPhone. One operator; a second household portfolio is a filtered view the same operator manages — single persona, two portfolio scopes. Single-user instance, self-hosted.
+Responsive web, three target surfaces: desktop browser (primary analysis seat), iPad, iPhone. One operator (**Andi**, PRD §2) running several **scopes** in one instance, separated by views rather than by separate installations (ADR-0024) — one persona, many view scopes, single-user self-hosted instance. The LLM agent is the second first-class user, but it consumes the JSON API/MCP, not this surface.
 
-**No UI system.** Server-rendered Phoenix LiveView with hand-written CSS in `priv/static/app.css` — no Tailwind, no JS bundler, no CoreComponents; only two function components exist (`app_shell`, `security_chart`), plus a handful of small hand-written LiveView hooks (chart crosshair, drag-and-drop, menu positioning). `DESIGN.md` is the visual identity reference; every visual value in this spine is a `{path.to.token}` reference into it.
+**No UI system.** Server-rendered Phoenix LiveView with hand-written CSS in `priv/static/app.css` — no Tailwind, no JS bundler, no CoreComponents; two function-component modules exist (`app_shell`, `security_chart`), plus a handful of small hand-written LiveView hooks (chart crosshair, drag-and-drop, menu positioning, toast auto-dismiss). `DESIGN.md` is the visual identity reference; every visual value in this spine is a `{path.to.token}` reference into it.
 
 Dark/light/system theme and the three logo-derived accent variants ({colors.accent-violet} / {colors.accent-teal} / {colors.accent-coral}) are shipped, owner-loved, and preserved as the identity anchor.
 
+**Coherence posture (2026-08-05 critique).** The system is coherent at token level and incoherent at component level: eleven recurring UI jobs have two to five independent solutions each. The spec's job from here is not new visual language but **one named solution per job**, with the deviating call sites recorded and aligned through dedicated stories — never opportunistically.
+
 ## Information Architecture
 
-IA scope is **IST only** — the current seven surfaces, no reserved future analytics surfaces (matches roadmap #321: UI deprioritized).
+IA covers **every built route** — eleven surfaces across the fourteen `live/3` declarations in `router.ex`. The 2026-06-13 scope ("IST only — the current seven surfaces") is retired: three of the four surfaces it omitted are exactly what the 2026-08-05 feedback triage reports as broken, and a design critic cannot hold work against a spec that does not know the surface exists.
 
-| Surface | Route | Reached from | Purpose |
-|---|---|---|---|
-| Dashboard | `/` | App open, brand link | Dense analysis home: hero (total value + performance curve) top-left, metric cards beside/below |
-| Portfolio | `/portfolio` | Sidebar | Portfolio overview: performance, allocation donut/sunburst, drift table, cash |
-| Securities | `/securities`, `/securities/:id` | Sidebar, table rows | Security list + split detail pane with price chart, trades, quotes, classification tabs |
-| Portfolios (accounts) | `/portfolios` | Sidebar ("Master data") | Portfolios, depots, cash accounts — structure management |
-| Transactions | `/transactions` | Sidebar ("Master data") | Full ledger: record, review, filter transactions |
-| Imports | `/imports` | Sidebar ("Tools") | PP export intake: drop zone → preview → idempotent apply |
-| Classifications | `/classifications`, `/new`, `/:id` | Sidebar (dynamic group, one entry per tree) | Allocation trees: categories, target weights, drag-and-drop security assignment |
+**Governing IA rule (ADR-0024, binding).** Navigation reflects **user tasks, not the storage model** — *sidebar = tasks, entities = attributes*. New entities do not get sidebar entries by default. Buckets are attributes on account rows; views are the task of scoping analytics; portfolios are an internal compatibility record and are not a navigation concept.
 
-→ Composition references: [mockups/key-dashboard.html](mockups/key-dashboard.html) (analysis-dashboard home: hero, card set, decluttered sidebar) and [mockups/key-classifications.html](mockups/key-classifications.html) (decluttered tree + disclosed New-category form). **The spines win on conflict** — mocks illustrate, they do not specify.
+| Surface | Route | Reached from | Purpose | Status |
+|---|---|---|---|---|
+| Overview | `/` | App open, brand link | Analysis home: total value + change, "Needs attention", data quality | built |
+| Wealth — Holdings | `/portfolio` | Sidebar "Wealth", tab | KPI band (total incl. cash, securities, cash + cash quote, TTWROR, IRR), performance chart, data quality, cash accounts | built |
+| Wealth — Allocation & targets | `/portfolio?tab=allocation` | Wealth tab | Sunburst, SOLL/IST drift table, per-position drift with display-only corrective hints (ADR-0023) | built |
+| Wealth — Cash flow | *(no route yet)* | Wealth tab | Parent of the four cash-flow facets below | **specified, unbuilt** |
+| Cash flow — Income | `/income` | Cash flow tab | Dividends and interest already booked: year × month matrix, per-position table, per-year detail | built (route exists as a top-level Wealth tab today) |
+| Cash flow — Realized gains | *(none)* | Cash flow tab | Closed trades | **specified, unbuilt** |
+| Cash flow — Deposits & withdrawals | *(none)* | Cash flow tab | External flows in and out | **specified, unbuilt** |
+| Cash flow — Costs | *(none)* | Cash flow tab | Fees and taxes, overview level only | **specified, unbuilt** |
+| Wealth — Snapshots | `/snapshots` | Wealth tab | Frozen depot markers and the ADR-0027 counterfactual comparison | built |
+| Wealth — Tax | `/tax` | Wealth tab | Recorded tax-statement snapshots, allowance-order budget, consistency findings (ADR-0031) | built |
+| Securities | `/securities`, `/securities/:id` | Sidebar, table rows | Security list + split detail pane: price chart, trades, quotes, classification tabs | built |
+| Transactions — History | `/transactions` | Sidebar, tab | Full ledger: record, review, filter | built |
+| Transactions — Import | `/imports` | Transactions tab | PP export intake: drop zone → preview → idempotent apply | built |
+| Accounts & depots | `/portfolios` | Sidebar (Administration) | Depots and cash accounts, bucket chips, balances | built |
+| Views | `/buckets` | Sidebar (Administration) | Views (include/exclude filters over buckets), bucket CRUD, default assignment | built |
+| Classifications | `/classifications`, `/classifications/new`, `/classifications/:id` | Sidebar (Administration, one entry per tree) | Allocation trees: categories, target weights, drag-and-drop assignment | built |
+
+**Wealth tab set (decided 2026-08-05, replaces the built set).**
+
+`Holdings · Allocation & targets · Cash flow · Snapshots · Tax`
+
+The built set is `Holdings · Allocation & targets · Income · Snapshots · Tax` (`app_shell.ex` `wealth_tabs/1`). "Income" is promoted to **Cash flow** and gains second-level tabs:
+
+`Income · Realized gains · Deposits & withdrawals · Costs`
+
+Rationale: three of the five owner-scoped analyses are not income at all — realized gains, external flows, and costs. Lumping them under one "Erträge" label reproduces exactly the Portfolio Performance ambiguity the owner complained about. The terminology problem is therefore answered by **structure**, not by a better label, which is also what the ADR-0024 rule demands.
+
+Only **Income** has data today: `Portfolixir.Portfolios.Income.for_portfolio/1` filters transactions to `dividend` and `interest` and nothing else. The other three tabs are specified here and unbuilt; they must not ship as empty shells without their read. Scope carried in from the owner's PP walkthrough (2026-08-05): bars per month/quarter/year and an accumulated-per-month series belong to Income; closed trades to Realized gains; external flows to Deposits & withdrawals; taxes and fees to Costs **at overview level only** — no per-transaction cost ledger.
+
+**Seams in the built IA (recorded, not endorsed):**
+
+- `/buckets` is labelled **"Views"** in the sidebar. This is deliberate (ADR-0024 modification 6 — the task is view scoping; buckets are attributes reached from account chips and the view editor), but route and label diverge. Anyone reading the router will not find the surface by its label.
+- `nav_current?/2` in `app_shell.ex` covers `/income` and `/tax` under the Wealth section but **omits `/snapshots`** — on the Snapshots surface no sidebar item is marked current and no `aria-current="page"` is emitted. This is a **defect**, not a design choice; it ships as a fix, not as a spec change.
+- The funnel icon means "Views" in the sidebar and "filter" in the securities toolbar. One glyph, two meanings — resolved by DR16's single icon vocabulary.
+
+→ Composition references: [mockups/key-dashboard.html](mockups/key-dashboard.html) and [mockups/key-classifications.html](mockups/key-classifications.html). **The spines win on conflict** — mocks illustrate, they do not specify. Both mocks predate the 2026-08-05 decisions and are stale where they disagree.
 
 **Navigation model (binding: keep current behavior on all form factors).** Desktop: fixed left sidebar ({spacing.sidebar-width}) with grouped, labeled links; a toggle collapses it to an icon rail ({spacing.sidebar-rail}). Below 900px the same sidebar becomes an off-canvas overlay slid in over a backdrop via the top-bar burger; no bottom tab bar is introduced. The sticky top bar carries page title/subtitle, theme menu, accent menu, and the EN/DE locale switcher on every form factor.
 
-**Progressive-disclosure principle (the core decluttering move).** Reading is the default posture of every surface; creating and editing are one intent away, never zero. Concretely: creation/edit forms move out of the primary sightline into modals, popovers, or collapsed sections opened by an explicit affordance (`+`, "Edit", kebab menu). Summary first, drill-down second, filters and forms third. Analytics density is wanted (power-user home) — decluttering happens through hierarchy and disclosure, not through hiding numbers.
+**Progressive-disclosure principle (the core decluttering move).** Reading is the default posture of every surface; creating and editing are one intent away, never zero. Creation and edit forms move out of the primary sightline into modals, popovers, or collapsed sections opened by an explicit affordance (`+`, "Edit", kebab). Summary first, drill-down second, filters and forms third. Analytics density is wanted — decluttering happens through hierarchy and disclosure, not through hiding numbers.
 
-**Classifications is the exemplar.** Today the worst-rated screen: the tree detail stacks an always-open "New category" form (name, parent, color, description), a search field, a multiselect toolbar, and a hint paragraph *above* the actual tree. Target shape: the tree itself is the surface — search stays (it serves reading), the New-category form collapses behind the existing `+` affordance, the multiselect toolbar appears only when a selection exists (already built that way — keep), and edit/recolor/delete live on the node, disclosed per node. The same treatment generalizes to every surface with an `.inline-form` in primary sightline.
+**Classifications remains the exemplar.** The tree itself is the surface: search stays (it serves reading), the New-category form collapses behind the `+` affordance, the multiselect toolbar appears only when a selection exists, edit/recolor/delete live on the node. The same treatment generalizes to every surface that still holds an `.inline-form` in primary sightline.
 
-The disabled "Soon" nav items (Watchlist, Reports group, Grouped accounts, Savings plans, Currencies, Settings) are **hidden** (owner decision): the decluttered sidebar shows only what works. An entry returns when its surface actually ships.
-
-[ASSUMPTION] Owner desire, tentative ("vielleicht"): the dashboard's metric cards become self-configurable (choose which cards, maybe order). This spine keeps the dashboard layout future-friendly — cards are a flat, reorderable collection, no card depends on a sibling — but specifies **no** configuration mechanics (no edit mode, no drag handles) in this run.
+[ASSUMPTION] Owner desire, tentative: the Overview's metric cards become self-configurable. This spine keeps the layout future-friendly — cards are a flat, reorderable collection, no card depends on a sibling — and specifies **no** configuration mechanics.
 
 ## Voice and Tone
 
-Microcopy is **explanatory** (binding): the UI translates domain terms instead of assuming them. de/en via the existing gettext infrastructure; German is the owner's daily locale, so every string ships in both.
+Microcopy is **explanatory** (binding): the UI translates domain terms instead of assuming them. de/en via the existing gettext infrastructure; both locales ship together.
 
-- Domain metrics carry a tooltip/hover definition: TTWROR, IRR, SOLL/IST drift, cash quote. One sentence, plain language, method named. Example: "TTWROR — time-weighted return; ignores when money was added, measures only how investments performed."
-- Numbers state their basis where it is cheap: as-of date, currency, gross/net. The agent gets this via self-describing MCP responses (FR-13); the human gets the same honesty inline.
-- **Impersonal voice (owner rule 2026-07-23, binding; complements UX-DR11 tooltips).** UI and doc text states the fact/state/consequence without addressing the reader — "Mapping required", not "you must map". Where address is genuinely unavoidable: du, never Sie. Imperative labels without personal pronouns are fine. Warnings are a statement of fact plus the remedy. Second-person address and tutorial filler in user-facing strings are review-blocking findings.
+- Domain metrics carry a focusable ⓘ definition: TTWROR, IRR, SOLL/IST drift, cash quote. One sentence, plain language, method named.
+- Numbers state their basis where it is cheap: as-of date, currency, gross/net, and — for scoped figures — the view. The agent gets this via self-describing MCP responses (FR-13); the human gets the same honesty inline.
+- **Impersonal voice (owner rule 2026-07-23, binding).** UI and doc text states the fact, the state, and the consequence without addressing the reader — "Mapping required", not "you must map". Where address is genuinely unavoidable: du, never Sie. Imperative labels without personal pronouns are fine. Warnings are a statement of fact plus the remedy. Second-person address and tutorial filler in user-facing strings are review-blocking findings.
+- **Prose is not the fallback for what the design did not solve (2026-08-05 finding, binding).** Six free-standing explanatory paragraphs sit across six screens. The worst case: the TTWROR explanation exists **simultaneously** as an ⓘ tooltip and as a permanent paragraph on the same screen. `tax_live.ex`'s own moduledoc claims the tooltip rule while the template violates it five times. DR11 is not occasionally missed — prose is the habit. Every candidate paragraph resolves to exactly one of: a tooltip (a definition), a data note (a fact about this data — see DR17), a basis line (where a number comes from), or deletion. A paragraph that is none of these is a design gap wearing text.
 
 | Do | Don't |
 |---|---|
 | "TTWROR (time-weighted return) — ⓘ" | Bare acronyms with no help |
-| "As of 12 Jun 2026, EUR" | Numbers with unstated basis |
+| "As of 12 Jun 2026, EUR, view: Everything" | Numbers with unstated basis |
 | "Import previewed: 42 transactions would be created." | "Import successful!" before anything happened |
 | "Nothing here yet — import a PP export or record a transaction." | "No data." |
+| One explanation, in one place, in one form | The same explanation as tooltip *and* paragraph |
 | Calm, complete sentences; no exclamation marks | Coaching, gamification, celebration |
+
+**[OPEN] Bilingual domain labels.** `classifications_live.ex:514` renders the gettext'd msgid **"Gesamt (total)"** — a deliberate bilingual domain label, not an untranslated leak (verified; an earlier critique misreported it as a bug). Whether an English UI should carry a German domain term with a parenthetical gloss is unresolved. Needed to close: an owner ruling on the general pattern (German domain term first with gloss / English first with German gloss / locale-pure per locale), since the same question governs Freistellungsauftrag, Verlustverrechnungstopf, and SOLL/IST.
 
 ## Component Patterns
 
@@ -72,98 +120,257 @@ Behavioral. Visual anatomy lives in `DESIGN.md.Components`.
 
 | Component | Use | Behavioral rules |
 |---|---|---|
-| App shell | Every surface | Sidebar state (expanded/rail/off-canvas) is a pure CSS toggle; survives navigation. The toggle is a real `<input type="checkbox">` with a state-neutral accessible name ("Navigation sidebar") — or a `<button>` plus a small `aria-expanded` hook; the off-canvas variant closes on `Esc` and backdrop tap, returning focus to the burger. Active link tracks `current_path` per section prefix. Classifications nav group reflects the live list of trees. |
-| Hero (total value + curve) | Dashboard top-left | The one fixed element of the home. Total portfolio value as headline number, the curve beside/below it, period pills attached. The curve is **switchable between absolute value (€) and TTWROR performance (%)** via a €/% toggle on the hero (owner decision) — value and performance share the hero slot; the headline number follows the active series' basis statement. One-shot build animation on load and on series switch (see DESIGN.md Motion). [ASSUMPTION] Period pill set mirrors the existing `.period-buttons` component. |
-| Metric cards (DESIGN: Stat card) | Dashboard | `.stat` anatomy: uppercase label, big accent number. Click/tap navigates to the owning surface (e.g. drift card → Portfolio). Card set (owner-confirmed): cash quote, TTWROR vs. period, top drift category, transactions recency. |
-| Security chart | Securities detail, Portfolio | Server-rendered SVG; LiveView re-renders on range/log/percent toggle — toggles show a busy state while loading and expose state via `aria-pressed`. Crosshair + mono tooltip on pointer; touch: pan-y preserved, tap shows nearest point. Build-in animation plays once per data change, never on crosshair moves. |
-| Allocation visuals | Portfolio | Read-only visuals in this run: donut/sunburst segments have no click or hover behavior, legends are static; the drift table follows the Tables row. |
-| Tables (DESIGN: Data tables) | Transactions, Securities, drift, holdings | Read-first: rows are targets (click → detail/select), hover wash, kebab menu for row actions (becomes bottom sheet < 720px). Sort/filter/column controls live in popovers off the toolbar, not inline. |
-| Forms behind disclosure | All create/edit | Default closed. Opened by explicit affordance (`+`, "Edit", kebab). One disclosure level at a time; `Esc`/cancel closes and returns focus to the trigger. Modals are real dialogs: native `<dialog>`/`showModal()` preferred (focus trap + `Esc` for free, fits the no-bundler constraint), else `role="dialog" aria-modal="true"` with a small focus-trap hook; focus moves to the first field or the dialog heading on open. Destructive actions confirm (`data-confirm`), never more than once. |
-| Classification tree (DESIGN: Drag-and-drop rows) | Classifications | `<details>` nodes; drag-and-drop assignment with multi-select; toolbar appears only with an active selection. Row selection works without a pointer: each row carries a checkbox (`Space` toggles) feeding the same toolbar; on coarse pointers select+toolbar is the primary mechanism — drag is a desktop-only accelerator. Search filters the tree live (150ms debounce) and auto-expands matches. Unsorted bucket pinned at the end. |
-| Import pipeline (DESIGN: Import surfaces) | Imports | Drop zone → preview ("what would be created") → apply (idempotent, atomic) → done summary with gap flags (unclassified securities, missing logos, unknown kinds — FR-6/FR-7). Never silently defaults. Parse/validation failure ends at the preview stage with `.alert-error`; nothing is applied. |
+| App shell | Every surface | Sidebar state (expanded/rail/off-canvas) is a pure CSS toggle; survives navigation. The toggle is a real `<input type="checkbox">` with a state-neutral accessible name; the off-canvas variant closes on `Esc` and backdrop tap, returning focus to the burger. Active link tracks `current_path` per section prefix — **every built route must map to exactly one section** (see the `/snapshots` defect). Classifications nav group reflects the live list of trees. |
+| Tab system | Wealth, Transactions, Securities detail pane | **One icon vocabulary, shared with the navigation; two idioms.** The sidebar answers "where am I" and keeps pill plus marker dot. Tabs answer "which facet": icon + label + underline. **Second-level tabs** (inside Cash flow) use the same tabs **smaller and without icons**, so nesting is legible without a third idiom. [ASSUMPTION] The securities detail pane's tabs are second-level by the same logic and adopt the same treatment; the decision log names only Cash flow. Tabs are plain links so switching works without JS. Three tab languages exist today (sidebar pills, `.area-tab` links, `.detail-pane-tab` buttons) — two of them are drift and align to this pattern. |
+| Period control | Every time-series surface | **One token vocabulary, one appearance:** `1M 3M 6M YTD 1Y 3Y 5Y Max`. Each surface **declares which tokens it offers**; a surface never invents a token outside the set and never reorders it. "Custom range…" is a **disclosure**, not permanent chrome, and its two date fields follow DR19 (ISO, styled). Selected state is the segmented-group class of DR16. Retires the four current patterns, the two divergent range-token sets, and the four bare `type="date"` inputs. [OPEN] The per-surface token subsets are not yet decided; each alignment story declares its surface's subset in the story and the answer lands back here. |
+| Data note | Anywhere the UI says something about the data | **One component, three severities: note / attention / problem** — distinguished by **colour AND icon AND word**, never colour alone (DR7). Severity is a property of the finding, not of the surface: "valued at last trade price" is a *note*; "impossible negative holding quantity" is a *problem*; a stale allowance-order budget is *attention*. Replaces the four competing treatments in use (plain bullet list, amber inline highlight, unstyled grey prose, accent bordered banner). Placement is adjacent to the data it describes — a remedy button ~1100px below the bullet naming the problem is a violation. |
+| Stat / metric card | Overview, Wealth KPI band | `.stat` anatomy: uppercase label, big value, optional ⓘ. Click/tap navigates to the owning surface. Negative amounts follow money semantics ({colors.danger} + explicit sign), never the accent — the built Wealth KPI cards violate this today. Absence and pending are distinct (see State Patterns). |
+| "Needs attention" card | Overview | States its **basis** in a line under the heading: which view and which plan the count is computed from. Where an allocation carries several plans, the card says so explicitly rather than silently picking one. Works without active-plan semantics (gated at E16/ADR-0027) and improves silently once they exist. |
+| Chart | Wealth, Securities detail, Snapshots, Cash flow | The shared `security_chart` component is the only chart implementation; the three hand-rolled SVGs are drift and migrate to it. Server-rendered SVG; LiveView re-renders on range/log/percent toggle — toggles show a busy state and expose state via `aria-pressed`. Crosshair + mono tooltip on pointer; touch keeps pan-y and taps the nearest point. Build-in animation plays once per data change, never on crosshair moves. Empty states are gettext'd (`SecurityChart`'s hard-coded English empty state is a defect). |
+| Chart data table | Under every chart | **One uniform disclosure: one control, one label, one styling, plus a stated purpose.** Rendered as a quiet text control, not the raw browser triangle. The purpose line makes visible why it exists — it is the accessibility fallback DR10 depends on and what makes 9px axis type and a single `aria-label` acceptable. Three different summary labels exist today and two chart surfaces (sunburst, securities detail chart) have none; both are drift. |
+| Allocation visuals | Wealth — Allocation & targets | Donut/sunburst segments and legends are read-only in this run; the drift table follows the Tables row. Over/underweight carries sign or arrow, never hue alone. |
+| Tables | Transactions, Securities, drift, holdings, income matrix | Read-first: rows are targets (click → detail/select), hover wash, kebab menu for row actions (bottom sheet < 720px). Sort/filter/column controls live in popovers off the toolbar, never inline. Row selection uses the tinted-row class of DR16. Every table establishes its own horizontal scroller (DR15). Column widths do not change with selection (DR18). |
+| Cash accounts | Accounts & depots | **Setting a balance lives in the account row.** The global balance form is retired; each row carries its own "set balance" action opening a small dialog with the account already chosen. Reading is the default posture; editing is one intent away, and the account is never re-picked in a form when the row already knows it. |
+| Snapshots comparison | Wealth — Snapshots | **The comparison is the surface.** Plan against reality over time is the purpose, so the comparison goes primary and large, the snapshot list secondary beneath it, the create form behind a disclosure. Rendered with the shared chart component — inheriting its axes, crosshair, period control and data-table disclosure — replacing the hand-rolled two-polyline SVG. The v1 gross/price-return-only limitation is stated as a data note, and excluded securities are listed as gaps. |
+| Tax surface | Wealth — Tax | **A budget dashboard plus a check list.** Top: allowance-order utilization per institution as a visual fill level with the remaining amount and its as-of date. Below: the recorded statements as a list, each carrying its consistency finding as a **data note** at the right severity. Entry forms move behind a disclosure. The five permanent prose paragraphs become ⓘ tooltips. Pots render with the statement's printed sign (ADR-0031 §2); nothing here is derived from holdings and nothing here is tax advice. **MCP/LLM is the primary write path**; the UI is a visual review surface. Document intake stays rejected. |
+| Forms behind disclosure | All create/edit | Default closed. Opened by explicit affordance (`+`, "Edit", kebab). One disclosure level at a time; `Esc`/cancel closes and returns focus to the trigger. Modals are real dialogs: native `<dialog>`/`showModal()` preferred (focus trap + `Esc` for free, fits the no-bundler constraint), else `role="dialog" aria-modal="true"` with a small focus-trap hook; focus moves to the first field or the dialog heading on open. Destructive actions confirm once, never twice. |
+| Classification tree | Classifications | `<details>` nodes; drag-and-drop assignment with multi-select; toolbar appears only with an active selection. Row selection works without a pointer: each row carries a checkbox (`Space` toggles) feeding the same toolbar; on coarse pointers select+toolbar is the primary mechanism — drag is a desktop-only accelerator. Search filters live (150ms debounce) and auto-expands matches. Unsorted bucket pinned at the end. |
+| Import pipeline | Transactions — Import | Drop zone → preview ("what would be created") → apply (idempotent, atomic) → done summary with gap flags (unclassified securities, missing logos, unknown kinds). Never silently defaults. Parse/validation failure ends at the preview stage; nothing is applied. |
 
 ## State Patterns
 
+**Pending and settling are different states (DR20, binding).**
+
+- **Pending** — the server is still computing; the final value is unknown. Lasts seconds. The user must be able to tell that the app is working and that no number is being asserted.
+- **Settling** — the final value is known and being animated into place by the ~600ms count-up. The count-up is **cosmetic**: it animates toward the already-known final value. **Real partial values are never streamed** — a number on screen during settling is never a truthful intermediate result, and must be visually evident as not-yet-final.
+- **Not computable** — a third, unrelated state: the computation finished and produced no value (IRR without a solvable cashflow series, a metric with no data in range). This is a data note (DR17), not a loading state.
+
+**Treatment (decided 2026-08-05, from `.working/loading-affordances.html`).**
+
+- **Pending → last known value, dimmed.** The previous value stays on screen in muted colour with a recomputing cue and its as-of date, so a magnitude is visible instead of a void. Where no prior value exists — first load, a new account — the slot falls back to a **typographic skeleton** sized to the value's own footprint, never a generic block. Carries an implementation consequence: a stored previous value is needed per card, and today only TTWROR has one (`@stale_ttwror`).
+- **Settling → accent bar under the number.** Digits render muted while a 2px accent bar grows beneath them to full width; on settle the digits snap to full colour and the bar fades out. Progress is made explicit rather than implied. Depends on the approved count-up hook — without a driver the bar could only claim to track the count.
+- **Progressive chart fill → sequential sweep.** Segments appear clockwise as their values arrive. Known cost, accepted by the owner: the shape moves during the build, so the chart briefly shows proportions it does not have. The build is short and one-shot, and the legend must not settle before the geometry does.
+
+Visual anatomy for all three lives in `DESIGN.md`. Under `prefers-reduced-motion` each collapses to the finished state with no animation, while the pending cue **remains** as a non-animated indication — loading indication is information, not polish.
+
+**Defect this must fix (verified, `portfolio_live.ex:715-780`).** Today `…` means pending and `—` means not-computable; both render bold at value size on the same KPI row and are visually near-identical. "Still loading" and "cannot be computed" are therefore indistinguishable on the app's densest metric band. Three absence renderings coexist across the app (blank cell, bold em-dash, explanatory prose); one wins.
+
 | State | Surface | Treatment |
 |---|---|---|
-| Cold load | Dashboard, Portfolio | Server-rendered first paint: layout arrives complete; charts and count-up numbers play their one-shot build as the data is already there (no client fetch). No skeletons needed for LiveView's initial render. [ASSUMPTION] |
-| LiveView action pending | Chart toggles, tabs | Busy state on the triggering control (existing `.is-busy` / `phx-click-loading` spinner); surface stays interactive. |
-| Empty — no data at all | Dashboard | Dashed `.empty-state` well replacing the hero: "Nothing here yet — import a PP export or record a transaction," linking to Imports and Transactions. Replaces today's permanent "Workflow path" checklist, which retires once data exists. [ASSUMPTION] |
+| Cold load | Overview, Wealth | Server-rendered first paint: layout arrives complete. `.section-skeleton` ships on both surfaces and stays — the 2026-06-13 claim that LiveView's initial render needs no skeletons is falsified. **Defect:** `.section-skeleton` animates `1.6s … infinite` with no `prefers-reduced-motion` gate (`app.css:4437`), violating both the reduced-motion rule and the no-looping-ambience rule. |
+| Pending | Any computed value | Last known value dimmed, with a recomputing cue and its as-of date; typographic skeleton where no prior value exists. Applies uniformly: six different loading verb strings and bare `…` in five KPI cards are drift. Income, Tax and Snapshots load synchronously in `mount/3` and have no pending state at all; when they move to async they inherit this pattern rather than inventing one. |
+| Settling | Any computed value | ~600ms count-up to the known final value; visually evident as not-final until it lands. Gated behind `prefers-reduced-motion: no-preference` — under `reduce` the final value appears immediately. |
+| Not computable | KPI cards, tables | A **note**-severity data note stating why, in one clause. Never the pending glyph. |
+| LiveView action pending | Chart toggles, tabs, form submits | Busy state on the triggering control; the surface stays interactive. Inline busy/result states, not toasts, are the target for action feedback. |
+| Data note — note | Anywhere | Neutral tone, note icon, the word. Statement of a modelling fact ("valued at last trade price"). [ASSUMPTION] Neutral = {colors.text-muted} on {colors.bg-muted}; the log does not fix the note-level tone. |
+| Data note — attention | Anywhere | {colors.warning} tone, attention icon, the word. Something is stale, ambiguous, or incomplete but the figure stands. |
+| Data note — problem | Anywhere | {colors.danger} tone, problem icon, the word. The data contradicts itself ("impossible negative holding quantity"); the figure cannot be trusted. Carries its remedy adjacent. |
+| Empty — no data at all | Overview | Dashed `.empty-state` well replacing the hero: "Nothing here yet — import a PP export or record a transaction," linking to Import and Transactions. |
 | Empty — per surface | Tables, trees | One sentence + one action ("No categories yet." + `+`). Never an unexplained blank region. |
-| Error — validation | Forms | Inline `.field-error` at the field, `.alert-error` for form-level; form stays open with input retained. Each error text is linked via `aria-describedby`, the field gets `aria-invalid="true"`; on failed submit, focus moves to the first invalid field; the form-level alert is `role="alert"`. |
+| Error — validation | Forms | Inline `.field-error` at the field, form-level alert above; the form stays open with input retained. Error text linked via `aria-describedby`, field gets `aria-invalid="true"`; on failed submit focus moves to the first invalid field; the form-level alert is `role="alert"`. |
 | Filter/search — no matches | Tables, trees, search fields | Controls stay visible; "No matches for 'X'." — never the empty-surface message, never an unexplained blank region. |
-| Error — action failed | Any | `.alert-error` banner at the top of the workspace page, plain sentence, no codes. |
-| Stale data / freshness | Dashboard hero, Portfolio, security detail | Quotes and valuations show their basis date ("As of 12 Jun 2026"). When the newest quote is older than the previous trading day, the timestamp shifts to {colors.warning} tone **and** carries a clock glyph + "stale" text — never hue alone. [ASSUMPTION] No backend freshness field is confirmed; pattern follows the research precedent (Parqet's prominent last-sync) — open question: data source for "last quote sync". |
-| Not found | `/securities/:id`, `/classifications/:id` (and any future parameterized route) | `.alert-error` line inside the shell — never a bare error page; navigation stays available. |
+| Error — action failed | Any | Alert banner at the top of the workspace page, plain sentence, no codes. |
+| Stale data / freshness | Wealth, Securities detail, Tax budget | Quotes, valuations and the tax trim budget show their basis date. When the newest input is older than the previous trading day, the timestamp becomes an **attention** data note — {colors.warning} tone **and** clock glyph **and** the word "stale", never hue alone. [ASSUMPTION] No backend freshness field is confirmed for quotes; the tax budget's as-of date is real (ADR-0031 §5). Open: the data source for "last quote sync". |
+| Not found | `/securities/:id`, `/classifications/:id`, and any future parameterized route | Error line inside the shell — never a bare error page; navigation stays available. |
 
 ## Interaction Primitives
 
 - **Click/tap to act** — rows navigate or select; cards navigate; charts respond to hover/touch with the crosshair.
-- **Disclosure affordances** — `+` for create, kebab (`⋮`) for row actions, `<details>` summaries for tree nodes and menus. One open disclosure at a time per region. Menus built on `<details>` keep native disclosure semantics (no `role="menu"` — that would demand arrow-key support); a shared hand-written hook provides `Esc`-close and mutual exclusivity.
-- **Metric tooltips (ⓘ)** are focusable elements (`<button>`/`<summary>`): the definition appears on focus and on tap, stays visible while hovered, dismisses with `Esc` (WCAG 1.4.13) — never hover-only.
-- **Drag-and-drop** — Classifications only: drag securities between categories; multi-select then drag or use the toolbar. Always has a non-drag equivalent (the move-to-category select) — drag is an accelerator, never the only path.
+- **Disclosure affordances** — `+` for create, kebab (`⋮`) for row actions, `<details>` summaries for tree nodes, menus, and the chart data table. One open disclosure at a time per region. Menus built on `<details>` keep native disclosure semantics (no `role="menu"` — that would demand arrow-key support); a shared hand-written hook provides `Esc`-close and mutual exclusivity.
+- **Metric tooltips (ⓘ)** are focusable elements (`<button>`/`<summary>`): the definition appears on focus and on tap, stays visible while hovered, dismisses with `Esc` (WCAG 1.4.13) — never hover-only. One ⓘ variant app-wide; two exist today.
+- **Period selection** — the single period control (see Component Patterns). One-tap tokens plus a "Custom range…" disclosure. State exposed via `aria-pressed` or radio-group semantics, never accent colour alone.
+- **Drag-and-drop** — Classifications only. Always has a non-drag equivalent (select + toolbar); drag is an accelerator, never the only path.
 - **`Esc`** closes the topmost modal/popover/menu and cancels inline edits.
-- **Period pills** on every time-series: 1M/3M/YTD/1Y/Max-style one-tap ranges plus a custom date range. Pills and chart toggles expose their state via `aria-pressed` (or radio-group semantics) — never via accent color alone. [ASSUMPTION] Exact pill set mirrors what `PortfolioLive` ships today.
 - **Locale and theme switching** are always-available top-bar primitives, never buried in settings.
-- **Banned:** infinite scroll (paging/filtering instead), hover-only affordances on touch surfaces, modal-on-modal stacks, drag as sole mechanism, motion that carries meaning.
+- **Banned:** infinite scroll (paging/filtering instead), hover-only affordances on touch surfaces, modal-on-modal stacks, drag as sole mechanism, motion that carries meaning, looping ambience, a second icon meaning for a glyph already in the vocabulary.
 
 ## Accessibility Floor
 
-Behavioral floor; contrast and color rules live in `DESIGN.md`.
+Behavioral floor; contrast and colour rules live in `DESIGN.md`.
 
-- **Reduced motion:** every polish animation — chart build, count-up, stagger — sits behind `@media (prefers-reduced-motion: no-preference)`. Reduced-motion users get the complete final frame immediately; no information exists only in motion (motion is polish only, so nothing is lost). **Exception:** loading indication is information, not polish — under `reduce`, the spinner is replaced by a non-animated cue (static glyph or "Loading…" text), never removed.
-- **Keyboard:** all disclosures, menus, and forms operable by keyboard; the shell already uses semantic landmarks (`aside`/`nav`/`main`, `aria-label`s, `aria-current="page"`); visible focus is a **solid 2px accent outline** (+ optional soft halo) on every interactive element — the 18%-opacity soft ring is decoration on top, never the indicator itself (inputs keep {components.input.focus} as the layered variant). The sidebar toggle is focusable and shows a focus outline (shipped). `Esc` always closes the topmost layer.
-- **Color independence (binding):** gain/loss, SOLL/IST over/underweight, and buy/sell are never conveyed by hue alone — signed values render an explicit "+/−" (or ▲/▼), buy/sell chart markers differ in shape (▲ buy / ▼ sell), stale timestamps carry the clock glyph + text. {colors.positive}/{colors.danger} reinforce meaning, they never carry it solo.
-- **Screen reader:** page changes announce via the existing `aria-live` top-bar title region (`aria-live="polite"`; only the title text node changes, so navigation announces exactly once); icons stay `aria-hidden` with text labels or `.visually-hidden` companions (shipped pattern — keep). Every portfolio-bearing surface states the active scope (active portfolio) in its subtitle or basis line; scope changes announce via the same live region — under reduced motion the label is the only change cue.
-- **Touch targets (owner decision):** interactive controls grow to ≥ 44px effective target on touch devices — via `@media (pointer: coarse)`, not a width breakpoint, so iPad in landscape is covered; desktop keeps the dense 32–34px controls. Bottom-sheet menu rows already comply. Mechanism (padding vs. min-height per control class) is the implementation's call.
-- **Charts (binding):** SVG carries `role="img"` + `aria-label` (shipped); the data behind any chart is always also reachable as a table on the same or a linked surface — this rule is what makes the single-`aria-label` chart strategy and the 9px axis type acceptable.
-- **Language (binding):** `lang` follows the active locale so screen readers pronounce German strings correctly.
+- **Reduced motion:** every polish animation — chart build, count-up, stagger, skeleton shimmer — sits behind `@media (prefers-reduced-motion: no-preference)`. Reduced-motion users get the complete final frame immediately. **Exception:** loading indication is information, not polish — under `reduce` an animated indicator is replaced by a non-animated cue, never removed.
+- **Keyboard:** all disclosures, menus, and forms operable by keyboard; the shell uses semantic landmarks (`aside`/`nav`/`main`, `aria-label`s, `aria-current="page"`); visible focus is a **solid 2px accent outline** (+ optional soft halo) on every interactive element — the 18%-opacity soft ring is decoration on top, never the indicator itself. `Esc` always closes the topmost layer.
+- **Colour independence (binding):** gain/loss, SOLL/IST over/underweight, buy/sell, data-note severity, and staleness are never conveyed by hue alone — signed values render an explicit "+/−" (or ▲/▼), buy/sell chart markers differ in shape (▲ buy / ▼ sell), stale timestamps carry the clock glyph + text, data notes carry icon + word. {colors.positive}/{colors.danger}/{colors.warning} reinforce meaning, never carry it solo.
+- **Screen reader:** page changes announce via the existing `aria-live="polite"` top-bar title region; icons stay `aria-hidden` with text labels or `.visually-hidden` companions. Every scoped surface states its active view in its subtitle or basis line; scope changes announce through the same live region — under reduced motion the label is the only change cue.
+- **Touch targets:** interactive controls grow to ≥ 44px effective target via `@media (pointer: coarse)`, not a width breakpoint, so iPad in landscape is covered; desktop keeps the dense 32–34px controls.
+- **Charts (binding):** SVG carries `role="img"` + `aria-label`; the data behind any chart is always also reachable as a table on the same surface, through the one uniform disclosure. This rule is what makes the single-`aria-label` chart strategy and the 9px axis type acceptable — a chart shipped without its table is a review reject.
+- **Plurals:** counts use `ngettext`, never `gettext` with a `%{count}` interpolation. Four occurrences of the wrong form exist (`portfolio_live.ex:1607, 1612, 1619, 1641`), producing "1 held positions have…".
+- **Language (binding):** `lang` follows the active locale so screen readers pronounce German strings correctly. No user-facing string bypasses gettext.
 
 ## Responsive & Platform
 
-One IA, three surfaces; pixel values live in DESIGN.md Layout & Spacing. Consolidated trigger → behavior map:
+One IA, three surfaces; pixel values live in `DESIGN.md` Layout & Spacing.
 
 | Trigger | Behavior |
 |---|---|
 | Desktop (≥ 900px) | Fixed sidebar ({spacing.sidebar-width}) or icon rail ({spacing.sidebar-rail}); dense 32–34px controls; hover affordances allowed (always with focus/tap equivalents). |
 | < 900px | Sidebar becomes the off-canvas overlay over a backdrop (top-bar burger); content full-width. |
 | < 720px | Dialogs and menus go single-column; row kebab menus become bottom sheets (44px+ rows). |
-| < 560px | Base type bumps to 14px; page subtitles hide; tables scroll horizontally. |
+| < 560px | Base type bumps to 14px; page subtitles hide; a generic `table` rule makes tables scroll. |
 | `pointer: coarse` (any width — covers iPad landscape) | Interactive targets ≥ 44px; drag-and-drop yields to select+toolbar; tooltips open on tap. |
 | `prefers-reduced-motion: reduce` | Polish motion off, finished frames immediately; loading cues stay, non-animated. |
 | `prefers-color-scheme` | System theme as default; explicit `[data-theme]` overrides. |
+| **Any width, any block wider than the viewport** | The block owns its own `overflow-x` scroller (DR15). `.workspace-page { overflow-x: clip }` (`app.css:3934`) **clips** deliberately, so a wide child is silently truncated rather than scrolled. Snapshots wraps its tables in `.table-scroll`, Securities in `.data-table-wrapper`, Income in nothing — its 15-column matrix and flex label row also lack `min-width: 0`. Between 560px and desktop (iPhone landscape, iPad) nothing rescues it. Root cause of #560; treated as a missing system rule, not a per-view bug. |
+
+## Design Rules
+
+The numbered UX design rules **live here** (ADR-0038 designates this spec the authority; the 2026-08-05 session moved them in). `epics.md` keeps the tracker row and **links here rather than defining them** — 33 files cite these numbers, including `app.css`, eight LiveViews, ADR-0027/0028/0038, and `test/invariants/css_spacing_scale_test.exs`, which pins DR14. Where `epics.md`'s old summary text and this section disagree, this section wins.
+
+Rules whose nature is **visual** are defined in `DESIGN.md` and only summarised here. Everything else is defined here in full.
+
+| Rule | One line | Defined in |
+|---|---|---|
+| DR1 | Decluttered Classifications — the tree IS the surface | here |
+| DR2 | Analysis-dashboard home: value, needs-attention, data quality | here — **rewritten** |
+| DR3 | Progressive-disclosure pass across all surfaces | here |
+| DR4 | Sidebar shows only working surfaces | here — **flagged** |
+| DR5 | Chart build-in motion: one-shot, polish only, reduced-motion gated | `DESIGN.md` Motion |
+| DR6 | Touch targets ≥ 44px under `pointer: coarse` | here |
+| DR7 | Colour independence — never hue alone | here |
+| DR8 | Contrast commitments per surface, both themes | `DESIGN.md` Colors |
+| DR9 | Modal accessibility — real dialogs, focus trap, `Esc`, focus return | here |
+| DR10 | Chart-as-table, one uniform disclosure with a stated purpose | here — **amended** |
+| DR11 | Explanatory microcopy, impersonal voice, prose is not the fallback | here — **amended** |
+| DR12 | Responsive breakpoints; same IA across surfaces; see DR15 | here — **amended** |
+| DR13 | State patterns: no-match, error association, freshness basis | here |
+| DR14 | Spacing scale, heading ramp, locale-pill ≥ 11px | `DESIGN.md` Typography + Layout |
+| DR15 | Every wide content block owns its scroller | here — **new** |
+| DR16 | Three selected-state classes; one icon vocabulary | `DESIGN.md` (appearance) — mapping here — **new** |
+| DR17 | Data notes carry one of three severities in one component | here — **new** |
+| DR18 | Active states are width-reserved | `DESIGN.md` — **new** |
+| DR19 | Native controls inherit the design language; ISO dates | `DESIGN.md` — **new** |
+| DR20 | Pending and settling are different states | here — **new** |
+
+> Note on the `DESIGN.md` pointers: DR5 and DR8 are already carried there. DR14, DR16, DR18 and DR19 are **new to `DESIGN.md` as of this session's refresh** — DR14 exists there today only as a flagged gap. Until `DESIGN.md` carries them, the summaries below are the interim statement; once it does, `DESIGN.md` wins on their visual definition.
+
+### DR1 — Decluttered Classifications
+
+The tree is the surface. The New-category form sits behind the `+` affordance; the multiselect toolbar appears only with an active selection; edit/recolor/delete are disclosed per node; search stays permanent because it serves reading. The worst-rated screen of 2026-06-12 and the exemplar every other `.inline-form` removal is measured against.
+
+### DR2 — Analysis-dashboard home *(rewritten 2026-08-05)*
+
+The Overview is an analysis home, not a landing page: the total wealth value with its change, a **"Needs attention"** card listing target deviations, and a **data-quality** section. Each block navigates to the surface that owns it. Density is deliberate — multiple figures at a glance beat one number and a curve.
+
+The "Needs attention" card **states its basis**: a line under the heading names the view and the plan the deviations are computed against, and where an allocation carries several plans the card says so rather than silently picking one. Data quality follows DR17 severities instead of rendering four qualitatively different conditions as identical bullets.
+
+*Superseded original (2026-06-13):* a hero of total value plus performance curve with a €/% toggle, and four fixed metric cards — cash quote, TTWROR vs. period, top drift, transactions recency. Confirmed by the owner then, never built, and contradicted by the shipped Overview since June. Ruled 2026-08-05: **the rule follows the build.** Consequences: `DESIGN.md`'s `{components.hero}` anatomy and the `key-dashboard.html` mock are downstream of the superseded rule and are stale; Component Patterns carries no Hero row.
+
+### DR3 — Progressive disclosure
+
+Creation and edit forms leave the primary sightline into modals, popovers, or collapsed sections opened by an explicit affordance. Reading is the default posture of every surface. Generalizes the `.inline-form` removal beyond Classifications; the cash-balance form moving into the account row is the current instance.
+
+### DR4 — Sidebar shows only working surfaces *(flagged)*
+
+Disabled "Soon" entries are hidden; an entry returns when its surface ships. Verified today: `nav_groups/0` renders no "Soon" pill at all, so the rule is satisfied by construction — but the list it was written against is dated.
+
+**[OPEN]** Re-check needed against what has shipped since 2026-06-13: several surfaces now exist (Income, Snapshots, Tax, Views) and are reached only as tabs or from Administration. The question the rule must answer is not "which items are hidden" but "which shipped surfaces are reachable only by a path the sidebar does not show". Needed to close: a route-by-route reachability pass, then an owner ruling on the Cash-flow parent.
+
+### DR6 — Touch targets
+
+Interactive controls reach ≥ 44px effective target under `@media (pointer: coarse)` — a pointer query, not a width breakpoint, so iPad in landscape is covered. Desktop keeps 32–34px density. Mechanism (padding vs. min-height per control class) is the implementation's call.
+
+### DR7 — Colour independence (binding)
+
+Gain/loss, SOLL/IST over/underweight, buy/sell, staleness, and data-note severity are never conveyed by hue alone. Signed values carry an explicit `+`/`−` (or ▲/▼); buy/sell chart markers differ in shape; stale timestamps carry a glyph and the word; data notes carry an icon and the word. Semantic colour reinforces meaning, never carries it. **Violated today** on the Wealth KPI cards, where negatives render in the accent colour with no sign emphasis — which breaks `DESIGN.md`'s "money semantics outrank brand" at the same time.
+
+### DR9 — Modal accessibility
+
+Native `<dialog>`/`showModal()` preferred (focus trap and `Esc` for free, and it fits the no-bundler constraint), else `role="dialog" aria-modal="true"` plus a focus-trap hook. Focus moves to the first field or the dialog heading on open; `Esc` closes; focus returns to the trigger. Never modal-on-modal.
+
+### DR10 — Chart-as-table *(amended)*
+
+The data behind every chart is always also reachable as a table, through **one uniform disclosure: one control, one label, one styling, and a stated purpose.** Rendered as a quiet text control rather than the raw browser triangle. Charts carry `role="img"` + `aria-label`. This rule is what makes the single-`aria-label` strategy and 9px axis type acceptable. Amendment (2026-08-05): three different summary labels are in use and two chart surfaces — the sunburst and the securities detail chart — have no table at all; both must gain it. The purpose line answers "I see no point in this" without removing the accessibility fallback.
+
+### DR11 — Explanatory microcopy *(amended)*
+
+Domain terms (TTWROR, IRR, SOLL/IST drift, cash quote, Freistellungsauftrag, Verlustverrechnungstopf) carry focusable ⓘ tooltips — focus and tap, `Esc`-dismiss, hoverable per WCAG 1.4.13. Numbers state their basis: as-of date, currency, gross/net, view. de/en via gettext; `lang` follows the active locale.
+
+Amendments (2026-08-05):
+
+1. **Impersonal voice is part of the rule**, not just prose in this document's body — see Voice and Tone. Second-person address is a review-blocking finding.
+2. **Prose is not the fallback for anything the design did not solve.** Every explanatory paragraph resolves to a tooltip, a data note, a basis line, or deletion. The same explanation never exists twice in two forms on one screen.
+
+### DR12 — Responsive behavior *(amended)*
+
+Breakpoints 900 (off-canvas sidebar) / 720 (single-column dialogs, bottom-sheet kebab) / 560 (14px base, hidden subtitles, table scroll); `pointer: coarse` for touch sizing; same IA on all three surfaces. Amendment: **cross-references DR15** — width handling above 560px is not a breakpoint concern but a per-block scroller concern, and treating it as a breakpoint concern is what produced #560.
+
+### DR15 — Every wide content block owns its scroller *(new)*
+
+`.workspace-page { overflow-x: clip }` clips rather than scrolls, deliberately. Therefore any block that can exceed the viewport — tables, chart label rows, legends, matrices — **must establish its own `overflow-x` container and set `min-width: 0` on flex children**. This is the system rule behind #560; without it the same defect recurs on the next wide table. A wide block without its own scroller is a review reject regardless of whether it currently overflows.
+
+### DR16 — Three selected-state classes; one icon vocabulary *(new)*
+
+Five idioms for "this control is selected" exist today. Reduced to three, and **every control in the app maps to exactly one**:
+
+1. **Navigation and tabs** — accent underline plus marker. Sidebar keeps pill + marker dot; tabs use icon + label + underline; second-level tabs are the same, smaller and iconless.
+2. **Toggles, filters, period selection** — segmented group with filled accent.
+3. **Selection in lists and tables** — tinted row with a left accent edge.
+
+Three, not one, because a selected table row and an active tab are genuinely different things; five is drift, one would be dogma. **One icon set app-wide** — a glyph may not carry a second meaning (the funnel currently means both "Views" and "filter"). Appearance of each class is defined in `DESIGN.md`.
+
+### DR17 — Data notes carry one of three severities *(new)*
+
+One component, three severities — **note / attention / problem** — distinguished by **colour AND icon AND word** (DR7). Severity describes the finding, not the surface. Replaces the four competing treatments (plain bullets, amber inline highlight, unstyled grey prose, accent bordered banner). Consequence for the data-quality list: "valued at last trade price" is a *note* and "impossible negative holding quantity" is a *problem*; today they render identically, which is why the app's most important warning surface has the lowest visual weight on its page. The remedy sits adjacent to the note that names the problem.
+
+**[OPEN]** The three icon glyphs are not picked. Needed to close: three glyphs from the existing `app_shell.ex` icon set, chosen with the `DESIGN.md` refresh.
+
+### DR18 — Active states are width-reserved *(new)*
+
+Bold-on-active must reserve its metrics so rows and columns do not shift when selection changes. Measured on the live surface: securities columns shift 14–21px depending on the selected row, the Wealth tab row shifts 10–11px depending on the active tab, the detail-pane tab row moves ~4px with the selected security's subtitle length. Not a preference — a measured defect on three surfaces. Mechanism defined in `DESIGN.md`.
+
+### DR19 — Native controls inherit the design language *(new)*
+
+Date inputs, selects, `<details>` disclosures and checkboxes get defined appearances instead of browser defaults — one date input, three selects, three `<details>` and one checkbox currently render in browser default beside carefully styled pills and segmented controls, and this is where the "unfinished" impression concentrates. **Dates render ISO in input as well as in display**; the built date input shows `MM/DD/YYYY` in a product whose every display date is ISO. Appearance defined in `DESIGN.md`.
+
+### DR20 — Pending and settling are different states *(new)*
+
+Settled: the two states are distinct and get distinct treatments; the count-up is cosmetic and animates to the already-known final value; **real partial values are never streamed**; "not computable" is a third, unrelated state and is a data note, not a loading state. See State Patterns for the full behavior.
+
+Treatment decided 2026-08-05: pending shows the **last known value dimmed** with a recomputing cue and its as-of date, falling back to a **typographic skeleton** where no prior value exists; settling shows an **accent bar growing under the number**; progressive chart fill is a **sequential clockwise sweep**. Anatomy in `DESIGN.md`.
+
+Two consequences the implementation stories carry:
+
+- Pending needs a stored previous value per card. Today only TTWROR has one (`@stale_ttwror`), so this is state work, not a stylesheet change.
+- The settling bar depends on the count-up hook approved 2026-08-05 (`requestAnimationFrame` + `Intl.NumberFormat`, a ninth inline LiveView hook). Pure CSS `@property` counters cannot render `250.000,00` — they render `250000` — so a CSS-only count-up and locale-formatted money are mutually exclusive. Without the hook the bar would have no driver and could only claim to track the count.
 
 ## Key Flows
 
-Protagonist: **Alex** (fictional persona name), the operator-investor (PRD §2). Flow names mirror the PRD user journeys verbatim. Scannable mapping: UJ-1 → Flow 1 · UJ-2 → Flow 2 · UJ-3 → covered by Flow 1 step 4 (agent-side journey; same drift table) · UJ-4/UJ-5 → future phase, deliberately absent · UJ-6 → Flow 3. No real session was narrated (Fast path) — **every flow below is [ASSUMPTION]** in its step detail; the journey intent is PRD-canonical. UJ-4 (The retirement session) and UJ-5 (The podcast test) are future-phase analytics and deliberately absent from this IST-scope spine; UJ-3 (Cash decision, both directions) is an agent-side journey whose UI counterpart is the same drift table as Flow 1 reads.
+Protagonist: **Andi**, the operator-investor (PRD §2). *Correction (2026-08-05):* earlier versions of this document invented a persona called "Alex" and labelled it a privacy measure. The owner's standing ruling is that naming the operator is acceptable — what stays out permanently is concrete financial values and anything about family or household. The pseudonym was the dishonest part, not the content, so the flows use the PRD's name. A third name, "Steve", appears in the 2026-07-12 session notes and is not a persona at all but an in-repo reviewer skill.
 
-### Flow 1 — UJ-1 — Morning briefing (agent journey) — the UI counterpart [ASSUMPTION]
+Flow names mirror the PRD user journeys. Mapping: UJ-1 → Flow 1 · UJ-2 → Flow 2 · UJ-3 → covered by Flow 1 step 4 (agent-side journey, same drift table) · UJ-4/UJ-5 → future phase, deliberately absent · UJ-6 → Flow 3.
 
-1. Alex has just asked his MCP agent where the new 5k in cash should go; the agent answered from MCP precomputed values. He opens Portfolixir on the iPad to *see* it.
-2. Dashboard loads server-rendered: the hero top-left builds once — total value counts up, the performance curve draws in left to right (~1s, ease-out), metric cards settle. "As of" date sits under the total.
-3. The drift metric card shows the same top-drift category the agent named. He taps it.
-4. Portfolio opens: allocation sunburst, SOLL/IST drift table with category swatches, the overweights and underweights in {colors.positive}/{colors.danger}.
-5. **Climax:** the number the agent spoke and the number on the screen are the same number, with the same basis date stated — agent and UI are two views of one analytics engine, and Alex never recomputed anything. He hovers "SOLL/IST drift ⓘ" once, smiles at the tooltip he no longer needs, and closes the iPad.
+**These flows are drafted, not narrated from a real session.** No live walkthrough was recorded; the journey *intent* is PRD-canonical, the *step detail* is [ASSUMPTION] throughout and is the first thing a UAT persona walkthrough should overwrite.
 
-Failure: quotes are stale → the as-of timestamp renders in {colors.warning} tone; the curve still builds, the numbers still state their (older) basis. No blocking, no modal.
+### Flow 1 — UJ-1 — Morning briefing (agent journey), the UI counterpart [ASSUMPTION]
+
+1. Andi has asked his MCP agent where new cash should go; the agent answered from precomputed MCP values. He opens Portfolixir on the iPad to *see* it.
+2. Overview loads server-rendered: layout arrives complete, values are **pending** briefly, then **settle** with the count-up. The as-of basis sits under the total.
+3. "Needs attention" states its basis — which view, which plan — and names the top drift. He taps it.
+4. Wealth → Allocation & targets opens: sunburst, SOLL/IST drift table with category swatches, over- and underweights carrying sign as well as colour, per-position indicative corrective quantities beside the drift (display only, ADR-0023).
+5. **Climax:** the number the agent spoke and the number on the screen are the same number, with the same basis stated. Agent and UI are two views of one analytics engine and nothing was recomputed by hand.
+
+Failure: quotes are stale → the basis line becomes an **attention** data note (tone + glyph + word); the chart still builds, the numbers still state their older basis. No blocking, no modal.
 
 ### Flow 2 — UJ-2 — Data maintenance without spreadsheets [ASSUMPTION]
 
-1. A broker statement arrived; Alex exports from PP and opens Imports at his desk.
-2. He drops the file on the drop zone. Preview renders: "42 transactions would be created, 2 securities unknown." Nothing has been written yet.
-3. He applies. The import runs idempotently and atomically; the done summary shows stat cards and flags the two unclassified securities — surfaced, not silently defaulted.
-4. He follows the flag link to his "Asset classes" classification. The tree opens *as a tree*: categories with swatches and counts, search on top, the two new securities in the pinned Unsorted bucket. No form occupies the sightline.
-5. He multi-selects both rows and drags them onto "Aktien Welt"; the count ticks up, the toolbar disappears with the selection.
-6. **Climax:** he hits the `+` in the Classifications nav head, a compact disclosed form slides open, he adds a "Crypto ETPs" category, and the form closes back to nothing — the screen that used to greet him with a wall of inputs now only ever shows them for the three seconds he wants them. The spreadsheet and PP reconciliation stay retired.
+1. A broker statement arrived; Andi exports from PP and opens Transactions → Import at his desk.
+2. He drops the file. Preview renders: "42 transactions would be created, 2 securities unknown." Nothing has been written.
+3. He applies. The import runs idempotently and atomically; the done summary flags the two unclassified securities as data notes — surfaced, not silently defaulted.
+4. He follows the flag to his "Asset classes" tree. The tree opens *as a tree*: categories with swatches and counts, search on top, the two new securities in the pinned Unsorted bucket. No form occupies the sightline.
+5. He multi-selects both rows and drags them onto a category; the count ticks up, the toolbar disappears with the selection.
+6. **Climax:** he hits `+`, a compact disclosed form opens, he adds one category, and the form closes back to nothing — the screen that used to greet him with a wall of inputs now only shows them for the seconds he wants them.
 
-Failure: re-dropping the same file → preview reports "already imported — re-import is a no-op" (content-hash); applying changes nothing and says so.
+Failure: re-dropping the same file → preview reports the content-hash match and applying changes nothing, and says so.
 
-### Flow 3 — UJ-6 — The family view [ASSUMPTION]
+### Flow 3 — UJ-6 — Switching scope [ASSUMPTION]
 
-1. Sunday evening; Alex reviews the second household portfolio. He switches scope to it. [ASSUMPTION] The switcher mechanism (#327) is in flight; this spine assumes a scope control on the portfolio-bearing surfaces, not a second navigation.
-2. Portfolio, holdings, performance — every view now filters to that scope (FR-4); the as-of basis and currency stay stated.
-3. The hero rebuilds once for the new scope: its total counts up, its curve draws in — the one-shot build doubles as the "you are now looking at different data" cue, though the scope label, not the motion, carries the meaning.
-4. He checks that portfolio's drift table, records one buy in Transactions through the disclosed form, confirms it appears in the ledger.
-5. **Climax:** switching back to his own scope, the dashboard rebuilds to his numbers — two portfolios, one instance, one operator, zero mental bookkeeping about whose data he is looking at, because every surface states its scope.
+*Rewritten 2026-08-05.* The previous version of this flow ("the family view") depended on issue #327 — moving depots between portfolios — which ADR-0024 supersedes: **moving becomes a tag edit**, and views, not portfolios, are the user-facing grouping.
 
-Failure: a validation error on the transaction form → inline field error, form stays open with the input intact; nothing half-writes (ledger atomicity, FR-2).
+1. Andi wants to look at a narrower slice than "Everything". He opens **Views** (Administration) and confirms the view he wants exists — a set of buckets included, another excluded.
+2. Buckets are attributes, not destinations: he assigns the missing depot its bucket tag from the chip on its row in **Accounts & depots**. No entity is moved; a tag changes.
+3. Back on **Wealth**, he switches the active view. Holdings, allocation, performance and the KPI band all re-scope; the basis line names the active view alongside the as-of date and currency.
+4. Values go **pending**, then **settle**. The count-up is the "different data now" texture; the scope label, not the motion, carries the meaning — under reduced motion the label is the only cue and it is enough.
+5. Where the view's buckets overlap, the surface says so rather than hiding it: each account is counted exactly once in the total, so per-bucket figures may overlap and must not be summed. This is a **note**, adjacent to the total.
+6. **Climax:** one instance, one operator, several scopes, zero bookkeeping about which data is on screen — because every scoped surface states its scope.
+
+Failure: a validation error while recording a transaction in the new scope → inline field error, the form stays open with the input intact, nothing half-writes (ledger atomicity, FR-2).
