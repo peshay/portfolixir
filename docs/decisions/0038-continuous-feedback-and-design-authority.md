@@ -6,7 +6,8 @@ description: Amends ADR-0026's acceptance practice. The per-epic owner UAT walkt
 
 # ADR-0038: continuous owner feedback loop and a standing design authority
 
-- **Status:** Proposed (awaiting owner sign-off)
+- **Status:** Accepted (owner sign-off is the merge of the PR that carries
+  this ADR, 2026-08-05)
 - **Date:** 2026-08-05
 - **Amends:** [ADR-0026](0026-epic-batch-workflow.html) (the acceptance
   practice in step 4 and the review-role roster in step 3; the batch

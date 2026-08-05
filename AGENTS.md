@@ -238,13 +238,22 @@ reviews decisions and behavior, agents review code:
    `main` at least daily. Epic branches live days, not weeks. The Story
    Workflow above applies unchanged inside the batch.
 3. **Agentic review closing act (mandatory):** multi-role adversarial review
-   (at minimum correctness hunter, edge-case hunter, and a UAT persona
-   walkthrough on seeded synthetic data), confirmed findings fixed on the
-   branch, plus a reviewer briefing on the PR — what is new, what changed,
-   where to look, deliberate trade-offs — with screenshots for UI work.
+   (at minimum correctness hunter, edge-case hunter, a UAT persona
+   walkthrough on seeded synthetic data, and — for batches with user-visible
+   surface — a design critic reviewing against the living design-language
+   spec per ADR-0038), confirmed findings fixed on the branch, plus a
+   reviewer briefing on the PR — what is new, what changed, where to look,
+   deliberate trade-offs — with screenshots for UI work.
 4. **Acceptance:** the owner reviews behavior against the briefing, feedback
    lands as a UAT fix round on the same branch, and the maintainer
-   squash-merges. Agents never merge.
+   squash-merges. Agents never merge. No separate per-epic owner UAT
+   session is assumed beyond this review (ADR-0038): day-to-day
+   observations from live use reach the backlog at any time as
+   unstructured owner dumps, which the PM agent triages into dated
+   planning artifacts, dedups against the pipeline, and turns into thin
+   issues after owner confirmation. The UX designer role owns the living
+   design-language spec that design work and the design-critic review are
+   held against.
 5. **Bookkeeping close-out (mandatory, after the merge):** in the same pass
    as the post-merge cleanup, the batch's agent updates
    `sprint-status.yaml` and the epics document (including the FR Coverage
