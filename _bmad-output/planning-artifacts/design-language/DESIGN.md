@@ -49,6 +49,15 @@ colors:
   # -soft-dark idiom of the accent tokens: the dark hue at 0.16 translucency.
   # rgb(251 191 36) is {colors.warning-dark}. Not in app.css yet — see Colors.
   warning-soft-dark: 'rgb(251 191 36 / 0.16)'
+  # Tint behind problem-severity notes. NOT a new hue: these are the values
+  # `.alert-error` already renders (app.css:1167-1171), which borrows
+  # --color-accent-coral-soft (app.css:16 / 81 / 142) for a semantic role.
+  # Named here so {components.data-note}.problem stops referencing an
+  # accent-variant token. MEASURED FAILURE, see Colors → danger tint gate:
+  # {colors.danger} on danger-soft is 4.02:1, below the 4.5:1 text bar, and
+  # that failure is live in the build today.
+  danger-soft: '#ffe4e6'
+  danger-soft-dark: 'rgb(225 29 72 / 0.16)'
   # buy marker reuses positive-green in light mode (meets 3:1 on chart surface); dark keeps the brighter pair
   tx-buy: '#047857'
   tx-buy-dark: '#10b981'
@@ -70,7 +79,12 @@ colors:
   border: '#e4e8ef'
   border-strong: '#cdd4df'
   hover: '#f0f3f8'
-  # alias of the ACTIVE accent-*-soft — violet default shown; re-keys with [data-accent]
+  # INTENDED as an alias of the ACTIVE accent-*-soft. It is not one in the
+  # build: --color-selected is a literal in :root (app.css:30), the dark media
+  # query (93) and both [data-theme] blocks (124, 154), and never appears
+  # inside a [data-accent] block (165-177), which set only --color-accent and
+  # --color-accent-soft. Under teal or coral every selected row stays violet.
+  # Filed as issue #644; listed under Colors → Violations. Violet default shown.
   selected: '#ede9fe'
   text: '#0e141b'
   text-muted: '#5a6577'
@@ -177,12 +191,39 @@ spacing:
   section-pad-block: 'clamp(18px, 2.4vw, 28px)'
   section-pad-inline: 'clamp(14px, 2.4vw, 28px)'
   panel-pad: 'clamp(18px, 3vw, 26px)'
+  # Breakpoints and target sizes, tokenised 2026-08-05 so both spines can
+  # reference them instead of repeating literals. Values as built:
+  # app.css:1200 (900), 2005/2175/2344 (720), 1271 (560), 4606-4613 (44px).
+  # No --space-bp-* custom properties exist in app.css — media-query
+  # conditions cannot read custom properties, so these are tokens of record
+  # for the documents, and the stylesheet keeps the literals.
+  bp-sidebar: 900px
+  bp-dialog: 720px
+  bp-density: 560px
+  touch-target: 44px
+  density-control: 34px
+shadows:
+  # As built (app.css:42-45 light; 99-101 dark media; 130-132 [data-theme=light];
+  # 160-162 [data-theme=dark]). Dark swaps the slate tint for black at higher
+  # opacity because tonal contrast carries less there.
+  sm:
+    light: '0 1px 2px rgb(15 23 42 / 0.05)'
+    dark: 'MISSING — see Elevation & Depth (defect)'
+  md:
+    light: '0 10px 22px rgb(15 23 42 / 0.10)'
+    dark: '0 10px 28px rgb(0 0 0 / 0.5)'
+  panel:
+    light: '0 18px 44px rgb(15 23 42 / 0.08)'
+    dark: '0 18px 44px rgb(0 0 0 / 0.32)'
+  sidebar:
+    light: '0 20px 60px rgb(15 23 42 / 0.16)'
+    dark: '0 20px 60px rgb(0 0 0 / 0.42)'
 components:
   stat-card:
     background: 'color-mix(in srgb, {colors.bg-elevated} 94%, transparent)'
     border: '1px solid {colors.border}'
     radius: '{rounded.lg}'
-    shadow: 'shadow-panel'
+    shadow: '{shadows.panel}'
     top-bar: 'linear-gradient(90deg, {colors.brand-violet-1}, {colors.brand-teal-1} 55%, {colors.brand-coral-1})'
     value: '{typography.stat-value}'
     value-color: 'accent (active variant) — EXCEPT signed money, which takes {colors.positive}/{colors.danger}'
@@ -202,33 +243,39 @@ components:
     padding: '{spacing.panel-pad}'
   selected-nav:
     scope: 'sidebar navigation and first/second-level tabs'
-    sidebar-active: 'accent-soft→transparent 80% gradient wash, 1px border at accent 26%, 6px filled accent marker dot with 3px halo'
+    rule: 'UX-DR16 (mapping in EXPERIENCE.md), UX-DR18 for the reserved metrics'
+    sidebar-active: 'background linear-gradient(90deg, {colors.accent-soft}, transparent 80%) — 80% is the gradient STOP POSITION, not an opacity; border-color color-mix(in srgb, {colors.accent} 26%, transparent); 6px marker dot filled {colors.accent} with box-shadow 0 0 0 3px color-mix(in srgb, {colors.accent} 18%, transparent) (app.css:410-414, 443-454)'
     tab-active: 'label in {colors.accent}, 2px {colors.accent} bottom border, weight 600'
     tab-rest: '{typography.control-label} in {colors.text-muted}, 2px transparent bottom border'
     icons: 'first-level tabs carry an icon + label; second-level tabs are the same control, smaller and iconless'
-    width-reserved: 'required — see {components.width-reserve}'
+    width-reserved: 'required — {components.width-reserve}, technique: invisible bold shadow text on the label'
   selected-segment:
     scope: 'toggles, filters, period selection — anything picking one of N adjacent options'
+    rule: 'UX-DR16 (mapping in EXPERIENCE.md), UX-DR18 for the reserved metrics'
     group: 'inline-flex, 1px solid {colors.border}, radius {rounded.md}, background {colors.bg}, overflow hidden'
     option: 'min-height 30px, padding 4px 9px, {typography.control-label} in {colors.text-muted}, 1px {colors.border} divider, no radius, no shadow'
     option-hover: 'background {colors.hover}, text {colors.text}'
     option-active: 'filled {colors.accent}, text {colors.on-accent}'
-    width-reserved: 'required — see {components.width-reserve}'
+    width-reserved: 'required — {components.width-reserve}, technique: fixed track width — the group sizes to its widest option in its active appearance and does not resize when the selection moves'
   selected-row:
     scope: 'selection inside lists, tables and trees'
+    rule: 'UX-DR16 (mapping in EXPERIENCE.md), UX-DR18 for the reserved metrics'
     background: '{colors.selected}'
     edge: 'inset 3px 0 0 {colors.accent} on the leading edge (LTR: left)'
     text: 'unchanged; the row label may take {colors.accent} but must not change weight'
-    width-reserved: 'required — see {components.width-reserve}'
+    vs-hover: 'hover is {components.data-table}.hover — the SAME accent family at a lower strength and with NO edge. Selection is strictly stronger: hover = color-mix(in srgb, {colors.accent-soft} 42%, transparent); selected = {colors.accent-soft} at full strength (that is what {colors.selected} aliases). A diff that renders selection at the hover strength, or hover with an edge, is a review reject.'
+    width-reserved: 'required — {components.width-reserve}, technique: permanently reserved ornament slot — every row in the list carries the 3px leading gutter, transparent when unselected'
   data-note:
     scope: 'anything the app tells the operator about their data'
+    rule: 'UX-DR17 (defined in EXPERIENCE.md), UX-DR7 for the encoding'
     severities: 'note · attention · problem — exactly three, never a fourth'
     encoding: 'colour AND icon AND word, never colour alone (UX-DR7/UX-DR17)'
-    note: 'border 1px {colors.border}, background {colors.bg-muted}, text {colors.text-muted}'
-    attention: 'border 1px {colors.warning}, background {colors.warning-soft}, text {colors.warning}'
-    problem: 'border 1px {colors.danger}, background {colors.danger} at soft tint, text {colors.danger}'
+    note: 'border 1px {colors.border}, background {colors.bg-muted}, text {colors.text-muted} (5.21:1)'
+    attention: 'border 1px {colors.warning}, background {colors.warning-soft}, text {colors.warning} (4.84:1 light, 8.45:1 dark)'
+    problem: 'border 1px {colors.danger}, background {colors.danger-soft}, text — [OPEN, blocking] {colors.danger} on {colors.danger-soft} measures 4.02:1 and fails the 4.5:1 bar. See Colors → the danger-tint gate.'
     radius: '{rounded.md}'
     padding: '{spacing.2} {spacing.3}'
+    placement: 'inside the same `<section>` element as the data it describes, and before that section closes. The remedy control is a child of the note. A note whose data is in a different `<section>` is a violation; the ~1100px gap on Wealth data quality is the failing case.'
     icon: 'note → :asterisk · attention → :alert_triangle · problem → :alert_octagon (decided 2026-08-05, designer). All three are ADDITIONS to the app_shell.ex icon set — see Components → Data note'
   period-control:
     appearance: '{components.selected-segment}'
@@ -237,26 +284,38 @@ components:
     date-fields: '{components.native-control} — ISO in the input, not only in the display'
   disclosure:
     scope: 'data-as-table under every chart; custom range; entry forms out of the reading sightline'
+    rule: 'UX-DR10 (defined in EXPERIENCE.md), UX-DR19 for the marker'
     control: 'quiet text summary — {typography.control-label} in {colors.text-muted}, pointer cursor'
     marker: 'defined chevron, never the raw browser triangle'
-    purpose-line: 'one short line stating why the disclosure exists'
+    purpose-line: 'exactly one sentence, ≤ 90 characters in the source (English) msgid, of the form "<what the table holds> — <why it is here>". Example shape: "Every plotted point as a row — the chart data without the chart." No second sentence, no link. Over 90 characters is a review reject; the bound is what makes UX-DR10 verifiable on a diff.'
     label: '"Data as table" — one wording app-wide (decided 2026-08-05, designer; de: "Daten als Tabelle"). Copy rule in EXPERIENCE.md Voice and Tone'
     body: '{components.data-table} for the data-as-table case'
   value-slot:
     scope: 'every rendered money, percentage or quantity that can be absent'
+    rule: 'UX-DR20 (defined in EXPERIENCE.md)'
     metrics: 'the slot reserves its final footprint in all four states; no state may reflow its neighbours'
     numerals: 'tabular-nums in every state, including mid-count'
     final: '{typography.stat-value} or {typography.table-cell}, full colour'
-    pending: 'last known value at {colors.text-muted} with a recomputing cue and its as-of date; where no prior value exists, a shimmer sized to the value footprint (never a generic block)'
+    pending: 'last known value at {colors.text-muted} plus {components.recomputing-cue} on the line beneath it; where no prior value exists, a shimmer sized to the value footprint (never a generic block)'
     pending-fallback: 'skeleton gradient reuses .section-skeleton stops at text size — gated behind prefers-reduced-motion: no-preference, unlike the shipped block skeleton'
     settling: 'digits at {colors.text-muted}, a 2px accent bar beneath growing 0 to full width over the count; on settle digits snap to full colour and the bar fades'
     not-computable: 'em dash, {colors.text-muted}, NOT at value weight — the state a stable input can rest in, so it must not look like a state in flight'
+  recomputing-cue:
+    scope: 'the operative element of the pending state — the thing that says a shown value is not the current one'
+    anatomy: 'one line directly under the value, inside the reserved slot footprint: a ring glyph, then the as-of basis, then the recomputing word. Source shape — "<ring> Last known <as-of date> · recomputing".'
+    glyph: 'the shipped .spinner ring (app.css:4706-4716) — 0.8em square, 2px currentColor border, transparent top segment, margin-right 0.4em, vertical-align -0.1em. NOT a new icon-set entry, so this cue does not wait on the icon-set story that the three severity glyphs and the clock glyph ride.'
+    typography: '{typography.stat-label} size on stat cards, {typography.table-cell} in tables; colour {colors.text-muted} in both'
+    word: 'the word is mandatory and carries the meaning on its own — "recomputing" (de "wird neu berechnet"). Glyph plus word plus muted colour is three channels; UX-DR7 is satisfied without the animation.'
+    reduced-motion: 'under `reduce` the ring stops and renders as a complete ring at 0.5 opacity (app.css:4724-4730); the word and the as-of date are unchanged. Nothing is removed — loading indication is information, not polish.'
+    not: 'never the ⓘ character — ⓘ is the metric-DEFINITION affordance at eight call sites (UX-DR11). Never :refresh_cw either: that glyph already means "sync prices now" at three call sites (securities_live.ex:178, row_context_menu.ex:52 and :102), and a second meaning is banned.'
+    provenance: '.working/loading-affordances.html, option P2 — the cue is rendered there and was part of what the owner picked; it never reached the spines until now'
   width-reserve:
-    rule: 'a control whose active state changes weight, adds an icon or adds an ornament reserves that space in its rest state'
-    techniques: 'invisible bold shadow text, fixed track widths, or a permanently reserved ornament slot'
+    rule: 'a control whose active state changes weight, adds an icon or adds an ornament reserves that space in its rest state. UX-DR18 (defined in EXPERIENCE.md).'
+    technique-by-class: 'ONE mechanism per selected-state class, not a menu — {components.selected-nav} uses invisible bold shadow text on the label; {components.selected-segment} uses a fixed track width sized to the widest option in its active appearance; {components.selected-row} uses a permanently reserved 3px leading ornament gutter, transparent when unselected.'
     tolerance: '0px — no measurable shift when selection moves'
   native-control:
     scope: 'date inputs, selects, <details> summaries, checkboxes, radios'
+    rule: 'UX-DR19 (defined in EXPERIENCE.md)'
     container: 'inherits {components.input}'
     indicator: 'defined appearance — select chevron, disclosure chevron, checkbox mark — never the browser default'
     dates: 'ISO (YYYY-MM-DD) in input and display alike'
@@ -275,23 +334,65 @@ components:
   data-table:
     head: '{typography.table-head} on {colors.bg-muted}'
     cell: '{typography.table-cell}, tabular numerals in numeric columns, numeric columns right-aligned'
-    hover: 'accent-soft wash at 42%'
+    hover: 'background color-mix(in srgb, {colors.accent-soft} 42%, transparent) — as built, app.css:1112-1114. Strictly weaker than {components.selected-row} and never carries the leading edge.'
     selected: '{components.selected-row}'
-    scroller: 'own overflow-x container — required, see Layout & Spacing'
+    scroller: 'own overflow-x container — required, UX-DR15, see Layout & Spacing'
   chart-frame:
     background: '{colors.chart-surface}'
     border: '1px solid {colors.border}'
     radius: '{rounded.md}'
     aspect-ratio: '3 / 1'
     line: 'accent, 1.6px stroke'
-    area-fill: 'accent at 14% opacity'
-    data-as-table: '{components.disclosure} — mandatory on every chart surface'
+    area-fill: 'fill {colors.accent} with fill-opacity 0.14 (app.css:3115-3117)'
+    data-as-table: '{components.disclosure} — mandatory on every chart surface (UX-DR10)'
   chart-tooltip:
+    scope: 'the crosshair readout on every chart surface — one tooltip, driven by the ChartCrosshair hook'
     font: '{typography.mono-data}'
     background: '{colors.bg}'
     border: '1px solid {colors.border}'
     radius: '{rounded.sm}'
+  needs-attention-card:
+    scope: 'the Overview block that answers "does anything need me?" (UX-DR2)'
+    container: '{components.panel} as a workspace section; heading on the {typography.section-title} step'
+    basis-line: 'directly under the heading, {typography.stat-label} in {colors.text-muted}: the view, the plan, and the threshold the count is computed against. Where the allocation carries several plans the line names that fact instead of a plan. Built today as the threshold clause alone (dashboard_live.ex, data-role="attention-explainer") — view and plan are the missing half.'
+    item-row: 'a full-width link row: category name at {typography.body} in {colors.text}, then the drift figure right-aligned in tabular numerals. The figure is signed money semantics — {colors.positive}/{colors.danger} plus the direction word, never the accent (UX-DR7).'
+    severity: 'items do NOT each become a {components.data-note}. The card IS one attention-severity surface; its heading carries the severity, the rows carry the facts. A row that needs its own severity is a data-quality finding and belongs in the data-quality line instead.'
+    cap: 'at most five rows (dashboard_live.ex @max_alerts); no "show all" affordance — the surface that owns the full list is Wealth → Allocation & targets, which every row links to'
+    empty: 'one line at {typography.body} in {colors.text-muted} stating the condition is clear. No badge, no icon, no colour — an all-clear is not a finding.'
+  data-quality-line:
+    scope: 'the Overview data-quality block (UX-DR2, UX-DR17). Not the Wealth data-quality section, which is {components.data-note} rows.'
+    form: 'ONE line, not a card grid. Rendered only when N > 0; absent entirely when N = 0, with no green all-clear badge. Decided 2026-07-12, recorded here 2026-08-05 — see Components → Data quality.'
+    anatomy: 'a single {components.data-note} at the highest severity present, its word and glyph first, the count and the condition as the sentence, the remedy as a link inside the note'
+    target: 'the link lands on the securities list ALREADY FILTERED to the offending set — not the unfiltered index. Blocked: securities_live.ex handle_params reads only `tab` and `id`, so no URL-addressable filter state exists yet.'
+  inline-result:
+    scope: 'feedback for an action the operator triggered — the replacement for .status-toast (issue #566)'
+    placement: 'in the flow, immediately after the control that triggered the action, inside the same `<section>`. Never a floating overlay, never a corner. A result that has no trigger on screen is not an inline result — it is a page-level {components.data-note}.'
+    appearance: 'reuses {components.data-note} severities verbatim: success reads as note, a recoverable failure as attention, a refused write as problem. No fourth appearance and no success-specific colour.'
+    busy: 'while the action runs, the trigger carries the busy state and the slot reserves the result footprint, so nothing reflows when the result lands'
+    persistence: 'persists until the next action on the same control, a navigation, or an explicit dismiss. It does NOT self-dismiss on a timer — the 4.5s auto-dismiss of .status-toast (AutoDismissToast hook) is exactly the behaviour #566 retires.'
+    aria: 'the result region is `role="status"` (polite) for note and attention, `role="alert"` for problem; the region exists in the DOM before the action so the announcement is not lost'
+  budget-meter:
+    scope: 'the Tax allowance-order "fill level" — the only meter in the product'
+    track: 'full-width bar, height {spacing.2}, radius {rounded.full}, background {colors.bg-muted}, 1px {colors.border}'
+    fill: 'left-anchored, radius {rounded.full}, background {colors.accent} — the accent, because consumed allowance is neither gain nor loss'
+    threshold: 'NONE. The fill does not change colour near the limit. Utilisation is not a severity: a fully used allowance is the normal end state of a tax year, not a warning. Anything genuinely wrong about the budget — a stale as-of date, a missing statement — is a {components.data-note} beside the meter, which is where the severity vocabulary already lives. This is a ruling, not an omission; it is why no UX-DR7 companion (a sign, a glyph, a word beside the colour) is needed here.'
+    label: 'remaining amount at {typography.stat-value}, the as-of date on the basis line beneath at {typography.stat-label} in {colors.text-muted}'
+    aria: 'role="meter" is not used — the pair renders as text plus a decorative bar, and the text is the accessible value'
+  connection-state:
+    scope: 'the LiveView socket — the characteristic degradation of a server-rendered architecture'
+    placement: 'one band directly under the top bar, full workspace width, above the page content. Never a modal, never a toast: it is a persistent condition, not an event.'
+    reconnecting: '{components.data-note} at attention severity, word plus glyph plus tone. The page keeps its last rendered content at full colour — NOT dimmed, because dimming means pending, and a dropped socket is not a computation in flight. Interactive controls stay enabled and simply do nothing; disabling them would be a second, competing way to say "unavailable".'
+    disconnected: 'the same band escalated to problem severity once the client has stopped retrying, carrying a reload control inside the note'
+    restored: 'the band is removed. No success confirmation — a restored connection is the normal state, and {components.inline-result} is for actions, not for conditions.'
+    vs-pending: 'the distinction is load-bearing under the chosen pending treatment: pending dims the value and shows {components.recomputing-cue} per slot; a lost socket colours nothing and shows one band for the whole page. A reader must never have to infer which one they are looking at.'
+    status: 'NOT BUILT and nothing is styled for it — app.css contains no .phx-loading, .phx-error, .phx-client-error or .phx-server-error rule, and layout_view.ex renders no #client-error / #server-error element. LiveView 1.2.8 already applies those classes to the LV root, so this is a stylesheet plus one band, not a mechanism.'
+  chip:
+    scope: 'the one chip — a filled tag naming a bucket, a status or a kind'
+    shape: 'radius {rounded.sm}, padding {spacing.1} {spacing.2}, {typography.control-label}'
+    fill: 'background {colors.bg-muted}, text {colors.text-muted}, no border. The accent-filled variant is reserved for {components.selected-segment}; a chip is never a control.'
+    not: 'the outline chip and the grey initial-avatar square are not chips. The avatar is a logo placeholder (.security-logo--initial) and keeps its own name.'
   pill:
+    scope: 'marker shapes only — locale pills, nav marker dots, splitter handles. Never an interactive control (see Shapes).'
     radius: '{rounded.full}'
     font: '9.5px, weight 700, uppercase, 0.06em tracking'
 ---
@@ -302,7 +403,22 @@ components:
 >
 > Refreshed 2026-08-05 against the live-surface survey and the design critique of the 2026-08-01 UAT screenshots (`.decision-log.md`, session 2026-08-05).
 >
-> **Closing pass, 2026-08-05 (same session).** Every `[OPEN]` item in this document is now decided. The owner delegated these calls to the designer, so each is marked **decided 2026-08-05 (designer)** where it lands, and each states the evidence it was derived from — measured ratio, token idiom, or code reference. Closed here: the computed contrast table (carried in verbatim), the two unmeasured pairings, `warning-soft-dark`, the three data-note glyphs, the funnel collision, and the disclosure label. Two of the closures are contrast **failures found while measuring** — white on the dark accent fills, and the missing dark warning tint — and are recorded as live defects under Violations, not as spec gaps.
+> **Closing pass, 2026-08-05 (same session).** The owner delegated these calls to the designer, so each is marked **decided 2026-08-05 (designer)** where it lands, and each states the evidence it was derived from — measured ratio, token idiom, or code reference. Closed here: the computed contrast table (carried in verbatim), the two unmeasured pairings, `warning-soft-dark`, the three data-note glyphs, the funnel collision, and the disclosure label. Two of the closures are contrast **failures found while measuring** — white on the dark accent fills, and the missing dark warning tint — and are recorded as live defects under Violations, not as spec gaps.
+>
+> **Gate (mirrors EXPERIENCE.md's).** `status: draft` lifts to `final` when the items below are decided. The owner, or the designer under owner delegation, lifts it; a design-critic review runs against the file as it stands, treating `[OPEN]` items as out of scope rather than as failures.
+>
+> | Open item | Where | What closes it |
+> |---|---|---|
+> | The danger-tint gate — problem-severity body text is unbuildable at 4.5:1 | Colors → the danger-tint gate | One ruling between the three measured resolutions. Blocks {components.data-note}.problem and the Wealth data-quality story. |
+> | Category and series colour is unreconciled | Colors → Category and series colour | A ruling on the operator's palette freedom and on what the app does with a category colour below 3:1. Touches user-set data, so it is its own decision gate. |
+> | The `px` / `rem` unit of record | Typography → Residual gaps | A lint rule or an agreed review convention. |
+> | The icon-set additions are described, not drawn | Components → Data note | Path data for `:asterisk`, `:alert_triangle`, `:alert_octagon` and the stale-data clock, in `app_shell.ex` `icon_paths/1`. Does **not** block {components.recomputing-cue}, which deliberately adds no glyph. |
+>
+> Everything else in this file is binding, including the parts that describe defects: where the file and the build disagree, the build carries the defect.
+>
+> **Citation convention (2026-08-05).** Cite by the most stable handle available — a selector, a `data-role`, an element id, a function name — and add a line number only where nothing stabler exists. Line numbers drift with the next edit and turn a reviewer instruction silently wrong; several in the 2026-08-05 draft already had (`.workspace-page { overflow-x: clip }` was cited at 3934 and is at 3935; the plural-bug call sites were cited four lines off and one short). Existing line-number citations are kept where they are the only handle, and are re-verified when the section around them is edited.
+>
+> **On splitting the defect register out.** The rubric review proposed moving the per-line defect register — Violations, the Motion live-defect note, the Typography residual gaps, and the inline defect notes in EXPERIENCE.md — into a dated companion (`drift-register-2026-08-05.md`) that alignment stories close out. **Not done, and the reason is on the record rather than left implicit:** the register is what makes the rules holdable right now, and this session's evidence is that facts kept outside the two spines do not survive — the 2026-07-12 data-quality decision, the I2 income pick and the P2 cue anatomy all lived in a log or a working file and all three were lost. A third file is a third place to lose something. The register stays here; the citation convention above is the mitigation, and the Alignment inventory in EXPERIENCE.md is the part a story consumes. Revisit if the register outgrows the rules it serves.
 
 ## Brand & Style
 
@@ -314,7 +430,7 @@ The accent system is the identity anchor (owner-loved, binding): the operator pi
 
 [ASSUMPTION] The existing token set is treated as closed; no new hues are introduced beyond the tokens above. Drift is corrected toward the tokens, never by adding one.
 
-## Colors
+## Colors *(carries UX-DR8 — contrast commitments per surface, both themes; summarised in EXPERIENCE.md's rule index)*
 
 - **The three accent variants** — {colors.accent-violet} / {colors.accent-teal} / {colors.accent-coral} (light), {colors.accent-violet-dark} / {colors.accent-teal-dark} / {colors.accent-coral-dark} (dark) — are mutually exclusive. `--color-accent` resolves to exactly one of them via `[data-accent]`; violet is the default. Each has a `-soft` companion used for selected rows, active-nav washes, and notes. The accent means "interactive / current / yours" — it colors the chart line, the active nav marker, focus outlines, and unsigned stat numbers.
 - **The brand gradient stops** ({colors.brand-violet-1} → {colors.brand-teal-1} → {colors.brand-coral-1}) appear *together* in exactly one place: the 3px top bar of `.stat` cards. They are the only moment all three logo colors coexist; keep it that rare.
@@ -335,6 +451,46 @@ The accent system is the identity anchor (owner-loved, binding): the operator pi
 - Meaningful graphics (chart lines, buy/sell markers) ≥ 3:1 against {colors.chart-surface}.
 - Focus indicator: solid 2px accent outline ≥ 3:1 against adjacent colors; the 18%-opacity soft ring is decoration, never the indicator (see EXPERIENCE Accessibility Floor).
 - 9px chart-axis type is tolerated only because every chart's data is also reachable as a table (EXPERIENCE Accessibility Floor, binding).
+
+### Category and series colour
+
+Two colour systems exist that the token set above does not cover, and pretending otherwise is what let them drift.
+
+**Category colour is user-set and outside the token system.** A classification category carries a `color` the operator picks freely — the schema validates only `~r/^#[0-9a-fA-F]{6}$/` (`category.ex:15`) — and that hex is written as an inline style into the sunburst segments, the legend swatches, the drift-table swatches and the tree row swatches (`portfolio_live.ex:1027` and the `.sunburst-seg` fill, `classifications_live.ex:387`). No token mediates it, no contrast is checked, and the closed-token-set assumption above does not apply to it.
+
+Three positions on this coexist in the project and **cannot all be true**: the closed token set stated here; the build's free-form per-category hex; and the 2026-08-05 decision that stacked income segments come from tints of the active accent. Reconciling them touches user-set data, not just styling, so it is **a decision gate of its own and is not settled here** (also recorded in EXPERIENCE.md → Per-instrument income). What would close it: a ruling on whether the operator picks freely from a constrained palette, and whether the app corrects, warns about, or ignores a category colour that fails contrast.
+
+What binds today, regardless of that gate:
+
+- A category swatch is a **meaningful graphic** and takes the 3:1 floor against {colors.chart-surface} — the same commitment the buy/sell markers take. A swatch below it must not be the only channel distinguishing two segments.
+- Category colour never carries a fact colour already owns. Over/underweight, gain/loss and severity stay on {colors.positive} / {colors.danger} / {colors.warning}, on top of whatever hue the category has.
+- **Series colour** (multi-series charts: the two snapshot polylines, stacked income segments) is not category colour. Series are separated by **direct labelling first**, and colour second — which is the constraint that caps stacked income segments at three plus a remainder (EXPERIENCE.md).
+
+### The danger-tint gate *(found 2026-08-05 while closing the data-note component; [OPEN], blocking)*
+
+{components.data-note}.problem is specified as {colors.danger} text on a danger tint. **It is not buildable at 4.5:1 with the current tokens, and the failure is already live.**
+
+`.alert-error` (app.css:1167-1171) renders `color: var(--color-danger)` on `background: var(--color-accent-coral-soft)` — the values now named {colors.danger-soft} / {colors.danger-soft-dark}. Measured with the same method as the tables above:
+
+| Pair | Ratio | Verdict |
+|---|---|---|
+| danger #dc2626 / danger-soft #ffe4e6 | **4.02** | **fail normal text** (pass 3:1 as graphic) |
+| danger #dc2626 / bg-elevated #ffffff | 4.83 | pass — but only 0.33 of headroom |
+| danger #dc2626 / bg #f6f7fa | 4.51 | pass, at the threshold |
+| text #0e141b / danger-soft #ffe4e6 | 15.42 | pass |
+| text-muted #5a6577 / danger-soft #ffe4e6 | 4.91 | pass |
+| danger-dark #fb7185 / danger-soft-dark composite #2d111c over bg-dark | 6.46 | pass |
+| danger-dark #fb7185 / danger-soft-dark composite #341a29 over bg-elevated-dark | 5.89 | pass |
+
+The dark half is fine. The light half is not, and no tint of the danger hue rescues it: {colors.danger} clears 4.5:1 on plain white by 0.33, so **any** tint that darkens the ground at all drops it below the bar — measured at 6%, 8%, 10%, 12% and 16% of {colors.danger} over {colors.bg-elevated}, the ratio runs 4.41 → 4.28 → 4.13 → 4.01 → 3.75.
+
+Three resolutions exist and each costs something. **The choice is not made here** because it is either a semantic-token change or a component-symmetry break, and both are above a completion pass:
+
+1. **Darken {colors.danger} for light mode.** Fixes it everywhere at once, and reopens a token the spec declares closed plus every row of the contrast table that cites `#dc2626`.
+2. **Problem-severity body text becomes {colors.text} on {colors.danger-soft}** (15.42:1), with {colors.danger} carrying the border, the glyph and the severity word only — all of which are graphics or large enough to sit at 3:1, which 4.02 clears. Buildable today, adds no hue, but breaks the symmetry with attention, whose body text *is* {colors.warning}.
+3. **Drop the tint for problem** — {colors.danger} border and glyph on {colors.bg-elevated} (4.83:1). Symmetric with nothing, and the most severe note becomes the least tinted.
+
+Until it is decided, `.alert-error`'s 4.02:1 stands as a live contrast defect (listed under Violations) and the problem severity **cannot be built to spec**. What closes it: one owner or owner-delegated ruling between the three.
 
 ### Computed contrast table (binding)
 
@@ -429,12 +585,18 @@ Three of these fail, and the failure is live in the build, not hypothetical: **`
 - **{colors.warning-soft} is light-only — a live defect in the build, not a spec gap.** `--color-warning-soft: #fffbeb` is declared once in `:root` (app.css:41) and is overridden in neither the `prefers-color-scheme: dark` block (app.css:73-101) nor `[data-theme="dark"]` (app.css:135-163), while `--color-warning` *is* re-keyed to `#fbbf24` in both (app.css:84, 145). Every dark-mode surface that uses the pair therefore renders amber text on a near-white cream ground: `.alert-warning` (app.css:1935-1937) and two further rules at app.css:5589-5590 and 5685-5686. It breaks the dark/light parity rule under Do's and Don'ts today, on shipped screens.
   **Decided 2026-08-05 (designer's call, owner-delegated):** `--color-warning-soft: rgb(251 191 36 / 0.16)` in both dark blocks — the `-soft-dark` idiom of the accent tokens, i.e. the dark hue at 0.16 translucency, keeping `rgb()`-with-alpha notation for the same reason they do (the tint must composite over whatever surface it lands on). Measured: composited over {colors.bg-dark} it is `#312b17` and carries {colors.warning-dark} at **8.45:1**; over {colors.bg-elevated-dark} it is `#383423` at **7.47:1**. Both clear 4.5:1 with room, so the tint can also darken later without re-opening the ratio.
 - **White text on the dark accent fills fails contrast, in the build.** `.button-primary` (app.css:1587-1591) and `.view-chip.is-active` (4771-4775) hard-code `white` on `var(--color-accent)`; `.theme-choice.is-active` (684) and `.locale-link.is-active` (762) use `var(--color-on-accent)`, which is `#ffffff` in every theme. In dark mode those labels measure 2.72 / 1.86 / 2.69:1 (see the computed table). Correction: the theme-dependent {colors.on-accent} decided above, resolved through the token — not through a literal `white`.
-- **Three tokens are referenced but never defined:** `--color-border-subtle` (app.css:3649, 4285, 4337), `--color-surface-hover` (3652), `--color-surface` (2135). Each falls back to a hard-coded translucent grey that follows neither theme. The tab underline rule and the drift-table header therefore sit outside the token system entirely. Correction: replace with {colors.border} / {colors.hover} / {colors.bg-elevated}.
-- **The accent is hard-coded to violet in six places** (app.css:2936, 3440, 3561, 3656, 3982-3983): the 30-day moving average, two drop-target borders, the selected-row edge, and the period buttons' active fill stay violet when the operator picks teal or coral. Correction: `var(--color-accent)`.
+- **Two tokens are referenced but never defined, and fall back to hard-coded translucent grey** (recounted 2026-08-05; the earlier three-token claim was wrong in both directions):
+  - `--color-border-subtle` — `.workspace-page`-adjacent rules at app.css:3649, 4285, 4337, all falling back to `rgba(127, 127, 127, 0.16)`. Correction: {colors.border}.
+  - `--color-surface-hover` — app.css:3652, 3884, 4174, 4183, falling back to **three different greys**: `0.08`, `0.14`, `0.12`, `0.12`. A second inconsistency inside the first. Correction: {colors.hover}, one value.
+  - `--color-surface` is **not** in this class: it is referenced at app.css:2135, 2208, 3066, 3396, 3681 and falls back to `var(--color-bg)` — a real theme token, so it follows the theme correctly. It is an undefined alias, not a theme hole; correction is cosmetic (reference {colors.bg} directly).
+- **The accent is hard-coded to violet in six places** (app.css:2936, 3440, 3561, 3656, 3982-3983): the 30-day moving average, two drop-target borders, the selected-row edge, and the period buttons' active fill stay violet when the operator picks teal or coral. (app.css:720 is the accent-picker's own violet swatch and is correctly excluded.) Correction: `var(--color-accent)`.
+- **`--color-selected` does not re-key with the accent, and it is a seventh, structurally worse case of the same defect (issue #644).** The token is a literal `#ede9fe` in `:root` (app.css:30), the `prefers-color-scheme: dark` block (93) and both `[data-theme]` blocks (124, 154), and appears in **no** `[data-accent]` block — those set only `--color-accent` and `--color-accent-soft` (app.css:165-177). Eight rules consume it (app.css:1433, 1460, 1638, 1854, 1894, 2081, 2908, 2994), including the selected-row treatment {components.selected-row} mandates, so under teal or coral **every selected row in the app stays violet**. Worse than the six above because it is a token-level break, not six rule-level ones. Correction: `--color-selected: var(--color-accent-soft)` inside each `[data-accent]` block, or drop the token and reference {colors.accent-soft} at the eight call sites. `--color-selected-dark` has the same shape and rides the same fix.
+- **`--shadow-sm` is light-only.** Declared once in `:root` (app.css:43) and overridden in neither dark block (99-101, 160-162) nor `[data-theme="light"]` (130-132), all three of which do re-key `panel`, `md` and `sidebar`. Buttons therefore carry a slate-tinted 5%-opacity shadow on the dark canvas. Same defect class as {colors.warning-soft}; recorded here because the shadow tokens are now in the frontmatter and the gap is visible from it.
+- **`.alert-error` renders {colors.danger} at 4.02:1 on {colors.danger-soft}** (app.css:1167-1171), below the 4.5:1 text bar in light mode. Blocked on the danger-tint gate above, not correctable by a call-site change.
 
 Avoid: introducing a fourth accent, using accent colors for gain/loss, gradients on content surfaces (gradients live only in the body backdrop, sidebar sheen, stat top bar, and active-nav wash).
 
-## Typography
+## Typography *(carries the heading-ramp half of UX-DR14 — the spacing half is under Layout & Spacing, the locale-pill floor under Inventory → Top bar)*
 
 Two families, both already shipped: **Inter** ({typography.body.fontFamily}) for everything human-readable, **JetBrains Mono** for machine-flavored data — chart axes, tooltips, code-like identifiers. Money values use `font-variant-numeric: tabular-nums` so columns align — in every state, including mid-count-up, where proportional figures produce a visible wobble at constant digit count.
 
@@ -459,17 +621,19 @@ Inter is used at variable-font weights (500, 540, 600, 650, 680, 700, 740, 760, 
 - The ramp is adopted on `.page-header h1`, `.panel h2/h3` and `.workspace-section h2/h3` only. Section headings written as anything else — `.detail-section-title` renders 13px/600 uppercase muted (app.css:2727) — sit off the ramp. Every heading resolves to h1, h2 or h3; there is no fourth step and no bespoke heading.
 - 53 of 158 `font-size` declarations in app.css are in `rem`/`em`, the rest in `px`. Mixed units make the ramp unenforceable by inspection. **[ASSUMPTION]** px is the unit of record, matching the token definitions; closes when a lint rule or a review convention is agreed.
 
-## Layout & Spacing
+## Layout & Spacing *(carries the spacing-scale half of UX-DR14, and UX-DR15 in full — every wide block owns its scroller)*
 
 The shell is a fixed left sidebar ({spacing.sidebar-width}) plus a sticky, blur-backed top bar ({spacing.topbar-height}). On desktop the sidebar collapses to an icon rail ({spacing.sidebar-rail}) via the toggle; content reflows. Workspace pages are full-bleed vertical stacks of `.workspace-section` bands separated by 1px borders, padded {spacing.section-pad-block} block / {spacing.section-pad-inline} inline; card grids use `repeat(auto-fit, minmax(220px, 1fr))` with {spacing.4} gaps.
 
 **The spacing scale exists and is binding.** Eight steps on a 4px base ({spacing.1} … {spacing.8}, app.css:51-58), covering every margin, padding and gap. `test/invariants/css_spacing_scale_test.exs` enforces both that the tokens are defined and that they are actually adopted — the scale cannot be defined and then ignored. Values off the scale are permitted only for the structural constants listed in the frontmatter and for `clamp()` expressions that interpolate between two of them; anything else is drift.
 
-Breakpoints (as built): **900px** — sidebar leaves the flow and becomes an off-canvas overlay; **720px** — dialogs/menus go single-column, row context menus become bottom sheets; **560px** — base font bumps to 14px, page subtitles hide, tables scroll horizontally.
+Breakpoints (as built, and tokenised in the frontmatter so both spines reference one source): {spacing.bp-sidebar} — sidebar leaves the flow and becomes an off-canvas overlay (app.css:1200); {spacing.bp-dialog} — dialogs/menus go single-column, row context menus become bottom sheets (app.css:2005, 2175, 2344); {spacing.bp-density} — base font bumps to 14px, page subtitles hide, tables scroll horizontally (app.css:1271). Touch sizing is a pointer query, not a breakpoint: {spacing.touch-target} under `@media (pointer: coarse)` (app.css:4589, 4887, 4998, 5330, 5521), against {spacing.density-control} on desktop.
 
-### Every wide block owns its scroller
+Media-query conditions cannot read CSS custom properties, so app.css necessarily keeps these as literals. The tokens are the documents' source of record; a literal in either spine is drift.
 
-`.workspace-page { overflow-x: clip }` (app.css:3934) is deliberate: `clip` does not create a scroll container, so the sticky select-toolbar keeps working and no stray over-wide child can scroll the whole page sideways. The consequence is equally deliberate and must be designed for — **a child wider than the viewport is truncated, not scrolled.** There is no page-level rescue.
+### Every wide block owns its scroller *(UX-DR15)*
+
+`.workspace-page { overflow-x: clip }` (app.css:3935) is deliberate: `clip` does not create a scroll container, so the sticky select-toolbar keeps working and no stray over-wide child can scroll the whole page sideways. The consequence is equally deliberate and must be designed for — **a child wider than the viewport is truncated, not scrolled.** There is no page-level rescue.
 
 Therefore, visually:
 
@@ -477,18 +641,18 @@ Therefore, visually:
 - Every flex or grid child that contains such a block sets `min-width: 0`, or the container never shrinks and the scroller never engages.
 - The scroller is visible as an affordance: the scrolled block sits in a bordered, radiused container so its edge reads as an edge, not as a cut.
 
-This is the visual half of the rule EXPERIENCE.md carries as UX-DR15. Today it holds on snapshots (`.table-scroll`) and securities (`.data-table-wrapper`) and fails on income, whose 15-column matrix and flex label row have neither a scroller nor `min-width: 0` — the observed truncation of #560. Treated as a missing system rule; the next wide table reproduces it otherwise.
+This is the visual half of the rule EXPERIENCE.md carries as UX-DR15. **Census, 2026-08-05:** 23 `<table>` elements ship; **four** sit in a scroller — `securities_live.ex:265` (`.data-table-wrapper`), `portfolio_accounts_live.ex:82` (`.data-table-wrapper`), `snapshots_live.ex:333` and `:491` (`.table-scroll`). The other 19 do not. The full list, with the columns each can reach, is the Alignment inventory in EXPERIENCE.md → UX-DR15. The worst case is income's year × month matrix (`income_live.ex:148`, 15 columns) plus its flex label row `.income-bar-labels` (app.css:4113-4119), which has neither a scroller nor `min-width: 0` — the observed truncation of #560. Treated as a missing system rule; the next wide table reproduces it otherwise.
 
 ## Elevation & Depth
 
-Elevation is tonal-plus-soft-shadow, never harsh:
+Elevation is tonal-plus-soft-shadow, never harsh. Four levels, both themes, in the `shadows` frontmatter block:
 
-- `--shadow-sm` (0 1px 2px @ 5%) — buttons.
-- `--shadow-md` (0 10px 22px @ 10%) — popovers, context menus.
-- `--shadow-panel` (0 18px 44px @ 8%) — panels and stat cards: large blur, very low opacity, "soft glow" rather than drop shadow.
-- `--shadow-sidebar` (0 20px 60px @ 16%) — the sidebar's separation from content.
+- {shadows.sm} — buttons. **Light value only; see Violations.**
+- {shadows.md} — popovers, context menus.
+- {shadows.panel} — panels and stat cards: large blur, very low opacity, "soft glow" rather than drop shadow.
+- {shadows.sidebar} — the sidebar's separation from content.
 
-Dark mode swaps the slate-tinted shadows for deeper black ones (up to 50% opacity) because tonal contrast carries less there. The sticky top bar adds depth via translucency: 88% elevated-surface color with `backdrop-filter: blur(18px)`.
+Dark mode swaps the slate tint for black at higher opacity because tonal contrast carries less there; the values are per level in the frontmatter rather than as a range, so a diff can be checked against them. The sticky top bar adds depth via translucency: 88% elevated-surface color with `backdrop-filter: blur(18px)`.
 
 Hierarchy device of record: surface tone first, border second, shadow third. Tables and tree nodes use borders only. **Nothing inside a table gets a shadow** — the allocation table header currently renders two of four headers as white bordered boxes with shadow that overflow the header band, reading as stray buttons dropped into a header row. A cell is not a card.
 
@@ -502,9 +666,16 @@ Full-round is a *marker* shape, not a *control* shape. A pill-shaped interactive
 
 ## Components
 
-All components are hand-written CSS classes consumed by LiveView templates — no component library, no CoreComponents. Two function components exist (`app_shell.ex`, `security_chart.ex`) plus eight small inline hooks (`layout_view.ex`, `security_chart.ex`).
+All components are hand-written CSS classes consumed by LiveView templates — no component library, no CoreComponents.
 
-### Selected state — three classes, and only three
+**Component census (corrected 2026-08-05 against the build; the earlier "two function components" was wrong):**
+
+- **Three function-component modules under `components/`**, carrying six public function components: `app_shell.ex` (`shell/1`, `area_tabs/1`, `status_toast/1`, `icon/1`), `security_chart.ex` (`chart/1`), `view_switcher.ex` (`view_switcher/1`).
+- **Two further function-component modules** colocated with their surface: `live/securities/logo_override_dialog.ex`, `live/securities/row_context_menu.ex`.
+- **Five LiveComponents** (stateful, so they are not in the list above): `live/securities/column_picker.ex`, `filter_popover.ex`, `security_form_dialog.ex`, `split_wizard_dialog.ex`, and `live/portfolio_accounts/account_form_dialog.ex`.
+- **Eight small inline hooks, all eight defined in `layout_view.ex`** — `ColumnPrefs`, `SecuritySplitPane`, `PositionedMenu`, `ChartCrosshair`, `SunburstTooltip`, `PPImportDrop`, `ClassificationDnD`, `AutoDismissToast`. `security_chart.ex` *consumes* `ChartCrosshair` via `phx-hook`; it defines none. The count-up hook approved 2026-08-05 (Motion) is the ninth and lands in the same file.
+
+### Selected state — three classes, and only three *(UX-DR16 appearance; mapping and the icon rule in EXPERIENCE.md. Reserved metrics: UX-DR18.)*
 
 Five idioms are in the build today: solid accent pill (`.view-chip.is-active`), tint-plus-accent-text (`.segmented-control__option.is-active`, `.range-button.is-active`, `.chart-toggle.is-active`, `.icon-button.is-active`), solid fill inside a bordered container (`.period-buttons .button-mini.is-active`), gradient wash plus marker (`.nav-link.is-active`), underline (`.area-tab.is-active`, `.detail-pane-tab.is-active`), and tinted row (`.security-row.is-selected`, `.dnd-row.is-selected`). Several appear on the same screen. That is the drift being retired.
 
@@ -514,21 +685,39 @@ Three classes replace them. Every selectable control in the app maps to exactly 
 2. **Toggles, filters and period selection → segmented group with filled accent** ({components.selected-segment}). One bordered track, dividers between options, the active option filled {colors.accent} with {colors.on-accent} text. This absorbs `.segmented-control`, `.range-buttons`, `.chart-toggles`, `.period-buttons` and `.view-switcher`.
 3. **Selection in lists and tables → tinted row with a left accent edge** ({components.selected-row}). {colors.selected} background plus a 3px inset accent edge on the leading side. The edge is what distinguishes selection from hover, which is a wash without an edge.
 
-All three are width-reserved ({components.width-reserve}).
+All three are width-reserved ({components.width-reserve}), **one mechanism per class, not a menu**: nav and tabs use invisible bold shadow text on the label; the segmented group uses a fixed track sized to its widest option in the active appearance; the row uses a permanently reserved 3px leading gutter. Three stories cannot pick three mechanisms for the same class.
 
-### Data note — three severities, one component
+Call sites that deviate today are enumerated in EXPERIENCE.md → Alignment inventory → UX-DR16.
+
+### Data note — three severities, one component *(UX-DR17 appearance; rule defined in EXPERIENCE.md)*
 
 {components.data-note} replaces four competing treatments (plain bullet list, amber inline highlight, unstyled grey prose, accent-bordered banner) and the ad-hoc chips (`.not-held-chip`, `.stale-chip`, `.no-quote-chip`, `.negative-holding-chip`).
 
 | Severity | Meaning | Colour | Glyph | Word (source string) |
 |---|---|---|---|---|
-| Note | Context the operator may want | {colors.text-muted} on {colors.bg-muted} | `:asterisk` | "Note" |
-| Attention | Something to look at, nothing is wrong | {colors.warning} on {colors.warning-soft} | `:alert_triangle` | "Attention" |
-| Problem | Something is wrong and needs action | {colors.danger} on a danger tint | `:alert_octagon` | "Problem" |
+| Note | Context the operator may want | {colors.text-muted} on {colors.bg-muted} (5.21:1) | `:asterisk` | "Note" |
+| Attention | Something to look at, nothing is wrong | {colors.warning} on {colors.warning-soft} (4.84:1 light, 8.45:1 dark) | `:alert_triangle` | "Attention" |
+| Problem | Something is wrong and needs action | border and glyph {colors.danger} on {colors.danger-soft}; **body-text colour is [OPEN]** — the danger-tint gate under Colors | `:alert_octagon` | "Problem" |
 
 Glyphs and word decided 2026-08-05 (designer) — glyph rationale below, wording rule in EXPERIENCE.md Voice and Tone.
 
-Colour is never the only channel (UX-DR7/UX-DR17). Consequence for the data-quality list: "valued at last trade price" is a **note**, "impossible negative holding quantity" is a **problem** — today they render identically, and the app's most important warning surface has the lowest visual weight on its page (a bare `<h2>` with default disc bullets, its actionable link styled like the surrounding prose). A data note carries its remedy control inside the note, not 1100px further down the page.
+Colour is never the only channel (UX-DR7/UX-DR17). Consequence for the data-quality list: "valued at last trade price" is a **note**, "impossible negative holding quantity" is a **problem** — today they render identically, and the app's most important warning surface has the lowest visual weight on its page (a bare `<h2>` with default disc bullets, its actionable link styled like the surrounding prose).
+
+**Placement is testable, not aspirational:** a data note lives **inside the same `<section>` element as the data it describes**, and its remedy control is a child of the note. The failing case is Wealth data quality, where the remedy button for one bullet sits ~1100px below it; a reviewer checks the element boundary, not the pixel distance.
+
+### Data quality — two surfaces, two components
+
+The phrase "data quality" names two different blocks and they are not the same component.
+
+**Overview → data quality is one line: {components.data-quality-line}.** This carries the decision taken in the 2026-07-12 design session and recorded nowhere until now — the decision log names its loss as "precisely the failure mode ADR-0038 exists to stop", so it lands here rather than staying a log entry:
+
+> Data quality on the dashboard is **ONE line**, rendered **only when N > 0**, with **no green all-clear badge**, linking to a **pre-filtered** securities list.
+
+**Adopted 2026-08-05, unchanged.** The built form contradicts it on every clause: `dashboard_live.ex` renders a three-card `.grid` (`data-role="dq-quotes"`, `dq-class`, `dq-logo`), renders it whether or not any count is non-zero, and links all three cards to an unfiltered `/securities`. The build carries the defect; this file is the target.
+
+One clause cannot be satisfied by a design change alone. **"Pre-filtered securities list" has no URL to link to**: `securities_live.ex` `handle_params/3` reads only `tab` and `id`, and the filter state lives in a LiveComponent popover, so there is no addressable filter. The story that implements the one-line form carries URL-addressable filter params, or the link degrades to the unfiltered index and the shortfall is stated in the issue rather than silently shipped.
+
+**Wealth → data quality is a list of {components.data-note} rows**, one per finding, at the finding's own severity. Six conditions render there today, all as identical `<li>` bullets under a bare `<h2>` (`portfolio_live.ex`, `#portfolio-data-quality`): trade-priced positions, positions with no price, positions with no FX rate, pre-1970 booking dates, cash accounts with no FX rate, and impossible negative holdings. The first is a note; the last is a problem; today they are the same bullet. Severity assignment for all six is in EXPERIENCE.md → Alignment inventory → UX-DR17.
 
 **The icon vocabulary, enumerated (app.css has none of it — the set is `app_shell.ex` `icon_paths/1`, lines 428-535).** 36 named glyphs, all 24×24, `fill="none"`, `stroke="currentColor"`, `stroke-width="1.6"`, round caps and joins, plus a fallback clause that renders a bare `circle r="5"` for any unknown name: `dashboard · layers · bookmark · briefcase · folder · calc · bars · pie · chart_line · chart_bar · coins · tag · globe · building · compass · settings · monitor · sun · moon · plus · upload · filter · columns · search · trash · x · chevron_right · refresh_cw · ellipsis_vertical · copy · edit · archive · external_link · maximize · minimize · image`.
 
@@ -546,15 +735,33 @@ Colour is never the only channel (UX-DR7/UX-DR17). Consequence for the data-qual
 
 **Naming collision resolved (2026-08-05, designer): the funnel keeps "filter"; "Views" takes `:bookmark`.** `:filter` is the funnel (`app_shell.ex:488-489`), used for the sidebar "Views" entry (`nav_groups/0`) and for the securities toolbar filter. A funnel means "narrow this list down" to essentially every user, and the toolbar is the literal case, so it keeps the glyph. The sidebar's Views entry takes `:bookmark` — an existing, otherwise unused glyph whose meaning ("a saved, named selection") is what a view is. No addition needed for this half.
 
-### Period control
+### Period control *(appearance of UX-DR16 class 2; the vocabulary and per-surface subsets are in EXPERIENCE.md)*
 
-{components.period-control}. One appearance — the segmented group — and one token vocabulary app-wide: **1M · 3M · 6M · YTD · 1Y · 3Y · 5Y · Max**. Each surface declares which subset it offers; no surface invents a token outside the set. "Custom range…" is a disclosure, not permanent chrome, and its date fields are {components.native-control}. This retires four patterns, two divergent token sets and four bare `type="date"` inputs.
+{components.period-control}. One appearance — the segmented group — and one token vocabulary app-wide: **1M · 3M · 6M · YTD · 1Y · 3Y · 5Y · Max**. Each surface declares which subset it offers; no surface invents a token outside the set. "Custom range…" is a disclosure, not permanent chrome, and its date fields are {components.native-control}. This retires four patterns, two divergent token sets (`Performance.periods()` = `ytd 1y 3y 5y max`; `securities_live.ex:35` `@ranges` = `1M 3M 6M YTD 1Y 3Y 5Y MAX`) and the four bare `type="date"` inputs that sit *inside period controls* (`portfolio_live.ex:853`/`:860`, `securities_live.ex:534`/`:541`). The other seven date inputs in the app are UX-DR19 work, not period-control work.
 
-### Data as table — one disclosure
+### Data as table — one disclosure *(UX-DR10 appearance; rule defined in EXPERIENCE.md)*
 
-{components.disclosure}, mandatory under every chart surface (UX-DR10), same control, same label — **"Data as table"**, decided 2026-08-05 (designer); it is already the shorter of the two labels in the build (`snapshots_live.ex:489`, against `portfolio_live.ex:1709`'s "Show data as table", which changes) and it names the thing rather than instructing the reader — same styling — rendered as a quiet text control rather than the raw browser triangle, with a short purpose line so it is visible why it exists. Today three chart surfaces carry it with three different summary labels and two (the sunburst, the securities detail chart) carry none. De-emphasised, not deleted: it is the accessibility fallback that lets the 9px chart axis stand.
+{components.disclosure}, mandatory under every chart surface (UX-DR10), same control, same label — **"Data as table"**, decided 2026-08-05 (designer); it names the thing rather than instructing the reader — same styling — rendered as a quiet text control rather than the raw browser triangle, with a purpose line of at most one sentence so it is visible why it exists. De-emphasised, not deleted: it is the accessibility fallback that lets the 9px chart axis stand.
 
-### Value slot
+**Census, counted directly in `lib/portfolixir_web/live/` on 2026-08-05. The earlier "three surfaces carry it, three labels, two carry none" was wrong in all three numbers; it came from the decision log's unverified survey row ("on 3 of 5 chart surfaces, 3 different summary labels") and was inherited into three places in these documents.** What is actually there:
+
+| Chart rendering | Where | Disclosure | Label |
+|---|---|---|---|
+| Wealth performance chart | `portfolio_live.ex:1700` (shared `SecurityChart.chart`) | yes, `:1709` | "Show data as table" — **changes** |
+| Allocation sunburst | `portfolio_live.ex:1790-1819` | **none** | — |
+| Securities detail price chart | `securities_live.ex:630` (shared `SecurityChart.chart`) | **none** | — |
+| Snapshots comparison | `snapshots_live.ex:440-472` (hand-rolled two-polyline SVG) | yes, `:489` | "Data as table" — kept, and the wording of record |
+| Income annual bars | `income_live.ex:108-146` (`#income-chart`) | **none** | — |
+| Income per-month bars | `income_live.ex:203-228` (`#income-month-chart`) | **none** | — |
+
+**Six chart renderings across five surfaces. Two disclosures, therefore two labels, not three. Four renderings carry none** — the sunburst, the securities detail chart, and *both* income bar charts. `income_live.ex` contains no `<summary>` element at all.
+
+Two consequences the earlier count hid:
+
+- **The income surface is in scope for UX-DR10 and was omitted** — the one surface Lane B is fixing this sprint. Its two `data-table` blocks (`income_live.ex:148`, `:230`) sit adjacent to the charts and the module comments claim they satisfy UX-DR10 by adjacency. Adjacency is not the disclosure: UX-DR10 requires *one uniform control with a stated purpose*, and an unmarked sibling table gives a reader no way to know it is the chart's data. The existing tables become the disclosure body; they are not deleted.
+- **Both income charts need one**, not one between them. The per-month chart is a different dataset from the annual chart.
+
+### Value slot *(UX-DR20 appearance; the state definitions are in EXPERIENCE.md)*
 
 {components.value-slot}. Four states, four appearances:
 
@@ -569,13 +776,30 @@ Today `…` (pending) and `—` (not-computable) are both bold at value size on 
 
 The slot reserves its final footprint in every state, so nothing reflows when a value lands, and uses tabular numerals throughout including mid-count.
 
-**Pending — last known value, dimmed** (owner pick 2026-08-05). The previous value stays in place at {colors.text-muted}, accompanied by a recomputing cue and the date it was computed. A magnitude is visible while the server works, instead of a void. Where no prior value exists — first load, a newly created account — the slot falls back to a shimmer sized to the value's own footprint, never the shipped 220px block. That fallback is the *only* skeleton this document specifies, and it is gated behind `prefers-reduced-motion: no-preference` (the shipped `.section-skeleton` is not — see Motion).
+**Pending — last known value, dimmed** (owner pick 2026-08-05, option P2 in [.working/loading-affordances.html](.working/loading-affordances.html)). The previous value stays in place at {colors.text-muted}, accompanied by the recomputing cue below and the date it was computed. A magnitude is visible while the server works, instead of a void. Where no prior value exists — first load, a newly created account — the slot falls back to a shimmer sized to the value's own footprint, never the shipped 220px block. That fallback is the *only* skeleton this document specifies, and it is gated behind `prefers-reduced-motion: no-preference` (the shipped `.section-skeleton` is not — see Motion).
 
-**Settling — accent bar under the number** (owner pick 2026-08-05). Digits render at {colors.text-muted} while a 2px bar in the active accent grows beneath them from zero to the slot's full width over the count. On settle the digits snap to full colour and the bar fades out. Progress is stated rather than implied, and the ornament sits outside the digits so no glyph is ever repainted — the failure mode is a missing bar, never an unreadable number.
+#### The recomputing cue — anatomy *(specified 2026-08-05; it was named five times across both spines and defined in neither)*
+
+{components.recomputing-cue} is the operative element of the pending treatment: without it, a dimmed number is just a dim number. One line, directly under the value, **inside the slot's reserved footprint** so nothing reflows when the real value lands:
+
+```
+⟳ Last known 2026-08-04 · recomputing
+```
+
+- **Glyph:** the shipped `.spinner` ring (app.css:4706-4716) — `0.8em` square, `2px solid currentColor` border with a transparent top segment, `border-radius: 999px`, `margin-right: 0.4em`, `vertical-align: -0.1em`. It is deliberately **not a new icon**: the three severity glyphs and the stale-data clock are additions that wait on an icon-set story, and the cue must not wait with them.
+- **Word:** mandatory and load-bearing — "recomputing" (de: "wird neu berechnet"). The glyph may be missed; the word may not. Glyph + word + {colors.text-muted} is three channels, so UX-DR7 holds with the animation removed.
+- **Basis:** the as-of date of the value being shown, in the same line, before the word. A dimmed number without its date asserts a magnitude with no vintage.
+- **Type and colour:** {typography.stat-label} on stat cards, {typography.table-cell} in tables; {colors.text-muted} in both. Never {colors.text-subtle} — the cue is content, and {colors.text-subtle} is barred from content.
+- **Reduced motion:** the ring stops and renders as a *complete* ring at 0.5 opacity (`app.css:4724-4730`, already shipped for `.spinner`). Nothing is removed. This is the one place where the "gate all animation behind `no-preference`" form is deliberately not used: the ring must survive `reduce` as a static shape, so it animates by default and is cancelled under `reduce`. The outcome is the rule's outcome; the mechanism differs and that is intentional.
+- **Never ⓘ.** ⓘ is the metric-**definition** affordance at eight call sites (`portfolio_live.ex:751/762/776/1077`, `securities_live.ex:993/1147`, `tax_live.ex:369`, `transaction_management_live.ex:199`, `view_switcher.ex:121`). Never `:refresh_cw` either — that glyph already means "sync prices now" (`securities_live.ex:178`, `row_context_menu.ex:52` and `:102`), and a second meaning for a glyph in the vocabulary is banned.
+
+**Relation to the loading verb strings.** The cue **replaces** them; it does not accompany them. Every string enumerated in EXPERIENCE.md → Alignment inventory → UX-DR20 either becomes this cue (when a value is recomputing) or becomes the busy state on its own trigger (when an action is running) — no surface keeps a free-standing verb of its own. The one string the build already gets right is `dashboard_live.ex`'s stale-TTWROR line, which ends "Recomputing." beside a "Loading…" heading; the heading is what goes.
+
+**Settling — accent bar under the number** (owner pick 2026-08-05, option S1 in [.working/loading-affordances.html](.working/loading-affordances.html); S2 "shimmer" and S3 "marker" were the rejected alternatives). Digits render at {colors.text-muted} while a 2px bar in the active accent grows beneath them from zero to the slot's full width over the count. On settle the digits snap to full colour and the bar fades out. Progress is stated rather than implied, and the ornament sits outside the digits so no glyph is ever repainted — the failure mode is a missing bar, never an unreadable number.
 
 Both states are non-decorative: they carry information about whether a number can be trusted yet. Under `prefers-reduced-motion` the animation drops but the *indication* remains — dimmed digits and a static bar at rest, never a silently final-looking value.
 
-**Progressive chart fill — sequential sweep** (owner pick 2026-08-05). Segments appear clockwise, one after another, as the chart builds.
+**Progressive chart fill — sequential sweep** (owner pick 2026-08-05, option F1 in [.working/loading-affordances.html](.working/loading-affordances.html); F2 "rings resolve inward-out" and F3 "fade-in-place" were the rejected alternatives). Segments appear clockwise, one after another, as the chart builds.
 
 **Corrected 2026-08-05 after the design-critic pass — this is decoration, not progress.** The pick was framed as segments appearing "as their values arrive". They do not arrive separately: allocation is computed in a single `start_async(:allocation)` and lands as one result, so every segment's value is known before the first frame draws. A sweep therefore reveals a finished dataset in an arbitrary order; it reports nothing.
 
@@ -587,9 +811,11 @@ That is allowed — Motion is polish, and polish may decorate the arrival of sta
 
 If per-segment streaming is ever built, this entry is revisited: at that point the sweep would carry information and would inherit the pending/settling rules above rather than the polish rules.
 
-### Native controls
+### Native controls *(UX-DR19 appearance; rule defined in EXPERIENCE.md)*
 
-{components.native-control}. Date inputs, selects, `<details>` summaries and checkboxes get defined appearances instead of browser defaults. This is where the "unfinished" impression concentrates: on the surveyed screens one date input, three selects, three `<details>` and one checkbox render in browser default beside carefully styled pills and segmented controls.
+{components.native-control}. Date inputs, selects, `<details>` summaries and checkboxes get defined appearances instead of browser defaults. This is where the "unfinished" impression concentrates: on the six UAT screens one date input, three selects, three `<details>` and one checkbox render in browser default beside carefully styled pills and segmented controls.
+
+**Those four numbers describe the screenshots, not the codebase, and a story cut from them would under-scope by an order of magnitude.** Counted app-wide on 2026-08-05: **11** `type="date"` inputs, **29** `<select>` elements, **25** `<details>` elements and **13** `type="checkbox"` inputs. Per-file line numbers are in EXPERIENCE.md → Alignment inventory → UX-DR19.
 
 Precisely: app.css already styles the *container* — `input, select, textarea` share {components.input} — but not the *internals*. The select keeps the native chevron and native option list; `<details>` keeps the native triangle wherever the summary has no class; the checkbox has an accent colour but no defined mark. And `<input type="date">` renders `MM/DD/YYYY` in an otherwise fully ISO product. **Dates render ISO in inputs as well as in displays.**
 
@@ -601,18 +827,26 @@ The checkbox is one control: box and label sit on one line, the label is the hit
 - **Top bar** (`.topbar`) — burger toggle, brand, page title + subtitle, then theme menu, accent menu, EN/DE locale switcher (pill text ≥ 11px, pinned by the spacing-scale test).
 - **Area tabs** (`.area-tabs`, `.detail-pane-tabs`) — the Wealth areas are Holdings · Allocation & targets · Cash flow · Snapshots · Tax; Cash flow's second level is Income · Realized gains · Deposits & withdrawals · Costs. Both levels per {components.selected-nav}.
 - **Stat card** (`.stat`) — {components.stat-card}: three-color gradient hairline, uppercase label, 30px value. Signed values take semantic colour, not the accent (see Colors).
-- **Hero** — **retired 2026-08-05.** {components.hero} was specified for the four-metric-card Overview of the superseded UX-DR2. That rule now follows the build (EXPERIENCE.md UX-DR2): the Overview is value + change, "Needs attention", and data quality, and no hero component was ever built. The anatomy stays in the frontmatter as a record, unreferenced by any surface. [mockups/key-dashboard.html](mockups/key-dashboard.html) is downstream of the superseded rule and is **stale** — it illustrates a composition this document no longer specifies. Re-render or retire it before the mock is used as a reference again.
+- **Hero** — **retired 2026-08-05.** {components.hero} was specified for the four-metric-card Overview of the superseded UX-DR2. That rule now follows the build (EXPERIENCE.md UX-DR2): the Overview is value + change, "Needs attention", and data quality, and no hero component was ever built. The anatomy stays in the frontmatter as a record, unreferenced by any surface. [mockups/key-dashboard.html](mockups/key-dashboard.html) is downstream of the superseded rule and is **stale** — it illustrates a composition this document no longer specifies. Re-render or retire it before the mock is used as a reference again. (The spines-win-on-conflict clause is stated once, in EXPERIENCE.md → IA; it is not repeated here.)
+- **"Needs attention" card** (`#dashboard-attention`) — {components.needs-attention-card}: heading, basis line, up to five drift rows, each a link into Wealth → Allocation & targets. The basis line is half-built today: the threshold clause ships (`data-role="attention-explainer"`), the view and the plan it is computed against do not. The empty case is a plain muted line (`data-role="all-clear"`), which is correct and stays.
+- **Overview data quality** (`#dashboard-data-quality`) — {components.data-quality-line}: one line, only when N > 0, no all-clear badge, remedy link pre-filtered. Built as a three-card grid; see Components → Data quality.
+- **Wealth data quality** (`#portfolio-data-quality`) — six findings as {components.data-note} rows at their own severities. Built as one bare `<h2>` plus six identical `<li>` bullets.
+- **Inline results** — {components.inline-result}: in-flow feedback beside its trigger, reusing the data-note severities, no timer. Replaces `.status-toast` and the `AutoDismissToast` hook (issue #566).
+- **Connection state** — {components.connection-state}: one band under the top bar for a lost or reconnecting LiveView socket. Nothing is built and nothing is styled; LiveView 1.2.8 already applies the classes.
+- **Tax budget meter** — {components.budget-meter}: track, accent fill, remaining amount, as-of basis line. Explicitly no threshold colouring.
 - **Panel** (`.panel`) — generic elevated container, {components.panel}.
 - **Data tables** (`.data-table`, `.detail-*-table`, `.drift-table`, `.cash-table`, `.soll-table`) — {components.data-table}. One header treatment: {typography.table-head} on {colors.bg-muted}; the sentence-case-no-rules variant is retired. Numeric columns are right-aligned — app.css has per-table `.num` rules but no generic one, so income's money cells carry `class="num"` with nothing behind it.
-- **Charts** — one shared component (`security_chart.ex`, ADR-0022) plus three hand-rolled implementations still in the build (income bars, snapshot two-polyline, sunburst). {components.chart-frame}: accent quote line (1.6px) over a 14%-opacity accent fill, moving-average overlays, cost-basis line, buy/sell markers shape-coded not hue-coded (▲ buy {colors.tx-buy}, ▼ sell {colors.tx-sell}), mono axis text, crosshair + mono tooltip via a small hook. New chart work uses the shared component; the snapshot comparison inherits its axes, crosshair and period control when it moves over.
+- **Charts** — one shared component (`security_chart.ex`, ADR-0022) used at two call sites (`portfolio_live.ex:1700`, `securities_live.ex:630`), plus **four** hand-rolled implementations still in the build: the allocation sunburst (`portfolio_live.ex:1790`), the snapshot two-polyline comparison (`snapshots_live.ex:440`), and the Income surface's **two** separate bar charts (`income_live.ex:108` annual, `:203` per-month). {components.chart-frame}: accent quote line (1.6px) over the 0.14-opacity accent fill, moving-average overlays, cost-basis line, buy/sell markers shape-coded not hue-coded (▲ buy {colors.tx-buy}, ▼ sell {colors.tx-sell}), mono axis text, crosshair + {components.chart-tooltip} via the `ChartCrosshair` hook. New chart work uses the shared component; the snapshot comparison inherits its axes, crosshair and data-as-table disclosure when it moves over — but not a period control, whose domain is fixed by the snapshot's as-of date.
 - **Allocation visuals** — donut and sunburst SVGs with legends (`.donut`, `.sunburst-seg`), drift tables with category swatches, display-only rebalancing hints (`.rebalance-hint`, ADR-0023 — an annotation, never an action).
-- **Tax budget** (`.tax-budget`) — allowance-order utilization per institution as a visual fill level with the remaining amount; recorded statements below as a list, each carrying its consistency finding as a {components.data-note} severity. Entry forms behind a disclosure; the five permanent prose paragraphs become ⓘ tooltips.
-- **Forms** — stacked label-over-input grids ({components.input}); buttons are quiet elevated rectangles ({components.button}) with `.button-primary` / `.button-danger` variants. **One primary action treatment:** solid filled button; the outline button is the secondary; invisible grey inline text is not an action treatment. Forms sit behind disclosure, not in the primary sightline. Per-account actions live in their row (a cash balance is set from the account row, not from a global form).
-- **Feedback** — {components.data-note} replaces `.alert-error` / `.alert-success` / `.alert-warning` / `.alert-info` / `.hint` / the dq chips. `.empty-state` wells stay. Inline busy and result states replace toasts (`.status-toast`, issue #566).
+- **Tax budget** (`.tax-budget`) — {components.budget-meter}: allowance-order utilization per institution as a fill level with the remaining amount and its as-of date, **no threshold colouring**; recorded statements below as a list, each carrying its consistency finding as a {components.data-note} severity. Entry forms behind a disclosure; the permanent prose paragraphs become ⓘ tooltips (enumerated in EXPERIENCE.md → Alignment inventory → UX-DR11).
+- **Forms** — stacked label-over-input grids ({components.input}); buttons are quiet elevated rectangles ({components.button}) with `.button-primary` / `.button-danger` variants. **One primary action treatment:** solid filled button; the outline button is the secondary; invisible grey inline text is not an action treatment. Forms sit behind disclosure, not in the primary sightline. Per-account actions live in their row: **the global cash-balance form is `form.inline-form.balance-form` on Wealth — Holdings (`portfolio_live.ex:1509-1531`), not on Accounts & depots** — see EXPERIENCE.md → Component Patterns → Cash accounts for what moves where.
+- **Feedback** — {components.data-note} replaces `.alert-error` / `.alert-success` / `.alert-warning` / `.alert-info` / `.hint` / the dq chips. `.empty-state` wells stay. {components.inline-result} replaces toasts (`.status-toast` and the `AutoDismissToast` hook, issue #566).
 - **Overlays** — `.modal` + backdrop (native `<dialog>`, focus-trapped), `.popover` for column pickers and filters, `.row-context-menu` (kebab menu, bottom sheet under 720px).
 - **Import surfaces** — drop zone, progress, stat cards, notes.
 - **Drag-and-drop rows** (`.dnd-row`, `.dnd-dropzone`, classifications tree) — selection per {components.selected-row}.
-- **Chips** — one chip: filled tag. The outline chip and the grey initial-avatar square are separate things wearing the chip's clothes; the avatar is a logo placeholder (`.security-logo--initial`) and reads as one.
+- **Chips** — one chip: {components.chip}, a filled tag. The outline chip and the grey initial-avatar square are separate things wearing the chip's clothes; the avatar is a logo placeholder (`.security-logo--initial`) and reads as one.
+- **Chart tooltip** ({components.chart-tooltip}) — the crosshair readout, mono type on {colors.bg} in a {rounded.sm} bordered box, positioned by the `ChartCrosshair` hook. One tooltip for every chart surface; a chart that invents its own readout is drift.
+- **Buttons and inputs** ({components.button}, {components.input}) — the two base controls every other control inherits from: {colors.bg-elevated} on a 1px {colors.border}, {rounded.md}, {spacing.density-control} minimum height on desktop and {spacing.touch-target} under `pointer: coarse`. {components.native-control} inherits the input container; {components.selected-segment} inherits neither and is its own track.
 
 ## Do's and Don'ts
 
@@ -640,18 +874,32 @@ The checkbox is one control: box and label sit on one line, the label is the hit
 | Pair every semantic hue with a sign or shape (+/−, ▲/▼, glyph) | Encode gain/loss, buy/sell, or staleness in hue alone |
 | Solve a design problem with a component | Fall back to a paragraph of prose (UX-DR11) |
 
-Note on the last two rows, both measured in the build: five `:focus-visible` rules set `outline: none` and substitute a hover background (`.nav-link` app.css:399-403, `.accent-choice` 676-681, `.locale-link` 756-759, `.row-actions__kebab` 2123-2127, `.theme-choice`), and `input:focus` uses the 18%-opacity ring *as* the indicator rather than as decoration on top of a solid 2px outline — the commitment under Colors says the reverse. And prose is the default fallback for anything the design did not solve: six free-standing explanatory paragraphs across six screens, with the TTWROR explanation existing simultaneously as an ⓘ tooltip and as a paragraph on the same screen. UX-DR11 is not occasionally missed; prose is the habit.
+Note on the last two rows, both measured in the build.
 
-### Motion
+**Focus, recounted 2026-08-05.** Six `:focus-visible` rules set `outline: none` and substitute a hover background, covering **seven** controls: `.nav-link` (app.css:398-403), `.accent-menu-trigger` (623-629), `.theme-choice` **and** `.accent-choice` in one rule (673-681), `.locale-link` (755-759), `.row-actions__kebab` (2122-2127), `.row-context-menu__item` (2159-2164). The earlier list named five and missed `.accent-menu-trigger` and `.row-context-menu__item`.
+
+Two further rules set `outline: none` **unconditionally**, not only on `:focus-visible`, which is strictly worse because the control has no focus indicator in any state:
+
+- `.search-field input` (app.css:1389-1397);
+- `.securities-detail-splitter` (app.css:2049-2057) — which carries `tabindex="0"` and `role="separator"` (`securities_live.ex:348-356`), so it is a keyboard-operable control with no visible focus at all.
+
+And `input:focus` uses the 18%-opacity ring *as* the indicator rather than as decoration on top of a solid 2px outline — the commitment under Colors says the reverse.
+
+**Prose is the default fallback for anything the design did not solve:** free-standing explanatory paragraphs across six screens, with the TTWROR explanation existing simultaneously as an ⓘ tooltip (`portfolio_live.ex:762`) and as a paragraph (`portfolio_live.ex:912-919`) on the same screen. UX-DR11 is not occasionally missed; prose is the habit. Each paragraph, with its file, region and the UX-DR11 outcome it resolves to, is enumerated in EXPERIENCE.md → Alignment inventory → UX-DR11.
+
+## Motion *(UX-DR5 — defined here in full; summarised in EXPERIENCE.md's rule index)*
+
+Promoted from a subsection of Do's and Don'ts on 2026-08-05: it now carries UX-DR5, the count-up mechanism ruling, the ninth-hook decision, the reduced-motion contract and half the settling anatomy — material two of the three loading decisions rest on, and a consumer looking for pending/settling anatomy should not have to find it under a Don't. The eight canonical sections above keep their order; this is a trailing section.
 
 Motion is **polish only** — it decorates state arrival, it never encodes information (binding decision).
 
-- **Chart build-in:** one-shot on load/data-change, ~600ms–1.5s, ease-out. Perceived behavior: the performance line draws in from left to right, area fill fades up, bars grow from the baseline, headline numbers count up. Staggering (e.g. bars left→right) is allowed for texture but carries no meaning. Never looping, never replaying on scroll.
+- **Chart build-in:** one-shot on load/data-change, ease-out. Perceived behavior: the performance line draws in from left to right, area fill fades up, bars grow from the baseline, headline numbers count up. Staggering (e.g. bars left→right) is allowed for texture but carries no meaning. Never looping, never replaying on scroll.
+  **Duration per surface** (the earlier "~600ms–1.5s" was a range with no rule, so three surfaces would have picked three numbers): **600ms** for anything that animates alongside a settling value — the two `SecurityChart` surfaces and the income bars — so the chart and the count-up finish together and the surface settles once, not twice. **1.5s** only for the allocation sunburst's sequential sweep, which has no companion count-up and whose whole purpose is texture. No third duration.
 - **Count-up is visibly not-final.** The 2026-08-05 owner ruling: a cosmetic count-up to the final value is wanted *provided it is evident the number is still counting*. That is the `settling` state of {components.value-slot} — no real partial values are ever streamed; the count starts only once the final value is known.
 - **Mechanism lane, line drawing and bars:** CSS `stroke-dasharray`/`stroke-dashoffset` for the line draw-in, `transform: scaleY()` from `transform-origin: bottom` for bar growth. No JS involved, no bundler required.
 - **Mechanism lane, count-up — the CSS `@property` assumption is falsified.** The previous draft specified a pure-CSS counter. It cannot work: `counter()` renders an integer with no separators — `250000`, never `250.000,00`. Pure-CSS count-up and locale-formatted money are mutually exclusive, and money is always locale-formatted here. There is no CSS-only path to a counting money value.
   **Resolved 2026-08-05 (owner):** a ninth hand-written inline LiveView hook — `requestAnimationFrame` driving the count, `Intl.NumberFormat` formatting each frame. The repo already carries eight (`AutoDismissToast`, `ChartCrosshair`, `ClassificationDnD`, `ColumnPrefs`, `PPImportDrop`, `PositionedMenu`, `SecuritySplitPane`, `SunburstTooltip`), so this is existing practice: no bundler, no dependency, no architecture change. The hook also drives the settling accent bar, which is why the bar can state real progress rather than merely claim it. The alternative — dropping count-up on money — was considered and declined.
 - **Micro-motion (as built, keep):** 140–180ms ease transitions on nav hover, sidebar collapse, and color shifts; a 0.7s spinner on loading tabs.
-- **Reduced motion:** gate ALL animation behind `@media (prefers-reduced-motion: no-preference)` — the opt-in form, so reduced-motion users get the finished frame instantly.
+- **Reduced motion:** gate ALL animation behind `@media (prefers-reduced-motion: no-preference)` — the opt-in form, so reduced-motion users get the finished frame instantly. **One sanctioned exception:** an indicator that must survive `reduce` as a static shape animates by default and is cancelled under `@media (prefers-reduced-motion: reduce)`, because the opt-in form would remove the shape along with the motion. `.spinner` (app.css:4706-4730) is the shipped instance and is the mechanism {components.recomputing-cue} inherits. The rule's outcome — no motion under `reduce`, no information lost — is unchanged; only the form differs, and only where a static remnant is required.
   **Live defect:** `.section-skeleton` animates `skeleton-shimmer 1.6s ease-in-out infinite` with no `prefers-reduced-motion` gate (app.css:4426-4437), on the dashboard and portfolio surfaces. It violates the reduced-motion rule and the no-looping-ambience rule below, simultaneously and in the build. Four other animations (`.detail-pane-tab` spinner, `.icon-button.is-busy`, `.status-toast`, `.spinner`) do carry a `reduce` fallback — the skeleton is the outlier, not the norm.
 - **Never:** looping ambience, parallax, motion on every LiveView patch, animated layout shifts in tables.
