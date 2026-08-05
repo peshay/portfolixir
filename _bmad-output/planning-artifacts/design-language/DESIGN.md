@@ -13,6 +13,15 @@ colors:
   brand-teal-2: '#0f766e'
   brand-coral-1: '#fdba74'
   brand-coral-2: '#e11d48'
+  # The active accent. This is the token every component references; it is an
+  # ALIAS that [data-accent] re-points at one of the three variants below
+  # (app.css:17-18, 166-167). Violet is the default shown here. Components must
+  # reference {colors.accent} / {colors.accent-soft}, never a named variant —
+  # referencing accent-violet directly is what hard-codes an accent.
+  accent: '#7c3aed'
+  accent-soft: '#ede9fe'
+  accent-dark: '#a78bfa'
+  accent-soft-dark: 'rgb(167 139 250 / 0.16)'
   # The three switchable accent variants (one active at a time via [data-accent]).
   # -soft-dark values keep rgb()-with-alpha notation deliberately (translucency is essential) — a known deviation from the hex-only spec.
   accent-violet: '#7c3aed'
@@ -531,7 +540,7 @@ Colour is never the only channel (UX-DR7/UX-DR17). Consequence for the data-qual
 | Attention | `:alert_triangle` | Rounded-corner equilateral triangle, apex up, plus a centred vertical stroke and a dot below it. | Universal caution. The silhouette alone separates it from note and problem, so the shape channel survives at nav-icon size. |
 | Problem | `:alert_octagon` | Regular octagon, flat side up, with the same interior stroke-and-dot. | Reads as "stop". Distinct outline from the triangle at 14px (flat top vs. point), and unlike a circle-with-X it does not collide with `:x`. |
 
-**Why note is not an info circle:** ⓘ (the literal character, in use at eight call sites — `portfolio_live.ex:751/762/776/1077`, `securities_live.ex:993/1147`, `tax_live.ex:369`, `transaction_management_live.ex:199`, `view_switcher.ex:121`) is the metric-**definition** affordance. A note-severity data note states a fact about *this data*, which DR11 explicitly separates from a definition. One mark for both jobs is the funnel problem again.
+**Why note is not an info circle:** ⓘ (the literal character, in use at eight call sites — `portfolio_live.ex:751/762/776/1077`, `securities_live.ex:993/1147`, `tax_live.ex:369`, `transaction_management_live.ex:199`, `view_switcher.ex:121`) is the metric-**definition** affordance. A note-severity data note states a fact about *this data*, which UX-DR11 explicitly separates from a definition. One mark for both jobs is the funnel problem again.
 
 **Also missing, flagged not solved here:** the stale-data rule (EXPERIENCE State Patterns) requires a clock glyph, and the set has none. It rides the same icon-set story.
 
@@ -592,7 +601,7 @@ The checkbox is one control: box and label sit on one line, the label is the hit
 - **Top bar** (`.topbar`) — burger toggle, brand, page title + subtitle, then theme menu, accent menu, EN/DE locale switcher (pill text ≥ 11px, pinned by the spacing-scale test).
 - **Area tabs** (`.area-tabs`, `.detail-pane-tabs`) — the Wealth areas are Holdings · Allocation & targets · Cash flow · Snapshots · Tax; Cash flow's second level is Income · Realized gains · Deposits & withdrawals · Costs. Both levels per {components.selected-nav}.
 - **Stat card** (`.stat`) — {components.stat-card}: three-color gradient hairline, uppercase label, 30px value. Signed values take semantic colour, not the accent (see Colors).
-- **Hero** — **retired 2026-08-05.** {components.hero} was specified for the four-metric-card Overview of the superseded UX-DR2. That rule now follows the build (EXPERIENCE.md DR2): the Overview is value + change, "Needs attention", and data quality, and no hero component was ever built. The anatomy stays in the frontmatter as a record, unreferenced by any surface. [mockups/key-dashboard.html](mockups/key-dashboard.html) is downstream of the superseded rule and is **stale** — it illustrates a composition this document no longer specifies. Re-render or retire it before the mock is used as a reference again.
+- **Hero** — **retired 2026-08-05.** {components.hero} was specified for the four-metric-card Overview of the superseded UX-DR2. That rule now follows the build (EXPERIENCE.md UX-DR2): the Overview is value + change, "Needs attention", and data quality, and no hero component was ever built. The anatomy stays in the frontmatter as a record, unreferenced by any surface. [mockups/key-dashboard.html](mockups/key-dashboard.html) is downstream of the superseded rule and is **stale** — it illustrates a composition this document no longer specifies. Re-render or retire it before the mock is used as a reference again.
 - **Panel** (`.panel`) — generic elevated container, {components.panel}.
 - **Data tables** (`.data-table`, `.detail-*-table`, `.drift-table`, `.cash-table`, `.soll-table`) — {components.data-table}. One header treatment: {typography.table-head} on {colors.bg-muted}; the sentence-case-no-rules variant is retired. Numeric columns are right-aligned — app.css has per-table `.num` rules but no generic one, so income's money cells carry `class="num"` with nothing behind it.
 - **Charts** — one shared component (`security_chart.ex`, ADR-0022) plus three hand-rolled implementations still in the build (income bars, snapshot two-polyline, sunburst). {components.chart-frame}: accent quote line (1.6px) over a 14%-opacity accent fill, moving-average overlays, cost-basis line, buy/sell markers shape-coded not hue-coded (▲ buy {colors.tx-buy}, ▼ sell {colors.tx-sell}), mono axis text, crosshair + mono tooltip via a small hook. New chart work uses the shared component; the snapshot comparison inherits its axes, crosshair and period control when it moves over.
