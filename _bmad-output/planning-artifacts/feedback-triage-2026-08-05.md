@@ -163,3 +163,122 @@ current inconsistency happened.
 Open questions for the owner are embedded above: income-view selection
 (E.1), tax-view direction (E.2), and whether the count-up should stream
 real partial values or animate to the final value (B).
+
+---
+
+## Round 2 — owner responses and pipeline check (2026-08-05, same day)
+
+The owner answered the open questions and extended the working-mode
+discussion. Decisions recorded here; the pipeline was checked for existing
+coverage before routing anything.
+
+### Working mode — confirmed and formalized as ADR-0038 (proposed)
+
+The owner confirmed the continuous-intake mode and sharpened it: short
+feedback goes directly to the PM agent, the PM checks whether the item is
+already in the pipeline, and if not, does proper design thinking and
+produces the epics/issues/ADRs needed for a clean implementation. The owner
+also flagged that the per-epic UAT walkthrough assumed by ADR-0026 has not
+happened in practice (one partial pass in ~3 sprints) and that the UX role
+was expected to critique design, aesthetics, and UX simplicity on an
+ongoing basis — which never got wired into the workflow, producing the
+visual drift this dump reported.
+
+Both points are drafted as **ADR-0038 (Proposed)**: continuous feedback
+intake with PM triage, acceptance staying at the merge, the UX designer
+role as standing design authority over a living design-language spec, and
+a design-critic role added to the agentic review closing act. Awaiting
+owner sign-off.
+
+### Pipeline check results (dedup before creating anything)
+
+- **Cluster A (mobile income view) is already tracked: #560** — "Income
+  chart: bars overflow/unreadable on mobile (no scroll or responsive
+  handling)". No new issue; the owner re-reporting it from live use is a
+  priority signal. Recommendation: pull #560 into the next sprint as a
+  standalone defect fix.
+- **Two of the owner's "insights" examples are already tracked:** #568
+  (money-weighted metrics: net invested capital, wealth multiple, IRR/MWR —
+  ADR-0034 accepted, covers "how much do I put in vs. take out" and the
+  deposits/"Ersparnis" angle) and #572 (benchmark comparison vs. selectable
+  indices and inflation — covers "my gain vs. an MSCI World"). Both sit in
+  E5 (analytics engine, priority "next").
+- **No existing issue covers loading states/affordances** — new scope, goes
+  into the design session below.
+- #340 (parking lot: wealth-management vision) exists for the far-out ideas.
+
+### Decisions from the owner
+
+- **Count-up:** a cosmetic count-up animation to the final value is
+  acceptable and wanted, provided it is visually evident that the number is
+  still counting and not final. Anything beats staring at three dots with
+  no sense of when the value will arrive. → Design detail for the design
+  session; no streaming of real partial values required.
+- **Tax view:** MCP/LLM is the primary write path; the UI is reduced to a
+  visual review/overview surface. Document intake is rejected as too
+  complicated — no decision gate needed, the direction is settled. UI
+  rework rides the design session.
+- **Design session (UX designer):** confirmed as overdue. Owner's diagnosis
+  matches the triage: early one-off design input, then nobody formulating
+  and holding a consistent design language, hence repeated drift while
+  work stayed "just functional" with incomplete CSS foundations.
+
+### Income view — scoping input from the owner (PP walkthrough)
+
+What the owner actually uses/values in Portfolio Performance's income area:
+
+- **Bar charts per month / quarter / year: keep, good.** The existing
+  bars-per-year view points the right direction but is not enough.
+- **Accumulated-per-month chart: wanted, "great as a chart".**
+- **Per-instrument tables (month/quarter/year × instrument): too much;**
+  even PP's tables are not readable. Open design question whether a clean
+  visualization per instrument exists at all — for the design session, not
+  a committed requirement.
+- **Taxes and fees views: overview level is enough** for the owner; the
+  full view matrix PP offers is not a priority ("someone will need it" is
+  not scope).
+- **Closed trades: valued, keep.**
+- **Deposits/withdrawals ("Ersparnis" in PP): wanted** — external in/out
+  flows are interesting numbers. Overlaps with #568's net invested capital;
+  the view belongs to the same story family.
+- Terminology note to resolve in the UI: PP distinguishes "Erträge" (all
+  earnings: dividends + interest) from "Dividenden" (security dividends
+  only) — the owner found this distinction unclear in PP itself. Our income
+  view must label what it aggregates explicitly rather than inheriting the
+  ambiguity.
+
+### New product direction flagged — "from data to information"
+
+The owner's broader point: collecting the numbers is table stakes; the
+system should increasingly extract *information* — analyses sorted by
+relevance to the user, visually presented, with raw numbers still
+reachable. Examples beyond #568/#572: net effect of taxes and fees on
+returns ("is this worth it"), what-if framings (cheaper broker, more
+tax-efficient trading).
+
+PM assessment: this is a product-direction statement, not a story. It
+tenses against the standing Hard Rule "do not add advanced reports" and
+partially against E10's "later" placement (planning & simulation), so it
+needs a deliberate decision gate (product brief → PRD update → ADR if
+accepted) rather than opportunistic scoping. What-if simulations
+(broker switch, tax-optimized trading) additionally depend on data the
+system does not hold (fee schedules) and border the advice boundary —
+parked in #340 until the direction gate. #568 and #572 proceed regardless;
+they are already gated and scoped.
+
+### Updated next steps
+
+1. **Now:** prioritize #560 (mobile income chart defect) into the next
+   sprint.
+2. **Now:** owner signs off (or amends) ADR-0038; AGENTS.md workflow
+   section updates ride the acceptance.
+3. **Next:** UX design session covering: design language refresh
+   (DESIGN.md/EXPERIENCE.md as living spec), loading affordances incl. the
+   count-up pattern, tabs/pickers/hints (UX-DR11 tooltips), contra-account
+   UI, snapshots view, income view set (scoped above), tax view as
+   review/overview surface. Stories for E14/E11 are cut from the resulting
+   spec.
+4. **Then:** product brief "from data to information" as the decision gate
+   for the insights direction.
+5. **Standing:** feedback dumps → dated triage → owner confirms → thin
+   issues (per ADR-0038 once accepted).
