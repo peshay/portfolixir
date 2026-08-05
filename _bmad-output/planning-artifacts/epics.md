@@ -117,22 +117,38 @@ This document provides the complete epic and story breakdown for Portfolixir, de
 
 ### UX Design Requirements
 
-(From DESIGN.md + EXPERIENCE.md — paradigm: classic-but-decluttered, progressive disclosure)
+**Defined in the living design-language spec, not here** (ADR-0038, 2026-08-05).
 
-- UX-DR1: Decluttered Classifications screen — the tree IS the surface; New-category form behind the `+` affordance; multiselect toolbar only with active selection; per-node edit/recolor/delete. (Worst-rated screen; the decluttering exemplar.)
-- UX-DR2: Analysis-dashboard home — hero (total value + performance curve) with €/% series toggle; the four confirmed metric cards (cash quote, TTWROR vs. period, top drift category, transactions recency), each navigating to its owning surface.
-- UX-DR3: Progressive-disclosure pass across all surfaces — creation/edit forms move out of primary sightline into modals/popovers/collapsed sections (generalize the `.inline-form` removal).
-- UX-DR4: Hidden "Soon" nav items — sidebar shows only working surfaces; entries return when their surface ships.
-- UX-DR5: Chart build-in motion — one-shot on load/data-change (~600ms–1.5s, ease-out), polish only, never looping; CSS/SVG techniques (stroke-dashoffset draw-in, scaleY bar grow, @property count-up); ALL motion gated behind `prefers-reduced-motion: no-preference`; loading cues stay (non-animated under reduce).
-- UX-DR6: Touch targets ≥44px via `@media (pointer: coarse)`; desktop keeps 32–34px density.
-- UX-DR7: Color independence (binding) — gain/loss, SOLL/IST drift, buy/sell never conveyed by hue alone: explicit +/− (or ▲/▼), ▲buy/▼sell marker shapes, stale-quote clock glyph + text.
-- UX-DR8: Contrast commitments (binding) — `text-subtle` barred from content (disabled/decoration only); coral accent as large text only; documented contrast floors per surface in both themes; tx-buy darkened in light mode.
-- UX-DR9: Modal accessibility — native `<dialog>`/`showModal()` (focus trap + Esc) or `role="dialog" aria-modal="true"` + focus-trap hook; focus to first field/heading on open; Esc-close + focus-return-to-trigger.
-- UX-DR10: Chart-as-table (binding) — the data behind every chart is always also reachable as a table (makes single-`aria-label` + 9px axis acceptable); charts carry `role="img"` + `aria-label`.
-- UX-DR11: Explanatory microcopy — domain terms (TTWROR, IRR, SOLL/IST drift, cash quote) carry focusable ⓘ tooltips (focus + tap, Esc-dismiss, hoverable per WCAG 1.4.13); numbers state basis (as-of date, currency, gross/net); de/en via gettext; `lang` follows active locale (binding).
-- UX-DR12: Responsive behavior — breakpoints 900 (off-canvas sidebar) / 720 (single-column dialogs, bottom-sheet kebab) / 560 (14px base, hidden subtitles, horizontal table scroll); same IA across surfaces.
-- UX-DR13: State patterns — filter/search no-match state ("No matches for X", controls visible); form error association (`aria-describedby`, `aria-invalid`, focus to first invalid, `role="alert"`); data-freshness display (as-of basis, stale tone + glyph).
-- UX-DR14: Design-system foundations (redesign groundwork) — define the missing 4px-based spacing scale and the heading ramp between top-bar (15px) and page-title (28px+); locale-switcher pill text ≥11px.
+Authoritative source:
+
+- [`design-language/EXPERIENCE.md` → Design Rules](design-language/EXPERIENCE.md) — the complete DR1..DR20 index and the full text of every behavioral rule.
+- [`design-language/DESIGN.md`](design-language/DESIGN.md) — the full text of the visual rules (DR5 motion, DR8 contrast, DR14 spacing and heading ramp, DR16 selected-state appearance, DR18 width-reserved active states, DR19 native-control appearance).
+
+Until 2026-08-05 this section carried the definitions while the spines carried
+the design language, so 33 files — `app.css`, eight LiveViews, ADR-0027/0028/0038
+and `test/invariants/css_spacing_scale_test.exs` — cited rule numbers that the
+spec they derive from did not own. The rules moved into the spec; this section
+became a pointer. Where this pointer and the spec disagree, **the spec wins**.
+
+Changes made when the rules moved, so nobody reads a stale number here:
+
+- **DR2 was rewritten** to the Overview as built (value + change, "Needs
+  attention", data quality). The four metric cards confirmed on 2026-06-13 were
+  never built, and the rule had contradicted the app since June.
+- **DR4 was rewritten** from "which Soon items are hidden" to "which shipped
+  surfaces are reachable only by a path the sidebar does not show".
+- **DR5's mechanism note is corrected:** the `@property` count-up it named
+  cannot render locale-formatted money (`counter()` yields `250000`, never
+  `250.000,00`). An inline LiveView hook drives the count instead.
+- **DR10, DR11, DR12 were extended** — one uniform chart-data disclosure with a
+  stated purpose; prose is not the fallback for what the design did not solve,
+  and the 2026-07-23 impersonal-voice rule is part of DR11 now; DR12
+  cross-references the new scroll-container rule.
+- **DR15..DR20 are new**, from the 2026-08-05 live-surface survey and design
+  critique: every wide block owns its scroller (the verified root cause of
+  #560); three selected-state classes; three data-note severities;
+  width-reserved active states; native controls inherit the design language;
+  pending and settling are different states.
 
 ### FR Coverage Map
 
@@ -170,7 +186,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-4–6 | — | foundational (security, self-hosted, single-user) |
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | #562 (ADR-0032), #619 (ADR-0035) | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. **#619 shipped 2026-08-04** (ADR-0035): the redundancy was removed rather than cached — market data is preloaded once per read and threaded through every valuation and allocation, replacing six re-derivations and hundreds of per-row lookups. Measured A/B: the warm dashboard block 1,105 ms → 265 ms and 2,614 → 115 queries, output identical. Nothing is memoized by this change; ADR-0032's memo is untouched |
-| UX-DR1–14 | **#356** + #336, #337, #339, #319, #606 | UX/a11y tracker (UI = priority 3). **#606 shipped 2026-08-04** — the microcopy voice rule (impersonal, terse, du never Sie, explanation in ⓘ tooltips per UX-DR11) applied retroactively to all pre-rule UI strings and the EN/DE docs, and recorded in `EXPERIENCE.md` so it is part of the design language rather than only the agent rules |
+| UX-DR1–20 | **#356** (tracker) + #412, #414, #491, #560, #565, #566 open | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec |
 | FR-30 | #582 | ISIN/WKN in holdings payloads (E6 DX batch, story 2) |
 | FR-31 | #581 | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
 | FR-32 | #583 | booking-semantics docs incl. fix-it-hammer warnings (E6 DX batch, story 3) |
@@ -615,7 +631,7 @@ Bonds (#330) and German pension modeling (#340 parking lot). Per the PRD, **each
 What-if simulator (#332, FR-27), benchmark comparison (FR-9 — the founding "worth it?" question, needs OQ-3 quote source), retirement projection (FR-26 — backs Success Metric 3, discovery story fixes AC). Benchmark + retirement have no issues yet (future).
 
 ### Epic 11: UX & accessibility (priority 3)
-Tracked in **#356** against the DESIGN.md + EXPERIENCE.md spec, plus existing #336 (chart €/% toggle), #337 (dashboard v2), #339 (nav cleanup), #319 (sunburst). UI is deprioritized per #321; accessibility items (color independence, contrast, modal focus, chart-as-table) break out as `agentic` issues when prioritized. UX-DR1–14.
+Tracked in **#356** against the living design-language spec (`design-language/DESIGN.md` + `EXPERIENCE.md`), which since ADR-0038 is the authority a design-critic review holds every user-visible batch against. #336 (chart €/% toggle), #337 (dashboard v2), #339 (nav cleanup) and #319 (sunburst) are closed; open children are #412 (forms and inputs), #414 (transactions overview), #491 (master-data creation UX), #560 (income chart on mobile), #565 (classification columns), #566 (inline busy/result states instead of toasts). The 2026-08-05 design session supplies the specification these are held against, and DR15–DR20 name the drift families whose alignment stories are cut from it. Accessibility items (colour independence, contrast, modal focus, chart-as-table) break out as `agentic` issues when prioritized. UX-DR1–20.
 
 ### Epic 12: Localization & docs (cross-cutting)
 Multilingual docs site (#313, NFR-7); UI de/en via gettext is shipped and enforced by `localization_test.exs`.
