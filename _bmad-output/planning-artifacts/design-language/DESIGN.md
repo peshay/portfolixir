@@ -566,7 +566,17 @@ The slot reserves its final footprint in every state, so nothing reflows when a 
 
 Both states are non-decorative: they carry information about whether a number can be trusted yet. Under `prefers-reduced-motion` the animation drops but the *indication* remains — dimmed digits and a static bar at rest, never a silently final-looking value.
 
-**Progressive chart fill — sequential sweep** (owner pick 2026-08-05). The allocation sunburst is a third case: many values landing over time rather than one. Segments appear clockwise as their values arrive. Accepted cost, stated so nobody re-litigates it later: the shape moves during the build, so the chart briefly shows proportions it does not have. Two constraints keep that honest — the build is short and one-shot, and **the legend must not settle before the geometry does**, so no label ever names a segment whose share is still changing.
+**Progressive chart fill — sequential sweep** (owner pick 2026-08-05). Segments appear clockwise, one after another, as the chart builds.
+
+**Corrected 2026-08-05 after the design-critic pass — this is decoration, not progress.** The pick was framed as segments appearing "as their values arrive". They do not arrive separately: allocation is computed in a single `start_async(:allocation)` and lands as one result, so every segment's value is known before the first frame draws. A sweep therefore reveals a finished dataset in an arbitrary order; it reports nothing.
+
+That is allowed — Motion is polish, and polish may decorate the arrival of state. But it must not be *described* as progress, and it must not do what this document forbids the digits from doing:
+
+- The final geometry is computed before the first frame. Every segment occupies its final angle from the start; the sweep animates **opacity or saturation only, never the arc**. A chart must never render a proportion it does not have, and unlike the settling digits — which count toward a value that is genuinely already known — a moving arc would assert a share that is simply false.
+- The legend does not settle before the geometry does, so no label ever names a segment whose share is still changing.
+- Under `prefers-reduced-motion` the finished chart appears at once, with no cue — there is no information to preserve, precisely because the sweep carries none.
+
+If per-segment streaming is ever built, this entry is revisited: at that point the sweep would carry information and would inherit the pending/settling rules above rather than the polish rules.
 
 ### Native controls
 

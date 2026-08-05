@@ -76,7 +76,39 @@ The built set is `Holdings · Allocation & targets · Income · Snapshots · Tax
 
 Rationale: three of the five owner-scoped analyses are not income at all — realized gains, external flows, and costs. Lumping them under one "Erträge" label reproduces exactly the Portfolio Performance ambiguity the owner complained about. The terminology problem is therefore answered by **structure**, not by a better label, which is also what the ADR-0024 rule demands.
 
-Only **Income** has data today: `Portfolixir.Portfolios.Income.for_portfolio/1` filters transactions to `dividend` and `interest` and nothing else. The other three tabs are specified here and unbuilt; they must not ship as empty shells without their read. Scope carried in from the owner's PP walkthrough (2026-08-05): bars per month/quarter/year and an accumulated-per-month series belong to Income; closed trades to Realized gains; external flows to Deposits & withdrawals; taxes and fees to Costs **at overview level only** — no per-transaction cost ledger.
+**What has a read today** (corrected 2026-08-05 after the design-critic pass — an earlier draft of this section claimed only Income did, and that was wrong):
+
+| Facet | Read | State |
+|---|---|---|
+| Income | `Portfolios.Income.for_portfolio/1` — filters to `dividend` and `interest` (`income.ex`) | shipped, has its own surface |
+| Realized gains | `Ledger.TradeMatcher` already returns `:closed_trades` — realised round-trips with `realized_pnl_abs` / `realized_pnl_pct` per sell (`trade_matcher.ex:9, 48, 68, 229-258`) | **computed and exposed** via `/api/v1` (`trade_controller.ex`) and the Securities detail Trades tab; it has no cash-flow surface |
+| Deposits & withdrawals | none — external flows are derivable from the ledger's deposit/removal kinds but no read exists | unbuilt |
+| Costs | none — fee and tax legs exist per transaction; no aggregate read | unbuilt |
+
+This matters for sizing: **Realized gains is a presentation story, not a computation story.** The matcher, the API and the MCP tool already ship; what is missing is a cash-flow-shaped view over an existing read. Deposits & withdrawals and Costs are genuinely new reads, and Deposits & withdrawals overlaps #568's net invested capital — it belongs to the same story family rather than being built twice.
+
+No facet ships as an empty shell: a second-level tab appears when its read exists.
+
+Scope carried in from the owner's PP walkthrough (2026-08-05): bars per month/quarter/year and an accumulated-per-month series belong to Income; closed trades to Realized gains; external flows to Deposits & withdrawals; taxes and fees to Costs **at overview level only** — no per-transaction cost ledger.
+
+### Per-instrument income (decided 2026-08-05, owner: stacked bars with an aggregated remainder)
+
+The Income facet's period bars may be **segmented by instrument**: the largest contributors individually, everything else aggregated into one remainder segment. It answers "who contributes how much, over time", which the flat top-contributors list cannot.
+
+**Segment count is capped at three plus the remainder, not six** — a designer's correction to the owner's pick, made because the pick as stated is not buildable under this spec's own rules, and flagged here rather than silently applied:
+
+- The project renders **one accent at a time**, and using the three brand accents together outside the `.stat` top bar is forbidden. Seven segments would therefore have to come from tints of a single accent, which puts roughly 1.3:1 between neighbouring segments — below the 3:1 non-text floor, so adjacent contributors would be indistinguishable.
+- DR7 forbids hue as the sole channel regardless. Segments must be separable without colour, which means **direct labelling on the segment where it fits and in the legend where it does not** — and direct labels only fit at low segment counts.
+
+So: **three named contributors plus "Sonstige"**, each directly labelled, with the full per-instrument breakdown in the table beneath (DR10). If the owner wants six named contributors, the honest route is small multiples — one small chart per instrument — not more segments in one bar.
+
+**Unresolved tension this exposes, recorded not resolved.** Three positions on categorical colour coexist in the project and contradict each other:
+
+1. `DESIGN.md` describes a closed token set with one accent active at a time.
+2. The build lets a user pick **any** hex per category (`category.ex:15`, `~r/^#[0-9a-fA-F]{6}$/`) and renders it straight into the sunburst (`portfolio_live.ex:1804`).
+3. This session decided accent tints for stacked segments.
+
+These cannot all be true. Reconciling them is a decision gate of its own — it touches user-set data, not just styling — and is explicitly **not** settled here.
 
 **Seams in the built IA (recorded, not endorsed):**
 
