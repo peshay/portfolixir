@@ -296,7 +296,26 @@ jobs:
           # the quality gate is built on.
           fetch-depth: 0
 
+      # SONAR_TOKEN is not available to pull requests from forks, and is absent
+      # until the secret is provisioned. Both cases must not read as a product
+      # failure. The scan is skipped rather than faked: a skipped step is
+      # visibly not a passing one, and the guard reports which case it is, so a
+      # token that later expires shows up as "not configured" in the log rather
+      # than as silence.
+      - name: Check for SONAR_TOKEN
+        id: sonar_token
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SONAR_TOKEN is not configured; skipping the SonarQube Cloud scan. Automatic Analysis (configured by .sonarcloud.properties) still runs."
+          fi
+
       - name: SonarQube Cloud scan
+        if: steps.sonar_token.outputs.present == 'true'
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
