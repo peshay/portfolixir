@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolixir — loading affordances: decision playground</title>
+<style>
+/* ============================================================
+   DECISION PLAYGROUND — loading affordances
+   Purpose: let the owner CHOOSE a loading-state vocabulary by feel.
+   Nothing here is a recommendation and nothing is ranked.
+
+   Fully offline: no CDN, no web fonts, no images, no external
+   requests of any kind. All CSS and JS is inline.
+
+   Token source: priv/static/app.css (the only stylesheet).
+   Every --color-*, --space-*, --radius-*, --shadow-* value below is
+   copied verbatim from app.css :root / prefers-color-scheme dark /
+   [data-theme] blocks. The .stat, .section-skeleton, .spinner and
+   .hint rules are copied from app.css as well, so the mock cards
+   have the real footprint.
+
+   Deviations from app.css, deliberate and listed here:
+   - Inter and JetBrains Mono cannot be loaded offline; the system
+     font stack stands in for both. Metrics differ slightly from the
+     real app, so judge behaviour, not letterforms.
+   - Money is right-aligned in every mock card (playground rule, so
+     the count-up jitter demo in section 3 is readable). The real
+     .stat card left-aligns its value.
+   - .stat cards sit in a min 300px grid instead of the app's 220px,
+     because the sample value is long and .stat has overflow:hidden.
+
+   Motion policy (DESIGN.md › Motion, binding): every animation is
+   gated behind @media (prefers-reduced-motion: no-preference) AND a
+   :root[data-motion="reduced"] escape hatch, so the top-bar
+   "Reduced motion" switch shows the fallback without touching OS
+   settings. The un-gated rule is always the finished/static frame.
+
+   Language: explanatory prose is English (repo rule: repository
+   artifacts are written in English). Strings inside the mock UI are
+   German, matching the shipped surface.
+
+   Data: SYNTHETIC. Obviously fake round numbers only.
+   ============================================================ */
+
+/* ---------- tokens: verbatim from app.css ---------- */
+:root {
+  color-scheme: light;
+  /* Stand-ins for Inter / JetBrains Mono — offline constraint. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --brand-violet-1: #a78bfa;
+  --brand-violet-2: #7c3aed;
+  --brand-teal-1: #2dd4bf;
+  --brand-teal-2: #0f766e;
+  --brand-coral-1: #fdba74;
+  --brand-coral-2: #e11d48;
+  --color-accent-violet: #7c3aed;
+  --color-accent-violet-soft: #ede9fe;
+  --color-accent-teal: #0f766e;
+  --color-accent-teal-soft: #ccfbf1;
+  --color-accent-coral: #e11d48;
+  --color-accent-coral-soft: #ffe4e6;
+  --color-accent: var(--color-accent-violet);
+  --color-accent-soft: var(--color-accent-violet-soft);
+  --color-positive: #047857;
+  --color-danger: #dc2626;
+  --color-warning: #b45309;
+  --color-bg: #f6f7fa;
+  --color-bg-elevated: #ffffff;
+  --color-bg-muted: #eef1f6;
+  --color-sidebar: #fbfaff;
+  --color-sidebar-sheen: rgb(255 255 255 / 0.68);
+  --color-border: #e4e8ef;
+  --color-border-strong: #cdd4df;
+  --color-hover: #f0f3f8;
+  --color-selected: #ede9fe;
+  --color-text: #0e141b;
+  --color-text-muted: #5a6577;
+  --color-text-soft: #8b7f9f;
+  --color-text-subtle: #94a0b4;
+  --color-chart-surface: #ffffff;
+  --color-on-accent: #ffffff;
+  --color-warning-soft: #fffbeb;
+  --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
+  --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
+  --shadow-sidebar: 0 20px 60px rgb(15 23 42 / 0.16);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  --text-h1-size: clamp(28px, 4vw, 42px);
+  --text-h1-weight: 780;
+  --text-h2-size: 20px;
+  --text-h2-weight: 700;
+  --text-h3-size: 16px;
+  --text-h3-weight: 680;
+  --density-font-size: 13px;
+  --density-line-height: 1.4;
+  --topbar-height: 52px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-accent-violet: #a78bfa;
+    --color-accent-violet-soft: rgb(167 139 250 / 0.16);
+    --color-accent-teal: #2dd4bf;
+    --color-accent-teal-soft: rgb(45 212 191 / 0.16);
+    --color-accent-coral: #fb7185;
+    --color-accent-coral-soft: rgb(225 29 72 / 0.16);
+    --color-positive: #34d399;
+    --color-danger: #fb7185;
+    --color-warning: #fbbf24;
+    --color-bg: #0b0f14;
+    --color-bg-elevated: #131a23;
+    --color-bg-muted: #1a2230;
+    --color-sidebar: #0e141b;
+    --color-sidebar-sheen: rgb(167 139 250 / 0.06);
+    --color-border: #222b38;
+    --color-border-strong: #2d3848;
+    --color-hover: #1b2533;
+    --color-selected: #1f2c42;
+    --color-text: #e6eaf1;
+    --color-text-muted: #8b97a8;
+    --color-text-soft: #c4b5fd;
+    --color-text-subtle: #5c667a;
+    --color-chart-surface: #131a23;
+    --shadow-panel: 0 18px 44px rgb(0 0 0 / 0.32);
+    --shadow-md: 0 10px 28px rgb(0 0 0 / 0.5);
+    --shadow-sidebar: 0 20px 60px rgb(0 0 0 / 0.42);
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-accent-violet: #7c3aed;
+  --color-accent-violet-soft: #ede9fe;
+  --color-accent-teal: #0f766e;
+  --color-accent-teal-soft: #ccfbf1;
+  --color-accent-coral: #e11d48;
+  --color-accent-coral-soft: #ffe4e6;
+  --color-positive: #047857;
+  --color-danger: #dc2626;
+  --color-warning: #b45309;
+  --color-bg: #f6f7fa;
+  --color-bg-elevated: #ffffff;
+  --color-bg-muted: #eef1f6;
+  --color-sidebar: #fbfaff;
+  --color-sidebar-sheen: rgb(255 255 255 / 0.68);
+  --color-border: #e4e8ef;
+  --color-border-strong: #cdd4df;
+  --color-hover: #f0f3f8;
+  --color-selected: #ede9fe;
+  --color-text: #0e141b;
+  --color-text-muted: #5a6577;
+  --color-text-soft: #8b7f9f;
+  --color-text-subtle: #94a0b4;
+  --color-chart-surface: #ffffff;
+  --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
+  --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
+  --shadow-sidebar: 0 20px 60px rgb(15 23 42 / 0.16);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-accent-violet: #a78bfa;
+  --color-accent-violet-soft: rgb(167 139 250 / 0.16);
+  --color-accent-teal: #2dd4bf;
+  --color-accent-teal-soft: rgb(45 212 191 / 0.16);
+  --color-accent-coral: #fb7185;
+  --color-accent-coral-soft: rgb(225 29 72 / 0.16);
+  --color-positive: #34d399;
+  --color-danger: #fb7185;
+  --color-warning: #fbbf24;
+  --color-bg: #0b0f14;
+  --color-bg-elevated: #131a23;
+  --color-bg-muted: #1a2230;
+  --color-sidebar: #0e141b;
+  --color-sidebar-sheen: rgb(167 139 250 / 0.06);
+  --color-border: #222b38;
+  --color-border-strong: #2d3848;
+  --color-hover: #1b2533;
+  --color-selected: #1f2c42;
+  --color-text: #e6eaf1;
+  --color-text-muted: #8b97a8;
+  --color-text-soft: #c4b5fd;
+  --color-text-subtle: #5c667a;
+  --color-chart-surface: #131a23;
+  --shadow-panel: 0 18px 44px rgb(0 0 0 / 0.32);
+  --shadow-md: 0 10px 28px rgb(0 0 0 / 0.5);
+  --shadow-sidebar: 0 20px 60px rgb(0 0 0 / 0.42);
+}
+
+:root[data-accent="violet"] { --color-accent: var(--color-accent-violet); --color-accent-soft: var(--color-accent-violet-soft); }
+:root[data-accent="teal"]   { --color-accent: var(--color-accent-teal);   --color-accent-soft: var(--color-accent-teal-soft); }
+:root[data-accent="coral"]  { --color-accent: var(--color-accent-coral);  --color-accent-soft: var(--color-accent-coral-soft); }
+
+/* ---------- shell: app.css html/body/workspace ---------- */
+* { box-sizing: border-box; }
+
+html {
+  min-height: 100%;
+  background: var(--color-bg);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  color: var(--color-text);
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 34rem),
+    linear-gradient(180deg, var(--color-bg-elevated) 0, var(--color-bg) 18rem);
+  font-family: var(--font-sans);
+  font-size: var(--density-font-size);
+  line-height: var(--density-line-height);
+}
+
+a { color: inherit; text-decoration: none; }
+
+button, input, select, textarea { font: inherit; }
+
+button {
+  min-height: 34px;
+  padding: 6px 10px;
+  color: var(--color-text);
+  cursor: pointer;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+button:hover { background: var(--color-hover); border-color: var(--color-border-strong); }
+button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.button-mini {
+  min-height: 0;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.8rem;
+}
+.button-mini[aria-pressed="true"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Sticky top bar — same anatomy as .topbar in app.css (translucent
+   elevated surface + backdrop blur), reduced to the controls this
+   playground needs. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  min-height: var(--topbar-height);
+  padding: var(--space-2) clamp(14px, 2.4vw, 28px);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg-elevated) 88%, transparent);
+  backdrop-filter: blur(18px);
+}
+.topbar-title { font-size: 15px; font-weight: 760; line-height: 1.15; }
+.topbar-controls { display: flex; gap: var(--space-4); flex-wrap: wrap; margin-left: auto; align-items: center; }
+.control-group { display: flex; align-items: center; gap: var(--space-1); }
+.control-group > b {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--color-text-muted);
+  margin-right: var(--space-1);
+}
+.switch { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+
+.workspace-page { display: grid; align-content: start; min-width: 0; }
+
+.workspace-section {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+  padding: clamp(18px, 2.4vw, 28px) clamp(14px, 2.4vw, 28px);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg-elevated) 94%, transparent);
+}
+.workspace-section:last-child { border-bottom: 0; }
+.workspace-section h2 { margin: 0; font-size: var(--text-h2-size); font-weight: var(--text-h2-weight); line-height: 1.15; }
+.workspace-section h3 { margin: 0; font-size: var(--text-h3-size); font-weight: var(--text-h3-weight); line-height: 1.15; }
+.workspace-section p { margin: 0; max-width: 78ch; }
+
+.hint { font-size: 0.8rem; color: var(--color-text-muted); margin: 0.2rem 0 0; }
+
+.panel {
+  display: grid;
+  gap: var(--space-4);
+  padding: clamp(18px, 3vw, 26px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-elevated) 94%, transparent);
+  box-shadow: var(--shadow-panel);
+}
+
+/* ---------- .stat card: verbatim anatomy from app.css ---------- */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--space-4); }
+
+.stat {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  min-height: 120px;
+  padding: 18px;
+  overflow: hidden;
+  align-content: start;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-elevated) 94%, transparent);
+  box-shadow: var(--shadow-panel);
+}
+.stat::before {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  content: "";
+  background: linear-gradient(90deg, var(--brand-violet-1), var(--brand-teal-1) 55%, var(--brand-coral-1));
+  opacity: 0.85;
+}
+.stat > span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.stat strong {
+  color: var(--color-accent);
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.stat small { color: var(--color-text-muted); font-size: 12px; }
+
+/* Playground rule: money right-aligned, tabular. */
+.valrow { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: 30px; }
+.moneybox { position: relative; display: inline-block; }
+.moneybox .ghost { display: block; visibility: hidden; font-size: 30px; font-weight: 700; letter-spacing: -0.01em; line-height: 1; white-space: nowrap; }
+.moneybox strong { position: absolute; right: 0; top: 0; white-space: nowrap; text-align: right; }
+.num { font-variant-numeric: tabular-nums; }
+/* P3 needs a little slack under the baseline for the indeterminate rail. */
+.valrow--p3 { min-height: 40px; }
+
+/* Option id chip */
+.oid {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+.opt-head { display: flex; align-items: center; gap: var(--space-2); }
+.caption { margin: 0; color: var(--color-text-muted); font-size: 12px; max-width: 60ch; }
+.caption b { color: var(--color-text); font-weight: 650; }
+
+/* ---------- my-pick strip ---------- */
+.pick-strip {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) clamp(14px, 2.4vw, 28px);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-muted);
+}
+.pick-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.pick-row > b { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); min-width: 74px; }
+.pick-readout {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+}
+
+/* ---------- section 1: choreography ---------- */
+.choreo { display: grid; gap: var(--space-5); grid-template-columns: minmax(300px, 380px) minmax(280px, 1fr); align-items: start; }
+@media (max-width: 820px) { .choreo { grid-template-columns: 1fr; } }
+
+.timeline {
+  position: relative;
+  display: flex;
+  height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-elevated);
+}
+.tl-seg { display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap; font-size: 11px; font-weight: 650; color: var(--color-text-muted); }
+.tl-pending { flex: 3000 0 0; background: var(--color-bg-muted); border-right: 1px solid var(--color-border); }
+.tl-settle { flex: 600 0 0; background: color-mix(in srgb, var(--color-accent) 14%, transparent); color: var(--color-accent); }
+.tl-head { position: absolute; top: 0; bottom: 0; width: 2px; left: 0; background: var(--color-text); }
+.phase-readout { font-family: var(--font-mono); font-size: 12px; color: var(--color-text-muted); }
+.phase-readout b { color: var(--color-text); }
+
+/* ---------- skeleton (app.css .section-skeleton, adapted to text size) ---------- */
+.skel-text {
+  display: inline-block;
+  color: transparent;
+  border-radius: 4px;
+  background: var(--color-bg-muted);
+  white-space: nowrap;
+}
+
+/* ---------- P2 cue: app.css .spinner ---------- */
+.spinner {
+  display: inline-block;
+  width: 0.8em; height: 0.8em;
+  margin-right: 0.4em;
+  border: 2px solid currentColor;
+  border-top-color: currentColor;   /* reduced-motion fallback look */
+  border-radius: 999px;
+  opacity: 0.5;                     /* reduced-motion fallback look */
+  vertical-align: -0.1em;
+}
+.is-stale strong, strong.is-stale { color: var(--color-text-muted); }
+.cue { display: flex; align-items: center; color: var(--color-text-muted); font-size: 12px; justify-content: flex-end; }
+
+/* ---------- P3 progressive reveal ---------- */
+.numslot { position: relative; display: inline-block; padding-bottom: 6px; }
+.numslot .ghost-inline { visibility: hidden; font-variant-numeric: tabular-nums; }
+.numslot::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  /* fallback: dashed = indeterminate, no motion */
+  background-image: repeating-linear-gradient(90deg,
+    color-mix(in srgb, var(--color-accent) 55%, transparent) 0 5px,
+    transparent 5px 10px);
+}
+.numslot::after { content: ""; position: absolute; left: 0; bottom: 0; width: 34%; height: 2px; border-radius: 2px; background: var(--color-accent); opacity: 0; }
+.unit { font-size: 30px; font-weight: 700; line-height: 1; color: var(--color-accent); }
+
+/* ---------- section 3 settling ornaments ---------- */
+.settle-bar {
+  height: 2px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  overflow: hidden;
+  opacity: 0;
+}
+.settle-bar > i { display: block; height: 100%; background: var(--color-accent); transform: scaleX(0); transform-origin: left center; }
+.is-settling .settle-bar { opacity: 1; }
+
+.muted-digits strong { color: var(--color-text-muted); }
+.pulse-dot { width: 8px; height: 8px; border-radius: 9999px; background: var(--color-accent); opacity: 0; flex: 0 0 auto; }
+.is-settling .pulse-dot { opacity: 1; }
+
+.jitter-guide::before {
+  content: "";
+  position: absolute;
+  left: 0; top: -3px; bottom: -3px;
+  border-left: 1px dashed var(--color-border-strong);
+}
+.no-tabular .num { font-variant-numeric: proportional-nums; }
+
+.run-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+
+/* ---------- section 4 sunburst ---------- */
+.fill-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--space-5); }
+.fill-card { display: grid; gap: var(--space-3); justify-items: start; }
+.donut.sunburst { width: 100%; max-width: 260px; height: auto; aspect-ratio: 1; justify-self: center; }
+.sunburst-seg { stroke: var(--color-bg); stroke-width: 0.5; }
+.seg-track { fill: var(--color-bg-muted); stroke: var(--color-bg); stroke-width: 0.5; }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-width: 420px; }
+.legend li { display: flex; align-items: baseline; gap: var(--space-2); }
+.legend .cat-swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; flex: 0 0 auto; }
+.legend .lg-name { flex: 1 1 auto; }
+.legend .lg-val { font-variant-numeric: tabular-nums; text-align: right; min-width: 4.5em; }
+.legend .lg-child { padding-left: var(--space-4); color: var(--color-text-muted); }
+
+/* ---------- notes tables ---------- */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 8px 9px; text-align: left; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+th { color: var(--color-text-muted); font-size: 12px; font-weight: 740; background: var(--color-bg-muted); }
+td:first-child { white-space: nowrap; }
+.table-scroll { overflow-x: auto; }
+
+.alert-warning {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-text);
+}
+
+/* ============================================================
+   MOTION — every animated rule lives inside this one gate.
+   Outside it, the page is the finished/static frame.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduced"]) .skel-text {
+    background: linear-gradient(90deg,
+      var(--color-bg-muted) 25%,
+      var(--color-hover) 50%,
+      var(--color-bg-muted) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+
+  :root:not([data-motion="reduced"]) .spinner {
+    border-top-color: transparent;
+    opacity: 1;
+    animation: import-spin 0.7s linear infinite;
+  }
+
+  :root:not([data-motion="reduced"]) .numslot::before {
+    background-image: none;
+    background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  }
+  :root:not([data-motion="reduced"]) .numslot::after {
+    opacity: 1;
+    animation: p3-sweep 1900ms ease-in-out infinite alternate;
+  }
+
+  :root:not([data-motion="reduced"]) .settle-bar { transition: opacity 180ms ease; }
+  :root:not([data-motion="reduced"]) .s4 strong { transition: color 180ms ease; }
+  :root:not([data-motion="reduced"]) .pulse-dot { transition: opacity 140ms ease; }
+  :root:not([data-motion="reduced"]) .is-settling .pulse-dot { animation: dot-pulse 900ms ease-in-out infinite; }
+
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    :root:not([data-motion="reduced"]) .s2.is-settling strong {
+      background-image: linear-gradient(100deg,
+        var(--color-accent) 42%,
+        color-mix(in srgb, var(--color-accent) 32%, var(--color-bg-elevated)) 50%,
+        var(--color-accent) 58%);
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: s2-sweep 900ms linear infinite;
+    }
+  }
+
+  :root:not([data-motion="reduced"]) .sunburst-seg { transition: opacity 260ms ease-out, fill-opacity 320ms ease-out; }
+  :root:not([data-motion="reduced"]) .tl-head { transition: none; }
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes import-spin { to { transform: rotate(360deg); } }
+@keyframes p3-sweep {
+  from { transform: translateX(0); }
+  to   { transform: translateX(194%); }
+}
+@keyframes s2-sweep {
+  from { background-position: 150% 0; }
+  to   { background-position: -150% 0; }
+}
+@keyframes dot-pulse {
+  0%, 100% { transform: scale(0.7); opacity: 0.45; }
+  50%      { transform: scale(1); opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <div class="topbar-title">Loading affordances — decision playground</div>
+    <div class="hint">Portfolixir · design language · synthetic sample data</div>
+  </div>
+  <div class="topbar-controls">
+    <div class="control-group" role="group" aria-label="Theme">
+      <b>Theme</b>
+      <button type="button" class="button-mini" data-theme-set="system" aria-pressed="true">System</button>
+      <button type="button" class="button-mini" data-theme-set="light" aria-pressed="false">Hell</button>
+      <button type="button" class="button-mini" data-theme-set="dark" aria-pressed="false">Dunkel</button>
+    </div>
+    <div class="control-group" role="group" aria-label="Accent">
+      <b>Accent</b>
+      <button type="button" class="button-mini" data-accent-set="violet" aria-pressed="true">Violett</button>
+      <button type="button" class="button-mini" data-accent-set="teal" aria-pressed="false">Türkis</button>
+      <button type="button" class="button-mini" data-accent-set="coral" aria-pressed="false">Koralle</button>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="motion-toggle">
+      <span>Simulate reduced motion</span>
+    </label>
+  </div>
+</header>
+
+<!-- MY PICK -------------------------------------------------- -->
+<section class="pick-strip" aria-label="My pick">
+  <div class="pick-row">
+    <b>Pending</b>
+    <button type="button" class="button-mini" data-pick="P" data-id="P1" aria-pressed="false">P1 Skeleton</button>
+    <button type="button" class="button-mini" data-pick="P" data-id="P2" aria-pressed="false">P2 Last known</button>
+    <button type="button" class="button-mini" data-pick="P" data-id="P3" aria-pressed="false">P3 Progressive</button>
+    <button type="button" class="button-mini" data-pick="P" data-id="P4" aria-pressed="false">P4 Today (…)</button>
+  </div>
+  <div class="pick-row">
+    <b>Settling</b>
+    <button type="button" class="button-mini" data-pick="S" data-id="S1" aria-pressed="false">S1 Underline</button>
+    <button type="button" class="button-mini" data-pick="S" data-id="S2" aria-pressed="false">S2 Shimmer</button>
+    <button type="button" class="button-mini" data-pick="S" data-id="S3" aria-pressed="false">S3 Marker</button>
+    <button type="button" class="button-mini" data-pick="S" data-id="S4" aria-pressed="false">S4 Colour</button>
+  </div>
+  <div class="pick-row">
+    <b>Fill</b>
+    <button type="button" class="button-mini" data-pick="F" data-id="F1" aria-pressed="false">F1 Sequential</button>
+    <button type="button" class="button-mini" data-pick="F" data-id="F2" aria-pressed="false">F2 Rings</button>
+    <button type="button" class="button-mini" data-pick="F" data-id="F3" aria-pressed="false">F3 Fade-in-place</button>
+  </div>
+  <div class="pick-row">
+    <b>My pick</b>
+    <output class="pick-readout" id="pick-readout" aria-live="polite">— + — + —</output>
+    <button type="button" class="button-mini" id="pick-reset">Reset</button>
+    <span class="hint">Answer with the IDs, e.g. &ldquo;P1 + S3 + F3&rdquo;. The chips are a note pad; nothing is preselected and nothing is recommended.</span>
+  </div>
+</section>
+
+<main class="workspace-page">
+
+  <!-- INTRO --------------------------------------------------- -->
+  <section class="workspace-section" aria-labelledby="h-intro">
+    <h2 id="h-intro">Two states, not one</h2>
+    <p>
+      A number that is not on screen yet is in one of two different situations, and they want
+      different affordances. <b>Pending</b> means the value is unknown: a query is running, the
+      valuation is being recomputed, and this lasts seconds. <b>Settling</b> means the value is
+      already known and is being drawn — the ~600&nbsp;ms count-up from DESIGN.md &rsaquo; Motion.
+      Today the app treats both as one thing: <code>…</code> for pending, nothing for settling.
+    </p>
+    <p>
+      Sections 2 and 3 offer separate vocabularies for those two states, section 4 for the
+      allocation sunburst, which is a third case again (many values landing over time rather than
+      one). Every option carries a stable ID. Pick one per section.
+    </p>
+    <p class="hint">
+      All figures are synthetic sample data. Inter and JetBrains Mono cannot be embedded offline,
+      so the system font stack stands in for both — judge the behaviour, not the letterforms.
+      Explanatory prose is English; strings inside the mock cards are German, as shipped.
+    </p>
+  </section>
+
+  <!-- SECTION 1 ----------------------------------------------- -->
+  <section class="workspace-section" aria-labelledby="h-s1">
+    <h2 id="h-s1">1 · The two states, demonstrated</h2>
+    <p>
+      One card, the full choreography, on a loop: pending for 3&nbsp;s, settling for 600&nbsp;ms,
+      then final. The proportions on the timeline are to scale. The point of this section is the
+      ratio — pending is where the user actually waits, settling is a flourish at the end.
+    </p>
+    <div class="choreo">
+      <article class="stat" id="choreo-card">
+        <span>Vermögen · Alles</span>
+        <div class="valrow">
+          <div class="moneybox">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong
+              ><span class="c-skel skel-text" aria-hidden="true">250.000,00 EUR</span
+              ><span class="c-num" hidden><span class="num">0,00</span> EUR</span
+            ></strong>
+            <div class="settle-bar" id="choreo-bar" aria-hidden="true"><i></i></div>
+          </div>
+        </div>
+        <small id="choreo-basis">Stand 04.08.2026 · 1.240 Buchungen</small>
+      </article>
+
+      <div style="display:grid; gap:var(--space-3);">
+        <div class="timeline" role="img" aria-label="Timeline: pending 3000 milliseconds, settling 600 milliseconds, then final">
+          <div class="tl-seg tl-pending"><span>Pending · 3000 ms</span></div>
+          <div class="tl-seg tl-settle"><span>600 ms</span></div>
+          <div class="tl-head" id="choreo-head"></div>
+        </div>
+        <p class="phase-readout" id="choreo-phase" role="status">Phase: <b>pending</b></p>
+        <div class="run-row">
+          <button type="button" id="choreo-replay">Replay</button>
+          <label class="switch"><input type="checkbox" id="choreo-loop" checked> <span>Loop</span></label>
+        </div>
+        <p class="caption">
+          The settling ornament drawn here is <b>S1</b> — an arbitrary stand-in so the phase is
+          visible at all. Which ornament to use is section 3's question.
+        </p>
+        <p class="caption">
+          <b>Reduced motion:</b> the loop is switched off (DESIGN.md forbids looping ambience),
+          the playhead jumps at the phase boundary instead of sweeping, and pending is a flat bar
+          with no shimmer. Settling collapses to zero duration — the number is simply final — so
+          the timeline reduces to &ldquo;3&nbsp;s of waiting, then the value&rdquo;. Press Replay to
+          run it once.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2 ----------------------------------------------- -->
+  <section class="workspace-section" aria-labelledby="h-s2">
+    <h2 id="h-s2">2 · Pending — value unknown, lasts seconds</h2>
+    <p>
+      All four cards are held permanently in the pending state so they can be compared side by
+      side. Same card, same label, same sample value behind it.
+    </p>
+
+    <div class="grid">
+      <!-- P1 -->
+      <article class="stat" aria-label="P1 typographic skeleton">
+        <span>Vermögen · Alles</span>
+        <div class="valrow">
+          <div class="moneybox">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong
+              ><span class="skel-text" aria-hidden="true">250.000,00 EUR</span
+              ><span class="visually-hidden">Wird berechnet</span
+            ></strong>
+          </div>
+        </div>
+        <small>Stand 04.08.2026 · 1.240 Buchungen</small>
+      </article>
+
+      <!-- P2 -->
+      <article class="stat" aria-label="P2 last known dimmed">
+        <span>Vermögen · Alles</span>
+        <div class="valrow">
+          <div class="moneybox">
+            <span class="ghost" aria-hidden="true">248.900,00 EUR</span>
+            <strong class="is-stale"><span class="num">248.900,00</span> EUR</strong>
+          </div>
+        </div>
+        <small class="cue"><span class="spinner" aria-hidden="true"></span>Letzter Stand 04.08.2026 · wird neu berechnet</small>
+      </article>
+
+      <!-- P3 -->
+      <article class="stat" aria-label="P3 progressive reveal">
+        <span>Vermögen · Alles</span>
+        <div class="valrow valrow--p3">
+          <div class="moneybox">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong>
+              <span class="numslot"><span class="ghost-inline" aria-hidden="true">250.000,00</span></span>
+              <span class="unit">EUR</span>
+              <span class="visually-hidden">Wird berechnet</span>
+            </strong>
+          </div>
+        </div>
+        <small>Stand 04.08.2026 · 1.240 Buchungen</small>
+      </article>
+
+      <!-- P4 -->
+      <article class="stat" aria-label="P4 current behaviour">
+        <span>Vermögen · Alles</span>
+        <div class="valrow">
+          <div class="moneybox">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong>…</strong>
+          </div>
+        </div>
+        <small>Stand 04.08.2026 · 1.240 Buchungen</small>
+      </article>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <caption class="visually-hidden">Pending options: what each costs to build and what it risks</caption>
+        <thead>
+          <tr><th scope="col">ID</th><th scope="col">What it is</th><th scope="col">Build cost (no bundler)</th><th scope="col">Risk</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="oid">P1</span></td>
+            <td><b>Typographic skeleton.</b> Shimmer bar exactly as wide and tall as the number it becomes; the label stays fully rendered.</td>
+            <td>Low. Pure CSS — <code>.section-skeleton</code>'s gradient already exists in app.css; this is the same keyframe at text size. The footprint comes from rendering the expected string with <code>color: transparent</code>, so no magic width constant.</td>
+            <td>The footprint is a guess until the value arrives; a 6-digit guess for a 9-digit value still shifts layout. Shimmer at 30&nbsp;px height is a large moving object on a calm surface — four of them on one row is busy.</td>
+          </tr>
+          <tr>
+            <td><span class="oid">P2</span></td>
+            <td><b>Last known, dimmed.</b> Previous value in <code>--color-text-muted</code> plus the proposed cue: spinner + <i>&ldquo;Letzter Stand … · wird neu berechnet&rdquo;</i>.</td>
+            <td>Low, where a prior value exists — the dashboard already carries <code>@stale_ttwror</code> for exactly this. Elsewhere it needs a stale cache that does not exist yet, per card.</td>
+            <td>A stale number that looks like a real number. Muted text is the only signal that it is not current, and muted text is also just… text. The date in the cue is load-bearing; if it is ever dropped, this option becomes a lie. Only available on repeat visits — first load falls back to another option, so a choice of P2 is really &ldquo;P2 plus one of the others&rdquo;.</td>
+          </tr>
+          <tr>
+            <td><span class="oid">P3</span></td>
+            <td><b>Progressive reveal.</b> Label and currency render immediately; the number slot stays empty with a thin indeterminate accent line along its baseline.</td>
+            <td>Low. One pseudo-element sweep, no JS. The reserved slot width has the same guess problem as P1.</td>
+            <td>The moving line sits where an underline would; it can read as a text decoration or a progress bar with a meaning it does not have. Quiet enough that a slow query might not look like anything is happening.</td>
+          </tr>
+          <tr>
+            <td><span class="oid">P4</span></td>
+            <td><b>Today's behaviour (control).</b> A bare <code>…</code> in the value slot, as <code>portfolio_live.ex</code> renders it now.</td>
+            <td>None. It is already built.</td>
+            <td>Indistinguishable from an error, an empty result, or a value that is genuinely unavailable — the same <code>…</code> for all three. No indication that anything is in flight, so a stuck query looks identical to a fast one. It is here as the baseline to beat, not as a non-option.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">
+      Reduced motion, all four: P1 becomes a flat <code>--color-bg-muted</code> bar (footprint intact,
+      no shimmer); P2's spinner becomes a static half-opacity ring, exactly as app.css already
+      defines; P3's baseline becomes a dashed accent line — dashed reads as indeterminate without
+      moving; P4 is unaffected because it never animated. Toggle the switch in the top bar.
+    </p>
+  </section>
+
+  <!-- SECTION 3 ----------------------------------------------- -->
+  <section class="workspace-section" aria-labelledby="h-s3">
+    <h2 id="h-s3">3 · Settling — final value known, count-up running ~600&nbsp;ms</h2>
+    <p>
+      All four count 0 → 250.000,00 EUR over 600&nbsp;ms with the same ease-out curve. Only the
+      ornament differs. Run them individually or all at once, as often as needed.
+    </p>
+    <div class="run-row">
+      <button type="button" id="run-all">Run all</button>
+      <span class="hint" id="s3-rm-note" hidden>Reduced motion is on: the value appears final immediately and no settling ornament exists — that is the fallback, not a bug.</span>
+    </div>
+
+    <div class="grid">
+      <!-- S1 -->
+      <article class="stat s1" id="card-s1" aria-label="S1 accent underline">
+        <span>Vermögen · Alles</span>
+        <div class="valrow">
+          <div class="moneybox">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong><span class="num">0,00</span> EUR</strong>
+            <div class="settle-bar" aria-hidden="true"><i></i></div>
+          </div>
+        </div>
+        <div class="run-row"><button type="button" class="button-mini" data-run="s1">Run</button></div>
+      </article>
+
+      <!-- S2 -->
+      <article class="stat s2" id="card-s2" aria-label="S2 digit shimmer">
+        <span>Vermögen · Alles</span>
+        <div class="valrow">
+          <div class="moneybox">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong><span class="num">0,00</span> EUR</strong>
+          </div>
+        </div>
+        <div class="run-row"><button type="button" class="button-mini" data-run="s2">Run</button></div>
+      </article>
+
+      <!-- S3 -->
+      <article class="stat s3" id="card-s3" aria-label="S3 pulsing marker">
+        <span>Vermögen · Alles</span>
+        <div class="valrow">
+          <div class="moneybox">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong><span class="num">0,00</span> EUR</strong>
+          </div>
+          <span class="pulse-dot" aria-hidden="true"></span>
+        </div>
+        <div class="run-row"><button type="button" class="button-mini" data-run="s3">Run</button></div>
+      </article>
+
+      <!-- S4 -->
+      <article class="stat s4" id="card-s4" aria-label="S4 colour resolve only">
+        <span>Vermögen · Alles</span>
+        <div class="valrow">
+          <div class="moneybox">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong><span class="num">0,00</span> EUR</strong>
+          </div>
+        </div>
+        <div class="run-row"><button type="button" class="button-mini" data-run="s4">Run</button></div>
+      </article>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <caption class="visually-hidden">Settling options and their drawbacks</caption>
+        <thead>
+          <tr><th scope="col">ID</th><th scope="col">What it is</th><th scope="col">Drawback</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="oid">S1</span></td>
+            <td><b>Accent underline.</b> Digits muted during the count; a 2&nbsp;px accent bar under the number grows 0 → full width and fades out on settle.</td>
+            <td>The bar looks like a determinate progress bar, and it is one — of the animation, not of the computation. If the count-up ever starts before the value is final, the bar becomes a false promise. Adds 2&nbsp;px + 6&nbsp;px of reserved height under every number, or the card shifts when it appears.</td>
+          </tr>
+          <tr>
+            <td><span class="oid">S2</span></td>
+            <td><b>Digit shimmer.</b> Digits at final colour with a soft accent sweep crossing the glyphs; the sweep stops on settle.</td>
+            <td>Needs <code>background-clip: text</code>, which means the digits are painted by a gradient and <code>color</code> is transparent for the duration — in any engine that fails the <code>@supports</code> test the digits would vanish, so the guard is mandatory. Legibility of a moving gradient on 30&nbsp;px numerals is the thing to judge here, especially in dark mode.</td>
+          </tr>
+          <tr>
+            <td><span class="oid">S3</span></td>
+            <td><b>Pulsing marker.</b> Digits at final colour; a small accent dot right of the value pulses during the count and disappears on settle.</td>
+            <td>The dot appears and then vanishes, which is a layout element with a 600&nbsp;ms lifetime — either reserve its width permanently or accept a small shift. A pulsing dot next to a number is also the conventional shape for &ldquo;live/streaming&rdquo;, which this is not.</td>
+          </tr>
+          <tr>
+            <td><span class="oid">S4</span></td>
+            <td><b>Colour resolve only.</b> Digits count up muted and transition to full accent on settle. No added element.</td>
+            <td>Nearly invisible on a fast machine — for 600&nbsp;ms the only difference is text colour, and muted-vs-accent is a subtle step. Colour alone as a state signal also has to survive the accent switch (coral at 30&nbsp;px passes, but the muted→coral delta is the weakest of the three accents).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Tabular numerals — the counter-example</h3>
+    <p>
+      Both cards below run the identical count-up. The left one is <code>tabular-nums</code>, as
+      <code>.stat strong</code> already specifies in app.css. The right one is
+      <code>proportional-nums</code>. Money is right-aligned and the dashed rule marks the final
+      number's left edge, so a wobbling left edge is the jitter.
+    </p>
+    <div class="grid">
+      <article class="stat s4" id="card-tab" aria-label="Tabular numerals control">
+        <span>Tabular (wie heute)</span>
+        <div class="valrow">
+          <div class="moneybox jitter-guide">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong><span class="num">0,00</span> EUR</strong>
+          </div>
+        </div>
+        <div class="run-row"><button type="button" class="button-mini" data-run="tab">Run</button></div>
+      </article>
+      <article class="stat s4 no-tabular" id="card-jit" aria-label="Proportional numerals counter-example">
+        <span>Proportional (Gegenprobe)</span>
+        <div class="valrow">
+          <div class="moneybox jitter-guide">
+            <span class="ghost" aria-hidden="true">250.000,00 EUR</span>
+            <strong><span class="num">0,00</span> EUR</strong>
+          </div>
+        </div>
+        <div class="run-row"><button type="button" class="button-mini" data-run="jit">Run</button></div>
+      </article>
+    </div>
+    <p class="caption">
+      Honest caveat: how much jitter you see depends on the font actually rendering this page.
+      Inter's default figures are proportional, so in the real app the difference is real and this
+      is what it looks like. Some system fallback fonts default to tabular figures, in which case
+      the right card will look almost identical here — the constraint still holds for the shipped
+      surface. Note also that both cards' left edge advances as digits are added; that is digit
+      count, not jitter. The jitter is the non-monotonic wobble at constant digit count.
+    </p>
+  </section>
+
+  <!-- SECTION 4 ----------------------------------------------- -->
+  <section class="workspace-section" aria-labelledby="h-s4">
+    <h2 id="h-s4">4 · Progressive sunburst fill</h2>
+    <p>
+      The allocation sunburst is the third case: eleven values landing over time rather than one.
+      Same simplified chart three times — three inner categories, eight leaves — with a different
+      arrival strategy each. Synthetic weights, chosen to sum to 100&nbsp;%.
+    </p>
+
+    <div class="fill-grid">
+      <div class="fill-card">
+        <div class="opt-head"><span class="oid">F1</span><h3>Sequential sweep</h3></div>
+        <svg class="donut sunburst" id="sb-f1" viewBox="0 0 200 200" role="img" aria-label="Sunburst, segments appearing clockwise"></svg>
+        <button type="button" class="button-mini" data-fill="f1">Replay</button>
+        <p class="caption">
+          Segments appear clockwise as their values arrive. Reads as a scan — you can see the chart
+          being assembled. <b>Drawback:</b> clockwise order is not the order data actually arrives
+          in, so the sweep is choreography pretending to be progress; and the last segment lands
+          ~1.1&nbsp;s in, which is long for a chart that is otherwise instant.
+        </p>
+      </div>
+
+      <div class="fill-card">
+        <div class="opt-head"><span class="oid">F2</span><h3>Rings resolve inward-out</h3></div>
+        <svg class="donut sunburst" id="sb-f2" viewBox="0 0 200 200" role="img" aria-label="Sunburst, inner ring resolving before the outer ring"></svg>
+        <button type="button" class="button-mini" data-fill="f2">Replay</button>
+        <p class="caption">
+          Inner ring first, then the outer. Matches the data's shape — parents are known before
+          children — and matches how the chart is read. <b>Drawback:</b> the intermediate frame is a
+          complete, plausible-looking three-segment donut, which is a different (wrong) chart for
+          ~400&nbsp;ms. Also the most obviously &ldquo;animated&rdquo; of the three.
+        </p>
+      </div>
+
+      <div class="fill-card">
+        <div class="opt-head"><span class="oid">F3</span><h3>Fade-in-place</h3></div>
+        <svg class="donut sunburst" id="sb-f3" viewBox="0 0 200 200" role="img" aria-label="Sunburst, ghost segments saturating in place"></svg>
+        <button type="button" class="button-mini" data-fill="f3">Replay</button>
+        <p class="caption">
+          All segments present as muted ghosts from the first frame; each saturates to its real
+          colour when its value lands. The final geometry is visible immediately, so nothing moves
+          and nothing reflows. <b>Drawback:</b> ghost segments already show the true proportions,
+          which means the layout is known before the values are — only honest if the geometry
+          really is known first. Ghost grey at low contrast is also close to the &ldquo;Unsorted&rdquo;
+          and &ldquo;excluded&rdquo; greys the real chart already uses.
+        </p>
+      </div>
+    </div>
+
+    <ul class="legend" id="sb-legend"></ul>
+    <p class="caption">
+      Reduced motion: all three render the finished chart on load and Replay is a no-op — no
+      stagger, no fade. Colours are the project category palette from
+      <code>portfolio_live.ex</code> (<code>#2563eb</code>, <code>#0d9488</code>,
+      <code>#d97706</code> and neighbouring shades for the children).
+    </p>
+    <div class="alert-warning">
+      <b>Sample data.</b> Every figure on this page is invented for the demo — 250.000,00&nbsp;EUR,
+      the weights below, the booking counts and dates. Nothing here comes from a real portfolio.
+    </div>
+  </section>
+
+  <section class="workspace-section">
+    <h2>How to answer</h2>
+    <p>
+      One ID per section, e.g. <b>&ldquo;P1 + S3 + F3&rdquo;</b>. Combinations are free — the three
+      states are independent, and picking P2 additionally implies a fallback choice from P1/P3/P4
+      for first loads. If none of a section's options fits, say so; a &ldquo;none of these, here is
+      what bothers me&rdquo; is a usable answer too.
+    </p>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var root = document.documentElement;
+  var $ = function (s, c) { return (c || document).querySelector(s); };
+  var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
+
+  var mqReduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function reduced() {
+    return root.getAttribute("data-motion") === "reduced" || !!(mqReduce && mqReduce.matches);
+  }
+
+  /* ---------- top bar controls ---------- */
+  $$("[data-theme-set]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var v = b.getAttribute("data-theme-set");
+      if (v === "system") { root.removeAttribute("data-theme"); }
+      else { root.setAttribute("data-theme", v); }
+      $$("[data-theme-set]").forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+    });
+  });
+
+  $$("[data-accent-set]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      root.setAttribute("data-accent", b.getAttribute("data-accent-set"));
+      $$("[data-accent-set]").forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+    });
+  });
+
+  var motionToggle = $("#motion-toggle");
+  motionToggle.addEventListener("change", function () {
+    if (motionToggle.checked) { root.setAttribute("data-motion", "reduced"); }
+    else { root.removeAttribute("data-motion"); }
+    onMotionChange();
+    // Switching motion back on restarts the section-1 loop, so the page does
+    // not sit on a frozen card after the comparison.
+    if (!reduced()) { $("#choreo-loop").checked = true; runChoreo(); }
+  });
+  if (mqReduce && mqReduce.addEventListener) { mqReduce.addEventListener("change", onMotionChange); }
+
+  function onMotionChange() {
+    $("#s3-rm-note").hidden = !reduced();
+    var loop = $("#choreo-loop");
+    loop.disabled = reduced();
+    if (reduced()) { loop.checked = false; }
+    stopChoreo();
+    resetChoreo();
+    fills.forEach(function (f) { f.render(); });
+  }
+
+  /* ---------- money formatting ---------- */
+  var nf = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var TARGET = 250000;
+  var SETTLE_MS = 600;
+  var PENDING_MS = 3000;
+
+  function easeOut(p) { return 1 - Math.pow(1 - p, 3); }
+
+  /* Count-up. Under reduced motion the final value is set immediately and
+     onDone fires synchronously, so no settling state ever exists. */
+  function countUp(el, to, ms, onProgress, onDone) {
+    if (reduced()) {
+      el.textContent = nf.format(to);
+      if (onProgress) { onProgress(1); }
+      if (onDone) { onDone(); }
+      return null;
+    }
+    var t0 = null, raf = null;
+    function step(now) {
+      if (t0 === null) { t0 = now; }
+      var p = Math.min(1, (now - t0) / ms);
+      var e = easeOut(p);
+      el.textContent = nf.format(to * e);
+      if (onProgress) { onProgress(e); }
+      if (p < 1) { raf = requestAnimationFrame(step); }
+      else if (onDone) { onDone(); }
+    }
+    raf = requestAnimationFrame(step);
+    return function () { if (raf) { cancelAnimationFrame(raf); } };
+  }
+
+  /* ---------- section 1: choreography ---------- */
+  var cCard = $("#choreo-card");
+  var cSkel = $(".c-skel", cCard);
+  var cNumWrap = $(".c-num", cCard);
+  var cNum = $(".c-num .num", cCard);
+  var cBar = $("#choreo-bar");
+  var cBarFill = $("#choreo-bar > i");
+  var cHead = $("#choreo-head");
+  var cPhase = $("#choreo-phase");
+  var TOTAL = PENDING_MS + SETTLE_MS;
+  var choreoTimers = [];
+  var choreoCancel = null;
+  var choreoRaf = null;
+
+  function stopChoreo() {
+    choreoTimers.forEach(clearTimeout);
+    choreoTimers = [];
+    if (choreoCancel) { choreoCancel(); choreoCancel = null; }
+    if (choreoRaf) { cancelAnimationFrame(choreoRaf); choreoRaf = null; }
+  }
+
+  function setHead(pct) { cHead.style.left = pct + "%"; }
+
+  function resetChoreo() {
+    cCard.classList.remove("is-settling", "muted-digits");
+    cSkel.hidden = false;
+    cNumWrap.hidden = true;
+    cNum.textContent = "0,00";
+    cBarFill.style.transform = "scaleX(0)";
+    setHead(0);
+    cPhase.innerHTML = "Phase: <b>pending</b>";
+  }
+
+  function runChoreo() {
+    stopChoreo();
+    resetChoreo();
+
+    if (!reduced()) {
+      var t0 = null;
+      var tick = function (now) {
+        if (t0 === null) { t0 = now; }
+        var el = now - t0;
+        if (el <= PENDING_MS) { setHead((el / TOTAL) * 100); choreoRaf = requestAnimationFrame(tick); }
+        else { choreoRaf = null; }
+      };
+      choreoRaf = requestAnimationFrame(tick);
+    }
+
+    choreoTimers.push(setTimeout(function () {
+      if (choreoRaf) { cancelAnimationFrame(choreoRaf); choreoRaf = null; }
+      setHead((PENDING_MS / TOTAL) * 100);
+      cSkel.hidden = true;
+      cNumWrap.hidden = false;
+      cCard.classList.add("is-settling", "muted-digits");
+      cPhase.innerHTML = "Phase: <b>settling</b>";
+      choreoCancel = countUp(cNum, TARGET, SETTLE_MS,
+        function (p) {
+          cBarFill.style.transform = "scaleX(" + p + ")";
+          if (!reduced()) { setHead(((PENDING_MS + SETTLE_MS * p) / TOTAL) * 100); }
+        },
+        function () {
+          setHead(100);
+          cCard.classList.remove("is-settling", "muted-digits");
+          cPhase.innerHTML = "Phase: <b>final</b>";
+          if ($("#choreo-loop").checked && !reduced()) {
+            choreoTimers.push(setTimeout(runChoreo, 1100));
+          }
+        });
+    }, PENDING_MS));
+  }
+
+  $("#choreo-replay").addEventListener("click", runChoreo);
+  $("#choreo-loop").addEventListener("change", function () {
+    if (this.checked && !reduced()) { runChoreo(); }
+  });
+
+  /* ---------- section 3: settling options ---------- */
+  var s3Cancels = {};
+
+  function runSettle(key) {
+    var card = $("#card-" + key);
+    if (!card) { return; }
+    var num = $(".num", card);
+    var bar = $(".settle-bar", card);
+    var fill = bar ? $("i", bar) : null;
+
+    if (s3Cancels[key]) { s3Cancels[key](); s3Cancels[key] = null; }
+
+    num.textContent = "0,00";
+    if (fill) { fill.style.transform = "scaleX(0)"; }
+    // S1 and S4 (and the two jitter controls, which reuse S4) mute the digits
+    // while settling; S2 and S3 keep the final colour throughout.
+    if (key === "s1" || key === "s4" || key === "tab" || key === "jit") {
+      card.classList.add("muted-digits");
+    }
+    card.classList.add("is-settling");
+
+    s3Cancels[key] = countUp(num, TARGET, SETTLE_MS,
+      function (p) { if (fill) { fill.style.transform = "scaleX(" + p + ")"; } },
+      function () {
+        card.classList.remove("is-settling", "muted-digits");
+        s3Cancels[key] = null;
+      });
+  }
+
+  $$("[data-run]").forEach(function (b) {
+    b.addEventListener("click", function () { runSettle(b.getAttribute("data-run")); });
+  });
+  $("#run-all").addEventListener("click", function () {
+    ["s1", "s2", "s3", "s4", "tab", "jit"].forEach(runSettle);
+  });
+
+  /* ---------- section 4: sunburst ---------- */
+  // Synthetic allocation. Weights sum to 100.
+  var DATA = [
+    { name: "Aktien", weight: 50, color: "#2563eb", children: [
+      { name: "Welt", weight: 25, color: "#1d4ed8" },
+      { name: "Europa", weight: 15, color: "#2563eb" },
+      { name: "Schwellenländer", weight: 10, color: "#3b82f6" }
+    ]},
+    { name: "Anleihen", weight: 30, color: "#0d9488", children: [
+      { name: "Staat", weight: 12, color: "#0f766e" },
+      { name: "Unternehmen", weight: 10, color: "#0d9488" },
+      { name: "Inflationsindexiert", weight: 8, color: "#0891b2" }
+    ]},
+    { name: "Liquidität", weight: 20, color: "#d97706", children: [
+      { name: "Tagesgeld", weight: 12, color: "#b45309" },
+      { name: "Festgeld", weight: 8, color: "#d97706" }
+    ]}
+  ];
+
+  var CX = 100, CY = 100;
+  var R_IN0 = 34, R_IN1 = 58, R_OUT0 = 62, R_OUT1 = 92;
+
+  function polar(r, deg) {
+    var rad = (deg - 90) * Math.PI / 180;
+    return [(CX + r * Math.cos(rad)).toFixed(2), (CY + r * Math.sin(rad)).toFixed(2)];
+  }
+
+  function annulus(r0, r1, a0, a1) {
+    var p0 = polar(r1, a0), p1 = polar(r1, a1), p2 = polar(r0, a1), p3 = polar(r0, a0);
+    var large = (a1 - a0) > 180 ? 1 : 0;
+    return "M" + p0[0] + " " + p0[1] +
+      "A" + r1 + " " + r1 + " 0 " + large + " 1 " + p1[0] + " " + p1[1] +
+      "L" + p2[0] + " " + p2[1] +
+      "A" + r0 + " " + r0 + " 0 " + large + " 0 " + p3[0] + " " + p3[1] + "Z";
+  }
+
+  // Flat segment list with ring + clockwise start angle.
+  var SEGMENTS = (function () {
+    var out = [], a = 0;
+    DATA.forEach(function (grp) {
+      var gStart = a, gEnd = a + grp.weight * 3.6;
+      out.push({ ring: 0, a0: gStart, a1: gEnd, color: grp.color, name: grp.name, weight: grp.weight });
+      var ca = gStart;
+      grp.children.forEach(function (ch) {
+        var cEnd = ca + ch.weight * 3.6;
+        out.push({ ring: 1, a0: ca, a1: cEnd, color: ch.color, name: ch.name, weight: ch.weight, parent: grp.name });
+        ca = cEnd;
+      });
+      a = gEnd;
+    });
+    return out;
+  })();
+
+  var NS = "http://www.w3.org/2000/svg";
+
+  function buildChart(svgId, withTrack) {
+    var svg = document.getElementById(svgId);
+    while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+    var nodes = [];
+
+    if (withTrack) {
+      var track = document.createElementNS(NS, "g");
+      SEGMENTS.forEach(function (s) {
+        var p = document.createElementNS(NS, "path");
+        p.setAttribute("class", "seg-track");
+        p.setAttribute("d", annulus(s.ring === 0 ? R_IN0 : R_OUT0, s.ring === 0 ? R_IN1 : R_OUT1, s.a0, s.a1));
+        track.appendChild(p);
+      });
+      svg.appendChild(track);
+    }
+
+    SEGMENTS.forEach(function (s, i) {
+      var p = document.createElementNS(NS, "path");
+      p.setAttribute("class", "sunburst-seg");
+      p.setAttribute("fill", s.color);
+      p.setAttribute("d", annulus(s.ring === 0 ? R_IN0 : R_OUT0, s.ring === 0 ? R_IN1 : R_OUT1, s.a0, s.a1));
+      var t = document.createElementNS(NS, "title");
+      t.textContent = s.name + " · " + s.weight + " %";
+      p.appendChild(t);
+      svg.appendChild(p);
+      nodes.push({ el: p, seg: s, index: i });
+    });
+    return nodes;
+  }
+
+  function makeFill(svgId, mode) {
+    var withTrack = mode === "f3";
+    var nodes = buildChart(svgId, withTrack);
+    var timers = [];
+
+    function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+    function setHidden(n) {
+      if (mode === "f3") { n.el.style.opacity = "1"; n.el.style.fillOpacity = "0"; }
+      else { n.el.style.opacity = "0"; n.el.style.fillOpacity = "1"; }
+    }
+    function setShown(n) { n.el.style.opacity = "1"; n.el.style.fillOpacity = "1"; }
+
+    function order() {
+      if (mode === "f1") {
+        // clockwise by start angle; inner before outer on ties
+        return nodes.slice().sort(function (a, b) {
+          return (a.seg.a0 - b.seg.a0) || (a.seg.ring - b.seg.ring);
+        }).map(function (n, i) { return { n: n, delay: i * 100 }; });
+      }
+      if (mode === "f2") {
+        var inner = nodes.filter(function (n) { return n.seg.ring === 0; });
+        var outer = nodes.filter(function (n) { return n.seg.ring === 1; });
+        var list = [];
+        inner.forEach(function (n, i) { list.push({ n: n, delay: i * 110 }); });
+        outer.forEach(function (n, i) { list.push({ n: n, delay: 700 + i * 90 }); });
+        return list;
+      }
+      // f3: fixed scattered arrival order — values do not land in chart order
+      var scatter = [4, 0, 9, 2, 6, 1, 10, 5, 3, 8, 7];
+      return scatter.map(function (idx, i) { return { n: nodes[idx % nodes.length], delay: i * 130 }; });
+    }
+
+    function render() {
+      clearTimers();
+      if (reduced()) { nodes.forEach(setShown); return; }
+      nodes.forEach(setHidden);
+      order().forEach(function (item) {
+        timers.push(setTimeout(function () { setShown(item.n); }, item.delay + 60));
+      });
+    }
+
+    return { render: render };
+  }
+
+  var fills = [];
+  fills.push(makeFill("sb-f1", "f1"));
+  fills.push(makeFill("sb-f2", "f2"));
+  fills.push(makeFill("sb-f3", "f3"));
+  var fillByKey = { f1: fills[0], f2: fills[1], f3: fills[2] };
+
+  $$("[data-fill]").forEach(function (b) {
+    b.addEventListener("click", function () { fillByKey[b.getAttribute("data-fill")].render(); });
+  });
+
+  // Shared legend
+  (function () {
+    var ul = $("#sb-legend");
+    DATA.forEach(function (g) {
+      var li = document.createElement("li");
+      li.innerHTML = '<span class="cat-swatch" style="background:' + g.color + '"></span>' +
+        '<span class="lg-name"><b>' + g.name + '</b></span>' +
+        '<span class="lg-val">' + g.weight + ' %</span>';
+      ul.appendChild(li);
+      g.children.forEach(function (c) {
+        var cli = document.createElement("li");
+        cli.className = "lg-child";
+        cli.innerHTML = '<span class="cat-swatch" style="background:' + c.color + '"></span>' +
+          '<span class="lg-name">' + c.name + '</span>' +
+          '<span class="lg-val">' + c.weight + ' %</span>';
+        ul.appendChild(cli);
+      });
+    });
+  })();
+
+  /* ---------- my pick ---------- */
+  var pick = { P: null, S: null, F: null };
+  function renderPick() {
+    $("#pick-readout").textContent = (pick.P || "—") + " + " + (pick.S || "—") + " + " + (pick.F || "—");
+  }
+  $$("[data-pick]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var group = b.getAttribute("data-pick"), id = b.getAttribute("data-id");
+      pick[group] = pick[group] === id ? null : id;
+      $$('[data-pick="' + group + '"]').forEach(function (o) {
+        o.setAttribute("aria-pressed", String(o.getAttribute("data-id") === pick[group]));
+      });
+      renderPick();
+    });
+  });
+  $("#pick-reset").addEventListener("click", function () {
+    pick = { P: null, S: null, F: null };
+    $$("[data-pick]").forEach(function (o) { o.setAttribute("aria-pressed", "false"); });
+    renderPick();
+  });
+
+  /* ---------- boot ---------- */
+  onMotionChange();
+  if (!reduced()) { runChoreo(); } else { resetChoreo(); }
+})();
+</script>
+</body>
+</html>
