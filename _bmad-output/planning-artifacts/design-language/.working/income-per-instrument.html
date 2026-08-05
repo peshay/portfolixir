@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolixir — Erträge je Instrument: Entwurfsvarianten I1–I4</title>
+<style>
+/* ------------------------------------------------------------------
+   Tokens copied verbatim from priv/static/app.css (:root, the
+   prefers-color-scheme block, and the [data-theme] / [data-accent]
+   overrides). No invented palette values.
+   ------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+  /* Inter / JetBrains Mono are not loaded here (no external requests);
+     the system stack stands in for both. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --color-accent-violet: #7c3aed;
+  --color-accent-violet-soft: #ede9fe;
+  --color-accent-teal: #0f766e;
+  --color-accent-teal-soft: #ccfbf1;
+  --color-accent-coral: #e11d48;
+  --color-accent-coral-soft: #ffe4e6;
+  --color-accent: var(--color-accent-violet);
+  --color-accent-soft: var(--color-accent-violet-soft);
+  --color-positive: #047857;
+  --color-danger: #dc2626;
+  --color-warning: #b45309;
+  --color-bg: #f6f7fa;
+  --color-bg-elevated: #ffffff;
+  --color-bg-muted: #eef1f6;
+  --color-border: #e4e8ef;
+  --color-border-strong: #cdd4df;
+  --color-hover: #f0f3f8;
+  --color-selected: #ede9fe;
+  --color-text: #0e141b;
+  --color-text-muted: #5a6577;
+  --color-text-soft: #8b7f9f;
+  --color-text-subtle: #94a0b4;
+  --color-chart-surface: #ffffff;
+  --color-on-accent: #ffffff;
+  --color-warning-soft: #fffbeb;
+  --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
+  --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-7: 32px; --space-8: 48px;
+  --text-h1-size: clamp(28px, 4vw, 42px);
+  --text-h1-weight: 780;
+  --text-h2-size: 20px;
+  --text-h2-weight: 700;
+  --text-h3-size: 16px;
+  --text-h3-weight: 680;
+  --density-font-size: 13px;
+  --density-line-height: 1.4;
+  --topbar-height: 52px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-accent-violet: #a78bfa;
+    --color-accent-violet-soft: rgb(167 139 250 / 0.16);
+    --color-accent-teal: #2dd4bf;
+    --color-accent-teal-soft: rgb(45 212 191 / 0.16);
+    --color-accent-coral: #fb7185;
+    --color-accent-coral-soft: rgb(225 29 72 / 0.16);
+    --color-positive: #34d399;
+    --color-danger: #fb7185;
+    --color-warning: #fbbf24;
+    --color-bg: #0b0f14;
+    --color-bg-elevated: #131a23;
+    --color-bg-muted: #1a2230;
+    --color-border: #222b38;
+    --color-border-strong: #2d3848;
+    --color-hover: #1b2533;
+    --color-selected: #1f2c42;
+    --color-text: #e6eaf1;
+    --color-text-muted: #8b97a8;
+    --color-text-soft: #c4b5fd;
+    --color-text-subtle: #5c667a;
+    --color-chart-surface: #131a23;
+    --color-warning-soft: rgb(180 83 9 / 0.16);
+    --shadow-panel: 0 18px 44px rgb(0 0 0 / 0.32);
+    --shadow-md: 0 10px 28px rgb(0 0 0 / 0.5);
+  }
+}
+/* Manual override wins over prefers-color-scheme in BOTH directions. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-accent-violet: #7c3aed;
+  --color-accent-violet-soft: #ede9fe;
+  --color-accent-teal: #0f766e;
+  --color-accent-teal-soft: #ccfbf1;
+  --color-accent-coral: #e11d48;
+  --color-accent-coral-soft: #ffe4e6;
+  --color-positive: #047857;
+  --color-danger: #dc2626;
+  --color-warning: #b45309;
+  --color-bg: #f6f7fa;
+  --color-bg-elevated: #ffffff;
+  --color-bg-muted: #eef1f6;
+  --color-border: #e4e8ef;
+  --color-border-strong: #cdd4df;
+  --color-hover: #f0f3f8;
+  --color-selected: #ede9fe;
+  --color-text: #0e141b;
+  --color-text-muted: #5a6577;
+  --color-text-soft: #8b7f9f;
+  --color-text-subtle: #94a0b4;
+  --color-chart-surface: #ffffff;
+  --color-warning-soft: #fffbeb;
+  --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
+  --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-accent-violet: #a78bfa;
+  --color-accent-violet-soft: rgb(167 139 250 / 0.16);
+  --color-accent-teal: #2dd4bf;
+  --color-accent-teal-soft: rgb(45 212 191 / 0.16);
+  --color-accent-coral: #fb7185;
+  --color-accent-coral-soft: rgb(225 29 72 / 0.16);
+  --color-positive: #34d399;
+  --color-danger: #fb7185;
+  --color-warning: #fbbf24;
+  --color-bg: #0b0f14;
+  --color-bg-elevated: #131a23;
+  --color-bg-muted: #1a2230;
+  --color-border: #222b38;
+  --color-border-strong: #2d3848;
+  --color-hover: #1b2533;
+  --color-selected: #1f2c42;
+  --color-text: #e6eaf1;
+  --color-text-muted: #8b97a8;
+  --color-text-soft: #c4b5fd;
+  --color-text-subtle: #5c667a;
+  --color-chart-surface: #131a23;
+  --color-warning-soft: rgb(180 83 9 / 0.16);
+  --shadow-panel: 0 18px 44px rgb(0 0 0 / 0.32);
+  --shadow-md: 0 10px 28px rgb(0 0 0 / 0.5);
+}
+[data-accent="violet"] { --color-accent: var(--color-accent-violet); --color-accent-soft: var(--color-accent-violet-soft); }
+[data-accent="teal"]   { --color-accent: var(--color-accent-teal);   --color-accent-soft: var(--color-accent-teal-soft); }
+[data-accent="coral"]  { --color-accent: var(--color-accent-coral);  --color-accent-soft: var(--color-accent-coral-soft); }
+
+* { box-sizing: border-box; }
+html { min-height: 100%; background: var(--color-bg); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0; min-width: 320px;
+  color: var(--color-text); background: var(--color-bg);
+  font-family: var(--font-sans);
+  font-size: var(--density-font-size);
+  line-height: var(--density-line-height);
+}
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ============ document chrome (not product surface) ============ */
+.doc { max-width: 1180px; margin: 0 auto; padding: var(--space-6) var(--space-5) var(--space-8); }
+.doc-head { display: grid; gap: var(--space-3); padding-bottom: var(--space-5); border-bottom: 1px solid var(--color-border); }
+.doc-head h1 { margin: 0; font-size: var(--text-h1-size); font-weight: var(--text-h1-weight); line-height: 1.1; }
+.doc-head p { margin: 0; color: var(--color-text-muted); max-width: 74ch; }
+.doc-flags { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.flag {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.03em; text-transform: uppercase;
+  background: var(--color-bg-muted); color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+.flag--warn { background: var(--color-warning-soft); color: var(--color-warning); border-color: color-mix(in srgb, var(--color-warning) 32%, transparent); }
+.toolbar { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin-left: auto; }
+.toolbar__group { display: flex; align-items: center; gap: var(--space-2); }
+.toolbar__label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); }
+.seg-btn { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; background: var(--color-bg-elevated); }
+.seg-btn button { border: 0; background: transparent; color: var(--color-text-muted); padding: 5px 10px; font-size: 12px; cursor: pointer; }
+.seg-btn button + button { border-left: 1px solid var(--color-border); }
+.seg-btn button[aria-pressed="true"] { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
+
+.question { margin: var(--space-6) 0 0; padding: var(--space-4) var(--space-5); border-left: 3px solid var(--color-accent); background: var(--color-bg-elevated); border-radius: 0 var(--radius-md) var(--radius-md) 0; box-shadow: var(--shadow-sm); }
+.question h2 { margin: 0 0 var(--space-2); font-size: var(--text-h3-size); font-weight: var(--text-h3-weight); }
+.question p { margin: 0 0 var(--space-2); max-width: 84ch; color: var(--color-text-muted); }
+.question p:last-child { margin-bottom: 0; }
+.question strong { color: var(--color-text); }
+
+.pick { margin: var(--space-5) 0 0; padding: var(--space-4) var(--space-5); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.pick h2 { margin: 0 0 var(--space-3); font-size: var(--text-h3-size); font-weight: var(--text-h3-weight); }
+.pick__row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pick__btn {
+  display: grid; gap: 2px; text-align: left; min-width: 190px; flex: 1 1 190px;
+  padding: var(--space-3); cursor: pointer;
+  background: var(--color-bg); color: var(--color-text);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+}
+.pick__btn b { font-size: 13px; }
+.pick__btn span { font-size: 12px; color: var(--color-text-muted); }
+.pick__btn:hover { background: var(--color-hover); }
+.pick__btn[aria-pressed="true"] { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.pick__btn[aria-pressed="true"] b { color: var(--color-accent); }
+.pick__note { margin: var(--space-3) 0 0; font-size: 12px; color: var(--color-text-muted); }
+
+.opt { margin-top: var(--space-8); }
+.opt > h2 { margin: 0 0 var(--space-2); font-size: var(--text-h2-size); font-weight: var(--text-h2-weight); scroll-margin-top: var(--space-4); }
+.opt > h2 .opt-id { display: inline-block; min-width: 2.2em; color: var(--color-accent); font-family: var(--font-mono); }
+.opt-caption { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--space-3); margin: 0 0 var(--space-4); }
+.opt-caption > div { padding: var(--space-3); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.opt-caption dt { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); font-weight: 600; }
+.opt-caption dd { margin: var(--space-1) 0 0; color: var(--color-text); }
+
+/* ============ mock browser frame ============ */
+.mockframe { border: 1px solid var(--color-border-strong); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-panel); background: var(--color-bg); }
+.mockframe__bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--color-bg-muted); border-bottom: 1px solid var(--color-border); }
+.mockframe__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--color-border-strong); }
+.mockframe__url { margin-left: var(--space-3); font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted); }
+.mockframe__body { background: var(--color-bg); }
+
+/* ============ product surface — rules copied from app.css ============ */
+.workspace-page { display: grid; min-width: 0; align-content: start; background: var(--color-bg); }
+.workspace-section {
+  display: grid; min-width: 0; gap: var(--space-4);
+  padding: clamp(18px, 2.4vw, 28px) clamp(14px, 2.4vw, 28px);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg-elevated) 94%, transparent);
+}
+.workspace-section:last-child { border-bottom: 0; }
+.workspace-section > table { width: 100%; }
+.workspace-section h2 { margin: 0; color: var(--color-text); line-height: 1.15; font-size: var(--text-h2-size); font-weight: var(--text-h2-weight); }
+.workspace-section h3 { margin: 0; color: var(--color-text); line-height: 1.15; font-size: var(--text-h3-size); font-weight: var(--text-h3-weight); }
+.muted { color: var(--color-text-muted); }
+.hint { font-size: 0.8rem; color: var(--color-text-muted); margin: 0.2rem 0 0; }
+.empty-state { margin: 0; text-align: center; color: var(--color-text-muted); padding: 12px 14px; border-radius: var(--radius-md); background: var(--color-bg-muted); border: 1px dashed var(--color-border-strong); }
+.workspace-section p { margin: 0; }
+
+.area-tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--color-border); margin: 0 clamp(14px, 2.4vw, 28px); overflow-x: auto; }
+.area-tab { padding: 0.45rem 0.8rem; color: var(--color-text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.area-tab:hover, .area-tab:focus-visible { color: var(--color-text); }
+.area-tab.is-active { color: var(--color-accent); border-bottom-color: var(--color-accent); font-weight: 600; }
+
+.data-table-wrapper { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+.data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; background: var(--color-bg-elevated); }
+.data-table thead th {
+  text-align: left; font-weight: 600; font-size: 11px; color: var(--color-text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 7px 9px;
+  background: color-mix(in srgb, var(--color-bg-muted) 84%, var(--color-bg-elevated));
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+.data-table thead th:last-child { border-right: 0; }
+.data-table tbody td {
+  padding: 7px 9px; border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid color-mix(in srgb, var(--color-border) 58%, transparent);
+  color: var(--color-text); vertical-align: middle;
+}
+.data-table tbody td:last-child { border-right: 0; }
+.data-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--color-bg-muted) 24%, transparent); }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:hover td { background: var(--color-hover); }
+/* NOTE: app.css has no generic `.data-table .num` rule today — the live income
+   table marks money cells `class="num"` but nothing right-aligns them. Money is
+   right-aligned and tabular here per the design rule; shipping any of these
+   options means adding this rule. */
+.data-table th.num, .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table tbody tr.is-total td { font-weight: 700; background: var(--color-bg-muted); }
+
+.button-ghost { font: inherit; cursor: pointer; border-radius: var(--radius-md); padding: 6px 12px; font-size: 13px; background: transparent; border: 1px solid var(--color-border); color: var(--color-text); }
+.button-ghost:hover { background: var(--color-hover); }
+
+/* Income chart — .income-* rules copied from app.css */
+.income-chart { margin-bottom: var(--space-4); }
+.income-bars { width: 100%; height: 140px; display: block; }
+.income-bar { fill: var(--color-accent); }
+.income-bar-labels { display: flex; justify-content: space-around; margin-top: var(--space-1); font-size: 12px; font-variant-numeric: tabular-nums; }
+.income-bar-label { display: flex; flex-direction: column; align-items: center; text-align: center; border: 0; background: none; cursor: pointer; color: inherit; font: inherit; padding: var(--space-1); border-radius: var(--radius-sm); }
+.income-bar-label:hover { background: var(--color-hover); }
+.income-bar-label.is-active { color: var(--color-accent); }
+.contributor-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.contributor-row { display: flex; justify-content: space-between; gap: var(--space-3); align-items: baseline; }
+.contributor-figures { font-variant-numeric: tabular-nums; }
+
+/* Chart-as-table disclosure (UX-DR10), following the .perf-table-disclosure shape */
+.workspace-section > details { min-width: 0; }
+details.chart-data > summary { cursor: pointer; font-size: 12px; color: var(--color-text-muted); }
+details.chart-data > summary:hover { color: var(--color-text); }
+details.chart-data > .data-table-wrapper { margin-top: var(--space-2); }
+
+/* ============ NEW: I1 sparkline column ============ */
+.spark-cell { white-space: nowrap; }
+.spark { display: inline-block; vertical-align: middle; overflow: visible; }
+.spark-line { fill: none; stroke: var(--color-accent); stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
+.spark-line--partial { stroke-dasharray: 2.5 2; }
+.spark-dot { fill: var(--color-accent); }
+.spark-lonely { fill: none; stroke: var(--color-accent); stroke-width: 1.4; }
+.spark-nodata { stroke: var(--color-text-subtle); stroke-width: 1; stroke-dasharray: 1 2.5; }
+.spark-flag { display: inline-block; margin-left: var(--space-2); padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; color: var(--color-text-muted); background: var(--color-bg-muted); border: 1px solid var(--color-border); vertical-align: middle; }
+
+/* ============ NEW: I2 stacked segments ============ */
+/* One accent only. Six tints of the active accent plus a neutral for
+   "Sonstige"; every second segment additionally carries an SVG texture so
+   neighbouring tints stay separable without a second hue (UX-DR7). */
+.seg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.stack-chart { width: 100%; height: auto; display: block; background: var(--color-chart-surface); border-radius: var(--radius-md); }
+.stack-chart .grid { stroke: var(--color-border); stroke-width: 1; }
+.stack-chart .axis-line { stroke: var(--color-border-strong); stroke-width: 1; }
+.stack-chart .axis { fill: var(--color-text-muted); font-size: 10px; font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
+.stack-chart .axis--year { fill: var(--color-text); font-size: 12px; font-weight: 600; }
+.stack-chart .axis--total { font-size: 10px; }
+.stack-chart .seg-fill { stroke: var(--color-chart-surface); stroke-width: 0.75; }
+.tex-stroke { stroke: var(--color-accent); stroke-width: 1.1; opacity: 0.55; }
+.tex-fill { fill: var(--color-accent); opacity: 0.5; }
+.seg-1 .seg-fill { fill: var(--color-accent); }
+.seg-2 .seg-fill { fill: color-mix(in srgb, var(--color-accent) 80%, var(--color-bg-elevated)); }
+.seg-3 .seg-fill { fill: color-mix(in srgb, var(--color-accent) 62%, var(--color-bg-elevated)); }
+.seg-4 .seg-fill { fill: color-mix(in srgb, var(--color-accent) 46%, var(--color-bg-elevated)); }
+.seg-5 .seg-fill { fill: color-mix(in srgb, var(--color-accent) 32%, var(--color-bg-elevated)); }
+.seg-6 .seg-fill { fill: color-mix(in srgb, var(--color-accent) 22%, var(--color-bg-elevated)); }
+.seg-other .seg-fill { fill: color-mix(in srgb, var(--color-text-muted) 38%, var(--color-bg-elevated)); }
+.seg-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--space-1) var(--space-4); }
+.seg-legend__item { display: flex; align-items: center; gap: var(--space-2); font-size: 12px; }
+.seg-swatch { flex: 0 0 auto; border-radius: 2px; }
+.seg-swatch .seg-fill { stroke: var(--color-border); stroke-width: 1; }
+.seg-legend__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seg-legend__value { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
+
+/* ============ NEW: I3 filter control ============ */
+.income-filter { display: grid; gap: var(--space-3); }
+.income-filter__head { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.income-filter__search { flex: 1 1 220px; min-width: 0; padding: 6px 10px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-bg-elevated); color: var(--color-text); }
+.income-filter__state { font-size: 12px; color: var(--color-text-muted); }
+.income-filter__state strong { color: var(--color-accent); }
+.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; cursor: pointer;
+  background: var(--color-bg-elevated); border: 1px solid var(--color-border); color: var(--color-text-muted);
+}
+.chip:hover { background: var(--color-hover); color: var(--color-text); }
+.chip[aria-pressed="true"] { background: var(--color-selected); border-color: var(--color-accent); color: var(--color-accent); font-weight: 600; }
+.chip[aria-pressed="true"]::before { content: "\2713"; font-size: 11px; }
+.chip__count { font-variant-numeric: tabular-nums; opacity: 0.7; }
+.income-bar-ghost { fill: var(--color-accent); opacity: 0.14; }
+.filter-state { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); }
+.filter-state > h3 { margin: 0; }
+.filter-state__meta { font-size: 12px; color: var(--color-text-muted); }
+.filter-states { display: grid; gap: var(--space-4); }
+
+.footnotes { margin-top: var(--space-8); padding-top: var(--space-5); border-top: 1px solid var(--color-border); color: var(--color-text-muted); }
+.footnotes h2 { font-size: var(--text-h3-size); font-weight: var(--text-h3-weight); margin: 0 0 var(--space-2); color: var(--color-text); }
+.footnotes ul { margin: 0; padding-left: 1.2em; }
+.footnotes li + li { margin-top: var(--space-1); }
+
+/* Every animated property is gated (UX-DR5). */
+@media (prefers-reduced-motion: no-preference) {
+  .pick__btn, .chip, .seg-btn button, .income-bar-label, .area-tab { transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease; }
+}
+@media (pointer: coarse) {
+  .chip, .seg-btn button, .pick__btn, .button-ghost, details.chart-data > summary { min-height: 44px; display: inline-flex; align-items: center; }
+  .pick__btn { display: grid; min-height: 44px; }
+}
+@media (max-width: 720px) {
+  .doc { padding: var(--space-4) var(--space-3) var(--space-7); }
+  .toolbar { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<main class="doc">
+<header class="doc-head">
+<h1>Erträge je Instrument — I1 bis I4</h1>
+<p>Four mockups of the same decision, rendered as they would appear inside <code>/income</code>. Nothing here is ranked and nothing is recommended: pick by ID.</p>
+<div class="doc-flags">
+<span class="flag flag--warn">Synthetic data only</span>
+<span class="flag">Mockup · not implemented</span>
+<span class="flag">Inter / JetBrains Mono substituted by the system stack</span>
+<div class="toolbar">
+<div class="toolbar__group"><span class="toolbar__label">Theme</span><span class="seg-btn"><button type="button" data-theme-btn data-value="system" aria-pressed="true">System</button><button type="button" data-theme-btn data-value="light" aria-pressed="false">Light</button><button type="button" data-theme-btn data-value="dark" aria-pressed="false">Dark</button></span></div>
+<div class="toolbar__group"><span class="toolbar__label">Accent</span><span class="seg-btn"><button type="button" data-accent-btn data-value="violet" aria-pressed="true">Violet</button><button type="button" data-accent-btn data-value="teal" aria-pressed="false">Teal</button><button type="button" data-accent-btn data-value="coral" aria-pressed="false">Coral</button></span></div>
+</div>
+</div>
+</header>
+<section class="question">
+<h2>The question being decided</h2>
+<p><strong>Should <code>/income</code> break income down per instrument, and if so, how?</strong> Today the page answers <em>how much came in, and when</em> (annual bars, year × month matrix) and <em>who paid the most, all time</em> (top-5 list, per-position table). It does not answer <em>how one instrument's income developed over time</em>, nor <em>what a given year is made of</em>.</p>
+<p>Available data is unchanged in every option: <code>Portfolixir.Portfolios.Income</code> already returns every <code>dividend</code> and <code>interest</code> entry with <code>security_id</code>, date, gross, withheld tax and net. No new query, no new source. What differs is presentation cost and what each presentation hides.</p>
+<p>Constraints every option is drawn under: server-rendered inline SVG (no bundler, no charting library), one accent active at a time, chart data always also reachable as a table (UX-DR10).</p>
+</section>
+<section class="pick">
+<h2>My pick</h2>
+<div class="pick__row">
+<button type="button" class="pick__btn" aria-pressed="false"><b>I1</b><span>Sparkline column in the per-position table</span></button>
+<button type="button" class="pick__btn" aria-pressed="false"><b>I2</b><span>Stacked bars, top 6 plus &bdquo;Sonstige&ldquo;</span></button>
+<button type="button" class="pick__btn" aria-pressed="false"><b>I3</b><span>Instrument filter on the existing charts</span></button>
+<button type="button" class="pick__btn" aria-pressed="false"><b>I4</b><span>No per-instrument view (control)</span></button>
+</div>
+<p class="pick__note">Selection is a note to self; nothing is stored. Answering with the ID alone is enough.</p>
+</section>
+<section class="opt" id="I1">
+<h2><span class="opt-id">I1</span> Sparkline column in the existing per-position table</h2>
+<dl class="opt-caption"><div><dt>Answers</dt><dd>Per instrument: is its income rising, flat, falling, or a one-off spike — without leaving the table that already carries gross / tax / net.</dd></div><div><dt>Build cost</dt><dd>Lowest. One extra <code>&lt;td&gt;</code> and a ~15-line <code>polyline</code> helper in <code>IncomeLive</code>; the per-year values are one <code>group_by</code> over data already loaded. No new viewBox conventions, no legend, no interaction.</dd></div><div><dt>Drawback</dt><dd>The sparkline is unlabelled and unscaled: each row is normalised to its own maximum, so Nordwerk's 1.800,00 spike and Helio's 120,00 look equally tall. It shows shape, never magnitude, and rows with one or two payments degenerate — see the last two rows.</dd></div></dl><div class="mockframe"><div class="mockframe__bar"><span class="mockframe__dot"></span><span class="mockframe__dot"></span><span class="mockframe__dot"></span><span class="mockframe__url">portfolixir.local/income</span></div><div class="mockframe__body" lang="de"><div class="workspace-page"><nav class="area-tabs" aria-label="Vermögen"><a href="#" class="area-tab">Bestände</a><a href="#" class="area-tab">Allokation &amp; Ziele</a><a href="#" class="area-tab is-active" aria-current="page">Erträge</a><a href="#" class="area-tab">Snapshots</a><a href="#" class="area-tab">Steuern</a></nav><section class="workspace-section"><p class="muted">Beträge über den EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums in EUR umgerechnet; Originalwährung beibehalten.</p></section>
+<section id="income-positions" class="workspace-section">
+<h2>Je Position</h2>
+<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Wertpapier</th><th>Währung</th><th class="num">Brutto</th><th class="num">Einbehaltene Steuer</th><th class="num">Netto</th><th class="num">Zahlungen</th><th>Letzte Zahlung</th><th>Verlauf 2022–2026</th></tr></thead><tbody><tr><td>Nordwerk AG</td><td>EUR</td><td class="num">2.680,00</td><td class="num">670,00</td><td class="num">2.010,00</td><td class="num">9</td><td>08.05.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Nordwerk AG: Bruttoertrag je Jahr in EUR — 2022 200,00, 2023 1.800,00, 2024 240,00, 2025 280,00, 2026 160,00. 2026 unvollständig." focusable="false"><polyline class="spark-line" points="4,16.4 18,4.0 32,16.1 46,15.8" /><polyline class="spark-line spark-line--partial" points="46,15.8 60,16.8" /><circle class="spark-dot" cx="60" cy="16.8" r="1.9" /></svg></td></tr><tr><td>Weltindex ETF (aussch.)</td><td>EUR</td><td class="num">1.760,00</td><td class="num">440,00</td><td class="num">1.320,00</td><td class="num">20</td><td>30.06.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Weltindex ETF (aussch.): Bruttoertrag je Jahr in EUR — 2022 320,00, 2023 360,00, 2024 400,00, 2025 440,00, 2026 240,00. 2026 unvollständig." focusable="false"><polyline class="spark-line" points="4,7.8 18,6.5 32,5.3 46,4.0" /><polyline class="spark-line spark-line--partial" points="46,4.0 60,10.4" /><circle class="spark-dot" cx="60" cy="10.4" r="1.9" /></svg></td></tr><tr><td>Europa Dividenden ETF</td><td>EUR</td><td class="num">1.500,00</td><td class="num">375,00</td><td class="num">1.125,00</td><td class="num">10</td><td>15.07.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Europa Dividenden ETF: Bruttoertrag je Jahr in EUR — 2022 280,00, 2023 300,00, 2024 340,00, 2025 380,00, 2026 200,00. 2026 unvollständig." focusable="false"><polyline class="spark-line" points="4,7.7 18,6.9 32,5.5 46,4.0" /><polyline class="spark-line spark-line--partial" points="46,4.0 60,10.6" /><circle class="spark-dot" cx="60" cy="10.6" r="1.9" /></svg></td></tr><tr><td>Zinsen</td><td>EUR</td><td class="num">1.240,00</td><td class="num">0,00</td><td class="num">1.240,00</td><td class="num">54</td><td>31.07.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Zinsen: Bruttoertrag je Jahr in EUR — 2022 40,00, 2023 80,00, 2024 300,00, 2025 520,00, 2026 300,00. 2026 unvollständig." focusable="false"><polyline class="spark-line" points="4,16.9 18,15.8 32,9.9 46,4.0" /><polyline class="spark-line spark-line--partial" points="46,4.0 60,9.9" /><circle class="spark-dot" cx="60" cy="9.9" r="1.9" /></svg></td></tr><tr><td>Rheinsee Versorger AG</td><td>EUR</td><td class="num">910,00</td><td class="num">227,50</td><td class="num">682,50</td><td class="num">5</td><td>22.05.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Rheinsee Versorger AG: Bruttoertrag je Jahr in EUR — 2022 180,00, 2023 190,00, 2024 200,00, 2025 220,00, 2026 120,00. 2026 unvollständig." focusable="false"><polyline class="spark-line" points="4,6.5 18,5.9 32,5.3 46,4.0" /><polyline class="spark-line spark-line--partial" points="46,4.0 60,10.4" /><circle class="spark-dot" cx="60" cy="10.4" r="1.9" /></svg></td></tr><tr><td>Euro Anleihen ETF</td><td>EUR</td><td class="num">740,00</td><td class="num">185,00</td><td class="num">555,00</td><td class="num">20</td><td>01.07.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Euro Anleihen ETF: Bruttoertrag je Jahr in EUR — 2022 60,00, 2023 100,00, 2024 180,00, 2025 260,00, 2026 140,00. 2026 unvollständig." focusable="false"><polyline class="spark-line" points="4,14.8 18,12.6 32,8.3 46,4.0" /><polyline class="spark-line spark-line--partial" points="46,4.0 60,10.5" /><circle class="spark-dot" cx="60" cy="10.5" r="1.9" /></svg></td></tr><tr><td>Aurora Telekom NV</td><td>USD</td><td class="num">710,00</td><td class="num">177,50</td><td class="num">532,50</td><td class="num">10</td><td>12.06.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Aurora Telekom NV: Bruttoertrag je Jahr in EUR — 2022 140,00, 2023 150,00, 2024 160,00, 2025 170,00, 2026 90,00. 2026 unvollständig." focusable="false"><polyline class="spark-line" points="4,6.5 18,5.6 32,4.8 46,4.0" /><polyline class="spark-line spark-line--partial" points="46,4.0 60,10.6" /><circle class="spark-dot" cx="60" cy="10.6" r="1.9" /></svg></td></tr><tr><td>Schwellenländer ETF</td><td>USD</td><td class="num">680,00</td><td class="num">170,00</td><td class="num">510,00</td><td class="num">15</td><td>30.06.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Schwellenländer ETF: Bruttoertrag je Jahr in EUR — 2022 120,00, 2023 140,00, 2024 160,00, 2025 180,00, 2026 80,00. 2026 unvollständig." focusable="false"><polyline class="spark-line" points="4,8.7 18,7.1 32,5.6 46,4.0" /><polyline class="spark-line spark-line--partial" points="46,4.0 60,11.8" /><circle class="spark-dot" cx="60" cy="11.8" r="1.9" /></svg></td></tr><tr><td>Helio Solar SE</td><td>EUR</td><td class="num">180,00</td><td class="num">45,00</td><td class="num">135,00</td><td class="num">2</td><td>18.04.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Helio Solar SE: Bruttoertrag je Jahr in EUR — 2025 120,00, 2026 60,00. 2026 unvollständig." focusable="false"><line class="spark-nodata" x1="4" y1="18.0" x2="46" y2="18.0" /><polyline class="spark-line spark-line--partial" points="46,4.0 60,11.0" /><circle class="spark-dot" cx="60" cy="11.0" r="1.9" /></svg><span class="spark-flag">2 Zahlungen</span></td></tr><tr><td>Kranich Logistik AG</td><td>EUR</td><td class="num">100,00</td><td class="num">25,00</td><td class="num">75,00</td><td class="num">1</td><td>05.03.2026</td><td class="spark-cell"><svg class="spark" viewBox="0 0 64 22" width="64" height="22" role="img" aria-label="Kranich Logistik AG: Bruttoertrag je Jahr in EUR — 2026 100,00. 2026 unvollständig." focusable="false"><line class="spark-nodata" x1="4" y1="18.0" x2="60" y2="18.0" /><circle class="spark-lonely" cx="60" cy="4.0" r="2.6" /></svg><span class="spark-flag">1 Zahlung</span></td></tr></tbody></table></div>
+<p class="hint">Verlauf je Zeile auf das eigene Maximum skaliert; Höhen sind zwischen Zeilen nicht vergleichbar. Letztes Segment gestrichelt: 2026 läuft noch (Stand 31.07.2026). Gepunktete Grundlinie: in diesen Jahren keine Zahlung.</p>
+<details class="chart-data"><summary>Verlaufsdaten als Tabelle</summary><div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Instrument</th><th class="num">2022</th><th class="num">2023</th><th class="num">2024</th><th class="num">2025</th><th class="num">2026</th><th class="num">Gesamt</th></tr></thead><tbody><tr><td>Nordwerk AG</td><td class="num">200,00</td><td class="num">1.800,00</td><td class="num">240,00</td><td class="num">280,00</td><td class="num">160,00</td><td class="num">2.680,00</td></tr><tr><td>Weltindex ETF (aussch.)</td><td class="num">320,00</td><td class="num">360,00</td><td class="num">400,00</td><td class="num">440,00</td><td class="num">240,00</td><td class="num">1.760,00</td></tr><tr><td>Europa Dividenden ETF</td><td class="num">280,00</td><td class="num">300,00</td><td class="num">340,00</td><td class="num">380,00</td><td class="num">200,00</td><td class="num">1.500,00</td></tr><tr><td>Zinsen</td><td class="num">40,00</td><td class="num">80,00</td><td class="num">300,00</td><td class="num">520,00</td><td class="num">300,00</td><td class="num">1.240,00</td></tr><tr><td>Rheinsee Versorger AG</td><td class="num">180,00</td><td class="num">190,00</td><td class="num">200,00</td><td class="num">220,00</td><td class="num">120,00</td><td class="num">910,00</td></tr><tr><td>Euro Anleihen ETF</td><td class="num">60,00</td><td class="num">100,00</td><td class="num">180,00</td><td class="num">260,00</td><td class="num">140,00</td><td class="num">740,00</td></tr><tr><td>Aurora Telekom NV</td><td class="num">140,00</td><td class="num">150,00</td><td class="num">160,00</td><td class="num">170,00</td><td class="num">90,00</td><td class="num">710,00</td></tr><tr><td>Schwellenländer ETF</td><td class="num">120,00</td><td class="num">140,00</td><td class="num">160,00</td><td class="num">180,00</td><td class="num">80,00</td><td class="num">680,00</td></tr><tr><td>Helio Solar SE</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">120,00</td><td class="num">60,00</td><td class="num">180,00</td></tr><tr><td>Kranich Logistik AG</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">100,00</td><td class="num">100,00</td></tr></tbody></table></div></details>
+</section>
+</div></div></div><p class="hint" style="margin-top:var(--space-3)">Degenerate cases are shown as they would really render: <em>Helio Solar SE</em> has two payments (a two-point segment, entirely dashed because one of them falls in the unfinished year) and <em>Kranich Logistik AG</em> has one (a lone dot, no line at all). Both carry a text flag, because a two-point line is a slope with no trend behind it.</p>
+</section>
+<section class="opt" id="I2">
+<h2><span class="opt-id">I2</span> Stacked bars, top 6 plus &bdquo;Sonstige&ldquo;</h2>
+<dl class="opt-caption"><div><dt>Answers</dt><dd>What a year is made of, and how that composition shifts between years — the 2023 spike is visibly one instrument, not a good year.</dd></div><div><dt>Build cost</dt><dd>Highest of the four. The existing bar chart is a stretched <code>viewBox="0 0 n 100"</code> with <code>preserveAspectRatio="none"</code>; textures and axis text cannot survive that distortion, so this chart needs its own undistorted viewBox, its own axis/label rendering, a top-N + rest aggregation in the context, and a legend component. Roughly a day, most of it in Elixir, not CSS.</dd></div><div><dt>Drawback</dt><dd>Seven segments is past the readable limit. Zinsen in 2022 is 2,5&nbsp;px tall — present, countable in the table, but not comparable by eye. And &bdquo;Sonstige&ldquo; here totals 1.670,00, more than four of the six named segments: the bucket that exists to reduce noise is itself a large unexplained block.</dd></div><div><dt>Colour constraint</dt><dd>The one-accent rule does fight this. Six tints of a single hue are not six distinguishable colours, especially at 2–20&nbsp;px segment heights. The attempt below adds a second, non-colour channel: every second segment carries an SVG texture (diagonal, dots, cross-hatch) over its tint, and &bdquo;Sonstige&ldquo; uses the neutral text-muted mix rather than a seventh tint. It is honest to say this works for the top three or four segments and stops working below that — verify by switching the accent to teal and coral above, where the tint ramp compresses further.</dd></div></dl><div class="mockframe"><div class="mockframe__bar"><span class="mockframe__dot"></span><span class="mockframe__dot"></span><span class="mockframe__dot"></span><span class="mockframe__url">portfolixir.local/income</span></div><div class="mockframe__body" lang="de"><div class="workspace-page"><nav class="area-tabs" aria-label="Vermögen"><a href="#" class="area-tab">Bestände</a><a href="#" class="area-tab">Allokation &amp; Ziele</a><a href="#" class="area-tab is-active" aria-current="page">Erträge</a><a href="#" class="area-tab">Snapshots</a><a href="#" class="area-tab">Steuern</a></nav><section class="workspace-section"><p class="muted">Beträge über den EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums in EUR umgerechnet; Originalwährung beibehalten.</p></section>
+<section id="income-annual" class="workspace-section">
+<h2>Jahresübersicht nach Instrument</h2>
+<svg class="seg-defs" aria-hidden="true" focusable="false" width="0" height="0"><defs>
+  <pattern id="tex-diag" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <line x1="0" y1="0" x2="0" y2="6" class="tex-stroke" />
+  </pattern>
+  <pattern id="tex-dots" width="5" height="5" patternUnits="userSpaceOnUse">
+    <circle cx="1.6" cy="1.6" r="1.1" class="tex-fill" />
+  </pattern>
+  <pattern id="tex-cross" width="6" height="6" patternUnits="userSpaceOnUse">
+    <path d="M0 0 H6 M0 0 V6" class="tex-stroke" />
+  </pattern>
+</defs></svg><div class="income-chart"><svg class="stack-chart" viewBox="0 0 640 264" role="img" aria-label="Erträge je Jahr, je Balken nach Instrument gestapelt. 2022 gesamt 1.340,00 EUR; 2023 gesamt 3.120,00 EUR; 2024 gesamt 1.980,00 EUR; 2025 gesamt 2.570,00 EUR; 2026 gesamt 1.490,00 EUR. Größter Einzelbeitrag: Nordwerk AG 2023 mit 1.800,00 EUR, 58 Prozent des Jahres. Vollständige Zahlen in der Tabelle unter dem Diagramm.">
+  <line class="grid" x1="50" y1="212.0" x2="632" y2="212.0" />
+  <text class="axis" x="46" y="215.5" text-anchor="end">0</text>
+  <line class="grid" x1="50" y1="162.0" x2="632" y2="162.0" />
+  <text class="axis" x="46" y="165.5" text-anchor="end">800</text>
+  <line class="grid" x1="50" y1="112.0" x2="632" y2="112.0" />
+  <text class="axis" x="46" y="115.5" text-anchor="end">1.600</text>
+  <line class="grid" x1="50" y1="62.0" x2="632" y2="62.0" />
+  <text class="axis" x="46" y="65.5" text-anchor="end">2.400</text>
+  <line class="grid" x1="50" y1="12.0" x2="632" y2="12.0" />
+  <text class="axis" x="46" y="15.5" text-anchor="end">3.200</text>
+  <g class="seg seg-1"><title>Nordwerk AG 2022: 200,00 EUR (15 % des Jahres)</title><rect class="seg-fill" x="81.6" y="199.50" width="64" height="12.50" /></g>
+  <g class="seg seg-2"><title>Weltindex ETF (aussch.) 2022: 320,00 EUR (24 % des Jahres)</title><rect class="seg-fill" x="81.6" y="179.50" width="64" height="20.00" /><rect class="seg-tex" x="81.6" y="179.50" width="64" height="20.00" fill="url(#tex-diag)" /></g>
+  <g class="seg seg-3"><title>Europa Dividenden ETF 2022: 280,00 EUR (21 % des Jahres)</title><rect class="seg-fill" x="81.6" y="162.00" width="64" height="17.50" /></g>
+  <g class="seg seg-4"><title>Zinsen 2022: 40,00 EUR (3 % des Jahres)</title><rect class="seg-fill" x="81.6" y="159.50" width="64" height="2.50" /><rect class="seg-tex" x="81.6" y="159.50" width="64" height="2.50" fill="url(#tex-dots)" /></g>
+  <g class="seg seg-5"><title>Rheinsee Versorger AG 2022: 180,00 EUR (13 % des Jahres)</title><rect class="seg-fill" x="81.6" y="148.25" width="64" height="11.25" /></g>
+  <g class="seg seg-6"><title>Euro Anleihen ETF 2022: 60,00 EUR (4 % des Jahres)</title><rect class="seg-fill" x="81.6" y="144.50" width="64" height="3.75" /><rect class="seg-tex" x="81.6" y="144.50" width="64" height="3.75" fill="url(#tex-cross)" /></g>
+  <g class="seg seg-other"><title>Sonstige (4 Instrumente) 2022: 260,00 EUR (19 % des Jahres)</title><rect class="seg-fill" x="81.6" y="128.25" width="64" height="16.25" /></g>
+  <text class="axis axis--year" x="113.6" y="234" text-anchor="middle">2022</text>
+  <text class="axis axis--total" x="113.6" y="250" text-anchor="middle">1.340,00</text>
+  <g class="seg seg-1"><title>Nordwerk AG 2023: 1.800,00 EUR (58 % des Jahres)</title><rect class="seg-fill" x="196.8" y="99.50" width="64" height="112.50" /></g>
+  <g class="seg seg-2"><title>Weltindex ETF (aussch.) 2023: 360,00 EUR (12 % des Jahres)</title><rect class="seg-fill" x="196.8" y="77.00" width="64" height="22.50" /><rect class="seg-tex" x="196.8" y="77.00" width="64" height="22.50" fill="url(#tex-diag)" /></g>
+  <g class="seg seg-3"><title>Europa Dividenden ETF 2023: 300,00 EUR (10 % des Jahres)</title><rect class="seg-fill" x="196.8" y="58.25" width="64" height="18.75" /></g>
+  <g class="seg seg-4"><title>Zinsen 2023: 80,00 EUR (3 % des Jahres)</title><rect class="seg-fill" x="196.8" y="53.25" width="64" height="5.00" /><rect class="seg-tex" x="196.8" y="53.25" width="64" height="5.00" fill="url(#tex-dots)" /></g>
+  <g class="seg seg-5"><title>Rheinsee Versorger AG 2023: 190,00 EUR (6 % des Jahres)</title><rect class="seg-fill" x="196.8" y="41.38" width="64" height="11.88" /></g>
+  <g class="seg seg-6"><title>Euro Anleihen ETF 2023: 100,00 EUR (3 % des Jahres)</title><rect class="seg-fill" x="196.8" y="35.12" width="64" height="6.25" /><rect class="seg-tex" x="196.8" y="35.12" width="64" height="6.25" fill="url(#tex-cross)" /></g>
+  <g class="seg seg-other"><title>Sonstige (4 Instrumente) 2023: 290,00 EUR (9 % des Jahres)</title><rect class="seg-fill" x="196.8" y="17.00" width="64" height="18.12" /></g>
+  <text class="axis axis--year" x="228.8" y="234" text-anchor="middle">2023</text>
+  <text class="axis axis--total" x="228.8" y="250" text-anchor="middle">3.120,00</text>
+  <g class="seg seg-1"><title>Nordwerk AG 2024: 240,00 EUR (12 % des Jahres)</title><rect class="seg-fill" x="312.0" y="197.00" width="64" height="15.00" /></g>
+  <g class="seg seg-2"><title>Weltindex ETF (aussch.) 2024: 400,00 EUR (20 % des Jahres)</title><rect class="seg-fill" x="312.0" y="172.00" width="64" height="25.00" /><rect class="seg-tex" x="312.0" y="172.00" width="64" height="25.00" fill="url(#tex-diag)" /></g>
+  <g class="seg seg-3"><title>Europa Dividenden ETF 2024: 340,00 EUR (17 % des Jahres)</title><rect class="seg-fill" x="312.0" y="150.75" width="64" height="21.25" /></g>
+  <g class="seg seg-4"><title>Zinsen 2024: 300,00 EUR (15 % des Jahres)</title><rect class="seg-fill" x="312.0" y="132.00" width="64" height="18.75" /><rect class="seg-tex" x="312.0" y="132.00" width="64" height="18.75" fill="url(#tex-dots)" /></g>
+  <g class="seg seg-5"><title>Rheinsee Versorger AG 2024: 200,00 EUR (10 % des Jahres)</title><rect class="seg-fill" x="312.0" y="119.50" width="64" height="12.50" /></g>
+  <g class="seg seg-6"><title>Euro Anleihen ETF 2024: 180,00 EUR (9 % des Jahres)</title><rect class="seg-fill" x="312.0" y="108.25" width="64" height="11.25" /><rect class="seg-tex" x="312.0" y="108.25" width="64" height="11.25" fill="url(#tex-cross)" /></g>
+  <g class="seg seg-other"><title>Sonstige (4 Instrumente) 2024: 320,00 EUR (16 % des Jahres)</title><rect class="seg-fill" x="312.0" y="88.25" width="64" height="20.00" /></g>
+  <text class="axis axis--year" x="344.0" y="234" text-anchor="middle">2024</text>
+  <text class="axis axis--total" x="344.0" y="250" text-anchor="middle">1.980,00</text>
+  <g class="seg seg-1"><title>Nordwerk AG 2025: 280,00 EUR (11 % des Jahres)</title><rect class="seg-fill" x="427.2" y="194.50" width="64" height="17.50" /></g>
+  <g class="seg seg-2"><title>Weltindex ETF (aussch.) 2025: 440,00 EUR (17 % des Jahres)</title><rect class="seg-fill" x="427.2" y="167.00" width="64" height="27.50" /><rect class="seg-tex" x="427.2" y="167.00" width="64" height="27.50" fill="url(#tex-diag)" /></g>
+  <g class="seg seg-3"><title>Europa Dividenden ETF 2025: 380,00 EUR (15 % des Jahres)</title><rect class="seg-fill" x="427.2" y="143.25" width="64" height="23.75" /></g>
+  <g class="seg seg-4"><title>Zinsen 2025: 520,00 EUR (20 % des Jahres)</title><rect class="seg-fill" x="427.2" y="110.75" width="64" height="32.50" /><rect class="seg-tex" x="427.2" y="110.75" width="64" height="32.50" fill="url(#tex-dots)" /></g>
+  <g class="seg seg-5"><title>Rheinsee Versorger AG 2025: 220,00 EUR (9 % des Jahres)</title><rect class="seg-fill" x="427.2" y="97.00" width="64" height="13.75" /></g>
+  <g class="seg seg-6"><title>Euro Anleihen ETF 2025: 260,00 EUR (10 % des Jahres)</title><rect class="seg-fill" x="427.2" y="80.75" width="64" height="16.25" /><rect class="seg-tex" x="427.2" y="80.75" width="64" height="16.25" fill="url(#tex-cross)" /></g>
+  <g class="seg seg-other"><title>Sonstige (4 Instrumente) 2025: 470,00 EUR (18 % des Jahres)</title><rect class="seg-fill" x="427.2" y="51.38" width="64" height="29.38" /></g>
+  <text class="axis axis--year" x="459.2" y="234" text-anchor="middle">2025</text>
+  <text class="axis axis--total" x="459.2" y="250" text-anchor="middle">2.570,00</text>
+  <g class="seg seg-1"><title>Nordwerk AG 2026: 160,00 EUR (11 % des Jahres)</title><rect class="seg-fill" x="542.4" y="202.00" width="64" height="10.00" /></g>
+  <g class="seg seg-2"><title>Weltindex ETF (aussch.) 2026: 240,00 EUR (16 % des Jahres)</title><rect class="seg-fill" x="542.4" y="187.00" width="64" height="15.00" /><rect class="seg-tex" x="542.4" y="187.00" width="64" height="15.00" fill="url(#tex-diag)" /></g>
+  <g class="seg seg-3"><title>Europa Dividenden ETF 2026: 200,00 EUR (13 % des Jahres)</title><rect class="seg-fill" x="542.4" y="174.50" width="64" height="12.50" /></g>
+  <g class="seg seg-4"><title>Zinsen 2026: 300,00 EUR (20 % des Jahres)</title><rect class="seg-fill" x="542.4" y="155.75" width="64" height="18.75" /><rect class="seg-tex" x="542.4" y="155.75" width="64" height="18.75" fill="url(#tex-dots)" /></g>
+  <g class="seg seg-5"><title>Rheinsee Versorger AG 2026: 120,00 EUR (8 % des Jahres)</title><rect class="seg-fill" x="542.4" y="148.25" width="64" height="7.50" /></g>
+  <g class="seg seg-6"><title>Euro Anleihen ETF 2026: 140,00 EUR (9 % des Jahres)</title><rect class="seg-fill" x="542.4" y="139.50" width="64" height="8.75" /><rect class="seg-tex" x="542.4" y="139.50" width="64" height="8.75" fill="url(#tex-cross)" /></g>
+  <g class="seg seg-other"><title>Sonstige (4 Instrumente) 2026: 330,00 EUR (22 % des Jahres)</title><rect class="seg-fill" x="542.4" y="118.88" width="64" height="20.62" /></g>
+  <text class="axis axis--year" x="574.4" y="234" text-anchor="middle">2026</text>
+  <text class="axis axis--total" x="574.4" y="250" text-anchor="middle">1.490,00</text>
+  <line class="axis-line" x1="50" y1="212.0" x2="632" y2="212.0" />
+</svg></div>
+<ul class="seg-legend"><li class="seg-legend__item"><svg class="seg-swatch seg-1" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect class="seg-fill" x="0" y="0" width="14" height="14" rx="2" /></svg><span class="seg-legend__label">Nordwerk AG</span><span class="seg-legend__value">2.680,00</span></li><li class="seg-legend__item"><svg class="seg-swatch seg-2" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect class="seg-fill" x="0" y="0" width="14" height="14" rx="2" /><rect class="seg-tex" x="0" y="0" width="14" height="14" rx="2" fill="url(#tex-diag)" /></svg><span class="seg-legend__label">Weltindex ETF (aussch.)</span><span class="seg-legend__value">1.760,00</span></li><li class="seg-legend__item"><svg class="seg-swatch seg-3" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect class="seg-fill" x="0" y="0" width="14" height="14" rx="2" /></svg><span class="seg-legend__label">Europa Dividenden ETF</span><span class="seg-legend__value">1.500,00</span></li><li class="seg-legend__item"><svg class="seg-swatch seg-4" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect class="seg-fill" x="0" y="0" width="14" height="14" rx="2" /><rect class="seg-tex" x="0" y="0" width="14" height="14" rx="2" fill="url(#tex-dots)" /></svg><span class="seg-legend__label">Zinsen</span><span class="seg-legend__value">1.240,00</span></li><li class="seg-legend__item"><svg class="seg-swatch seg-5" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect class="seg-fill" x="0" y="0" width="14" height="14" rx="2" /></svg><span class="seg-legend__label">Rheinsee Versorger AG</span><span class="seg-legend__value">910,00</span></li><li class="seg-legend__item"><svg class="seg-swatch seg-6" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect class="seg-fill" x="0" y="0" width="14" height="14" rx="2" /><rect class="seg-tex" x="0" y="0" width="14" height="14" rx="2" fill="url(#tex-cross)" /></svg><span class="seg-legend__label">Euro Anleihen ETF</span><span class="seg-legend__value">740,00</span></li><li class="seg-legend__item"><svg class="seg-swatch seg-other" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect class="seg-fill" x="0" y="0" width="14" height="14" rx="2" /></svg><span class="seg-legend__label">Sonstige (4 Instrumente)</span><span class="seg-legend__value">1.670,00</span></li></ul><p class="hint">Top 6 nach Bruttoertrag einzeln, alle übrigen 4 Instrumente als &bdquo;Sonstige&ldquo;. 2026 unvollständig (Stand 31.07.2026). Beträge in EUR.</p>
+<details class="chart-data"><summary>Diagrammdaten als Tabelle</summary><div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Instrument</th><th class="num">2022</th><th class="num">2023</th><th class="num">2024</th><th class="num">2025</th><th class="num">2026</th><th class="num">Gesamt</th></tr></thead><tbody><tr><td>Nordwerk AG</td><td class="num">200,00</td><td class="num">1.800,00</td><td class="num">240,00</td><td class="num">280,00</td><td class="num">160,00</td><td class="num">2.680,00</td></tr><tr><td>Weltindex ETF (aussch.)</td><td class="num">320,00</td><td class="num">360,00</td><td class="num">400,00</td><td class="num">440,00</td><td class="num">240,00</td><td class="num">1.760,00</td></tr><tr><td>Europa Dividenden ETF</td><td class="num">280,00</td><td class="num">300,00</td><td class="num">340,00</td><td class="num">380,00</td><td class="num">200,00</td><td class="num">1.500,00</td></tr><tr><td>Zinsen</td><td class="num">40,00</td><td class="num">80,00</td><td class="num">300,00</td><td class="num">520,00</td><td class="num">300,00</td><td class="num">1.240,00</td></tr><tr><td>Rheinsee Versorger AG</td><td class="num">180,00</td><td class="num">190,00</td><td class="num">200,00</td><td class="num">220,00</td><td class="num">120,00</td><td class="num">910,00</td></tr><tr><td>Euro Anleihen ETF</td><td class="num">60,00</td><td class="num">100,00</td><td class="num">180,00</td><td class="num">260,00</td><td class="num">140,00</td><td class="num">740,00</td></tr><tr><td>Sonstige (4 Instrumente)</td><td class="num">260,00</td><td class="num">290,00</td><td class="num">320,00</td><td class="num">470,00</td><td class="num">330,00</td><td class="num">1.670,00</td></tr><tr class="is-total"><td>Gesamt</td><td class="num">1.340,00</td><td class="num">3.120,00</td><td class="num">1.980,00</td><td class="num">2.570,00</td><td class="num">1.490,00</td><td class="num">10.500,00</td></tr></tbody></table></div></details>
+</section>
+</div></div></div><p class="hint" style="margin-top:var(--space-3)">Two periods are deliberate: <strong>2023</strong> is 58&nbsp;% one instrument (Nordwerk AG, a special dividend), <strong>2025</strong> has no segment above 20&nbsp;% — seven slivers. The readability limit is visible in both directions in the same chart. Total across all periods: 10.500,00 EUR.</p>
+</section>
+<section class="opt" id="I3">
+<h2><span class="opt-id">I3</span> Instrument filter on the existing charts</h2>
+<dl class="opt-caption"><div><dt>Answers</dt><dd>One instrument, or a small named set, against the same time axis — and against the unfiltered total, which stays visible as a ghost bar behind the selection.</dd></div><div><dt>Build cost</dt><dd>Medium, and almost none of it is chart work. The SVG is unchanged: same <code>viewBox</code>, same <code>preserveAspectRatio="none"</code>, same rects, one extra ghost rect per bar. The cost is LiveView state: a selection assign, <code>phx-click</code> per chip, and the URL parameter needed for a filtered view to survive a reload.</dd></div><div><dt>Drawback</dt><dd>It only answers questions already asked. Composition is invisible unless every instrument is clicked in turn, and with ten instruments the chip row is already two lines — at fifty it needs the search field to be more than decoration.</dd></div></dl><div class="mockframe"><div class="mockframe__bar"><span class="mockframe__dot"></span><span class="mockframe__dot"></span><span class="mockframe__dot"></span><span class="mockframe__url">portfolixir.local/income</span></div><div class="mockframe__body" lang="de"><div class="workspace-page"><nav class="area-tabs" aria-label="Vermögen"><a href="#" class="area-tab">Bestände</a><a href="#" class="area-tab">Allokation &amp; Ziele</a><a href="#" class="area-tab is-active" aria-current="page">Erträge</a><a href="#" class="area-tab">Snapshots</a><a href="#" class="area-tab">Steuern</a></nav><section class="workspace-section"><p class="muted">Beträge über den EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums in EUR umgerechnet; Originalwährung beibehalten.</p></section>
+<section id="income-annual" class="workspace-section">
+<h2>Jahresübersicht</h2>
+<div class="filter-states"><div class="filter-state"><h3>Zustand A — kein Filter</h3><div class="income-filter"><div class="income-filter__head"><input class="income-filter__search" type="search" placeholder="Instrument suchen" aria-label="Instrument suchen"><span class="income-filter__state">Alle 10 Instrumente</span></div><ul class="chips"><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Nordwerk AG, 2.680,00 EUR Bruttoertrag gesamt">Nordwerk AG<span class="chip__count">2.680&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Weltindex ETF (aussch.), 1.760,00 EUR Bruttoertrag gesamt">Weltindex ETF (aussch.)<span class="chip__count">1.760&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Europa Dividenden ETF, 1.500,00 EUR Bruttoertrag gesamt">Europa Dividenden ETF<span class="chip__count">1.500&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Zinsen, 1.240,00 EUR Bruttoertrag gesamt">Zinsen<span class="chip__count">1.240&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Rheinsee Versorger AG, 910,00 EUR Bruttoertrag gesamt">Rheinsee Versorger AG<span class="chip__count">910&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Euro Anleihen ETF, 740,00 EUR Bruttoertrag gesamt">Euro Anleihen ETF<span class="chip__count">740&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Aurora Telekom NV, 710,00 EUR Bruttoertrag gesamt">Aurora Telekom NV<span class="chip__count">710&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Schwellenländer ETF, 680,00 EUR Bruttoertrag gesamt">Schwellenländer ETF<span class="chip__count">680&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Helio Solar SE, 180,00 EUR Bruttoertrag gesamt">Helio Solar SE<span class="chip__count">180&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Kranich Logistik AG, 100,00 EUR Bruttoertrag gesamt">Kranich Logistik AG<span class="chip__count">100&nbsp;&euro;</span></button></li></ul></div><div id="income-chart-a" class="income-chart"><svg class="income-bars" viewBox="0 0 5 100" preserveAspectRatio="none" role="img" aria-label="Erträge gesamt je Jahr, ungefiltert: 2022 1.340,00 EUR, 2023 3.120,00 EUR, 2024 1.980,00 EUR, 2025 2.570,00 EUR, 2026 1.490,00 EUR"><rect class="income-bar" x="0.10" y="57.05" width="0.8" height="42.95"><title>2022: 1.340,00 EUR</title></rect><rect class="income-bar" x="1.10" y="0.00" width="0.8" height="100.00"><title>2023: 3.120,00 EUR</title></rect><rect class="income-bar" x="2.10" y="36.54" width="0.8" height="63.46"><title>2024: 1.980,00 EUR</title></rect><rect class="income-bar" x="3.10" y="17.63" width="0.8" height="82.37"><title>2025: 2.570,00 EUR</title></rect><rect class="income-bar" x="4.10" y="52.24" width="0.8" height="47.76"><title>2026: 1.490,00 EUR</title></rect></svg><div class="income-bar-labels"><button type="button" class="income-bar-label" aria-pressed="false"><strong>2022</strong><span>1.340,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2023</strong><span>3.120,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2024</strong><span>1.980,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2025</strong><span>2.570,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2026</strong><span>1.490,00</span></button></div></div><p class="income-filter__meta filter-state__meta">Skala 0 bis 3.120,00 EUR (Maximum 2023).</p><details class="chart-data"><summary>Diagrammdaten als Tabelle</summary><div class="data-table-wrapper"><table class="data-table"><caption class="sr-only">Ungefiltert</caption><thead><tr><th>Instrument</th><th class="num">2022</th><th class="num">2023</th><th class="num">2024</th><th class="num">2025</th><th class="num">2026</th><th class="num">Gesamt</th></tr></thead><tbody><tr><td>Nordwerk AG</td><td class="num">200,00</td><td class="num">1.800,00</td><td class="num">240,00</td><td class="num">280,00</td><td class="num">160,00</td><td class="num">2.680,00</td></tr><tr><td>Weltindex ETF (aussch.)</td><td class="num">320,00</td><td class="num">360,00</td><td class="num">400,00</td><td class="num">440,00</td><td class="num">240,00</td><td class="num">1.760,00</td></tr><tr><td>Europa Dividenden ETF</td><td class="num">280,00</td><td class="num">300,00</td><td class="num">340,00</td><td class="num">380,00</td><td class="num">200,00</td><td class="num">1.500,00</td></tr><tr><td>Zinsen</td><td class="num">40,00</td><td class="num">80,00</td><td class="num">300,00</td><td class="num">520,00</td><td class="num">300,00</td><td class="num">1.240,00</td></tr><tr><td>Rheinsee Versorger AG</td><td class="num">180,00</td><td class="num">190,00</td><td class="num">200,00</td><td class="num">220,00</td><td class="num">120,00</td><td class="num">910,00</td></tr><tr><td>Euro Anleihen ETF</td><td class="num">60,00</td><td class="num">100,00</td><td class="num">180,00</td><td class="num">260,00</td><td class="num">140,00</td><td class="num">740,00</td></tr><tr><td>Aurora Telekom NV</td><td class="num">140,00</td><td class="num">150,00</td><td class="num">160,00</td><td class="num">170,00</td><td class="num">90,00</td><td class="num">710,00</td></tr><tr><td>Schwellenländer ETF</td><td class="num">120,00</td><td class="num">140,00</td><td class="num">160,00</td><td class="num">180,00</td><td class="num">80,00</td><td class="num">680,00</td></tr><tr><td>Helio Solar SE</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num">120,00</td><td class="num">60,00</td><td class="num">180,00</td></tr><tr><td>Kranich Logistik AG</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num">100,00</td><td class="num">100,00</td></tr><tr class="is-total"><td>Auswahl gesamt</td><td class="num">1.340,00</td><td class="num">3.120,00</td><td class="num">1.980,00</td><td class="num">2.570,00</td><td class="num">1.490,00</td><td class="num">10.500,00</td></tr></tbody></table></div></details></div><div class="filter-state"><h3>Zustand B — ein Instrument</h3><div class="income-filter"><div class="income-filter__head"><input class="income-filter__search" type="search" placeholder="Instrument suchen" aria-label="Instrument suchen"><span class="income-filter__state">Gefiltert: <strong>Nordwerk AG</strong> <button type="button" class="button-ghost">Filter aufheben</button></span></div><ul class="chips"><li><button type="button" class="chip" data-inert aria-pressed="true" aria-label="Nordwerk AG, 2.680,00 EUR Bruttoertrag gesamt">Nordwerk AG<span class="chip__count">2.680&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Weltindex ETF (aussch.), 1.760,00 EUR Bruttoertrag gesamt">Weltindex ETF (aussch.)<span class="chip__count">1.760&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Europa Dividenden ETF, 1.500,00 EUR Bruttoertrag gesamt">Europa Dividenden ETF<span class="chip__count">1.500&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Zinsen, 1.240,00 EUR Bruttoertrag gesamt">Zinsen<span class="chip__count">1.240&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Rheinsee Versorger AG, 910,00 EUR Bruttoertrag gesamt">Rheinsee Versorger AG<span class="chip__count">910&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Euro Anleihen ETF, 740,00 EUR Bruttoertrag gesamt">Euro Anleihen ETF<span class="chip__count">740&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Aurora Telekom NV, 710,00 EUR Bruttoertrag gesamt">Aurora Telekom NV<span class="chip__count">710&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Schwellenländer ETF, 680,00 EUR Bruttoertrag gesamt">Schwellenländer ETF<span class="chip__count">680&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Helio Solar SE, 180,00 EUR Bruttoertrag gesamt">Helio Solar SE<span class="chip__count">180&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Kranich Logistik AG, 100,00 EUR Bruttoertrag gesamt">Kranich Logistik AG<span class="chip__count">100&nbsp;&euro;</span></button></li></ul></div><div id="income-chart-b" class="income-chart"><svg class="income-bars" viewBox="0 0 5 100" preserveAspectRatio="none" role="img" aria-label="Erträge Nordwerk AG je Jahr vor dem ungefilterten Gesamtwert: 2022 200,00 von 1.340,00 EUR, 2023 1.800,00 von 3.120,00 EUR, 2024 240,00 von 1.980,00 EUR, 2025 280,00 von 2.570,00 EUR, 2026 160,00 von 1.490,00 EUR"><rect class="income-bar-ghost" x="0.10" y="57.05" width="0.8" height="42.95"><title>2022 gesamt: 1.340,00 EUR</title></rect><rect class="income-bar" x="0.10" y="93.59" width="0.8" height="6.41"><title>2022: 200,00 EUR</title></rect><rect class="income-bar-ghost" x="1.10" y="0.00" width="0.8" height="100.00"><title>2023 gesamt: 3.120,00 EUR</title></rect><rect class="income-bar" x="1.10" y="42.31" width="0.8" height="57.69"><title>2023: 1.800,00 EUR</title></rect><rect class="income-bar-ghost" x="2.10" y="36.54" width="0.8" height="63.46"><title>2024 gesamt: 1.980,00 EUR</title></rect><rect class="income-bar" x="2.10" y="92.31" width="0.8" height="7.69"><title>2024: 240,00 EUR</title></rect><rect class="income-bar-ghost" x="3.10" y="17.63" width="0.8" height="82.37"><title>2025 gesamt: 2.570,00 EUR</title></rect><rect class="income-bar" x="3.10" y="91.03" width="0.8" height="8.97"><title>2025: 280,00 EUR</title></rect><rect class="income-bar-ghost" x="4.10" y="52.24" width="0.8" height="47.76"><title>2026 gesamt: 1.490,00 EUR</title></rect><rect class="income-bar" x="4.10" y="94.87" width="0.8" height="5.13"><title>2026: 160,00 EUR</title></rect></svg><div class="income-bar-labels"><button type="button" class="income-bar-label" aria-pressed="false"><strong>2022</strong><span>200,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2023</strong><span>1.800,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2024</strong><span>240,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2025</strong><span>280,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2026</strong><span>160,00</span></button></div></div><p class="filter-state__meta">Skala unverändert 0 bis 3.120,00 EUR; blasser Balken dahinter = ungefiltertes Jahresergebnis. Ohne feste Skala würde 2023 wieder volle Höhe erreichen und der Anteil verschwinden.</p><details class="chart-data"><summary>Diagrammdaten als Tabelle</summary><div class="data-table-wrapper"><table class="data-table"><caption class="sr-only">Nordwerk AG</caption><thead><tr><th>Instrument</th><th class="num">2022</th><th class="num">2023</th><th class="num">2024</th><th class="num">2025</th><th class="num">2026</th><th class="num">Gesamt</th></tr></thead><tbody><tr><td>Nordwerk AG</td><td class="num">200,00</td><td class="num">1.800,00</td><td class="num">240,00</td><td class="num">280,00</td><td class="num">160,00</td><td class="num">2.680,00</td></tr><tr class="is-total"><td>Auswahl gesamt</td><td class="num">200,00</td><td class="num">1.800,00</td><td class="num">240,00</td><td class="num">280,00</td><td class="num">160,00</td><td class="num">2.680,00</td></tr></tbody></table></div></details></div><div class="filter-state"><h3>Zustand C — drei Instrumente</h3><div class="income-filter"><div class="income-filter__head"><input class="income-filter__search" type="search" placeholder="Instrument suchen" aria-label="Instrument suchen"><span class="income-filter__state">Gefiltert: <strong>3 von 10</strong> <button type="button" class="button-ghost">Filter aufheben</button></span></div><ul class="chips"><li><button type="button" class="chip" data-inert aria-pressed="true" aria-label="Nordwerk AG, 2.680,00 EUR Bruttoertrag gesamt">Nordwerk AG<span class="chip__count">2.680&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="true" aria-label="Weltindex ETF (aussch.), 1.760,00 EUR Bruttoertrag gesamt">Weltindex ETF (aussch.)<span class="chip__count">1.760&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="true" aria-label="Europa Dividenden ETF, 1.500,00 EUR Bruttoertrag gesamt">Europa Dividenden ETF<span class="chip__count">1.500&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Zinsen, 1.240,00 EUR Bruttoertrag gesamt">Zinsen<span class="chip__count">1.240&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Rheinsee Versorger AG, 910,00 EUR Bruttoertrag gesamt">Rheinsee Versorger AG<span class="chip__count">910&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Euro Anleihen ETF, 740,00 EUR Bruttoertrag gesamt">Euro Anleihen ETF<span class="chip__count">740&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Aurora Telekom NV, 710,00 EUR Bruttoertrag gesamt">Aurora Telekom NV<span class="chip__count">710&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Schwellenländer ETF, 680,00 EUR Bruttoertrag gesamt">Schwellenländer ETF<span class="chip__count">680&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Helio Solar SE, 180,00 EUR Bruttoertrag gesamt">Helio Solar SE<span class="chip__count">180&nbsp;&euro;</span></button></li><li><button type="button" class="chip" data-inert aria-pressed="false" aria-label="Kranich Logistik AG, 100,00 EUR Bruttoertrag gesamt">Kranich Logistik AG<span class="chip__count">100&nbsp;&euro;</span></button></li></ul></div><div id="income-chart-c" class="income-chart"><svg class="income-bars" viewBox="0 0 5 100" preserveAspectRatio="none" role="img" aria-label="Erträge von Nordwerk AG, Weltindex ETF und Europa Dividenden ETF zusammen je Jahr vor dem ungefilterten Gesamtwert: 2022 800,00 von 1.340,00 EUR, 2023 2.460,00 von 3.120,00 EUR, 2024 980,00 von 1.980,00 EUR, 2025 1.100,00 von 2.570,00 EUR, 2026 600,00 von 1.490,00 EUR"><rect class="income-bar-ghost" x="0.10" y="57.05" width="0.8" height="42.95"><title>2022 gesamt: 1.340,00 EUR</title></rect><rect class="income-bar" x="0.10" y="74.36" width="0.8" height="25.64"><title>2022: 800,00 EUR</title></rect><rect class="income-bar-ghost" x="1.10" y="0.00" width="0.8" height="100.00"><title>2023 gesamt: 3.120,00 EUR</title></rect><rect class="income-bar" x="1.10" y="21.15" width="0.8" height="78.85"><title>2023: 2.460,00 EUR</title></rect><rect class="income-bar-ghost" x="2.10" y="36.54" width="0.8" height="63.46"><title>2024 gesamt: 1.980,00 EUR</title></rect><rect class="income-bar" x="2.10" y="68.59" width="0.8" height="31.41"><title>2024: 980,00 EUR</title></rect><rect class="income-bar-ghost" x="3.10" y="17.63" width="0.8" height="82.37"><title>2025 gesamt: 2.570,00 EUR</title></rect><rect class="income-bar" x="3.10" y="64.74" width="0.8" height="35.26"><title>2025: 1.100,00 EUR</title></rect><rect class="income-bar-ghost" x="4.10" y="52.24" width="0.8" height="47.76"><title>2026 gesamt: 1.490,00 EUR</title></rect><rect class="income-bar" x="4.10" y="80.77" width="0.8" height="19.23"><title>2026: 600,00 EUR</title></rect></svg><div class="income-bar-labels"><button type="button" class="income-bar-label" aria-pressed="false"><strong>2022</strong><span>800,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2023</strong><span>2.460,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2024</strong><span>980,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2025</strong><span>1.100,00</span></button><button type="button" class="income-bar-label" aria-pressed="false"><strong>2026</strong><span>600,00</span></button></div></div><p class="filter-state__meta">Die Auswahl summiert zu einem Balken. Welches der drei Instrumente welchen Anteil beiträgt, zeigt der Filter nicht — dafür wäre I2 nötig.</p><details class="chart-data"><summary>Diagrammdaten als Tabelle</summary><div class="data-table-wrapper"><table class="data-table"><caption class="sr-only">Drei Instrumente</caption><thead><tr><th>Instrument</th><th class="num">2022</th><th class="num">2023</th><th class="num">2024</th><th class="num">2025</th><th class="num">2026</th><th class="num">Gesamt</th></tr></thead><tbody><tr><td>Nordwerk AG</td><td class="num">200,00</td><td class="num">1.800,00</td><td class="num">240,00</td><td class="num">280,00</td><td class="num">160,00</td><td class="num">2.680,00</td></tr><tr><td>Weltindex ETF (aussch.)</td><td class="num">320,00</td><td class="num">360,00</td><td class="num">400,00</td><td class="num">440,00</td><td class="num">240,00</td><td class="num">1.760,00</td></tr><tr><td>Europa Dividenden ETF</td><td class="num">280,00</td><td class="num">300,00</td><td class="num">340,00</td><td class="num">380,00</td><td class="num">200,00</td><td class="num">1.500,00</td></tr><tr class="is-total"><td>Auswahl gesamt</td><td class="num">800,00</td><td class="num">2.460,00</td><td class="num">980,00</td><td class="num">1.100,00</td><td class="num">600,00</td><td class="num">5.940,00</td></tr></tbody></table></div></details></div></div>
+</section>
+</div></div></div><p class="hint" style="margin-top:var(--space-3)">Active filter is signalled three times over, because one signal is not enough on a chart that otherwise looks identical: pressed chips (check mark plus accent fill, not colour alone), a named state line with an explicit clear action, and the ghost bar showing what was filtered away. The chips are inert in this mockup; the three states are pre-rendered.</p>
+</section>
+<section class="opt" id="I4">
+<h2><span class="opt-id">I4</span> No per-instrument view at all (control)</h2>
+<dl class="opt-caption"><div><dt>Answers</dt><dd>Who paid the most, all time, top five — and, via the per-position table below it, the same for every instrument with gross, withheld tax, net, payment count and last payment date.</dd></div><div><dt>Build cost</dt><dd>Zero. This is what <code>/income</code> renders today, unchanged.</dd></div><div><dt>Drawback</dt><dd>Every figure is an all-time total, so nothing about development is visible: a holding sold in 2023 and a holding bought in 2025 sit in the same ranking with no way to tell them apart, and the 2023 spike is invisible because Nordwerk's special dividend is folded into one number.</dd></div></dl><div class="mockframe"><div class="mockframe__bar"><span class="mockframe__dot"></span><span class="mockframe__dot"></span><span class="mockframe__dot"></span><span class="mockframe__url">portfolixir.local/income</span></div><div class="mockframe__body" lang="de"><div class="workspace-page"><nav class="area-tabs" aria-label="Vermögen"><a href="#" class="area-tab">Bestände</a><a href="#" class="area-tab">Allokation &amp; Ziele</a><a href="#" class="area-tab is-active" aria-current="page">Erträge</a><a href="#" class="area-tab">Snapshots</a><a href="#" class="area-tab">Steuern</a></nav><section class="workspace-section"><p class="muted">Beträge über den EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums in EUR umgerechnet; Originalwährung beibehalten.</p></section>
+<section id="income-top-contributors" class="workspace-section">
+<h2>Top-Beiträge</h2>
+<ol class="contributor-list"><li class="contributor-row"><span class="contributor-name">Nordwerk AG</span><span class="contributor-figures"><strong>2.680,00</strong> <span class="muted">netto 2.010,00</span></span></li><li class="contributor-row"><span class="contributor-name">Weltindex ETF (aussch.)</span><span class="contributor-figures"><strong>1.760,00</strong> <span class="muted">netto 1.320,00</span></span></li><li class="contributor-row"><span class="contributor-name">Europa Dividenden ETF</span><span class="contributor-figures"><strong>1.500,00</strong> <span class="muted">netto 1.125,00</span></span></li><li class="contributor-row"><span class="contributor-name">Zinsen</span><span class="contributor-figures"><strong>1.240,00</strong> <span class="muted">netto 1.240,00</span></span></li><li class="contributor-row"><span class="contributor-name">Rheinsee Versorger AG</span><span class="contributor-figures"><strong>910,00</strong> <span class="muted">netto 682,50</span></span></li></ol>
+</section>
+<section id="income-positions" class="workspace-section">
+<h2>Je Position</h2>
+<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Wertpapier</th><th>Währung</th><th class="num">Brutto</th><th class="num">Einbehaltene Steuer</th><th class="num">Netto</th><th class="num">Zahlungen</th><th>Letzte Zahlung</th></tr></thead><tbody><tr><td>Nordwerk AG</td><td>EUR</td><td class="num">2.680,00</td><td class="num">670,00</td><td class="num">2.010,00</td><td class="num">9</td><td>08.05.2026</td></tr><tr><td>Weltindex ETF (aussch.)</td><td>EUR</td><td class="num">1.760,00</td><td class="num">440,00</td><td class="num">1.320,00</td><td class="num">20</td><td>30.06.2026</td></tr><tr><td>Europa Dividenden ETF</td><td>EUR</td><td class="num">1.500,00</td><td class="num">375,00</td><td class="num">1.125,00</td><td class="num">10</td><td>15.07.2026</td></tr><tr><td>Zinsen</td><td>EUR</td><td class="num">1.240,00</td><td class="num">0,00</td><td class="num">1.240,00</td><td class="num">54</td><td>31.07.2026</td></tr><tr><td>Rheinsee Versorger AG</td><td>EUR</td><td class="num">910,00</td><td class="num">227,50</td><td class="num">682,50</td><td class="num">5</td><td>22.05.2026</td></tr><tr><td>Euro Anleihen ETF</td><td>EUR</td><td class="num">740,00</td><td class="num">185,00</td><td class="num">555,00</td><td class="num">20</td><td>01.07.2026</td></tr><tr><td>Aurora Telekom NV</td><td>USD</td><td class="num">710,00</td><td class="num">177,50</td><td class="num">532,50</td><td class="num">10</td><td>12.06.2026</td></tr><tr><td>Schwellenländer ETF</td><td>USD</td><td class="num">680,00</td><td class="num">170,00</td><td class="num">510,00</td><td class="num">15</td><td>30.06.2026</td></tr><tr><td>Helio Solar SE</td><td>EUR</td><td class="num">180,00</td><td class="num">45,00</td><td class="num">135,00</td><td class="num">2</td><td>18.04.2026</td></tr><tr><td>Kranich Logistik AG</td><td>EUR</td><td class="num">100,00</td><td class="num">25,00</td><td class="num">75,00</td><td class="num">1</td><td>05.03.2026</td></tr></tbody></table></div>
+</section>
+</div></div></div><dl class="opt-caption" style="margin-top:var(--space-4)"><div><dt>Answered today</dt><dd>Which holdings carry the income. Whether withholding tax is material per holding. Whether a holding has stopped paying (last payment date). How concentrated income is, as a ranking.</dd></div><div><dt>Not answered today</dt><dd>Whether an instrument's income is growing or shrinking. Whether a good year was broad or one payment. Which instrument caused a change between two years. Whether a stopped payer stopped or was sold.</dd></div></dl>
+</section>
+<section class="footnotes">
+<h2>Notes on this file</h2>
+<ul>
+<li>All securities, amounts and dates are invented. Round figures are deliberate so no reading of this page can be mistaken for a real position.</li>
+<li>Tokens, <code>.data-table</code>, <code>.workspace-section</code>, <code>.contributor-list</code>, <code>.area-tab</code>, <code>.hint</code> and the <code>.income-*</code> rules are copied from <code>priv/static/app.css</code>. New rules are marked <em>NEW</em> in the stylesheet and are the actual CSS cost of each option.</li>
+<li><code>app.css</code> has no generic <code>.data-table .num</code> rule: the live income table already marks money cells <code>class="num"</code>, but nothing right-aligns them. This page adds that rule; shipping any option means adding it for real.</li>
+<li>Every chart carries <code>role="img"</code> with a figure-bearing <code>aria-label</code> and is duplicated as a table — inline for I1 and I4, behind a <code>&lt;details&gt;</code> disclosure for I2 and I3 (UX-DR10).</li>
+<li>Theme follows <code>prefers-color-scheme</code> until the toggle sets <code>data-theme</code>, which then wins in both directions. The accent switch exists so the I2 tint ramp can be checked against all three accents, not only violet.</li>
+<li>Transitions are the only motion and sit inside <code>@media (prefers-reduced-motion: no-preference)</code>.</li>
+<li>No external requests: no CDN, no web font, no image. Inter and JetBrains Mono are replaced by the system stack, so line lengths and digit widths differ slightly from the running app.</li>
+</ul>
+</section>
+</main>
+<script>
+(function () {
+  var root = document.documentElement;
+
+  function bindGroup(sel, apply) {
+    var btns = Array.prototype.slice.call(document.querySelectorAll(sel));
+    btns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        btns.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+        apply(b.dataset.value);
+      });
+    });
+  }
+
+  bindGroup("[data-theme-btn]", function (v) {
+    if (v === "system") { root.removeAttribute("data-theme"); }
+    else { root.setAttribute("data-theme", v); }
+  });
+
+  bindGroup("[data-accent-btn]", function (v) { root.setAttribute("data-accent", v); });
+
+  // "My pick" is a note to self, nothing is stored.
+  var picks = Array.prototype.slice.call(document.querySelectorAll(".pick__btn"));
+  picks.forEach(function (b) {
+    b.addEventListener("click", function () {
+      picks.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+    });
+  });
+
+  // I3 chips are inert in the mock: the three states below are pre-rendered.
+  Array.prototype.slice.call(document.querySelectorAll(".chip[data-inert]")).forEach(function (c) {
+    c.addEventListener("click", function (e) { e.preventDefault(); });
+  });
+})();
+</script>
+</body>
+</html>
