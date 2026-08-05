@@ -36,15 +36,20 @@ colors:
   warning-dark: '#fbbf24'
   # Tint behind warning notes. Light-only in app.css today — see Colors (defect).
   warning-soft: '#fffbeb'
-  warning-soft-dark: '[OPEN] undefined in app.css'
+  # Decided 2026-08-05 by the designer (owner-delegated call), following the
+  # -soft-dark idiom of the accent tokens: the dark hue at 0.16 translucency.
+  # rgb(251 191 36) is {colors.warning-dark}. Not in app.css yet — see Colors.
+  warning-soft-dark: 'rgb(251 191 36 / 0.16)'
   # buy marker reuses positive-green in light mode (meets 3:1 on chart surface); dark keeps the brighter pair
   tx-buy: '#047857'
   tx-buy-dark: '#10b981'
   tx-sell: '#ef4444'
   tx-sell-dark: '#ef4444'
-  # Constant-white by design (issue 449): text on an accent fill, and the plate
-  # behind real image logos, stay white in every theme.
+  # logo-plate stays constant white in every theme (issue 449). on-accent no
+  # longer does: white on the dark accent fills measures 1.86–2.72:1 (Colors,
+  # computed table). Decided 2026-08-05 — light #ffffff, dark #0b0f14.
   on-accent: '#ffffff'
+  on-accent-dark: '#0b0f14'
   logo-plate: '#ffffff'
   # Surfaces — light
   bg: '#f6f7fa'
@@ -215,7 +220,7 @@ components:
     problem: 'border 1px {colors.danger}, background {colors.danger} at soft tint, text {colors.danger}'
     radius: '{rounded.md}'
     padding: '{spacing.2} {spacing.3}'
-    icon: '[OPEN] one glyph per severity, from the shared icon vocabulary — set undecided'
+    icon: 'note → :asterisk · attention → :alert_triangle · problem → :alert_octagon (decided 2026-08-05, designer). All three are ADDITIONS to the app_shell.ex icon set — see Components → Data note'
   period-control:
     appearance: '{components.selected-segment}'
     tokens: '1M 3M 6M YTD 1Y 3Y 5Y Max — one vocabulary app-wide; each surface declares the subset it offers'
@@ -226,7 +231,7 @@ components:
     control: 'quiet text summary — {typography.control-label} in {colors.text-muted}, pointer cursor'
     marker: 'defined chevron, never the raw browser triangle'
     purpose-line: 'one short line stating why the disclosure exists'
-    label: '[OPEN] one wording app-wide; copy belongs to EXPERIENCE.md Voice and Tone'
+    label: '"Data as table" — one wording app-wide (decided 2026-08-05, designer; de: "Daten als Tabelle"). Copy rule in EXPERIENCE.md Voice and Tone'
     body: '{components.data-table} for the data-as-table case'
   value-slot:
     scope: 'every rendered money, percentage or quantity that can be absent'
@@ -287,6 +292,8 @@ components:
 > The living visual spec (ADR-0038). Tokens are extracted from `priv/static/app.css` — the only stylesheet; hand-written, no Tailwind, no bundler. This document says how Portfolixir looks; `EXPERIENCE.md` says how it works. Where a rule in this file and the built UI disagree, the file is the target and the build carries the defect; every such disagreement is named below rather than quietly absorbed.
 >
 > Refreshed 2026-08-05 against the live-surface survey and the design critique of the 2026-08-01 UAT screenshots (`.decision-log.md`, session 2026-08-05).
+>
+> **Closing pass, 2026-08-05 (same session).** Every `[OPEN]` item in this document is now decided. The owner delegated these calls to the designer, so each is marked **decided 2026-08-05 (designer)** where it lands, and each states the evidence it was derived from — measured ratio, token idiom, or code reference. Closed here: the computed contrast table (carried in verbatim), the two unmeasured pairings, `warning-soft-dark`, the three data-note glyphs, the funnel collision, and the disclosure label. Two of the closures are contrast **failures found while measuring** — white on the dark accent fills, and the missing dark warning tint — and are recorded as live defects under Violations, not as spec gaps.
 
 ## Brand & Style
 
@@ -304,7 +311,7 @@ The accent system is the identity anchor (owner-loved, binding): the operator pi
 - **The brand gradient stops** ({colors.brand-violet-1} → {colors.brand-teal-1} → {colors.brand-coral-1}) appear *together* in exactly one place: the 3px top bar of `.stat` cards. They are the only moment all three logo colors coexist; keep it that rare.
 - **Semantic colors** are accent-independent: {colors.positive} for gains, {colors.danger} for losses and destructive actions, {colors.warning} for caution states, {colors.tx-buy} / {colors.tx-sell} for transaction markers on charts. **Gain/loss color never re-keys with the accent — money semantics outrank brand.**
 - **Semantic color applies wherever a sign exists**, at every level of a table — data rows, subtotals and totals alike. A negative row and a negative total are the same fact at different granularity and must look like it.
-- **{colors.on-accent} and {colors.logo-plate} are constant white in every theme** by design (issue 449): text sitting on an accent fill, and the plate behind real image logos, do not follow the theme.
+- **{colors.logo-plate} is constant white in every theme** by design (issue 449): the plate behind real image logos does not follow the theme. **{colors.on-accent} no longer is** — amended 2026-08-05 (designer): white on the three dark accent fills measures 1.86–2.72:1, so the token is light `#ffffff` / dark {colors.on-accent-dark}. See the computed table below.
 - **Surfaces** layer tonally: {colors.bg} canvas → {colors.bg-elevated} panels/inputs → {colors.bg-muted} table heads and wells. The sidebar has its own near-white violet-tinted surface ({colors.sidebar}) with a gradient sheen. Dark mode mirrors the whole stack on a blue-black ramp ({colors.bg-dark} → {colors.bg-elevated-dark} → {colors.bg-muted-dark}).
 - **Text** has four steps, two of which may carry content: {colors.text} (primary) and {colors.text-muted} (secondary — the floor for anything readable). {colors.text-subtle} is for **disabled states and pure decoration only** — at 2.47:1 in light mode it must never convey content; readable tertiary content uses {colors.text-muted}. {colors.text-soft} is a violet-leaning decorative step, never body copy (3.48:1 light).
 
@@ -314,20 +321,105 @@ The accent system is the identity anchor (owner-loved, binding): the operator pi
 
 - Normal-size text ≥ 4.5:1 on its surface in both modes — satisfied by {colors.text} and {colors.text-muted} only; the other text steps are barred from content (above).
 - Accent as text: violet and teal pass at body size in both modes; **coral passes only as large text** (≥ 24px, or 19px bold — the 30px stat values qualify). Body-size coral text in light mode is barred (4.38:1).
-- Semantic colors ({colors.positive} / {colors.danger} / {colors.warning}) pass ≥ 4.5:1 on all standard surfaces in both modes.
+- Semantic colors ({colors.positive} / {colors.danger} / {colors.warning}) pass ≥ 4.5:1 on all standard surfaces in both modes — including {colors.warning} on {colors.warning-soft} (4.84:1 light, 8.45:1 dark once the dark tint exists).
+- **A label on an accent fill is normal text and takes the 4.5:1 bar** — it is not an "indicator" exempt at 3:1. This is why {colors.on-accent} is theme-dependent (added 2026-08-05).
 - Meaningful graphics (chart lines, buy/sell markers) ≥ 3:1 against {colors.chart-surface}.
 - Focus indicator: solid 2px accent outline ≥ 3:1 against adjacent colors; the 18%-opacity soft ring is decoration, never the indicator (see EXPERIENCE Accessibility Floor).
 - 9px chart-axis type is tolerated only because every chart's data is also reachable as a table (EXPERIENCE Accessibility Floor, binding).
 
-**[OPEN] The computed contrast table lives outside this document** — `../ux-designs/ux-portfolixir-2026-06-12/review-accessibility.md`, inside an archived review folder for a closed session. A binding table in an archived artifact is fragile: nothing updates it when a token moves, and nothing points a reviewer at it. The table must be carried into this section, per-pair, before this document leaves `draft`. It is not reproduced here from memory — the numbers are transcribed from the source or they are not written at all. Closes when: the table is copied in verbatim and the archive copy is marked superseded.
+### Computed contrast table (binding)
 
-**[OPEN] Two pairings are not in the table at all** and must be measured when it is carried over: {colors.on-accent} on each of the three accent fills (the `selected-segment` active option, light and dark), and {colors.warning} on {colors.warning-soft}.
+**Carried in 2026-08-05 (designer, owner-delegated).** Rows below are transcribed verbatim from `../ux-designs/ux-portfolixir-2026-06-12/review-accessibility.md` (2026-06-13), which is now marked superseded for this table: it sat in an archived review folder for a closed session, so nothing updated it when a token moved and nothing pointed a reviewer at it. This section is the copy of record. When a token value changes, the affected rows are recomputed here in the same commit.
+
+Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI components/graphics 3:1. "Large-only" = passes 3:1 but not 4.5:1.
+
+| Pair | Ratio | Verdict | Where used |
+|---|---|---|---|
+| **Light mode** | | | |
+| text #0e141b / bg #f6f7fa | 17.28 | pass | body copy on canvas |
+| text / bg-elevated #ffffff | 18.51 | pass | panels, tables, inputs |
+| text-muted #5a6577 / bg | 5.50 | pass | secondary text |
+| text-muted / bg-elevated | 5.89 | pass | table meta, hints |
+| text-muted / bg-muted #eef1f6 | 5.21 | pass | table heads |
+| text-subtle #94a0b4 / bg | **2.47** | **fail (all uses)** | tertiary/disabled text |
+| text-subtle / bg-elevated | **2.64** | **fail (all uses)** | tertiary in panels/tables |
+| text-soft #8b7f9f / bg | **3.48** | **fail normal text** (3:1 large-only) | decorative-tertiary violet step |
+| accent-violet #7c3aed / bg | 5.32 | pass | stat values, accent text |
+| accent-violet / bg-elevated | 5.70 | pass | stat values on cards |
+| accent-teal #0f766e / bg | 5.11 | pass | teal accent text |
+| accent-teal / bg-elevated | 5.47 | pass | teal stat values |
+| accent-coral #e11d48 / bg | **4.38** | **fail normal text** — pass large (30px stats OK) | coral accent text |
+| accent-coral / bg-elevated | **4.70** | **fail normal text** — pass large | coral stat values OK |
+| accent-violet / violet-soft #ede9fe | 4.80 | pass | active nav, alert-success |
+| accent-teal / teal-soft #ccfbf1 | 4.86 | pass | active nav, alert-success |
+| accent-coral / coral-soft #ffe4e6 | **3.91** | **fail normal text** — pass large/UI | active nav wash, alert-success |
+| positive #047857 / bg | 5.12 | pass | gains on canvas |
+| positive / bg-elevated | 5.48 | pass | gains in tables/cards |
+| danger #dc2626 / bg | 4.51 | pass (barely) | losses, destructive |
+| danger / bg-elevated | 4.83 | pass | losses in tables |
+| warning #b45309 / bg | 4.69 | pass | stale timestamps |
+| warning / bg-elevated | 5.02 | pass | warning alerts |
+| tx-buy #10b981 / chart-surface #ffffff | **2.54** | **fail 3:1 graphics** | buy markers on light charts |
+| tx-sell #ef4444 / chart-surface | 3.76 | pass 3:1 graphics (fail as text) | sell markers |
+| text / selected #ede9fe | 15.59 | pass | selected-row content |
+| text-muted / selected | 4.96 | pass | selected-row meta |
+| **Dark mode** | | | |
+| text-dark #e6eaf1 / bg-dark #0b0f14 | 15.93 | pass | body copy |
+| text-dark / bg-elevated-dark #131a23 | 14.51 | pass | panels |
+| text-muted-dark #8b97a8 / bg-dark | 6.49 | pass | secondary |
+| text-muted-dark / bg-elevated-dark | 5.91 | pass | table meta |
+| text-subtle-dark #5c667a / bg-dark | **3.33** | **fail normal text** (3:1 large/UI only) | tertiary/disabled |
+| text-subtle-dark / bg-elevated-dark | **3.03** | **fail normal text** (3:1 borderline) | tertiary in panels |
+| text-soft-dark #c4b5fd / bg-dark | 10.41 | pass | decorative violet step |
+| accent-violet-dark #a78bfa / bg-dark | 7.06 | pass | stat values, accent text |
+| accent-violet-dark / bg-elevated-dark | 6.43 | pass | stat values on cards |
+| accent-teal-dark #2dd4bf / bg-dark | 10.32 | pass | teal accent |
+| accent-coral-dark #fb7185 / bg-dark | 7.14 | pass | coral accent |
+| accent-violet-dark / violet-soft-dark composite (#242339 over bg-dark) | 5.61 | pass | active nav text in wash |
+| positive-dark #34d399 / bg-dark | 10.00 | pass | gains |
+| positive-dark / bg-elevated-dark | 9.11 | pass | gains in panels |
+| danger-dark #fb7185 / bg-dark | 7.14 | pass | losses |
+| danger-dark / bg-elevated-dark | 6.50 | pass | losses in panels |
+| warning-dark #fbbf24 / bg-dark | 11.51 | pass | stale timestamps |
+| tx-buy #10b981 / chart-surface-dark #131a23 | 6.90 | pass | buy markers (dark) |
+| tx-sell #ef4444 / chart-surface-dark | 4.65 | pass | sell markers (dark) |
+| text-dark / selected-dark #1f2c42 | 11.62 | pass | selected-row content |
+| text-muted-dark / selected-dark | 4.74 | pass | selected-row meta |
+
+Reference (non-normative, decorative): light `border` 1.23:1 and `border-strong` 1.39:1 vs surfaces — fine as decoration since "surface tone first, border second" means borders never solely delineate interactive components; if a control's boundary relies on border alone (quiet buttons do: bg-elevated on bg is near-1:1), the 3:1 UI-component rule technically applies — covered by the focus-indicator finding for the interactive states that matter.
+
+**Added 2026-08-05 (designer): the pairings the 2026-06-13 table never measured.** Computed from the hex values in `app.css` with the same method as the table above (WCAG 2.x relative luminance; translucent tokens composited over their stated base in sRGB, which reproduces the archived `#242339` composite exactly).
+
+| Pair | Ratio | Verdict | Where used |
+|---|---|---|---|
+| **on-accent on the accent fills — light** | | | |
+| on-accent #ffffff / accent-violet #7c3aed | 5.70 | pass | active segmented option, `.button-primary`, active view chip |
+| on-accent #ffffff / accent-teal #0f766e | 5.47 | pass | same |
+| on-accent #ffffff / accent-coral #e11d48 | 4.70 | pass | same |
+| **on-accent on the accent fills — dark** | | | |
+| on-accent #ffffff / accent-violet-dark #a78bfa | **2.72** | **fail — all text sizes** | active segmented option, `.button-primary`, active view chip |
+| on-accent #ffffff / accent-teal-dark #2dd4bf | **1.86** | **fail — all text sizes** | same |
+| on-accent #ffffff / accent-coral-dark #fb7185 | **2.69** | **fail — all text sizes** | same |
+| **the fix measured** | | | |
+| bg-dark #0b0f14 / accent-violet-dark #a78bfa | 7.06 | pass | ink label on a dark-mode accent fill |
+| bg-dark #0b0f14 / accent-teal-dark #2dd4bf | 10.32 | pass | same |
+| bg-dark #0b0f14 / accent-coral-dark #fb7185 | 7.14 | pass | same |
+| **warning on its tint** | | | |
+| warning #b45309 / warning-soft #fffbeb | 4.84 | pass | attention data note, light |
+| warning-dark #fbbf24 / warning-soft-dark composite #312b17 over bg-dark | 8.45 | pass | attention data note, dark |
+| warning-dark #fbbf24 / warning-soft-dark composite #383423 over bg-elevated-dark | 7.47 | pass | attention data note inside a panel, dark |
+
+Three of these fail, and the failure is live in the build, not hypothetical: **`.button-primary` (app.css:1587-1591) and `.view-chip.is-active` (4771-4775) set literal `white` on `var(--color-accent)`, and `--color-accent` resolves to the `-dark` variant under `prefers-color-scheme: dark` and `[data-theme="dark"]` (app.css:73-101, 135-163).** In dark mode the primary button's label sits at 1.86–2.72:1 on its own fill. `.theme-choice.is-active` (684) and `.locale-link.is-active` (762) use `var(--color-on-accent)` and inherit the same failure.
+
+**Decided 2026-08-05 (designer's call, owner-delegated): {colors.on-accent} becomes theme-dependent — `#ffffff` in light, `{colors.bg-dark}` (`#0b0f14`) in dark.** That is the whole fix; the three ratios above land at 7.06 / 10.32 / 7.14. This narrows, but does not overturn, the issue-449 "constant white" ruling: {colors.logo-plate} — the plate behind real image logos, which is what issue 449 was actually protecting — stays constant white in every theme. Only the text-on-an-accent-fill half moves, because a mid-lightness fill cannot carry white text at any size. Literal `white` in the two rules above is drift regardless and resolves through the token.
 
 ### Violations in the built UI (targets for correction, not licence)
 
 - **Negative amounts render in the accent colour on the Wealth KPI cards.** `.stat strong { color: var(--color-accent) }` (app.css:983-990) colours every KPI value, sign-blind. This contradicts the rule two paragraphs up — gain/loss colour never re-keys with the accent — and, because there is no sign emphasis either, it also fails the colour-independence rule (UX-DR7) on the same element. Correction: signed values inside a stat card take {colors.positive}/{colors.danger} plus a sign, and only unsigned values take the accent.
 - **Semantic colour is applied only at total rows.** Row-level negatives render in body ink while the total renders red — the reader is shown that the sum is negative but not which rows made it so. Correction: the rule above ("wherever a sign exists, at every level").
-- **{colors.warning-soft} is light-only.** `--color-warning-soft: #fffbeb` is declared in `:root` (app.css:41) and never overridden for dark, so dark-mode warning notes put {colors.warning-dark} amber on a near-white cream ground. This breaks the dark/light parity rule under Do's and Don'ts. **[OPEN]** the dark value — a token must be chosen, not guessed here.
+- **{colors.warning-soft} is light-only — a live defect in the build, not a spec gap.** `--color-warning-soft: #fffbeb` is declared once in `:root` (app.css:41) and is overridden in neither the `prefers-color-scheme: dark` block (app.css:73-101) nor `[data-theme="dark"]` (app.css:135-163), while `--color-warning` *is* re-keyed to `#fbbf24` in both (app.css:84, 145). Every dark-mode surface that uses the pair therefore renders amber text on a near-white cream ground: `.alert-warning` (app.css:1935-1937) and two further rules at app.css:5589-5590 and 5685-5686. It breaks the dark/light parity rule under Do's and Don'ts today, on shipped screens.
+  **Decided 2026-08-05 (designer's call, owner-delegated):** `--color-warning-soft: rgb(251 191 36 / 0.16)` in both dark blocks — the `-soft-dark` idiom of the accent tokens, i.e. the dark hue at 0.16 translucency, keeping `rgb()`-with-alpha notation for the same reason they do (the tint must composite over whatever surface it lands on). Measured: composited over {colors.bg-dark} it is `#312b17` and carries {colors.warning-dark} at **8.45:1**; over {colors.bg-elevated-dark} it is `#383423` at **7.47:1**. Both clear 4.5:1 with room, so the tint can also darken later without re-opening the ratio.
+- **White text on the dark accent fills fails contrast, in the build.** `.button-primary` (app.css:1587-1591) and `.view-chip.is-active` (4771-4775) hard-code `white` on `var(--color-accent)`; `.theme-choice.is-active` (684) and `.locale-link.is-active` (762) use `var(--color-on-accent)`, which is `#ffffff` in every theme. In dark mode those labels measure 2.72 / 1.86 / 2.69:1 (see the computed table). Correction: the theme-dependent {colors.on-accent} decided above, resolved through the token — not through a literal `white`.
 - **Three tokens are referenced but never defined:** `--color-border-subtle` (app.css:3649, 4285, 4337), `--color-surface-hover` (3652), `--color-surface` (2135). Each falls back to a hard-coded translucent grey that follows neither theme. The tab underline rule and the drift-table header therefore sit outside the token system entirely. Correction: replace with {colors.border} / {colors.hover} / {colors.bg-elevated}.
 - **The accent is hard-coded to violet in six places** (app.css:2936, 3440, 3561, 3656, 3982-3983): the 30-day moving average, two drop-target borders, the selected-row edge, and the period buttons' active fill stay violet when the operator picks teal or coral. Correction: `var(--color-accent)`.
 
@@ -409,7 +501,7 @@ Five idioms are in the build today: solid accent pill (`.view-chip.is-active`), 
 
 Three classes replace them. Every selectable control in the app maps to exactly one; a selected table row and an active tab are genuinely different things, which is why one idiom would be dogma and five is drift.
 
-1. **Navigation and tabs → accent underline plus marker** ({components.selected-nav}). The sidebar keeps its established idiom — accent-soft gradient wash, accent-tinted border, 6px filled accent marker dot with halo — because it answers "where am I". Tabs get icon plus label plus a 2px accent underline, because they answer "which facet". Second-level tabs (inside Cash flow) are the same control, smaller and iconless. **One icon vocabulary app-wide:** a tab icon and the sidebar icon for the same destination are the same glyph, and no glyph carries two meanings — the funnel currently means "Views" in the sidebar and "filter" in the securities toolbar.
+1. **Navigation and tabs → accent underline plus marker** ({components.selected-nav}). The sidebar keeps its established idiom — accent-soft gradient wash, accent-tinted border, 6px filled accent marker dot with halo — because it answers "where am I". Tabs get icon plus label plus a 2px accent underline, because they answer "which facet". Second-level tabs (inside Cash flow) are the same control, smaller and iconless. **One icon vocabulary app-wide:** a tab icon and the sidebar icon for the same destination are the same glyph, and no glyph carries two meanings. The funnel collision (`:filter` means "Views" in the sidebar and "filter" in the securities toolbar) is resolved below under Data note: the funnel keeps "filter", the Views entry takes `:bookmark`.
 2. **Toggles, filters and period selection → segmented group with filled accent** ({components.selected-segment}). One bordered track, dividers between options, the active option filled {colors.accent} with {colors.on-accent} text. This absorbs `.segmented-control`, `.range-buttons`, `.chart-toggles`, `.period-buttons` and `.view-switcher`.
 3. **Selection in lists and tables → tinted row with a left accent edge** ({components.selected-row}). {colors.selected} background plus a 3px inset accent edge on the leading side. The edge is what distinguishes selection from hover, which is a wash without an edge.
 
@@ -419,15 +511,31 @@ All three are width-reserved ({components.width-reserve}).
 
 {components.data-note} replaces four competing treatments (plain bullet list, amber inline highlight, unstyled grey prose, accent-bordered banner) and the ad-hoc chips (`.not-held-chip`, `.stale-chip`, `.no-quote-chip`, `.negative-holding-chip`).
 
-| Severity | Meaning | Colour | Required companions |
-|---|---|---|---|
-| Note | Context the operator may want | {colors.text-muted} on {colors.bg-muted} | icon + the word |
-| Attention | Something to look at, nothing is wrong | {colors.warning} on {colors.warning-soft} | icon + the word |
-| Problem | Something is wrong and needs action | {colors.danger} on a danger tint | icon + the word |
+| Severity | Meaning | Colour | Glyph | Word (source string) |
+|---|---|---|---|---|
+| Note | Context the operator may want | {colors.text-muted} on {colors.bg-muted} | `:asterisk` | "Note" |
+| Attention | Something to look at, nothing is wrong | {colors.warning} on {colors.warning-soft} | `:alert_triangle` | "Attention" |
+| Problem | Something is wrong and needs action | {colors.danger} on a danger tint | `:alert_octagon` | "Problem" |
+
+Glyphs and word decided 2026-08-05 (designer) — glyph rationale below, wording rule in EXPERIENCE.md Voice and Tone.
 
 Colour is never the only channel (UX-DR7/UX-DR17). Consequence for the data-quality list: "valued at last trade price" is a **note**, "impossible negative holding quantity" is a **problem** — today they render identically, and the app's most important warning surface has the lowest visual weight on its page (a bare `<h2>` with default disc bullets, its actionable link styled like the surrounding prose). A data note carries its remedy control inside the note, not 1100px further down the page.
 
-**[OPEN]** the three icon glyphs. They come from the one shared icon vocabulary; that set is not yet enumerated. Closes when the icon inventory is written down (same task as the tab/sidebar vocabulary above).
+**The icon vocabulary, enumerated (app.css has none of it — the set is `app_shell.ex` `icon_paths/1`, lines 428-535).** 36 named glyphs, all 24×24, `fill="none"`, `stroke="currentColor"`, `stroke-width="1.6"`, round caps and joins, plus a fallback clause that renders a bare `circle r="5"` for any unknown name: `dashboard · layers · bookmark · briefcase · folder · calc · bars · pie · chart_line · chart_bar · coins · tag · globe · building · compass · settings · monitor · sun · moon · plus · upload · filter · columns · search · trash · x · chevron_right · refresh_cw · ellipsis_vertical · copy · edit · archive · external_link · maximize · minimize · image`.
+
+**The three severity glyphs — decided 2026-08-05 (designer's call, owner-delegated). The set does not contain a usable candidate; all three are additions.** Not a preference: no glyph in the list above carries a severity reading, and pressing an unrelated one into service (`x` means dismiss, `bars` means Transactions, the fallback circle means "unknown icon name") would create exactly the second-meaning collision this section forbids. Described in the house idiom so the paths can be drawn to spec; no path data is invented here.
+
+| Severity | Glyph name | Description | Why |
+|---|---|---|---|
+| Note | `:asterisk` | Three strokes crossing at 12,12 — vertical plus two at ±60°, ~7px arms. | The typographic footnote mark: "a remark attaches to this figure". Reads at 14px with no interior detail, and cannot be confused with the ⓘ affordance. |
+| Attention | `:alert_triangle` | Rounded-corner equilateral triangle, apex up, plus a centred vertical stroke and a dot below it. | Universal caution. The silhouette alone separates it from note and problem, so the shape channel survives at nav-icon size. |
+| Problem | `:alert_octagon` | Regular octagon, flat side up, with the same interior stroke-and-dot. | Reads as "stop". Distinct outline from the triangle at 14px (flat top vs. point), and unlike a circle-with-X it does not collide with `:x`. |
+
+**Why note is not an info circle:** ⓘ (the literal character, in use at eight call sites — `portfolio_live.ex:751/762/776/1077`, `securities_live.ex:993/1147`, `tax_live.ex:369`, `transaction_management_live.ex:199`, `view_switcher.ex:121`) is the metric-**definition** affordance. A note-severity data note states a fact about *this data*, which DR11 explicitly separates from a definition. One mark for both jobs is the funnel problem again.
+
+**Also missing, flagged not solved here:** the stale-data rule (EXPERIENCE State Patterns) requires a clock glyph, and the set has none. It rides the same icon-set story.
+
+**Naming collision resolved (2026-08-05, designer): the funnel keeps "filter"; "Views" takes `:bookmark`.** `:filter` is the funnel (`app_shell.ex:488-489`), used for the sidebar "Views" entry (`nav_groups/0`) and for the securities toolbar filter. A funnel means "narrow this list down" to essentially every user, and the toolbar is the literal case, so it keeps the glyph. The sidebar's Views entry takes `:bookmark` — an existing, otherwise unused glyph whose meaning ("a saved, named selection") is what a view is. No addition needed for this half.
 
 ### Period control
 
@@ -435,7 +543,7 @@ Colour is never the only channel (UX-DR7/UX-DR17). Consequence for the data-qual
 
 ### Data as table — one disclosure
 
-{components.disclosure}, mandatory under every chart surface (UX-DR10), same control, same label, same styling — rendered as a quiet text control rather than the raw browser triangle, with a short purpose line so it is visible why it exists. Today three chart surfaces carry it with three different summary labels and two (the sunburst, the securities detail chart) carry none. De-emphasised, not deleted: it is the accessibility fallback that lets the 9px chart axis stand.
+{components.disclosure}, mandatory under every chart surface (UX-DR10), same control, same label — **"Data as table"**, decided 2026-08-05 (designer); it is already the shorter of the two labels in the build (`snapshots_live.ex:489`, against `portfolio_live.ex:1709`'s "Show data as table", which changes) and it names the thing rather than instructing the reader — same styling — rendered as a quiet text control rather than the raw browser triangle, with a short purpose line so it is visible why it exists. Today three chart surfaces carry it with three different summary labels and two (the sunburst, the securities detail chart) carry none. De-emphasised, not deleted: it is the accessibility fallback that lets the 9px chart axis stand.
 
 ### Value slot
 
@@ -470,7 +578,7 @@ The checkbox is one control: box and label sit on one line, the label is the hit
 
 ### Inventory (as built)
 
-- **App shell** (`.app-shell`) — fixed sidebar with grouped nav (`.nav-group`, uppercase group heads, icon + label rows), active link per {components.selected-nav}. The Classifications group is dynamic — one nav entry per classification plus a `+` affordance. The sidebar background is viewport-height rather than page-height, leaving a cut edge on long pages — a defect. Nav entries follow ADR-0024: navigation reflects user tasks, not the storage model; a new entity does not get a sidebar entry by default.
+- **App shell** (`.app-shell`) — fixed sidebar with grouped nav (`.nav-group`, uppercase group heads, icon + label rows), active link per {components.selected-nav}. The Classifications group is **one static entry** (`nav_groups/0`, `app_shell.ex:266-294`); the per-tree list and its `+` affordance live on `/classifications` itself — corrected 2026-08-05 against the build, per ADR-0024 (a tree is an entity, not a task). The sidebar background is viewport-height rather than page-height, leaving a cut edge on long pages — a defect. Nav entries follow ADR-0024: navigation reflects user tasks, not the storage model; a new entity does not get a sidebar entry by default.
 - **Top bar** (`.topbar`) — burger toggle, brand, page title + subtitle, then theme menu, accent menu, EN/DE locale switcher (pill text ≥ 11px, pinned by the spacing-scale test).
 - **Area tabs** (`.area-tabs`, `.detail-pane-tabs`) — the Wealth areas are Holdings · Allocation & targets · Cash flow · Snapshots · Tax; Cash flow's second level is Income · Realized gains · Deposits & withdrawals · Costs. Both levels per {components.selected-nav}.
 - **Stat card** (`.stat`) — {components.stat-card}: three-color gradient hairline, uppercase label, 30px value. Signed values take semantic colour, not the accent (see Colors).

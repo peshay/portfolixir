@@ -23,13 +23,13 @@ sources:
 
 > **Authority (ADR-0038).** This document plus `DESIGN.md` is the living design-language spec. Design work and the design-critic review of the agentic review closing act are held against it. It wins over mockups, over `epics.md`'s UX-DR summaries, and over anything built. Where the built UI contradicts it, that is a finding, not a precedent.
 >
-> `status: draft` until the remaining open items close. None of them blocks cutting implementation stories; each names what would close it, in place:
+> **Closing pass, 2026-08-05.** The open items below are closed. The owner delegated these calls to the designer, so each is marked **decided 2026-08-05 (designer)** where it lands, and each records the evidence — a route table, a context function, a `periods/0` list — rather than a preference:
 >
-> - **DR4** — a route-by-route reachability pass, then a ruling on where the Cash-flow parent lives in navigation.
-> - **DR17** — three icon glyphs for the note / attention / problem severities, chosen with the `DESIGN.md` refresh.
-> - **Period control** — the per-surface token subsets of `1M 3M 6M YTD 1Y 3Y 5Y Max`; each alignment story declares its surface's subset and the answer lands back here.
-> - **Voice and Tone** — a ruling on bilingual domain labels (the `Gesamt (total)` pattern, which also governs Freistellungsauftrag, Verlustverrechnungstopf and SOLL/IST).
-> - **State Patterns → stale data** — the backend source for "last quote sync", open since 2026-06-13 and owned by architecture rather than by this document.
+> - **DR4** — closed: route-by-route reachability pass done against `router.ex` and `app_shell.ex`; the rule is rewritten to the question it should have asked, and the Cash-flow parent gets `/cashflow` as a Wealth tab.
+> - **DR17** — closed: `:asterisk` / `:alert_triangle` / `:alert_octagon`, all three additions to the icon set (`DESIGN.md` → Data note, with the reasoning and the funnel-collision ruling).
+> - **Period control** — closed: per-surface subsets declared below, each derived from the granularity the surface's own read produces.
+> - **Voice and Tone** — closed: locale-pure per locale, with a narrow term-of-art carve-out; two shipped strings change.
+> - **State Patterns → stale data** — closed: the backend field exists. `security_quotes.updated_at` (`Catalog.Quote`, `timestamps()`) is refreshed on every sync write; what is missing is a named read function, which is implementation, not an open design question.
 
 ## Foundation
 
@@ -52,11 +52,11 @@ IA covers **every built route** — eleven surfaces across the fourteen `live/3`
 | Overview | `/` | App open, brand link | Analysis home: total value + change, "Needs attention", data quality | built |
 | Wealth — Holdings | `/portfolio` | Sidebar "Wealth", tab | KPI band (total incl. cash, securities, cash + cash quote, TTWROR, IRR), performance chart, data quality, cash accounts | built |
 | Wealth — Allocation & targets | `/portfolio?tab=allocation` | Wealth tab | Sunburst, SOLL/IST drift table, per-position drift with display-only corrective hints (ADR-0023) | built |
-| Wealth — Cash flow | *(no route yet)* | Wealth tab | Parent of the four cash-flow facets below | **specified, unbuilt** |
-| Cash flow — Income | `/income` | Cash flow tab | Dividends and interest already booked: year × month matrix, per-position table, per-year detail | built (route exists as a top-level Wealth tab today) |
-| Cash flow — Realized gains | *(none)* | Cash flow tab | Closed trades | **specified, unbuilt** |
-| Cash flow — Deposits & withdrawals | *(none)* | Cash flow tab | External flows in and out | **specified, unbuilt** |
-| Cash flow — Costs | *(none)* | Cash flow tab | Fees and taxes, overview level only | **specified, unbuilt** |
+| Wealth — Cash flow | `/cashflow` *(decided 2026-08-05, unbuilt)* | Wealth tab | Parent of the four cash-flow facets below | **specified, unbuilt** |
+| Cash flow — Income | `/cashflow` (default facet) | Cash flow tab | Dividends and interest already booked: year × month matrix, per-position table, per-year detail | built at `/income` today, which becomes a redirect |
+| Cash flow — Realized gains | `/cashflow?tab=realized` | Cash flow tab | Closed trades | **specified, unbuilt** |
+| Cash flow — Deposits & withdrawals | `/cashflow?tab=flows` | Cash flow tab | External flows in and out | **specified, unbuilt** |
+| Cash flow — Costs | `/cashflow?tab=costs` | Cash flow tab | Fees and taxes, overview level only | **specified, unbuilt** |
 | Wealth — Snapshots | `/snapshots` | Wealth tab | Frozen depot markers and the ADR-0027 counterfactual comparison | built |
 | Wealth — Tax | `/tax` | Wealth tab | Recorded tax-statement snapshots, allowance-order budget, consistency findings (ADR-0031) | built |
 | Securities | `/securities`, `/securities/:id` | Sidebar, table rows | Security list + split detail pane: price chart, trades, quotes, classification tabs | built |
@@ -64,13 +64,13 @@ IA covers **every built route** — eleven surfaces across the fourteen `live/3`
 | Transactions — Import | `/imports` | Transactions tab | PP export intake: drop zone → preview → idempotent apply | built |
 | Accounts & depots | `/portfolios` | Sidebar (Administration) | Depots and cash accounts, bucket chips, balances | built |
 | Views | `/buckets` | Sidebar (Administration) | Views (include/exclude filters over buckets), bucket CRUD, default assignment | built |
-| Classifications | `/classifications`, `/classifications/new`, `/classifications/:id` | Sidebar (Administration, one entry per tree) | Allocation trees: categories, target weights, drag-and-drop assignment | built |
+| Classifications | `/classifications`, `/classifications/new`, `/classifications/:id` | Sidebar (Administration, **one static entry**); per-tree links and `+` on the index | Allocation trees: categories, target weights, drag-and-drop assignment | built |
 
 **Wealth tab set (decided 2026-08-05, replaces the built set).**
 
 `Holdings · Allocation & targets · Cash flow · Snapshots · Tax`
 
-The built set is `Holdings · Allocation & targets · Income · Snapshots · Tax` (`app_shell.ex` `wealth_tabs/1`). "Income" is promoted to **Cash flow** and gains second-level tabs:
+The built set is `Holdings · Allocation & targets · Income · Snapshots · Tax` (`app_shell.ex` `wealth_tabs/1`). "Income" is promoted to **Cash flow** at `/cashflow` (route decided 2026-08-05, DR4) and gains second-level tabs:
 
 `Income · Realized gains · Deposits & withdrawals · Costs`
 
@@ -82,7 +82,8 @@ Only **Income** has data today: `Portfolixir.Portfolios.Income.for_portfolio/1` 
 
 - `/buckets` is labelled **"Views"** in the sidebar. This is deliberate (ADR-0024 modification 6 — the task is view scoping; buckets are attributes reached from account chips and the view editor), but route and label diverge. Anyone reading the router will not find the surface by its label.
 - `nav_current?/2` in `app_shell.ex` covers `/income` and `/tax` under the Wealth section but **omits `/snapshots`** — on the Snapshots surface no sidebar item is marked current and no `aria-current="page"` is emitted. This is a **defect**, not a design choice; it ships as a fix, not as a spec change.
-- The funnel icon means "Views" in the sidebar and "filter" in the securities toolbar. One glyph, two meanings — resolved by DR16's single icon vocabulary.
+- The funnel icon means "Views" in the sidebar and "filter" in the securities toolbar. One glyph, two meanings — **resolved 2026-08-05 (designer):** the funnel keeps "filter"; the Views entry takes `:bookmark` (DR16, anatomy in `DESIGN.md`).
+- **The Classifications nav group is one static entry, not one per tree** (`app_shell.ex:266-294`). Earlier drafts of this table and of `DESIGN.md`'s inventory claimed a dynamic per-tree group; the build is the honest reading of ADR-0024 (a tree is an entity, not a task), so the documents follow the build. The per-tree list is on `/classifications`.
 
 → Composition references: [mockups/key-dashboard.html](mockups/key-dashboard.html) and [mockups/key-classifications.html](mockups/key-classifications.html). **The spines win on conflict** — mocks illustrate, they do not specify. Both mocks predate the 2026-08-05 decisions and are stale where they disagree.
 
@@ -112,7 +113,26 @@ Microcopy is **explanatory** (binding): the UI translates domain terms instead o
 | One explanation, in one place, in one form | The same explanation as tooltip *and* paragraph |
 | Calm, complete sentences; no exclamation marks | Coaching, gamification, celebration |
 
-**[OPEN] Bilingual domain labels.** `classifications_live.ex:514` renders the gettext'd msgid **"Gesamt (total)"** — a deliberate bilingual domain label, not an untranslated leak (verified; an earlier critique misreported it as a bug). Whether an English UI should carry a German domain term with a parenthetical gloss is unresolved. Needed to close: an owner ruling on the general pattern (German domain term first with gloss / English first with German gloss / locale-pure per locale), since the same question governs Freistellungsauftrag, Verlustverrechnungstopf, and SOLL/IST.
+**Bilingual domain labels — decided 2026-08-05 (designer's call, owner-delegated): locale-pure per locale, with one carve-out.**
+
+`classifications_live.ex:514` and `:1196` render the gettext'd msgid **"Gesamt (total)"** — a deliberate bilingual domain label, not an untranslated leak (verified; an earlier critique misreported it as a bug). The rule that resolves it and its relatives:
+
+1. **A source string is English; its German translation is German.** No string carries both languages. gettext already does per-locale wording, so a bilingual msgid duplicates the mechanism and, worse, makes the German UI say "Gesamt (total)" — glossing a term the German reader is fluent in. The gloss lands in the locale that needs it, or nowhere.
+2. **Carve-out — a German legal or tax term of art with no English equivalent stays German in both locales.** Freistellungsauftrag and Verlustverrechnungstopf name specific constructs of German tax law; translating them invents terminology the operator will never see on a broker statement. In the German string it stands alone; in the English string it may carry a one-time parenthetical gloss on first use per surface — *English gloss for a German term*, never the reverse.
+3. **A domain abbreviation whose expansion is plain (SOLL/IST) is translated, not kept.** English "Target"/"Actual", German "SOLL"/"IST".
+
+This is the majority practice already, which is the main argument for it: the drift table renders `gettext("Target")` / `gettext("Actual")` / `gettext("Drift")` (`portfolio_live.ex:1071-1079`), and the loss pots are msgid "Loss pot, equities" / "Loss pot, other" with German "Verlustverrechnungstopf Aktien" / "…Sonstige" (`tax_live.ex:217-218`). SOLL and IST appear nowhere in a user-facing string — only in moduledocs and code comments, where they stay.
+
+**Strings that change** (the two outliers, both verified):
+
+| Where | Today | Becomes |
+|---|---|---|
+| `classifications_live.ex:514`, `:1196` | msgid `"Gesamt (total)"`, de `"Gesamt"` | msgid `"Total"`, de `"Gesamt"` |
+| `tax_live.ex:497` | msgid `"Configured Freistellungsaufträge"`, de `"Hinterlegte Freistellungsaufträge"` | msgid `"Configured allowance orders"`, de unchanged — matching the already-English `tax_live.ex:264` string, and carrying the German term where it belongs |
+
+**Data-note labels — decided 2026-08-05 (designer). One word per severity, app-wide:** source `"Note"` · `"Attention"` · `"Problem"`, German `"Hinweis"` · `"Achtung"` · `"Problem"`. Nouns, not instructions: the word labels the finding, and the remedy is the control next to it, so the label never has to address the reader. They are the severity names of DR17 verbatim, so spec, code and UI use one vocabulary. ("Achtung" over an imperative "Prüfen" is a judgement call — it states a condition, matching the impersonal rule.)
+
+**The chart data-as-table disclosure — decided 2026-08-05 (designer): "Data as table"** (de: "Daten als Tabelle"), one wording under every chart. It names the thing instead of instructing ("Show data as table", `portfolio_live.ex:1709`, changes; `snapshots_live.ex:489` already reads this way). The purpose line beneath it carries the why.
 
 ## Component Patterns
 
@@ -120,9 +140,9 @@ Behavioral. Visual anatomy lives in `DESIGN.md.Components`.
 
 | Component | Use | Behavioral rules |
 |---|---|---|
-| App shell | Every surface | Sidebar state (expanded/rail/off-canvas) is a pure CSS toggle; survives navigation. The toggle is a real `<input type="checkbox">` with a state-neutral accessible name; the off-canvas variant closes on `Esc` and backdrop tap, returning focus to the burger. Active link tracks `current_path` per section prefix — **every built route must map to exactly one section** (see the `/snapshots` defect). Classifications nav group reflects the live list of trees. |
+| App shell | Every surface | Sidebar state (expanded/rail/off-canvas) is a pure CSS toggle; survives navigation. The toggle is a real `<input type="checkbox">` with a state-neutral accessible name; the off-canvas variant closes on `Esc` and backdrop tap, returning focus to the burger. Active link tracks `current_path` per section prefix — **every built route must map to exactly one section** (see the `/snapshots` defect, and DR4 for the full reachability pass). The Classifications entry is one static link; the tree list lives on its index. |
 | Tab system | Wealth, Transactions, Securities detail pane | **One icon vocabulary, shared with the navigation; two idioms.** The sidebar answers "where am I" and keeps pill plus marker dot. Tabs answer "which facet": icon + label + underline. **Second-level tabs** (inside Cash flow) use the same tabs **smaller and without icons**, so nesting is legible without a third idiom. [ASSUMPTION] The securities detail pane's tabs are second-level by the same logic and adopt the same treatment; the decision log names only Cash flow. Tabs are plain links so switching works without JS. Three tab languages exist today (sidebar pills, `.area-tab` links, `.detail-pane-tab` buttons) — two of them are drift and align to this pattern. |
-| Period control | Every time-series surface | **One token vocabulary, one appearance:** `1M 3M 6M YTD 1Y 3Y 5Y Max`. Each surface **declares which tokens it offers**; a surface never invents a token outside the set and never reorders it. "Custom range…" is a **disclosure**, not permanent chrome, and its two date fields follow DR19 (ISO, styled). Selected state is the segmented-group class of DR16. Retires the four current patterns, the two divergent range-token sets, and the four bare `type="date"` inputs. [OPEN] The per-surface token subsets are not yet decided; each alignment story declares its surface's subset in the story and the answer lands back here. |
+| Period control | Every time-series surface | **One token vocabulary, one appearance:** `1M 3M 6M YTD 1Y 3Y 5Y Max`. Each surface **declares which tokens it offers**; a surface never invents a token outside the set and never reorders it. "Custom range…" is a **disclosure**, not permanent chrome, and its two date fields follow DR19 (ISO, styled). Selected state is the segmented-group class of DR16. Retires the four current patterns, the two divergent range-token sets, and the four bare `type="date"` inputs. Per-surface subsets are declared below the table (decided 2026-08-05). |
 | Data note | Anywhere the UI says something about the data | **One component, three severities: note / attention / problem** — distinguished by **colour AND icon AND word**, never colour alone (DR7). Severity is a property of the finding, not of the surface: "valued at last trade price" is a *note*; "impossible negative holding quantity" is a *problem*; a stale allowance-order budget is *attention*. Replaces the four competing treatments in use (plain bullet list, amber inline highlight, unstyled grey prose, accent bordered banner). Placement is adjacent to the data it describes — a remedy button ~1100px below the bullet naming the problem is a violation. |
 | Stat / metric card | Overview, Wealth KPI band | `.stat` anatomy: uppercase label, big value, optional ⓘ. Click/tap navigates to the owning surface. Negative amounts follow money semantics ({colors.danger} + explicit sign), never the accent — the built Wealth KPI cards violate this today. Absence and pending are distinct (see State Patterns). |
 | "Needs attention" card | Overview | States its **basis** in a line under the heading: which view and which plan the count is computed from. Where an allocation carries several plans, the card says so explicitly rather than silently picking one. Works without active-plan semantics (gated at E16/ADR-0027) and improves silently once they exist. |
@@ -131,11 +151,22 @@ Behavioral. Visual anatomy lives in `DESIGN.md.Components`.
 | Allocation visuals | Wealth — Allocation & targets | Donut/sunburst segments and legends are read-only in this run; the drift table follows the Tables row. Over/underweight carries sign or arrow, never hue alone. |
 | Tables | Transactions, Securities, drift, holdings, income matrix | Read-first: rows are targets (click → detail/select), hover wash, kebab menu for row actions (bottom sheet < 720px). Sort/filter/column controls live in popovers off the toolbar, never inline. Row selection uses the tinted-row class of DR16. Every table establishes its own horizontal scroller (DR15). Column widths do not change with selection (DR18). |
 | Cash accounts | Accounts & depots | **Setting a balance lives in the account row.** The global balance form is retired; each row carries its own "set balance" action opening a small dialog with the account already chosen. Reading is the default posture; editing is one intent away, and the account is never re-picked in a form when the row already knows it. |
-| Snapshots comparison | Wealth — Snapshots | **The comparison is the surface.** Plan against reality over time is the purpose, so the comparison goes primary and large, the snapshot list secondary beneath it, the create form behind a disclosure. Rendered with the shared chart component — inheriting its axes, crosshair, period control and data-table disclosure — replacing the hand-rolled two-polyline SVG. The v1 gross/price-return-only limitation is stated as a data note, and excluded securities are listed as gaps. |
+| Snapshots comparison | Wealth — Snapshots | **The comparison is the surface.** Plan against reality over time is the purpose, so the comparison goes primary and large, the snapshot list secondary beneath it, the create form behind a disclosure. Rendered with the shared chart component — inheriting its axes, crosshair and data-table disclosure, but **not** a period control: the domain is fixed by the snapshot's own as-of date (see the subset table above) — replacing the hand-rolled two-polyline SVG. The v1 gross/price-return-only limitation is stated as a data note, and excluded securities are listed as gaps. |
 | Tax surface | Wealth — Tax | **A budget dashboard plus a check list.** Top: allowance-order utilization per institution as a visual fill level with the remaining amount and its as-of date. Below: the recorded statements as a list, each carrying its consistency finding as a **data note** at the right severity. Entry forms move behind a disclosure. The five permanent prose paragraphs become ⓘ tooltips. Pots render with the statement's printed sign (ADR-0031 §2); nothing here is derived from holdings and nothing here is tax advice. **MCP/LLM is the primary write path**; the UI is a visual review surface. Document intake stays rejected. |
 | Forms behind disclosure | All create/edit | Default closed. Opened by explicit affordance (`+`, "Edit", kebab). One disclosure level at a time; `Esc`/cancel closes and returns focus to the trigger. Modals are real dialogs: native `<dialog>`/`showModal()` preferred (focus trap + `Esc` for free, fits the no-bundler constraint), else `role="dialog" aria-modal="true"` with a small focus-trap hook; focus moves to the first field or the dialog heading on open. Destructive actions confirm once, never twice. |
 | Classification tree | Classifications | `<details>` nodes; drag-and-drop assignment with multi-select; toolbar appears only with an active selection. Row selection works without a pointer: each row carries a checkbox (`Space` toggles) feeding the same toolbar; on coarse pointers select+toolbar is the primary mechanism — drag is a desktop-only accelerator. Search filters live (150ms debounce) and auto-expands matches. Unsorted bucket pinned at the end. |
 | Import pipeline | Transactions — Import | Drop zone → preview ("what would be created") → apply (idempotent, atomic) → done summary with gap flags (unclassified securities, missing logos, unknown kinds). Never silently defaults. Parse/validation failure ends at the preview stage; nothing is applied. |
+
+### Period control — per-surface token subsets *(decided 2026-08-05, designer)*
+
+One vocabulary, `1M 3M 6M YTD 1Y 3Y 5Y Max`, never reordered. Each surface offers the subset its own read can answer honestly; the subsets are derived from what the backing function produces, not from taste.
+
+| Surface | Tokens offered | Grounded in |
+|---|---|---|
+| Wealth — Holdings | `YTD 1Y 3Y 5Y Max` | `Portfolios.Performance` `@periods ~w(ytd 1y 3y 5y max)` (`performance.ex:80`) — the shipped set, kept. The control does not only frame the chart: it re-keys the TTWROR and IRR values in the KPI band, and that IRR is **annualized** (`portfolio_live.ex:778`). Annualizing a 30- or 90-day window turns ordinary noise into a headline percentage, so no sub-YTD token is offered even though the underlying series is daily. The previous-year select and the custom range (#563, `{:year, y}` and `{:range, from, to}` in `period_start/2`) stay as the disclosure, which is where a genuinely short window belongs. |
+| Securities — detail chart | `1M 3M 6M YTD 1Y 3Y 5Y Max` | The full vocabulary, and the only surface that gets it. `securities_live.ex:35` already ships `@ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)`; the read is one end-of-day close per `(security_id, date)` (`Catalog.Quote`), so a one-month window is ~21 real points, and the surface asserts a price, not an annualized return. Only the `MAX` casing changes, to `Max`. |
+| Wealth — Cash flow (all four facets) | `YTD 1Y 3Y 5Y Max` | The smallest bucket any cash-flow read produces is a **calendar month**: `Portfolios.Income` groups booked transactions into `year → month → {dividends, interest}` (`income.ex:10-11, 88-127`). `1M` would resolve to a single bar, `3M`/`6M` to three and six with no comparable prior period — a period control whose narrow end shows one bucket misrepresents a total as a series. `YTD` is also the horizon the tax and statement year is read in. One control on the parent, shared by all four facets, so switching facet keeps the period. |
+| Wealth — Snapshots | none — fixed domain | The comparison's x-domain is not a user choice: `SnapshotComparison.for_snapshot/3` walks **every day from the snapshot's as-of date to today** (`snapshot_comparison.ex:9-19`). Every token except `Max` would truncate from the left, hiding the divergence's origin — which is the entire point of the surface. The chart states its domain in the basis line ("since <as-of date>") instead. This refines the Snapshots row above: the surface inherits the shared chart's axes, crosshair and data-table disclosure, but the period control is not applicable to it. |
 
 ## State Patterns
 
@@ -170,7 +201,7 @@ Visual anatomy for all three lives in `DESIGN.md`. Under `prefers-reduced-motion
 | Error — validation | Forms | Inline `.field-error` at the field, form-level alert above; the form stays open with input retained. Error text linked via `aria-describedby`, field gets `aria-invalid="true"`; on failed submit focus moves to the first invalid field; the form-level alert is `role="alert"`. |
 | Filter/search — no matches | Tables, trees, search fields | Controls stay visible; "No matches for 'X'." — never the empty-surface message, never an unexplained blank region. |
 | Error — action failed | Any | Alert banner at the top of the workspace page, plain sentence, no codes. |
-| Stale data / freshness | Wealth, Securities detail, Tax budget | Quotes, valuations and the tax trim budget show their basis date. When the newest input is older than the previous trading day, the timestamp becomes an **attention** data note — {colors.warning} tone **and** clock glyph **and** the word "stale", never hue alone. [ASSUMPTION] No backend freshness field is confirmed for quotes; the tax budget's as-of date is real (ADR-0031 §5). Open: the data source for "last quote sync". |
+| Stale data / freshness | Wealth, Securities detail, Tax budget | Quotes, valuations and the tax trim budget show their basis date. When the newest input is older than the previous trading day, the timestamp becomes an **attention** data note — {colors.warning} tone **and** clock glyph **and** the word "stale", never hue alone. **Source confirmed 2026-08-05:** `security_quotes.updated_at` — `Catalog.Quote` declares `timestamps()` (`quote.ex:18-25`) and the upsert refreshes it on every write, including a no-change rewrite (`Quotes.on_conflict/1` replaces `[:close, :source, :updated_at]`, `quotes.ex:256-269`). Because the Yahoo adapter re-fetches full history each run (`period1=0`, `yahoo.ex:7-14, 50`), a successful sync touches every row, so `max(updated_at)` per security is the last successful sync for that security. Two limits the UI must respect rather than paper over: a **failed or skipped** sync (`missing_ticker`, `no_provider_adapter`) writes nothing and is indistinguishable from "never attempted", and a security whose rows are all `source = "manual"` never advances under the manual-protecting upsert. The tax budget's as-of date is real (ADR-0031 §5). Remaining work is implementation, not design: no read function exposes this — `Catalog.Quotes` has no `last_synced_at/1` — and neither the JSON API nor MCP serialises it, so the freshness story carries a thin context function plus its API/MCP field. |
 | Not found | `/securities/:id`, `/classifications/:id`, and any future parameterized route | Error line inside the shell — never a bare error page; navigation stays available. |
 
 ## Interaction Primitives
@@ -223,7 +254,7 @@ Rules whose nature is **visual** are defined in `DESIGN.md` and only summarised 
 | DR1 | Decluttered Classifications — the tree IS the surface | here |
 | DR2 | Analysis-dashboard home: value, needs-attention, data quality | here — **rewritten** |
 | DR3 | Progressive-disclosure pass across all surfaces | here |
-| DR4 | Sidebar shows only working surfaces | here — **flagged** |
+| DR4 | Every shipped surface has a stated path, and its area lights up | here — **rewritten** |
 | DR5 | Chart build-in motion: one-shot, polish only, reduced-motion gated | `DESIGN.md` Motion |
 | DR6 | Touch targets ≥ 44px under `pointer: coarse` | here |
 | DR7 | Colour independence — never hue alone | here |
@@ -259,11 +290,36 @@ The "Needs attention" card **states its basis**: a line under the heading names 
 
 Creation and edit forms leave the primary sightline into modals, popovers, or collapsed sections opened by an explicit affordance. Reading is the default posture of every surface. Generalizes the `.inline-form` removal beyond Classifications; the cash-balance form moving into the account row is the current instance.
 
-### DR4 — Sidebar shows only working surfaces *(flagged)*
+### DR4 — Every shipped surface has a stated path *(rewritten 2026-08-05, designer)*
 
-Disabled "Soon" entries are hidden; an entry returns when its surface ships. Verified today: `nav_groups/0` renders no "Soon" pill at all, so the rule is satisfied by construction — but the list it was written against is dated.
+The 2026-06-13 rule ("disabled *Soon* entries are hidden; an entry returns when its surface ships") is satisfied by construction — `nav_groups/0` renders no "Soon" pill at all — and answers a question nobody is asking any more. The question that matters now: **which shipped surfaces are reachable only by a path the sidebar does not show?** The rule is restated as: *every built route is reachable from the shell, and the sidebar marks the area that owns it as current. A surface reached only by typing its URL, and an area whose sidebar entry goes unlit while the user stands on it, are both defects.*
 
-**[OPEN]** Re-check needed against what has shipped since 2026-06-13: several surfaces now exist (Income, Snapshots, Tax, Views) and are reached only as tabs or from Administration. The question the rule must answer is not "which items are hidden" but "which shipped surfaces are reachable only by a path the sidebar does not show". Needed to close: a route-by-route reachability pass, then an owner ruling on the Cash-flow parent.
+**Reachability pass, 2026-08-05** — all fourteen `live/3` declarations in `router.ex:29-42` against `app_shell.ex` `nav_groups/0`, `wealth_tabs/1`, `transactions_tabs/1` and `nav_current?/2`.
+
+| Route | How it is reached | Sidebar marks current? |
+|---|---|---|
+| `/` | Sidebar `nav-dashboard`; both brand links | yes |
+| `/portfolio` | Sidebar `nav-portfolio`; Wealth tab "Holdings"; Overview wealth card (`dashboard_live.ex:233`) | yes |
+| `/portfolio?tab=allocation` | Wealth tab; Overview drift alert (`dashboard_live.ex:274`) | yes |
+| `/securities` | Sidebar `nav-securities`; four Overview cards | yes |
+| `/securities/:id` | Row click in the securities table (detail pane) | yes (prefix match) |
+| `/portfolios` | Sidebar `nav-portfolios`; three Overview links | yes |
+| `/transactions` | Sidebar `nav-transactions`; Transactions tab "History"; two Overview links | yes |
+| `/imports` | **Transactions tab "Import" only** | yes (`:transactions` claims `/imports`) |
+| `/income` | **Wealth tab "Income" only** | yes (`:portfolio` claims `/income`) |
+| `/tax` | **Wealth tab "Tax" only** | yes (`:portfolio` claims `/tax`) |
+| `/snapshots` | **Wealth tab "Snapshots" only** | **no — the recorded `nav_current?/2` defect** |
+| `/buckets` | Sidebar "Views" (label ≠ route) | yes |
+| `/classifications` | Sidebar `nav-classifications` | yes |
+| `/classifications/new` | `+`-style link on the Classifications index (`classifications_live.ex:335`) | yes (prefix match) |
+| `/classifications/:id` | Row link on the Classifications index (`classifications_live.ex:329`) | yes (prefix match) |
+
+**Verdict.** No orphans: every built route has a path. Tab-only reachability (`/income`, `/tax`, `/snapshots`, `/imports`) is correct by ADR-0022 — the sidebar carries areas, tabs carry facets — **on the condition that the parent area lights up**, which is exactly why the `/snapshots` omission is a defect and not a variant. Index→detail reachability (`/securities/:id`, `/classifications/:id|new`) needs nothing further. Two records, neither a rule change:
+
+- **`/buckets` is labelled "Views".** Deliberate (ADR-0024 modification 6) and kept; recorded in the IA seams so a router reader is not left hunting.
+- **Spec-vs-build divergence, found in this pass:** `DESIGN.md`'s inventory and this document's IA table both describe the Classifications nav group as dynamic, "one entry per tree". `nav_groups/0` (`app_shell.ex:266-294`) renders **one static entry**; the per-tree list lives on `/classifications` itself. The build is the honest reading of ADR-0024 (a tree is an entity, not a task), so the documents follow the build — corrected in the IA table.
+
+**Cash-flow parent — decided 2026-08-05 (designer's call, owner-delegated).** It stays a **Wealth tab**, third in the set, and gets the route **`/cashflow`** (one word, matching `/portfolios`, `/transactions`, `/snapshots`; no hyphens exist in the route table). Its four facets are second-level tabs on query state, mirroring the one nesting idiom already shipped on `/portfolio?tab=allocation`: `/cashflow` (Income, the default facet) · `/cashflow?tab=realized` · `/cashflow?tab=flows` · `/cashflow?tab=costs`. It does **not** become a sidebar entry: ADR-0024 puts tasks in the sidebar, and "Wealth" is already that task — a second entry would make Cash flow compete with its own parent. Two consequences the implementation story carries: `/income` becomes a permanent redirect to `/cashflow` so existing links survive, and `nav_current?/2` must claim `/cashflow` and `/snapshots` under `:portfolio`. Facets ship as they gain a read — a second-level tab appears when its data exists, never as an empty shell.
 
 ### DR6 — Touch targets
 
@@ -306,13 +362,13 @@ Five idioms for "this control is selected" exist today. Reduced to three, and **
 2. **Toggles, filters, period selection** — segmented group with filled accent.
 3. **Selection in lists and tables** — tinted row with a left accent edge.
 
-Three, not one, because a selected table row and an active tab are genuinely different things; five is drift, one would be dogma. **One icon set app-wide** — a glyph may not carry a second meaning (the funnel currently means both "Views" and "filter"). Appearance of each class is defined in `DESIGN.md`.
+Three, not one, because a selected table row and an active tab are genuinely different things; five is drift, one would be dogma. **One icon set app-wide** — a glyph may not carry a second meaning. The funnel collision is resolved (2026-08-05, designer): `:filter` keeps "filter" in the securities toolbar, and the sidebar's Views entry takes `:bookmark`, an existing unused glyph that means "a saved, named selection". Appearance of each class is defined in `DESIGN.md`.
 
 ### DR17 — Data notes carry one of three severities *(new)*
 
 One component, three severities — **note / attention / problem** — distinguished by **colour AND icon AND word** (DR7). Severity describes the finding, not the surface. Replaces the four competing treatments (plain bullets, amber inline highlight, unstyled grey prose, accent bordered banner). Consequence for the data-quality list: "valued at last trade price" is a *note* and "impossible negative holding quantity" is a *problem*; today they render identically, which is why the app's most important warning surface has the lowest visual weight on its page. The remedy sits adjacent to the note that names the problem.
 
-**[OPEN]** The three icon glyphs are not picked. Needed to close: three glyphs from the existing `app_shell.ex` icon set, chosen with the `DESIGN.md` refresh.
+**Glyphs and words decided 2026-08-05 (designer's call, owner-delegated):** note → `:asterisk` (the footnote mark), attention → `:alert_triangle`, problem → `:alert_octagon`; labels "Note" · "Attention" · "Problem" (de: "Hinweis" · "Achtung" · "Problem", Voice and Tone). **All three glyphs are additions** — the 36-glyph set in `app_shell.ex` `icon_paths/1` contains no severity mark, and pressing an unrelated glyph into service would create the second-meaning collision DR16 forbids. Note is deliberately *not* an info circle: ⓘ is the metric-definition affordance at eight call sites, and a definition is not a fact about this data. `DESIGN.md` → Data note carries the descriptions, the reasoning, and the funnel-collision ruling; the stale-data clock glyph of State Patterns is also absent and rides the same icon-set story.
 
 ### DR18 — Active states are width-reserved *(new)*
 
