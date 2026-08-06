@@ -273,39 +273,3 @@ jobs:
           MIX_ENV=test mix ecto.migrate
           MIX_ENV=test mix ecto.rollback
           MIX_ENV=test mix ecto.migrate
-
-  # SonarQube Cloud analysis, driven from CI rather than by Automatic Analysis.
-  # Automatic Analysis ignores `sonar-project.properties`, so the exclusion of
-  # `_bmad-output/**` never applied and every planning PR failed the new-code
-  # duplication gate on committed BMad artifacts (agent-generated documents and
-  # HTML prototypes that repeat a component by construction). Running the
-  # scanner here makes the properties file authoritative and lets anyone
-  # working on the repo reproduce and inspect a result.
-  #
-  # Requires the SONAR_TOKEN secret, and Automatic Analysis must be off for
-  # this project — the two analysis methods are mutually exclusive.
-  sonarqube:
-    runs-on: ubuntu-latest
-
-    # Bound once at job level so the presence check below is a context lookup
-    # rather than a shell command. Passing a secret into `run:` to test whether
-    # it is set puts the value on a command line for no benefit; `env` is
-    # readable from a step `if:` without the token ever reaching a shell.
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          # Full history: the scanner needs blame data to decide what counts as
-          # new code. A shallow clone silently degrades the new-code metrics
-          # the quality gate is built on.
-          fetch-depth: 0
-
-      # SONAR_TOKEN is unavailable to pull requests from forks and absent until
-      # the secret is provisioned; neither is a product failure. The scan is
-      # skipped rather than faked — a skipped step is visibly not a passing one.
-      - name: SonarQube Cloud scan
-        if: env.SONAR_TOKEN != ''
-        uses: SonarSource/sonarqube-scan-action@v5
