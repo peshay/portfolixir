@@ -1,3 +1,11 @@
+> **Superseded for the contrast table (2026-08-05).** The "Computed contrast
+> table" below has been carried verbatim into
+> `../../design-language/DESIGN.md` → Colors, which is now the copy of record
+> and is kept in step when a token moves. Three pairings measured later —
+> `on-accent` on the three accent fills, `warning` on `warning-soft`, and the
+> `warning-soft-dark` composite — exist only there. Read the table there; this
+> file stays as the 2026-06-13 session archive, findings included.
+
 # Accessibility Review — UX Spine (DESIGN.md + EXPERIENCE.md)
 
 Reviewed: 2026-06-13 · Benchmark: WCAG 2.2 AA, applied pragmatically for a solo self-hosted tool · Scope: spine documents only, not the codebase. Severity = downstream implementation impact.
@@ -28,6 +36,8 @@ The spine is unusually accessibility-literate for a planning artifact — reduce
 - **low** — `text-soft` (3.48:1 light) is already flagged as "decorative-tertiary, not semantic" via [ASSUMPTION]. Promote that to a hard rule ("never body copy") so the 3.48 ratio never meets real text; dark-mode value (10.41) is fine.
 
 ## Computed contrast table
+
+**Superseded 2026-08-05 — the copy of record is `design-language/DESIGN.md` → Colors.** Kept here unchanged as the session archive; do not edit this copy.
 
 Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI components/graphics 3:1. "Large-only" = passes 3:1 but not 4.5:1.
 
