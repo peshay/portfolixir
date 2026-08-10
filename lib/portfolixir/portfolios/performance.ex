@@ -453,27 +453,22 @@ defmodule Portfolixir.Portfolios.Performance do
     }
   end
 
-  # Net invested capital at or below zero renders "n/a" — never a negative
-  # or infinite multiple (ADR-0034 §3).
+  # Net invested capital at or below zero — or an overdrawn (negative) end
+  # value — renders "n/a": never a negative or infinite multiple
+  # (ADR-0034 §3). A zero end value stays ×0: a total loss is a result.
   defp wealth_multiple(end_value, invested) do
-    if Decimal.compare(invested, @zero) == :gt do
+    if Decimal.compare(invested, @zero) == :gt and
+         Decimal.compare(end_value, @zero) != :lt do
       end_value |> Decimal.div(invested) |> Decimal.round(4)
     end
   end
 
-  # The exact de-annualization (1 + irr)^(days/365) − 1 of the solved rate:
-  # substituting the period rate into the NPV equation reproduces the annual
-  # solve, so no second root-find is needed. Float only at this boundary
-  # (ADR-0034 §2); windows shorter than a year display this figure instead
-  # of the annualized IRR.
+  # The non-annualized period MWR; the float de-annualization lives in the
+  # IRR module so float64 stays confined to the solver island (ADR-0034 §2).
+  # Windows shorter than a year display this figure instead of the
+  # annualized IRR.
   defp period_mwr(%Decimal{} = irr, %Date{} = start_date, %Date{} = end_date) do
-    years = Date.diff(end_date, start_date) / 365
-
-    (1.0 + Decimal.to_float(irr))
-    |> :math.pow(years)
-    |> Kernel.-(1.0)
-    |> Decimal.from_float()
-    |> Decimal.round(6)
+    IRR.period_rate(irr, Date.diff(end_date, start_date))
   end
 
   defp period_mwr(_irr, _start_date, _end_date), do: nil

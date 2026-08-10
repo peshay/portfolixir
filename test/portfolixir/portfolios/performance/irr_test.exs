@@ -111,12 +111,40 @@ defmodule Portfolixir.Portfolios.Performance.IRRTest do
     assert IRR.compute([cf(~D[2024-01-01], "1000"), cf(~D[2024-06-01], "500")]) == nil
   end
 
+  test "invents no rate when every cashflow shares one date (review finding)" do
+    # A one-day window gives money no time to weight: NPV is constant in r,
+    # so when it nets to zero EVERY rate "solves" it — Newton must not hand
+    # back its 10% guess as if it were a result (ADR-0034: no root is
+    # invented). A non-zero constant has no root at all.
+    day = ~D[2024-06-01]
+
+    assert IRR.compute([cf(day, "-1000"), cf(day, "1000")]) == nil
+    assert IRR.compute([cf(day, "-1000"), cf(day, "1200")]) == nil
+  end
+
   test "returns nil on non-convergence within the iteration budget" do
     # Root is 0.2 — deliberately away from the Newton guess (0.1), so a
     # one-step budget can converge in neither Newton nor the fallback.
     cashflows = [cf(~D[2024-01-01], "-1000"), cf(~D[2024-12-31], "1200")]
 
     assert IRR.compute(cashflows, max_iterations: 1, tolerance: 1.0e-12) == nil
+  end
+
+  # The de-annualization lives here so float64 stays confined to this module
+  # (ADR-0034 §2 — the single sanctioned float island, review finding).
+  test "period_rate/2 de-annualizes the solved rate for a window's day count" do
+    # 365 days: the period rate IS the annual rate.
+    assert IRR.period_rate(dec("0.1"), 365) |> Decimal.equal?(dec("0.1"))
+
+    # 90 days at the annualized rate that 5% over 90 days solves to: back to 5%
+    # (1.05^(365/90) − 1 = 0.218805 at 6 dp, independently verified).
+    annualized = IRR.period_rate(dec("0.218805"), 90)
+
+    assert Decimal.compare(Decimal.abs(Decimal.sub(annualized, dec("0.05"))), dec("0.000001")) !=
+             :gt
+
+    # Degenerate inputs stay nil, never a crash.
+    assert IRR.period_rate(nil, 90) == nil
   end
 
   test "derives a cashflow vector from a summary with the series flow sign" do

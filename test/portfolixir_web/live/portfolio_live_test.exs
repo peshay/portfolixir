@@ -1037,6 +1037,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert mwr_kpi =~ "MWR ("
     assert mwr_kpi =~ "8.0"
     refute mwr_kpi =~ "IRR ("
+    # The ⓘ affordance follows the visible label (review finding): a screen
+    # reader must not hear "IRR info" on a card labeled MWR.
+    assert mwr_kpi =~ "MWR info"
+    refute mwr_kpi =~ "IRR info"
   end
 
   test "renders n/a for the wealth multiple when nothing is invested (#568)", %{conn: conn} do
@@ -1082,6 +1086,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     irr_kpi = view |> element("#kpi-irr") |> render()
     assert irr_kpi =~ "IRR ("
     refute irr_kpi =~ "MWR ("
+    assert irr_kpi =~ "IRR info"
   end
 
   # User story:

@@ -321,6 +321,30 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     assert result.wealth_multiple == nil
   end
 
+  test "no wealth multiple when the end value is negative (#568, review finding)" do
+    world = setup_world()
+
+    # 1000 in, 1500 of fees out: the period ends overdrawn. A ×-0.5 would
+    # contradict ADR-0034 §3 — the multiple renders n/a instead.
+    deposit!(world, "1000", ~D[2026-01-01])
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "fee",
+        date: ~D[2026-01-05],
+        gross_amount: "1500",
+        currency_code: "EUR"
+      })
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10])
+
+    assert Decimal.equal?(result.invested_capital, Decimal.new("1000"))
+    assert Decimal.equal?(result.end_value, Decimal.new("-500"))
+    assert result.wealth_multiple == nil
+  end
+
   test "has no IRR for an empty portfolio" do
     world = setup_world()
 

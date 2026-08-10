@@ -92,12 +92,39 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   def compute(cashflows, _opts) when length(cashflows) < 2, do: nil
 
   def compute(cashflows, opts) do
-    if sign_change?(cashflows) do
+    if sign_change?(cashflows) and not single_dated?(cashflows) do
       solve(cashflows, opts)
     else
       nil
     end
   end
+
+  # One shared date gives money no time to weight: NPV is constant in r, so
+  # a zero constant would let Newton hand back its 10% guess as a "root"
+  # (ADR-0034: no root is invented) and a non-zero constant has none.
+  defp single_dated?([{date, _amount} | rest]),
+    do: Enum.all?(rest, fn {other, _amount} -> other == date end)
+
+  @doc """
+  De-annualizes a solved rate to the non-annualized period MWR for a window
+  of `days`: `(1 + rate)^(days / 365) − 1` (Act/365, ADR-0034 §2).
+
+  Substituting the period rate into the NPV equation reproduces the annual
+  solve exactly, so no second root-find is needed. Lives in this module so
+  float64 stays confined to the solver island; returns a `Decimal` rounded
+  to #{@scale} places, or `nil` for a nil rate.
+  """
+  @spec period_rate(Decimal.t() | nil, non_neg_integer()) :: Decimal.t() | nil
+  def period_rate(%Decimal{} = rate, days) when is_integer(days) and days >= 0 do
+    years = days / @days_per_year
+
+    (1.0 + Decimal.to_float(rate))
+    |> :math.pow(years)
+    |> Kernel.-(1.0)
+    |> finalize()
+  end
+
+  def period_rate(_rate, _days), do: nil
 
   @doc """
   Derives the cashflow vector from a period summary.
@@ -165,14 +192,20 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
     max_iterations = Keyword.get(opts, :max_iterations, @default_max_iterations)
     points = numeric_points(cashflows)
 
-    case newton(points, @newton_guess, tolerance, max_iterations) do
+    case attempt_newton(points, tolerance, max_iterations) do
       {:ok, rate} -> finalize(rate)
       :error -> solve_bracketed(points, opts, tolerance, max_iterations)
     end
+  end
+
+  # A pathological Newton trajectory can overflow or underflow `:math.pow`
+  # before the domain guard catches it (century-scale spans near rate −1).
+  # That is a failed attempt, not a failed solve — the bracketed fallback
+  # still gets its turn.
+  defp attempt_newton(points, tolerance, max_iterations) do
+    newton(points, @newton_guess, tolerance, max_iterations)
   rescue
-    # A pathological Newton trajectory can overflow `:math.pow` before the
-    # domain guard catches it; "no IRR" is the honest answer, never a raise.
-    ArithmeticError -> nil
+    ArithmeticError -> :error
   end
 
   defp solve_bracketed(points, opts, tolerance, max_iterations) do
@@ -185,6 +218,10 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
     else
       nil
     end
+  rescue
+    # The bracket's lower end suffers the same century-scale underflow;
+    # "no IRR" is the honest answer, never a raise.
+    ArithmeticError -> nil
   end
 
   # Newton–Raphson on the float NPV: quadratic near a root, and the only path

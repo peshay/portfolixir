@@ -773,7 +773,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             <strong :if={@performance && is_nil(money_weighted_value(@performance))}>—</strong>
             <strong :if={is_nil(@performance)}>…</strong>
             <details class="metric-tooltip">
-              <summary aria-label={gettext("IRR info")}>ⓘ</summary>
+              <summary aria-label={money_weighted_info_label(@performance)}>ⓘ</summary>
               <p id="tip-irr" role="tooltip">
                 <%= gettext("IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period. Windows shorter than a year show the period MWR — the same figure, not annualized.") %>
               </p>
@@ -2843,6 +2843,12 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp money_weighted_value(performance) do
     if short_window?(performance), do: performance.mwr, else: performance.irr
+  end
+
+  # The ⓘ affordance follows the visible card label (review finding): a
+  # screen reader must not hear "IRR info" on a card labeled MWR.
+  defp money_weighted_info_label(performance) do
+    if short_window?(performance), do: gettext("MWR info"), else: gettext("IRR info")
   end
 
   defp period_label("ytd"), do: gettext("YTD")
