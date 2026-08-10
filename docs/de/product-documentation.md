@@ -1093,7 +1093,8 @@ Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 - Zeitraum-Buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).
 - Einem Schalter *Log scale* (logarithmische Y-Achse).
 - Einem Schalter *Show transactions*, der Kauf-/Verkauf-Marker aus dem Ledger
-  überlagert.
+  überlagert — formcodierte Dreiecke (▲ Kauf, ▼ Verkauf), die Richtung ist
+  also ohne Farbe erkennbar.
 - Einem Button *Sync prices for this security*.
 
 **Aktiensplits und die Kursbasis (ADR-0028).** Nach dem Buchen eines Splits
@@ -1177,6 +1178,18 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   diese Wahl.
 - Theme, Akzent und Sprache sind Nutzerpräferenzen und beeinflussen gespeicherte
   Finanzwerte nicht.
+- Datumsfelder nehmen ISO-Daten (`YYYY-MM-DD`) entgegen und zeigen sie auch so
+  an — dasselbe Format wie jedes angezeigte Datum; der lokalisierte
+  Browser-Datumswähler kommt nicht zum Einsatz.
+- Während Werte berechnet werden, zeigt der betroffene Platz einen
+  Platzhalter plus den Hinweis „wird berechnet" statt eines Ladetexts;
+  Kopfzahlen zählen kurz sichtbar hoch. Bei reduzierter Bewegung als
+  Systemeinstellung entfällt alle dekorative Bewegung und Endwerte erscheinen
+  sofort.
+- Vorzeichenbehaftete Kennzahlen (TTWROR, IRR/MWR, Nettoflüsse, das
+  Veränderungssignal der Übersicht) tragen ein explizites Vorzeichen und
+  Gewinn-/Verlustfarbe auf jeder Ebene; vorzeichenlose Beträge behalten die
+  Akzentfarbe.
 
 ## Audit-Journal
 

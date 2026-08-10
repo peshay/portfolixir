@@ -1026,8 +1026,9 @@ The detail pane shows a server-rendered SVG price chart with:
 
 - Time-range buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).
 - A *Log scale* toggle (logarithmic Y-axis).
-- A *Show transactions* toggle that overlays Buy/Sell markers from the
-  ledger.
+- A *Show transactions* toggle that overlays buy/sell markers from the
+  ledger — shape-coded triangles (▲ buy, ▼ sell), so the direction is
+  readable without colour.
 - A *Sync prices for this security* button.
 
 **Stock splits and the price basis (ADR-0028).** After a split is booked, the
@@ -1105,6 +1106,15 @@ naming the already-booked event) stays inline in the dialog.
   choice.
 - Theme, accent, and language are user preferences and do not affect stored
   financial values.
+- Date fields accept and display ISO dates (`YYYY-MM-DD`) — the same format
+  every displayed date uses; the browser's locale date picker is not used.
+- While values compute, the affected slot shows a placeholder plus a
+  "computing" cue instead of a loading message; headline values settle with
+  a brief count-up. Under a reduced-motion system preference all decorative
+  motion is off and final values render immediately.
+- Signed key figures (TTWROR, IRR/MWR, net flows, the Overview change
+  signal) carry an explicit sign and gain/loss colour at every level;
+  unsigned magnitudes keep the accent colour.
 
 ## Audit Journal
 
