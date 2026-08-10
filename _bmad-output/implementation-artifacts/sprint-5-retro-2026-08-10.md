@@ -53,6 +53,28 @@ persona with a live server + screenshots on synthetic seed data,
    dashboard section skeletons had been demoted against an explicit keep.
    Both reverted to the spec's letter.
 
+## Post-PR rounds (added same day — both triggered by owner questions)
+
+Two rounds ran after the PR opened, and both exist because the owner asked a
+question the pipeline should have answered on its own:
+
+1. **Doc audit ("did you update the docs for ALL changes?").** The per-lane
+   doc updates were real but incomplete: a closing audit against every lane
+   found three gaps — no user-facing mention of the release/rollback
+   mechanism (issue 659's whole point for self-hosted operators), the
+   no-match state, and the income ⓘ move. Per-lane doc discipline is not the
+   same as a closing all-lanes doc audit.
+2. **Screenshot refresh ("update the screenshots and the tour GIF too").**
+   The shipped screenshot set predated the ADR-0022/0024 navigation — stale
+   through several sprints, and nothing guards against that. Regenerating it
+   surfaced two more rot findings: `priv/demo/strategies_seed.exs` no longer
+   ran at all (drifted from the actor-first context APIs; nothing exercises
+   the demo scripts), and the income conversion ⓘ rendered detached at the
+   viewport corner (the stat-card-cornered `.metric-tooltip` positioning —
+   the second computed-style bug this batch that no DOM test could see).
+   Fixed with a `--inline` variant; `priv/demo/` gained an offline
+   `quotes_seed.exs` so the whole screenshot pipeline runs with no network.
+
 ## Lessons carried forward
 
 - **A screenshot/computed-style pass belongs in every user-visible batch**
@@ -63,9 +85,16 @@ persona with a live server + screenshots on synthetic seed data,
   serious findings were JS/morphdom lifecycle issues. Until a JS test
   harness exists (deliberately out of scope), hook changes get a dedicated
   trace against the pinned LiveView client source in review.
+- **The closing act needs two more standing steps** (both learned from
+  owner prompts this sprint, both added to the dev-agent override): a
+  final all-lanes doc audit — walk every lane and ask "which behaviour
+  change has no doc sentence?" — and, for user-visible batches, a check
+  whether the shipped `docs/screenshots/` set and `tour.gif` still show
+  the current UI, regenerating from `priv/demo/` when they do not.
 - **Pipeline codified.** The owner's "never tell me this again" instruction
   is now `_bmad/custom/bmad-agent-dev.toml`: a plain "work sprint N" runs
-  lanes → gates → four-role review → PR → watch/fix → close-out + tag.
+  lanes → gates → four-role review → PR → watch/fix → close-out + tag,
+  including the doc audit and screenshot-freshness steps above.
 
 ## Follow-ups (filed as notes, not fixed — scope lock)
 
@@ -85,6 +114,14 @@ persona with a live server + screenshots on synthetic seed data,
 - The three `role="status"` section-level pending regions predate the
   batch and still conflict with the one-region-per-surface announcement
   rule (EXPERIENCE.md State Patterns item 4).
+- Nothing exercises the `priv/demo/` seed scripts, so they rot silently
+  (`strategies_seed.exs` had drifted API-incompatible without anyone
+  noticing) — a cheap meta-test or CI smoke that at least compiles/runs
+  them against a scratch schema is issue-worthy.
+- The docs screenshot set has no staleness guard; it survived two
+  navigation redesigns unchanged. Options for a story: regenerate as part
+  of the epic close-out checklist (now in the standing contract), or a
+  scripted `priv/demo/` screenshot task so the refresh is one command.
 
 ## Close-out (appended after merge)
 
