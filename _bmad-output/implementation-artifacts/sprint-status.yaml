@@ -76,7 +76,18 @@
 # epic-structure-reconciliation-2026-07-31.md), so no story rows change.
 
 generated: 2026-07-25
-last_updated: 2026-08-10 (Sprint 5 adopted -- sprint-plan-2026-08-10-sprint5.md; lanes A-F mapped to issues, release automation filed as #659)
+last_updated: 2026-08-10 (Sprint 5 batch implemented on claude/sprint-5-alle-lanes-2siqq9, agentic review complete, PR open -- close-out follows the merge)
+
+# SPRINT 5 IN REVIEW (2026-08-10, branch claude/sprint-5-alle-lanes-2siqq9):
+# All six lanes implemented as one batch per the adoption decisions; gates
+# green (1754 tests, coverage 89.8%, Credo/Sobelow/Dialyzer clean, MCP tests
+# and build green). The four-role agentic review ran (correctness, edge-case,
+# design critic, UAT persona with screenshots -- uat-sprint5-2026-08-10/);
+# confirmed findings fixed on the branch, batch retrospective drafted
+# (sprint-5-retro-2026-08-10.md). NOTE: the batch branch deviates from the
+# planned name agent/claude/sprint-5-design-debt -- the remote session's
+# designated branch is fixed by the harness; content is unaffected. Close-out
+# (issue closure, v0.5.0 tag, release) runs after the owner's merge.
 
 # SPRINT 5 ADOPTED (2026-08-10, `main` at cf68260):
 # The 2026-08-10 sequencing draft is adopted as sprint-plan-2026-08-10-sprint5.md
