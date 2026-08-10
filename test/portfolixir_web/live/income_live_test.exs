@@ -215,6 +215,12 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     app_css = File.read!("priv/static/app.css")
     assert app_css =~ ~r/\.income-chart\s*\{[^}]*overflow-x:\s*auto/s
     assert app_css =~ ~r/\.income-chart-track\s*\{[^}]*min-width:\s*max-content/s
+
+    # UX-DR15's affordance clause: the scrolled block sits in a bordered,
+    # radiused container so its edge reads as an edge, not as a cut
+    # (review finding; mirrors .data-table-wrapper).
+    assert app_css =~ ~r/\.income-chart\s*\{[^}]*border:\s*1px solid var\(--color-border\)/s
+    assert app_css =~ ~r/\.income-chart\s*\{[^}]*border-radius:\s*var\(--radius-md\)/s
   end
 
   # User story (Steve UAT #415 follow-up):

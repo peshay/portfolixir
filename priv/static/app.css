@@ -4102,8 +4102,13 @@ details[open] > .cat-summary::before {
 .income-chart {
   margin-bottom: var(--space-4);
   /* Own overflow-x scroller (UX-DR15): on a narrow viewport the chart
-     scrolls to the remaining bars instead of clipping them (issue 560). */
+     scrolls to the remaining bars instead of clipping them (issue 560).
+     The border + radius are the affordance clause: the scrolled block's
+     edge reads as an edge, not as a cut (mirrors .data-table-wrapper). */
   overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
 }
 .income-chart-track {
   /* Never compress below the labels' intrinsic width; defaults to the
