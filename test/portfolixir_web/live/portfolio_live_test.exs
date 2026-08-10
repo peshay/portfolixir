@@ -997,6 +997,90 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "Create a depot and cash account"
   end
 
+  # User story (#568, ADR-0034):
+  # As a local portfolio maintainer reading the Wealth KPI cards,
+  # I want invested capital (opening value and net flows as two labeled
+  # numbers), the wealth multiple and — for windows under a year — the
+  # non-annualized period MWR next to TTWROR,
+  # so that a cumulative TTWROR cannot read as a wealth multiple it is not.
+  #
+  # Acceptance criteria:
+  # - A KPI card shows opening value and net period flows as two labeled
+  #   numbers, never one merged figure.
+  # - A KPI card shows the wealth multiple (×N.NN) with an ⓘ tooltip;
+  #   net invested at or below zero renders "n/a".
+  # - For a window shorter than one year the money-weighted KPI is labeled
+  #   MWR and shows the non-annualized period figure.
+  test "shows invested capital, wealth multiple and short-window MWR (#568)", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    # Two labeled numbers: opening value (0 — everything happened inside the
+    # max period) and +1,000.00 net external flows.
+    invested = view |> element("#kpi-invested") |> render()
+    assert invested =~ "Opening value"
+    assert invested =~ "net flows"
+    assert invested =~ "+1,000.00"
+    assert invested =~ "ⓘ"
+    assert invested =~ ~s(role="group")
+
+    # Wealth multiple: 1,080 end value on 1,000 invested = ×1.08.
+    multiple = view |> element("#kpi-multiple") |> render()
+    assert multiple =~ "×1.08"
+    assert multiple =~ "ⓘ"
+
+    # The 10-day seed window is far under a year: the money-weighted KPI
+    # shows the period MWR (8%), not an annualized explosion (~1500%).
+    mwr_kpi = view |> element("#kpi-irr") |> render()
+    assert mwr_kpi =~ "MWR ("
+    assert mwr_kpi =~ "8.0"
+    refute mwr_kpi =~ "IRR ("
+  end
+
+  test "renders n/a for the wealth multiple when nothing is invested (#568)", %{conn: conn} do
+    world = seed_world()
+
+    # The full external deposit leaves again: net invested capital is zero.
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "removal",
+        date: Date.add(Date.utc_today(), -5),
+        gross_amount: "1000",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert view |> element("#kpi-multiple") |> render() =~ "n/a"
+  end
+
+  test "labels the money-weighted KPI IRR for windows of a year or more (#568)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Mein Depot", cash_name: "Giro", depot_name: "Depot")
+    security = WorldFixtures.create_security!(name: "World ETF", ticker: "WLD", asset_class: "etf")
+    # The built-in trees the page mounts with are seeded at boot; tests seed
+    # them explicitly inside their sandbox.
+    Classifications.ensure_builtins()
+
+    today = Date.utc_today()
+    start = Date.add(today, -400)
+
+    WorldFixtures.deposit!(world, "1000", start)
+    WorldFixtures.buy!(world, security, quantity: "10", price: "100", date: start)
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "110"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    irr_kpi = view |> element("#kpi-irr") |> render()
+    assert irr_kpi =~ "IRR ("
+    refute irr_kpi =~ "MWR ("
+  end
+
   # User story:
   # As a local portfolio maintainer reading the KPI cards,
   # I want focusable ⓘ info tooltips next to TTWROR, IRR, SOLL-IST (drift) and

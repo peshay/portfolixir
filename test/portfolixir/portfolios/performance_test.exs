@@ -237,6 +237,90 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     assert rounded(result.irr, 6) |> Decimal.equal?(Decimal.new("0.1"))
   end
 
+  # User story (#568, ADR-0034):
+  # As a local portfolio maintainer,
+  # I want net invested capital, the wealth multiple and the period MWR
+  # next to TTWROR and IRR,
+  # so that a cumulative TTWROR in the thousands cannot read as a wealth
+  # multiple it is not — the real "my money ×N" sits right beside it.
+  #
+  # Acceptance criteria:
+  # - `invested_capital` = opening value + net external period flows, both
+  #   also exposed separately (two labeled numbers, ADR-0034 §3).
+  # - `wealth_multiple` = end value ÷ invested capital; nil when invested
+  #   capital is not positive — never a negative or infinite multiple.
+  # - `mwr` is the non-annualized period money-weighted return, the exact
+  #   de-annualization (1 + irr)^(days/365) − 1 of the solved IRR.
+  # - An empty portfolio carries zero invested capital and nil multiple/MWR.
+  test "derives invested capital, wealth multiple and period MWR (#568)" do
+    world = setup_world()
+
+    start = ~D[2025-06-13]
+    today = ~D[2026-06-13]
+
+    deposit!(world, "1000", start)
+    buy!(world, "10", "100", start)
+    quote!(world, "100", start)
+    quote!(world, "110", today)
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: today)
+
+    # 1000 in on day one, nothing before the period: invested = 0 + 1000.
+    assert Decimal.equal?(result.invested_capital, Decimal.new("1000"))
+    assert Decimal.equal?(result.wealth_multiple, Decimal.new("1.1"))
+
+    # Exactly one Act/365 year: the period MWR equals the annualized IRR.
+    assert rounded(result.irr, 6) |> Decimal.equal?(Decimal.new("0.1"))
+    assert rounded(result.mwr, 6) |> Decimal.equal?(Decimal.new("0.1"))
+  end
+
+  test "a short window's MWR is the non-annualized period return (#568)" do
+    world = setup_world()
+
+    # Bought and quoted at 100 before the window; +5% by April 1.
+    deposit!(world, "1000", ~D[2025-12-01])
+    buy!(world, "10", "100", ~D[2025-12-01])
+    quote!(world, "100", ~D[2025-12-01])
+    quote!(world, "105", ~D[2026-04-01])
+
+    analysis = Performance.analysis(world.portfolio.id, today: ~D[2026-04-01])
+    {:ok, ytd} = Performance.summarise(analysis, "ytd")
+
+    # Period-scoped invested capital: opening value and net period flows stay
+    # two separate numbers (ADR-0034 §3); their sum is the multiple's basis.
+    assert Decimal.equal?(ytd.start_value, Decimal.new("1000"))
+    assert Decimal.equal?(ytd.net_external_flows, Decimal.new("0"))
+    assert Decimal.equal?(ytd.invested_capital, Decimal.new("1000"))
+    assert Decimal.equal?(ytd.wealth_multiple, Decimal.new("1.05"))
+
+    # 90 days at +5%: the period MWR is 5%; annualizing explodes it (~21.9%),
+    # which is exactly why short windows display the period figure.
+    assert rounded(ytd.mwr, 6) |> Decimal.equal?(Decimal.new("0.05"))
+    assert Decimal.compare(ytd.irr, ytd.mwr) == :gt
+  end
+
+  test "no wealth multiple when net invested capital is not positive (#568)" do
+    world = setup_world()
+
+    # All external money went in and out again: invested capital is zero.
+    deposit!(world, "1000", ~D[2026-01-01])
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "removal",
+        date: ~D[2026-01-05],
+        gross_amount: "1000",
+        currency_code: "EUR"
+      })
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10])
+
+    assert Decimal.equal?(result.invested_capital, Decimal.new("0"))
+    assert result.wealth_multiple == nil
+  end
+
   test "has no IRR for an empty portfolio" do
     world = setup_world()
 
@@ -244,6 +328,9 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
 
     assert result.series == []
     assert result.irr == nil
+    assert result.mwr == nil
+    assert result.wealth_multiple == nil
+    assert Decimal.equal?(result.invested_capital, Decimal.new("0"))
   end
 
   test "a balance snapshot's jump is an external flow, not return" do
