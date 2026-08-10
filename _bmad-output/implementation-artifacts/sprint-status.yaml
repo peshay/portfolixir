@@ -76,7 +76,24 @@
 # epic-structure-reconciliation-2026-07-31.md), so no story rows change.
 
 generated: 2026-07-25
-last_updated: 2026-08-10 (Sprint 4 Lanes B+C merged as 9eaf858 / PR #656 and 5167f27 / PR #657; #560 #568 closed; Sprint 4 complete)
+last_updated: 2026-08-10 (Sprint 5 adopted -- sprint-plan-2026-08-10-sprint5.md; lanes A-F mapped to issues, release automation filed as #659)
+
+# SPRINT 5 ADOPTED (2026-08-10, `main` at cf68260):
+# The 2026-08-10 sequencing draft is adopted as sprint-plan-2026-08-10-sprint5.md
+# with the owner's answers to its three open questions: ALL lanes in ONE batch
+# on one epic branch (agent/claude/sprint-5-design-debt), ONE PR for the sprint
+# (a lane splits into its own PR only if it turns out big -- decided up front,
+# Sprint-4 retro item 1), and #572 stays out (E5 money-domain work, Sprint 6
+# front-runner). Lane->issue mapping: A tokens/contrast (#642 #643 #644 #648
+# #650 + spec cleanups), B colour independence UX-DR7 (#637 #645), C loading
+# affordances/motion (#638 #647 + owner-decided skeleton/count-up patterns),
+# D hint prose -> tooltips (spec-driven, no issue), E markup/i18n/nav defect
+# sweep (#634 #635 #636 #639 #640 #641 #646 #649), F CI + release engineering
+# (#659 release automation -- new, owner 2026-08-10: annotated vX.Y.Z tag in
+# the ADR-0026 step-5 close-out + CI workflow on tag push creates the GitHub
+# Release with generated notes, first tag v0.5.0 at the Sprint 5 merge --
+# plus #653 #654). #651 stays queued. No story rows change -- Sprint 5 work
+# hangs off no epic row (the two-parallel-structures finding).
 
 # CLOSE-OUT (2026-08-10, `main` at 5167f27 -- Sprint 4 Lanes B+C, PRs #656/#657):
 # Sprint 4 is complete. Lane B (#560, PR #656) made the income charts scroll
