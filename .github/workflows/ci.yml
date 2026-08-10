@@ -82,8 +82,22 @@ jobs:
           MIX_ENV=test mix ecto.create
           MIX_ENV=test mix ecto.migrate
 
+      # The full run log is captured to a file and uploaded on every outcome
+      # (issue 654): the GitHub log API caps at the last 5000 lines, so on a
+      # warning-heavy run the failure blocks scroll out of the retrievable
+      # window and a red run leaves no usable evidence. pipefail keeps the
+      # step's exit code that of mix, not tee.
       - name: Run test suite with coverage
-        run: MIX_ENV=test mix coveralls.json
+        run: |
+          set -o pipefail
+          MIX_ENV=test mix coveralls.json 2>&1 | tee test-output.log
+
+      - name: Upload test output artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output.log
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

@@ -1392,7 +1392,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <% end %>
             </div>
             <%= if entry.editable do %>
-              <form phx-change="set_security_classification" class="sc-form">
+              <form id={"sc-form-#{entry.classification.id}"} phx-change="set_security_classification" class="sc-form">
                 <input type="hidden" name="classification_id" value={entry.classification.id} />
                 <select name="category_id" aria-label={entry.classification.name}>
                   <option value="" selected={is_nil(entry.selected_category_id)}>
@@ -1944,7 +1944,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           end)
 
         Phoenix.HTML.raw(
-          ~s[<form phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" onclick="event.stopPropagation()" class="quick-assign-form">] <>
+          ~s[<form id="quick-assign-#{sec_id}" phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" onclick="event.stopPropagation()" class="quick-assign-form">] <>
             ~s[<select name="asset_class" class="quick-assign-select">] <>
             ~s[<option value="">—</option>] <>
             options_html <>

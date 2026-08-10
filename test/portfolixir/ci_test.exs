@@ -4,7 +4,9 @@ defmodule Portfolixir.CITest do
   # User story:
   # As a maintainer keeping CI focused,
   # I want CI to run code coverage without deployment workflows,
-  # so that the base branch proves quality without carrying staging or release machinery.
+  # so that the base branch proves quality without carrying staging or
+  # deploy machinery. (The notes-only Release workflow is sanctioned
+  # separately — issue 659; it builds nothing and deploys nothing.)
   #
   # Acceptance criteria:
   # - CI runs mix coveralls.
@@ -46,6 +48,54 @@ defmodule Portfolixir.CITest do
     assert ci_workflow =~ "mix deps.audit"
     assert mix_file =~ ":mix_audit"
     refute ci_workflow =~ "intentionally NOT wired"
+  end
+
+  # User story:
+  # As a self-hosted operator upgrading between sprints,
+  # I want every sprint merge to produce a version tag and a GitHub release
+  # with generated notes,
+  # so that a known-good rollback point and a communicable changelog exist
+  # without any manual release work (issue 659, ADR-0026 step 5).
+  #
+  # Acceptance criteria:
+  # - A Release workflow triggers on v* tag pushes and creates the release
+  #   with generated notes from a verified tag.
+  # - It builds no installable artifacts and needs only contents: write.
+  # - AGENTS.md step 5 carries the tag duty, so the close-out creates the
+  #   tag that feeds this workflow.
+  test "a tag push creates the GitHub release with generated notes" do
+    release = File.read!(".github/workflows/release.yml")
+
+    assert release =~ ~s(tags: ["v*"])
+    assert release =~ "--generate-notes"
+    assert release =~ "--verify-tag"
+    assert release =~ "contents: write"
+    refute release =~ "upload-artifact"
+
+    assert File.read!("AGENTS.md") =~ "creates and pushes an annotated"
+  end
+
+  # User story:
+  # As a maintainer diagnosing a red CI run,
+  # I want the test job's full output preserved as an artifact,
+  # so that failures that scroll out of the 5000-line log window stay
+  # recoverable (issue 654 — run 31043767212 lost all twenty failure
+  # blocks), and I want the warning flood that pushed them out fixed at the
+  # source: a phx-change form without an id fails the build (issue 653).
+  #
+  # Acceptance criteria:
+  # - The test step tees its output to a file with pipefail intact.
+  # - The artifact uploads on every outcome (if: always()).
+  # - config/test.exs raises on LiveView's missing-form-id warning.
+  test "test failures survive the log window and form-id warnings are fatal" do
+    ci_workflow = File.read!(".github/workflows/ci.yml")
+
+    assert ci_workflow =~ "set -o pipefail"
+    assert ci_workflow =~ "tee test-output.log"
+    assert ci_workflow =~ "if: always()"
+    assert ci_workflow =~ "actions/upload-artifact"
+
+    assert File.read!("config/test.exs") =~ "missing_form_id: :raise"
   end
 
   # User story:

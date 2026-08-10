@@ -909,7 +909,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%!-- #563: a single previous year and a custom range are pure
                    re-chains of the cached analysis, exactly like the buttons
                    — no new walk. --%>
-              <form class="period-year" phx-change="select_year" data-role="period-year">
+              <form id="period-year-form" class="period-year" phx-change="select_year" data-role="period-year">
                 <label class="visually-hidden" for="performance-year"><%= gettext("Year") %></label>
                 <select
                   id="performance-year"
@@ -1063,7 +1063,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <%= gettext("Positions") %>
                 </button>
               </div>
-              <form phx-change="select_classification">
+              <form id="allocation-classification-form" phx-change="select_classification">
                 <label class="visually-hidden" for="allocation-classification">
                   <%= gettext("Classification") %>
                 </label>

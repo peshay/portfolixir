@@ -14,7 +14,7 @@ defmodule PortfolixirWeb.Securities.ColumnPicker do
       <div class="popover-head">
         <h3><%= gettext("Columns") %></h3>
       </div>
-      <form phx-change="toggle_columns" phx-target={@myself}>
+      <form id="securities-column-form" phx-change="toggle_columns" phx-target={@myself}>
         <%= for {group, fields} <- @grouped do %>
           <fieldset class="column-group">
             <legend><%= group_label(group) %></legend>

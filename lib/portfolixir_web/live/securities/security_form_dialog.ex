@@ -142,7 +142,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
 
   defp render_search(assigns) do
     ~H"""
-    <form phx-change="search_change" phx-submit="search_submit" phx-target={@myself}>
+    <form id="security-dialog-search-form" phx-change="search_change" phx-submit="search_submit" phx-target={@myself}>
       <label class="search-field">
         <AppShell.icon name={:search} />
         <input
@@ -224,7 +224,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
 
   defp render_confirm(assigns) do
     ~H"""
-    <form phx-change="form_change" phx-submit="save" phx-target={@myself}>
+    <form id="security-dialog-form" phx-change="form_change" phx-submit="save" phx-target={@myself}>
       <%= if @conflict do %>
         <div class="alert-warning" role="alert">
           <strong><%= gettext("This security already exists") %></strong>

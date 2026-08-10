@@ -63,3 +63,8 @@ config :portfolixir, :enable_logo_discovery, false
 # fast and deterministic (the queue is driven explicitly).
 config :portfolixir, :logo_discovery_drain_ms, 0
 config :portfolixir, :logo_discovery_refresh_ms, 0
+
+# A phx-change form without an id cannot recover its contents after a
+# disconnect (issue 653), and the warning flood made CI failures scroll out
+# of the retrievable log window. Raise so the next one fails the build.
+config :phoenix_live_view, :test_warnings, missing_form_id: :raise

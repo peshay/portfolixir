@@ -100,7 +100,8 @@ defmodule PortfolixirWeb.PerformanceStaleServeTest do
     # Immediately: the superseded series, with its provenance, marked.
     assert html =~ "data-role=\"performance-stale\""
     assert html =~ "Superseded series"
-    assert html =~ "bookings through"
+    # Singular with one seeded booking (ngettext, issue 636).
+    assert html =~ "booking through"
     assert html =~ "Recomputing"
     # The series itself renders — a number, not a skeleton.
     assert html =~ "data-role=\"period-badge\""
@@ -133,7 +134,8 @@ defmodule PortfolixirWeb.PerformanceStaleServeTest do
 
     assert html =~ "data-role=\"overview-stale\""
     assert html =~ "Last known:"
-    assert html =~ "bookings through"
+    # Singular with one seeded booking (ngettext, issue 636).
+    assert html =~ "booking through"
     assert html =~ "Recomputing"
 
     html = render_async(view)
