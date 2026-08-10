@@ -76,7 +76,25 @@
 # epic-structure-reconciliation-2026-07-31.md), so no story rows change.
 
 generated: 2026-07-25
-last_updated: 2026-08-06 (Sprint 4 Lane A merged as 58ef873 / PR #652; design-language spec confirmed; #634-#654 filed)
+last_updated: 2026-08-10 (Sprint 4 Lanes B+C merged as 9eaf858 / PR #656 and 5167f27 / PR #657; #560 #568 closed; Sprint 4 complete)
+
+# CLOSE-OUT (2026-08-10, `main` at 5167f27 -- Sprint 4 Lanes B+C, PRs #656/#657):
+# Sprint 4 is complete. Lane B (#560, PR #656) made the income charts scroll
+# horizontally on narrow viewports (UX-DR15 scroller + affordance). Lane C
+# (#568, PR #657) delivered ADR-0034: Newton-primary XIRR with bracketed
+# fallback (Excel-parity pinned), invested_capital / wealth_multiple / mwr in
+# the period summary, the Wealth KPI row (two labeled numbers, n/a semantics,
+# MWR label for sub-year windows), API + MCP parity, EN/DE docs. The ADR-0034
+# "flow classifier" resolved as verification of the projection's existing
+# per-kind `external` flag (ADR-0011 stays the single owner of booking
+# semantics) -- relevant for #572, which reuses exactly those markers and is
+# now unblocked. The agentic-review closing act (correctness + edge-case
+# hunter) confirmed six findings, all fixed on the branches before merge.
+# Both issues auto-closed with the squash-merges; merge CI verified green.
+# Retrospective: sprint-4-retro-2026-08-10.md. Sprint 5 sequencing draft
+# (from the confirmed design spec and the filed #634-#654):
+# sprint-plan-2026-08-10-sprint5-draft.md. No story rows change -- #560/#568
+# hang off no epic row (the two-parallel-structures finding).
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
