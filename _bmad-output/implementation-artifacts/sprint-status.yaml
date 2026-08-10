@@ -76,11 +76,37 @@
 # epic-structure-reconciliation-2026-07-31.md), so no story rows change.
 
 generated: 2026-07-25
-last_updated: 2026-08-04 (Sprint 3 bundle merged as 1903913 / PR #631; #563 #569 #577 #606 #619 #620 closed; ADR-0034..0037 accepted)
+last_updated: 2026-08-06 (Sprint 4 Lane A merged as 58ef873 / PR #652; design-language spec confirmed; #634-#654 filed)
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
+
+# CLOSE-OUT (2026-08-06, `main` at 58ef873 -- Sprint 4 Lane A, PR #652):
+# The design gate passed. The owner's merge IS the confirmation ADR-0026 step 4
+# and the sprint plan require, so the living design-language spec
+# (`planning-artifacts/design-language/`) is now the authority the E14/E11
+# Sprint 5 stories are cut from, and the one a design-critic review holds every
+# user-visible batch against (ADR-0038).
+#
+# What the batch produced beyond the spec itself:
+#   - UX-DR1..UX-DR20 moved into the spec; `epics.md` links rather than defines
+#     them. Six rules are new, from the live-surface survey and design critique.
+#   - The IA covers all built routes; the frozen seven-surface scope is retired.
+#   - Eleven drift families each carry one canonical pattern plus the real list
+#     of deviating call sites, so a Sprint 5 story inherits a work list instead
+#     of repeating the survey.
+#   - 21 issues filed (#634-#654). Most are defects the OLD spec had recorded as
+#     shipped -- buy/sell markers, native <dialog>, reduced motion as opt-in,
+#     the chart-as-table census, the data-quality link.
+#
+# Lanes B (#560) and C (#568) are NOT part of this close-out; Sprint 4 remains
+# open until they land or are deferred.
+#
+# Two follow-ups are downstream work, not open design questions: categorical
+# colour is its own decision gate (it touches user-set data), and the Overview
+# data-quality line has no pre-filtered URL to link to (#651) -- the 2026-07-12
+# decision turned out to be not merely unbuilt but currently impossible.
 
 development_status:
   # E1 -- open: #314 (coverage ratchet + Credo thresholds)

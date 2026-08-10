@@ -84,3 +84,63 @@ identities, exact `Decimal` expectations, explicit briefing callout.
 
 Bookkeeping in the same pass as the merge: `sprint-status.yaml`, epics doc,
 issue closes, retrospective section, CI green on the merge.
+
+---
+
+## Lane A close-out — 2026-08-06 (`main` at 58ef873, PR #652)
+
+The gate passed. The owner's merge is the confirmation ADR-0026 step 4 requires,
+so the living design-language spec is the authority Sprint 5's E14/E11 stories
+are cut from.
+
+### Retrospective
+
+**What the batch was actually for, and what it found.** The mandate read as
+"refresh the spec". The load-bearing finding was different: most of what the
+reviews caught was not the spec being incomplete but **the spec asserting
+something false about the build** — ▲/▼ buy-sell markers, native `<dialog>`
+modals, reduced motion as opt-in, the chart-as-table census, the data-quality
+link, the spacing-scale gap. All recorded as shipped since June. A design critic
+holding work against that spec would have reported correct code as a violation
+and waved the real violations through. ADR-0038 created the review role; this
+batch discovered the role needed a truthful document first.
+
+**The failure mode recurred inside the session.** The owner's per-instrument
+income decision was made, recorded in the decision log, and then dropped during
+distillation into the spines — caught only because the design critic grepped for
+it. The decision log names the same failure two sections earlier, in the
+2026-07-12 data-quality decision that was never written down and never built.
+Recording a decision is not the same as landing it where work is held against
+it. Worth a check in future sessions: after distillation, diff the decision log
+against the spec.
+
+**Reviewers earned their cost, and corrected the author.** Three lenses ran.
+Between them they falsified several counts the session had asserted from its own
+survey — four plural bugs were eight, three hand-rolled charts were four, six
+loading strings were nine, three chart-as-table disclosures were two. Every one
+had been inherited unverified into the spec. The lesson is narrower than "run
+reviews": a survey figure repeated into a specification acquires an authority it
+did not earn.
+
+**What cost time and should not next time.** The Sonar episode consumed a
+disproportionate share of the batch. Root cause: `sonar-project.properties`
+configures CI scanners, while Automatic Analysis reads `.sonarcloud.properties`
+— so the `_bmad-output/**` exclusion committed for #368 had never applied to the
+method actually running. Any planning PR would have hit it. The project has
+since been removed and the configuration reverted; if analysis returns it should
+be onboarded through the project's own GitHub Actions setup, in its own PR.
+
+**Process note for the owner's attention.** Two owner picks were corrected on
+designer authority and flagged in place rather than applied silently: the
+per-instrument stacked bars dropped from six named contributors to three plus a
+remainder (seven tints of one accent give roughly 1.3:1 between neighbours,
+below the non-text floor), and the pending treatment kept the dimmed last-known
+value but gained a programmatic staleness contract. Both are one-line reversals
+if the owner disagrees.
+
+### Still open in Sprint 4
+
+Lane B (#560, mobile income chart) and Lane C (#568, money-weighted metrics) are
+not part of this close-out. UX-DR15 gives Lane B its shape — every wide block
+owns its scroller — and the fix travels with the view when Sprint 5 moves income
+under the cash-flow area, so the two do not need sequencing against each other.
