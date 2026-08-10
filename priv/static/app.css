@@ -4101,6 +4101,14 @@ details[open] > .cat-summary::before {
    No animation, so prefers-reduced-motion needs nothing extra (UX-DR5). */
 .income-chart {
   margin-bottom: var(--space-4);
+  /* Own overflow-x scroller (UX-DR15): on a narrow viewport the chart
+     scrolls to the remaining bars instead of clipping them (issue 560). */
+  overflow-x: auto;
+}
+.income-chart-track {
+  /* Never compress below the labels' intrinsic width; defaults to the
+     container's full width when that is wider. */
+  min-width: max-content;
 }
 .income-bars {
   width: 100%;
