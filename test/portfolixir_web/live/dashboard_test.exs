@@ -120,7 +120,9 @@ defmodule PortfolixirWeb.DashboardTest do
     expected = Format.money(Valuation.for_view(nil, base_currency: "EUR").total_with_cash)
     assert html =~ "Everything"
     assert has_element?(view, "a#dashboard-wealth-card[href='/portfolio']")
-    assert html =~ "#{expected} EUR"
+    # The value sits in its own count-up digits span beside the currency.
+    assert html =~ ">#{expected}</span>"
+    assert html =~ "EUR"
 
     # The change signal: the card carries the YTD TTWROR.
     assert has_element?(view, "[data-role='card-ttwror']")
@@ -131,6 +133,28 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(view, "[id^='dashboard-portfolio-']")
     refute has_element?(view, "#dashboard-recent")
     refute has_element?(view, "#dashboard-securities-count")
+  end
+
+  # User story:
+  # As a user opening the Overview while the wealth card computes,
+  # I want pending sections to show a value-sized placeholder with the
+  # "computing" cue instead of a "Loading…" verb,
+  # so that loading indication is consistent and survives reduced motion as
+  # a static cue (UX-DR20; the stale-TTWROR line keeps its "Recomputing."
+  # sentence and loses only the loading heading).
+  #
+  # Acceptance criteria:
+  # - No "Loading…" string renders on the Overview.
+  # - Pending sections carry the value skeleton, aria-busy and the cue word.
+  test "overview pending sections use the computing cue, not a loading verb", %{conn: conn} do
+    seed_holding()
+
+    {:ok, _view, html} = live(conn, "/")
+
+    refute html =~ "Loading…"
+    assert html =~ "value-skeleton"
+    assert html =~ ~s(aria-busy="true")
+    assert html =~ "computing"
   end
 
   # User story:
@@ -217,7 +241,9 @@ defmodule PortfolixirWeb.DashboardTest do
 
     expected = Format.money(Valuation.for_view(mine.id, base_currency: "EUR").total_with_cash)
     assert has_element?(view, "#dashboard-wealth-card", "Mine")
-    assert html =~ "#{expected} EUR"
+    # The value sits in its own count-up digits span beside the currency.
+    assert html =~ ">#{expected}</span>"
+    assert html =~ "EUR"
 
     # The scope actually narrows: 1200 securities in scope, while Everything
     # also counts the untagged cash account's -1000 balance.

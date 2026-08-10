@@ -205,14 +205,18 @@ defmodule PortfolixirWeb.DashboardLive do
 
       <section class="workspace-section grid" aria-label={gettext("Wealth value")}>
         <%= if is_nil(@wealth_card) do %>
+          <%!-- Pending with a prior value (UX-DR20, owner pick P2): the
+               last-known basis line is the cue; the loading heading is gone.
+               aria-busy marks the slot for the whole pending state. --%>
           <article
             :if={@stale_ttwror}
-            class="stat section-skeleton"
+            class="stat"
             role="status"
+            aria-busy="true"
             data-role="overview-stale"
           >
-            <span><%= gettext("Loading…") %></span>
-            <small data-role="stale-ttwror">
+            <strong><span class="value-skeleton" aria-hidden="true"></span></strong>
+            <small data-role="stale-ttwror" class="recomputing-cue">
               <%= gettext(
                 "Last known: %{ttwror}% YTD — %{count} bookings through %{last}, as of %{date}. Recomputing.",
                 ttwror: signed_percent(@stale_ttwror.ttwror),
@@ -224,16 +228,27 @@ defmodule PortfolixirWeb.DashboardLive do
           </article>
           <article
             :if={is_nil(@stale_ttwror)}
-            class="stat section-skeleton"
+            class="stat"
+            aria-busy="true"
             data-role="overview-skeleton"
           >
-            <span><%= gettext("Loading…") %></span>
+            <strong><span class="value-skeleton" aria-hidden="true"></span></strong>
+            <small class="recomputing-cue">
+              <span class="spinner"></span> <%= gettext("computing") %>
+            </small>
           </article>
         <% else %>
           <a id="dashboard-wealth-card" href="/portfolio" class="stat stat--link">
             <span><%= @wealth_card.name || gettext("Everything") %></span>
             <strong>
-              <%= Format.money(@wealth_card.valuation.total_with_cash) %> <%= @wealth_card.valuation.base_currency %>
+              <span
+                id="count-wealth-card"
+                class="count-up"
+                phx-hook="CountUp"
+                data-count-to={Decimal.to_string(@wealth_card.valuation.total_with_cash, :normal)}
+                data-decimals="2"
+              ><span data-count-digits><%= Format.money(@wealth_card.valuation.total_with_cash) %></span></span>
+              <%= @wealth_card.valuation.base_currency %>
             </strong>
             <small :if={@wealth_card.ttwror} data-role="card-ttwror">
               <span class={sign_class(@wealth_card.ttwror)}><%= signed_percent(@wealth_card.ttwror) %>%</span>
@@ -261,8 +276,11 @@ defmodule PortfolixirWeb.DashboardLive do
           ) %>
         </p>
         <%= if is_nil(@drift_alerts) do %>
-          <p class="section-skeleton" data-role="attention-skeleton">
-            <%= gettext("Loading…") %>
+          <p class="value-slot-pending" aria-busy="true" data-role="attention-skeleton">
+            <span class="value-skeleton" aria-hidden="true"></span>
+            <span class="recomputing-cue">
+              <span class="spinner"></span> <%= gettext("computing") %>
+            </span>
           </p>
         <% else %>
           <%= if @drift_alerts == [] do %>
@@ -290,8 +308,11 @@ defmodule PortfolixirWeb.DashboardLive do
       <section id="dashboard-data-quality" class="workspace-section">
         <h2><%= gettext("Data quality") %></h2>
         <%= if is_nil(@data_quality) do %>
-          <p class="section-skeleton" data-role="data-quality-skeleton">
-            <%= gettext("Loading…") %>
+          <p class="value-slot-pending" aria-busy="true" data-role="data-quality-skeleton">
+            <span class="value-skeleton" aria-hidden="true"></span>
+            <span class="recomputing-cue">
+              <span class="spinner"></span> <%= gettext("computing") %>
+            </span>
           </p>
         <% else %>
           <%!-- Counts of securities needing attention. Links land on the

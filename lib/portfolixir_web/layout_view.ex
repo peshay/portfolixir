@@ -627,6 +627,95 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // The ninth inline hook (owner decision 2026-08-05, DESIGN.md →
+            // Motion): a cosmetic count-up to an already-known final value.
+            // requestAnimationFrame drives the count, Intl.NumberFormat
+            // formats each frame, and the accent bar beneath reports the
+            // count's real progress. The hook reads prefers-reduced-motion
+            // before the first frame: under `reduce` the settling state does
+            // not occur — the final value renders immediately.
+            Hooks.CountUp = {
+              mounted: function () {
+                this.lastValue = null;
+                this.frame = null;
+                this.animate();
+              },
+              updated: function () { this.animate(); },
+              destroyed: function () {
+                if (this.frame) cancelAnimationFrame(this.frame);
+              },
+              reduceMotion: function () {
+                return window.matchMedia &&
+                  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+              },
+              animate: function () {
+                var el = this.el;
+                var digits = el.querySelector("[data-count-digits]");
+                if (!digits) return;
+
+                var target = parseFloat(el.getAttribute("data-count-to"));
+                if (isNaN(target)) return;
+
+                var from = this.lastValue;
+                this.lastValue = target;
+                if (from === target || this.reduceMotion()) return;
+                if (from === null) from = 0;
+
+                // The server-rendered text is the value of record; frames
+                // approximate it and the last frame restores it exactly.
+                var finalText = digits.textContent;
+                var decimals = parseInt(el.getAttribute("data-decimals") || "2", 10);
+                var lang = document.documentElement.lang || "en";
+                var fmt = null;
+                try {
+                  fmt = new Intl.NumberFormat(lang, {
+                    minimumFractionDigits: decimals,
+                    maximumFractionDigits: decimals
+                  });
+                } catch (e) { fmt = null; }
+
+                if (this.frame) cancelAnimationFrame(this.frame);
+
+                var bar = el.querySelector(".count-up__bar");
+                if (!bar) {
+                  bar = document.createElement("span");
+                  bar.className = "count-up__bar";
+                  bar.setAttribute("aria-hidden", "true");
+                  el.appendChild(bar);
+                }
+
+                el.classList.add("is-settling");
+                el.setAttribute("aria-busy", "true");
+
+                var duration = 600;
+                var start = null;
+                var self = this;
+
+                function step(ts) {
+                  if (start === null) start = ts;
+                  var t = Math.min((ts - start) / duration, 1);
+                  var eased = 1 - Math.pow(1 - t, 3);
+                  var current = from + (target - from) * eased;
+                  digits.textContent = fmt ? fmt.format(current) : current.toFixed(decimals);
+                  bar.style.width = (t * 100).toFixed(1) + "%";
+                  if (t < 1) {
+                    self.frame = requestAnimationFrame(step);
+                  } else {
+                    self.frame = null;
+                    digits.textContent = finalText;
+                    el.classList.remove("is-settling");
+                    el.setAttribute("aria-busy", "false");
+                    bar.classList.add("is-done");
+                    setTimeout(function () {
+                      if (bar.parentNode) bar.parentNode.removeChild(bar);
+                    }, 300);
+                  }
+                }
+
+                this.frame = requestAnimationFrame(step);
+              }
+            };
+
             Hooks.PPImportDrop = {
               mounted: function () {
                 var container = this.el;

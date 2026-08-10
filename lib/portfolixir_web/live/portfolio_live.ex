@@ -716,9 +716,19 @@ defmodule PortfolixirWeb.PortfolioLive do
           <article id="kpi-total" class="stat">
             <span><%= gettext("Total incl. cash") %></span>
             <strong :if={@valuation}>
-              <%= Format.money(@valuation.total_with_cash) %> <%= @valuation.base_currency %>
+              <span
+                id="count-kpi-total"
+                class="count-up"
+                phx-hook="CountUp"
+                data-count-to={Decimal.to_string(@valuation.total_with_cash, :normal)}
+                data-decimals="2"
+              ><span data-count-digits><%= Format.money(@valuation.total_with_cash) %></span></span>
+              <%= @valuation.base_currency %>
             </strong>
-            <strong :if={is_nil(@valuation)}>…</strong>
+            <strong :if={is_nil(@valuation)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
             <%!-- Overlap badge (ADR-0024 modification 2): the active view's
                  buckets share at least one account. Purely informational —
                  the total already counts each account exactly once. --%>
@@ -736,9 +746,19 @@ defmodule PortfolixirWeb.PortfolioLive do
           <article id="kpi-securities" class="stat">
             <span><%= gettext("Securities") %></span>
             <strong :if={@valuation}>
-              <%= Format.money(@valuation.total_value) %> <%= @valuation.base_currency %>
+              <span
+                id="count-kpi-securities"
+                class="count-up"
+                phx-hook="CountUp"
+                data-count-to={Decimal.to_string(@valuation.total_value, :normal)}
+                data-decimals="2"
+              ><span data-count-digits><%= Format.money(@valuation.total_value) %></span></span>
+              <%= @valuation.base_currency %>
             </strong>
-            <strong :if={is_nil(@valuation)}>…</strong>
+            <strong :if={is_nil(@valuation)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
           </article>
           <article id="kpi-cash" class="stat" role="group" aria-describedby="tip-cash-quote">
             <span><%= gettext("Cash") %> · <%= gettext("cash quote") %></span>
@@ -746,7 +766,10 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= Format.money(@valuation.total_cash) %> <%= @valuation.base_currency %>
               · <%= Format.percent(@valuation.cash_quote) %>%
             </strong>
-            <strong :if={is_nil(@valuation)}>…</strong>
+            <strong :if={is_nil(@valuation)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("Cash quote info")}>ⓘ</summary>
               <p id="tip-cash-quote" role="tooltip">
@@ -761,7 +784,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             <strong :if={@performance} class={perf_sign_class(@performance.ttwror)}>
               <%= signed_percent(@performance.ttwror) %>%
             </strong>
-            <strong :if={is_nil(@performance)}>…</strong>
+            <strong :if={is_nil(@performance)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
               <p id="tip-ttwror" role="tooltip">
@@ -778,7 +804,10 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= signed_percent(money_weighted_value(@performance)) %>%
             </strong>
             <strong :if={@performance && is_nil(money_weighted_value(@performance))}>—</strong>
-            <strong :if={is_nil(@performance)}>…</strong>
+            <strong :if={is_nil(@performance)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
             <details class="metric-tooltip">
               <summary aria-label={money_weighted_info_label(@performance)}>ⓘ</summary>
               <p id="tip-irr" role="tooltip">
@@ -801,7 +830,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                   2
                 ) %></span> <%= @performance.base_currency %>
             </strong>
-            <strong :if={is_nil(@performance)}>…</strong>
+            <strong :if={is_nil(@performance)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("Invested capital info")}>ⓘ</summary>
               <p id="tip-invested" role="tooltip">
@@ -817,7 +849,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             <strong :if={@performance && is_nil(@performance.wealth_multiple)}>
               <%= gettext("n/a") %>
             </strong>
-            <strong :if={is_nil(@performance)}>…</strong>
+            <strong :if={is_nil(@performance)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("Wealth multiple info")}>ⓘ</summary>
               <p id="tip-multiple" role="tooltip">
@@ -969,12 +1004,10 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= gettext("the view's current bucket membership is applied to the whole history.") %>
             </p>
           <% else %>
-            <div
-              class="section-skeleton"
-              data-role="performance-skeleton"
-              role="status"
-              aria-label={gettext("Calculating…")}
-            >
+            <div class="section-skeleton" data-role="performance-skeleton" role="status">
+              <span class="recomputing-cue">
+                <span class="spinner"></span> <%= gettext("computing") %>
+              </span>
             </div>
           <% end %>
         </section>
@@ -1520,8 +1553,10 @@ defmodule PortfolixirWeb.PortfolioLive do
               class="section-skeleton section-skeleton--allocation"
               data-role="allocation-skeleton"
               role="status"
-              aria-label={gettext("Calculating…")}
             >
+              <span class="recomputing-cue">
+                <span class="spinner"></span> <%= gettext("computing") %>
+              </span>
             </div>
           <% end %>
         </section>
@@ -1610,7 +1645,9 @@ defmodule PortfolixirWeb.PortfolioLive do
               </p>
             </div>
           <% else %>
-            <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
+            <p class="hint loading-hint recomputing-cue" role="status">
+              <span class="spinner"></span> <%= gettext("computing") %>
+            </p>
           <% end %>
         </section>
         <% end %>
@@ -1844,12 +1881,13 @@ defmodule PortfolixirWeb.PortfolioLive do
       phx-hook="SunburstTooltip"
     >
       <circle cx="70" cy="70" r="20" class="donut-center" />
-      <%= for segment <- @segments do %>
+      <%= for {segment, seg_index} <- Enum.with_index(@segments) do %>
         <path
           d={segment.path}
           fill={segment.color}
           fill-opacity={segment.opacity}
           class="sunburst-seg"
+          style={"--seg-delay: #{seg_reveal_delay(seg_index, length(@segments))}ms"}
           data-label={segment.name}
           data-percent={segment.percent}
           data-value={segment.value}
@@ -1865,6 +1903,12 @@ defmodule PortfolixirWeb.PortfolioLive do
     </svg>
     """
   end
+
+  # Progressive fill (owner pick F1, DESIGN.md → Motion): reveals spread
+  # across 1.2s, so with each 0.3s fade the whole build lands at ~1.5s.
+  # Opacity only — geometry is final from the first frame.
+  defp seg_reveal_delay(_index, count) when count <= 1, do: 0
+  defp seg_reveal_delay(index, count), do: div(index * 1200, count)
 
   # -- events -----------------------------------------------------------------
 
