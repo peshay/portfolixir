@@ -92,9 +92,12 @@ defmodule Portfolixir.Portfolios.Performance do
     * `:today` — end date override (for tests); defaults to `Date.utc_today()`.
 
   Returns `{:ok, result}` or `{:error, :invalid_period}`. The result carries
-  `ttwror`, the money-weighted `irr` (`Decimal.t() | nil`),
-  `start_value`/`end_value`, `net_external_flows`, and the daily `series` of
-  `%{date, value, flow, cumulative_ttwror}` for the period.
+  `ttwror`, the money-weighted `irr` (`Decimal.t() | nil`) and its
+  non-annualized period companion `mwr`, `start_value`/`end_value`,
+  `net_external_flows`, `invested_capital` (opening value + net period
+  flows) with the `wealth_multiple` (`Decimal.t() | nil`, #568/ADR-0034),
+  and the daily `series` of `%{date, value, flow, cumulative_ttwror}` for
+  the period.
   """
   def for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     period = Keyword.get(opts, :period, "max")
@@ -432,8 +435,43 @@ defmodule Portfolixir.Portfolios.Performance do
       series: series
     }
 
-    Map.put(summary, :irr, IRR.for_summary(summary))
+    summary = Map.put(summary, :irr, IRR.for_summary(summary))
+    Map.merge(summary, wealth_metrics(summary))
   end
+
+  # Money-weighted companions to TTWROR/IRR (#568, ADR-0034): the invested
+  # capital the period actually saw, the honest wealth multiple, and the
+  # non-annualized period MWR. Opening value and net period flows stay two
+  # separate numbers in the summary — this only adds their sum.
+  defp wealth_metrics(summary) do
+    invested = Decimal.add(summary.start_value, summary.net_external_flows)
+
+    %{
+      invested_capital: invested,
+      wealth_multiple: wealth_multiple(summary.end_value, invested),
+      mwr: period_mwr(summary.irr, summary.start_date, summary.end_date)
+    }
+  end
+
+  # Net invested capital at or below zero — or an overdrawn (negative) end
+  # value — renders "n/a": never a negative or infinite multiple
+  # (ADR-0034 §3). A zero end value stays ×0: a total loss is a result.
+  defp wealth_multiple(end_value, invested) do
+    if Decimal.compare(invested, @zero) == :gt and
+         Decimal.compare(end_value, @zero) != :lt do
+      end_value |> Decimal.div(invested) |> Decimal.round(4)
+    end
+  end
+
+  # The non-annualized period MWR; the float de-annualization lives in the
+  # IRR module so float64 stays confined to the solver island (ADR-0034 §2).
+  # Windows shorter than a year display this figure instead of the
+  # annualized IRR.
+  defp period_mwr(%Decimal{} = irr, %Date{} = start_date, %Date{} = end_date) do
+    IRR.period_rate(irr, Date.diff(end_date, start_date))
+  end
+
+  defp period_mwr(_irr, _start_date, _end_date), do: nil
 
   defp empty_analysis(portfolio_id, today, base, suspects) do
     %{
@@ -458,8 +496,11 @@ defmodule Portfolixir.Portfolios.Performance do
       start_value: @zero,
       end_value: @zero,
       net_external_flows: @zero,
+      invested_capital: @zero,
+      wealth_multiple: nil,
       ttwror: @zero,
       irr: nil,
+      mwr: nil,
       suspect_dates: analysis.suspect_dates,
       series: []
     }

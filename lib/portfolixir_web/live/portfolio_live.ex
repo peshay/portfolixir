@@ -766,16 +766,52 @@ defmodule PortfolixirWeb.PortfolioLive do
             </details>
           </article>
           <article id="kpi-irr" class="stat" role="group" aria-describedby="tip-irr">
-            <span><%= gettext("IRR") %> (<%= period_label(@period) %>)</span>
-            <strong :if={@performance && @performance.irr}>
-              <%= Format.percent(@performance.irr) %>%
+            <span><%= money_weighted_label(@performance) %> (<%= period_label(@period) %>)</span>
+            <strong :if={@performance && money_weighted_value(@performance)}>
+              <%= Format.percent(money_weighted_value(@performance)) %>%
             </strong>
-            <strong :if={@performance && is_nil(@performance.irr)}>—</strong>
+            <strong :if={@performance && is_nil(money_weighted_value(@performance))}>—</strong>
             <strong :if={is_nil(@performance)}>…</strong>
             <details class="metric-tooltip">
-              <summary aria-label={gettext("IRR info")}>ⓘ</summary>
+              <summary aria-label={money_weighted_info_label(@performance)}>ⓘ</summary>
               <p id="tip-irr" role="tooltip">
-                <%= gettext("IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period.") %>
+                <%= gettext("IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period. Windows shorter than a year show the period MWR — the same figure, not annualized.") %>
+              </p>
+            </details>
+          </article>
+          <%!-- Invested capital as two labeled numbers — opening value and
+               net period flows, never one merged figure (ADR-0034 §3). --%>
+          <article id="kpi-invested" class="stat" role="group" aria-describedby="tip-invested">
+            <span>
+              <%= gettext("Opening value") %> · <%= gettext("net flows") %> (<%= period_label(
+                @period
+              ) %>)
+            </span>
+            <strong :if={@performance}>
+              <%= Format.money(@performance.start_value) %>
+              · <%= Format.signed_decimal(@performance.net_external_flows, 2) %> <%= @performance.base_currency %>
+            </strong>
+            <strong :if={is_nil(@performance)}>…</strong>
+            <details class="metric-tooltip">
+              <summary aria-label={gettext("Invested capital info")}>ⓘ</summary>
+              <p id="tip-invested" role="tooltip">
+                <%= gettext("Invested capital for the period: value at the period start plus net external flows (deposits minus withdrawals, deliveries at transaction value). Basis of the wealth multiple.") %>
+              </p>
+            </details>
+          </article>
+          <article id="kpi-multiple" class="stat" role="group" aria-describedby="tip-multiple">
+            <span><%= gettext("Wealth multiple") %> (<%= period_label(@period) %>)</span>
+            <strong :if={@performance && @performance.wealth_multiple}>
+              ×<%= Format.decimal(@performance.wealth_multiple, 2) %>
+            </strong>
+            <strong :if={@performance && is_nil(@performance.wealth_multiple)}>
+              <%= gettext("n/a") %>
+            </strong>
+            <strong :if={is_nil(@performance)}>…</strong>
+            <details class="metric-tooltip">
+              <summary aria-label={gettext("Wealth multiple info")}>ⓘ</summary>
+              <p id="tip-multiple" role="tooltip">
+                <%= gettext("Wealth multiple — end value ÷ invested capital: what the money put in has become. n/a when net invested capital is zero or negative.") %>
               </p>
             </details>
           </article>
@@ -2789,6 +2825,29 @@ defmodule PortfolixirWeb.PortfolioLive do
     else
       {:noreply, assign(socket, :period, period)}
     end
+  end
+
+  # Windows shorter than one year show the non-annualized period MWR
+  # (ADR-0034 §2); the window counts its days inclusively, so a full
+  # calendar year still reads as annualized IRR.
+  defp short_window?(%{start_date: %Date{} = start_date, end_date: %Date{} = end_date}),
+    do: Date.diff(end_date, start_date) + 1 < 365
+
+  defp short_window?(_performance), do: false
+
+  defp money_weighted_label(performance) do
+    if short_window?(performance), do: gettext("MWR"), else: gettext("IRR")
+  end
+
+  # Callers guard with `@performance &&`, so nil never reaches this.
+  defp money_weighted_value(performance) do
+    if short_window?(performance), do: performance.mwr, else: performance.irr
+  end
+
+  # The ⓘ affordance follows the visible card label (review finding): a
+  # screen reader must not hear "IRR info" on a card labeled MWR.
+  defp money_weighted_info_label(performance) do
+    if short_window?(performance), do: gettext("MWR info"), else: gettext("IRR info")
   end
 
   defp period_label("ytd"), do: gettext("YTD")

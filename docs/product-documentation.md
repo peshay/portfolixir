@@ -517,10 +517,18 @@ The **Wealth** entry in the navigation opens the wealth overview, organised
 into tabs (ADR-0022): **Holdings** (value, performance, data quality, cash),
 **Allocation & targets** (the sunburst and drift table), and **Income** (the
 received dividends and interest report). The Holdings tab shows the
-total value including cash, the cash quote, and both the TTWROR and the
+total value including cash, the cash quote, the TTWROR and the
 money-weighted **IRR** for a selectable period (year-to-date, one/three/five
 years, or since the first transaction; one year is the default) with the
-cumulative performance chart. Beside the fixed buttons, a year dropdown
+cumulative performance chart. Beside them sit the **invested capital** —
+always two labeled numbers, the value at the period start and the net
+external flows (deposits minus withdrawals, deliveries at transaction
+value), never one merged figure — and the **wealth multiple**: end value ÷
+invested capital, the honest "what the money put in has become". When net
+invested capital is zero or negative the multiple reads `n/a` — never a
+negative multiple. For windows shorter than a year the money-weighted KPI
+is labeled **MWR** and shows the period figure instead of an annualized
+one, which would explode a short window (ADR-0034). Beside the fixed buttons, a year dropdown
 chains any single calendar year with data, and a from/to date range chains a
 custom span — both are pure re-chains of the already-computed series, clamped
 honestly to the available history (a backwards range is refused with a short
@@ -688,6 +696,24 @@ TTWROR. Where TTWROR ignores the timing of cash flows, the IRR reflects it, so
 the two read differently when money moved at good or bad moments. The IRR shows
 `—` when there is no rate to compute (no flows of both signs, or the solver does
 not converge).
+
+Because a max-period TTWROR in the thousands is *not* a wealth multiple (it
+says what one unit from day one would have become, not what the actual money
+did), the same summary also carries the money-weighted companions
+([ADR-0034](decisions/0034-money-weighted-metrics.html)): **invested
+capital** (period opening value plus net external flows), the **wealth
+multiple** (end value ÷ invested capital; `n/a` at zero or negative net
+invested — never a negative multiple) and the **period MWR**, the
+non-annualized form of the IRR that short windows display. Exactly four
+transaction kinds count as external flows — deposit, removal, inbound and
+outbound delivery (at full transaction value) — plus the balance
+adjustment's jump; everything else (dividends, interest, fees, taxes,
+buys/sells, internal transfers) is performance, not flow. Multi-currency
+flows convert at the flow date's stored rate through the EUR hub, so the
+result is the EUR-investor's return including currency effects. The API
+response and both performance MCP tools expose `invested_capital`,
+`wealth_multiple` and `mwr` as Decimal strings alongside `ttwror` and
+`irr`.
 
 Performance is shown on the Wealth page and available per period —
 year-to-date, one, three, or five years, since the first transaction, a

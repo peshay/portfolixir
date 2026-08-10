@@ -193,6 +193,16 @@ describe("Portfolixir MCP tools", () => {
     const performance = tools.find((tool) => tool.name === "portfolixir.portfolios.performance");
     assert.match(performance?.description ?? "", /irr/i);
 
+    // #568 (ADR-0034): both performance tools document the money-weighted
+    // companions riding the response — invested capital, wealth multiple
+    // (null when net invested is not positive) and the period MWR.
+    for (const name of ["portfolixir.portfolios.performance", "portfolixir.views.performance"]) {
+      const description = tools.find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /invested_capital/);
+      assert.match(description, /wealth_multiple/);
+      assert.match(description, /mwr/);
+    }
+
     // ADR-0020: the target read/write tools and the per-plan cash-target tools
     // expose an integer `view` scope and a string cash_target_weight.
     const targetsList = tools.find((tool) => tool.name === "portfolixir.targets.list");

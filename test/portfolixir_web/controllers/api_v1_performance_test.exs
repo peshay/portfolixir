@@ -103,6 +103,13 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
     assert data["net_external_flows"] == "1000"
     # The money-weighted IRR is exposed as a Decimal string alongside TTWROR.
     assert is_binary(data["irr"])
+
+    # #568 (ADR-0034): invested capital, wealth multiple and the
+    # non-annualized period MWR ride the same response as Decimal strings.
+    assert data["invested_capital"] == "1000"
+    assert data["wealth_multiple"] == "1.1"
+    assert data["mwr"] == "0.1"
+
     refute Map.has_key?(data, "series")
 
     with_series =
@@ -211,6 +218,10 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
       |> Map.fetch!("data")
 
     assert empty_data["irr"] == nil
+    # #568: nothing invested — the multiple is null (n/a), never negative.
+    assert empty_data["mwr"] == nil
+    assert empty_data["wealth_multiple"] == nil
+    assert empty_data["invested_capital"] == "0"
   end
 
   # User story (#563):
