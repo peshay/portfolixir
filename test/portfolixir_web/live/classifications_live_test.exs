@@ -1058,4 +1058,23 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     |> Enum.find(&(&1.classification.id == classification_id))
     |> Map.fetch!(:assignments)
   end
+
+  # User story:
+  # As a maintainer using the new-category form on a classification tree,
+  # I want the "Current positions only" checkbox and its label on one line,
+  # so that the pair reads as one control instead of a bare box with a bold
+  # label stacked underneath running into the next field (UX-DR19, issue
+  # 635 — the global grid label stacked its children).
+  #
+  # Acceptance criteria:
+  # - A label wrapping a checkbox lays out as a one-line flex control.
+  # - The checkbox loses the 34px text-input min-height and takes the
+  #   accent colour. (The markup was correct; the defect was CSS-level.)
+  test "checkbox labels lay out box and label on one line (issue 635)" do
+    css = File.read!("priv/static/app.css")
+
+    assert css =~ ~r/label:has\(> input\[type="checkbox"\]\)\s*\{[^}]*display:\s*flex/s
+    assert css =~ ~r/input\[type="checkbox"\]\s*\{[^}]*min-height:\s*0/s
+    assert css =~ ~r/input\[type="checkbox"\]\s*\{[^}]*accent-color:\s*var\(--color-accent\)/s
+  end
 end

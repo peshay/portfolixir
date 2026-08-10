@@ -258,11 +258,17 @@ reviews decisions and behavior, agents review code:
    as the post-merge cleanup, the batch's agent updates
    `sprint-status.yaml` and the epics document (including the FR Coverage
    Map), closes the story issues and the epic tracker, records a short
-   retrospective section, and confirms the merge's own CI runs — required
-   checks included — are green. The batch ends at the merge; the epic ends
-   here. (Added 2026-07-31 from the combined E17–E19 retrospective: all
-   observed process failures of that period sat in the unowned space after
-   the merge.)
+   retrospective section, confirms the merge's own CI runs — required
+   checks included — are green, and **creates and pushes an annotated
+   `vX.Y.Z` tag on the merge commit** (minor bump per sprint, patch
+   reserved for hotfixes). The tag push triggers the Release workflow,
+   which creates the GitHub Release with generated notes — the release is
+   a rollback point for self-hosted instances plus a communicable
+   changelog, never an installable artifact (issue #659, added
+   2026-08-10). The batch ends at the merge; the epic ends here. (Added
+   2026-07-31 from the combined E17–E19 retrospective: all observed
+   process failures of that period sat in the unowned space after the
+   merge.)
 
 **Risk-tier work rides the batch (ADR-0036, 2026-08-04).** Ledger/money-domain
 math and invariants, security-relevant changes, dependency updates, and

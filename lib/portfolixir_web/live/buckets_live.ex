@@ -22,7 +22,6 @@ defmodule PortfolixirWeb.BucketsLive do
 
   use PortfolixirWeb, :live_view
 
-  alias Phoenix.LiveView.JS
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Portfolios
@@ -60,7 +59,7 @@ defmodule PortfolixirWeb.BucketsLive do
           <p>
             <strong><%= gettext("How it works — two steps:") %></strong>
             <%= gettext(
-              "1. Create buckets — tags on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Portfolio page, so both are needed."
+              "1. Create buckets — tags on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Wealth page, so both are needed."
             ) %>
           </p>
           <p data-role="overlap-hint">
@@ -370,19 +369,15 @@ defmodule PortfolixirWeb.BucketsLive do
 
   defp view_bucket_modal(assigns) do
     ~H"""
-    <div
+    <%!-- Native dialog (UX-DR9, issue 646): opened via showModal() by the
+         ModalDialog hook; cancel (Esc) pushes the close event. --%>
+    <dialog
       id="view-bucket-modal"
-      class="modal-backdrop"
-      phx-window-keydown={JS.push("close_bucket_picker")}
-      phx-key="Escape"
+      class="modal"
+      phx-hook="ModalDialog"
+      data-close-event="close_bucket_picker"
+      aria-labelledby="view-bucket-modal-title"
     >
-      <div
-        class="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="view-bucket-modal-title"
-        tabindex="-1"
-      >
         <header class="modal-head">
           <h2 id="view-bucket-modal-title">
             <%= gettext("Buckets for %{name}", name: @view.name) %>
@@ -448,8 +443,7 @@ defmodule PortfolixirWeb.BucketsLive do
             </div>
           </form>
         </div>
-      </div>
-    </div>
+    </dialog>
     """
   end
 

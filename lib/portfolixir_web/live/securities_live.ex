@@ -286,10 +286,34 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 </thead>
                 <tbody>
                   <%= if @securities == [] do %>
+                    <%!-- UX-DR13 (issue 649): a filtered zero-match keeps the
+                         controls and names the filter — telling the operator
+                         their list is empty when a filter is merely narrow
+                         would be a factual error about their data. The
+                         holding-status segmented control is a filter too. --%>
                     <tr>
-                      <td colspan={length(visible_fields(@visible_columns)) + 1} class="empty-state">
-                        <%= gettext("No securities yet — click + to add one.") %>
-                      </td>
+                      <%= if String.trim(@query) != "" or @filters != [] or
+                            @holding_status != "all" do %>
+                        <td
+                          colspan={length(visible_fields(@visible_columns)) + 1}
+                          class="empty-state"
+                          data-role="no-results"
+                        >
+                          <%= if String.trim(@query) != "" do %>
+                            <%= gettext("No matches for \"%{query}\".", query: @query) %>
+                          <% else %>
+                            <%= gettext("No matches for the active filters.") %>
+                          <% end %>
+                        </td>
+                      <% else %>
+                        <td
+                          colspan={length(visible_fields(@visible_columns)) + 1}
+                          class="empty-state"
+                          data-role="empty-surface"
+                        >
+                          <%= gettext("No securities yet — click + to add one.") %>
+                        </td>
+                      <% end %>
                     </tr>
                   <% end %>
                   <% visible = visible_fields(@visible_columns) %>
@@ -411,11 +435,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp render_detail_pane(assigns) do
     ~H"""
+    <%!-- No modality attribute here (issue 646): the pane is not a dialog,
+         and asserting modality without containment splits screen-reader
+         position from keyboard focus. --%>
     <aside
       class={["detail-pane", @detail_fullscreen? && "detail-pane--fullscreen"]}
       id="security-detail-pane"
       aria-label={gettext("Selected security")}
-      aria-modal={if @detail_fullscreen?, do: "true", else: "false"}
     >
       <header class="detail-pane-head">
         <div class="detail-pane-head__title">
@@ -531,14 +557,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
               aria-label={gettext("Custom range")}
             >
               <input
-                type="date"
+                type="text"
+                placeholder="YYYY-MM-DD"
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                maxlength="10"
                 name="from"
                 value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.from)}
                 aria-label={gettext("From")}
               />
               <span aria-hidden="true">→</span>
               <input
-                type="date"
+                type="text"
+                placeholder="YYYY-MM-DD"
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                maxlength="10"
                 name="to"
                 value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.to)}
                 aria-label={gettext("To")}
@@ -862,17 +894,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <% end %>
           </dd>
         </div>
+        <%!-- Signed metrics carry gain/loss colour at every level, not only
+             totals (UX-DR7, issue 637). --%>
         <div class="overview-metric">
           <dt><%= gettext("Day change") %></dt>
-          <dd><%= signed_percent_or_dash(@metrics[:day_change_pct]) %></dd>
+          <dd class={pnl_class(@metrics[:day_change_pct])}>
+            <%= signed_percent_or_dash(@metrics[:day_change_pct]) %>
+          </dd>
         </div>
         <div class="overview-metric">
           <dt>1M</dt>
-          <dd><%= signed_percent_or_dash(@metrics[:performance_1m]) %></dd>
+          <dd class={pnl_class(@metrics[:performance_1m])}>
+            <%= signed_percent_or_dash(@metrics[:performance_1m]) %>
+          </dd>
         </div>
         <div class="overview-metric">
           <dt>1Y</dt>
-          <dd><%= signed_percent_or_dash(@metrics[:performance_1y]) %></dd>
+          <dd class={pnl_class(@metrics[:performance_1y])}>
+            <%= signed_percent_or_dash(@metrics[:performance_1y]) %>
+          </dd>
         </div>
       </dl>
 
@@ -1352,7 +1392,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <% end %>
             </div>
             <%= if entry.editable do %>
-              <form phx-change="set_security_classification" class="sc-form">
+              <form id={"sc-form-#{entry.classification.id}"} phx-change="set_security_classification" class="sc-form">
                 <input type="hidden" name="classification_id" value={entry.classification.id} />
                 <select name="category_id" aria-label={entry.classification.name}>
                   <option value="" selected={is_nil(entry.selected_category_id)}>
@@ -1904,7 +1944,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           end)
 
         Phoenix.HTML.raw(
-          ~s[<form phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" onclick="event.stopPropagation()" class="quick-assign-form">] <>
+          ~s[<form id="quick-assign-#{sec_id}" phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" onclick="event.stopPropagation()" class="quick-assign-form">] <>
             ~s[<select name="asset_class" class="quick-assign-select">] <>
             ~s[<option value="">—</option>] <>
             options_html <>

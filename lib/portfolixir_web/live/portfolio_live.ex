@@ -716,9 +716,19 @@ defmodule PortfolixirWeb.PortfolioLive do
           <article id="kpi-total" class="stat">
             <span><%= gettext("Total incl. cash") %></span>
             <strong :if={@valuation}>
-              <%= Format.money(@valuation.total_with_cash) %> <%= @valuation.base_currency %>
+              <span
+                id="count-kpi-total"
+                class="count-up"
+                phx-hook="CountUp"
+                data-count-to={Decimal.to_string(@valuation.total_with_cash, :normal)}
+                data-decimals="2"
+              ><span data-count-digits><%= Format.money(@valuation.total_with_cash) %></span></span>
+              <%= @valuation.base_currency %>
             </strong>
-            <strong :if={is_nil(@valuation)}>…</strong>
+            <strong :if={is_nil(@valuation)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
             <%!-- Overlap badge (ADR-0024 modification 2): the active view's
                  buckets share at least one account. Purely informational —
                  the total already counts each account exactly once. --%>
@@ -736,9 +746,19 @@ defmodule PortfolixirWeb.PortfolioLive do
           <article id="kpi-securities" class="stat">
             <span><%= gettext("Securities") %></span>
             <strong :if={@valuation}>
-              <%= Format.money(@valuation.total_value) %> <%= @valuation.base_currency %>
+              <span
+                id="count-kpi-securities"
+                class="count-up"
+                phx-hook="CountUp"
+                data-count-to={Decimal.to_string(@valuation.total_value, :normal)}
+                data-decimals="2"
+              ><span data-count-digits><%= Format.money(@valuation.total_value) %></span></span>
+              <%= @valuation.base_currency %>
             </strong>
-            <strong :if={is_nil(@valuation)}>…</strong>
+            <strong :if={is_nil(@valuation)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
           </article>
           <article id="kpi-cash" class="stat" role="group" aria-describedby="tip-cash-quote">
             <span><%= gettext("Cash") %> · <%= gettext("cash quote") %></span>
@@ -746,7 +766,10 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= Format.money(@valuation.total_cash) %> <%= @valuation.base_currency %>
               · <%= Format.percent(@valuation.cash_quote) %>%
             </strong>
-            <strong :if={is_nil(@valuation)}>…</strong>
+            <strong :if={is_nil(@valuation)} class="value-slot-pending" aria-busy="true">
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("Cash quote info")}>ⓘ</summary>
               <p id="tip-cash-quote" role="tooltip">
@@ -756,8 +779,20 @@ defmodule PortfolixirWeb.PortfolioLive do
           </article>
           <article id="kpi-ttwror" class="stat" role="group" aria-describedby="tip-ttwror">
             <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
-            <strong :if={@performance}><%= Format.percent(@performance.ttwror) %>%</strong>
-            <strong :if={is_nil(@performance)}>…</strong>
+            <%!-- Signed metric: gain/loss colour plus sign, never the accent
+                 (UX-DR7, issue 637). --%>
+            <strong :if={@performance} class={perf_sign_class(@performance.ttwror)}>
+              <%= signed_percent(@performance.ttwror) %>%
+            </strong>
+            <strong
+              :if={is_nil(@performance) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+            >
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
+            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
               <p id="tip-ttwror" role="tooltip">
@@ -767,11 +802,22 @@ defmodule PortfolixirWeb.PortfolioLive do
           </article>
           <article id="kpi-irr" class="stat" role="group" aria-describedby="tip-irr">
             <span><%= money_weighted_label(@performance) %> (<%= period_label(@period) %>)</span>
-            <strong :if={@performance && money_weighted_value(@performance)}>
-              <%= Format.percent(money_weighted_value(@performance)) %>%
+            <strong
+              :if={@performance && money_weighted_value(@performance)}
+              class={perf_sign_class(money_weighted_value(@performance))}
+            >
+              <%= signed_percent(money_weighted_value(@performance)) %>%
             </strong>
             <strong :if={@performance && is_nil(money_weighted_value(@performance))}>—</strong>
-            <strong :if={is_nil(@performance)}>…</strong>
+            <strong
+              :if={is_nil(@performance) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+            >
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
+            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
             <details class="metric-tooltip">
               <summary aria-label={money_weighted_info_label(@performance)}>ⓘ</summary>
               <p id="tip-irr" role="tooltip">
@@ -789,9 +835,20 @@ defmodule PortfolixirWeb.PortfolioLive do
             </span>
             <strong :if={@performance}>
               <%= Format.money(@performance.start_value) %>
-              · <%= Format.signed_decimal(@performance.net_external_flows, 2) %> <%= @performance.base_currency %>
+              · <span class={perf_sign_class(@performance.net_external_flows)}><%= Format.signed_decimal(
+                  @performance.net_external_flows,
+                  2
+                ) %></span> <%= @performance.base_currency %>
             </strong>
-            <strong :if={is_nil(@performance)}>…</strong>
+            <strong
+              :if={is_nil(@performance) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+            >
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
+            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("Invested capital info")}>ⓘ</summary>
               <p id="tip-invested" role="tooltip">
@@ -807,7 +864,15 @@ defmodule PortfolixirWeb.PortfolioLive do
             <strong :if={@performance && is_nil(@performance.wealth_multiple)}>
               <%= gettext("n/a") %>
             </strong>
-            <strong :if={is_nil(@performance)}>…</strong>
+            <strong
+              :if={is_nil(@performance) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+            >
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
+            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("Wealth multiple info")}>ⓘ</summary>
               <p id="tip-multiple" role="tooltip">
@@ -864,7 +929,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%!-- #563: a single previous year and a custom range are pure
                    re-chains of the cached analysis, exactly like the buttons
                    — no new walk. --%>
-              <form class="period-year" phx-change="select_year" data-role="period-year">
+              <form id="period-year-form" class="period-year" phx-change="select_year" data-role="period-year">
                 <label class="visually-hidden" for="performance-year"><%= gettext("Year") %></label>
                 <select
                   id="performance-year"
@@ -886,14 +951,20 @@ defmodule PortfolixirWeb.PortfolioLive do
               <form class="period-range" phx-submit="select_range" data-role="period-range">
                 <label class="visually-hidden" for="performance-from"><%= gettext("From") %></label>
                 <input
-                  type="date"
+                  type="text"
+                  placeholder="YYYY-MM-DD"
+                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                  maxlength="10"
                   id="performance-from"
                   name="from"
                   value={range_from(@period, @performance)}
                 />
                 <label class="visually-hidden" for="performance-to"><%= gettext("To") %></label>
                 <input
-                  type="date"
+                  type="text"
+                  placeholder="YYYY-MM-DD"
+                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                  maxlength="10"
                   id="performance-to"
                   name="to"
                   value={range_to(@period, @performance)}
@@ -930,6 +1001,16 @@ defmodule PortfolixirWeb.PortfolioLive do
               basis: series_basis_label(@analysis)
             ) %>
           </p>
+          <%!-- A cold-start failure has no cached series to label — without
+               this the KPI slots would claim "computing" forever. --%>
+          <p
+            :if={@performance_failed and is_nil(@analysis)}
+            class="alert-error"
+            role="alert"
+            data-role="performance-failed"
+          >
+            <%= gettext("Computation failed. Reload retries.") %>
+          </p>
           <%= if @performance do %>
             <p
               class={["perf-badge", perf_sign_class(@performance.ttwror)]}
@@ -945,26 +1026,25 @@ defmodule PortfolixirWeb.PortfolioLive do
               mode={@chart_mode}
               currency={@performance.base_currency}
             />
-            <p class="hint">
-              <%= gettext("True time-weighted return; deposits and withdrawals are neutralised.") %>
-              <%= if @performance.start_date do %>
-                <%= @performance.start_date %> – <%= @performance.end_date %>
-              <% end %>
+            <%!-- UX-DR11 (Sprint 5 Lane D, decided outcome: split, then
+                 delete half): the TTWROR definition lives ONLY in the
+                 kpi-ttwror ⓘ tooltip; the chart keeps the period basis. --%>
+            <p :if={@performance.start_date} class="hint" data-role="performance-basis">
+              <%= @performance.start_date %> – <%= @performance.end_date %>
             </p>
             <%!-- ADR-0024 modification 4: bucket membership applies
                  retroactively, so a view-scoped series is labelled with its
-                 semantics instead of pretending temporal membership. --%>
+                 semantics instead of pretending temporal membership. This is
+                 a basis line (UX-DR11 inventory), not a definition — no ⓘ. --%>
             <p :if={@active_view} class="hint" data-role="composition-label">
               <%= gettext("Composition as of today") %> —
               <%= gettext("the view's current bucket membership is applied to the whole history.") %>
             </p>
           <% else %>
-            <div
-              class="section-skeleton"
-              data-role="performance-skeleton"
-              role="status"
-              aria-label={gettext("Calculating…")}
-            >
+            <div class="section-skeleton" data-role="performance-skeleton" role="status">
+              <span class="recomputing-cue">
+                <span class="spinner"></span> <%= gettext("computing") %>
+              </span>
             </div>
           <% end %>
         </section>
@@ -1000,7 +1080,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <%= gettext("Positions") %>
                 </button>
               </div>
-              <form phx-change="select_classification">
+              <form id="allocation-classification-form" phx-change="select_classification">
                 <label class="visually-hidden" for="allocation-classification">
                   <%= gettext("Classification") %>
                 </label>
@@ -1510,8 +1590,10 @@ defmodule PortfolixirWeb.PortfolioLive do
               class="section-skeleton section-skeleton--allocation"
               data-role="allocation-skeleton"
               role="status"
-              aria-label={gettext("Calculating…")}
             >
+              <span class="recomputing-cue">
+                <span class="spinner"></span> <%= gettext("computing") %>
+              </span>
             </div>
           <% end %>
         </section>
@@ -1554,7 +1636,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               </label>
               <label>
                 <span><%= gettext("Date") %></span>
-                <input type="date" name="balance[date]" value={Date.to_iso8601(Date.utc_today())} />
+                <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="balance[date]" value={Date.to_iso8601(Date.utc_today())} />
               </label>
               <label>
                 <span><%= gettext("Balance") %></span>
@@ -1600,7 +1682,9 @@ defmodule PortfolixirWeb.PortfolioLive do
               </p>
             </div>
           <% else %>
-            <p class="hint loading-hint" role="status"><%= gettext("Calculating…") %></p>
+            <p class="hint loading-hint recomputing-cue" role="status">
+              <span class="spinner"></span> <%= gettext("computing") %>
+            </p>
           <% end %>
         </section>
         <% end %>
@@ -1639,21 +1723,25 @@ defmodule PortfolixirWeb.PortfolioLive do
       <h2><%= gettext("Data quality") %></h2>
       <ul>
         <li :if={@trade_priced > 0}>
-          <%= gettext(
+          <%= ngettext(
+            "One held position has no current quote and is valued at its last trade price.",
             "%{count} held positions have no current quote and are valued at their last trade price.",
-            count: @trade_priced
+            @trade_priced
           ) %>
         </li>
         <li :if={@no_price.count > 0} data-role="dq-no-price">
-          <%= gettext("%{count} held positions have no price at all and are missing from the totals:",
-            count: @no_price.count
+          <%= ngettext(
+            "One held position has no price at all and is missing from the totals:",
+            "%{count} held positions have no price at all and are missing from the totals:",
+            @no_price.count
           ) %>
           <%= Enum.join(@no_price.names, ", ") %>
         </li>
         <li :if={@missing_fx.count > 0} data-role="dq-missing-fx">
-          <%= gettext(
+          <%= ngettext(
+            "One held position has a price but no exchange rate to %{base} stored, so it is missing from the totals: %{entries}. Sync exchange rates to include it.",
             "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}. Sync exchange rates to include them.",
-            count: @missing_fx.count,
+            @missing_fx.count,
             base: @valuation.base_currency,
             entries: Enum.join(@missing_fx.names, ", ")
           ) %>
@@ -1665,17 +1753,19 @@ defmodule PortfolixirWeb.PortfolioLive do
           ) %>
         </li>
         <li :if={@unvalued_cash != []}>
-          <%= gettext(
-            "%{count} cash account(s) are not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include them.",
-            count: length(@unvalued_cash),
+          <%= ngettext(
+            "One cash account is not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include it.",
+            "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include them.",
+            length(@unvalued_cash),
             base: @valuation.base_currency,
             names: Enum.map_join(@unvalued_cash, ", ", &"#{&1.name} (#{&1.currency})")
           ) %>
         </li>
         <li :if={@negative_entries != []} data-role="dq-negative-holdings">
-          <%= gettext(
+          <%= ngettext(
+            "One security has an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
             "%{count} securities have an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
-            count: length(@negative_entries)
+            length(@negative_entries)
           ) %>
           <span :for={entry <- @negative_entries} class="dq-negative-entry">
             <.link navigate={"/securities/#{entry.security_id}?tab=transactions"}>
@@ -1834,12 +1924,13 @@ defmodule PortfolixirWeb.PortfolioLive do
       phx-hook="SunburstTooltip"
     >
       <circle cx="70" cy="70" r="20" class="donut-center" />
-      <%= for segment <- @segments do %>
+      <%= for {segment, seg_index} <- Enum.with_index(@segments) do %>
         <path
           d={segment.path}
           fill={segment.color}
           fill-opacity={segment.opacity}
           class="sunburst-seg"
+          style={"--seg-delay: #{seg_reveal_delay(seg_index, length(@segments))}ms"}
           data-label={segment.name}
           data-percent={segment.percent}
           data-value={segment.value}
@@ -1855,6 +1946,12 @@ defmodule PortfolixirWeb.PortfolioLive do
     </svg>
     """
   end
+
+  # Progressive fill (owner pick F1, DESIGN.md → Motion): reveals spread
+  # across 1.2s, so with each 0.3s fade the whole build lands at ~1.5s.
+  # Opacity only — geometry is final from the first frame.
+  defp seg_reveal_delay(_index, count) when count <= 1, do: 0
+  defp seg_reveal_delay(index, count), do: div(index * 1200, count)
 
   # -- events -----------------------------------------------------------------
 
@@ -2355,7 +2452,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # The success line is compact — count plus the local wall-clock time of the
   # run (display-only formatting; domain data stays day-granular).
   defp fx_sync_result_message({:ok, count, synced_at}) do
-    gettext("%{count} rates updated", count: count) <>
+    ngettext("One rate updated", "%{count} rates updated", count) <>
       " · " <> Calendar.strftime(synced_at, "%H:%M")
   end
 
@@ -2908,8 +3005,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp series_basis_label(%{basis: basis, today: today}) do
-    gettext("%{count} bookings through %{last}, computed %{at}, as of %{date}",
-      count: basis.booking_count,
+    ngettext(
+      "One booking through %{last}, computed %{at}, as of %{date}",
+      "%{count} bookings through %{last}, computed %{at}, as of %{date}",
+      basis.booking_count,
       last: Format.date(basis.last_booking_date),
       at: Calendar.strftime(basis.computed_at, "%Y-%m-%d %H:%M UTC"),
       date: Format.date(today)

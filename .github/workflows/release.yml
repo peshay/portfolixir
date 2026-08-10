@@ -1,0 +1,31 @@
+# Sprint-cadence release automation (issue 659, ADR-0026 step 5): the
+# bookkeeping close-out pushes an annotated vX.Y.Z tag on the sprint's merge
+# commit, and this workflow turns the tag into a GitHub Release with
+# generated notes — the squash-merged PR titles are the source material.
+# Minor bump per sprint, patch reserved for hotfixes; first tag v0.5.0 at
+# the Sprint 5 merge. No installable artifacts are built: the release is a
+# rollback point for self-hosted instances plus a communicable changelog.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# contents: write is required to create the release; this workflow touches
+# nothing else.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create GitHub release with generated notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          --repo "$GITHUB_REPOSITORY"
+          --verify-tag
+          --generate-notes

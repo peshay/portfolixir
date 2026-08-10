@@ -69,8 +69,16 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   @impl true
   def render(assigns) do
     ~H"""
-    <div id={@id} class="modal-backdrop" phx-window-keydown={JS.push("close", target: @myself)} phx-key="Escape">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby={"#{@id}-title"}>
+    <%!-- Native dialog (UX-DR9, issue 646): the ModalDialog hook opens it
+         with showModal(), which supplies the focus trap, background
+         inertness and Esc handling; cancel pushes the close event. --%>
+    <dialog
+      id={@id}
+      class="modal"
+      phx-hook="ModalDialog"
+      data-close-event="close"
+      aria-labelledby={"#{@id}-title"}
+    >
         <header class="modal-head">
           <h2 id={"#{@id}-title"}><%= dialog_title(@step, @mode) %></h2>
           <button
@@ -96,8 +104,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
               <%= render_confirm(assigns) %>
           <% end %>
         </div>
-      </div>
-    </div>
+    </dialog>
     """
   end
 
@@ -135,7 +142,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
 
   defp render_search(assigns) do
     ~H"""
-    <form phx-change="search_change" phx-submit="search_submit" phx-target={@myself}>
+    <form id="security-dialog-search-form" phx-change="search_change" phx-submit="search_submit" phx-target={@myself}>
       <label class="search-field">
         <AppShell.icon name={:search} />
         <input
@@ -217,7 +224,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
 
   defp render_confirm(assigns) do
     ~H"""
-    <form phx-change="form_change" phx-submit="save" phx-target={@myself}>
+    <form id="security-dialog-form" phx-change="form_change" phx-submit="save" phx-target={@myself}>
       <%= if @conflict do %>
         <div class="alert-warning" role="alert">
           <strong><%= gettext("This security already exists") %></strong>

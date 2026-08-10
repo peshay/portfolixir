@@ -627,6 +627,183 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // Native dialog modals (UX-DR9, issue 646): showModal() supplies
+            // the focus trap, background inertness and Esc handling the old
+            // div-based modals only asserted. The cancel event (Esc) is
+            // prevented so LiveView owns the close — the server removes the
+            // dialog from the DOM.
+            Hooks.ModalDialog = {
+              mounted: function () {
+                // The trigger that had focus when the dialog opened; restored
+                // on close because the server removes the dialog from the DOM,
+                // which forfeits the native focus-restore (UX-DR9).
+                this.opener = document.activeElement;
+                this.showModal();
+                var self = this;
+                this.onCancel = function (e) {
+                  e.preventDefault();
+                  self.close();
+                };
+                // A browser may force-close a modal without a cancelable
+                // cancel (Chromium CloseWatcher). Tell the server, so client
+                // and assigns cannot desync.
+                this.onClose = function () {
+                  if (self.el.isConnected && !self.el.open) {
+                    self.close();
+                  }
+                };
+                this.el.addEventListener("cancel", this.onCancel);
+                this.el.addEventListener("close", this.onClose);
+              },
+              // morphdom strips the client-set `open` attribute on every
+              // server patch (the template never renders it), which would
+              // silently hide the dialog mid-interaction — re-assert it.
+              updated: function () {
+                this.showModal();
+              },
+              destroyed: function () {
+                this.el.removeEventListener("cancel", this.onCancel);
+                this.el.removeEventListener("close", this.onClose);
+                if (this.el.open && typeof this.el.close === "function") {
+                  this.el.close();
+                }
+                if (this.opener && this.opener.isConnected &&
+                    typeof this.opener.focus === "function") {
+                  this.opener.focus();
+                }
+              },
+              showModal: function () {
+                if (typeof this.el.showModal === "function" && !this.el.open) {
+                  this.el.showModal();
+                }
+              },
+              close: function () {
+                var event = this.el.getAttribute("data-close-event");
+                if (event) {
+                  this.pushEventTo(this.el, event, {});
+                }
+              }
+            };
+
+            // The ninth inline hook (owner decision 2026-08-05, DESIGN.md →
+            // Motion): a cosmetic count-up to an already-known final value.
+            // requestAnimationFrame drives the count, Intl.NumberFormat
+            // formats each frame, and the accent bar beneath reports the
+            // count's real progress. The hook reads prefers-reduced-motion
+            // before the first frame: under `reduce` the settling state does
+            // not occur — the final value renders immediately.
+            Hooks.CountUp = {
+              mounted: function () {
+                this.lastValue = null;
+                this.frame = null;
+                // A preference flip mid-count cancels the animation and snaps
+                // to the final value (the settling state must not occur under
+                // reduce).
+                this.mq = window.matchMedia
+                  ? window.matchMedia("(prefers-reduced-motion: reduce)")
+                  : null;
+                var self = this;
+                this.onMqChange = function (e) {
+                  if (e.matches) self.finish();
+                };
+                if (this.mq && this.mq.addEventListener) {
+                  this.mq.addEventListener("change", this.onMqChange);
+                }
+                this.animate();
+              },
+              updated: function () { this.animate(); },
+              destroyed: function () {
+                if (this.frame) cancelAnimationFrame(this.frame);
+                if (this.mq && this.mq.removeEventListener) {
+                  this.mq.removeEventListener("change", this.onMqChange);
+                }
+              },
+              reduceMotion: function () {
+                return this.mq ? this.mq.matches : false;
+              },
+              finish: function () {
+                if (this.frame) cancelAnimationFrame(this.frame);
+                this.frame = null;
+                if (this.settle) this.settle();
+              },
+              animate: function () {
+                var el = this.el;
+                var digits = el.querySelector("[data-count-digits]");
+                if (!digits) return;
+
+                var target = parseFloat(el.getAttribute("data-count-to"));
+                if (isNaN(target)) return;
+
+                var from = this.lastValue === null ? 0 : this.lastValue;
+                this.lastValue = target;
+                if (from === target || this.reduceMotion()) return;
+
+                // The server-rendered text is the value of record; frames
+                // approximate it and the last frame restores it exactly. The
+                // slot's final footprint is pinned before the first frame so
+                // a growing digit count cannot reflow the neighbours
+                // (UX-DR20 reserved footprint).
+                var finalText = digits.textContent;
+                digits.style.display = "inline-block";
+                digits.style.minWidth = digits.offsetWidth + "px";
+                var decimals = parseInt(el.getAttribute("data-decimals") || "2", 10);
+                var lang = document.documentElement.lang || "en";
+                var fmt = null;
+                try {
+                  fmt = new Intl.NumberFormat(lang, {
+                    minimumFractionDigits: decimals,
+                    maximumFractionDigits: decimals
+                  });
+                } catch (e) { fmt = null; }
+
+                if (this.frame) cancelAnimationFrame(this.frame);
+
+                var bar = el.querySelector(".count-up__bar");
+                if (!bar) {
+                  bar = document.createElement("span");
+                  bar.className = "count-up__bar";
+                  bar.setAttribute("aria-hidden", "true");
+                  el.appendChild(bar);
+                }
+
+                el.classList.add("is-settling");
+                el.setAttribute("aria-busy", "true");
+
+                var duration = 600;
+                var start = null;
+                var self = this;
+
+                this.settle = function () {
+                  self.settle = null;
+                  digits.textContent = finalText;
+                  digits.style.minWidth = "";
+                  el.classList.remove("is-settling");
+                  el.setAttribute("aria-busy", "false");
+                  bar.classList.add("is-done");
+                  setTimeout(function () {
+                    if (bar.parentNode) bar.parentNode.removeChild(bar);
+                  }, 300);
+                };
+
+                function step(ts) {
+                  if (start === null) start = ts;
+                  var t = Math.min((ts - start) / duration, 1);
+                  var eased = 1 - Math.pow(1 - t, 3);
+                  var current = from + (target - from) * eased;
+                  digits.textContent = fmt ? fmt.format(current) : current.toFixed(decimals);
+                  bar.style.width = (t * 100).toFixed(1) + "%";
+                  if (t < 1) {
+                    self.frame = requestAnimationFrame(step);
+                  } else {
+                    self.frame = null;
+                    if (self.settle) self.settle();
+                  }
+                }
+
+                this.frame = requestAnimationFrame(step);
+              }
+            };
+
             Hooks.PPImportDrop = {
               mounted: function () {
                 var container = this.el;

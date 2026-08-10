@@ -1,0 +1,17 @@
+# Team override for bmad-agent-dev (Amelia).
+# Source: owner instruction at Sprint 5 kickoff, 2026-08-10 — "run the whole
+# sprint, all lanes, one PR, watch it, fix CI, review, retro — and make it so
+# this never needs to be spelled out again." Codified here so a plain
+# "work sprint N" request runs the full ADR-0026 batch pipeline by default.
+
+[agent]
+
+persistent_facts = [
+  "Standing sprint-batch contract (owner, 2026-08-10): when asked to work a sprint, run the WHOLE pipeline without further prompting — implement every lane of the adopted sprint plan (_bmad-output/implementation-artifacts/sprint-plan-*.md, latest adopted one) test-first on one branch, one commit or small commit group per issue, every commit passing the local gates.",
+  "One PR per sprint is the default (ADR-0026 + Sprint-4 retro item 1); a lane splits into its own PR only if it turns out big, decided by the batch agent and flagged in the PR briefing, never asked mid-sprint.",
+  "After the lanes: run ALL local gates (mix format, mix test, mix coveralls, credo --strict, sobelow, dialyzer, compile --warnings-as-errors, npm test + build in mcp-server, pre-commit run --all-files), then the agentic review closing act per ADR-0026 step 3 — correctness hunter, edge-case hunter, UAT persona walkthrough on seeded synthetic data, and (for user-visible work) the design critic against design-language/DESIGN.md + EXPERIENCE.md. Fix confirmed findings on the branch before opening the PR.",
+  "Two further closing steps before the PR, unprompted (Sprint 5 retro — both had to be owner-prompted once): (1) a final ALL-LANES doc audit — walk every lane and ask which behaviour change has no doc sentence yet (product docs EN+DE, home-deployment, guides, process docs); (2) for user-visible batches, check whether docs/screenshots/ and tour.gif still show the current UI and regenerate them from the priv/demo dataset (import + quotes_seed.exs + strategies_seed.exs, DE locale, 1440x900, tour 860x554) when they do not.",
+  "The PR carries the reviewer briefing (what is new, what changed, where to look, deliberate trade-offs, risk-tier callouts) and the model/reasoning note. After opening it: subscribe to PR activity, autonomously fix CI failures and address review comments, and keep a periodic self check-in armed until the PR is merged or closed. Never merge — the owner merges.",
+  "After the merge, run the ADR-0026 step-5 bookkeeping close-out unprompted: update sprint-status.yaml and the epics document, close story issues and tracker, record the retrospective artifact, confirm merge CI green, and create + push the annotated vX.Y.Z tag (minor bump per sprint) that triggers the Release workflow (issue #659).",
+  "Commit as the accountable human (git user.name/user.email from .github/commit-authorship-allowlist.txt), conventional-commit messages with scope, no AI trailers or session footers — model and reasoning level belong in the PR description.",
+]

@@ -12,7 +12,6 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 
-  alias Phoenix.LiveView.JS
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Portfolios
@@ -41,13 +40,15 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   @impl true
   def render(assigns) do
     ~H"""
-    <div
+    <%!-- Native dialog (UX-DR9, issue 646): opened via showModal() by the
+         ModalDialog hook; cancel (Esc) pushes the close event. --%>
+    <dialog
       id={@id}
-      class="modal-backdrop"
-      phx-window-keydown={JS.push("close", target: @myself)}
-      phx-key="Escape"
+      class="modal"
+      phx-hook="ModalDialog"
+      data-close-event="close"
+      aria-labelledby={"#{@id}-title"}
     >
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby={"#{@id}-title"}>
         <header class="modal-head">
           <h2 id={"#{@id}-title"}><%= dialog_title(@step, @mode) %></h2>
           <button
@@ -69,8 +70,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
               <%= render_form(assigns) %>
           <% end %>
         </div>
-      </div>
-    </div>
+    </dialog>
     """
   end
 

@@ -205,38 +205,59 @@ defmodule PortfolixirWeb.DashboardLive do
 
       <section class="workspace-section grid" aria-label={gettext("Wealth value")}>
         <%= if is_nil(@wealth_card) do %>
+          <%!-- Pending with a prior value (UX-DR20, owner pick P2): the last
+               known value stays in place, dimmed, with a real-text staleness
+               marker BEFORE the digits and the recomputing cue beneath. The
+               slot carries aria-busy and sits in no live region. --%>
           <article
-            :if={@stale_ttwror}
-            class="stat section-skeleton"
-            role="status"
+            :if={not is_nil(@stale_ttwror) and is_nil(@error)}
+            class="stat"
             data-role="overview-stale"
           >
-            <span><%= gettext("Loading…") %></span>
-            <small data-role="stale-ttwror">
-              <%= gettext(
+            <span><%= gettext("YTD") %></span>
+            <strong class="value-slot-stale" aria-busy="true">
+              <span class="visually-hidden"><%= gettext("Last known value —") %></span>
+              <span class="stale-value"><%= signed_percent(@stale_ttwror.ttwror) %>%</span>
+            </strong>
+            <small data-role="stale-ttwror" class="recomputing-cue">
+              <span class="spinner"></span>
+              <%= ngettext(
+                "Last known: %{ttwror}% YTD — one booking through %{last}, as of %{date}. Recomputing.",
                 "Last known: %{ttwror}% YTD — %{count} bookings through %{last}, as of %{date}. Recomputing.",
+                @stale_ttwror.basis.booking_count,
                 ttwror: signed_percent(@stale_ttwror.ttwror),
-                count: @stale_ttwror.basis.booking_count,
                 last: Format.date(@stale_ttwror.basis.last_booking_date),
                 date: Format.date(@stale_ttwror.as_of)
               ) %>
             </small>
           </article>
           <article
-            :if={is_nil(@stale_ttwror)}
-            class="stat section-skeleton"
+            :if={is_nil(@stale_ttwror) and is_nil(@error)}
+            class="stat"
+            aria-busy="true"
             data-role="overview-skeleton"
           >
-            <span><%= gettext("Loading…") %></span>
+            <strong><span class="value-skeleton" aria-hidden="true"></span></strong>
+            <small class="recomputing-cue">
+              <span class="spinner"></span> <%= gettext("computing") %>
+            </small>
           </article>
         <% else %>
           <a id="dashboard-wealth-card" href="/portfolio" class="stat stat--link">
             <span><%= @wealth_card.name || gettext("Everything") %></span>
             <strong>
-              <%= Format.money(@wealth_card.valuation.total_with_cash) %> <%= @wealth_card.valuation.base_currency %>
+              <span
+                id="count-wealth-card"
+                class="count-up"
+                phx-hook="CountUp"
+                data-count-to={Decimal.to_string(@wealth_card.valuation.total_with_cash, :normal)}
+                data-decimals="2"
+              ><span data-count-digits><%= Format.money(@wealth_card.valuation.total_with_cash) %></span></span>
+              <%= @wealth_card.valuation.base_currency %>
             </strong>
             <small :if={@wealth_card.ttwror} data-role="card-ttwror">
-              <%= signed_percent(@wealth_card.ttwror) %>% <%= gettext("YTD") %>
+              <span class={sign_class(@wealth_card.ttwror)}><%= signed_percent(@wealth_card.ttwror) %>%</span>
+              <%= gettext("YTD") %>
               · <%= gettext("Cash") %> <%= Format.percent(@wealth_card.valuation.cash_quote) %>%
             </small>
             <small :if={is_nil(@wealth_card.ttwror)}>
@@ -260,8 +281,12 @@ defmodule PortfolixirWeb.DashboardLive do
           ) %>
         </p>
         <%= if is_nil(@drift_alerts) do %>
-          <p class="section-skeleton" data-role="attention-skeleton">
-            <%= gettext("Loading…") %>
+          <%!-- A whole absent section keeps its block skeleton (UX-DR20);
+               the cue is the substance, the shimmer stays gated. --%>
+          <p class="section-skeleton" aria-busy="true" data-role="attention-skeleton">
+            <span class="recomputing-cue">
+              <span class="spinner"></span> <%= gettext("computing") %>
+            </span>
           </p>
         <% else %>
           <%= if @drift_alerts == [] do %>
@@ -289,8 +314,10 @@ defmodule PortfolixirWeb.DashboardLive do
       <section id="dashboard-data-quality" class="workspace-section">
         <h2><%= gettext("Data quality") %></h2>
         <%= if is_nil(@data_quality) do %>
-          <p class="section-skeleton" data-role="data-quality-skeleton">
-            <%= gettext("Loading…") %>
+          <p class="section-skeleton" aria-busy="true" data-role="data-quality-skeleton">
+            <span class="recomputing-cue">
+              <span class="spinner"></span> <%= gettext("computing") %>
+            </span>
           </p>
         <% else %>
           <%!-- Counts of securities needing attention. Links land on the
@@ -407,6 +434,15 @@ defmodule PortfolixirWeb.DashboardLive do
   defp signed_percent(value) do
     formatted = Format.percent(value)
     if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
+  end
+
+  # Gain/loss colour by sign, never the accent (UX-DR7, issue 637).
+  defp sign_class(value) do
+    case Decimal.compare(value, 0) do
+      :gt -> "is-positive"
+      :lt -> "is-negative"
+      :eq -> "is-flat"
+    end
   end
 
   # Securities needing attention (#337 data-quality card): no recent quote

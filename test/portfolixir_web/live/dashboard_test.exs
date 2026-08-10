@@ -120,7 +120,9 @@ defmodule PortfolixirWeb.DashboardTest do
     expected = Format.money(Valuation.for_view(nil, base_currency: "EUR").total_with_cash)
     assert html =~ "Everything"
     assert has_element?(view, "a#dashboard-wealth-card[href='/portfolio']")
-    assert html =~ "#{expected} EUR"
+    # The value sits in its own count-up digits span beside the currency.
+    assert html =~ ">#{expected}</span>"
+    assert html =~ "EUR"
 
     # The change signal: the card carries the YTD TTWROR.
     assert has_element?(view, "[data-role='card-ttwror']")
@@ -131,6 +133,85 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(view, "[id^='dashboard-portfolio-']")
     refute has_element?(view, "#dashboard-recent")
     refute has_element?(view, "#dashboard-securities-count")
+  end
+
+  # User story:
+  # As a user opening the Overview while the wealth card computes,
+  # I want pending sections to show a value-sized placeholder with the
+  # "computing" cue instead of a "Loading…" verb,
+  # so that loading indication is consistent and survives reduced motion as
+  # a static cue (UX-DR20; the stale-TTWROR line keeps its "Recomputing."
+  # sentence and loses only the loading heading).
+  #
+  # Acceptance criteria:
+  # - No "Loading…" string renders on the Overview.
+  # - Pending sections carry the value skeleton, aria-busy and the cue word.
+  test "overview pending sections use the computing cue, not a loading verb", %{conn: conn} do
+    seed_holding()
+
+    {:ok, _view, html} = live(conn, "/")
+
+    refute html =~ "Loading…"
+    assert html =~ "value-skeleton"
+    assert html =~ ~s(aria-busy="true")
+    assert html =~ "computing"
+  end
+
+  # User story:
+  # As a user glancing at the Overview wealth card,
+  # I want the YTD change signal coloured by its sign,
+  # so that a losing year is recognisable without reading the digits
+  # (UX-DR7, issue 637 — semantic colour at every level, not only totals).
+  #
+  # Acceptance criteria:
+  # - The card's TTWROR fragment carries is-positive/is-negative by sign.
+  test "the wealth card's YTD change carries its sign class (#637)", %{conn: conn} do
+    %{security: security, portfolio: portfolio} = seed_holding()
+
+    # Give the YTD window a real opening value: the position already exists
+    # at the year boundary (a second buy dated last year) and is quoted 100
+    # then, 120 today — a positive YTD change.
+    last_year = %{Date.utc_today() | month: 1, day: 2} |> Date.add(-10)
+    [depot] = Portfolios.list_securities_accounts_for_portfolio(portfolio.id)
+
+    # The deposit funds both buys, so the year opens with a real value
+    # instead of cash and securities netting to zero.
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: depot.cash_account_id,
+        type: "deposit",
+        date: Date.add(last_year, -1),
+        gross_amount: "2000",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: depot.cash_account_id,
+        security_id: security.id,
+        type: "buy",
+        date: last_year,
+        quantity: Decimal.new("5"),
+        price: Decimal.new("100.00"),
+        fees: Decimal.new("0"),
+        taxes: Decimal.new("0"),
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Quotes.upsert_many(security.id, [
+        %{date: last_year, close: "100.00", source: "manual"},
+        %{date: %{Date.utc_today() | month: 1, day: 2}, close: "100.00", source: "manual"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    # 10 @ 100 bought, quoted 120 today: a positive YTD change.
+    assert view |> element("[data-role='card-ttwror']") |> render() =~ "is-positive"
   end
 
   # User story (ADR-0024):
@@ -160,7 +241,9 @@ defmodule PortfolixirWeb.DashboardTest do
 
     expected = Format.money(Valuation.for_view(mine.id, base_currency: "EUR").total_with_cash)
     assert has_element?(view, "#dashboard-wealth-card", "Mine")
-    assert html =~ "#{expected} EUR"
+    # The value sits in its own count-up digits span beside the currency.
+    assert html =~ ">#{expected}</span>"
+    assert html =~ "EUR"
 
     # The scope actually narrows: 1200 securities in scope, while Everything
     # also counts the untagged cash account's -1000 balance.

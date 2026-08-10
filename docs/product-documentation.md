@@ -108,6 +108,11 @@ retroactively reclassifies all matching securities without a data migration.
 
 #### Finding and fixing unclassified securities
 
+A search or filter combination that matches nothing shows a *no matches*
+state naming the query or the active filters, with the controls still
+visible; the "no securities yet" onboarding hint appears only when the
+database holds no securities at all.
+
 The securities list accepts an **"is unclassified"** filter on the asset-class
 column (`operator: :is_nil`). It returns all rows where the stored value is nil
 and `effective_asset_class` also returned nil — i.e. the heuristics have no
@@ -749,9 +754,10 @@ net cash credited plus the withheld tax recorded on the transaction; interest
 withholding and is tracked as its own series next to dividends. Clicking a year
 opens the per-transaction detail for that year.
 
-Amounts are reported in the portfolio's base currency, converted through the
-EUR hub at each booking date's stored rate (the same conversion the valuation
-uses); the original currency stays visible on each row. The report is also
+Amounts are reported in the portfolio's base currency; the original currency
+stays visible on each row. The conversion methodology (EUR hub at each booking
+date's stored rate — the same conversion the valuation uses) sits behind the
+ⓘ affordance next to the currency line. The report is also
 available over the API (`GET /api/v1/portfolios/:id/income`) and the
 `portfolixir.portfolios.income` MCP tool.
 
@@ -1026,8 +1032,9 @@ The detail pane shows a server-rendered SVG price chart with:
 
 - Time-range buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).
 - A *Log scale* toggle (logarithmic Y-axis).
-- A *Show transactions* toggle that overlays Buy/Sell markers from the
-  ledger.
+- A *Show transactions* toggle that overlays buy/sell markers from the
+  ledger — shape-coded triangles (▲ buy, ▼ sell), so the direction is
+  readable without colour.
 - A *Sync prices for this security* button.
 
 **Stock splits and the price basis (ADR-0028).** After a split is booked, the
@@ -1105,6 +1112,15 @@ naming the already-booked event) stays inline in the dialog.
   choice.
 - Theme, accent, and language are user preferences and do not affect stored
   financial values.
+- Date fields accept and display ISO dates (`YYYY-MM-DD`) — the same format
+  every displayed date uses; the browser's locale date picker is not used.
+- While values compute, the affected slot shows a placeholder plus a
+  "computing" cue instead of a loading message; headline values settle with
+  a brief count-up. Under a reduced-motion system preference all decorative
+  motion is off and final values render immediately.
+- Signed key figures (TTWROR, IRR/MWR, net flows, the Overview change
+  signal) carry an explicit sign and gain/loss colour at every level;
+  unsigned magnitudes keep the accent colour.
 
 ## Audit Journal
 

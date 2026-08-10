@@ -4,7 +4,7 @@
 # dataset:
 #
 #   DATABASE_NAME=portfolixir_demo PORT=4003 mix run priv/demo/strategies_seed.exs
-alias Portfolixir.{Classifications, Portfolios}
+alias Portfolixir.{Actor, Classifications, Portfolios}
 alias Portfolixir.Portfolios.Targets
 alias Portfolixir.Catalog
 
@@ -12,12 +12,14 @@ portfolio = Enum.find(Portfolios.list_portfolios(), &(&1.name == "Demo Depot"))
 unless portfolio, do: raise("Demo Depot portfolio not found")
 
 # Clean re-run: drop an existing Strategies so the seed is idempotent.
+owner = Portfolixir.Actor.owner_ui()
+
 for c <- Classifications.list_classifications(), c.name == "Strategies" do
-  Classifications.delete_classification(c)
+  Classifications.delete_classification(owner, c)
 end
 
 {:ok, cls} =
-  Classifications.create_classification(%{
+  Classifications.create_classification(owner, %{
     name: "Strategies",
     position: 0,
     description: "Demo strategy tree with target weights for rebalancing."
@@ -25,7 +27,7 @@ end
 
 cat = fn name, color, parent_id ->
   {:ok, c} =
-    Classifications.create_category(%{
+    Classifications.create_category(owner, %{
       name: name,
       color: color,
       classification_id: cls.id,
@@ -47,7 +49,7 @@ find = fn frag -> Enum.find(secs, &String.contains?(String.downcase(&1.name), fr
 
 assign = fn frag, category ->
   case find.(frag) do
-    %{id: id} -> Classifications.assign_security(id, cls.id, category.id)
+    %{id: id} -> Classifications.assign_security(owner, id, cls.id, category.id)
     nil -> IO.puts("WARN: no security matching #{frag}")
   end
 end
@@ -61,7 +63,7 @@ assign.("nvidia", platforms)
 assign.("bitcoin", krypto)
 
 {:ok, _} =
-  Targets.set_targets(portfolio.id, cls.id, [
+  Targets.set_targets(owner, portfolio.id, cls.id, [
     %{category_id: stability.id, target_weight: "0.15"},
     %{category_id: quality.id, target_weight: "0.15"},
     %{category_id: wachstum.id, target_weight: "0.65"},
@@ -70,6 +72,6 @@ assign.("bitcoin", krypto)
     %{category_id: krypto.id, target_weight: "0.05"}
   ])
 
-{:ok, _} = Portfolios.set_cash_target(portfolio, "0.15")
+:ok = Targets.set_cash_target(owner, portfolio.id, Decimal.new("0.15"))
 
 IO.puts("Seeded 'Strategies' (id #{cls.id}) on portfolio #{portfolio.id} with target weights.")

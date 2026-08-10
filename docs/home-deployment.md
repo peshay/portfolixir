@@ -56,6 +56,15 @@ PORTFOLIXIR_API_TOKEN=replace-me \
 npm start --prefix mcp-server
 ```
 
+## Versions And Rollback
+
+Every sprint merge is tagged (`vX.Y.Z`, starting at `v0.5.0`) and published
+automatically as a GitHub Release with generated notes. A release is a
+known-good point to pin or roll a self-hosted instance back to (check out the
+tag before building) plus a readable changelog — never an installable
+artifact. Migrations are additive; when rolling back across a release that
+added migrations, restore the database backup taken before that upgrade.
+
 ## Notes
 
 - This setup uses the root `docker-compose.yml`.

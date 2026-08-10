@@ -17,12 +17,15 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
     assigns = assign(assigns, :status, Catalog.logo_status(assigns.security))
 
     ~H"""
-    <div
-      class="modal-backdrop logo-override"
-      phx-window-keydown="close_logo_dialog"
-      phx-key="Escape"
+    <%!-- Native dialog (UX-DR9, issue 646): opened via showModal() by the
+         ModalDialog hook; cancel (Esc) pushes the close event. --%>
+    <dialog
+      id="logo-override-dialog"
+      class="modal logo-override"
+      phx-hook="ModalDialog"
+      data-close-event="close_logo_dialog"
+      aria-labelledby="logo-override-title"
     >
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="logo-override-title">
         <header class="modal-head">
           <h2 id="logo-override-title"><%= gettext("Manage logo") %></h2>
           <button
@@ -84,8 +87,7 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
             <%= gettext("Remove logo") %>
           </button>
         </div>
-      </div>
-    </div>
+    </dialog>
     """
   end
 end

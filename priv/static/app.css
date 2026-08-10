@@ -17,7 +17,7 @@
   --color-accent: var(--color-accent-violet);
   --color-accent-soft: var(--color-accent-violet-soft);
   --color-positive: #047857;
-  --color-danger: #dc2626;
+  --color-danger: #b91c1c;
   --color-warning: #b45309;
   --color-bg: #f6f7fa;
   --color-bg-elevated: #ffffff;
@@ -27,14 +27,17 @@
   --color-border: #e4e8ef;
   --color-border-strong: #cdd4df;
   --color-hover: #f0f3f8;
-  --color-selected: #ede9fe;
+  /* Alias of the active accent's soft variant (issue 644): selection re-keys
+     with the accent and the theme through the referenced token. */
+  --color-selected: var(--color-accent-soft);
   --color-text: #0e141b;
   --color-text-muted: #5a6577;
   --color-text-soft: #8b7f9f;
   --color-text-subtle: #94a0b4;
   --color-chart-surface: #ffffff;
-  /* Constant-white tokens (issue 449): text on the accent fill and the plate
-     behind real image logos stay white in every theme by design. */
+  /* The plate behind real image logos stays white in every theme by design
+     (issue 449). Text on the accent fill does not: white fails 1.86-2.72:1 on
+     the dark accent fills, so on-accent is theme-dependent (issue 642). */
   --color-on-accent: #ffffff;
   --color-logo-plate: #ffffff;
   /* Soft warning tint behind warning alerts (issue 449). */
@@ -90,13 +93,15 @@
     --color-border: #222b38;
     --color-border-strong: #2d3848;
     --color-hover: #1b2533;
-    --color-selected: #1f2c42;
     --color-text: #e6eaf1;
     --color-text-muted: #8b97a8;
     --color-text-soft: #c4b5fd;
     --color-text-subtle: #5c667a;
     --color-chart-surface: #131a23;
+    --color-on-accent: #0b0f14;
+    --color-warning-soft: rgb(251 191 36 / 0.16);
     --shadow-panel: 0 18px 44px rgb(0 0 0 / 0.32);
+    --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5);
     --shadow-md: 0 10px 28px rgb(0 0 0 / 0.5);
     --shadow-sidebar: 0 20px 60px rgb(0 0 0 / 0.42);
   }
@@ -111,7 +116,7 @@
   --color-accent-coral: #e11d48;
   --color-accent-coral-soft: #ffe4e6;
   --color-positive: #047857;
-  --color-danger: #dc2626;
+  --color-danger: #b91c1c;
   --color-warning: #b45309;
   --color-bg: #f6f7fa;
   --color-bg-elevated: #ffffff;
@@ -121,13 +126,15 @@
   --color-border: #e4e8ef;
   --color-border-strong: #cdd4df;
   --color-hover: #f0f3f8;
-  --color-selected: #ede9fe;
   --color-text: #0e141b;
   --color-text-muted: #5a6577;
   --color-text-soft: #8b7f9f;
   --color-text-subtle: #94a0b4;
   --color-chart-surface: #ffffff;
+  --color-on-accent: #ffffff;
+  --color-warning-soft: #fffbeb;
   --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
   --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
   --shadow-sidebar: 0 20px 60px rgb(15 23 42 / 0.16);
 }
@@ -151,13 +158,15 @@
   --color-border: #222b38;
   --color-border-strong: #2d3848;
   --color-hover: #1b2533;
-  --color-selected: #1f2c42;
   --color-text: #e6eaf1;
   --color-text-muted: #8b97a8;
   --color-text-soft: #c4b5fd;
   --color-text-subtle: #5c667a;
   --color-chart-surface: #131a23;
+  --color-on-accent: #0b0f14;
+  --color-warning-soft: rgb(251 191 36 / 0.16);
   --shadow-panel: 0 18px 44px rgb(0 0 0 / 0.32);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5);
   --shadow-md: 0 10px 28px rgb(0 0 0 / 0.5);
   --shadow-sidebar: 0 20px 60px rgb(0 0 0 / 0.42);
 }
@@ -943,7 +952,10 @@ textarea {
   outline-offset: 2px;
 }
 
-.stat span {
+/* Direct child only: the label. Nested spans (count-up digits, sign spans,
+   the recomputing cue) carry their own typography — the descendant form
+   painted the KPI values themselves as 12px uppercase labels. */
+.stat > span {
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 650;
@@ -1009,6 +1021,29 @@ label span {
   color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 680;
+}
+
+/* A checkbox is one control: box and label sit on one line and the label is
+   the hit target (UX-DR19, issue 635). Overrides the grid label stack, which
+   rendered the box alone on its own line with a bold label underneath. */
+label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+label:has(> input[type="checkbox"]) > span {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--color-accent);
 }
 
 input,
@@ -1587,7 +1622,7 @@ li + li {
 .button-primary {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: white;
+  color: var(--color-on-accent);
 }
 
 .button-primary:hover {
@@ -1781,16 +1816,31 @@ li + li {
 
 /* ===== Modal ===== */
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  z-index: 100;
-  padding: 60px 16px 16px;
+/* Native <dialog> modals (UX-DR9, issue 646): showModal() centres the
+   element in the top layer and paints ::backdrop, replacing the
+   .modal-backdrop wrapper div. The UA dialog chrome is reset; the .modal
+   panel styling below carries the appearance. */
+dialog.modal {
+  border: none;
+  padding: 0;
+  margin: 60px auto 16px;
+  max-height: calc(100vh - 76px);
   overflow-y: auto;
+  color: inherit;
+}
+
+dialog.modal::backdrop {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+/* Forced themes must override the system default (same rule as the token
+   blocks); ::backdrop cannot read inherited custom properties reliably. */
+[data-theme="light"] dialog.modal::backdrop {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+[data-theme="dark"] dialog.modal::backdrop {
+  background: rgba(0, 0, 0, 0.55);
 }
 
 .modal {
@@ -1993,7 +2043,7 @@ li + li {
     background: rgb(255 255 255 / 0.04);
   }
 
-  .modal-backdrop {
+  dialog.modal::backdrop {
     background: rgba(0, 0, 0, 0.55);
   }
 
@@ -2132,7 +2182,7 @@ li + li {
   min-width: 220px;
   max-width: min(280px, calc(100vw - 16px));
   z-index: 50;
-  background: var(--color-surface, var(--color-bg));
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 8px);
   box-shadow: var(--shadow-md, 0 6px 20px rgba(0, 0, 0, 0.12));
@@ -2205,7 +2255,7 @@ li + li {
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
-  background: var(--color-surface, var(--color-bg));
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   object-fit: contain;
   box-sizing: border-box;
@@ -2500,6 +2550,9 @@ img.security-logo {
   opacity: 0.76;
 }
 
+/* Opt-in motion form (issue 647): the static remnant — a complete ring — is
+   the base appearance; the spin and its transparent segment live behind the
+   no-preference gate, so the indicator survives `reduce` as a shape. */
 .detail-pane-tab.phx-click-loading::after {
   content: "";
   display: inline-block;
@@ -2507,9 +2560,7 @@ img.security-logo {
   height: 8px;
   margin-left: 6px;
   border: 1px solid currentColor;
-  border-top-color: transparent;
   border-radius: 999px;
-  animation: detail-tab-loading-spin 0.7s linear infinite;
   vertical-align: -1px;
 }
 
@@ -2519,10 +2570,10 @@ img.security-logo {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: no-preference) {
   .detail-pane-tab.phx-click-loading::after {
-    animation: none;
-    border-top-color: currentColor;
+    border-top-color: transparent;
+    animation: detail-tab-loading-spin 0.7s linear infinite;
   }
 }
 
@@ -2778,6 +2829,68 @@ img.security-logo {
   color: var(--color-danger);
 }
 
+/* Sort triggers inside a table header are header text, not buttons (issue
+   634): a cell is not a card and nothing inside a table gets a shadow. The
+   base button rule would otherwise paint them as floating boxes. */
+th .table-sort {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+th .table-sort:hover {
+  background: transparent;
+  color: var(--color-accent);
+}
+
+/* The text-height sort trigger keeps the touch floor (UX-DR6). */
+@media (pointer: coarse) {
+  th .table-sort {
+    min-height: 44px;
+  }
+}
+
+/* Live validity feedback for the ISO date text inputs (UX-DR19): a typed
+   value that breaks the YYYY-MM-DD pattern is marked while typing.
+   :not(:placeholder-shown) keeps pristine required fields quiet. */
+input[pattern]:invalid:not(:placeholder-shown) {
+  border-color: var(--color-danger);
+}
+
+/* Signed values take gain/loss colour, never the accent (issue 637) —
+   everywhere inside a stat card, including the change signal in <small>,
+   where the label and accent rules would otherwise win on specificity.
+   Unsigned magnitudes carry no sign class and keep the accent; an exact
+   zero is directionless and takes body ink, still never the accent. */
+.stat .is-positive {
+  color: var(--color-positive);
+}
+
+.stat .is-negative {
+  color: var(--color-danger);
+}
+
+.stat .is-flat {
+  color: var(--color-text);
+}
+
+/* Same cascade fight on the securities detail metric strip: the dd rule
+   outweighs the bare sign classes. */
+.overview-metric dd.is-positive {
+  color: var(--color-positive);
+}
+
+.overview-metric dd.is-negative {
+  color: var(--color-danger);
+}
+
 .detail-quotes-table {
   width: 100%;
   border-collapse: collapse;
@@ -2933,7 +3046,7 @@ img.security-logo {
 }
 
 .chart-ma-30 {
-  stroke: var(--color-accent-violet);
+  stroke: var(--color-accent);
   stroke-dasharray: 4 2;
   opacity: 0.85;
 }
@@ -3009,15 +3122,17 @@ img.security-logo {
   cursor: progress;
 }
 
+/* Opt-in motion form (issue 647): dimmed static icon as the base busy state,
+   the spin behind the no-preference gate. */
 .icon-button.is-busy svg {
-  animation: import-spin 0.8s linear infinite;
+  opacity: 0.6;
   transform-origin: 50% 50%;
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: no-preference) {
   .icon-button.is-busy svg {
-    animation: none;
-    opacity: 0.6;
+    opacity: 1;
+    animation: import-spin 0.8s linear infinite;
   }
 }
 
@@ -3063,7 +3178,7 @@ img.security-logo {
   padding: 6px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 6px);
-  background: var(--color-surface, var(--color-bg));
+  background: var(--color-bg);
   color: var(--color-text);
   font-size: 12px;
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -3118,8 +3233,11 @@ img.security-logo {
   stroke: none;
 }
 
+/* Triangle paths, apex up for buy and down for sell (issue 645): shape is
+   the channel that survives without colour. The halo separates the marker
+   from the quote line on either theme's chart surface. */
 .security-chart .tx-marker {
-  stroke: white;
+  stroke: var(--color-chart-surface);
   stroke-width: 1.5;
 }
 
@@ -3393,7 +3511,7 @@ img.security-logo {
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   padding: 0.85rem;
-  background: var(--color-surface, var(--color-bg));
+  background: var(--color-bg);
 }
 .classification-head {
   display: flex;
@@ -3437,7 +3555,7 @@ img.security-logo {
   opacity: 0.95;
 }
 .dnd-dropzone.is-dropping {
-  border-color: var(--color-accent-violet);
+  border-color: var(--color-accent);
   background: var(--color-accent-soft, rgba(124, 58, 237, 0.08));
 }
 .category-head {
@@ -3558,7 +3676,7 @@ img.security-logo {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .cat-node.is-dropping {
-  border-color: var(--color-accent-violet);
+  border-color: var(--color-accent);
   background: var(--color-accent-soft, rgba(124, 58, 237, 0.08));
 }
 .cat-summary {
@@ -3646,14 +3764,14 @@ details[open] > .cat-summary::before {
   cursor: grab;
 }
 .dnd-row + .dnd-row {
-  border-top: 1px solid var(--color-border-subtle, rgba(127, 127, 127, 0.16));
+  border-top: 1px solid var(--color-border);
 }
 .dnd-row:hover {
-  background: var(--color-surface-hover, rgba(127, 127, 127, 0.08));
+  background: var(--color-hover);
 }
 .dnd-row.is-selected {
   background: var(--color-accent-soft, rgba(124, 58, 237, 0.16));
-  box-shadow: inset 3px 0 0 var(--color-accent-violet);
+  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 .dnd-row .row-name {
   flex: 1 1 auto;
@@ -3678,7 +3796,7 @@ details[open] > .cat-summary::before {
   margin: 0.5rem 0;
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
-  background: var(--color-surface, var(--color-bg));
+  background: var(--color-bg);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 .select-toolbar[hidden] {
@@ -3881,7 +3999,7 @@ details[open] > .cat-summary::before {
   color: var(--color-text-muted);
 }
 .icon-mini:hover {
-  background: var(--color-surface-hover, rgba(127, 127, 127, 0.14));
+  background: var(--color-hover);
   color: inherit;
 }
 .cat-body {
@@ -3979,8 +4097,8 @@ details[open] > .cat-summary::before {
   font-size: 0.8rem;
 }
 .period-buttons .button-mini.is-active {
-  background: var(--color-accent-violet);
-  border-color: var(--color-accent-violet);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
   color: var(--color-on-accent);
 }
 /* The portfolio performance chart renders through the shared security-chart
@@ -4184,7 +4302,7 @@ button.income-bar-label.is-active {
   flex: 0 0 auto;
 }
 .donut-track {
-  stroke: var(--color-surface-hover, rgba(127, 127, 127, 0.12));
+  stroke: var(--color-hover);
   stroke-width: 18;
 }
 .donut.sunburst {
@@ -4193,7 +4311,7 @@ button.income-bar-label.is-active {
   aspect-ratio: 1;
 }
 .donut-center {
-  fill: var(--color-surface-hover, rgba(127, 127, 127, 0.12));
+  fill: var(--color-hover);
 }
 .sunburst-seg {
   stroke: var(--color-bg);
@@ -4295,7 +4413,7 @@ button.income-bar-label.is-active {
 .cash-table td {
   text-align: left;
   padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--color-border-subtle, rgba(127, 127, 127, 0.16));
+  border-bottom: 1px solid var(--color-border);
 }
 .drift-table tr.is-muted td {
   color: var(--color-text-muted);
@@ -4347,7 +4465,7 @@ button.income-bar-label.is-active {
 .area-tabs {
   display: flex;
   gap: 0.25rem;
-  border-bottom: 1px solid var(--color-border-subtle, rgba(127, 127, 127, 0.16));
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 1rem;
 }
 .area-tab {
@@ -4446,7 +4564,6 @@ button.income-bar-label.is-active {
     var(--color-bg-muted) 75%
   );
   background-size: 200% 100%;
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
 
 .section-skeleton--allocation {
@@ -4456,6 +4573,105 @@ button.income-bar-label.is-active {
 @keyframes skeleton-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* The shimmer is dressing, gated opt-in (issues 638 and 647); the static
+   placeholder underneath is the substance and is never gated. */
+@media (prefers-reduced-motion: no-preference) {
+  .section-skeleton {
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+
+  .value-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-bg-muted) 25%,
+      var(--color-hover) 50%,
+      var(--color-bg-muted) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+}
+
+/* ===== Value-slot pending and settling (UX-DR20, owner picks 2026-08-05) ===== */
+/* Pending fallback: a value-sized muted placeholder occupying the slot's
+   footprint, plus the computing cue below it. Both are substance — rendered
+   under every motion preference; only the shimmer above is dressing. */
+.value-skeleton {
+  display: inline-block;
+  width: 6ch;
+  height: 1em;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-muted);
+}
+
+/* Pending with a prior value (owner pick P2): the last known value stays in
+   place at the muted step; the staleness marker and the cue carry the state
+   for readers who never receive the colour step. */
+.stale-value {
+  color: var(--color-text-muted);
+}
+
+/* The operative element of the pending state: ring glyph (the shipped
+   .spinner), the basis, and the mandatory word — real DOM text, never
+   aria-hidden. Type steps per surface come from the parent (stat-label on
+   cards, table-cell in tables). */
+.recomputing-cue {
+  display: block;
+  color: var(--color-text-muted);
+  /* The cue keeps the stat-label size step but reads as a sentence — it
+     must not inherit the 30px/700 value voice of an enclosing slot. */
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* Settling (owner pick S1): digits dim to the muted step while the count
+   runs; the 2px accent bar beneath reports the count's progress and never
+   renders below 8px, so the not-final signal exists from the first frame.
+   The CountUp hook never enters this state under reduced motion. */
+.count-up {
+  position: relative;
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+.count-up.is-settling [data-count-digits] {
+  color: var(--color-text-muted);
+}
+
+.count-up__bar {
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  height: 2px;
+  min-width: 8px;
+  background: var(--color-accent);
+  border-radius: 999px;
+  transition: opacity 0.2s ease;
+}
+
+.count-up__bar.is-done {
+  opacity: 0;
+}
+
+/* Progressive sunburst fill (owner pick F1): geometry is final from the
+   first frame — the sweep animates opacity only and carries no information,
+   so under `reduce` the finished chart simply appears (no static cue). */
+@keyframes seg-reveal {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sunburst-seg {
+    opacity: 0;
+    animation: seg-reveal 0.3s ease-out forwards;
+    animation-delay: var(--seg-delay, 0ms);
+  }
 }
 
 /* ===== Metric info tooltips (ⓘ) — WCAG 1.4.13 ===== */
@@ -4487,6 +4703,22 @@ button.income-bar-label.is-active {
   list-style: none;
   user-select: none;
 }
+/* Inline variant: the ⓘ sits in the text flow (the income conversion line),
+   not pinned to a stat card's corner, and its body opens to the right so it
+   cannot leave the viewport. */
+.metric-tooltip--inline {
+  position: relative;
+  bottom: auto;
+  right: auto;
+  margin-left: var(--space-1);
+  vertical-align: middle;
+}
+
+.metric-tooltip--inline p {
+  left: 0;
+  right: auto;
+}
+
 .metric-tooltip summary::-webkit-details-marker {
   display: none;
 }
@@ -4645,7 +4877,6 @@ button.income-bar-label.is-active {
   padding: 12px 14px;
   border-radius: var(--radius-md);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  animation: status-toast-in 0.18s ease-out both;
 }
 
 @keyframes status-toast-in {
@@ -4659,9 +4890,10 @@ button.income-bar-label.is-active {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* Opt-in motion form (issue 647): the entrance slide is polish only. */
+@media (prefers-reduced-motion: no-preference) {
   .status-toast {
-    animation: none;
+    animation: status-toast-in 0.18s ease-out both;
   }
 }
 
@@ -4782,7 +5014,7 @@ button.income-bar-label.is-active {
 }
 
 .view-chip.is-active {
-  color: white;
+  color: var(--color-on-accent);
   background: var(--color-accent);
   border-color: var(--color-accent);
 }
@@ -4803,7 +5035,7 @@ button.income-bar-label.is-active {
 }
 
 .view-chip.is-active .view-chip__plan-dot {
-  color: white;
+  color: var(--color-on-accent);
 }
 
 .view-switcher__active {

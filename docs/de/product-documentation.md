@@ -115,6 +115,11 @@ Code alle passenden Wertpapiere rückwirkend neu, ohne Datenmigration.
 
 #### Nicht klassifizierte Wertpapiere finden und korrigieren
 
+Eine Suche oder Filterkombination ohne Treffer zeigt einen
+*Keine-Treffer*-Zustand, der die Suche bzw. die aktiven Filter benennt — die
+Bedienelemente bleiben sichtbar; der Onboarding-Hinweis „noch keine
+Wertpapiere" erscheint nur bei leerer Datenbank.
+
 Die Wertpapierliste akzeptiert einen Filter **„is unclassified"** auf der
 Anlageklasse-Spalte (`operator: :is_nil`). Er liefert alle Zeilen, bei denen der
 gespeicherte Wert nil ist und `effective_asset_class` ebenfalls nil ergab — d. h.
@@ -807,9 +812,10 @@ die auf der Transaktion erfasste einbehaltene Steuer; Zinsen
 Quellensteuer und werden als eigene Reihe neben Dividenden geführt. Ein Klick auf
 ein Jahr öffnet das Detail je Transaktion für dieses Jahr.
 
-Beträge werden in der Basiswährung des Portfolios ausgewiesen, umgerechnet über
-den EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums (dieselbe
-Umrechnung wie die Bewertung); die ursprüngliche Währung bleibt je Zeile sichtbar.
+Beträge werden in der Basiswährung des Portfolios ausgewiesen; die
+ursprüngliche Währung bleibt je Zeile sichtbar. Die Umrechnungsmethodik
+(EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums — dieselbe
+Umrechnung wie die Bewertung) steht hinter dem ⓘ neben der Währungszeile.
 Der Bericht ist auch über die API (`GET /api/v1/portfolios/:id/income`) und das
 MCP-Tool `portfolixir.portfolios.income` verfügbar.
 
@@ -1093,7 +1099,8 @@ Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 - Zeitraum-Buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).
 - Einem Schalter *Log scale* (logarithmische Y-Achse).
 - Einem Schalter *Show transactions*, der Kauf-/Verkauf-Marker aus dem Ledger
-  überlagert.
+  überlagert — formcodierte Dreiecke (▲ Kauf, ▼ Verkauf), die Richtung ist
+  also ohne Farbe erkennbar.
 - Einem Button *Sync prices for this security*.
 
 **Aktiensplits und die Kursbasis (ADR-0028).** Nach dem Buchen eines Splits
@@ -1177,6 +1184,18 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   diese Wahl.
 - Theme, Akzent und Sprache sind Nutzerpräferenzen und beeinflussen gespeicherte
   Finanzwerte nicht.
+- Datumsfelder nehmen ISO-Daten (`YYYY-MM-DD`) entgegen und zeigen sie auch so
+  an — dasselbe Format wie jedes angezeigte Datum; der lokalisierte
+  Browser-Datumswähler kommt nicht zum Einsatz.
+- Während Werte berechnet werden, zeigt der betroffene Platz einen
+  Platzhalter plus den Hinweis „wird berechnet" statt eines Ladetexts;
+  Kopfzahlen zählen kurz sichtbar hoch. Bei reduzierter Bewegung als
+  Systemeinstellung entfällt alle dekorative Bewegung und Endwerte erscheinen
+  sofort.
+- Vorzeichenbehaftete Kennzahlen (TTWROR, IRR/MWR, Nettoflüsse, das
+  Veränderungssignal der Übersicht) tragen ein explizites Vorzeichen und
+  Gewinn-/Verlustfarbe auf jeder Ebene; vorzeichenlose Beträge behalten die
+  Akzentfarbe.
 
 ## Audit-Journal
 

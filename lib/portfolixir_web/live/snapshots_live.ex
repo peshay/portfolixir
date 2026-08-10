@@ -302,7 +302,10 @@ defmodule PortfolixirWeb.SnapshotsLive do
               <label>
                 <%= gettext("As of") %>
                 <input
-                  type="date"
+                  type="text"
+                  placeholder="YYYY-MM-DD"
+                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                  maxlength="10"
                   name="snapshot[as_of]"
                   value={Date.to_iso8601(Date.utc_today())}
                   required

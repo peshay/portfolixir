@@ -61,9 +61,11 @@ defmodule PortfolixirWeb.SecuritiesSplitWizardTest do
   #
   # Acceptance criteria:
   # - The detail pane offers a "Record split" trigger.
-  # - The dialog satisfies UX-DR9: role="dialog", aria-modal="true", a label,
-  #   and focus moved to the first field on open.
-  # - Esc closes the dialog.
+  # - The dialog satisfies UX-DR9 as a native <dialog> opened by the
+  #   ModalDialog hook (issue 646): showModal() supplies the focus trap,
+  #   the implicit dialog role and Esc handling; the hook's data-close-event
+  #   routes cancel back to the component.
+  # - The close button removes the dialog.
   test "the security detail offers a Record split trigger opening an accessible dialog", %{
     conn: conn
   } do
@@ -73,18 +75,18 @@ defmodule PortfolixirWeb.SecuritiesSplitWizardTest do
 
     assert has_element?(
              view,
-             "#split-wizard-dialog [role='dialog'][aria-modal='true'][aria-labelledby]"
+             ~s(dialog#split-wizard-dialog[phx-hook="ModalDialog"][data-close-event][aria-labelledby])
            )
 
     assert has_element?(view, "#split-wizard-form input[name='split[ratio_numerator]']")
     assert has_element?(view, "#split-wizard-form input[name='split[ratio_denominator]']")
-    assert has_element?(view, "#split-wizard-form input[name='split[date]'][type='date']")
+    assert has_element?(view, "#split-wizard-form input[name='split[date]'][pattern]")
 
     # Focus lands on the first field when the dialog mounts (UX-DR9).
     assert has_element?(view, "input[name='split[ratio_numerator]'][phx-mounted]")
 
-    # Esc is wired to close the dialog (UX-DR9) and the close event removes it.
-    assert view |> element("#split-wizard-dialog") |> render() =~ "Escape"
+    # The close event removes the dialog (Esc routes through the hook's
+    # cancel listener, which pushes the same event).
     view |> element("#split-wizard-dialog button[aria-label='Close']") |> render_click()
     refute has_element?(view, "#split-wizard-dialog")
   end

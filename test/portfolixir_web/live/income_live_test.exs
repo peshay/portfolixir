@@ -95,6 +95,29 @@ defmodule PortfolixirWeb.IncomeLiveTest do
   # Acceptance criteria:
   # - With ?locale=de the conversion note renders in German.
   # - The raw English domain note is not shown in the German UI.
+  # User story:
+  # As a maintainer scanning the income surface,
+  # I want the EUR-hub conversion explanation behind an on-demand ⓘ tooltip,
+  # so that the sightline keeps a terse basis line and the methodology stays
+  # reachable without permanent prose (UX-DR11, Sprint 5 Lane D).
+  #
+  # Acceptance criteria:
+  # - The full conversion sentence renders inside a role="tooltip" body
+  #   behind an ⓘ summary, not as free-standing prose.
+  # - A terse visible line still names the display currency.
+  test "the EUR-hub conversion note is an on-demand tooltip", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Mein Depot", currency: "EUR")
+    security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+    dividend!(world, security, date: ~D[2025-03-15], net: "100", tax: "0")
+
+    {:ok, view, _html} = live(conn, "/income")
+
+    note = view |> element(~s([data-role="income-conversion"])) |> render()
+    assert note =~ "ⓘ"
+    assert note =~ ~s(role="tooltip")
+    assert note =~ "original currency retained"
+  end
+
   test "translates the conversion note for the German locale", %{conn: conn} do
     world = WorldFixtures.base_world(name: "Mein Depot", currency: "EUR")
     security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")

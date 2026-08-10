@@ -152,12 +152,15 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
 
   def delete_blocked_dialog(assigns) do
     ~H"""
-    <div
-      class="modal-backdrop confirm-delete-blocked"
-      phx-window-keydown="close_delete_blocked"
-      phx-key="Escape"
+    <%!-- Native dialog (UX-DR9, issue 646): opened via showModal() by the
+         ModalDialog hook; cancel (Esc) pushes the close event. --%>
+    <dialog
+      id="delete-blocked-dialog"
+      class="modal confirm-delete-blocked"
+      phx-hook="ModalDialog"
+      data-close-event="close_delete_blocked"
+      aria-labelledby="delete-blocked-title"
     >
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delete-blocked-title">
         <header class="modal-head">
           <h2 id="delete-blocked-title"><%= gettext("Cannot delete") %></h2>
           <button
@@ -193,8 +196,7 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
             <%= gettext("Retire instead") %>
           </button>
         </div>
-      </div>
-    </div>
+    </dialog>
     """
   end
 end

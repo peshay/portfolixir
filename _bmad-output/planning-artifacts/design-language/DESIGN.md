@@ -882,6 +882,8 @@ If per-segment streaming is ever built, this entry is revisited: at that point t
 
 Precisely: app.css already styles the *container* — `input, select, textarea` share {components.input} — but not the *internals*. The select keeps the native chevron and native option list; `<details>` keeps the native triangle wherever the summary has no class; the checkbox has an accent colour but no defined mark. And `<input type="date">` renders `MM/DD/YYYY` in an otherwise fully ISO product. **Dates render ISO in inputs as well as in displays.**
 
+**Resolved 2026-08-10 (issue 641, Sprint 5):** no browser renders ISO in `type="date"`, so the date input is the one native control that is *replaced* rather than styled — an ISO text input (`YYYY-MM-DD` placeholder, pattern, maxlength 10; no `inputmode="numeric"`, whose iOS keypad has no dash) with live `:invalid` marking. The wire format is unchanged. The native calendar picker is given up for format consistency — a deliberate trade, pinned by `test/invariants/iso_date_input_test.exs`. Selects, `<details>` and checkboxes stay native-styled work.
+
 The checkbox is one control: box and label sit on one line, the label is the hit target, and the pair is spaced on the scale. The classification form's broken checkbox stack — a bare box alone on a line with its label underneath, running into the next field's label — is the failure this rule prevents.
 
 ### Inventory (as built)

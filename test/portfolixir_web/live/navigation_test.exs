@@ -213,6 +213,11 @@ defmodule PortfolixirWeb.NavigationTest do
 
     assert has_element?(income_view, "#nav-portfolio[aria-current='page']")
 
+    # Issue 639: Snapshots is a Wealth area — the sidebar must keep its
+    # position indicator there like it does on /income and /tax.
+    {:ok, snapshots_view, _html} = live(conn, "/snapshots")
+    assert has_element?(snapshots_view, "#nav-portfolio[aria-current='page']")
+
     {:ok, transactions_view, _html} = live(conn, "/transactions")
 
     assert has_element?(

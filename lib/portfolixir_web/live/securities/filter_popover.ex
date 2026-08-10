@@ -38,7 +38,7 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
       <div class="popover-head">
         <h3><%= gettext("Filter") %></h3>
       </div>
-      <form phx-change="filter_change" phx-submit="apply_filter" phx-target={@myself}>
+      <form id="securities-filter-form" phx-change="filter_change" phx-submit="apply_filter" phx-target={@myself}>
         <label>
           <span><%= gettext("Column") %></span>
           <select name="field">

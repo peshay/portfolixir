@@ -828,7 +828,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     html = render_async(view)
 
     assert html =~ "Data quality"
-    assert html =~ "valued at their last trade price"
+    # One affected position each — the singular plural form (issue 636).
+    assert html =~ "valued at its last trade price"
     assert html =~ "no price at all"
     assert html =~ "Delivered Co."
   end
@@ -1041,6 +1042,160 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # reader must not hear "IRR info" on a card labeled MWR.
     assert mwr_kpi =~ "MWR info"
     refute mwr_kpi =~ "IRR info"
+  end
+
+  # User story:
+  # As a maintainer scanning the allocation positions worklist,
+  # I want the sortable column headers to read as header text,
+  # so that no header renders as a floating button box overflowing the
+  # header band (issue 634 — a cell is not a card; nothing inside a table
+  # gets a shadow).
+  #
+  # Acceptance criteria:
+  # - The .table-sort trigger resets the button chrome (background, border,
+  #   shadow) and inherits the header typography.
+  test "table sort triggers render as header text, not floating buttons" do
+    css = File.read!("priv/static/app.css")
+
+    assert css =~ ~r/th \.table-sort\s*\{[^}]*background:\s*transparent/s
+    assert css =~ ~r/th \.table-sort\s*\{[^}]*border:\s*none/s
+    assert css =~ ~r/th \.table-sort\s*\{[^}]*box-shadow:\s*none/s
+  end
+
+  # User story:
+  # As a maintainer reading the performance chart,
+  # I want one TTWROR explanation in one place — the kpi-ttwror ⓘ tooltip —
+  # and only the period basis (dates) in the chart's sightline,
+  # so that the methodology paragraph no longer duplicates the tooltip on
+  # the same screen (UX-DR11 decided outcome: split, then delete half).
+  #
+  # Acceptance criteria:
+  # - The chart's basis line renders the date range and nothing else.
+  # - The methodology sentence does not appear outside the KPI tooltip.
+  test "the chart keeps a bare basis line; the TTWROR definition lives once",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    basis = view |> element(~s([data-role="performance-basis"])) |> render()
+    assert basis =~ ~r/\d{4}-\d{2}-\d{2}/
+    refute basis =~ "neutralised"
+
+    # The sentence exists exactly once on the page — inside the KPI tooltip.
+    assert length(String.split(html, "neutralised")) == 2
+  end
+
+  # User story:
+  # As a local portfolio maintainer opening Wealth while values compute,
+  # I want the KPI slots to show an honest pending state — a value-sized
+  # placeholder plus a "computing" cue — instead of a bare bold ellipsis,
+  # so that "still loading" is distinguishable from "cannot be computed"
+  # (UX-DR20, issue 638's companion pattern).
+  #
+  # Acceptance criteria:
+  # - Before the async valuation lands, the KPI slots render a value-sized
+  #   skeleton, carry aria-busy="true", and the cue word "computing".
+  # - No KPI slot renders the bare `…` placeholder any more.
+  test "KPI cards render an honest pending state instead of a bare ellipsis", %{conn: conn} do
+    seed_world()
+
+    {:ok, _view, html} = live(conn, "/portfolio")
+
+    assert html =~ "value-skeleton"
+    assert html =~ ~s(aria-busy="true")
+    assert html =~ "computing"
+    refute html =~ ">…</strong>"
+  end
+
+  # User story:
+  # As a local portfolio maintainer watching a headline value land,
+  # I want the value to count up briefly while visibly not-final,
+  # so that the arrival is legible without ever asserting a wrong final
+  # number (owner pick 2026-08-05: settling state, count starts only once
+  # the final value is known; under reduced motion it never runs).
+  #
+  # Acceptance criteria:
+  # - The headline money KPIs carry the CountUp hook with the raw decimal
+  #   value and its precision as data attributes.
+  test "headline money KPIs carry the CountUp hook", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    assert html =~ ~s(phx-hook="CountUp")
+    assert [_, raw] = Regex.run(~r/data-count-to="([0-9.]+)"/, html)
+    assert Decimal.new(raw)
+  end
+
+  # User story:
+  # As a local portfolio maintainer with reduced-motion enabled or not,
+  # I want the allocation sunburst to build with a decorative sequential
+  # sweep that never distorts geometry,
+  # so that the finished proportions are correct from the first frame
+  # (owner pick F1, 2026-08-05 — opacity-only, staggered per segment).
+  #
+  # Acceptance criteria:
+  # - Every sunburst segment carries a --seg-delay custom property for the
+  #   CSS sweep; the sweep itself lives behind the no-preference gate in
+  #   app.css (pinned by the motion invariant test).
+  test "sunburst segments carry their reveal delay", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    html = render_async(view)
+
+    assert html =~ "--seg-delay:"
+  end
+
+  # User story:
+  # As a local portfolio maintainer scanning the Wealth KPI cards,
+  # I want signed metrics to carry gain/loss colour plus an explicit sign,
+  # so that a loss never renders in the brand accent and its direction
+  # survives without the hue channel (UX-DR7, issue 637).
+  #
+  # Acceptance criteria:
+  # - A negative TTWROR and IRR/MWR render with the is-negative class and
+  #   their minus sign; positive values with is-positive and a leading plus.
+  # - Unsigned magnitudes (total, securities) carry no sign class — they keep
+  #   the accent.
+  test "KPI cards colour signed metrics by sign, never by accent (#637)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Mein Depot", cash_name: "Giro", depot_name: "Depot")
+
+    security =
+      WorldFixtures.create_security!(name: "World ETF", ticker: "WLD", asset_class: "etf")
+
+    Classifications.ensure_builtins()
+
+    today = Date.utc_today()
+    start = Date.add(today, -30)
+
+    WorldFixtures.deposit!(world, "1000", start)
+    WorldFixtures.buy!(world, security, quantity: "10", price: "100", date: start)
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "90"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    ttwror = view |> element("#kpi-ttwror strong") |> render()
+    assert ttwror =~ "is-negative"
+    assert ttwror =~ "-"
+
+    total = view |> element("#kpi-total strong") |> render()
+    refute total =~ "is-negative"
+    refute total =~ "is-positive"
+
+    # The same world in profit: the sign class flips and a plus sign appears.
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "120"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    ttwror = view |> element("#kpi-ttwror strong") |> render()
+    assert ttwror =~ "is-positive"
+    assert ttwror =~ "+"
   end
 
   test "renders n/a for the wealth multiple when nothing is invested (#568)", %{conn: conn} do
