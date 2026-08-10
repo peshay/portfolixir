@@ -157,6 +157,30 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert has_element?(view, "#securities-search-form input[name='query']")
     end
 
+    # The holding-status segmented control is a filter too (review finding on
+    # issue 649): "held" with zero held securities must not claim an empty
+    # portfolio.
+    test "a held-filter zero-match shows the no-results state, not the empty surface",
+         %{conn: conn} do
+      {:ok, _} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Unheld Co.",
+          ticker_symbol: "UNH",
+          currency_code: "EUR",
+          asset_class: "equity"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      html =
+        view
+        |> element(~s(button[phx-click="set_holding_status"][phx-value-status="held"]))
+        |> render_click()
+
+      assert html =~ "No matches for the active filters."
+      refute html =~ "No securities yet"
+    end
+
     # User story:
     # As a local portfolio maintainer,
     # I want one-click filters for all, held, and not-held securities,
