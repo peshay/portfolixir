@@ -78,7 +78,7 @@ defmodule PortfolixirWeb.SecuritiesSplitWizardTest do
 
     assert has_element?(view, "#split-wizard-form input[name='split[ratio_numerator]']")
     assert has_element?(view, "#split-wizard-form input[name='split[ratio_denominator]']")
-    assert has_element?(view, "#split-wizard-form input[name='split[date]'][type='date']")
+    assert has_element?(view, "#split-wizard-form input[name='split[date]'][pattern]")
 
     # Focus lands on the first field when the dialog mounts (UX-DR9).
     assert has_element?(view, "input[name='split[ratio_numerator]'][phx-mounted]")

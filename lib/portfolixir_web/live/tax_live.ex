@@ -407,7 +407,11 @@ defmodule PortfolixirWeb.TaxLive do
             <label>
               <%= gettext("Statement date") %>
               <input
-                type="date"
+                type="text"
+                inputmode="numeric"
+                placeholder="YYYY-MM-DD"
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                maxlength="10"
                 name="statement[as_of]"
                 value={@editing && Date.to_iso8601(@editing.as_of)}
                 required

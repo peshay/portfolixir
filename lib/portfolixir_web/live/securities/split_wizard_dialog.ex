@@ -80,7 +80,11 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
               <label>
                 <span><%= gettext("Effective date") %></span>
                 <input
-                  type="date"
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="YYYY-MM-DD"
+                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                  maxlength="10"
                   name="split[date]"
                   value={@form["date"]}
                   max={Date.to_iso8601(Clock.today())}

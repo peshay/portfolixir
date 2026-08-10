@@ -70,7 +70,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 <label>
                   <span><%= gettext("Date") %></span>
                   <input
-                    type="date"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="YYYY-MM-DD"
+                    pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                    maxlength="10"
                     name="transaction[date]"
                     value={@transaction_form["date"]}
                     required
@@ -348,11 +352,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               </label>
               <label>
                 <span><%= gettext("From") %></span>
-                <input type="date" name="filters[from]" value={@filters["from"]} />
+                <input type="text" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[from]" value={@filters["from"]} />
               </label>
               <label>
                 <span><%= gettext("To") %></span>
-                <input type="date" name="filters[to]" value={@filters["to"]} />
+                <input type="text" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[to]" value={@filters["to"]} />
               </label>
               <label class="transaction-filters-search">
                 <span><%= gettext("Search") %></span>

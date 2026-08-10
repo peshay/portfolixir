@@ -531,14 +531,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
               aria-label={gettext("Custom range")}
             >
               <input
-                type="date"
+                type="text"
+                inputmode="numeric"
+                placeholder="YYYY-MM-DD"
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                maxlength="10"
                 name="from"
                 value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.from)}
                 aria-label={gettext("From")}
               />
               <span aria-hidden="true">→</span>
               <input
-                type="date"
+                type="text"
+                inputmode="numeric"
+                placeholder="YYYY-MM-DD"
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                maxlength="10"
                 name="to"
                 value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.to)}
                 aria-label={gettext("To")}

@@ -931,14 +931,22 @@ defmodule PortfolixirWeb.PortfolioLive do
               <form class="period-range" phx-submit="select_range" data-role="period-range">
                 <label class="visually-hidden" for="performance-from"><%= gettext("From") %></label>
                 <input
-                  type="date"
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="YYYY-MM-DD"
+                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                  maxlength="10"
                   id="performance-from"
                   name="from"
                   value={range_from(@period, @performance)}
                 />
                 <label class="visually-hidden" for="performance-to"><%= gettext("To") %></label>
                 <input
-                  type="date"
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="YYYY-MM-DD"
+                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                  maxlength="10"
                   id="performance-to"
                   name="to"
                   value={range_to(@period, @performance)}
@@ -1611,7 +1619,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               </label>
               <label>
                 <span><%= gettext("Date") %></span>
-                <input type="date" name="balance[date]" value={Date.to_iso8601(Date.utc_today())} />
+                <input type="text" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="balance[date]" value={Date.to_iso8601(Date.utc_today())} />
               </label>
               <label>
                 <span><%= gettext("Balance") %></span>
