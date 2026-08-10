@@ -106,6 +106,10 @@ defmodule PortfolixirWeb.IncomeLive do
                   bars are plain server-rendered SVG with no animation, so
                   prefers-reduced-motion needs nothing extra (UX-DR5). --%>
             <div id="income-chart" class="income-chart">
+              <%!-- Track keeps the labels' intrinsic width so the container
+                    scrolls on narrow viewports instead of clipping (#560,
+                    UX-DR15). --%>
+              <div class="income-chart-track">
               <svg
                 class="income-bars"
                 viewBox={"0 0 #{max(length(@income_bars), 1)} 100"}
@@ -142,6 +146,7 @@ defmodule PortfolixirWeb.IncomeLive do
                   <strong><%= bar.year %></strong>
                   <span><%= money(bar.total) %></span>
                 </button>
+              </div>
               </div>
             </div>
 
@@ -201,6 +206,7 @@ defmodule PortfolixirWeb.IncomeLive do
             <%!-- Per-month breakdown of the drilled year; the payments table
                   below stays as the backing data (UX-DR10). --%>
             <div id="income-month-chart" class="income-chart">
+              <div class="income-chart-track">
               <svg
                 class="income-bars"
                 viewBox="0 0 12 100"
@@ -224,6 +230,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 <span :for={bar <- month_bars(@income, @selected_year)} class="income-bar-label income-month-label">
                   <%= month_label(bar.month) %>
                 </span>
+              </div>
               </div>
             </div>
 

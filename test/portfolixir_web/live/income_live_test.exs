@@ -180,6 +180,49 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     assert has_element?(view, "#income-annual table")
   end
 
+  # User story (#560, mobile defect):
+  # As a maintainer reading the income chart on a phone,
+  # I want every year bar and its label reachable on a 375px viewport,
+  # so that the chart is usable on mobile instead of being cut off to the
+  # right with no way to scroll to the missing bars.
+  #
+  # Acceptance criteria:
+  # - The chart content (SVG + labels) sits inside a track wrapped by a
+  #   scrollable container (own overflow-x scroller, UX-DR15).
+  # - The track never compresses below its labels' intrinsic width, so on a
+  #   narrow viewport the container scrolls instead of clipping.
+  # - Desktop is unaffected: the track still spans the full width when the
+  #   container is wide enough.
+  test "income charts scroll horizontally on narrow viewports (#560)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Mein Depot", currency: "EUR")
+    sec = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+    dividend!(world, sec, date: ~D[2024-05-15], net: "800", tax: "0")
+    dividend!(world, sec, date: ~D[2025-03-15], net: "100", tax: "0")
+
+    {:ok, view, _html} = live(conn, "/income")
+
+    # Annual chart: SVG and labels share one scrollable track.
+    assert has_element?(view, "#income-chart .income-chart-track svg.income-bars")
+    assert has_element?(view, "#income-chart .income-chart-track .income-bar-labels")
+
+    # The month drilldown chart takes the same treatment.
+    view |> element("#income-chart button[data-year='2025']") |> render_click()
+    assert has_element?(view, "#income-month-chart .income-chart-track svg.income-bars")
+
+    # The scroller/track pair is backed by CSS: the container scrolls,
+    # the track keeps its intrinsic minimum width and full-width default.
+    app_css = File.read!("priv/static/app.css")
+    assert app_css =~ ~r/\.income-chart\s*\{[^}]*overflow-x:\s*auto/s
+    assert app_css =~ ~r/\.income-chart-track\s*\{[^}]*min-width:\s*max-content/s
+
+    # UX-DR15's affordance clause: the scrolled block sits in a bordered,
+    # radiused container so its edge reads as an edge, not as a cut
+    # (review finding; mirrors .data-table-wrapper).
+    assert app_css =~ ~r/\.income-chart\s*\{[^}]*border:\s*1px solid var\(--color-border\)/s
+    assert app_css =~ ~r/\.income-chart\s*\{[^}]*border-radius:\s*var\(--radius-md\)/s
+  end
+
   # User story (Steve UAT #415 follow-up):
   # As a maintainer who spots a strong year in the overview chart,
   # I want to click that year's bar to drill into a per-month breakdown,
