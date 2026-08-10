@@ -22,7 +22,6 @@ defmodule PortfolixirWeb.BucketsLive do
 
   use PortfolixirWeb, :live_view
 
-  alias Phoenix.LiveView.JS
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Portfolios

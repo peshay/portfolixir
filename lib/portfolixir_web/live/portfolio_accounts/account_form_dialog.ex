@@ -12,7 +12,6 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 
-  alias Phoenix.LiveView.JS
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Portfolios
