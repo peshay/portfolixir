@@ -125,6 +125,39 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     # User story:
+    # As a local portfolio maintainer narrowing the securities list,
+    # I want a filtered zero-match to say "no matches", not "no securities",
+    # so that the UI never asserts my portfolio is empty when my filter is
+    # merely narrow (UX-DR13, issue 649).
+    #
+    # Acceptance criteria:
+    # - A search with no hits renders a no-results state naming the query,
+    #   with the controls still visible.
+    # - The empty-surface message renders only when no securities exist.
+    test "a filtered zero-match shows a no-results state, not the empty surface",
+         %{conn: conn} do
+      {:ok, _} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      html =
+        view
+        |> form("#securities-search-form", %{"query" => "zzz-no-match"})
+        |> render_change()
+
+      assert html =~ "No matches for"
+      assert html =~ "zzz-no-match"
+      refute html =~ "No securities yet"
+      assert has_element?(view, "#securities-search-form input[name='query']")
+    end
+
+    # User story:
     # As a local portfolio maintainer,
     # I want one-click filters for all, held, and not-held securities,
     # so that I can focus the security list on current positions or cleanup candidates.

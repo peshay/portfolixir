@@ -286,10 +286,32 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 </thead>
                 <tbody>
                   <%= if @securities == [] do %>
+                    <%!-- UX-DR13 (issue 649): a filtered zero-match keeps the
+                         controls and names the filter — telling the operator
+                         their list is empty when a filter is merely narrow
+                         would be a factual error about their data. --%>
                     <tr>
-                      <td colspan={length(visible_fields(@visible_columns)) + 1} class="empty-state">
-                        <%= gettext("No securities yet — click + to add one.") %>
-                      </td>
+                      <%= if @query != "" or @filters != [] do %>
+                        <td
+                          colspan={length(visible_fields(@visible_columns)) + 1}
+                          class="empty-state"
+                          data-role="no-results"
+                        >
+                          <%= if @query != "" do %>
+                            <%= gettext("No matches for \"%{query}\".", query: @query) %>
+                          <% else %>
+                            <%= gettext("No matches for the active filters.") %>
+                          <% end %>
+                        </td>
+                      <% else %>
+                        <td
+                          colspan={length(visible_fields(@visible_columns)) + 1}
+                          class="empty-state"
+                          data-role="empty-surface"
+                        >
+                          <%= gettext("No securities yet — click + to add one.") %>
+                        </td>
+                      <% end %>
                     </tr>
                   <% end %>
                   <% visible = visible_fields(@visible_columns) %>
