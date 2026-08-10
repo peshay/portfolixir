@@ -24,6 +24,16 @@ Then import the file through the Imports view (drag & drop, map everything as
 "create new", apply), or via the JSON API / a small `mix run` script that calls
 `Portfolixir.Imports.parse_portfolio_performance/2` and `Imports.apply/2`.
 
+## Quote history (offline)
+
+The demo export carries transactions only. To render charts and valuations
+without any market-data sync, seed deterministic synthetic weekly closes
+(seeded RNG, anchored at each security's last trade price):
+
+```bash
+DATABASE_NAME=portfolixir_demo PORT=4003 mix run priv/demo/quotes_seed.exs
+```
+
 ## Strategies + target weights (optional)
 
 To reproduce the target-vs-actual rebalancing view shown in the README, seed a

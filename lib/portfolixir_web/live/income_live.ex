@@ -92,7 +92,7 @@ defmodule PortfolixirWeb.IncomeLive do
                conversion methodology behind the ⓘ tooltip. --%>
           <div class="muted" data-role="income-conversion">
             <span><%= gettext("Amounts in %{currency}", currency: @income.base_currency) %></span>
-            <details class="metric-tooltip">
+            <details class="metric-tooltip metric-tooltip--inline">
               <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
               <p role="tooltip">
                 <%= gettext(

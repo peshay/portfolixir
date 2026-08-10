@@ -4703,6 +4703,22 @@ button.income-bar-label.is-active {
   list-style: none;
   user-select: none;
 }
+/* Inline variant: the ⓘ sits in the text flow (the income conversion line),
+   not pinned to a stat card's corner, and its body opens to the right so it
+   cannot leave the viewport. */
+.metric-tooltip--inline {
+  position: relative;
+  bottom: auto;
+  right: auto;
+  margin-left: var(--space-1);
+  vertical-align: middle;
+}
+
+.metric-tooltip--inline p {
+  left: 0;
+  right: auto;
+}
+
 .metric-tooltip summary::-webkit-details-marker {
   display: none;
 }
