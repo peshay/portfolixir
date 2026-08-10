@@ -115,6 +115,11 @@ Code alle passenden Wertpapiere rückwirkend neu, ohne Datenmigration.
 
 #### Nicht klassifizierte Wertpapiere finden und korrigieren
 
+Eine Suche oder Filterkombination ohne Treffer zeigt einen
+*Keine-Treffer*-Zustand, der die Suche bzw. die aktiven Filter benennt — die
+Bedienelemente bleiben sichtbar; der Onboarding-Hinweis „noch keine
+Wertpapiere" erscheint nur bei leerer Datenbank.
+
 Die Wertpapierliste akzeptiert einen Filter **„is unclassified"** auf der
 Anlageklasse-Spalte (`operator: :is_nil`). Er liefert alle Zeilen, bei denen der
 gespeicherte Wert nil ist und `effective_asset_class` ebenfalls nil ergab — d. h.
@@ -807,9 +812,10 @@ die auf der Transaktion erfasste einbehaltene Steuer; Zinsen
 Quellensteuer und werden als eigene Reihe neben Dividenden geführt. Ein Klick auf
 ein Jahr öffnet das Detail je Transaktion für dieses Jahr.
 
-Beträge werden in der Basiswährung des Portfolios ausgewiesen, umgerechnet über
-den EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums (dieselbe
-Umrechnung wie die Bewertung); die ursprüngliche Währung bleibt je Zeile sichtbar.
+Beträge werden in der Basiswährung des Portfolios ausgewiesen; die
+ursprüngliche Währung bleibt je Zeile sichtbar. Die Umrechnungsmethodik
+(EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums — dieselbe
+Umrechnung wie die Bewertung) steht hinter dem ⓘ neben der Währungszeile.
 Der Bericht ist auch über die API (`GET /api/v1/portfolios/:id/income`) und das
 MCP-Tool `portfolixir.portfolios.income` verfügbar.
 

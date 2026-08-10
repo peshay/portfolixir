@@ -108,6 +108,11 @@ retroactively reclassifies all matching securities without a data migration.
 
 #### Finding and fixing unclassified securities
 
+A search or filter combination that matches nothing shows a *no matches*
+state naming the query or the active filters, with the controls still
+visible; the "no securities yet" onboarding hint appears only when the
+database holds no securities at all.
+
 The securities list accepts an **"is unclassified"** filter on the asset-class
 column (`operator: :is_nil`). It returns all rows where the stored value is nil
 and `effective_asset_class` also returned nil — i.e. the heuristics have no
@@ -749,9 +754,10 @@ net cash credited plus the withheld tax recorded on the transaction; interest
 withholding and is tracked as its own series next to dividends. Clicking a year
 opens the per-transaction detail for that year.
 
-Amounts are reported in the portfolio's base currency, converted through the
-EUR hub at each booking date's stored rate (the same conversion the valuation
-uses); the original currency stays visible on each row. The report is also
+Amounts are reported in the portfolio's base currency; the original currency
+stays visible on each row. The conversion methodology (EUR hub at each booking
+date's stored rate — the same conversion the valuation uses) sits behind the
+ⓘ affordance next to the currency line. The report is also
 available over the API (`GET /api/v1/portfolios/:id/income`) and the
 `portfolixir.portfolios.income` MCP tool.
 
