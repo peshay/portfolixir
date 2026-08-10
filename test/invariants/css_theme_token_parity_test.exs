@@ -163,9 +163,7 @@ defmodule Portfolixir.Invariants.CssThemeTokenParityTest do
       |> String.split("\n")
       |> Enum.reject(&String.match?(&1, ~r/^\s*--[\w-]+\s*:/))
       |> Enum.flat_map(fn line ->
-        Regex.scan(~r/var\(--color-accent-(violet|teal|coral)\)/, line,
-          capture: :all_but_first
-        )
+        Regex.scan(~r/var\(--color-accent-(violet|teal|coral)\)/, line, capture: :all_but_first)
       end)
       |> Enum.frequencies_by(fn [variant] -> variant end)
 

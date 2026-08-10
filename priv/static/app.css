@@ -2787,6 +2787,19 @@ img.security-logo {
   color: var(--color-danger);
 }
 
+/* Signed KPI values take gain/loss colour, never the accent (issue 637);
+   the .stat strong accent rule below would otherwise win on specificity.
+   Unsigned magnitudes carry no sign class and keep the accent. */
+.stat strong.is-positive,
+.stat strong .is-positive {
+  color: var(--color-positive);
+}
+
+.stat strong.is-negative,
+.stat strong .is-negative {
+  color: var(--color-danger);
+}
+
 .detail-quotes-table {
   width: 100%;
   border-collapse: collapse;
@@ -3127,8 +3140,11 @@ img.security-logo {
   stroke: none;
 }
 
+/* Triangle paths, apex up for buy and down for sell (issue 645): shape is
+   the channel that survives without colour. The halo separates the marker
+   from the quote line on either theme's chart surface. */
 .security-chart .tx-marker {
-  stroke: white;
+  stroke: var(--color-chart-surface);
   stroke-width: 1.5;
 }
 

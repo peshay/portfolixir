@@ -236,7 +236,8 @@ defmodule PortfolixirWeb.DashboardLive do
               <%= Format.money(@wealth_card.valuation.total_with_cash) %> <%= @wealth_card.valuation.base_currency %>
             </strong>
             <small :if={@wealth_card.ttwror} data-role="card-ttwror">
-              <%= signed_percent(@wealth_card.ttwror) %>% <%= gettext("YTD") %>
+              <span class={sign_class(@wealth_card.ttwror)}><%= signed_percent(@wealth_card.ttwror) %>%</span>
+              <%= gettext("YTD") %>
               · <%= gettext("Cash") %> <%= Format.percent(@wealth_card.valuation.cash_quote) %>%
             </small>
             <small :if={is_nil(@wealth_card.ttwror)}>
@@ -407,6 +408,15 @@ defmodule PortfolixirWeb.DashboardLive do
   defp signed_percent(value) do
     formatted = Format.percent(value)
     if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
+  end
+
+  # Gain/loss colour by sign, never the accent (UX-DR7, issue 637).
+  defp sign_class(value) do
+    case Decimal.compare(value, 0) do
+      :gt -> "is-positive"
+      :lt -> "is-negative"
+      :eq -> "is-flat"
+    end
   end
 
   # Securities needing attention (#337 data-quality card): no recent quote

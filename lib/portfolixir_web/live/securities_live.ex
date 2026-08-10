@@ -862,17 +862,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <% end %>
           </dd>
         </div>
+        <%!-- Signed metrics carry gain/loss colour at every level, not only
+             totals (UX-DR7, issue 637). --%>
         <div class="overview-metric">
           <dt><%= gettext("Day change") %></dt>
-          <dd><%= signed_percent_or_dash(@metrics[:day_change_pct]) %></dd>
+          <dd class={pnl_class(@metrics[:day_change_pct])}>
+            <%= signed_percent_or_dash(@metrics[:day_change_pct]) %>
+          </dd>
         </div>
         <div class="overview-metric">
           <dt>1M</dt>
-          <dd><%= signed_percent_or_dash(@metrics[:performance_1m]) %></dd>
+          <dd class={pnl_class(@metrics[:performance_1m])}>
+            <%= signed_percent_or_dash(@metrics[:performance_1m]) %>
+          </dd>
         </div>
         <div class="overview-metric">
           <dt>1Y</dt>
-          <dd><%= signed_percent_or_dash(@metrics[:performance_1y]) %></dd>
+          <dd class={pnl_class(@metrics[:performance_1y])}>
+            <%= signed_percent_or_dash(@metrics[:performance_1y]) %>
+          </dd>
         </div>
       </dl>
 

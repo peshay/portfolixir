@@ -1043,6 +1043,54 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     refute mwr_kpi =~ "IRR info"
   end
 
+  # User story:
+  # As a local portfolio maintainer scanning the Wealth KPI cards,
+  # I want signed metrics to carry gain/loss colour plus an explicit sign,
+  # so that a loss never renders in the brand accent and its direction
+  # survives without the hue channel (UX-DR7, issue 637).
+  #
+  # Acceptance criteria:
+  # - A negative TTWROR and IRR/MWR render with the is-negative class and
+  #   their minus sign; positive values with is-positive and a leading plus.
+  # - Unsigned magnitudes (total, securities) carry no sign class — they keep
+  #   the accent.
+  test "KPI cards colour signed metrics by sign, never by accent (#637)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Mein Depot", cash_name: "Giro", depot_name: "Depot")
+
+    security =
+      WorldFixtures.create_security!(name: "World ETF", ticker: "WLD", asset_class: "etf")
+
+    Classifications.ensure_builtins()
+
+    today = Date.utc_today()
+    start = Date.add(today, -30)
+
+    WorldFixtures.deposit!(world, "1000", start)
+    WorldFixtures.buy!(world, security, quantity: "10", price: "100", date: start)
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "90"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    ttwror = view |> element("#kpi-ttwror strong") |> render()
+    assert ttwror =~ "is-negative"
+    assert ttwror =~ "-"
+
+    total = view |> element("#kpi-total strong") |> render()
+    refute total =~ "is-negative"
+    refute total =~ "is-positive"
+
+    # The same world in profit: the sign class flips and a plus sign appears.
+    WorldFixtures.put_quotes!(security, [{start, "100"}, {today, "120"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    ttwror = view |> element("#kpi-ttwror strong") |> render()
+    assert ttwror =~ "is-positive"
+    assert ttwror =~ "+"
+  end
+
   test "renders n/a for the wealth multiple when nothing is invested (#568)", %{conn: conn} do
     world = seed_world()
 

@@ -756,7 +756,11 @@ defmodule PortfolixirWeb.PortfolioLive do
           </article>
           <article id="kpi-ttwror" class="stat" role="group" aria-describedby="tip-ttwror">
             <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
-            <strong :if={@performance}><%= Format.percent(@performance.ttwror) %>%</strong>
+            <%!-- Signed metric: gain/loss colour plus sign, never the accent
+                 (UX-DR7, issue 637). --%>
+            <strong :if={@performance} class={perf_sign_class(@performance.ttwror)}>
+              <%= signed_percent(@performance.ttwror) %>%
+            </strong>
             <strong :if={is_nil(@performance)}>…</strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
@@ -767,8 +771,11 @@ defmodule PortfolixirWeb.PortfolioLive do
           </article>
           <article id="kpi-irr" class="stat" role="group" aria-describedby="tip-irr">
             <span><%= money_weighted_label(@performance) %> (<%= period_label(@period) %>)</span>
-            <strong :if={@performance && money_weighted_value(@performance)}>
-              <%= Format.percent(money_weighted_value(@performance)) %>%
+            <strong
+              :if={@performance && money_weighted_value(@performance)}
+              class={perf_sign_class(money_weighted_value(@performance))}
+            >
+              <%= signed_percent(money_weighted_value(@performance)) %>%
             </strong>
             <strong :if={@performance && is_nil(money_weighted_value(@performance))}>—</strong>
             <strong :if={is_nil(@performance)}>…</strong>
@@ -789,7 +796,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             </span>
             <strong :if={@performance}>
               <%= Format.money(@performance.start_value) %>
-              · <%= Format.signed_decimal(@performance.net_external_flows, 2) %> <%= @performance.base_currency %>
+              · <span class={perf_sign_class(@performance.net_external_flows)}><%= Format.signed_decimal(
+                  @performance.net_external_flows,
+                  2
+                ) %></span> <%= @performance.base_currency %>
             </strong>
             <strong :if={is_nil(@performance)}>…</strong>
             <details class="metric-tooltip">
