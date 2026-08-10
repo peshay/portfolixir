@@ -1813,16 +1813,31 @@ li + li {
 
 /* ===== Modal ===== */
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  z-index: 100;
-  padding: 60px 16px 16px;
+/* Native <dialog> modals (UX-DR9, issue 646): showModal() centres the
+   element in the top layer and paints ::backdrop, replacing the
+   .modal-backdrop wrapper div. The UA dialog chrome is reset; the .modal
+   panel styling below carries the appearance. */
+dialog.modal {
+  border: none;
+  padding: 0;
+  margin: 60px auto 16px;
+  max-height: calc(100vh - 76px);
   overflow-y: auto;
+  color: inherit;
+}
+
+dialog.modal::backdrop {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+/* Forced themes must override the system default (same rule as the token
+   blocks); ::backdrop cannot read inherited custom properties reliably. */
+[data-theme="light"] dialog.modal::backdrop {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+[data-theme="dark"] dialog.modal::backdrop {
+  background: rgba(0, 0, 0, 0.55);
 }
 
 .modal {
@@ -2025,7 +2040,7 @@ li + li {
     background: rgb(255 255 255 / 0.04);
   }
 
-  .modal-backdrop {
+  dialog.modal::backdrop {
     background: rgba(0, 0, 0, 0.55);
   }
 

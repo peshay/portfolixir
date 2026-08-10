@@ -627,6 +627,38 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // Native dialog modals (UX-DR9, issue 646): showModal() supplies
+            // the focus trap, background inertness and Esc handling the old
+            // div-based modals only asserted. The cancel event (Esc) is
+            // prevented so LiveView owns the close — the server removes the
+            // dialog from the DOM.
+            Hooks.ModalDialog = {
+              mounted: function () {
+                var el = this.el;
+                if (typeof el.showModal === "function" && !el.open) {
+                  el.showModal();
+                }
+                var self = this;
+                this.onCancel = function (e) {
+                  e.preventDefault();
+                  self.close();
+                };
+                el.addEventListener("cancel", this.onCancel);
+              },
+              destroyed: function () {
+                if (this.el.open && typeof this.el.close === "function") {
+                  this.el.close();
+                }
+                this.el.removeEventListener("cancel", this.onCancel);
+              },
+              close: function () {
+                var event = this.el.getAttribute("data-close-event");
+                if (event) {
+                  this.pushEventTo(this.el, event, {});
+                }
+              }
+            };
+
             // The ninth inline hook (owner decision 2026-08-05, DESIGN.md →
             // Motion): a cosmetic count-up to an already-known final value.
             // requestAnimationFrame drives the count, Intl.NumberFormat

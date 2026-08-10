@@ -370,19 +370,15 @@ defmodule PortfolixirWeb.BucketsLive do
 
   defp view_bucket_modal(assigns) do
     ~H"""
-    <div
+    <%!-- Native dialog (UX-DR9, issue 646): opened via showModal() by the
+         ModalDialog hook; cancel (Esc) pushes the close event. --%>
+    <dialog
       id="view-bucket-modal"
-      class="modal-backdrop"
-      phx-window-keydown={JS.push("close_bucket_picker")}
-      phx-key="Escape"
+      class="modal"
+      phx-hook="ModalDialog"
+      data-close-event="close_bucket_picker"
+      aria-labelledby="view-bucket-modal-title"
     >
-      <div
-        class="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="view-bucket-modal-title"
-        tabindex="-1"
-      >
         <header class="modal-head">
           <h2 id="view-bucket-modal-title">
             <%= gettext("Buckets for %{name}", name: @view.name) %>
@@ -448,8 +444,7 @@ defmodule PortfolixirWeb.BucketsLive do
             </div>
           </form>
         </div>
-      </div>
-    </div>
+    </dialog>
     """
   end
 

@@ -433,11 +433,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp render_detail_pane(assigns) do
     ~H"""
+    <%!-- No modality attribute here (issue 646): the pane is not a dialog,
+         and asserting modality without containment splits screen-reader
+         position from keyboard focus. --%>
     <aside
       class={["detail-pane", @detail_fullscreen? && "detail-pane--fullscreen"]}
       id="security-detail-pane"
       aria-label={gettext("Selected security")}
-      aria-modal={if @detail_fullscreen?, do: "true", else: "false"}
     >
       <header class="detail-pane-head">
         <div class="detail-pane-head__title">

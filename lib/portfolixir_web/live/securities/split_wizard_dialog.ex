@@ -33,8 +33,16 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   @impl true
   def render(assigns) do
     ~H"""
-    <div id={@id} class="modal-backdrop" phx-window-keydown={close_js(@myself)} phx-key="Escape">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby={"#{@id}-title"}>
+    <%!-- Native dialog (UX-DR9, issue 646): the ModalDialog hook opens it
+         with showModal(); cancel (Esc) pushes the close event and the
+         close buttons keep their focus-restoring JS. --%>
+    <dialog
+      id={@id}
+      class="modal"
+      phx-hook="ModalDialog"
+      data-close-event="close"
+      aria-labelledby={"#{@id}-title"}
+    >
         <header class="modal-head">
           <h2 id={"#{@id}-title"}><%= gettext("Record split") %></h2>
           <button type="button" class="icon-button" aria-label={gettext("Close")} phx-click={close_js(@myself)}>
@@ -120,8 +128,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
             </div>
           </form>
         </div>
-      </div>
-    </div>
+    </dialog>
     """
   end
 
