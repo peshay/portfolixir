@@ -1,5 +1,10 @@
 # Sprint Plan — Sprint 5 (DRAFT, 2026-08-10)
 
+**SUPERSEDED (2026-08-10): adopted as `sprint-plan-2026-08-10-sprint5.md`**
+— the owner answered the three open questions (one batch, one PR per
+sprint with split-on-size, #572 out) and added release automation as
+Lane F (#659). This draft is kept as the sequencing record only.
+
 **Status: draft sequencing, not a decision.** The decision gate is already
 passed: the owner's merge of #652 confirmed the design-language spec
 (Sprint 4 Lane A close-out, #655), and the implementation work is filed as
