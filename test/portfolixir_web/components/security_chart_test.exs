@@ -218,6 +218,25 @@ defmodule PortfolixirWeb.Components.SecurityChartTest do
     {elem(Float.parse(apex_y), 0), elem(Float.parse(base_y), 0)}
   end
 
+  # User story:
+  # As a German-locale maintainer opening a security without quotes,
+  # I want the chart's empty state localized,
+  # so that the German UI never shows the raw English string (issue 640 —
+  # the literal bypassed gettext, so localization_test could not see it).
+  #
+  # Acceptance criteria:
+  # - The empty state and the default aria-label go through gettext.
+  test "localizes the empty state" do
+    Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+    html = render_chart(default_assigns(quotes: []))
+
+    assert html =~ "Noch keine Kurshistorie."
+    refute html =~ "No price history yet."
+  after
+    Gettext.put_locale(PortfolixirWeb.Gettext, "en")
+  end
+
   test "omits transaction markers when show_transactions? is false" do
     quotes = [quote_fixture(~D[2026-05-15], "100")]
 

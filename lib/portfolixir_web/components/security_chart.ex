@@ -28,6 +28,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   """
 
   use Phoenix.Component
+  use Gettext, backend: PortfolixirWeb.Gettext
 
   @width 960
   @height 320
@@ -45,7 +46,9 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   attr(:zero_line?, :boolean, default: false)
   attr(:show_transactions?, :boolean, default: true)
   attr(:currency_code, :string, default: "")
-  attr(:aria_label, :string, default: "Price chart")
+  # nil resolves to the localized "Price chart" at render time — a compile-time
+  # attr default cannot go through gettext with the caller's locale.
+  attr(:aria_label, :string, default: nil)
 
   def chart(assigns) do
     geometry =
@@ -71,6 +74,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       |> assign(:chart_id, chart_id)
       |> assign(:percent_axis?, assigns.percent_mode? or assigns.value_mode == :percent_values)
       |> assign(:payload_json, Jason.encode!(payload, escape: :html_safe))
+      |> assign(:aria_label, assigns.aria_label || gettext("Price chart"))
 
     ~H"""
     <div class="chart-frame" id={@chart_id} phx-hook="ChartCrosshair" data-chart-id={@chart_id}>
@@ -85,7 +89,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         <%= if @geometry == :empty do %>
           <g class="no-quotes">
             <text x={div(@width, 2)} y={div(@height, 2)} text-anchor="middle">
-              No price history yet.
+              <%= gettext("No price history yet.") %>
             </text>
           </g>
         <% else %>

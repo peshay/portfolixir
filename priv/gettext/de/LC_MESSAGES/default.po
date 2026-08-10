@@ -66,7 +66,7 @@ msgstr "Währung"
 msgid "Current holdings"
 msgstr "Aktuelle Bestände"
 
-#: lib/portfolixir_web/components/app_shell.ex:324
+#: lib/portfolixir_web/components/app_shell.ex:327
 #, elixir-autogen
 msgid "Dark"
 msgstr "Dunkel"
@@ -108,13 +108,13 @@ msgstr "Depots"
 msgid "Display preferences"
 msgstr "Anzeigeeinstellungen"
 
-#: lib/portfolixir_web/components/app_shell.ex:397
-#: lib/portfolixir_web/components/app_shell.ex:398
+#: lib/portfolixir_web/components/app_shell.ex:400
+#: lib/portfolixir_web/components/app_shell.ex:401
 #, elixir-autogen
 msgid "Dismiss"
 msgstr "Schließen"
 
-#: lib/portfolixir_web/components/app_shell.ex:356
+#: lib/portfolixir_web/components/app_shell.ex:359
 #, elixir-autogen
 msgid "English"
 msgstr "Englisch"
@@ -132,7 +132,7 @@ msgstr "Börse"
 msgid "Fees"
 msgstr "Gebühren"
 
-#: lib/portfolixir_web/components/app_shell.ex:355
+#: lib/portfolixir_web/components/app_shell.ex:358
 #, elixir-autogen
 msgid "German"
 msgstr "Deutsch"
@@ -148,7 +148,7 @@ msgstr "ISIN"
 msgid "Language"
 msgstr "Sprache"
 
-#: lib/portfolixir_web/components/app_shell.ex:323
+#: lib/portfolixir_web/components/app_shell.ex:326
 #, elixir-autogen
 msgid "Light"
 msgstr "Hell"
@@ -166,7 +166,7 @@ msgstr "Ein Depot mit einem Verrechnungskonto verknüpfen"
 msgid "Accent color"
 msgstr "Akzentfarbe"
 
-#: lib/portfolixir_web/components/app_shell.ex:332
+#: lib/portfolixir_web/components/app_shell.ex:335
 #, elixir-autogen
 msgid "Coral"
 msgstr "Koralle"
@@ -181,12 +181,12 @@ msgstr "Lokales Portfolio-Tracking"
 msgid "Workflow path"
 msgstr "Workflow-Pfad"
 
-#: lib/portfolixir_web/components/app_shell.ex:331
+#: lib/portfolixir_web/components/app_shell.ex:334
 #, elixir-autogen
 msgid "Teal"
 msgstr "Petrol"
 
-#: lib/portfolixir_web/components/app_shell.ex:330
+#: lib/portfolixir_web/components/app_shell.ex:333
 #, elixir-autogen
 msgid "Violet"
 msgstr "Violett"
@@ -304,7 +304,7 @@ msgstr "Depot auswählen"
 msgid "Select security"
 msgstr "Wertpapier auswählen"
 
-#: lib/portfolixir_web/components/app_shell.ex:322
+#: lib/portfolixir_web/components/app_shell.ex:325
 #, elixir-autogen
 msgid "System"
 msgstr "System"
@@ -5146,3 +5146,13 @@ msgstr "Info zur Zusammensetzung"
 #, elixir-autogen, elixir-format
 msgid "Conversion info"
 msgstr "Info zur Umrechnung"
+
+#: lib/portfolixir_web/components/security_chart.ex:92
+#, elixir-autogen, elixir-format
+msgid "No price history yet."
+msgstr "Noch keine Kurshistorie."
+
+#: lib/portfolixir_web/components/security_chart.ex:77
+#, elixir-autogen, elixir-format
+msgid "Price chart"
+msgstr "Kurschart"
