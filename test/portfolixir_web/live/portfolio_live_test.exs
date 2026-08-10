@@ -1044,6 +1044,30 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   end
 
   # User story:
+  # As a maintainer reading the performance chart,
+  # I want the methodology footnote behind an on-demand ⓘ tooltip,
+  # so that the sightline under the chart keeps the period basis (dates)
+  # and the TTWROR explanation stays reachable without permanent prose
+  # (UX-DR11, Sprint 5 Lane D — the explanation already exists as the
+  # kpi-ttwror tooltip; the chart hint duplicated it as a paragraph).
+  #
+  # Acceptance criteria:
+  # - The chart's basis line renders the date range visibly and carries the
+  #   methodology sentence only inside a role="tooltip" body behind ⓘ.
+  test "the performance footnote is an on-demand tooltip, not sightline prose",
+       %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    basis = view |> element(~s([data-role="performance-basis"])) |> render()
+    assert basis =~ "ⓘ"
+    assert basis =~ ~s(role="tooltip")
+    assert basis =~ "neutralised"
+  end
+
+  # User story:
   # As a local portfolio maintainer opening Wealth while values compute,
   # I want the KPI slots to show an honest pending state — a value-sized
   # placeholder plus a "computing" cue — instead of a bare bold ellipsis,

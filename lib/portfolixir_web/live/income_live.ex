@@ -88,12 +88,20 @@ defmodule PortfolixirWeb.IncomeLive do
         <AppShell.area_tabs tabs={AppShell.wealth_tabs(:income)} />
 
         <section class="workspace-section">
-          <p class="muted">
-            <%= gettext(
-              "Amounts converted to %{currency} via the EUR hub at each booking date's stored rate; original currency retained.",
-              currency: @income.base_currency
-            ) %>
-          </p>
+          <%!-- UX-DR11 (Sprint 5 Lane D): terse basis line in the sightline,
+               conversion methodology behind the ⓘ tooltip. --%>
+          <div class="muted" data-role="income-conversion">
+            <span><%= gettext("Amounts in %{currency}", currency: @income.base_currency) %></span>
+            <details class="metric-tooltip">
+              <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
+              <p role="tooltip">
+                <%= gettext(
+                  "Amounts converted to %{currency} via the EUR hub at each booking date's stored rate; original currency retained.",
+                  currency: @income.base_currency
+                ) %>
+              </p>
+            </details>
+          </div>
         </section>
 
         <section id="income-annual" class="workspace-section">

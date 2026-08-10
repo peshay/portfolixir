@@ -990,19 +990,31 @@ defmodule PortfolixirWeb.PortfolioLive do
               mode={@chart_mode}
               currency={@performance.base_currency}
             />
-            <p class="hint">
-              <%= gettext("True time-weighted return; deposits and withdrawals are neutralised.") %>
+            <%!-- UX-DR11 (Sprint 5 Lane D): the sightline keeps the period
+                 basis; the methodology sentence lives in the ⓘ tooltip. --%>
+            <div class="hint" data-role="performance-basis">
               <%= if @performance.start_date do %>
-                <%= @performance.start_date %> – <%= @performance.end_date %>
+                <span><%= @performance.start_date %> – <%= @performance.end_date %></span>
               <% end %>
-            </p>
+              <details class="metric-tooltip">
+                <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
+                <p role="tooltip">
+                  <%= gettext("True time-weighted return; deposits and withdrawals are neutralised.") %>
+                </p>
+              </details>
+            </div>
             <%!-- ADR-0024 modification 4: bucket membership applies
                  retroactively, so a view-scoped series is labelled with its
                  semantics instead of pretending temporal membership. --%>
-            <p :if={@active_view} class="hint" data-role="composition-label">
-              <%= gettext("Composition as of today") %> —
-              <%= gettext("the view's current bucket membership is applied to the whole history.") %>
-            </p>
+            <div :if={@active_view} class="hint" data-role="composition-label">
+              <%= gettext("Composition as of today") %>
+              <details class="metric-tooltip">
+                <summary aria-label={gettext("Composition info")}>ⓘ</summary>
+                <p role="tooltip">
+                  <%= gettext("the view's current bucket membership is applied to the whole history.") %>
+                </p>
+              </details>
+            </div>
           <% else %>
             <div class="section-skeleton" data-role="performance-skeleton" role="status">
               <span class="recomputing-cue">
