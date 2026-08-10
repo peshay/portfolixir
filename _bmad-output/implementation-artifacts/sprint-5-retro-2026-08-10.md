@@ -129,6 +129,18 @@ question the pipeline should have answered on its own:
       the first of the comma-listed issues — noted for the next briefing:
       one closing keyword per issue); #651 stays queued.
 - [x] sprint-status.yaml close-out block written.
-- [ ] Merge CI on `73affc5` confirmed green (required checks included).
+- [x] Merge CI on `73affc5` confirmed green (required checks included).
 - [ ] Annotated `v0.5.0` tag pushed; Release workflow produced the first
-      automated GitHub release.
+      automated GitHub release. **Blocked in-session:** the remote session's
+      git credentials allow pushes only to the designated branch — a tag
+      push returns HTTP 403. The owner pushes the prepared tag (one
+      command, below); the Release workflow does the rest. Process note
+      for AGENTS.md step 5: in remote sessions the tag step is the owner's
+      or a CI concern, not the batch agent's — worth an amendment or a
+      credential grant.
+
+```bash
+git fetch origin main
+git tag -a v0.5.0 73affc5 -m "Portfolixir v0.5.0 — Sprint 5 design-debt batch"
+git push origin v0.5.0
+```
