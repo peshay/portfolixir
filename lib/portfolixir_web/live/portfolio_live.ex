@@ -1706,21 +1706,25 @@ defmodule PortfolixirWeb.PortfolioLive do
       <h2><%= gettext("Data quality") %></h2>
       <ul>
         <li :if={@trade_priced > 0}>
-          <%= gettext(
+          <%= ngettext(
+            "One held position has no current quote and is valued at its last trade price.",
             "%{count} held positions have no current quote and are valued at their last trade price.",
-            count: @trade_priced
+            @trade_priced
           ) %>
         </li>
         <li :if={@no_price.count > 0} data-role="dq-no-price">
-          <%= gettext("%{count} held positions have no price at all and are missing from the totals:",
-            count: @no_price.count
+          <%= ngettext(
+            "One held position has no price at all and is missing from the totals:",
+            "%{count} held positions have no price at all and are missing from the totals:",
+            @no_price.count
           ) %>
           <%= Enum.join(@no_price.names, ", ") %>
         </li>
         <li :if={@missing_fx.count > 0} data-role="dq-missing-fx">
-          <%= gettext(
+          <%= ngettext(
+            "One held position has a price but no exchange rate to %{base} stored, so it is missing from the totals: %{entries}. Sync exchange rates to include it.",
             "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}. Sync exchange rates to include them.",
-            count: @missing_fx.count,
+            @missing_fx.count,
             base: @valuation.base_currency,
             entries: Enum.join(@missing_fx.names, ", ")
           ) %>
@@ -1732,17 +1736,19 @@ defmodule PortfolixirWeb.PortfolioLive do
           ) %>
         </li>
         <li :if={@unvalued_cash != []}>
-          <%= gettext(
-            "%{count} cash account(s) are not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include them.",
-            count: length(@unvalued_cash),
+          <%= ngettext(
+            "One cash account is not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include it.",
+            "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include them.",
+            length(@unvalued_cash),
             base: @valuation.base_currency,
             names: Enum.map_join(@unvalued_cash, ", ", &"#{&1.name} (#{&1.currency})")
           ) %>
         </li>
         <li :if={@negative_entries != []} data-role="dq-negative-holdings">
-          <%= gettext(
+          <%= ngettext(
+            "One security has an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
             "%{count} securities have an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
-            count: length(@negative_entries)
+            length(@negative_entries)
           ) %>
           <span :for={entry <- @negative_entries} class="dq-negative-entry">
             <.link navigate={"/securities/#{entry.security_id}?tab=transactions"}>
@@ -2429,7 +2435,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # The success line is compact — count plus the local wall-clock time of the
   # run (display-only formatting; domain data stays day-granular).
   defp fx_sync_result_message({:ok, count, synced_at}) do
-    gettext("%{count} rates updated", count: count) <>
+    ngettext("One rate updated", "%{count} rates updated", count) <>
       " · " <> Calendar.strftime(synced_at, "%H:%M")
   end
 
@@ -2982,8 +2988,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp series_basis_label(%{basis: basis, today: today}) do
-    gettext("%{count} bookings through %{last}, computed %{at}, as of %{date}",
-      count: basis.booking_count,
+    ngettext(
+      "One booking through %{last}, computed %{at}, as of %{date}",
+      "%{count} bookings through %{last}, computed %{at}, as of %{date}",
+      basis.booking_count,
       last: Format.date(basis.last_booking_date),
       at: Calendar.strftime(basis.computed_at, "%Y-%m-%d %H:%M UTC"),
       date: Format.date(today)

@@ -217,10 +217,11 @@ defmodule PortfolixirWeb.DashboardLive do
           >
             <strong><span class="value-skeleton" aria-hidden="true"></span></strong>
             <small data-role="stale-ttwror" class="recomputing-cue">
-              <%= gettext(
+              <%= ngettext(
+                "Last known: %{ttwror}% YTD — one booking through %{last}, as of %{date}. Recomputing.",
                 "Last known: %{ttwror}% YTD — %{count} bookings through %{last}, as of %{date}. Recomputing.",
+                @stale_ttwror.basis.booking_count,
                 ttwror: signed_percent(@stale_ttwror.ttwror),
-                count: @stale_ttwror.basis.booking_count,
                 last: Format.date(@stale_ttwror.basis.last_booking_date),
                 date: Format.date(@stale_ttwror.as_of)
               ) %>

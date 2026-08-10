@@ -147,6 +147,38 @@ defmodule Portfolixir.LocalizationTest do
              Enum.map_join(missing, "\n", fn {path, id} -> "  #{path}: #{inspect(id)}" end)
   end
 
+  # User story:
+  # As a German-locale maintainer,
+  # I want count-bearing strings to use real plural forms,
+  # so that a count of one never reads "1 held positions" and the German
+  # catalogue can apply its own plural rules (issue 636).
+  #
+  # Acceptance criteria:
+  # - No `gettext` call in the web layer interpolates `%{count}` — a count
+  #   belongs in `ngettext/3`, where the catalogue owns the plural forms.
+  test "count interpolations go through ngettext, not gettext (issue 636)" do
+    offenders =
+      "lib/portfolixir_web/**/*.ex"
+      |> Path.wildcard()
+      |> Enum.flat_map(fn path ->
+        content = File.read!(path)
+
+        # A gettext( call whose msgid (possibly spanning lines) carries
+        # %{count}: scan call-by-call so ngettext's own %{count} plurals
+        # (the intended use) do not trip the check.
+        ~r/(?<!n)gettext\(\s*"((?:[^"\\]|\\.)*)"/s
+        |> Regex.scan(content)
+        |> Enum.filter(fn [_full, msgid] -> String.contains?(msgid, "%{count}") end)
+        |> Enum.map(fn [_full, msgid] -> "#{path}: #{inspect(String.slice(msgid, 0, 60))}" end)
+      end)
+
+    assert offenders == [], """
+    gettext() with a %{count} interpolation hard-codes one plural form; use
+    ngettext/3 so the catalogue owns pluralisation:
+    #{Enum.join(offenders, "\n")}
+    """
+  end
+
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------

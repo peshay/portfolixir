@@ -828,7 +828,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     html = render_async(view)
 
     assert html =~ "Data quality"
-    assert html =~ "valued at their last trade price"
+    # One affected position each — the singular plural form (issue 636).
+    assert html =~ "valued at its last trade price"
     assert html =~ "no price at all"
     assert html =~ "Delivered Co."
   end
