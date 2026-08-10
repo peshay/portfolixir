@@ -1020,6 +1020,29 @@ label span {
   font-weight: 680;
 }
 
+/* A checkbox is one control: box and label sit on one line and the label is
+   the hit target (UX-DR19, issue 635). Overrides the grid label stack, which
+   rendered the box alone on its own line with a bold label underneath. */
+label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+label:has(> input[type="checkbox"]) > span {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
 input,
 select,
 textarea {
@@ -2786,6 +2809,27 @@ img.security-logo {
 
 .is-negative {
   color: var(--color-danger);
+}
+
+/* Sort triggers inside a table header are header text, not buttons (issue
+   634): a cell is not a card and nothing inside a table gets a shadow. The
+   base button rule would otherwise paint them as floating boxes. */
+th .table-sort {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+th .table-sort:hover {
+  background: transparent;
+  color: var(--color-accent);
 }
 
 /* Signed KPI values take gain/loss colour, never the accent (issue 637);

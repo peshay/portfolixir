@@ -1045,6 +1045,24 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   end
 
   # User story:
+  # As a maintainer scanning the allocation positions worklist,
+  # I want the sortable column headers to read as header text,
+  # so that no header renders as a floating button box overflowing the
+  # header band (issue 634 — a cell is not a card; nothing inside a table
+  # gets a shadow).
+  #
+  # Acceptance criteria:
+  # - The .table-sort trigger resets the button chrome (background, border,
+  #   shadow) and inherits the header typography.
+  test "table sort triggers render as header text, not floating buttons" do
+    css = File.read!("priv/static/app.css")
+
+    assert css =~ ~r/th \.table-sort\s*\{[^}]*background:\s*transparent/s
+    assert css =~ ~r/th \.table-sort\s*\{[^}]*border:\s*none/s
+    assert css =~ ~r/th \.table-sort\s*\{[^}]*box-shadow:\s*none/s
+  end
+
+  # User story:
   # As a maintainer reading the performance chart,
   # I want the methodology footnote behind an on-demand ⓘ tooltip,
   # so that the sightline under the chart keeps the period basis (dates)
