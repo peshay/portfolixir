@@ -76,18 +76,33 @@
 # epic-structure-reconciliation-2026-07-31.md), so no story rows change.
 
 generated: 2026-07-25
-last_updated: 2026-08-10 (Sprint 5 batch implemented on claude/sprint-5-alle-lanes-2siqq9, agentic review complete, PR open -- close-out follows the merge)
+last_updated: 2026-08-10 (Sprint 5 close-out -- PR #661 squash-merged as 73affc5, issues closed, v0.5.0 tagged)
 
-# SPRINT 5 IN REVIEW (2026-08-10, branch claude/sprint-5-alle-lanes-2siqq9):
-# All six lanes implemented as one batch per the adoption decisions; gates
-# green (1754 tests, coverage 89.8%, Credo/Sobelow/Dialyzer clean, MCP tests
-# and build green). The four-role agentic review ran (correctness, edge-case,
-# design critic, UAT persona with screenshots -- uat-sprint5-2026-08-10/);
-# confirmed findings fixed on the branch, batch retrospective drafted
-# (sprint-5-retro-2026-08-10.md). NOTE: the batch branch deviates from the
-# planned name agent/claude/sprint-5-design-debt -- the remote session's
-# designated branch is fixed by the harness; content is unaffected. Close-out
-# (issue closure, v0.5.0 tag, release) runs after the owner's merge.
+# CLOSE-OUT (2026-08-10, `main` at 73affc5 -- Sprint 5, PR #661):
+# The whole sprint shipped as ONE batch/PR per the adoption decisions: Lane A
+# tokens/contrast (#642 #643 #644 #648 #650 + spec cleanups), Lane B colour
+# independence (#637 #645), Lane C loading affordances/opt-in motion
+# (#638 #647 + the owner-decided cue/count-up/sunburst patterns), Lane D
+# UX-DR11 tooltips (spec-driven), Lane E defect sweep (#634 #635 #636 #639
+# #640 #641 #646 #649), Lane F CI/release engineering (#653 #654 #659). All
+# twenty issues closed; #651 stays queued. Four new invariant meta-tests pin
+# the fixed drift classes (theme-token parity, motion gates, ISO date inputs,
+# native dialogs). The four-role agentic review (ADR-0026 step 3, incl. a
+# live-server UAT with screenshots, uat-sprint5-2026-08-10/) caught and fixed
+# the sprint's worst bug pre-merge -- morphdom stripping the native dialogs'
+# open attribute -- plus two computed-style cascade regressions no DOM test
+# could see. Retrospective: sprint-5-retro-2026-08-10.md (incl. two process
+# gaps that had to be owner-prompted: the all-lanes doc audit and the
+# screenshot refresh -- both now standing steps in the dev-agent contract).
+# Docs screenshots + tour GIF regenerated from priv/demo (which gained an
+# offline quotes seed; the strategies seed was repaired). NOTE: the batch ran
+# on claude/sprint-5-alle-lanes-2siqq9, not the planned
+# agent/claude/sprint-5-design-debt -- harness-fixed branch name, content
+# unaffected. First automated release: annotated tag v0.5.0 on 73affc5
+# triggers the new Release workflow (issue #659; ADR-0026 step 5 amended in
+# AGENTS.md). No story rows change -- Sprint 5 work hangs off no epic row
+# (the two-parallel-structures finding). E1 gains the fatal form-id warning
+# and the test-failure artifact as shipped CI hardening (#653/#654).
 
 # SPRINT 5 ADOPTED (2026-08-10, `main` at cf68260):
 # The 2026-08-10 sequencing draft is adopted as sprint-plan-2026-08-10-sprint5.md
