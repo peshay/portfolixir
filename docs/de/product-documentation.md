@@ -557,7 +557,16 @@ Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab zeigt den
 Gesamtwert inklusive Cash, die Cash-Quote sowie sowohl die TTWROR als auch den
 geldgewichteten **IRR** für einen wählbaren Zeitraum (laufendes Jahr, ein/drei/fünf
 Jahre oder seit der ersten Transaktion; ein Jahr ist die Voreinstellung) mit
-dem kumulativen Performance-Chart. Neben den festen Buttons verkettet ein
+dem kumulativen Performance-Chart. Daneben stehen das **eingesetzte
+Kapital** — immer zwei beschriftete Zahlen, der Wert zum Periodenbeginn und
+die externen Nettoflüsse (Einzahlungen minus Entnahmen, Einlieferungen zum
+Transaktionswert), nie eine zusammengelegte Zahl — und der
+**Vermögens-Multiplikator**: Endwert ÷ eingesetztes Kapital, das ehrliche
+„was aus dem eingezahlten Geld geworden ist". Bei eingesetztem Kapital von
+null oder darunter zeigt der Multiplikator `n/a` — nie einen negativen
+Multiplikator. Für Zeiträume unter einem Jahr trägt die geldgewichtete
+Kennzahl das Label **MWR** und zeigt die Periodenzahl statt einer
+annualisierten, die ein kurzes Fenster aufblähen würde (ADR-0034). Neben den festen Buttons verkettet ein
 Jahres-Dropdown jedes einzelne Kalenderjahr mit Daten, und ein Von/Bis-
 Datumsbereich verkettet eine eigene Spanne — beides sind reine Neuverkettungen
 der bereits berechneten Reihe, ehrlich auf die vorhandene Historie begrenzt
@@ -742,6 +751,25 @@ zeigt. Wo TTWROR das Timing der Geldflüsse ignoriert, spiegelt der IRR es wider
 sodass die beiden unterschiedlich ausfallen, wenn Geld zu guten oder schlechten
 Zeitpunkten bewegt wurde. Der IRR zeigt `—`, wenn es keine Rate zu berechnen gibt
 (keine Flüsse beider Vorzeichen oder der Solver konvergiert nicht).
+
+Weil eine Max-Zeitraum-TTWROR in den Tausenden *kein* Vermögens-Multiplikator
+ist (sie sagt, was aus einer Einheit vom ersten Tag geworden wäre, nicht, was
+das tatsächliche Geld getan hat), trägt dieselbe Auswertung auch die
+geldgewichteten Begleiter
+([ADR-0034](/decisions/0034-money-weighted-metrics.html)): das **eingesetzte
+Kapital** (Wert zum Periodenbeginn plus externe Nettoflüsse), den
+**Vermögens-Multiplikator** (Endwert ÷ eingesetztes Kapital; `n/a` bei
+eingesetztem Kapital von null oder darunter — nie ein negativer
+Multiplikator) und die **Perioden-MWR**, die nicht annualisierte Form des
+IRR, die kurze Fenster anzeigen. Genau vier Buchungsarten zählen als externe
+Flüsse — Einzahlung, Entnahme, Ein- und Auslieferung (zum vollen
+Transaktionswert) — plus der Sprung einer Saldo-Anpassung; alles andere
+(Dividenden, Zinsen, Gebühren, Steuern, Käufe/Verkäufe, interne
+Überträge) ist Performance, kein Fluss. Fremdwährungsflüsse werden zum
+gespeicherten Kurs des Flussdatums über den EUR-Hub umgerechnet; das
+Ergebnis ist die Rendite des EUR-Anlegers inklusive Währungseffekt. Die
+API-Antwort und beide Performance-MCP-Tools liefern `invested_capital`,
+`wealth_multiple` und `mwr` als Decimal-Strings neben `ttwror` und `irr`.
 
 Die Performance wird auf der Vermögensseite gezeigt und ist je Zeitraum
 verfügbar — laufendes Jahr, ein, drei oder fünf Jahre, seit der ersten

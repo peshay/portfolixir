@@ -1061,7 +1061,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
   test "labels the money-weighted KPI IRR for windows of a year or more (#568)", %{conn: conn} do
     world = WorldFixtures.base_world(name: "Mein Depot", cash_name: "Giro", depot_name: "Depot")
-    security = WorldFixtures.create_security!(name: "World ETF", ticker: "WLD", asset_class: "etf")
+
+    security =
+      WorldFixtures.create_security!(name: "World ETF", ticker: "WLD", asset_class: "etf")
+
     # The built-in trees the page mounts with are seeded at boot; tests seed
     # them explicitly inside their sandbox.
     Classifications.ensure_builtins()

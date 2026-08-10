@@ -65,6 +65,10 @@ defmodule PortfolixirWeb.ApiV1ViewPerformanceTest do
     assert data["end_value"] == "2300"
     assert data["net_external_flows"] == "2000"
     assert data["ttwror"] |> Decimal.new() |> Decimal.round(6) |> Decimal.equal?("0.15")
+    # #568 (ADR-0034): the money-weighted companions ride the view response.
+    assert data["invested_capital"] == "2000"
+    assert data["wealth_multiple"] == "1.15"
+    assert is_binary(data["mwr"])
     assert is_list(data["series"]) and length(data["series"]) == 11
     assert data["view"] == %{"id" => view.id, "name" => "Both"}
 

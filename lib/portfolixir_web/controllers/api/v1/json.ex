@@ -1022,6 +1022,12 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       net_external_flows: decimal(result.net_external_flows),
       ttwror: decimal(result.ttwror),
       irr: decimal(result.irr),
+      # #568 (ADR-0034): invested capital (opening value + net period flows),
+      # the wealth multiple (null when net invested is not positive) and the
+      # non-annualized period MWR — windows under a year should read `mwr`.
+      invested_capital: decimal(result.invested_capital),
+      wealth_multiple: decimal(result.wealth_multiple),
+      mwr: decimal(result.mwr),
       suspect_dates: Enum.map(result.suspect_dates, &date/1)
     }
 
