@@ -28,16 +28,19 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   a stored money value, and nothing about the cashflows themselves is kept as a
   float.
 
-  ## Method
+  ## Method (ADR-0034)
 
-  Bisection (derivative-free and robust) on a bracket `[lower, upper]`. The
-  bracket must show a sign change of `NPV` across its ends; without one there
-  is no rate to find. Deterministic given the same inputs and options.
+  Newton's method from guess `0.1` with the analytic derivative, falling back
+  to bisection on the bracket `(−0.999999, +10]` when Newton leaves the
+  domain, hits a flat derivative, or exhausts its budget. The fallback needs
+  a sign change of `NPV` across the bracket ends; without one there is no
+  rate to invent. Day count is Act/365, tolerance `1e-7` on `|NPV|`
+  (Excel-compatible), iteration cap 200. Deterministic given the same inputs
+  and options.
 
   Returns `Decimal.t()` on success and `nil` for every degenerate case —
-  fewer than two cashflows, all flows the same sign, no sign change of `NPV`
-  across the bracket, or non-convergence within `max_iterations`. It never
-  raises.
+  fewer than two cashflows, all flows the same sign, no root found by either
+  method within `max_iterations`. It never raises.
   """
 
   @type cashflow :: {Date.t(), Decimal.t()}
@@ -47,9 +50,13 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   @scale 6
 
   @default_lower -0.999999
-  @default_upper 1.0e7
+  @default_upper 10.0
   @default_tolerance 1.0e-7
-  @default_max_iterations 100
+  @default_max_iterations 200
+  @newton_guess 0.1
+  # Newton stays inside (−1, 1e3]: below −1 the NPV is undefined, and beyond
+  # 1000 (100,000% p.a.) a "root" is a numeric artefact, not a return.
+  @newton_max_rate 1.0e3
 
   @doc """
   Computes the IRR for a period summary (a `summarise/2` result).
@@ -60,9 +67,10 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
 
   Options (all injectable for deterministic tests):
 
-    * `:max_iterations` — bisection steps (default #{@default_max_iterations}).
+    * `:max_iterations` — per-method iteration budget, Newton and the
+      bisection fallback each (default #{@default_max_iterations}).
     * `:tolerance` — `|NPV|` accepted as a root (default #{@default_tolerance}).
-    * `:bracket` — `{lower, upper}` rate bounds
+    * `:bracket` — `{lower, upper}` fallback-bisection rate bounds
       (default `{#{@default_lower}, #{@default_upper}}`).
   """
   @spec for_summary(map(), keyword()) :: Decimal.t() | nil
@@ -153,11 +161,22 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   end
 
   defp solve(cashflows, opts) do
-    {lower, upper} = Keyword.get(opts, :bracket, {@default_lower, @default_upper})
     tolerance = Keyword.get(opts, :tolerance, @default_tolerance)
     max_iterations = Keyword.get(opts, :max_iterations, @default_max_iterations)
-
     points = numeric_points(cashflows)
+
+    case newton(points, @newton_guess, tolerance, max_iterations) do
+      {:ok, rate} -> finalize(rate)
+      :error -> solve_bracketed(points, opts, tolerance, max_iterations)
+    end
+  rescue
+    # A pathological Newton trajectory can overflow `:math.pow` before the
+    # domain guard catches it; "no IRR" is the honest answer, never a raise.
+    ArithmeticError -> nil
+  end
+
+  defp solve_bracketed(points, opts, tolerance, max_iterations) do
+    {lower, upper} = Keyword.get(opts, :bracket, {@default_lower, @default_upper})
     npv_lower = npv(points, lower)
     npv_upper = npv(points, upper)
 
@@ -166,6 +185,35 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
     else
       nil
     end
+  end
+
+  # Newton–Raphson on the float NPV: quadratic near a root, and the only path
+  # to roots the fallback bracket cannot see (same-sign ends, rates above the
+  # bracket). Leaves cleanly on a flat derivative or a step outside (−1, 1e3].
+  defp newton(_points, _rate, _tolerance, 0), do: :error
+
+  defp newton(points, rate, tolerance, iterations)
+       when rate > -1.0 and rate <= @newton_max_rate do
+    value = npv(points, rate)
+
+    if abs(value) <= tolerance do
+      {:ok, rate}
+    else
+      case npv_derivative(points, rate) do
+        slope when slope == 0.0 -> :error
+        slope -> newton(points, rate - value / slope, tolerance, iterations - 1)
+      end
+    end
+  end
+
+  defp newton(_points, _rate, _tolerance, _iterations), do: :error
+
+  defp npv_derivative(points, rate) do
+    base = 1.0 + rate
+
+    Enum.reduce(points, 0.0, fn {years, amount}, acc ->
+      acc - years * amount / :math.pow(base, years + 1.0)
+    end)
   end
 
   # Converts the dated Decimal cashflows to `{years_from_first, amount_float}`

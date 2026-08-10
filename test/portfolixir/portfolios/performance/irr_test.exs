@@ -43,6 +43,64 @@ defmodule Portfolixir.Portfolios.Performance.IRRTest do
     assert IRR.compute(cashflows) |> Decimal.equal?(dec("0.1"))
   end
 
+  # User story (#568, ADR-0034):
+  # As a maintainer comparing Portfolixir's IRR against Excel/PP,
+  # I want the solver to be Newton's method from guess 0.1 with a bracketed
+  # bisection fallback on (−0.999999, +10],
+  # so that the figure matches Excel XIRR (both float64) and a root is still
+  # found when the fallback bracket shows no sign change.
+  #
+  # Acceptance criteria:
+  # - The Excel XIRR documentation example resolves to 0.373363 (6 dp).
+  # - A two-root flow pattern whose NPV is negative at both fallback-bracket
+  #   ends is still solved (Newton from 0.1 lands on 0.237339).
+  # - A root far above the fallback bracket's upper end is still found.
+
+  test "matches the Excel XIRR reference example (ADR-0034)" do
+    # Excel XIRR docs example, independently verified (Newton + bisection,
+    # Act/365): −10000 @2008-01-01, 2750 @2008-03-01, 4250 @2008-10-30,
+    # 3250 @2009-02-15, 2750 @2009-04-01 => 0.373363 (6 dp).
+    cashflows = [
+      cf(~D[2008-01-01], "-10000"),
+      cf(~D[2008-03-01], "2750"),
+      cf(~D[2008-10-30], "4250"),
+      cf(~D[2009-02-15], "3250"),
+      cf(~D[2009-04-01], "2750")
+    ]
+
+    irr = IRR.compute(cashflows)
+
+    assert %Decimal{} = irr
+    assert Decimal.compare(Decimal.abs(Decimal.sub(irr, dec("0.373363"))), dec("0.000001")) != :gt
+  end
+
+  test "solves a two-root pattern the fallback bracket cannot see (ADR-0034)" do
+    # NPV is negative at both bracket ends (−0.999999 and +10) but has two
+    # roots in between (0.237339 and 1.091886, independently verified).
+    # Bisection alone returns nil here; Newton from 0.1 finds the nearer root.
+    cashflows = [
+      cf(~D[2024-01-01], "-1000"),
+      cf(~D[2024-07-01], "2550"),
+      cf(~D[2024-12-31], "-1600")
+    ]
+
+    irr = IRR.compute(cashflows)
+
+    assert %Decimal{} = irr
+    assert Decimal.compare(Decimal.abs(Decimal.sub(irr, dec("0.237339"))), dec("0.000001")) != :gt
+  end
+
+  test "finds a root far above the fallback bracket's upper end (ADR-0034)" do
+    # −100 grows to 5000 in exactly one Act/365 year: r = 49 (4900% p.a.),
+    # beyond the +10 fallback bracket — reachable only through Newton.
+    cashflows = [cf(~D[2024-01-01], "-100"), cf(~D[2024-12-31], "5000")]
+
+    irr = IRR.compute(cashflows)
+
+    assert %Decimal{} = irr
+    assert Decimal.compare(Decimal.abs(Decimal.sub(irr, dec("49"))), dec("0.000001")) != :gt
+  end
+
   test "returns nil for fewer than two cashflows" do
     assert IRR.compute([]) == nil
     assert IRR.compute([cf(~D[2024-01-01], "-1000")]) == nil
@@ -54,7 +112,9 @@ defmodule Portfolixir.Portfolios.Performance.IRRTest do
   end
 
   test "returns nil on non-convergence within the iteration budget" do
-    cashflows = [cf(~D[2024-01-01], "-1000"), cf(~D[2024-12-31], "1100")]
+    # Root is 0.2 — deliberately away from the Newton guess (0.1), so a
+    # one-step budget can converge in neither Newton nor the fallback.
+    cashflows = [cf(~D[2024-01-01], "-1000"), cf(~D[2024-12-31], "1200")]
 
     assert IRR.compute(cashflows, max_iterations: 1, tolerance: 1.0e-12) == nil
   end
