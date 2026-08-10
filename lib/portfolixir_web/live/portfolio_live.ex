@@ -2839,8 +2839,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     if short_window?(performance), do: gettext("MWR"), else: gettext("IRR")
   end
 
-  defp money_weighted_value(nil), do: nil
-
+  # Callers guard with `@performance &&`, so nil never reaches this.
   defp money_weighted_value(performance) do
     if short_window?(performance), do: performance.mwr, else: performance.irr
   end

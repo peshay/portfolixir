@@ -122,6 +122,16 @@ defmodule Portfolixir.Portfolios.Performance.IRRTest do
     assert IRR.compute([cf(day, "-1000"), cf(day, "1200")]) == nil
   end
 
+  test "an underflowing fallback bracket yields nil, never a raise" do
+    # A 60-year span: at the bracket's lower end (rate −0.999999) the
+    # discount factor underflows float64 to 0.0 and the division raises —
+    # the fallback absorbs it into "no IRR". Newton is exhausted first via
+    # a zero budget, forcing the bracketed path.
+    cashflows = [cf(~D[1970-01-01], "-1000"), cf(~D[2030-01-01], "500")]
+
+    assert IRR.compute(cashflows, max_iterations: 0) == nil
+  end
+
   test "returns nil on non-convergence within the iteration budget" do
     # Root is 0.2 — deliberately away from the Newton guess (0.1), so a
     # one-step budget can converge in neither Newton nor the fallback.
