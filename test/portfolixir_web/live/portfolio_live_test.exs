@@ -1064,26 +1064,27 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
   # User story:
   # As a maintainer reading the performance chart,
-  # I want the methodology footnote behind an on-demand ⓘ tooltip,
-  # so that the sightline under the chart keeps the period basis (dates)
-  # and the TTWROR explanation stays reachable without permanent prose
-  # (UX-DR11, Sprint 5 Lane D — the explanation already exists as the
-  # kpi-ttwror tooltip; the chart hint duplicated it as a paragraph).
+  # I want one TTWROR explanation in one place — the kpi-ttwror ⓘ tooltip —
+  # and only the period basis (dates) in the chart's sightline,
+  # so that the methodology paragraph no longer duplicates the tooltip on
+  # the same screen (UX-DR11 decided outcome: split, then delete half).
   #
   # Acceptance criteria:
-  # - The chart's basis line renders the date range visibly and carries the
-  #   methodology sentence only inside a role="tooltip" body behind ⓘ.
-  test "the performance footnote is an on-demand tooltip, not sightline prose",
+  # - The chart's basis line renders the date range and nothing else.
+  # - The methodology sentence does not appear outside the KPI tooltip.
+  test "the chart keeps a bare basis line; the TTWROR definition lives once",
        %{conn: conn} do
     seed_world()
 
     {:ok, view, _html} = live(conn, "/portfolio")
-    render_async(view)
+    html = render_async(view)
 
     basis = view |> element(~s([data-role="performance-basis"])) |> render()
-    assert basis =~ "ⓘ"
-    assert basis =~ ~s(role="tooltip")
-    assert basis =~ "neutralised"
+    assert basis =~ ~r/\d{4}-\d{2}-\d{2}/
+    refute basis =~ "neutralised"
+
+    # The sentence exists exactly once on the page — inside the KPI tooltip.
+    assert length(String.split(html, "neutralised")) == 2
   end
 
   # User story:

@@ -289,15 +289,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     <%!-- UX-DR13 (issue 649): a filtered zero-match keeps the
                          controls and names the filter — telling the operator
                          their list is empty when a filter is merely narrow
-                         would be a factual error about their data. --%>
+                         would be a factual error about their data. The
+                         holding-status segmented control is a filter too. --%>
                     <tr>
-                      <%= if @query != "" or @filters != [] do %>
+                      <%= if String.trim(@query) != "" or @filters != [] or
+                            @holding_status != "all" do %>
                         <td
                           colspan={length(visible_fields(@visible_columns)) + 1}
                           class="empty-state"
                           data-role="no-results"
                         >
-                          <%= if @query != "" do %>
+                          <%= if String.trim(@query) != "" do %>
                             <%= gettext("No matches for \"%{query}\".", query: @query) %>
                           <% else %>
                             <%= gettext("No matches for the active filters.") %>
@@ -556,7 +558,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
             >
               <input
                 type="text"
-                inputmode="numeric"
                 placeholder="YYYY-MM-DD"
                 pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                 maxlength="10"
@@ -567,7 +568,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <span aria-hidden="true">→</span>
               <input
                 type="text"
-                inputmode="numeric"
                 placeholder="YYYY-MM-DD"
                 pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                 maxlength="10"

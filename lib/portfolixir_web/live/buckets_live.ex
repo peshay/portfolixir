@@ -59,7 +59,7 @@ defmodule PortfolixirWeb.BucketsLive do
           <p>
             <strong><%= gettext("How it works — two steps:") %></strong>
             <%= gettext(
-              "1. Create buckets — tags on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Portfolio page, so both are needed."
+              "1. Create buckets — tags on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Wealth page, so both are needed."
             ) %>
           </p>
           <p data-role="overlap-hint">

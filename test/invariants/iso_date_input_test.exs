@@ -28,8 +28,9 @@ defmodule Portfolixir.Invariants.IsoDateInputTest do
     assert offenders == [], """
     Native date inputs render the browser locale's format and break the
     ISO-everywhere rule (UX-DR19). Use the ISO text-input pattern instead
-    (type="text" inputmode="numeric" placeholder="YYYY-MM-DD"
-    pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"):
+    (type="text" placeholder="YYYY-MM-DD"
+    pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" — no numeric
+    inputmode: the iOS digits keypad has no dash):
     #{Enum.join(offenders, "\n")}
     """
   end

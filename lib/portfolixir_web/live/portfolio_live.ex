@@ -784,10 +784,15 @@ defmodule PortfolixirWeb.PortfolioLive do
             <strong :if={@performance} class={perf_sign_class(@performance.ttwror)}>
               <%= signed_percent(@performance.ttwror) %>%
             </strong>
-            <strong :if={is_nil(@performance)} class="value-slot-pending" aria-busy="true">
+            <strong
+              :if={is_nil(@performance) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+            >
               <span class="value-skeleton" aria-hidden="true"></span>
               <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
             </strong>
+            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
               <p id="tip-ttwror" role="tooltip">
@@ -804,10 +809,15 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= signed_percent(money_weighted_value(@performance)) %>%
             </strong>
             <strong :if={@performance && is_nil(money_weighted_value(@performance))}>—</strong>
-            <strong :if={is_nil(@performance)} class="value-slot-pending" aria-busy="true">
+            <strong
+              :if={is_nil(@performance) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+            >
               <span class="value-skeleton" aria-hidden="true"></span>
               <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
             </strong>
+            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
             <details class="metric-tooltip">
               <summary aria-label={money_weighted_info_label(@performance)}>ⓘ</summary>
               <p id="tip-irr" role="tooltip">
@@ -830,10 +840,15 @@ defmodule PortfolixirWeb.PortfolioLive do
                   2
                 ) %></span> <%= @performance.base_currency %>
             </strong>
-            <strong :if={is_nil(@performance)} class="value-slot-pending" aria-busy="true">
+            <strong
+              :if={is_nil(@performance) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+            >
               <span class="value-skeleton" aria-hidden="true"></span>
               <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
             </strong>
+            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("Invested capital info")}>ⓘ</summary>
               <p id="tip-invested" role="tooltip">
@@ -849,10 +864,15 @@ defmodule PortfolixirWeb.PortfolioLive do
             <strong :if={@performance && is_nil(@performance.wealth_multiple)}>
               <%= gettext("n/a") %>
             </strong>
-            <strong :if={is_nil(@performance)} class="value-slot-pending" aria-busy="true">
+            <strong
+              :if={is_nil(@performance) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+            >
               <span class="value-skeleton" aria-hidden="true"></span>
               <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
             </strong>
+            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("Wealth multiple info")}>ⓘ</summary>
               <p id="tip-multiple" role="tooltip">
@@ -932,7 +952,6 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <label class="visually-hidden" for="performance-from"><%= gettext("From") %></label>
                 <input
                   type="text"
-                  inputmode="numeric"
                   placeholder="YYYY-MM-DD"
                   pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                   maxlength="10"
@@ -943,7 +962,6 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <label class="visually-hidden" for="performance-to"><%= gettext("To") %></label>
                 <input
                   type="text"
-                  inputmode="numeric"
                   placeholder="YYYY-MM-DD"
                   pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                   maxlength="10"
@@ -983,6 +1001,16 @@ defmodule PortfolixirWeb.PortfolioLive do
               basis: series_basis_label(@analysis)
             ) %>
           </p>
+          <%!-- A cold-start failure has no cached series to label — without
+               this the KPI slots would claim "computing" forever. --%>
+          <p
+            :if={@performance_failed and is_nil(@analysis)}
+            class="alert-error"
+            role="alert"
+            data-role="performance-failed"
+          >
+            <%= gettext("Computation failed. Reload retries.") %>
+          </p>
           <%= if @performance do %>
             <p
               class={["perf-badge", perf_sign_class(@performance.ttwror)]}
@@ -998,31 +1026,20 @@ defmodule PortfolixirWeb.PortfolioLive do
               mode={@chart_mode}
               currency={@performance.base_currency}
             />
-            <%!-- UX-DR11 (Sprint 5 Lane D): the sightline keeps the period
-                 basis; the methodology sentence lives in the ⓘ tooltip. --%>
-            <div class="hint" data-role="performance-basis">
-              <%= if @performance.start_date do %>
-                <span><%= @performance.start_date %> – <%= @performance.end_date %></span>
-              <% end %>
-              <details class="metric-tooltip">
-                <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
-                <p role="tooltip">
-                  <%= gettext("True time-weighted return; deposits and withdrawals are neutralised.") %>
-                </p>
-              </details>
-            </div>
+            <%!-- UX-DR11 (Sprint 5 Lane D, decided outcome: split, then
+                 delete half): the TTWROR definition lives ONLY in the
+                 kpi-ttwror ⓘ tooltip; the chart keeps the period basis. --%>
+            <p :if={@performance.start_date} class="hint" data-role="performance-basis">
+              <%= @performance.start_date %> – <%= @performance.end_date %>
+            </p>
             <%!-- ADR-0024 modification 4: bucket membership applies
                  retroactively, so a view-scoped series is labelled with its
-                 semantics instead of pretending temporal membership. --%>
-            <div :if={@active_view} class="hint" data-role="composition-label">
-              <%= gettext("Composition as of today") %>
-              <details class="metric-tooltip">
-                <summary aria-label={gettext("Composition info")}>ⓘ</summary>
-                <p role="tooltip">
-                  <%= gettext("the view's current bucket membership is applied to the whole history.") %>
-                </p>
-              </details>
-            </div>
+                 semantics instead of pretending temporal membership. This is
+                 a basis line (UX-DR11 inventory), not a definition — no ⓘ. --%>
+            <p :if={@active_view} class="hint" data-role="composition-label">
+              <%= gettext("Composition as of today") %> —
+              <%= gettext("the view's current bucket membership is applied to the whole history.") %>
+            </p>
           <% else %>
             <div class="section-skeleton" data-role="performance-skeleton" role="status">
               <span class="recomputing-cue">
@@ -1619,7 +1636,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               </label>
               <label>
                 <span><%= gettext("Date") %></span>
-                <input type="text" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="balance[date]" value={Date.to_iso8601(Date.utc_today())} />
+                <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="balance[date]" value={Date.to_iso8601(Date.utc_today())} />
               </label>
               <label>
                 <span><%= gettext("Balance") %></span>

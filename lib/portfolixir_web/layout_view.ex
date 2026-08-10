@@ -634,22 +634,48 @@ defmodule PortfolixirWeb.LayoutView do
             // dialog from the DOM.
             Hooks.ModalDialog = {
               mounted: function () {
-                var el = this.el;
-                if (typeof el.showModal === "function" && !el.open) {
-                  el.showModal();
-                }
+                // The trigger that had focus when the dialog opened; restored
+                // on close because the server removes the dialog from the DOM,
+                // which forfeits the native focus-restore (UX-DR9).
+                this.opener = document.activeElement;
+                this.showModal();
                 var self = this;
                 this.onCancel = function (e) {
                   e.preventDefault();
                   self.close();
                 };
-                el.addEventListener("cancel", this.onCancel);
+                // A browser may force-close a modal without a cancelable
+                // cancel (Chromium CloseWatcher). Tell the server, so client
+                // and assigns cannot desync.
+                this.onClose = function () {
+                  if (self.el.isConnected && !self.el.open) {
+                    self.close();
+                  }
+                };
+                this.el.addEventListener("cancel", this.onCancel);
+                this.el.addEventListener("close", this.onClose);
+              },
+              // morphdom strips the client-set `open` attribute on every
+              // server patch (the template never renders it), which would
+              // silently hide the dialog mid-interaction — re-assert it.
+              updated: function () {
+                this.showModal();
               },
               destroyed: function () {
+                this.el.removeEventListener("cancel", this.onCancel);
+                this.el.removeEventListener("close", this.onClose);
                 if (this.el.open && typeof this.el.close === "function") {
                   this.el.close();
                 }
-                this.el.removeEventListener("cancel", this.onCancel);
+                if (this.opener && this.opener.isConnected &&
+                    typeof this.opener.focus === "function") {
+                  this.opener.focus();
+                }
+              },
+              showModal: function () {
+                if (typeof this.el.showModal === "function" && !this.el.open) {
+                  this.el.showModal();
+                }
               },
               close: function () {
                 var event = this.el.getAttribute("data-close-event");
@@ -670,15 +696,35 @@ defmodule PortfolixirWeb.LayoutView do
               mounted: function () {
                 this.lastValue = null;
                 this.frame = null;
+                // A preference flip mid-count cancels the animation and snaps
+                // to the final value (the settling state must not occur under
+                // reduce).
+                this.mq = window.matchMedia
+                  ? window.matchMedia("(prefers-reduced-motion: reduce)")
+                  : null;
+                var self = this;
+                this.onMqChange = function (e) {
+                  if (e.matches) self.finish();
+                };
+                if (this.mq && this.mq.addEventListener) {
+                  this.mq.addEventListener("change", this.onMqChange);
+                }
                 this.animate();
               },
               updated: function () { this.animate(); },
               destroyed: function () {
                 if (this.frame) cancelAnimationFrame(this.frame);
+                if (this.mq && this.mq.removeEventListener) {
+                  this.mq.removeEventListener("change", this.onMqChange);
+                }
               },
               reduceMotion: function () {
-                return window.matchMedia &&
-                  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                return this.mq ? this.mq.matches : false;
+              },
+              finish: function () {
+                if (this.frame) cancelAnimationFrame(this.frame);
+                this.frame = null;
+                if (this.settle) this.settle();
               },
               animate: function () {
                 var el = this.el;
@@ -688,14 +734,18 @@ defmodule PortfolixirWeb.LayoutView do
                 var target = parseFloat(el.getAttribute("data-count-to"));
                 if (isNaN(target)) return;
 
-                var from = this.lastValue;
+                var from = this.lastValue === null ? 0 : this.lastValue;
                 this.lastValue = target;
                 if (from === target || this.reduceMotion()) return;
-                if (from === null) from = 0;
 
                 // The server-rendered text is the value of record; frames
-                // approximate it and the last frame restores it exactly.
+                // approximate it and the last frame restores it exactly. The
+                // slot's final footprint is pinned before the first frame so
+                // a growing digit count cannot reflow the neighbours
+                // (UX-DR20 reserved footprint).
                 var finalText = digits.textContent;
+                digits.style.display = "inline-block";
+                digits.style.minWidth = digits.offsetWidth + "px";
                 var decimals = parseInt(el.getAttribute("data-decimals") || "2", 10);
                 var lang = document.documentElement.lang || "en";
                 var fmt = null;
@@ -723,6 +773,18 @@ defmodule PortfolixirWeb.LayoutView do
                 var start = null;
                 var self = this;
 
+                this.settle = function () {
+                  self.settle = null;
+                  digits.textContent = finalText;
+                  digits.style.minWidth = "";
+                  el.classList.remove("is-settling");
+                  el.setAttribute("aria-busy", "false");
+                  bar.classList.add("is-done");
+                  setTimeout(function () {
+                    if (bar.parentNode) bar.parentNode.removeChild(bar);
+                  }, 300);
+                };
+
                 function step(ts) {
                   if (start === null) start = ts;
                   var t = Math.min((ts - start) / duration, 1);
@@ -734,13 +796,7 @@ defmodule PortfolixirWeb.LayoutView do
                     self.frame = requestAnimationFrame(step);
                   } else {
                     self.frame = null;
-                    digits.textContent = finalText;
-                    el.classList.remove("is-settling");
-                    el.setAttribute("aria-busy", "false");
-                    bar.classList.add("is-done");
-                    setTimeout(function () {
-                      if (bar.parentNode) bar.parentNode.removeChild(bar);
-                    }, 300);
+                    if (self.settle) self.settle();
                   }
                 }
 

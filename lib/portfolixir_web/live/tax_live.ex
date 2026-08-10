@@ -408,7 +408,6 @@ defmodule PortfolixirWeb.TaxLive do
               <%= gettext("Statement date") %>
               <input
                 type="text"
-                inputmode="numeric"
                 placeholder="YYYY-MM-DD"
                 pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                 maxlength="10"

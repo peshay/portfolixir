@@ -511,7 +511,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           </label>
           <select id="soll-view-select" name="soll_view">
             <option value="total" selected={is_nil(@soll.view_id)}>
-              <%= gettext("Gesamt (total)") %>
+              <%= gettext("Total") %>
             </option>
             <%= for view <- @views do %>
               <option value={view.id} selected={@soll.view_id == view.id}>

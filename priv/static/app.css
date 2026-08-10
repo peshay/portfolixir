@@ -952,7 +952,10 @@ textarea {
   outline-offset: 2px;
 }
 
-.stat span {
+/* Direct child only: the label. Nested spans (count-up digits, sign spans,
+   the recomputing cue) carry their own typography — the descendant form
+   painted the KPI values themselves as 12px uppercase labels. */
+.stat > span {
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 650;
@@ -2847,16 +2850,44 @@ th .table-sort:hover {
   color: var(--color-accent);
 }
 
-/* Signed KPI values take gain/loss colour, never the accent (issue 637);
-   the .stat strong accent rule below would otherwise win on specificity.
-   Unsigned magnitudes carry no sign class and keep the accent. */
-.stat strong.is-positive,
-.stat strong .is-positive {
+/* The text-height sort trigger keeps the touch floor (UX-DR6). */
+@media (pointer: coarse) {
+  th .table-sort {
+    min-height: 44px;
+  }
+}
+
+/* Live validity feedback for the ISO date text inputs (UX-DR19): a typed
+   value that breaks the YYYY-MM-DD pattern is marked while typing.
+   :not(:placeholder-shown) keeps pristine required fields quiet. */
+input[pattern]:invalid:not(:placeholder-shown) {
+  border-color: var(--color-danger);
+}
+
+/* Signed values take gain/loss colour, never the accent (issue 637) —
+   everywhere inside a stat card, including the change signal in <small>,
+   where the label and accent rules would otherwise win on specificity.
+   Unsigned magnitudes carry no sign class and keep the accent; an exact
+   zero is directionless and takes body ink, still never the accent. */
+.stat .is-positive {
   color: var(--color-positive);
 }
 
-.stat strong.is-negative,
-.stat strong .is-negative {
+.stat .is-negative {
+  color: var(--color-danger);
+}
+
+.stat .is-flat {
+  color: var(--color-text);
+}
+
+/* Same cascade fight on the securities detail metric strip: the dd rule
+   outweighs the bare sign classes. */
+.overview-metric dd.is-positive {
+  color: var(--color-positive);
+}
+
+.overview-metric dd.is-negative {
   color: var(--color-danger);
 }
 
@@ -4575,6 +4606,13 @@ button.income-bar-label.is-active {
   background: var(--color-bg-muted);
 }
 
+/* Pending with a prior value (owner pick P2): the last known value stays in
+   place at the muted step; the staleness marker and the cue carry the state
+   for readers who never receive the colour step. */
+.stale-value {
+  color: var(--color-text-muted);
+}
+
 /* The operative element of the pending state: ring glyph (the shipped
    .spinner), the basis, and the mandatory word — real DOM text, never
    aria-hidden. Type steps per surface come from the parent (stat-label on
@@ -4582,6 +4620,12 @@ button.income-bar-label.is-active {
 .recomputing-cue {
   display: block;
   color: var(--color-text-muted);
+  /* The cue keeps the stat-label size step but reads as a sentence — it
+     must not inherit the 30px/700 value voice of an enclosing slot. */
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 /* Settling (owner pick S1): digits dim to the muted step while the count

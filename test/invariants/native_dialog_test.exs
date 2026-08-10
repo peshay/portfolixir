@@ -50,4 +50,20 @@ defmodule Portfolixir.Invariants.NativeDialogTest do
       """
     end
   end
+
+  test "the ModalDialog hook re-asserts the open state on server patches" do
+    # morphdom strips the client-set `open` attribute on every patch (the
+    # template never renders it); without an updated() re-assert the dialog
+    # silently hides on the first in-dialog form change.
+    hook =
+      "lib/portfolixir_web/layout_view.ex"
+      |> File.read!()
+      |> String.split("Hooks.ModalDialog")
+      |> Enum.at(1)
+      |> String.split("Hooks.")
+      |> hd()
+
+    assert hook =~ "updated:"
+    assert hook =~ "showModal"
+  end
 end

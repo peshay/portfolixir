@@ -205,18 +205,22 @@ defmodule PortfolixirWeb.DashboardLive do
 
       <section class="workspace-section grid" aria-label={gettext("Wealth value")}>
         <%= if is_nil(@wealth_card) do %>
-          <%!-- Pending with a prior value (UX-DR20, owner pick P2): the
-               last-known basis line is the cue; the loading heading is gone.
-               aria-busy marks the slot for the whole pending state. --%>
+          <%!-- Pending with a prior value (UX-DR20, owner pick P2): the last
+               known value stays in place, dimmed, with a real-text staleness
+               marker BEFORE the digits and the recomputing cue beneath. The
+               slot carries aria-busy and sits in no live region. --%>
           <article
-            :if={@stale_ttwror}
+            :if={not is_nil(@stale_ttwror) and is_nil(@error)}
             class="stat"
-            role="status"
-            aria-busy="true"
             data-role="overview-stale"
           >
-            <strong><span class="value-skeleton" aria-hidden="true"></span></strong>
+            <span><%= gettext("YTD") %></span>
+            <strong class="value-slot-stale" aria-busy="true">
+              <span class="visually-hidden"><%= gettext("Last known value —") %></span>
+              <span class="stale-value"><%= signed_percent(@stale_ttwror.ttwror) %>%</span>
+            </strong>
             <small data-role="stale-ttwror" class="recomputing-cue">
+              <span class="spinner"></span>
               <%= ngettext(
                 "Last known: %{ttwror}% YTD — one booking through %{last}, as of %{date}. Recomputing.",
                 "Last known: %{ttwror}% YTD — %{count} bookings through %{last}, as of %{date}. Recomputing.",
@@ -228,7 +232,7 @@ defmodule PortfolixirWeb.DashboardLive do
             </small>
           </article>
           <article
-            :if={is_nil(@stale_ttwror)}
+            :if={is_nil(@stale_ttwror) and is_nil(@error)}
             class="stat"
             aria-busy="true"
             data-role="overview-skeleton"
@@ -277,8 +281,9 @@ defmodule PortfolixirWeb.DashboardLive do
           ) %>
         </p>
         <%= if is_nil(@drift_alerts) do %>
-          <p class="value-slot-pending" aria-busy="true" data-role="attention-skeleton">
-            <span class="value-skeleton" aria-hidden="true"></span>
+          <%!-- A whole absent section keeps its block skeleton (UX-DR20);
+               the cue is the substance, the shimmer stays gated. --%>
+          <p class="section-skeleton" aria-busy="true" data-role="attention-skeleton">
             <span class="recomputing-cue">
               <span class="spinner"></span> <%= gettext("computing") %>
             </span>
@@ -309,8 +314,7 @@ defmodule PortfolixirWeb.DashboardLive do
       <section id="dashboard-data-quality" class="workspace-section">
         <h2><%= gettext("Data quality") %></h2>
         <%= if is_nil(@data_quality) do %>
-          <p class="value-slot-pending" aria-busy="true" data-role="data-quality-skeleton">
-            <span class="value-skeleton" aria-hidden="true"></span>
+          <p class="section-skeleton" aria-busy="true" data-role="data-quality-skeleton">
             <span class="recomputing-cue">
               <span class="spinner"></span> <%= gettext("computing") %>
             </span>
