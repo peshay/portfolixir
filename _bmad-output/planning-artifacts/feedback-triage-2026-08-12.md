@@ -565,13 +565,63 @@ Nothing below is committed; it is the order I would work in.
 **Later gates, in rough order of readiness:** B3.3 collection with collector
 health · B3.8 via ADR-0021's narrow path · B3.7 push delivery · backtesting.
 
-**Open for the owner:**
+**Open for the owner:** see Round 2 — most of this is now answered.
 
-- Confirm or correct the routing above, in particular the two gates in Part 0
-  and the three cuts I propose (limit suggestions, per-trade tax estimate, and
-  the general local-model permission).
-- Q1: is the maintenance lane wanted as a standing part of every batch, or as
-  its own periodic PR outside the sprint rhythm?
-- Q4: the product brief needs the owner in the room — it is an identity
-  decision, not a scoping exercise. Whether the agent is the primary audience or
-  a co-equal one changes what gets built first for the next several sprints.
+---
+
+## Round 2 — owner responses (2026-08-12, same day)
+
+The owner confirmed the routing. Decisions, in the owner's order:
+
+1. **Both gates in Part 0 are confirmed as the sequencing anchor** — product
+   identity first, durable derived values second.
+2. **New requirement attached to the identity gate: the README.** The "what is
+   Portfolixir" statement at the top of `README.md` must define the product
+   well and attractively, and the introduction must carry a few concrete
+   examples. Rationale in the owner's words: the README is the project's shop
+   window on GitHub, and anyone landing on it should grasp the tool's value
+   quickly. See "README as the public form of the identity decision" below.
+3. **The three scope cuts are confirmed** — no limit-price suggestions in the
+   digest, no estimated per-trade tax in its first version, no general
+   local-model permission (ADR-0021's narrow path instead).
+4. **The maintenance lane rides every batch** ("unbedingt immer mit rein") —
+   not a separate periodic PR. It therefore becomes an `AGENTS.md` Epic-Batch
+   Workflow amendment, alongside the ADR-0026 steps, rather than a scheduling
+   habit that depends on someone remembering it.
+
+### README as the public form of the identity decision
+
+The current README opens with "a self-hosted Elixir/Phoenix application for
+local portfolio tracking … transparent portfolio records and read-only
+inspection", and mentions the JSON API and MCP companion at the end of the
+paragraph as *"supported functions are also available through"*. That is the
+old identity, stated accurately: a tracker, with an API bolted to its side. It
+does not say that the agent surface is a first-class audience, and the "What
+works today" list reads as a feature inventory rather than as a value
+proposition.
+
+So the README rewrite is **not a separate documentation task — it is the
+public, human-readable output of gate B3.1**, and it is the honest test of that
+gate: if the identity decision cannot be stated in one short README paragraph
+that a stranger understands in fifteen seconds, the decision is not finished.
+Sequence: the product brief settles the identity → the README top section and
+the introduction examples are drafted **from** it → the PRD and `AGENTS.md`
+amendments follow. Drafting the README first would mean deciding the identity
+in marketing copy, which is exactly how a project ends up with two answers to
+"what is this".
+
+Scope for that story when it comes: the opening definition, an introduction with
+a few concrete examples (the owner's ask — worked examples of what the tool is
+*for*, not a feature list), and a consistency pass so `README.md`, the docs
+site's landing page and `AGENTS.md` → Project Goal all state the same identity.
+The existing screenshot/tour section stays; it already does its job.
+
+### Still open — the identity questions themselves
+
+The four questions that actually change build order are put to the owner
+separately (they are the substance of the product brief, not routing):
+priority when the two audiences want different things; whether an
+agent-only capability may ship without a human view; how far the replacement
+for the "no advanced reports" rule reaches; and whether the audience is the
+owner's own agent only or third-party agents as well. The brief starts once
+these are answered.
