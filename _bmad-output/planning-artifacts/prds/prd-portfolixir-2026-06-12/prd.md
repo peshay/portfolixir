@@ -66,6 +66,14 @@ Portfolixir — to read precomputed analytics and to maintain data. Intelligence
 stays external and replaceable; the product is data plus deterministic
 computation.
 
+**The horizon (from the 2026-08-12 brief).** In two to three years Portfolixir
+is the single home for every fact about one operator's holdings — the records,
+the rules that govern them, the theses behind them, the dates that affect them,
+the predictions made about them — each with an identity, a source and an age.
+It does not become a wealth platform, a broker, or an advisor. It becomes the
+place where a person and their agent look at the same truth and disagree about
+what to do next, which is the only interesting kind of disagreement.
+
 **Second cornerstone, added 2026-08-12: derived values are durable, and they
 state their own age.** The rule that made the app trustworthy — nothing derived
 is ever stored, everything is recomputed from the ledger — was implemented as
@@ -267,7 +275,10 @@ would start from the wealth-vision parking-lot issue (#340), not from here.
    why. The human view then lands in the same or the next epic batch, and its
    absence after that is a close-out finding. Without the deadline this rule
    quietly degrades into "agent only, forever", which would hollow out the
-   operator half of the identity above.
+   operator half of the identity above. **The operator sees what the agent
+   sees** — the same values, presented for a human, never a parallel truth
+   computed by a second pipeline. Two pipelines over one dataset is how a
+   system starts disagreeing with itself.
 2. **Coverage is symmetric.** Today's rule runs one way: every user-visible
    function needs API and MCP coverage. It now runs both ways — either
    direction may lead, neither may be silently skipped. The `AGENTS.md`
