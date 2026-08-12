@@ -23,8 +23,15 @@ do not assume. Policy: track latest stable (see Dependency Update Policy below).
 
 - **Elixir/Phoenix** — CI (authoritative) runs **Elixir 1.18.3 / OTP 27**; local
   toolchains may be newer. Do not use language features beyond the CI version.
-- **LiveView 0.20.x — NOT 1.x**: verify idioms against the installed version;
-  1.0-only patterns will not compile.
+- **LiveView 1.2.8 / Phoenix 1.8.9** (ADR-0037, accepted 2026-08-04 — taken as
+  a security upgrade, not a feature migration). *This entry said "0.20.x — NOT
+  1.x" until 2026-08-12 and was wrong for over a week; it warned that 1.0-only
+  patterns would not compile, which is the opposite of the truth.* The nuance
+  that matters: the framework moved, **the application's own patterns did
+  not**. Existing code is still written in 0.20-era idioms, so match the file
+  you are touching rather than modernising it opportunistically — and verify
+  any new idiom against the installed version rather than against either
+  assumption.
 - **No asset pipeline**: no `assets/` dir, no esbuild/tailwind, `watchers: []`.
   CSS is hand-written in `priv/static/app.css`; no Tailwind classes, no JS build.
   Charts/UI are server-rendered (LiveView/SVG) — do not introduce a JS bundler.

@@ -64,9 +64,8 @@ New functionality must stay small, reviewed, locally tested, and documented.
   computing and showing indicative corrective quantities next to the
   allocation drift is allowed, but anything that creates, stores, or
   transmits an order remains forbidden.
-- Analytics scope follows the **scope ladder** (identity gate B3.1,
-  2026-08-12), which replaces the former blanket rule "do not add advanced
-  reports or advanced classifications":
+- Analytics scope follows the **scope ladder** (ADR reference: identity gate
+  B3.1), which replaced the blanket "no advanced reports" rule:
   - **(a) derived metrics** per security and per view — moving averages,
     volatility, drawdown, momentum, distance to extremes: **allowed**;
   - **(b) comparison and decomposition** — benchmark, contribution analysis,
@@ -75,40 +74,37 @@ New functionality must stay small, reviewed, locally tested, and documented.
     signal quality: **allowed**;
   - **(d) backtesting rules against stored price history: forbidden**, behind
     its own decision gate.
-  Every metric in (a)–(c) must state its **computation basis** in its API and
+  Level (c) scores what was recorded before its outcome was known; level (d)
+  replays a counterfactual. If an analytic needs a history in which the rule
+  was already there, it is (d).
+- Every metric in (a)–(c) must state its **computation basis** in its API and
   MCP payload: input series, window, reference series or benchmark where one
-  exists, and the treatment of gaps. A metric whose basis is unstated cannot be
-  reviewed — this is a review-blocking standard, not a documentation task.
-  Advanced *classifications* remain out of scope; the ladder covers analytics
-  only. **Boundary between the two, because level (b) brushes against it:**
-  exposure decomposition may *report* a factor, sector or region breakdown from
-  data the catalog already holds; it may not introduce stored partial-weight
-  assignments of one security to several categories, which is what
-  `CONTRIBUTING.md` defines as an advanced classification. A decomposition that
-  can only be computed by adding such weights needs its own decision.
-- Still gated, each behind its own decision gate and none of them openable by
-  citing the ladder: **rule backtesting** (level (d)); **data acquisition
-  beyond quotes and FX** (B3.3 — sources, failure behavior, retention,
-  collector health); **push delivery to external endpoints** (B3.7 — request
-  forgery surface, stored secrets, retry semantics); and **a local model**
-  beyond the already-gated ADR-0021 PDF-intake path (B3.8).
-- The permanent non-goals are identity, not backlog, and no capacity argument
+  exists, and the treatment of gaps. Review-blocking; a doc page does not
+  satisfy it.
+- **Advanced classifications stay out of scope** — stored partial-weight
+  assignments of one security to several categories (`CONTRIBUTING.md`). Level
+  (b) may *report* a factor, sector or region breakdown from data the catalog
+  already holds; a decomposition that needs such weights needs its own
+  decision.
+- Gated, and none of them openable by citing the ladder: rule backtesting
+  (level (d)); data acquisition beyond quotes and FX (B3.3); push delivery to
+  external endpoints (B3.7); a local model beyond ADR-0021's PDF-intake path
+  (B3.8).
+- **Permanent non-goals — identity, not backlog**, and no capacity argument
   reopens them: no **order-placing** broker connection, no order creation or
   transmission, no automated trading or payment, no advice, no raw news
   archive, no external LLM calls from the app. The system prepares decisions;
-  the operator executes them. **Two precisions, both narrowing ambiguity rather
-  than permitting anything new:** (1) the ban is on a connection that can
-  *act* — place, modify or transmit an order, or move money; **read-only** data
-  acquisition from a broker or bank stays permitted in principle and gated in
-  practice (Phase 3, which this document still forbids until its ADR and
-  amendment land). (2) "No advice" does not retract ADR-0023's display-only
-  rebalancing hints: showing an indicative corrective quantity beside a drift
-  figure is arithmetic; advice is telling someone what to do with their money.
+  the operator executes them. Two precisions that narrow ambiguity without
+  permitting anything new: the ban is on a connection that can *act* — place,
+  modify or transmit an order, or move money, so **read-only** acquisition
+  stays permitted in principle and gated in practice (Phase 3, still forbidden
+  here until its ADR lands); and "no advice" does not retract ADR-0023's
+  display-only rebalancing hints, which are arithmetic beside a drift figure.
 - **Machine-extracted data is a proposal until confirmed.** Anything extracted
   from an unstructured source carries its source link and a `machine_generated`
-  marker, and lands only after a human or an agent confirms it — the same
-  preview-then-apply shape the Portfolio Performance import uses. This holds
-  independently of whether a local model is ever adopted.
+  marker and lands only after a human or an agent confirms it — the
+  preview-then-apply shape the Portfolio Performance import uses. Independent
+  of whether a local model is ever adopted.
 - Do not claim production readiness.
 - Public files must be normal readable multiline files.
 - Write every repository artifact in English: issues, PR titles and
@@ -260,126 +256,79 @@ Accountability" below.
 
 ## Branch Naming For Agent Work
 
-Use agent branches with provider context:
+- `agent/<provider>/<topic-slug>` — e.g. `agent/claude/design-system`,
+  `agent/codex/product-documentation`, `agent/gemini/locale-copy`.
+- `codex/<topic-slug>` — legacy, while existing work still carries it.
 
-- `agent/<provider>/<topic-slug>`
+## Pull Request Lifecycle
 
-Examples:
+These are owner rules of 2026-08-12. Their rationale is recorded with the
+decisions themselves; this section states only what an agent must do.
 
-- `agent/codex/product-documentation`
-- `agent/claude/design-system`
-- `agent/gemini/locale-copy`
-- `agent/gemma/dev-guide`
-- `codex/<topic-slug>` (legacy while existing work may still use this prefix)
+**Open the PR with the first commit, as a draft.** A branch without a PR is
+invisible to the owner and CI does not run on it.
 
-**Open the pull request as soon as the branch exists** (owner rule,
-2026-08-12) — with the first commit, not when the work is finished. A branch
-without a PR is invisible: the owner has to go looking for it, and CI does not
-run on it. The benefit is the same for planning artifacts and for code: the
-owner reads a diff instead of hunting a branch, and CI feedback arrives while
-the work can still absorb it cheaply.
-
-**Open it as a draft, and promote it yourself when it earns promotion** (owner
-rule, 2026-08-12). A draft says "this is not asking for your time yet", which
-is exactly true while the agent is still working — but a draft nobody ever
-promotes is the same invisibility the rule above removes, just one step later.
-The agent that opened the PR marks it ready for review when **all four** of
-these hold:
+**Promote it yourself** once all four hold — the conditions are the permission,
+so do not ask:
 
 1. the agentic review closing act has run and every confirmed finding is fixed
    on the branch;
-2. CI is green on the head commit, including the required checks;
-3. every question put to the owner has been answered — see the distinction
-   below;
-4. the branch is up to date with `main`, free of conflicts, and the agent
-   judges the work mergeable as it stands.
+2. CI is green on the head commit, required checks included;
+3. every question put to the owner has been answered;
+4. the branch is current with `main`, conflict-free, and you judge it mergeable.
 
-**Not every open question blocks promotion, and conflating the two would keep
-every PR in draft forever.** A question *put to the owner and unanswered*
-blocks: the diff cannot be judged without it. A question the work *deliberately
-records* — an `OQ-n` in the PRD, a `[NOTE FOR PM]`, a follow-up the reviewer
-briefing names — does not block; it is part of the deliverable, and holding the
-PR hostage to it would mean never shipping a document that is honest about what
-it does not know.
+A question *put to the owner* blocks promotion. A question the work
+*deliberately records* — an `OQ-n`, a `[NOTE FOR PM]`, a named follow-up — does
+not: it is part of the deliverable, and blocking on it would mean never
+shipping a document honest about what it does not know.
 
-Two limits. **Ready for review is not a merge request** — only the maintainer
-merges, and promotion changes nothing about that. And **do not flip the status
-back and forth**: if CI goes red or a review lands after promotion, fix it on
-the branch and leave the PR ready. Return it to draft only if the work turns
-out to need a decision the owner has not yet taken, and say on the PR why.
+Do not flip the status back and forth. A red check after promotion is fixed on
+the branch; return to draft only when the work turns out to need an owner
+decision, and say on the PR why. **Ready for review is not a merge request.**
 
-**The pull-request body names the issues its diff closes** (owner rule,
-2026-08-12). Use a GitHub closing keyword and a real issue number —
-`Closes #675` — so the merge closes the issue by itself. If the diff closes
-nothing, say so in one clause and why. This is not bookkeeping etiquette: an
-issue that stays open after its work has merged sends the maintainer looking
-for work that is already done.
+**Name the issues the diff closes** with a GitHub closing keyword and a real
+number — `Closes #675` — so the merge closes them by itself. If the diff closes
+nothing, say so in one clause and why. Two exceptions, both places where a
+keyword does damage:
 
-**How this relates to the Epic-Batch close-out (step 5), which also closes
-issues.** They are not two mechanisms for one act, and the difference is when
-they run. The keyword closes the issue **at the merge**, automatically, and it
-is the default for every PR. Step 5's close-out runs **after** the merge and
-covers what a keyword cannot reach: the epic tracker, `sprint-status.yaml`, the
-retrospective, and any issue that needs a written reason rather than a state
-change. A batch that used keywords correctly finds most of its story issues
-already closed when step 5 runs — that is the intended outcome, not a sign the
-step is redundant. The keyword rule also applies to PRs that never enter step 5
-at all, which is the gap it was written for: an ADR, a gate artifact or a
-documentation PR has no batch close-out and can still finish an issue.
+- an issue the diff **invalidates rather than implements** is closed by hand
+  with the evidence — a keyword would record "done" for work that was never
+  work;
+- a keyword is only for issues this diff actually finishes; closing adjacent
+  work by accident loses the thread.
 
-Two things this rule does *not* cover, and both are where it would otherwise do
-damage:
+Before opening, ask what is easy to skip when the branch did not start from an
+issue: *does this diff finish something already on the backlog?* An ADR, a gate
+artifact or a documentation PR is exactly the kind that has no issue of its own
+and still satisfies one.
 
-- **An issue the diff invalidates rather than implements gets a written reason,
-  never a keyword.** A closing keyword records "done"; an issue whose premise
-  turned out to be false was never work, and the record needs to say which. Close
-  it manually with the evidence. (The case that produced this rule: #677 claimed
-  the audit-journal rollout was incomplete when the contexts were already
-  journaling and `write_actor_test.exs` pinned an empty grandfather list —
-  ADR-0017 records that completion, it did not perform it.)
-- **Only issues this diff actually finishes.** A keyword for an issue the PR
-  merely touches closes real work by accident, and reopening it loses the thread.
-  When in doubt, leave it open and say on the PR what remains.
+The Epic-Batch close-out (step 5) is not a competing mechanism. Keywords close
+at the merge; step 5 runs after it and covers what a keyword cannot reach — the
+epic tracker, `sprint-status.yaml`, the retrospective, and issues needing a
+written reason. PRs that never enter step 5 are the gap keywords fill.
 
-Before opening the PR, ask the question that is easy to skip when a branch was
-not started from an issue: *does this diff finish something already on the
-backlog?* A PR opened for an ADR, a gate artifact or a document is exactly the
-kind that has no issue of its own and still satisfies one.
+**You own the PR until it is merged or closed.** Three duties, running until
+the merge:
 
-**The agent that opens a pull request owns it until it is merged or closed**
-(owner rule, 2026-08-12). Opening a PR and walking away puts the work back on
-the owner, which is the cost this whole section exists to remove. Ownership
-means three standing duties, and they run until the merge:
+1. **Watch it.** Subscribe to its activity as soon as it exists. Never poll by
+   sleeping or on a timer — wait for the events.
+2. **Drive CI to green.** Diagnose and fix on the branch, round after round,
+   until the checks pass. Push the fix; the diff is the report. Reply on the PR
+   only when a round resolves the failure, hits a real blocker, or raises a
+   question the owner must answer.
+3. **Resolve conflicts and stale bases.** Merge or rebase, re-run the gates
+   locally, push. Ask only when both sides changed the same logic and picking
+   one would lose behavior.
 
-1. **Watch it.** Subscribe to the PR's activity as soon as it exists, so CI
-   results, review comments and mergeability changes arrive without anyone
-   asking. Never poll by sleeping or by re-checking on a timer — wait for the
-   events.
-2. **Drive CI to green.** Every failing check gets diagnosed and fixed on the
-   branch, round after round, until the checks pass — not one attempt, and not
-   a summary of what someone else could do. Push the fix; the diff is the
-   report. Reply on the PR only when a round resolves the failure, hits a real
-   blocker, or raises a question the owner must answer.
-3. **Resolve conflicts and stale bases.** A merge conflict or a base branch
-   that moved is the PR owner's work: merge or rebase, resolve, re-run the
-   gates locally, push. Ask only when both sides changed the same logic and
-   picking one would lose behavior.
+Four limits, none of them optional:
 
-Four limits make this safe, and none of them is optional:
-
-- **Never weaken a quality gate to make CI pass.** Lowering a threshold,
-  adding an ignore, deleting or skipping a test, or baselining a new finding to
-  get green is a review reject, not a fix — the same rule the epic-batch
-  section states, restated here because a red check at midnight is exactly when
-  it is tempting.
-- **Never fix outside the PR's scope.** If the failure is real but belongs to
-  another story, say so on the PR and leave it. Scope Lock applies to
-  firefighting too.
-- **Never merge.** Only the maintainer merges. Getting to green is the duty;
-  merging is not.
-- **A failure that reproduces on the base branch is not silently yours** — say
-  so once on the PR, and act on it when the base recovers. That is the one
-  legitimate "not mine" outcome, and it is still not silence.
+- **never weaken a quality gate to get green** — lowering a threshold, adding
+  an ignore, skipping a test or baselining a finding is a review reject, not a
+  fix;
+- **never fix outside the PR's scope** — say so on the PR and leave it;
+- **never merge** — only the maintainer merges;
+- **a failure that reproduces on the base branch is not silently yours** — say
+  so once, and act on it when the base recovers.
 
 Stop the moment the owner says stop.
 
