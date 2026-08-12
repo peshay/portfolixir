@@ -53,6 +53,14 @@ discharge it in Claude Code, and it is not conditional on being asked.
   checks are green, then say so once.
 - **Skip silently only two things:** an event echoing your own comment, and an
   event duplicating one you already handled.
+- **Promote the draft yourself** once the four conditions in AGENTS.md hold
+  (reviews clean, CI green on the head commit, owner questions answered, branch
+  current and judged mergeable): `update_pull_request` with `draft: false`, plus
+  one short comment saying what changed since the draft was opened. Do not wait
+  to be asked, and do not ask permission — the conditions *are* the permission.
+  Recorded open questions in the deliverable (an `OQ-n`, a named follow-up) do
+  not block promotion; a question you put to the owner and have not had answered
+  does.
 - **Unsubscribe** when the PR is merged or closed, or the moment the owner asks
   you to stop.
 

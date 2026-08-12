@@ -275,10 +275,38 @@ Examples:
 **Open the pull request as soon as the branch exists** (owner rule,
 2026-08-12) — with the first commit, not when the work is finished. A branch
 without a PR is invisible: the owner has to go looking for it, and CI does not
-run on it. Open it as a draft PR when the content is only a basis for
-discussion, and mark it ready when it is. The benefit is the same for planning
-artifacts and for code: the owner reads a diff instead of hunting a branch, and
-CI feedback arrives while the work can still absorb it cheaply.
+run on it. The benefit is the same for planning artifacts and for code: the
+owner reads a diff instead of hunting a branch, and CI feedback arrives while
+the work can still absorb it cheaply.
+
+**Open it as a draft, and promote it yourself when it earns promotion** (owner
+rule, 2026-08-12). A draft says "this is not asking for your time yet", which
+is exactly true while the agent is still working — but a draft nobody ever
+promotes is the same invisibility the rule above removes, just one step later.
+The agent that opened the PR marks it ready for review when **all four** of
+these hold:
+
+1. the agentic review closing act has run and every confirmed finding is fixed
+   on the branch;
+2. CI is green on the head commit, including the required checks;
+3. every question put to the owner has been answered — see the distinction
+   below;
+4. the branch is up to date with `main`, free of conflicts, and the agent
+   judges the work mergeable as it stands.
+
+**Not every open question blocks promotion, and conflating the two would keep
+every PR in draft forever.** A question *put to the owner and unanswered*
+blocks: the diff cannot be judged without it. A question the work *deliberately
+records* — an `OQ-n` in the PRD, a `[NOTE FOR PM]`, a follow-up the reviewer
+briefing names — does not block; it is part of the deliverable, and holding the
+PR hostage to it would mean never shipping a document that is honest about what
+it does not know.
+
+Two limits. **Ready for review is not a merge request** — only the maintainer
+merges, and promotion changes nothing about that. And **do not flip the status
+back and forth**: if CI goes red or a review lands after promotion, fix it on
+the branch and leave the PR ready. Return it to draft only if the work turns
+out to need a decision the owner has not yet taken, and say on the PR why.
 
 **The agent that opens a pull request owns it until it is merged or closed**
 (owner rule, 2026-08-12). Opening a PR and walking away puts the work back on
