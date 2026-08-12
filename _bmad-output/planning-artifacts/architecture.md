@@ -1466,14 +1466,20 @@ Named cost of this resolution: existing analytics probably violate the computati
 rule today, and retrofitting reproducibility tests for them is work without a feature.
 That is a finding, not a nice-to-have.
 
-**4. Write authorization: a decision is missing and was recorded as taken.**
+**4. Write authorization: a decision was recorded as taken that was never taken — and the
+answer turns out to be smaller than the gap suggested.**
 
-Not a document conflict to reconcile — this document wrote "decided" where "assumed"
-belonged. Aligning the two documents would be bureaucracy; the decision is the
-deliverable. The question underneath is a product question: **is there a write the agent
-should ask about before performing it?**
+Not a document conflict to reconcile: this document wrote "decided" where "assumed"
+belonged, while the Data-Import PRD carried the same question as open (OD-4). Aligning the
+two documents would be bureaucracy; writing the decision down is the deliverable.
 
-Three findings reframe the options:
+**What the gap is *not* about, settled 2026-08-12:** whether the agent may write the
+ledger. It may, it does, and the capability was deliberately widened after this document
+was written. See the withdrawn recommendation below — it is recorded because how it was
+nearly adopted is a more useful finding than the correction itself. What remains is
+narrower and is about **attribution**, not permission.
+
+Three findings frame that remainder:
 
 - **The perimeter today is the network, not the token.** The web UI is deliberately
   unauthenticated, so whoever reaches `/api/v1` also reaches the LiveViews and writes the
@@ -1485,10 +1491,12 @@ Three findings reframe the options:
   claim by the caller, so the audit trail — the product's core — is exactly as trustworthy
   as the identity behind it. This is the one part that **cannot be retrofitted**: the
   identity of every write already made is not recoverable later.
-- **The deadline is earlier than anyone said.** The ≤ 5-calls criterion will be met with
-  **composite endpoints** that read *and* write. Such an endpoint is no longer classifiable
-  at the router, by a test, or by a reviewer. The classification therefore has to exist
-  **before the efficiency work**, not before FR-43…FR-46.
+- **If routes are ever classified, the deadline is earlier than it looks.** The ≤ 5-calls
+  criterion will be met with **composite endpoints** that read *and* write, and such an
+  endpoint is no longer classifiable at the router, by a test, or by a reviewer. With
+  permission settled this is no longer a reason to classify — but it is the reason that,
+  if classification is wanted for journal granularity, it cannot be deferred past the
+  efficiency work.
 
 The general principle this yields: *the governing timepoint is the last one at which a
 control can still be introduced without migrating history or breaking contracts* — not the
@@ -1497,47 +1505,67 @@ information- or contract-shaped (stored identity, recorded history, wire contrac
 endpoint shape) must precede their consumers; controls that are purely enforcement-shaped
 cost the same whenever they land and should wait.
 
-**Recommended resolution (owner confirmation required on one point — OQ-A4):**
+**A recommendation this validation withdrew before merge — recorded, because the way it
+was nearly adopted is the more useful finding.**
+
+An earlier draft of this gap recommended **propose-then-confirm for agent-originated
+ledger writes**, reasoning from the house rule "machine-extracted data is a proposal
+until confirmed" and arguing that the ledger is not different from the import. The owner
+rejected it on 2026-08-12, and the rejection is correct on three independent counts, each
+checkable in the repository:
+
+- **The rule does not reach this case.** `AGENTS.md` says *"anything extracted from an
+  **unstructured source**"* — PDF intake, OCR, a broker statement. An agent booking a
+  transaction on the operator's instruction extracts nothing from an unstructured source.
+  The draft's move from "extracted" to "machine-originated" was an unargued widening.
+- **It contradicts the identity.** Two first-class users, the agent the *primary*
+  consumer, capabilities may ship agent-first. A confirmation gate on the agent's own
+  write path demotes one of the two users.
+- **It would roll back shipped behaviour that was deliberately widened.**
+  `portfolixir.transactions.create` / `.update` / `.delete` ship today; FR-31 (#581)
+  expanded `create` from `buy`/`sell` to all 13 kinds *precisely because* the
+  create-as-buy→update-to-dividend detour was operator pain; and the reconcile tool's own
+  description instructs the agent to resolve a difference by booking the missing
+  transaction via `transactions.create`. Asking "may the agent create transactions?" was
+  asking whether to withdraw the answer to "how do transactions get into the system for an
+  MCP-first operator".
+
+**The general lesson, which outranks the specific correction:** the analysis reached this
+recommendation through a chain of individually sound arguments and never checked it
+against shipped product state. Adversarial review and elicitation are good at internal
+consistency and bad at noticing that the thing being reasoned about already exists and
+works. **Any recommendation that would narrow an existing capability must cite the code or
+requirement it narrows, before it is written down.** That check is cheap and was skipped
+here.
+
+**Resolution, with no owner question outstanding:**
 
 1. **No `:api_read`/`:api_write` pipelines.** D4 as recorded is superseded; the
-   contradictory "open" note is closed with it.
-2. **Write today's posture down as a decision**, with its threat model: one token, full
-   authority, because the real perimeter is the network plus a deliberately
-   unauthenticated UI.
-3. **Named principals instead of scopes.** Token configuration becomes a list of
-   `{name, token}` with exactly one entry today, and the journal actor is derived from the
-   *matching entry* rather than supplied by the caller. This makes the journal evidence
-   rather than testimony from that day forward, and it is the only irrecoverable part.
-4. **A route classification table** (`read | knowledge-write | ledger-write`) with a test
-   that fails on a new unclassified route — plus a test asserting that today every token
-   satisfies every class, so the reviewer-inference effect is technically impossible. The
-   classification is a **map, not a control**, and must be named as one.
-5. **Reshape the write surface instead of guarding it.** Ledger writes over API/MCP become
-   proposals (`machine_generated`, source link) with a separate confirm step; knowledge
-   objects write directly. The justification is the project's own house rule, and it
-   generalizes on the right axis: the ledger asserts **what happened in the world** and is
-   the source of every derived figure, so a wrong row silently corrupts everything
-   downstream; a knowledge object asserts **what the system currently thinks**, dated,
-   revisable, and carrying its own provenance. Batch confirmation keeps this at +2 calls
-   per run rather than per record.
-6. **Deadline for named principals:** the same or the next epic batch as the first
+   contradictory OD-4 "open" note is closed with it.
+2. **The agent writes the ledger directly. This is settled product identity, not an open
+   question** — one token, full authority, deliberately. The ADR writes down today's
+   posture *as a decision* with its threat model: the real perimeter is the network plus a
+   deliberately unauthenticated UI, so a token scope would decorate rather than protect.
+3. **Named principals — the one item that survives, and it is about attribution, not
+   permission.** Token configuration becomes a list of `{name, token}` with exactly one
+   entry today, and the journal actor is derived from the *matching entry* rather than
+   supplied by the caller. Today the actor is a claim by the caller, so the audit trail is
+   exactly as trustworthy as the identity behind it. This is worth doing on its own terms
+   and is **independent of who may write**: it is the only part that cannot be
+   retrofitted, because the identity of writes already made is not recoverable later.
+4. **Route classification is downgraded to optional.** With permission settled, its
+   remaining value is attribution granularity in the journal, which is thin. It is no
+   longer recommended as its own work; if the composite-endpoint work for the ≤ 5-calls
+   criterion lands anyway, classify the routes then, as a map and never as a control.
+5. **Deadline for named principals:** the same or the next epic batch as the first
    knowledge-object family, enforced as a close-out finding — the project's own two-way
    coverage pattern.
 
-Recorded caveat: propose-then-confirm is not immune to the objection it answers. An
-unattended 03:00 run has no human, so "confirm" becomes an inbox — and an inbox is either
-left to rot (proposals expire, the agent retries, call count rises against the criterion)
-or rubber-stamped, at which point the confirmation is a control that looks like protection
-and is not. `AGENTS.md` permitting "a human **or an agent**" to confirm makes
-agent-confirms-agent a null control unless the confirming agent holds independent
-information; that is a latent gap in the house rule and should be closed with this
-decision.
-
-Reversal costs, which drive the recommendation: giving up the classification is trivial
-(remove enforcement, keep the map); giving up one-token-forever is expensive; giving up
-propose-then-confirm is *dangerous*, because agent runbooks that assume a confirm step
-write directly once it is removed. Under uncertainty, move in the direction with the
-cheapest reversal — structure without enforcement.
+The second-order analysis behind the withdrawn recommendation still holds where it was not
+about permission: an unattended 03:00 run has no human, so any confirmation step becomes an
+inbox that is either left to rot or rubber-stamped — a control that looks like protection
+and is not. That argument is now an argument *for* direct writes, and `AGENTS.md`'s "a
+human **or an agent** confirms" reading is left alone rather than tightened.
 
 #### Important Gaps
 
@@ -1765,7 +1793,7 @@ that table class **explicitly** — implicit non-coverage is the failure case.
 
 - [x] Naming conventions established
 - [x] Structure patterns defined
-- [ ] Communication patterns specified — pending the write-authorization decision
+- [ ] Communication patterns specified — pending the FU-6 ADR (named principals); the write-permission half is settled
 - [x] Process patterns documented — P9/P10/P11 call shapes remain sound
 
 **Project Structure**
@@ -1798,8 +1826,9 @@ and the honest naming of unverifiable claims aged well.
 
 **Areas for Future Enhancement:** the gate B3.2 derived-value ADR is the next architectural
 decision of consequence and must argue against ADR-0035 rather than around it; knowledge objects
-need one structural boundary decision before their first story; the write-authorization decision
-needs one owner sentence.
+need one structural boundary decision before their first story; and the FU-6 ADR should write
+today's write posture down as a decision and add named principals, so the journal actor stops
+being a claim by the caller.
 
 ### Follow-Up Work (not done in this pass, deliberately)
 
@@ -1810,17 +1839,17 @@ needs one owner sentence.
 | FU-3 | `gates.yaml` inventory (`id`, `status`, `test_path`, `owning_adr`) with a test that every `enforced` entry has an existing `test_path` | Defence against F2 — the failure mode that already occurred twice |
 | FU-4 | Contract fixtures: Elixir API tests write response bodies, `mcp-server` tests read them | Belongs in the same batch as the next API change, per its own argument |
 | FU-5 | Gate B3.2 derived-value ADR, carrying I1–I7 and the five sign-off conditions | Owner decision gate |
-| FU-6 | Write-authorization ADR superseding D4 and OD-4: named principals, route classification as a map, propose-then-confirm for ledger writes | Owner decision gate — blocked only on OQ-A4 |
+| FU-6 | ADR superseding D4 and OD-4: writes down today's posture as a decision (agent writes the ledger directly, one token, stated threat model) and introduces **named principals** so the journal actor is derived from the credential rather than claimed by the caller | No owner question outstanding — the identity settles it. Not done here because it is an ADR, and this diff is a validation |
 | FU-7 | Knowledge-object structural decision, security events as the first falsifiable cut | Owner decision gate |
 
-### Open Question Remaining for the Owner
+### Open Questions — all closed
 
 | # | Question | Status |
 |---|---|---|
 | OQ-A1 | Is this document loaded as agent context? | **Answered from the repository: no.** Nothing in `CLAUDE.md`, `AGENTS.md` or `README.md` references it |
 | OQ-A2 | Does it still have a mandate for FR-37…FR-48? | **Answered: no.** `epics.md` is the registry; the ADR chain is the decision authority |
 | OQ-A3 | Is B3.2 read speed only, or must it conserve historical values? | **Answered: read speed only.** The conservation requirement is an input-capture problem and moves upstream — see Critical Gap 1 |
-| **OQ-A4** | **May the agent create ledger transactions autonomously — yes, no, or only certain kinds?** | **OPEN — the one question this validation cannot answer for you.** The recommended default, recorded above and implementable without further discussion: **no for ledger writes** (propose-then-confirm, batch-confirmable), **yes for knowledge objects** (direct). A useful test of your own answer: *if the agent accidentally created thirty transactions tomorrow, would you notice, and how fast?* If the answer is "immediately, I see it in the UI", the recommended default is over-engineering and one token with full authority, honestly written down, is correct |
+| OQ-A4 | May the agent create ledger transactions autonomously? | **Closed 2026-08-12 by the owner: yes, and the question should not have been asked.** It is settled by the product identity (two first-class users, the agent primary), and the capability ships today — `portfolixir.transactions.create` / `.update` / `.delete`, widened to all 13 kinds by FR-31 (#581), with the reconcile tool telling the agent to book the missing transaction. Withdrawing it would have removed the route by which transactions reach an MCP-first operator's ledger at all. See Critical Gap 4 for how the validation nearly recommended the opposite and what check would have caught it |
 
 ### Implementation Handoff (revised 2026-08-12)
 
@@ -1836,6 +1865,13 @@ needs one owner sentence.
    those marked **enforced** or **decided, not enforced** in the Decision Status table. Anything
    marked **proposed** is not citable in review.
 
-**First priority:** not an implementation story. FU-5 and FU-6 are the two open decisions that
-change what any subsequent architecture says; FU-2 is the cheapest work with the highest
-protective value and needs no decision at all.
+**First priority:** not an implementation story. FU-5 (gate B3.2) is the open decision that
+changes what any subsequent architecture says; FU-2 (a negative probe per enforcement gate) is
+the cheapest work with the highest protective value and needs no decision at all; FU-6 is an ADR
+that records a settled posture rather than opening a question.
+
+**A standing check this pass earned the hard way:** any recommendation that would narrow an
+existing capability must cite the code or requirement it narrows, before it is written down.
+This validation produced one such recommendation through a chain of individually sound
+arguments and did not notice it contradicted shipped, deliberately widened behaviour. Internal
+consistency is not a substitute for reading what exists.
