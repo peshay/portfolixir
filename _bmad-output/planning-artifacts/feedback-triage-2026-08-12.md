@@ -616,12 +616,70 @@ a few concrete examples (the owner's ask — worked examples of what the tool is
 site's landing page and `AGENTS.md` → Project Goal all state the same identity.
 The existing screenshot/tour section stays; it already does its job.
 
-### Still open — the identity questions themselves
+## Round 3 — the identity answers (2026-08-12, same day)
 
-The four questions that actually change build order are put to the owner
-separately (they are the substance of the product brief, not routing):
-priority when the two audiences want different things; whether an
-agent-only capability may ship without a human view; how far the replacement
-for the "no advanced reports" rule reaches; and whether the audience is the
-owner's own agent only or third-party agents as well. The brief starts once
-these are answered.
+The four build-order questions are answered. These are the substance the
+product brief is written from; they are recorded here verbatim in effect,
+because the brief will be held against them.
+
+**1. Priority when both audiences want the same capability: the agent goes
+first.** Confirmed as proposed — a capability lands over API/MCP first, the
+human view follows in the same or the next batch. Consequence to write into the
+brief: "the view follows" is a commitment with a deadline, not an intention. A
+capability whose human view has not landed after the next batch is a finding in
+the close-out, otherwise this rule quietly becomes "agent only, forever".
+
+**2. Agent-only capabilities may ship without a human view.** Confirmed, with
+the PR stating why. This inverts today's one-way rule (`AGENTS.md` → API and
+MCP Coverage: every user-visible function needs API/MCP coverage) into a
+two-way one: either direction may lead, neither may be silently skipped. The
+drift risk — functions the agent knows and the owner never sees — is what rule 1
+above is for.
+
+**3. The replacement for "no advanced reports" reaches through level (c).**
+Confirmed as proposed:
+
+- **(a) derived metrics per security and per portfolio** — moving averages,
+  volatility, drawdown, momentum, distance to highs/lows: **in scope**;
+- **(b) comparison and decomposition** — benchmark, contribution analysis,
+  factor/sector/region exposure: **in scope**;
+- **(c) evaluation of the operator's and the agent's own decisions** —
+  prediction calibration, rule evaluation, signal quality: **in scope**;
+- **(d) backtesting rules against stored price history**: **out for now**, its
+  own decision gate later.
+
+Permanently out, unchanged and non-negotiable: no broker connection, no order
+creation or transmission, no automated trading or payment, no advice, no
+raw news archive, no external LLM calls from the app.
+
+Requirement the brief must carry for (a)–(c): **every metric ships with its
+computation basis documented** — which series, which window, which reference.
+The agent's document states the reason better than a rule can: a metric without
+a definition is an opinion with decimal places.
+
+**4. Audience: one operator per instance, who attaches their own agent over
+MCP.** No multi-tenancy, and no ambition to serve third-party agents as a
+platform — whoever self-hosts Portfolixir connects their own agent. #340 stays
+where it is. The README tone follows from this: the promise is "your holdings,
+your agent, your machine", not "the data layer for portfolio agents".
+
+**The local model, clarified.** The owner's intent behind the Ollama idea is
+narrower than the agent's P1-4 proposal read: offload *simple* jobs to a
+weaker local model **to save tokens**, and only where a tool cannot already do
+the job better. That clarification settles B3.8's shape and strengthens the
+recommendation already made:
+
+1. **Deterministic code first.** A parser, a query or an existing tool beats a
+   model on every job it can do at all — cheaper, testable, and it cannot
+   invent. A local model is a fallback for genuinely unstructured input, never
+   a default implementation strategy.
+2. **Structuring only, never judgment about money** (the agent's own boundary,
+   adopted).
+3. **Output is a proposal** with source link and `machine_generated` marker,
+   confirmed before it lands — the standing rule from Bucket 6.
+4. **The first and only currently gated use is ADR-0021's PDF intake.** Build
+   that; judge further uses against real experience.
+
+So the ADR this eventually needs is not "may the app use an LLM" but "when is a
+local model the *correct* implementation choice" — and its default answer is
+"rarely".
