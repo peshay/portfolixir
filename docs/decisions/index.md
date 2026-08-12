@@ -60,11 +60,11 @@ already in force in the codebase.
 | [0029](0029-stable-identities-and-reimport-survival.html) | Stable identities and re-import survival — identity ladder with ISIN-change aliases | Accepted |
 | [0030](0030-position-level-soll-targets.html) | Position-level SOLL targets — positions as source of truth, categories as derived roll-up | Accepted |
 | [0031](0031-recorded-tax-statement-snapshots.html) | Recorded tax-statement snapshots — capture the broker's tax pots, never derive them | Accepted |
-| [0032](0032-derived-series-memoization.html) | Memoized derived series — cache the daily TTWROR walk in volatile memory | Accepted |
+| [0032](0032-derived-series-memoization.html) | Memoized derived series — cache the daily TTWROR walk in volatile memory | Superseded by 0039 |
 | [0033](0033-per-position-pnl-fx-decomposition.html) | Per-position P&L decomposed — price return and currency return over a security-currency cost basis | Accepted |
 | [0034](0034-money-weighted-metrics.html) | Money-weighted metrics — net invested capital, wealth multiple, hand-rolled XIRR next to TTWROR | Accepted |
 | [0035](0035-one-pricing-pass-per-read.html) | One pricing pass per read — shared preloaded market data instead of six re-derivations | Accepted |
 | [0036](0036-risk-tier-rides-the-batch.html) | Risk-tier work rides the batch — the dedicated-small-PR exception is withdrawn | Accepted (amends 0026) |
 | [0037](0037-phoenix-18-liveview-1x.html) | Phoenix 1.8 and LiveView 1.x — taken as a security upgrade, verified in a real browser | Accepted |
 | [0038](0038-continuous-feedback-and-design-authority.html) | Continuous owner feedback loop and a standing design authority | Accepted (amends 0026) |
-| [0039](0039-durable-derived-values.html) | Durable derived values — one memoization mechanism with a lifetime per analytic | Proposed (gate B3.2; supersedes 0032 on acceptance) |
+| [0039](0039-durable-derived-values.html) | Durable derived values — one memoization mechanism with a lifetime per analytic | Accepted (gate B3.2; supersedes 0032) |

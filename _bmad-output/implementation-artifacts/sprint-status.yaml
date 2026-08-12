@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-12 (post-Sprint-5 reconciliation; identity gate B3.1 + ADR-0039 on main)
+# last_updated: 2026-08-12 (post-Sprint-5 reconciliation + Sprint 6 adopted; ADR-0039 accepted)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -52,6 +52,25 @@ story_location: _bmad-output/implementation-artifacts
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
 #
+# SPRINT 6 ADOPTED (2026-08-12, `main` at 541fb89):
+# sprint-plan-2026-08-12-sprint6.md, from the owner's stated expectation
+# (finish the UI topics, solve the computed-numbers problem, ship some of the
+# LLM agent's requests) with the three draft questions answered.
+#   - OQ-1 OWNER: ADR-0039 is SIGNED OFF. Gate B3.2 is closed; the ADR flips to
+#     Accepted and ADR-0032 becomes Superseded by it (its volatile memo becomes
+#     the `:request` lifetime, the mechanism is not withdrawn). Lane C runs.
+#   - OQ-2 AGENT: Lane A ships eleven E11 alignment/defect issues; #672 and
+#     #414 stay out as new surfaces. Stated consequence: after Sprint 6 the UI
+#     is ALIGNED but NOT FINISHED -- Sprint 7 is committed as the closer.
+#   - OQ-3 AGENT: #572 stays out. It carries three unresolved design questions
+#     of its own, its inflation/CPI half needs a source gated at B3.3, and
+#     pairing it with Lane C puts two money-domain heavyweights in one batch.
+# Lanes: Z close-out debt (the unpushed v0.5.0 tag, #682) - B agent requests
+# (#664 first, then #665 #666 #667) - A UI (#651 #561 + #668-#673 + #412 #491
+# #565 #566 #564) - C durable derived values (risk-tier) - M maintenance
+# (#674 #676). No story rows change: Sprint 6 work hangs off no epic row, and
+# section J still has no epic (finding F2 below).
+#
 # RECONCILED (2026-08-12, `main` at 541fb89):
 # Verification basis: the merge commits on `main` (73affc5..541fb89), the open
 # pull-request list (EMPTY), the open-issue list (46 open), the Actions runs on
@@ -67,8 +86,9 @@ story_location: _bmad-output/implementation-artifacts
 #     became a TWO-WAY rule with a next-batch deadline for the human view.
 #   - 096b250 / a3ecf6e AGENTS.md: closing keywords on PRs, rule vs. rationale.
 #   - 14c18a0 architecture document re-validated against the 2026-08-12 base.
-#   - 541fb89 ADR-0039 (durable derived values, gate B3.2) -- **Proposed**,
-#     owner sign-off pending; supersedes ADR-0032's volatile memo when accepted.
+#   - 541fb89 ADR-0039 (durable derived values, gate B3.2) -- merged as
+#     Proposed; owner signed off later the same day, so it is now ACCEPTED and
+#     ADR-0032 is Superseded by it. See the Sprint 6 adoption block above.
 #   - #677 (audit-journal rollout) closed as NOT PLANNED on 2026-08-12: the
 #     rollout was already complete, so the asserted FR-43..FR-46 dependency does
 #     not exist. Recorded in epics.md section J; nothing here was blocked by it.
