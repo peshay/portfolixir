@@ -29,8 +29,9 @@ It exists because portfolio facts that live *next to* a system rot. Target
 weights kept in three places, a note keyed to a taxonomy that died a month ago,
 a date that exists only in the text of a scheduled prompt — a stale fact and a
 current one look identical there, and only a contradiction downstream reveals
-which was which. Portfolixir gives every such fact a home with an identity, a
-source, and an age.
+which was which. Giving every such fact a home with an identity, a source and
+an age is the goal the project is built toward; the records, classifications
+and targets below are the part of it that exists today.
 
 Concretely, it is the place to answer questions like these:
 
@@ -40,14 +41,21 @@ Concretely, it is the place to answer questions like these:
   reassembled by hand.
 - *How did this position actually do, and what did it cost?* — moving-average
   cost basis, unrealized P&L, and a price chart from local quote history.
-- *What did my agent base that on?* — the same figures the agent read over MCP,
-  each stating the age of its inputs, on a page a person can look at.
+- *What did my agent base that on?* — the same figures the agent read over the
+  API and MCP, on a page a person can look at, rather than a second pipeline
+  that could disagree.
 
 The project focuses on transparent portfolio records and read-only inspection.
 It is not a broker, bank, trading, payment, order, or rebalance platform, and
 it never calls an LLM itself: agents call Portfolixir, not the other way round.
 Supported functions are also available through a local JSON API and an MCP
 companion that wraps that API.
+
+**Before you run it anywhere but a trusted network:** the web UI is
+unauthenticated by design — an instance must sit behind reverse-proxy
+authentication or on a network you control. There is no release, versioning or
+upgrade guarantee yet, and no claim of production readiness. See
+[home deployment](docs/home-deployment.md) for what that means in practice.
 
 ## See it in action
 

@@ -80,12 +80,30 @@ New functionality must stay small, reviewed, locally tested, and documented.
   exists, and the treatment of gaps. A metric whose basis is unstated cannot be
   reviewed — this is a review-blocking standard, not a documentation task.
   Advanced *classifications* remain out of scope; the ladder covers analytics
-  only.
+  only. **Boundary between the two, because level (b) brushes against it:**
+  exposure decomposition may *report* a factor, sector or region breakdown from
+  data the catalog already holds; it may not introduce stored partial-weight
+  assignments of one security to several categories, which is what
+  `CONTRIBUTING.md` defines as an advanced classification. A decomposition that
+  can only be computed by adding such weights needs its own decision.
+- Still gated, each behind its own decision gate and none of them openable by
+  citing the ladder: **rule backtesting** (level (d)); **data acquisition
+  beyond quotes and FX** (B3.3 — sources, failure behavior, retention,
+  collector health); **push delivery to external endpoints** (B3.7 — request
+  forgery surface, stored secrets, retry semantics); and **a local model**
+  beyond the already-gated ADR-0021 PDF-intake path (B3.8).
 - The permanent non-goals are identity, not backlog, and no capacity argument
-  reopens them: no broker connection, no order creation or transmission, no
-  automated trading or payment, no advice, no raw news archive, no external LLM
-  calls from the app. The system prepares decisions; the operator executes
-  them.
+  reopens them: no **order-placing** broker connection, no order creation or
+  transmission, no automated trading or payment, no advice, no raw news
+  archive, no external LLM calls from the app. The system prepares decisions;
+  the operator executes them. **Two precisions, both narrowing ambiguity rather
+  than permitting anything new:** (1) the ban is on a connection that can
+  *act* — place, modify or transmit an order, or move money; **read-only** data
+  acquisition from a broker or bank stays permitted in principle and gated in
+  practice (Phase 3, which this document still forbids until its ADR and
+  amendment land). (2) "No advice" does not retract ADR-0023's display-only
+  rebalancing hints: showing an indicative corrective quantity beside a drift
+  figure is arithmetic; advice is telling someone what to do with their money.
 - **Machine-extracted data is a proposal until confirmed.** Anything extracted
   from an unstructured source carries its source link and a `machine_generated`
   marker, and lands only after a human or an agent confirms it — the same
@@ -274,10 +292,14 @@ CI feedback arrives while the work can still absorb it cheaply.
 8. Security audit performed.
 9. Required gates run.
 
-The nine steps above are the canonical order and are asserted verbatim by
-`workflow_docs_test.exs` across this file, `README.md`, `CONTRIBUTING.md` and
-`docs/development/story-workflow.md` — change them in all four or in none.
-Two clarifications ride the existing steps rather than adding a tenth:
+The nine steps above are the canonical order. `workflow_docs_test.exs` asserts
+each step string against the **concatenation** of this file, `README.md`,
+`CONTRIBUTING.md` and `docs/development/story-workflow.md`, so one document
+carrying a step satisfies the test for all of them — renumbering here would
+pass CI while silently disagreeing with `docs/development/story-workflow.md`.
+Treat the numbering as shared state and change it in every document that
+carries it, or in none. Two clarifications ride the existing steps rather than
+adding a tenth:
 
 - **Steps 5 and 6 run in both directions** per "API And MCP Coverage": a
   user-visible function needs API/MCP coverage, and an agent-visible capability
@@ -342,9 +364,18 @@ reviews decisions and behavior, agents review code:
    gates, and **reports what it deliberately did not update, with the
    reason**. It attaches here, to the close-out. It is a step in this
    document rather than a scheduling habit, because habits depend on someone
-   remembering. The Dependency Update Policy in `project-context.md` still
-   governs *how* an update lands — dedicated dependency-update PRs, never
-   inside feature stories.
+   remembering. The lane *reviews and decides* inside the batch; an update
+   itself still lands as its own commit or commit group, never mixed into a
+   feature story. Read that together with ADR-0036 below rather than against
+   it: ADR-0036 withdrew the separate-PR-with-human-review ceremony for
+   risk-tier work, not the requirement that a dependency bump stay
+   independently readable and revertable.
+
+   **Close-out check that the two-way coverage rule needs:** this same pass is
+   where an agent-only capability from an earlier batch is checked for its
+   human view. A capability whose view has not landed by the end of the next
+   batch is a finding recorded here — which is what gives the deadline in "API
+   And MCP Coverage" a place to be enforced instead of a place to be intended.
 
 **Risk-tier work rides the batch (ADR-0036, 2026-08-04).** Ledger/money-domain
 math and invariants, security-relevant changes, dependency updates, and
