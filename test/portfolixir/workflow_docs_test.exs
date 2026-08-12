@@ -99,7 +99,9 @@ defmodule Portfolixir.WorkflowDocsTest do
   #   GitHub closing keyword, or to say why none applies.
   # - AGENTS.md keeps the carve-out for an issue a diff invalidates rather than
   #   implements: it is closed with a written reason, not by a keyword.
-  # - The pull-request template offers the closing-keyword line.
+  # - The pull-request template offers a working closing-keyword line — one that
+  #   references a GitHub issue number, not the non-resolving `PFX-...` form it
+  #   carried until 2026-08-12.
   test "docs bind the maintenance lane and make a merged PR close its issues" do
     agents = File.read!("AGENTS.md")
 
@@ -114,11 +116,18 @@ defmodule Portfolixir.WorkflowDocsTest do
     for issue_closing <- [
           "closing keyword",
           "Closes #",
-          "invalidates rather than implements"
+          "invalidates rather than implements",
+          "say so in one clause and why"
         ] do
       assert agents =~ issue_closing
     end
 
-    assert File.read!(".github/pull_request_template.md") =~ "Closes"
+    pr_template = File.read!(".github/pull_request_template.md")
+
+    # `Closes #` and not `Closes`: the template read `- Closes PFX-...` until
+    # 2026-08-12, which contains "Closes" and could never close anything. An
+    # assertion that survives the defect it was written for guards nothing.
+    assert pr_template =~ "Closes #"
+    refute pr_template =~ "Closes PFX"
   end
 end
