@@ -210,6 +210,14 @@ Examples:
 - `agent/gemma/dev-guide`
 - `codex/<topic-slug>` (legacy while existing work may still use this prefix)
 
+**Open the pull request as soon as the branch exists** (owner rule,
+2026-08-12) — with the first commit, not when the work is finished. A branch
+without a PR is invisible: the owner has to go looking for it, and CI does not
+run on it. Open it as a draft PR when the content is only a basis for
+discussion, and mark it ready when it is. The benefit is the same for planning
+artifacts and for code: the owner reads a diff instead of hunting a branch, and
+CI feedback arrives while the work can still absorb it cheaply.
+
 ## Story Workflow
 
 1. User Story documented.
