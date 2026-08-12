@@ -67,3 +67,4 @@ already in force in the codebase.
 | [0036](0036-risk-tier-rides-the-batch.html) | Risk-tier work rides the batch — the dedicated-small-PR exception is withdrawn | Accepted (amends 0026) |
 | [0037](0037-phoenix-18-liveview-1x.html) | Phoenix 1.8 and LiveView 1.x — taken as a security upgrade, verified in a real browser | Accepted |
 | [0038](0038-continuous-feedback-and-design-authority.html) | Continuous owner feedback loop and a standing design authority | Accepted (amends 0026) |
+| [0039](0039-durable-derived-values.html) | Durable derived values — one memoization mechanism with a lifetime per analytic | Proposed (gate B3.2; supersedes 0032 on acceptance) |
