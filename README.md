@@ -18,13 +18,34 @@
 
 ## What is Portfolixir
 
-Portfolixir is a self-hosted Elixir/Phoenix application for local portfolio
-tracking. It helps you keep securities, portfolios, depots, cash accounts,
-manual buy/sell transactions, holdings, and quote history in one auditable local
-app.
+Portfolixir is a self-hosted Elixir/Phoenix portfolio system with two
+first-class users: the person who owns the portfolio, and the LLM agent they
+run. Everything it knows is reachable through a local JSON API and an MCP
+companion, and everything it knows is also visible on a screen. One dataset,
+one instance, one operator — your holdings, your agent, your machine. No cloud,
+no tenancy, no broker.
+
+It exists because portfolio facts that live *next to* a system rot. Target
+weights kept in three places, a note keyed to a taxonomy that died a month ago,
+a date that exists only in the text of a scheduled prompt — a stale fact and a
+current one look identical there, and only a contradiction downstream reveals
+which was which. Portfolixir gives every such fact a home with an identity, a
+source, and an age.
+
+Concretely, it is the place to answer questions like these:
+
+- *Which categories drifted away from their targets, and what would it take to
+  correct them?* — the target/actual breakdown with per-category drift and an
+  indicative corrective quantity, computed once on the server instead of
+  reassembled by hand.
+- *How did this position actually do, and what did it cost?* — moving-average
+  cost basis, unrealized P&L, and a price chart from local quote history.
+- *What did my agent base that on?* — the same figures the agent read over MCP,
+  each stating the age of its inputs, on a page a person can look at.
 
 The project focuses on transparent portfolio records and read-only inspection.
-It is not a broker, bank, trading, payment, order, or rebalance platform.
+It is not a broker, bank, trading, payment, order, or rebalance platform, and
+it never calls an LLM itself: agents call Portfolixir, not the other way round.
 Supported functions are also available through a local JSON API and an MCP
 companion that wraps that API.
 

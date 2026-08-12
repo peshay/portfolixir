@@ -4,8 +4,15 @@ These instructions apply to all coding agents working on Portfolixir.
 
 ## Project Goal
 
-Portfolixir is a small self-hosted Phoenix application for local portfolio
-tracking. Keep the product focused on auditable local records:
+Portfolixir is a self-hosted portfolio system with **two first-class users: the
+operator, and the LLM agent the operator runs.** Everything it knows is
+reachable through the local JSON API and the MCP companion, and everything it
+knows is also visible on a screen. One dataset, one instance, one operator — no
+cloud, no tenancy, no broker. (Identity decided 2026-08-12 by the product brief
+of that date, accepted as #663; the PRD's sections 1, 2 and 4 carry the full
+statement.)
+
+Keep the product focused on auditable local records:
 
 1. Create securities.
 2. Create portfolios.
@@ -57,7 +64,33 @@ New functionality must stay small, reviewed, locally tested, and documented.
   computing and showing indicative corrective quantities next to the
   allocation drift is allowed, but anything that creates, stores, or
   transmits an order remains forbidden.
-- Do not add advanced reports or advanced classifications.
+- Analytics scope follows the **scope ladder** (identity gate B3.1,
+  2026-08-12), which replaces the former blanket rule "do not add advanced
+  reports or advanced classifications":
+  - **(a) derived metrics** per security and per view — moving averages,
+    volatility, drawdown, momentum, distance to extremes: **allowed**;
+  - **(b) comparison and decomposition** — benchmark, contribution analysis,
+    factor/sector/region exposure: **allowed**;
+  - **(c) evaluation of decisions** — prediction calibration, rule evaluation,
+    signal quality: **allowed**;
+  - **(d) backtesting rules against stored price history: forbidden**, behind
+    its own decision gate.
+  Every metric in (a)–(c) must state its **computation basis** in its API and
+  MCP payload: input series, window, reference series or benchmark where one
+  exists, and the treatment of gaps. A metric whose basis is unstated cannot be
+  reviewed — this is a review-blocking standard, not a documentation task.
+  Advanced *classifications* remain out of scope; the ladder covers analytics
+  only.
+- The permanent non-goals are identity, not backlog, and no capacity argument
+  reopens them: no broker connection, no order creation or transmission, no
+  automated trading or payment, no advice, no raw news archive, no external LLM
+  calls from the app. The system prepares decisions; the operator executes
+  them.
+- **Machine-extracted data is a proposal until confirmed.** Anything extracted
+  from an unstructured source carries its source link and a `machine_generated`
+  marker, and lands only after a human or an agent confirms it — the same
+  preview-then-apply shape the Portfolio Performance import uses. This holds
+  independently of whether a local model is ever adopted.
 - Do not claim production readiness.
 - Public files must be normal readable multiline files.
 - Write every repository artifact in English: issues, PR titles and
@@ -124,8 +157,19 @@ directly to the database or Elixir contexts.
 
 ## API And MCP Coverage
 
-Every new user-visible function must include API and MCP coverage, or the PR
-must explicitly document why coverage is not applicable.
+Coverage runs **both ways** (amended 2026-08-12, identity gate B3.1). Either
+direction may lead; neither may be silently skipped.
+
+- Every new **user-visible** function must include API and MCP coverage, or the
+  PR must explicitly document why coverage is not applicable.
+- Every new **agent-visible** capability may ship over API and MCP alone, with
+  no human view, provided the PR states why. The human view then lands in the
+  **same or the next epic batch**, and its absence after that is a close-out
+  finding. The deadline is the whole point: without it the rule degrades into
+  "agent only, forever", which hollows out the operator half of the two-user
+  identity in the Project Goal.
+
+Rules that hold in both directions:
 
 - JSON API endpoints belong under `/api/v1`.
 - API and MCP authentication must use local bearer tokens from environment
@@ -230,6 +274,20 @@ CI feedback arrives while the work can still absorb it cheaply.
 8. Security audit performed.
 9. Required gates run.
 
+The nine steps above are the canonical order and are asserted verbatim by
+`workflow_docs_test.exs` across this file, `README.md`, `CONTRIBUTING.md` and
+`docs/development/story-workflow.md` — change them in all four or in none.
+Two clarifications ride the existing steps rather than adding a tenth:
+
+- **Steps 5 and 6 run in both directions** per "API And MCP Coverage": a
+  user-visible function needs API/MCP coverage, and an agent-visible capability
+  needs its human view in the same or the next batch.
+- **A story that adds or changes a metric** must state that metric's
+  **computation basis** in the API and MCP payload (series, window, reference,
+  gap treatment) before step 9 passes. Review-blocking; a code comment or a
+  documentation page does not satisfy it, because the payload is where the
+  reviewer and the agent both read it.
+
 For AI-assisted changes, the above cycle is required to run as distinct
 iterations.
 
@@ -277,6 +335,16 @@ reviews decisions and behavior, agents review code:
    2026-07-31 from the combined E17–E19 retrospective: all observed
    process failures of that period sat in the unowned space after the
    merge.)
+
+   **Maintenance lane (owner decision 2026-08-12, issue #675).** Every batch
+   carries a lane that reviews available updates for Hex, npm, Elixir/OTP,
+   PostgreSQL, BMAD and the external BMAD modules, applies what passes the
+   gates, and **reports what it deliberately did not update, with the
+   reason**. It attaches here, to the close-out. It is a step in this
+   document rather than a scheduling habit, because habits depend on someone
+   remembering. The Dependency Update Policy in `project-context.md` still
+   governs *how* an update lands — dedicated dependency-update PRs, never
+   inside feature stories.
 
 **Risk-tier work rides the batch (ADR-0036, 2026-08-04).** Ledger/money-domain
 math and invariants, security-relevant changes, dependency updates, and

@@ -6,8 +6,12 @@ description: Portfolixir public documentation for local portfolio tracking.
 
 # Local portfolio tracking
 
-Portfolixir is a self-hosted Phoenix application for securities tracking with
-auditable manual transactions, derived holdings, and stored quote history.
+Portfolixir is a self-hosted Phoenix portfolio system with two first-class
+users: the person who owns the portfolio, and the LLM agent they run.
+Everything it knows is reachable through a local JSON API and an MCP companion,
+and everything it knows is also visible on a screen. One dataset, one instance,
+one operator — no cloud, no tenancy, no broker. Records are auditable manual
+transactions, derived holdings, and stored quote history.
 
 ## Current Scope
 
