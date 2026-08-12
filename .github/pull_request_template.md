@@ -1,6 +1,9 @@
 ## Story
 
-- Closes PFX-...
+- Closes #<issue> — a real GitHub number and a closing keyword, so the merge
+  closes it. Repeat the line per issue. If this diff closes nothing, say so and
+  why. An issue this diff *invalidates* rather than implements is closed by hand
+  with the reason, never by a keyword (see AGENTS.md).
 - Agent branch (if applicable): `agent/<provider>/<topic-slug>` or `codex/<topic-slug>` (legacy).
 
 ## Summary
