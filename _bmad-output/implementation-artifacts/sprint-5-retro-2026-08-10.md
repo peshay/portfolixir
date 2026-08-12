@@ -1,9 +1,7 @@
 # Sprint 5 Retrospective — design-debt batch, lanes A–F (2026-08-10)
 
-**Status: batch retrospective, written at PR time.** The ADR-0026 step-5
-close-out items (issue/tracker closure, merge-CI confirmation, the `v0.5.0`
-tag and first automated release) run after the owner's squash-merge and are
-appended then.
+**Status: complete.** Written at PR time; the close-out section at the end
+was filled in after the owner's squash-merge (PR #661 → `73affc5`).
 
 ## What shipped
 
@@ -125,8 +123,24 @@ question the pipeline should have answered on its own:
 
 ## Close-out (appended after merge)
 
-- [ ] Squash-merge landed; merge CI green (required checks included).
-- [ ] Issues #634–#650, #653, #654, #659 closed; #651 stays queued.
-- [ ] sprint-status.yaml close-out block written.
+- [x] Squash-merge landed (PR #661 → `73affc5`); merge CI verification in
+      the step below.
+- [x] Issues #634–#650, #653, #654, #659 closed (GitHub auto-closed only
+      the first of the comma-listed issues — noted for the next briefing:
+      one closing keyword per issue); #651 stays queued.
+- [x] sprint-status.yaml close-out block written.
+- [x] Merge CI on `73affc5` confirmed green (required checks included).
 - [ ] Annotated `v0.5.0` tag pushed; Release workflow produced the first
-      automated GitHub release.
+      automated GitHub release. **Blocked in-session:** the remote session's
+      git credentials allow pushes only to the designated branch — a tag
+      push returns HTTP 403. The owner pushes the prepared tag (one
+      command, below); the Release workflow does the rest. Process note
+      for AGENTS.md step 5: in remote sessions the tag step is the owner's
+      or a CI concern, not the batch agent's — worth an amendment or a
+      credential grant.
+
+```bash
+git fetch origin main
+git tag -a v0.5.0 73affc5 -m "Portfolixir v0.5.0 — Sprint 5 design-debt batch"
+git push origin v0.5.0
+```
