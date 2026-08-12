@@ -683,3 +683,58 @@ recommendation already made:
 So the ADR this eventually needs is not "may the app use an LLM" but "when is a
 local model the *correct* implementation choice" — and its default answer is
 "rarely".
+
+---
+
+## Round 4 — issues filed (2026-08-12, after the merge of #663)
+
+The owner confirmed the routing, so the triage's confirmed items became thin
+issues per ADR-0038. This section is the index: from here on the backlog, not
+this document, is where "is it done?" is answered.
+
+Filing them was itself the fix for the Q3 process finding — the Sprint 5 plan's
+"Queued behind the lanes" list had no issue numbers, which is why the owner had
+to ask whether the UI work was finished, and why the plan still pointed at
+#415 six weeks after it was closed.
+
+### Ship-now, no gate
+
+| Issue | Bucket | Note |
+|---|---|---|
+| #664 | B2.1 | PP re-import survival — **verification first**, risk-tier attention |
+| #665 | B1.1 | Sparse fieldsets, roll-up-only aggregates, server-side filters |
+| #666 | B1.2 | `?since=` delta reads (push half stays gated) |
+| #667 | B1.3 | Tax snapshot staleness + allowance-order entry |
+
+### Backlog hygiene — all sub-issues of tracker #356
+
+| Issue | Source |
+|---|---|
+| #668 | Q3 — Wealth tabs: icons, touch floor, structural nesting carrier |
+| #669 | Cluster C — period selector and date picker |
+| #670 | Cluster C — contra-account value-setting UI |
+| #671 | Cluster C — snapshots view |
+| #672 | 2026-08-05 design session — `/cashflow` parent and the three unbuilt facets (replaces the closed #415) |
+| #673 | Cluster D — Overview attention card names its view and plan |
+
+### Tooling and prerequisites
+
+| Issue | Bucket | Note |
+|---|---|---|
+| #674 | Q1 | BMAD 6.8.0 → 6.11.0, and pin `automator` to a SHA |
+| #675 | Q1 | Maintenance lane in every batch (`AGENTS.md` amendment) |
+| #676 | Q1 | Renovate/Dependabot and a version report the lane reads |
+| #677 | Bucket 6 | Audit-journal rollout completion — **blocks** the knowledge objects |
+
+### Not filed, deliberately
+
+Everything behind a decision gate: the durable derived-value layer (B3.2), the
+policy-rules engine (B3.6), the rebalancing digest (B3.5), security events
+(B3.4), the knowledge objects (B4.1/B4.2), collection (B3.3), push delivery
+(B3.7), the local model (B3.8) and backtesting. Each needs its ADR signed off
+before an issue would mean anything — filing them now would produce exactly the
+kind of issue this repository's conventions call thin-in-the-wrong-way: a title
+with no authoritative spec behind it.
+
+The identity gate itself (B3.1) is not an issue either; it is the merged brief
+plus the PRD update and `AGENTS.md` amendment that follow from it.
