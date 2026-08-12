@@ -84,4 +84,41 @@ defmodule Portfolixir.WorkflowDocsTest do
       refute public_text =~ private_marker
     end
   end
+
+  # User story:
+  # As the maintainer of a repository whose backlog is kept by agents,
+  # I want the batch close-out and the pull-request body to carry the maintenance
+  # lane and the issue-closing duty in writing,
+  # so that a dependency review is never skipped for lack of an owner and a
+  # merged pull request closes the issues it finished without me asking.
+  #
+  # Acceptance criteria:
+  # - AGENTS.md binds the maintenance lane to the epic-batch close-out, including
+  #   the duty to report what was deliberately not updated (issue #675).
+  # - AGENTS.md requires every PR body to name the issues its diff closes using a
+  #   GitHub closing keyword, or to say why none applies.
+  # - AGENTS.md keeps the carve-out for an issue a diff invalidates rather than
+  #   implements: it is closed with a written reason, not by a keyword.
+  # - The pull-request template offers the closing-keyword line.
+  test "docs bind the maintenance lane and make a merged PR close its issues" do
+    agents = File.read!("AGENTS.md")
+
+    for maintenance_lane <- [
+          "Maintenance lane",
+          "reviews available updates for Hex, npm, Elixir/OTP",
+          "reports what it deliberately did not update"
+        ] do
+      assert agents =~ maintenance_lane
+    end
+
+    for issue_closing <- [
+          "closing keyword",
+          "Closes #",
+          "invalidates rather than implements"
+        ] do
+      assert agents =~ issue_closing
+    end
+
+    assert File.read!(".github/pull_request_template.md") =~ "Closes"
+  end
 end

@@ -308,6 +308,31 @@ back and forth**: if CI goes red or a review lands after promotion, fix it on
 the branch and leave the PR ready. Return it to draft only if the work turns
 out to need a decision the owner has not yet taken, and say on the PR why.
 
+**The pull-request body names the issues its diff closes** (owner rule,
+2026-08-12). Use a GitHub closing keyword and a real issue number —
+`Closes #675` — so the merge closes the issue by itself. If the diff closes
+nothing, say so in one clause and why. This is not bookkeeping etiquette: an
+issue that stays open after its work has merged sends the maintainer looking
+for work that is already done, and asking them to notice it is the cost this
+whole section exists to remove.
+
+Two things this rule does *not* cover, and both are where it would otherwise do
+damage:
+
+- **An issue the diff invalidates rather than implements gets a written reason,
+  never a keyword.** A closing keyword records "done"; an issue whose premise
+  turned out to be false was never work, and the record needs to say which. Close
+  it manually with the evidence. (The case that produced this rule: #677 asserted
+  an incomplete audit-journal rollout that ADR-0017 had already completed.)
+- **Only issues this diff actually finishes.** A keyword for an issue the PR
+  merely touches closes real work by accident, and reopening it loses the thread.
+  When in doubt, leave it open and say on the PR what remains.
+
+Before opening the PR, ask the question that is easy to skip when a branch was
+not started from an issue: *does this diff finish something already on the
+backlog?* A PR opened for an ADR, a gate artifact or a document is exactly the
+kind that has no issue of its own and still satisfies one.
+
 **The agent that opens a pull request owns it until it is merged or closed**
 (owner rule, 2026-08-12). Opening a PR and walking away puts the work back on
 the owner, which is the cost this whole section exists to remove. Ownership
