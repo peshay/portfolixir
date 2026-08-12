@@ -1,4 +1,4 @@
-# PRD Addendum — Portfolixir (2026-06-12, revised 2026-07-25)
+# PRD Addendum — Portfolixir (2026-06-12, revised 2026-08-12)
 
 Depth that informs downstream documents (architecture, UX, epics) but does not
 belong in the PRD narrative itself.
@@ -77,3 +77,61 @@ information about real holdings.
 - **Unfunded dependency:** this needs price history for securities the
   operator has never held — a breadth/depth/licence problem that ADR-0005's
   provider split was not designed for. Tracked as OQ-11.
+
+## Identity gate B3.1 — what this run left for downstream documents (2026-08-12)
+
+Source: the product brief of 2026-08-12 and its addendum. That addendum is the
+fuller handoff and is not restated here; this section records only what the
+PRD update itself produced and could not carry.
+
+### For the derived-value ADR (gate B3.2)
+
+FR-1 now permits materialized derived values and binds four properties to
+them. The ADR owes three things the PRD deliberately does not decide:
+
+- **Which** values are materialized, and an explicit no to the rest.
+  "Everything" is not an answer, and an unbounded layer would recreate the
+  staleness problem it was built to remove.
+- Its relationship to **ADR-0032**, which defines today's memo as volatile —
+  never surviving a restart, never a source of truth. A durable layer reverses
+  that, so the new ADR supersedes or amends it rather than sitting beside it.
+  Two of FR-1's four properties are inherited from ADR-0032, not invented: the
+  data-version mechanism and the as-of labelling rule.
+- Its relationship to **ADR-0035**, the adjacent precedent that deliberately
+  *removed* redundant computation instead of caching it, with a measured
+  result (1,105 ms → 265 ms, 2,614 → 115 queries, output identical). The ADR
+  must say why that choice does not extend to this case. An author who starts
+  from FR-1 alone would otherwise rediscover or contradict an accepted
+  decision.
+
+The Sprint 5 value-slot vocabulary (pending / settling / final /
+not-computable) is the UI half of FR-1's freshness property and already
+exists; the payload half does not.
+
+### Two pre-existing inconsistencies found while editing, not fixed here
+
+Both are outside this gate's scope and neither blocks it. Recorded rather than
+silently corrected, per the rule that code and documents disagreeing is a
+finding.
+
+- **`project-context.md` states "LiveView 0.20.x — NOT 1.x"** and warns that
+  1.0-only patterns will not compile. The installed version is **1.2.8** (seen
+  in the test run of this batch). The file's own instruction is to flag such a
+  disagreement rather than pick a side. It misleads any agent that reads it
+  before writing a LiveView.
+- **`epics.md`'s Requirements Inventory carries a pre-2026-07-25 copy of
+  FR-1..FR-29** — for instance FR-4 still describes portfolios as partitioning
+  the wealth space, which ADR-0024 superseded. This run aligned FR-1 (because
+  the gate required it) and added the missing NFR-9, but did not reconcile the
+  rest. The PRD's own registry note already says `epics.md` wins on conflict,
+  which makes this drift more expensive than it looks.
+
+### A tension in the README rewrite, resolved and worth confirming
+
+`project-context.md` carries the owner's microcopy rule of 2026-07-23: write UI
+**and doc** text impersonally, avoid addressing the reader. The 2026-08-12
+brief prescribes the README tone as *"your holdings, your agent, your
+machine"*, which is direct address. The later and more specific instruction was
+followed for that one phrase, and the rest of the section stays impersonal. If
+the owner reads the phrase as a rule violation rather than a deliberate
+exception, the fix is one sentence.
