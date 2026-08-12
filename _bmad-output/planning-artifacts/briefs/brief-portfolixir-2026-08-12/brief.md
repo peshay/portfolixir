@@ -1,11 +1,16 @@
 ---
 title: "Product Brief: Portfolixir"
-status: draft
+status: proposed
 created: 2026-08-12
 updated: 2026-08-12
+accepted_by: "the squash-merge of this brief's pull request (ADR-0026 step 4)"
 ---
 
 # Product Brief: Portfolixir
+
+**Status: proposed.** The discussion behind this brief is finished; the owner's
+merge is its acceptance, in the same way a merge accepts an ADR. Until it is on
+`main` it is not yet the truth.
 
 **What this decides:** the product's identity — who Portfolixir is for, and how
 far its scope now reaches. **What changes if it is accepted:** the PRD, the
