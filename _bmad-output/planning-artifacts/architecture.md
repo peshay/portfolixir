@@ -1,8 +1,11 @@
 ---
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
 lastStep: 8
-status: 'complete'
+status: 'superseded-in-part'
 completedAt: '2026-06-12'
+revalidatedAt: '2026-08-12'
+authority: 'seam-contract'
+agentContext: false
 inputDocuments:
   - '_bmad-output/planning-artifacts/prds/prd-portfolixir-2026-06-12/prd.md'
   - '_bmad-output/planning-artifacts/prds/prd-portfolixir-2026-06-12/addendum.md'
@@ -22,6 +25,11 @@ inputDocuments:
   - 'docs/decisions/0010-ttwror-performance-series.md'
   - 'docs/decisions/0011-unified-ledger-projection.md'
   - 'docs/decisions/0012-asset-class-inference-at-read-time.md'
+revalidationInputs:
+  - '_bmad-output/planning-artifacts/briefs/brief-portfolixir-2026-08-12/brief.md'
+  - '_bmad-output/planning-artifacts/prds/prd-portfolixir-2026-06-21/prd.md'
+  - '_bmad-output/planning-artifacts/epics.md'
+  - 'docs/decisions/index.md (ADR-0013 … ADR-0038)'
 workflowType: 'architecture'
 project_name: 'portfolixir'
 user_name: 'Andi'
@@ -29,6 +37,47 @@ date: '2026-06-12'
 ---
 
 # Architecture Decision Document
+
+> ## Read this before anything below it
+>
+> **Status: superseded in part (re-validated 2026-08-12).** The body of this
+> document was written on 2026-06-12 against a corpus of 12 ADRs and a 29-FR
+> requirement set. There are now 38 ADRs and 48 FRs. It is kept because part of
+> it is still the only record of certain seams — not because it still describes
+> the system.
+>
+> **Every statement in this document carries one of three authority levels.**
+> The re-validation at the end of this document assigns them per decision; the
+> distinction is the point, because mixing them is what let a decision be
+> DECIDED here and OPEN elsewhere for two months:
+>
+> | Level | Meaning | How to treat it |
+> |---|---|---|
+> | **enforced** | a named test or CI gate is the authority | follow the test; this document is only a pointer |
+> | **decided, not enforced** | an ADR decided it, nothing checks it | follow the ADR; this document is not the source |
+> | **proposed** | no ADR, no gate, never built | **not citable in review**; treat as an idea, never as a description of the repository |
+>
+> **Precedence, in order:** `AGENTS.md` and `CLAUDE.md` bind unconditionally →
+> the ADR corpus wins on everything it covers → `epics.md` is the live
+> requirement registry (the founding PRD wins on intent and wording) → this
+> document is authoritative **only** for seams no ADR has since covered.
+>
+> **What is still authoritative here:** the P9 write-path and P10 engine-call
+> shapes, the anti-pattern table, the contract-fixture direction (D5), the
+> analytics-envelope direction (D6/P7) **as a floor rather than a ceiling**, the
+> idempotency direction (D11), and P5's scenario-isolation invariants (held for a
+> feature that is now gated at ladder level (d)).
+>
+> **What this document is not:** it is not loaded as agent context — verified
+> 2026-08-12, nothing in `CLAUDE.md`, `AGENTS.md` or the README references it —
+> and it has no mandate over FR-37…FR-48. Those requirements get their
+> architecture from their own gate ADRs, deliberately, because architecture
+> written ahead of a requirement's known shape is what produced this document's
+> drift in the first place.
+>
+> **The published human-facing architecture overview is `docs/architecture.md`.**
+> That page is maintained and links to the ADR index. If you are looking for what
+> Portfolixir's architecture *is*, read that, not this.
 
 _This document builds collaboratively through step-by-step discovery. Sections are appended as we work through each architectural decision together._
 
@@ -327,22 +376,30 @@ stress-tested in two elicitation rounds and an agent roundtable (Winston/Murat/
 Amelia personas); fail-closed mechanical enforcement is the recurring theme: every
 rule an implementing agent must follow has a meta-test that fails when it is broken.
 
-### Decision Priority Analysis
+### Decision Status (assigned 2026-08-12 — read this before any D below)
 
-**Critical Decisions (block implementation):**
-1. D1 — Audit-journal mechanics (FR-28)
-2. D2 — Pure core / imperative shell as a binding, mechanically checked rule
-3. D3 — Rounding-policy sequencing and oracle provenance (#344)
+The original priority ranking is preserved at the end of this subsection for the
+record, but it is no longer how to read D1–D11. **This table is.** A decision
+marked *proposed* describes nothing that exists; citing it in a review is a
+finding, not an argument.
 
-**Important Decisions (shape architecture):**
-4. D4 — Graduated API/MCP token scopes (fail-closed)
-5. D5 — API↔MCP contract artifact (generated shared fixtures)
-6. D6 — Self-describing analytics envelope (incl. refusal contract)
-7. D7 — MCP tool taxonomy (thin 1:1 wrapper; consolidation API-side)
-8. D8 — Charts stay server-rendered SVG
-9. D9 — NFR-8 measurement apparatus + caching trigger condition
-10. D10 — IRR/XIRR numeric strategy at the Decimal boundary
-11. D11 — Write idempotency for the agent-facing API
+| # | Decision | Authority level | Where the truth lives now |
+|---|---|---|---|
+| D1 | Audit journal | **enforced** | ADR-0017 + `write_actor_test.exs` (grandfather list empty, shrink-only), journal append-only tests. Rollout complete, per-context arming executed as Amendment 1 said |
+| D2 | Pure core / imperative shell | **proposed** | Nothing. `engines/` holds one module, no `engine_data/`, no purity gate. `Portfolixir.Clock.today/0` sits in the impurity class D2 governs and passed every check, because there was none. See re-validation Critical Gap 3 for the replacement that does not require a namespace move |
+| D3 | Rounding sequencing + oracle provenance | **decided, not enforced** | ADR-0016 — and it decided the *opposite* locus D3 assumed: full precision in compute, rounding only at the human display. The oracle-provenance rule survives and is unenforced |
+| D4 | Graduated token scopes | **proposed** | Nothing. Router has `:api` / `:api_auth`; one shared bearer token grants full ledger write. Recorded here as "decided" in error — the same question is an open decision (OD-4) in the Data-Import PRD. See Critical Gap 4 |
+| D5 | API↔MCP contract artifact | **proposed** | Nothing built; the direction remains right and the seam has widened (37 API controllers, one shared presenter). Highest discovery latency in the system |
+| D6 | Self-describing analytics envelope | **proposed, and now under a stricter mandate** | Nothing built. `AGENTS.md` now makes the computation basis (input series, window, reference series, gap treatment) a review-blocking acceptance criterion on every metric — a stricter contract than P7's key set. P7 is a floor |
+| D7 | MCP tool taxonomy | **superseded in effect** | FR-37 (#665) and FR-38 (#666) are the shipped-shape answer. The golden question set was never produced; the agent-side success criteria (≤ 5 calls, −70 % volume) supply the measurable target it wanted |
+| D8 | Charts stay server-rendered SVG | **enforced by absence** | No asset pipeline exists; unchanged and still correct |
+| D9 | NFR-8 measurement apparatus + caching trigger | **proposed** | Nothing built. ADR-0032 and ADR-0035 were both decided on a felt symptom instead. The trigger mechanism never governed anything; it is revived only by a named rebuild-time budget in the gate B3.2 ADR |
+| D10 | IRR/XIRR numeric strategy | **decided, not enforced** | ADR-0034 — Newton with analytic derivative, bracketed bisection on (−0.999999, +10], Act/365, tolerance 1e-7, ~200 iterations, float64 confined to the solver, nothing persisted. **Failure contract differs from D10's text:** all flows of one sign render "n/a"; windows under a year show non-annualized period MWR |
+| D11 | Write idempotency | **proposed** | Nothing built. FR-DI-13 restates the requirement and pins its relation to content hashing: the key dedupes the *request*, the hash dedupes the *records*, and both hold |
+
+**Original priority ranking, kept for the record (2026-06-12):** critical — D1,
+D2, D3; important — D4 … D11. Two of the three "critical" decisions turned out
+never to be built, which is the finding the ranking itself could not surface.
 
 **Deferred Decisions (explicit, with rationale):**
 - Phase-3 credential encryption — behind the scope gate, its own ADR
@@ -748,6 +805,34 @@ Pattern changes are PR-visible amendments to this document — never silent drif
 | Bare 200 assertions on analytics endpoints | `assert_ok_clean` / `assert_ok_degraded` (P11) |
 
 ## Project Structure & Boundaries
+
+> **⚠️ This section describes a repository that does not exist. Do not build from it.**
+>
+> Verified against `main` on 2026-08-12. The delta tree below was written as a plan
+> and reads as a description, which is the specific way it causes damage: an agent
+> that follows it does not discover the mismatch, it *builds* the missing half and
+> creates a second architecture beside the real one.
+>
+> | Path below | Reality on 2026-08-12 |
+> |---|---|
+> | `engines/irr.ex`, `xirr.ex`, `benchmark.ex`, `income.ex`, `scenario.ex` | `engines/` contains exactly one module, `bucket_resolution.ex`. Analytics live in the ordinary contexts |
+> | `engine_data/` loaders (1:1 paired) | **Never created.** The 1:1 pairing is additionally withdrawn as a rule — see re-validation Critical Gap 3: three loaders sharing an FX/date basis must agree with each other, which is duplicated query logic over Decimal money |
+> | `exports/portfolio_performance.ex` | **The PP-compatible export was dropped** (owner decision 2026-07-22, FR-DI-18). Portfolixir is a one-way import destination; egress is the JSON API. Backup/restore survives separately (#354) |
+> | `scenarios.ex`, `scenario_` tables | Never created. What-if against stored price history is now ladder level (d) and **gated** |
+> | `idempotency.ex`, `plugs/idempotency.ex` | Never created |
+> | `controllers/api/v1/meta.ex` | Never created. 37 API controllers render through the single presenter `json.ex` |
+> | `router.ex` with `:api_read` / `:api_write` | Never created. `:api` / `:api_auth` only |
+> | `mix portfolixir.contract.gen`, `mix portfolixir.perf` | Never created. Existing tasks: `portfolixir.backfill_settlement_legs`, `portfolixir.seed_scope_buckets` |
+> | `test/engine_purity_test.exs`, `route_scope_test.exs`, `fixtures/contract/`, `support/volume/` | Never created |
+> | — | **Missing from the tree entirely:** the shipped contexts `buckets/`, `tax/`, `settings/`, and `clock.ex` |
+>
+> **What did land as written:** `actor.ex`, `journal/` (`entry.ex`, `serializer.ex`,
+> `allowlist.ex`), `write_actor_test.exs`, and `boundary_test.exs` — shipped as
+> `test/invariants/web_repo_boundary_test.exs`.
+>
+> The routing table earlier in this document points at several of the paths above.
+> Those pointers are dead. Until a path-existence test guards them (re-validation
+> Repair Options, O4), treat every path in this section as unverified.
 
 The existing repository structure is authoritative and unchanged. This section maps
 only the NEW components (D1–D11) into it. Paths not listed here follow the existing
@@ -1178,3 +1263,579 @@ generator land first — they are the foundations every engine story needs;
 the P2 feasibility spike (Gap 4) runs before the actor refactor begins.
 In parallel, the operator items: PRD FR-9 amendment, #344 decision, golden
 question set.
+
+---
+
+## Architecture Re-Validation Results (2026-08-12)
+
+This section re-validates everything above against the requirement base as it
+stands on 2026-08-12. It does not replace the 2026-06-12 validation; it records
+what that validation can no longer claim.
+
+**Base of this re-validation:** founding PRD (2026-06-12, revised 2026-08-12 by
+identity gate B3.1), PRD — Data Import & Sync (2026-06-21, revised 2026-07-25),
+product brief 2026-08-12 (accepted as #663), `epics.md` as the live requirement
+registry (FR-30…FR-48), ADR-0001…ADR-0038, and the code on `main`.
+
+**Method.** Sequential validation, then a four-role adversarial roundtable
+(architect, test architect, implementing engineer, product manager), then five
+elicitation passes (reframing, weighted comparison, second-order effects,
+inversion, steelmanning). Where the roles disagreed, the disagreement is
+recorded rather than averaged away.
+
+### Baseline Corrections (facts stated wrongly above)
+
+| Stated above | Correct as of 2026-08-12 | Source |
+|---|---|---|
+| "LiveView 0.20.x (NOT 1.x idioms)" | Phoenix 1.8.9 / LiveView 1.2.8; the framework moved, the app's own patterns did not | ADR-0037, `project-context.md` |
+| "12 accepted ADRs constrain all new work" | 38 ADRs; ADR-0013 superseded by ADR-0018 | `docs/decisions/index.md` |
+| Closed kind set = 13 PP kinds + `balance_adjustment` | 15 kinds — `split` is first-class | ADR-0028, `ledger/transaction.ex` |
+| FR-4 as a "single-portfolio-debt workstream" | Views are the user-facing grouping, buckets group within a view, portfolios are an internal compatibility record only | ADR-0024, ADR-0018, FR-4 (rev. 2026-08-12) |
+| #344 rounding is the open sequencing blocker | Decided: full precision in compute, round only at the human display | ADR-0016 (2026-06-14) |
+| FR-29 PP-compatible export + `exports/` | **Dropped** 2026-07-22; one-way import destination, egress is the JSON API | PRD-DI Feature E, #354 |
+| 29 FRs in seven categories | FR-1…FR-48; `epics.md` is the registry | PRD status note, `epics.md` |
+
+### Coherence Validation ⚠️ — partially superseded
+
+Per-decision status is in the **Decision Status** table under "Core Architectural
+Decisions". Summary: of eleven decisions, **one shipped** (D1), **one holds by
+absence** (D8), **two were decided elsewhere with different content** (D3 → ADR-0016,
+D10 → ADR-0034), **one was superseded in effect** (D7), and **six were never built**
+(D2, D4, D5, D6, D9, D11) — one of which (D4) is additionally recorded as an open
+decision in another document.
+
+**Pattern consistency.** P1, P2, P9 are in force and gated. P3, P4, P7, P8 and the
+contract-fixture half of P11 describe machinery that does not exist. P5 describes
+isolation for a feature since gated at ladder level (d). P10 is followed in spirit —
+loaders and read models exist — but not under the declared namespaces, so the routing
+table points at paths a reader will not find.
+
+**Structure alignment.** See the warning block on "Project Structure & Boundaries".
+
+### Requirements Coverage Validation ❌ — the registry outgrew the document
+
+| Requirement family | Architectural support here |
+|---|---|
+| FR-30…FR-36 (DX batch, identity ladder, tax snapshots) | None — all shipped since under ADR-0029/0030/0031, outside this document |
+| FR-37, FR-38 (read ergonomics, `?since=` deltas) | None. Ungated, ship-now, and the agent-side success criteria attach to them directly |
+| FR-39, FR-40 (derived metrics, ladder (a)) | None; the registry records them as dependent on the gate B3.2 derived-value ADR |
+| FR-41, FR-42 (contribution, exposure — ladder (b)) | None |
+| FR-43…FR-46 (knowledge objects) | None. Verified: they are **not** blocked by the journal rollout — that asserted dependency is false |
+| FR-47, FR-48 (calibration, rule evaluation — ladder (c)) | None |
+| FR-DI-1…FR-DI-21 (intake domain) | Partial and coincidental: the preview→apply shape matches; identity ladder, two-layer idempotency, PDF sandbox and per-broker parsers are all outside this document |
+
+**Non-functional coverage.** NFR-1/2 hold and were strengthened by ADR-0016 and
+ADR-0017. NFR-3 is this document's strongest surviving contribution — the gate
+philosophy demonstrably materialized, and the pattern of *which* gates survived is
+the most useful thing it produced (see "What sticks in this repository"). NFR-4 is
+**weakened relative to the document's claim**: D4 asserts a decided scope model that
+does not exist. NFR-8 is now governed by ADR-0032/0035 rather than by D9.
+
+### Implementation Readiness Validation ❌
+
+**Decision completeness.** Eleven decisions across five different authority levels,
+and a reader could not tell which was which from the document itself. That is the
+readiness defect, more than any individual gap — and it is the direct cause of D4
+being DECIDED here and OPEN elsewhere for two months.
+
+**Pattern completeness.** The routing table's premise — "read this before writing
+code" — fails where it points at `Portfolixir.Engines.*` and `Portfolixir.EngineData.*`
+for analytics work that lives elsewhere. The exemplar-existence meta-test it relies on
+was never built either.
+
+### Gap Analysis Results
+
+#### Critical Gaps
+
+**1. No architecture for the durable derived layer (gate B3.2) — and the three
+decisions around it are one decision, not three.**
+
+ADR-0032 (volatile memo), ADR-0035 (one pricing pass per read) and D2 (purity) were
+each decided against a separate symptom. They collapse onto one axis: *a derived
+value is a pure function value over a versioned, named input; everything else is how
+long the result is kept.*
+
+| Lifetime | Mechanism |
+|---|---|
+| `:none` | recompute every time |
+| `:request` | ADR-0032, process-local memo |
+| `:durable` | B3.2, table carrying `as_of` + data version |
+
+The cache-key question is identical in all three cases, and it is FR-1's four
+properties word for word: rebuildable = the function is reproducible from named
+inputs; versioned = the key carries the data-version counter; never silent about
+freshness = `as_of` travels with the value; never authoritative for a write = the
+materialization is a cache, not a record.
+
+**ADR-0035 is inherited, not opposed.** Removing a redundant call is strictly better
+than caching it, because a cache costs invalidation and a deleted call costs nothing.
+Materialization is admissible only for what remains after de-duplication. ADR-0032 is
+genuinely superseded — it is the `:request` case of the same axis.
+
+**OQ-A3 resolved: B3.2 is read speed only.** The question "must it conserve historical
+values no longer reconstructable from today's transactions, e.g. the FX rate of that
+day?" was posed as a threat to "rebuildable". It is not. Such a value fails *two* of
+the four properties at once — not rebuildable, and the cache would be authoritative
+for it — and an element failing a requirement on two independent counts is
+misclassified, not evidence of a broken requirement. The FX rate of a given day is an
+**observation**, not a derived value; it looks derived only because the valuation
+pipeline consumed it without recording which rate row it used. The conservation
+requirement therefore moves **upstream**: bind the valuation to its rate row with an
+`as_of`, as a first-class stored fact with identity and provenance — the same shape
+FR-43…FR-46 introduces for four other families. "Rebuildable" then becomes true again,
+because the rebuild reads the rate stored *then*, not the rate today. This also
+supplies the real acceptance criterion for drop-and-rebuild: a fixture with historical
+rates must reproduce historical numbers exactly. A rebuild tested only against today's
+rates does not test the property B3.2 promises.
+
+**Which values are materialized is a measurement question**, and D9's apparatus — which
+would answer it — was never built. Two caching-adjacent ADRs were already decided on a
+felt symptom for that reason. A B3.2 ADR without a falsifiable trigger produces the
+same situation a third time.
+
+**2. No structural home for the knowledge objects — and the four-gate split
+decomposes by data model where it should decompose by job.**
+
+The job that broke is "I read a fact and know whether it still holds"; the four
+properties that make a fact hold — identity, provenance, as-of, history — are stated
+identically for all four objects. That is one structural decision plus four cheap
+instances, not four decisions.
+
+**Proposed first cut: security events alone** — the only one of the four whose success
+is externally falsifiable without an opinion ("a purchase candidate with no holdings is
+monitored for upcoming dates exactly like a held position"), and the one carrying the
+hardest structural claim: it applies to **every security in the catalog, not only held
+positions**, and it is **distinct from corporate actions** (ADR-0028). If both
+boundaries survive implementation, the architecture has proven it can hold facts that
+do not hang off the ledger. Predictions come last: their success criterion needs ten
+resolved predictions and is measurable only months after the merge.
+
+**Constraint on the first cut:** it must not ship "fast, without the frame". An object
+landing without provenance and history does not prove the thesis — it creates a fifth
+place where facts rot.
+
+**3. D2 is a rule without a gate, and it was specified against the wrong thing.**
+
+`engine_purity_test.exs` was never written; `Portfolixir.Clock.today/0` was introduced
+afterwards and reads the host's local calendar date — the exact impurity class D2
+governs, while D2's deny list names only `Date.utc_today`. The hole is the argument
+*for* a gate, not against it: a deny list forbids **names** and ages against every new
+source of non-determinism.
+
+But the deeper finding is that both sides of the original disagreement — "move the code
+into an engine namespace" versus "the contexts already suffice" — shared an unexamined
+premise: **that purity is enforced statically, over the location of code.** It is not a
+property of locations. Reproducibility under a named basis is a **behavioural property
+of a value**, and the architect's own strongest argument ("the rebuild test *is* the
+purity test") contradicts the statically-inspected namespace they proposed. That is why
+this sat unresolved for two months: the only proposal on the table required a migration
+with no story behind it, and the gate that needs no migration was never proposed.
+
+A second premise underneath: both treat "today" as one quantity. There are two time
+axes — `as_of` (the business day being valued) and **knowledge time** (when the answer
+was produced). The bug that forced `Clock.today/0` — an event dated today judged to lie
+in the future — is a bitemporality bug: "future" is a judgement relative to knowledge
+time, not to the valuation date. `Clock.today/0` felt both necessary and impure because
+it did knowledge-time work inside a valuation-time model.
+
+**Resolution — adopt the property, drop the migration:**
+
+1. Every analytic takes an explicit basis struct (`as_of`, `knowledge_date`,
+   `data_version`, series, window, reference, gap treatment) and **echoes it in the API
+   and MCP payload**. This is not a new rule: `AGENTS.md` already makes the computation
+   basis a review-blocking criterion on every ladder-(a)–(c) metric. A computation basis
+   *is* the enumeration of a function's inputs, so the project has already decided input
+   explicitness in prose; this is its mechanical enforcement — and the story behind it is
+   every metric story, past and future.
+2. **Gate 1 (behavioural, blocking):** a meta-test enumerates registered analytics and
+   asserts (a) complete basis in the payload, (b) reproducibility under two injected wall
+   clocks, (c) equality after drop-and-rebuild. B3.2's cache key is then immediately
+   writable: `(analytic_id, basis_hash, data_version)`.
+3. **Gate 2 (static, whitelist):** permitted calls inside registered analytics — applied
+   to the registration, not to a directory.
+4. `Clock.today/0` stays, is demoted and renamed (`Clock.knowledge_date/0`), is permitted
+   only in the shell and in validation, is forbidden inside registered analytics by the
+   whitelist, and supplies an explicit field of the basis.
+5. The `Engines.*` namespace drops from precondition to cleanup convention. **The 1:1
+   loader pairing is withdrawn outright:** three loaders sharing an FX and cut-off basis
+   would have to agree with each other, and duplicated query logic over Decimal money is
+   the precise error class `AGENTS.md` demands exact expectations against. Shared dataset
+   builders are explicitly allowed.
+
+Named cost of this resolution: existing analytics probably violate the computation-basis
+rule today, and retrofitting reproducibility tests for them is work without a feature.
+That is a finding, not a nice-to-have.
+
+**4. Write authorization: a decision is missing and was recorded as taken.**
+
+Not a document conflict to reconcile — this document wrote "decided" where "assumed"
+belonged. Aligning the two documents would be bureaucracy; the decision is the
+deliverable. The question underneath is a product question: **is there a write the agent
+should ask about before performing it?**
+
+Three findings reframe the options:
+
+- **The perimeter today is the network, not the token.** The web UI is deliberately
+  unauthenticated, so whoever reaches `/api/v1` also reaches the LiveViews and writes the
+  ledger with no token at all. Token scoping reduces reachable authority by zero — a lock
+  on one of two doors to the same room. An `:api_read`/`:api_write` split over a single
+  token is therefore not merely useless but harmful: a reviewer infers least privilege
+  from it. In an NFR-3 regime, a **false** mechanical signal is worse than a missing one.
+- **The journal actor is currently self-asserted.** With one shared token the actor is a
+  claim by the caller, so the audit trail — the product's core — is exactly as trustworthy
+  as the identity behind it. This is the one part that **cannot be retrofitted**: the
+  identity of every write already made is not recoverable later.
+- **The deadline is earlier than anyone said.** The ≤ 5-calls criterion will be met with
+  **composite endpoints** that read *and* write. Such an endpoint is no longer classifiable
+  at the router, by a test, or by a reviewer. The classification therefore has to exist
+  **before the efficiency work**, not before FR-43…FR-46.
+
+The general principle this yields: *the governing timepoint is the last one at which a
+control can still be introduced without migrating history or breaking contracts* — not the
+point of need, and not the point of cheapest construction. Controls that are
+information- or contract-shaped (stored identity, recorded history, wire contracts,
+endpoint shape) must precede their consumers; controls that are purely enforcement-shaped
+cost the same whenever they land and should wait.
+
+**Recommended resolution (owner confirmation required on one point — OQ-A4):**
+
+1. **No `:api_read`/`:api_write` pipelines.** D4 as recorded is superseded; the
+   contradictory "open" note is closed with it.
+2. **Write today's posture down as a decision**, with its threat model: one token, full
+   authority, because the real perimeter is the network plus a deliberately
+   unauthenticated UI.
+3. **Named principals instead of scopes.** Token configuration becomes a list of
+   `{name, token}` with exactly one entry today, and the journal actor is derived from the
+   *matching entry* rather than supplied by the caller. This makes the journal evidence
+   rather than testimony from that day forward, and it is the only irrecoverable part.
+4. **A route classification table** (`read | knowledge-write | ledger-write`) with a test
+   that fails on a new unclassified route — plus a test asserting that today every token
+   satisfies every class, so the reviewer-inference effect is technically impossible. The
+   classification is a **map, not a control**, and must be named as one.
+5. **Reshape the write surface instead of guarding it.** Ledger writes over API/MCP become
+   proposals (`machine_generated`, source link) with a separate confirm step; knowledge
+   objects write directly. The justification is the project's own house rule, and it
+   generalizes on the right axis: the ledger asserts **what happened in the world** and is
+   the source of every derived figure, so a wrong row silently corrupts everything
+   downstream; a knowledge object asserts **what the system currently thinks**, dated,
+   revisable, and carrying its own provenance. Batch confirmation keeps this at +2 calls
+   per run rather than per record.
+6. **Deadline for named principals:** the same or the next epic batch as the first
+   knowledge-object family, enforced as a close-out finding — the project's own two-way
+   coverage pattern.
+
+Recorded caveat: propose-then-confirm is not immune to the objection it answers. An
+unattended 03:00 run has no human, so "confirm" becomes an inbox — and an inbox is either
+left to rot (proposals expire, the agent retries, call count rises against the criterion)
+or rubber-stamped, at which point the confirmation is a control that looks like protection
+and is not. `AGENTS.md` permitting "a human **or an agent**" to confirm makes
+agent-confirms-agent a null control unless the confirming agent holds independent
+information; that is a latent gap in the house rule and should be closed with this
+decision.
+
+Reversal costs, which drive the recommendation: giving up the classification is trivial
+(remove enforcement, keep the map); giving up one-token-forever is expensive; giving up
+propose-then-confirm is *dangerous*, because agent runbooks that assume a confirm step
+write directly once it is removed. Under uncertainty, move in the direction with the
+cheapest reversal — structure without enforcement.
+
+#### Important Gaps
+
+5. **The delta tree retains `exports/portfolio_performance.ex`** for a feature dropped
+   2026-07-22, and the FR-29 apparatus built around it (fidelity spike, PP-parity harness,
+   "roundtrip is not CI-automatable") is void. ADR-0029 already depends structurally on the
+   rescope.
+6. **D9's apparatus was skipped and its trigger never fired.** Either it is genuinely
+   wanted — then it is unowned work — or the trigger model should be retired rather than
+   left standing as governance nobody uses. It is revived by exactly one thing: a named
+   rebuild-time budget for B3.2, because drop-and-rebuild is the emergency procedure and an
+   emergency procedure with unknown runtime is not one.
+7. **D10's failure contract is wrong as written** (`{:error, :no_convergence}` versus
+   ADR-0034's "n/a"), as is the implied placement.
+8. **P7's envelope is narrower than the identity gate now requires** — see Critical Gap 3,
+   resolution step 1.
+9. **FR-27 what-if is now ladder level (d)**, forbidden behind its own gate and revisited
+   after the policy-rules work (B3.6). P5's isolation invariants remain sound and should be
+   preserved for whenever the gate opens.
+
+#### Nice-to-Have Gaps
+
+10. The golden question set (D7) was never produced and is no longer the binding artifact.
+11. D5's contract fixtures remain the largest unguarded cross-language seam.
+
+### Repair Options
+
+The precedence rule this validation first proposed repairs *contradictions*. The document
+has three defect classes and only one is a contradiction:
+
+- **Superseded** (D1, D3, D10, partly D4): a later ADR decided otherwise. Precedence
+  repairs this cleanly.
+- **Never redeemed** (D2, D9): nothing was revised, nothing was built. There is no winning
+  ADR to point at, so precedence leaves the rule standing — and, worse, its own wording
+  ("the document stays authoritative for seams no ADR covers") *raises* the authority of an
+  unredeemed build order.
+- **Never addressed** (FR-37…FR-48, B3.2): precedence cannot speak about what is absent.
+
+| Option | What it does | Cost | Weighted score |
+|---|---|---|---|
+| **1 — Precedence rule alone** | states ADR-wins, registry-wins | ~1 hour | 2.75 |
+| **2 — Reduce to a seam contract** | precedence, plus delete superseded decisions to one-line pointers, plus move D2/D9 into the gate ADR that needs them | ~1 day | 3.35 |
+| **3 — Full architecture re-run** | rewrite sections 1–6 | days | 1.95 |
+| **4 — Mechanical repair first** | a test asserting every referenced path exists; structure section deleted rather than annotated until green | ~half a day | 4.20 |
+| **4 + 1 combined** | the test tilts the never-redeemed class, precedence covers the superseded class | ~half a day + 1 hour | **4.55** |
+
+Criteria and weights: agent-implementer misdirection 0.25, mechanical enforceability
+(NFR-3) 0.20, owner time and attention 0.15, twelve-month decay resistance 0.15,
+preservation of the still-load-bearing seams 0.10, connection to B3.2/FR-37…48 0.10,
+reversibility under a wrong assumption 0.05. Three analysts scored independently; four
+scoring disagreements were recorded and **none changes the ranking**. A sensitivity test
+granting the long-horizon analyst their maximum re-weighting still yields O4 3.80, O2 3.40,
+O1 2.45, O3 2.15. **No plausible weighting makes Option 3 win** — its problem is not price
+but decay resistance: it buys a half-life demonstrably measured at two months, at the
+highest price in the field.
+
+**Decision taken here: options 4 + 1, executed in this document as of 2026-08-12**, with
+option 2 deferred into the batch that opens gate B3.2 rather than paid for separately —
+because moving D2 and D9 into that ADR requires an owner sign-off that is due anyway when
+the gate opens, and buying it twice is waste. The path-existence test is named as follow-up
+work rather than written here; until it exists, the warning block on the structure section
+is the interim measure.
+
+**The two answers that made this decision available**, both verified rather than assumed:
+
+- **OQ-A1 — is this document loaded as agent context? No.** Nothing in `CLAUDE.md`,
+  `AGENTS.md` or `README.md` references it; the README points at the maintained
+  `docs/architecture.md`. It reaches an agent only when a human names it.
+- **OQ-A2 — does it still have a mandate for FR-37…FR-48? No.** `epics.md` is the registry
+  and the ADR chain is the decision authority. Its job is now the seam contract described in
+  the header block.
+
+Both answers being negative is precisely the case in which archival, not repair, is the
+economically correct action. It is **not** taken, for one reason: a handful of seams here —
+the P9/P10 call shapes, the anti-pattern table, D5's direction, D11's direction, P5's
+isolation invariants — exist in no other document, and archival would lose them with no
+recovery path. That is a deliberate exception to the analysis, recorded so it can be
+revisited: once those seams have ADRs of their own, this document should be archived rather
+than maintained.
+
+### What Sticks in This Repository (the most useful finding)
+
+The pattern of what survived two months and what did not is more valuable than any single
+gap, because it predicts which future rules will hold.
+
+**Survived and load-bearing:** `write_actor_test.exs` (empty, shrink-only grandfather list),
+`web_repo_boundary_test.exs`, `decimal_persistence_test.exs`, `projection_no_catch_all_test.exs`,
+`mcp_dependency_allowlist_test.exs`, the journal append-only tests that issue a real
+UPDATE/DELETE and assert the raise, and the closed-taxonomy discipline — the kind set
+absorbed `split` through exactly the extension protocol this document described.
+
+**Died:** the purity gate, contract fixtures, the exemplar-existence meta-test, the
+assertion-style whitelist, the measurement apparatus, and both meta-amendments.
+
+The dividing line is neither importance nor effort. **A rule sticks here when all three
+hold:** (i) it is expressible as a test today, without a structure having to exist first;
+(ii) it checks a property, not a list of names; (iii) ordinary agent work hits it constantly,
+so it proves itself continuously. It dies when it needs apparatus first, when it enumerates
+instead of characterizing, or when its only enforcement is that someone remembers.
+
+Applied to this document's own repair proposals, that rule predicted the ranking the weighted
+matrix produced independently — which is the strongest evidence available that the criterion
+is real.
+
+### Failure Paths (inversion, twelve-month horizon)
+
+| # | Path | Earliest observable symptom |
+|---|---|---|
+| **F1** | **Enumeration erosion — the gate stays green, the rule is dead.** Already occurred (`Clock.today/0`). Next candidates write themselves: an FX cache with a last-known fallback, `System.monotonic_time` in a window calculation, `Ecto.UUID.generate` in an idempotency chain | a new module wrapping a host resource, in a diff touching no file with `allowlist`/`denylist`/`purity` in its name |
+| **F2** | **Meta-debt moves into an ADR and never gets an issue.** Occurred twice already. The mechanism is batch economics: batches close issues by keyword, and an ADR without an issue never enters a batch. Meta-work loses structurally, not through negligence | an accepted ADR with no `sprint-status.yaml` entry and no open issue after two close-outs |
+| **F3** | **The document is never in an agent's context path** — confirmed today (OQ-A1) | zero hits for its filename or a `D`-number across the last twenty reviewer briefings, while ADR numbers appear in nearly all |
+| **F4** | **Growth-only until it falls below the attention threshold.** The precedence rule alone actively legitimizes not deleting | six months of `git log --numstat` on the file with no net-negative commit |
+| **F5** | **Golden masters without provenance ratify a convention forever.** FR-37…48 is exactly the work that copies its own output into the assertion, freezing an annualization convention or a drawdown sign | an assertion with more significant digits than any external source would yield, with no note on origin |
+| **F6** | **The derived layer opens a second write path beside the journal.** The first materialization table raises a question this document never answers: who is the actor of a cache refresh? Answered ad hoc, the grandfather list loses its meaning **without gaining an entry** | the first migration creating a computed-value table together with `insert_all`/`update_all`, with `write_actor_test.exs` unchanged |
+| **F7** | **Contract drift Elixir ↔ MCP, noticed by the agent rather than by CI** | a field name a controller test expects that appears nowhere in `mcp-server/` |
+| **F8** | **Amplifier: the only human channel is structure-blind.** NFR-3 means the owner checks behaviour against a briefing. Structural drift produces no signal there by construction | none — that is the point |
+
+**Most likely and most damaging: F1.** A missing gate costs protection; a **dead** gate
+costs protection *and* trustworthiness, and once a second one is found the question stops
+being "which gate is broken" and becomes "which gate can I still believe".
+
+**Cheapest early warning, and the recommended first follow-up:** give every enforcement test
+a **negative probe** — a synthetic violation fixture the same test must catch, failing if it
+does not. Roughly ten lines per gate, no new infrastructure, immediately applicable to all
+existing gates. It generalizes the one gate that demonstrably stayed sharp (the journal
+append-only test issues a real UPDATE and asserts the raise). The resulting count — *"gates
+with a negative probe: 3/9"* — belongs in every reviewer briefing from the next batch on,
+because a number falling from 9/9 to 8/9 is the only thing an owner who reads no code can
+see, and it reveals a dead gate before it has been lying green for two months.
+
+**Honest limit on all counter-measures:** no artifact in this repository is agent-safe,
+because the agent has write access everywhere and the owner reads no code. Hardening is
+therefore not impossibility but **visibility in the one channel that works** — the reviewer
+briefing. This is why Amendment 7's checkbox marker is replaced rather than built: an agent
+ticks a checkbox reliably. What it cannot do unnoticed is omit an automatically generated
+metric line, because its absence is itself the signal.
+
+### Gate Triage
+
+Principle: **a gate earns CI only when a breach is silent and expensive.** Loud and cheap
+belongs in review; everything else is ballast that eventually gets a gate switched off — and
+then all gates are negotiable.
+
+**Build:** the analytics reproducibility gate and its whitelist (Critical Gap 3); contract-fixture
+freshness (D5) — the MCP companion is a second consumer of an independently moving producer,
+and the only person who would notice a field-name drift does not read code, so discovery
+latency today runs until the agent is wrong in live operation. No contract broker: one
+producer and one consumer in one repository do not need one, and inventing a format is
+precisely why the fixtures never got built. Elixir API tests write their response bodies to a
+directory; `npm test` reads those files. It lands in the same batch as the next API change.
+
+**Bury honestly:** the exemplar-existence meta-test (documentation hygiene dressed as a gate —
+a missing exemplar causes a search, not silent corruption; the path-existence test replaces it
+at lower cost); the P11 assertion-style whitelist (second-order, and doubly covered by the
+adversarial review); D9 as general performance testing (revived only by B3.2's rebuild budget).
+
+**Replace Amendment 7 (right worry, wrong mechanism):** enforcement artifacts are a named file
+set, and any diff touching one produces a visible, automatically generated line in the reviewer
+briefing. Plus **one** CI-blocking rule: **a grandfather or allowlist may never grow, only
+shrink** — overridable only by a deliberate owner decision in an ADR. That encodes the property
+the repository is currently proud of, instead of hoping it holds. Pride is not a control.
+
+### Invariant Suite Required Before the B3.2 ADR Is Signed Off
+
+The defining property of the derived layer is an equation, and equations are tested as
+invariants, not as examples.
+
+| # | Invariant |
+|---|---|
+| I1 | **Rebuild equivalence** — `derived == rebuild_from_scratch(transactions)` for any ledger state. Property-based, exact `Decimal` equality, no tolerance |
+| I2 | **Incremental ≡ full** — `apply_incremental(D, tx) == rebuild(transactions ++ [tx])`. Where such layers die in practice: divergence after a correcting booking, a backdated transaction, a deletion |
+| I3 | **Backdating** — a transaction dated before the last materialized point invalidates everything downstream. Its own property; a generator otherwise rolls backdated inserts too rarely |
+| I4 | **Freshness honesty is structural** — the read returns `{:fresh, v}` or `{:stale, v, as_of}`; no path may claim freshness without checking the version counter, and a meta-test asserts no API or MCP serialization drops the field. The agent cannot look at a warning triangle |
+| I5 | **Version-counter monotonicity and non-bypassability** — every write path bumps it. Same gate type as `write_actor_test.exs` |
+| I6 | **Drop-and-rebuild is a tested operation** — the test actually drops and rebuilds, against a fixture carrying historical rates. No mock |
+| I7 | **The derived layer is never a write source** — no write path reads from it. Same construction as `web_repo_boundary_test.exs` |
+
+**Four sign-off conditions:** (1) the rebuild-equivalence property is written before the layer
+exists — red first; if nobody can write the equation, the semantics are undecided; (2) a named
+rebuild time budget; (3) an explicit answer to what happens on a schema or formula change
+deploy, since the version counter covers data and not code — a computation version in the key,
+or a reasoned rejection; (4) golden masters against an independent source, because a layer whose
+purpose is conserving numbers must not ratify its first implementation. Add (5) from F6: decide
+the actor of a materialization write, and if it is not journaled, `write_actor_test` must know
+that table class **explicitly** — implicit non-coverage is the failure case.
+
+### Validation Issues Addressed
+
+- **Whether the journal rollout blocks the knowledge objects** — asserted in the brief's
+  addendum, **verified false** against ADR-0017's "Rollout complete" section, the empty
+  grandfather list, `Journal.record/3` calls in `portfolios.ex` / `classifications.ex` /
+  `ledger.ex` / `imports/applier.ex`, and shipped MCP create/update/delete tools. FX is unarmed
+  **deliberately** — market-data ingestion is allowlisted, never journaled. Recorded so the claim
+  is not re-derived a third time.
+- **Whether a re-validation can repair this document** — it cannot on its own. Sections 1–6
+  analyze a superseded corpus. The repair actually applied is the header block, the decision
+  status table, and the structure warning; the rest is follow-up work named below.
+- **Why both open disagreements were still open after two months** — both decisions were written
+  as **artifacts rather than invariants** (a namespace, two pipelines), with no gate, no trigger
+  and no deadline. In a project whose own NFR-3 says mechanical enforcement is load-bearing
+  because the owner reads no code, a decision recorded only in prose is a decision not taken.
+  Artifacts produce taste debates that cannot be falsified ("do we need this directory?");
+  invariants produce tests that pass or fail ("can two identical calls return different
+  numbers?"). **Proposed standing rule: an ADR whose acceptance criteria cannot be written as an
+  initially failing test is not accepted, or must state explicitly why not — and every decision
+  gate names its invariant, its gate, and its deadline.**
+
+### Architecture Completeness Checklist (2026-08-12)
+
+**Requirements Analysis**
+
+- [ ] Project context thoroughly analyzed — against the 2026-06-12 corpus; the identity gate is not reflected
+- [x] Scale and complexity assessed — single node, single operator, medium domain complexity: unchanged and still correct
+- [ ] Technical constraints identified — see Baseline Corrections
+- [ ] Cross-cutting concerns mapped — derived-layer freshness, the computation-basis mandate and knowledge-object provenance are unmapped
+
+**Architectural Decisions**
+
+- [ ] Critical decisions documented with versions — the document pins LiveView 0.20.x, violating its own "version truth lives in lockfiles" rule
+- [ ] Technology stack fully specified — same defect
+- [ ] Integration patterns defined — P7's envelope is narrower than the mandated computation basis
+- [ ] Performance considerations addressed — D9's apparatus was never built; ADR-0032/0035 govern instead
+
+**Implementation Patterns**
+
+- [x] Naming conventions established
+- [x] Structure patterns defined
+- [ ] Communication patterns specified — pending the write-authorization decision
+- [x] Process patterns documented — P9/P10/P11 call shapes remain sound
+
+**Project Structure**
+
+- [ ] Complete directory structure defined — see the warning block on that section
+- [x] Component boundaries established — and strengthened: `web_repo_boundary_test.exs` shipped
+- [ ] Integration points mapped
+- [ ] Requirements to structure mapping complete — FR-30…FR-48 unmapped
+
+### Architecture Readiness Assessment (2026-08-12)
+
+**Overall Status:** NOT READY — as an architecture document. **READY** as the seam contract
+described in the header block, which is the role it is hereby reduced to.
+
+This is not a verdict on the design. D1's journal, the closed-taxonomy discipline and the gate
+philosophy went into the product and held. The verdict is about this document's fitness to guide
+implementation of the **current** requirement set: four Critical Gaps are open and eight of
+sixteen checklist items fail, including items in Requirements Analysis and Architectural
+Decisions.
+
+**Confidence Level:** High. Every claim is backed by a named ADR, a PRD line, or a verified path
+in the repository; the findings were reviewed by four independent roles and stress-tested by five
+elicitation passes, and the two substantive disagreements were resolved by locating a shared
+premise rather than by picking a side.
+
+**Key Strengths (what survived contact with two months of implementation):** see "What Sticks in
+This Repository". In short: fail-closed mechanical enforcement was the right bet, D1 shipped as
+specified including its riskiest meta-test, closed taxonomies held everywhere they were applied,
+and the honest naming of unverifiable claims aged well.
+
+**Areas for Future Enhancement:** the gate B3.2 derived-value ADR is the next architectural
+decision of consequence and must argue against ADR-0035 rather than around it; knowledge objects
+need one structural boundary decision before their first story; the write-authorization decision
+needs one owner sentence.
+
+### Follow-Up Work (not done in this pass, deliberately)
+
+| # | Item | Why it is not done here |
+|---|---|---|
+| FU-1 | Path-existence meta-test over every structural claim in this document | Code, needs TDD and the gates; the structure warning block is the interim measure |
+| FU-2 | Negative probe per enforcement gate, plus the `n/m` count in the reviewer briefing | Code and a process change; the cheapest defence against F1 and the highest-value follow-up on this list |
+| FU-3 | `gates.yaml` inventory (`id`, `status`, `test_path`, `owning_adr`) with a test that every `enforced` entry has an existing `test_path` | Defence against F2 — the failure mode that already occurred twice |
+| FU-4 | Contract fixtures: Elixir API tests write response bodies, `mcp-server` tests read them | Belongs in the same batch as the next API change, per its own argument |
+| FU-5 | Gate B3.2 derived-value ADR, carrying I1–I7 and the five sign-off conditions | Owner decision gate |
+| FU-6 | Write-authorization ADR superseding D4 and OD-4: named principals, route classification as a map, propose-then-confirm for ledger writes | Owner decision gate — blocked only on OQ-A4 |
+| FU-7 | Knowledge-object structural decision, security events as the first falsifiable cut | Owner decision gate |
+
+### Open Question Remaining for the Owner
+
+| # | Question | Status |
+|---|---|---|
+| OQ-A1 | Is this document loaded as agent context? | **Answered from the repository: no.** Nothing in `CLAUDE.md`, `AGENTS.md` or `README.md` references it |
+| OQ-A2 | Does it still have a mandate for FR-37…FR-48? | **Answered: no.** `epics.md` is the registry; the ADR chain is the decision authority |
+| OQ-A3 | Is B3.2 read speed only, or must it conserve historical values? | **Answered: read speed only.** The conservation requirement is an input-capture problem and moves upstream — see Critical Gap 1 |
+| **OQ-A4** | **May the agent create ledger transactions autonomously — yes, no, or only certain kinds?** | **OPEN — the one question this validation cannot answer for you.** The recommended default, recorded above and implementable without further discussion: **no for ledger writes** (propose-then-confirm, batch-confirmable), **yes for knowledge objects** (direct). A useful test of your own answer: *if the agent accidentally created thirty transactions tomorrow, would you notice, and how fast?* If the answer is "immediately, I see it in the UI", the recommended default is over-engineering and one token with full authority, honestly written down, is correct |
+
+### Implementation Handoff (revised 2026-08-12)
+
+**Precedence, so an implementing agent is not misled by the sections above:**
+
+1. `AGENTS.md` and `CLAUDE.md` bind unconditionally.
+2. The ADR corpus (0001–0038) is the authority on every decision it covers; where an ADR and this
+   document disagree, **the ADR wins** — D1 → ADR-0017, D3 → ADR-0016, D10 → ADR-0034, caching →
+   ADR-0032/0035, grouping → ADR-0018/0024, kinds → ADR-0028.
+3. `epics.md` is the live requirement registry; the founding PRD wins on intent, scope boundaries
+   and requirement wording.
+4. This document is authoritative only for the seams listed in the header block — and only for
+   those marked **enforced** or **decided, not enforced** in the Decision Status table. Anything
+   marked **proposed** is not citable in review.
+
+**First priority:** not an implementation story. FU-5 and FU-6 are the two open decisions that
+change what any subsequent architecture says; FU-2 is the cheapest work with the highest
+protective value and needs no decision at all.
