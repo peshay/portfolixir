@@ -2,27 +2,57 @@
 title: Portfolixir PRD
 status: superseded-in-part
 created: 2026-06-12
-updated: 2026-07-25
+updated: 2026-08-12
 ---
 
 # Portfolixir PRD
 
-> **Status note (2026-07-25).** This document records the founding product
+> **Status note (2026-08-12).** This document records the founding product
 > intent and the requirement set as it stood on 2026-06-12, corrected for
 > decisions taken since. It is **no longer the live requirement registry** —
 > `_bmad-output/planning-artifacts/epics.md` is, and it carries FR-30 and
 > beyond. Read this PRD for intent, scope boundaries and non-functional
-> requirements; read `epics.md` for what is currently committed. Where the two
-> disagree, `epics.md` wins.
+> requirements; read `epics.md` for what is currently committed.
+>
+> **Precedence, qualified 2026-08-12.** The old rule was "where the two
+> disagree, `epics.md` wins". That is right about *what is committed* and wrong
+> as a blanket instruction, because `epics.md`'s Requirements Inventory still
+> carries a pre-2026-07-25 copy of FR-1..FR-29 — its FR-4 describes portfolios
+> as partitioning the wealth space, which ADR-0024 superseded. So: **`epics.md`
+> wins on commitment — issue mapping, status, what is in flight. This PRD wins
+> on intent, scope boundaries and requirement wording.** Where an FR's *text*
+> differs between the two, the more recent dated revision wins and the older
+> copy is the defect. Reconciling that inventory is a tracked follow-up, not a
+> licence to pick whichever version suits.
+>
+> **What changed on 2026-08-12 (identity gate B3.1).** The product brief of
+> 2026-08-12, accepted by the merge of #663, settles who Portfolixir is for and
+> how far its scope reaches. Sections 1, 2 and 4 are rewritten from it, FR-1 is
+> reworded, and the section C scope gate is partly lifted. The requirement
+> *families* the brief opens are described in section 5H; their numbered
+> requirements (FR-37 and beyond) live in `epics.md` per the registry rule
+> above — the brief's addendum proposed carrying them here, and the owner
+> decided against duplicating registry authority.
 
 ## 1. Vision
 
-**Portfolixir is the self-hosted wealth data backbone for an LLM agent — and
-the human behind it.** It keeps every financial instrument complete,
+**Portfolixir is a self-hosted portfolio system with two first-class users: the
+operator, and the LLM agent the operator runs.** Everything it knows is
+reachable through a local JSON API and an MCP companion, and everything it
+knows is also visible on a screen. One dataset, one instance, one operator — no
+cloud, no tenancy, no broker. It keeps every financial instrument complete,
 consistent, and auditable in one place, and serves **precomputed,
-decision-ready analytics** so that an external LLM agent (any MCP
-client) can manage and advise on the portfolio without doing its own
-arithmetic.
+decision-ready analytics** so that an external agent (any MCP client) can
+manage and advise on the portfolio without doing its own arithmetic.
+
+It exists because portfolio facts that live *next to* a system rot. Dates,
+theses, target weights and tax state kept in local files and in the text of
+scheduled prompts drift from reality, and a stale fact and a current one look
+identical there — only a contradiction downstream reveals which was which.
+Every such failure has the same shape: **the fact had no home with an
+identity.** The answer is not another report screen. It is to give every fact a
+home that states its own age, and to expose every capability to the agent
+first, with the human view following close behind.
 
 The founding question the product must always answer:
 
@@ -46,6 +76,28 @@ Portfolixir — to read precomputed analytics and to maintain data. Intelligence
 stays external and replaceable; the product is data plus deterministic
 computation.
 
+**The horizon (from the 2026-08-12 brief).** In two to three years Portfolixir
+is the single home for every fact about one operator's holdings — the records,
+the rules that govern them, the theses behind them, the dates that affect them,
+the predictions made about them — each with an identity, a source and an age.
+It does not become a wealth platform, a broker, or an advisor. It becomes the
+place where a person and their agent look at the same truth and disagree about
+what to do next, which is the only interesting kind of disagreement.
+
+**Second cornerstone, added 2026-08-12: derived values are durable, and they
+state their own age.** The rule that made the app trustworthy — nothing derived
+is ever stored, everything is recomputed from the ledger — was implemented as
+*nothing derived may ever be kept*. That is stricter than auditability
+requires, and it is the shared cause of two symptoms: the operator waits while
+a page computes what it computed last time, and the agent burns a context
+window reconstructing figures the server could have handed over finished. The
+correction is a continuously maintained derived layer that is rebuildable from
+transactions at any time, invalidated by the writes that affect it, never
+authoritative for a write, and never silent about its freshness. What makes the
+numbers trustworthy is that they can be reproduced from the ledger — not that
+they were thrown away. The layer's mechanics are gate B3.2's ADR; FR-1 states
+the requirement.
+
 ### Positioning (maintainer's landscape scan, 2026-06)
 
 As of June 2026, **no comparable tool is known to the maintainer** that
@@ -55,7 +107,22 @@ product ships this as its core contract), German retirement modeling, and
 what-if/backtest scenarios. This is a scan, not systematic research — no tool
 list, search scope or method was recorded — so it is not load-bearing evidence
 for the Phase 4 and Phase 5 investment. Treat it as a prior to be checked
-before those phases start.
+before those phases start. *Note 2026-08-12:* one of those four differentiators
+— what-if/backtest scenarios — is now ladder level (d) and gated, so the list
+describes an ambition rather than a current position.
+
+**Sharpened 2026-08-12, measured against the tools this actually competes
+with.** *Portfolio Performance* is better at visualization today, and that gap
+will not close quickly — it is a desktop application whose data lives in a
+file, and it was never built to be an agent's working surface. *Cloud trackers*
+have the polish and the API; the data is theirs. *Spreadsheets and local
+scripts* are infinitely flexible and have no identity model, which is exactly
+the failure this project was started to fix. The real advantage is structural:
+**agent-native from the data model up**, combined with **self-hosted
+single-operator simplicity** — one instance, one dataset, no cluster to keep
+coherent and no tenants to isolate, which is precisely why it can afford to
+compute continuously in the background. Larger systems cannot spend compute
+that casually. This one can.
 
 Two readings of the German-retirement gap, and the PRD holds both: it may be
 an **opportunity** (nobody covers it), or a **cost signal** (nobody covers it
@@ -78,8 +145,11 @@ Decimal-exact money math, invariant meta-tests, CI gates, reviewed
 architecture decisions. It is explicitly **not a claim of production
 readiness**, which AGENTS.md forbids making. An instance today has an
 unauthenticated web UI (NFR-4, OQ-8) and no release, versioning or upgrade
-story (OQ-10); the "future self-hosters" persona stays dormant until those
-exist.
+story (OQ-10). *Revised 2026-08-12:* the identity gate settled that
+self-hosting by others is the deployment model rather than a dormant persona
+(section 2), so the caveat can no longer be discharged by deferring the
+audience — what an outside adopter gets today is a tool for a trusted network,
+and OQ-8 and OQ-10 stay open in front of anything more.
 
 Development is almost entirely AI-agentic and the owner does not read code —
 **mechanical guards (gates, invariant tests, scope locks) are load-bearing
@@ -87,20 +157,42 @@ product requirements, not process garnish.** NFR-9 states what that obliges.
 
 ## 2. Users
 
-- **The operator-investor (Andi).** Self-hosts the app; invests with a
+Two first-class users, listed in the order a capability reaches them. That
+order is a build sequence, not a ranking of whose needs matter — see the
+agent-first rule in section 4.
+
+- **The operator's LLM agent — primary consumer.** An external agent (any MCP
+  client) connected over MCP. Reads analytics, maintains records, answers the
+  operator's questions. Its needs drive API/MCP design: decision-ready answers
+  rather than raw material, stable identifiers, provenance and freshness on
+  every fact, cheap deltas, and metrics computed once on the server instead of
+  reconstructed from raw series inside a context window.
+- **The operator — the one who decides.** Self-hosts the app; invests with a
   deliberate **maximum risk performance** strategy (stocks and Bitcoin) over a
   long horizon and plans retirement under German pension rules. Runs more than
   one scope in the same instance, separated by views rather than by separate
-  installations (ADR-0024).
-- **The LLM agent (first-class user).** An external agent (any MCP client)
-  connected via MCP. Reads analytics, maintains records, answers the
-  operator's questions. Its needs drive API/MCP design: precomputed values,
-  self-describing responses, no forced client-side math.
-- **Future self-hosters (quality bar, not a commitment).** Each runs their own
-  instance; single-user tenancy per instance. Dormant until OQ-8 and OQ-10 are
-  answered.
+  installations (ADR-0024). Needs to keep the overview, see what is happening
+  in the depot, understand what the agent based a recommendation on, and trust
+  a figure without checking it elsewhere. **Every action stays theirs to
+  take** — the system prepares decisions and never executes them.
+- **Everyone else who self-hosts it — the deployment model, not a growth
+  target.** Portfolixir is open source; anyone can run their own instance with
+  their own data and their own model. This is no longer a dormant persona, but
+  it carries a standing caveat rather than a commitment: the web UI is
+  unauthenticated by design (NFR-4, OQ-8) and there is no upgrade guarantee
+  (OQ-10), so what a stranger adopts today is a tool for a trusted network.
 
 ## 3. User Journeys
+
+> **Not carried forward on 2026-08-12, deliberately.** The identity gate adds
+> journeys that plainly want telling — reviewing a thesis that has gone stale,
+> reading a calibration report that says the agent's last ten calls were worse
+> than a coin flip, being warned about an event date on a security not yet
+> owned. None is written here, because journeys in this PRD are **captured from
+> the operator, not authored by the PM** — inventing them would produce
+> plausible fiction that later reads as a requirement. They belong in the next
+> session that has the operator in it. UJ-1 and UJ-3 already describe the
+> agent-mediated shape and remain accurate.
 
 **UJ-1 — Morning briefing (agent journey).** Andi asks his MCP agent: "How is
 the depot doing, and where should the new cash go?" The agent calls MCP tools
@@ -147,12 +239,119 @@ record (ADR-0024). One instance, one operator, several scopes.
 ## 4. Scope and Phasing
 
 Phases are sequential priorities. Most are soft — work can start when capacity
-allows. **Three are hard gates and cannot be entered without their ADR:**
-Phase 3 (sync), FR-5's XML intake, and FR-12's rebalancing guidance (the last
-of which has since been opened by ADR-0023). A gate blocks *building*, not
-*wanting*; XML additionally carries no priority right now, so its gate is
-dormant. Delivery unit is the **epic batch** per ADR-0026, not story-sized
-increments; the roadmap issue (#321) predates that decision.
+allows. A gate blocks *building*, not *wanting*. Delivery unit is the **epic
+batch** per ADR-0026, not story-sized increments; the roadmap issue (#321)
+predates that decision.
+
+**The hard gates, re-enumerated 2026-08-12** — the old list named three and had
+been overtaken twice, so it is restated here as the single place to read it:
+
+| Gate | Status |
+|---|---|
+| Phase 3 read-only sync (FR-17–FR-21) | open; needs its ADR + amendment, NFR-9's backstop, and OQ-8 answered |
+| FR-5 PP XML intake | open but **dormant** — parked for lack of priority (2026-07-25), so nothing is blocked |
+| FR-12 rebalancing guidance | **closed** by ADR-0023 (2026-07-03); display-only hints are permitted |
+| Blanket "advanced reports" analytics gate | **retired** 2026-08-12, replaced by the scope ladder below |
+| Ladder level (d), rule backtesting (FR-27) | open; revisit after the policy-rules work (B3.6) |
+| Data acquisition beyond quotes and FX | open (B3.3) |
+| Push delivery to external endpoints | open (B3.7) |
+| A local model beyond ADR-0021's PDF intake | open (B3.8) |
+
+### Scope ladder (2026-08-12, identity gate B3.1)
+
+The blanket rule *"do not add advanced reports or advanced classifications"* is
+withdrawn **for its analytics half only** and replaced by a bounded ladder. It
+was a boundary drawn when nobody knew where the line was; the ladder is the
+line. **Advanced *classifications* remain out of scope** — `CONTRIBUTING.md`
+defines those as splitting one security across categories with partial weights,
+which is a data-model change, not a report, and no accepted decision opened it.
+
+- **(a) Derived metrics — in scope.** Per security: moving averages, realized
+  volatility, drawdown, momentum, distance to extremes. Per portfolio or view:
+  volatility, risk-adjusted return, maximum drawdown with its window,
+  correlation among the largest positions.
+- **(b) Comparison and decomposition — in scope.** Benchmark comparison
+  (already carried by FR-9), contribution analysis — which position produced
+  how much of the return — and factor, sector and region exposure. **Boundary
+  against the classification rule above:** exposure decomposition *reports* a
+  breakdown from data the catalog already holds; it must not introduce stored
+  partial-weight assignments of one security to several categories. If a
+  decomposition can only be computed by adding such weights, it is an advanced
+  classification wearing a report's clothes and needs its own decision.
+- **(c) Evaluation of decisions — in scope.** Prediction calibration, rule
+  evaluation, signal quality. Depends on the knowledge objects of section 5H
+  existing first.
+- **(d) Backtesting rules against stored price history — out for now**, behind
+  its own decision gate. A rule test-bench without rule objects is premature;
+  revisit after the policy-rules work (gate B3.6).
+
+**Where (c) ends and (d) begins**, because the two are easy to confuse and one
+of them is forbidden: **(c) scores what actually happened** — a prediction that
+was recorded before its outcome was known, a rule that was in force while the
+portfolio moved. It reads the record. **(d) simulates what would have
+happened** — replaying a rule or a trade against price history it never ran
+against. It manufactures a counterfactual. The test is whether the thing being
+evaluated existed, with an as-of, before the period it is judged over. If a
+proposed analytic needs to invent a history in which the rule was already
+there, it is level (d).
+
+**Quality bar for every metric in (a)–(c):** it ships with its computation
+basis stated in the API and MCP payload — input series, window, reference
+series or benchmark where one exists, and the treatment of gaps. This is a
+review gate, not a documentation chore: a metric whose basis is unstated cannot
+be reviewed, because there is nothing to check the implementation against. *A
+metric without a definition is an opinion with decimal places.*
+
+**Gated, not in:** ladder level (d); data acquisition beyond quotes and FX
+(gate B3.3); push delivery to external endpoints (gate B3.7); a local model
+beyond the already-gated ADR-0021 PDF-intake path (gate B3.8).
+
+### Permanent non-goals — identity, not backlog
+
+These are not "later". They are what the product is not, and no capacity
+argument reopens them: **no order-placing broker connection, no order creation
+or transmission, no automated trading or payment, no advice, no raw news
+archive, no external LLM calls from the app.** The system prepares decisions;
+the operator executes them.
+
+*Precision on the first item, decided 2026-08-12 during this update.* The brief
+wrote "no broker connection" flat, which read as a ban on Phase 3's read-only
+sync — an operator-stated must-have that this PRD has carried since 2026-06-12
+behind a hard gate. The two cannot both be true, and NFR-9 wants this list
+mechanically enforceable, so the ambiguity is not survivable. The permanent ban
+is on a connection that can **act**: place, modify or transmit an order, or
+move money. **Read-only data acquisition from a broker or bank stays permitted
+in principle and gated in practice** (Phase 3, section E, OQ-1b/OQ-8) — it
+acquires facts, and acquiring a fact is not an action on the market. This is a
+precision of the brief's wording, not a relaxation of it: nothing that was
+forbidden before this sentence is permitted after it.
+
+*On "no advice".* This does not retract ADR-0023's display-only rebalancing
+hints. Showing an indicative corrective quantity next to a drift figure is
+arithmetic the operator could do by hand; advice is telling someone what they
+should do with their money. The line stays where ADR-0023 drew it.
+
+Multi-tenancy is a weaker case and is recorded honestly as such: **declined for
+this horizon, not forbidden forever.** Buckets and views already scope holdings
+within one instance and single-operator is stated as identity, so it is off the
+table — but the owner declined it rather than banning it, and a future reversal
+would start from the wealth-vision parking-lot issue (#340), not from here.
+
+### Two working rules the ladder brings with it
+
+1. **The agent goes first, with a deadline.** A capability may ship for the
+   agent alone — over API and MCP, with no human view — provided the PR says
+   why. The human view then lands in the same or the next epic batch, and its
+   absence after that is a close-out finding. Without the deadline this rule
+   quietly degrades into "agent only, forever", which would hollow out the
+   operator half of the identity above. **The operator sees what the agent
+   sees** — the same values, presented for a human, never a parallel truth
+   computed by a second pipeline. Two pipelines over one dataset is how a
+   system starts disagreeing with itself.
+2. **Coverage is symmetric.** Today's rule runs one way: every user-visible
+   function needs API and MCP coverage. It now runs both ways — either
+   direction may lead, neither may be silently skipped. The `AGENTS.md`
+   amendment carries the binding wording.
 
 **Phase 1 — Correctness & data completeness (now).**
 Invariant hardening (#343 currency consistency, #344 rounding ADR, #346–#348
@@ -191,9 +390,10 @@ Bonds with native semantics (#330), corporate actions (#338), German pension
 modeling: gesetzliche Rentenpunkte, private policies with payout options
 (lump-sum vs. monthly, age brackets), insurance as wealth components. Each
 modeling FR here is preceded by its own discovery story that fixes acceptance
-criteria before implementation. **Scope note:** FR-26/FR-27 and the analytics
-in FR-9/FR-10 sit against the AGENTS.md hard rule "do not add advanced
-reports" — see the gate annotation on those FRs.
+criteria before implementation. **Scope note, revised 2026-08-12:** FR-9 and
+FR-10 no longer sit against a hard rule — the scope ladder released them.
+FR-27 moved under the level-(d) gate and FR-26 falls outside the ladder
+entirely (OQ-13). See the gate annotation on section C.
 
 **Phase 5 — Planning & simulation.**
 Early-retirement projection (wealth-at-age, sustainable withdrawal),
@@ -216,14 +416,36 @@ without consuming new global ids.
 
 **Registry authority:** the live FR registry is
 `_bmad-output/planning-artifacts/epics.md`, which holds FR-30 and beyond and
-maps every FR to its issue. This section is the founding set as corrected on
-2026-07-25. New requirements go to `epics.md`, not here.
+maps every FR to its issue. Sections A–G are the founding set as corrected on
+2026-07-25. New requirements go to `epics.md`, not here — **section H is the
+one deliberate exception in form, not in authority**: it describes the
+requirement families the 2026-08-12 identity gate opened, and their numbered
+requirements (FR-37 and beyond) still live in `epics.md`.
 
 ### A. Ledger & data integrity
 
 - **FR-1** All financial state derives from the transaction ledger (13 PP
   kinds + balance adjustment + split); holdings, balances, and performance are
-  projections, never stored facts.
+  projections of it. **Reworded 2026-08-12 (identity gate B3.1).** This
+  requirement previously ended "never stored facts", which forbade keeping a
+  derived value at all. The guarantee ADR-0004 protects is *reproducibility*,
+  not *absence*: a derived value may be materialized and kept as long as it
+  remains a materialization of the single truth rather than a second copy that
+  could disagree with it. Four properties make that hold, and they bind every
+  materialized value:
+  - **rebuildable** from transactions alone, with drop-and-rebuild a supported
+    and tested operation;
+  - **versioned** against the existing data-version counter, so staleness is
+    detectable rather than merely suspected;
+  - **never silent about freshness** — `as_of` plus an explicit stale marker,
+    in the UI *and* in the API/MCP payload;
+  - **never authoritative for a write** — no booking, import decision or
+    consistency finding may read the derived layer instead of the ledger.
+
+  Which values are materialized is decided by the derived-value ADR (gate
+  B3.2), which must supersede or amend ADR-0032 (today's memo is deliberately
+  volatile) and argue explicitly against ADR-0035, which chose to *remove*
+  redundant computation rather than cache it. "Everything" is not an answer.
 - **FR-2** The system rejects inconsistent records: currency mismatches
   (#343), invalid kinds, signed amounts where magnitudes are required.
 - **FR-3** A written rounding policy governs every Decimal operation (#344);
@@ -274,11 +496,23 @@ maps every FR to its issue. This section is the founding set as corrected on
 
 ### C. Analytics engine
 
-> **Scope gate for FR-9, FR-10, FR-26, FR-27.** AGENTS.md's hard rule "do not
-> add advanced reports or advanced classifications" stands unamended, and
-> these four requirements are not plausibly anything else. They require the
-> same ADR + AGENTS.md amendment as the other gated items; OQ-1c carries the
-> wording. No implementation before it lands.
+> **Scope gate, resolved in part on 2026-08-12.** This gate held FR-9, FR-10,
+> FR-26 and FR-27 behind the advanced-reports amendment that OQ-1c was waiting
+> for. The section 4 scope ladder **is** that amendment, so the gate resolves —
+> but not uniformly, and the difference matters:
+>
+> - **FR-9 and FR-10 are released.** Benchmark comparison is ladder level (b);
+>   income analytics is ordinary reporting the ladder no longer forbids. Both
+>   inherit the metric-basis quality bar.
+> - **FR-27 stays gated.** Blind-follow backtesting is literally ladder level
+>   (d), which the owner put out of scope for now. Its gate is no longer the
+>   advanced-reports rule but the level-(d) decision gate, and it reopens after
+>   the policy-rules work (gate B3.6). OQ-11 (quote acquisition for never-held
+>   securities) remains an independent blocker underneath it.
+> - **FR-26 is neither released nor gated, and that is a gap.** Retirement
+>   projection appears nowhere in the ladder — it is not a report about the
+>   past but a projection of the future, which the ladder never contemplated.
+>   Recorded as OQ-13 rather than decided here.
 
 - **FR-8** Performance: TTWROR (shipped) and IRR/money-weighted (#316) per
   view, depot, and security, over selectable periods.
@@ -393,7 +627,7 @@ maps every FR to its issue. This section is the founding set as corrected on
   withdrawal. Same v1 assumption block and parameter-table discipline as
   FR-24.
 
-### G. Planning & simulation (Phase 5 — under the section C scope gate)
+### G. Planning & simulation (Phase 5 — gating revised 2026-08-12)
 
 - **FR-26** Retirement projection: wealth-at-age and sustainable-withdrawal
   curves from current holdings, savings rate, and pension components under
@@ -406,6 +640,89 @@ maps every FR to its issue. This section is the founding set as corrected on
   Historical quotes for **never-held** securities are an unfunded acquisition
   dependency (OQ-11).
 
+### H. Agent-native capabilities (added 2026-08-12, identity gate B3.1)
+
+The scope ladder and the knowledge-object decisions open five requirement
+families. **This section describes the families and their boundaries; the
+numbered requirements (FR-37 and beyond) live in `epics.md`**, which is the
+registry — the owner decided against writing them in two places, because copies
+drift and the registry rule already said where they belong.
+
+- **H1 — Read ergonomics.** Per-endpoint field selection and projections,
+  roll-up-only aggregates that omit positions, server-side threshold filters so
+  the caller receives the deviating rows rather than all of them, and `?since=`
+  delta reads. The cheapest work in the programme and the one the agent-side
+  success metrics attach to directly. **Constraint that is part of the
+  requirement, not an implementation note:** field selection is a validated
+  per-endpoint whitelist — never a passthrough to a query builder, and never an
+  atom created from input. This generalizes FR-33, whose scope lock deliberately
+  confined slim projections to `securities_list`; that lock is now superseded
+  for this family and only for it. Tracked as #665 and #666.
+- **H2 — Derived metrics** (ladder level (a)). Per security and per view. The
+  existing risk and concentration endpoint is the shape to extend, not a thing
+  to replace.
+- **H3 — Comparison and decomposition** (ladder level (b)). Contribution
+  analysis and factor/sector/region exposure are new; benchmark comparison is
+  already FR-9 and needs a pointer, not a second requirement.
+- **H4 — Evaluation of decisions** (ladder level (c)). Prediction calibration
+  and rule evaluation. Both depend on H5 existing first.
+- **H5 — Knowledge objects.** Four objects, each carrying identity, provenance
+  and an as-of, each needing API and MCP surface. They are what "a home with an
+  identity for every fact" means concretely:
+
+  | Object | Carries | Gate |
+  |---|---|---|
+  | Policy rule | type (cap / floor / warning band / protected / budget), scope (category, bucket, security), threshold, severity, validity period, history | B3.6 |
+  | Security event | security, type, date, timing qualifier, confirmed flag, source, source quality, checked-at, note | B3.4 |
+  | Thesis / conviction | thesis text, status, conviction tier, invalidation condition, time stop, last reviewed and by whom, history | B4.1 |
+  | Prediction | thesis, stated probability, check date, invalidation, action if right, action if wrong, outcome, resolved-at, resolution note | B4.2 |
+
+  Two boundaries are structural rather than technical. **Security events are
+  tracked for every security in the catalog, not only for held positions** — a
+  purchase candidate with zero holdings is exactly the security whose upcoming
+  dates matter most, and a holdings-derived collector makes it invisible. And
+  security events are **distinct from corporate actions** (ADR-0028): those are
+  ledger events that change positions, these are calendar facts that inform a
+  decision and never book anything. Sharing a table would be the kind of
+  shortcut that costs later. The thesis object's three queries are its
+  acceptance criteria in disguise: theses unreviewed for 90+ days, positions
+  whose thesis is damaged, and time stops falling due in the next 30 days.
+
+**A sequencing dependency that turned out not to exist — recorded because it
+was asserted and believed.** The brief's addendum states that the audit-journal
+rollout (FR-28) is incomplete — Catalog and FX armed, Portfolios,
+Classifications, Ledger and Imports still writing unjournaled, MCP write tools
+blocked behind it — and concludes that completing it (#677) is a prerequisite
+for H5. **That premise is false, verified against the code on 2026-08-12:**
+
+- ADR-0017 carries a section headed *"Rollout complete"*: every context that
+  writes financial data — Catalog/Fx, Portfolios, Ledger, Classifications — is
+  converted, actor-first, with its tables guard-armed.
+- `test/write_actor_test.exs` pins `@grandfathered MapSet.new([])`. The list is
+  shrink-only and a stale entry fails the gate, so an empty list is not
+  neglect; it is the rollout's completion assertion.
+- `Journal.record/3` is called from `portfolios.ex`, `classifications.ex`,
+  `ledger.ex` and `imports/applier.ex` — the four contexts named as
+  unjournaled.
+- MCP write tools ship today (`create`/`update`/`delete` across securities,
+  accounts, buckets, classifications, snapshots and more).
+- FX is not "armed" but the opposite: `exchange_rates` is on ADR-0017's
+  deliberate never-journaled market-data allowlist.
+
+The claim is a copy of the superseded 2026-06-18 reconciliation. **H5 is
+therefore not blocked by #677**, and #677 itself needs rescoping or closing —
+its body repeats the same premise. What remains true is the *reason* behind the
+dependency: agent-written objects need attribution, and FR-28 supplies it.
+That requirement holds and is already met.
+
+**What this section deliberately does not absorb:** limit-price suggestions
+(order preparation, not allocation guidance — it needs an explicit ADR-0023
+amendment decided on its own merits) and estimated per-trade tax (it needs a
+documented method before it can be a number on a screen; ADR-0031 covers
+*recorded* snapshots and deferred forward projection behind its own gate). Both
+were cut from the rebalancing digest's first version. Anything on the gated
+list in section 4 is likewise out.
+
 ## 6. Non-Functional Requirements
 
 - **NFR-1 Correctness over features:** Decimal-only persistence, exact-value
@@ -416,7 +733,12 @@ maps every FR to its issue. This section is the founding set as corrected on
   stands, and every change to the ledger is recorded in the append-only audit
   journal (FR-28). Ledger records are **editable**; edits are never hidden.
   Auditability here means reproducibility from inputs, **not** append-only
-  immutability — soft-delete workarounds are explicitly forbidden.
+  immutability — soft-delete workarounds are explicitly forbidden. *Extended
+  2026-08-12:* materializing a derived value does not weaken this, because
+  reproducibility is a property of the computation, not of where the result is
+  kept. What would weaken it is a stored value that cannot be rebuilt, cannot
+  be checked for staleness, or is read where the ledger should have been —
+  which is why FR-1 forbids all three.
 - **NFR-3 AI-agentic development guards:** CI gates per project-context.md,
   including invisible-Unicode/Trojan-Source rejection (#350); scope changes
   only via ADR + AGENTS.md amendment, never silent. NFR-9 supplies the
@@ -442,15 +764,40 @@ maps every FR to its issue. This section is the founding set as corrected on
   gates as deliberately not adopted, so no instrument measures it. Either a
   named benchmark harness and dataset land with the first FR that depends on
   it, or the number stays labelled as an intent. Correctness always beats
-  speed.
+  speed. *Note added 2026-08-12:* FR-1's durable derived layer is the
+  structural answer to the felt version of this NFR — one instance with one
+  dataset can afford to compute continuously in the background instead of
+  making someone wait for a page, which larger systems cannot. It does not
+  supply the missing instrument.
 - **NFR-9 Mechanical scope backstop:** the hard gates (Phase 3 sync, FR-5
-  XML intake, the section C analytics gate) are backed by meta-tests in the
-  invariant suite — a dependency allowlist, no credential-bearing schema, no
-  bank-domain HTTP configuration — each removable only in the same PR as the
-  corresponding ADR and AGENTS.md amendment. Without this, the project's most
-  consequential boundary is enforced by one person editing Markdown as author,
-  approver and enforcer, in a codebase that already meta-tests far cheaper
-  invariants.
+  XML intake, and — since 2026-08-12 — the permanent non-goals and the
+  level-(d) backtesting gate in place of the retired blanket analytics gate)
+  **must be** backed by meta-tests in the invariant suite — a dependency
+  allowlist, no credential-bearing schema, no bank-domain HTTP configuration —
+  each removable only in the same PR as the corresponding ADR and AGENTS.md
+  amendment. Without this, the project's most consequential boundary is
+  enforced by one person editing Markdown as author, approver and enforcer, in
+  a codebase that already meta-tests far cheaper invariants.
+
+  **Corrected 2026-08-12 from "are backed" to "must be backed", because the
+  present tense was false and had been since this NFR was written.** Of the
+  three named backstops, exactly one exists: `mcp_dependency_allowlist_test`
+  (ADR-0002). There is no credential-bearing-schema test, no bank-domain-HTTP
+  test, and no test guarding the permanent non-goals or the level-(d) gate.
+  `test/invariants/` holds thirteen files, all of them guarding other things.
+  This NFR is therefore an unbuilt requirement, not an inventory of protection
+  in place — and the retirement of the blanket analytics gate makes it *more*
+  load-bearing, not less: a gate that lifts partially is exactly the kind a
+  reader mistakes for lifted entirely, which is precisely the failure a
+  meta-test would catch and a document cannot.
+- **NFR-10 Machine-extracted data is a proposal until confirmed.** Standing
+  rule, independent of whether a local model is ever adopted: anything
+  extracted from an unstructured source carries its source link and a
+  `machine_generated` marker, and lands only after a human or an agent confirms
+  it. This is the preview-then-apply shape the Portfolio Performance import
+  already uses, applied to every future intake path — ADR-0021's PDF
+  extraction, and anything gates B3.3 and B3.4 eventually collect. It never
+  lands silently.
 
 ## 7. Success Metrics (12 months)
 
@@ -467,12 +814,56 @@ is an intent, not a metric.
    MCP without exports or file handoff. *Instrument:* server-side count of MCP
    sessions per week that answer these questions **without** a bulk
    `securities_list`-style pull — the absence of client-side arithmetic is not
-   observable, but the bulk pull that would enable it is.
+   observable, but the bulk pull that would enable it is. *Instrument revised
+   2026-08-12:* FR-37's field selection makes a **slim** `securities_list` read
+   a legitimate and encouraged path, so "any pull" no longer discriminates. The
+   detector is a pull that requests the **full** projection, or one whose
+   response exceeds the roll-up the question needed — quantity of data
+   returned, not the endpoint's name. Without that correction this metric would
+   have been failed by the very family built to satisfy it.
 3. **Retirement credibility:** a first early-retirement projection runs with
    the FR-26 discovery story's acceptance criteria met. *Instrument:* those
    criteria. Until the discovery story exists (`epics.md` lists FR-26 as
    `future`, no issue), this metric has no acceptance definition and should be
    treated as unmeasured rather than unmet.
+
+**Agent-side criteria (added 2026-08-12, adopted from the identity gate).**
+These are measurable because the agent's own requirements document supplied the
+baselines; sources sit in `feedback-triage-2026-08-12.md`.
+
+4. **The weekly rebalancing run costs ≤ 5 calls**, down from roughly 25, with
+   no external price fetch. *Instrument:* the call count of that run.
+5. **−70 % response volume on the four heaviest reads**, with no field the
+   agent's decisions depend on removed. *Instrument:* response sizes before and
+   after, plus the field inventory that proves nothing load-bearing was cut —
+   the second half is what stops this metric being met by deleting data.
+6. **No date, thesis or target weight lives in a local file or in prompt text
+   any more.** *Instrument:* the agent's own file inventory. This is a
+   migration criterion, so it gates on the H5 objects shipping first and is
+   unmeasurable until they do.
+7. **A purchase candidate with no holdings is monitored for upcoming dates
+   exactly like a held position.** *Instrument:* the security-event query for a
+   catalog entry with zero holdings returns its dates.
+8. **The calibration report is available without manual work after ten resolved
+   predictions.** *Instrument:* the report itself.
+9. **The durable derived layer is rebuildable and demonstrably so.** A
+   drop-and-rebuild of every materialized value reproduces the previously
+   served figures exactly, and completes inside a window the operator would
+   accept for a maintenance action. *Instrument:* a test that drops, rebuilds
+   and asserts exact `Decimal` equality against the pre-drop values, plus the
+   recorded wall-clock of that rebuild. This is FR-1's biggest structural bet
+   and it had a counter-metric but no success instrument until this was added —
+   "it did not go wrong" is not evidence that it worked.
+
+**Operator-side criteria stay qualitative, deliberately.** No measurement of
+the operator's experience exists; the signal is the felt one — a stale figure
+in the chat, or the agent visibly grinding through tool calls to answer
+something the system should already know. Inventing a KPI for it would be
+dishonest, so the agent-side criteria above carry the measurable weight, which
+is defensible because that is where the operator experiences the system. Two
+cheap proxies if one is ever wanted: no view opens on a placeholder that has to
+fill itself in, and Portfolio Performance stops being opened for questions
+Portfolixir should answer. `[ASSUMPTION]` — proposed, not requested.
 
 **Counter-metrics (what must not degrade while chasing the above):**
 
@@ -487,6 +878,12 @@ is an intent, not a metric.
 - Gate health: **gates are never weakened to ship a feature** — grandfathered
   baselines (Credo thresholds, documented Sobelow ignores) only ratchet
   downward, per project-context.md.
+- **Silent staleness (added 2026-08-12):** no materialized value reaches a view
+  or a payload without its `as_of`, and none stays behind its inputs without
+  saying so. *Instrument:* the invariant suite, not a dashboard — this is the
+  failure mode the durable derived layer introduces, and the whole reason FR-1
+  binds freshness as tightly as rebuildability. A fast wrong number is worse
+  than a slow right one.
 
 ## 8. Open Questions
 
@@ -497,10 +894,12 @@ is an intent, not a metric.
   maintainer, due before any #333 story is scheduled.
 - **OQ-1b** Phase 3 sync scope ADR: which rules relax, which stay absolute.
   Owner: maintainer, before Phase 3. Bundled with OQ-8 and NFR-9.
-- **OQ-1c** Advanced-reports amendment covering FR-9/FR-10/FR-26/FR-27 and the
-  AGENTS.md goal list. Owner: maintainer, before the first affected story.
-  *(The FR-12 third of the original OQ-1 is **resolved** — ADR-0023, accepted
-  2026-07-03.)*
+- **OQ-1c** **[resolved 2026-08-12]** Advanced-reports amendment covering
+  FR-9/FR-10/FR-26/FR-27 and the AGENTS.md goal list. Resolved by the scope
+  ladder in section 4 and the matching `AGENTS.md` amendment: FR-9 and FR-10
+  are released, FR-27 moves under the level-(d) gate, and FR-26 falls outside
+  the ladder entirely — see OQ-13. *(The FR-12 third of the original OQ-1 was
+  resolved earlier — ADR-0023, accepted 2026-07-03.)*
 - **OQ-2** [ASSUMPTION] Retirement projection starts deterministic
   (scenario parameters), Monte Carlo later — confirm when Phase 5 nears.
 - **OQ-3** [ASSUMPTION] Benchmark FR-9a starts with fixed-rate baselines;
@@ -540,6 +939,21 @@ is an intent, not a metric.
   FR-24/FR-25 (and FR-36's `tax_parameters`): who updates them, on what
   trigger, and what the app does when they are stale. Owner: maintainer,
   before the first FR-24 story.
+- **OQ-13** **[new 2026-08-12]** Where FR-26 (retirement projection) sits
+  against the scope ladder. The ladder covers reports about what happened
+  (a)–(c) and gates rule backtesting (d); a wealth-at-age projection is none of
+  those, so the identity gate neither released nor gated it. The question is
+  not whether it is wanted — Phase 5 says it is — but whether a forward
+  projection of the operator's finances needs its own boundary statement, given
+  that "no advice" is a permanent non-goal and a sustainable-withdrawal curve
+  sits closer to that line than any analytic currently shipped. Owner:
+  maintainer, before the FR-26 discovery story. Not blocking anything today:
+  FR-26 has no issue and Phase 5 has not started.
+- **OQ-14** **[new 2026-08-12]** Whether the metric computation basis must be
+  surfaced in the UI as well, or may stay in the API/MCP payload and reach the
+  human through the existing on-demand ⓘ tooltip pattern (UX-DR11). The
+  payload half is settled and binding; the UI half is not. Owner: maintainer,
+  with the UX designer, before the first ladder-level (a) story with a view.
 
 ## 9. Glossary
 
@@ -562,3 +976,8 @@ is an intent, not a metric.
 | Watch-only | Tracking a crypto wallet by address/xpub without holding any keys |
 | Balance adjustment | Ledger kind anchoring a cash account to an absolute balance. **Naming trap:** ADR-0009 calls this concept a "snapshot", but the data spells it `balance_adjustment` — and ADR-0027's "snapshot" is a different thing again (a ledger marker that copies nothing) |
 | Split | Ledger kind for share splits (ADR-0028); ratio only, no cash/price/quantity fields |
+| Derived layer | Materialized derived values kept between requests — rebuildable from transactions, versioned, freshness-labelled, never authoritative for a write (FR-1, gate B3.2). Distinct from ADR-0032's volatile memo, which it supersedes or amends |
+| Scope ladder | The bounded replacement for the retired "no advanced reports" rule: (a) derived metrics, (b) comparison and decomposition, (c) decision evaluation are in scope; (d) rule backtesting is gated (section 4) |
+| Knowledge object | Policy rule, security event, thesis/conviction or prediction — a fact that used to live in a file or in prompt text, given identity, provenance and an as-of (section 5H) |
+| Security event | A dated calendar fact about a security that informs a decision and books nothing. **Not** a corporate action (ADR-0028), which is a ledger event that changes a position. Tracked for every catalog security, held or not |
+| Calibration | Hit rate per stated-probability band, measured against resolved predictions — the report that shows whether the agent's guesses are worth anything |

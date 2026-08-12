@@ -4,8 +4,15 @@ These instructions apply to all coding agents working on Portfolixir.
 
 ## Project Goal
 
-Portfolixir is a small self-hosted Phoenix application for local portfolio
-tracking. Keep the product focused on auditable local records:
+Portfolixir is a self-hosted portfolio system with **two first-class users: the
+operator, and the LLM agent the operator runs.** Everything it knows is
+reachable through the local JSON API and the MCP companion, and everything it
+knows is also visible on a screen. One dataset, one instance, one operator — no
+cloud, no tenancy, no broker. (Identity decided 2026-08-12 by the product brief
+of that date, accepted as #663; the PRD's sections 1, 2 and 4 carry the full
+statement.)
+
+Keep the product focused on auditable local records:
 
 1. Create securities.
 2. Create portfolios.
@@ -57,7 +64,51 @@ New functionality must stay small, reviewed, locally tested, and documented.
   computing and showing indicative corrective quantities next to the
   allocation drift is allowed, but anything that creates, stores, or
   transmits an order remains forbidden.
-- Do not add advanced reports or advanced classifications.
+- Analytics scope follows the **scope ladder** (identity gate B3.1,
+  2026-08-12), which replaces the former blanket rule "do not add advanced
+  reports or advanced classifications":
+  - **(a) derived metrics** per security and per view — moving averages,
+    volatility, drawdown, momentum, distance to extremes: **allowed**;
+  - **(b) comparison and decomposition** — benchmark, contribution analysis,
+    factor/sector/region exposure: **allowed**;
+  - **(c) evaluation of decisions** — prediction calibration, rule evaluation,
+    signal quality: **allowed**;
+  - **(d) backtesting rules against stored price history: forbidden**, behind
+    its own decision gate.
+  Every metric in (a)–(c) must state its **computation basis** in its API and
+  MCP payload: input series, window, reference series or benchmark where one
+  exists, and the treatment of gaps. A metric whose basis is unstated cannot be
+  reviewed — this is a review-blocking standard, not a documentation task.
+  Advanced *classifications* remain out of scope; the ladder covers analytics
+  only. **Boundary between the two, because level (b) brushes against it:**
+  exposure decomposition may *report* a factor, sector or region breakdown from
+  data the catalog already holds; it may not introduce stored partial-weight
+  assignments of one security to several categories, which is what
+  `CONTRIBUTING.md` defines as an advanced classification. A decomposition that
+  can only be computed by adding such weights needs its own decision.
+- Still gated, each behind its own decision gate and none of them openable by
+  citing the ladder: **rule backtesting** (level (d)); **data acquisition
+  beyond quotes and FX** (B3.3 — sources, failure behavior, retention,
+  collector health); **push delivery to external endpoints** (B3.7 — request
+  forgery surface, stored secrets, retry semantics); and **a local model**
+  beyond the already-gated ADR-0021 PDF-intake path (B3.8).
+- The permanent non-goals are identity, not backlog, and no capacity argument
+  reopens them: no **order-placing** broker connection, no order creation or
+  transmission, no automated trading or payment, no advice, no raw news
+  archive, no external LLM calls from the app. The system prepares decisions;
+  the operator executes them. **Two precisions, both narrowing ambiguity rather
+  than permitting anything new:** (1) the ban is on a connection that can
+  *act* — place, modify or transmit an order, or move money; **read-only** data
+  acquisition from a broker or bank stays permitted in principle and gated in
+  practice (Phase 3, which this document still forbids until its ADR and
+  amendment land). (2) "No advice" does not retract ADR-0023's display-only
+  rebalancing hints: showing an indicative corrective quantity beside a drift
+  figure is arithmetic; advice is telling someone what to do with their money.
+- **Machine-extracted data is a proposal until confirmed.** Anything extracted
+  from an unstructured source carries its source link and a `machine_generated`
+  marker, and lands only after a human or an agent confirms it — the same
+  preview-then-apply shape the Portfolio Performance import uses. This holds
+  independently of whether a local model is ever adopted.
 - Do not claim production readiness.
 - Public files must be normal readable multiline files.
 - Write every repository artifact in English: issues, PR titles and
@@ -124,8 +175,19 @@ directly to the database or Elixir contexts.
 
 ## API And MCP Coverage
 
-Every new user-visible function must include API and MCP coverage, or the PR
-must explicitly document why coverage is not applicable.
+Coverage runs **both ways** (amended 2026-08-12, identity gate B3.1). Either
+direction may lead; neither may be silently skipped.
+
+- Every new **user-visible** function must include API and MCP coverage, or the
+  PR must explicitly document why coverage is not applicable.
+- Every new **agent-visible** capability may ship over API and MCP alone, with
+  no human view, provided the PR states why. The human view then lands in the
+  **same or the next epic batch**, and its absence after that is a close-out
+  finding. The deadline is the whole point: without it the rule degrades into
+  "agent only, forever", which hollows out the operator half of the two-user
+  identity in the Project Goal.
+
+Rules that hold in both directions:
 
 - JSON API endpoints belong under `/api/v1`.
 - API and MCP authentication must use local bearer tokens from environment
@@ -213,10 +275,75 @@ Examples:
 **Open the pull request as soon as the branch exists** (owner rule,
 2026-08-12) — with the first commit, not when the work is finished. A branch
 without a PR is invisible: the owner has to go looking for it, and CI does not
-run on it. Open it as a draft PR when the content is only a basis for
-discussion, and mark it ready when it is. The benefit is the same for planning
-artifacts and for code: the owner reads a diff instead of hunting a branch, and
-CI feedback arrives while the work can still absorb it cheaply.
+run on it. The benefit is the same for planning artifacts and for code: the
+owner reads a diff instead of hunting a branch, and CI feedback arrives while
+the work can still absorb it cheaply.
+
+**Open it as a draft, and promote it yourself when it earns promotion** (owner
+rule, 2026-08-12). A draft says "this is not asking for your time yet", which
+is exactly true while the agent is still working — but a draft nobody ever
+promotes is the same invisibility the rule above removes, just one step later.
+The agent that opened the PR marks it ready for review when **all four** of
+these hold:
+
+1. the agentic review closing act has run and every confirmed finding is fixed
+   on the branch;
+2. CI is green on the head commit, including the required checks;
+3. every question put to the owner has been answered — see the distinction
+   below;
+4. the branch is up to date with `main`, free of conflicts, and the agent
+   judges the work mergeable as it stands.
+
+**Not every open question blocks promotion, and conflating the two would keep
+every PR in draft forever.** A question *put to the owner and unanswered*
+blocks: the diff cannot be judged without it. A question the work *deliberately
+records* — an `OQ-n` in the PRD, a `[NOTE FOR PM]`, a follow-up the reviewer
+briefing names — does not block; it is part of the deliverable, and holding the
+PR hostage to it would mean never shipping a document that is honest about what
+it does not know.
+
+Two limits. **Ready for review is not a merge request** — only the maintainer
+merges, and promotion changes nothing about that. And **do not flip the status
+back and forth**: if CI goes red or a review lands after promotion, fix it on
+the branch and leave the PR ready. Return it to draft only if the work turns
+out to need a decision the owner has not yet taken, and say on the PR why.
+
+**The agent that opens a pull request owns it until it is merged or closed**
+(owner rule, 2026-08-12). Opening a PR and walking away puts the work back on
+the owner, which is the cost this whole section exists to remove. Ownership
+means three standing duties:
+
+1. **Watch it.** Subscribe to the PR's activity as soon as it exists, so CI
+   results, review comments and mergeability changes arrive without anyone
+   asking. Never poll by sleeping or by re-checking on a timer — wait for the
+   events.
+2. **Drive CI to green.** Every failing check gets diagnosed and fixed on the
+   branch, round after round, until the checks pass — not one attempt, and not
+   a summary of what someone else could do. Push the fix; the diff is the
+   report. Reply on the PR only when a round resolves the failure, hits a real
+   blocker, or raises a question the owner must answer.
+3. **Resolve conflicts and stale bases.** A merge conflict or a base branch
+   that moved is the PR owner's work: merge or rebase, resolve, re-run the
+   gates locally, push. Ask only when both sides changed the same logic and
+   picking one would lose behavior.
+
+Four limits make this safe, and none of them is optional:
+
+- **Never weaken a quality gate to make CI pass.** Lowering a threshold,
+  adding an ignore, deleting or skipping a test, or baselining a new finding to
+  get green is a review reject, not a fix — the same rule the epic-batch
+  section states, restated here because a red check at midnight is exactly when
+  it is tempting.
+- **Never fix outside the PR's scope.** If the failure is real but belongs to
+  another story, say so on the PR and leave it. Scope Lock applies to
+  firefighting too.
+- **Never merge.** Only the maintainer merges. Getting to green is the duty;
+  merging is not.
+- **A failure that reproduces on the base branch is not silently yours** — say
+  so once on the PR, and act on it when the base recovers. That is the one
+  legitimate "not mine" outcome, and it is still not silence.
+
+Stop the moment the owner says stop.
 
 ## Story Workflow
 
@@ -229,6 +356,24 @@ CI feedback arrives while the work can still absorb it cheaply.
 7. User documentation reviewed and updated when visible behavior changed.
 8. Security audit performed.
 9. Required gates run.
+
+The nine steps above are the canonical order. `workflow_docs_test.exs` asserts
+each step string against the **concatenation** of this file, `README.md`,
+`CONTRIBUTING.md` and `docs/development/story-workflow.md`, so one document
+carrying a step satisfies the test for all of them — renumbering here would
+pass CI while silently disagreeing with `docs/development/story-workflow.md`.
+Treat the numbering as shared state and change it in every document that
+carries it, or in none. Two clarifications ride the existing steps rather than
+adding a tenth:
+
+- **Steps 5 and 6 run in both directions** per "API And MCP Coverage": a
+  user-visible function needs API/MCP coverage, and an agent-visible capability
+  needs its human view in the same or the next batch.
+- **A story that adds or changes a metric** must state that metric's
+  **computation basis** in the API and MCP payload (series, window, reference,
+  gap treatment) before step 9 passes. Review-blocking; a code comment or a
+  documentation page does not satisfy it, because the payload is where the
+  reviewer and the agent both read it.
 
 For AI-assisted changes, the above cycle is required to run as distinct
 iterations.
@@ -277,6 +422,25 @@ reviews decisions and behavior, agents review code:
    2026-07-31 from the combined E17–E19 retrospective: all observed
    process failures of that period sat in the unowned space after the
    merge.)
+
+   **Maintenance lane (owner decision 2026-08-12, issue #675).** Every batch
+   carries a lane that reviews available updates for Hex, npm, Elixir/OTP,
+   PostgreSQL, BMAD and the external BMAD modules, applies what passes the
+   gates, and **reports what it deliberately did not update, with the
+   reason**. It attaches here, to the close-out. It is a step in this
+   document rather than a scheduling habit, because habits depend on someone
+   remembering. The lane *reviews and decides* inside the batch; an update
+   itself still lands as its own commit or commit group, never mixed into a
+   feature story. Read that together with ADR-0036 below rather than against
+   it: ADR-0036 withdrew the separate-PR-with-human-review ceremony for
+   risk-tier work, not the requirement that a dependency bump stay
+   independently readable and revertable.
+
+   **Close-out check that the two-way coverage rule needs:** this same pass is
+   where an agent-only capability from an earlier batch is checked for its
+   human view. A capability whose view has not landed by the end of the next
+   batch is a finding recorded here — which is what gives the deadline in "API
+   And MCP Coverage" a place to be enforced instead of a place to be intended.
 
 **Risk-tier work rides the batch (ADR-0036, 2026-08-04).** Ledger/money-domain
 math and invariants, security-relevant changes, dependency updates, and

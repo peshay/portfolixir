@@ -35,9 +35,14 @@ Out of scope unless a reviewed story explicitly changes it:
 - bank sync;
 - trading, payment, order, or rebalance behavior;
 - LLM features;
-- advanced reports;
+- **rule backtesting against stored price history** — level (d) of the scope
+  ladder in `AGENTS.md`. *This replaced a blanket "advanced reports" entry on
+  2026-08-12: derived metrics, comparison and decomposition, and evaluation of
+  recorded decisions are now in scope under that ladder, each shipping with its
+  computation basis stated in the API and MCP payload.*
 - advanced classifications (e.g. splitting one security across categories with
-  partial weights).
+  partial weights) — **unchanged**; the ladder released the analytics half of
+  the old rule, not this one.
 
 ## Local Setup
 
@@ -152,6 +157,12 @@ should fail before implementation begins.
 
 Every new user-visible function must include JSON API and MCP companion coverage,
 or the PR must explain why coverage is not applicable.
+
+Since 2026-08-12 the rule also runs the other way: a new **agent-visible**
+capability may ship over the API and MCP alone, with no human view, provided the
+PR states why — and the human view then lands in the same or the next epic
+batch, its absence after that being a close-out finding. Either direction may
+lead; neither may be silently skipped. `AGENTS.md` carries the binding wording.
 
 - API routes live under `/api/v1`.
 - MCP tools live in `mcp-server/` and wrap the API only.
