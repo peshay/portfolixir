@@ -34,3 +34,28 @@ This is enforced by a `commit-msg` hook (`scripts/check-commit-authorship.sh`)
 and the "Commit authorship" CI workflow, checked against
 `.github/commit-authorship-allowlist.txt`. See "Commit Authorship And
 Accountability" in AGENTS.md for the full policy.
+
+## Non-negotiable: a pull request you opened is yours until it is merged
+
+AGENTS.md ("Branch Naming For Agent Work") states the duty; this is how to
+discharge it in Claude Code, and it is not conditional on being asked.
+
+- **Subscribe as soon as the PR exists.** Call `subscribe_pr_activity` with the
+  owner, repo and PR number right after opening it. Do not offer to watch and
+  wait for a yes — the offer is the failure mode, because a declined-by-silence
+  offer leaves the PR unwatched.
+- **Then end the turn.** Events arrive as `<github-webhook-activity>` messages
+  that wake the session. Never poll with `sleep`, a timer, or repeated status
+  checks.
+- **On a CI-failure event, produce a visible outcome every time:** a pushed fix,
+  or a reply saying exactly what is failing and why it is not being fixed. There
+  is no third option, and one round is not the task — keep going until the
+  checks are green, then say so once.
+- **Skip silently only two things:** an event echoing your own comment, and an
+  event duplicating one you already handled.
+- **Unsubscribe** when the PR is merged or closed, or the moment the owner asks
+  you to stop.
+
+The limits in AGENTS.md bind here without exception: never weaken a gate to get
+green, never fix outside the PR's scope, never merge. Losing an approval by
+pushing a fix is an accepted cost, not a reason to hold one back.

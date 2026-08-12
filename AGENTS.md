@@ -280,6 +280,43 @@ discussion, and mark it ready when it is. The benefit is the same for planning
 artifacts and for code: the owner reads a diff instead of hunting a branch, and
 CI feedback arrives while the work can still absorb it cheaply.
 
+**The agent that opens a pull request owns it until it is merged or closed**
+(owner rule, 2026-08-12). Opening a PR and walking away puts the work back on
+the owner, which is the cost this whole section exists to remove. Ownership
+means three standing duties:
+
+1. **Watch it.** Subscribe to the PR's activity as soon as it exists, so CI
+   results, review comments and mergeability changes arrive without anyone
+   asking. Never poll by sleeping or by re-checking on a timer — wait for the
+   events.
+2. **Drive CI to green.** Every failing check gets diagnosed and fixed on the
+   branch, round after round, until the checks pass — not one attempt, and not
+   a summary of what someone else could do. Push the fix; the diff is the
+   report. Reply on the PR only when a round resolves the failure, hits a real
+   blocker, or raises a question the owner must answer.
+3. **Resolve conflicts and stale bases.** A merge conflict or a base branch
+   that moved is the PR owner's work: merge or rebase, resolve, re-run the
+   gates locally, push. Ask only when both sides changed the same logic and
+   picking one would lose behavior.
+
+Four limits make this safe, and none of them is optional:
+
+- **Never weaken a quality gate to make CI pass.** Lowering a threshold,
+  adding an ignore, deleting or skipping a test, or baselining a new finding to
+  get green is a review reject, not a fix — the same rule the epic-batch
+  section states, restated here because a red check at midnight is exactly when
+  it is tempting.
+- **Never fix outside the PR's scope.** If the failure is real but belongs to
+  another story, say so on the PR and leave it. Scope Lock applies to
+  firefighting too.
+- **Never merge.** Only the maintainer merges. Getting to green is the duty;
+  merging is not.
+- **A failure that reproduces on the base branch is not silently yours** — say
+  so once on the PR, and act on it when the base recovers. That is the one
+  legitimate "not mine" outcome, and it is still not silence.
+
+Stop the moment the owner says stop.
+
 ## Story Workflow
 
 1. User Story documented.
