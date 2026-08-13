@@ -6,7 +6,10 @@ description: Decision for gate B3.2. Derived values may be materialized and kept
 
 # ADR-0039: Durable derived values — one memoization mechanism with a lifetime per analytic
 
-- **Status:** Proposed (decision gate B3.2 per [ADR-0026](0026-epic-batch-workflow.html); owner sign-off pending)
+- **Status:** Accepted (decision gate B3.2 per
+  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off 2026-08-12).
+  Supersedes [ADR-0032](0032-derived-series-memoization.html), whose volatile
+  memo becomes the `:request` lifetime of this ADR's single axis.
 - **Date:** 2026-08-12
 
 ## Context

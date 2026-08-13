@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-07-29 (E19 batch 19.2-19.6 implemented, awaiting review)
+# last_updated: 2026-08-12 (post-Sprint-5 reconciliation + Sprint 6 adopted; ADR-0039 accepted)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -40,14 +40,172 @@
 # have '##### Story' entries, so only those produce story rows here. Statuses
 # were verified against `main` (ff4d809), the open-issue list AND open pull
 # requests, not assumed -- an issue's state lags the PR that fixes it.
+
+generated: 2026-07-25
+last_updated: 2026-08-12
+project: portfolixir
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+# ---------------------------------------------------------------------------
+# CLOSE-OUT / RECONCILIATION LOG -- newest first
+# ---------------------------------------------------------------------------
 #
-# RECONCILED (2026-07-31, `main` at 02dde3b):
-# Sprint 1 merged in full -- all three lanes, not just lane A. Lane A shipped
-# E19 stories 19.2-19.6 (#621-#625), lane B shipped #607/#609, lane C shipped
-# #562 with ADR-0032. This file had been left at "awaiting review" while the
-# work was already on `main`; the story rows below now follow the merge, not
-# the branch. Verified against the merge commit, the closed-issue list and the
-# (empty) open-PR list.
+# SPRINT 6 ADOPTED (2026-08-12, `main` at 541fb89):
+# sprint-plan-2026-08-12-sprint6.md, from the owner's stated expectation
+# (finish the UI topics, solve the computed-numbers problem, ship some of the
+# LLM agent's requests) with the three draft questions answered.
+#   - OQ-1 OWNER: ADR-0039 is SIGNED OFF. Gate B3.2 is closed; the ADR flips to
+#     Accepted and ADR-0032 becomes Superseded by it (its volatile memo becomes
+#     the `:request` lifetime, the mechanism is not withdrawn). Lane C runs.
+#   - OQ-2 AGENT: Lane A ships eleven E11 alignment/defect issues; #672 and
+#     #414 stay out as new surfaces. Stated consequence: after Sprint 6 the UI
+#     is ALIGNED but NOT FINISHED -- Sprint 7 is committed as the closer.
+#   - OQ-3 AGENT: #572 stays out. It carries three unresolved design questions
+#     of its own, its inflation/CPI half needs a source gated at B3.3, and
+#     pairing it with Lane C puts two money-domain heavyweights in one batch.
+# Lanes: Z close-out debt (the unpushed v0.5.0 tag, #682) - B agent requests
+# (#664 first, then #665 #666 #667) - A UI (#651 #561 + #668-#673 + #412 #491
+# #565 #566 #564) - C durable derived values (risk-tier) - M maintenance
+# (#674 #676). No story rows change: Sprint 6 work hangs off no epic row, and
+# section J still has no epic (finding F2 below).
+#
+# RECONCILED (2026-08-12, `main` at 541fb89):
+# Verification basis: the merge commits on `main` (73affc5..541fb89), the open
+# pull-request list (EMPTY), the open-issue list (46 open), the Actions runs on
+# `main`, and the remote tag/release lists -- not labels and not this file.
+#
+# What landed since the Sprint 5 merge, none of it story-row work:
+#   - 7d6b692 Sprint 5 bookkeeping close-out (ADR-0026 step 5).
+#   - 7210a96 / dc393a7 owner feedback triage 2026-08-12 + product brief; the
+#     confirmed items became thin issues #664-#677 (triage Round 4 is the index).
+#   - 5c414ab identity gate B3.1: PRD, epics registry section J (FR-37..FR-48),
+#     AGENTS.md -- the blanket "no advanced reports" rule is replaced by the
+#     scope ladder (a)-(c) in scope, (d) backtesting gated; API/MCP coverage
+#     became a TWO-WAY rule with a next-batch deadline for the human view.
+#   - 096b250 / a3ecf6e AGENTS.md: closing keywords on PRs, rule vs. rationale.
+#   - 14c18a0 architecture document re-validated against the 2026-08-12 base.
+#   - 541fb89 ADR-0039 (durable derived values, gate B3.2) -- merged as
+#     Proposed; owner signed off later the same day, so it is now ACCEPTED and
+#     ADR-0032 is Superseded by it. See the Sprint 6 adoption block above.
+#   - #677 (audit-journal rollout) closed as NOT PLANNED on 2026-08-12: the
+#     rollout was already complete, so the asserted FR-43..FR-46 dependency does
+#     not exist. Recorded in epics.md section J; nothing here was blocked by it.
+#
+# NO story row and NO epic status changes this pass -- every epics.md story
+# still resolves to the same state it held at the Sprint 5 close-out, and all
+# 2026-08-12 work was planning/decision artifacts plus backlog filing.
+#
+# THREE FINDINGS, recorded rather than silently carried:
+#
+#   F1 -- The Sprint 5 close-out below claims "annotated tag v0.5.0 on 73affc5
+#   triggers the new Release workflow". It did not happen. `git ls-remote
+#   --tags origin` carries exactly one tag (`before-agentic-run`) and the
+#   repository has ZERO releases. ADR-0026 step 5 is therefore INCOMPLETE for
+#   Sprint 5, and the first exercise of the #659 release automation has not run.
+#   Action: create and push the annotated tag on 73affc5, or record why not.
+#
+#   F2 -- Section J (FR-37..FR-48, added 2026-08-12) hangs off NO epic row. The
+#   Epic List still ends at E19. Two of the twelve are filed (#665 FR-37, #666
+#   FR-38, both ship-now); the rest are gated (B3.2/B3.4/B3.6/B4.1/B4.2) or have
+#   no issue. FR-37 is the direct successor to story 6.DX-4 (E6, closed), so the
+#   agent-native family currently has no home in either epic structure. This
+#   widens the standing two-parallel-structures finding (epics.md E1-E19 vs. the
+#   GitHub tracker set #416-#420, #470, #398, #356) rather than being a new one.
+#   The structural decision is still the owner's and still open; #321 is stale.
+#
+#   F3 -- CI on `main` is green through 14c18a0 (CI + Commit authorship + pages,
+#   all success). The run on the head commit 541fb89 was still in_progress when
+#   this file was written; Commit authorship on 541fb89 had already passed.
+#
+# CLOSE-OUT (2026-08-10, `main` at 73affc5 -- Sprint 5, PR #661):
+# The whole sprint shipped as ONE batch/PR per the adoption decisions: Lane A
+# tokens/contrast (#642 #643 #644 #648 #650 + spec cleanups), Lane B colour
+# independence (#637 #645), Lane C loading affordances/opt-in motion
+# (#638 #647 + the owner-decided cue/count-up/sunburst patterns), Lane D
+# UX-DR11 tooltips (spec-driven), Lane E defect sweep (#634 #635 #636 #639
+# #640 #641 #646 #649), Lane F CI/release engineering (#653 #654 #659). All
+# twenty issues closed; #651 stays queued. Four new invariant meta-tests pin
+# the fixed drift classes (theme-token parity, motion gates, ISO date inputs,
+# native dialogs). The four-role agentic review (ADR-0026 step 3, incl. a
+# live-server UAT with screenshots, uat-sprint5-2026-08-10/) caught and fixed
+# the sprint's worst bug pre-merge -- morphdom stripping the native dialogs'
+# open attribute -- plus two computed-style cascade regressions no DOM test
+# could see. Retrospective: sprint-5-retro-2026-08-10.md (incl. two process
+# gaps that had to be owner-prompted: the all-lanes doc audit and the
+# screenshot refresh -- both now standing steps in the dev-agent contract).
+# Docs screenshots + tour GIF regenerated from priv/demo (which gained an
+# offline quotes seed; the strategies seed was repaired). NOTE: the batch ran
+# on claude/sprint-5-alle-lanes-2siqq9, not the planned
+# agent/claude/sprint-5-design-debt -- harness-fixed branch name, content
+# unaffected. First automated release: annotated tag v0.5.0 on 73affc5 was to
+# trigger the new Release workflow (issue #659; ADR-0026 step 5 amended in
+# AGENTS.md) -- SEE FINDING F1 ABOVE: the tag was never pushed. No story rows
+# change -- Sprint 5 work hangs off no epic row (the two-parallel-structures
+# finding). E1 gains the fatal form-id warning and the test-failure artifact as
+# shipped CI hardening (#653/#654).
+#
+# SPRINT 5 ADOPTED (2026-08-10, `main` at cf68260):
+# The 2026-08-10 sequencing draft is adopted as sprint-plan-2026-08-10-sprint5.md
+# with the owner's answers to its three open questions: ALL lanes in ONE batch
+# on one epic branch (agent/claude/sprint-5-design-debt), ONE PR for the sprint
+# (a lane splits into its own PR only if it turns out big -- decided up front,
+# Sprint-4 retro item 1), and #572 stays out (E5 money-domain work, Sprint 6
+# front-runner). Lane->issue mapping: A tokens/contrast (#642 #643 #644 #648
+# #650 + spec cleanups), B colour independence UX-DR7 (#637 #645), C loading
+# affordances/motion (#638 #647 + owner-decided skeleton/count-up patterns),
+# D hint prose -> tooltips (spec-driven, no issue), E markup/i18n/nav defect
+# sweep (#634 #635 #636 #639 #640 #641 #646 #649), F CI + release engineering
+# (#659 release automation -- new, owner 2026-08-10: annotated vX.Y.Z tag in
+# the ADR-0026 step-5 close-out + CI workflow on tag push creates the GitHub
+# Release with generated notes, first tag v0.5.0 at the Sprint 5 merge --
+# plus #653 #654). #651 stays queued. No story rows change -- Sprint 5 work
+# hangs off no epic row (the two-parallel-structures finding).
+#
+# CLOSE-OUT (2026-08-10, `main` at 5167f27 -- Sprint 4 Lanes B+C, PRs #656/#657):
+# Sprint 4 is complete. Lane B (#560, PR #656) made the income charts scroll
+# horizontally on narrow viewports (UX-DR15 scroller + affordance). Lane C
+# (#568, PR #657) delivered ADR-0034: Newton-primary XIRR with bracketed
+# fallback (Excel-parity pinned), invested_capital / wealth_multiple / mwr in
+# the period summary, the Wealth KPI row (two labeled numbers, n/a semantics,
+# MWR label for sub-year windows), API + MCP parity, EN/DE docs. The ADR-0034
+# "flow classifier" resolved as verification of the projection's existing
+# per-kind `external` flag (ADR-0011 stays the single owner of booking
+# semantics) -- relevant for #572, which reuses exactly those markers and is
+# now unblocked. The agentic-review closing act (correctness + edge-case
+# hunter) confirmed six findings, all fixed on the branches before merge.
+# Both issues auto-closed with the squash-merges; merge CI verified green.
+# Retrospective: sprint-4-retro-2026-08-10.md. Sprint 5 sequencing draft
+# (from the confirmed design spec and the filed #634-#654):
+# sprint-plan-2026-08-10-sprint5-draft.md. No story rows change -- #560/#568
+# hang off no epic row (the two-parallel-structures finding).
+#
+# CLOSE-OUT (2026-08-06, `main` at 58ef873 -- Sprint 4 Lane A, PR #652):
+# The design gate passed. The owner's merge IS the confirmation ADR-0026 step 4
+# and the sprint plan require, so the living design-language spec
+# (`planning-artifacts/design-language/`) is now the authority the E14/E11
+# Sprint 5 stories are cut from, and the one a design-critic review holds every
+# user-visible batch against (ADR-0038).
+#
+# What the batch produced beyond the spec itself:
+#   - UX-DR1..UX-DR20 moved into the spec; `epics.md` links rather than defines
+#     them. Six rules are new, from the live-surface survey and design critique.
+#   - The IA covers all built routes; the frozen seven-surface scope is retired.
+#   - Eleven drift families each carry one canonical pattern plus the real list
+#     of deviating call sites, so a Sprint 5 story inherits a work list instead
+#     of repeating the survey.
+#   - 21 issues filed (#634-#654). Most are defects the OLD spec had recorded as
+#     shipped -- buy/sell markers, native <dialog>, reduced motion as opt-in,
+#     the chart-as-table census, the data-quality link.
+#
+# Lanes B (#560) and C (#568) are NOT part of this close-out; Sprint 4 remains
+# open until they land or are deferred.
+#
+# Two follow-ups are downstream work, not open design questions: categorical
+# colour is its own decision gate (it touches user-set data), and the Overview
+# data-quality line has no pre-filtered URL to link to (#651) -- the 2026-07-12
+# decision turned out to be not merely unbuilt but currently impossible.
 #
 # CLOSE-OUT (2026-08-04, `main` at 1903913 -- Sprint 3, PR #631):
 # The whole sprint shipped as one bundle on owner instruction: #569 (ADR-0033
@@ -74,111 +232,29 @@
 # red-gate standing finding is resolved. #406/#570/#398 hang off no epic row
 # (the two-parallel-structures finding, see
 # epic-structure-reconciliation-2026-07-31.md), so no story rows change.
-
-generated: 2026-07-25
-last_updated: 2026-08-10 (Sprint 5 close-out -- PR #661 squash-merged as 73affc5, issues closed, v0.5.0 tagged)
-
-# CLOSE-OUT (2026-08-10, `main` at 73affc5 -- Sprint 5, PR #661):
-# The whole sprint shipped as ONE batch/PR per the adoption decisions: Lane A
-# tokens/contrast (#642 #643 #644 #648 #650 + spec cleanups), Lane B colour
-# independence (#637 #645), Lane C loading affordances/opt-in motion
-# (#638 #647 + the owner-decided cue/count-up/sunburst patterns), Lane D
-# UX-DR11 tooltips (spec-driven), Lane E defect sweep (#634 #635 #636 #639
-# #640 #641 #646 #649), Lane F CI/release engineering (#653 #654 #659). All
-# twenty issues closed; #651 stays queued. Four new invariant meta-tests pin
-# the fixed drift classes (theme-token parity, motion gates, ISO date inputs,
-# native dialogs). The four-role agentic review (ADR-0026 step 3, incl. a
-# live-server UAT with screenshots, uat-sprint5-2026-08-10/) caught and fixed
-# the sprint's worst bug pre-merge -- morphdom stripping the native dialogs'
-# open attribute -- plus two computed-style cascade regressions no DOM test
-# could see. Retrospective: sprint-5-retro-2026-08-10.md (incl. two process
-# gaps that had to be owner-prompted: the all-lanes doc audit and the
-# screenshot refresh -- both now standing steps in the dev-agent contract).
-# Docs screenshots + tour GIF regenerated from priv/demo (which gained an
-# offline quotes seed; the strategies seed was repaired). NOTE: the batch ran
-# on claude/sprint-5-alle-lanes-2siqq9, not the planned
-# agent/claude/sprint-5-design-debt -- harness-fixed branch name, content
-# unaffected. First automated release: annotated tag v0.5.0 on 73affc5
-# triggers the new Release workflow (issue #659; ADR-0026 step 5 amended in
-# AGENTS.md). No story rows change -- Sprint 5 work hangs off no epic row
-# (the two-parallel-structures finding). E1 gains the fatal form-id warning
-# and the test-failure artifact as shipped CI hardening (#653/#654).
-
-# SPRINT 5 ADOPTED (2026-08-10, `main` at cf68260):
-# The 2026-08-10 sequencing draft is adopted as sprint-plan-2026-08-10-sprint5.md
-# with the owner's answers to its three open questions: ALL lanes in ONE batch
-# on one epic branch (agent/claude/sprint-5-design-debt), ONE PR for the sprint
-# (a lane splits into its own PR only if it turns out big -- decided up front,
-# Sprint-4 retro item 1), and #572 stays out (E5 money-domain work, Sprint 6
-# front-runner). Lane->issue mapping: A tokens/contrast (#642 #643 #644 #648
-# #650 + spec cleanups), B colour independence UX-DR7 (#637 #645), C loading
-# affordances/motion (#638 #647 + owner-decided skeleton/count-up patterns),
-# D hint prose -> tooltips (spec-driven, no issue), E markup/i18n/nav defect
-# sweep (#634 #635 #636 #639 #640 #641 #646 #649), F CI + release engineering
-# (#659 release automation -- new, owner 2026-08-10: annotated vX.Y.Z tag in
-# the ADR-0026 step-5 close-out + CI workflow on tag push creates the GitHub
-# Release with generated notes, first tag v0.5.0 at the Sprint 5 merge --
-# plus #653 #654). #651 stays queued. No story rows change -- Sprint 5 work
-# hangs off no epic row (the two-parallel-structures finding).
-
-# CLOSE-OUT (2026-08-10, `main` at 5167f27 -- Sprint 4 Lanes B+C, PRs #656/#657):
-# Sprint 4 is complete. Lane B (#560, PR #656) made the income charts scroll
-# horizontally on narrow viewports (UX-DR15 scroller + affordance). Lane C
-# (#568, PR #657) delivered ADR-0034: Newton-primary XIRR with bracketed
-# fallback (Excel-parity pinned), invested_capital / wealth_multiple / mwr in
-# the period summary, the Wealth KPI row (two labeled numbers, n/a semantics,
-# MWR label for sub-year windows), API + MCP parity, EN/DE docs. The ADR-0034
-# "flow classifier" resolved as verification of the projection's existing
-# per-kind `external` flag (ADR-0011 stays the single owner of booking
-# semantics) -- relevant for #572, which reuses exactly those markers and is
-# now unblocked. The agentic-review closing act (correctness + edge-case
-# hunter) confirmed six findings, all fixed on the branches before merge.
-# Both issues auto-closed with the squash-merges; merge CI verified green.
-# Retrospective: sprint-4-retro-2026-08-10.md. Sprint 5 sequencing draft
-# (from the confirmed design spec and the filed #634-#654):
-# sprint-plan-2026-08-10-sprint5-draft.md. No story rows change -- #560/#568
-# hang off no epic row (the two-parallel-structures finding).
-project: portfolixir
-project_key: NOKEY
-tracking_system: file-system
-story_location: _bmad-output/implementation-artifacts
-
-# CLOSE-OUT (2026-08-06, `main` at 58ef873 -- Sprint 4 Lane A, PR #652):
-# The design gate passed. The owner's merge IS the confirmation ADR-0026 step 4
-# and the sprint plan require, so the living design-language spec
-# (`planning-artifacts/design-language/`) is now the authority the E14/E11
-# Sprint 5 stories are cut from, and the one a design-critic review holds every
-# user-visible batch against (ADR-0038).
 #
-# What the batch produced beyond the spec itself:
-#   - UX-DR1..UX-DR20 moved into the spec; `epics.md` links rather than defines
-#     them. Six rules are new, from the live-surface survey and design critique.
-#   - The IA covers all built routes; the frozen seven-surface scope is retired.
-#   - Eleven drift families each carry one canonical pattern plus the real list
-#     of deviating call sites, so a Sprint 5 story inherits a work list instead
-#     of repeating the survey.
-#   - 21 issues filed (#634-#654). Most are defects the OLD spec had recorded as
-#     shipped -- buy/sell markers, native <dialog>, reduced motion as opt-in,
-#     the chart-as-table census, the data-quality link.
-#
-# Lanes B (#560) and C (#568) are NOT part of this close-out; Sprint 4 remains
-# open until they land or are deferred.
-#
-# Two follow-ups are downstream work, not open design questions: categorical
-# colour is its own decision gate (it touches user-set data), and the Overview
-# data-quality line has no pre-filtered URL to link to (#651) -- the 2026-07-12
-# decision turned out to be not merely unbuilt but currently impossible.
+# RECONCILED (2026-07-31, `main` at 02dde3b):
+# Sprint 1 merged in full -- all three lanes, not just lane A. Lane A shipped
+# E19 stories 19.2-19.6 (#621-#625), lane B shipped #607/#609, lane C shipped
+# #562 with ADR-0032. This file had been left at "awaiting review" while the
+# work was already on `main`; the story rows below now follow the merge, not
+# the branch. Verified against the merge commit, the closed-issue list and the
+# (empty) open-PR list.
 
 development_status:
-  # E1 -- open: #314 (coverage ratchet + Credo thresholds)
+  # E1 -- open: #314 (coverage ratchet + Credo thresholds).
+  # Shipped since: #653/#654 CI hardening (Sprint 5). #682 (capturable
+  # intermittent local test-failure bursts) is new and unattached.
   epic-1: in-progress
   epic-1-retrospective: optional
 
-  # E2 -- open: #354 (pg_dump backup/restore, rescoped); #353 audit journal done
+  # E2 -- open: #354 (pg_dump backup/restore, rescoped); #353 audit journal done.
+  # #677 confirmed the rollout complete and closed as not_planned 2026-08-12.
   epic-2: in-progress
   epic-2-retrospective: optional
 
-  # E3 -- open: #328 (merge/rename/delete accounts, needs-uat)
+  # E3 -- open: #328 (merge/rename/delete accounts, needs-uat); #608 (merge and
+  # repair securities, the #328 analogue) is unattached
   epic-3: in-progress
   epic-3-retrospective: optional
 
@@ -190,7 +266,9 @@ development_status:
   epic-5: done
   epic-5-retrospective: optional
 
-  # E6 -- DX batch #581-#585 all closed; verified in mcp-server/src/tools.ts
+  # E6 -- DX batch #581-#585 all closed; verified in mcp-server/src/tools.ts.
+  # See finding F2: FR-37 (#665) and FR-38 (#666) are the agent-native successor
+  # work on this same surface and hang off no epic row.
   epic-6: done
   6-dx-1-book-any-transaction-kind-over-mcp: done
   6-dx-2-holdings-carry-stable-identifiers: done
@@ -199,11 +277,13 @@ development_status:
   6-c-1-imported-deliveries-keep-their-price: done
   epic-6-retrospective: optional
 
-  # E7 -- ADR-0023 display-only hints shipped; ranked both-direction cash guidance open
+  # E7 -- ADR-0023 display-only hints shipped; ranked both-direction cash
+  # guidance open (no issue). The rebalancing digest (B3.5) is gated.
   epic-7: in-progress
   epic-7-retrospective: optional
 
-  # E8 -- read-only sync, GATED (#320)
+  # E8 -- read-only sync, GATED (#320). Unchanged by the scope ladder: the
+  # identity gate kept acquisition beyond quotes/FX gated at B3.3.
   epic-8: backlog
   epic-8-retrospective: optional
 
@@ -211,11 +291,15 @@ development_status:
   epic-9: backlog
   epic-9-retrospective: optional
 
-  # E10 -- planning & simulation (#332)
+  # E10 -- planning & simulation. #332 (what-if) still gated, now on level-(d)
+  # grounds. FR-9 benchmark comparison was UNGATED 2026-08-12 by the scope
+  # ladder (level (b)); its filed issue is #572, which the Sprint 5 plan called
+  # E5 work -- the Epic List assigns FR-9 to E10. Sprint 6 front-runner.
   epic-10: backlog
   epic-10-retrospective: optional
 
-  # E11 -- open: #356 tracker + the unattached UI/UX issues (#412 #491 #560 #566 #606)
+  # E11 -- open: #356 tracker + #412 #414 #491 #561 #564 #565 #566 #651 and the
+  # six filed 2026-08-12 (#668 #669 #670 #671 #672 #673)
   epic-11: in-progress
   epic-11-retrospective: optional
 
@@ -247,7 +331,9 @@ development_status:
   epic-17-retrospective: done
 
   # E18 -- #600-#602/#605 closed and merged; review debt (#607, #609) cleared in
-  # Sprint 1; tracker #603 closed 2026-07-31
+  # Sprint 1; tracker #603 closed 2026-07-31. #664 (verify a PP re-import
+  # preserves classification/targets/notes/attributes) re-tests story 18.2's
+  # guarantee and is open, risk-tier attention -- it verifies, it does not reopen.
   epic-18: done
   18-1-stable-identity-decision-adr: done
   18-2-strategy-configuration-survives-a-re-import: done
@@ -257,7 +343,8 @@ development_status:
 
   # E19 -- gate #612 signed off 2026-07-25; ADR-0031 Accepted; 19.2-19.6
   # (#621-#625) merged to main in 02dde3b and closed. Epic stays in-progress:
-  # 19.7 is deferred behind its own decision gate, by design.
+  # 19.7 is deferred behind its own decision gate, by design. #667 (staleness
+  # warning + allowance-order entry) is open follow-up on the shipped surface.
   epic-19: in-progress
   19-1-tax-statement-snapshot-decision-adr: done
   19-2-tax-parameters-taxpayer-profile-and-configured-allowance-orders: done

@@ -6,10 +6,14 @@ description: Proposed decision to cache the period-independent daily performance
 
 # ADR-0032: memoized derived series — cache the daily TTWROR walk in volatile memory, warm it at boot, and never make the maintainer wait on a skeleton
 
-- **Status:** Accepted (decision gate per
+- **Status:** Superseded by [ADR-0039](0039-durable-derived-values.html)
+  (owner sign-off 2026-08-12). Previously Accepted (decision gate per
   [ADR-0026](0026-epic-batch-workflow.html); owner sign-off 2026-07-29 —
   [#562](https://github.com/peshay/portfolixir/issues/562), design decisions
-  §3/§6 owner-directed the same day)
+  §3/§6 owner-directed the same day). The memo this ADR describes is not
+  withdrawn: it becomes the `:request` lifetime on ADR-0039's single axis and
+  stops existing as separate machinery. Its measured evidence and its
+  never-a-source-of-truth boundary carry forward unchanged.
 - **Date:** 2026-07-29
 
 ## Context
