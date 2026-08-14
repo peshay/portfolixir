@@ -5058,68 +5058,34 @@ button.income-bar-label.is-active {
   }
 }
 
-/* ── Status toast (fixed-position, out-of-flow, always visible) ── */
+/* ── Inline action results ({components.inline-result}, issue 566) ── */
 /*
- * Rendered outside the scrollable content area so it stays visible
- * regardless of scroll position and never causes layout shift.
- * Dismissed via a phx-click event (no JS timer, no JS build needed).
+ * In-flow feedback beside the controls that trigger actions, replacing the
+ * fixed-position auto-dismiss toast. The two live regions exist before any
+ * action runs; a busy line mirrors the data-note footprint so the landing
+ * result does not reflow the page. No entrance animation and no timer: a
+ * result persists until the next action, a navigation, or the dismiss.
  */
-.status-toast {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 500;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  max-width: min(26rem, calc(100vw - 2rem));
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+.inline-result__region:not(:empty) {
+  margin: 8px 0;
 }
 
-@keyframes status-toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(-0.5rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.inline-result__busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--color-text-muted);
 }
 
-/* Opt-in motion form (issue 647): the entrance slide is polish only. */
-@media (prefers-reduced-motion: no-preference) {
-  .status-toast {
-    animation: status-toast-in 0.18s ease-out both;
-  }
-}
-
-.status-toast--success {
-  color: var(--color-accent);
-  background: var(--color-accent-soft);
-  border: 1px solid color-mix(in srgb, var(--color-accent) 32%, transparent);
-}
-
-.status-toast--error {
-  color: var(--color-danger);
-  background: var(--color-accent-coral-soft);
-  border: 1px solid color-mix(in srgb, var(--color-danger) 32%, transparent);
-}
-
-.status-toast__message {
-  flex: 1;
-  min-width: 0;
-}
-
-.status-toast__dismiss {
+.inline-result__dismiss {
   flex-shrink: 0;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 1.4rem;
   height: 1.4rem;
+  margin-left: 8px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm, 4px);
@@ -5129,19 +5095,12 @@ button.income-bar-label.is-active {
   opacity: 0.7;
   line-height: 1;
   font-size: 1rem;
+  vertical-align: middle;
 }
 
-.status-toast__dismiss:hover {
+.inline-result__dismiss:hover {
   opacity: 1;
   background: color-mix(in srgb, currentColor 12%, transparent);
-}
-
-@media (max-width: 480px) {
-  .status-toast {
-    right: 0.5rem;
-    left: 0.5rem;
-    max-width: none;
-  }
 }
 
 /* Inline spinner: import confirm while Imports.apply/2 runs async, and the

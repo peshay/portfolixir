@@ -402,43 +402,67 @@ defmodule PortfolixirWeb.AppShell do
   end
 
   @doc """
-  Renders a fixed-position status toast that is always visible regardless of
-  scroll position and never causes layout shift (out of normal document flow).
+  The inline busy/result slot for operator-triggered actions
+  ({components.inline-result}, issue #566): in-flow feedback rendered near the
+  triggering controls, replacing the floating auto-dismiss toast.
 
-  The dismiss button sends `phx-click="dismiss_toast"` to the parent LiveView,
-  which must implement `handle_event("dismiss_toast", _, socket)` to clear the
-  relevant status assign(s).
+  `result` is `nil`, `{:busy, message}` while an action runs, or
+  `{severity, message}` with a `data_note/1` severity (`:note`, `:attention`,
+  `:problem`). Both live regions exist in the DOM before any action so the
+  announcement is never lost: `role="status"` carries busy, note and attention;
+  `role="alert"` carries a problem answering the action just taken.
 
-  Confirmation toasts (`kind: :success`) carry `data-auto-dismiss="true"` and
-  are dismissed automatically by the `AutoDismissToast` JS hook after a short
-  delay, so the user no longer has to click them away. Errors
-  (`kind: :error`) stay until dismissed so they are not missed.
+  A result persists until the next action, a navigation, or the explicit
+  dismiss control — never a timer. The dismiss button sends
+  `phx-click="dismiss_result"` to the parent LiveView, which clears the
+  result assign.
   """
-  attr(:kind, :atom, values: [:success, :error], required: true)
+  attr(:id, :string, required: true)
+  attr(:result, :any, default: nil)
+
+  def inline_result(assigns) do
+    ~H"""
+    <div id={@id} class="inline-result" data-role="action-result">
+      <div id={"#{@id}-status"} role="status" class="inline-result__region">
+        <%= case @result do %>
+          <% {:busy, message} -> %>
+            <span class="inline-result__busy">
+              <span class="spinner" aria-hidden="true"></span>
+              <%= message %>
+            </span>
+          <% {severity, message} when severity in [:note, :attention] -> %>
+            <.inline_result_note severity={severity} message={message} />
+          <% _ -> %>
+        <% end %>
+      </div>
+      <div id={"#{@id}-alert"} role="alert" class="inline-result__region">
+        <%= case @result do %>
+          <% {:problem, message} -> %>
+            <.inline_result_note severity={:problem} message={message} />
+          <% _ -> %>
+        <% end %>
+      </div>
+    </div>
+    """
+  end
+
+  attr(:severity, :atom, required: true)
   attr(:message, :string, required: true)
 
-  def status_toast(assigns) do
+  defp inline_result_note(assigns) do
     ~H"""
-    <div
-      id={"status-toast-#{@kind}"}
-      class={["status-toast", "status-toast--#{@kind}"]}
-      role={if @kind == :error, do: "alert", else: "status"}
-      aria-live={if @kind == :error, do: "assertive", else: "polite"}
-      aria-atomic="true"
-      phx-hook="AutoDismissToast"
-      data-auto-dismiss={if @kind == :error, do: "false", else: "true"}
-    >
-      <span class="status-toast__message"><%= @message %></span>
+    <.data_note severity={@severity}>
+      <%= @message %>
       <button
         type="button"
-        class="status-toast__dismiss"
-        phx-click="dismiss_toast"
+        class="inline-result__dismiss"
+        phx-click="dismiss_result"
         aria-label={gettext("Dismiss")}
         title={gettext("Dismiss")}
       >
         &times;
       </button>
-    </div>
+    </.data_note>
     """
   end
 

@@ -203,9 +203,14 @@ defmodule PortfolixirWeb.DashboardLive do
   defp overview(assigns) do
     ~H"""
     <div id="dashboard-overview">
-      <%= if @error do %>
-        <AppShell.status_toast kind={:error} message={@error} />
-      <% end %>
+      <%!-- Load failure is a page-level condition, not an action result: one
+           data note in flow, announced from a region that exists on load, no
+           floating toast and no timer (#566, UX-DR17). --%>
+      <div id="dashboard-load-error" role="status">
+        <%= if @error do %>
+          <AppShell.data_note severity={:problem}><%= @error %></AppShell.data_note>
+        <% end %>
+      </div>
 
       <section class="workspace-section grid" aria-label={gettext("Wealth value")}>
         <%= if is_nil(@wealth_card) do %>
