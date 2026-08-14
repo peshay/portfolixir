@@ -3,10 +3,10 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
-  alias Portfolixir.Ledger
-  alias Portfolixir.Portfolios
   alias Portfolixir.Derived
   alias Portfolixir.Derived.Memo
+  alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance.Warmup
 
   # User story (2026-07-29, ADR-0032 §5, issue #562):

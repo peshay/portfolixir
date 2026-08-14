@@ -170,6 +170,19 @@ Therefore:
 If the recorded number later proves intolerable, that is a finding with evidence
 behind it rather than a prediction.
 
+**Amendment (2026-08-14, C5 implementation).** First measured run of
+`mix portfolixir.derived.rebuild` against the Context section's synthetic
+dataset (50 securities, 1,001 bookings, 26,100 weekly quote rows, one
+portfolio, ~3,650 walk days): **3.9 s** (3,861/3,865 ms across two runs,
+reported by the command itself; drop, version-log compaction and re-warming
+the operative scopes included). *Hardware caveat: measured on the CI-grade
+container the Context timings come from, not on operator hardware — the
+operator-hardware number this section asks for is recorded on the first real
+run there and replaces this one as the reference.* For calibration, the same
+dataset's repeat-read timings after activation: 2,628.9 ms with the layer
+off, 2.4 ms from the in-memory tier, 24.5 ms in a cold process served from
+the stored row.
+
 ## Consequences
 
 **Easier.** The repeat wait disappears for whatever is activated: the walk that
