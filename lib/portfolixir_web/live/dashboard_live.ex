@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.DashboardLive do
   use PortfolixirWeb, :live_view
 
+  alias Plug.Conn.Query
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
@@ -524,7 +525,7 @@ defmodule PortfolixirWeb.DashboardLive do
       dq.without_class > 0 &&
         %{
           role: "dq-class",
-          href: "/securities?" <> Plug.Conn.Query.encode(%{"filter" => ["asset_class:is_nil"]}),
+          href: "/securities?" <> Query.encode(%{"filter" => ["asset_class:is_nil"]}),
           text:
             ngettext(
               "one without an asset class",

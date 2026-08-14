@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   require Logger
 
+  alias Plug.Conn.Query
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
@@ -249,7 +250,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     if params == %{} do
       base
     else
-      base <> "?" <> Plug.Conn.Query.encode(params)
+      base <> "?" <> Query.encode(params)
     end
   end
 
