@@ -1013,15 +1013,17 @@ form {
   gap: var(--space-3);
 }
 
+/* Form layout primitives on the 4px scale (issue 412, UX-DR14): one grid,
+   one label voice, one gap vocabulary across every entry surface. */
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 14px;
+  gap: var(--space-4);
 }
 
 label {
   display: grid;
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 label span {
@@ -3669,14 +3671,16 @@ input[pattern]:invalid:not(:placeholder-shown) {
   background: var(--color-accent-soft, var(--color-border));
   color: var(--color-accent, var(--color-text));
 }
+/* Inline form rows align on the shared 34px control bottom edge (issue 412):
+   labelled fields, bare inputs and buttons all end on one line. */
 .inline-form {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 .category-form {
-  margin-bottom: 0.6rem;
+  margin-bottom: var(--space-2);
 }
 .category-list {
   display: flex;
