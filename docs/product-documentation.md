@@ -666,7 +666,11 @@ target (or shows a dash when none is set).
 The page paints immediately and computes its figures **asynchronously**; each
 section fills in when its data is ready. The expensive daily performance walk
 runs once and is cached on the page — switching the period re-chains the
-cached series, so the period buttons respond instantly. The chart is
+cached series, so the period control responds instantly. The period tokens
+(YTD, 1Y, 3Y, 5Y, Max) and the %/value series toggle render as segmented
+controls; a previous-year pick and a from/to custom range (ISO dates,
+`YYYY-MM-DD`) sit behind the **Custom range…** disclosure next to them.
+The chart is
 downsampled to a bounded number of points, so a decade of daily history stays
 light in the browser. Money and percentages follow the chosen language
 (German `1.234.567,89`, English `1,234,567.89`; money always with two

@@ -893,11 +893,21 @@ defmodule PortfolixirWeb.PortfolioLive do
         <section id="portfolio-performance" class="workspace-section">
           <header class="section-head">
             <h2><%= gettext("Performance") %></h2>
+            <%!-- Issue 669: the series toggle and the period tokens are the
+                 app's one segmented control ({components.selected-segment});
+                 the previous-year re-chain and the custom range live behind
+                 a disclosure, never as permanent chrome
+                 ({components.period-control}). --%>
             <div class="section-head-controls">
-              <div class="chart-toggle" role="group" aria-label={gettext("Chart series")}>
+              <div
+                class="segmented-control"
+                data-role="chart-series"
+                role="group"
+                aria-label={gettext("Chart series")}
+              >
                 <button
                   type="button"
-                  class={["button-mini", @chart_mode == "ttwror" && "is-active"]}
+                  class={["segmented-control__option", @chart_mode == "ttwror" && "is-active"]}
                   phx-click="set_chart_mode"
                   phx-value-mode="ttwror"
                   aria-pressed={to_string(@chart_mode == "ttwror")}
@@ -906,7 +916,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 </button>
                 <button
                   type="button"
-                  class={["button-mini", @chart_mode == "value" && "is-active"]}
+                  class={["segmented-control__option", @chart_mode == "value" && "is-active"]}
                   phx-click="set_chart_mode"
                   phx-value-mode="value"
                   aria-pressed={to_string(@chart_mode == "value")}
@@ -914,63 +924,82 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <%= gettext("Value (%{currency})", currency: display_currency(assigns)) %>
                 </button>
               </div>
-              <div class="period-buttons" role="group" aria-label={gettext("Period")}>
+              <div
+                class="segmented-control"
+                data-role="period-tokens"
+                role="group"
+                aria-label={gettext("Period")}
+              >
                 <%= for period <- Performance.periods() do %>
                   <button
                     type="button"
-                    class={["button-mini", period == @period && "is-active"]}
+                    class={["segmented-control__option", period == @period && "is-active"]}
                     phx-click="select_period"
                     phx-value-period={period}
+                    aria-pressed={to_string(period == @period)}
                   >
                     <%= period_label(period) %>
                   </button>
                 <% end %>
               </div>
-              <%!-- #563: a single previous year and a custom range are pure
-                   re-chains of the cached analysis, exactly like the buttons
-                   — no new walk. --%>
-              <form id="period-year-form" class="period-year" phx-change="select_year" data-role="period-year">
-                <label class="visually-hidden" for="performance-year"><%= gettext("Year") %></label>
-                <select
-                  id="performance-year"
-                  name="year"
-                  disabled={available_years(@analysis) == []}
-                >
-                  <option value="" selected={not match?({:year, _year}, @period)}>
-                    <%= gettext("Year…") %>
-                  </option>
-                  <option
-                    :for={year <- available_years(@analysis)}
-                    value={year}
-                    selected={@period == {:year, year}}
+              <details class="period-disclosure" data-role="period-custom">
+                <summary class="disclosure-summary">
+                  <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+                  <%= gettext("Custom range…") %>
+                </summary>
+                <div class="period-disclosure__body">
+                  <%!-- #563: a single previous year and a custom range are
+                       pure re-chains of the cached analysis, exactly like
+                       the buttons — no new walk. --%>
+                  <form
+                    id="period-year-form"
+                    class="period-year"
+                    phx-change="select_year"
+                    data-role="period-year"
                   >
-                    <%= year %>
-                  </option>
-                </select>
-              </form>
-              <form class="period-range" phx-submit="select_range" data-role="period-range">
-                <label class="visually-hidden" for="performance-from"><%= gettext("From") %></label>
-                <input
-                  type="text"
-                  placeholder="YYYY-MM-DD"
-                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                  maxlength="10"
-                  id="performance-from"
-                  name="from"
-                  value={range_from(@period, @performance)}
-                />
-                <label class="visually-hidden" for="performance-to"><%= gettext("To") %></label>
-                <input
-                  type="text"
-                  placeholder="YYYY-MM-DD"
-                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                  maxlength="10"
-                  id="performance-to"
-                  name="to"
-                  value={range_to(@period, @performance)}
-                />
-                <button type="submit" class="button-mini"><%= gettext("Apply") %></button>
-              </form>
+                    <label class="visually-hidden" for="performance-year"><%= gettext("Year") %></label>
+                    <select
+                      id="performance-year"
+                      name="year"
+                      disabled={available_years(@analysis) == []}
+                    >
+                      <option value="" selected={not match?({:year, _year}, @period)}>
+                        <%= gettext("Year…") %>
+                      </option>
+                      <option
+                        :for={year <- available_years(@analysis)}
+                        value={year}
+                        selected={@period == {:year, year}}
+                      >
+                        <%= year %>
+                      </option>
+                    </select>
+                  </form>
+                  <form class="period-range" phx-submit="select_range" data-role="period-range">
+                    <label class="visually-hidden" for="performance-from"><%= gettext("From") %></label>
+                    <input
+                      type="text"
+                      placeholder="YYYY-MM-DD"
+                      pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                      maxlength="10"
+                      id="performance-from"
+                      name="from"
+                      value={range_from(@period, @performance)}
+                    />
+                    <label class="visually-hidden" for="performance-to"><%= gettext("To") %></label>
+                    <input
+                      type="text"
+                      placeholder="YYYY-MM-DD"
+                      pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                      maxlength="10"
+                      id="performance-to"
+                      name="to"
+                      value={range_to(@period, @performance)}
+                    />
+                    <button type="submit"><%= gettext("Apply") %></button>
+                  </form>
+                </div>
+              </details>
             </div>
           </header>
           <%!-- #563: a backwards or unparsable range is refused with a terse

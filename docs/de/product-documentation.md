@@ -719,7 +719,11 @@ Die Seite zeichnet sich sofort und berechnet ihre Zahlen **asynchron**; jeder
 Abschnitt füllt sich, sobald seine Daten bereit sind. Der teure tägliche
 Performance-Lauf läuft einmal und wird auf der Seite zwischengespeichert — ein
 Zeitraumwechsel verkettet die zwischengespeicherte Reihe neu, sodass die
-Zeitraum-Buttons sofort reagieren. Der Chart wird auf eine begrenzte Punktzahl
+Zeitraumauswahl sofort reagiert. Die Zeitraum-Tokens (YTD, 1Y, 3Y, 5Y, Max)
+und der %/Wert-Umschalter sind segmentierte Controls; die Wahl eines früheren
+Jahres und ein Von/Bis-Zeitraum (ISO-Daten, `YYYY-MM-DD`) liegen hinter der
+Aufklappung **Benutzerdefinierter Zeitraum …** daneben. Der Chart wird auf
+eine begrenzte Punktzahl
 heruntergerechnet, sodass ein Jahrzehnt täglicher Historie im Browser leicht
 bleibt. Geld und Prozente folgen der gewählten Sprache (Deutsch `1.234.567,89`,
 Englisch `1,234,567.89`; Geld immer mit zwei Nachkommastellen).
