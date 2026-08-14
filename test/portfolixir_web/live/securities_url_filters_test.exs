@@ -84,6 +84,17 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
       refute has_element?(view, "#filter-chips .chip")
     end
 
+    # Review finding: `q` was the one URL param without a shape guard — an
+    # array-shaped `?q[]=foo` reached the catalog query as a list and
+    # crashed the view on every remount of the shared link.
+    test "an array-shaped q param is dropped like every other bad param", %{conn: conn} do
+      create_security(%{name: "Sane Co.", ticker_symbol: "SANE"})
+
+      {:ok, view, _html} = live(conn, "/securities?q[]=foo")
+
+      assert has_element?(view, "td", "Sane Co.")
+    end
+
     test "applying a search patches the URL so the state is linkable", %{conn: conn} do
       create_security(%{name: "Apple Inc.", ticker_symbol: "AAPL"})
 

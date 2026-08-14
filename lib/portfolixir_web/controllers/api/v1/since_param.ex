@@ -34,12 +34,19 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
          :error <- parse_date(value) do
       {:error, :since}
     else
-      # `as_of` is captured here, BEFORE the controller runs its query: a row
-      # committed between the query and the stamp then falls into the next
-      # poll's window (a harmless overlap) instead of being skipped forever
-      # by the strictly-after cut.
+      # `as_of` is captured here, BEFORE the controller runs its query, and
+      # backdated one second: `updated_at` carries second precision, so a row
+      # committed after the query but inside the stamp's own wall-clock
+      # second would satisfy `updated_at == as_of` and be excluded forever
+      # by the strictly-after cut. Both give a harmless overlap — the next
+      # poll re-delivers a row rather than losing one (review findings).
       {:ok, naive} ->
-        {:ok, %{raw: value, cut: naive, as_of: DateTime.truncate(DateTime.utc_now(), :second)}}
+        as_of =
+          DateTime.utc_now()
+          |> DateTime.truncate(:second)
+          |> DateTime.add(-1, :second)
+
+        {:ok, %{raw: value, cut: naive, as_of: as_of}}
     end
   end
 

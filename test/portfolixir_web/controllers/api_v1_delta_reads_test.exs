@@ -148,21 +148,27 @@ defmodule PortfolixirWeb.ApiV1DeltaReadsTest do
            |> json_response(422)
   end
 
-  # User story (FR-38, issue #666, review finding):
+  # User story (FR-38, issue #666, review findings):
   # As an agent polling with `?since=`,
-  # I want `as_of` captured BEFORE the query runs,
-  # so that a row committed between the query and the stamp falls into the
-  # next poll's window (overlap) instead of being skipped forever by the
-  # strictly-after cut.
+  # I want `as_of` captured BEFORE the query runs and backdated one second,
+  # so that a row committed between the query and the stamp — or inside the
+  # stamp's own wall-clock second, where second-precision `updated_at`
+  # equals `as_of` — falls into the next poll's window (overlap) instead of
+  # being skipped forever by the strictly-after cut.
   #
   # Acceptance criteria:
-  # - `SinceParam.parse/1` captures the read instant at parse time.
+  # - `SinceParam.parse/1` captures the read instant at parse time, strictly
+  #   before the current second.
   # - `put_envelope/2` serializes exactly that pre-query stamp, never a
   #   fresh `DateTime.utc_now/0` taken at render time.
-  test "as_of is the parse-time stamp, not a render-time one" do
+  test "as_of is the backdated parse-time stamp, not a render-time one" do
     {:ok, parsed} = SinceParam.parse(%{"since" => "2026-06-01"})
 
     assert %DateTime{} = parsed.as_of
+
+    # Strictly before the current second: the clock only moves forward, so
+    # this holds deterministically for a stamp backdated by one second.
+    assert DateTime.compare(parsed.as_of, DateTime.truncate(DateTime.utc_now(), :second)) == :lt
 
     pinned = DateTime.new!(~D[2026-06-02], ~T[08:00:00], "Etc/UTC")
     envelope = SinceParam.put_envelope(%{data: []}, %{parsed | as_of: pinned})

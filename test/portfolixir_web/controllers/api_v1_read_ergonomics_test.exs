@@ -157,6 +157,27 @@ defmodule PortfolixirWeb.ApiV1ReadErgonomicsTest do
     assert %{"errors" => %{"fields" => ["is invalid"]}} = response
   end
 
+  # Review finding: the boundary between "not asking" and "asking wrongly"
+  # was untested. An absent or empty fields= is the full projection; an
+  # empty item inside a non-empty selection is a 422.
+  test "holdings fields= empty means full projection, a bare comma is a 422", %{conn: conn} do
+    world = seed_world()
+
+    full =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/holdings?fields=")
+      |> json_response(200)
+
+    assert [row | _] = full["data"]
+    assert map_size(row) > 2
+
+    assert conn
+           |> api_conn()
+           |> get("/api/v1/portfolios/#{world.portfolio.id}/holdings?fields=,")
+           |> json_response(422)
+  end
+
   test "transactions fields= returns exactly the requested row fields", %{conn: conn} do
     _world = seed_world()
 
