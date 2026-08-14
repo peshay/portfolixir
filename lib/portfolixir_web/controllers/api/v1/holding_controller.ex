@@ -3,23 +3,39 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
 
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.JSON
+
+  # FR-37 (#665): sparse fieldsets over the serializer's own field list.
+  @fields_whitelist FieldSelection.whitelist(JSON.holding_fields())
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, id} <- parse_id(portfolio_id),
-         portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id) do
+         portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id),
+         {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist) do
       holdings =
         id
         |> Ledger.holdings_for_portfolio()
         |> filter_holdings(params)
 
-      json(conn, JSON.holdings(holdings, id))
+      response =
+        JSON.holdings(holdings, id)
+        |> Map.update!(:data, fn rows ->
+          Enum.map(rows, &FieldSelection.take(&1, fields))
+        end)
+
+      json(conn, response)
     else
       :error ->
         not_found(conn)
 
       nil ->
         not_found(conn)
+
+      {:error, :fields} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: %{fields: ["is invalid"]}})
     end
   end
 

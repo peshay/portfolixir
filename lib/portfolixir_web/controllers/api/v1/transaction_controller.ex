@@ -3,13 +3,23 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
 
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
+  alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.JSON
 
-  def index(conn, params) do
-    case list_opts(params) do
-      {:ok, opts} ->
-        json(conn, %{data: Enum.map(Ledger.list_transactions(opts), &JSON.transaction/1)})
+  # FR-37 (#665): sparse fieldsets over the serializer's own field list.
+  @fields_whitelist FieldSelection.whitelist(JSON.transaction_fields())
 
+  def index(conn, params) do
+    with {:ok, opts} <- list_opts(params),
+         {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist) do
+      rows =
+        Ledger.list_transactions(opts)
+        |> Enum.map(fn transaction ->
+          transaction |> JSON.transaction() |> FieldSelection.take(fields)
+        end)
+
+      json(conn, %{data: rows})
+    else
       {:error, field} ->
         conn
         |> put_status(:unprocessable_entity)

@@ -9,7 +9,8 @@ defmodule PortfolixirWeb.Api.V1.ValuationController do
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, id} <- parse_id(portfolio_id),
          portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id),
-         {:ok, view} <- ViewParam.resolve(params) do
+         {:ok, view} <- ViewParam.resolve(params),
+         {:ok, include_positions} <- include_positions_param(params) do
       # The view can vanish between resolve and read (fix round TOCTOU):
       # still a plain 404, never a 500.
       case Valuation.for_portfolio(id, ViewParam.opts(view)) do
@@ -17,14 +18,29 @@ defmodule PortfolixirWeb.Api.V1.ValuationController do
           not_found(conn)
 
         valuation ->
-          data = valuation |> JSON.valuation() |> ViewParam.put_active(view)
+          data =
+            valuation
+            |> JSON.valuation(include_positions: include_positions)
+            |> ViewParam.put_active(view)
+
           json(conn, %{data: data})
       end
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
       {:error, :view} -> unprocessable(conn, %{view: ["is invalid"]})
+      {:error, :include_positions} -> unprocessable(conn, %{include_positions: ["is invalid"]})
       :view_not_found -> not_found(conn)
+    end
+  end
+
+  # FR-37 (#665): `include_positions=false` for a roll-up-only read; the
+  # default keeps the full shape. Anything but true/false is a 422.
+  defp include_positions_param(params) do
+    case Map.get(params, "include_positions", "true") do
+      value when value in ["true", ""] -> {:ok, true}
+      "false" -> {:ok, false}
+      _other -> {:error, :include_positions}
     end
   end
 

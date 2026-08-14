@@ -113,6 +113,62 @@ const bookableKinds = [
   "security_transfer"
 ] as const;
 
+// FR-37 (#665) sparse fieldsets: these enums mirror the API's per-endpoint
+// whitelists (the serializer field lists in PortfolixirWeb.Api.V1.JSON).
+const transactionFieldNames = [
+  "id",
+  "portfolio_id",
+  "securities_account_id",
+  "cash_account_id",
+  "counter_cash_account_id",
+  "counter_securities_account_id",
+  "security_id",
+  "type",
+  "date",
+  "quantity",
+  "price",
+  "gross_amount",
+  "fees",
+  "taxes",
+  "currency_code",
+  "security_amount",
+  "settlement_amount",
+  "settlement_fx_rate",
+  "split_ratio_numerator",
+  "split_ratio_denominator",
+  "notes",
+  "import_hash",
+  "inserted_at",
+  "updated_at"
+] as const;
+
+const holdingFieldNames = [
+  "portfolio_id",
+  "securities_account_id",
+  "security_id",
+  "security_name",
+  "isin",
+  "wkn",
+  "currency_code",
+  "quantity",
+  "avg_cost",
+  "cost_basis",
+  "latest_price",
+  "market_value",
+  "unrealized_pnl_abs",
+  "unrealized_pnl_pct",
+  "base_cost",
+  "base_currency",
+  "price_return_abs",
+  "price_return_pct",
+  "currency_return_abs",
+  "currency_return_pct",
+  "total_return_base_abs",
+  "total_return_base_pct",
+  "decomposed",
+  "undecomposed_reason"
+] as const;
+
 const transactionZ = z.object({
   transaction: z
     .object({
@@ -899,14 +955,18 @@ const allocationSchema = {
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     classification_id: { type: "integer", minimum: 1 },
-    view: { type: "integer", minimum: 1 }
+    view: { type: "integer", minimum: 1 },
+    include_positions: { type: "boolean" },
+    min_drift: { type: "string" }
   }
 };
 
 const allocationZ = z.object({
   portfolio_id: z.number().int().positive(),
   classification_id: z.number().int().positive(),
-  view: z.number().int().positive().optional()
+  view: z.number().int().positive().optional(),
+  include_positions: z.boolean().optional(),
+  min_drift: z.string().optional()
 });
 
 // The cash target is the SOLL cash share of the allocation's 100% basis
@@ -1801,7 +1861,7 @@ const toolDefinitions: ToolDefinition[] = [
     idSchema,
     idZ
   ),
-  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id.", {
+  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id. Optional fields (FR-37) selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. id, type, date, security_id, gross_amount) for routine reads and request the full rows only when auditing a booking.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -1809,14 +1869,16 @@ const toolDefinitions: ToolDefinition[] = [
       to: { type: "string", format: "date" },
       portfolio_id: { type: "integer", minimum: 1 },
       security_id: { type: "integer", minimum: 1 },
-      securities_account_id: { type: "integer", minimum: 1 }
+      securities_account_id: { type: "integer", minimum: 1 },
+      fields: { type: "array", items: { type: "string", enum: [...transactionFieldNames] } }
     }
   }, z.object({
     from: optionalString(),
     to: optionalString(),
     portfolio_id: z.number().int().positive().optional(),
     security_id: z.number().int().positive().optional(),
-    securities_account_id: z.number().int().positive().optional()
+    securities_account_id: z.number().int().positive().optional(),
+    fields: z.array(z.enum(transactionFieldNames)).optional()
   })),
   tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id and quantity — inbound_delivery additionally REQUIRES price (an unpriced inbound delivery enters the cost basis at zero), while outbound_delivery removes cost at the position's running average and treats price as informational; security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. For buy/sell, omit cash_account_id — it is derived from the depot's linked account. Amounts are positive magnitudes; the kind implies the direction (removal/fee/tax debit, deposit/dividend/interest/tax_refund credit) — never send negative values: a refunded tax (e.g. from a loss sale) is a separate tax_refund transaction with a positive gross_amount, never a negative taxes field (set_balance is the only negative-capable amount). Semantics: for dividend/interest/tax_refund bookings, gross_amount is the NET cash credited to the account — record withheld taxes in the taxes field; the income report reconstructs gross as net plus withheld tax. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking). Semantics as on create: a dividend's gross_amount is the NET cash credited (withheld taxes ride in the taxes field), and an unpriced inbound delivery enters the cost basis at zero (changing a type to inbound_delivery therefore requires a price).", transactionUpdateSchema, transactionUpdateZ),
@@ -1835,32 +1897,39 @@ const toolDefinitions: ToolDefinition[] = [
     splitRequestSchema,
     splitRequestZ()
   ),
-  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings with moving-average cost basis, latest price, market value and unrealized P&L in each security's OWN currency, plus the ADR-0033 base-currency P&L decomposition per row: base_cost (the settlement-leg amount actually paid, in base_currency), price_return_* (the security's own price move at today's rate), currency_return_* (the FX effect on the invested amount) and total_return_base_* — total = price + currency exactly. decomposed false with undecomposed_reason (missing_native_cost | missing_base_cost | missing_fx | no_price) marks a row whose figure is honestly unavailable, never guessed; the response's currency_basis_note states which field is in which currency. All financial values are Decimal strings. Each row carries the security's stable identifiers isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id.", {
+  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings with moving-average cost basis, latest price, market value and unrealized P&L in each security's OWN currency, plus the ADR-0033 base-currency P&L decomposition per row: base_cost (the settlement-leg amount actually paid, in base_currency), price_return_* (the security's own price move at today's rate), currency_return_* (the FX effect on the invested amount) and total_return_base_* — total = price + currency exactly. decomposed false with undecomposed_reason (missing_native_cost | missing_base_cost | missing_fx | no_price) marks a row whose figure is honestly unavailable, never guessed; the response's currency_basis_note states which field is in which currency. All financial values are Decimal strings. Each row carries the security's stable identifiers isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id. Optional fields (FR-37) selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. security_id, quantity, market_value) for routine reads.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
     properties: {
       portfolio_id: { type: "integer", minimum: 1 },
       security_id: { type: "integer", minimum: 1 },
-      securities_account_id: { type: "integer", minimum: 1 }
+      securities_account_id: { type: "integer", minimum: 1 },
+      fields: { type: "array", items: { type: "string", enum: [...holdingFieldNames] } }
     }
   }, z.object({
     portfolio_id: z.number().int().positive(),
     security_id: z.number().int().positive().optional(),
-    securities_account_id: z.number().int().positive().optional()
+    securities_account_id: z.number().int().positive().optional(),
+    fields: z.array(z.enum(holdingFieldNames)).optional()
   })),
   tool("portfolixir.holdings.by_security", "Holdings by security (global EUR)", "Global per-security valuation across ALL portfolios: each held security's total quantity and current market value converted to the EUR hub, with a valued flag (false when a quote, trade price or EUR rate path is missing) and an unvalued_reason (no_price: nothing resolves at all; missing_fx: latest_price/price_currency are known but no stored rate path reaches EUR; null when valued). Each row also carries latest_price, price_currency and price_source. Self-describing: currency EUR, an as_of read date and a note; financial values are Decimal strings. Differs from portfolixir.holdings.list (per-portfolio holdings in the security's own currency, no FX) and from portfolixir.portfolios.valuation (one portfolio's totals/weights in its base currency).", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.holdings.negative", "Negative holdings (data quality)", "Data-quality report of impossible negative holdings (#570): every (depot, security) position whose derived quantity is below zero — import debris from unmodeled corporate actions or rename chains, listed per depot with depot/security names plus each listed security's total quantity across ALL depots (so transfer debris, negative in one depot but positive in another, is distinguishable from a truly negative total). Quantities are Decimal strings. Self-describing: an as_of read date and a note. Repair the security's transaction history via portfolixir.transactions.*; there is no repair wizard beyond splits and nothing is changed automatically.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.holdings.reconcile", "Reconcile external position list (read-only)", "Compare a user-supplied external position list (broker statement, depot overview) against the ledger-derived holdings — strictly read-only, nothing is stored. Each row's identifier is matched through the stable-identity ladder (ISIN incl. recorded former ISINs, then WKN / ticker+currency / name+currency with an exactly-one rule across those tiers); the response reports per matched security the matched_via tier, the exact ledger quantity, external quantity and delta as Decimal strings, plus ambiguous rows with candidates, unmatched rows, and held ledger positions absent from the list. Rows resolving to the same security are aggregated so there is never more than one delta per position. Resolve a difference by booking the missing transaction of the correct kind (buy, sell, delivery with price, transfer, dividend, tax_refund for a tax credited back after a loss sale, ...) via portfolixir.transactions.create — balance snapshots (set_balance) and unpriced deliveries are last resorts that distort cost basis; do NOT reach for them just to make numbers match. Weak (ticker/name) matches carry a caveat: confirm the security before booking anything. Quantities must be canonical dot-decimal strings — parse locale formats (comma decimals, thousands separators) client-side before calling. Optional scope: portfolio_id or view (mutually exclusive); default is the whole instance, and the response states its basis (as_of, scope).", reconcileSchema, reconcileZ),
-  tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, actual weights per position, plus the base-currency portfolio total, cash balances and the cash quote (use this, not holdings.list, for base-currency totals). The valued/price_source flags mark stale or unpriceable positions, and unvalued_reason distinguishes no_price (nothing resolves) from missing_fx (a native latest_price/price_currency is known but no stored FX path reaches the base currency). Pass an optional view (a view id) to scope the result to the holdings matching that bucket view; the response then echoes the active view.", {
+  tool("portfolixir.portfolios.valuation", "Value portfolio", "Live valuation of a portfolio: market values, actual weights per position, plus the base-currency portfolio total, cash balances and the cash quote (use this, not holdings.list, for base-currency totals). The valued/price_source flags mark stale or unpriceable positions, and unvalued_reason distinguishes no_price (nothing resolves) from missing_fx (a native latest_price/price_currency is known but no stored FX path reaches the base currency). Pass an optional view (a view id) to scope the result to the holdings matching that bucket view; the response then echoes the active view. Pass include_positions=false (FR-37) for a roll-up-only read — totals, cash balances and cash quote without the per-position rows; the response states positions_included.", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],
     properties: {
       portfolio_id: { type: "integer", minimum: 1 },
-      view: { type: "integer", minimum: 1 }
+      view: { type: "integer", minimum: 1 },
+      include_positions: { type: "boolean" }
     }
-  }, z.object({ portfolio_id: z.number().int().positive(), view: z.number().int().positive().optional() })),
+  }, z.object({
+    portfolio_id: z.number().int().positive(),
+    view: z.number().int().positive().optional(),
+    include_positions: z.boolean().optional()
+  })),
   tool("portfolixir.exchange_rates.list", "List exchange rates", "List stored EUR-hub exchange rates.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store the latest exchange rates from the configured provider.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and security assignments.", emptyObjectSchema, emptyObjectZ),
@@ -1931,7 +2000,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.allocation",
     "Portfolio allocation drift",
-    "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category plus a cash row, in one call. Drift is actual - target (positive = overweight, i.e. reduce to reach the target; ADR-0023), as a weight and restated in base currency. Category targets are the EFFECTIVE targets (ADR-0030): when the plan carries position-level SOLL rows their sum steers the category — conflict flags a diverging explicit category weight, has_stale a stale position row. Each category's positions are the union of its held positions and the plan's position SOLL rows: each row carries quantity, target_weight (its position SOLL, null when none), drift_weight (actual - target), held, drift_value and rebalance_quantity (indicative units to sell (positive) or buy (negative)) — display-only hints, never an order. A position with SOLL > 0 that is not yet held appears with IST 0 (held=false) and its hint priced at the latest stored quote (null without a price); quote_date names that quote's date (null when the hint is not quote-based), and held means holdings presence — an unpriceable held security is never reported as unheld. A row is hidden only when its SOLL is 0/absent and holdings are zero; stale=true marks a row whose SOLL row no longer matches the security's current category (it keeps counting where it was filed). Unassigned entries attach their position SOLL too, and deep_target_sum reports the effective targets steered below an untargeted top level. Rows without their own SOLL keep the category-share drift_value/rebalance_quantity at the valuation's implied unit price. The 100% basis is securities + counting cash. Pass an optional view (a view id) to scope the breakdown to the holdings matching that bucket view; the response then echoes the active view. For the raw position-target rows and per-category roll-up (the maintenance view) use portfolixir.targets.list_positions.",
+    "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category plus a cash row, in one call. Drift is actual - target (positive = overweight, i.e. reduce to reach the target; ADR-0023), as a weight and restated in base currency. Category targets are the EFFECTIVE targets (ADR-0030): when the plan carries position-level SOLL rows their sum steers the category — conflict flags a diverging explicit category weight, has_stale a stale position row. Each category's positions are the union of its held positions and the plan's position SOLL rows: each row carries quantity, target_weight (its position SOLL, null when none), drift_weight (actual - target), held, drift_value and rebalance_quantity (indicative units to sell (positive) or buy (negative)) — display-only hints, never an order. A position with SOLL > 0 that is not yet held appears with IST 0 (held=false) and its hint priced at the latest stored quote (null without a price); quote_date names that quote's date (null when the hint is not quote-based), and held means holdings presence — an unpriceable held security is never reported as unheld. A row is hidden only when its SOLL is 0/absent and holdings are zero; stale=true marks a row whose SOLL row no longer matches the security's current category (it keeps counting where it was filed). Unassigned entries attach their position SOLL too, and deep_target_sum reports the effective targets steered below an untargeted top level. Rows without their own SOLL keep the category-share drift_value/rebalance_quantity at the valuation's implied unit price. The 100% basis is securities + counting cash. Pass an optional view (a view id) to scope the breakdown to the holdings matching that bucket view; the response then echoes the active view. Read ergonomics (FR-37): include_positions=false returns the category roll-up without the position rows, and min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\") returns only the category rows whose |drift_weight| meets it — targetless categories are filtered out with it, kept rows come back flat (an ancestor under the threshold is absent), and the response states positions_included, the applied min_drift and categories_total (the pre-filter count). Prefer include_positions=false plus a min_drift for the routine what-drifted read. For the raw position-target rows and per-category roll-up (the maintenance view) use portfolixir.targets.list_positions.",
     allocationSchema,
     allocationZ
   ),
@@ -2392,7 +2461,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "to",
           "portfolio_id",
           "security_id",
-          "securities_account_id"
+          "securities_account_id",
+          "fields"
         ])
       );
     case "portfolixir.transactions.create":
@@ -2412,7 +2482,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/holdings`, args, [
           "security_id",
-          "securities_account_id"
+          "securities_account_id",
+          "fields"
         ])
       );
     case "portfolixir.holdings.by_security":
@@ -2424,7 +2495,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.portfolios.valuation":
       return client.request(
         "GET",
-        withQuery(`/api/v1/portfolios/${args.portfolio_id}/valuation`, args, ["view"])
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/valuation`, args, [
+          "view",
+          "include_positions"
+        ])
       );
     case "portfolixir.exchange_rates.list":
       return client.request("GET", "/api/v1/exchange_rates");
@@ -2526,7 +2600,9 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/allocation`, args, [
           "classification_id",
-          "view"
+          "view",
+          "include_positions",
+          "min_drift"
         ])
       );
     case "portfolixir.portfolios.risk":

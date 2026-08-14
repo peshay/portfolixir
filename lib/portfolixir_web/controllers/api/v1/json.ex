@@ -161,6 +161,38 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  # The selectable transaction fields (FR-37, #665) — kept in lockstep with
+  # `transaction/1` by the read-ergonomics inventory test, so the whitelist
+  # can never silently offer less than the full serializer emits.
+  @transaction_fields [
+    :id,
+    :portfolio_id,
+    :securities_account_id,
+    :cash_account_id,
+    :counter_cash_account_id,
+    :counter_securities_account_id,
+    :security_id,
+    :type,
+    :date,
+    :quantity,
+    :price,
+    :gross_amount,
+    :fees,
+    :taxes,
+    :currency_code,
+    :security_amount,
+    :settlement_amount,
+    :settlement_fx_rate,
+    :split_ratio_numerator,
+    :split_ratio_denominator,
+    :notes,
+    :import_hash,
+    :inserted_at,
+    :updated_at
+  ]
+
+  def transaction_fields, do: @transaction_fields
+
   def transaction(%Transaction{} = transaction) do
     %{
       id: transaction.id,
@@ -380,6 +412,37 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       "unavailable, never guessed."
   end
 
+  # The selectable holding-row fields (FR-37, #665) — kept in lockstep with
+  # `holding/2` by the read-ergonomics inventory test.
+  @holding_fields [
+    :portfolio_id,
+    :securities_account_id,
+    :security_id,
+    :security_name,
+    :isin,
+    :wkn,
+    :currency_code,
+    :quantity,
+    :avg_cost,
+    :cost_basis,
+    :latest_price,
+    :market_value,
+    :unrealized_pnl_abs,
+    :unrealized_pnl_pct,
+    :base_cost,
+    :base_currency,
+    :price_return_abs,
+    :price_return_pct,
+    :currency_return_abs,
+    :currency_return_pct,
+    :total_return_base_abs,
+    :total_return_base_pct,
+    :decomposed,
+    :undecomposed_reason
+  ]
+
+  def holding_fields, do: @holding_fields
+
   def holding(holding, portfolio_id) do
     %{
       portfolio_id: portfolio_id,
@@ -575,8 +638,13 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  def valuation(%{positions: positions} = valuation) do
-    %{
+  # `include_positions: false` (FR-37, #665) omits the position rows for a
+  # roll-up-only read; the totals, cash balances and note are untouched and
+  # `positions_included` states which shape the caller got.
+  def valuation(%{positions: positions} = valuation, opts \\ []) do
+    include_positions? = Keyword.get(opts, :include_positions, true)
+
+    base = %{
       portfolio_id: valuation.portfolio_id,
       base_currency: valuation.base_currency,
       # FR-13: describe the read date and the chosen basis so a consumer never
@@ -591,9 +659,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
       trade_priced_count: valuation.trade_priced_count,
-      positions: Enum.map(positions, &valuation_position/1),
+      positions_included: include_positions?,
       cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
     }
+
+    if include_positions? do
+      Map.put(base, :positions, Enum.map(positions, &valuation_position/1))
+    else
+      base
+    end
   end
 
   defp valuation_note(base_currency) do
@@ -810,7 +884,24 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  def allocation(allocation) do
+  # FR-37 (#665) read ergonomics: `include_positions: false` omits the
+  # per-category (and unassigned) position rows for a roll-up-only read, and
+  # `min_drift` (a non-negative Decimal) keeps only the category rows whose
+  # absolute drift_weight meets the threshold — targetless categories carry
+  # no drift and are filtered out with it. The response states its own basis:
+  # `positions_included`, the applied `min_drift` and `categories_total` (the
+  # pre-filter row count), so a filtered read is never mistaken for the whole
+  # tree. Filtered rows are returned flat — a kept child's ancestor may be
+  # absent when its own drift is under the threshold.
+  def allocation(allocation, opts \\ []) do
+    include_positions? = Keyword.get(opts, :include_positions, true)
+    min_drift = Keyword.get(opts, :min_drift)
+
+    categories =
+      allocation.categories
+      |> Enum.filter(&drift_meets_threshold?(&1, min_drift))
+      |> Enum.map(&allocation_category(&1, include_positions?))
+
     %{
       portfolio_id: allocation.portfolio_id,
       classification_id: allocation.classification_id,
@@ -818,14 +909,26 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       base_currency: allocation.base_currency,
       total_value: decimal(allocation.total_value),
       unvalued_count: allocation.unvalued_count,
-      categories: Enum.map(allocation.categories, &allocation_category/1),
+      positions_included: include_positions?,
+      min_drift: decimal(min_drift),
+      categories_total: length(allocation.categories),
+      categories: categories,
       cash: allocation_cash(allocation.cash),
       top_level_target_sum: decimal(allocation.top_level_target_sum),
       # The per-subtree topmost targeted level, summed (#481 slice 2a fix
       # round): explains a 0% top-level Σ over a plan steered deeper down.
       deep_target_sum: decimal(Map.get(allocation, :deep_target_sum)),
-      unassigned: allocation_unassigned(allocation.unassigned)
+      unassigned: allocation_unassigned(allocation.unassigned, include_positions?)
     }
+  end
+
+  defp drift_meets_threshold?(_category, nil), do: true
+
+  defp drift_meets_threshold?(category, %Decimal{} = min_drift) do
+    case category.drift_weight do
+      nil -> false
+      %Decimal{} = drift -> Decimal.compare(Decimal.abs(drift), min_drift) != :lt
+    end
   end
 
   defp allocation_cash(cash) do
@@ -846,8 +949,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   # the sum of its position rows when any exist, else the explicit category
   # weight. `conflict` flags a diverging explicit weight, `has_stale` a stale
   # position row filed under the category.
-  defp allocation_category(category) do
-    %{
+  defp allocation_category(category, include_positions?) do
+    base = %{
       category_id: category.category_id,
       parent_id: category.parent_id,
       depth: category.depth,
@@ -861,9 +964,14 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       drift_value: decimal(category.drift_value),
       child_target_sum: decimal(category.child_target_sum),
       conflict: category.conflict,
-      has_stale: category.has_stale,
-      positions: Enum.map(category.positions, &allocation_position/1)
+      has_stale: category.has_stale
     }
+
+    if include_positions? do
+      Map.put(base, :positions, Enum.map(category.positions, &allocation_position/1))
+    else
+      base
+    end
   end
 
   # Without a position SOLL, `drift_value` is the position's share of its
@@ -896,14 +1004,19 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  defp allocation_unassigned(nil), do: nil
+  defp allocation_unassigned(nil, _include_positions?), do: nil
 
-  defp allocation_unassigned(unassigned) do
-    %{
+  defp allocation_unassigned(unassigned, include_positions?) do
+    base = %{
       market_value: decimal(unassigned.market_value),
-      actual_weight: decimal(unassigned.actual_weight),
-      positions: Enum.map(unassigned.positions, &allocation_position/1)
+      actual_weight: decimal(unassigned.actual_weight)
     }
+
+    if include_positions? do
+      Map.put(base, :positions, Enum.map(unassigned.positions, &allocation_position/1))
+    else
+      base
+    end
   end
 
   def risk(risk) do

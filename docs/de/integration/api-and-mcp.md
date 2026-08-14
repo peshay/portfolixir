@@ -279,6 +279,10 @@ Beispiel-Payloads für Konten:
 - `GET /api/v1/transactions` listet Transaktionen. Optionale Filter: `from`/`to`
   (ISO-Daten, inklusive), `portfolio_id`, `security_id`, `securities_account_id`.
   Ungültige Filter liefern `422 Unprocessable Entity` mit dem betreffenden Feld.
+  Ein optionales `fields=` (FR-37, kommagetrennt) wählt eine schlanke
+  Feldauswahl: Jede Zeile trägt dann genau die angefragten Felder. Die Namen
+  werden gegen die Feldliste des Serializers validiert — ein unbekannter Name
+  ist ein `422`, nie ein stiller Fallback.
 - `POST /api/v1/transactions` legt eine Transaktion beliebiger buchbarer Art mit
   einem `transaction`-Objekt an (die pro Buchungsart erforderlichen Felder werden
   serverseitig validiert). Die buchbaren `type`-Werte sind `buy`, `sell`,
@@ -389,7 +393,10 @@ Beispiel-Payloads für Konten:
   benennt, welches Feld in welcher Währung ist, und ein `as_of`-Datum.
   Bestände werden beim Lesen abgeleitet, ohne gespeicherten Snapshot, daher
   ist `as_of` das Lesedatum. Unbekannte Portfolios liefern `404 Not Found`.
-  Optionale Filter: `security_id`, `securities_account_id`.
+  Optionale Filter: `security_id`, `securities_account_id`. Ein optionales
+  `fields=` (FR-37, kommagetrennt) wählt eine schlanke Feldauswahl je Zeile,
+  validiert gegen die Feldliste des Serializers; ein unbekannter Name ist
+  ein `422`.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
@@ -493,7 +500,10 @@ Beispiel-Payloads für Konten:
   `as_of`-Datum (das Lesedatum — die Bewertung wird live ohne gespeicherten
   Snapshot berechnet) und eine `valuation_note`, die angibt, dass Summen in
   `base_currency` über den EUR-Hub vorliegen und dass die je Position geführten
-  Felder `price_source` und `valued` die Preis-Aktualität anzeigen.
+  Felder `price_source` und `valued` die Preis-Aktualität anzeigen. Ein
+  optionales `include_positions=false` (FR-37) liefert nur den Roll-up —
+  Summen, Cash-Salden und Cash-Quote ohne die Positionszeilen; die Antwort
+  benennt die gelieferte Form über `positions_included`.
 - `GET /api/v1/portfolios/:portfolio_id/performance` liefert die **echte
   zeitgewichtete Rendite (TTWROR)** des Portfolios, berechnet auf die
   Portfolio-Performance-Art: das Portfolio wird täglich bewertet (Kurse am oder vor
@@ -654,7 +664,15 @@ Beispiel-Payloads für Konten:
   die rohen Positions-Ziel-Zeilen und den Roll-up je Kategorie (die
   Pflege-Sicht) dient der `position_targets`-Endpunkt oben. Unbekannte
   Portfolios oder Klassifizierungen liefern `404 Not
-  Found`.
+  Found`. Lese-Ergonomie (FR-37): `include_positions=false` lässt die
+  Positionszeilen je Kategorie (und in `unassigned`) für einen reinen
+  Roll-up weg, und `min_drift=<decimal>` (eine absolute Drift-Schwelle,
+  z. B. `0.02`) liefert nur die Kategoriezeilen, deren `|drift_weight|` sie
+  erreicht — ziellose Kategorien tragen keine Drift und werden mitgefiltert;
+  behaltene Zeilen kommen flach zurück (ein Vorfahre unter der Schwelle
+  fehlt). Die Antwort benennt ihre eigene Basis: `positions_included`, das
+  angewandte `min_drift` und `categories_total` (die Zeilenzahl vor dem
+  Filter). Ungültige Werte sind ein `422`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` liefert eine
   **Risiko-/Konzentrationssicht** für ein Portfolio über die **Steuerbasis** (der
   Gesamtwert der bewerteten Positionen, eingeschränkt durch die aktive `view` —
