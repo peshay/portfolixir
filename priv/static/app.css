@@ -4541,12 +4541,33 @@ button.income-bar-label.is-active {
   border-bottom: 1px solid var(--color-border);
   margin-bottom: 1rem;
 }
+/* First-level tabs (issue 668, DESIGN.md → Tabs): icon + label with the
+   accent underline; min-height instead of a padding-derived height, and the
+   44px coarse-pointer floor on BOTH tab levels (UX-DR6). */
 .area-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: 0.45rem 0.8rem;
+  min-height: 34px;
   color: var(--color-text-muted);
   text-decoration: none;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+}
+.area-tab__icon {
+  display: inline-flex;
+  flex: none;
+}
+/* Width reserve (UX-DR18): invisible bold shadow text keeps the tab row from
+   shifting when the active tab gains weight. */
+.area-tab__label::after {
+  content: attr(data-label);
+  display: block;
+  height: 0;
+  visibility: hidden;
+  overflow: hidden;
+  font-weight: 600;
 }
 .area-tab:hover,
 .area-tab:focus-visible {
@@ -4556,6 +4577,12 @@ button.income-bar-label.is-active {
   color: var(--color-accent);
   border-bottom-color: var(--color-accent);
   font-weight: 600;
+}
+@media (pointer: coarse) {
+  .area-tab,
+  .detail-pane-tab {
+    min-height: 44px;
+  }
 }
 
 /* ===== Drift drill-down: member securities + rebalancing hints (ADR-0023) ===== */
