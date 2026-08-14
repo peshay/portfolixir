@@ -957,7 +957,8 @@ const allocationSchema = {
     classification_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
     include_positions: { type: "boolean" },
-    min_drift: { type: "string" }
+    min_drift: { type: "string" },
+    tax_context: { type: "boolean" }
   }
 };
 
@@ -966,7 +967,8 @@ const allocationZ = z.object({
   classification_id: z.number().int().positive(),
   view: z.number().int().positive().optional(),
   include_positions: z.boolean().optional(),
-  min_drift: z.string().optional()
+  min_drift: z.string().optional(),
+  tax_context: z.boolean().optional()
 });
 
 // The cash target is the SOLL cash share of the allocation's 100% basis
@@ -2004,7 +2006,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.allocation",
     "Portfolio allocation drift",
-    "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category plus a cash row, in one call. Drift is actual - target (positive = overweight, i.e. reduce to reach the target; ADR-0023), as a weight and restated in base currency. Category targets are the EFFECTIVE targets (ADR-0030): when the plan carries position-level SOLL rows their sum steers the category — conflict flags a diverging explicit category weight, has_stale a stale position row. Each category's positions are the union of its held positions and the plan's position SOLL rows: each row carries quantity, target_weight (its position SOLL, null when none), drift_weight (actual - target), held, drift_value and rebalance_quantity (indicative units to sell (positive) or buy (negative)) — display-only hints, never an order. A position with SOLL > 0 that is not yet held appears with IST 0 (held=false) and its hint priced at the latest stored quote (null without a price); quote_date names that quote's date (null when the hint is not quote-based), and held means holdings presence — an unpriceable held security is never reported as unheld. A row is hidden only when its SOLL is 0/absent and holdings are zero; stale=true marks a row whose SOLL row no longer matches the security's current category (it keeps counting where it was filed). Unassigned entries attach their position SOLL too, and deep_target_sum reports the effective targets steered below an untargeted top level. Rows without their own SOLL keep the category-share drift_value/rebalance_quantity at the valuation's implied unit price. The 100% basis is securities + counting cash. Pass an optional view (a view id) to scope the breakdown to the holdings matching that bucket view; the response then echoes the active view. Read ergonomics (FR-37): include_positions=false returns the category roll-up without the position rows, and min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\") returns only the category rows whose |drift_weight| meets it — targetless categories are filtered out with it, kept rows come back flat (an ancestor under the threshold is absent), and the response states positions_included, the applied min_drift and categories_total (the pre-filter count). Prefer include_positions=false plus a min_drift for the routine what-drifted read. For the raw position-target rows and per-category roll-up (the maintenance view) use portfolixir.targets.list_positions.",
+    "SOLL/IST allocation breakdown for a portfolio against one classification: market value, actual weight, target weight and drift per category plus a cash row, in one call. Drift is actual - target (positive = overweight, i.e. reduce to reach the target; ADR-0023), as a weight and restated in base currency. Category targets are the EFFECTIVE targets (ADR-0030): when the plan carries position-level SOLL rows their sum steers the category — conflict flags a diverging explicit category weight, has_stale a stale position row. Each category's positions are the union of its held positions and the plan's position SOLL rows: each row carries quantity, target_weight (its position SOLL, null when none), drift_weight (actual - target), held, drift_value and rebalance_quantity (indicative units to sell (positive) or buy (negative)) — display-only hints, never an order. A position with SOLL > 0 that is not yet held appears with IST 0 (held=false) and its hint priced at the latest stored quote (null without a price); quote_date names that quote's date (null when the hint is not quote-based), and held means holdings presence — an unpriceable held security is never reported as unheld. A row is hidden only when its SOLL is 0/absent and holdings are zero; stale=true marks a row whose SOLL row no longer matches the security's current category (it keeps counting where it was filed). Unassigned entries attach their position SOLL too, and deep_target_sum reports the effective targets steered below an untargeted top level. Rows without their own SOLL keep the category-share drift_value/rebalance_quantity at the valuation's implied unit price. The 100% basis is securities + counting cash. Pass an optional view (a view id) to scope the breakdown to the holdings matching that bucket view; the response then echoes the active view. Read ergonomics (FR-37): include_positions=false returns the category roll-up without the position rows, and min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\") returns only the category rows whose |drift_weight| meets it — targetless categories are filtered out with it, kept rows come back flat (an ancestor under the threshold is absent), and the response states positions_included, the applied min_drift and categories_total (the pre-filter count). Prefer include_positions=false plus a min_drift for the routine what-drifted read. Pass tax_context=true (#667) to attach the current-year tax-free trim budgets (per holder, with their activity-aware staleness) so the tax headroom is in front of you where the trim decision is made — the block states that it is holder-scoped, never portfolio-scoped. For the raw position-target rows and per-category roll-up (the maintenance view) use portfolixir.targets.list_positions.",
     allocationSchema,
     allocationZ
   ),
@@ -2318,7 +2320,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.tax_snapshots.list",
     "List recorded tax statements",
-    "List recorded broker tax statements (Verlustverrechnungstoepfe / Freistellungsauftrag block), newest as-of first. THESE POTS ARE RECORDED, NOT DERIVED. Note carefully WHY, because the obvious objection is wrong: Portfolixir DOES match lots FIFO (see portfolixir.trades.list), so the missing piece is not the cost method. It is that Teilfreistellung, Vorabpauschale, chronological allowance consumption and certified prior-year carry-forward are not in the transaction data at all, and that the pots are kept per tax-reporting institution, which Portfolixir does not model. FIFO gives you a GROSS GAIN; a gross gain is not a tax pot. So do NOT try to compute these from holdings or from trades - read the recorded statement. Each row carries allowance_remaining, tax_free_trim_budget, its as_of basis, a stale flag and the advisory consistency findings. All money values are Decimal strings.",
+    "List recorded broker tax statements (Verlustverrechnungstoepfe / Freistellungsauftrag block), newest as-of first. THESE POTS ARE RECORDED, NOT DERIVED. Note carefully WHY, because the obvious objection is wrong: Portfolixir DOES match lots FIFO (see portfolixir.trades.list), so the missing piece is not the cost method. It is that Teilfreistellung, Vorabpauschale, chronological allowance consumption and certified prior-year carry-forward are not in the transaction data at all, and that the pots are kept per tax-reporting institution, which Portfolixir does not model. FIFO gives you a GROSS GAIN; a gross gain is not a tax pot. So do NOT try to compute these from holdings or from trades - read the recorded statement. Each row carries allowance_remaining, tax_free_trim_budget, its as_of basis, a stale flag, a staleness object (#667: age_days vs age_threshold_days AND activity_since_count - the count of tax-relevant bookings of activity_kinds dated after as_of; warning=true is the signal to act on, the bare stale flag flips the day after any as_of) and the advisory consistency findings. All money values are Decimal strings.",
     taxSnapshotsListSchema,
     taxSnapshotsListZ
   ),
@@ -2353,7 +2355,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.tax_snapshots.trim_budget",
     "Tax-free trim budget for a holder and year",
-    "The volume of realised EQUITY gain still free of Kapitalertragsteuer, rolled up across institutions for one holder and tax year: the latest statement per institution, its equity loss pot plus its remaining allowance. Always read the as_of and the coverage before acting on it - the figure decays without any action by the maintainer (dividends and interest consume the allowance chronologically), and complete=false with missing_institutions lists banks that have a configured allowance order but no recorded statement, so the total is a partial picture. This is a DECISION INPUT, never an instruction: nothing here creates, stores or transmits an order.",
+    "The volume of realised EQUITY gain still free of Kapitalertragsteuer, rolled up across institutions for one holder and tax year: the latest statement per institution, its equity loss pot plus its remaining allowance. Always read the as_of and the coverage before acting on it - the figure decays without any action by the maintainer (dividends and interest consume the allowance chronologically), and complete=false with missing_institutions lists banks that have a configured allowance order but no recorded statement, so the total is a partial picture. The response carries a staleness object (#667): warning=true when the roll-up's as_of is older than age_threshold_days OR when activity_since_count tax-relevant bookings (activity_kinds) landed after it - the activity condition is the one to act on. This is a DECISION INPUT, never an instruction: nothing here creates, stores or transmits an order.",
     taxTrimBudgetSchema,
     taxTrimBudgetZ
   )
@@ -2608,7 +2610,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "classification_id",
           "view",
           "include_positions",
-          "min_drift"
+          "min_drift",
+          "tax_context"
         ])
       );
     case "portfolixir.portfolios.risk":

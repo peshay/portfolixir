@@ -417,6 +417,42 @@ describe("Portfolixir MCP tools", () => {
     );
   });
 
+  // User story (issue #667):
+  // As the operating LLM agent deciding a trim from the allocation drift,
+  // I want tax_context=true on the allocation tool and the activity-aware
+  // staleness named in the tax tool descriptions,
+  // so that the tax headroom and its freshness are readable where the
+  // decision is made.
+  //
+  // Acceptance criteria:
+  // - portfolios.allocation forwards tax_context.
+  // - The tax_snapshots.list and trim_budget descriptions name the
+  //   staleness object and its activity condition.
+  it("forwards tax_context and documents the staleness assessment (#667)", async () => {
+    const { client, requests } = createRecordingClient({ data: [] });
+
+    await callTool(client, "portfolixir.portfolios.allocation", {
+      portfolio_id: 3,
+      classification_id: 2,
+      tax_context: true
+    });
+    assert.equal(
+      requests[0].path,
+      "/api/v1/portfolios/3/allocation?classification_id=2&tax_context=true"
+    );
+
+    const tools = listTools();
+    const snapshotList = tools.find((tool) => tool.name === "portfolixir.tax_snapshots.list");
+    assert.match(String(snapshotList?.description), /staleness/);
+    assert.match(String(snapshotList?.description), /activity_since_count/);
+
+    const trimBudget = tools.find(
+      (tool) => tool.name === "portfolixir.tax_snapshots.trim_budget"
+    );
+    assert.match(String(trimBudget?.description), /staleness/);
+    assert.match(String(trimBudget?.description), /activity_since_count/);
+  });
+
   // User story (FR-38, issue #666):
   // As the operating LLM agent on a recurring run,
   // I want ?since= delta reads on transactions.list and securities.list over
