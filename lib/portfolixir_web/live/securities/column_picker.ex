@@ -31,6 +31,25 @@ defmodule PortfolixirWeb.Securities.ColumnPicker do
             <% end %>
           </fieldset>
         <% end %>
+        <%!-- Classification columns (#565): one entry per tree and level,
+            custom and built-in alike. Values are serialized keys the parent
+            LiveView validates; no atoms are minted from them. --%>
+        <%= if @classification_columns != [] do %>
+          <fieldset class="column-group">
+            <legend><%= gettext("Classifications") %></legend>
+            <%= for spec <- @classification_columns, level <- 1..spec.levels do %>
+              <label class="checkbox-row">
+                <input
+                  type="checkbox"
+                  name="columns[]"
+                  value={"classification:#{spec.classification.id}:#{level}"}
+                  checked={{:classification, spec.classification.id, level} in @visible}
+                />
+                <span><%= classification_label(spec, level) %></span>
+              </label>
+            <% end %>
+          </fieldset>
+        <% end %>
         <%!-- Hidden sentinel: ensures Phoenix always receives a (possibly empty)
             list for "columns[]" even when the user unchecks every box. --%>
         <input type="hidden" name="columns[]" value="" />
@@ -39,28 +58,28 @@ defmodule PortfolixirWeb.Securities.ColumnPicker do
     """
   end
 
+  # Raw key strings go up to the parent LiveView, which owns the validation
+  # against the field registry and the current classification trees (#565).
   @impl true
   def handle_event("toggle_columns", params, socket) do
-    raw = Map.get(params, "columns", [])
-
     keys =
-      raw
+      params
+      |> Map.get("columns", [])
       |> List.wrap()
-      |> Enum.reject(&(&1 == "" or is_nil(&1)))
-      |> Enum.map(&safe_atom/1)
-      |> Enum.reject(&is_nil/1)
+      |> Enum.filter(&is_binary/1)
+      |> Enum.reject(&(&1 == ""))
       |> Enum.uniq()
 
     send(self(), {:columns_changed, keys})
     {:noreply, socket}
   end
 
-  defp safe_atom(key) when is_binary(key) do
-    field = Enum.find(SecurityFields.all(), &(Atom.to_string(&1.key) == key))
-    field && field.key
-  end
+  defp classification_label(%{classification: classification, levels: 1}, _level),
+    do: classification.name
 
-  defp safe_atom(_), do: nil
+  defp classification_label(%{classification: classification}, level) do
+    gettext("%{name} (level %{level})", name: classification.name, level: level)
+  end
 
   defp group_fields do
     SecurityFields.all()

@@ -163,6 +163,20 @@ die Auswahl eines Wertpapiers behält die aktiven Filter bei. Die
 Datenqualitätszeile der Übersicht verlinkt mit vorangewendetem Filter
 hierher.
 
+### Klassifikations-Spalten
+
+Neben den Attribut- und Kursspalten bietet die Spaltenauswahl der
+Wertpapierliste einen Eintrag pro Klassifikationsbaum **und Ebene** — für
+eigene Bäume ebenso wie für die eingebauten Anlageklassen- und
+Währungsbäume, analog zu den Klassifikations-Spalten von Portfolio
+Performance. Eine aktivierte Spalte zeigt je Wertpapier die zugeordnete
+Kategorie auf dieser Ebene: Ein tiefer einsortiertes Wertpapier zeigt seinen
+Vorfahren auf der gewählten Ebene, ein oberhalb der Ebene (oder gar nicht)
+einsortiertes bleibt leer. Klassifikations-Spalten sortieren wie jede andere
+Spalte — nicht einsortierte Wertpapiere stets zuletzt — und werden zusammen
+mit der übrigen Spaltenauswahl im Browser gespeichert. Es sind reine
+Anzeige-Spalten; Filter bleiben auf den Attributspalten.
+
 ### ISIN-Wechsel (Früher-ISIN-Aliasse)
 
 Wenn eine Kapitalmaßnahme einem Wertpapier eine neue ISIN gibt (eine

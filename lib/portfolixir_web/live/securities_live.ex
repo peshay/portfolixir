@@ -77,6 +77,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:logo_retry_queued?, false)
      |> assign(:sort, {:name, :asc})
      |> assign(:visible_columns, SecurityFields.visible_default())
+     |> assign(:classification_columns, Classifications.column_specs())
      |> assign(:open_popover, nil)
      |> assign(:dialog_open?, false)
      |> assign(:split_dialog_open?, false)
@@ -363,6 +364,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   module={ColumnPicker}
                   id="column-picker"
                   visible={@visible_columns}
+                  classification_columns={@classification_columns}
                 />
               <% end %>
             </div>
@@ -441,20 +443,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
               phx-hook="ColumnPrefs"
               data-storage-key="securities.columns"
               data-default-columns={Jason.encode!(SecurityFields.visible_default() |> Enum.map(&Atom.to_string/1))}
-              data-current-columns={Jason.encode!(Enum.map(@visible_columns, &Atom.to_string/1))}
+              data-current-columns={Jason.encode!(Enum.map(@visible_columns, &column_key_string/1))}
             >
               <table class="data-table">
                 <thead>
                   <tr>
                     <th class="row-actions-head" aria-label={gettext("Row actions")}></th>
-                    <%= for column <- visible_fields(@visible_columns) do %>
+                    <%= for column <- visible_fields(@visible_columns, @classification_columns) do %>
                       <th>
                         <%= if column.sortable? do %>
                           <button
                             type="button"
                             class="sort-toggle"
                             phx-click="toggle_sort"
-                            phx-value-key={Atom.to_string(column.key)}
+                            phx-value-key={column_key_string(column.key)}
                           >
                             <%= column.label %><%= sort_marker(@sort, column.key) %>
                           </button>
@@ -476,7 +478,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       <%= if String.trim(@query) != "" or @filters != [] or
                             @holding_status != "all" or @dq do %>
                         <td
-                          colspan={length(visible_fields(@visible_columns)) + 1}
+                          colspan={length(visible_fields(@visible_columns, @classification_columns)) + 1}
                           class="empty-state"
                           data-role="no-results"
                         >
@@ -488,7 +490,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                         </td>
                       <% else %>
                         <td
-                          colspan={length(visible_fields(@visible_columns)) + 1}
+                          colspan={length(visible_fields(@visible_columns, @classification_columns)) + 1}
                           class="empty-state"
                           data-role="empty-surface"
                         >
@@ -497,7 +499,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       <% end %>
                     </tr>
                   <% end %>
-                  <% visible = visible_fields(@visible_columns) %>
+                  <% visible = visible_fields(@visible_columns, @classification_columns) %>
                   <% first_key = first_visible_key(visible) %>
                   <%= for row <- @securities do %>
                     <% sec_id = security_id(row) %>
@@ -2015,11 +2017,76 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp selected?(nil, _row), do: false
   defp selected?(%Security{id: id}, row), do: id == security_id(row)
 
-  defp visible_fields(visible) when is_list(visible) do
+  defp visible_fields(visible, classification_specs) when is_list(visible) do
     visible
-    |> Enum.map(&SecurityFields.get/1)
+    |> Enum.map(&column_field(&1, classification_specs))
     |> Enum.reject(&is_nil/1)
   end
+
+  defp column_field({:classification, _id, _level} = key, classification_specs),
+    do: classification_field(key, classification_specs)
+
+  defp column_field(key, _classification_specs) when is_atom(key), do: SecurityFields.get(key)
+
+  # A classification column (#565) is a virtual field: value attached into the
+  # row's metrics map by `attach_classification_columns/1`, so `:metric` is the
+  # source and the shared render/sort plumbing applies. Not filterable —
+  # like the quote-metric columns, filters stay registry-backed in v1.
+  defp classification_field({:classification, id, level} = key, classification_specs) do
+    case Enum.find(classification_specs, &(&1.classification.id == id)) do
+      %{classification: classification, levels: levels} when level <= levels ->
+        %Field{
+          key: key,
+          label: classification_column_label(classification, level, levels),
+          type: :string,
+          source: :metric,
+          group: :classifications,
+          sortable?: true,
+          filterable?: false,
+          operators: [],
+          render_hint: :text
+        }
+
+      _ ->
+        nil
+    end
+  end
+
+  defp classification_column_label(classification, _level, 1), do: classification.name
+
+  defp classification_column_label(classification, level, _levels) do
+    gettext("%{name} (level %{level})", name: classification.name, level: level)
+  end
+
+  defp column_key_string(key) when is_atom(key), do: Atom.to_string(key)
+
+  defp column_key_string({:classification, id, level}), do: "classification:#{id}:#{level}"
+
+  # Maps a client-supplied column key string to a registry atom or a validated
+  # `{:classification, id, level}` tuple; unknown or stale keys become nil.
+  # Never mints atoms.
+  defp safe_column_key(key, classification_specs) when is_binary(key) do
+    case safe_column_atom(key) do
+      nil -> parse_classification_key(key, classification_specs)
+      atom -> atom
+    end
+  end
+
+  defp safe_column_key(_key, _classification_specs), do: nil
+
+  defp parse_classification_key("classification:" <> rest, classification_specs) do
+    with [id_str, level_str] <- String.split(rest, ":"),
+         {id, ""} <- Integer.parse(id_str),
+         {level, ""} <- Integer.parse(level_str),
+         %Field{} = field <-
+           classification_field({:classification, id, level}, classification_specs) do
+      field.key
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_classification_key(_key, _classification_specs), do: nil
 
   defp first_visible_key([%Field{key: key} | _]), do: key
   defp first_visible_key(_), do: :name
@@ -2329,6 +2396,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
       key ->
         next = if socket.assigns.open_popover == key, do: nil, else: key
+
+        # The column picker offers classification columns (#565); refresh the
+        # specs on open so trees created or deepened meanwhile are offerable.
+        socket =
+          if next == :columns do
+            assign(socket, :classification_columns, Classifications.column_specs())
+          else
+            socket
+          end
+
         {:noreply, assign(socket, :open_popover, next)}
     end
   end
@@ -2640,16 +2717,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("toggle_sort", %{"key" => key}, socket) do
-    case safe_column_atom(key) do
+    case safe_column_key(key, socket.assigns.classification_columns) do
       nil ->
         {:noreply, socket}
 
-      key_atom ->
+      column_key ->
         sort =
           case socket.assigns.sort do
-            {^key_atom, :asc} -> {key_atom, :desc}
-            {^key_atom, :desc} -> {:name, :asc}
-            _ -> {key_atom, :asc}
+            {^column_key, :asc} -> {column_key, :desc}
+            {^column_key, :desc} -> {:name, :asc}
+            _ -> {column_key, :asc}
           end
 
         {:noreply, socket |> assign(:sort, sort) |> load_securities()}
@@ -2659,12 +2736,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("set_columns", %{"columns" => columns}, socket) when is_list(columns) do
     visible =
       columns
-      |> Enum.map(&safe_column_atom/1)
+      |> Enum.map(&safe_column_key(&1, socket.assigns.classification_columns))
       |> Enum.reject(&is_nil/1)
 
     visible = if visible == [], do: SecurityFields.visible_default(), else: visible
 
-    {:noreply, assign(socket, :visible_columns, visible)}
+    {:noreply, socket |> assign(:visible_columns, visible) |> load_securities()}
   end
 
   def handle_event("set_columns", _params, socket), do: {:noreply, socket}
@@ -2956,14 +3033,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # -- messages from child components --------------------------------------
 
+  # The picker sends raw column-key strings; validation against the field
+  # registry and the current classification specs happens here (#565).
   @impl true
-  def handle_info({:columns_changed, columns}, socket) do
+  def handle_info({:columns_changed, column_strings}, socket) do
+    columns =
+      column_strings
+      |> Enum.map(&safe_column_key(&1, socket.assigns.classification_columns))
+      |> Enum.reject(&is_nil/1)
+
     columns = if columns == [], do: SecurityFields.visible_default(), else: columns
-    column_strs = Enum.map(columns, &Atom.to_string/1)
+    column_strs = Enum.map(columns, &column_key_string/1)
 
     {:noreply,
      socket
      |> assign(:visible_columns, columns)
+     |> load_securities()
      |> push_event("column-prefs-changed", %{columns: column_strs})}
   end
 
@@ -3402,7 +3487,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       query: socket.assigns.query,
       holding_status: socket.assigns.holding_status,
       filters: socket.assigns.filters,
-      sort: socket.assigns.sort
+      sort: catalog_sort(socket.assigns.sort)
     ]
 
     opts = if dq == "missing_logo", do: Keyword.put(opts, :logo_status, :missing), else: opts
@@ -3412,7 +3497,107 @@ defmodule PortfolixirWeb.SecuritiesLive do
       |> Catalog.list_securities_with_metrics()
       |> apply_dq_filter(dq)
 
-    assign(socket, :securities, securities)
+    socket
+    |> assign(:securities, securities)
+    |> attach_classification_columns()
+    |> apply_classification_sort()
+  end
+
+  # Classification columns (#565) are resolved outside the catalog query: the
+  # catalog falls back to its default sort and the rows are sorted here once
+  # the per-level category names are attached.
+  defp catalog_sort({{:classification, _id, _level}, _dir}), do: {:name, :asc}
+  defp catalog_sort(sort), do: sort
+
+  # Attaches the per-level category name of every visible classification
+  # column (plus a classification sort key) into each row's metrics map, so
+  # the shared field/value plumbing renders and sorts them like metrics.
+  defp attach_classification_columns(socket) do
+    case classification_column_keys(socket) do
+      [] ->
+        socket
+
+      keys ->
+        rows = socket.assigns.securities
+        securities = Enum.map(rows, &security_from_row/1)
+
+        value_maps =
+          Map.new(keys, fn {:classification, id, level} = key ->
+            case Classifications.security_level_names(id, level, securities) do
+              {:ok, names} -> {key, names}
+              {:error, _} -> {key, %{}}
+            end
+          end)
+
+        rows =
+          Enum.map(rows, fn row ->
+            sec_id = security_id(row)
+
+            Enum.reduce(value_maps, row, fn {key, names}, acc ->
+              put_row_metric(acc, key, Map.get(names, sec_id))
+            end)
+          end)
+
+        assign(socket, :securities, rows)
+    end
+  end
+
+  defp classification_column_keys(socket) do
+    sort_key =
+      case socket.assigns.sort do
+        {{:classification, _, _} = key, _dir} -> [key]
+        _ -> []
+      end
+
+    socket.assigns.visible_columns
+    |> Enum.filter(&match?({:classification, _, _}, &1))
+    |> Kernel.++(sort_key)
+    |> Enum.uniq()
+  end
+
+  defp put_row_metric(%SecurityWithMetrics{metrics: metrics} = row, key, value) do
+    %{row | metrics: Map.put(metrics, key, value)}
+  end
+
+  defp put_row_metric(row, _key, _value), do: row
+
+  defp apply_classification_sort(socket) do
+    case socket.assigns.sort do
+      {{:classification, _, _} = key, dir} ->
+        rows =
+          Enum.sort_by(
+            socket.assigns.securities,
+            &row_metric(&1, key),
+            name_comparator(dir)
+          )
+
+        assign(socket, :securities, rows)
+
+      _ ->
+        socket
+    end
+  end
+
+  defp row_metric(%SecurityWithMetrics{metrics: metrics}, key), do: Map.get(metrics, key)
+  defp row_metric(_row, _key), do: nil
+
+  # Rows without a category on the sorted level stay last in both directions.
+  defp name_comparator(:asc) do
+    fn
+      nil, nil -> true
+      nil, _b -> false
+      _a, nil -> true
+      a, b -> a <= b
+    end
+  end
+
+  defp name_comparator(:desc) do
+    fn
+      nil, nil -> true
+      nil, _b -> false
+      _a, nil -> true
+      a, b -> a >= b
+    end
   end
 
   # Metric-derived data-quality filters run post-enrichment, mirroring the

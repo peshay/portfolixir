@@ -358,6 +358,90 @@ defmodule Portfolixir.ClassificationsTest do
     assert Enum.count(categories, &(&1.key == "warrant")) == 1
   end
 
+  # User story (#565):
+  # As a local portfolio maintainer,
+  # I want each classification tree to expose per-level column data,
+  # so that the securities table can show the assigned category of any tree
+  # and level as a configurable column, like Portfolio Performance does.
+  #
+  # Acceptance criteria:
+  # - `column_specs/0` lists every classification with its level count.
+  # - `security_level_names/3` maps each assigned security to the category
+  #   name on the requested level (an ancestor for deeper assignments).
+  # - A security assigned above the requested level has no entry.
+  # - Works for custom trees and the built-in derived trees.
+  test "exposes classification trees as per-level column data" do
+    Classifications.ensure_builtins()
+
+    {:ok, strategy} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, growth} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: strategy.id,
+        name: "Growth"
+      })
+
+    {:ok, tech} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: strategy.id,
+        name: "Tech",
+        parent_id: growth.id
+      })
+
+    {:ok, stability} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: strategy.id,
+        name: "Stability"
+      })
+
+    deep = security!(%{name: "Deep Corp", isin: "US0000000001"})
+    shallow = security!(%{name: "Shallow Corp", isin: "US0000000002"})
+    unassigned = security!(%{name: "Unsorted Corp", isin: "US0000000003"})
+    warrantco = security!(%{name: "Warrant Co", isin: "US0000000004", asset_class: "warrant"})
+
+    {:ok, _} =
+      Classifications.assign_security(Portfolixir.Actor.owner_ui(), deep.id, strategy.id, tech.id)
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        shallow.id,
+        strategy.id,
+        stability.id
+      )
+
+    specs = Classifications.column_specs()
+    by_key = Map.new(specs, fn spec -> {spec.classification.key, spec} end)
+
+    assert Enum.find(specs, &(&1.classification.id == strategy.id)).levels == 2
+    assert by_key["asset_class"].levels == 2
+    assert by_key["currency"].levels == 1
+
+    # Custom tree, level 1: the deep assignment resolves to its root ancestor.
+    {:ok, level_one} = Classifications.security_level_names(strategy.id, 1)
+    assert level_one[deep.id] == "Growth"
+    assert level_one[shallow.id] == "Stability"
+    refute Map.has_key?(level_one, unassigned.id)
+
+    # Custom tree, level 2: only assignments that reach that depth appear.
+    {:ok, level_two} = Classifications.security_level_names(strategy.id, 2)
+    assert level_two[deep.id] == "Tech"
+    refute Map.has_key?(level_two, shallow.id)
+
+    # Built-in tree: derived assignments resolve levels the same way.
+    asset_tree = by_key["asset_class"].classification
+    {:ok, asset_one} = Classifications.security_level_names(asset_tree.id, 1)
+    {:ok, asset_two} = Classifications.security_level_names(asset_tree.id, 2)
+    assert asset_one[warrantco.id] == "Leverage products"
+    assert asset_two[warrantco.id] == "Warrant"
+    assert asset_one[deep.id] == "Equity"
+    refute Map.has_key?(asset_two, deep.id)
+
+    # Unknown classification ids are an explicit error, never a crash.
+    assert Classifications.security_level_names(-1, 1) == {:error, :not_found}
+  end
+
   test "infers certificate and leverage asset classes from the security name" do
     assert infer("HVB Turbo Long DAX O.End") == "knock_out"
     assert infer("Optionsschein Call auf BMW") == "warrant"
