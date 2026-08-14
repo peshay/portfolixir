@@ -532,7 +532,9 @@ aggregates over) — with the total incl. cash, the **YTD TTWROR** as the
 change signal and the cash quote, a **Needs attention** list — every targeted category whose
 allocation drift exceeds **±5 percentage points** (ADR-0023 sign: positive =
 overweight), worst first, each linking into the Wealth area's Allocation &
-targets tab — and the **data-quality line**: one note listing the securities
+targets tab, under a basis line naming the view, classification tree and
+active plan the drift steers against (or that several plans are active, or
+none) — and the **data-quality line**: one note listing the securities
 without a recent quote, asset class, or logo, each count linking to the
 securities list pre-filtered to exactly that set. The line renders only when
 at least one count is non-zero; a clean catalog shows nothing (no all-clear
@@ -872,9 +874,11 @@ the statement's printed sign, so a recorded row stays visually comparable to
 the paper.
 
 **The trim budget** is the equity loss pot plus the remaining allowance
-(`granted − used`). It is always shown **with its as-of date** and marked
-**stale** as soon as a later day exists: dividends and interest consume the
-allowance chronologically, so the figure decays without any action.
+(`granted − used`). It is always shown **with its as-of date** and warns
+**stale** only when the staleness is substantiated: when tax-relevant
+bookings dated after the statement consume pots or allowance, or when the
+statement is more than 90 days old. The badge names its reason — a quiet
+ledger keeps an older statement usable instead of permanently flagged.
 Across institutions it rolls up per taxpayer and year — always naming which
 institutions it covers, quoting the as-of of its **oldest** component, and
 marking itself **incomplete** when an institution has a configured

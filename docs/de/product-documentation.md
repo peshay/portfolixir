@@ -570,7 +570,10 @@ aggregiert) — mit dem Gesamtwert inkl. Cash, der **YTD-TTWROR** als
 **Braucht Aufmerksamkeit** — jede Kategorie mit Ziel, deren Allokations-Drift
 **±5 Prozentpunkte** überschreitet (ADR-0023-Vorzeichen: positiv =
 übergewichtet), schlimmste zuerst, jeweils verlinkt in den Tab „Allokation &
-Ziele" des Vermögens-Bereichs — und die **Datenqualitätszeile**: ein Hinweis,
+Ziele" des Vermögens-Bereichs, unter einer Basiszeile, die Ansicht,
+Klassifikationsbaum und aktiven Plan nennt, gegen den die Drift gerechnet
+wird (oder dass mehrere Pläne aktiv sind oder keiner) — und die
+**Datenqualitätszeile**: ein Hinweis,
 der die Wertpapiere ohne aktuellen Kurs, Anlageklasse oder Logo aufzählt,
 wobei jeder Zähler auf die exakt darauf vorgefilterte Wertpapierliste
 verlinkt. Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null
@@ -938,9 +941,12 @@ mit dem Papier vergleichbar bleibt.
 
 **Der Verkaufsspielraum** ist der Verlusttopf Aktien plus der verbleibende
 Freistellungsauftrag (`erteilt − verbraucht`). Er wird immer **mit seinem
-Stichtag** gezeigt und als **veraltet** markiert, sobald ein späterer Tag
-existiert: Dividenden und Zinsen verbrauchen den Freistellungsauftrag
-chronologisch, die Zahl altert also ohne jedes Zutun. Über mehrere Institute
+Stichtag** gezeigt und erst dann als **veraltet** markiert, wenn die
+Alterung belegt ist: wenn steuerrelevante Buchungen nach dem
+Abrechnungsdatum Verlusttöpfe oder Freistellungsauftrag verbrauchen, oder
+wenn die Abrechnung älter als 90 Tage ist. Der Hinweis nennt seinen Grund —
+ein ruhiges Buchungsjournal hält eine ältere Abrechnung nutzbar, statt sie
+dauerhaft zu markieren. Über mehrere Institute
 wird je Person und Jahr summiert — mit Angabe der erfassten Institute, dem
 Stichtag der **ältesten** Teilzahl und dem Hinweis **unvollständig**, wenn für
 ein Institut ein Freistellungsauftrag hinterlegt, aber keine Abrechnung erfasst
