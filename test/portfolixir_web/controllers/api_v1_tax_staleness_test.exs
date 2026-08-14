@@ -118,7 +118,11 @@ defmodule PortfolixirWeb.ApiV1TaxStalenessTest do
   test "allocation ?tax_context=true attaches the trim-budget roll-up", %{conn: conn} do
     _world = seed_booking_world()
     today = Date.utc_today()
-    _snapshot = record_snapshot!(Date.add(today, -5))
+
+    # Clamped to Jan 1 so the snapshot's tax year equals today.year even when
+    # the suite runs on Jan 1-5 (review finding: calendar-edge determinism).
+    as_of = Enum.max([Date.add(today, -5), Date.new!(today.year, 1, 1)], Date)
+    _snapshot = record_snapshot!(as_of)
 
     {:ok, portfolio} =
       Portfolios.create_portfolio(owner(), %{name: "Alloc", base_currency_code: "EUR"})
