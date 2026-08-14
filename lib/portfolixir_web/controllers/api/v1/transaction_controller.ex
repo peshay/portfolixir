@@ -5,20 +5,24 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.SinceParam
 
   # FR-37 (#665): sparse fieldsets over the serializer's own field list.
   @fields_whitelist FieldSelection.whitelist(JSON.transaction_fields())
 
   def index(conn, params) do
     with {:ok, opts} <- list_opts(params),
-         {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist) do
+         {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist),
+         {:ok, since} <- SinceParam.parse(params) do
       rows =
-        Ledger.list_transactions(opts)
+        opts
+        |> put_updated_since(since)
+        |> Ledger.list_transactions()
         |> Enum.map(fn transaction ->
           transaction |> JSON.transaction() |> FieldSelection.take(fields)
         end)
 
-      json(conn, %{data: rows})
+      json(conn, SinceParam.put_envelope(%{data: rows}, since))
     else
       {:error, field} ->
         conn
@@ -26,6 +30,9 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
         |> json(%{errors: %{field => ["is invalid"]}})
     end
   end
+
+  defp put_updated_since(opts, nil), do: opts
+  defp put_updated_since(opts, %{cut: cut}), do: Keyword.put(opts, :updated_since, cut)
 
   def show(conn, %{"id" => id}) do
     with {:ok, tid} <- parse_id(id),

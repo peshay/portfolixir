@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.SecurityFields
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.SinceParam
 
   @sortable_fields Map.new(SecurityFields.sortable(), fn field ->
                      {Atom.to_string(field.key), field.key}
@@ -11,13 +12,15 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   def index(conn, params) do
     with {:ok, opts} <- list_opts(params),
-         {:ok, serializer} <- listing_serializer(params) do
+         {:ok, serializer} <- listing_serializer(params),
+         {:ok, since} <- SinceParam.parse(params) do
       securities =
         opts
+        |> put_updated_since(since)
         |> Catalog.list_securities()
         |> Enum.map(serializer)
 
-      json(conn, %{data: securities})
+      json(conn, SinceParam.put_envelope(%{data: securities}, since))
     else
       {:error, field} ->
         conn
@@ -25,6 +28,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         |> json(%{errors: %{field => ["is invalid"]}})
     end
   end
+
+  defp put_updated_since(opts, nil), do: opts
+  defp put_updated_since(opts, %{cut: cut}), do: Keyword.put(opts, :updated_since, cut)
 
   # FR-33: listings default to the slim whitelist projection;
   # `projection=full` opts back into the complete serializer. Named

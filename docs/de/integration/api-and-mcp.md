@@ -37,6 +37,19 @@ diese Werte sollten ebenfalls Strings senden.
 `204 No Content` mit leerem Body. Clients sollten für diese erfolgreiche
 Löschantwort keinen JSON-Body parsen.
 
+**Delta-Reads (FR-38).** Die beiden wiederkehrenden Sync-Reads — `GET
+/api/v1/transactions` und `GET /api/v1/securities` — akzeptieren
+`?since=<ISO8601>` (Datetime mit Offset, naive UTC-Datetime oder ein reines
+Datum als Tagesbeginn, UTC) und liefern dann nur die Zeilen, die strikt nach
+diesem Zeitpunkt angelegt oder geändert wurden (nach `updated_at`). Die
+Antwort spiegelt `since`, trägt `as_of` (den Lesezeitpunkt — als nächstes
+`since` verwenden) und eine `delta_note` mit der Semantik. **Löschungen sind
+in einem Delta-Read nicht repräsentiert**; wer Löschungen erkennen muss,
+macht einen vollen Read. Ein ungültiges `since` ist ein `422`. Delta-Reads
+sind **pull-only**: Push-Zustellung (Webhooks an einen konfigurierten
+Endpunkt) ist eine separate, weiterhin gegatete Entscheidung (B3.7) und
+bewusst nicht Teil dieser Oberfläche.
+
 ## Wertpapiere
 
 - `GET /api/v1/securities` listet Wertpapiere. Zeilen kommen standardmäßig als

@@ -55,8 +55,16 @@ defmodule Portfolixir.Ledger do
     |> filter_transaction_eq(:securities_account_id, opts[:securities_account_id])
     |> filter_transaction_from(opts[:from])
     |> filter_transaction_to(opts[:to])
+    |> filter_transaction_updated_since(opts[:updated_since])
     |> filter_transaction_limit(opts[:limit])
   end
+
+  # Delta reads (FR-38, #666): rows created or updated strictly after the
+  # naive-UTC cut. updated_at >= inserted_at always, so this covers creates.
+  defp filter_transaction_updated_since(query, nil), do: query
+
+  defp filter_transaction_updated_since(query, %NaiveDateTime{} = cut),
+    do: where(query, [t], t.updated_at > ^cut)
 
   defp filter_transaction_limit(query, nil), do: query
 
