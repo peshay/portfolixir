@@ -20,9 +20,9 @@ defmodule Portfolixir.Journal do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Journal.Entry
   alias Portfolixir.Journal.Serializer
-  alias Portfolixir.Portfolios.Performance.Invalidation
   alias Portfolixir.Repo
 
   @actor_setting "portfolixir.journal_actor"
@@ -62,12 +62,13 @@ defmodule Portfolixir.Journal do
       record = Map.fetch!(changes, source)
       insert_entry(repo, actor, operation, resource_type, record, before, scenario_id)
     end)
-    |> Multi.run(:performance_invalidation, fn _repo, changes ->
-      # ADR-0032 §3.4: the memo of every portfolio this write can affect is
-      # dropped here, inside the writing transaction, so no read after a
-      # committed write can be served a pre-write series. A write kind the
-      # resolver does not know widens to "every portfolio" rather than to none.
-      Invalidation.after_write(resource_type, Map.fetch!(changes, source))
+    |> Multi.run(:derived_invalidation, fn repo, changes ->
+      # ADR-0032 §3.4 / ADR-0039 I5: the data version of every basis this
+      # write can affect is bumped here, inside the writing transaction, so no
+      # read after a committed write can be served a pre-write derived value.
+      # A write kind the resolver does not know widens to "every portfolio"
+      # rather than to none.
+      Invalidation.after_write(repo, resource_type, Map.fetch!(changes, source))
       {:ok, :invalidated}
     end)
     |> Multi.run(:journal_reset_actor, fn repo, _changes -> reset_actor(repo) end)

@@ -5,7 +5,8 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
-  alias Portfolixir.Portfolios.Performance.Cache
+  alias Portfolixir.Derived
+  alias Portfolixir.Derived.Memo
   alias Portfolixir.Portfolios.Performance.Warmup
 
   # User story (2026-07-29, ADR-0032 §5, issue #562):
@@ -17,13 +18,25 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
   # - The warm-up goes through the request path, so a warmed entry is
   #   byte-identical to one a request would have computed.
   # - A failing scope is skipped, never fatal.
-  # - With the cache disabled the warm-up is a no-op — one "off" state.
+  # - With the derived layer disabled the warm-up is a no-op — one "off" state.
 
   setup do
-    Cache.reset()
-    Application.put_env(:portfolixir, Cache, enabled?: true)
-    on_exit(fn -> Application.put_env(:portfolixir, Cache, enabled?: false) end)
+    Memo.reset()
+    Application.put_env(:portfolixir, Derived, enabled?: true)
+    on_exit(fn -> Application.put_env(:portfolixir, Derived, enabled?: false) end)
     :ok
+  end
+
+  defp fetch!(portfolio_id, view, compute) do
+    {:fresh, value} =
+      Derived.fetch(
+        :performance_analysis,
+        Derived.portfolio_basis(portfolio_id),
+        "view=#{view}|today=#{Date.utc_today()}",
+        compute
+      )
+
+    value
   end
 
   defp seeded_portfolio!(name) do
@@ -75,7 +88,7 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
 
     # The entry is present: a fetch whose compute would raise never runs it.
     analysis =
-      Cache.fetch(portfolio.id, :unscoped, Date.utc_today(), fn ->
+      fetch!(portfolio.id, "unscoped", fn ->
         raise "memo missed — the warm-up did not fill it"
       end)
 
@@ -83,16 +96,16 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
     assert analysis.daily != []
   end
 
-  test "with the cache disabled the warm-up is a no-op" do
+  test "with the derived layer disabled the warm-up is a no-op" do
     portfolio = seeded_portfolio!("Warm B")
-    Application.put_env(:portfolixir, Cache, enabled?: false)
+    Application.put_env(:portfolixir, Derived, enabled?: false)
 
     assert Warmup.warm() == :ok
 
-    Application.put_env(:portfolixir, Cache, enabled?: true)
+    Application.put_env(:portfolixir, Derived, enabled?: true)
     called = :counters.new(1, [])
 
-    Cache.fetch(portfolio.id, :unscoped, Date.utc_today(), fn ->
+    fetch!(portfolio.id, "unscoped", fn ->
       :counters.add(called, 1, 1)
       :fresh
     end)
@@ -111,7 +124,7 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
 
     assert Warmup.warm() == :ok
 
-    assert Cache.fetch(portfolio.id, view.id, Date.utc_today(), fn ->
+    assert fetch!(portfolio.id, view.id, fn ->
              raise "memo missed for the default view scope"
            end)
   end
@@ -123,9 +136,9 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
 
     assert Warmup.init(enabled?: false) == :ignore
 
-    Application.put_env(:portfolixir, Cache, enabled?: false)
+    Application.put_env(:portfolixir, Derived, enabled?: false)
     assert Warmup.init([]) == :ignore
-    Application.put_env(:portfolixir, Cache, enabled?: true)
+    Application.put_env(:portfolixir, Derived, enabled?: true)
 
     assert {:ok, state, {:continue, :warm}} = Warmup.init([])
     assert {:noreply, ^state} = Warmup.handle_continue(:warm, state)

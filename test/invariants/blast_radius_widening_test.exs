@@ -1,7 +1,7 @@
 defmodule Portfolixir.Invariants.BlastRadiusWideningTest do
   use ExUnit.Case, async: true
 
-  # User story (2026-07-29, ADR-0032 §3.3):
+  # User story (2026-07-29, ADR-0032 §3.3; carried forward by ADR-0039):
   # As a maintainer who accepted targeted cache invalidation,
   # I want a mechanical gate that fails if the blast-radius resolver ever gains
   # a default clause that answers NARROWLY,
@@ -18,7 +18,7 @@ defmodule Portfolixir.Invariants.BlastRadiusWideningTest do
   # a defensive fallback — same technique, opposite direction: there the danger
   # is a fallback that swallows, here it is a fallback that narrows.
 
-  @source File.read!("lib/portfolixir/portfolios/performance/blast_radius.ex")
+  @source File.read!("lib/portfolixir/derived/blast_radius.ex")
 
   # Every function in the module that returns a radius. Arity-0 entry points are
   # excluded: with no arguments there is no clause to fall through.

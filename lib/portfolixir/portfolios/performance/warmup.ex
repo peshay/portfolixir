@@ -2,8 +2,11 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
   @moduledoc """
   Warms the performance memo at boot and on each day rollover (ADR-0032 §5).
 
-  The memo (`Performance.Cache`) removes the repeat wait; this removes the
-  first wait after a restart, so the first page of the day opens warm.
+  The derived-value layer (`Portfolixir.Derived`, ADR-0039) removes the
+  repeat wait; this removes the first wait after a restart, so the first page
+  of the day opens warm — and for the durable lifetime it re-materializes the
+  operative entries after any invalidating write landed while the app was
+  down.
 
   Rules from the ADR, all load-bearing:
 
@@ -16,8 +19,8 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
   - it is **bounded**: every portfolio at the `:unscoped` scope plus the
     default view where one is set — the scopes the dashboard and Wealth page
     actually open. Periods cost nothing (`summarise/2` re-chains);
-  - it is disabled by the **same switch** as the cache, so "cache off" is one
-    testable state, not two.
+  - it is disabled by the **same switch** as the derived layer, so "off" is
+    one testable state, not two.
 
   Day rollover: `today` is part of the memo key, so yesterday's entries simply
   stop matching at midnight. This process re-warms shortly after local
@@ -31,7 +34,7 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
   alias Portfolixir.Buckets
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
-  alias Portfolixir.Portfolios.Performance.Cache
+  alias Portfolixir.Derived
   alias Portfolixir.Settings
 
   # A minute past local midnight: comfortably on the new day without assuming
@@ -48,7 +51,7 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
   """
   @spec warm() :: :ok
   def warm do
-    if Cache.enabled?() do
+    if Derived.enabled?() do
       default_view_id = default_view_id()
 
       Enum.each(Portfolios.list_portfolios(), fn portfolio ->
@@ -68,7 +71,7 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
 
   @impl true
   def init(opts) do
-    if Keyword.get(opts, :enabled?, true) and Cache.enabled?() do
+    if Keyword.get(opts, :enabled?, true) and Derived.enabled?() do
       {:ok, %{}, {:continue, :warm}}
     else
       :ignore

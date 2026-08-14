@@ -1,6 +1,7 @@
-defmodule Portfolixir.Portfolios.Performance.BlastRadius do
+defmodule Portfolixir.Derived.BlastRadius do
   @moduledoc """
-  Which portfolios a write can change the performance series of (ADR-0032 §3).
+  Which portfolios' derived-value bases a write can affect (ADR-0032 §3,
+  carried forward into ADR-0039's single mechanism).
 
   The owner chose targeted invalidation over one global counter, so this module
   exists to answer "which portfolios?" — and its whole design is about the
