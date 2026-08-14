@@ -727,7 +727,10 @@ Jahres und ein Von/Bis-Zeitraum (ISO-Daten, `YYYY-MM-DD`) liegen hinter der
 Aufklappung **Benutzerdefinierter Zeitraum …** daneben. Der Chart wird auf
 eine begrenzte Punktzahl
 heruntergerechnet, sodass ein Jahrzehnt täglicher Historie im Browser leicht
-bleibt. Geld und Prozente folgen der gewählten Sprache (Deutsch `1.234.567,89`,
+bleibt. Die Aufklappung **Daten als Tabelle** unter dem Chart enthält
+zusammenfassende Zeilen — eine je Jahr, bei Zeiträumen bis zu einem Jahr je
+Monat — mit Start- und Endwert, der TTWROR des Abschnitts und seinen
+externen Nettoflüssen, statt eines täglichen Dumps. Geld und Prozente folgen der gewählten Sprache (Deutsch `1.234.567,89`,
 Englisch `1,234,567.89`; Geld immer mit zwei Nachkommastellen).
 
 Ein **Datenqualitäts-Panel** erscheint über dem Chart, wenn etwas die Zahlen

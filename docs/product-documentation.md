@@ -675,7 +675,10 @@ controls; a previous-year pick and a from/to custom range (ISO dates,
 `YYYY-MM-DD`) sit behind the **Custom range…** disclosure next to them.
 The chart is
 downsampled to a bounded number of points, so a decade of daily history stays
-light in the browser. Money and percentages follow the chosen language
+light in the browser. The chart's **Data as table** disclosure holds
+insight-level summary rows — one per year, or per month for periods up to a
+year — with the start and end value, the slice's own TTWROR and its net
+external flows, instead of a daily dump. Money and percentages follow the chosen language
 (German `1.234.567,89`, English `1,234,567.89`; money always with two
 decimals).
 

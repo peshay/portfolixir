@@ -1051,6 +1051,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             </p>
             <.performance_chart
               series={downsample(@performance.series)}
+              summary={table_summary(@performance.series)}
               mode={@chart_mode}
               currency={@performance.base_currency}
             />
@@ -1855,22 +1856,46 @@ defmodule PortfolixirWeb.PortfolioLive do
         aria_label={@aria_label}
         currency_code={@currency_code}
       />
+      <%!-- Insight-level summaries instead of a downsampled daily dump
+           (#564): one row per year — per month for short periods — with
+           start/end value, the slice's TTWROR and net external flows. The
+           one uniform disclosure (UX-DR10), wording of record. --%>
       <details class="perf-table-disclosure">
-        <summary><%= gettext("Show data as table") %></summary>
-        <table class="perf-data-table">
-          <caption class="sr-only"><%= gettext("Performance by date") %></caption>
+        <summary class="disclosure-summary">
+          <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+          <%= gettext("Data as table") %>
+        </summary>
+        <p class="muted" data-role="perf-table-purpose">
+          <%= gettext("Start/end value, return and flows per period — the chart, summarised.") %>
+        </p>
+        <table class="perf-data-table" data-role="perf-summary-table">
+          <caption class="sr-only"><%= gettext("Performance by period") %></caption>
           <thead>
             <tr>
-              <th scope="col"><%= gettext("Date") %></th>
-              <th scope="col"><%= gettext("Cumulative TTWROR") %></th>
-              <th scope="col"><%= gettext("Value (%{currency})", currency: @currency) %></th>
+              <th scope="col">
+                <%= if @summary.unit == :year, do: gettext("Year"), else: gettext("Month") %>
+              </th>
+              <th scope="col" class="num">
+                <%= gettext("Start value (%{currency})", currency: @currency) %>
+              </th>
+              <th scope="col" class="num">
+                <%= gettext("End value (%{currency})", currency: @currency) %>
+              </th>
+              <th scope="col" class="num"><%= gettext("TTWROR") %></th>
+              <th scope="col" class="num">
+                <%= gettext("Net flows (%{currency})", currency: @currency) %>
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr :for={point <- @series}>
-              <td><%= Date.to_iso8601(point.date) %></td>
-              <td class="num"><%= Format.percent(point.cumulative_ttwror) %>%</td>
-              <td class="num"><%= Format.money(point.value) %></td>
+            <tr :for={row <- @summary.rows}>
+              <td><%= row.label %></td>
+              <td class="num"><%= Format.money(row.start_value) %></td>
+              <td class="num"><%= Format.money(row.end_value) %></td>
+              <td class="num">
+                <%= if row.ttwror, do: "#{signed_percent(row.ttwror)}%", else: "—" %>
+              </td>
+              <td class="num"><%= Format.money(row.net_flows) %></td>
             </tr>
           </tbody>
         </table>
@@ -2876,6 +2901,63 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # Long histories produce thousands of daily points; the polyline never needs
   # more than the chart can show, so sample evenly and always keep the last.
+  # Insight-level table rows for the chart's data-as-table disclosure (#564):
+  # the FULL daily series (never the downsampled one) grouped into calendar
+  # slices — years when the series spans more than a year, months otherwise.
+  # Each row: start value (the value at the slice boundary, i.e. the previous
+  # slice's last point), end value, the slice's own TTWROR chained out of the
+  # cumulative series ((1+cum_end)/(1+cum_start) - 1), and the summed net
+  # external flows. All Decimal; display-only derivation of stored values.
+  defp table_summary([]), do: %{unit: :month, rows: []}
+
+  defp table_summary(series) do
+    first = List.first(series)
+    last = List.last(series)
+    unit = if Date.diff(last.date, first.date) > 366, do: :year, else: :month
+
+    {rows, _prev} =
+      series
+      |> Enum.chunk_by(&slice_key(&1.date, unit))
+      |> Enum.map_reduce(nil, fn chunk, prev ->
+        chunk_first = List.first(chunk)
+        chunk_last = List.last(chunk)
+        start_value = if prev, do: prev.value, else: chunk_first.value
+        start_cum = if prev, do: prev.cumulative_ttwror, else: Decimal.new(0)
+
+        row = %{
+          label: slice_label(chunk_first.date, unit),
+          start_value: start_value,
+          end_value: chunk_last.value,
+          ttwror: slice_ttwror(start_cum, chunk_last.cumulative_ttwror),
+          net_flows: Enum.reduce(chunk, Decimal.new(0), &Decimal.add(&1.flow, &2))
+        }
+
+        {row, chunk_last}
+      end)
+
+    %{unit: unit, rows: rows}
+  end
+
+  defp slice_key(date, :year), do: date.year
+  defp slice_key(date, :month), do: {date.year, date.month}
+
+  defp slice_label(date, :year), do: Integer.to_string(date.year)
+
+  defp slice_label(date, :month),
+    do: "#{date.year}-#{String.pad_leading(Integer.to_string(date.month), 2, "0")}"
+
+  # The slice return chained out of the cumulative series; nil (rendered as a
+  # quiet dash) when the growth base is zero and no ratio exists.
+  defp slice_ttwror(start_cum, end_cum) do
+    base = Decimal.add(1, start_cum)
+
+    if Decimal.compare(base, 0) == :eq do
+      nil
+    else
+      Decimal.add(1, end_cum) |> Decimal.div(base) |> Decimal.sub(1)
+    end
+  end
+
   defp downsample(series) when length(series) <= @chart_max_points, do: series
 
   defp downsample(series) do
