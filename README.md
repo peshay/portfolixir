@@ -12,7 +12,7 @@
 [![codecov](https://codecov.io/gh/peshay/portfolixir/branch/main/graph/badge.svg)](https://codecov.io/gh/peshay/portfolixir)
 [![Elixir](https://img.shields.io/badge/Elixir-Phoenix-4B275F?logo=elixir&logoColor=white)](https://elixir-lang.org/)
 [![License](https://img.shields.io/github/license/peshay/portfolixir)](LICENSE)
-[![BMad Method](https://img.shields.io/badge/BMad_Method-6.8.0-7c3aed)](https://bmad-method.org)
+[![BMad Method](https://img.shields.io/badge/BMad_Method-6.11.0-7c3aed)](https://bmad-method.org)
 
 [![Support via bunq](https://img.shields.io/badge/Support-bunq-00A1E0?style=flat-square&logo=bunq&logoColor=white)](https://bunq.me/ahuservices?description=portfolixir-maintenance-support)
 
