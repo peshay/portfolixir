@@ -196,8 +196,9 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
     #
     # Acceptance criteria:
     # - The missing-logo filtered list offers a bulk retry button.
-    # - Triggering it reports the queued lookup inline, in a status region
-    #   that exists before the action runs (no toast, no timer).
+    # - Triggering it reports the queued lookup through the canonical
+    #   inline-result slot (data-note appearance, pre-existing status
+    #   region, dismissible — no toast, no timer, no bare span).
     test "the missing-logo list offers a bulk logo retry with inline feedback",
          %{conn: conn} do
       create_security(%{name: "Logoless Co.", ticker_symbol: "NLGO"})
@@ -205,7 +206,7 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
       {:ok, view, _html} = live(conn, "/securities?dq=missing_logo")
 
       assert has_element?(view, "#retry-missing-logos")
-      assert has_element?(view, "#logo-retry-result[role='status']")
+      assert has_element?(view, "#securities-action-result-status[role='status']")
 
       view
       |> element("#retry-missing-logos")
@@ -213,7 +214,7 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
 
       assert has_element?(
                view,
-               "#logo-retry-result",
+               "#securities-action-result-status",
                "Logo lookup queued for all securities without a logo."
              )
     end

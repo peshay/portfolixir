@@ -94,6 +94,14 @@ defmodule PortfolixirWeb.PerformancePeriodControlTest do
 
       assert app_css =~
                ~r/@media \(pointer: coarse\) \{\s*\.segmented-control__option \{\s*min-height: 44px/s
+
+      # {components.selected-segment}.option-active (design-critic fix round):
+      # active = accent fill + on-accent text, no font-weight change — the
+      # width-reserve rule (UX-DR18) demands a fixed track.
+      active = Regex.run(~r/\.segmented-control__option\.is-active \{[^}]*\}/s, app_css) |> hd()
+      assert active =~ "background: var(--color-accent)"
+      assert active =~ "color: var(--color-on-accent)"
+      refute active =~ "font-weight"
     end
   end
 end

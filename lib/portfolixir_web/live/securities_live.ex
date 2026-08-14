@@ -428,11 +428,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
             >
               <%= gettext("Retry logo lookup for all") %>
             </button>
-            <span id="logo-retry-result" role="status" class="dq-bulk-action__result">
-              <%= if @logo_retry_queued? do %>
-                <%= gettext("Logo lookup queued for all securities without a logo.") %>
-              <% end %>
-            </span>
           </div>
         <% end %>
 
@@ -2715,7 +2710,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("retry_missing_logos", _params, socket) do
     LogoDiscovery.enqueue_missing_security_logos()
-    {:noreply, assign(socket, :logo_retry_queued?, true)}
+
+    # Feedback rides the canonical inline-result slot (design-critic fix
+    # round): data-note appearance and dismissal instead of a bare span.
+    {:noreply,
+     socket
+     |> assign(:logo_retry_queued?, true)
+     |> put_action_result(
+       :note,
+       gettext("Logo lookup queued for all securities without a logo.")
+     )}
   end
 
   def handle_event("remove_dq", _params, socket) do
