@@ -285,6 +285,10 @@ Example account payloads:
 - `GET /api/v1/transactions` lists transactions. Optional filters: `from`/`to`
   (ISO dates, inclusive), `portfolio_id`, `security_id`, `securities_account_id`.
   Invalid filters return `422 Unprocessable Entity` with the offending field.
+  An optional `fields=` (FR-37, comma-separated) selects a sparse fieldset:
+  each row then carries exactly the requested fields. The names are validated
+  against the serializer's own field list — an unknown name is a `422`, never
+  a silent fallback.
 - `POST /api/v1/transactions` creates a transaction of any bookable kind with a
   `transaction` object (per-kind required fields are validated server-side).
   The bookable `type` values are `buy`, `sell`, `dividend`, `interest`,
@@ -383,7 +387,9 @@ Example account payloads:
   which field is in which currency, and an `as_of` date. Holdings are derived
   on read with no stored snapshot, so `as_of` is the read date. Unknown
   portfolios return `404 Not Found`. Optional filters: `security_id`,
-  `securities_account_id`.
+  `securities_account_id`. An optional `fields=` (FR-37, comma-separated)
+  selects a sparse fieldset per row, validated against the serializer's own
+  field list; an unknown name is a `422`.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
@@ -482,7 +488,10 @@ Example account payloads:
   date — the valuation is computed live with no stored snapshot) and a
   `valuation_note` stating that totals are in `base_currency` via the EUR hub and
   that the per-position `price_source` and `valued` fields indicate price
-  staleness.
+  staleness. An optional `include_positions=false` (FR-37) returns the
+  roll-up only — totals, cash balances and cash quote without the
+  per-position rows; the response states which shape was returned via
+  `positions_included`.
 - `GET /api/v1/portfolios/:portfolio_id/performance` returns the portfolio's
   **true time-weighted rate of return (TTWROR)**, computed the Portfolio
   Performance way: the portfolio is valued daily (quotes on or before each day,
@@ -776,7 +785,16 @@ church tax withheld at a zero church-tax rate.
   consume the same effective values. For the raw position-target rows and
   per-category roll-up (the maintenance view) use the `position_targets`
   endpoint above. Unknown portfolios or
-  classifications return `404 Not Found`.
+  classifications return `404 Not Found`. Read ergonomics (FR-37):
+  `include_positions=false` omits the per-category (and `unassigned`)
+  position rows for a roll-up-only read, and `min_drift=<decimal>` (an
+  absolute drift-weight threshold, e.g. `0.02`) returns only the category
+  rows whose `|drift_weight|` meets it — targetless categories carry no
+  drift and are filtered out with it, and kept rows come back flat (an
+  ancestor under the threshold is absent). The response states its own
+  basis: `positions_included`, the applied `min_drift` and
+  `categories_total` (the pre-filter category count). Invalid values are a
+  `422`.
 - `GET /api/v1/portfolios/:portfolio_id/risk` returns a **risk/concentration
   lens** for one portfolio over the **steerable basis** (the valued positions,
   scoped by the active `view`, the same

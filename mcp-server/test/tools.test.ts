@@ -371,6 +371,52 @@ describe("Portfolixir MCP tools", () => {
     assert.match(result.content[0].text, /0\.5/);
   });
 
+  // User story (FR-37, issue #665):
+  // As the operating LLM agent,
+  // I want sparse fieldsets, roll-up-only aggregates and the drift threshold
+  // available over MCP exactly as over the API,
+  // so that the read-ergonomics win reaches the surface I actually use.
+  //
+  // Acceptance criteria:
+  // - transactions.list / holdings.list forward `fields` as a comma list.
+  // - portfolios.valuation / portfolios.allocation forward include_positions;
+  //   allocation also forwards min_drift (a Decimal string).
+  // - The fields enums mirror the API whitelists.
+  it("forwards the FR-37 read-ergonomics params (fields, include_positions, min_drift)", async () => {
+    const { client, requests } = createRecordingClient({ data: [] });
+
+    await callTool(client, "portfolixir.transactions.list", {
+      fields: ["id", "type", "date", "gross_amount"]
+    });
+    assert.equal(requests[0].path, "/api/v1/transactions?fields=id%2Ctype%2Cdate%2Cgross_amount");
+
+    await callTool(client, "portfolixir.holdings.list", {
+      portfolio_id: 3,
+      fields: ["security_id", "quantity", "market_value"]
+    });
+    assert.equal(
+      requests[1].path,
+      "/api/v1/portfolios/3/holdings?fields=security_id%2Cquantity%2Cmarket_value"
+    );
+
+    await callTool(client, "portfolixir.portfolios.valuation", {
+      portfolio_id: 3,
+      include_positions: false
+    });
+    assert.equal(requests[2].path, "/api/v1/portfolios/3/valuation?include_positions=false");
+
+    await callTool(client, "portfolixir.portfolios.allocation", {
+      portfolio_id: 3,
+      classification_id: 2,
+      include_positions: false,
+      min_drift: "0.05"
+    });
+    assert.equal(
+      requests[3].path,
+      "/api/v1/portfolios/3/allocation?classification_id=2&include_positions=false&min_drift=0.05"
+    );
+  });
+
   it("issues a GET to /holdings/by_security for portfolixir.holdings.by_security", async () => {
     const { client, requests } = createRecordingClient({
       data: {
