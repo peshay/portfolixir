@@ -281,7 +281,12 @@ Beispiel-Payloads für Konten:
   Ungültige Filter liefern `422 Unprocessable Entity` mit dem betreffenden Feld.
 - `POST /api/v1/transactions` legt eine Transaktion beliebiger buchbarer Art mit
   einem `transaction`-Objekt an (die pro Buchungsart erforderlichen Felder werden
-  serverseitig validiert). Buchungssemantik, die man vor dem ersten Schreiben
+  serverseitig validiert). Die buchbaren `type`-Werte sind `buy`, `sell`,
+  `dividend`, `interest`, `deposit`, `removal`, `fee`, `tax`, `tax_refund`,
+  `cash_transfer`, `inbound_delivery`, `outbound_delivery` und
+  `security_transfer` (`balance_adjustment` wird über den dedizierten
+  Kontostand-Snapshot-Endpunkt geschrieben, `split` über die Split-Routen
+  weiter unten). Buchungssemantik, die man vor dem ersten Schreiben
   kennen sollte: `gross_amount` einer Dividende ist der NETTO-Geldzufluss auf dem
   Konto — einbehaltene Steuern gehören in `taxes`, der Einnahmenbericht
   rekonstruiert brutto als netto plus einbehaltene Steuer. Eine ohne `price`
@@ -293,7 +298,14 @@ Beispiel-Payloads für Konten:
   werden — Kontostand-Snapshots und unbepreiste Einlieferungen sind letzte Mittel,
   die Zahlen richtig aussehen lassen und dabei den Einstand verzerren. Beträge
   sind positive Größen — die Buchungsart bestimmt die Richtung; nur
-  `balance_adjustment` darf einen negativen (absoluten) Betrag tragen. Ein
+  `balance_adjustment` darf einen negativen (absoluten) Betrag tragen. Eine
+  **Steuererstattung** — etwa die bei einem Verlustverkauf gutgeschriebene
+  Steuer — ist deshalb nie ein negativer `taxes`-Wert auf dem Verkauf: Der
+  Verkauf wird mit den tatsächlich einbehaltenen Steuern (oder `0`) gebucht,
+  dazu eine separate `tax_refund`-Transaktion, deren positiver `gross_amount`
+  der dem Konto gutgeschriebene Betrag ist (`cash_account_id` und
+  `gross_amount` sind ihre Pflichtfelder; das Changeset lehnt ein negatives
+  `taxes` mit genau diesem Hinweis ab). Ein
   Wertpapier, das über ein Geldkonto in einer
   anderen Währung abgerechnet wird (zum Beispiel ein USD-Wertpapier über ein
   EUR-Konto), wird in der eigenen Währung des Wertpapiers gebucht und trägt die

@@ -29,3 +29,6 @@ msgid "should be %{count} character(s)"
 msgid_plural "should be %{count} character(s)"
 msgstr[0] "muss genau %{count} Zeichen lang sein"
 msgstr[1] "muss genau %{count} Zeichen lang sein"
+
+msgid "must be greater than or equal to 0 — a refunded tax is booked as a separate tax_refund transaction whose positive gross_amount credits the cash account"
+msgstr "muss größer oder gleich 0 sein — eine erstattete Steuer wird als separate tax_refund-Transaktion gebucht, deren positiver gross_amount dem Geldkonto gutgeschrieben wird"
