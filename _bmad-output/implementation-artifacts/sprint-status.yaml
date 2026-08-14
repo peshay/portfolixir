@@ -71,6 +71,50 @@ story_location: _bmad-output/implementation-artifacts
 # (#674 #676). No story rows change: Sprint 6 work hangs off no epic row, and
 # section J still has no epic (finding F2 below).
 #
+# SPRINT 6 AMENDED (2026-08-14): Lane D added - #686 - and RE-SCOPED the same
+# day, after the first diagnosis proved wrong. Recorded in full because the way
+# it was wrong is the reusable lesson.
+#
+# As filed: "a hand-entered loss sale cannot book its tax refund", read from the
+# changeset rule `taxes >= 0` plus `tax_refund` being absent from the form's
+# type selector. Proposed fix (OQ-4 option A): teach the manual form to accept a
+# negative tax and auto-split it into a companion `tax_refund` the way both PP
+# importers do.
+#
+# What the owner reported: `tax_refund` is present AND in live use -- most of
+# the existing bookings arrived through the PP import, and one was made by the
+# very agent that reported the capability missing, weeks earlier. The ledger was
+# never wrong. OQ-4 AND OPTION A ARE WITHDRAWN: the `taxes >= 0` rule stays,
+# because it is what keeps ONE representation of a refund. The importers split a
+# signed value only because PP's file format hands them one; manual entry has no
+# such constraint, so building it would have added a second way to express a
+# refund in order to fix a discoverability problem. Option B (sign-bearing taxes
+# on buy/sell) was rejected before and stays rejected, for that same reason.
+#
+# The lane is now the affordance gap that actually caused the failure: (D1) the
+# rejection is a bare Ecto message naming no alternative, (D2) `tax_refund` is
+# missing from the direction enumeration in transactions.create, (D3)
+# holdings.reconcile names set_balance as a last resort without ever naming
+# tax_refund as the right answer, (D4) the type value appears once in all of
+# docs/, inside ADR-0031. Consequence is data quality, not convenience: the
+# surface steers agents toward set_balance, which the schema itself calls
+# balance-looks-right-while-hiding-what-happened.
+#
+# NOT risk-tier, no ADR, no open owner question -- text, two schema
+# descriptions, one error message, one doc section. The "sequence before Lane A,
+# correctness defect" argument is DROPPED; the lane now runs with Lane B by
+# affinity (both agent-surface work, one API/MCP review pass). Pinned by a test
+# that the prose kind-lists stay in sync with Transaction.kinds/0, since the
+# root cause is a hand-maintained list drifting from the schema.
+#
+# Process finding: the first pass verified the validation rule and the LiveView,
+# then stopped -- it never read the MCP tool descriptions, never reproduced the
+# error an agent receives, and never checked whether the capability was already
+# in use. For a defect reported BY an agent, the agent-facing surface is the
+# primary evidence. The reporter's own transcript carried the disproof.
+#
+# #686 hangs off epic tracker #470, so no story row changes.
+#
 # RECONCILED (2026-08-12, `main` at 541fb89):
 # Verification basis: the merge commits on `main` (73affc5..541fb89), the open
 # pull-request list (EMPTY), the open-issue list (46 open), the Actions runs on
