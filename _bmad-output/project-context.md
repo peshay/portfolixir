@@ -184,6 +184,11 @@ that, the repo-specific mechanics:
   never delete or skip it.
 - **Exact Decimal expectations:** `Decimal.equal?/2` or exact serialized
   strings — never float tolerance/delta assertions on money.
+- **Capture local full runs:** `scripts/capture-test-run.sh` tees the complete
+  `mix test` output (seed included) into `tmp/test-runs/` so an intermittent
+  failure burst (#682) is inspectable after the fact and replayable with
+  `mix test --seed <seed>`. CI persists the same log as the `test-output`
+  artifact on every outcome (#654).
 
 ### Code Quality & Style Rules
 
