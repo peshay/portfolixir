@@ -182,47 +182,68 @@ in the agentic review, and an explicit callout in the reviewer briefing.
 ADR-0035 stays the first line of defence: a value that is merely computed more
 often than necessary gets computed once, not materialized.
 
-### Lane D — Ledger defect: a hand-entered loss sale loses its tax refund
+### Lane D — Agent affordance: the tax-refund path is undiscoverable
 
-Added 2026-08-14 by owner report, filed as **#686**. A sale that realises a loss
-carries a negative tax line on the settlement note (loss offsetting refunds
-tax). The manual form rejects it — `taxes` is pinned `>= 0` in the changeset —
-and `tax_refund`, the kind that exists for it, is not in the form's type
-selector. So the refund is a real cash movement that silently goes missing from
-every hand-entered loss sale, and the operator has no workaround the agent does
-not have.
+Added 2026-08-14 by owner report, filed as **#686**. **Re-scoped the same day
+after the first diagnosis proved wrong** — the correction is recorded here
+rather than quietly overwritten, because the way it was wrong is the reusable
+lesson.
 
-It is admitted to this sprint on one specific ground, and the ground is worth
-stating because it is what keeps the OQ-2 capacity argument intact: **the
-semantics are already decided and already shipped.** Both PP importers split a
-negative tax into a companion `tax_refund` and leave the trade at `taxes: 0`.
-The fix applies that same rule to the manual path, so it is not a new
-money-domain decision competing with Lane C — it is one surface catching up with
-a rule the ledger already follows.
+A sale that realises a loss refunds tax. Portfolixir models this correctly and
+has all along: a separate `tax_refund` transaction, never a negative tax. The
+owner's instance holds 35 of them going back to 2019, and the agent that
+reported the capability missing had itself booked one three weeks earlier. What
+failed was not the ledger but the path to it — the agent hit `taxes >= 0`, got a
+bare Ecto message back, found no kind named in the direction enumeration that
+credits a refund, and concluded the refund was unbookable. Its fallback was a
+balance anchor, which the MCP schema itself describes as making the balance look
+right while hiding what happened.
 
-**OQ-4 — decided 2026-08-14: option A.** The owner delegated the call to the
-recommendation. The `taxes >= 0` validation **stays**; the positive-magnitude
-invariant is not touched; the manual path adopts the importers' companion-record
-representation. Option B (sign-bearing `taxes` on `buy`/`sell`) is rejected: its
-only advantage was a shorter diff, paid for with one event living in two
-representations forever and every consumer of `taxes` becoming sign-aware. No
-ADR is required, because no decision changes — a decided rule reaches a surface
-that was missed.
+That is the argument for fixing it, and it is a data-quality argument rather
+than a convenience one: **the surface steers agents toward `set_balance`.**
 
-- **D1** — the sell form accepts a negative tax and saves it as sell +
-  companion `tax_refund`, byte-identical to what the importer produces for the
-  same settlement note. Create *and* edit path.
-- **D2** — `tax_refund` offered in the type selector for a standalone refund
-  (the broker sometimes books it separately), with its API/MCP coverage
-  reviewed per steps 5 and 6.
+Four gaps, all of them text, schema or one message:
 
-Risk-tier attention: own commit group, TDD first with exact `Decimal`
-expectations, and the pinning test is the equality of the hand-entered and
-imported projections — not a spot check of one number. Callout in the reviewer
-briefing.
+- **D1 — the rejection names no alternative.** `%{taxes: ["must be greater than
+  or equal to 0"]}`, verified against the live changeset. This is the moment the
+  agent has stated its intent unambiguously and gets a rule with no remedy. Best
+  fixed at changeset level so every surface inherits it, not per caller.
+- **D2 — `tax_refund` is missing from the direction enumeration** in
+  `portfolixir.transactions.create` (`mcp-server/src/tools.ts:1821`), which lists
+  `removal/fee/tax` debit and `deposit/dividend/interest` credit and stops. The
+  sentence also ends at "never send negative values" without the remedy.
+- **D3 — `portfolixir.holdings.reconcile` omits it from its repair list**
+  (`tools.ts:1854`) — the tool used to compare a broker statement against the
+  ledger, i.e. exactly where refunds surface. It names `set_balance` in full
+  while the list of correct kinds trails off before reaching `tax_refund`.
+- **D4 — the type value is undocumented.** One occurrence in all of `docs/`,
+  inside ADR-0031. `api-and-mcp.md:211` says "tax refunds … add cash" in prose
+  but never names the value or the workflow.
 
-The lane carries no open owner question. OQ-4 is answered above, so Lane D is
-ready for the batch to start on.
+Pin it with a test that the prose kind-lists stay in sync with
+`Transaction.kinds/0`. The root cause is a hand-maintained list drifting from the
+schema, and without a pin the next kind goes missing the same way.
+
+**Not risk-tier, no ADR.** No ledger semantics, no money math, no migration. The
+`taxes >= 0` validation stays exactly as it is — it is what keeps one
+representation of a refund.
+
+**Withdrawn on 2026-08-14: OQ-4 and its option A.** The lane originally proposed
+teaching the manual form to accept a negative tax and auto-split it the way the
+importers do. The importers split a signed value because PP's *file format* hands
+them one; manual entry carries no such constraint, so building it would have
+added a second way to express a refund in order to fix a discoverability problem
+— and made the input shape the ledger rejects look supported. Option B
+(sign-bearing `taxes` on `buy`/`sell`) was rejected then and stays rejected, for
+what is now the whole point of the lane: the ledger has one representation of a
+refund and keeps it. **No open owner question remains.**
+
+**Deliberately out of this lane:** the transaction form's type selector is
+hard-coded to `["buy", "sell"]` (`transaction_management_live.ex:62-68`), and it
+is the only LiveView that creates transactions — so no cash-only kind can be
+booked by hand at all, `tax_refund` included. Real, but broader than this fix, it
+predates the report, and it sits in #471/#414 territory. Recorded in #686 so it
+is not lost; solving it opportunistically here would be a scope-lock breach.
 
 ### Lane M — Maintenance (mandatory, every batch)
 
@@ -243,9 +264,11 @@ update, with the reason**. Each update is its own commit group.
 3. **#664** — verification; a confirmed regression re-sequences the rest.
 4. **Lane B** ship-now stories, API and MCP together.
 5. **Lane C** C1 → C2 → C3 → C4 → C5, risk-tier throughout.
-6. **Lane D** D1 → D2 — small and independent; slots in wherever a review slot
-   frees up, but **before** Lane A, because it is a correctness defect against
-   recorded data and Lane A is alignment work.
+6. **Lane D** D1 → D2 → D3 → D4 — small, text-and-schema only, independent of
+   everything else; slots in wherever a review slot frees up. Runs with Lane B
+   by affinity: both are agent-surface work, so the API/MCP review pass covers
+   them together. The earlier "before Lane A, it is a correctness defect"
+   sequencing is **withdrawn** — the re-scope showed nothing recorded is wrong.
 7. **Lane A** A1 → A2 → A3.
 8. **Lane M** reviewed throughout, reported at the close-out.
 
@@ -289,16 +312,33 @@ a dedicated verification of Lane C's invalidation invariant.
   runtime is a measured number in ADR-0039.
 - Eleven UI issues are closed and the UI is aligned — **not finished**; Sprint 7
   closes it.
-- A loss sale entered by hand records its tax refund, and produces the same
-  ledger as the same sale imported from Portfolio Performance.
+- An agent that meets a tax refund is led to `tax_refund` by the surface itself
+  — by the rejection message, by the create tool's direction list and by the
+  reconcile tool's repair list — instead of reaching for a balance anchor.
 
 ## Amendments after adoption
 
-- **2026-08-14 — Lane D added (#686).** Owner report: a hand-entered loss sale
-  cannot book the tax refund that loss offsetting produces. Admitted because the
-  ledger semantics are already decided and shipped in both PP importers, so the
-  fix applies an existing rule to a missed surface rather than opening a second
-  money-domain decision beside Lane C. **OQ-4 decided the same day: option A**,
-  delegated by the owner to the recommendation — the `taxes >= 0` validation
-  stays and the manual path adopts the importers' companion-record shape, so no
-  ADR is required and the lane starts with the batch.
+- **2026-08-14 — Lane D added (#686), then re-scoped the same day.** As filed,
+  the lane read the `taxes >= 0` rejection as the defect and proposed teaching
+  the manual form to accept a negative tax and auto-split it. The owner reported
+  that `tax_refund` is not only present but in live use — 35 bookings back to
+  2019, one of them made by the reporting agent itself three weeks earlier — so
+  the diagnosis was wrong at the root. **OQ-4 and its option A are withdrawn**;
+  the `taxes >= 0` rule stays, because it is what keeps one representation of a
+  refund. The lane is now the affordance gap that actually caused the failure:
+  the bare rejection message, `tax_refund` missing from two hand-maintained
+  kind-lists in the MCP schema, and a type value documented nowhere. Smaller and
+  cheaper than what was scheduled, not risk-tier, no ADR, and no open owner
+  question.
+
+  Two process notes, recorded because the correction cost a full cycle:
+
+  - **The first pass verified the rule and the form, then stopped.** It never
+    read the MCP tool descriptions, never reproduced the error message an agent
+    actually receives, and never checked whether the capability was already in
+    use — which a single query against the instance would have answered. For a
+    defect reported *by an agent*, the agent-facing surface is the primary
+    evidence, not a secondary consideration.
+  - **The reporter's own transcript contained the disproof** and was read past.
+    An agent reporting "X is impossible" is reporting that it could not find X,
+    which is a claim about the surface first and about the capability second.
