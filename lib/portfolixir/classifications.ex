@@ -161,6 +161,89 @@ defmodule Portfolixir.Classifications do
     end
   end
 
+  @doc """
+  Securities-table column descriptors (#565): every classification with the
+  number of levels its category tree currently has, in display order. Each
+  `(classification, level)` pair can back one configurable list column; an
+  empty tree still reports one level so the column stays offerable.
+  """
+  def column_specs do
+    Classification
+    |> order_by([c], asc: c.position, asc: c.id)
+    |> preload(categories: ^ordered_categories())
+    |> Repo.all()
+    |> Enum.map(fn classification ->
+      %{classification: classification, levels: max_level(classification.categories)}
+    end)
+  end
+
+  @doc """
+  Returns `{:ok, %{security_id => category_name}}` for one classification and
+  level (1-based, root = 1): the assigned category's ancestor on that level.
+  A security assigned above the requested level has no entry. Works for custom
+  (stored) and built-in (derived) trees alike (#565).
+
+  Pass `securities` to resolve against an already-loaded list; defaults to the
+  full catalog. Returns `{:error, :not_found}` for an unknown classification.
+  """
+  def security_level_names(classification_id, level, securities \\ nil)
+      when is_integer(classification_id) and is_integer(level) and level >= 1 do
+    case Repo.get(Classification, classification_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Classification{} = classification ->
+        classification = Repo.preload(classification, categories: ordered_categories())
+        securities = securities || Catalog.list_securities()
+        by_id = Map.new(classification.categories, &{&1.id, &1})
+
+        names =
+          classification
+          |> assignments_for(securities)
+          |> Enum.reduce(%{}, fn %{security_id: security_id, category_id: category_id}, acc ->
+            case category_at_level(by_id, category_id, level) do
+              %Category{name: name} -> Map.put(acc, security_id, name)
+              nil -> acc
+            end
+          end)
+
+        {:ok, names}
+    end
+  end
+
+  # Root-to-category path capped at @max_tree_depth as a cycle guard; a
+  # corrupted parent chain yields a truncated path instead of an endless loop.
+  @max_tree_depth 32
+
+  defp category_at_level(by_id, category_id, level) do
+    by_id
+    |> Map.get(category_id)
+    |> path_to_root(by_id, [], @max_tree_depth)
+    |> Enum.at(level - 1)
+  end
+
+  defp path_to_root(category, by_id, acc, depth_left)
+
+  defp path_to_root(nil, _by_id, acc, _depth_left), do: acc
+  defp path_to_root(_category, _by_id, acc, 0), do: acc
+
+  defp path_to_root(%Category{parent_id: nil} = category, _by_id, acc, _depth_left),
+    do: [category | acc]
+
+  defp path_to_root(%Category{parent_id: parent_id} = category, by_id, acc, depth_left) do
+    path_to_root(Map.get(by_id, parent_id), by_id, [category | acc], depth_left - 1)
+  end
+
+  defp max_level([]), do: 1
+
+  defp max_level(categories) do
+    by_id = Map.new(categories, &{&1.id, &1})
+
+    categories
+    |> Enum.map(&length(path_to_root(&1, by_id, [], @max_tree_depth)))
+    |> Enum.max()
+  end
+
   def get_classification(id) when is_integer(id), do: Repo.get(Classification, id)
 
   def get_classification_by_key(key) when is_binary(key) do

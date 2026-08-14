@@ -144,6 +144,19 @@ Searching, switching the holding status, or applying a filter updates the URL
 in place, and selecting a security keeps the active filters. The Overview
 data-quality line links here with the matching filter pre-applied.
 
+### Classification columns
+
+Next to the attribute and price columns, the securities list's column picker
+offers one entry per classification tree **and level** — custom trees and the
+built-in asset-class and currency trees alike, matching Portfolio
+Performance's classification columns. An enabled column shows each security's
+assigned category on that level: a security assigned to a deeper category
+shows its ancestor on the chosen level, one assigned above the level (or not
+assigned at all) stays blank. Classification columns sort like any other
+column, with unassigned securities always last, and persist in the browser
+together with the rest of the column choice. They are display columns only —
+filters stay on the attribute columns.
+
 #### Letter-spaced names from Portfolio Performance
 
 Portfolio Performance sometimes exports names with a space between every
