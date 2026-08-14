@@ -188,6 +188,44 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
       refute has_element?(view, "td", "Logo Co.")
     end
 
+    # User story:
+    # As a local portfolio maintainer looking at the securities without a logo,
+    # I want a bulk "retry logo lookup" action with inline feedback,
+    # so that missing logos are re-attempted in one step instead of per row
+    # (issue #561).
+    #
+    # Acceptance criteria:
+    # - The missing-logo filtered list offers a bulk retry button.
+    # - Triggering it reports the queued lookup inline, in a status region
+    #   that exists before the action runs (no toast, no timer).
+    test "the missing-logo list offers a bulk logo retry with inline feedback",
+         %{conn: conn} do
+      create_security(%{name: "Logoless Co.", ticker_symbol: "NLGO"})
+
+      {:ok, view, _html} = live(conn, "/securities?dq=missing_logo")
+
+      assert has_element?(view, "#retry-missing-logos")
+      assert has_element?(view, "#logo-retry-result[role='status']")
+
+      view
+      |> element("#retry-missing-logos")
+      |> render_click()
+
+      assert has_element?(
+               view,
+               "#logo-retry-result",
+               "Logo lookup queued for all securities without a logo."
+             )
+    end
+
+    test "the bulk logo retry is absent without the missing-logo filter", %{conn: conn} do
+      create_security(%{name: "Plain Co.", ticker_symbol: "PLN"})
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      refute has_element?(view, "#retry-missing-logos")
+    end
+
     test "removing the data-quality chip patches back to the unfiltered list",
          %{conn: conn} do
       create_security(%{name: "Plain Co.", ticker_symbol: "PLN"})

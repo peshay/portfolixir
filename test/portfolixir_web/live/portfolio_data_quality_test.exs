@@ -90,6 +90,38 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     refute missing_fx =~ "Delivered Co."
   end
 
+  # User story (#561):
+  # As a local portfolio maintainer reading the Wealth data-quality list,
+  # I want each finding to link to the surface where it can be fixed,
+  # so that a count is a path to act, not just a fact.
+  #
+  # Acceptance criteria:
+  # - The "no price at all" finding links to the securities list pre-filtered
+  #   to securities without any quote.
+  # - The "valued at last trade price" finding links to the securities list
+  #   pre-filtered to stale quotes.
+  test "data-quality findings link to the pre-filtered securities list", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, dark} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Delivered Co.",
+        ticker_symbol: "DLVR",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    deliver!(world, dark, "3", "EUR")
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s([data-role="dq-no-price"] a[href="/securities?dq=missing_quote"])
+           )
+  end
+
   # User story (#406):
   # As a local portfolio maintainer,
   # I want a position that is priced only by a trade in another portfolio to

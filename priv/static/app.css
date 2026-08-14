@@ -42,6 +42,10 @@
   --color-logo-plate: #ffffff;
   /* Soft warning tint behind warning alerts (issue 449). */
   --color-warning-soft: #fffbeb;
+  /* Tint behind problem-severity data notes (UX-DR17): the values
+     .alert-error already renders, named for the semantic role instead of
+     borrowing the coral accent token. */
+  --color-danger-soft: #ffe4e6;
   --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
   --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
@@ -100,6 +104,7 @@
     --color-chart-surface: #131a23;
     --color-on-accent: #0b0f14;
     --color-warning-soft: rgb(251 191 36 / 0.16);
+    --color-danger-soft: rgb(225 29 72 / 0.16);
     --shadow-panel: 0 18px 44px rgb(0 0 0 / 0.32);
     --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5);
     --shadow-md: 0 10px 28px rgb(0 0 0 / 0.5);
@@ -133,6 +138,7 @@
   --color-chart-surface: #ffffff;
   --color-on-accent: #ffffff;
   --color-warning-soft: #fffbeb;
+  --color-danger-soft: #ffe4e6;
   --shadow-panel: 0 18px 44px rgb(15 23 42 / 0.08);
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
   --shadow-md: 0 10px 22px rgb(15 23 42 / 0.10);
@@ -165,6 +171,7 @@
   --color-chart-surface: #131a23;
   --color-on-accent: #0b0f14;
   --color-warning-soft: rgb(251 191 36 / 0.16);
+  --color-danger-soft: rgb(225 29 72 / 0.16);
   --shadow-panel: 0 18px 44px rgb(0 0 0 / 0.32);
   --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5);
   --shadow-md: 0 10px 28px rgb(0 0 0 / 0.5);
@@ -1209,6 +1216,72 @@ li + li {
   color: var(--color-accent);
   background: var(--color-accent-soft);
   border: 1px solid color-mix(in srgb, var(--color-accent) 32%, transparent);
+}
+
+/* Data note (UX-DR17): one component, three severities — note / attention /
+   problem — each carried by colour AND glyph AND word, never colour alone
+   (UX-DR7). The severity word is DOM text; the glyph is aria-hidden. */
+.data-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.data-note__icon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 2px;
+}
+
+.data-note__word {
+  flex: none;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.data-note__body {
+  min-width: 0;
+}
+
+.data-note__body a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.data-note--attention {
+  border-color: var(--color-warning);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.data-note--problem {
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+/* Bulk data-quality action row (issue 561): trigger plus its inline result. */
+.dq-bulk-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.dq-bulk-action__result {
+  color: var(--color-text-muted);
+  font-size: 12px;
 }
 
 .chart {

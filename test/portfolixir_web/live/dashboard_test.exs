@@ -357,18 +357,21 @@ defmodule PortfolixirWeb.DashboardTest do
     assert has_element?(view, "#dashboard-attention [data-role='drift-alert']", "Core")
   end
 
-  # User story (Steve UAT #337 follow-up):
+  # User story (#561, UX-DR2 — the 2026-07-12 decision, adopted 2026-08-05):
   # As a maintainer keeping the local records auditable,
-  # I want the dashboard to flag securities that need attention — no recent
-  # quote, no asset class, no logo — with links to fix them,
-  # so that data gaps surface on the morning overview instead of silently
-  # skewing valuations (this is exactly how we found the missing-quotes issue).
+  # I want data quality on the Overview to be ONE line whose counts link to
+  # the securities list pre-filtered to the offending set,
+  # so that every count carries a path to fix it instead of landing on the
+  # unfiltered index.
   #
   # Acceptance criteria:
-  # - The populated dashboard renders a data-quality card with counts for
-  #   securities without a recent quote, without an asset class, and without a
-  #   logo, each linking to the securities surface.
-  test "a populated dashboard surfaces a data-quality card", %{conn: conn} do
+  # - Data quality renders as a single data-note line, not a card grid.
+  # - Each count links to /securities with the matching filter applied
+  #   (dq=stale_quote, filter[]=asset_class:is_nil, dq=missing_logo).
+  # - The line renders only when at least one count is non-zero; there is no
+  #   green all-clear badge.
+  # - The note carries a severity word and glyph, never colour alone.
+  test "data quality is one line linking to pre-filtered securities lists", %{conn: conn} do
     seed_holding()
 
     {:ok, _} =
@@ -377,16 +380,43 @@ defmodule PortfolixirWeb.DashboardTest do
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
-    assert has_element?(view, "#dashboard-data-quality")
+    assert has_element?(view, "#dashboard-data-quality [data-role='data-quality-line']")
+    refute has_element?(view, "#dashboard-data-quality .grid .stat")
 
-    # NoQuote Co has no quote at all, so the "no recent quote" count is > 0.
-    assert has_element?(view, "#dashboard-data-quality [data-role='dq-quotes'] strong")
-    refute has_element?(view, "#dashboard-data-quality [data-role='dq-quotes'] strong", "0")
+    # Counts link to the pre-filtered securities list (#651).
+    assert has_element?(
+             view,
+             ~s(#dashboard-data-quality a[href="/securities?dq=stale_quote"])
+           )
 
-    # Neither synthetic security has a logo.
-    assert has_element?(view, "#dashboard-data-quality [data-role='dq-logo'] strong", "2")
+    assert has_element?(
+             view,
+             ~s(#dashboard-data-quality a[href="/securities?dq=missing_logo"])
+           )
 
-    # Each tile links to where the gap is fixed.
-    assert has_element?(view, "#dashboard-data-quality a[href='/securities']")
+    # The note is a data-note with a severity word (UX-DR17/UX-DR7): a stale
+    # quote is an attention-level finding.
+    assert has_element?(
+             view,
+             "#dashboard-data-quality .data-note--attention .data-note__word",
+             "Attention"
+           )
+  end
+
+  test "the data-quality line is absent when nothing is wrong", %{conn: conn} do
+    %{security: security} = seed_holding()
+
+    # Close every gap: quote is fresh (seed), add class and logo.
+    {:ok, _} =
+      Catalog.update_security(Actor.owner_ui(), security, %{
+        asset_class: "equity",
+        attributes: %{"logo_path" => "logos/acme.png"}
+      })
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    refute has_element?(view, "#dashboard-data-quality")
+    refute has_element?(view, "[data-role='data-quality-line']")
   end
 end

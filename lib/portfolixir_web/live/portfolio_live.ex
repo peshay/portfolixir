@@ -1731,18 +1731,24 @@ defmodule PortfolixirWeb.PortfolioLive do
       <h2><%= gettext("Data quality") %></h2>
       <ul>
         <li :if={@trade_priced > 0}>
-          <%= ngettext(
-            "One held position has no current quote and is valued at its last trade price.",
-            "%{count} held positions have no current quote and are valued at their last trade price.",
-            @trade_priced
-          ) %>
+          <%!-- The finding links to where it is fixed (#561): the securities
+               list pre-filtered to stale quotes. --%>
+          <a href="/securities?dq=stale_quote">
+            <%= ngettext(
+              "One held position has no current quote and is valued at its last trade price.",
+              "%{count} held positions have no current quote and are valued at their last trade price.",
+              @trade_priced
+            ) %>
+          </a>
         </li>
         <li :if={@no_price.count > 0} data-role="dq-no-price">
-          <%= ngettext(
-            "One held position has no price at all and is missing from the totals:",
-            "%{count} held positions have no price at all and are missing from the totals:",
-            @no_price.count
-          ) %>
+          <a href="/securities?dq=missing_quote">
+            <%= ngettext(
+              "One held position has no price at all and is missing from the totals:",
+              "%{count} held positions have no price at all and are missing from the totals:",
+              @no_price.count
+            ) %>
+          </a>
           <%= Enum.join(@no_price.names, ", ") %>
         </li>
         <li :if={@missing_fx.count > 0} data-role="dq-missing-fx">
