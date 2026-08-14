@@ -191,8 +191,9 @@ lesson.
 
 A sale that realises a loss refunds tax. Portfolixir models this correctly and
 has all along: a separate `tax_refund` transaction, never a negative tax. The
-owner's instance holds 35 of them going back to 2019, and the agent that
-reported the capability missing had itself booked one three weeks earlier. What
+kind is in live use — most of the existing bookings arrived through the PP
+import, and the agent that reported the capability missing had itself booked one
+weeks earlier. What
 failed was not the ledger but the path to it — the agent hit `taxes >= 0`, got a
 bare Ecto message back, found no kind named in the direction enumeration that
 credits a refund, and concluded the refund was unbookable. Its fallback was a
@@ -321,9 +322,9 @@ a dedicated verification of Lane C's invalidation invariant.
 - **2026-08-14 — Lane D added (#686), then re-scoped the same day.** As filed,
   the lane read the `taxes >= 0` rejection as the defect and proposed teaching
   the manual form to accept a negative tax and auto-split it. The owner reported
-  that `tax_refund` is not only present but in live use — 35 bookings back to
-  2019, one of them made by the reporting agent itself three weeks earlier — so
-  the diagnosis was wrong at the root. **OQ-4 and its option A are withdrawn**;
+  that `tax_refund` is not only present but in live use — including a booking
+  made by the reporting agent itself, weeks earlier — so the diagnosis was wrong
+  at the root. **OQ-4 and its option A are withdrawn**;
   the `taxes >= 0` rule stays, because it is what keeps one representation of a
   refund. The lane is now the affordance gap that actually caused the failure:
   the bare rejection message, `tax_refund` missing from two hand-maintained

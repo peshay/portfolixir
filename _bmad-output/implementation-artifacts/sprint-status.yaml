@@ -81,9 +81,9 @@ story_location: _bmad-output/implementation-artifacts
 # negative tax and auto-split it into a companion `tax_refund` the way both PP
 # importers do.
 #
-# What the owner reported: `tax_refund` is present AND in live use -- 35
-# bookings back to 2019, 34 from the PP import, and one made by the very agent
-# that reported the capability missing, three weeks earlier. The ledger was
+# What the owner reported: `tax_refund` is present AND in live use -- most of
+# the existing bookings arrived through the PP import, and one was made by the
+# very agent that reported the capability missing, weeks earlier. The ledger was
 # never wrong. OQ-4 AND OPTION A ARE WITHDRAWN: the `taxes >= 0` rule stays,
 # because it is what keeps ONE representation of a refund. The importers split a
 # signed value only because PP's file format hands them one; manual entry has no
