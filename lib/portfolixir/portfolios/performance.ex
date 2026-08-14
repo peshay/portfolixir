@@ -68,11 +68,11 @@ defmodule Portfolixir.Portfolios.Performance do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Derived
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
-  alias Portfolixir.Portfolios.Performance.Cache
   alias Portfolixir.Portfolios.Performance.IRR
 
   @zero Decimal.new("0")
@@ -125,31 +125,53 @@ defmodule Portfolixir.Portfolios.Performance do
         error
 
       scope ->
-        # Memoised per (portfolio, scope, end date, that portfolio's data
-        # version) -- ADR-0032. The memo is volatile and switchable off; with it
-        # off this is a plain call to `scoped_analysis/3` and the numbers are
-        # identical, which is what the cache-off suite run proves.
-        Cache.fetch(
-          portfolio_id,
-          Keyword.get(opts, :view) || :unscoped,
-          Keyword.get(opts, :today, Date.utc_today()),
-          fn -> scoped_analysis(portfolio_id, scope, opts) end
-        )
+        # Served through the derived-value axis (ADR-0039) as the
+        # `:performance_analysis` analytic: keyed per portfolio basis, scope,
+        # walk end date, that basis's data version and the computation
+        # version. With the layer off (or the lifetime `:none`) this is a
+        # plain call to `scoped_analysis/3` and the numbers are identical,
+        # which is what the layer-off suite run proves.
+        {:fresh, analysis} =
+          Derived.fetch(
+            :performance_analysis,
+            Derived.portfolio_basis(portfolio_id),
+            entry_key(opts),
+            fn -> scoped_analysis(portfolio_id, scope, opts) end
+          )
+
+        analysis
     end
   end
 
   @doc """
-  The most recent superseded analysis for a scope, or `nil` (ADR-0032 §6).
+  The most recent superseded analysis for a scope, or `nil` (ADR-0032 §6,
+  carried forward as ADR-0039's stale read).
 
   A surface renders this immediately -- labelled with its as-of and marked as
-  recomputing -- rather than a skeleton, while the fresh series computes.
+  recomputing -- rather than a skeleton, while the fresh series computes. For
+  the durable lifetime it survives restarts.
   """
   def previous_analysis(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
-    Cache.previous(
-      portfolio_id,
-      Keyword.get(opts, :view) || :unscoped,
-      Keyword.get(opts, :today, Date.utc_today())
-    )
+    case Derived.peek(
+           :performance_analysis,
+           Derived.portfolio_basis(portfolio_id),
+           entry_key(opts)
+         ) do
+      {:stale, analysis, _as_of} -> analysis
+      _fresh_or_none -> nil
+    end
+  end
+
+  # One walk's identity within its basis: the view scope and the walk end
+  # date. The data and computation versions are composed in by the derived
+  # layer itself (ADR-0039's full key).
+  defp entry_key(opts) do
+    view = Keyword.get(opts, :view) || "unscoped"
+    "view=#{view}|today=#{Keyword.get(opts, :today, Date.utc_today())}"
+  end
+
+  defp view_entry_key(view_id, base, opts) do
+    "view=#{view_id || "unscoped"}|base=#{base}|today=#{Keyword.get(opts, :today, Date.utc_today())}"
   end
 
   defp scoped_analysis(portfolio_id, scope, opts) do
@@ -229,22 +251,28 @@ defmodule Portfolixir.Portfolios.Performance do
         base = Keyword.get(opts, :base_currency, @hub)
         today = Keyword.get(opts, :today, Date.utc_today())
 
-        Cache.fetch(
-          Cache.global_scope_id(),
-          {view_id || :unscoped, base},
-          today,
-          fn -> view_scoped_analysis(view_id, scope, base, today) end
-        )
+        {:fresh, analysis} =
+          Derived.fetch(
+            :performance_view_analysis,
+            Derived.global_basis(),
+            view_entry_key(view_id, base, opts),
+            fn -> view_scoped_analysis(view_id, scope, base, today) end
+          )
+
+        analysis
     end
   end
 
   @doc "The most recent superseded view analysis for a scope, or `nil` (ADR-0032 §6)."
   def previous_view_analysis(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
-    Cache.previous(
-      Cache.global_scope_id(),
-      {view_id || :unscoped, Keyword.get(opts, :base_currency, @hub)},
-      Keyword.get(opts, :today, Date.utc_today())
-    )
+    case Derived.peek(
+           :performance_view_analysis,
+           Derived.global_basis(),
+           view_entry_key(view_id, Keyword.get(opts, :base_currency, @hub), opts)
+         ) do
+      {:stale, analysis, _as_of} -> analysis
+      _fresh_or_none -> nil
+    end
   end
 
   defp view_scoped_analysis(view_id, scope, base, today) do

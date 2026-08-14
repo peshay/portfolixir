@@ -5,7 +5,7 @@ defmodule Portfolixir.Portfolios.PerformanceBlastRadiusTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
-  alias Portfolixir.Portfolios.Performance.BlastRadius
+  alias Portfolixir.Derived.BlastRadius
 
   # User story (2026-07-29, ADR-0032 §3, issue #562):
   # As a local portfolio maintainer,

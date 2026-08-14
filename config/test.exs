@@ -33,7 +33,7 @@ config :portfolixir, :api_token, "test-api-token"
 # §7.3 requires the whole suite to pass with the cache off — which is what
 # makes "dropping it changes only latency" a checked claim. The cache's own
 # tests switch it on for their duration.
-config :portfolixir, Portfolixir.Portfolios.Performance.Cache, enabled?: false
+config :portfolixir, Portfolixir.Derived, enabled?: false
 config :portfolixir, Portfolixir.Portfolios.Performance.Warmup, enabled?: false
 
 config :portfolixir, Portfolixir.Catalog.SecuritySearch,

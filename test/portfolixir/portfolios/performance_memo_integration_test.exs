@@ -7,8 +7,10 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Derived
+  alias Portfolixir.Derived.DataVersion
+  alias Portfolixir.Derived.Memo
   alias Portfolixir.Portfolios.Performance
-  alias Portfolixir.Portfolios.Performance.Cache
 
   # User story (2026-07-29, ADR-0032, issue #562):
   # As a local portfolio maintainer,
@@ -23,11 +25,13 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
   # - The memo never leaks across portfolios, scopes or end dates.
 
   setup do
-    Cache.reset()
-    Application.put_env(:portfolixir, Cache, enabled?: true)
-    on_exit(fn -> Application.put_env(:portfolixir, Cache, enabled?: false) end)
+    Memo.reset()
+    Application.put_env(:portfolixir, Derived, enabled?: true)
+    on_exit(fn -> Application.put_env(:portfolixir, Derived, enabled?: false) end)
     :ok
   end
+
+  defp version(portfolio_id), do: DataVersion.current(Derived.portfolio_basis(portfolio_id))
 
   defp world(name, currency \\ "EUR") do
     {:ok, portfolio} =
@@ -95,11 +99,11 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
     quote!(security, ~D[2024-03-01], "120.50")
     quote!(security, ~D[2024-06-28], "97.25")
 
-    Application.put_env(:portfolixir, Cache, enabled?: false)
+    Application.put_env(:portfolixir, Derived, enabled?: false)
     cold = series(w)
 
-    Application.put_env(:portfolixir, Cache, enabled?: true)
-    Cache.reset()
+    Application.put_env(:portfolixir, Derived, enabled?: true)
+    Memo.reset()
     _first = series(w)
     warm = series(w)
 
@@ -119,12 +123,12 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
     buy!(w, security, ~D[2024-01-02], "100")
 
     first = Performance.analysis(w.portfolio.id, opts(w))
-    version = Cache.version(w.portfolio.id)
+    version = version(w.portfolio.id)
 
     assert Performance.analysis(w.portfolio.id, opts(w)) == first
     # A read never bumps: only a write does. An unchanged version with an equal
     # result is the memo being read, not a walk that happened to agree.
-    assert Cache.version(w.portfolio.id) == version
+    assert version(w.portfolio.id) == version
   end
 
   # §7.6 — one per write kind.
@@ -138,13 +142,13 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
     before_a = Performance.analysis(a.portfolio.id, opts(a))
     before_b = Performance.analysis(b.portfolio.id, opts(b))
 
-    version_b = Cache.version(b.portfolio.id)
+    version_b = version(b.portfolio.id)
 
     buy!(a, security, ~D[2024-04-02], "110")
 
     refute Performance.analysis(a.portfolio.id, opts(a)) == before_a
     assert Performance.analysis(b.portfolio.id, opts(b)) == before_b
-    assert Cache.version(b.portfolio.id) == version_b
+    assert version(b.portfolio.id) == version_b
   end
 
   # The historical case: A sold out, and a quote for the period it DID hold must
@@ -169,12 +173,12 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
       })
 
     _before = Performance.analysis(a.portfolio.id, opts(a))
-    version = Cache.version(a.portfolio.id)
+    version = version(a.portfolio.id)
 
     # A quote dated inside the holding window it has since exited.
     quote!(security, ~D[2024-01-15], "108.00")
 
-    assert Cache.version(a.portfolio.id) > version
+    assert version(a.portfolio.id) > version
   end
 
   # The other historical case: the portfolio's own currency is EUR, but it has a
@@ -196,8 +200,8 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
 
     _domestic_series = Performance.analysis(domestic.portfolio.id, opts(domestic))
     _foreign_series = Performance.analysis(foreign.portfolio.id, opts(foreign))
-    domestic_version = Cache.version(domestic.portfolio.id)
-    foreign_version = Cache.version(foreign.portfolio.id)
+    domestic_version = version(domestic.portfolio.id)
+    foreign_version = version(foreign.portfolio.id)
 
     {:ok, _count} =
       Fx.upsert_many([
@@ -212,8 +216,8 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
 
     # The single-currency portfolio is never converted, so a rate cannot move
     # it; the one holding a USD account is reached through that account.
-    assert Cache.version(domestic.portfolio.id) == domestic_version
-    assert Cache.version(foreign.portfolio.id) > foreign_version
+    assert version(domestic.portfolio.id) == domestic_version
+    assert version(foreign.portfolio.id) > foreign_version
   end
 
   test "an account write invalidates its portfolio" do
@@ -222,7 +226,7 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
     buy!(a, security, ~D[2024-01-02], "100")
 
     _before = Performance.analysis(a.portfolio.id, opts(a))
-    version = Cache.version(a.portfolio.id)
+    version = version(a.portfolio.id)
 
     {:ok, _second_cash} =
       Portfolios.create_cash_account(Actor.owner_ui(), %{
@@ -231,7 +235,7 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
         currency_code: "EUR"
       })
 
-    assert Cache.version(a.portfolio.id) > version
+    assert version(a.portfolio.id) > version
   end
 
   # ADR-0032 §6 needs the superseded series to still be reachable.
