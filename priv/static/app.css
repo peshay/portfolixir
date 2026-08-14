@@ -1271,6 +1271,24 @@ li + li {
   color: var(--color-danger);
 }
 
+/* Not-computable value in a stat card (UX-DR20 / issue 671): a quiet muted
+   dash, never at value weight — a stable input may rest in this state, so it
+   must not look like a state in flight. */
+.stat-empty {
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* The comparison's findings as one stacked data-note region (issue 671). */
+.comparison-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
 /* Cash balance per account row (issue 670): amount over its as-of basis
    line, with the set-balance action beside it. */
 .cash-balance {

@@ -273,6 +273,181 @@ defmodule PortfolixirWeb.SnapshotsLive do
 
         <p :if={@page_error} class="alert-error" role="alert"><%= @page_error %></p>
 
+        <%!-- The comparison is the surface (#671, EXPERIENCE.md → Snapshots
+             comparison): it renders primary and large; the snapshot list is
+             secondary beneath it, the create form behind a disclosure. --%>
+        <%= if @comparison do %>
+          <section class="workspace-section" data-role="snapshot-comparison">
+            <h2>
+              <%= gettext("What if I had kept it? — %{name}", name: @comparison.snapshot.name) %>
+            </h2>
+            <%!-- Basis line: what is being compared, in the operator's terms
+                 (ADR-0027); the domain is fixed by the snapshot's as-of date,
+                 so there is no period control. --%>
+            <p class="muted" data-role="comparison-basis">
+              <%= gettext(
+                "Buy-and-hold of the holdings frozen on %{date} versus the real performance (TTWROR) since, in %{currency}.",
+                date: Date.to_iso8601(@comparison.as_of),
+                currency: @comparison.base_currency
+              ) %>
+            </p>
+
+            <div class="grid" role="group" aria-label={gettext("Comparison key figures")}>
+              <article class="stat">
+                <span><%= gettext("Frozen value then") %></span>
+                <strong>
+                  <%= Format.money(@comparison.as_of_value) %> <%= @comparison.base_currency %>
+                </strong>
+              </article>
+              <article class="stat">
+                <span><%= gettext("Frozen value today") %></span>
+                <strong>
+                  <%= Format.money(@comparison.current_value) %> <%= @comparison.base_currency %>
+                </strong>
+              </article>
+              <article class="stat">
+                <span><%= gettext("Snapshot return (price)") %></span>
+                <%= if @comparison.snapshot_return do %>
+                  <strong class={sign_class(@comparison.snapshot_return)}>
+                    <%= signed_percent(@comparison.snapshot_return) %>%
+                  </strong>
+                <% else %>
+                  <%!-- Not-computable: quiet muted dash, never at value
+                       weight ({components.value-slot}.not-computable). --%>
+                  <span class="stat-empty">—</span>
+                <% end %>
+              </article>
+              <article class="stat">
+                <span><%= gettext("Real TTWROR since") %></span>
+                <%= if @comparison.real_ttwror do %>
+                  <strong class={sign_class(@comparison.real_ttwror)}>
+                    <%= signed_percent(@comparison.real_ttwror) %>%
+                  </strong>
+                <% else %>
+                  <span class="stat-empty">—</span>
+                <% end %>
+              </article>
+            </div>
+
+            <%!-- Findings about this comparison as data notes (UX-DR17), one
+                 role="status" region around the list — never one per note. --%>
+            <div class="comparison-notes" role="status">
+              <AppShell.data_note severity={:note} data-role="comparison-limitation">
+                <%= gettext(
+                  "The comparison is gross and price development only — dividends are not yet included (ADR-0027 v1)."
+                ) %>
+              </AppShell.data_note>
+              <%= if @comparison.gaps.unvalued_securities != [] do %>
+                <AppShell.data_note severity={:attention} data-role="comparison-gaps">
+                  <%= gettext("Not included (no usable quote or exchange rate at the as-of date):") %>
+                  <%= Enum.map_join(@comparison.gaps.unvalued_securities, ", ", & &1.security_name) %>
+                </AppShell.data_note>
+              <% end %>
+            </div>
+
+            <% geometry = chart_geometry(@comparison.series) %>
+            <%= if geometry do %>
+              <figure class="snapshot-chart">
+                <%!-- Min/max labels as HTML beside the SVG: text inside a
+                     preserveAspectRatio="none" viewBox would distort
+                     (design-review finding). --%>
+                <div class="snapshot-chart__scale" aria-hidden="true">
+                  <span><%= percent_label(geometry.max) %></span>
+                  <span><%= percent_label(geometry.min) %></span>
+                </div>
+                <svg
+                  viewBox="0 0 640 220"
+                  role="img"
+                  aria-label={gettext("Change since the as-of date: snapshot buy-and-hold versus real performance")}
+                  preserveAspectRatio="none"
+                >
+                  <%!-- Reference line at the ±0% start level, not at the series
+                       minimum — the minimum floats when performance dips
+                       (design-review finding). --%>
+                  <%= if baseline_y = baseline_y(geometry) do %>
+                    <line
+                      x1="40"
+                      y1={baseline_y}
+                      x2="620"
+                      y2={baseline_y}
+                      class="chart-axis"
+                      vector-effect="non-scaling-stroke"
+                    />
+                  <% end %>
+                  <polyline
+                    points={polyline(geometry, :snapshot)}
+                    class="snapshot-series"
+                    fill="none"
+                    vector-effect="non-scaling-stroke"
+                  />
+                  <polyline
+                    points={polyline(geometry, :real)}
+                    class="real-series"
+                    fill="none"
+                    stroke-dasharray="6 4"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </svg>
+                <div class="snapshot-chart__dates" aria-hidden="true">
+                  <span><%= Date.to_iso8601(@comparison.as_of) %></span>
+                  <span><%= Date.to_iso8601(@comparison.today) %></span>
+                </div>
+                <figcaption class="snapshot-chart__legend">
+                  <span class="legend-swatch legend-swatch--solid" aria-hidden="true"></span>
+                  <%= gettext("Snapshot (buy-and-hold)") %>
+                  <span class="legend-swatch legend-swatch--dashed" aria-hidden="true"></span>
+                  <%= gettext("Real (TTWROR)") %>
+                  <span class="muted">
+                    <%= gettext("change since %{date}, in percent", date: Date.to_iso8601(@comparison.as_of)) %>
+                  </span>
+                </figcaption>
+              </figure>
+
+              <%!-- The one uniform chart-as-table disclosure (UX-DR10):
+                   quiet summary, defined chevron, stated purpose. --%>
+              <details data-role="comparison-disclosure">
+                <summary class="disclosure-summary">
+                  <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+                  <%= gettext("Data as table") %>
+                </summary>
+                <p class="muted" data-role="disclosure-purpose">
+                  <%= gettext("Both series as weekly rows — the chart data without the chart.") %>
+                </p>
+                <div class="table-scroll">
+                  <table class="drift-table" data-role="comparison-table">
+                    <thead>
+                      <tr>
+                        <th scope="col"><%= gettext("Date") %></th>
+                        <th scope="col" class="num"><%= gettext("Snapshot value") %></th>
+                        <th scope="col" class="num"><%= gettext("Snapshot return") %></th>
+                        <th scope="col" class="num"><%= gettext("Real return") %></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for row <- table_rows(@comparison.series) do %>
+                        <tr>
+                          <td><%= row.date %></td>
+                          <td class="num"><%= Format.money(row.snapshot_value) %></td>
+                          <td class="num">
+                            <%= if row.snapshot_indexed, do: percent_label(to_float(row.snapshot_indexed)), else: "—" %>
+                          </td>
+                          <td class="num">
+                            <%= if row.real_indexed, do: percent_label(to_float(row.real_indexed)), else: "—" %>
+                          </td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            <% else %>
+              <p class="muted" data-role="comparison-empty">
+                <%= gettext("No valuable holdings at the as-of date — nothing to compare yet.") %>
+              </p>
+            <% end %>
+          </section>
+        <% end %>
+
         <section class="workspace-section">
           <header class="section-head">
             <h2><%= gettext("Snapshots") %></h2>
@@ -286,7 +461,10 @@ defmodule PortfolixirWeb.SnapshotsLive do
           <%!-- Kept open while errors exist: a closed details would swallow
                the error message after a failed submit (Steve UAT finding). --%>
           <details class="snapshot-create" open={@form_errors != nil}>
-            <summary><%= gettext("New snapshot") %></summary>
+            <summary class="disclosure-summary">
+              <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+              <%= gettext("New snapshot") %>
+            </summary>
             <form id="snapshot-create-form" phx-submit="create_snapshot" class="snapshot-create__form">
               <label>
                 <%= gettext("Name") %>
@@ -375,157 +553,22 @@ defmodule PortfolixirWeb.SnapshotsLive do
           <% end %>
         </section>
 
-        <%= if @comparison do %>
-          <section class="workspace-section" data-role="snapshot-comparison">
-            <h2>
-              <%= gettext("What if I had kept it? — %{name}", name: @comparison.snapshot.name) %>
-            </h2>
-            <p class="muted">
-              <%= gettext(
-                "Buy-and-hold of the holdings frozen on %{date} versus the real performance (TTWROR) since — gross, price development only (dividends not yet included), in %{currency}.",
-                date: Date.to_iso8601(@comparison.as_of),
-                currency: @comparison.base_currency
-              ) %>
-            </p>
-
-            <div class="grid" role="group" aria-label={gettext("Comparison key figures")}>
-              <article class="stat">
-                <span><%= gettext("Frozen value then") %></span>
-                <strong>
-                  <%= Format.money(@comparison.as_of_value) %> <%= @comparison.base_currency %>
-                </strong>
-              </article>
-              <article class="stat">
-                <span><%= gettext("Frozen value today") %></span>
-                <strong>
-                  <%= Format.money(@comparison.current_value) %> <%= @comparison.base_currency %>
-                </strong>
-              </article>
-              <article class="stat">
-                <span><%= gettext("Snapshot return (price)") %></span>
-                <strong>
-                  <%= if @comparison.snapshot_return do %>
-                    <%= Format.percent(@comparison.snapshot_return) %>%
-                  <% else %>
-                    —
-                  <% end %>
-                </strong>
-              </article>
-              <article class="stat">
-                <span><%= gettext("Real TTWROR since") %></span>
-                <strong>
-                  <%= if @comparison.real_ttwror do %>
-                    <%= Format.percent(@comparison.real_ttwror) %>%
-                  <% else %>
-                    —
-                  <% end %>
-                </strong>
-              </article>
-            </div>
-
-            <%= if @comparison.gaps.unvalued_securities != [] do %>
-              <p class="hint is-target-mismatch" data-role="comparison-gaps">
-                <%= gettext("Not included (no usable quote or exchange rate at the as-of date):") %>
-                <%= Enum.map_join(@comparison.gaps.unvalued_securities, ", ", & &1.security_name) %>
-              </p>
-            <% end %>
-
-            <% geometry = chart_geometry(@comparison.series) %>
-            <%= if geometry do %>
-              <figure class="snapshot-chart">
-                <%!-- Min/max labels as HTML beside the SVG: text inside a
-                     preserveAspectRatio="none" viewBox would distort
-                     (design-review finding). --%>
-                <div class="snapshot-chart__scale" aria-hidden="true">
-                  <span><%= percent_label(geometry.max) %></span>
-                  <span><%= percent_label(geometry.min) %></span>
-                </div>
-                <svg
-                  viewBox="0 0 640 220"
-                  role="img"
-                  aria-label={gettext("Change since the as-of date: snapshot buy-and-hold versus real performance")}
-                  preserveAspectRatio="none"
-                >
-                  <%!-- Reference line at the ±0% start level, not at the series
-                       minimum — the minimum floats when performance dips
-                       (design-review finding). --%>
-                  <%= if baseline_y = baseline_y(geometry) do %>
-                    <line
-                      x1="40"
-                      y1={baseline_y}
-                      x2="620"
-                      y2={baseline_y}
-                      class="chart-axis"
-                      vector-effect="non-scaling-stroke"
-                    />
-                  <% end %>
-                  <polyline
-                    points={polyline(geometry, :snapshot)}
-                    class="snapshot-series"
-                    fill="none"
-                    vector-effect="non-scaling-stroke"
-                  />
-                  <polyline
-                    points={polyline(geometry, :real)}
-                    class="real-series"
-                    fill="none"
-                    stroke-dasharray="6 4"
-                    vector-effect="non-scaling-stroke"
-                  />
-                </svg>
-                <div class="snapshot-chart__dates" aria-hidden="true">
-                  <span><%= Date.to_iso8601(@comparison.as_of) %></span>
-                  <span><%= Date.to_iso8601(@comparison.today) %></span>
-                </div>
-                <figcaption class="snapshot-chart__legend">
-                  <span class="legend-swatch legend-swatch--solid" aria-hidden="true"></span>
-                  <%= gettext("Snapshot (buy-and-hold)") %>
-                  <span class="legend-swatch legend-swatch--dashed" aria-hidden="true"></span>
-                  <%= gettext("Real (TTWROR)") %>
-                  <span class="muted">
-                    <%= gettext("change since %{date}, in percent", date: Date.to_iso8601(@comparison.as_of)) %>
-                  </span>
-                </figcaption>
-              </figure>
-
-              <details>
-                <summary><%= gettext("Data as table") %></summary>
-                <div class="table-scroll">
-                  <table class="drift-table" data-role="comparison-table">
-                    <thead>
-                      <tr>
-                        <th scope="col"><%= gettext("Date") %></th>
-                        <th scope="col" class="num"><%= gettext("Snapshot value") %></th>
-                        <th scope="col" class="num"><%= gettext("Snapshot return") %></th>
-                        <th scope="col" class="num"><%= gettext("Real return") %></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <%= for row <- table_rows(@comparison.series) do %>
-                        <tr>
-                          <td><%= row.date %></td>
-                          <td class="num"><%= Format.money(row.snapshot_value) %></td>
-                          <td class="num">
-                            <%= if row.snapshot_indexed, do: percent_label(to_float(row.snapshot_indexed)), else: "—" %>
-                          </td>
-                          <td class="num">
-                            <%= if row.real_indexed, do: percent_label(to_float(row.real_indexed)), else: "—" %>
-                          </td>
-                        </tr>
-                      <% end %>
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            <% else %>
-              <p class="muted" data-role="comparison-empty">
-                <%= gettext("No valuable holdings at the as-of date — nothing to compare yet.") %>
-              </p>
-            <% end %>
-          </section>
-        <% end %>
       </div>
     </AppShell.shell>
     """
+  end
+
+  defp signed_percent(value) do
+    formatted = Format.percent(value)
+    if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
+  end
+
+  # Gain/loss colour by sign, never the accent (UX-DR7).
+  defp sign_class(value) do
+    case Decimal.compare(value, 0) do
+      :gt -> "is-positive"
+      :lt -> "is-negative"
+      :eq -> nil
+    end
   end
 end

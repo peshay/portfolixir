@@ -233,4 +233,112 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
     assert has_element?(view, "[data-role=comparison-empty]")
     assert has_element?(view, "[data-role=comparison-gaps]")
   end
+
+  # User story (#671, EXPERIENCE.md → Component Patterns → Snapshots
+  # comparison; DESIGN.md → data-note, disclosure, value-slot):
+  # As a local portfolio maintainer reading the counterfactual comparison,
+  # I want the snapshots surface to follow the design language — the
+  # comparison primary, findings as data notes, the chart's table behind the
+  # one quiet disclosure, and absent values quiet —
+  # so that the surface conforms to the spec instead of its own idiom.
+  #
+  # Acceptance criteria:
+  # - The comparison section renders above the snapshot list (the comparison
+  #   is the surface; the list is secondary).
+  # - The basis line states what is compared; the v1 gross/price-only
+  #   limitation is a note-severity data note, not prose.
+  # - Excluded securities render as an attention data note with glyph + word.
+  # - A not-computable KPI renders as a quiet muted dash, not at value weight.
+  # - The data-as-table disclosure is the quiet control with a stated purpose
+  #   line (≤ 90 characters) and the defined chevron, as is the create form's.
+  describe "design-language alignment (#671)" do
+    test "the comparison renders above the snapshot list", %{conn: conn} do
+      seeded_world()
+
+      {:ok, snapshot} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Marker", as_of: ~D[2026-02-15]})
+
+      {:ok, view, _html} = live(conn, "/snapshots")
+      html = render_click(view, "select_snapshot", %{"id" => "#{snapshot.id}"})
+
+      comparison_at = :binary.match(html, ~s(data-role="snapshot-comparison")) |> elem(0)
+      list_at = :binary.match(html, ~s(data-role="snapshot-list")) |> elem(0)
+      assert comparison_at < list_at
+    end
+
+    test "the basis is a line and the v1 limitation a note-severity data note",
+         %{conn: conn} do
+      seeded_world()
+
+      {:ok, snapshot} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Marker", as_of: ~D[2026-02-15]})
+
+      {:ok, view, _html} = live(conn, "/snapshots")
+      render_click(view, "select_snapshot", %{"id" => "#{snapshot.id}"})
+
+      basis = view |> element(~s([data-role="comparison-basis"])) |> render()
+      assert basis =~ "2026-02-15"
+      assert basis =~ "EUR"
+
+      note = view |> element(~s([data-role="comparison-limitation"])) |> render()
+      assert note =~ "data-note--note"
+      assert note =~ "Note"
+      assert note =~ "gross"
+    end
+
+    test "excluded securities render as an attention data note", %{conn: conn} do
+      world = seeded_world()
+      ghost = WorldFixtures.create_security!(name: "Unquoted", ticker: "GHST", currency: "EUR")
+      WorldFixtures.buy!(world, ghost, quantity: "3", price: "10", date: ~D[2026-01-20])
+
+      {:ok, snapshot} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Marker", as_of: ~D[2026-02-15]})
+
+      {:ok, view, _html} = live(conn, "/snapshots")
+      render_click(view, "select_snapshot", %{"id" => "#{snapshot.id}"})
+
+      gaps = view |> element(~s([data-role="comparison-gaps"])) |> render()
+      assert gaps =~ "data-note--attention"
+      assert gaps =~ "Attention"
+      assert gaps =~ "Unquoted"
+    end
+
+    test "a not-computable KPI is a quiet dash, not at value weight", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Bare", currency: "EUR")
+      ghost = WorldFixtures.create_security!(name: "Unquoted", ticker: "GHST", currency: "EUR")
+      WorldFixtures.deposit!(world, "1000", ~D[2026-01-02], [])
+      WorldFixtures.buy!(world, ghost, quantity: "3", price: "10", date: ~D[2026-01-20])
+
+      {:ok, snapshot} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Bare marker", as_of: ~D[2026-02-15]})
+
+      {:ok, view, _html} = live(conn, "/snapshots")
+      render_click(view, "select_snapshot", %{"id" => "#{snapshot.id}"})
+
+      assert has_element?(view, ".stat .stat-empty")
+      refute has_element?(view, ".stat strong .stat-empty")
+    end
+
+    test "both disclosures use the quiet summary; the table states its purpose",
+         %{conn: conn} do
+      seeded_world()
+
+      {:ok, snapshot} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Marker", as_of: ~D[2026-02-15]})
+
+      {:ok, view, _html} = live(conn, "/snapshots")
+      render_click(view, "select_snapshot", %{"id" => "#{snapshot.id}"})
+
+      create = view |> element(".snapshot-create summary") |> render()
+      assert create =~ "disclosure-summary"
+      assert create =~ "disclosure-chevron"
+
+      table_disclosure =
+        view |> element(~s(details[data-role="comparison-disclosure"])) |> render()
+
+      assert table_disclosure =~ "disclosure-summary"
+      assert table_disclosure =~ "Data as table"
+      assert table_disclosure =~ ~s(data-role="disclosure-purpose")
+    end
+  end
 end
