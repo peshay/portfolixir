@@ -1,0 +1,24 @@
+# Dependency update visibility (#676, Quality Gate Roadmap item 3).
+#
+# Dependabot opens update PRs for the three ecosystems this repository
+# actually uses. Update PRs are reviewed like any dependency PR and are
+# NEVER auto-merged (standing decision, Dependency Update Policy in
+# _bmad-output/project-context.md). The per-batch maintenance lane
+# (AGENTS.md, Epic-Batch Workflow) remains the deciding reviewer; a
+# fuller point-in-time picture comes from scripts/version-report.sh.
+version: 2
+updates:
+  - package-ecosystem: "mix"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/mcp-server"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
