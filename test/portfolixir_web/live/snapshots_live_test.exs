@@ -188,7 +188,14 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
 
     html = render_click(view, "select_snapshot", %{"id" => "#{snapshot.id}"})
     assert html =~ "Could not load the comparison"
-    assert has_element?(view, "p.alert-error[role=alert]")
+
+    # The canonical inline-result alert region (design-critic fix round),
+    # not the legacy .alert-error paragraph.
+    assert has_element?(
+             view,
+             "#snapshots-action-result-alert[role=alert]",
+             "Could not load the comparison"
+           )
   end
 
   test "a view-scoped snapshot lists its view name; deleting another snapshot keeps the comparison",

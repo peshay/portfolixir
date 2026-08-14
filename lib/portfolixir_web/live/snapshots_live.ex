@@ -271,7 +271,13 @@ defmodule PortfolixirWeb.SnapshotsLive do
       <div class="workspace-page">
         <AppShell.area_tabs tabs={AppShell.wealth_tabs(:snapshots)} />
 
-        <p :if={@page_error} class="alert-error" role="alert"><%= @page_error %></p>
+        <%!-- Compare-click feedback rides the canonical inline-result slot
+             (design-critic fix round): the alert region exists before the
+             action, so the announcement is never lost. --%>
+        <AppShell.inline_result
+          id="snapshots-action-result"
+          result={@page_error && {:problem, @page_error}}
+        />
 
         <%!-- The comparison is the surface (#671, EXPERIENCE.md → Snapshots
              comparison): it renders primary and large; the snapshot list is

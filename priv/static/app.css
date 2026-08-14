@@ -1590,10 +1590,12 @@ li + li {
   filter: none;
 }
 
+/* {components.selected-segment}.option-active: filled accent, on-accent
+   text. No font-weight change — the spec's width-reserve rule (UX-DR18)
+   demands a fixed track, and the fill alone is the state carrier. */
 .segmented-control__option.is-active {
-  background: var(--color-selected);
-  color: var(--color-accent);
-  font-weight: 650;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 /* Focus treatment (issue 669): the solid 2px accent outline IS the
@@ -3443,6 +3445,14 @@ input[pattern]:invalid:not(:placeholder-shown) {
 #pp-import-drop.is-dragging .import-drop-icon,
 .import-drop-zone.is-dragging .import-drop-icon {
   color: var(--color-accent);
+}
+
+/* Quiet-text de-emphasis ({components.disclosure}, DR10). The class was
+   consumed across imports, classifications, snapshots and the wealth
+   disclosures but only ever styled inside the drop zone — a dead class
+   everywhere else (design-critic fix round). */
+.muted {
+  color: var(--color-text-muted);
 }
 
 .import-drop-zone .muted {
