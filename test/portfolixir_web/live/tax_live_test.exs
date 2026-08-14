@@ -128,8 +128,86 @@ defmodule PortfolixirWeb.TaxLiveTest do
 
     assert html =~ "as of"
     assert html =~ "31.12.2025" or html =~ "2025-12-31"
-    # The as-of lies in the past for any real "today", so the figure is stale.
+    # The as-of lies far in the past (over the age threshold) for any real
+    # "today", so the figure is stale.
     assert html =~ "Stale"
+  end
+
+  # User story (issue #667):
+  # As a local portfolio maintainer reading the tax page,
+  # I want the staleness warning to be a function of activity, not only of
+  # the calendar,
+  # so that a fresh statement is not permanently flagged as noise while a
+  # statement invalidated by yesterday's dividend is flagged immediately.
+  #
+  # Acceptance criteria:
+  # - A recent statement (within the age threshold) with no tax-relevant
+  #   bookings since its as_of shows no staleness warning.
+  # - The same statement with a tax-relevant booking after its as_of shows
+  #   the warning naming the bookings.
+  test "the staleness warning reacts to activity, not the mere passage of a day", %{conn: conn} do
+    today = Date.utc_today()
+    as_of = Date.add(today, -5)
+
+    {:ok, _} =
+      Tax.create_snapshot(
+        Actor.owner_ui(),
+        %{
+          institution: "Example Bank",
+          holder: "Owner",
+          tax_year: today.year,
+          as_of: as_of,
+          allowance_granted: Decimal.new("1000.00"),
+          allowance_used: Decimal.new("200.00"),
+          loss_pot_equities: Decimal.new("2500.00")
+        },
+        today: today
+      )
+
+    {:ok, live, _html} = live(conn, "/tax")
+
+    html =
+      live
+      |> form("#tax-scope-form", %{
+        "scope" => %{"holder" => "Owner", "tax_year" => Integer.to_string(today.year)}
+      })
+      |> render_change()
+
+    refute html =~ "Stale"
+
+    # A tax-relevant booking lands after the statement's as_of.
+    {:ok, portfolio} =
+      Portfolixir.Portfolios.create_portfolio(Actor.owner_ui(), %{
+        name: "Tax LV",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, cash} =
+      Portfolixir.Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Tax LV Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} =
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        type: "interest",
+        date: Date.add(today, -2),
+        gross_amount: "10.00",
+        currency_code: "EUR"
+      })
+
+    html =
+      live
+      |> form("#tax-scope-form", %{
+        "scope" => %{"holder" => "Owner", "tax_year" => Integer.to_string(today.year)}
+      })
+      |> render_change()
+
+    assert html =~ "Stale"
+    assert html =~ "tax-relevant booking"
   end
 
   test "a mis-transcribed figure surfaces as fact plus remedy, not a rejection", %{conn: conn} do

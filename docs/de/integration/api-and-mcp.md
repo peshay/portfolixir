@@ -685,7 +685,13 @@ Beispiel-Payloads für Konten:
   behaltene Zeilen kommen flach zurück (ein Vorfahre unter der Schwelle
   fehlt). Die Antwort benennt ihre eigene Basis: `positions_included`, das
   angewandte `min_drift` und `categories_total` (die Zeilenzahl vor dem
-  Filter). Ungültige Werte sind ein `422`.
+  Filter). Ungültige Werte sind ein `422`. `tax_context=true` (#667) hängt
+  zusätzlich die steuerfreien Trim-Budgets des laufenden Jahres an — ein
+  Eintrag je Inhaber mit erfassten Auszügen, jeweils mit seiner
+  aktivitätsbewussten `staleness` — sodass der Steuer-Spielraum dort lesbar
+  ist, wo die Trim-Entscheidung fällt; der Block benennt, dass er je
+  `(Inhaber, Steuerjahr)` über Institute rollt und nie auf Portfolio oder
+  View eingeschränkt ist.
 - `GET /api/v1/portfolios/:portfolio_id/risk` liefert eine
   **Risiko-/Konzentrationssicht** für ein Portfolio über die **Steuerbasis** (der
   Gesamtwert der bewerteten Positionen, eingeschränkt durch die aktive `view` —

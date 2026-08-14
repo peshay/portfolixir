@@ -593,6 +593,58 @@ defmodule Portfolixir.Tax do
     end
   end
 
+  # -- staleness (issue #667) ------------------------------------------------
+
+  # The ledger kinds that move pots or consume the allowance. `buy` is absent
+  # deliberately: buying realises nothing.
+  @tax_relevant_kinds ["sell", "dividend", "interest", "tax", "tax_refund"]
+  @staleness_age_threshold_days 90
+
+  @doc "The transaction kinds the staleness assessment counts."
+  def tax_relevant_kinds, do: @tax_relevant_kinds
+
+  @doc """
+  The activity-aware staleness assessment for a recorded statement's `as_of`
+  (issue #667): staleness as a function of activity, not only of the
+  calendar. Warns when the statement is older than the age threshold OR when
+  tax-relevant transactions were booked strictly after it was taken — the
+  second condition is the substantive one, because dividends, interest and
+  realising sales move the pots and consume the allowance without any action
+  by the maintainer.
+
+  The map states its own computation basis (`activity_kinds`, the window,
+  the threshold, and the `basis` note); `nil` `as_of` yields `nil` — no
+  statement, nothing to assess.
+  """
+  @spec staleness(Date.t() | nil, Date.t()) :: map() | nil
+  def staleness(as_of, today \\ Date.utc_today())
+
+  def staleness(nil, %Date{}), do: nil
+
+  def staleness(%Date{} = as_of, %Date{} = today) do
+    age_days = Date.diff(today, as_of)
+    activity_count = Portfolixir.Ledger.count_transactions_since(as_of, @tax_relevant_kinds)
+    age_warning = age_days > @staleness_age_threshold_days
+    activity_warning = activity_count > 0
+
+    %{
+      as_of: as_of,
+      today: today,
+      age_days: age_days,
+      age_threshold_days: @staleness_age_threshold_days,
+      age_warning: age_warning,
+      activity_kinds: @tax_relevant_kinds,
+      activity_since_count: activity_count,
+      activity_warning: activity_warning,
+      warning: age_warning or activity_warning,
+      basis:
+        "Counts ledger transactions of activity_kinds dated strictly after " <>
+          "as_of, up to today. The ledger knows no institutions, so bookings " <>
+          "are not attributed to an institution or tax year - the count is " <>
+          "an upper bound on the activity affecting this statement's pots."
+    }
+  end
+
   defp assessment_type_at(_holder, []), do: "single"
 
   defp assessment_type_at(holder, [snapshot | _rest]) do

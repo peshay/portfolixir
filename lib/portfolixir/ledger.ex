@@ -1034,6 +1034,18 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  Counts transactions of the given kinds dated strictly after `date` — the
+  activity half of the tax-statement staleness assessment (issue #667).
+  """
+  def count_transactions_since(%Date{} = date, kinds) when is_list(kinds) do
+    Repo.aggregate(
+      from(t in Transaction, where: t.date > ^date and t.type in ^kinds),
+      :count,
+      :id
+    )
+  end
+
+  @doc """
   The set of security ids referenced by at least one booking. The import
   preview's pre-apply inverse check (ADR-0029 §2) uses it to scope leftover
   surfacing to securities affected by imports — a watch-only security without

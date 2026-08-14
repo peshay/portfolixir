@@ -164,12 +164,33 @@ defmodule PortfolixirWeb.TaxLive do
 
     snapshots = Tax.list_snapshots(holder: holder, tax_year: tax_year)
 
+    summary = Tax.holder_summary(holder, tax_year)
+
     socket
     |> assign(:snapshots, Enum.map(snapshots, &%{row: &1, findings: Tax.findings_for(&1)}))
-    |> assign(:summary, Tax.holder_summary(holder, tax_year))
+    |> assign(:summary, summary)
+    # Activity-aware staleness (issue #667): warns on age over the threshold
+    # OR tax-relevant bookings since the statement — never on the mere
+    # passage of a day.
+    |> assign(:staleness, Tax.staleness(summary.as_of, socket.assigns.today))
     |> assign(:orders, Tax.list_allowance_orders(holder: holder, tax_year: tax_year))
     |> assign(:holders, Tax.list_snapshot_holders())
     |> assign(:editing, editing_row(snapshots, socket.assigns.editing_id))
+  end
+
+  # The warning names its reason: activity first (the substantive condition),
+  # age as the fallback.
+  defp staleness_message(%{activity_warning: true, activity_since_count: count}) do
+    ngettext(
+      "Stale — %{count} tax-relevant booking since the statement date consumes pots or allowance.",
+      "Stale — %{count} tax-relevant bookings since the statement date consume pots or allowance.",
+      count,
+      count: count
+    )
+  end
+
+  defp staleness_message(%{age_days: age_days}) do
+    gettext("Stale — the statement is %{days} days old.", days: age_days)
   end
 
   defp editing_row(_snapshots, nil), do: nil
@@ -332,11 +353,8 @@ defmodule PortfolixirWeb.TaxLive do
                 <%= gettext("No statement recorded for this year.") %>
               <% end %>
             </span>
-            <span
-              :if={@summary.as_of && Date.compare(@today, @summary.as_of) == :gt}
-              class="badge badge-warning"
-            >
-              <%= gettext("Stale — dividends and interest since then consume the allowance.") %>
+            <span :if={@staleness && @staleness.warning} class="badge badge-warning">
+              <%= staleness_message(@staleness) %>
             </span>
           </p>
 

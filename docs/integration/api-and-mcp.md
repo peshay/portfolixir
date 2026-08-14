@@ -678,7 +678,16 @@ under "Transactions and Holdings" above.)
   `holder`, `institution`, `tax_year`), newest `as_of` first. Each row carries
   the eleven recorded figures plus `allowance_remaining`,
   `tax_free_trim_budget`, `expected_capital_gains_tax`, the `as_of` they rest
-  on, a `stale` flag, and the advisory `findings`.
+  on, a `stale` flag, and the advisory `findings`. Each row also carries the
+  activity-aware `staleness` assessment (#667): staleness as a function of
+  activity, not only of the calendar. It states its own computation basis —
+  `age_days` against `age_threshold_days` (90), `activity_since_count` (the
+  ledger transactions of `activity_kinds` — `sell`, `dividend`, `interest`,
+  `tax`, `tax_refund` — dated strictly after `as_of`), the two component
+  warnings and the combined `warning`, plus a `basis` note recording that
+  bookings are not attributed to an institution or tax year. `warning` is the
+  signal to act on; the bare `stale` flag flips the day after any `as_of` and
+  is kept for compatibility.
 - `POST /api/v1/tax/statement_snapshots` records a statement
   (`{"statement_snapshot": {"institution": "...", "holder": "...",
   "tax_year": 2025, "as_of": "2025-12-31", ...}}`). `as_of` must not lie in the
@@ -691,7 +700,8 @@ under "Transactions and Holdings" above.)
   `institutions` it covers, the `as_of` of its **oldest** component, and
   `complete: false` with `missing_institutions` when a configured allowance
   order has no recorded statement for the year — the total is then a partial
-  picture and says so.
+  picture and says so. The response carries the same `staleness` assessment,
+  computed against the roll-up's (oldest) `as_of`.
 - `GET /api/v1/tax/statement_snapshots/:id` reads one recorded statement.
 - `PATCH /api/v1/tax/statement_snapshots/:id` corrects one recorded statement
   in place — the re-issued-statement case.
@@ -806,7 +816,12 @@ church tax withheld at a zero church-tax rate.
   ancestor under the threshold is absent). The response states its own
   basis: `positions_included`, the applied `min_drift` and
   `categories_total` (the pre-filter category count). Invalid values are a
-  `422`.
+  `422`. `tax_context=true` (#667) additionally attaches the current-year
+  tax-free trim budgets — one entry per holder with recorded statements,
+  each with its activity-aware `staleness` — so the tax headroom is
+  readable where the trim decision is made; the block states that it rolls
+  up per `(holder, tax_year)` across institutions and is never scoped to
+  the portfolio or view.
 - `GET /api/v1/portfolios/:portfolio_id/risk` returns a **risk/concentration
   lens** for one portfolio over the **steerable basis** (the valued positions,
   scoped by the active `view`, the same

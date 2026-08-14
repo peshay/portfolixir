@@ -893,6 +893,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   # pre-filter row count), so a filtered read is never mistaken for the whole
   # tree. Filtered rows are returned flat — a kept child's ancestor may be
   # absent when its own drift is under the threshold.
+  # `tax_context` (issue #667): the caller-built trim-budget block, attached
+  # only when requested so the trim decision's tax headroom is readable where
+  # the drift is read — the block itself states that it is holder-scoped,
+  # never portfolio-scoped.
   def allocation(allocation, opts \\ []) do
     include_positions? = Keyword.get(opts, :include_positions, true)
     min_drift = Keyword.get(opts, :min_drift)
@@ -902,6 +906,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       |> Enum.filter(&drift_meets_threshold?(&1, min_drift))
       |> Enum.map(&allocation_category(&1, include_positions?))
 
+    allocation
+    |> allocation_base(categories, include_positions?, min_drift)
+    |> put_tax_context(Keyword.get(opts, :tax_context))
+  end
+
+  defp put_tax_context(payload, nil), do: payload
+  defp put_tax_context(payload, tax_context), do: Map.put(payload, :tax_context, tax_context)
+
+  defp allocation_base(allocation, categories, include_positions?, min_drift) do
     %{
       portfolio_id: allocation.portfolio_id,
       classification_id: allocation.classification_id,
@@ -1367,8 +1380,31 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       tax_free_trim_budget: decimal(TaxBudget.tax_free_trim_budget(snapshot)),
       expected_capital_gains_tax: decimal(TaxConsistency.expected_capital_gains_tax(snapshot)),
       stale: TaxBudget.stale?(snapshot, today),
+      staleness: tax_staleness(Keyword.get(opts, :staleness)),
       findings: Enum.map(findings, &tax_finding/1)
     })
+  end
+
+  @doc """
+  The activity-aware staleness assessment (issue #667), passed in by the
+  caller (it needs a ledger count — serializers never query). States its own
+  computation basis: the counted kinds, the window and the age threshold.
+  """
+  def tax_staleness(nil), do: nil
+
+  def tax_staleness(staleness) do
+    %{
+      as_of: date(staleness.as_of),
+      today: date(staleness.today),
+      age_days: staleness.age_days,
+      age_threshold_days: staleness.age_threshold_days,
+      age_warning: staleness.age_warning,
+      activity_kinds: staleness.activity_kinds,
+      activity_since_count: staleness.activity_since_count,
+      activity_warning: staleness.activity_warning,
+      warning: staleness.warning,
+      basis: staleness.basis
+    }
   end
 
   @doc """
@@ -1393,7 +1429,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   snapshot for the year makes the sum a partial picture, and it says so rather
   than presenting a confident total.
   """
-  def tax_trim_budget(summary) do
+  def tax_trim_budget(summary, opts \\ []) do
     %{
       holder: summary.holder,
       tax_year: summary.tax_year,
@@ -1405,7 +1441,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       tax_free_trim_budget: decimal(summary.tax_free_trim_budget),
       allowance_ceiling: decimal(summary.allowance_ceiling),
       complete: summary.complete?,
-      missing_institutions: summary.missing_institutions
+      missing_institutions: summary.missing_institutions,
+      staleness: tax_staleness(Keyword.get(opts, :staleness))
     }
   end
 
