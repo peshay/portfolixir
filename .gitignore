@@ -29,6 +29,7 @@ erl_crash.dump
 *.db
 
 # Generated local/CI artifacts
+/tmp/test-runs/
 /sbom/*.cdx.json
 /.playwright-mcp/
 /report/
