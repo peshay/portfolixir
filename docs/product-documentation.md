@@ -817,11 +817,14 @@ lie in the future.
 - A chart with both series **indexed to 100%** on the as-of date (solid =
   snapshot, dashed = real), and the same data as a table.
 
-The comparison is **gross and price-return only** in v1 — dividends the frozen
-positions would have paid are not yet included, and the page says so.
-Securities without a usable quote or exchange rate at the as-of date are
-**excluded and listed** rather than silently valued at zero. The same
-comparison is available over the [API and MCP](integration/api-and-mcp.html).
+The **comparison is the surface**: once selected it renders first and large,
+with the snapshot list beneath it and the create form behind the **New
+snapshot** disclosure. The comparison is **gross and price-return only** in
+v1 — dividends the frozen positions would have paid are not yet included; the
+page states this as a note beside the figures. Securities without a usable
+quote or exchange rate at the as-of date are **excluded and listed** in an
+attention note rather than silently valued at zero. The same comparison is
+available over the [API and MCP](integration/api-and-mcp.html).
 
 ## Tax (recorded broker statements)
 
