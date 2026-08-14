@@ -100,6 +100,42 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
     end
   end
 
+  # User story (issue #686, gap D1):
+  # As an agent booking a sale that realised a loss and refunded tax,
+  # I want the negative-taxes rejection to name the remedy — a separate
+  # tax_refund transaction — at changeset level,
+  # so that every surface (API, MCP, any future form) inherits the guidance
+  # at the exact moment my intent is unambiguous, instead of steering me
+  # toward a set_balance anchor.
+  #
+  # Acceptance criteria:
+  # - The taxes >= 0 rule itself is unchanged (the ledger keeps ONE
+  #   representation of a refund).
+  # - The rejection message names the `tax_refund` kind and the shape
+  #   (separate transaction, positive gross_amount).
+  describe "negative taxes rejection names the tax_refund remedy" do
+    test "a sell with negative taxes is rejected with a message naming tax_refund" do
+      w = setup_world()
+
+      attrs =
+        Map.merge(base(w), %{
+          type: "sell",
+          security_id: w.security.id,
+          securities_account_id: w.depot.id,
+          cash_account_id: w.cash.id,
+          quantity: Decimal.new("5"),
+          price: Decimal.new("100.00"),
+          taxes: Decimal.new("-12.34")
+        })
+
+      assert {:error, changeset} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), attrs)
+      assert %{taxes: [message]} = errors_on(changeset)
+      assert message =~ "must be greater than or equal to 0"
+      assert message =~ "tax_refund"
+      assert message =~ "gross_amount"
+    end
+  end
+
   describe "sale (sell) kind" do
     test "accepts a sell with all required fields" do
       w = setup_world()

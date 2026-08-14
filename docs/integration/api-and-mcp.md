@@ -287,6 +287,11 @@ Example account payloads:
   Invalid filters return `422 Unprocessable Entity` with the offending field.
 - `POST /api/v1/transactions` creates a transaction of any bookable kind with a
   `transaction` object (per-kind required fields are validated server-side).
+  The bookable `type` values are `buy`, `sell`, `dividend`, `interest`,
+  `deposit`, `removal`, `fee`, `tax`, `tax_refund`, `cash_transfer`,
+  `inbound_delivery`, `outbound_delivery` and `security_transfer`
+  (`balance_adjustment` is written through the dedicated balance-snapshot
+  endpoint, `split` through the split routes below).
   Booking semantics worth knowing before the first write: a dividend's
   `gross_amount` is the NET cash credited to the account — withheld taxes ride
   in `taxes`, and the income report reconstructs gross as net plus withheld
@@ -297,7 +302,13 @@ Example account payloads:
   of the correct kind — balance snapshots and unpriced inbound deliveries are last
   resorts that make numbers look right while distorting cost basis. Amounts
   are positive magnitudes — the kind implies the direction; only
-  `balance_adjustment` may carry a negative (absolute) amount. A security
+  `balance_adjustment` may carry a negative (absolute) amount. A **tax
+  refund** — for example the tax credited back when a sale realises a loss —
+  is therefore never a negative `taxes` value on the sell: book the sell with
+  the taxes actually withheld (or `0`), plus a separate `tax_refund`
+  transaction whose positive `gross_amount` is the cash credited to the
+  account (`cash_account_id` and `gross_amount` are its required fields; the
+  changeset rejects a negative `taxes` with exactly this guidance). A security
   settled through a different-currency cash
   account (for example a USD security bought through a EUR account) is booked in
   the security's own currency and carries the cross-currency settlement fields
@@ -608,7 +619,10 @@ holdings. Every money value is a
 **positive magnitude** Decimal string: a loss pot is the volume of loss
 available for offsetting, not the negative number the statement prints, and a
 negative input is rejected rather than silently flipped. Nothing here is tax
-advice, and the recorded statement remains the authority.
+advice, and the recorded statement remains the authority. (A tax actually
+credited back to a cash account — for example after a loss sale — is a ledger
+event, not a pot: book it as a separate `tax_refund` transaction as described
+under "Transactions and Holdings" above.)
 
 - `GET /api/v1/tax/parameters` lists the year-scoped statutory parameters
   (optional `jurisdiction`, currently only `DE`): `capital_gains_tax_rate`,

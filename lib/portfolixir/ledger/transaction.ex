@@ -397,10 +397,19 @@ defmodule Portfolixir.Ledger.Transaction do
     end
   end
 
+  # The taxes rule keeps ONE representation of a refund; the message names it
+  # (issue #686 gap D1) so every surface — API, MCP, any future form — hands
+  # the remedy over at the exact moment the caller's intent is unambiguous.
   defp validate_decimal_signs(changeset) do
     changeset
     |> validate_number(:fees, greater_than_or_equal_to: 0)
-    |> validate_number(:taxes, greater_than_or_equal_to: 0)
+    |> validate_number(:taxes,
+      greater_than_or_equal_to: 0,
+      message:
+        "must be greater than or equal to 0 — a refunded tax is booked as a " <>
+          "separate tax_refund transaction whose positive gross_amount credits " <>
+          "the cash account"
+    )
     |> validate_gross_amount_sign()
   end
 

@@ -705,7 +705,37 @@ describe("Portfolixir MCP tools", () => {
       /unpriced inbound delivery enters the cost basis at zero/i
     );
     assert.match(String(transactionCreate?.description), /positive magnitudes/i);
+  });
 
+  // User story (issue #686, gaps D2/D3):
+  // As an agent that just met a tax refund on a loss sale,
+  // I want the create tool's direction enumeration to name the kind that
+  // credits a refund, the "never send negative values" prohibition to carry
+  // its remedy, and the reconcile tool's repair list to reach tax_refund,
+  // so that the surface leads me to the correct booking instead of a
+  // set_balance anchor.
+  //
+  // Acceptance criteria:
+  // - The direction enumeration's credit list names tax_refund.
+  // - The prohibition sentence is followed by the tax_refund remedy.
+  // - holdings.reconcile's repair guidance names tax_refund explicitly.
+  it("leads a tax refund to tax_refund in the direction enumeration and the reconcile repair list (#686)", () => {
+    const tools = listTools();
+
+    const transactionCreate = tools.find(
+      (tool) => tool.name === "portfolixir.transactions.create"
+    );
+    const description = String(transactionCreate?.description);
+    // The credit half of the direction enumeration names the refund kind.
+    assert.match(description, /deposit\/dividend\/interest\/tax_refund credit/);
+    // The prohibition carries its remedy instead of stopping at the rule.
+    assert.match(description, /never send negative values:.*?tax_refund/);
+
+    const reconcile = tools.find((tool) => tool.name === "portfolixir.holdings.reconcile");
+    assert.match(String(reconcile?.description), /tax_refund/);
+  });
+
+  it("creates every ledger kind directly over the API (FR-31, request shape)", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
 
     await callTool(client, "portfolixir.transactions.create", {
