@@ -122,7 +122,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     socket =
       socket
-      |> assign(:query, params["q"] || "")
+      |> assign(:query, safe_query(params["q"]))
       |> assign(
         :holding_status,
         safe_holding_status(params["holding"] || @default_holding_status)
@@ -3022,6 +3022,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # Manual logo operations reuse the same storage dir (and, in tests, the same
   # Req stub) the background discovery worker is configured with.
   defp logo_opts, do: Application.get_env(:portfolixir, :logo_discovery_opts, [])
+
+  # URL params arrive in whatever shape the caller crafted (?q[]=foo is a
+  # list); a non-binary q drops to the empty query like every other guarded
+  # param instead of crashing the shared link (review finding).
+  defp safe_query(q) when is_binary(q), do: q
+  defp safe_query(_), do: ""
 
   # Both call sites guard `is_binary` themselves, so no catch-all clause:
   # Dialyzer proved one unreachable (pattern_match_cov).

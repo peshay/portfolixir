@@ -7,8 +7,11 @@ defmodule PortfolixirWeb.Api.V1.FieldSelection do
   own field list. Requested names are looked up in that map — no atom is ever
   created from input (stricter than `String.to_existing_atom/1` at the
   boundary, which the requirement demands as the minimum), and nothing is
-  passed through to a query builder. An unknown or empty selection is a
-  validation error, never a silent fallback.
+  passed through to a query builder. An unknown name or an empty item in a
+  non-empty selection is a validation error, never a silent fallback; an
+  absent or empty `fields=` parameter means the full projection, the same
+  as not asking (review finding: the doc claimed empty was an error while
+  the code treated it as absent — the code's behavior is the contract).
   """
 
   @doc "Builds the string=>atom whitelist map from a serializer field list."
