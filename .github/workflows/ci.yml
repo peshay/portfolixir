@@ -194,7 +194,7 @@ jobs:
         run: mix sobelow --skip --exit --ignore Config.CSP,Config.HTTPS
 
       - name: Restore PLT cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: plt-cache
         with:
           path: priv/plts
