@@ -406,6 +406,49 @@ defmodule PortfolixirWeb.AppShell do
     """
   end
 
+  @doc """
+  A data note (UX-DR17): one component, three severities — `:note`,
+  `:attention`, `:problem` — each carried by colour AND glyph AND word,
+  never colour alone (UX-DR7).
+
+  - The severity word is real DOM text; the glyph is `aria-hidden`.
+  - The note itself carries **no** live-region role: politeness is per
+    region, never per note. A section that can render several notes wraps
+    the list in ONE `role="status"` region; `role="alert"` is reserved for
+    a problem note answering an action the operator just took (the
+    inline-result case).
+  - The remedy control belongs inside the note (a child of `inner_block`),
+    so it is adjacent in reading order, not only in pixels.
+  """
+  attr(:severity, :atom, values: [:note, :attention, :problem], required: true)
+  attr(:id, :string, default: nil)
+  attr(:rest, :global)
+  slot(:inner_block, required: true)
+
+  def data_note(assigns) do
+    ~H"""
+    <div id={@id} class={["data-note", "data-note--#{@severity}"]} {@rest}>
+      <span class="data-note__icon" aria-hidden="true">
+        <.icon name={severity_glyph(@severity)} size={14} />
+      </span>
+      <span class="data-note__word"><%= severity_word(@severity) %></span>
+      <div class="data-note__body"><%= render_slot(@inner_block) %></div>
+    </div>
+    """
+  end
+
+  defp severity_glyph(:note), do: :asterisk
+  defp severity_glyph(:attention), do: :alert_triangle
+  defp severity_glyph(:problem), do: :alert_octagon
+
+  # The severity vocabulary of UX-DR17, verbatim — spec, code and UI share it.
+  # pgettext: "Note" is also the securities note-field label ("Notiz"); the
+  # severity word translates differently ("Hinweis"), so it needs its own
+  # message context.
+  defp severity_word(:note), do: pgettext("data-note severity", "Note")
+  defp severity_word(:attention), do: pgettext("data-note severity", "Attention")
+  defp severity_word(:problem), do: pgettext("data-note severity", "Problem")
+
   @doc "Renders one of the named inline SVG icons at the given size."
   attr(:name, :atom, required: true)
   attr(:size, :integer, default: 16)
@@ -534,6 +577,23 @@ defmodule PortfolixirWeb.AppShell do
   defp icon_paths(:image),
     do:
       ~s(<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>)
+
+  # The three severity glyphs (UX-DR17, decided 2026-08-05): additions to the
+  # set — no existing glyph carries a severity reading, and a second meaning
+  # for an existing glyph is banned (UX-DR16).
+  # Note: the typographic footnote mark — three strokes crossing at 12,12.
+  defp icon_paths(:asterisk),
+    do: ~s(<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>)
+
+  # Attention: rounded triangle, apex up, centred stroke and dot below.
+  defp icon_paths(:alert_triangle),
+    do:
+      ~s(<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>)
+
+  # Problem: regular octagon, flat side up, same interior stroke-and-dot.
+  defp icon_paths(:alert_octagon),
+    do:
+      ~s(<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>)
 
   defp icon_paths(_), do: ~s(<circle cx="12" cy="12" r="5"/>)
 end

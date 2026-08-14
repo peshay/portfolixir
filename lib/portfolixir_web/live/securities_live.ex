@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
+  alias Portfolixir.Catalog.LogoDiscovery
   alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.LogoStore
   alias Portfolixir.Catalog.QuoteAdjustment
@@ -72,6 +73,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:holding_status, @default_holding_status)
      |> assign(:filters, [])
      |> assign(:dq, nil)
+     |> assign(:logo_retry_queued?, false)
      |> assign(:sort, {:name, :asc})
      |> assign(:visible_columns, SecurityFields.visible_default())
      |> assign(:open_popover, nil)
@@ -126,6 +128,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       )
       |> assign(:filters, parse_url_filters(params["filter"]))
       |> assign(:dq, safe_dq(params["dq"]))
+      |> reset_logo_retry()
       |> load_securities()
 
     case params["id"] do
@@ -148,6 +151,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp safe_dq(dq) when dq in @dq_filters, do: dq
   defp safe_dq(_), do: nil
+
+  # The inline bulk-retry result persists until the filter context changes
+  # (a navigation away from the missing-logo list), never on a timer.
+  defp reset_logo_retry(%{assigns: %{dq: "missing_logo"}} = socket), do: socket
+  defp reset_logo_retry(socket), do: assign(socket, :logo_retry_queued?, false)
 
   # -- URL filter state (#651) ----------------------------------------------
 
@@ -390,6 +398,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
               </li>
             <% end %>
           </ul>
+        <% end %>
+
+        <%!-- Bulk logo retry (#561): only on the missing-logo filtered list,
+             with its result inline beside the trigger — the status region
+             exists before the action so the announcement is not lost. --%>
+        <%= if @dq == "missing_logo" do %>
+          <div class="dq-bulk-action">
+            <button
+              type="button"
+              id="retry-missing-logos"
+              phx-click="retry_missing_logos"
+              disabled={@logo_retry_queued?}
+            >
+              <%= gettext("Retry logo lookup for all") %>
+            </button>
+            <span id="logo-retry-result" role="status" class="dq-bulk-action__result">
+              <%= if @logo_retry_queued? do %>
+                <%= gettext("Logo lookup queued for all securities without a logo.") %>
+              <% end %>
+            </span>
+          </div>
         <% end %>
 
         <%= if @flash_message do %>
@@ -2594,6 +2623,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
      push_patch(socket,
        to: securities_path(socket.assigns, tab: :current, override: %{filters: filters})
      )}
+  end
+
+  def handle_event("retry_missing_logos", _params, socket) do
+    LogoDiscovery.enqueue_missing_security_logos()
+    {:noreply, assign(socket, :logo_retry_queued?, true)}
   end
 
   def handle_event("remove_dq", _params, socket) do

@@ -570,9 +570,13 @@ aggregiert) — mit dem Gesamtwert inkl. Cash, der **YTD-TTWROR** als
 **Braucht Aufmerksamkeit** — jede Kategorie mit Ziel, deren Allokations-Drift
 **±5 Prozentpunkte** überschreitet (ADR-0023-Vorzeichen: positiv =
 übergewichtet), schlimmste zuerst, jeweils verlinkt in den Tab „Allokation &
-Ziele" des Vermögens-Bereichs — und die **Datenqualitäts-Karte** (Wertpapiere
-ohne aktuellen Kurs, Anlageklasse oder Logo). Es gibt bewusst keinen
-Aktivitäts-Feed: die forensischen Details gehören dem Audit-Journal.
+Ziele" des Vermögens-Bereichs — und die **Datenqualitätszeile**: ein Hinweis,
+der die Wertpapiere ohne aktuellen Kurs, Anlageklasse oder Logo aufzählt,
+wobei jeder Zähler auf die exakt darauf vorgefilterte Wertpapierliste
+verlinkt. Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null
+ist; ein sauberer Katalog zeigt nichts (kein grünes „alles in Ordnung"). Es
+gibt bewusst keinen Aktivitäts-Feed: die forensischen Details gehören dem
+Audit-Journal.
 
 ## Vermögens-Seite
 

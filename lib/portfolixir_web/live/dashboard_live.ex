@@ -311,34 +311,35 @@ defmodule PortfolixirWeb.DashboardLive do
         <% end %>
       </section>
 
-      <section id="dashboard-data-quality" class="workspace-section">
+      <%!-- Data quality is ONE line (UX-DR2, decided 2026-07-12, adopted
+           2026-08-05): rendered only when a count is non-zero, no green
+           all-clear badge, each count linking to the securities list
+           PRE-FILTERED to the offending set (#561, unblocked by #651).
+           While the overview computes, the section is simply absent — a
+           finding surface makes no claim before a finding exists. --%>
+      <section
+        :if={@data_quality && dq_findings(@data_quality) != []}
+        id="dashboard-data-quality"
+        class="workspace-section"
+      >
         <h2><%= gettext("Data quality") %></h2>
-        <%= if is_nil(@data_quality) do %>
-          <p class="section-skeleton" aria-busy="true" data-role="data-quality-skeleton">
-            <span class="recomputing-cue">
-              <span class="spinner"></span> <%= gettext("computing") %>
-            </span>
-          </p>
-        <% else %>
-          <%!-- Counts of securities needing attention. Links land on the
-                securities surface (its filters are not URL-addressable yet, so
-                deep-linking to a pre-applied filter is a further step). --%>
-          <div class="grid" aria-label={gettext("Data quality")}>
-            <a href="/securities" class="stat stat--link" data-role="dq-quotes">
-              <span><%= gettext("No quote in 7 days") %></span>
-              <strong><%= @data_quality.without_quote %></strong>
-              <small><%= gettext("of %{n} securities", n: @data_quality.total) %></small>
-            </a>
-            <a href="/securities" class="stat stat--link" data-role="dq-class">
-              <span><%= gettext("No asset class") %></span>
-              <strong><%= @data_quality.without_class %></strong>
-            </a>
-            <a href="/securities" class="stat stat--link" data-role="dq-logo">
-              <span><%= gettext("No logo") %></span>
-              <strong><%= @data_quality.without_logo %></strong>
-            </a>
-          </div>
-        <% end %>
+        <%!-- One data-note at the highest severity present (UX-DR17); the
+             remedy links live inside the note. role="status" sits on the
+             region so the async arrival announces once. --%>
+        <div role="status">
+          <AppShell.data_note
+            severity={dq_severity(@data_quality)}
+            id="dashboard-dq-line"
+            data-role="data-quality-line"
+          >
+            <%= for {finding, index} <- Enum.with_index(dq_findings(@data_quality)) do %>
+              <%= if index > 0 do %>
+                <span aria-hidden="true"> · </span>
+              <% end %>
+              <a href={finding.href} data-role={finding.role}><%= finding.text %></a>
+            <% end %>
+          </AppShell.data_note>
+        </div>
       </section>
     </div>
     """
@@ -444,6 +445,48 @@ defmodule PortfolixirWeb.DashboardLive do
       :eq -> "is-flat"
     end
   end
+
+  # The data-quality line's findings, each with the pre-filtered securities
+  # URL that fixes it (#561/#651). Only non-zero counts appear; when the list
+  # is empty the whole section is absent — no all-clear badge (UX-DR2).
+  defp dq_findings(dq) do
+    [
+      dq.without_quote > 0 &&
+        %{
+          role: "dq-quotes",
+          href: "/securities?dq=stale_quote",
+          text:
+            ngettext(
+              "one security without a quote in 7 days",
+              "%{count} securities without a quote in 7 days",
+              dq.without_quote
+            )
+        },
+      dq.without_class > 0 &&
+        %{
+          role: "dq-class",
+          href: "/securities?" <> Plug.Conn.Query.encode(%{"filter" => ["asset_class:is_nil"]}),
+          text:
+            ngettext(
+              "one without an asset class",
+              "%{count} without an asset class",
+              dq.without_class
+            )
+        },
+      dq.without_logo > 0 &&
+        %{
+          role: "dq-logo",
+          href: "/securities?dq=missing_logo",
+          text: ngettext("one without a logo", "%{count} without a logo", dq.without_logo)
+        }
+    ]
+    |> Enum.filter(& &1)
+  end
+
+  # Highest severity present (UX-DR17): a stale quote skews valuations, so it
+  # is attention-level; a missing class or logo is a note-level catalog gap.
+  defp dq_severity(%{without_quote: n}) when n > 0, do: :attention
+  defp dq_severity(_dq), do: :note
 
   # Securities needing attention (#337 data-quality card): no recent quote
   # (none at all, or older than 7 days), no persisted asset class, no logo.

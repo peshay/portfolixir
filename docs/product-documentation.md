@@ -532,9 +532,12 @@ aggregates over) — with the total incl. cash, the **YTD TTWROR** as the
 change signal and the cash quote, a **Needs attention** list — every targeted category whose
 allocation drift exceeds **±5 percentage points** (ADR-0023 sign: positive =
 overweight), worst first, each linking into the Wealth area's Allocation &
-targets tab — and the **data-quality card** (securities without a recent
-quote, asset class, or logo). There is deliberately no activity feed: the
-audit journal owns the forensic detail.
+targets tab — and the **data-quality line**: one note listing the securities
+without a recent quote, asset class, or logo, each count linking to the
+securities list pre-filtered to exactly that set. The line renders only when
+at least one count is non-zero; a clean catalog shows nothing (no all-clear
+badge). There is deliberately no activity feed: the audit journal owns the
+forensic detail.
 
 ## Wealth Page
 
