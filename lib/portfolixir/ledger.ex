@@ -145,6 +145,29 @@ defmodule Portfolixir.Ledger do
     do: where(query, [t], t.portfolio_id == ^portfolio_id)
 
   @doc """
+  The as-of date per cash account: the date of the newest booking whose cash
+  legs touch the account (#670). Reuses the same projection effects as
+  `cash_balances/1`, so the date always describes the booking set the balance
+  was derived from. Accounts with no cash-affecting booking are absent.
+  """
+  def cash_activity_dates(opts \\ []) when is_list(opts) do
+    Transaction
+    |> scope_portfolio(opts[:portfolio_id])
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn transaction, dates ->
+      Enum.reduce(Projection.effects(transaction).cash, dates, fn
+        {nil, _leg}, acc ->
+          acc
+
+        {account_id, _leg}, acc ->
+          Map.update(acc, account_id, transaction.date, &later_date(&1, transaction.date))
+      end)
+    end)
+  end
+
+  defp later_date(a, b), do: if(Date.compare(a, b) == :lt, do: b, else: a)
+
+  @doc """
   Lists FIFO-matched trades for a security: closed round-trips, open
   remaining lots (with unrealised P&L vs. the latest known quote close),
   and any orphan sells.

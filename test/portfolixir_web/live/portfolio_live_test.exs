@@ -559,32 +559,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "+21.0"
   end
 
-  test "records a balance snapshot from the cash section", %{conn: conn} do
-    %{cash: cash} = seed_world()
-
-    {:ok, view, _html} = live(conn, "/portfolio")
-    render_async(view)
-
-    html =
-      view
-      |> form("#portfolio-cash form", %{
-        "balance" => %{
-          "cash_account_id" => to_string(cash.id),
-          "date" => Date.to_iso8601(Date.utc_today()),
-          "amount" => "500"
-        }
-      })
-      |> render_submit()
-
-    # No success toast on balance update — the in-place figure refresh below
-    # is the confirmation (button feedback covers the in-flight state).
-    refute html =~ "Balance updated"
-
-    html = render_async(view)
-    # Cash 500 + securities 880 = 1380.
-    assert html =~ "500.00"
-    assert html =~ "1,380.00"
-  end
+  # The balance snapshot itself is recorded from the per-row dialog on
+  # Accounts & depots since #670 — covered in portfolio_accounts_live_test.
 
   # User story:
   # As a local portfolio maintainer with a foreign-currency cash account,
@@ -1479,82 +1455,32 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert payload =~ "%"
   end
 
-  test "Set balance button carries phx-disable-with for immediate working state",
+  # User story (#670, EXPERIENCE.md → Component Patterns → Cash accounts):
+  # As a local portfolio maintainer reading the Wealth page,
+  # I want the cash section to be read-only with a pointer to where balances
+  # are set,
+  # so that no entry form sits in the reading sightline (UX-DR3) and the
+  # account is never re-picked in a form when the row already knows it.
+  #
+  # Acceptance criteria:
+  # - Wealth — Holdings keeps its read-only cash table.
+  # - The inline balance form is gone; a pointer links to Accounts & depots,
+  #   where the per-row set-balance dialog lives.
+  test "the Wealth cash section is read-only with a pointer to Accounts & depots",
        %{conn: conn} do
     seed_world()
 
     {:ok, view, _html} = live(conn, "/portfolio")
     render_async(view)
 
-    button_html = view |> element("#portfolio-cash button[type=submit]") |> render()
-    assert button_html =~ "phx-disable-with"
-  end
+    assert has_element?(view, "#portfolio-cash .cash-table")
+    refute has_element?(view, "#portfolio-cash form.balance-form")
+    refute has_element?(view, ~s(#portfolio-cash select[name="balance[cash_account_id]"]))
 
-  test "figures stay visible during set_balance refresh and update in place after async",
-       %{conn: conn} do
-    %{cash: cash} = seed_world()
-
-    {:ok, view, _html} = live(conn, "/portfolio")
-    render_async(view)
-
-    # Submit the balance form — figures stay rendered in place (no skeleton).
-    # The existing content is visible immediately; no layout shift occurs.
-    html_after_submit =
-      view
-      |> form("#portfolio-cash form", %{
-        "balance" => %{
-          "cash_account_id" => to_string(cash.id),
-          "date" => Date.to_iso8601(Date.utc_today()),
-          "amount" => "500"
-        }
-      })
-      |> render_submit()
-
-    # The Holdings tab keeps its performance chart in place (the allocation
-    # section lives on the Allocation & targets tab since ADR-0022).
-    refute html_after_submit =~ ~s(data-role="performance-skeleton")
-    assert html_after_submit =~ "security-chart"
-
-    # After the async jobs finish the updated totals are swapped in place.
-    full_html = render_async(view)
-
-    refute full_html =~ ~s(data-role="performance-skeleton")
-    assert full_html =~ "1,380.00"
-  end
-
-  # User story:
-  # As a local portfolio maintainer setting a cash balance,
-  # I do NOT want a status toast interrupting me on success — the submit
-  # button's busy state plus the figures updating in place are confirmation
-  # enough, so routine balance entry stays quiet and frictionless.
-  #
-  # Acceptance criteria:
-  # - On success, no status toast renders (no ".status-toast" element).
-  # - No legacy inline alert banners render either.
-  # - The submit button carries phx-disable-with busy feedback.
-  test "set_balance success shows no status toast (button feedback is enough)",
-       %{conn: conn} do
-    %{cash: cash} = seed_world()
-
-    {:ok, view, _html} = live(conn, "/portfolio")
-    render_async(view)
-
-    view
-    |> form("#portfolio-cash form", %{
-      "balance" => %{
-        "cash_account_id" => to_string(cash.id),
-        "date" => Date.to_iso8601(Date.utc_today()),
-        "amount" => "500"
-      }
-    })
-    |> render_submit()
-
-    refute has_element?(view, ".status-toast")
-    refute has_element?(view, "p.alert-success")
-    refute has_element?(view, "p.alert-error")
-
-    # The button's busy state is the in-context feedback that replaces the toast.
-    assert has_element?(view, "#portfolio-cash button[type=submit][phx-disable-with]")
+    assert has_element?(
+             view,
+             ~s(#portfolio-cash [data-role="cash-edit-pointer"] a[href="/portfolios"])
+           )
   end
 
   # User story:

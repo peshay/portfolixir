@@ -497,9 +497,9 @@ cash that belongs to investing needs no separate upkeep.
 For external accounts (a current account, savings, a business account), the goal
 is visibility without bookkeeping. Instead of mirroring every booking, an
 account's **balance is set directly** — the figure the banking app shows,
-entered as a dated **snapshot** (the set-balance form on the Wealth page,
-`POST /api/v1/cash_accounts/:id/balance`, or the `cash_accounts.set_balance`
-MCP tool). The balance then anchors to that amount,
+entered as a dated **snapshot** (the per-row **Set balance** dialog on
+Accounts & depots, `POST /api/v1/cash_accounts/:id/balance`, or the
+`cash_accounts.set_balance` MCP tool). The balance then anchors to that amount,
 and only bookings dated strictly after the snapshot change it; so moving money
 between own accounts needs no transfer entry — each balance is simply restated
 now and then. The amount may be negative (an overdraft), and the same
@@ -613,9 +613,12 @@ affected position row itself carries a *stale target* chip. A
 held-but-unassigned security with a (stale) position target shows that target
 on its row in the *Unassigned* bucket too. When no top-level category carries
 a target but deeper categories do, the Σ header adds the deeper targets'
-sum ("targets deeper in the tree") instead of showing a bare 0%. The cash section lists each account's balance and carries
-the **set-balance form**: enter the balance the bank shows and the snapshot is
-recorded without booking individual transactions.
+sum ("targets deeper in the tree") instead of showing a bare 0%. The cash
+section lists each account's balance read-only and links to **Accounts &
+depots**, where each cash-account row shows its balance with the as-of date
+and opens a small **Set balance** dialog with the account already chosen:
+enter the balance the bank shows and the snapshot is recorded without
+booking individual transactions.
 
 **The page scopes to a view (ADR-0024).** The header totals and the cash
 section follow the **active view across all portfolios** — **Everything**

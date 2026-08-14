@@ -16,7 +16,6 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   use PortfolixirWeb, :live_view
 
-  alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Fx.RateSync
@@ -1662,29 +1661,11 @@ defmodule PortfolixirWeb.PortfolioLive do
               </tbody>
             </table>
 
-            <form phx-submit="set_balance" class="inline-form balance-form">
-              <label>
-                <span><%= gettext("Account") %></span>
-                <select name="balance[cash_account_id]">
-                  <%= for cash <- @valuation.cash_balances do %>
-                    <option value={cash.cash_account_id}><%= cash.name %></option>
-                  <% end %>
-                </select>
-              </label>
-              <label>
-                <span><%= gettext("Date") %></span>
-                <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="balance[date]" value={Date.to_iso8601(Date.utc_today())} />
-              </label>
-              <label>
-                <span><%= gettext("Balance") %></span>
-                <input name="balance[amount]" inputmode="decimal" required placeholder="4250.00" />
-              </label>
-              <button type="submit" phx-disable-with={gettext("Updating…")}>
-                <%= gettext("Set balance") %>
-              </button>
-            </form>
-            <p class="hint">
-              <%= gettext("State the balance the bank shows; only later bookings adjust it.") %>
+            <%!-- Issue 670 (UX-DR3/UX-DR11): setting a balance moved into the
+                 account row on Accounts & depots, where the account is
+                 already chosen. This surface keeps the read-only table. --%>
+            <p class="hint" data-role="cash-edit-pointer">
+              <a href="/portfolios"><%= gettext("Set balances on Accounts & depots") %></a>
             </p>
 
             <div class="cash-actions">
@@ -2118,30 +2099,6 @@ defmodule PortfolixirWeb.PortfolioLive do
     }
 
     {:noreply, assign(socket, :selected_segment, segment)}
-  end
-
-  def handle_event("set_balance", %{"balance" => params}, socket) do
-    # The cash table is view-scoped across all portfolios (ADR-0024), so any
-    # existing account listed there may take a snapshot — the old "must belong
-    # to the page's portfolio" guard no longer matches the page's scope.
-    with {:ok, account_id} <- coerce_id(params["cash_account_id"]),
-         %{id: _} = account <- Portfolios.get_cash_account(account_id),
-         {:ok, _tx} <- Ledger.set_cash_balance(Actor.owner_ui(), account, params) do
-      {:noreply,
-       socket
-       # No success toast on balance update: the submit button's busy state
-       # (phx-disable-with) plus the figures refreshing in place are
-       # confirmation enough. (Same "quiet feedback" theme as PR #442.)
-       |> assign(success: nil, error: nil)
-       |> load_overview()
-       |> load_performance()}
-    else
-      {:error, changeset} ->
-        {:noreply, assign(socket, error: changeset_error(changeset), success: nil)}
-
-      _other ->
-        {:noreply, assign(socket, error: gettext("Account not found"), success: nil)}
-    end
   end
 
   # The sync runs in the background (UAT fix round): the handler only flips
@@ -3031,12 +2988,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp safe_color(_value), do: @fallback_color
-
-  defp changeset_error(changeset) do
-    changeset.errors
-    |> Enum.map(fn {field, {message, _opts}} -> "#{field} #{message}" end)
-    |> Enum.join(", ")
-  end
 
   # ADR-0032 §6 provenance: what the shown series contains, stated, so a
   # superseded number is never bare. "Bookings" is the honest unit -- the memo

@@ -128,4 +128,36 @@ defmodule Portfolixir.Ledger.CashBalancesTest do
     # 1000 - (2*100 + 1 + 1) + (1*50 - 1 - 1) = 1000 - 202 + 48
     assert Decimal.equal?(Map.fetch!(balances, w.cash.id), dec("846"))
   end
+
+  # User story (#670):
+  # As a local portfolio maintainer reading a derived cash balance,
+  # I want to know the date of the newest booking behind it,
+  # so that the balance shown per account row states its basis.
+  #
+  # Acceptance criteria:
+  # - The as-of date is the newest cash-affecting booking date per account,
+  #   using the same projection effects as the balances themselves.
+  # - Accounts with no cash-affecting booking are absent from the map.
+  test "cash_activity_dates returns the newest cash-affecting date per account" do
+    w = setup_world()
+
+    create!(w, %{
+      type: "deposit",
+      cash_account_id: w.cash.id,
+      gross_amount: dec("1000"),
+      date: ~D[2026-03-01]
+    })
+
+    create!(w, %{
+      type: "removal",
+      cash_account_id: w.cash.id,
+      gross_amount: dec("100"),
+      date: ~D[2026-04-02]
+    })
+
+    dates = Ledger.cash_activity_dates(portfolio_id: w.portfolio.id)
+
+    assert dates[w.cash.id] == ~D[2026-04-02]
+    refute Map.has_key?(dates, w.cash_b.id)
+  end
 end
