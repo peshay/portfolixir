@@ -249,7 +249,8 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
 
     buy!(a, security, ~D[2024-04-02], "110")
 
-    assert Performance.previous_analysis(a.portfolio.id, opts(a)) == before
+    # The superseded value is the same analysis, marked stale (ADR-0039 C4).
+    assert Performance.previous_analysis(a.portfolio.id, opts(a)) == %{before | stale: true}
   end
 
   # #577: the cross-portfolio view walk is memoised under its own scope
@@ -285,6 +286,10 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
 
     buy!(a, security, ~D[2024-04-02], "110")
 
-    assert Performance.previous_view_analysis(nil, today: ~D[2024-06-30]) == before
+    # The superseded value is the same analysis, marked stale (ADR-0039 C4).
+    assert Performance.previous_view_analysis(nil, today: ~D[2024-06-30]) == %{
+             before
+             | stale: true
+           }
   end
 end

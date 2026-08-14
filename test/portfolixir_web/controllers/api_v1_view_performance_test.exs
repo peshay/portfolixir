@@ -62,6 +62,11 @@ defmodule PortfolixirWeb.ApiV1ViewPerformanceTest do
     assert data["view_id"] == view.id
     assert data["period"] == "max"
     assert data["base_currency"] == "EUR"
+    # ADR-0039 C4: freshness and computation basis ride every performance
+    # payload, the view walk's included (I4 — no serialization drops them).
+    assert data["stale"] == false
+    assert {:ok, %DateTime{}, _offset} = DateTime.from_iso8601(data["as_of"])
+    assert %{"input_series" => _, "window" => _, "gaps" => _} = data["computation_basis"]
     assert data["end_value"] == "2300"
     assert data["net_external_flows"] == "2000"
     assert data["ttwror"] |> Decimal.new() |> Decimal.round(6) |> Decimal.equal?("0.15")

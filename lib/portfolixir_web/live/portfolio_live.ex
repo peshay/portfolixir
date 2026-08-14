@@ -1031,6 +1031,14 @@ defmodule PortfolixirWeb.PortfolioLive do
                  kpi-ttwror ⓘ tooltip; the chart keeps the period basis. --%>
             <p :if={@performance.start_date} class="hint" data-role="performance-basis">
               <%= @performance.start_date %> – <%= @performance.end_date %>
+              <%!-- ADR-0039 C4 (FR-1 property 3): a served series is never
+                   silent about freshness. For a durable value the compute
+                   instant can predate the mount — data unchanged since. --%>
+              <span :if={@performance.as_of} data-role="performance-as-of">
+                · <%= gettext("computed %{at}",
+                  at: Calendar.strftime(@performance.as_of, "%Y-%m-%d %H:%M UTC")
+                ) %>
+              </span>
             </p>
             <%!-- ADR-0024 modification 4: bucket membership applies
                  retroactively, so a view-scoped series is labelled with its

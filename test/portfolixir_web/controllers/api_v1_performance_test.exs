@@ -312,4 +312,44 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
 
     assert missing == %{"errors" => %{"detail" => "not found"}}
   end
+
+  # User story (ADR-0039 C4, FR-1 binding property 3):
+  # As an API client (and the LLM I connect over MCP),
+  # I want as_of, an explicit stale flag and the metric's computation basis in
+  # every performance response,
+  # so that a materialized figure is never silent about its freshness and the
+  # metric states what it was computed from.
+  #
+  # Acceptance criteria:
+  # - The response carries as_of (ISO-8601 datetime string), stale (boolean)
+  #   and computation_basis (input_series, window, reference, gaps).
+  # - The fields are present for an empty portfolio too — no serialization
+  #   drops them (I4).
+  test "states freshness and the computation basis in the payload", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "P",
+        base_currency_code: "EUR"
+      })
+
+    data =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{portfolio.id}/performance")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert data["stale"] == false
+    assert {:ok, %DateTime{}, _offset} = DateTime.from_iso8601(data["as_of"])
+
+    assert %{
+             "input_series" => input_series,
+             "window" => %{"start_date" => _, "end_date" => _},
+             "reference" => nil,
+             "gaps" => gaps
+           } = data["computation_basis"]
+
+    assert is_binary(input_series)
+    assert is_binary(gaps)
+  end
 end

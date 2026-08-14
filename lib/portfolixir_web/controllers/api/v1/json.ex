@@ -1154,7 +1154,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       invested_capital: decimal(result.invested_capital),
       wealth_multiple: decimal(result.wealth_multiple),
       mwr: decimal(result.mwr),
-      suspect_dates: Enum.map(result.suspect_dates, &date/1)
+      suspect_dates: Enum.map(result.suspect_dates, &date/1),
+      # ADR-0039 C4 (FR-1 property 3): freshness is structural in every
+      # payload — as_of is the walk's compute instant (for a durable value,
+      # possibly older than the request), stale marks a superseded value
+      # served while a fresh one computes. Never dropped: pinned by
+      # json_freshness_meta_test.exs (I4).
+      as_of: datetime(result.as_of),
+      stale: result.stale,
+      computation_basis: computation_basis(result.computation_basis)
     }
 
     if include_series? do
@@ -1162,6 +1170,20 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     else
       base
     end
+  end
+
+  # The metric's computation basis (AGENTS.md analytics rule): stated in the
+  # payload itself, with the window's dates serialized like every other date.
+  defp computation_basis(basis) do
+    %{
+      input_series: basis.input_series,
+      window: %{
+        start_date: date(basis.window.start_date),
+        end_date: date(basis.window.end_date)
+      },
+      reference: basis.reference,
+      gaps: basis.gaps
+    }
   end
 
   # The #563 period terms serialized for JSON: a year as its string, a custom

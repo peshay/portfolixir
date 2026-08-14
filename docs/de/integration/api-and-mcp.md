@@ -540,7 +540,18 @@ Beispiel-Payloads für Konten:
   Rate existiert (weniger als zwei Flüsse, alle Flüsse mit gleichem Vorzeichen oder
   der Solver konvergiert nicht). Wertpapiere ohne Kurse werden mit dem zuletzt
   eigenen Handelspreis bepreist (siehe den Bewertungs-Endpunkt). Unbekannte
-  Portfolios liefern `404 Not Found`.
+  Portfolios liefern `404 Not Found`. Da der tägliche Walk aus einem dauerhaft
+  materialisierten abgeleiteten Wert bedient werden kann (ADR-0039), schweigt
+  die Antwort **nie über ihre Frische**: `as_of` (ISO-8601-Zeitstempel) ist
+  der Berechnungszeitpunkt des Walks — möglicherweise älter als die Anfrage,
+  wenn sich die zugrunde liegenden Daten seither nicht geändert haben — und
+  `stale` (Boolean) markiert einen überholten Wert, der ausgeliefert wird,
+  während ein frischer berechnet wird; ein gespeicherter Wert wird von jedem
+  Schreibvorgang invalidiert, der ihn beeinflussen kann, `stale: false`
+  bedeutet also aktuell gegenüber dem Ledger. Die Antwort nennt außerdem die
+  **Berechnungsbasis** der Metrik (`computation_basis`): Eingangsreihe,
+  wirksames Fenster, Referenzreihe (`null` — TTWROR/IRR haben keine) und den
+  Umgang mit Lücken.
 - `GET /api/v1/portfolios/:portfolio_id/income` liefert den **retrospektiven
   Ertragsbericht**: die bereits im Ledger gebuchten Dividenden und Zinsen, auf drei
   Arten aggregiert (keine Prognose — der Dividendenkalender ist eine separate
