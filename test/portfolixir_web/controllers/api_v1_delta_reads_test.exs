@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.ApiV1DeltaReadsTest do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Repo
+  alias PortfolixirWeb.Api.V1.SinceParam
 
   defp api_conn(conn) do
     conn
@@ -145,6 +146,28 @@ defmodule PortfolixirWeb.ApiV1DeltaReadsTest do
            |> api_conn()
            |> get("/api/v1/securities?since=not-a-time")
            |> json_response(422)
+  end
+
+  # User story (FR-38, issue #666, review finding):
+  # As an agent polling with `?since=`,
+  # I want `as_of` captured BEFORE the query runs,
+  # so that a row committed between the query and the stamp falls into the
+  # next poll's window (overlap) instead of being skipped forever by the
+  # strictly-after cut.
+  #
+  # Acceptance criteria:
+  # - `SinceParam.parse/1` captures the read instant at parse time.
+  # - `put_envelope/2` serializes exactly that pre-query stamp, never a
+  #   fresh `DateTime.utc_now/0` taken at render time.
+  test "as_of is the parse-time stamp, not a render-time one" do
+    {:ok, parsed} = SinceParam.parse(%{"since" => "2026-06-01"})
+
+    assert %DateTime{} = parsed.as_of
+
+    pinned = DateTime.new!(~D[2026-06-02], ~T[08:00:00], "Etc/UTC")
+    envelope = SinceParam.put_envelope(%{data: []}, %{parsed | as_of: pinned})
+
+    assert envelope.as_of == "2026-06-02T08:00:00Z"
   end
 
   # Issue #666's own boundary: the push half (webhooks to user-configured
