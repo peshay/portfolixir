@@ -1137,6 +1137,12 @@ naming the already-booked event) stays inline in the dialog.
 - The securities list uses a full-width workspace instead of generic panel
   chrome; the toolbar remains pinned to the workspace top and the table uses
   the full horizontal width below it.
+- Action feedback is **inline, not a floating toast**: while a background
+  action runs (price sync, logo lookup) the triggering control shows a busy
+  state, and the result appears in the page flow near the controls — success
+  as a note, a failure as a problem note with the reason. A result stays
+  visible until the next action, a navigation, or its explicit dismiss
+  control; nothing disappears on a timer.
 - In a classification tree, categories are collapsed by default (click a
   category to expand it); searching expands the matching categories. Long
   security names are truncated to one line with the full name on hover, and the

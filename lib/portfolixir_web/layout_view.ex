@@ -1050,37 +1050,6 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
-            // Confirmation toasts dismiss themselves after a short delay so the
-            // user never has to click them away; errors (data-auto-dismiss
-            // "false") stay until acknowledged.
-            Hooks.AutoDismissToast = {
-              mounted() {
-                this._arm();
-              },
-              updated() {
-                this._arm();
-              },
-              destroyed() {
-                this._clear();
-              },
-              _arm() {
-                this._clear();
-                if (this.el.dataset.autoDismiss !== "true") {
-                  return;
-                }
-                var self = this;
-                this._timer = window.setTimeout(function () {
-                  self.pushEvent("dismiss_toast", {});
-                }, 4500);
-              },
-              _clear() {
-                if (this._timer) {
-                  window.clearTimeout(this._timer);
-                  this._timer = null;
-                }
-              }
-            };
-
             var liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
               hooks: Hooks,
               params: { _csrf_token: csrfToken }

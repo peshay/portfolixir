@@ -81,8 +81,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:open_popover, nil)
      |> assign(:dialog_open?, false)
      |> assign(:split_dialog_open?, false)
-     |> assign(:flash_message, nil)
-     |> assign(:flash_kind, :success)
+     |> assign(:action_result, nil)
      |> assign(:sync_running?, false)
      |> assign(:selected_security, nil)
      |> assign(:detail_tab, @default_tab)
@@ -130,6 +129,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       )
       |> assign(:filters, parse_url_filters(params["filter"]))
       |> assign(:dq, safe_dq(params["dq"]))
+      |> clear_action_result_on_navigation()
       |> reset_logo_retry()
       |> load_securities()
 
@@ -158,6 +158,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # (a navigation away from the missing-logo list), never on a timer.
   defp reset_logo_retry(%{assigns: %{dq: "missing_logo"}} = socket), do: socket
   defp reset_logo_retry(socket), do: assign(socket, :logo_retry_queued?, false)
+
+  # An inline action result persists until the next action, an explicit
+  # dismiss, or a navigation (#566) — this is the navigation case. A busy
+  # state survives the patch: the action is still running and its result
+  # message will replace it.
+  defp clear_action_result_on_navigation(socket) do
+    case socket.assigns[:action_result] do
+      {:busy, _message} -> socket
+      nil -> socket
+      _result -> assign(socket, :action_result, nil)
+    end
+  end
 
   # -- URL filter state (#651) ----------------------------------------------
 
@@ -424,9 +436,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </div>
         <% end %>
 
-        <%= if @flash_message do %>
-          <AppShell.status_toast kind={@flash_kind} message={@flash_message} />
-        <% end %>
+        <%!-- Inline busy/result slot (#566): action feedback lands in flow,
+             beside the toolbar and list the actions belong to; the regions
+             exist before any action runs. --%>
+        <AppShell.inline_result id="securities-action-result" result={@action_result} />
 
         <div
           id="securities-workspace"
@@ -2450,7 +2463,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:sync_running?, true)
-     |> assign(:flash_message, nil)}
+     |> assign(:action_result, nil)}
   end
 
   def handle_event("toggle_detail_fullscreen", _params, socket) do
@@ -2509,14 +2522,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
              socket
              |> assign(:selected_security, updated)
              |> load_securities()
-             |> assign(:flash_kind, :success)
-             |> assign(:flash_message, gettext("Notes saved."))}
+             |> put_action_result(:note, gettext("Notes saved."))}
 
           {:error, _changeset} ->
             {:noreply,
              socket
-             |> assign(:flash_kind, :error)
-             |> assign(:flash_message, gettext("Could not save notes."))}
+             |> put_action_result(:problem, gettext("Could not save notes."))}
         end
 
       _ ->
@@ -2534,14 +2545,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
              |> assign(:selected_security, updated)
              |> load_detail_data()
              |> load_securities()
-             |> assign(:flash_kind, :success)
-             |> assign(:flash_message, gettext("Security updated."))}
+             |> put_action_result(:note, gettext("Security updated."))}
 
           {:error, _changeset} ->
             {:noreply,
              socket
-             |> assign(:flash_kind, :error)
-             |> assign(:flash_message, gettext("Could not save changes."))}
+             |> put_action_result(:problem, gettext("Could not save changes."))}
         end
 
       _ ->
@@ -2563,8 +2572,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:noreply,
        socket
        |> load_securities()
-       |> assign(:flash_kind, :success)
-       |> assign(:flash_message, gettext("Asset class saved."))}
+       |> put_action_result(:note, gettext("Asset class saved."))}
     else
       _ -> {:noreply, socket}
     end
@@ -2631,14 +2639,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
          {:ok, _} <- apply_position_override(depot, security, params) do
       {:noreply,
        socket
-       |> put_flash_message(:success, gettext("Position buckets saved"))
+       |> put_action_result(:note, gettext("Position buckets saved"))
        |> load_detail_data()}
     else
       {:error, :bucket_ids} ->
         {:noreply,
-         put_flash_message(
+         put_action_result(
            socket,
-           :error,
+           :problem,
            gettext("That bucket no longer exists. Refresh and try again.")
          )}
 
@@ -2646,14 +2654,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
       # the account paths — at most one scope bucket per position.
       {:error, :exclusive_bucket_conflict} ->
         {:noreply,
-         put_flash_message(
+         put_action_result(
            socket,
-           :error,
+           :problem,
            gettext("A position can carry at most one scope bucket — pick one.")
          )}
 
       _ ->
-        {:noreply, put_flash_message(socket, :error, gettext("Could not save position buckets"))}
+        {:noreply,
+         put_action_result(socket, :problem, gettext("Could not save position buckets"))}
     end
   end
 
@@ -2690,8 +2699,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, update(socket, :detail_show_transactions?, &(!&1))}
   end
 
-  def handle_event("dismiss_toast", _params, socket) do
-    {:noreply, assign(socket, flash_message: nil)}
+  def handle_event("dismiss_result", _params, socket) do
+    {:noreply, assign(socket, :action_result, nil)}
   end
 
   def handle_event("remove_filter", %{"idx" => idx}, socket) do
@@ -2782,16 +2791,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:noreply,
        socket
        |> assign(:logo_dialog_security, nil)
-       |> assign(:flash_kind, :success)
-       |> assign(:flash_message, gettext("Logo removed"))
+       |> put_action_result(:note, gettext("Logo removed"))
        |> load_securities()
        |> load_detail_data()}
     else
       _ ->
         {:noreply,
          socket
-         |> assign(:flash_kind, :error)
-         |> assign(:flash_message, gettext("Could not remove logo"))}
+         |> put_action_result(:problem, gettext("Could not remove logo"))}
     end
   end
 
@@ -2845,7 +2852,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:sync_running?, true)
-     |> assign(:flash_message, nil)}
+     |> assign(:action_result, nil)}
   end
 
   defp dispatch_row_action(socket, "retire", %Security{} = sec) do
@@ -2858,16 +2865,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
         {:noreply,
          socket
-         |> assign(:flash_kind, :success)
-         |> assign(:flash_message, flash)
+         |> put_action_result(:note, flash)
          |> assign(:delete_blocked, nil)
          |> load_securities()}
 
       {:error, _changeset} ->
         {:noreply,
          socket
-         |> assign(:flash_kind, :error)
-         |> assign(:flash_message, gettext("Could not change status."))}
+         |> put_action_result(:problem, gettext("Could not change status."))}
     end
   end
 
@@ -2880,8 +2885,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> push_event("copy-to-clipboard", %{text: isin})
-     |> assign(:flash_kind, :success)
-     |> assign(:flash_message, gettext("ISIN copied"))}
+     |> put_action_result(:note, gettext("ISIN copied"))}
   end
 
   defp dispatch_row_action(socket, "copy_isin", _sec), do: {:noreply, socket}
@@ -2891,8 +2895,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> push_event("copy-to-clipboard", %{text: t})
-     |> assign(:flash_kind, :success)
-     |> assign(:flash_message, gettext("Ticker copied"))}
+     |> put_action_result(:note, gettext("Ticker copied"))}
   end
 
   defp dispatch_row_action(socket, "copy_ticker", _sec), do: {:noreply, socket}
@@ -2902,8 +2905,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, _} ->
         {:noreply,
          socket
-         |> assign(:flash_kind, :success)
-         |> assign(:flash_message, gettext("Deleted %{name}", name: sec.name))
+         |> put_action_result(:note, gettext("Deleted %{name}", name: sec.name))
          |> assign(:delete_blocked, nil)
          |> load_securities()}
 
@@ -2912,19 +2914,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  # Re-trigger protection (#566): while a lookup is running (busy state in the
+  # inline-result slot) a second trigger is a no-op; the result of the running
+  # lookup re-arms the action.
   defp dispatch_row_action(socket, "update_logo", %Security{} = sec) do
-    parent = self()
-    sec_id = sec.id
+    if match?({:busy, _}, socket.assigns.action_result) do
+      {:noreply, socket}
+    else
+      parent = self()
+      sec_id = sec.id
 
-    Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
-      result = LogoLookup.run(sec)
-      send(parent, {:logo_update_done, sec_id, result})
-    end)
+      Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
+        result = LogoLookup.run(sec)
+        send(parent, {:logo_update_done, sec_id, result})
+      end)
 
-    {:noreply,
-     socket
-     |> assign(:flash_kind, :success)
-     |> assign(:flash_message, gettext("Looking up logo…"))}
+      {:noreply, assign(socket, :action_result, {:busy, gettext("Looking up logo…")})}
+    end
   end
 
   defp dispatch_row_action(socket, "manage_logo", %Security{} = sec) do
@@ -2991,22 +2997,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp store_logo_url(socket, _sec, "") do
     {:noreply,
      socket
-     |> assign(:flash_kind, :error)
-     |> assign(:flash_message, gettext("Enter an image URL first."))}
+     |> put_action_result(:problem, gettext("Enter an image URL first."))}
   end
 
   defp store_logo_url(socket, sec, url) do
     {kind, flash} =
       case Catalog.set_logo_override(sec, url, logo_opts()) do
-        {:ok, _updated} -> {:success, gettext("Logo updated")}
-        {:error, _reason} -> {:error, gettext("Could not load that image")}
+        {:ok, _updated} -> {:note, gettext("Logo updated")}
+        {:error, _reason} -> {:problem, gettext("Could not load that image")}
       end
 
     {:noreply,
      socket
      |> assign(:logo_dialog_security, nil)
-     |> assign(:flash_kind, kind)
-     |> assign(:flash_message, flash)
+     |> put_action_result(kind, flash)
      |> load_securities()
      |> load_detail_data()}
   end
@@ -3015,12 +3019,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # Req stub) the background discovery worker is configured with.
   defp logo_opts, do: Application.get_env(:portfolixir, :logo_discovery_opts, [])
 
+  # Both call sites guard `is_binary` themselves, so no catch-all clause:
+  # Dialyzer proved one unreachable (pattern_match_cov).
   defp safe_column_atom(key) when is_binary(key) do
     field = Enum.find(SecurityFields.all(), &(Atom.to_string(&1.key) == key))
     field && field.key
   end
-
-  defp safe_column_atom(_), do: nil
 
   defp safe_holding_status(status) when status in @holding_statuses, do: status
   defp safe_holding_status(_), do: @default_holding_status
@@ -3073,9 +3077,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:split_dialog_open?, false)
-     |> assign(:flash_kind, :success)
-     |> assign(
-       :flash_message,
+     |> put_action_result(
+       :note,
        ngettext("Split booked for one portfolio.", "Split booked for %{count} portfolios.", count)
      )
      |> load_detail_data()}
@@ -3093,8 +3096,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, false)
      |> assign(:editing_security, nil)
-     |> assign(:flash_kind, :success)
-     |> assign(:flash_message, gettext("Created %{name}", name: security.name))
+     |> put_action_result(:note, gettext("Created %{name}", name: security.name))
      |> load_securities()}
   end
 
@@ -3103,8 +3105,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, false)
      |> assign(:editing_security, nil)
-     |> assign(:flash_kind, :success)
-     |> assign(:flash_message, gettext("Updated %{name}", name: security.name))
+     |> put_action_result(:note, gettext("Updated %{name}", name: security.name))
      |> load_securities()}
   end
 
@@ -3118,15 +3119,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_info({:logo_update_done, _sec_id, result}, socket) do
     {kind, flash} =
       case result do
-        {:ok, _security} -> {:success, gettext("Logo updated")}
-        :skip -> {:success, gettext("No logo source available")}
-        {:error, _reason} -> {:error, gettext("Logo lookup failed")}
+        {:ok, _security} -> {:note, gettext("Logo updated")}
+        :skip -> {:note, gettext("No logo source available")}
+        {:error, _reason} -> {:problem, gettext("Logo lookup failed")}
       end
 
     {:noreply,
      socket
-     |> assign(:flash_kind, kind)
-     |> assign(:flash_message, flash)
+     |> put_action_result(kind, flash)
      |> notify_os(gettext("Logo lookup complete"), flash, "logo-lookup")
      |> refresh_logo_dialog()
      |> load_securities()
@@ -3151,8 +3151,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply,
      socket
      |> assign(:sync_running?, false)
-     |> assign(:flash_kind, :success)
-     |> assign(:flash_message, summary)
+     |> put_action_result(:note, summary)
      |> notify_os(gettext("Price sync complete"), summary, "price-sync")
      |> load_securities()
      |> load_detail_data()}
@@ -3326,10 +3325,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp put_flash_message(socket, kind, message) do
-    socket
-    |> assign(:flash_kind, kind)
-    |> assign(:flash_message, message)
+  defp put_action_result(socket, severity, message) do
+    assign(socket, :action_result, {severity, message})
   end
 
   defp override_state_label(:inherit), do: gettext("inherited from depot")

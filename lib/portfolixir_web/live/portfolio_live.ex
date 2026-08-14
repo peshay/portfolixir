@@ -66,7 +66,6 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:current_path, wealth_tab |> wealth_tab_path() |> keep_view_param(params))
       |> assign(:wealth_tab, wealth_tab)
       |> assign(:error, nil)
-      |> assign(:success, nil)
       |> assign(:view_gone_notice, false)
       |> assign(:classification_gone_notice, false)
       |> assign_migration_notice()
@@ -634,12 +633,14 @@ defmodule PortfolixirWeb.PortfolioLive do
       page_subtitle={gettext("Value, performance and allocation")}
     >
       <div id="portfolio-overview" class="workspace-page portfolio-overview">
-        <%= if @error do %>
-          <AppShell.status_toast kind={:error} message={@error} />
-        <% end %>
-        <%= if @success do %>
-          <AppShell.status_toast kind={:success} message={@success} />
-        <% end %>
+        <%!-- Load failure is a page-level condition, not an action result:
+             one data note in flow, announced from a region that exists on
+             load, no floating toast and no timer (#566, UX-DR17). --%>
+        <div id="portfolio-load-error" role="status">
+          <%= if @error do %>
+            <AppShell.data_note severity={:problem}><%= @error %></AppShell.data_note>
+          <% end %>
+        </div>
 
         <AppShell.area_tabs tabs={AppShell.wealth_tabs(@wealth_tab)} />
 
@@ -2136,10 +2137,6 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> start_async(:sync_rates, fn -> RateSync.sync() end)
 
     {:noreply, socket}
-  end
-
-  def handle_event("dismiss_toast", _params, socket) do
-    {:noreply, assign(socket, error: nil, success: nil)}
   end
 
   # Persists the active selection as the user's default view (ADR-0024): the

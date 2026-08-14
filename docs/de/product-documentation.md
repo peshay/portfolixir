@@ -1212,6 +1212,13 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
 - Die Wertpapierliste nutzt einen Arbeitsbereich über die volle Breite statt
   generischer Panel-Optik; die Toolbar bleibt am oberen Rand des Arbeitsbereichs
   fixiert, und die Tabelle nutzt darunter die volle horizontale Breite.
+- Aktions-Feedback erscheint **im Seitenfluss, nicht als schwebender Toast**:
+  Während eine Hintergrund-Aktion läuft (Kurs-Sync, Logo-Suche), zeigt das
+  auslösende Bedienelement einen Beschäftigt-Zustand, und das Ergebnis
+  erscheint im Seitenfluss nahe den Bedienelementen — Erfolg als Hinweis, ein
+  Fehlschlag als Problem-Hinweis mit Begründung. Ein Ergebnis bleibt sichtbar
+  bis zur nächsten Aktion, einer Navigation oder dem expliziten
+  Schließen-Knopf; nichts verschwindet über einen Timer.
 - In einem Klassifizierungsbaum sind Kategorien standardmäßig eingeklappt (klicke
   eine Kategorie, um sie aufzuklappen); die Suche klappt die passenden Kategorien
   auf. Lange Wertpapiernamen werden auf eine Zeile gekürzt, mit dem vollen Namen

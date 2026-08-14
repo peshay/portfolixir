@@ -675,8 +675,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
           end
         end)
 
-        refute has_element?(view, ".status-toast", "Prices synced.")
-        assert has_element?(view, ".status-toast", "skipped")
+        refute has_element?(view, "#securities-action-result", "Prices synced.")
+        assert has_element?(view, "#securities-action-result", "skipped")
       after
         Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
       end
@@ -1998,25 +1998,25 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     {portfolio, cash_account, depot}
   end
 
-  # User story:
-  # As a local portfolio maintainer who clicked "Update logo" on a security far
-  # down the list,
-  # I want the action status to appear as a fixed-position toast so it is
-  # always visible regardless of scroll position,
-  # so that I do not have to scroll back to the top to know whether the
-  # operation succeeded.
+  # User story (#566):
+  # As a local portfolio maintainer,
+  # I want action feedback to appear inline near the controls instead of as a
+  # floating auto-dismissing toast,
+  # so that results stay readable until I act again and never vanish on a
+  # timer.
   #
   # Acceptance criteria:
-  # - When a logo-refresh result arrives the toast renders with the message
-  #   and the correct ARIA role (role="status" for success, role="alert" for
-  #   errors).
-  # - The toast has a dismiss button.
-  # - Clicking dismiss clears the toast from the DOM.
-  describe "in-context status toast" do
+  # - The result regions exist in the DOM before any action runs
+  #   (role="status" for note results and busy, role="alert" for problems).
+  # - A completed action renders a data note in the matching region with an
+  #   explicit dismiss control; nothing auto-dismisses on a timer.
+  # - A running background action shows a busy state in the status region.
+  # - Clicking dismiss clears the result; no floating .status-toast exists.
+  describe "inline action results (#566)" do
     setup do
       {:ok, sec} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Toast Corp",
+          name: "Result Corp",
           currency_code: "EUR",
           provider: "manual",
           asset_class: "equity"
@@ -2025,7 +2025,16 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       [sec: sec]
     end
 
-    test "logo refresh success renders a status toast with role=status and dismiss button",
+    test "the result regions exist before any action runs", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      assert has_element?(view, "#securities-action-result")
+      assert has_element?(view, "#securities-action-result-status[role='status']")
+      assert has_element?(view, "#securities-action-result-alert[role='alert']")
+      refute has_element?(view, ".status-toast")
+    end
+
+    test "logo refresh success renders a note in the status region with a dismiss control",
          %{conn: conn, sec: sec} do
       {:ok, view, _html} = live(conn, "/securities")
 
@@ -2034,31 +2043,94 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       html = render(view)
 
       assert html =~ "Logo updated"
-      assert has_element?(view, ".status-toast[role='status']", "Logo updated")
-      assert has_element?(view, ".status-toast .status-toast__dismiss")
-      refute has_element?(view, ".status-toast[role='alert']")
+      assert has_element?(view, "#securities-action-result-status .data-note", "Logo updated")
+      assert has_element?(view, "#securities-action-result .inline-result__dismiss")
+      refute has_element?(view, "#securities-action-result-alert .data-note")
+
+      # No timer: nothing carries the retired auto-dismiss hook or marker.
+      refute html =~ "AutoDismissToast"
+      refute html =~ "data-auto-dismiss"
+      refute html =~ "status-toast"
     end
 
-    test "logo refresh failure renders a toast with role=alert", %{conn: conn, sec: sec} do
+    test "logo refresh failure renders a problem note in the alert region",
+         %{conn: conn, sec: sec} do
       {:ok, view, _html} = live(conn, "/securities")
 
       send(view.pid, {:logo_update_done, sec.id, {:error, :not_found}})
       _html = render(view)
 
-      assert has_element?(view, ".status-toast[role='alert']", "Logo lookup failed")
-      assert has_element?(view, ".status-toast .status-toast__dismiss")
-      refute has_element?(view, ".status-toast[role='status']")
+      assert has_element?(
+               view,
+               "#securities-action-result-alert .data-note--problem",
+               "Logo lookup failed"
+             )
+
+      assert has_element?(view, "#securities-action-result .inline-result__dismiss")
+      refute has_element?(view, "#securities-action-result-status .data-note")
     end
 
-    test "clicking dismiss clears the toast", %{conn: conn, sec: sec} do
+    test "a running logo lookup shows a busy state in the status region", %{conn: conn} do
+      # A commodity security has no logo source, so LogoLookup returns :skip
+      # without any network call — the trigger frame still shows busy because
+      # the task result is only processed after this event's render.
+      {:ok, commodity} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Physical Bullion",
+          currency_code: "EUR",
+          provider: "manual",
+          asset_class: "commodity"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      html =
+        render_hook(view, "row_action", %{
+          "action" => "update_logo",
+          "id" => Integer.to_string(commodity.id)
+        })
+
+      assert html =~ "Looking up logo…"
+      assert html =~ "inline-result__busy"
+
+      # The result replaces the busy state in the same region — no timer.
+      result_html =
+        Enum.reduce_while(1..50, "", fn _i, _acc ->
+          html = render(view)
+
+          if html =~ "No logo source available" do
+            {:halt, html}
+          else
+            Process.sleep(20)
+            {:cont, html}
+          end
+        end)
+
+      assert result_html =~ "No logo source available"
+      refute result_html =~ "inline-result__busy"
+    end
+
+    test "clicking dismiss clears the result", %{conn: conn, sec: sec} do
       {:ok, view, _html} = live(conn, "/securities")
 
       send(view.pid, {:logo_update_done, sec.id, {:ok, sec}})
-      assert has_element?(view, ".status-toast", "Logo updated")
+      assert has_element?(view, "#securities-action-result .data-note", "Logo updated")
 
-      view |> element(".status-toast__dismiss") |> render_click()
+      view |> element("#securities-action-result .inline-result__dismiss") |> render_click()
 
-      refute has_element?(view, ".status-toast")
+      refute has_element?(view, "#securities-action-result .data-note")
+    end
+
+    # The floating toast pattern is retired app-wide: no component, no hook,
+    # no stylesheet rules (issue #566 closing criterion).
+    test "the status-toast pattern is removed from the codebase" do
+      refute File.read!("lib/portfolixir_web/components/app_shell.ex") =~ "status_toast"
+      refute File.read!("lib/portfolixir_web/layout_view.ex") =~ "AutoDismissToast"
+      refute File.read!("priv/static/app.css") =~ ".status-toast"
+
+      lib_files = Path.wildcard("lib/**/*.ex")
+      offenders = Enum.filter(lib_files, &(File.read!(&1) =~ "status_toast"))
+      assert offenders == []
     end
   end
 
