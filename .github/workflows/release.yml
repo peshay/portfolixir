@@ -7,9 +7,12 @@
 # rollback point for self-hosted instances plus a communicable changelog.
 name: Release
 
+# Both tag forms trigger: the owner's first release landed as bare `0.5.0`,
+# so the bare-number scheme is the convention and `v*` stays for
+# compatibility.
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*", "[0-9]*.[0-9]*.[0-9]*"]
 
 # contents: write is required to create the release; this workflow touches
 # nothing else.

@@ -129,12 +129,13 @@ verified by empty diff before the force-push).
   next batch per the two-way rule), FR-39/40 issue-ready now that the
   ADR-0039 mechanism landed; UX-DR row shows #414 and #560 as the Sprint 7
   remainder.
-- **Tags (owner action, both blocked from agent sessions):**
-  `git tag -a v0.5.0 73affc5 -m "Sprint 5: design-language alignment batch" && git push origin v0.5.0`
-  and
-  `git tag -a v0.6.0 f0beb8c -m "Sprint 6: agent surface, durable derived values, UI alignment" && git push origin v0.6.0`.
-  The v0.6.0 push is the first real exercise of the #659 release workflow
-  on a sprint boundary.
+- **Tags (owner action, blocked from agent sessions):** the owner created
+  `0.5.0` (bare-number scheme, on the pre-Sprint-6 `main`) — that scheme is
+  now the convention, and the Release workflow trigger was widened to
+  accept it. Remaining:
+  `git tag -a 0.6.0 f0beb8c -m "Sprint 6: agent surface, durable derived values, UI alignment" && git push origin 0.6.0`
+  — the first real exercise of the #659 release workflow on a sprint
+  boundary.
 
 **Retro addendum from the merge itself:** the rebase-merge decision came
 out of the owner reading the PR — the squash default had survived two

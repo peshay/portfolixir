@@ -406,8 +406,10 @@ reviews decisions and behavior, agents review code:
    Map), closes the story issues and the epic tracker, records a short
    retrospective section, confirms the merge's own CI runs — required
    checks included — are green, and **creates and pushes an annotated
-   `vX.Y.Z` tag on the merged head commit** (minor bump per sprint, patch
-   reserved for hotfixes). The tag push triggers the Release workflow,
+   `X.Y.Z` tag on the merged head commit** (minor bump per sprint, patch
+   reserved for hotfixes; bare-number scheme per the owner's first release,
+   the Release workflow accepts `vX.Y.Z` too). The tag push triggers the
+   Release workflow,
    which creates the GitHub Release with generated notes — the release is
    a rollback point for self-hosted instances plus a communicable
    changelog, never an installable artifact (issue #659, added
