@@ -125,9 +125,11 @@ defmodule Portfolixir.Derived do
   end
 
   @doc """
-  Drops **every** durable derived value and resets every basis version, then
-  recomputes the operative entries through `warm` (a zero-arity function that
-  reads through the ordinary request path, e.g. the performance warm-up).
+  Drops **every** durable derived value — basis versions are deliberately
+  preserved (`DataVersion.compact/1`), which is what keeps the rebuild-identity
+  check honest — then recomputes the operative entries through `warm` (a
+  zero-arity function that reads through the ordinary request path, e.g. the
+  performance warm-up).
 
   This is the single operator command behind `mix portfolixir.derived.rebuild`
   (ADR-0039 §6): the emergency procedure, and it reports its own runtime.

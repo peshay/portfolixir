@@ -139,6 +139,31 @@ defmodule Portfolixir.DerivedTest do
     assert calls.() == 1
   end
 
+  # User story (ADR-0039 §5 I4/I5, review finding):
+  # As the derived layer,
+  # I want the basis version captured BEFORE the compute closure runs,
+  # so that a write landing mid-compute leaves the stored result already
+  # superseded — failing toward recomputation, never toward a stale number.
+  #
+  # Acceptance criteria:
+  # - A compute whose duration overlaps a version bump stores a value under
+  #   the pre-compute version.
+  # - The next fetch does not serve that value as fresh; it recomputes.
+  test "a write landing mid-compute supersedes the stored result" do
+    portfolio = portfolio!()
+
+    mid_compute_write = fn ->
+      DataVersion.bump([portfolio.id])
+      :computed_against_pre_write_state
+    end
+
+    {:fresh, :computed_against_pre_write_state} =
+      Derived.fetch(:performance_analysis, basis(portfolio), "k=1", mid_compute_write)
+
+    assert {:fresh, :recomputed} =
+             Derived.fetch(:performance_analysis, basis(portfolio), "k=1", fn -> :recomputed end)
+  end
+
   test "a targeted bump leaves every other basis readable" do
     a = portfolio!()
     b = portfolio!()
