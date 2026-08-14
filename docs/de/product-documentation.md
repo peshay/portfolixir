@@ -142,6 +142,27 @@ Tokens sind einzelne Zeichen, mindestens vier Tokens) und führt die Tokens
 zusammen, bevor die Heuristiken laufen, sodass Rechtsform-Suffixe auch aus
 solchen Exporten zuverlässig erkannt werden.
 
+### Verlinkbare Filter
+
+Der Filterzustand der Wertpapierliste liegt in der URL; jede gefilterte
+Ansicht lässt sich als Lesezeichen speichern oder verlinken:
+
+- `?q=…` — der Suchbegriff.
+- `?holding=held|not_held` — der Bestandsstatus-Umschalter.
+- `?filter[]=spalte:operator[:wert]` — ein oder mehrere Spaltenfilter, z. B.
+  `?filter[]=asset_class:is_nil` (unklassifizierte Wertpapiere) oder
+  `?filter[]=currency_code:eq:USD`. Die Operatoren entsprechen dem
+  Filter-Popover; unbekannte Spalten oder Operatoren werden verworfen.
+- `?dq=stale_quote|missing_quote|missing_logo` — die
+  Datenqualitäts-Schnellfilter: kein Kurs in den letzten 7 Tagen (inklusive
+  „gar kein Kurs"), gar kein Kurs, und kein hinterlegtes Logo. Der aktive
+  Schnellfilter erscheint als entfernbarer Filter-Chip.
+
+Suchen, Bestandsstatus wechseln oder Filter anwenden aktualisiert die URL;
+die Auswahl eines Wertpapiers behält die aktiven Filter bei. Die
+Datenqualitätszeile der Übersicht verlinkt mit vorangewendetem Filter
+hierher.
+
 ### ISIN-Wechsel (Früher-ISIN-Aliasse)
 
 Wenn eine Kapitalmaßnahme einem Wertpapier eine neue ISIN gibt (eine

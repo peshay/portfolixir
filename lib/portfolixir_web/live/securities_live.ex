@@ -40,6 +40,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @holding_statuses ~w(all held not_held)
   @default_holding_status "all"
 
+  # Data-quality shortcut filters (#561): conditions that are not expressible
+  # as a plain column filter — stale/missing quotes are metric-derived and the
+  # logo lives in JSONB attributes. URL-addressable via `?dq=` so the Overview
+  # data-quality line can deep-link to the offending set (#651, UX-DR2).
+  @dq_filters ~w(stale_quote missing_quote missing_logo)
+  @stale_quote_days 7
+
+  # URL filter operator whitelist (#651): query params never mint atoms.
+  @filter_ops %{
+    "eq" => :eq,
+    "neq" => :neq,
+    "contains" => :contains,
+    "starts_with" => :starts_with,
+    "gt" => :gt,
+    "lt" => :lt,
+    "is_true" => :is_true,
+    "is_false" => :is_false,
+    "is_nil" => :is_nil
+  }
+
   @impl true
   def mount(_params, _session, socket) do
     # Background logo discovery stores logos asynchronously; subscribe so a
@@ -51,6 +71,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:query, "")
      |> assign(:holding_status, @default_holding_status)
      |> assign(:filters, [])
+     |> assign(:dq, nil)
      |> assign(:sort, {:name, :asc})
      |> assign(:visible_columns, SecurityFields.visible_default())
      |> assign(:open_popover, nil)
@@ -85,12 +106,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
      |> assign(:logo_dialog_security, nil)
-     |> load_securities()}
+     |> assign(:securities, [])}
   end
 
+  # The URL is the single source of truth for the list-filter state (#651):
+  # `q`, `holding`, `filter[]` and `dq` are parsed here, so any link can open
+  # the securities list pre-filtered. UI events patch the URL instead of
+  # mutating assigns directly.
   @impl true
   def handle_params(params, _uri, socket) do
     tab = safe_tab(params["tab"])
+
+    socket =
+      socket
+      |> assign(:query, params["q"] || "")
+      |> assign(
+        :holding_status,
+        safe_holding_status(params["holding"] || @default_holding_status)
+      )
+      |> assign(:filters, parse_url_filters(params["filter"]))
+      |> assign(:dq, safe_dq(params["dq"]))
+      |> load_securities()
 
     case params["id"] do
       nil ->
@@ -109,6 +145,108 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp safe_tab(tab) when is_binary(tab) and tab in @tabs, do: tab
   defp safe_tab(_), do: @default_tab
+
+  defp safe_dq(dq) when dq in @dq_filters, do: dq
+  defp safe_dq(_), do: nil
+
+  # -- URL filter state (#651) ----------------------------------------------
+
+  # `filter[]=key:op[:value]` — key and operator are validated against the
+  # SecurityFields registry; anything unknown is dropped silently, matching
+  # the context's own tolerant filter handling.
+  defp parse_url_filters(nil), do: []
+  defp parse_url_filters(param) when is_binary(param), do: parse_url_filter(param)
+
+  defp parse_url_filters(params) when is_list(params),
+    do: Enum.flat_map(params, &parse_url_filters/1)
+
+  defp parse_url_filters(_), do: []
+
+  defp parse_url_filter(param) when is_binary(param) do
+    case String.split(param, ":", parts: 3) do
+      [key_str, op_str] -> build_url_filter(key_str, op_str, nil)
+      [key_str, op_str, value] -> build_url_filter(key_str, op_str, value)
+      _ -> []
+    end
+  end
+
+  defp build_url_filter(key_str, op_str, value) do
+    with key when not is_nil(key) <- safe_column_atom(key_str),
+         op when not is_nil(op) <- Map.get(@filter_ops, op_str) do
+      value = if op in [:is_true, :is_false, :is_nil], do: op == :is_true, else: value
+
+      if not is_nil(value) and SecurityFields.valid_filter?(key, op, value) do
+        [%{key: key, op: op, value: value}]
+      else
+        []
+      end
+    else
+      _ -> []
+    end
+  end
+
+  defp filter_param(%{key: key, op: op}) when op in [:is_true, :is_false, :is_nil],
+    do: "#{key}:#{op}"
+
+  defp filter_param(%{key: key, op: op, value: value}), do: "#{key}:#{op}:#{value}"
+
+  defp list_state(assigns) do
+    %{
+      query: assigns.query,
+      holding_status: assigns.holding_status,
+      filters: assigns.filters,
+      dq: assigns.dq
+    }
+  end
+
+  # Builds a /securities path carrying the current (or overridden) filter
+  # state, so filters survive selection, tab switches and patches (#651).
+  #
+  # Options:
+  #   * `:id` — security id for the detail route; defaults to the current
+  #     selection; pass `nil` explicitly to target the list.
+  #   * `:tab` — detail tab; `:current` keeps the active one.
+  #   * `:override` — map merged over the current list-filter state.
+  defp securities_path(assigns, opts) do
+    id =
+      case Keyword.fetch(opts, :id) do
+        {:ok, value} -> value
+        :error -> assigns.selected_security && assigns.selected_security.id
+      end
+
+    base = if id, do: "/securities/#{id}", else: "/securities"
+
+    tab =
+      case Keyword.get(opts, :tab) do
+        :current -> id && assigns.detail_tab != @default_tab && assigns.detail_tab
+        tab -> tab
+      end
+
+    state = Map.merge(list_state(assigns), Keyword.get(opts, :override, %{}))
+
+    params =
+      %{}
+      |> maybe_put_param("tab", tab)
+      |> maybe_put_param("q", String.trim(state.query) != "" && state.query)
+      |> maybe_put_param(
+        "holding",
+        state.holding_status != @default_holding_status && state.holding_status
+      )
+      |> maybe_put_param("dq", state.dq)
+      |> maybe_put_param(
+        "filter",
+        state.filters != [] && Enum.map(state.filters, &filter_param/1)
+      )
+
+    if params == %{} do
+      base
+    else
+      base <> "?" <> Plug.Conn.Query.encode(params)
+    end
+  end
+
+  defp maybe_put_param(params, _key, value) when value in [nil, false], do: params
+  defp maybe_put_param(params, key, value), do: Map.put(params, key, value)
 
   @impl true
   def render(assigns) do
@@ -222,8 +360,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </div>
         </div>
 
-        <%= if @filters != [] do %>
+        <%= if @filters != [] or @dq do %>
           <ul class="filter-chips" id="filter-chips" aria-label={gettext("Active filters")}>
+            <%= if @dq do %>
+              <li class="chip">
+                <span><%= dq_label(@dq) %></span>
+                <button
+                  type="button"
+                  class="chip-remove"
+                  phx-click="remove_dq"
+                  aria-label={gettext("Remove filter")}
+                >
+                  <AppShell.icon name={:x} size={12} />
+                </button>
+              </li>
+            <% end %>
             <%= for {filter, idx} <- Enum.with_index(@filters) do %>
               <li class="chip">
                 <span><%= chip_label(filter) %></span>
@@ -293,7 +444,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                          holding-status segmented control is a filter too. --%>
                     <tr>
                       <%= if String.trim(@query) != "" or @filters != [] or
-                            @holding_status != "all" do %>
+                            @holding_status != "all" or @dq do %>
                         <td
                           colspan={length(visible_fields(@visible_columns)) + 1}
                           class="empty-state"
@@ -321,7 +472,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <%= for row <- @securities do %>
                     <% sec_id = security_id(row) %>
                     <% inner_security = security_from_row(row) %>
-                    <% row_path = "/securities/#{sec_id}" %>
+                    <% row_path = securities_path(assigns, id: sec_id) %>
                     <tr
                       id={"security-row-#{sec_id}"}
                       class={[
@@ -493,7 +644,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </button>
           <.link
             id="detail-pane-close"
-            patch="/securities"
+            patch={securities_path(assigns, id: nil)}
             class="icon-button"
             aria-label={gettext("Close detail")}
             title={gettext("Close detail")}
@@ -1819,7 +1970,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     ]
   end
 
-  defp detail_tab_path(%Security{id: id}, tab), do: "/securities/#{id}?tab=#{tab}"
+  defp tab_param(tab) when tab == @default_tab, do: nil
+  defp tab_param(tab), do: tab
 
   defp holding_status_options do
     [
@@ -2120,14 +2272,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
-    {:noreply, socket |> assign(:query, query) |> load_securities()}
+    # `replace: true` — typing must not stack one history entry per keystroke.
+    {:noreply,
+     push_patch(socket,
+       to: securities_path(socket.assigns, tab: :current, override: %{query: query}),
+       replace: true
+     )}
   end
 
   def handle_event("set_holding_status", %{"status" => status}, socket) do
     {:noreply,
-     socket
-     |> assign(:holding_status, safe_holding_status(status))
-     |> load_securities()}
+     push_patch(socket,
+       to:
+         securities_path(socket.assigns,
+           tab: :current,
+           override: %{holding_status: safe_holding_status(status)}
+         )
+     )}
   end
 
   def handle_event("toggle_popover", %{"popover" => name}, socket) do
@@ -2309,7 +2470,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         {:noreply,
          socket
          |> assign(:detail_tab, tab)
-         |> push_patch(to: detail_tab_path(security, tab))}
+         |> push_patch(to: securities_path(socket.assigns, id: security.id, tab: tab_param(tab)))}
 
       _ ->
         {:noreply, assign(socket, :detail_tab, tab)}
@@ -2428,7 +2589,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("remove_filter", %{"idx" => idx}, socket) do
     idx = String.to_integer(idx)
     filters = List.delete_at(socket.assigns.filters, idx)
-    {:noreply, socket |> assign(:filters, filters) |> load_securities()}
+
+    {:noreply,
+     push_patch(socket,
+       to: securities_path(socket.assigns, tab: :current, override: %{filters: filters})
+     )}
+  end
+
+  def handle_event("remove_dq", _params, socket) do
+    {:noreply,
+     push_patch(socket,
+       to: securities_path(socket.assigns, tab: :current, override: %{dq: nil})
+     )}
   end
 
   def handle_event("toggle_sort", %{"key" => key}, socket) do
@@ -2587,7 +2759,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp dispatch_row_action(socket, "open", %Security{} = sec) do
-    {:noreply, push_patch(socket, to: "/securities/#{sec.id}")}
+    {:noreply, push_patch(socket, to: securities_path(socket.assigns, id: sec.id))}
   end
 
   defp dispatch_row_action(socket, "copy_isin", %Security{isin: isin})
@@ -2764,9 +2936,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     {:noreply,
      socket
-     |> assign(:filters, filters)
      |> assign(:open_popover, nil)
-     |> load_securities()}
+     |> push_patch(
+       to: securities_path(socket.assigns, tab: :current, override: %{filters: filters})
+     )}
   end
 
   def handle_info({:dialog, "split-wizard-dialog", :close}, socket) do
@@ -3187,14 +3360,44 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp ranges, do: @ranges
 
   defp load_securities(socket) do
+    dq = socket.assigns.dq
+
+    opts = [
+      query: socket.assigns.query,
+      holding_status: socket.assigns.holding_status,
+      filters: socket.assigns.filters,
+      sort: socket.assigns.sort
+    ]
+
+    opts = if dq == "missing_logo", do: Keyword.put(opts, :logo_status, :missing), else: opts
+
     securities =
-      Catalog.list_securities_with_metrics(
-        query: socket.assigns.query,
-        holding_status: socket.assigns.holding_status,
-        filters: socket.assigns.filters,
-        sort: socket.assigns.sort
-      )
+      opts
+      |> Catalog.list_securities_with_metrics()
+      |> apply_dq_filter(dq)
 
     assign(socket, :securities, securities)
   end
+
+  # Metric-derived data-quality filters run post-enrichment, mirroring the
+  # dashboard's counting rules exactly so a count of N links to a list of N.
+  defp apply_dq_filter(rows, "stale_quote") do
+    today = Date.utc_today()
+
+    Enum.filter(rows, fn row ->
+      case row.metrics.latest_price_date do
+        %Date{} = date -> Date.diff(today, date) > @stale_quote_days
+        _ -> true
+      end
+    end)
+  end
+
+  defp apply_dq_filter(rows, "missing_quote"),
+    do: Enum.filter(rows, &is_nil(&1.metrics.latest_price_date))
+
+  defp apply_dq_filter(rows, _dq), do: rows
+
+  defp dq_label("stale_quote"), do: gettext("No quote in 7 days")
+  defp dq_label("missing_quote"), do: gettext("No quote at all")
+  defp dq_label("missing_logo"), do: gettext("No logo")
 end
