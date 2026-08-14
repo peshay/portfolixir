@@ -248,7 +248,14 @@ defmodule Portfolixir.Portfolios.PerformanceViewTest do
     for period <- Performance.periods() do
       {:ok, from_analysis} = Performance.summarise(analysis, period)
       {:ok, direct} = Performance.for_view(view.id, period: period, today: ~D[2026-01-10])
-      assert from_analysis == direct
+
+      # The parity invariant is about the computed numbers. `as_of` is the
+      # read-time freshness stamp (ADR-0039 C4): with the derived layer
+      # disabled in test, the two paths compute independently and may stamp
+      # one second apart, so it is compared for presence, not equality.
+      assert %DateTime{} = from_analysis.as_of
+      assert %DateTime{} = direct.as_of
+      assert Map.delete(from_analysis, :as_of) == Map.delete(direct, :as_of)
     end
 
     assert {:error, :invalid_period} = Performance.for_view(view.id, period: "2w")
