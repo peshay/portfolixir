@@ -182,6 +182,48 @@ in the agentic review, and an explicit callout in the reviewer briefing.
 ADR-0035 stays the first line of defence: a value that is merely computed more
 often than necessary gets computed once, not materialized.
 
+### Lane D — Ledger defect: a hand-entered loss sale loses its tax refund
+
+Added 2026-08-14 by owner report, filed as **#686**. A sale that realises a loss
+carries a negative tax line on the settlement note (loss offsetting refunds
+tax). The manual form rejects it — `taxes` is pinned `>= 0` in the changeset —
+and `tax_refund`, the kind that exists for it, is not in the form's type
+selector. So the refund is a real cash movement that silently goes missing from
+every hand-entered loss sale, and the operator has no workaround the agent does
+not have.
+
+It is admitted to this sprint on one specific ground, and the ground is worth
+stating because it is what keeps the OQ-2 capacity argument intact: **the
+semantics are already decided and already shipped.** Both PP importers split a
+negative tax into a companion `tax_refund` and leave the trade at `taxes: 0`.
+The fix applies that same rule to the manual path, so it is not a new
+money-domain decision competing with Lane C — it is one surface catching up with
+a rule the ledger already follows.
+
+**OQ-4 — decided 2026-08-14: option A.** The owner delegated the call to the
+recommendation. The `taxes >= 0` validation **stays**; the positive-magnitude
+invariant is not touched; the manual path adopts the importers' companion-record
+representation. Option B (sign-bearing `taxes` on `buy`/`sell`) is rejected: its
+only advantage was a shorter diff, paid for with one event living in two
+representations forever and every consumer of `taxes` becoming sign-aware. No
+ADR is required, because no decision changes — a decided rule reaches a surface
+that was missed.
+
+- **D1** — the sell form accepts a negative tax and saves it as sell +
+  companion `tax_refund`, byte-identical to what the importer produces for the
+  same settlement note. Create *and* edit path.
+- **D2** — `tax_refund` offered in the type selector for a standalone refund
+  (the broker sometimes books it separately), with its API/MCP coverage
+  reviewed per steps 5 and 6.
+
+Risk-tier attention: own commit group, TDD first with exact `Decimal`
+expectations, and the pinning test is the equality of the hand-entered and
+imported projections — not a spot check of one number. Callout in the reviewer
+briefing.
+
+The lane carries no open owner question. OQ-4 is answered above, so Lane D is
+ready for the batch to start on.
+
 ### Lane M — Maintenance (mandatory, every batch)
 
 Per the AGENTS.md Epic-Batch amendment of 2026-08-12. Reviews available updates
@@ -201,10 +243,13 @@ update, with the reason**. Each update is its own commit group.
 3. **#664** — verification; a confirmed regression re-sequences the rest.
 4. **Lane B** ship-now stories, API and MCP together.
 5. **Lane C** C1 → C2 → C3 → C4 → C5, risk-tier throughout.
-6. **Lane A** A1 → A2 → A3.
-7. **Lane M** reviewed throughout, reported at the close-out.
+6. **Lane D** D1 → D2 — small and independent; slots in wherever a review slot
+   frees up, but **before** Lane A, because it is a correctness defect against
+   recorded data and Lane A is alignment work.
+7. **Lane A** A1 → A2 → A3.
+8. **Lane M** reviewed throughout, reported at the close-out.
 
-Lanes B, C and A are independent enough to interleave; the order above is the
+Lanes B, C, D and A are independent enough to interleave; the order above is the
 priority if they compete for a review slot.
 
 ## Explicitly out of scope
@@ -244,3 +289,16 @@ a dedicated verification of Lane C's invalidation invariant.
   runtime is a measured number in ADR-0039.
 - Eleven UI issues are closed and the UI is aligned — **not finished**; Sprint 7
   closes it.
+- A loss sale entered by hand records its tax refund, and produces the same
+  ledger as the same sale imported from Portfolio Performance.
+
+## Amendments after adoption
+
+- **2026-08-14 — Lane D added (#686).** Owner report: a hand-entered loss sale
+  cannot book the tax refund that loss offsetting produces. Admitted because the
+  ledger semantics are already decided and shipped in both PP importers, so the
+  fix applies an existing rule to a missed surface rather than opening a second
+  money-domain decision beside Lane C. **OQ-4 decided the same day: option A**,
+  delegated by the owner to the recommendation — the `taxes >= 0` validation
+  stays and the manual path adopts the importers' companion-record shape, so no
+  ADR is required and the lane starts with the batch.

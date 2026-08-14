@@ -71,6 +71,23 @@ story_location: _bmad-output/implementation-artifacts
 # (#674 #676). No story rows change: Sprint 6 work hangs off no epic row, and
 # section J still has no epic (finding F2 below).
 #
+# SPRINT 6 AMENDED (2026-08-14): Lane D added - #686, a hand-entered loss sale
+# cannot book the tax refund that loss offsetting produces (negative `taxes` is
+# rejected by the changeset and `tax_refund` is absent from the form's type
+# selector). Admitted despite the OQ-2 capacity argument because the ledger
+# semantics are already decided and shipped: both PP importers split a negative
+# tax into a companion `tax_refund`, so the fix applies an existing rule to a
+# missed surface rather than opening a second money-domain decision beside
+# Lane C. Risk-tier attention, own commit group. Sequenced before Lane A -- a
+# correctness defect against recorded data outranks alignment work.
+#   - OQ-4 OWNER (delegated to the recommendation, 2026-08-14): OPTION A. The
+#     `taxes >= 0` validation stays, the positive-magnitude invariant is not
+#     touched, and the manual path adopts the importers' companion-record shape.
+#     Option B (sign-bearing taxes on buy/sell) is rejected. No ADR required --
+#     no decision changes, a decided rule reaches a missed surface. Lane D is
+#     unblocked and starts with the batch.
+# #686 hangs off epic tracker #470, so no story row changes.
+#
 # RECONCILED (2026-08-12, `main` at 541fb89):
 # Verification basis: the merge commits on `main` (73affc5..541fb89), the open
 # pull-request list (EMPTY), the open-issue list (46 open), the Actions runs on
