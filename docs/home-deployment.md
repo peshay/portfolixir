@@ -43,6 +43,26 @@ docker compose down -v
 docker compose up --build
 ```
 
+## Rebuild Derived Values
+
+Expensive analytics (currently the daily performance walk) are kept as
+durable derived values (ADR-0039): pure recomputable materializations of the
+transaction ledger, versioned against every write. They can be dropped and
+rebuilt from the ledger at any time with one command, which reports its own
+runtime:
+
+```bash
+mix portfolixir.derived.rebuild
+# inside Docker Compose:
+docker compose exec app mix portfolixir.derived.rebuild
+```
+
+This never touches financial data — the ledger is read, never written. It is
+the recovery step if a derived value is ever suspected stale or corrupt; in
+normal operation invalidation is automatic. Freshness is always visible: the
+performance chart's basis line and every API/MCP performance payload carry
+`as_of` and a `stale` flag.
+
 ## Separate MCP Install
 
 The MCP server is developed in this repository but can be installed and run

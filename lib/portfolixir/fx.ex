@@ -15,8 +15,8 @@ defmodule Portfolixir.Fx do
 
   import Ecto.Query
 
-  alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Derived.Invalidation
+  alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Repo
 
   @hub "EUR"

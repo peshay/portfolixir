@@ -29,8 +29,8 @@ defmodule Portfolixir.Catalog.Quotes do
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityWithMetrics
-  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Derived.Invalidation
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
   @doc "Most recent quote for the security, or nil."

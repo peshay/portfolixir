@@ -32,9 +32,9 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
   require Logger
 
   alias Portfolixir.Buckets
+  alias Portfolixir.Derived
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
-  alias Portfolixir.Derived
   alias Portfolixir.Settings
 
   # A minute past local midnight: comfortably on the new day without assuming
