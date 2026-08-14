@@ -34,7 +34,12 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
          :error <- parse_date(value) do
       {:error, :since}
     else
-      {:ok, naive} -> {:ok, %{raw: value, cut: naive}}
+      # `as_of` is captured here, BEFORE the controller runs its query: a row
+      # committed between the query and the stamp then falls into the next
+      # poll's window (a harmless overlap) instead of being skipped forever
+      # by the strictly-after cut.
+      {:ok, naive} ->
+        {:ok, %{raw: value, cut: naive, as_of: DateTime.truncate(DateTime.utc_now(), :second)}}
     end
   end
 
@@ -65,10 +70,10 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
   """
   def put_envelope(response, nil), do: response
 
-  def put_envelope(response, %{raw: raw}) do
+  def put_envelope(response, %{raw: raw, as_of: as_of}) do
     Map.merge(response, %{
       since: raw,
-      as_of: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+      as_of: DateTime.to_iso8601(as_of),
       delta_note: @delta_note
     })
   end
