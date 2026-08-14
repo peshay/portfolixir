@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-12 (post-Sprint-5 reconciliation + Sprint 6 adopted; ADR-0039 accepted)
+# last_updated: 2026-08-14 (Sprint 6 close-out; ADR-0026 merge-method amendment)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -51,6 +51,24 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# SPRINT 6 CLOSED OUT (2026-08-14, `main` at f0beb8c):
+# All lanes shipped in ONE batch/PR (#688), REBASE-merged -- the first under
+# the ADR-0026 merge-method amendment (owner decision, same PR): 41 per-issue
+# commits on main, agent-cleaned history (47 -> 41, mechanical fix-ups folded,
+# review-round commits kept, tree byte-identical). Issues #664-#667 #686 #651
+# #561 #668-#671 #673 #412 #491 #564 #565 #566 #674 #676 #682 closed by the
+# merge's closing keywords (spot-verified). Six-role agentic review, every
+# confirmed finding fixed pre-merge (delta-read as_of loss x2, ADR-0039
+# race-safety pin, ?q[]= crash, segmented-control spec regression, doc
+# drift). Gates at merge: 1855 tests/0 failures, Dialyzer zero, coverage
+# 90.5%. Retrospective: sprint-6-retro-2026-08-14.md (close-out section
+# filled in this pass). UX-DR remainder for Sprint 7: #414, #560 (+#672 as
+# committed by OQ-2). OPEN OWNER ITEMS: v0.5.0 tag on 73affc5 AND v0.6.0 tag
+# on f0beb8c -- both blocked from agent sessions (proxy allows only the
+# designated branch; no release API tool). Prepared commands sit in PR #688
+# and the retro. FR map updated: FR-37/38 shipped (agent-only, human view
+# due next batch), FR-39/40 issue-ready (mechanism landed).
 #
 # SPRINT 6 ADOPTED (2026-08-12, `main` at 541fb89):
 # sprint-plan-2026-08-12-sprint6.md, from the owner's stated expectation

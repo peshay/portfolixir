@@ -111,5 +111,33 @@ FR-37/38 human view due by the next batch per the two-way rule.
 
 ## Close-out (filled in after the merge)
 
-_Pending: squash-merge, merge-CI confirmation, sprint-status.yaml and epics
-FR-map reconciliation, issue closure verification, v0.6.0 tag._
+Merged 2026-08-14 as the **first rebase-merge under the ADR-0026
+merge-method amendment** — an owner decision taken on this very PR, so the
+sprint that argued for per-issue revertability also delivered it: 41
+per-issue commits on `main` (agent-cleaned from 47; mechanical fix-ups
+folded into their sources, review-round commits kept, tree byte-identical,
+verified by empty diff before the force-push).
+
+- **Merge CI:** Commit-authorship green across all 41 rebased commits; the
+  CI workflow on `main` at `f0beb8c` confirmed green in this pass; the new
+  Dependabot config ran its first scans on the same push.
+- **Issues:** all twenty closing-keyword targets closed by the merge
+  (spot-verified via the API — closing keywords work identically under
+  rebase-merge).
+- **Bookkeeping:** sprint-status.yaml close-out entry written; epics.md FR
+  Coverage Map reconciled — FR-37/38 shipped (agent-only, human view due
+  next batch per the two-way rule), FR-39/40 issue-ready now that the
+  ADR-0039 mechanism landed; UX-DR row shows #414 and #560 as the Sprint 7
+  remainder.
+- **Tags (owner action, both blocked from agent sessions):**
+  `git tag -a v0.5.0 73affc5 -m "Sprint 5: design-language alignment batch" && git push origin v0.5.0`
+  and
+  `git tag -a v0.6.0 f0beb8c -m "Sprint 6: agent surface, durable derived values, UI alignment" && git push origin v0.6.0`.
+  The v0.6.0 push is the first real exercise of the #659 release workflow
+  on a sprint boundary.
+
+**Retro addendum from the merge itself:** the rebase-merge decision came
+out of the owner reading the PR — the squash default had survived two
+sprints unquestioned because nobody owned the question. Lesson: merge
+method is a reviewable decision per PR shape, not repo tradition; it is now
+written where the workflow lives (ADR-0026, AGENTS.md step 4).
