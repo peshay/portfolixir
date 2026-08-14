@@ -201,6 +201,12 @@ describe("Portfolixir MCP tools", () => {
       assert.match(description, /invested_capital/);
       assert.match(description, /wealth_multiple/);
       assert.match(description, /mwr/);
+      // ADR-0039 C4 (I4): freshness and the computation basis ride every
+      // performance payload; the tool descriptions must say so, so the agent
+      // reads as_of/stale instead of assuming a just-computed figure.
+      assert.match(description, /as_of/);
+      assert.match(description, /stale/);
+      assert.match(description, /computation_basis/);
     }
 
     // ADR-0020: the target read/write tools and the per-plan cash-target tools

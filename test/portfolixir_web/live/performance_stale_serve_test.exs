@@ -125,6 +125,20 @@ defmodule PortfolixirWeb.PerformanceStaleServeTest do
     refute html =~ "Superseded series"
   end
 
+  # ADR-0039 C4 (FR-1 property 3): a served series is never silent about its
+  # freshness even when it is fresh — the chart's basis line names the
+  # compute instant, which for a durable value can be older than the mount.
+  test "the fresh series names its as_of in the chart basis line", %{conn: conn} do
+    world = seeded_world!()
+    buy!(world, ~D[2024-01-02], "100")
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    assert html =~ "data-role=\"performance-as-of\""
+    refute html =~ "data-role=\"performance-stale\""
+  end
+
   test "the dashboard tile serves the last known YTD figure labelled, then swaps", %{conn: conn} do
     world = seeded_world!()
     # A booking this year so the YTD summary carries a TTWROR.

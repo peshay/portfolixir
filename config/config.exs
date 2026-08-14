@@ -43,7 +43,6 @@ config :portfolixir, Portfolixir.Fx.RateSync,
 # performance walk, on the ADR's Context evidence (seconds per walk, second
 # call as expensive as the first). Further activations are one line each,
 # added with their measurement.
-config :portfolixir, Portfolixir.Derived,
-  lifetimes: [performance_analysis: :durable]
+config :portfolixir, Portfolixir.Derived, lifetimes: [performance_analysis: :durable]
 
 import_config "#{Mix.env()}.exs"

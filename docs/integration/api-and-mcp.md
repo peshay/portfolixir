@@ -527,7 +527,16 @@ Example account payloads:
   (fewer than two flows, all flows the same sign, or the solver does not
   converge). Securities without quotes are priced at the latest own trade
   price (see the valuation endpoint). Unknown portfolios return
-  `404 Not Found`.
+  `404 Not Found`. Since the daily walk may be served from a durable derived
+  value (ADR-0039), the response is **never silent about freshness**: `as_of`
+  (ISO-8601 datetime) is the instant the walk was computed — possibly older
+  than the request when the underlying data has not changed since — and
+  `stale` (boolean) marks a superseded value served while a fresh one
+  computes; a stored value is invalidated by every write that can affect it,
+  so `stale: false` means current against the ledger. The response also
+  states the metric's **computation basis** (`computation_basis`): the input
+  series, the effective window, the reference series (`null` — TTWROR/IRR
+  have none) and the treatment of gaps.
 - `GET /api/v1/portfolios/:portfolio_id/income` returns the **retrospective
   income report**: the dividends and interest already booked in the ledger,
   aggregated three ways (no forecast — the dividend calendar is a separate

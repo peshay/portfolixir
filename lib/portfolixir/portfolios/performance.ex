@@ -139,7 +139,10 @@ defmodule Portfolixir.Portfolios.Performance do
             fn -> scoped_analysis(portfolio_id, scope, opts) end
           )
 
-        analysis
+        # Freshness is annotated OUTSIDE the computed (and stored) value, so a
+        # stored payload never carries a frozen claim about its own currency
+        # (ADR-0039 C4): served fresh here, served stale by the peek path.
+        Map.put(analysis, :stale, false)
     end
   end
 
@@ -157,7 +160,7 @@ defmodule Portfolixir.Portfolios.Performance do
            Derived.portfolio_basis(portfolio_id),
            entry_key(opts)
          ) do
-      {:stale, analysis, _as_of} -> analysis
+      {:stale, analysis, _as_of} -> Map.put(analysis, :stale, true)
       _fresh_or_none -> nil
     end
   end
@@ -259,7 +262,7 @@ defmodule Portfolixir.Portfolios.Performance do
             fn -> view_scoped_analysis(view_id, scope, base, today) end
           )
 
-        analysis
+        Map.put(analysis, :stale, false)
     end
   end
 
@@ -270,7 +273,7 @@ defmodule Portfolixir.Portfolios.Performance do
            Derived.global_basis(),
            view_entry_key(view_id, Keyword.get(opts, :base_currency, @hub), opts)
          ) do
-      {:stale, analysis, _as_of} -> analysis
+      {:stale, analysis, _as_of} -> Map.put(analysis, :stale, true)
       _fresh_or_none -> nil
     end
   end
@@ -460,11 +463,33 @@ defmodule Portfolixir.Portfolios.Performance do
       net_external_flows: flows,
       ttwror: Decimal.sub(growth, @one),
       suspect_dates: analysis.suspect_dates,
+      as_of: analysis.basis.computed_at,
+      stale: Map.get(analysis, :stale, false),
+      computation_basis: computation_basis(start_date, end_date),
       series: series
     }
 
     summary = Map.put(summary, :irr, IRR.for_summary(summary))
     Map.merge(summary, wealth_metrics(summary))
+  end
+
+  # ADR-0039 C4 / AGENTS.md analytics rule: every metric states its
+  # computation basis IN the payload — input series, window, reference where
+  # one exists, and the treatment of gaps. The payload is where the reviewer
+  # and the agent both read it; a doc page does not satisfy the rule.
+  defp computation_basis(start_date, end_date) do
+    %{
+      input_series:
+        "daily portfolio valuation derived from recorded transactions, " <>
+          "stored quotes and stored EUR-hub exchange rates (ADR-0010)",
+      window: %{start_date: start_date, end_date: end_date},
+      reference: nil,
+      gaps:
+        "prices and exchange rates carry the most recent stored point on or " <>
+          "before each day forward; a security with no quote yet is priced by " <>
+          "its own latest trade; a missing conversion path contributes zero " <>
+          "(ADR-0010)"
+    }
   end
 
   # Money-weighted companions to TTWROR/IRR (#568, ADR-0034): the invested
@@ -530,6 +555,9 @@ defmodule Portfolixir.Portfolios.Performance do
       irr: nil,
       mwr: nil,
       suspect_dates: analysis.suspect_dates,
+      as_of: analysis.basis.computed_at,
+      stale: Map.get(analysis, :stale, false),
+      computation_basis: computation_basis(nil, analysis.today),
       series: []
     }
   end
