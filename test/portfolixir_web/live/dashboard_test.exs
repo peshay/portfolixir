@@ -302,6 +302,14 @@ defmodule PortfolixirWeb.DashboardTest do
     assert explainer =~ "±5 pp"
     assert explainer =~ "target weight"
 
+    # … and WHAT the count is computed against (#673, UX-DR2): the view, the
+    # plan and the tree — with several views and plans per allocation the
+    # warning must name its basis.
+    basis = view |> element(~s([data-role="attention-basis"])) |> render()
+    assert basis =~ "Everything"
+    assert basis =~ "Plan"
+    assert basis =~ "Strategy"
+
     # … and each item reads as text: "40.0 pp above target", not a bare "+40.0 pp".
     alert = view |> element(~s(#dashboard-attention [data-role="drift-alert"])) |> render()
     assert alert =~ ~s(href="/portfolio?tab=allocation")

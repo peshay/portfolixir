@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.PricingContext
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
@@ -26,6 +27,7 @@ defmodule PortfolixirWeb.DashboardLive do
       |> assign_counts()
       |> assign(:wealth_card, nil)
       |> assign(:drift_alerts, nil)
+      |> assign(:attention_basis, nil)
       |> assign(:data_quality, nil)
       |> assign_stale_ttwror()
       |> start_loading()
@@ -57,7 +59,7 @@ defmodule PortfolixirWeb.DashboardLive do
         # with this task.
         context = PricingContext.for_all_portfolios(base_currency)
 
-        {wealth_card(view_id, base_currency, context), drift_alerts(view_id, context),
+        {wealth_card(view_id, base_currency, context), attention_report(view_id, context),
          data_quality_report()}
       end)
     else
@@ -134,11 +136,12 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   @impl true
-  def handle_async(:overview, {:ok, {wealth_card, drift_alerts, data_quality}}, socket) do
+  def handle_async(:overview, {:ok, {wealth_card, attention, data_quality}}, socket) do
     {:noreply,
      assign(socket,
        wealth_card: wealth_card,
-       drift_alerts: drift_alerts,
+       drift_alerts: attention.alerts,
+       attention_basis: attention.basis,
        data_quality: data_quality
      )}
   end
@@ -274,9 +277,16 @@ defmodule PortfolixirWeb.DashboardLive do
       <section id="dashboard-attention" class="workspace-section">
         <h2><%= gettext("Needs attention") %></h2>
         <%!-- Say WHY these items surface (UAT fix round): the threshold rule,
-             derived from the same @drift_threshold the filter uses. --%>
+             derived from the same @drift_threshold the filter uses — and
+             WHAT they are computed against (#673, {components.needs-
+             attention-card}.basis-line): the view, the plan and the tree.
+             Names come raw from the async read; gettext runs here, at
+             render time, where the user's locale is set. --%>
         <p class="hint" data-role="attention-explainer">
-          <%= gettext("Categories drifting more than ±%{pp} pp from their target weight.",
+          <span :if={@attention_basis} data-role="attention-basis"><%= basis_phrase(
+              @attention_basis
+            ) %> · </span><%= gettext(
+            "Categories drifting more than ±%{pp} pp from their target weight.",
             pp: threshold_pp()
           ) %>
         </p>
@@ -363,20 +373,69 @@ defmodule PortfolixirWeb.DashboardLive do
   # not an alert. The cash row joins under the same rule when a cash target is
   # steered. The allocation read is still portfolio-bound, so portfolios are
   # iterated as the mechanism; the view is the user-facing scope.
-  defp drift_alerts(view_id, context) do
+  defp attention_report(view_id, context) do
     case Classifications.default_classification() do
       nil ->
-        []
+        %{alerts: [], basis: nil}
 
       classification ->
-        Enum.flat_map(
-          Portfolios.list_portfolios(),
-          &alerts_for(&1, classification, view_id, context)
-        )
+        alerts =
+          Portfolios.list_portfolios()
+          |> Enum.flat_map(&alerts_for(&1, classification, view_id, context))
+          |> Enum.sort_by(&Decimal.abs(&1.drift_value), {:desc, Decimal})
+          |> Enum.take(@max_alerts)
+
+        %{alerts: alerts, basis: attention_basis(classification, view_id)}
     end
-    |> Enum.sort_by(&Decimal.abs(&1.drift_value), {:desc, Decimal})
-    |> Enum.take(@max_alerts)
   end
+
+  # The names the basis line states (#673): the view, the steering tree, and
+  # the active plan(s) behind the drift figures. Portfolios are the iteration
+  # mechanism (ADR-0024), so several portfolios may each carry an active plan
+  # for the same (view, tree) — the line then says so instead of silently
+  # naming one. Raw names only; localisation happens at render time.
+  defp attention_basis(classification, view_id) do
+    view = view_id && Buckets.get_view(view_id)
+
+    plan_names =
+      Portfolios.list_portfolios()
+      |> Enum.flat_map(fn portfolio ->
+        Targets.list_plans(portfolio.id,
+          classification_id: classification.id,
+          view: view && view.id
+        )
+      end)
+      |> Enum.filter(&(&1.status == "active"))
+      |> Enum.map(& &1.name)
+      |> Enum.uniq()
+
+    %{view_name: view && view.name, tree: classification.name, plan_names: plan_names}
+  end
+
+  defp basis_phrase(%{plan_names: []} = basis) do
+    gettext("View %{view} — no active plan on %{tree}",
+      view: basis_view(basis),
+      tree: basis.tree
+    )
+  end
+
+  defp basis_phrase(%{plan_names: [name]} = basis) do
+    gettext("View %{view} · plan “%{plan}” on %{tree}",
+      view: basis_view(basis),
+      plan: name,
+      tree: basis.tree
+    )
+  end
+
+  defp basis_phrase(basis) do
+    gettext("View %{view} · several active plans on %{tree}",
+      view: basis_view(basis),
+      tree: basis.tree
+    )
+  end
+
+  defp basis_view(%{view_name: nil}), do: gettext("Everything")
+  defp basis_view(%{view_name: name}), do: name
 
   defp alerts_for(portfolio, classification, view_id, context) do
     opts = [view: view_id, pricing_context: context]
