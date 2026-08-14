@@ -1007,7 +1007,13 @@ Two ways quotes enter the system:
 Quote sources in this iteration:
 
 - Search step (which catalog the security came from) uses Portfolio
-  Performance for stocks/ETFs/funds and CoinGecko for crypto.
+  Performance for stocks/ETFs/funds and CoinGecko for crypto. The creation
+  dialog also offers **Manual entry** (also linked from the search step) for
+  instruments no provider knows — straight to the details form, saved with
+  the `manual` provider marker. When a found security trades on several
+  markets, the **recommended market** (XETR, else the first EUR market) is
+  offered first by its human exchange name; the remaining markets sit behind
+  a *More markets* disclosure.
 - New securities start background quote/logo enrichment when configured.
   Logo discovery runs through a single background queue, scans missing
   logo candidates on startup, is also triggered after imports, and runs a

@@ -1036,9 +1036,11 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert Portfolios.list_securities_accounts() == []
   end
 
-  # Changeset errors land on the field that caused them: a malformed currency
-  # is reported at the Currency input, and nothing is created.
-  test "the dialog maps changeset errors onto the offending field", %{conn: conn} do
+  # Superseded by #491 item 6: a malformed currency can no longer be entered
+  # — the field is a constrained dropdown of known codes, so the UI-level
+  # "EU" scenario is impossible by construction. The changeset's
+  # validate_length(:currency_code, is: 3) stays as the API-side net.
+  test "the dialog's currency field constrains input to known codes", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/portfolios")
 
     view |> element("#add-account-button") |> render_click()
@@ -1047,16 +1049,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     |> element("#account-form-dialog button[phx-value-mode='cash']")
     |> render_click()
 
-    html =
-      view
-      |> form("#account-dialog-form", %{
-        "account" => %{"cash_name" => "Neu", "currency_code" => "EU", "new_tag" => ""}
-      })
-      |> render_submit()
-
-    assert html =~ "field-error"
-    assert html =~ "should be"
-    assert Portfolios.list_cash_accounts() == []
+    assert has_element?(view, ~s(#account-form-dialog select[name="account[currency_code]"]))
+    refute has_element?(view, ~s(#account-form-dialog input[name="account[currency_code]"]))
   end
 
   # User story (fix round, tag/scope dimension safety):

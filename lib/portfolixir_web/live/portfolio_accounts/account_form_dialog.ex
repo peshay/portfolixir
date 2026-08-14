@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
 
@@ -147,14 +148,18 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
             required={true}
             errors={@errors}
           />
-          <.text_field
-            name="currency_code"
-            label={gettext("Currency")}
-            value={@form["currency_code"]}
-            required={true}
-            maxlength="3"
-            errors={@errors}
-          />
+          <%!-- A dropdown of known codes (#491 item 6): free text with
+               maxlength=3 accepted any "ZZZ" as an account currency. --%>
+          <label>
+            <span><%= gettext("Currency") %></span>
+            <select name="account[currency_code]" required>
+              <%= for {label, value} <- Currencies.options() do %>
+                <option value={value} selected={@form["currency_code"] == value}>
+                  <%= label %>
+                </option>
+              <% end %>
+            </select>
+          </label>
         <% end %>
       </div>
 
