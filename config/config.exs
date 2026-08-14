@@ -37,4 +37,13 @@ config :portfolixir, Portfolixir.Fx.RateSync,
   interval_ms: 12 * 60 * 60 * 1000,
   provider: Portfolixir.Fx.RateSync.Ecb
 
+# Derived-value lifetimes (ADR-0039 §2): every registered analytic is
+# eligible; which ones run :durable is a configuration decision informed by
+# measurement, never an architectural one. Activated here: the daily
+# performance walk, on the ADR's Context evidence (seconds per walk, second
+# call as expensive as the first). Further activations are one line each,
+# added with their measurement.
+config :portfolixir, Portfolixir.Derived,
+  lifetimes: [performance_analysis: :durable]
+
 import_config "#{Mix.env()}.exs"
