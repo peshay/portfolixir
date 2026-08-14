@@ -385,8 +385,14 @@ reviews decisions and behavior, agents review code:
    reviewer briefing on the PR — what is new, what changed, where to look,
    deliberate trade-offs — with screenshots for UI work.
 4. **Acceptance:** the owner reviews behavior against the briefing, feedback
-   lands as a UAT fix round on the same branch, and the maintainer
-   squash-merges. Agents never merge. No separate per-epic owner UAT
+   lands as a UAT fix round on the same branch, and the maintainer merges —
+   **epic-batch PRs by rebase-merge, small single-concern PRs by squash**
+   (ADR-0026 merge-method amendment, 2026-08-14). Before promotion the
+   batch agent cleans the branch history for that rebase: mechanical
+   fix-ups folded into the commits that caused them, substantive
+   review-round commits kept, final tree byte-identical (empty diff against
+   a backup ref), force-push only with `--force-with-lease`. Agents never
+   merge. No separate per-epic owner UAT
    session is assumed beyond this review (ADR-0038): day-to-day
    observations from live use reach the backlog at any time as
    unstructured owner dumps, which the PM agent triages into dated
@@ -400,7 +406,7 @@ reviews decisions and behavior, agents review code:
    Map), closes the story issues and the epic tracker, records a short
    retrospective section, confirms the merge's own CI runs — required
    checks included — are green, and **creates and pushes an annotated
-   `vX.Y.Z` tag on the merge commit** (minor bump per sprint, patch
+   `vX.Y.Z` tag on the merged head commit** (minor bump per sprint, patch
    reserved for hotfixes). The tag push triggers the Release workflow,
    which creates the GitHub Release with generated notes — the release is
    a rollback point for self-hosted instances plus a communicable

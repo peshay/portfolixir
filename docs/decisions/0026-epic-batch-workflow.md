@@ -9,7 +9,9 @@ description: Feature trees are worked agentically on a single epic branch and ac
 - **Status:** Accepted; **amended by [ADR-0036](0036-risk-tier-rides-the-batch.html)**
   (2026-08-04 — the "Risk-tier exceptions" clause below is withdrawn; risk-tier
   work now rides the batch and the label governs review depth, not delivery
-  mode). Everything else here stands.
+  mode) **and by the merge-method amendment below** (2026-08-14, owner decision
+  on PR #688 — batch PRs are rebase-merged after an agent history cleanup;
+  small PRs stay squash-merged). Everything else here stands.
 - **Date:** 2026-07-12
 
 ## Context
@@ -76,3 +78,34 @@ workflow leans on; weakening a gate to make a batch pass is a review reject.
 - #315 is resolved by this ADR; #420 tracks the compensating-control work.
 - First application: the ADR-0024 restructure tree (gate: spike #574, then
   the epic batch under #448).
+
+## Amendment: batch PRs are rebase-merged (2026-08-14, owner decision on PR #688)
+
+Squash-merging a whole sprint collapses 40+ per-issue commits into one
+multi-thousand-line commit on `main`, which destroys exactly what ADR-0036
+demands of risk-tier work — independent readability and revertability. A
+later `git bisect` or `git blame` lands on "the sprint", never on the issue.
+The sprint rollback point that squash provided is carried by the per-sprint
+`vX.Y.Z` tag either way.
+
+Therefore:
+
+1. **Epic-batch PRs are rebase-merged.** The per-issue commits land on
+   `main` as they were reviewed. Small, single-concern PRs stay
+   squash-merged — one commit is the right unit there.
+2. **The agent cleans the branch history before promotion.** Mechanical
+   fix-ups (style passes, formatting, catalog reconciliation, CI-appeasement
+   commits) are folded into the commits that caused them; substantive
+   review-round commits stay, because they document what the closing act
+   changed. The result must satisfy: one commit or small commit group per
+   issue, every commit message meaningful on `main`, the final tree
+   byte-identical to the pre-cleanup tree (verified by an empty
+   `git diff` against a backup ref before force-pushing).
+3. **Force-push discipline:** history rewrites on the agent branch use
+   `--force-with-lease`, happen before promotion or with a note on the PR
+   when later, and never after the owner has started reviewing commits
+   individually without saying so on the PR.
+
+The "Revert unit = one squash-merged epic" consequence above is superseded:
+the revert unit is the per-issue commit, and the sprint rollback point is
+the tag.
