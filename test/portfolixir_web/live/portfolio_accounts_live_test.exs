@@ -1189,4 +1189,87 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert app_css =~ ~r/\.bucket-chip--scope\s*\{/
     assert app_css =~ ~r/\.bucket-chip__name\s*\{[^}]*text-overflow:\s*ellipsis/s
   end
+
+  # User story (#670, EXPERIENCE.md → Component Patterns → Cash accounts):
+  # As a local portfolio maintainer keeping external account balances current,
+  # I want each cash-account row on Accounts & depots to show its balance
+  # with the as-of date and to open a small set-balance dialog with the
+  # account already chosen,
+  # so that setting a balance happens where the account lives instead of an
+  # inline form under the Wealth chart that re-picks the account.
+  #
+  # Acceptance criteria:
+  # - Each cash-account row shows the account's derived balance and the date
+  #   of the newest booking that produced it (an em dash before any booking).
+  # - A per-row action opens a native dialog with the account pre-chosen (no
+  #   account select), an ISO date field and an amount field.
+  # - Submitting records the balance snapshot and the row updates in place;
+  #   no toast is raised.
+  describe "cash balance per account row (#670)" do
+    test "rows show balance with as-of date and a set-balance dialog", %{conn: conn} do
+      %{cash: cash} = world()
+
+      {:ok, _} =
+        Portfolixir.Ledger.set_cash_balance(Actor.owner_ui(), cash, %{
+          date: ~D[2026-08-01],
+          amount: "1250.00"
+        })
+
+      {:ok, view, _html} = live(conn, "/portfolios")
+
+      row_balance = view |> element("#cash-balance-#{cash.id}") |> render()
+      assert row_balance =~ "1,250.00"
+      assert row_balance =~ "EUR"
+      assert row_balance =~ "2026-08-01"
+
+      # Open the dialog: the account is pre-chosen, never re-picked.
+      view
+      |> element("#set-balance-#{cash.id}")
+      |> render_click()
+
+      dialog = view |> element("#balance-dialog") |> render()
+      assert dialog =~ "Giro"
+      refute dialog =~ "<select"
+      assert dialog =~ ~s(placeholder="YYYY-MM-DD")
+      assert dialog =~ ~s(pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+      # Submit a new balance: the row updates in place, no toast.
+      view
+      |> form("#balance-dialog form", %{
+        "balance" => %{"date" => Date.to_iso8601(Date.utc_today()), "amount" => "500"}
+      })
+      |> render_submit()
+
+      refute has_element?(view, "#balance-dialog")
+      refute has_element?(view, ".status-toast")
+      row_balance = view |> element("#cash-balance-#{cash.id}") |> render()
+      assert row_balance =~ "500.00"
+    end
+
+    test "an account without bookings shows a quiet dash", %{conn: conn} do
+      %{cash: cash} = world()
+
+      {:ok, view, _html} = live(conn, "/portfolios")
+
+      assert view |> element("#cash-balance-#{cash.id}") |> render() =~ "—"
+    end
+
+    test "an invalid submit keeps the dialog open with the error inline", %{conn: conn} do
+      %{cash: cash} = world()
+
+      {:ok, view, _html} = live(conn, "/portfolios")
+
+      view
+      |> element("#set-balance-#{cash.id}")
+      |> render_click()
+
+      view
+      |> form("#balance-dialog form", %{
+        "balance" => %{"date" => "not-a-date", "amount" => "500"}
+      })
+      |> render_submit()
+
+      assert has_element?(view, "#balance-dialog [data-role='balance-error']")
+    end
+  end
 end

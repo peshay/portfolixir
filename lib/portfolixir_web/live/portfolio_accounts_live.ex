@@ -17,10 +17,12 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Format
   alias PortfolixirWeb.PortfolioAccounts.AccountFormDialog
 
   @color_format ~r/^#[0-9a-fA-F]{3,8}$/
@@ -36,6 +38,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
      |> assign(:error, nil)
      |> assign(:success, nil)
      |> assign(:account_dialog?, false)
+     |> assign(:balance_dialog, nil)
+     |> assign(:balance_error, nil)
      |> assign(:picker, nil)
      |> assign(:bucket_error, nil)
      # Session-only: pairs the user chose to tag separately. Never persisted —
@@ -85,6 +89,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     <th><%= gettext("Name") %></th>
                     <th><%= gettext("Currency") %></th>
                     <th><%= gettext("Liquidity role") %></th>
+                    <th><%= gettext("Balance") %></th>
                     <th><%= gettext("Buckets") %></th>
                   </tr>
                 </thead>
@@ -101,6 +106,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                       </td>
                       <td class="cell-currency cell-currency--empty"></td>
                       <td class="cell-role cell-role--empty"></td>
+                      <td class="cell-balance cell-balance--empty"></td>
                       <%= if merged?(row, @split_pairs) do %>
                         <td class="cell-buckets cell-buckets--pair" rowspan="2">
                           <.bucket_chips
@@ -137,6 +143,14 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           </td>
                           <td class="cell-currency"><%= row.cash.currency_code %></td>
                           <td class="cell-role"><.liquidity_role_field cash={row.cash} /></td>
+                          <td class="cell-balance">
+                            <.cash_balance_cell
+                              cash={row.cash}
+                              balances={@cash_balances_by_id}
+                              dates={@cash_balance_dates}
+                              with_action
+                            />
+                          </td>
                           <td :if={not merged?(row, @split_pairs)} class="cell-buckets">
                             <.bucket_chips
                               owner="cash"
@@ -156,6 +170,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           </td>
                           <td class="cell-currency"><%= row.cash.currency_code %></td>
                           <td class="cell-role"></td>
+                          <td class="cell-balance"></td>
                           <td class="cell-buckets"></td>
                         </tr>
                       <% true -> %>
@@ -167,6 +182,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           </td>
                           <td class="cell-currency"></td>
                           <td class="cell-role"></td>
+                          <td class="cell-balance"></td>
                           <td class="cell-buckets"></td>
                         </tr>
                     <% end %>
@@ -178,6 +194,14 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                       </td>
                       <td class="cell-currency"><%= row.cash.currency_code %></td>
                       <td class="cell-role"><.liquidity_role_field cash={row.cash} /></td>
+                      <td class="cell-balance">
+                        <.cash_balance_cell
+                          cash={row.cash}
+                          balances={@cash_balances_by_id}
+                          dates={@cash_balance_dates}
+                          with_action
+                        />
+                      </td>
                       <td class="cell-buckets">
                         <.bucket_chips
                           owner="cash"
@@ -242,12 +266,112 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
             cash_accounts={@cash_accounts}
           />
         <% end %>
+
+        <%!-- Set-balance dialog (#670, UX-DR3/UX-DR11): the account is
+             pre-chosen by the row that opened it — never re-picked in the
+             form. Native dialog per UX-DR9 (issue 646). --%>
+        <%= if @balance_dialog do %>
+          <dialog
+            id="balance-dialog"
+            class="modal"
+            phx-hook="ModalDialog"
+            data-close-event="close_balance_dialog"
+            aria-labelledby="balance-dialog-title"
+          >
+            <header class="modal-head">
+              <h2 id="balance-dialog-title">
+                <%= gettext("Set balance — %{name}", name: @balance_dialog.name) %>
+              </h2>
+              <button
+                type="button"
+                class="icon-button"
+                aria-label={gettext("Close")}
+                phx-click="close_balance_dialog"
+              >
+                <AppShell.icon name={:x} />
+              </button>
+            </header>
+            <div class="modal-body">
+              <form phx-submit="set_balance" class="balance-dialog-form">
+                <p
+                  :if={@balance_error}
+                  class="field-error"
+                  data-role="balance-error"
+                  role="alert"
+                >
+                  <%= @balance_error %>
+                </p>
+                <label>
+                  <span><%= gettext("Date") %></span>
+                  <input
+                    type="text"
+                    placeholder="YYYY-MM-DD"
+                    pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                    maxlength="10"
+                    name="balance[date]"
+                    value={Date.to_iso8601(Date.utc_today())}
+                  />
+                </label>
+                <label>
+                  <span>
+                    <%= gettext("Balance") %> (<%= @balance_dialog.currency_code %>)
+                  </span>
+                  <input name="balance[amount]" inputmode="decimal" required placeholder="4250.00" />
+                </label>
+                <p class="hint">
+                  <%= gettext("State the balance the bank shows; only later bookings adjust it.") %>
+                </p>
+                <div class="modal-actions">
+                  <button type="submit" class="button-primary" phx-disable-with={gettext("Saving…")}>
+                    <%= gettext("Set balance") %>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </dialog>
+        <% end %>
       </div>
     </AppShell.shell>
     """
   end
 
   # -- components --------------------------------------------------------------
+
+  # The balance read surface per cash-account row (#670): the derived balance
+  # with its as-of date (the newest cash-affecting booking), an em dash before
+  # any booking, plus the set-balance trigger on rows that carry controls.
+  attr(:cash, CashAccount, required: true)
+  attr(:balances, :map, required: true)
+  attr(:dates, :map, required: true)
+  attr(:with_action, :boolean, default: false)
+
+  defp cash_balance_cell(assigns) do
+    ~H"""
+    <span id={"cash-balance-#{@cash.id}"} class="cash-balance">
+      <%= case Map.get(@balances, @cash.id) do %>
+        <% nil -> %>
+          <span class="cash-balance__empty">—</span>
+        <% balance -> %>
+          <span class="cash-balance__amount num">
+            <%= Format.money(balance) %> <%= @cash.currency_code %>
+          </span>
+          <span :if={@dates[@cash.id]} class="cash-balance__asof">
+            <%= gettext("as of %{date}", date: Date.to_iso8601(@dates[@cash.id])) %>
+          </span>
+      <% end %>
+    </span>
+    <button
+      :if={@with_action}
+      type="button"
+      id={"set-balance-#{@cash.id}"}
+      class="cash-balance__action"
+      phx-click="open_balance_dialog"
+      phx-value-id={@cash.id}
+    >
+      <%= gettext("Set balance") %>
+    </button>
+    """
+  end
 
   attr(:cash, CashAccount, required: true)
 
@@ -421,6 +545,40 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # -- events -------------------------------------------------------------------
 
   @impl true
+  def handle_event("open_balance_dialog", %{"id" => id}, socket) do
+    with {parsed, ""} <- Integer.parse(id),
+         %CashAccount{} = account <- Portfolios.get_cash_account(parsed) do
+      {:noreply, assign(socket, balance_dialog: account, balance_error: nil)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_balance_dialog", _params, socket) do
+    {:noreply, assign(socket, balance_dialog: nil, balance_error: nil)}
+  end
+
+  def handle_event("set_balance", %{"balance" => params}, socket) do
+    case socket.assigns.balance_dialog do
+      %CashAccount{} = account ->
+        case Ledger.set_cash_balance(Actor.owner_ui(), account, params) do
+          {:ok, _tx} ->
+            # Quiet feedback: the row's balance updating in place is the
+            # confirmation — no toast, no success banner (#566 direction).
+            {:noreply,
+             socket
+             |> assign(balance_dialog: nil, balance_error: nil)
+             |> load_state()}
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            {:noreply, assign(socket, :balance_error, changeset_error(changeset))}
+        end
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("open_account_dialog", _params, socket) do
     {:noreply, assign(socket, :account_dialog?, true)}
   end
@@ -646,6 +804,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       buckets: buckets,
       cash_accounts: cash_accounts,
       rows: build_rows(cash_accounts, buckets_by_id),
+      # Balance read surface per row (#670): derived balances plus the date
+      # of the newest cash-affecting booking, in the account's own currency.
+      cash_balances_by_id: Ledger.cash_balances(),
+      cash_balance_dates: Ledger.cash_activity_dates(),
       portfolio_records: Portfolios.portfolio_admin_list()
     )
   end

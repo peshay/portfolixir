@@ -463,7 +463,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
     # - An event after the deletion reloads the figures under Everything.
     # - A small notice explains the fallback; the error toast never shows.
     test "an event after view deletion degrades to Everything with a notice", %{conn: conn} do
-      %{cash: cash} = world()
+      world()
       {:ok, doomed} = Buckets.create_view(Actor.owner_ui(), %{name: "Doomed"})
 
       conn = get(conn, "/portfolio?view=#{doomed.id}")
@@ -474,15 +474,14 @@ defmodule PortfolixirWeb.ViewScopeTest do
       # The other tab deletes the view while this one still holds its id.
       {:ok, _} = Buckets.delete_view(Actor.owner_ui(), doomed)
 
+      # Any event that reloads the scoped figures hits the stale view id; the
+      # balance form left this page (#670), so the FX sync stands in — its
+      # success path re-loads the overview under the (now deleted) view.
       lv
-      |> form("form.balance-form", %{
-        "balance" => %{
-          "cash_account_id" => to_string(cash.id),
-          "date" => Date.to_iso8601(Date.utc_today()),
-          "amount" => "100"
-        }
-      })
-      |> render_submit()
+      |> element(~s(#portfolio-cash button[phx-click="sync_rates"]))
+      |> render_click()
+
+      render_async(lv)
 
       html = render_async(lv)
       assert has_element?(lv, "[data-role='view-gone-notice']")

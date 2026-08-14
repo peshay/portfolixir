@@ -1271,6 +1271,39 @@ li + li {
   color: var(--color-danger);
 }
 
+/* Cash balance per account row (issue 670): amount over its as-of basis
+   line, with the set-balance action beside it. */
+.cash-balance {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  vertical-align: middle;
+}
+
+.cash-balance__amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.cash-balance__asof {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.cash-balance__empty {
+  color: var(--color-text-muted);
+}
+
+.cash-balance__action {
+  margin-left: var(--space-2);
+  font-size: 12px;
+}
+
+.balance-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 /* Bulk data-quality action row (issue 561): trigger plus its inline result. */
 .dq-bulk-action {
   display: flex;

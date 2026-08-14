@@ -532,9 +532,9 @@ separate Pflege braucht.
 Für externe Konten (ein Girokonto, Sparkonto, ein Geschäftskonto) ist das Ziel
 Sichtbarkeit ohne Buchhaltung. Statt jede Buchung zu spiegeln, wird der
 **Saldo eines Kontos direkt gesetzt** — die Zahl, die die Banking-App zeigt,
-erfasst als datierter **Snapshot** (das Saldo-setzen-Formular auf der
-Vermögensseite, `POST /api/v1/cash_accounts/:id/balance` oder das MCP-Tool
-`cash_accounts.set_balance`). Der Saldo verankert sich dann an diesem Betrag, und
+erfasst als datierter **Snapshot** (der Dialog **Saldo setzen** an der
+Kontozeile auf Konten & Depots, `POST /api/v1/cash_accounts/:id/balance`
+oder das MCP-Tool `cash_accounts.set_balance`). Der Saldo verankert sich dann an diesem Betrag, und
 nur Buchungen mit einem Datum strikt nach dem Snapshot verändern ihn; so braucht
 Geld zwischen eigenen Konten zu verschieben keine Übertragungsbuchung — jeder
 Saldo wird nur ab und zu neu angegeben. Der Betrag darf negativ sein (ein
@@ -661,9 +661,11 @@ Ziel auch an seiner Zeile im Bereich *Nicht zugeordnet*. Trägt keine
 Top-Level-Kategorie ein Ziel, wohl aber tiefere Kategorien, ergänzt die
 Σ-Kopfzeile die Summe der tieferen Ziele („Ziele tiefer im Baum") statt ein
 nacktes 0 % zu zeigen. Der Cash-Abschnitt
-listet den Saldo jedes Kontos und trägt das **Saldo-setzen-Formular**: den
-Saldo eingeben, den die Bank zeigt, und der Snapshot wird ohne Buchung einzelner
-Transaktionen erfasst.
+listet den Saldo jedes Kontos nur lesend und verlinkt auf **Konten & Depots**:
+dort zeigt jede Geldkonto-Zeile ihren Saldo mit Stand-Datum und öffnet einen
+kleinen Dialog **Saldo setzen**, in dem das Konto bereits gewählt ist — den
+Saldo eingeben, den die Bank zeigt, und der Snapshot wird ohne Buchung
+einzelner Transaktionen erfasst.
 
 **Die Seite ist auf eine Ansicht eingegrenzt (ADR-0024).** Die Kopf-Summen und
 der Cash-Abschnitt folgen der **aktiven Ansicht über alle Portfolios hinweg** —
