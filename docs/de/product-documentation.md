@@ -1078,7 +1078,14 @@ Zwei Wege, auf denen Kurse ins System gelangen:
 Kursquellen in dieser Iteration:
 
 - Der Suchschritt (aus welchem Katalog das Wertpapier stammt) nutzt Portfolio
-  Performance für Aktien/ETFs/Fonds und CoinGecko für Krypto.
+  Performance für Aktien/ETFs/Fonds und CoinGecko für Krypto. Der
+  Anlage-Dialog bietet zusätzlich **Manuelle Eingabe** (auch aus dem
+  Suchschritt verlinkt) für Instrumente, die kein Anbieter kennt — direkt
+  zum Detailformular, gespeichert mit dem Provider-Marker `manual`. Handelt
+  ein gefundenes Wertpapier an mehreren Märkten, wird der **empfohlene
+  Markt** (XETR, sonst der erste EUR-Markt) zuerst mit seinem
+  Börsen-Klarnamen angeboten; die übrigen Märkte liegen hinter einer
+  Aufklappung *Weitere Märkte*.
 - Neue Wertpapiere starten bei Konfiguration eine Hintergrund-Kurs-/Logo-
   Anreicherung. Die Logo-Erkennung läuft über eine einzelne Hintergrund-
   Warteschlange, scannt beim Start fehlende Logo-Kandidaten und wird auch nach

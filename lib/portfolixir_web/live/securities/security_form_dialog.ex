@@ -136,6 +136,21 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
           <%= gettext("Search coins via CoinGecko.") %>
         </span>
       </button>
+
+      <%!-- Manual escape hatch (#491): instruments no provider knows are
+           still recordable — straight to the details form. --%>
+      <button
+        type="button"
+        class="choose-card"
+        phx-click="choose_mode"
+        phx-value-mode="manual"
+        phx-target={@myself}
+      >
+        <span class="choose-title"><%= gettext("Manual entry") %></span>
+        <span class="choose-sub">
+          <%= gettext("Enter the details yourself — for instruments no search knows.") %>
+        </span>
+      </button>
     </div>
     """
   end
@@ -187,39 +202,95 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
           <li class="search-result-empty"><%= gettext("No matches") %></li>
         <% end %>
       </ul>
+
+      <p class="dialog-help">
+        <button
+          type="button"
+          class="button-ghost"
+          data-role="manual-entry-link"
+          phx-click="choose_mode"
+          phx-value-mode="manual"
+          phx-target={@myself}
+        >
+          <%= gettext("Not listed? Enter manually") %>
+        </button>
+      </p>
     </form>
     """
   end
 
   defp render_market(assigns) do
+    # Recommended market first (#491): XETR, else the first EUR market, else
+    # the provider's first — one-click confirmation instead of a wall of MIC
+    # codes; the rest sit behind a disclosure.
+    {recommended, rest} = split_markets(assigns.selected_result.markets)
+    assigns = assign(assigns, recommended: recommended, rest: rest)
+
     ~H"""
     <p class="dialog-help"><%= gettext("Pick the market to import for") %> <strong><%= @selected_result.name %></strong>:</p>
-    <ul class="market-list">
-      <%= for {market, idx} <- Enum.with_index(@selected_result.markets) do %>
-        <li>
-          <button
-            type="button"
-            class="search-result"
-            phx-click="pick_market"
-            phx-value-idx={idx}
-            phx-target={@myself}
-          >
-            <span class="result-title">
-              <%= market.exchange_name || market.exchange_code || gettext("Market") %>
-            </span>
-            <span class="result-meta">
-              <%= [market.symbol, market.currency_code] |> Enum.reject(&is_nil/1) |> Enum.join(" · ") %>
-            </span>
-          </button>
-        </li>
-      <% end %>
-    </ul>
+    <div data-role="market-recommended">
+      <.market_button market={elem(@recommended, 0)} idx={elem(@recommended, 1)} myself={@myself}>
+        <span class="provider-badge"><%= gettext("Recommended") %></span>
+      </.market_button>
+    </div>
+    <%= if @rest != [] do %>
+      <details data-role="market-more" class="market-more">
+        <summary class="disclosure-summary">
+          <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+          <%= gettext("More markets") %>
+        </summary>
+        <ul class="market-list">
+          <li :for={{market, idx} <- @rest}>
+            <.market_button market={market} idx={idx} myself={@myself} />
+          </li>
+        </ul>
+      </details>
+    <% end %>
     <div class="modal-footer">
       <button type="button" class="button-ghost" phx-click="back_to_search" phx-target={@myself}>
         <%= gettext("Back") %>
       </button>
     </div>
     """
+  end
+
+  attr(:market, :any, required: true)
+  attr(:idx, :integer, required: true)
+  attr(:myself, :any, required: true)
+  slot(:inner_block)
+
+  defp market_button(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class="search-result"
+      phx-click="pick_market"
+      phx-value-idx={@idx}
+      phx-target={@myself}
+    >
+      <span class="result-title">
+        <%= @market.exchange_name || @market.exchange_code || gettext("Market") %>
+      </span>
+      <span class="result-meta">
+        <%= [@market.symbol, @market.currency_code] |> Enum.reject(&is_nil/1) |> Enum.join(" · ") %>
+      </span>
+      <%= render_slot(@inner_block) %>
+    </button>
+    """
+  end
+
+  # The sensible default first: XETR, else the first EUR-denominated market,
+  # else the provider's first. Indexes stay the provider-list indexes so
+  # pick_market addresses the original list.
+  defp split_markets(markets) do
+    indexed = Enum.with_index(markets)
+
+    recommended =
+      Enum.find(indexed, fn {market, _idx} -> market.exchange_code == "XETR" end) ||
+        Enum.find(indexed, fn {market, _idx} -> market.currency_code == "EUR" end) ||
+        List.first(indexed)
+
+    {recommended, Enum.reject(indexed, &(&1 == recommended))}
   end
 
   defp render_confirm(assigns) do
@@ -418,6 +489,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   defp dialog_title(:search, _), do: gettext("Search security")
   defp dialog_title(:market, _), do: gettext("Choose market")
   defp dialog_title(:confirm, "edit"), do: gettext("Edit security")
+  defp dialog_title(:confirm, "manual"), do: gettext("Enter security details")
   defp dialog_title(:confirm, _), do: gettext("Confirm details")
 
   defp provider_label(:portfolio_performance), do: "Portfolio Performance"
@@ -440,6 +512,20 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   def handle_event("close", _params, socket) do
     notify_parent(socket, :close)
     {:noreply, socket}
+  end
+
+  # Manual entry (#491): no provider round-trip — straight to the details
+  # form with an empty, EUR-defaulted form.
+  def handle_event("choose_mode", %{"mode" => "manual"}, socket) do
+    {:noreply,
+     socket
+     |> assign(:mode, "manual")
+     |> assign(:selected_result, nil)
+     |> assign(:selected_market, nil)
+     |> assign(:conflict, nil)
+     |> assign(:errors, %{})
+     |> assign(:form, manual_form())
+     |> assign(:step, :confirm)}
   end
 
   def handle_event("choose_mode", %{"mode" => mode}, socket) do
@@ -507,10 +593,16 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   def handle_event("back_from_confirm", _params, socket) do
-    if length(socket.assigns.selected_result.markets) > 1 do
-      {:noreply, assign(socket, :step, :market)}
-    else
-      {:noreply, assign(socket, :step, :search) |> assign(:selected_result, nil)}
+    cond do
+      is_nil(socket.assigns.selected_result) ->
+        # Manual entry has no search behind it — back returns to the choice.
+        {:noreply, assign(socket, :step, :choose)}
+
+      length(socket.assigns.selected_result.markets) > 1 ->
+        {:noreply, assign(socket, :step, :market)}
+
+      true ->
+        {:noreply, assign(socket, :step, :search) |> assign(:selected_result, nil)}
     end
   end
 
@@ -539,6 +631,20 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
         case Catalog.update_security(Actor.owner_ui(), existing, attrs) do
           {:ok, security} ->
             notify_parent(socket, {:updated, security})
+            {:noreply, socket}
+
+          {:error, changeset} ->
+            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
+        end
+
+      is_nil(socket.assigns.selected_result) ->
+        # Manual entry (#491): create straight from the form, no provider
+        # payload — the security carries the manual provider marker.
+        attrs = params |> to_overrides() |> Map.put_new(:provider, "manual")
+
+        case Catalog.create_security(Actor.owner_ui(), attrs) do
+          {:ok, security} ->
+            notify_parent(socket, {:created, security})
             {:noreply, socket}
 
           {:error, changeset} ->
@@ -631,6 +737,23 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   defp default_currency("", "crypto"), do: "EUR"
   defp default_currency(nil, _), do: ""
   defp default_currency(value, _), do: value
+
+  # The empty form for manual entry (#491): EUR pre-picked so the required
+  # currency select starts on the sensible local default.
+  defp manual_form do
+    %{
+      "name" => "",
+      "ticker_symbol" => "",
+      "isin" => "",
+      "wkn" => "",
+      "currency_code" => "EUR",
+      "exchange_code" => "",
+      "asset_class" => "",
+      "feed" => "",
+      "feed_url" => "",
+      "note" => ""
+    }
+  end
 
   defp check_conflict(socket) do
     case Catalog.find_matching_security(
