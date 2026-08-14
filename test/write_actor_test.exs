@@ -81,6 +81,13 @@ defmodule Portfolixir.WriteActorTest do
                   "tax_statement_snapshots"
                 ])
 
+  # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
+  # rebuildable at any time. A derived-value write is NOT a financial write and
+  # is deliberately neither journaled nor guard-armed — this list makes that
+  # table class EXPLICIT, because implicit non-coverage is how the journal gate
+  # would be bypassed rather than weakened (ADR-0039 §5, sign-off condition).
+  @derived_tables MapSet.new(["derived_values", "derived_data_version_events"])
+
   # `Repo.transaction` is deliberately NOT a write marker: a read-only
   # transaction is not a write. Writing transactions are detected through the
   # `Multi.*` / `Repo.*` write calls they contain.
@@ -126,6 +133,22 @@ defmodule Portfolixir.WriteActorTest do
 
   test "only converted contexts' journaled tables are guard-armed" do
     assert armed_tables_in_db() == @armed_tables
+  end
+
+  test "derived-value tables exist and stay deliberately un-journaled (ADR-0039)" do
+    existing = tables_in_db()
+
+    for table <- @derived_tables do
+      assert MapSet.member?(existing, table),
+             "expected derived table #{table} to exist — did the ADR-0039 migration change?"
+    end
+
+    assert MapSet.disjoint?(@derived_tables, @armed_tables)
+
+    assert MapSet.disjoint?(@derived_tables, armed_tables_in_db()),
+           "a derived-value table gained a journal guard trigger — a materialization " <>
+             "write is not a financial write (ADR-0039); arming it would make every " <>
+             "read-path store fail for want of an actor"
   end
 
   # -- AST classifier --------------------------------------------------------
@@ -251,6 +274,13 @@ defmodule Portfolixir.WriteActorTest do
   defp actor_first?([first | _]) do
     str = Macro.to_string(first)
     String.contains?(str, "Actor") or str in ["actor", "_actor"]
+  end
+
+  defp tables_in_db do
+    %{rows: rows} =
+      Repo.query!("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+
+    rows |> Enum.map(fn [name] -> name end) |> MapSet.new()
   end
 
   defp armed_tables_in_db do
