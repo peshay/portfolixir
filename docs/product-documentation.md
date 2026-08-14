@@ -124,6 +124,26 @@ A stored class is a permanent override: once set it is returned by
 `effective_asset_class` regardless of what the heuristics would produce, so the
 quick-assign choice survives any future heuristic changes.
 
+### Deep-linkable filters
+
+The securities list's filter state lives in the URL, so any filtered view can
+be bookmarked or linked to:
+
+- `?q=…` — the search query.
+- `?holding=held|not_held` — the holding-status toggle.
+- `?filter[]=column:operator[:value]` — one or more column filters, e.g.
+  `?filter[]=asset_class:is_nil` (unclassified securities) or
+  `?filter[]=currency_code:eq:USD`. Operators match the filter popover's
+  set; unknown columns or operators are dropped.
+- `?dq=stale_quote|missing_quote|missing_logo` — the data-quality shortcut
+  filters: no quote in the last 7 days (including none at all), no quote at
+  all, and no stored logo. The active shortcut appears as a removable filter
+  chip.
+
+Searching, switching the holding status, or applying a filter updates the URL
+in place, and selecting a security keeps the active filters. The Overview
+data-quality line links here with the matching filter pre-applied.
+
 #### Letter-spaced names from Portfolio Performance
 
 Portfolio Performance sometimes exports names with a space between every
