@@ -49,7 +49,7 @@ defmodule Portfolixir.MixProject do
     [
       {:phoenix, "~> 1.8.9"},
       {:phoenix_ecto, "~> 4.6"},
-      {:gettext, "~> 0.24"},
+      {:gettext, "~> 1.0"},
       {:ecto_sql, "~> 3.12"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
