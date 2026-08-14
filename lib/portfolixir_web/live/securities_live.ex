@@ -687,6 +687,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         id="detail-pane-tabs"
         class="detail-pane-tabs"
         role="tablist"
+        data-tab-level="2"
         aria-label={gettext("Security detail tabs")}
       >
         <%= for {tab, label} <- detail_tabs() do %>

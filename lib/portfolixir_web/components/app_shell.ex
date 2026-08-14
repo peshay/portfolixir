@@ -183,44 +183,80 @@ defmodule PortfolixirWeb.AppShell do
   The area tab bar (ADR-0022): sub-navigation inside a task area, e.g. the
   Wealth tabs (Holdings · Allocation & targets · Income) or the Transactions
   tabs (History · Import). Plain links so switching works without JS.
+
+  Design language (issue 668, DESIGN.md → Components → Tabs): first-level
+  tabs carry an aria-hidden icon plus a real-text label; the icon vocabulary
+  is shared with the navigation (a tab for the sidebar's own destination uses
+  the sidebar's glyph, and no glyph carries a second meaning). The nesting
+  level is carried structurally via `data-tab-level` because the icon
+  presence alone is a sighted-only cue (H5, accessibility review 2026-08-05).
+  The label element reserves its bold width (UX-DR18) via `data-label`.
   """
   attr(:tabs, :list, required: true)
 
   def area_tabs(assigns) do
     ~H"""
-    <nav class="area-tabs" data-role="area-tabs" aria-label={gettext("Section tabs")}>
+    <nav
+      class="area-tabs"
+      data-role="area-tabs"
+      data-tab-level="1"
+      aria-label={gettext("Section tabs")}
+    >
       <a
         :for={tab <- @tabs}
         href={tab.href}
         class={["area-tab", tab.current && "is-active"]}
         aria-current={if tab.current, do: "page", else: nil}
       >
-        <%= tab.label %>
+        <span :if={tab[:icon]} class="area-tab__icon" aria-hidden="true">
+          <.icon name={tab.icon} size={14} />
+        </span>
+        <span class="area-tab__label" data-label={tab.label}><%= tab.label %></span>
       </a>
     </nav>
     """
   end
 
+  # Tab icons (issue 668): shared vocabulary with the navigation. Holdings
+  # reuses the sidebar Wealth glyph (same destination /portfolio), History the
+  # sidebar Transactions glyph (same destination /transactions); the rest are
+  # otherwise-unused glyphs so no glyph carries a second meaning (UX-DR16).
   @doc "The Wealth area's tabs (ADR-0022); `current` marks the active one."
   def wealth_tabs(current) do
     [
-      %{label: gettext("Holdings"), href: "/portfolio", current: current == :holdings},
+      %{
+        label: gettext("Holdings"),
+        href: "/portfolio",
+        current: current == :holdings,
+        icon: :chart_line
+      },
       %{
         label: gettext("Allocation & targets"),
         href: "/portfolio?tab=allocation",
-        current: current == :allocation
+        current: current == :allocation,
+        icon: :pie
       },
-      %{label: gettext("Income"), href: "/income", current: current == :income},
-      %{label: gettext("Snapshots"), href: "/snapshots", current: current == :snapshots},
-      %{label: gettext("Tax"), href: "/tax", current: current == :tax}
+      %{label: gettext("Income"), href: "/income", current: current == :income, icon: :chart_bar},
+      %{
+        label: gettext("Snapshots"),
+        href: "/snapshots",
+        current: current == :snapshots,
+        icon: :camera
+      },
+      %{label: gettext("Tax"), href: "/tax", current: current == :tax, icon: :calc}
     ]
   end
 
   @doc "The Transactions area's tabs (ADR-0022); `current` marks the active one."
   def transactions_tabs(current) do
     [
-      %{label: gettext("History"), href: "/transactions", current: current == :history},
-      %{label: gettext("Import"), href: "/imports", current: current == :import}
+      %{
+        label: gettext("History"),
+        href: "/transactions",
+        current: current == :history,
+        icon: :bars
+      },
+      %{label: gettext("Import"), href: "/imports", current: current == :import, icon: :upload}
     ]
   end
 
@@ -577,6 +613,13 @@ defmodule PortfolixirWeb.AppShell do
   defp icon_paths(:image),
     do:
       ~s(<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>)
+
+  # Snapshots tab (issue 668): a snapshot is a frozen picture of a depot, so
+  # the glyph is a camera — an addition, because no existing glyph carries
+  # that meaning and reusing one would create a second meaning (UX-DR16).
+  defp icon_paths(:camera),
+    do:
+      ~s(<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/>)
 
   # The three severity glyphs (UX-DR17, decided 2026-08-05): additions to the
   # set — no existing glyph carries a severity reading, and a second meaning
