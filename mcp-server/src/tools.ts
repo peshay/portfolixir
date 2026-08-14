@@ -1762,7 +1762,7 @@ const reconcileZ = z.object({
 });
 
 const toolDefinitions: ToolDefinition[] = [
-  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Use limit/offset to page large catalogs.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -1772,7 +1772,8 @@ const toolDefinitions: ToolDefinition[] = [
       holding_status: { type: "string", enum: ["held", "not_held", "all"] },
       projection: { type: "string", enum: ["slim", "full"] },
       limit: { type: "integer", minimum: 0 },
-      offset: { type: "integer", minimum: 0 }
+      offset: { type: "integer", minimum: 0 },
+      since: { type: "string" }
     }
   }, z.object({
     query: optionalString(),
@@ -1781,7 +1782,8 @@ const toolDefinitions: ToolDefinition[] = [
     holding_status: z.enum(["held", "not_held", "all"]).optional(),
     projection: z.enum(["slim", "full"]).optional(),
     limit: z.number().int().min(0).optional(),
-    offset: z.number().int().min(0).optional()
+    offset: z.number().int().min(0).optional(),
+    since: optionalString()
   })),
   tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security.", idSchema, idZ),
   tool("portfolixir.securities.create", "Create security", "Create a local security. To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view.", securitySchema, securityZ),
@@ -1861,7 +1863,7 @@ const toolDefinitions: ToolDefinition[] = [
     idSchema,
     idZ
   ),
-  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id. Optional fields (FR-37) selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. id, type, date, security_id, gross_amount) for routine reads and request the full rows only when auditing a booking.", {
+  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id. Optional fields (FR-37) selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. id, type, date, security_id, gross_amount) for routine reads and request the full rows only when auditing a booking. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -1870,7 +1872,8 @@ const toolDefinitions: ToolDefinition[] = [
       portfolio_id: { type: "integer", minimum: 1 },
       security_id: { type: "integer", minimum: 1 },
       securities_account_id: { type: "integer", minimum: 1 },
-      fields: { type: "array", items: { type: "string", enum: [...transactionFieldNames] } }
+      fields: { type: "array", items: { type: "string", enum: [...transactionFieldNames] } },
+      since: { type: "string" }
     }
   }, z.object({
     from: optionalString(),
@@ -1878,7 +1881,8 @@ const toolDefinitions: ToolDefinition[] = [
     portfolio_id: z.number().int().positive().optional(),
     security_id: z.number().int().positive().optional(),
     securities_account_id: z.number().int().positive().optional(),
-    fields: z.array(z.enum(transactionFieldNames)).optional()
+    fields: z.array(z.enum(transactionFieldNames)).optional(),
+    since: optionalString()
   })),
   tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id and quantity — inbound_delivery additionally REQUIRES price (an unpriced inbound delivery enters the cost basis at zero), while outbound_delivery removes cost at the position's running average and treats price as informational; security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. For buy/sell, omit cash_account_id — it is derived from the depot's linked account. Amounts are positive magnitudes; the kind implies the direction (removal/fee/tax debit, deposit/dividend/interest/tax_refund credit) — never send negative values: a refunded tax (e.g. from a loss sale) is a separate tax_refund transaction with a positive gross_amount, never a negative taxes field (set_balance is the only negative-capable amount). Semantics: for dividend/interest/tax_refund bookings, gross_amount is the NET cash credited to the account — record withheld taxes in the taxes field; the income report reconstructs gross as net plus withheld tax. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking). Semantics as on create: a dividend's gross_amount is the NET cash credited (withheld taxes ride in the taxes field), and an unpriced inbound delivery enters the cost basis at zero (changing a type to inbound_delivery therefore requires a price).", transactionUpdateSchema, transactionUpdateZ),
@@ -2391,7 +2395,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "holding_status",
           "projection",
           "limit",
-          "offset"
+          "offset",
+          "since"
         ])
       );
     case "portfolixir.securities.get":
@@ -2462,7 +2467,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "portfolio_id",
           "security_id",
           "securities_account_id",
-          "fields"
+          "fields",
+          "since"
         ])
       );
     case "portfolixir.transactions.create":

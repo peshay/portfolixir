@@ -36,6 +36,18 @@ send strings.
 `204 No Content` with an empty body. Clients should not parse a JSON body for
 that successful delete response.
 
+**Delta reads (FR-38).** The two recurring-sync reads — `GET
+/api/v1/transactions` and `GET /api/v1/securities` — accept
+`?since=<ISO8601>` (a datetime with offset, a naive UTC datetime, or a plain
+date meaning start of that day, UTC) and then return only the rows created or
+updated strictly after that instant, judged by `updated_at`. The response
+echoes `since`, carries `as_of` (the read instant — use it as the next
+`since`) and a `delta_note` stating the semantics. **Deletions are not
+represented** in a delta read; a caller that must detect deletions performs a
+full read. An invalid `since` is a `422`. Delta reads are **pull-only**: push
+delivery (webhooks to a user-configured endpoint) is a separate, still-gated
+decision (B3.7) and deliberately not part of this surface.
+
 ## Securities
 
 - `GET /api/v1/securities` lists securities. Rows default to a slim

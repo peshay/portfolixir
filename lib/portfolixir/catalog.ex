@@ -43,11 +43,19 @@ defmodule Portfolixir.Catalog do
     |> apply_filters(opts[:filters] || [])
     |> apply_holding_status(opts[:holding_status])
     |> apply_logo_status(opts[:logo_status])
+    |> apply_updated_since(opts[:updated_since])
     |> apply_sort(db_sort_or_default(sort))
     |> apply_limit(opts[:limit])
     |> apply_offset(opts[:offset])
     |> Repo.all()
   end
+
+  # Delta reads (FR-38, #666): rows created or updated strictly after the
+  # naive-UTC cut. updated_at >= inserted_at always, so this covers creates.
+  defp apply_updated_since(query, nil), do: query
+
+  defp apply_updated_since(query, %NaiveDateTime{} = cut),
+    do: from(s in query, where: s.updated_at > ^cut)
 
   # `:logo_status` narrows the list by logo state, used by the "securities
   # without logo" overview. `:missing` excludes both stored logos and rows the

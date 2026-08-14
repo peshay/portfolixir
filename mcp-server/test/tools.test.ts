@@ -417,6 +417,29 @@ describe("Portfolixir MCP tools", () => {
     );
   });
 
+  // User story (FR-38, issue #666):
+  // As the operating LLM agent on a recurring run,
+  // I want ?since= delta reads on transactions.list and securities.list over
+  // MCP,
+  // so that a sync run transfers only what changed since the last run —
+  // pull-only by design (push delivery stays gated at B3.7).
+  //
+  // Acceptance criteria:
+  // - Both list tools forward `since` as a query parameter.
+  it("forwards since= for delta reads on transactions.list and securities.list", async () => {
+    const { client, requests } = createRecordingClient({ data: [] });
+
+    await callTool(client, "portfolixir.transactions.list", {
+      since: "2026-06-01T00:00:00Z"
+    });
+    assert.equal(requests[0].path, "/api/v1/transactions?since=2026-06-01T00%3A00%3A00Z");
+
+    await callTool(client, "portfolixir.securities.list", {
+      since: "2026-06-01T00:00:00Z"
+    });
+    assert.equal(requests[1].path, "/api/v1/securities?since=2026-06-01T00%3A00%3A00Z");
+  });
+
   it("issues a GET to /holdings/by_security for portfolixir.holdings.by_security", async () => {
     const { client, requests } = createRecordingClient({
       data: {
