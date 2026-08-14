@@ -58,15 +58,17 @@ defmodule Portfolixir.CITest do
   # without any manual release work (issue 659, ADR-0026 step 5).
   #
   # Acceptance criteria:
-  # - A Release workflow triggers on v* tag pushes and creates the release
-  #   with generated notes from a verified tag.
+  # - A Release workflow triggers on version-tag pushes — the bare-number
+  #   scheme the owner's first release (0.5.0) established, with v* kept
+  #   for compatibility — and creates the release with generated notes
+  #   from a verified tag.
   # - It builds no installable artifacts and needs only contents: write.
   # - AGENTS.md step 5 carries the tag duty, so the close-out creates the
   #   tag that feeds this workflow.
   test "a tag push creates the GitHub release with generated notes" do
     release = File.read!(".github/workflows/release.yml")
 
-    assert release =~ ~s(tags: ["v*"])
+    assert release =~ ~s(tags: ["v*", "[0-9]*.[0-9]*.[0-9]*"])
     assert release =~ "--generate-notes"
     assert release =~ "--verify-tag"
     assert release =~ "contents: write"
