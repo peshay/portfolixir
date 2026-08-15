@@ -533,3 +533,56 @@ rather than an open question. Beyond that:
 - **Category performance** — its own decision gate (A3), sequenced on purpose.
 
 **Nothing further is open for the owner.** Issues on confirmation.
+
+---
+
+## Round 3 — issues filed (2026-08-15)
+
+The owner confirmed the routing, so the confirmed items became thin issues per
+ADR-0038. From here the backlog, not this document, answers "is it done?".
+
+### Confirmed defects
+
+| Issue | Item | Parent |
+|---|---|---|
+| #700 | F1 — asset class: stored vs. effective, and the dead quick-assign affordance | #417 |
+| #701 | F2 — securities table headers bypass gettext | #356 |
+| #702 | F3 — Wealth tab row clips on a phone (#668 regression) | #356 |
+| #703 | F4 — "no current quote" withholds its positions; Overview/Wealth duplication | #356 |
+| #704 | F5 — ADR identifier in user-facing copy | #356 |
+| #705 | F6 — data-quality predicates over filter builder, API and MCP | #419 |
+
+#705 depends on #700: the predicate has to mean what the count means, so the
+stored-vs-effective decision governs both.
+
+### Process and design
+
+| Issue | Item | Parent |
+|---|---|---|
+| #706 | 0.2 — design-critic and UAT review conditions (DE locale, ≤390 px, finding-triggering seed data) | #420 |
+| #707 | Part 2 + Part 4 — the design engagement (D1–D6, Transactions, Income) | #356 |
+
+### Not filed, deliberately
+
+The three decision gates: the **ADR-0027 amendment** (pre-cost return,
+transaction costs, recovery state), the **plan-semantics decision** (explicit
+unallocated remainder, drift against the allocated portion, the payload), and
+**per-category performance**. Each needs its ADR signed off before an issue
+would carry any authority — filing them now would produce titles with no spec
+behind them, which is the failure mode this repository's issue convention
+exists to prevent.
+
+Two are ready for their gate the moment the owner wants them scheduled: the
+ADR-0027 amendment's definition is settled in A1, and the plan semantics are
+settled in A2. Per-category performance still needs its membership-over-time
+basis decided, which is the substance of its ADR rather than a preliminary.
+
+### Backlog updates that follow from this round
+
+- **#672** takes its scope from the PP walkthrough in
+  `feedback-triage-2026-08-05.md`; the discovery question is closed.
+- **#414 / #471** gain the UI dimension, and should follow #707's output rather
+  than land on the pre-design-language screen.
+- The **Trades view** is not filed yet on purpose: it must first be reconciled
+  against the "how well did I sell" cash-flow facet from the 2026-08-12 round,
+  so one table is specified once rather than twice under two names.
