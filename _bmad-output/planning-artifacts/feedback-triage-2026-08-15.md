@@ -598,7 +598,7 @@ this triage closes here: the ADRs and the backlog carry it from now on.
 |---|---|---|
 | [ADR-0027 amendment](../../docs/decisions/0027-plan-versions-and-depot-snapshots.md) — the comparison states its transaction costs (A1) | Accepted | #708 |
 | [ADR-0040](../../docs/decisions/0040-unallocated-remainder-in-target-plans.md) — a target plan states its unallocated remainder (A2) | Accepted | #709 |
-| [ADR-0041](../../docs/decisions/0041-per-category-performance.md) — per-category return and contribution (A3) | **Proposed** | none yet, by design |
+| [ADR-0041](../../docs/decisions/0041-per-category-performance.md) — per-category return and contribution, current membership + restatement marker (A3) | **Proposed** | none yet, by design |
 
 Three things settled in the writing that the triage had left one level too
 abstract, and each of them changes the work:
@@ -620,17 +620,31 @@ risk-tier work — it changes a number the operator steers by — rather than th
 visual fix the original observation looked like.
 
 **Per-category performance is one decision away from ready, and it is not the
-one the triage predicted.** The membership-over-time question turned out to have
-a sharper answer than "both are defensible": as-of membership *is*
-reconstructible, because `upsert_assignment/4` journals every custom-tree
-assignment with its before-image and Catalog journals the security fields the
-built-in trees derive from. What is missing is not the history but a temporal
-index over it — the audit journal is an append-only forensic record, and
-answering "which category held this security on a given day" from it means
-replaying entries backwards per security per day. So v1 measures under **current
-membership**, states in the payload that reclassification restates history under
-it, and sequences the as-of variant behind #677. That single basis choice is the
-only thing in ADR-0041 needing an owner yes; everything else follows from it.
+one the triage predicted.** The membership-over-time question first looked like
+"both are defensible, one is costlier": as-of membership *is* reconstructible,
+because `upsert_assignment/4` journals every custom-tree assignment with its
+before-image and Catalog journals the security fields the built-in trees derive
+from. Checking *when that recording started* settled it instead —
+`20260623130000_arm_assignments_journal.exs` armed assignment journaling on
+**2026-06-23**, while holdings histories here come from Portfolio Performance
+imports spanning years. An as-of computation would therefore be exact for the
+weeks since and fall back to current membership for everything before it: not
+better-but-costlier, but **costlier and, over the period that carries the
+history, the same answer**.
+
+ADR-0041 accordingly decides **current membership plus a restatement marker** —
+a category whose composition changed inside the reported window says so, because
+a return series that moves without a trade otherwise reads as an arithmetic
+error. That is Part 0.1 of this triage applied to a figure instead of a finding.
+The basis is the only thing needing an owner yes; the as-of variant is worth
+revisiting when the recorded history is long enough for the two to genuinely
+diverge, which is a matter of elapsed time rather than engineering.
+
+*(An earlier revision of this section and of ADR-0041 §4 named the audit-journal
+rollout (#677) as the precondition for as-of membership. That was wrong:
+assignment writes have been journaled since 2026-06-23, so #677 blocks other
+write paths, not this one. Corrected the same day, before the decision was acted
+on.)*
 
 ### Where this round ends
 

@@ -51,15 +51,33 @@ a definition is an opinion with decimal places.
 
 Current membership has a real cost — reclassifying a security silently rewrites
 a past category return, so "did this category work?" can change without any trade
-happening. As-of membership avoids that and is **reconstructible in principle**:
-`Portfolixir.Classifications.upsert_assignment/4` journals every custom-tree
-assignment as a `security_category_assignment` create/update with the prior
-assignment as its before-image ([ADR-0017](0017-append-only-audit-journal.html),
-FR-28), and built-in trees derive from security fields whose changes the Catalog
-context journals. But the audit journal is an append-only forensic record, not a
-temporal index: answering "which category held this security on 2019-04-11"
-means replaying its entries backwards from today, for every security, for every
-day of the window. That is a different data structure, not a different query.
+happening.
+
+As-of membership avoids that, and a first reading suggested it was merely
+*expensive*: `Portfolixir.Classifications.upsert_assignment/4` journals every
+custom-tree assignment as a `security_category_assignment` create/update carrying
+the prior assignment as its before-image
+([ADR-0017](0017-append-only-audit-journal.html), FR-28), and built-in trees
+derive from security fields whose changes the Catalog context journals. Two facts
+say otherwise, and together they decide this ADR:
+
+1. **The journal is a forensic record, not a temporal index.** Answering "which
+   category held this security on a given day" from it means replaying entries
+   backwards from today, per security, per day. That is a different data
+   structure, not a different query.
+2. **The history does not reach back far enough to matter.**
+   `20260623130000_arm_assignments_journal.exs` armed assignment journaling on
+   **2026-06-23**. Holdings histories in this system come from Portfolio
+   Performance imports spanning years. For every day before that migration there
+   is no assignment history at all, so an as-of computation would have to fall
+   back to current membership anyway.
+
+So as-of membership is not "better but costlier". It is **exact for the weeks
+since the journal was armed and identical to current membership for the years
+before** — while costing a temporal index, a backfill story it cannot honour, and
+a second membership basis in every payload. That is a bad trade today and a
+possibly good one in a few years, which is a sequencing fact rather than a
+scoping one.
 
 ## Decision
 
@@ -77,17 +95,26 @@ category with a spectacular return contributes almost nothing, and a figure that
 does not say which question it answers invites exactly that error. Contributions
 **must sum to the total** at each level, and that identity is a test, not a hope.
 
-### 2. v1 measures under current membership, and says so
+### 2. Current membership, with a restatement marker
 
-v1 applies **today's** classification across the whole window. Rationale: it is
-exact, cheap, reproducible from data the system holds directly, and needs no new
-storage. As-of membership stays out of v1 because it needs a temporal membership
-index the system does not have, and building one inside a first slice would put
-the hardest part of the feature in the same commit as its first number.
+v1 applies **today's** classification across the whole window — not as a
+compromise but because, for the period that carries the portfolio's history, it
+is the only membership the system knows (Context, fact 2).
 
-The consequence is stated rather than hidden: **reclassifying a security changes
-its category's past figures.** That is a real limitation, it is visible in the
-payload, and it is the reason §4 exists.
+The consequence is real and must not be silent: **reclassifying a security
+changes its category's past figures.** A return series that moves without a trade
+looks like a arithmetic error to anyone who does not know why, and this system's
+whole claim is that its numbers are explainable.
+
+So the basis ships with a **restatement marker**: a category whose membership
+changed inside the reported window carries a flag saying its series was
+recomputed under the current classification, in the payload and on the surface.
+It is cheap — the assignment journal already records exactly the events that set
+it, from 2026-06-23 forward, which is precisely the period in which a
+reclassification can still surprise the reader.
+
+This is the same principle the rest of this feedback round turned on: a figure
+that cannot explain its own movement is an alarm without an address.
 
 ### 3. Computation basis in every payload (review-blocking)
 
@@ -95,8 +122,9 @@ Per the identity gate's requirement for level (a)–(c) analytics, each
 per-category figure carries, in the API and MCP payload and not only in a doc
 page:
 
-- the **membership basis** (`current` in v1) and the plain statement that
-  reclassification restates history under it;
+- the **membership basis** (`current` in v1), the plain statement that
+  reclassification restates history under it, and the **restatement marker** of
+  §2 where it applies;
 - the **input series and window**, the **base currency**, and the treatment of
   gaps — inherited unchanged from the existing walk
   ([ADR-0016](0016-rounding-policy.html): full precision in compute, rounding
@@ -107,15 +135,25 @@ page:
 - for contribution, the **level** it decomposes and the statement that the level
   sums to the total.
 
-### 4. As-of membership is the named follow-up, with its precondition
+### 4. As-of membership is deferred by arithmetic, not by appetite
 
-The as-of variant is not vetoed — it is sequenced behind the thing it needs: a
-temporal membership index derived from the journaled assignment history, built
-once and maintained forward, rather than replayed per query. That work sits
-directly behind the audit-journal rollout completion (#677) and should be judged
-on whether the restatement problem actually bites in use. When it lands, the
-membership basis in §3 becomes a value the caller can choose, and the existing
-`current` answer keeps working unchanged.
+The as-of variant is not vetoed and not merely postponed for effort. It is
+deferred because **its answer today is mostly the same answer**: exact only back
+to 2026-06-23, and identical to `current` for every year before that. Building a
+temporal membership index now would buy weeks of precision at the price of a
+second basis in every payload.
+
+It becomes worth building when the journaled history is long enough that "as-of"
+and "current" genuinely diverge over a period a reader cares about — a question
+of elapsed time, not of engineering. When that day comes, the membership basis in
+§3 becomes a value the caller chooses, the `current` answer keeps working
+unchanged, and the restatement marker of §2 is what will have shown whether the
+divergence ever mattered.
+
+*(This section previously named the audit-journal rollout (#677) as the
+precondition. That was wrong: assignment writes have been journaled since
+2026-06-23, so #677 blocks other write paths, not this one. The real constraint
+is the length of the recorded history.)*
 
 ### 5. Scope of this decision
 
@@ -130,11 +168,19 @@ makes the contribution identity in §1 hold at all.
 
 ## What needs the owner's yes
 
-Only §2 is a genuine choice rather than a consequence: **v1 measures under
-current membership, accepting that reclassification restates past category
-figures, with as-of membership sequenced behind #677.** The rest follows from
-it. If the restatement is unacceptable at v1, this ADR does not shrink — it
-grows a temporal membership index and a much larger first slice.
+Only §2 is a genuine choice; everything else follows from it. Three forms it
+could take, with the recommendation stated rather than implied:
+
+| | Basis | Assessment |
+|---|---|---|
+| **A+** | Current membership **plus the restatement marker** — what §2 decides | **Recommended.** The marker costs almost nothing and converts a silent restatement into an explained property |
+| A | Current membership, no marker | Defensible only if reclassification effectively stops once a tree is settled. Then the marker is dead weight |
+| B | As-of membership from the start | Exact back to 2026-06-23 and identical to A before that, for the price of a temporal index and a second basis in every payload |
+
+The recommendation is A+. What would change it: if reclassification is genuinely
+rare once a tree is stable, A is enough. Nothing plausible argues for B *now* —
+its value grows with the length of the journaled history, so it is a decision
+worth revisiting in a couple of years, not a fork in this one.
 
 ## Consequences
 
@@ -143,7 +189,11 @@ grows a temporal membership index and a much larger first slice.
   rebalancing decision actually needs. It is also the first capability where
   Portfolixir is ahead of Portfolio Performance rather than catching up.
 - Negative / accepted: under `current` membership, category history is not
-  stable across reclassification. Named in the payload, not buried.
+  stable across reclassification. Named in the payload and marked per category,
+  not buried.
+- Accepted and worth stating plainly: for the imported years this limitation is
+  **unavoidable, not chosen** — no membership history exists for them under any
+  design short of reconstructing it by hand.
 - The per-category walk multiplies the daily walk's cost by the number of
   categories unless it shares one pass. It must be computed as a **grouping
   within the existing walk**, not as N walks — ADR-0035's rule applies with more
@@ -157,10 +207,11 @@ grows a temporal membership index and a much larger first slice.
 
 ## References
 
-- [ADR-0017](0017-append-only-audit-journal.html) — the assignment history this
-  decision reads as *possible but not yet queryable*
+- [ADR-0017](0017-append-only-audit-journal.html) — the assignment history, armed
+  for assignments by `20260623130000_arm_assignments_journal.exs` and therefore
+  reaching back only to 2026-06-23
 - [ADR-0020](0020-view-bound-soll-plans.html) — target weights per category
 - [ADR-0035](0035-one-pricing-pass-per-read.html) — one pricing pass per read
 - [ADR-0039](0039-durable-derived-values.html) — materialization and freshness
-- #572 benchmark comparison · #677 audit-journal rollout completion
+- #572 benchmark comparison
 - Owner feedback triage 2026-08-15, Round 2/A3
