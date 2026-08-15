@@ -116,3 +116,89 @@ stories.
 - [ADR-0026](0026-epic-batch-workflow.html) — decision-gate workflow this ADR follows
 - FR-27 / #332 — what-if simulator (later phase, builds on these primitives)
 - Epic tracking: E16 in `_bmad-output/planning-artifacts/epics.md`
+
+## Amendment: the comparison states its transaction costs (2026-08-15, owner decision)
+
+§2 above labels the v1 counterfactual as *gross and price-return only* and names
+the dividend asymmetry as the follow-up. It is silent on a second asymmetry that
+is larger in the months right after a restructuring — which is exactly the window
+in which the comparison is read.
+
+**The two sides are not measured on one basis.** The snapshot side takes *no
+trades and no flows*: it pays nothing, ever. The real side is TTWROR, where
+`Portfolixir.Portfolios.Performance` treats dividends, interest, **fees and
+taxes** as internal — they are return, so every fee and tax actually booked
+depresses it. The frozen side therefore wins by default for as long as the
+trading costs of the change are unrecovered, and a reader cannot tell that from
+the number.
+
+The owner's question that opened this (feedback triage 2026-08-15, Round 2)
+separates two things the single figure conflates: *were the changes right?* and
+*have they paid for themselves yet?* Those call for opposite responses, so one
+number cannot serve both.
+
+### 1. What is subtracted, and what it is called
+
+**Transaction costs** = the `fees` and `taxes` recorded **on `buy` and `sell`
+transactions** falling inside the comparison window (as-of date → today), in the
+comparison's base currency.
+
+Two boundaries make this definition honest rather than convenient:
+
+- **Standalone `fee` and `tax` bookings stay internal.** A custody fee or an
+  account charge is not caused by a trade; the frozen holder would have paid it
+  too. Only costs carried by a trade leave the return.
+- **Dividend and interest taxation stays internal**, with the dividend
+  asymmetry it belongs to. Removing it here would half-fix the wrong gap.
+
+**The name matters and the working name was wrong.** "Restructuring costs"
+claims the costs were *caused by the restructuring* — an attribution the
+arithmetic cannot establish, because the engine subtracts by rule and never
+knows why a trade happened. "Transaction costs" claims only what is true: a fee
+on a trade is caused by that trade. The narrower name also keeps the figure
+meaningful when nothing was restructured at all, which is the common case for a
+snapshot taken as a plain checkpoint.
+
+### 2. The figure set
+
+| Slot | Definition |
+|---|---|
+| Frozen return | Unchanged: buy-and-hold of the frozen holdings over real quote history |
+| Real return | Unchanged: the scope's TTWROR since the as-of date, net of everything |
+| Real return before transaction costs | The **same daily walk** with window trade fees and taxes reclassified as **external** flows, so they neither reduce the return nor count as performance |
+| Transaction costs | The sum itself, in base currency and in percentage points of the return |
+
+The third slot reuses the existing walk with one changed flow classification —
+it introduces no second performance engine and no stored figure.
+
+### 3. The recovery state
+
+Three values, and the third is why the split is worth building:
+
+- **recovered** — the real net return is ahead of the frozen one;
+- **partly recovered** — the pre-cost return is ahead, the net one is not yet;
+  the remaining gap is stated;
+- **not recovered** — the pre-cost return is behind as well, so the costs are
+  not the reason and the changes have not paid off on their own merits.
+
+### 4. Rendering rule (review-blocking)
+
+**The pre-cost return is never rendered alone.** It always carries the
+transaction-cost figure and the recovery state beside it, in the UI and in the
+API/MCP payload alike. On its own it is a number that flatters, and the value of
+this system rests on figures that can embarrass their author.
+
+### 5. Computation basis in the payload
+
+Per the identity gate's requirement for level (a)–(c) analytics, the payload
+states: the window (as-of → today), which cost kinds were removed and which were
+kept, the base currency, and that the frozen side remains price-return only. The
+existing on-surface note carries the same statement **without its ADR
+identifier** — an internal decision number has no place in product copy (#704).
+
+### 6. What this does not change
+
+The buy-and-hold shape of the counterfactual, the ledger-marker snapshot, the
+dividend follow-up, and the out-of-scope status of rebalancing simulation
+(FR-27, #332) are all unchanged. This amendment adds a decomposition of the real
+side; it does not touch the frozen one.
