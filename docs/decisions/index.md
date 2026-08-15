@@ -69,4 +69,4 @@ already in force in the codebase.
 | [0038](0038-continuous-feedback-and-design-authority.html) | Continuous owner feedback loop and a standing design authority | Accepted (amends 0026) |
 | [0039](0039-durable-derived-values.html) | Durable derived values — one memoization mechanism with a lifetime per analytic | Accepted (gate B3.2; supersedes 0032) |
 | [0040](0040-unallocated-remainder-in-target-plans.html) | A target plan states its unallocated remainder | Accepted |
-| [0041](0041-per-category-performance.html) | Per-category performance — a classification category carries its own return | Proposed |
+| [0041](0041-per-category-performance.html) | Category result — the positions in a category, rolled up and decomposable | Proposed |

@@ -1,217 +1,177 @@
 ---
 layout: docs
-title: "ADR-0041: per-category performance — a classification category carries its own return"
-description: Categories describe the portfolio today; they do not evaluate it. This decision gives every category its own return series and contribution figure, so the classification tree answers which part of the strategy worked rather than only how much of it there is. v1 measures under current membership because historical membership is reconstructible only by replaying the audit journal; the basis is stated in every payload and the as-of variant is named as the follow-up rather than implied.
+title: "ADR-0041: category result — the positions in a category, rolled up and decomposable"
+description: A category shows what the positions currently filed under it have collectively made, expandable to the rows that produced it. Because the figure describes the portfolio as it stands rather than a period, it needs no membership history and carries no restatement caveat. Money-weighted, never an average of percentages; rows whose result cannot be derived are excluded and named rather than silently counted as zero. A time-weighted per-category series over a period is explicitly out of scope, and the reason is structural.
 ---
 
-# ADR-0041: per-category performance — a classification category carries its own return
+# ADR-0041: category result — the positions in a category, rolled up and decomposable
 
 - **Status:** Proposed (decision gate per
-  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off outstanding — see
-  "What needs the owner's yes" below)
-- **Date:** 2026-08-15
+  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off outstanding)
+- **Date:** 2026-08-15 (rewritten the same day — see "How this decision was
+  wrong first")
 
 ## Context
 
-Classification trees are a way of **describing** the portfolio: a category has a
-share, a target weight ([ADR-0020](0020-view-bound-soll-plans.html)) and a drift
-([ADR-0023](0023-drift-sign-and-display-only-rebalancing-hints.html)). None of
-those says whether the category was any good. The owner's observation (feedback
-triage 2026-08-15, Round 2/A3) is that Portfolio Performance does not have this
-either — its classifications carry no performance series — and that it is
-exactly the missing half of a rebalancing decision: today the operator can see
-that a category is 4 points overweight and cannot see whether it earned that
-weight.
+Classification trees describe the portfolio: a category has a share, a target
+weight ([ADR-0020](0020-view-bound-soll-plans.html)) and a drift
+([ADR-0023](0023-drift-sign-and-display-only-rebalancing-hints.html)). What they
+do not carry is any statement of result — how the positions filed under a
+category have actually done. The owner's request (feedback triage 2026-08-15,
+Round 2/A3 and the follow-up of the same evening) is exact and modest: *put the
+gain or loss percentage on the category row too, and let me expand it to see
+which position inside contributed what.*
 
-Three things make this the right time rather than a wish:
+Portfolio Performance does not offer this, which is why it is worth doing; but
+the reason it is cheap is that **every number it needs already exists**.
+`portfolixir.holdings.list` returns, per position, the cost basis actually paid
+in base currency, the market value, the unrealized result and the
+[ADR-0033](0033-per-position-pnl-fx-decomposition.html) split into price and
+currency return — plus `decomposed: false` with an `undecomposed_reason` where a
+row's figure is honestly unavailable. `Ledger.TradeMatcher` supplies realized
+results per closed round-trip. The classification tree already maps every
+security to exactly one category per tree. Nothing here has to be computed for
+the first time; it has to be **grouped**.
 
-- **The identity gate already permits it.** The scope ladder that replaced the
-  blanket "no advanced reports" rule (product brief #663) puts comparison and
-  decomposition — contribution analysis, exposure breakdown — at level **(b)**,
-  in scope. No new permission is needed; what is needed is a computation basis.
-- **The substrate exists.** [ADR-0039](0039-durable-derived-values.html) made
-  derived values materializable with a lifetime per analytic. A per-category
-  daily walk is precisely the kind of value that must not be recomputed per page
-  view.
-- **The engine exists.** `Portfolixir.Portfolios.Performance` already walks days
-  and prices positions; [ADR-0035](0035-one-pricing-pass-per-read.html) already
-  threads one pricing pass through a read. This is a new *grouping* of an
-  existing computation, not a new one.
+### The observation that dissolves the hard problem
 
-**The hard part is not the arithmetic — it is membership over time.** A
-security's category is not a constant. Reclassifying one changes which bucket
-its history belongs to, and the two available answers give different numbers:
+A first draft of this ADR turned the request into a **per-category return series
+over a period**, and immediately inherited a serious problem: a security's
+category is not constant, so a series has to decide whether it follows today's
+classification backwards or the classification as it stood each day. That
+question is real — and it is entirely an artifact of asking for a series.
 
-- **current membership** — apply today's classification across the whole window;
-- **as-of membership** — apply, for each day, the classification as it stood
-  that day.
+**A roll-up over the current composition makes no claim about a period.** It
+says: *the positions filed here right now are collectively up X %.* That is true
+by construction, however often the tree has been reorganised, because the
+sentence is about what the portfolio is, not about what it did between two dates.
+No membership history is needed, no restatement can occur, and no caveat has to
+be shown — the owner's instinct that an extra hint would be noise is correct, and
+under this framing the hint would not merely be noise but wrong.
 
-Both are defensible. Shipping one without saying which is not: a metric without
-a definition is an opinion with decimal places.
-
-Current membership has a real cost — reclassifying a security silently rewrites
-a past category return, so "did this category work?" can change without any trade
-happening.
-
-As-of membership avoids that, and a first reading suggested it was merely
-*expensive*: `Portfolixir.Classifications.upsert_assignment/4` journals every
-custom-tree assignment as a `security_category_assignment` create/update carrying
-the prior assignment as its before-image
-([ADR-0017](0017-append-only-audit-journal.html), FR-28), and built-in trees
-derive from security fields whose changes the Catalog context journals. Two facts
-say otherwise, and together they decide this ADR:
-
-1. **The journal is a forensic record, not a temporal index.** Answering "which
-   category held this security on a given day" from it means replaying entries
-   backwards from today, per security, per day. That is a different data
-   structure, not a different query.
-2. **The history does not reach back far enough to matter.**
-   `20260623130000_arm_assignments_journal.exs` armed assignment journaling on
-   **2026-06-23**. Holdings histories in this system come from Portfolio
-   Performance imports spanning years. For every day before that migration there
-   is no assignment history at all, so an as-of computation would have to fall
-   back to current membership anyway.
-
-So as-of membership is not "better but costlier". It is **exact for the weeks
-since the journal was armed and identical to current membership for the years
-before** — while costing a temporal index, a backfill story it cannot honour, and
-a second membership basis in every payload. That is a bad trade today and a
-possibly good one in a few years, which is a sequencing fact rather than a
-scoping one.
+The owner also identified, unprompted, why the series variant is unattractive
+beyond its cost: measuring a category *over time* means treating category changes
+as events, and then consistently also bucket and view changes
+([ADR-0018](0018-buckets-tag-based-wealth-scoping.html),
+[ADR-0024](0024-buckets-and-views-replace-portfolios-in-the-ui.html)), and
+computing across all of them. That is organisational metadata leaking into the
+ledger, which is the one place this architecture keeps clean. It is a better
+argument against the series than the effort estimate was.
 
 ## Decision
 
-### 1. Two figures, not one — they answer different questions
+### 1. A category carries a result, defined as a roll-up of its members
 
-- **Category return** — how did this part of the portfolio perform, measured
-  the same way the whole is measured (TTWROR over the daily walk, restricted to
-  the category's members).
-- **Category contribution** — how much did this part move the total, i.e. the
-  weight-times-return term whose sum over a level reconstructs the total return.
+Per category, over the positions currently filed under it in the selected tree
+and view:
 
-The owner's phrasing points at the first; the rebalancing use needs the second.
-Shipping only one would send the reader to the wrong conclusion — a small
-category with a spectacular return contributes almost nothing, and a figure that
-does not say which question it answers invites exactly that error. Contributions
-**must sum to the total** at each level, and that identity is a test, not a hope.
+- **invested** — the sum of the members' base-currency cost basis;
+- **current value** — the sum of their market values;
+- **result** — absolute, in base currency, and as a percentage of invested.
 
-### 2. Current membership, with a restatement marker
+The figure is a statement about the **current composition** and says so. That is
+the whole of its computation basis; there is no period, no membership variant and
+no as-of qualifier to choose.
 
-v1 applies **today's** classification across the whole window — not as a
-compromise but because, for the period that carries the portfolio's history, it
-is the only membership the system knows (Context, fact 2).
+### 2. Money-weighted, never an average of percentages
 
-The consequence is real and must not be silent: **reclassifying a security
-changes its category's past figures.** A return series that moves without a trade
-looks like a arithmetic error to anyone who does not know why, and this system's
-whole claim is that its numbers are explainable.
+The category percentage is `Σ result ÷ Σ invested`, not the mean of the members'
+percentages. The naive average lets a tiny position at +300 % dominate a category
+that is flat in money, and it is the single most likely way to ship a plausible
+wrong number here. Pinned by a test with exact `Decimal` expectations, not left
+to review.
 
-So the basis ships with a **restatement marker**: a category whose membership
-changed inside the reported window carries a flag saying its series was
-recomputed under the current classification, in the payload and on the surface.
-It is cheap — the assignment journal already records exactly the events that set
-it, from 2026-06-23 forward, which is precisely the period in which a
-reclassification can still surprise the reader.
+Parent categories roll up from their members the same way, so a level's result
+reconstructs from the level below it.
 
-This is the same principle the rest of this feedback round turned on: a figure
-that cannot explain its own movement is an alarm without an address.
+### 3. Expandable to the rows that produced it — part of the feature, not a follow-up
 
-### 3. Computation basis in every payload (review-blocking)
+The category row expands to its member positions, each showing its own
+contribution to the category figure. A category number that cannot be resolved
+into the rows behind it is the same defect this feedback round found in the
+data-quality surfaces: an aggregate without an address. The expansion ships with
+the aggregate or neither ships.
 
-Per the identity gate's requirement for level (a)–(c) analytics, each
-per-category figure carries, in the API and MCP payload and not only in a doc
-page:
+### 4. Rows that cannot be derived are excluded and named
 
-- the **membership basis** (`current` in v1), the plain statement that
-  reclassification restates history under it, and the **restatement marker** of
-  §2 where it applies;
-- the **input series and window**, the **base currency**, and the treatment of
-  gaps — inherited unchanged from the existing walk
-  ([ADR-0016](0016-rounding-policy.html): full precision in compute, rounding
-  only at the human display; the AR-4 gap-marker contract for missing quotes);
-- the **freshness stamp** (`as_of`, and a stale marker when behind its inputs)
-  that [ADR-0039](0039-durable-derived-values.html) §C4 requires of every derived
-  value;
-- for contribution, the **level** it decomposes and the statement that the level
-  sums to the total.
+A position whose result is not derivable — `decomposed: false` with its
+`undecomposed_reason`, or no usable price — is **left out of the sums and listed**,
+in the same shape the snapshot comparison uses for its gaps (AR-4). It is never
+counted as zero, which would understate the category quietly. The category figure
+states how many members it covers out of how many it has.
 
-### 4. As-of membership is deferred by arithmetic, not by appetite
+### 5. Realized results and income: same shape, own slice
 
-The as-of variant is not vetoed and not merely postponed for effort. It is
-deferred because **its answer today is mostly the same answer**: exact only back
-to 2026-06-23, and identical to `current` for every year before that. Building a
-temporal membership index now would buy weeks of precision at the price of a
-second basis in every payload.
+Sells and distributions belong to the same question and the owner named them:
+what a category has *made*, not only what it currently shows. They fit this
+framing without reopening the membership problem, because "realized under the
+category the security is filed under today" is again a statement about the
+current composition — `TradeMatcher`'s closed round-trips and the income series
+grouped by the same tree.
 
-It becomes worth building when the journaled history is long enough that "as-of"
-and "current" genuinely diverge over a period a reader cares about — a question
-of elapsed time, not of engineering. When that day comes, the membership basis in
-§3 becomes a value the caller chooses, the `current` answer keeps working
-unchanged, and the restatement marker of §2 is what will have shown whether the
-divergence ever mattered.
+They are a **second slice, not a second decision**: the first slice is the
+unrealized roll-up in the positions view, because that is what was asked for and
+it is where the numbers already sit side by side. The second adds realized and
+income, and when it lands the category row states which of the three components
+it includes — an aggregate that silently changes meaning between screens would
+undo §3's point.
 
-*(This section previously named the audit-journal rollout (#677) as the
-precondition. That was wrong: assignment writes have been journaled since
-2026-06-23, so #677 blocks other write paths, not this one. The real constraint
-is the length of the recorded history.)*
+### 6. A time-weighted per-category series is out of scope
 
-### 5. Scope of this decision
+Not deferred for effort: out, for the two structural reasons above — it needs a
+membership history that begins on 2026-06-23
+(`20260623130000_arm_assignments_journal.exs`) against holdings histories
+spanning years, and it pulls classification, bucket and view changes into the
+ledger. Should it ever be wanted, it is its own decision with its own gate, and
+nothing in this ADR prejudges it.
 
-In: the two figures, the membership basis, the payload contract, and
-materialization under ADR-0039's rules. Out, deliberately: benchmark comparison
-per category (that is #572's shape, and should reuse this grouping rather than
-grow its own), factor/sector/region exposure beyond what the catalog already
-holds, and anything needing partial-weight assignment of one security to several
-categories — which `CONTRIBUTING.md` keeps out of scope and this ADR does not
-reopen. Every security belongs to exactly one category per tree, which is what
-makes the contribution identity in §1 hold at all.
+### 7. Payload and coverage
 
-## What needs the owner's yes
+The API and MCP payloads carry the roll-up with financial values as Decimal
+strings, the covered/total member counts, the excluded rows with their reasons,
+and the one-line basis statement from §1. Materialization follows
+[ADR-0039](0039-durable-derived-values.html) if measurement shows it is needed;
+this is an aggregation over data a read already loads
+([ADR-0035](0035-one-pricing-pass-per-read.html)), so the expectation is that it
+is not.
 
-Only §2 is a genuine choice; everything else follows from it. Three forms it
-could take, with the recommendation stated rather than implied:
+## How this decision was wrong first
 
-| | Basis | Assessment |
-|---|---|---|
-| **A+** | Current membership **plus the restatement marker** — what §2 decides | **Recommended.** The marker costs almost nothing and converts a silent restatement into an explained property |
-| A | Current membership, no marker | Defensible only if reclassification effectively stops once a tree is settled. Then the marker is dead weight |
-| B | As-of membership from the start | Exact back to 2026-06-23 and identical to A before that, for the price of a temporal index and a second basis in every payload |
+The first version of this ADR specified a per-category **return series**, spent
+its length on the membership-over-time question, and proposed a restatement
+marker to manage the consequences. The owner had asked for a column in a table.
 
-The recommendation is A+. What would change it: if reclassification is genuinely
-rare once a tree is stable, A is enough. Nothing plausible argues for B *now* —
-its value grows with the length of the journaled history, so it is a decision
-worth revisiting in a couple of years, not a fork in this one.
+Recording it because the failure is reusable: the request was generalised into
+its most powerful form before it was satisfied in its plain one, and every
+difficulty after that followed from the generalisation rather than from the
+problem. The membership question was not solved here — it was **removed**, by
+building what was asked for.
 
 ## Consequences
 
-- Positive: the classification tree stops being only a description; a category
-  that carries both a target weight and a realized return is the pair a
-  rebalancing decision actually needs. It is also the first capability where
-  Portfolixir is ahead of Portfolio Performance rather than catching up.
-- Negative / accepted: under `current` membership, category history is not
-  stable across reclassification. Named in the payload and marked per category,
-  not buried.
-- Accepted and worth stating plainly: for the imported years this limitation is
-  **unavoidable, not chosen** — no membership history exists for them under any
-  design short of reconstructing it by hand.
-- The per-category walk multiplies the daily walk's cost by the number of
-  categories unless it shares one pass. It must be computed as a **grouping
-  within the existing walk**, not as N walks — ADR-0035's rule applies with more
-  force here than anywhere it has applied so far.
+- Positive: the classification tree gains a result column and stops being purely
+  descriptive; the numbers come from data already loaded, so the slice is small;
+  and the hardest question in the first draft disappears rather than being
+  managed.
+- Negative / accepted: the figure cannot answer "how did this category do last
+  year" — it is about the portfolio as it stands. Stated in the payload, and the
+  reason it is not merely a missing feature is §6.
+- Accepted: a position that moved category takes its whole result with it. Under
+  a current-composition statement that is correct rather than a distortion, but
+  it will surprise anyone who reads the number as a period return — which is why
+  §1's basis line is not optional.
 - Risk-tier attention ([ADR-0036](0036-risk-tier-rides-the-batch.html)): the
-  contribution identity (level sums to total) is the invariant at stake, pinned
-  by exact `Decimal` expectations before implementation.
-- Two-way coverage: this is an agent-visible capability first, so the API and
-  MCP surface may lead — with the PR stating why, and the human view landing in
-  the same or the next batch, where the close-out check will look for it.
+  money-weighting of §2 and the exclusion rule of §4 are where a plausible wrong
+  number would come from. Both pinned by exact `Decimal` tests before
+  implementation.
+- Two-way coverage: this one is human-first — it was asked for as a table column
+  — so the view leads and the API/MCP roll-up ships with it rather than after it.
 
 ## References
 
-- [ADR-0017](0017-append-only-audit-journal.html) — the assignment history, armed
-  for assignments by `20260623130000_arm_assignments_journal.exs` and therefore
-  reaching back only to 2026-06-23
-- [ADR-0020](0020-view-bound-soll-plans.html) — target weights per category
-- [ADR-0035](0035-one-pricing-pass-per-read.html) — one pricing pass per read
-- [ADR-0039](0039-durable-derived-values.html) — materialization and freshness
-- #572 benchmark comparison
-- Owner feedback triage 2026-08-15, Round 2/A3
+- [ADR-0033](0033-per-position-pnl-fx-decomposition.html) — the per-position
+  figures this rolls up, including the `decomposed: false` contract §4 relies on
+- [ADR-0020](0020-view-bound-soll-plans.html) — target weights per category, the
+  other half of the pair a rebalancing decision needs
+- [ADR-0035](0035-one-pricing-pass-per-read.html) · [ADR-0039](0039-durable-derived-values.html)
+- Owner feedback triage 2026-08-15, Round 2/A3 and Round 5

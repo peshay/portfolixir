@@ -651,3 +651,63 @@ on.)*
 Ten issues (#700–#709), two accepted decisions, one proposed. The design
 engagement (#707) is the largest remaining piece and is a UX-designer
 engagement, not a PM one. Nothing from this dump is unrouted.
+
+---
+
+## Round 5 — the category figure, corrected down (2026-08-15)
+
+The owner read ADR-0041 and rejected its shape: *"you are overcomplicating this.
+I wasn't thinking about history at all. I just wanted the trade return to stand
+on the category too — how much percent gain or loss they have together — and then
+I expand it and see which position inside was how good. An extra hint would just
+bother me there."*
+
+**That is a smaller feature than the ADR described, and the difference is not
+scope — it is kind.**
+
+A per-category return **over a period** needs to know who was in the category
+when, which is where the membership problem, the journal-arming date and the
+restatement marker all came from. A roll-up over the **current composition**
+makes no claim about a period at all: *the positions filed here right now are
+collectively up X %.* True by construction however often the tree was
+reorganised. No history, no restatement, no marker — and the owner's instinct
+that the marker would be noise is right twice over, because under this framing it
+would also be false.
+
+Every number it needs exists: `holdings.list` already returns base-currency cost,
+market value and the ADR-0033 result per position with its `decomposed: false`
+contract, and the tree already maps each security to one category. The work is
+grouping, not computing.
+
+**The owner also produced the better argument against the series variant**, and
+it is architectural rather than economic: measuring a category over time means
+treating category changes as events — and then, consistently, bucket and view
+changes too, and computing across all of them. That is organisational metadata
+leaking into the ledger, which is the one place this architecture keeps clean.
+ADR-0041 §6 now rests on that, not on an effort estimate.
+
+**And the owner named the natural second slice**: realized gains from sells, plus
+dividends, attributed to the category. Same framing, same absence of a membership
+problem, so it is a second slice rather than a second decision — with the rule
+that the category row states which components it includes, so the aggregate does
+not quietly change meaning between screens.
+
+### The process finding, which is the reusable part
+
+The request was a table column. It was generalised into its most powerful form
+before it was satisfied in its plain one, and every difficulty of the previous
+two rounds — the membership question, the journal-date correction, the
+restatement marker, the three-option recommendation — followed from the
+generalisation rather than from the problem. The membership question was not
+solved; it was **removed**, by building what was asked for.
+
+Worth carrying beyond this document: *when a request names a screen and a
+control, the first design is the one that fits that screen.* The general version
+is a separate proposal that has to argue for itself, and stating it as the
+default hides how much was invented rather than asked for. ADR-0041 records the
+same finding in "How this decision was wrong first", where the next reader of
+that decision will actually encounter it.
+
+The correction is recorded rather than edited away: the over-built version was on
+the PR for roughly three hours, and Rounds 3–4 read differently without knowing
+that.
