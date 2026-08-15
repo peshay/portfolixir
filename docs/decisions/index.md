@@ -55,7 +55,7 @@ already in force in the codebase.
 | [0024](0024-buckets-and-views-replace-portfolios-in-the-ui.html) | Buckets and views replace portfolios as the user-facing grouping | Accepted |
 | [0025](0025-automation-recipes-boundary.html) | Automation recipes — docs in the repo, broker scripts outside | Accepted |
 | [0026](0026-epic-batch-workflow.html) | Epic-batch workflow — humans review decisions and behavior | Accepted (risk-tier clause amended by 0036) |
-| [0027](0027-plan-versions-and-depot-snapshots.html) | Named plan versions and ledger-marker depot snapshots | Accepted |
+| [0027](0027-plan-versions-and-depot-snapshots.html) | Named plan versions and ledger-marker depot snapshots | Accepted (transaction-cost amendment 2026-08-15) |
 | [0028](0028-corporate-actions-as-ledger-events.html) | Corporate actions as ledger events — splits as a first-class kind | Accepted |
 | [0029](0029-stable-identities-and-reimport-survival.html) | Stable identities and re-import survival — identity ladder with ISIN-change aliases | Accepted |
 | [0030](0030-position-level-soll-targets.html) | Position-level SOLL targets — positions as source of truth, categories as derived roll-up | Accepted |
@@ -68,3 +68,5 @@ already in force in the codebase.
 | [0037](0037-phoenix-18-liveview-1x.html) | Phoenix 1.8 and LiveView 1.x — taken as a security upgrade, verified in a real browser | Accepted |
 | [0038](0038-continuous-feedback-and-design-authority.html) | Continuous owner feedback loop and a standing design authority | Accepted (amends 0026) |
 | [0039](0039-durable-derived-values.html) | Durable derived values — one memoization mechanism with a lifetime per analytic | Accepted (gate B3.2; supersedes 0032) |
+| [0040](0040-unallocated-remainder-in-target-plans.html) | A target plan states its unallocated remainder | Accepted |
+| [0041](0041-per-category-performance.html) | Category result — the positions in a category, rolled up and decomposable | Proposed |
