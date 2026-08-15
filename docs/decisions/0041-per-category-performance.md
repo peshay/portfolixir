@@ -6,8 +6,8 @@ description: A category shows what the positions currently filed under it have c
 
 # ADR-0041: category result — the positions in a category, rolled up and decomposable
 
-- **Status:** Proposed (decision gate per
-  [ADR-0026](0026-epic-batch-workflow.html); owner sign-off outstanding)
+- **Status:** Accepted (owner sign-off 2026-08-15, decision gate per
+  [ADR-0026](0026-epic-batch-workflow.html))
 - **Date:** 2026-08-15 (rewritten the same day — see "How this decision was
   wrong first")
 
@@ -173,6 +173,11 @@ its most powerful form before it was satisfied in its plain one, and every
 difficulty after that followed from the generalisation rather than from the
 problem. The membership question was not solved here — it was **removed**, by
 building what was asked for.
+
+Two things the first version proposed are therefore **withdrawn, not deferred**:
+the membership basis as a choice, and the restatement marker. On a
+current-composition figure a marker would not merely be the noise the owner
+objected to — it would be false, because nothing is being restated.
 
 ## Consequences
 
