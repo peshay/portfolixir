@@ -215,3 +215,88 @@ values nobody has thought about yet, which is a higher bar than making one cache
 work for one series. That is deliberate: the alternative is a list that ages, and
 this repository has just spent a validation pass documenting what an aging list
 costs.
+
+## Amendment: refresh is triggered by the write, not by the next reader (2026-08-15)
+
+### What the operator observed
+
+*"If we already have all the numbers computed, why am I still shown a
+'computing' cue for a second, on all sorts of figures? They should not be
+computed when the UI asks for them — they should be held ready and refreshed
+automatically."*
+
+Three separate causes, all real, none a malfunction of the mechanism above.
+
+**1. Almost nothing is activated.** `Registry` holds two analytics
+(`performance_analysis`, `performance_view_analysis`) and `config.exs` activates
+exactly one at `:durable`. Every other figure on the human surface — valuation,
+allocation and drift, holdings, income, tax, risk, the snapshot comparison, the
+securities metrics — is not registered at all, so it is recomputed on every read
+exactly as before this ADR. §2 deliberately made activation a configuration
+decision informed by measurement; the measurement was never taken past the first
+analytic, so "eligible for any lifetime" has stayed theoretical for everything
+but one value.
+
+**2. The durable value is refreshed by its next reader.** `Warmup` has two
+triggers — boot and day rollover — and neither is a write. So the sequence after
+any booking is: the write bumps the data version, the entry becomes stale, and
+the *first person to open a page* pays the recomputation synchronously and
+watches the cue. "Paid once per invalidation rather than per mount" is true and
+is not what the operator asked for.
+
+**3. That difference was the point of the gate, and it did not reach the
+decision.** The B3.2 gate was opened on two asks (feedback triage 2026-08-12,
+Q2): durability, *and* push instead of pull — recomputation triggered by the
+write that invalidated it, or by a schedule. This ADR decided the first and is
+silent on the second. Naming it plainly: the gap is in the decision text, not in
+the implementation of it.
+
+### Decision
+
+**1. Refresh is scheduled by the invalidation, not by the next read.** When a
+write bumps a basis's data version, the operative scopes for that basis are
+re-materialized in the background, through the same request path `Warmup`
+already uses (§ "it warms through the same API a request uses" — there must not
+be a second computation path). A reader arriving before the refresh finishes is
+served the superseded value through `peek/3`, labelled, exactly as §6 already
+prescribes; a reader arriving after it is served a fresh value with no cue at
+all.
+
+**2. Refresh is coalesced, and this is the load-bearing part.** A naive
+"recompute on every bump" is worse than the pull it replaces: a Portfolio
+Performance import bumps the version per booking, and `BlastRadius` widens most
+resource types to `:all`, so a single import would queue thousands of full
+recomputations of every scope. Therefore:
+
+- bumps are collected per basis and drained after a quiet period, so a burst of
+  writes produces **one** refresh;
+- a refresh already running for a basis is not duplicated; a bump arriving during
+  it marks the basis dirty again and re-queues **once**;
+- the queue is bounded and drops to "recompute this basis fully" rather than
+  growing per-write work.
+
+Import remains the worst case by construction and is the acceptance scenario:
+importing a large export must produce a single refresh per affected basis, not
+one per row.
+
+**3. Never a correctness dependency.** The background refresh is an
+*optimisation of when* work happens. `fetch/4` keeps its contract — a stale entry
+is recomputed on read — so a failed, slow or disabled refresher costs latency and
+never freshness. It is disabled by the same switch as the rest of the layer.
+
+**4. Activation is a measurement task with an owner, not an open option.** The
+figures the operator actually waits on are enumerated, measured on a realistic
+data set, and assigned a lifetime; the result is recorded next to the §6 rebuild
+budget rather than left as configuration nobody revisits. An analytic that is
+cheap enough not to need a lifetime is recorded as such — that is a finding, not
+an omission.
+
+### Consequences
+
+- The operator's expectation is met for activated values: numbers are held ready
+  and refreshed by the event that invalidated them.
+- The cost moves from the reader to a background process, so the app does
+  scheduled work it did not do before. Bounded by §2's coalescing, and the
+  budget is the same rebuild measurement §6 already requires.
+- Risk-tier attention: the coalescing rules are where an import turns into a
+  recomputation storm. The import scenario is a test, not a review note.

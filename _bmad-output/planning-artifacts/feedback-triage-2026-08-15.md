@@ -761,3 +761,56 @@ rather than serving a stale figure — the safe failure direction, asserted by
 The practical consequence for the roll-up in ADR-0041: it needs no invalidation
 work of its own. The mechanism it would ride is built and already covers the one
 event that changes its inputs.
+
+---
+
+## Round 7 — why "computing" is still everywhere (2026-08-15)
+
+The owner: *"if we already have all the numbers computed, why am I still shown a
+'computing' cue for a second, on all sorts of figures? They should be held ready
+and refreshed automatically."*
+
+Three causes, verified in the tree, and the third is a finding against our own
+process rather than against the code.
+
+**1. Almost nothing is activated.** `Derived.Registry` holds **two** analytics;
+`config/config.exs` activates exactly one at `:durable`
+(`lifetimes: [performance_analysis: :durable]`). Everything else the operator
+looks at — valuation, allocation and drift, holdings, income, tax, risk, the
+snapshot comparison, the securities metrics — is not registered at all and is
+recomputed on every read exactly as before ADR-0039. The cues are not cache
+misses; those figures were never in the layer.
+
+**2. Even the activated value is refreshed by its next reader.**
+`Performance.Warmup` triggers on boot and on day rollover. Neither is a write. So
+after any booking: the version bumps, the entry goes stale, and the first page
+view pays the recomputation synchronously. "Paid once per invalidation rather
+than per mount" is true and is not what was asked for.
+
+**3. The push half was the gate's second ask and never reached the decision.**
+The 2026-08-12 triage, Q2, states it in the owner's terms: recomputation should
+be triggered by the write that invalidated it, or by a schedule — *"so that a
+read is never the thing that pays"*. ADR-0039 decided durability and is silent on
+push. Nobody removed it; it fell out between the gate and the ADR, and no step
+compared the two.
+
+**The process finding, which outlives this fix.** A decision gate is opened on a
+set of asks and closed by an ADR, and nothing in ADR-0026 checks that the ADR
+answers the asks the gate was opened for. Here that cost the more visible half of
+the feature and it went unnoticed through the batch, the review closing act and
+the close-out — because every one of those holds the work against the *ADR*, and
+the ADR was internally complete. Worth carrying into the gate step: an ADR that
+closes a gate names the asks it is answering **and the ones it is not**, so a
+silent drop becomes a written deferral.
+
+### Filed
+
+| Issue | Item |
+|---|---|
+| #710 | Refresh on the invalidating write, coalesced — ADR-0039 amendment §§1–3, risk-tier |
+| #711 | Measure and activate the figures the operator waits on — ADR-0039 §2 and amendment §4 |
+
+The coalescing in #710 is not a refinement: an import bumps the version per
+booking and `BlastRadius` widens most resource types to `:all`, so an uncoalesced
+refresher would turn one import into thousands of full recomputations. Import is
+the worst case by construction and is therefore the acceptance scenario.
