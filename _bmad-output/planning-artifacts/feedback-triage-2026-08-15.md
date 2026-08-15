@@ -711,3 +711,53 @@ that decision will actually encounter it.
 The correction is recorded rather than edited away: the over-built version was on
 the PR for roughly three hours, and Rounds 3–4 read differently without knowing
 that.
+
+---
+
+## Round 6 — the category history is not off the table (2026-08-15)
+
+Two owner questions closed the round, and the first one corrects this document
+rather than adding to it.
+
+**"Is the ledger category history off the table for you? Wouldn't that be a
+feature worth building?"** — It is not off the table, and Round 5 pushed it too
+far away. The owner's argument was against booking classification changes into
+the **transaction ledger**, which is right and stands:
+`Ledger.Projection.effects/1` owns a closed set of booking kinds and raises on an
+unknown one by design (ADR-0011), so organisational metadata booked there is the
+corruption that guard exists to prevent. Round 5 then applied that argument to
+the whole idea — but a **membership timeline** (a small append-only record of
+which category held a security between which dates) is not the ledger and none of
+it applies.
+
+**And deferring it loses nothing, which is the unusual part.**
+`upsert_assignment/4` journals `:create`, `:update` with the prior assignment as
+its before-image, and `:delete`, continuously since
+`20260623130000_arm_assignments_journal.exs`. The raw material is therefore
+already accruing without anyone deciding to build anything. A history feature
+normally gets more expensive the longer it waits, because the history is being
+lost meanwhile; here the recorded span grows for free and the right moment to
+build is simply when it covers a period a reader would ask about.
+
+ADR-0041 §6 is rewritten accordingly: refused / not refused / why later is free.
+
+**"Didn't we have the idea of a version counter on the ledger — recompute only
+on change, store results once computed?"** — Yes, and it shipped in Sprint 6 as
+**ADR-0039**. `Portfolixir.Derived` is one mechanism with three lifetimes; a
+`:durable` value is a row in `derived_values` carrying `as_of` and
+`data_version`, every read composes the basis's current data version and the
+analytic's computation version into its key, and every write announces itself
+through `Derived.Invalidation` **inside its own transaction** — so a read after a
+committed write cannot be served a pre-write value.
+
+Worth recording because it answers the owner's worry directly: **reclassification
+already invalidates correctly.** Assignment writes pass through
+`Journal.record`, which calls the invalidation seam; `Derived.BlastRadius` does
+not list `security_category_assignment`, and its documented rule is that anything
+unproven widens to `:all`. So a reclassification triggers a broad recomputation
+rather than serving a stale figure — the safe failure direction, asserted by
+`blast_radius_widening_test.exs`.
+
+The practical consequence for the roll-up in ADR-0041: it needs no invalidation
+work of its own. The mechanism it would ride is built and already covers the one
+event that changes its inputs.

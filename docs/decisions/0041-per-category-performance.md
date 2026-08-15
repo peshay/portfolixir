@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0041: category result — the positions in a category, rolled up and decomposable"
-description: A category shows what the positions currently filed under it have collectively made, expandable to the rows that produced it. Because the figure describes the portfolio as it stands rather than a period, it needs no membership history and carries no restatement caveat. Money-weighted, never an average of percentages; rows whose result cannot be derived are excluded and named rather than silently counted as zero. A time-weighted per-category series over a period is explicitly out of scope, and the reason is structural.
+description: A category shows what the positions currently filed under it have collectively made, expandable to the rows that produced it. Because the figure describes the portfolio as it stands rather than a period, it needs no membership history and carries no restatement caveat. Money-weighted, never an average of percentages; rows whose result cannot be derived are excluded and named rather than silently counted as zero. A time-weighted per-category series is not part of this decision and not rejected: what it would refuse is booking classification changes into the ledger, while a separate membership timeline stays open - and its raw material already accrues in the audit journal, so deferring it loses nothing.
 ---
 
 # ADR-0041: category result — the positions in a category, rolled up and decomposable
@@ -55,8 +55,10 @@ as events, and then consistently also bucket and view changes
 ([ADR-0018](0018-buckets-tag-based-wealth-scoping.html),
 [ADR-0024](0024-buckets-and-views-replace-portfolios-in-the-ui.html)), and
 computing across all of them. That is organisational metadata leaking into the
-ledger, which is the one place this architecture keeps clean. It is a better
-argument against the series than the effort estimate was.
+ledger, which is the one place this architecture keeps clean — a better argument
+than the effort estimate this ADR first offered. §6 draws the line it implies:
+the refusal is about the *ledger*, not about ever knowing who was in a category
+when.
 
 ## Decision
 
@@ -116,14 +118,39 @@ income, and when it lands the category row states which of the three components
 it includes — an aggregate that silently changes meaning between screens would
 undo §3's point.
 
-### 6. A time-weighted per-category series is out of scope
+### 6. A time-weighted per-category series is not part of this decision — and not rejected
 
-Not deferred for effort: out, for the two structural reasons above — it needs a
-membership history that begins on 2026-06-23
-(`20260623130000_arm_assignments_journal.exs`) against holdings histories
-spanning years, and it pulls classification, bucket and view changes into the
-ledger. Should it ever be wanted, it is its own decision with its own gate, and
-nothing in this ADR prejudges it.
+Out of *this* ADR, with the route left open and named, because a first draft of
+this section over-rejected it and the distinction it missed matters.
+
+**What is genuinely refused:** treating classification changes as **ledger
+events**. `Ledger.Projection.effects/1` owns a closed set of booking kinds and
+raises on an unknown one by design
+([ADR-0011](0011-unified-ledger-projection.html)); organisational
+metadata booked there would be exactly the corruption that guard exists to
+prevent, and the same then follows for bucket and view changes. That is the
+owner's argument and it stands.
+
+**What is not refused:** a **membership timeline** — a separate, small,
+append-only record of which category held a security between which dates. It
+touches no booking, so none of the above applies to it. Under
+[ADR-0039](0039-durable-derived-values.html) a series built on it would be an
+ordinary registered analytic with a `:durable` lifetime, recomputed only when its
+basis version moves; reclassification already bumps that version, since
+assignment writes pass through `Journal.record` and
+`Derived.BlastRadius` widens an unlisted resource type to `:all`.
+
+**Why later costs nothing.** `upsert_assignment/4` journals `:create`, `:update`
+with the prior assignment as its before-image, and `:delete` — continuously since
+`20260623130000_arm_assignments_journal.exs`. The raw material for the timeline
+is therefore **already accruing without anyone deciding to build it**, which is
+the unusual case: deferring a history feature normally means losing history, and
+here it means only that the recorded span keeps growing for free. The right
+moment to build it is when that span covers a period a reader would actually ask
+about, which is elapsed time rather than engineering.
+
+Should it be taken up, it is its own decision with its own gate; nothing here
+prejudges its shape, and §1's roll-up keeps working unchanged beside it.
 
 ### 7. Payload and coverage
 
@@ -174,4 +201,11 @@ building what was asked for.
 - [ADR-0020](0020-view-bound-soll-plans.html) — target weights per category, the
   other half of the pair a rebalancing decision needs
 - [ADR-0035](0035-one-pricing-pass-per-read.html) · [ADR-0039](0039-durable-derived-values.html)
+  — the version-counter mechanism §6's deferred series would use, already built:
+  a `:durable` value is a `derived_values` row carrying `as_of` and
+  `data_version`, and every write announces itself through
+  `Derived.Invalidation` inside its own transaction
+- [ADR-0011](0011-unified-ledger-projection.html) — the closed booking-kind set
+  that makes "classification changes as ledger events" a refusal rather than a
+  preference
 - Owner feedback triage 2026-08-15, Round 2/A3 and Round 5
