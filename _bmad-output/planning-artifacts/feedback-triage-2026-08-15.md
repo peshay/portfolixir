@@ -358,3 +358,178 @@ Nothing below is committed. Recommended order:
   and Transactions against, and which of their columns matter? Screenshots or
   column names are enough; this scopes #672 and #414 materially and is currently
   guesswork on our side.
+
+---
+
+## Round 2 — owner responses (2026-08-15, same day)
+
+### A1 — Both figures, and the name was wrong
+
+The owner wants **both** halves: the return without the costs, *and* whether
+those costs have been earned back yet. And — correctly — flags the working term
+"Umbaukosten" / "restructuring costs" as off.
+
+**The term was wrong for a reason worth writing down.** "Restructuring costs"
+claims an attribution the arithmetic does not have: it implies these costs were
+*caused by the switch*. Whatever we subtract, we subtract by rule, not by
+knowing why a trade happened. A name that asserts causality the computation
+cannot establish is the same defect as a metric without a computation basis —
+which is what the identity gate made review-blocking in the first place.
+
+**Recommended definition, and it is the narrow one:** fees and taxes booked on
+`buy` / `sell` transactions inside the comparison window. That *is* honestly
+attributable — a fee on a trade is caused by that trade, no inference needed —
+and it is what the owner is actually asking about. It deliberately leaves
+dividend and interest taxation alone, which belongs with the dividend
+asymmetry the v1 note already discloses and should be fixed there, not here.
+
+**Naming: `transaction costs` (EN) / `Transaktionskosten` (DE).** Precise,
+standard in the domain, and it overclaims nothing. It also has a quiet
+advantage the "Umbau" framing lacked: it stays meaningful when the owner did
+*not* restructure at all — a snapshot taken as a plain checkpoint still shows
+what trading since then has cost.
+
+**The figure set, then, is four numbers and one sentence:**
+
+| Slot | What it is |
+|---|---|
+| Frozen return | The counterfactual, unchanged — buy-and-hold of the frozen holdings |
+| Real return | TTWROR as shipped today: net, every booked fee and tax inside it |
+| Real return before transaction costs | The same walk with window trade fees/taxes treated as external |
+| Transaction costs | The sum itself, in currency and in percentage points |
+
+Plus the recovery line the owner asked for, which is the comparison of the
+first and second slots against the fourth: how much of what the trading cost
+has been earned back by the difference the trading made. Three honest states,
+and the third is the one that makes the figure worth having:
+
+- **earned back** — the real net return is ahead of the frozen one;
+- **partly earned back** — the pre-cost return is ahead, the net one is not
+  yet, with the remaining gap stated;
+- **not earned back** — the pre-cost return is behind too, so the costs are
+  not the reason and the changes have not paid off on their own merits.
+
+That third state is the whole point of separating the two questions. Today one
+number conflates "the decisions were wrong" with "the decisions have not paid
+for themselves yet", and those call for opposite responses.
+
+**Rule for the ADR: the pre-cost return is never rendered alone.** It always
+carries the cost figure and the recovery state beside it. On its own it is a
+number that flatters, and this is a system whose value rests on producing
+figures that can embarrass their author.
+
+### A2 — Unallocated remainder: confirmed
+
+A plan deliberately summing to under 100 % becomes an **explicit unallocated
+remainder** (D3), not a warning. Consequences to carry into the design brief
+and the story:
+
+- the remainder is a **named row** in the plan editor, stated on purpose, not
+  an error state;
+- the red ✗ / `is-target-mismatch` cue is **reserved for sums over 100 %** and
+  for genuine position-vs-category conflicts — the two states that really are
+  wrong;
+- **drift is computed against the allocated portion**, so an intentionally
+  unused category does not smear a phantom deviation across the siblings and
+  into the Overview card;
+- the remainder needs a place in the API and MCP plan payload, or an agent
+  reading the plan sees weights that do not add up and has to guess.
+
+This is a semantic change to plans, not a visual one — so it rides ADR-0020 /
+ADR-0027 / ADR-0030 rather than the design brief alone. The design brief owns
+how it *looks*; the plan semantics need their own short decision.
+
+### A3 — Income was already scoped; Transactions gained a concrete shape
+
+**Income: the question was redundant and the owner said so.** The PP
+walkthrough is recorded in the 2026-08-05 triage under "Income view — scoping
+input from the owner", and it is specific enough to build from: bar charts per
+month/quarter/year (keep, good); an **accumulated-per-month chart** (wanted,
+"great as a chart"); per-instrument tables explicitly **not** wanted, because
+even PP's are unreadable; taxes and fees at overview level only; closed trades
+valued; deposits/withdrawals wanted. Plus a terminology requirement — our
+income view must state what it aggregates rather than inheriting PP's unclear
+"Erträge" vs. "Dividenden" split.
+
+**Action: fold that section into #672 as its scope, and drop the discovery
+question.** Asking again was a process failure of this triage, not an open
+question: the answer had a home and it was not read before the question was
+put. That is the same rot Q3 of the 2026-08-12 round diagnosed — a decision
+recorded in a planning artifact that the backlog cannot see — showing up one
+level higher, in an artifact that *had* been written.
+
+**Transactions: PP's Trades view, named concretely.** Per position, its start
+date and end date, whether it is still open, and the return achieved. Most of
+this already computes: `Ledger.TradeMatcher` folds priced buys and sells into
+`closed_trades` (one entry per sell, weighted-average cost across consumed
+lots) and `open_lots` (remaining unmatched buys, oldest first), and it is
+exposed over the API and in the Securities detail pane. What is missing is a
+**surface** and two derived fields — the holding period, and the return per
+round-trip — plus the open side, where "still open" and the unrealized figure
+come from holdings rather than from the matcher.
+
+So this is largely a surfacing story, and it is the second time the same
+computation has been identified as built-but-unsurfaced: the 2026-08-12 round
+recorded "how well did I sell" as *computed and exposed, missing only its
+cash-flow surface". A Trades view and that facet are plausibly one thing seen
+from two directions — worth resolving before either is scheduled, so we do not
+build the same table twice under two names.
+
+**And one genuinely new idea, which is the most interesting item in this
+round.** The owner wants the same treatment for **categories**: concrete
+performance figures per category, inspectable as charts — and notes that PP
+does not have this.
+
+That reading is right, and it matters. PP's classifications are a *structure*
+for allocation; they carry no performance series of their own. A category that
+knows its own return turns the classification tree from a way of describing the
+portfolio into a way of **evaluating** it: which part of the strategy is
+actually working, not merely how much of it there is. It composes directly with
+the target/plan family (ADR-0020/0027/0030) — a category that carries both a
+target weight and a realized return is the pair a rebalancing decision actually
+needs, and today the owner has only one of them.
+
+**Scope placement.** This is level (b) on the identity gate's scope ladder —
+comparison and decomposition, contribution analysis — which is **in scope**,
+so it needs no new permission. Three things it does need:
+
+1. **A computation basis, stated in the payload** (review-blocking, and here it
+   is genuinely hard rather than ceremonial): a category's membership changes
+   over time as securities are classified and reclassified, so the ADR must
+   decide whether the series follows *today's* membership backwards or the
+   membership as it stood on each day. Those are different numbers and both are
+   defensible; what is not defensible is shipping one without saying which.
+2. **The derived-value layer as its substrate** — ADR-0039 shipped in Sprint 6,
+   and a per-category daily walk is exactly the kind of value that must be
+   materialized rather than computed per page view.
+3. **A decision on contribution vs. return**: a category's own return
+   (how did this part perform?) and its contribution to the total (how much did
+   it move the needle?) are different questions with different arithmetic. The
+   owner's phrasing points at the first; the rebalancing use points at the
+   second. Probably both, but the ADR should say so deliberately rather than
+   discover it in review.
+
+Recommendation: this is not a Transactions story and should not be filed under
+#414. It is its own decision gate — small, well-motivated, and squarely inside
+what the identity gate already opened. Given that it is also the first feature
+in a while where we would be **ahead of Portfolio Performance rather than
+catching up**, it deserves to be sequenced on purpose rather than queued behind
+the parity work.
+
+### Revised sequencing after Round 2
+
+Unchanged for the defect batch (F1–F6) and the review conditions (0.2). The
+design engagement now carries the unallocated-remainder semantics as an input
+rather than an open question. Beyond that:
+
+- **ADR-0027 amendment** — the pre-cost return, the transaction-cost figure and
+  the recovery state (A1). Ready for the gate; the definition is settled.
+- **Plan semantics decision** — the unallocated remainder in the plan model,
+  the drift computation and the API/MCP payload (A2). Small, and it blocks the
+  visual work rather than following it.
+- **#672 rescoped** from the 2026-08-05 walkthrough; discovery question closed.
+- **Trades view** — reconcile against the "how well did I sell" cash-flow facet
+  before filing, so one table is built once.
+- **Category performance** — its own decision gate (A3), sequenced on purpose.
+
+**Nothing further is open for the owner.** Issues on confirmation.
