@@ -598,7 +598,7 @@ this triage closes here: the ADRs and the backlog carry it from now on.
 |---|---|---|
 | [ADR-0027 amendment](../../docs/decisions/0027-plan-versions-and-depot-snapshots.md) — the comparison states its transaction costs (A1) | Accepted | #708 |
 | [ADR-0040](../../docs/decisions/0040-unallocated-remainder-in-target-plans.md) — a target plan states its unallocated remainder (A2) | Accepted | #709 |
-| [ADR-0041](../../docs/decisions/0041-per-category-performance.md) — per-category return and contribution, current membership + restatement marker (A3) | **Proposed** | none yet, by design |
+| [ADR-0041](../../docs/decisions/0041-per-category-performance.md) — category result, rolled up over the current composition (A3) | Accepted 2026-08-15 | #712 |
 
 Three things settled in the writing that the triage had left one level too
 abstract, and each of them changes the work:
@@ -814,3 +814,57 @@ The coalescing in #710 is not a refinement: an import bumps the version per
 booking and `BlastRadius` widens most resource types to `:all`, so an uncoalesced
 refresher would turn one import into thousands of full recomputations. Import is
 the worst case by construction and is therefore the acceptance scenario.
+
+---
+
+## Round 8 — ADR-0041 accepted, and the round closes (2026-08-15)
+
+The owner signed off the category roll-up. ADR-0041 moves to **Accepted** and
+slice one is filed as **#712**: the money-weighted roll-up on the category row,
+expandable to its member positions.
+
+Two things the ADR's first version proposed are recorded as **withdrawn rather
+than deferred**, because "deferred" would leave them looking like planned work:
+the membership basis as a choice, and the restatement marker. Both belonged to
+the series framing. On a current-composition figure a marker would not merely be
+the noise the owner objected to — it would be false, because nothing is being
+restated.
+
+### Where the round finally lands
+
+Thirteen issues and five decisions from one unstructured dump:
+
+| | |
+|---|---|
+| Confirmed defects | #700 #701 #702 #703 #704 #705 |
+| Process and design | #706 (review conditions) · #707 (design engagement) |
+| From accepted decisions | #708 (transaction costs) · #709 (unallocated remainder) · #712 (category roll-up) |
+| From the "computing" finding | #710 (write-triggered refresh) · #711 (measure and activate) |
+
+| Decision | Status |
+|---|---|
+| ADR-0027 amendment — transaction costs in the snapshot comparison | Accepted |
+| ADR-0039 amendment — refresh on the write, not on the next reader | Accepted |
+| ADR-0040 — the unallocated remainder | Accepted |
+| ADR-0041 — category result | Accepted |
+| ADR-0026 gate-closure rule (Round 7) | **proposed to the owner, not written** |
+
+The last row is deliberate: it is a change to how this project makes decisions,
+so it belongs to the owner rather than to the agent that noticed the gap.
+
+### The three findings worth carrying past this document
+
+1. **A count without an address is not a finding.** Every data-quality surface
+   here counted well and identified badly, and the agent half could not ask the
+   question at all. Part 0.1.
+2. **A review only sees what its conditions allow.** The design-critic pass ran
+   at desktop width, in EN, against data that triggered no finding surface — and
+   four of six defects were invisible under exactly those conditions. #706.
+3. **Generalising a request before satisfying it manufactures its own
+   difficulties.** The category figure was asked for as a table column and built
+   as a return series; every hard question of Rounds 3–5 came from that, and none
+   of them survived building what was asked for. ADR-0041, "How this decision was
+   wrong first".
+
+The first two are about the product. The third is about how this round was run,
+and it is the one I would keep.
