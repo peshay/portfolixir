@@ -586,3 +586,54 @@ basis decided, which is the substance of its ADR rather than a preliminary.
 - The **Trades view** is not filed yet on purpose: it must first be reconciled
   against the "how well did I sell" cash-flow facet from the 2026-08-12 round,
   so one table is specified once rather than twice under two names.
+
+---
+
+## Round 4 — decisions written (2026-08-15)
+
+The three gate items are now written decisions rather than recommendations, so
+this triage closes here: the ADRs and the backlog carry it from now on.
+
+| Decision | Status | Issue |
+|---|---|---|
+| [ADR-0027 amendment](../../docs/decisions/0027-plan-versions-and-depot-snapshots.md) — the comparison states its transaction costs (A1) | Accepted | #708 |
+| [ADR-0040](../../docs/decisions/0040-unallocated-remainder-in-target-plans.md) — a target plan states its unallocated remainder (A2) | Accepted | #709 |
+| [ADR-0041](../../docs/decisions/0041-per-category-performance.md) — per-category return and contribution (A3) | **Proposed** | none yet, by design |
+
+Three things settled in the writing that the triage had left one level too
+abstract, and each of them changes the work:
+
+**The cost boundary is narrower than "fees and taxes".** Only fees and taxes
+*carried by a `buy` or `sell`* leave the return. A standalone `fee` or `tax`
+booking — a custody charge, an account fee — stays internal, because the frozen
+holder would have paid it too; removing it would flatter the real side rather
+than level the comparison. Dividend and interest taxation stays internal as
+well, with the dividend asymmetry it belongs to.
+
+**The remainder forces a second change nobody asked for, and it is the
+important one.** Making the unallocated share explicit is cosmetic on its own.
+What matters is that drift must then be computed against the **allocated
+portion**: today a deliberately unused category has its share redistributed as
+apparent overweight across its siblings, and the Overview's attention card
+reports deviations that are an artifact of the gap. That makes ADR-0040
+risk-tier work — it changes a number the operator steers by — rather than the
+visual fix the original observation looked like.
+
+**Per-category performance is one decision away from ready, and it is not the
+one the triage predicted.** The membership-over-time question turned out to have
+a sharper answer than "both are defensible": as-of membership *is*
+reconstructible, because `upsert_assignment/4` journals every custom-tree
+assignment with its before-image and Catalog journals the security fields the
+built-in trees derive from. What is missing is not the history but a temporal
+index over it — the audit journal is an append-only forensic record, and
+answering "which category held this security on a given day" from it means
+replaying entries backwards per security per day. So v1 measures under **current
+membership**, states in the payload that reclassification restates history under
+it, and sequences the as-of variant behind #677. That single basis choice is the
+only thing in ADR-0041 needing an owner yes; everything else follows from it.
+
+### Where this round ends
+
+Ten issues (#700–#709), two accepted decisions, one proposed. The design
+engagement (#707) is the largest remaining piece and is a UX-designer
+engagement, not a PM one. Nothing from this dump is unrouted.
