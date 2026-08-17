@@ -189,7 +189,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-8 | #316, #577, #563, #568 (ADR-0034) | IRR; TTWROR shipped. **#577 shipped 2026-08-04** — TTWROR/IRR for a bucket view now cover the deduplicated account union across all portfolios, so the header total and the return always speak about the same accounts; the multi-portfolio scope disclaimer is gone. **#563 shipped** — previous-year/any-year and custom from-to periods, pure re-chains. #568 (net invested, wealth multiple, XIRR) has its design note in ADR-0034 but is **not implemented** |
 | FR-9 | — | **future** (Phase 5; OQ-3 quote source). **Ungated 2026-08-12** — the scope ladder released it as level (b); the old advanced-reports gate no longer applies. Inherits the metric-basis rule |
 | FR-10 | #331 | income report |
-| FR-11 | #318, #329, #335, #334 | target hints, exclude flag, cash basis, classification view |
+| FR-11 | #318, #329, #335, #334, #709 (ADR-0040), #712 (ADR-0041) | target hints, exclude flag, cash basis, classification view. **#709** — a target plan states its unallocated remainder explicitly and drifts against the allocated portion (ADR-0040, Accepted 2026-08-15). **#712** — a category row carries a money-weighted result roll-up, expandable to its member positions (ADR-0041, Accepted 2026-08-15); it is a statement about the *current composition*, so it needs no membership history and carries no restatement caveat |
 | FR-12 | ADR-0023 | **partially landed** — display-only rebalancing hints (per-position drift share + indicative buy/sell quantity) shipped with the drift drill-down; the guidance-vs-action boundary is drawn in ADR-0023 + AGENTS.md. Ranked both-directions cash guidance remains open |
 | FR-13 | #349 | analytics over API/MCP |
 | FR-14 | **#355** | MCP data maintenance (new) |
@@ -209,7 +209,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-4–6 | — | foundational (security, self-hosted, single-user) |
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | #562 (ADR-0032), #619 (ADR-0035) | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. **#619 shipped 2026-08-04** (ADR-0035): the redundancy was removed rather than cached — market data is preloaded once per read and threaded through every valuation and allocation, replacing six re-derivations and hundreds of per-row lookups. Measured A/B: the warm dashboard block 1,105 ms → 265 ms and 2,614 → 115 queries, output identical. Nothing is memoized by this change; ADR-0032's memo is untouched |
-| UX-DR1–20 | **#356** (tracker) + #414, #560 open; #412, #491, #565, #566 shipped 2026-08-14 (Sprint 6, PR #688) | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec |
+| UX-DR1–20 | **#356** (tracker) + #414, #672 open, plus #701–#704, #707 filed 2026-08-15; #412, #491, #560, #565, #566 shipped | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec |
 | FR-30 | #582 | ISIN/WKN in holdings payloads (E6 DX batch, story 2) |
 | FR-31 | #581 | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
 | FR-32 | #583 | booking-semantics docs incl. fix-it-hammer warnings (E6 DX batch, story 3) |
@@ -219,7 +219,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-36 | #612 (gate), #621–#625 | recorded tax-statement snapshots — ADR-0031 accepted 2026-07-25. Stories 19.2–19.6 shipped: configuration layer, snapshot table, consistency engine, API/MCP parity, entry surface + EN/DE docs. Forward projection and `tax_bucket` (19.7) are deferred behind a separate gate |
 | FR-37 | #665 | read ergonomics — sparse fieldsets, roll-up-only aggregates, server-side threshold filters. **Shipped 2026-08-14 (Sprint 6, PR #688)** with the −70 % volume cut pinned by test. Supersedes FR-33's scope lock for this family only. Agent-only for now; the human view is due by the next batch per the two-way rule |
 | FR-38 | #666 | `?since=` delta reads. **Shipped 2026-08-14 (Sprint 6, PR #688)**, pull-only with the B3.7 boundary pinned by test; the push half stays gated at B3.7. Agent-only for now; the human view is due by the next batch per the two-way rule |
-| FR-39, FR-40 | — | derived metrics per security / per view (ladder (a)). **Ungated by the ladder**, no issue yet — depended on the derived-value ADR (gate B3.2) for where the values live; ADR-0039 accepted 2026-08-12 supplies that home, and **the mechanism landed 2026-08-14 (C1–C5, Sprint 6, PR #688)** — these are issue-ready now |
+| FR-39, FR-40 | — (mechanism: #710, #711) | derived metrics per security / per view (ladder (a)). **Ungated by the ladder**, no issue yet — depended on the derived-value ADR (gate B3.2) for where the values live; ADR-0039 accepted 2026-08-12 supplies that home, and **the mechanism landed 2026-08-14 (C1–C5, Sprint 6, PR #688)** — these are issue-ready now. **#710 and #711 are the mechanism, not these metrics:** #710 moves the refresh onto the invalidating write, coalesced (ADR-0039 amendment §§1–3, **risk-tier** — an uncoalesced refresher turns one import into thousands of full recomputations, so import is the acceptance scenario), and #711 measures and activates the figures the operator actually waits on (§2 + amendment §4). Filing FR-39/FR-40 themselves is still open |
 | FR-41, FR-42 | — | contribution analysis; factor/sector/region exposure (ladder (b)). **Ungated by the ladder**, no issue yet |
 | FR-43 | — | policy rules as objects. **Gated: B3.6**, needs its own ADR (rules engine + rule-history retention) |
 | FR-44 | — | security events as objects. **Gated: B3.4**; automatic population is B3.3. Distinct from ADR-0028 corporate actions |
@@ -227,6 +227,53 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-47, FR-48 | — | calibration report (needs FR-46); rule evaluation (needs FR-43). Ladder (c) — scores what was recorded before the outcome was known, never a replayed counterfactual, which is level (d) |
 | NFR-9 | — | mechanical scope backstop — guarded set revised 2026-08-12. **Unbuilt requirement, not inventory:** only `mcp_dependency_allowlist_test` exists of the three named backstops |
 | NFR-10 | — | machine-extracted data is a proposal until confirmed; first binding use is ADR-0021 PDF intake |
+
+### Backlog beyond the FR set — the 2026-08-15 triage (reconciled 2026-08-17)
+
+The owner feedback round of 2026-08-15 (`feedback-triage-2026-08-15.md`) produced
+thirteen issues and four accepted decisions. It is best read as **the acceptance
+round for Sprint 6's design lane** rather than as new backlog: five of the six
+design issues filed on 2026-08-12 had shipped days earlier, and the owner was
+looking at exactly those surfaces. Under ADR-0026 step 4 and ADR-0038 that
+day-to-day observation *is* the acceptance channel.
+
+Most of these carry **no FR number**, and none is invented here — they attach to
+the GitHub trackers instead. Whether this family should gain FR numbers and an
+epic row is part of the standing structural finding (F2/F7 in
+`sprint-status.yaml`), which is an owner decision and still open.
+
+| Issue | What | Attaches to | Basis |
+|---|---|---|---|
+| #700 | asset class: stored vs. effective, and the dead quick-assign affordance | #417 | triage F1 — the dashboard counts `asset_class IS NULL` while the list renders an *inferred* class, so the count says "unclassified", every row says "Equity", and the remediation dropdown (built by #561) never renders. The fix loop is dead on arrival |
+| #701 | securities table headers bypass gettext, stay English on a DE instance | #356 | triage F2 |
+| #702 | Wealth tab row clips on a phone and cannot be scrolled | #356 | triage F3 — regression from #668 |
+| #703 | "no current quote" withholds its positions; Overview/Wealth say it twice | #356 | triage F4 — `trade_priced` is the one data-quality row that states a count and stops |
+| #704 | an internal ADR identifier is printed in user-facing copy on Snapshots | #356 | triage F5 |
+| #705 | data-quality predicates over the filter builder, API and MCP | #419 | triage F6 — **depends on #700**: the predicate must mean what the count means |
+| #706 | design-critic and UAT walkthroughs run under conditions that hide the defects they exist to catch | #420 | triage 0.2 — the pass ran at desktop width, in EN, against data that triggered no finding surface; four of six defects were invisible under exactly those conditions |
+| #707 | the design engagement: control vocabulary, card naming, and the two surfaces that predate the design language | #356 | triage Part 2 + Part 4 (D1–D6, Transactions, Income). **#414 and #471 should follow its output** rather than land on the pre-design-language screen |
+| #708 | snapshot comparison states its transaction costs, and whether they are earned back | E16 | **ADR-0027 amendment**, Accepted 2026-08-15 |
+| #709 | target plans: explicit unallocated remainder, drift against the allocated portion | FR-11 / E15 | **ADR-0040**, Accepted 2026-08-15 |
+| #710 | derived values refresh on the invalidating write, coalesced | NFR-8 | **ADR-0039 amendment** §§1–3, Accepted 2026-08-15. **Risk-tier** |
+| #711 | measure and activate the figures the operator actually waits on | NFR-8 | ADR-0039 §2 + amendment §4 |
+| #712 | category result: money-weighted roll-up on the category row, expandable | FR-11 | **ADR-0041**, Accepted 2026-08-15 |
+
+**Filed deliberately late, and why it matters.** The three decision items were
+held back from Round 3 and filed only once their ADRs were signed off, so no
+issue ever carried a title with no spec behind it. That is the issue convention
+working as designed, and it is why all four decisions below are gate-complete
+for scheduling purposes.
+
+**Not filed, on purpose:** the **Trades view**, which must first be reconciled
+against the "how well did I sell" cash-flow facet from the 2026-08-12 round, so
+one table is specified once rather than twice under two names.
+
+**The finding worth carrying:** *generalising a request before satisfying it
+manufactures its own difficulties.* The category figure was asked for as a table
+column and first built as a return series; every hard question it raised — the
+membership-over-time basis, the restatement marker — came from that framing, and
+none of them survived building what was actually asked for. Both are recorded in
+ADR-0041 as **withdrawn, not deferred**.
 
 ## Implementation Status — reconciled with code (2026-06-18)
 

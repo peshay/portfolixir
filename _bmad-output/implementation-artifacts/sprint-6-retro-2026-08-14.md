@@ -129,6 +129,13 @@ verified by empty diff before the force-push).
   next batch per the two-way rule), FR-39/40 issue-ready now that the
   ADR-0039 mechanism landed; UX-DR row shows #414 and #560 as the Sprint 7
   remainder.
+  **Correction (2026-08-17):** #560 was already closed when this was written —
+  it closed 2026-08-10 via PR #656 (income charts scroll horizontally on narrow
+  viewports), four days before this retro. The UX-DR remainder carried into
+  Sprint 7 is **#414 and #672**, plus whatever #707 (the design engagement)
+  specifies. The error is left visible rather than overwritten because it is the
+  same class as F1 of the 2026-08-12 pass: a close-out asserting a backlog state
+  from the previous document instead of from the backlog.
 - **Tags (owner action, blocked from agent sessions):** the owner created
   `0.5.0` (bare-number scheme, on the pre-Sprint-6 `main`) — that scheme is
   now the convention, and the Release workflow trigger was widened to
