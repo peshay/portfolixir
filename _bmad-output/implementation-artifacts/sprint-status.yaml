@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-14 (Sprint 6 close-out; ADR-0026 merge-method amendment)
+# last_updated: 2026-08-17 (pre-Sprint-7 reconciliation; ADR-0042 accepted)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -85,6 +85,13 @@ story_location: _bmad-output/implementation-artifacts
 #   - The two-way coverage rule: FR-37 and FR-38 shipped agent-only in Sprint 6.
 #     Their HUMAN VIEW IS DUE IN THIS BATCH. Absence after Sprint 7 is a
 #     close-out finding by the rule's own terms.
+#     SCOPE CORRECTED 2026-08-17 by the agentic review: an earlier draft of
+#     `human-view-debt-2026-08-17.md` called most of this discharged. It is not.
+#     `fields=` is implemented on the TRANSACTIONS and HOLDINGS endpoints, and
+#     neither list has a column picker; the securities picker predates FR-37 and
+#     sits on the one list with no `fields=`. So the obligation is TWO unbuilt
+#     surfaces (field selection, `?since=`) plus a partial threshold half -- it
+#     is wider than the reconciliation first recorded, not narrower.
 #   - Sprint 6 OQ-2: the UI was left ALIGNED BUT NOT FINISHED on the stated
 #     understanding that Sprint 7 is the closer. See F5 for what that remainder
 #     actually is.
@@ -97,9 +104,10 @@ story_location: _bmad-output/implementation-artifacts
 #   release -- it was pushed before ab9851f widened the Release workflow trigger
 #   to the bare-number scheme, so the Sprint 5 boundary has a rollback point but
 #   no communicable changelog. NOT a finding, recorded so it is not re-raised:
-#   both tags sit two commits after the commit their close-out named (`0.5.0` on
-#   47dd988 vs. 73affc5; `0.6.0` on aa4a38a vs. f0beb8c), but both deltas are
-#   planning/docs/meta-test commits with ZERO application-code change. The tags
+#   each tag sits a little after the commit its close-out named -- `0.5.0` on
+#   47dd988, TWO commits after 73affc5; `0.6.0` on aa4a38a, THREE commits after
+#   f0beb8c (bfb9a9f, ab9851f, aa4a38a) -- but every commit in both deltas is a
+#   planning/docs/meta-test commit with ZERO application-code change. The tags
 #   mark the right software.
 #
 #   F5 -- #560 WAS ALREADY CLOSED when the Sprint 6 close-out and retro named it
@@ -118,8 +126,13 @@ story_location: _bmad-output/implementation-artifacts
 #   still hangs off no epic row, the Epic List still ends at E19, and the 13 new
 #   issues also have no epic home -- they hang off the GitHub trackers (#417,
 #   #419, #420, #356) instead. Two parallel epic structures remain, and none of
-#   the 2026-08-15 work resolves this. The structural decision is the owner's and
-#   is still open; #321 is still stale.
+#   the 2026-08-15 work resolves this.
+#   **RESOLVED 2026-08-17 by ADR-0042** (Accepted, owner sign-off the same day),
+#   which splits the two jobs: epics.md keeps the requirement registry, the
+#   tracker set is the work ledger. The migration executes as Lane Z of Sprint 7,
+#   and #321 closes by hand there. Recorded here rather than deleted because this
+#   log is the project's memory of what was open when -- and because a finding
+#   carried five times without resolution is worth showing resolved.
 #
 #   F8 -- ONE OPEN OWNER QUESTION carried out of the triage, not yet answered:
 #   the Round 7 proposal of an ADR-0026 GATE-CLOSURE RULE (how a decision gate is

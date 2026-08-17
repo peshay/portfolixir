@@ -141,10 +141,29 @@ It keeps — and remains authoritative for — the Requirements Inventory
 dated Implementation Status reconciliations. These are the sections every
 review actually reads.
 
-It **loses** the Epic List, the Epic Detail sections and the `##### Story`
-rows. What is worth keeping from them — an epic's intent paragraph — moves into
-its tracker issue's body, which is where someone looking at the work will find
-it.
+It **loses** the Epic Detail sections and the `##### Story` rows. What is worth
+keeping from them — each epic's intent paragraph — is condensed into a short
+**tracker index** that stays in `epics.md`, one line per epic: its name, its
+tracker issue where one exists, and its intent in a sentence.
+
+The first draft moved those paragraphs into the tracker issue bodies instead.
+The agentic review of 2026-08-17 killed that, on two counts:
+
+- **`AGENTS.md` forbids it.** "The authoritative spec lives in the ADR/epics
+  document, **never in the issue body**." Moving epic intent into issues would
+  have made fifteen of nineteen epics' only recorded intent live in the one
+  place the project declares non-authoritative — while §2 of this same ADR says
+  the thin-pointer convention is unchanged. Two sentences of one decision
+  contradicting each other.
+- **Some epics have no tracker to move into.** E7 (rebalancing guidance) has no
+  issue at all — "FR-12 (no issue — needs ADR first)" — and its intent paragraph
+  is the one carrying the scope sentence *"it must never place or prepare
+  orders."* E1–E5 point at issue *lists* rather than at one of the seven
+  trackers. The destination did not exist for a third of the file.
+
+A tracker index inside the registry keeps the intent authoritative, gives the
+trackerless epics a home, and is still not a work breakdown — which is the thing
+this decision set out to remove.
 
 ### 2. The GitHub tracker set is the work ledger — an agent artifact, kept on its merits
 
@@ -166,14 +185,30 @@ make it worth more than the in-repo alternative, none of which is owner-facing:
 
 **What it is not:** a way to inform the owner. Issue numbers are agent
 addresses. Where the owner needs to know a thing, it goes in an ADR, the lane
-plan or the briefing — never cited as an issue number and left there.
+plan, the triage document or the briefing — never cited as an issue number and
+left there.
+
+**External reports get a route, or the channel terminates nowhere.** Keeping the
+tracker as the public intake channel while the owner does not read it would
+reproduce exactly the defect diagnosed above. So: a third-party report is
+triaged by the agent into the next triage document or the next lane plan's
+candidates — artifacts the owner does read. Without that step, "external intake"
+is a reason to keep a mailbox nobody opens.
 
 Requirement-to-work traceability lives in **one** place — the FR Coverage Map's
 issue column, which already carries it.
 
 ### 2a. The owner-facing artifacts are named, so they stop being inferred
 
-Exactly three, and the list is closed:
+Four, and the list is closed. The fourth was missing from this ADR's second
+version, which closed the list at three while its own Consequences section
+described eight rounds of the owner using the fourth — the agentic review caught
+it:
+
+- **The triage / analysis document** — the artifact ADR-0038's loop actually
+  runs on. The owner reviews it and confirms or corrects routing; only then are
+  issues filed. Naming it here is a correction to *this* ADR's list, not an
+  amendment to ADR-0038.
 
 - **ADRs** — decisions that need a signature. This is where the owner's real
   load sits: four were signed off on 2026-08-15 alone. If that load is to be
@@ -207,17 +242,42 @@ What replaces each thing it provided:
 | epic status | tracker issue state |
 | the close-out / reconciliation log | **kept** — this is the part with real value |
 | next-action recommendation | the sprint lane plan |
+| **retrospective-completion ledger** | **kept in place** — see below |
 
-The file is therefore **not deleted**. It is narrowed to what it does well: the
-dated close-out and reconciliation log, which is the project's memory of what
-was verified when, and which no other artifact carries. Its
-`development_status` block goes, along with the five invalid keys.
+The file is therefore **not deleted**, and — corrected by the agentic review of
+2026-08-17 — **its `development_status` block is not deleted either.** The
+first draft of this ADR said it went, along with the five invalid keys. That
+would have broken three things this decision has no intention of breaking:
+
+- **`validate` would fail permanently, not pass.** `sprint_plan.py:619` lists
+  `development_status` among the *required* top-level keys, so removing it
+  trades five "unrecognized key" problems for one "missing required key" — and
+  this ADR cites validator output as evidence, so leaving the file permanently
+  invalid would undercut its own argument.
+- **The status view would hard-fail** — the one capability this decision
+  explicitly keeps. `cmd_status` fails on an empty `development_status` before
+  reading anything else.
+- **The retrospective-completion ledger would be deleted with nothing catching
+  it.** `epic-17-retrospective: done` and its siblings live inside that block.
+  They are neither story rows nor epic rows, so no row of the table above
+  replaces them, and ADR-0026 step 5 makes the retrospective mandatory. Sprint
+  7's own close-out would have been the first casualty.
+
+**What actually goes:** the `##### Story`-derived rows — the five schema-invalid
+`6-dx-*` / `6-c-1` keys and the story keys for E17/E18/E19. **What stays:** the
+`epic-N` and `epic-N-retrospective` keys, both recognized by the script's own
+`classify_key`, both surviving `validate`. Neither is a story breakdown, which
+is what this decision set out to remove.
 
 ### 5. `#321` closes
 
-Its "working agreement" section is preserved into `AGENTS.md` first, per the
-condition recorded in the 2026-08-04 reconciliation. It is then closed by hand
-with the reason, not by a keyword — it is invalidated rather than implemented.
+Its "working agreement" section is preserved first — the 2026-08-04
+reconciliation requires only that it survive "somewhere", and the origin note of
+2026-07-31 offered `AGENTS.md` **or** the epics document as alternatives. Since
+this decision deletes the epic sections, `AGENTS.md` is the surviving
+destination; that is a consequence of this ADR, not a pre-existing condition, and
+the first draft overstated it as one. #321 is then closed by hand with the
+reason, not by a keyword — it is invalidated rather than implemented.
 
 ## Consequences
 
@@ -226,11 +286,27 @@ with the reason, not by a keyword — it is invalidated rather than implemented.
 - The BMAD sprint-planning skill is used for its **readiness gate and status
   view**, not its generator. That is a real capability loss and is accepted
   deliberately: a generator that produces an invalid file recommending a gated
-  story is not providing the capability its name suggests.
-- `bmad-retrospective` and `bmad-story-automator` read story rows and will need
-  checking against this change before their next use. **Not resolved here** —
-  flagged as the one piece of follow-up this decision creates rather than
-  removes.
+  story is not providing the capability its name suggests. The status view keeps
+  working *because* §4 retains the `epic-N` keys — it would not have under the
+  first draft.
+- `bmad-retrospective` and `bmad-story-automator` read story rows. The first
+  draft flagged this as follow-up; the review showed the follow-up falls due
+  **inside the migrating batch**, since ADR-0026 step 5 makes Sprint 7's own
+  retrospective mandatory and `bmad-retrospective` stops when epic detection
+  returns nothing. §4's retention of the `epic-N` and `epic-N-retrospective`
+  keys is what keeps that working. Story-level detection still degrades, and
+  that is accepted: the epic is the unit these skills need here.
+- **Story status becomes a network-dependent check.** Verifying against issue
+  state and merge commits needs GitHub API access, where the file was readable
+  offline — and this project has already hit a session where a push was blocked
+  by the proxy. The lane plan and the close-out log both record verified state
+  locally; they are the offline source of truth when the API is unreachable.
+- **`docs/` carries dangling references** once the epic sections go: ADR-0027
+  (E16), ADR-0028 (E17), ADR-0029 (E18, section H), ADR-0031 (E19) and
+  `docs/development/pr-review-checklist.md` all point into `epics.md`. ADRs are
+  the artifact class the owner actually reads, so the migration sweeps and
+  repoints them rather than leaving four Accepted decisions with broken
+  pointers.
 - The Epic Detail prose must be moved before it is deleted, or context is lost.
   This is the migration's only substantive risk and belongs in the batch that
   executes it, not in this ADR.

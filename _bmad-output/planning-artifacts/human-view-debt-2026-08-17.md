@@ -8,13 +8,17 @@ close-out finding by the rule's own terms.
 
 `epics.md`, the PRD and the 2026-08-15 triage all record the *obligation* and
 none of them records *what the view is*. This document closes that gap by
-reading the shipped code rather than by asking, and it reaches a different
-conclusion than the obligation's phrasing suggests.
+reading the shipped code.
 
-**The headline: this is not one undefined obligation. It is four, and three of
-them are already discharged, in flight, or half-present.** Exactly one has
-nothing at all — and that one has an obvious shape, dictated by the module that
-implements its agent half.
+> **CORRECTED 2026-08-17, after the agentic review.** The first version of this
+> document concluded that most of the debt was already discharged, and it was
+> **wrong in its central claim** — wrong in a direction that conveniently
+> reduced Sprint 7's scope. The correction and what produced it are kept in
+> "How this analysis was wrong first", because the error is more instructive
+> than the result.
+
+**The headline, corrected: two of the four mechanisms have no human view at
+all, one is in flight, and one is partly present.**
 
 Nothing here is a committed scope decision. Per ADR-0038 these become thin
 issues only after owner confirmation.
@@ -26,24 +30,27 @@ issues only after owner confirmation.
 FR-37 is three mechanisms, not one, and they landed in different modules with
 different human situations. FR-38 is one.
 
-### 1. Field selection — human view **already shipped**
+### 1. Field selection — **no human view, on either endpoint that has it**
 
 `PortfolixirWeb.Api.V1.FieldSelection` resolves `fields=` against a
 per-endpoint whitelist (a precomputed string→atom map; no atom is ever created
-from input, which is stricter than the requirement's stated minimum).
+from input, stricter than the requirement's stated minimum).
 
-Its human equivalent is the **securities table column picker** —
-`visible_columns` / `SecurityFields.visible_default()` in `securities_live.ex`,
-persisted client-side under `securities.columns`. That shipped in the *same
-batch*, as **#565**.
+**It is aliased by exactly two controllers** — `transaction_controller.ex:6`
+and `holding_controller.ex:6`. `security_controller.ex` does not reference it;
+there is no `fields=` on the securities endpoint.
 
-**Verdict: discharged for the securities table.** The two-way rule is satisfied
-for this mechanism and nobody noticed, because the FR map tracked #565 as UI
-work and `fields=` as agent work without connecting them.
+The application's only column picker is on the **securities** list
+(`lib/portfolixir_web/live/securities/column_picker.ex`, `visible_columns` in
+`securities_live.ex`, persisted under `securities.columns`). Transactions and
+holdings have none.
 
-**Residual gap, smaller than the debt:** the other heavy lists — transactions,
-holdings — have no column picker. That is a generalization of an existing
-affordance, not undischarged debt.
+**The agent half and the human half therefore do not overlap on a single
+surface.** Field selection has an operator affordance on the one list with no
+`fields=`, and no operator affordance on the two lists that implement it.
+
+**Verdict: undischarged.** A picker on the transactions and holdings lists is
+the actual obligation, and nothing in the backlog covers it.
 
 ### 2. Roll-up-only aggregates — human view **in flight as #712**
 
@@ -54,14 +61,13 @@ position rows.
 Its human equivalent is precisely the shape **ADR-0041** specifies and **#712**
 carries: *a money-weighted roll-up on the category row, expandable to its
 member positions.* Collapsed is `include_positions=false`; expanded is the full
-read.
+read. Same endpoint, same semantics, both halves.
 
-**Verdict: discharged if #712 ships in Sprint 7.** This is an argument for
-scheduling #712 in this batch rather than a later one — it is not only a
-feature the owner asked for, it is the settlement of a coverage obligation. The
-two were filed independently and nobody connected them.
+**Verdict: discharged if #712 ships in Sprint 7.** Unlike §1, this is a real
+correspondence and not a retroactive nomination: the surfaces match, and #712
+was specified against the same ADR-0041 arithmetic the endpoint returns.
 
-### 3. Threshold filters — human view **partially present**
+### 3. Threshold filters — **partially present**
 
 Two threshold surfaces shipped: `min_drift` on the allocation endpoint
 (`allocation_controller.ex:96`, a non-negative `Decimal` string) and
@@ -69,76 +75,107 @@ Two threshold surfaces shipped: `min_drift` on the allocation endpoint
 
 On the human side, `securities_live.ex` has a filter builder (`@filter_ops`)
 and a fixed data-quality set (`@dq_filters` — `stale_quote`, `missing_quote`,
-`missing_logo`). So *a* threshold/predicate vocabulary exists for the
-securities list, and **none** exists for the allocation drift or the risk
-thresholds: an operator cannot ask "show only categories drifting more than
-X %", which is exactly the question the agent half was built to answer.
+`missing_logo`). So a predicate vocabulary exists for the securities list, and
+**none** exists for allocation drift or the risk thresholds: an operator cannot
+ask "show only categories drifting more than X %", which is the question the
+agent half was built to answer.
 
-Worth noting: **#705 runs the same gap in the opposite direction** — it wants
-the human filter builder's data-quality predicates expressible over API and
-MCP. Same asymmetry, mirrored. Under the two-way rule these are one concern
-seen from two sides, and specifying them together is cheaper than twice.
+**#705 runs the same gap in the opposite direction** — it wants the human filter
+builder's data-quality predicates expressible over API and MCP. Under the
+two-way rule these are one concern seen from two sides, and specifying them
+together is cheaper than twice.
 
 **Verdict: partially discharged.** The missing piece is a drift-threshold
 control on the allocation surface.
 
-### 4. `?since=` delta reads — **nothing, and this is the real debt**
+### 4. `?since=` delta reads — **no human view**
 
-`PortfolixirWeb.Api.V1.SinceParam` implements FR-38: rows created or updated
-strictly after a UTC cut, by `updated_at`, with the response's `as_of` intended
-as the caller's next `since`. Deletions are deliberately not represented — a
-caller needing them performs a full read.
+`PortfolixirWeb.Api.V1.SinceParam` implements FR-38 on `security_controller`
+and `transaction_controller`: rows created or updated strictly after a UTC cut,
+by `updated_at`, with the response's `as_of` intended as the caller's next
+`since`. Deletions are deliberately not represented — a caller needing them
+performs a full read.
 
-**There is no human counterpart anywhere in the application.** No "what changed"
-view, no since-cut, no changed-rows surface. This is the one part of the
-obligation that is genuinely undefined and genuinely unbuilt.
+**There is no human counterpart anywhere in the application.** Verified against
+`lib/portfolixir_web/**` and both gettext catalogues: every `since` hit is
+TTWROR-comparison or tax-staleness copy, none a changed-rows surface.
 
 **The shape is dictated by the mechanism, so it does not need inventing:**
 
-- a cut the operator chooses (a date, defaulting to something meaningful like
-  the last visit or the last import);
-- the rows created or updated since it, across the surfaces the API already
-  covers (securities, transactions, holdings, snapshots);
-- **the deletion gap stated on the surface itself.** This is not a nicety: the
-  identity gate's computation-basis rule requires a metric to state its window
-  and its treatment of gaps in its payload, and a human view that silently
-  omits deletions while the API documents them would be *less* honest than the
-  agent half. The gap is the interesting part of the contract.
+- a cut the operator chooses (a date, defaulting to something meaningful);
+- the rows created or updated since it, on the surfaces the API already covers;
+- **the deletion gap stated on the surface itself.** The computation-basis rule
+  requires a metric to state its window and its treatment of gaps, and a human
+  view that silently omits deletions while the API documents them would be
+  *less* honest than the agent half.
 
-**Verdict: undischarged. One issue, and it is the only one this obligation
-strictly requires.**
+**Verdict: undischarged.**
 
 ---
 
 ## Summary
 
-| FR-37/38 mechanism | Human view | Status |
-|---|---|---|
-| field selection (`fields=`) | securities column picker (#565) | **shipped**, same batch |
-| roll-up-only (`include_positions=false`) | category roll-up expandable to positions | **in flight — #712** |
-| threshold filters (`min_drift`, risk thresholds) | filter builder exists; no drift threshold | **partial** — pairs with #705 |
-| delta reads (`?since=`) | — | **missing** |
+| FR-37/38 mechanism | Endpoints | Human view | Status |
+|---|---|---|---|
+| field selection (`fields=`) | transactions, holdings | picker exists on **securities only** | **missing** |
+| roll-up (`include_positions=false`) | allocation | category roll-up, expandable | **in flight — #712** |
+| threshold filters | allocation, risk | filter builder on securities; no drift threshold | **partial** |
+| delta reads (`?since=`) | securities, transactions | — | **missing** |
+
+## How this analysis was wrong first
+
+The first version claimed field selection's human view had "already shipped, as
+#565, in the same batch", and drew a methodological lesson from it: that a
+coverage rule stated per requirement will mark debts paid without anyone
+noticing. Both halves were wrong, and the second was wrong *because* it was
+pleasing.
+
+Two independent facts refute it. **The securities column picker predates FR-37
+entirely** — `column_picker.ex` and the `securities.columns` storage key exist
+at `73affc5`, the Sprint 5 head, before the Sprint 6 batch; `#565` is titled
+"securities table **classification** columns are configurable" and added
+classification columns to a picker that already existed. And **the securities
+list has no `fields=`**, so the picker was never that mechanism's human half on
+any reading.
+
+The deeper error is the method, not the facts. Nobody ever *decided* that #565
+discharged FR-37; the analysis nominated a pre-existing affordance in hindsight
+and then proposed recording that nomination in the FR Coverage Map, where it
+would have become the authoritative entry with the reasoning buried in a dated
+planning artifact. A strict reader of the two-way rule would reject this
+outright: the rule says the human view "**then lands** in the same or the next
+epic batch" — a temporal obligation to build something — and `AGENTS.md` states
+its own purpose, that without the deadline the rule "degrades into 'agent only,
+forever', which hollows out the operator half". **A retroactive nominee can
+always be found after the fact.** That is precisely the degradation, performed
+by the document meant to enforce the rule.
+
+It also had a motive. The conclusion reduced Sprint 7's scope, and it was
+written by the agent that would otherwise have had to schedule the work.
+
+**The finding worth carrying is therefore about the method:** an obligation is
+discharged by a decision recorded before the fact, not by an inventory taken
+afterwards. When an audit of one's own scope concludes that the scope is
+smaller than believed, that conclusion needs an adversarial check before it is
+acted on — which is what happened here, one round too late to have saved the
+work.
 
 ## Proposed for owner confirmation
 
-1. **File one issue** — the changed-since view, with the deletion gap stated on
-   the surface. This is what the two-way rule actually obliges.
-2. **Schedule #712 in Sprint 7** on the strength of it also discharging the
-   roll-up half.
-3. **Fold the drift-threshold control into #705's specification**, since #705
-   is already the same asymmetry from the other side.
-4. **Record #565 in the FR Coverage Map as FR-37's field-selection human view**,
-   so the map stops implying a debt that was paid in the same batch.
-5. **Leave the column-picker generalization** (transactions, holdings) as an
-   ordinary backlog item — it is a feature, not a coverage obligation.
+1. **File the changed-since view** (`?since=` human counterpart), with the
+   deletion gap stated on the surface.
+2. **File the field-selection picker** for the transactions and holdings lists
+   — the two endpoints that actually implement `fields=`. This is the item the
+   first version wrongly marked paid.
+3. **Schedule #712 in Sprint 7**, on the strength of it also discharging the
+   roll-up half. This one survives the correction unchanged.
+4. **Fold the drift-threshold control into #705's specification**, since #705 is
+   already the same asymmetry from the other side.
+5. **WITHDRAWN** — the first version proposed recording #565 in the FR Coverage
+   Map as FR-37's field-selection human view. It is not, on either count above.
+   The FR-37 row must keep stating the debt, and it now understates it: the
+   obligation is two surfaces wide.
 
-## The finding worth carrying
-
-The two-way coverage rule was recorded as a single undifferentiated debt
-("the human view is due next batch") against a requirement that is three
-mechanisms wide. Under that phrasing the obligation looked large and undefined,
-and it was neither: most of it was already paid, and one part of it had been
-paid *in the same batch by a differently-numbered issue*. A coverage rule
-stated per requirement, when the requirement is a family, will keep producing
-this — the rule should attach to the mechanism, which is the unit that has a
-surface.
+**If items 1 and 2 do not both fit Sprint 7,** that is a legitimate outcome, but
+it is a *deferral to be recorded as the close-out finding the two-way rule
+prescribes* — not an obligation to be reasoned away.
