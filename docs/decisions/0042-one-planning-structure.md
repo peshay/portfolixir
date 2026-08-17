@@ -6,9 +6,10 @@ description: Two parallel epic structures have coexisted since June and drifted 
 
 # ADR-0042: one planning structure — the requirement registry and the work breakdown stop competing
 
-- **Status:** Proposed — awaiting owner sign-off (decision gate per
+- **Status:** Accepted (owner sign-off 2026-08-17, decision gate per
   [ADR-0026](0026-epic-batch-workflow.html))
-- **Date:** 2026-08-17 (rewritten the same day — see "Who reads what")
+- **Date:** 2026-08-17 (rewritten the same day before sign-off — see "Who
+  reads what")
 
 ## Context
 
@@ -131,7 +132,7 @@ lane plan becomes a named, described artifact. *Recommended* — see below.
 status quo, and five recordings across seven weeks are sufficient evidence that
 it does not converge.
 
-## Decision (proposed)
+## Decision
 
 ### 1. `epics.md` is the requirement registry, and stops being a work breakdown
 
