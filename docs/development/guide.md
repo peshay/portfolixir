@@ -41,6 +41,30 @@ If pre-commit is not installed:
 
 - `pre-commit install --install-hooks`
 
+## Measuring before activating a derived value
+
+Which analytics run the `:durable` lifetime is a configuration decision
+informed by measurement, never an architectural one
+([ADR-0039](../decisions/0039-durable-derived-values.html) §2). The command
+that produces the measurement seeds a deterministic synthetic ledger and times
+every figure a surface waits on, twice, with the derived layer off:
+
+```bash
+DATABASE_NAME=portfolixir_bench mix ecto.create
+DATABASE_NAME=portfolixir_bench mix ecto.migrate
+DATABASE_NAME=portfolixir_bench mix portfolixir.derived.measure
+```
+
+It **writes synthetic transactions**, so point it at a throwaway database as
+above — the same convention `priv/demo` uses — and it refuses to run in `:prod`.
+`--securities`, `--bookings` and `--years` size the ledger; `--skip-seed`
+measures whatever is already there.
+
+An analytic that turns out cheap enough not to need a lifetime is a finding and
+is printed as one. Record the run in ADR-0039 next to the existing measurement
+rather than in a commit message, so the next activation decision has something
+to be compared against.
+
 ## Scope guardrails
 
 - Use synthetic fixture data only.
