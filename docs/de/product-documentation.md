@@ -297,6 +297,36 @@ dieselbe Kurs-/Währungszerlegung wie die Bestände — oder einen ehrlichen
 Strich, wenn sie nicht ableitbar ist. Eine eingegebene Menge über den
 offenen Lots wird mit dem ungedeckten Fehlbetrag markiert.
 
+### Die Historie lesen
+
+Die Transaktionshistorie wird über **Chips** oberhalb der Tabelle gefiltert:
+einer je Geldkonto und einer je Transaktionsart, die tatsächlich vorkommt.
+Chips sind Schalter. Zwei Chips derselben Familie bedeuten „eines von beiden"
+— zwei Konten zeigen die Buchungen beider Konten; je ein Chip aus zwei
+Familien schränkt auf die Schnittmenge ein. Die selteneren Bedingungen —
+Wertpapier, Zeitraum, Freitextsuche — liegen hinter **Weitere Filter**, das
+eine Anzahl trägt, sobald dort eine Bedingung aktiv ist. So verbirgt ein
+zurückgestuftes Bedienelement nie, was die Liste gerade filtert.
+
+Die Einschränkung auf **genau ein Konto** blendet eine Spalte **Saldo** ein:
+den Stand des Kontos nach jeder Buchung, in der Währung des Kontos. Zwei
+Eigenschaften dieser Spalte sind wichtig:
+
+- sie rechnet genauso wie der Kontosaldo selbst, die jüngste Zeile entspricht
+  also dem Wert auf der Kontenseite;
+- sie wird über die **gesamte** Historie des Kontos gebildet, nicht über die
+  angezeigten Zeilen. Ein Datumsfilter ändert, welche Zeilen Sie sehen, nie
+  den damaligen Saldo.
+
+Eine Zeile, die das gewählte Konto nicht bewegt — eine Einlieferung, ein Split
+— zeigt einen Gedankenstrich statt den Wert der Vorzeile zu wiederholen.
+
+Die Zeilen sind nach Monaten gegliedert, und sowohl die Monatssummen als auch
+die Zusammenfassung über der Tabelle nennen **eine Summe je Währung**. Die
+Beträge sind die gebuchten Bruttobeträge; sie werden nie umgerechnet oder über
+Währungen hinweg addiert — eine Umrechnung wäre eine andere Kennzahl und
+bräuchte ihre eigene Kursbasis.
+
 ### Bestandsberechnung
 
 Aktuelle Bestände werden nicht manuell erfasst. Sie werden aus allen

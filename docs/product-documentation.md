@@ -278,6 +278,34 @@ decomposition as the holdings — or an honest dash when it cannot be derived.
 An entered quantity larger than the open lots is flagged with the uncovered
 shortfall.
 
+### Reading the History
+
+The transaction history is filtered with **chips** above the table: one per
+cash account, and one per transaction kind actually present. Chips are
+toggles. Two chips of the same family mean "either of these" — two accounts
+show both accounts' bookings; a chip from each family narrows to their
+overlap. The less common conditions — security, date range, free-text search —
+live behind **More filters**, which carries a count whenever it holds an active
+condition, so a demoted control never hides what is filtering the list.
+
+Narrowing to **exactly one account** adds a **Balance** column: the balance
+that account stood at after each booking, in the account's own currency. Two
+properties of that column are worth knowing:
+
+- it is the same arithmetic as the account balance itself, so the most recent
+  row equals what the accounts page shows;
+- it is computed over the account's **whole** history, not over the rows on
+  screen. Narrowing the dates changes which rows you see, never what the
+  balance was.
+
+A row that does not move the selected account — a delivery, a split — shows a
+dash rather than repeating the previous row's figure.
+
+The rows are sectioned by month, and both the month subtotals and the summary
+above the table state **one total per currency**. Amounts are the gross booked
+amounts and are never converted or added across currencies; converting them
+would make them a different figure needing its own rate basis.
+
 ### Holdings Calculation
 
 Current holdings are not entered manually. They are derived from all

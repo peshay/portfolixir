@@ -541,7 +541,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
   # User story (Steve UAT #414):
   # As a maintainer with a long transaction history,
-  # I want to filter the list (by type, security and date range, plus text
+  # I want to filter the list (by type chip, security and date range, plus text
   # search) and read a summary of what the current filter selects,
   # so that I can find and understand my transactions instead of scrolling a
   # flat wall of rows.
@@ -624,8 +624,8 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       {:ok, view, _html} = live(conn, "/transactions")
 
       view
-      |> form("#transaction-filters", %{"filters" => %{"type" => "sell"}})
-      |> render_change()
+      |> element("#transaction-chips [phx-value-family='type'][phx-value-value='sell']")
+      |> render_click()
 
       rows = view |> element("#transaction-list tbody") |> render()
       assert rows =~ "Sell"
@@ -706,11 +706,255 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
       # Filtering to sells leaves only the March section.
       view
-      |> form("#transaction-filters", %{"filters" => %{"type" => "sell"}})
-      |> render_change()
+      |> element("#transaction-chips [phx-value-family='type'][phx-value-value='sell']")
+      |> render_click()
 
       assert has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-03']")
       refute has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-01']")
+    end
+  end
+
+  # User story (#414 completion, #707 Part 4):
+  # As a maintainer reading the history of ONE cash account,
+  # I want to narrow to that account with a chip and read the balance it stood
+  # at after each booking,
+  # so that I can follow the money down the page instead of adding it up
+  # myself.
+  #
+  # Acceptance criteria:
+  # - Account and type filters are one-tap chips carrying `aria-pressed`
+  #   (UX-DR7: the pressed state is not colour alone).
+  # - Chips of the same family compose as OR; different families as AND.
+  # - Narrowing to exactly ONE account adds a running-balance column.
+  # - The running balance is computed over that account's WHOLE history, so a
+  #   date filter that hides the opening deposit does not change it.
+  # - Totals are stated per currency and are never summed across currencies.
+  # - The summary states what it aggregates (UX-DR21).
+  describe "one account's ledger (#414)" do
+    defp two_account_world do
+      world = WorldFixtures.base_world(name: "Ledger", depot_name: "Depot A", cash_name: "Cash A")
+
+      %{cash: cash_b, depot: depot_b} =
+        WorldFixtures.add_depot(world.portfolio, cash_name: "Cash B", depot_name: "Depot B")
+
+      etf = WorldFixtures.create_security!(name: "World ETF", ticker: "WLD")
+
+      book = fn attrs ->
+        {:ok, tx} =
+          Ledger.create_transaction(
+            Portfolixir.Actor.owner_ui(),
+            Map.merge(%{portfolio_id: world.portfolio.id, currency_code: "EUR"}, attrs)
+          )
+
+        tx
+      end
+
+      opening =
+        book.(%{
+          cash_account_id: world.cash.id,
+          type: "deposit",
+          date: ~D[2026-01-05],
+          gross_amount: "1000"
+        })
+
+      buy =
+        book.(%{
+          cash_account_id: world.cash.id,
+          securities_account_id: world.depot.id,
+          security_id: WorldFixtures.security_id_for(etf),
+          type: "buy",
+          date: ~D[2026-03-10],
+          quantity: "2",
+          price: "100",
+          gross_amount: "200"
+        })
+
+      other =
+        book.(%{
+          cash_account_id: cash_b.id,
+          type: "deposit",
+          date: ~D[2026-03-11],
+          gross_amount: "500"
+        })
+
+      %{world: world, cash_b: cash_b, depot_b: depot_b, opening: opening, buy: buy, other: other}
+    end
+
+    defp toggle(view, family, value) do
+      view
+      |> element("#transaction-chips [phx-value-family='#{family}'][phx-value-value='#{value}']")
+      |> render_click()
+    end
+
+    test "an account chip narrows the history and is a pressed toggle", %{conn: conn} do
+      w = two_account_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      # Both accounts are visible before any chip is pressed.
+      assert render(view) =~ "Cash B"
+
+      toggle(view, "account", w.world.cash.id)
+
+      assert has_element?(
+               view,
+               "#transaction-chips [phx-value-value='#{w.world.cash.id}'][aria-pressed='true']"
+             )
+
+      assert has_element?(view, "#transaction-summary [data-role='summary-total']", "2")
+    end
+
+    test "chips of one family compose as OR, chips of two families as AND", %{conn: conn} do
+      w = two_account_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      # Both accounts: everything is back.
+      toggle(view, "account", w.world.cash.id)
+      toggle(view, "account", w.cash_b.id)
+      assert has_element?(view, "#transaction-summary [data-role='summary-total']", "3")
+
+      # ...AND only deposits: the buy drops out, both deposits stay.
+      toggle(view, "type", "deposit")
+      assert has_element?(view, "#transaction-summary [data-role='summary-total']", "2")
+      refute view |> element("#transaction-list tbody") |> render() =~ "World ETF"
+    end
+
+    test "narrowing to one account shows the balance after each booking", %{conn: conn} do
+      w = two_account_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      # No running balance while several accounts are in view: there is no
+      # single balance to state.
+      refute has_element?(view, "#transaction-list [data-role='running-balance']")
+
+      toggle(view, "account", w.world.cash.id)
+
+      assert has_element?(
+               view,
+               "#transaction-list tr[data-transaction='#{w.opening.id}'] [data-role='running-balance']",
+               "1,000.00"
+             )
+
+      assert has_element?(
+               view,
+               "#transaction-list tr[data-transaction='#{w.buy.id}'] [data-role='running-balance']",
+               "800.00"
+             )
+    end
+
+    test "the running balance covers the whole history, not the filtered slice", %{conn: conn} do
+      w = two_account_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      toggle(view, "account", w.world.cash.id)
+
+      # March only: the January deposit is off screen. The balance after the
+      # buy must still be 800, not -200.
+      view
+      |> form("#transaction-filters", %{"filters" => %{"from" => "2026-03-01"}})
+      |> render_change()
+
+      refute view |> element("#transaction-list tbody") |> render() =~ "1,000.00"
+
+      assert has_element?(
+               view,
+               "#transaction-list tr[data-transaction='#{w.buy.id}'] [data-role='running-balance']",
+               "800.00"
+             )
+    end
+
+    test "totals are stated per currency and never summed across them", %{conn: conn} do
+      world =
+        WorldFixtures.base_world(name: "Multi", cash_name: "EUR Cash", depot_name: "EUR Depot")
+
+      %{cash: usd_cash} =
+        WorldFixtures.add_depot(world.portfolio,
+          cash_currency: "USD",
+          cash_name: "USD Cash",
+          depot_name: "USD Depot"
+        )
+
+      for {cash, currency, amount} <- [
+            {world.cash, "EUR", "1000"},
+            {usd_cash, "USD", "700"}
+          ] do
+        {:ok, _} =
+          Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+            portfolio_id: world.portfolio.id,
+            cash_account_id: cash.id,
+            type: "deposit",
+            date: ~D[2026-04-01],
+            gross_amount: amount,
+            currency_code: currency
+          })
+      end
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      summary = view |> element("#transaction-summary") |> render()
+
+      # Two figures with their codes -- never one 1700 that belongs to no
+      # currency at all.
+      assert summary =~ "1,000.00"
+      assert summary =~ "700.00"
+      assert summary =~ "EUR"
+      assert summary =~ "USD"
+      refute summary =~ "1,700.00"
+
+      # The month subtotal splits the same way.
+      april = view |> element("tr.tx-group-head[data-month-group='2026-04']") |> render()
+      assert april =~ "1,000.00"
+      assert april =~ "700.00"
+      refute april =~ "1,700.00"
+    end
+
+    test "the summary states what it aggregates", %{conn: conn} do
+      two_account_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      assert has_element?(view, "#transaction-summary [data-role='summary-basis']")
+
+      basis = view |> element("#transaction-summary [data-role='summary-basis']") |> render()
+      # Named content, not an urgency or a bare number (UX-DR21).
+      assert basis =~ "gross"
+      assert basis =~ "currency"
+    end
+
+    test "the chip row and its disclosure read German in the German locale", %{conn: conn} do
+      two_account_world()
+
+      {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+      chips = view |> element("#transaction-chips") |> render()
+      assert chips =~ "Konto"
+      assert chips =~ "Kauf"
+      refute chips =~ "Buy"
+
+      more = view |> element("#transaction-more-filters summary") |> render()
+      assert more =~ "Weitere Filter"
+
+      basis = view |> element("#transaction-summary [data-role='summary-basis']") |> render()
+      assert basis =~ "Währung"
+      refute basis =~ "currency"
+    end
+
+    test "More filters carries a count of the conditions it hides", %{conn: conn} do
+      two_account_world()
+
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      refute has_element?(view, "[data-role='more-filters-count']")
+
+      view
+      |> form("#transaction-filters", %{"filters" => %{"from" => "2026-03-01", "query" => "ETF"}})
+      |> render_change()
+
+      # Demoting the builder must not hide active state.
+      assert has_element?(view, "[data-role='more-filters-count']", "2")
     end
   end
 

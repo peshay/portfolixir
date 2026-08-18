@@ -4,8 +4,15 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
+
+  # Two chip families (#707 D2, Part 4) plus the conditions the "More filters"
+  # disclosure holds. Chips within a family compose as OR -- two accounts means
+  # "either of these" -- and the families compose as AND with each other and
+  # with the disclosure.
+  @chip_families ["types", "account_ids"]
 
   @transaction_form %{
     "type" => "buy",
@@ -328,18 +335,58 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <%= gettext("No transactions yet") %>
             </div>
           <% else %>
+            <%!-- The common filters are one-tap chips; the rest is demoted
+                  behind a counted disclosure (#707 D2 and Part 4). Chips are
+                  toggles, so they carry aria-pressed rather than aria-current,
+                  and the pressed state shows on the border as well as the tint
+                  so it survives forced colours (UX-DR7). --%>
+            <div
+              id="transaction-chips"
+              class="filter-chips"
+              role="group"
+              aria-label={gettext("Filter the history")}
+            >
+              <span class="filter-chips__family"><%= gettext("Account") %></span>
+              <%= for account <- filter_account_options(@cash_accounts, @transactions) do %>
+                <button
+                  type="button"
+                  class={["filter-chip", to_string(account.id) in @filters["account_ids"] && "is-active"]}
+                  aria-pressed={to_string(to_string(account.id) in @filters["account_ids"])}
+                  phx-click="toggle_filter"
+                  phx-value-family="account"
+                  phx-value-value={account.id}
+                >
+                  <%= account.name %>
+                </button>
+              <% end %>
+
+              <span class="filter-chips__family"><%= gettext("Type") %></span>
+              <%= for type <- filter_type_options(@transactions) do %>
+                <button
+                  type="button"
+                  class={["filter-chip", type in @filters["types"] && "is-active"]}
+                  aria-pressed={to_string(type in @filters["types"])}
+                  phx-click="toggle_filter"
+                  phx-value-family="type"
+                  phx-value-value={type}
+                >
+                  <%= tx_type_label(type) %>
+                </button>
+              <% end %>
+            </div>
+
+            <details id="transaction-more-filters" class="more-filters">
+              <summary>
+                <AppShell.icon name={:filter} />
+                <%= gettext("More filters") %>
+                <%!-- A demoted control that hides active state is a worse
+                      defect than the builder it replaces, so the count comes
+                      out to the summary. --%>
+                <span :if={@more_filters_count > 0} class="badge" data-role="more-filters-count">
+                  <%= @more_filters_count %>
+                </span>
+              </summary>
             <form id="transaction-filters" phx-change="filter_changed" class="transaction-filters">
-              <label>
-                <span><%= gettext("Type") %></span>
-                <select name="filters[type]">
-                  <option value=""><%= gettext("All types") %></option>
-                  <%= for type <- filter_type_options(@transactions) do %>
-                    <option value={type} selected={@filters["type"] == type}>
-                      <%= tx_type_label(type) %>
-                    </option>
-                  <% end %>
-                </select>
-              </label>
               <label>
                 <span><%= gettext("Security") %></span>
                 <select name="filters[security_id]">
@@ -368,6 +415,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 />
               </label>
             </form>
+            </details>
 
             <div id="transaction-summary" class="transaction-summary" role="status">
               <span class="summary-total">
@@ -378,9 +426,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 <span class="summary-type" data-type={row.type}>
                   <%= tx_type_label(row.type) %>:
                   <strong data-role="summary-count"><%= row.count %></strong>
-                  · <%= PortfolixirWeb.Format.money(row.total) %>
+                  · <.currency_totals totals={row.totals} />
                 </span>
               <% end %>
+              <p class="summary-basis" data-role="summary-basis">
+                <%= gettext("Counts and gross booked amounts of the transactions this filter selects, summed per currency and not converted.") %>
+              </p>
             </div>
 
             <%= if Enum.empty?(@filtered_transactions) do %>
@@ -397,21 +448,28 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                     <th><%= gettext("Quantity") %></th>
                     <th><%= gettext("Price") %></th>
                     <th><%= gettext("Currency") %></th>
+                    <%!-- The running balance is only meaningful for ONE
+                          account, so the column appears exactly when the chips
+                          narrow to one and not before. --%>
+                    <th :if={@balance_account}>
+                      <%= gettext("Balance") %>
+                      <small><%= @balance_account.currency_code %></small>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   <%= for group <- grouped_by_month(@filtered_transactions) do %>
                     <tr class="tx-group-head" data-month-group={group.id}>
-                      <th colspan="6" scope="colgroup">
+                      <th colspan={if @balance_account, do: "7", else: "6"} scope="colgroup">
                         <span class="tx-group-month"><%= group.label %></span>
                         <span class="tx-group-subtotal">
                           <%= ngettext("%{count} transaction", "%{count} transactions", group.count,
-                            count: group.count) %> · <%= PortfolixirWeb.Format.money(group.total) %>
+                            count: group.count) %> · <.currency_totals totals={group.totals} />
                         </span>
                       </th>
                     </tr>
                     <%= for transaction <- group.transactions do %>
-                      <tr>
+                      <tr data-transaction={transaction.id}>
                         <td><%= transaction.date %></td>
                         <td><%= tx_type_label(transaction.type) %></td>
                         <td><%= transaction.security && transaction.security.name %></td>
@@ -426,6 +484,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                           <td><%= format_decimal(transaction.price) %></td>
                         <% end %>
                         <td><%= transaction.currency_code %></td>
+                        <td :if={@balance_account} class="numeric" data-role="running-balance">
+                          <%!-- Absent, never repeated: a row that does not move
+                                this account carries no balance, because the
+                                previous row's figure would read as "nothing
+                                happened here". --%>
+                          <%= running_balance(@running_balances, transaction) %>
+                        </td>
                       </tr>
                     <% end %>
                   <% end %>
@@ -460,9 +525,26 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   def handle_event("filter_changed", %{"filters" => filters}, socket) do
+    # The disclosure's form carries only its own fields, so the chip families
+    # are carried over rather than reset -- a date entered in "More filters"
+    # must not silently release the account the reader narrowed to.
+    chips = Map.take(socket.assigns.filters, @chip_families)
+
     {:noreply,
      socket
-     |> assign(:filters, Map.merge(default_filters(), filters))
+     |> assign(:filters, default_filters() |> Map.merge(filters) |> Map.merge(chips))
+     |> apply_current_filters()}
+  end
+
+  def handle_event("toggle_filter", %{"family" => family, "value" => value}, socket)
+      when family in ["type", "account"] do
+    key = if family == "type", do: "types", else: "account_ids"
+    active = Map.fetch!(socket.assigns.filters, key)
+    toggled = if value in active, do: List.delete(active, value), else: [value | active]
+
+    {:noreply,
+     socket
+     |> assign(:filters, Map.put(socket.assigns.filters, key, Enum.sort(toggled)))
      |> apply_current_filters()}
   end
 
@@ -504,6 +586,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp load_state(socket) do
     securities = Catalog.list_securities()
     securities_accounts = Portfolios.list_securities_accounts()
+    cash_accounts = Portfolios.list_cash_accounts()
     transactions = Ledger.list_transactions()
 
     position_rows =
@@ -514,6 +597,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     socket
     |> assign(
       securities_accounts: securities_accounts,
+      cash_accounts: cash_accounts,
       securities: securities,
       transactions: transactions,
       position_rows: position_rows
@@ -525,7 +609,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # the local ledger is bounded, so a client-side narrow is instant and keeps
   # the query path simple. The summary always reflects the current filter.
   defp default_filters,
-    do: %{"type" => "", "security_id" => "", "from" => "", "to" => "", "query" => ""}
+    do: %{
+      "types" => [],
+      "account_ids" => [],
+      "security_id" => "",
+      "from" => "",
+      "to" => "",
+      "query" => ""
+    }
 
   defp apply_current_filters(socket) do
     filters = Map.merge(default_filters(), socket.assigns[:filters] || %{})
@@ -534,21 +625,56 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     assign(socket,
       filters: filters,
       filtered_transactions: filtered,
-      summary: summarise(filtered)
+      summary: summarise(filtered),
+      more_filters_count: more_filters_count(filters)
+    )
+    |> assign_running_balances(filters)
+  end
+
+  # The running balance is a property of the ACCOUNT, not of the current view,
+  # so it is folded over the whole history and merely displayed on the rows the
+  # filter leaves standing. Folding it over the filtered slice would restate the
+  # opening balance as zero every time a date filter moved.
+  defp assign_running_balances(socket, %{"account_ids" => [account_id]}) do
+    account = Enum.find(socket.assigns.cash_accounts, &(to_string(&1.id) == account_id))
+
+    assign(socket,
+      balance_account: account,
+      running_balances:
+        account && Projection.cash_balance_series(socket.assigns.transactions, account.id)
     )
   end
 
+  defp assign_running_balances(socket, _filters),
+    do: assign(socket, balance_account: nil, running_balances: nil)
+
   defp filter_transactions(transactions, filters) do
     transactions
-    |> Enum.filter(&type_match?(&1, filters["type"]))
+    |> Enum.filter(&type_match?(&1, filters["types"]))
+    |> Enum.filter(&account_match?(&1, filters["account_ids"]))
     |> Enum.filter(&security_match?(&1, filters["security_id"]))
     |> Enum.filter(&from_match?(&1, filters["from"]))
     |> Enum.filter(&to_match?(&1, filters["to"]))
     |> Enum.filter(&query_match?(&1, filters["query"]))
   end
 
-  defp type_match?(_tx, blank) when blank in ["", nil], do: true
-  defp type_match?(tx, type), do: tx.type == type
+  defp type_match?(_tx, []), do: true
+  defp type_match?(tx, types), do: tx.type in types
+
+  # An account chip selects the rows that MOVE that account's money -- both legs
+  # of a cash transfer, and nothing that has no cash leg at all (a delivery, a
+  # split). Those rows are not this account's ledger, so they leave with it.
+  defp account_match?(_tx, []), do: true
+
+  defp account_match?(tx, ids) do
+    to_string(tx.cash_account_id) in ids or
+      to_string(Map.get(tx, :counter_cash_account_id)) in ids
+  end
+
+  defp more_filters_count(filters) do
+    ["security_id", "from", "to", "query"]
+    |> Enum.count(&(Map.get(filters, &1) not in ["", nil]))
+  end
 
   defp security_match?(_tx, blank) when blank in ["", nil], do: true
   defp security_match?(tx, id), do: to_string(tx.security_id) == id
@@ -588,6 +714,27 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # Section the (already date-desc) history into month chunks with a subtotal
   # each (#414 follow-up). chunk_by works because the list is pre-sorted, so
   # consecutive same-month rows are adjacent and order is preserved.
+  # One figure per currency, so a total always names the money it is in.
+  attr(:totals, :list, required: true)
+
+  defp currency_totals(assigns) do
+    ~H"""
+    <span :for={{entry, index} <- Enum.with_index(@totals)} class="currency-total">
+      <%= if index > 0, do: " · " %><%= PortfolixirWeb.Format.money(entry.total) %>
+      <small><%= entry.currency %></small>
+    </span>
+    """
+  end
+
+  defp running_balance(nil, _transaction), do: "—"
+
+  defp running_balance(balances, transaction) do
+    case Map.get(balances, transaction.id) do
+      %Decimal{} = balance -> PortfolixirWeb.Format.money(balance)
+      nil -> "—"
+    end
+  end
+
   defp grouped_by_month(transactions) do
     transactions
     |> Enum.chunk_by(fn tx -> {tx.date.year, tx.date.month} end)
@@ -599,7 +746,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         label: month_group_label(first.date),
         transactions: chunk,
         count: length(chunk),
-        total: sum_amount(chunk)
+        totals: totals_by_currency(chunk)
       }
     end)
   end
@@ -631,11 +778,24 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       transactions
       |> Enum.group_by(& &1.type)
       |> Enum.map(fn {type, list} ->
-        %{type: type, count: length(list), total: sum_amount(list)}
+        %{type: type, count: length(list), totals: totals_by_currency(list)}
       end)
       |> Enum.sort_by(& &1.type)
 
     %{total: length(transactions), by_type: by_type}
+  end
+
+  # Booked amounts are summed **per currency** and never across them. A single
+  # figure adding dollars to euros is not a smaller lie for being one number,
+  # and UX-DR21 asks a surface to name what it aggregates -- which a
+  # currency-less total cannot do. No conversion happens here: the summary
+  # counts what was booked, and converting it would make it a different figure
+  # that would then need its own rate basis.
+  defp totals_by_currency(transactions) do
+    transactions
+    |> Enum.group_by(& &1.currency_code)
+    |> Enum.map(fn {currency, list} -> %{currency: currency, total: sum_amount(list)} end)
+    |> Enum.sort_by(& &1.currency)
   end
 
   defp sum_amount(transactions) do
@@ -655,6 +815,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # filter dropdowns, so the controls never offer a value that matches nothing.
   defp filter_type_options(transactions) do
     transactions |> Enum.map(& &1.type) |> Enum.uniq() |> Enum.sort()
+  end
+
+  defp filter_account_options(cash_accounts, transactions) do
+    used =
+      transactions
+      |> Enum.flat_map(&[&1.cash_account_id, Map.get(&1, :counter_cash_account_id)])
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new()
+
+    Enum.filter(cash_accounts, &MapSet.member?(used, &1.id))
   end
 
   defp filter_security_options(transactions) do
