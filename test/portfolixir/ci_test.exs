@@ -118,4 +118,40 @@ defmodule Portfolixir.CITest do
            |> Enum.at(1)
            |> String.contains?("mix deps.get")
   end
+
+  # User story:
+  # As a maintainer whose test suite is the mechanical guard behind money math,
+  # I want async LiveView assertions to have a wall-clock budget that survives
+  # coverage instrumentation,
+  # so that a red CI run means a real defect instead of a timing coincidence,
+  # and the next red run is not assumed to be the flake.
+  #
+  # Context (#682 follow-on): #682 shipped the instrumentation -- the persisted
+  # test-output artifact and the recorded seed -- and said explicitly that
+  # hunting the cause was only worth doing once a burst could be inspected. The
+  # artifact caught one: `render_async/1` defaults its timeout to
+  # `:ex_unit, :assert_receive_timeout`, which is 100 ms, and the async work
+  # behind a LiveView mount regularly exceeds that under `mix coveralls`
+  # instrumentation. 129 call sites relied on that default; 11 had already been
+  # hand-patched with explicit timeouts, which is symptom-patching that left the
+  # other 118 exposed.
+  #
+  # Acceptance criteria:
+  # - The suite raises `assert_receive_timeout` centrally, so every
+  #   `render_async/1` call site inherits the budget rather than 11 of them.
+  # - The budget stays a *timeout*, not a delay: a passing assertion returns as
+  #   soon as the async work completes, so the suite does not get slower.
+  # - `refute_receive_timeout` is NOT raised -- negative assertions must stay
+  #   fast, and raising both would trade the flake for a slow suite.
+  test "async assertions have a coverage-proof wall-clock budget (#682 follow-on)" do
+    assert Application.fetch_env!(:ex_unit, :assert_receive_timeout) >= 1_000,
+           "render_async/1 inherits this value; under coverage instrumentation " <>
+             "100ms is not enough and the suite goes intermittently red."
+
+    # The negative-assertion budget is deliberately left alone.
+    assert Application.fetch_env!(:ex_unit, :refute_receive_timeout) <= 200
+
+    # Set centrally, so a new async test does not have to know about this.
+    assert File.read!("test/test_helper.exs") =~ "assert_receive_timeout"
+  end
 end
