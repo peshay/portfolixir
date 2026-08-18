@@ -84,6 +84,53 @@ and worked.
 6's OQ-2 rested on **reviewer capacity**, not on a count. Addressed in
 "On capacity" below, rather than left standing.
 
+## Revision 3 (execution, 2026-08-18) — #471 is invalidated, not deferred
+
+**R3-1 — #471 cannot be built, and the plan's argument for including it did not
+check the two things that decide it.** Revision 2's A-2 added #471 with the
+reasoning that its acceptance criteria *"specify reusing `view_switcher.ex`'s
+existing chip/link and a11y pattern, so it is a contained addition to a
+design-language component that already exists."* That checked the issue against
+the component it names. It checked neither the ADR that governs the concept nor
+the file the issue points at.
+
+Both refute it:
+
+- **[ADR-0024](../../docs/decisions/0024-buckets-and-views-replace-portfolios-in-the-ui.md)
+  is Accepted:** the portfolio entity *"disappears from the UI as a user-facing
+  grouping. Buckets and views become the only grouping."* A portfolio-selector
+  strip reintroduces exactly what that decision removed. `AGENTS.md` forbids
+  changing an architecture decision silently, and ADR-0026 step 1 puts such a
+  change behind its own signed gate — so it could not ride this batch even if
+  it were wanted.
+- **The defect it was filed for is gone.** #471 names
+  `current_portfolio = List.first(portfolios)` in `load_state/1` at ≈L215–216.
+  That code does not exist. `load_state/1` loads accounts, transactions and
+  positions across all portfolios, booking requires an explicit depot
+  (`securities_account_id` is a required select), and the portfolio is derived
+  from it by `put_portfolio_from_depot/2` — under a comment that names ADR-0024.
+
+**Action taken:** #471 closed by hand with the evidence (invalidated rather than
+implemented, so no closing keyword), and its surviving intent — the Transactions
+surface carries no scope indicator at all — added to **#707** as a scope line,
+since #707 already covers that surface and the answer under ADR-0024 is a
+view/bucket indicator rather than a portfolio selector.
+
+**R3-2 — OQ-2's remainder is renegotiated in the open.** Sprint 6's OQ-2
+committed "#672, #414 and whatever Lane A's UAT surfaces", and Revision 2 added
+#471 to that list. The list is now **#672 and #414**; #471 leaves it because it
+is not buildable, not because the batch ran short. This is stated here and in
+the reviewer briefing rather than absorbed, which is the same standard the shrink
+order sets for a cut.
+
+**R3-3 — the recurrence is again the finding.** This is the third time in this
+plan's history that a scope claim was made without reading the primary source:
+Revision 2 caught it in the human-view mapping, "On OQ-2" caught it in the
+re-asked #672 question, and this catches it in #471. All three were resolvable
+by reading a document the project already had. The pattern is not carelessness
+about code — it is trusting a *planning artifact's summary* of a decision over
+the decision itself.
+
 ## On capacity
 
 Sprint 6 shipped 20 issues in 41 commits and its own close-out called it the
