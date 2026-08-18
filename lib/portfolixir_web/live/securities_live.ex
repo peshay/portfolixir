@@ -2185,34 +2185,55 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp sort_marker({key, :desc}, key), do: " ↓"
   defp sort_marker(_, _), do: ""
 
+  # The asset-class cell is the one place stored and effective have to be told
+  # apart (#700). The decision, which #705's API/MCP predicates must match:
+  #
+  #   * the DISPLAY is the EFFECTIVE class, because that is what valuation and
+  #     the classification trees already use -- showing the stored NULL instead
+  #     would make this list disagree with the allocation;
+  #   * the COUNT, the FILTER and the QUICK-ASSIGN affordance are keyed on the
+  #     STORED class, because an inferred class is a guess rather than a stated,
+  #     auditable fact. Keying them on effective is what made the surface
+  #     contradict itself: the dashboard counted stored NULLs and opened a list
+  #     in which every row already showed a class, and the quick-assign control
+  #     -- which only rendered on a nil cell -- therefore never appeared, so
+  #     #561's remediation loop could not open.
+  #
+  # A derived class is marked as derived rather than shown as if stated, and the
+  # marking never rides on colour alone: it carries a real-text qualifier before
+  # the value in document order plus a data attribute, so it survives
+  # `forced-colors: active` (DESIGN.md → Value slot, binding since 2026-08-05).
+  #
   # options_html is constructed entirely from AssetClasses.options() (compile-time
   # constants) with every value passed through html_escape/1 — no user input.
   # sobelow_skip ["XSS.Raw"]
   defp render_cell(%Field{key: :asset_class} = field, row) do
-    case SecurityFields.value(field, row) do
-      nil ->
-        sec_id = to_string(security_id(row))
-
-        options_html =
-          AssetClasses.options()
-          |> Enum.map_join("", fn {label, code} ->
-            escaped_code = Phoenix.HTML.html_escape(code) |> safe_to_string()
-            escaped_label = Phoenix.HTML.html_escape(label) |> safe_to_string()
-            ~s(<option value="#{escaped_code}">#{escaped_label}</option>)
-          end)
-
+    case {stored_asset_class(row), SecurityFields.value(field, row)} do
+      # Stated by the operator: a plain badge, and no remediation prompt.
+      {stored, _effective} when is_binary(stored) ->
         Phoenix.HTML.raw(
-          ~s[<form id="quick-assign-#{sec_id}" phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" onclick="event.stopPropagation()" class="quick-assign-form">] <>
-            ~s[<select name="asset_class" class="quick-assign-select">] <>
-            ~s[<option value="">—</option>] <>
-            options_html <>
-            ~s[</select></form>]
+          ~s(<span class="badge" data-asset-class="stated">) <>
+            escaped(AssetClasses.label(stored)) <>
+            ~s(</span>)
         )
 
-      value ->
+      # Not stated, but derivable: show what we derived, say that we derived it,
+      # and still offer the control that turns it into a stated value.
+      {nil, effective} when is_binary(effective) ->
         Phoenix.HTML.raw(
-          ~s(<span class="badge">#{Phoenix.HTML.html_escape(AssetClasses.label(value)) |> safe_to_string()}</span>)
+          ~s(<span class="badge badge--derived" data-asset-class="derived">) <>
+            ~s(<span class="visually-hidden">) <>
+            escaped(gettext("Derived:")) <>
+            ~s( </span>) <>
+            ~s(<span class="badge-derived-marker" aria-hidden="true">≈</span>) <>
+            escaped(AssetClasses.label(effective)) <>
+            ~s(</span>) <>
+            quick_assign_form(row)
         )
+
+      # Neither stated nor derivable.
+      {nil, nil} ->
+        Phoenix.HTML.raw(quick_assign_form(row))
     end
   end
 
@@ -2303,6 +2324,31 @@ defmodule PortfolixirWeb.SecuritiesLive do
       nil -> ""
       value -> display_value(field.key, value)
     end
+  end
+
+  defp stored_asset_class(%Security{asset_class: asset_class}), do: asset_class
+
+  defp stored_asset_class(%SecurityWithMetrics{security: %Security{asset_class: asset_class}}),
+    do: asset_class
+
+  defp stored_asset_class(_), do: nil
+
+  defp escaped(value), do: Phoenix.HTML.html_escape(value) |> safe_to_string()
+
+  defp quick_assign_form(row) do
+    sec_id = to_string(security_id(row))
+
+    options_html =
+      AssetClasses.options()
+      |> Enum.map_join("", fn {label, code} ->
+        ~s(<option value="#{escaped(code)}">#{escaped(label)}</option>)
+      end)
+
+    ~s[<form id="quick-assign-#{sec_id}" phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" onclick="event.stopPropagation()" class="quick-assign-form">] <>
+      ~s[<select name="asset_class" class="quick-assign-select" aria-label="#{escaped(gettext("Assign asset class"))}">] <>
+      ~s[<option value="">—</option>] <>
+      options_html <>
+      ~s[</select></form>]
   end
 
   defp decimal_class(value) do

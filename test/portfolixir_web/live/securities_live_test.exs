@@ -2306,4 +2306,99 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert english =~ "Asset class"
     end
   end
+
+  describe "stated vs derived asset class (#700)" do
+    # User story:
+    # As a local portfolio maintainer clearing up my unclassified securities,
+    # I want the list to distinguish a class I stated from one the app inferred,
+    # and to offer the quick-assign control on every row I have not stated,
+    # so that the dashboard's "unclassified" count opens a list I can actually
+    # act on instead of one where every row already looks classified.
+    #
+    # The decision this pins (#700 governs #705): the count, the filter and the
+    # quick-assign affordance are all keyed on the STORED value. An inferred
+    # class is a guess, not a stated fact, and it is not auditable -- keying the
+    # count on the effective value would make it structurally zero, which is
+    # exactly why the surface contradicted itself. The DISPLAY stays effective,
+    # because the effective value is what valuation and the classification trees
+    # already use, and hiding it would make the list disagree with the
+    # allocation. So: display effective, mark it derived, key everything else on
+    # stored.
+    #
+    # How the state arises in production, which is also the fixture: the
+    # changeset's name/ISIN/ticker inference is PERSISTED on create, so it never
+    # leaves a stored NULL behind. `effective_asset_class/1` has a second
+    # inference the changeset does not run -- an ISIN plus a resolved company
+    # logo means equity (#408). A security whose name infers nothing, that later
+    # gets a logo resolved, therefore keeps a stored NULL while its effective
+    # class becomes "equity". That is the row the owner was looking at.
+    #
+    # Acceptance criteria:
+    # - A security with a stored class renders a plain badge and NO quick-assign.
+    # - A security with no stored class but an inferable one renders the derived
+    #   class, marked as derived, AND the quick-assign control.
+    # - The derived marking does not ride on colour alone (DESIGN.md: a state
+    #   distinction must survive `forced-colors: active`), so it carries real
+    #   text in document order alongside the structural marker.
+    # - The `asset_class:is_nil` filter stays on stored, so the dashboard count
+    #   and the list it opens agree.
+    setup do
+      actor = Portfolixir.Actor.owner_ui()
+
+      {:ok, stated} =
+        Catalog.create_security(actor, %{
+          name: "Stated Holdings",
+          ticker_symbol: "STA",
+          isin: "DE000STATED1",
+          currency_code: "EUR",
+          asset_class: "equity"
+        })
+
+      {:ok, derived} =
+        Catalog.create_security(actor, %{
+          name: "Nordwind Beteiligungen",
+          ticker_symbol: "NRD",
+          isin: "DE000NORDWI1",
+          currency_code: "EUR",
+          attributes: %{"logo_path" => "/logos/nordwind.png"}
+        })
+
+      # The fixture only means anything if it really is the stored-NULL,
+      # effective-non-NULL state; assert it rather than assume it.
+      assert is_nil(derived.asset_class)
+      assert Portfolixir.Catalog.Security.effective_asset_class(derived) == "equity"
+      assert stated.asset_class == "equity"
+
+      %{stated: stated, derived: derived}
+    end
+
+    test "a derived class is marked and still offers quick-assign", %{
+      conn: conn,
+      stated: stated,
+      derived: derived
+    } do
+      {:ok, _view, html} = live(conn, "/securities")
+
+      # The derived row shows the inferred class, marked as derived, and still
+      # offers the remediation control -- the loop #561 was built for.
+      assert html =~ ~s(data-asset-class="derived")
+      assert html =~ "quick-assign-#{derived.id}"
+
+      # The stated row is a plain badge with no quick-assign.
+      assert html =~ ~s(data-asset-class="stated")
+      refute html =~ "quick-assign-#{stated.id}"
+
+      # The derived marking carries real text, not only a colour step.
+      assert html =~ "Derived"
+    end
+
+    test "the unclassified filter keys on the stored value", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/securities?filter[]=asset_class:is_nil")
+
+      # The row with no STORED class is in the filtered list...
+      assert html =~ "Nordwind Beteiligungen"
+      # ...and the one with a stated class is not.
+      refute html =~ "Stated Holdings"
+    end
+  end
 end
