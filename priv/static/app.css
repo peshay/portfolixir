@@ -4384,6 +4384,104 @@ details[open] > .disclosure-summary .disclosure-chevron {
   text-align: right;
 }
 
+/* Filter chips (issue 414, DESIGN.md -> Amendment 2026-08-18 "Filter chips").
+   Deliberately total inheritance: this IS the view-switcher pill with one
+   changed affordance. It is a TOGGLE, so it carries aria-pressed rather than
+   aria-current, and its active state rides the border as well as the tint so
+   it survives forced-colors, where a background tint is discarded (UX-DR7).
+   No new colour, no new radius, no new type size. */
+.filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: var(--space-3);
+  /* The row owns its scroller (UX-DR15), on the same terms and with the same
+     mechanism as the area tab row. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - var(--space-5)),
+    transparent 100%
+  );
+}
+.filter-chips::-webkit-scrollbar {
+  display: none;
+}
+.filter-chips__family {
+  flex: none;
+  margin-right: 0.25rem;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+.filter-chips__family:not(:first-child) {
+  margin-left: var(--space-3);
+}
+.filter-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 12px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+.filter-chip:hover {
+  border-color: var(--color-border-strong);
+}
+.filter-chip.is-active {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+.filter-chip:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+@media (pointer: coarse) {
+  .filter-chip {
+    min-height: 44px;
+  }
+}
+/* The tint is discarded under forced colours; the border is what keeps the
+   pressed state readable there. */
+@media (forced-colors: active) {
+  .filter-chip.is-active {
+    border-width: 2px;
+  }
+}
+
+/* "More filters": a quiet text control, never a tenth chip. The count is what
+   keeps a demoted control from hiding active state. */
+.more-filters {
+  margin-bottom: var(--space-3);
+}
+.more-filters > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.more-filters > summary:hover {
+  color: var(--color-text);
+}
+.more-filters[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
 /* Transaction overview: filter row + per-type summary header (issue 414). */
 .transaction-filters {
   display: flex;
@@ -4405,6 +4503,18 @@ details[open] > .disclosure-summary .disclosure-chevron {
 }
 .transaction-summary .summary-type {
   font-variant-numeric: tabular-nums;
+}
+/* UX-DR21: the surface states what it aggregates, on its own line so it reads
+   as a caption rather than as another figure. */
+.transaction-summary .summary-basis {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.transaction-summary .currency-total,
+.tx-group-subtotal .currency-total {
+  white-space: nowrap;
 }
 /* Month section headers in the grouped transaction list (issue 414 follow-up). */
 .tx-group-head th {
