@@ -340,7 +340,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
             <div class="comparison-notes" role="status">
               <AppShell.data_note severity={:note} data-role="comparison-limitation">
                 <%= gettext(
-                  "The comparison is gross and price development only — dividends are not yet included (ADR-0027 v1)."
+                  "The comparison is gross and price development only — dividends are not yet included."
                 ) %>
               </AppShell.data_note>
               <%= if @comparison.gaps.unvalued_securities != [] do %>

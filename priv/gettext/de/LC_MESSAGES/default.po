@@ -5258,8 +5258,8 @@ msgstr "Buy-and-hold der am %{date} eingefrorenen Bestände gegenüber der echte
 
 #: lib/portfolixir_web/live/snapshots_live.ex:342
 #, elixir-autogen, elixir-format
-msgid "The comparison is gross and price development only — dividends are not yet included (ADR-0027 v1)."
-msgstr "Der Vergleich ist brutto und nur Kursentwicklung — Dividenden sind noch nicht enthalten (ADR-0027 v1)."
+msgid "The comparison is gross and price development only — dividends are not yet included."
+msgstr "Der Vergleich ist brutto und nur Kursentwicklung — Dividenden sind noch nicht enthalten."
 
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:492
 #, elixir-autogen, elixir-format

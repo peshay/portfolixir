@@ -5257,7 +5257,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/snapshots_live.ex:342
 #, elixir-autogen, elixir-format
-msgid "The comparison is gross and price development only — dividends are not yet included (ADR-0027 v1)."
+msgid "The comparison is gross and price development only — dividends are not yet included."
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:492
