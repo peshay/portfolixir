@@ -43,7 +43,7 @@ const securityZ = z.object({
     feed_url: optionalString(),
     provider: optionalString(),
     online_id: optionalString(),
-    attributes: z.record(z.unknown()).optional()
+    attributes: z.record(z.string(), z.unknown()).optional()
   })
 });
 
@@ -646,7 +646,7 @@ const securityUpdateZ = z.object({
     provider: optionalString(),
     online_id: optionalString(),
     treat_quotes_as_raw: z.boolean().optional(),
-    attributes: z.record(z.unknown()).optional()
+    attributes: z.record(z.string(), z.unknown()).optional()
   })
 });
 
@@ -938,7 +938,7 @@ const riskZ = z.object({
   portfolio_id: z.number().int().positive(),
   view: z.number().int().positive().optional(),
   top_n: z.number().int().positive().optional(),
-  asset_class_caps: z.record(z.string()).optional(),
+  asset_class_caps: z.record(z.string(), z.string()).optional(),
   hhi_bands: z
     .object({ low: optionalString(), high: optionalString() })
     .optional(),
