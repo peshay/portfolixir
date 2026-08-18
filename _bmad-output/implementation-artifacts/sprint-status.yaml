@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-14 (Sprint 6 close-out; ADR-0026 merge-method amendment)
+# last_updated: 2026-08-17 (pre-Sprint-7 reconciliation; ADR-0042 accepted)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-08-12
+last_updated: 2026-08-17
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,103 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# RECONCILED (2026-08-17, `main` at 1a88ad5) -- pre-Sprint-7 planning readiness:
+# Verification basis: the commits on `main` (f0beb8c..1a88ad5), the remote tag
+# list, the GitHub release list, the open-issue list (40 open), the open-PR list
+# (8, all Dependabot) and the Actions runs on `main` -- not this file's own
+# prior claims, two of which turned out to be wrong (F5, F6).
+#
+# WHAT RESOLVED since the Sprint 6 close-out:
+#   - The two tags that close-out carried as OPEN OWNER ITEMS now exist on the
+#     remote: `0.5.0` and `0.6.0`. `0.6.0` produced the GitHub release "Sprint 6:
+#     agent surface, durable derived values, UI alignment" (published
+#     2026-08-14T19:59Z) -- the first real exercise of the #659 release
+#     automation. F1 of the 2026-08-12 pass (Sprint 5 had no tag at all) is
+#     therefore CLEARED, and replaced by the narrower F4 below.
+#   - c7877b0 -- owner feedback triage 2026-08-15 (ADR-0038). This is the
+#     acceptance round for Sprint 6's design lane, not a fresh backlog: the owner
+#     was looking at five surfaces that had shipped days earlier. It produced 13
+#     issues (#700-#712) and 4 accepted decisions.
+#   - 1a88ad5 -- ADR-0041 (category result) Accepted; slice one filed as #712.
+#   - 93179b9 -- BMAD badge follow-up to #674.
+#   - CI green on `main` through 1a88ad5 (CI + Commit authorship + pages).
+#
+# DECISION GATES now standing open for scheduling (ADR-0026 step 1 satisfied --
+# all four signed off, so a Sprint 7 batch may draw on any of them):
+#   - ADR-0027 amendment (transaction costs in the snapshot comparison) -> #708
+#   - ADR-0039 amendment (refresh on the invalidating write, coalesced) -> #710,
+#     plus #711 (measure and activate); #710 is risk-tier
+#   - ADR-0040 (explicit unallocated remainder in target plans) -> #709
+#   - ADR-0041 (category result, money-weighted roll-up) -> #712
+#
+# SPRINT 7 OBLIGATIONS ALREADY COMMITTED -- these are not open candidates:
+#   - The two-way coverage rule: FR-37 and FR-38 shipped agent-only in Sprint 6.
+#     Their HUMAN VIEW IS DUE IN THIS BATCH. Absence after Sprint 7 is a
+#     close-out finding by the rule's own terms.
+#     SCOPE CORRECTED 2026-08-17 by the agentic review: an earlier draft of
+#     `human-view-debt-2026-08-17.md` called most of this discharged. It is not.
+#     `fields=` is implemented on the TRANSACTIONS and HOLDINGS endpoints, and
+#     neither list has a column picker; the securities picker predates FR-37 and
+#     sits on the one list with no `fields=`. So the obligation is TWO unbuilt
+#     surfaces (field selection, `?since=`) plus a partial threshold half -- it
+#     is wider than the reconciliation first recorded, not narrower.
+#   - Sprint 6 OQ-2: the UI was left ALIGNED BUT NOT FINISHED on the stated
+#     understanding that Sprint 7 is the closer. See F5 for what that remainder
+#     actually is.
+#
+# FIVE FINDINGS:
+#
+#   F4 -- TAG HYGIENE, two real deviations and one non-issue. ADR-0026 step 5
+#   prescribes an ANNOTATED tag; both `0.5.0` and `0.6.0` are LIGHTWEIGHT
+#   (`git cat-file -t` returns `commit` for both). And `0.5.0` has NO GitHub
+#   release -- it was pushed before ab9851f widened the Release workflow trigger
+#   to the bare-number scheme, so the Sprint 5 boundary has a rollback point but
+#   no communicable changelog. NOT a finding, recorded so it is not re-raised:
+#   each tag sits a little after the commit its close-out named -- `0.5.0` on
+#   47dd988, TWO commits after 73affc5; `0.6.0` on aa4a38a, THREE commits after
+#   f0beb8c (bfb9a9f, ab9851f, aa4a38a) -- but every commit in both deltas is a
+#   planning/docs/meta-test commit with ZERO application-code change. The tags
+#   mark the right software.
+#
+#   F5 -- #560 WAS ALREADY CLOSED when the Sprint 6 close-out and retro named it
+#   as Sprint 7 work. It closed 2026-08-10 via PR #656 (income charts scroll
+#   horizontally on narrow viewports) -- four days BEFORE the close-out was
+#   written. The UX-DR remainder for Sprint 7 is therefore #414 and #672, plus
+#   whatever #707 (the design engagement) specifies; it is NOT "#414 and #560".
+#   Corrected in the retro with a dated note rather than silently rewritten.
+#
+#   F6 -- THIS FILE AND epics.md WERE STALE against 2026-08-15. Neither carried
+#   any of #700-#712, and the FR Coverage Map carried neither ADR-0040 nor
+#   ADR-0041. Planning off either document would have missed 13 of the
+#   candidates. Fixed in this pass; epics.md gains a matching section.
+#
+#   F7 -- F2 (2026-08-12) IS UNCHANGED AND NOW WIDER. Section J (FR-37..FR-48)
+#   still hangs off no epic row, the Epic List still ends at E19, and the 13 new
+#   issues also have no epic home -- they hang off the GitHub trackers (#417,
+#   #419, #420, #356) instead. Two parallel epic structures remain, and none of
+#   the 2026-08-15 work resolves this.
+#   **RESOLVED 2026-08-17 by ADR-0042** (Accepted, owner sign-off the same day),
+#   which splits the two jobs: epics.md keeps the requirement registry, the
+#   tracker set is the work ledger. The migration executes as Lane Z of Sprint 7,
+#   and #321 closes by hand there. Recorded here rather than deleted because this
+#   log is the project's memory of what was open when -- and because a finding
+#   carried five times without resolution is worth showing resolved.
+#
+#   F8 -- ONE OPEN OWNER QUESTION carried out of the triage: the Round 7 proposal
+#   of an ADR-0026 GATE-CLOSURE RULE (how a decision gate is recorded as closed).
+#   It was deliberately left unwritten because it changes how this project makes
+#   decisions, which is an owner call.
+#   **RESOLVED 2026-08-18 by ADR-0043** (Accepted, owner sign-off): a gate-closing
+#   ADR carries the gate's asks, each marked answered or deferred with a reason,
+#   checked at the signature. Written as a proposal rather than put back to the
+#   owner as a question, because the recommendation was strong and the owner had
+#   said so plainly: if you recommend one, do not ask. Its one retroactive
+#   application (ADR-0039's list) runs in Sprint 7 Lane Z step 7.
+#
+# NO story row and NO epic status changes this pass -- all 2026-08-15 work is
+# decision artifacts plus backlog filing, and none of it hangs off an epics.md
+# story row.
 #
 # SPRINT 6 CLOSED OUT (2026-08-14, `main` at f0beb8c):
 # All lanes shipped in ONE batch/PR (#688), REBASE-merged -- the first under
