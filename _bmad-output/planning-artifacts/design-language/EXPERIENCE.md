@@ -861,3 +861,224 @@ Failure: re-dropping the same file → preview reports the content-hash match an
 6. **Climax:** one instance, one operator, several scopes, zero bookkeeping about which data is on screen — because every scoped surface states its scope.
 
 Failure: a validation error while recording a transaction in the new scope → inline field error, the form stays open with the input intact, nothing half-writes (ledger atomicity, FR-2).
+
+---
+
+## Amendment 2026-08-18 — control vocabulary, card naming, and the two surfaces that predate the language (#707)
+
+Design engagement under ADR-0038, answering the six owner observations D1–D6 of
+`feedback-triage-2026-08-15.md` Part 2 plus the two PP-parity surfaces of its
+Part 4. They are answered together because they are one request at different
+points on the screen, and because fixing them one at a time is how the surface
+got here: each isolated fix produces another locally reasonable control.
+
+Two inputs enter as **constraints, not questions**: an intentionally short plan
+is an explicit unallocated remainder rather than a warning (owner, 2026-08-15,
+[ADR-0040](../../docs/decisions/0040-unallocated-remainder-in-target-plans.md)),
+and the Income scope is the Portfolio Performance walkthrough recorded in
+`feedback-triage-2026-08-05.md`.
+
+Appearance for everything below is in `DESIGN.md` → **Amendment 2026-08-18**.
+
+### D1 — A card is named for what it contains, not for how it feels *(new rule: UX-DR21)*
+
+"Needs attention" / "Braucht Aufmerksamkeit" names a card that contains exactly
+one thing: categories drifting beyond ±5 pp from their target weight. It is not
+an inbox, and it never has been.
+
+**Decided (designer):** the card is renamed for its content — EN **"Off target"**,
+DE **"Ziel-Abweichungen"** — and keeps the basis line #673 added.
+
+Two reasons, and the second is the one that generalises. An anthropomorphic name
+asks the reader to feel something, which the impersonal-microcopy rule (UX-DR11)
+already forbids in body copy and has no reason to permit in a heading. And a
+name describing a *role* rather than a *content* is a promise about a future the
+card does not have: the moment something else needs attention, it either lands
+in a card that cannot hold it or the name becomes a lie. If the card is ever
+meant to carry more than drift, that is a scope decision to take first.
+
+**UX-DR21 (new) — a surface names what it aggregates.** Every card, panel and
+view heading states its content, not its urgency and not its intended reaction.
+This also carries the terminology requirement #672 rides with: the Income view
+states what it aggregates rather than inheriting Portfolio Performance's
+unexplained "Erträge" vs. "Dividenden" split.
+
+### D2 — The filter control is a query builder, and the common filters are not queries
+
+Column / Operator / Value with operator labels like "is unclassified" is a
+database UI wearing a popover, and it is the most-used control on the securities
+page. The design question is not "make three dropdowns prettier" — it is **what
+the common filters actually are**.
+
+**Decided (designer): promote the common filters to one-tap chips; demote the
+generic builder behind "More filters".** The builder is not deleted — it is the
+escape hatch, and everything it can express today it can still express.
+
+The chip set is **fixed and named**, so it does not grow by accretion:
+
+| Chip | Predicate | Note |
+|---|---|---|
+| Held | quantity > 0 | the default reading of "my securities" |
+| Not held | quantity = 0 | closed positions, still in the catalog |
+| Unclassified | **stored** `asset_class` is NULL | see below |
+| Stale quote | no quote newer than 7 days | data-quality predicate |
+| No price | no quote at all | data-quality predicate |
+| Missing FX | priced, but no rate to the base currency | data-quality predicate |
+| Currency | `currency_code` = … | one chip per currency in use |
+| Asset class | effective class = … | one chip per class in use |
+
+**"Unclassified" is keyed on the stored value, and that is not a detail.** It is
+the decision recorded in #700: display is the *effective* class, but the count,
+the filter and the quick-assign affordance are keyed on the *stored* one,
+because an inferred class is a guess rather than a stated auditable fact. The
+chips and the API/MCP predicates of #705 implement the same rule, or the surface
+contradicts itself again in a new place.
+
+Binding properties of the chip row:
+
+- chips are **toggles** carrying `aria-pressed`, not links, and they compose as
+  **AND**; two chips of the same family (two currencies) compose as **OR** within
+  that family, which is stated on the row rather than left to be discovered;
+- the active set is **URL-addressable**. This is not optional polish: the
+  one-line data-quality decision (`DESIGN.md` → Data quality) requires a
+  pre-filtered securities URL to link to, and records that no such URL exists.
+  The chip row is where that shortfall is repaid;
+- the row is a wide block and therefore **owns its scroller** (UX-DR15), on the
+  same terms as the tab row in D6;
+- **no chip is a data-quality alarm.** A chip narrows a list. The alarm lives on
+  the Overview and the Wealth page, and links *into* the chip state.
+
+### D3 — "Σ-Konflikt" is jargon, and the warning fires on a legitimate state
+
+Two separate defects that happen to share a pill.
+
+**The semantics first, because they are the reason the visual is wrong.** The
+plan editor flags any sum ≠ 100 % as a mismatch. A plan deliberately left short
+— one satellite category intentionally not fully used — is a legitimate,
+well-understood state, and the UI had no way to say it.
+
+**Decided, and already signed:** per ADR-0040 the plan states an **explicit
+unallocated remainder**. The editor shows it as a **named row** carrying its own
+percentage, not as an error. The warning is reserved for the two states that
+really are wrong: sums **over** 100 %, and genuine position-vs-category
+conflicts.
+
+**The visual follows from that.** A warning-coloured `<summary>` pill inline in
+the category-name cell is what the owner calls optically odd, and it is odd
+because it is a *finding* rendered inside a *data cell*. Findings are
+{components.data-note} rows at one of three severities (UX-DR17). The pill is
+retired; the conflict becomes a data note above the table, and the remainder
+becomes a table row.
+
+**"Σ-Konflikt" as a label dies with it.** It is jargon in both languages, and it
+names a mechanism rather than a consequence. The note states the consequence in
+a sentence, in the house voice.
+
+### D4 — A label-colon prefix and a trailing ellipsis are placeholders, not design
+
+`Ansicht:` in front of the view switcher, and `Verwalten…` after it, are both the
+shape a control takes when nobody decided what it should look like.
+
+**Decided (designer):**
+
+- **The visible "View:" prefix goes.** The group already carries
+  `aria-label="Active view"`, so the accessible name is unaffected; the active
+  chip is what tells a sighted reader what the row is for. A label naming the
+  control it sits next to is the funnel problem in text form.
+- **"Manage…" becomes "Views"**, as an icon-plus-label control using the existing
+  `:settings` glyph. **The ellipsis is wrong on its own terms**: by the
+  convention this app already follows, a trailing ellipsis means "opens a dialog
+  for further input". `Manage…` navigates to `/buckets`. It is a link, and it
+  should read like one.
+
+### D5 — Range selection is a solved interaction and this is not one of them
+
+Shipped in Sprint 6 as part of #669: a `<details>` disclosure holding two bare
+date inputs. It works and it is not good.
+
+**Decided (designer): the disclosure stays; its contents change.** The
+disclosure is correct — the period control's own decision already says
+"Custom range…" is a disclosure, not permanent chrome. What is wrong is
+everything inside it:
+
+- the two inputs become a **labelled from/to pair** as {components.native-control}
+  with ISO dates (UX-DR19), not two anonymous fields;
+- **the pair validates as a range**: `from` ≤ `to`, with the violation reported
+  against the field that can fix it (UX-DR13 error association), never as a
+  silently empty chart;
+- **the applied range is echoed into the period control as a chip** reading the
+  resolved dates. Today a custom range leaves the segmented group showing no
+  selection at all, so the surface cannot answer "what am I looking at" — which
+  is the one question a period control exists to answer.
+
+### D6 — Tab rows stay tab rows *(new rule: UX-DR22)*
+
+The owner's question — whether five icon-plus-label tabs should become burger
+sub-items at phone width — is better than the bug that raised it, and it is
+answered here **once, for every tab row** (Wealth, Transactions, detail panes)
+rather than for Wealth alone.
+
+**Decided (designer): they stay tab rows, and they scroll.**
+
+The burger is the **area** switcher; tabs are **within-area** navigation. Folding
+tabs into the burger merges two levels of the information architecture into one
+menu, and the level that disappears is the one that answers "where am I inside
+this area" — which is precisely what ADR-0022's task-oriented IA is built on. A
+phone user would gain one tap to reach a sibling tab and lose the standing
+indication of which sibling they are on.
+
+**UX-DR22 (new) — a within-area tab row scrolls; it never collapses into the
+area menu, and it never wraps.** Wrapping is the third option and it is also
+rejected: a two-line tab row changes the vertical rhythm of every surface below
+it at exactly the width where vertical space is scarcest.
+
+The scrolling form shipped as #702 and is now the rule rather than one fix:
+horizontal overflow, scroll-snap so a tab never rests half-cut, an edge fade as
+the affordance, and tabs that keep their intrinsic width so overflow is real
+overflow rather than compressed labels.
+
+### Part 4 — the two surfaces that predate the language
+
+**Transactions.** `transaction_management_live.ex` is one of the oldest screens
+in the app and predates the design language entirely. #414's information fix is
+therefore held until this section exists, so it does not ship onto a screen that
+then needs a second pass.
+
+The target, stated so #414 can be cut from it:
+
+- the surface adopts the **workspace layout** every other area uses: top-bar
+  title, `workspace-section` blocks, no nested panel chrome;
+- the booking form is one panel; the history is a **data table** with the D2 chip
+  vocabulary above it — the same chips, so the filter language is learned once;
+- the summary states its basis (UX-DR13 freshness) and what it aggregates
+  (UX-DR21);
+- **the surface states its scope and does not scope the form.** This answers the
+  question inherited from #471, which is closed as invalidated: ADR-0024 removed
+  portfolios as a user-facing grouping, so the answer cannot be a portfolio
+  selector. Nor is it a view switcher. **Decided (designer): Transactions carries
+  no view switcher.** Booking is a global act against an explicitly chosen depot,
+  and scoping the *form* by view would let a booking land outside the active view
+  and appear to vanish. The chips filter the **history**; the depot select is
+  what determines where a booking goes, and it says so.
+
+**Income → `/cashflow`.** Scope is the 2026-08-05 Portfolio Performance
+walkthrough and is not reopened here: monthly/quarterly/yearly bars **kept**, an
+**accumulated-per-month chart wanted** (the one the owner called "great as a
+chart", and the facet that ships first), **deposits/withdrawals ("Ersparnis")
+wanted**, **closed trades kept**, **taxes and fees at overview level only**,
+**per-instrument tables out** — unreadable even in PP. The facets are
+independent, which is what lets #672 degrade gracefully under the shrink order.
+
+UX-DR21 rides with it: the view states what it aggregates, rather than inheriting
+PP's unclear "Erträge" vs. "Dividenden" split.
+
+### What this amendment deliberately does not decide
+
+- **Whether the securities chip row replaces the column picker.** It does not;
+  they answer different questions ("which rows" vs. "which columns") and merging
+  them is a separate decision.
+- **The `/cashflow` facet order beyond the first.** The accumulated-per-month
+  chart ships first because the owner named it; the rest is scheduling.
+- **Anything about what is computed.** Every rule above is about naming, control
+  vocabulary and layout. No metric, basis or predicate changes here except by
+  citing a decision already signed (#700, ADR-0040).
