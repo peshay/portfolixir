@@ -32,6 +32,21 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
   # - analysis/2 + summarise/2 equals for_portfolio/2, so the UI can cache
   #   the daily walk and switch periods without recomputing.
 
+  # `as_of` is the instant a walk was computed, not one of its computed VALUES.
+  # Two independent computations legitimately carry two instants, so comparing
+  # whole results with `==` turns a one-second boundary into a failed money
+  # assertion — which is the entirety of the intermittent failure filed as #722.
+  # Confirmed rather than guessed: forcing the boundary with a sleep between the
+  # two computations reproduces it every time, and the two maps are equal the
+  # moment `as_of` is dropped.
+  #
+  # The annotation is still asserted; it is asserted as an annotation.
+  defp assert_same_result(left, right) do
+    assert %DateTime{} = left.as_of
+    assert %DateTime{} = right.as_of
+    assert Map.delete(left, :as_of) == Map.delete(right, :as_of)
+  end
+
   defp setup_world do
     world = base_world(name: "P", cash_name: "Cash", depot_name: "Depot")
     security = create_security!(name: "Index Fund", ticker: "IDX", asset_class: "etf")
@@ -80,8 +95,10 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     {:ok, scoped} =
       Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10], view: no_other.id)
 
-    # An include-everything view is byte-for-byte identical to no view.
-    assert permissive == unscoped
+    # An include-everything view computes the same result as no view, down to
+    # every figure — two independent computations, so their compute instants
+    # are compared as the annotations they are (see assert_same_result/2).
+    assert_same_result(permissive, unscoped)
 
     # Whole portfolio: both bought at 100 (value 2000), day 10 -> 1200 + 1000 = 2200 (+10%).
     assert rounded(unscoped.ttwror, 6) |> Decimal.equal?(Decimal.new("0.1"))
@@ -564,7 +581,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     {:ok, direct} =
       Performance.for_portfolio(world.portfolio.id, period: {:year, 2025}, today: ~D[2026-01-20])
 
-    assert direct == year_2025
+    assert_same_result(direct, year_2025)
   end
 
   # Fix round (#563 review): a bounded period whose window contains no walked
@@ -656,7 +673,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
       {:ok, direct} =
         Performance.for_portfolio(world.portfolio.id, period: period, today: ~D[2026-01-20])
 
-      assert from_analysis == direct
+      assert_same_result(from_analysis, direct)
     end
 
     assert {:error, :invalid_period} = Performance.summarise(analysis, "2w")
