@@ -35,6 +35,7 @@ config :portfolixir, :api_token, "test-api-token"
 # tests switch it on for their duration.
 config :portfolixir, Portfolixir.Derived, enabled?: false
 config :portfolixir, Portfolixir.Portfolios.Performance.Warmup, enabled?: false
+config :portfolixir, Portfolixir.Derived.Refresher, enabled?: false
 
 config :portfolixir, Portfolixir.Catalog.SecuritySearch,
   providers: [Portfolixir.Catalog.SecuritySearch.Fake],

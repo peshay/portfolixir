@@ -54,18 +54,53 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
     if Derived.enabled?() do
       default_view_id = default_view_id()
 
-      Enum.each(Portfolios.list_portfolios(), fn portfolio ->
-        warm_scope(portfolio.id, nil)
-        if default_view_id, do: warm_scope(portfolio.id, default_view_id)
-      end)
-
-      # The cross-portfolio view walk (#577) is what the Wealth page and the
-      # dashboard card open: the Everything scope plus the default view, in
-      # the base currency those surfaces request (the first portfolio's).
-      warm_view_scope(nil)
-      if default_view_id, do: warm_view_scope(default_view_id)
+      Enum.each(Portfolios.list_portfolios(), &warm_portfolio(&1.id, default_view_id))
+      warm_global(default_view_id)
     end
 
+    :ok
+  end
+
+  @doc """
+  Warms the operative scopes of **one** data-version basis, through the same
+  request path `warm/0` uses.
+
+  This is what `Portfolixir.Derived.Refresher` calls when a write invalidates a
+  basis (ADR-0039 amendment §1, issue #710): the refresher schedules, this
+  module stays the single place that knows which scopes are operative, and
+  there is still no second computation path. An unrecognised basis is a no-op —
+  a basis naming something this module cannot warm is not an error, it simply
+  has nothing here to re-materialize.
+  """
+  @spec warm_basis(String.t()) :: :ok
+  def warm_basis(basis) when is_binary(basis) do
+    if Derived.enabled?(), do: do_warm_basis(basis)
+    :ok
+  end
+
+  defp do_warm_basis("global"), do: warm_global(default_view_id())
+
+  defp do_warm_basis("portfolio:" <> portfolio_id) do
+    case Integer.parse(portfolio_id) do
+      {id, ""} -> warm_portfolio(id, default_view_id())
+      _not_an_id -> :ok
+    end
+  end
+
+  defp do_warm_basis(_other), do: :ok
+
+  defp warm_portfolio(portfolio_id, default_view_id) do
+    warm_scope(portfolio_id, nil)
+    if default_view_id, do: warm_scope(portfolio_id, default_view_id)
+    :ok
+  end
+
+  # The cross-portfolio view walk (#577) is what the Wealth page and the
+  # dashboard card open: the Everything scope plus the default view, in the
+  # base currency those surfaces request (the first portfolio's).
+  defp warm_global(default_view_id) do
+    warm_view_scope(nil)
+    if default_view_id, do: warm_view_scope(default_view_id)
     :ok
   end
 

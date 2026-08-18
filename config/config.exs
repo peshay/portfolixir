@@ -45,4 +45,11 @@ config :portfolixir, Portfolixir.Fx.RateSync,
 # added with their measurement.
 config :portfolixir, Portfolixir.Derived, lifetimes: [performance_analysis: :durable]
 
+# Derived-value refresh (ADR-0039 amendment §2): a write bumps the data version
+# and the refresher re-materializes the affected bases in the background. The
+# quiet period is what collapses a Portfolio Performance import's per-row bumps
+# into one refresh per basis; the maximum delay is what keeps a write stream
+# that never pauses from starving the drain.
+config :portfolixir, Portfolixir.Derived.Refresher, quiet_ms: 500, max_delay_ms: 10_000
+
 import_config "#{Mix.env()}.exs"

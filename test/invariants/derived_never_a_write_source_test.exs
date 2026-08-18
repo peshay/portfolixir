@@ -30,8 +30,13 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     "lib/portfolixir/journal.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/fx.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/catalog/quotes.ex" => [[:Portfolixir, :Derived, :Invalidation]],
-    # Supervision only: the memo table's owner starts with the app.
-    "lib/portfolixir/application.ex" => [[:Portfolixir, :Derived, :Memo]]
+    # Supervision only: the memo table's owner and the background refresher
+    # start with the app, and the refresher is handed the warm-up it must call.
+    # Starting a process is not reading a derived value.
+    "lib/portfolixir/application.ex" => [
+      [:Portfolixir, :Derived, :Memo],
+      [:Portfolixir, :Derived, :Refresher]
+    ]
   }
 
   # The derived layer itself: its facade and its internals.

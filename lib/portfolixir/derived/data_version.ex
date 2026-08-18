@@ -27,6 +27,7 @@ defmodule Portfolixir.Derived.DataVersion do
 
   import Ecto.Query
 
+  alias Portfolixir.Derived.Refresher
   alias Portfolixir.Repo
 
   @global "global"
@@ -73,6 +74,13 @@ defmodule Portfolixir.Derived.DataVersion do
         |> Enum.concat([@global])
 
       repo.insert_all(@table, Enum.map(bases, &%{basis: &1}))
+
+      # The refresher is told here rather than in `Invalidation` because this
+      # is the only place that knows the EXPANDED base list — `:all` resolves
+      # to every portfolio above. Fire-and-forget, and a no-op when the
+      # refresher is not running: the bump must never depend on it
+      # (ADR-0039 amendment §3).
+      Refresher.notify(bases)
     end
 
     :ok

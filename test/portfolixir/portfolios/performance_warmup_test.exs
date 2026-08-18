@@ -113,6 +113,55 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
     assert :counters.get(called, 1) == 1
   end
 
+  # User story (#710, ADR-0039 amendment §1):
+  # As a local portfolio maintainer,
+  # I want the basis a write invalidated re-materialized through the same path
+  # a request uses,
+  # so that the background refresh can never disagree with what the page would
+  # have computed.
+  #
+  # Acceptance criteria:
+  # - `warm_basis/1` fills the same memo entry `warm/0` fills for that scope.
+  # - A basis this module has nothing to warm is a no-op, not an error.
+  # - The derived layer's switch turns it off too — one "off" state.
+  test "warm_basis/1 warms one portfolio's scopes through the request path" do
+    portfolio = seeded_portfolio!("Warm E")
+
+    assert Warmup.warm_basis(Derived.portfolio_basis(portfolio.id)) == :ok
+
+    analysis =
+      fetch!(portfolio.id, "unscoped", fn ->
+        raise "memo missed — warm_basis/1 did not fill it"
+      end)
+
+    assert analysis.portfolio_id == portfolio.id
+  end
+
+  test "warm_basis/1 accepts the global basis and ignores one it cannot warm" do
+    seeded_portfolio!("Warm F")
+
+    assert Warmup.warm_basis(Derived.global_basis()) == :ok
+    assert Warmup.warm_basis("portfolio:not-a-number") == :ok
+    assert Warmup.warm_basis("something:else") == :ok
+  end
+
+  test "with the derived layer disabled warm_basis/1 is a no-op" do
+    portfolio = seeded_portfolio!("Warm G")
+    Application.put_env(:portfolixir, Derived, enabled?: false)
+
+    assert Warmup.warm_basis(Derived.portfolio_basis(portfolio.id)) == :ok
+
+    Application.put_env(:portfolixir, Derived, enabled?: true)
+    called = :counters.new(1, [])
+
+    fetch!(portfolio.id, "unscoped", fn ->
+      :counters.add(called, 1, 1)
+      :fresh
+    end)
+
+    assert :counters.get(called, 1) == 1
+  end
+
   test "an empty instance warms without error" do
     assert Warmup.warm() == :ok
   end
