@@ -986,3 +986,120 @@ Motion is **polish only** — it decorates state arrival, it never encodes infor
   **Live defect, restated 2026-08-05 (issue #647): the build implements the opt-out form everywhere, and the earlier "the skeleton is the outlier, not the norm" described a compliance the stylesheet does not have.** `app.css` contains **zero** occurrences of `no-preference`. Every gate in the file is `@media (prefers-reduced-motion: reduce)` — four blocks, at 2522, 3017, 4649 and 4724 — plus the ungated `.section-skeleton` (`skeleton-shimmer 1.6s ease-in-out infinite`, app.css:4426-4437, on the dashboard and portfolio surfaces), which violates the reduced-motion rule and the no-looping-ambience rule below at the same time. The two forms are **not** equivalent: where the media feature is unsupported or unreported, `reduce` fails open and the animation runs, while `no-preference` fails safe. So four animations having a `reduce` fallback is the *sanctioned-exception* form (below) applied by default rather than by decision — correct for `.spinner`, which must survive `reduce` as a static ring, and wrong for the other three. Correction: every animation except a must-survive indicator moves to the `no-preference` gate; `.section-skeleton` gains a gate either way.
   **The count-up hook is not covered by any CSS gate at all**, because it is JS. It reads `matchMedia("(prefers-reduced-motion: reduce)")` before the first frame and subscribes to its `change` event; under `reduce` it assigns the final value directly and never enters the settling state (see {components.value-slot}`.settling`).
 - **Never:** looping ambience, parallax, motion on every LiveView patch, animated layout shifts in tables.
+
+## Amendment 2026-08-18 — appearance for the #707 engagement
+
+The rules, the reasoning and the two new rule numbers (UX-DR21, UX-DR22) are in
+`EXPERIENCE.md` → **Amendment 2026-08-18**. This section carries only what a
+thing looks like, on the same split every component here follows.
+
+### Filter chips — `{components.filter-chip}` *(D2)*
+
+The common filters become one-tap chips above the securities table; the
+Column/Operator/Value builder is demoted behind a **"More filters"** control.
+
+**Inheritance, deliberately total: the chip IS `{components.selected-segment}`
+with one changed affordance.** The view switcher's `.view-chip` already
+establishes the pill in this language — radius `999px`, `{typography.control-label}`,
+`{colors.bg-muted}` at rest, `{colors.accent-soft}` with `{colors.accent}` text
+when active. A filter chip reuses all of it and changes exactly one thing: it is
+a **toggle**, so it carries `aria-pressed` rather than `aria-current`, and its
+active state must survive `forced-colors: active` on the border channel rather
+than on the tint (UX-DR7). No new colour, no new radius, no new type size.
+
+- **Rest:** `{colors.bg-muted}` fill, `{colors.text-muted}` label, 1px
+  `{colors.border}`.
+- **Active:** `{colors.accent-soft}` fill, `{colors.accent}` label, 1px
+  `{colors.accent}` border. The border is what carries the state under forced
+  colors; the tint is reinforcement.
+- **Family chips** (Currency, Asset class) render their value in the label —
+  "EUR", "Aktie" — never a bare family name with a hidden selection.
+- **Touch:** `{spacing.touch-target}` floor under `pointer: coarse` (UX-DR6),
+  like every other chip family.
+- **The row owns its scroller** (UX-DR15): horizontal overflow, scroll-snap, edge
+  fade — the same mechanism as the tab row below, and for the same reason.
+- **"More filters"** is a quiet text control at the end of the row, not a chip:
+  it opens the existing builder popover and must not read as a tenth filter.
+  It carries the funnel `:filter` glyph, which by the 2026-08-05 naming decision
+  belongs to exactly this control.
+- **Count:** when the builder holds conditions the chips cannot express, "More
+  filters" carries a count badge, so demoting the builder never hides active
+  state. A demoted control that hides state is a worse defect than the one this
+  replaces.
+
+### Plan sum: the remainder row and the retired pill *(D3)*
+
+- **The `Σ-Konflikt` `<summary>` pill inside the category-name cell is retired.**
+  A finding rendered inside a data cell is a category error: findings are
+  `{components.data-note}` rows at one of three severities (UX-DR17). Over-100 %
+  sums and position-vs-category conflicts render as a data note **above** the
+  table, at `attention` and `problem` respectively.
+- **The unallocated remainder is a table row**, not a warning: same row rhythm as
+  a category row, label in `{colors.text-muted}` to mark it as derived rather
+  than stated, its percentage in the same tabular-numeral slot as every other
+  weight. It is the last row, and it is not selectable or editable — it is
+  arithmetic.
+- Under-100 % therefore has **no warning colour anywhere on the surface.** That
+  is the visible half of ADR-0040: a deliberate choice must not render like a
+  mistake.
+
+### View switcher: prefix removed, manage control named *(D4)*
+
+- The visible `View:` / `Ansicht:` prefix is **removed**. The group keeps its
+  `aria-label`, so the accessible name is unchanged; the row's leading element
+  becomes the first chip.
+- `Manage…` / `Verwalten…` becomes **`Views`** with the `:settings` glyph, styled
+  as a quiet link at the end of the row — not a button, because it navigates.
+  **The ellipsis goes**: in this app's own convention a trailing ellipsis means
+  "opens a dialog for further input", and this is a navigation to `/buckets`.
+
+### Custom range: the disclosure keeps its shape, its contents change *(D5)*
+
+`{components.period-control}`'s "Custom range" stays a disclosure. Inside it:
+
+- a **labelled from/to pair** as `{components.native-control}`, ISO-formatted
+  (UX-DR19), each with a real `<label>` — not two anonymous fields sharing one
+  caption;
+- **validation on the range itself** (`from` ≤ `to`), reported against the field
+  that can fix it (UX-DR13), never as a silently empty chart;
+- when applied, the segmented group gains a **custom chip** carrying the resolved
+  dates in `{typography.control-label}`, in the same active treatment as a
+  preset token. Today a custom range leaves the group with nothing selected, so
+  the control cannot answer the only question it exists to answer.
+
+### Tab row overflow — the shipped form is the specification *(D6, UX-DR22)*
+
+Shipped as #702; recorded here so every tab row is held to it.
+
+- `overflow-x: auto`, `overflow-y: hidden`; tabs keep their intrinsic width
+  (`flex: none`) so overflow is real overflow rather than compressed labels;
+- `scroll-snap-type: x proximity` with `scroll-snap-align: start` on each tab, so
+  a tab never comes to rest half-cut — being half-cut is what made the fourth
+  Wealth tab read as the last one;
+- a **right-edge fade** as the affordance, one-sided on purpose: a symmetric fade
+  dims the first tab at desktop width, where there is no overflow to signal;
+- **no scrollbar** — a phone renders none anyway, and the fade plus snap carry
+  it; keyboard users reach off-screen tabs by tabbing, which scrolls them in;
+- **the baseline is an inset box-shadow, not `border-bottom`.** This is the
+  non-obvious constraint and it is recorded so a later refactor does not undo it:
+  `overflow-x: auto` computes `overflow-y` to `auto`, and the active tab's
+  `margin-bottom: -1px` — which exists so its 2px underline paints over the 1px
+  baseline — then either raises a vertical scrollbar or, under
+  `overflow-y: hidden`, is clipped at the padding box so the underline renders
+  1px thin with grey beneath it. An inset shadow paints on the padding box below
+  the children, so the overlap survives and nothing overflows vertically.
+- **No tab row wraps, and none collapses into the burger** (UX-DR22).
+
+### Transactions — the target vocabulary *(Part 4)*
+
+`transaction_management_live.ex` predates this language. It adopts, with no new
+components invented for it:
+
+- the **workspace layout** (`workspace-section` blocks, top-bar title, no nested
+  panel chrome) that every other area already uses;
+- the booking form as **one `{components.panel}`**, its fields as
+  `{components.native-control}`;
+- the history as a **data table** with the D2 chip row above it — the same chips,
+  so the filter vocabulary is learned once and applies in two places;
+- **no view switcher** (see EXPERIENCE.md for why); the depot select is the
+  control that determines where a booking lands, and it is labelled as such.

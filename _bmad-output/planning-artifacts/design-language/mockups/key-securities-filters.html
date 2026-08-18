@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolixir — #707: filter chips (D2) and the tab-row overflow model (D6)</title>
+<style>
+/* ============================================================
+   #707 MOCK — the two decisions prose underdetermines.
+   DE locale · desktop 1280px AND 390px · light + dark · offline.
+
+   The locale and the two widths are not incidental: they are the
+   binding walkthrough conditions recorded for #706
+   (docs/development/pr-review-checklist.md → G). A mock of this
+   engagement drawn at desktop width in English would be unable to
+   show either of the things it exists to decide.
+
+   Governing spine sections:
+   - EXPERIENCE.md › Amendment 2026-08-18 › D2 (chip set, AND/OR
+     composition, URL-addressability, "Unclassified" keyed on the
+     STORED asset class per #700) and D6 / UX-DR22 (a within-area
+     tab row scrolls; it never wraps and never collapses into the
+     area menu)
+   - DESIGN.md › Amendment 2026-08-18 › {components.filter-chip}
+     (inherits {components.selected-segment}; toggle, so aria-pressed
+     rather than aria-current; border carries the state under
+     forced-colors) and Tab row overflow
+   - DESIGN.md › Colors (accent alias only — never a named variant),
+     Typography (control-label), Layout & Spacing (spacing scale)
+   - EXPERIENCE.md › UX-DR6 (44px coarse-pointer floor), UX-DR7
+     (colour is never the only channel), UX-DR15 (every wide block
+     owns its scroller)
+
+   NOT shown, deliberately: the builder popover's own contents. It is
+   unchanged by this engagement — it is demoted, not redesigned.
+   ============================================================ */
+
+:root {
+  --bg: #f6f7fa; --bg-elevated: #ffffff; --bg-muted: #eef1f6;
+  --border: #e4e8ef; --text: #0e141b; --text-muted: #5a6577;
+  --accent: #7c3aed; --accent-soft: #ede9fe;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-7: 32px;
+  --radius-md: 10px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+[data-theme="dark"] {
+  --bg: #0b0f14; --bg-elevated: #131a23; --bg-muted: #1a2230;
+  --border: #222b38; --text: #e6eaf1; --text-muted: #8b97a8;
+  --accent: #a78bfa; --accent-soft: rgb(167 139 250 / 0.16);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: var(--space-6);
+  background: var(--bg); color: var(--text);
+  font-family: var(--font); font-size: 13px; line-height: 1.5;
+}
+h1 { font-size: 18px; margin: 0 0 var(--space-2); }
+h2 { font-size: 14px; margin: var(--space-7) 0 var(--space-2); }
+.note { color: var(--text-muted); max-width: 68ch; margin: 0 0 var(--space-4); }
+.frame {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.frame--phone { width: 390px; max-width: 100%; padding: var(--space-3); }
+.caption {
+  font-size: 11px; color: var(--text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+/* ---------- {components.filter-chip} (D2) ----------
+   Inherits the view-switcher pill wholesale. One changed affordance:
+   it is a toggle, so aria-pressed, and the ACTIVE BORDER is the
+   channel that survives forced-colors — the tint is reinforcement
+   only (UX-DR7). */
+.chip-row {
+  display: flex; gap: var(--space-2); align-items: center;
+  /* UX-DR15: the row owns its scroller, same mechanism as the tab row. */
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x proximity; scrollbar-width: none;
+  mask-image: linear-gradient(to right, black calc(100% - var(--space-5)), transparent 100%);
+  padding-bottom: var(--space-1);
+}
+.chip-row::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex: none; scroll-snap-align: start;
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  min-height: 28px; padding: 3px 10px;
+  border-radius: 999px; border: 1px solid var(--border);
+  background: var(--bg-muted); color: var(--text-muted);
+  font-size: 12px; font-weight: 500; font-family: inherit;
+  cursor: pointer; white-space: nowrap;
+}
+.filter-chip[aria-pressed="true"] {
+  background: var(--accent-soft); color: var(--accent);
+  border-color: var(--accent); font-weight: 600;
+}
+/* The family separator: currency/asset-class chips compose as OR within
+   their family, AND across families. The rule is stated on the row, not
+   left to be discovered. */
+.chip-sep {
+  flex: none; width: 1px; align-self: stretch;
+  background: var(--border); margin: 0 var(--space-1);
+}
+.chip-more {
+  flex: none; display: inline-flex; align-items: center; gap: var(--space-1);
+  min-height: 28px; padding: 3px 8px;
+  background: none; border: none; font-family: inherit; font-size: 12px;
+  color: var(--text-muted); cursor: pointer; white-space: nowrap;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+/* A demoted control must never hide active state. */
+.chip-more__count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 600; text-decoration: none;
+}
+.chip-rule {
+  margin: var(--space-2) 0 0; font-size: 11px; color: var(--text-muted);
+}
+
+/* ---------- tab row (D6 / UX-DR22) ----------
+   The shipped #702 form, recorded as the specification. The baseline is
+   an INSET BOX-SHADOW, not border-bottom: overflow-x:auto computes
+   overflow-y to auto, and the active tab's -1px margin would then either
+   raise a vertical scrollbar or be clipped so the underline renders 1px
+   thin with grey beneath it. */
+.area-tabs {
+  display: flex; gap: var(--space-1);
+  box-shadow: inset 0 -1px 0 var(--border);
+  margin-bottom: var(--space-4);
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x proximity; scrollbar-width: none;
+  mask-image: linear-gradient(to right, black calc(100% - var(--space-5)), transparent 100%);
+}
+.area-tabs::-webkit-scrollbar { display: none; }
+.area-tab {
+  flex: none; scroll-snap-align: start;
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: 7px 13px; min-height: 34px;
+  color: var(--text-muted); text-decoration: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  white-space: nowrap;
+}
+.area-tab.is-active {
+  color: var(--accent); border-bottom-color: var(--accent); font-weight: 600;
+}
+.area-tab svg { flex: none; }
+
+@media (pointer: coarse) {
+  .area-tab, .filter-chip { min-height: 44px; }
+}
+
+/* ---------- table stub: context only, not under review ---------- */
+table { width: 100%; border-collapse: collapse; margin-top: var(--space-3); }
+th, td {
+  text-align: left; padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border); font-size: 12px;
+}
+th { color: var(--text-muted); font-weight: 600; font-size: 11px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge {
+  display: inline-flex; align-items: center; padding: 2px 8px;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+  font-size: 11px; font-weight: 500;
+}
+/* Derived, not stated (#700): four channels, colour is the weakest. */
+.badge--derived {
+  background: transparent; color: var(--text-muted);
+  border: 1px dashed var(--border); gap: var(--space-1);
+}
+.themes { display: flex; gap: var(--space-6); flex-wrap: wrap; }
+.themes > div { flex: 1 1 460px; min-width: 0; }
+</style>
+</head>
+<body>
+
+<h1>#707 — filter chips (D2) and the tab-row overflow model (D6)</h1>
+<p class="note">
+  Drawn in <strong>DE</strong> at <strong>1280&nbsp;px and 390&nbsp;px</strong>, in both themes,
+  against data that triggers the finding surfaces — the walkthrough conditions
+  recorded for #706. Everything else in the amendment is decidable from prose;
+  these two are not.
+</p>
+
+<h2>1 — Securities filter row, desktop (DE)</h2>
+<p class="caption">
+  Common filters are chips; the Column/Operator/Value builder is demoted behind
+  “Weitere Filter”, which carries a count so demoting it never hides active state.
+</p>
+<div class="frame">
+  <div class="chip-row" role="group" aria-label="Filter">
+    <button type="button" class="filter-chip" aria-pressed="true">Gehalten</button>
+    <button type="button" class="filter-chip" aria-pressed="false">Nicht gehalten</button>
+    <span class="chip-sep" aria-hidden="true"></span>
+    <button type="button" class="filter-chip" aria-pressed="true">Ohne Anlageklasse</button>
+    <button type="button" class="filter-chip" aria-pressed="false">Kurs veraltet</button>
+    <button type="button" class="filter-chip" aria-pressed="false">Kein Kurs</button>
+    <button type="button" class="filter-chip" aria-pressed="false">Kein Wechselkurs</button>
+    <span class="chip-sep" aria-hidden="true"></span>
+    <button type="button" class="filter-chip" aria-pressed="false">EUR</button>
+    <button type="button" class="filter-chip" aria-pressed="false">USD</button>
+    <button type="button" class="filter-chip" aria-pressed="false">Aktie</button>
+    <button type="button" class="filter-chip" aria-pressed="false">ETF</button>
+    <button type="button" class="chip-more">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 5h18l-7 8v6l-4 2v-8Z"></path>
+      </svg>
+      Weitere Filter <span class="chip-more__count">2</span>
+    </button>
+  </div>
+  <p class="chip-rule">
+    Filter aus verschiedenen Gruppen werden mit UND verknüpft, innerhalb einer
+    Gruppe mit ODER.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th><th>ISIN</th><th>Anlageklasse</th><th class="num">Letzter Kurs</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Nordwind Beteiligungen</td><td>DE000NORDWI1</td>
+        <td>
+          <span class="badge badge--derived">
+            <span aria-hidden="true">≈</span>Aktie
+          </span>
+        </td>
+        <td class="num">18,40</td>
+      </tr>
+      <tr>
+        <td>Musterwerk AG</td><td>DE000MUSTER1</td>
+        <td><span class="badge">Aktie</span></td>
+        <td class="num">104,25</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="chip-rule">
+    „Ohne Anlageklasse“ trifft auf den <strong>gespeicherten</strong> Wert zu (#700):
+    die erste Zeile hat keine gespeicherte Klasse, zeigt aber die abgeleitete —
+    sichtbar als abgeleitet, mit gestricheltem Rahmen und ≈.
+  </p>
+</div>
+
+<h2>2 — 390 px: the chip row and the Wealth tab row (DE)</h2>
+<p class="caption">
+  Both rows scroll. The tab row does not wrap and does not collapse into the
+  burger (UX-DR22): the burger switches <em>area</em>, tabs move <em>within</em>
+  one — folding them together removes the “where am I inside this area” signal
+  that the task-oriented IA rests on.
+</p>
+<div class="frame frame--phone">
+  <nav class="area-tabs" aria-label="Bereichs-Tabs">
+    <a class="area-tab is-active" href="#" aria-current="page">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 17 9 11l4 4 8-8"></path></svg>
+      Bestände
+    </a>
+    <a class="area-tab" href="#">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v9l7 4"></path><circle cx="12" cy="12" r="9"></circle></svg>
+      Allokation &amp; Ziele
+    </a>
+    <a class="area-tab" href="#">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 20V10M10 20V4M16 20v-7M22 20v-3"></path></svg>
+      Erträge
+    </a>
+    <a class="area-tab" href="#">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M4 10h16"></path></svg>
+      Stichtage
+    </a>
+    <a class="area-tab" href="#">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 6h16M4 12h10M4 18h7"></path></svg>
+      Steuern
+    </a>
+  </nav>
+
+  <div class="chip-row" role="group" aria-label="Filter">
+    <button type="button" class="filter-chip" aria-pressed="true">Gehalten</button>
+    <button type="button" class="filter-chip" aria-pressed="true">Ohne Anlageklasse</button>
+    <button type="button" class="filter-chip" aria-pressed="false">Kurs veraltet</button>
+    <button type="button" class="filter-chip" aria-pressed="false">Kein Kurs</button>
+    <button type="button" class="chip-more">Weitere Filter <span class="chip-more__count">2</span></button>
+  </div>
+</div>
+
+<h2>3 — Both themes, at 390 px</h2>
+<p class="caption">
+  The active chip carries its state on the <em>border</em>, not only the tint —
+  the tint is the channel that disappears under <code>forced-colors: active</code>.
+</p>
+<div class="themes">
+  <div>
+    <p class="caption">Hell</p>
+    <div class="frame frame--phone" data-theme="light" style="background:#ffffff;color:#0e141b;">
+      <div class="chip-row" role="group" aria-label="Filter">
+        <button type="button" class="filter-chip" aria-pressed="true">Gehalten</button>
+        <button type="button" class="filter-chip" aria-pressed="false">Kurs veraltet</button>
+        <button type="button" class="filter-chip" aria-pressed="false">Kein Kurs</button>
+      </div>
+    </div>
+  </div>
+  <div>
+    <p class="caption">Dunkel</p>
+    <div class="frame frame--phone" data-theme="dark"
+         style="background:#131a23;color:#e6eaf1;border-color:#222b38;">
+      <div class="chip-row" role="group" aria-label="Filter">
+        <button type="button" class="filter-chip" aria-pressed="true">Gehalten</button>
+        <button type="button" class="filter-chip" aria-pressed="false">Kurs veraltet</button>
+        <button type="button" class="filter-chip" aria-pressed="false">Kein Kurs</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
