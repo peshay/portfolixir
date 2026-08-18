@@ -9,6 +9,12 @@ defmodule Portfolixir.Catalog.SecurityFields do
   Picker pick it up via this registry.
   """
 
+  # Same pattern as `AssetClasses` in this context: the field registry is the
+  # single source of truth for what a column is *called*, so the label has to be
+  # localized where it is defined. Labels are built per call to `fields/0`, not
+  # in a module attribute, so each call resolves in the caller's locale.
+  use Gettext, backend: PortfolixirWeb.Gettext
+
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.Security
@@ -45,109 +51,109 @@ defmodule Portfolixir.Catalog.SecurityFields do
     [
       build(:name, :string, :column, :stammdaten,
         default_visible?: true,
-        label: "Name"
+        label: gettext("Name")
       ),
       build(:ticker_symbol, :string, :column, :stammdaten,
         default_visible?: true,
-        label: "Ticker"
+        label: gettext("Ticker")
       ),
       build(:isin, :string, :column, :stammdaten,
         default_visible?: true,
-        label: "ISIN"
+        label: gettext("ISIN")
       ),
-      build(:wkn, :string, :column, :stammdaten, label: "WKN"),
+      build(:wkn, :string, :column, :stammdaten, label: gettext("WKN")),
       build(:currency_code, :enum, :column, :stammdaten,
         default_visible?: true,
-        label: "Currency",
+        label: gettext("Currency"),
         render_hint: :currency,
         enum_values: Currencies.codes()
       ),
-      build(:exchange_code, :string, :column, :stammdaten, label: "Exchange"),
+      build(:exchange_code, :string, :column, :stammdaten, label: gettext("Exchange")),
       build(:asset_class, :enum, :column, :stammdaten,
         default_visible?: true,
-        label: "Asset class",
+        label: gettext("Asset class"),
         render_hint: :badge,
         enum_values: AssetClasses.codes(),
         operators: [:eq, :neq, :is_nil]
       ),
       build(:is_retired, :boolean, :column, :stammdaten,
-        label: "Retired",
+        label: gettext("Retired"),
         render_hint: :checkbox
       ),
       # Derived from quote history (see Portfolixir.Catalog.Quotes.attach_metrics/1).
       # Not filterable in v1 — sorting client-side after enrichment.
       build(:latest_price, :decimal, :metric, :kurse,
         default_visible?: true,
-        label: "Latest price",
+        label: gettext("Latest price"),
         render_hint: :money,
         sortable?: true,
         filterable?: false
       ),
       build(:latest_price_date, :date, :metric, :kurse,
-        label: "Latest price date",
+        label: gettext("Latest price date"),
         render_hint: :date,
         sortable?: true,
         filterable?: false
       ),
       build(:day_change_abs, :decimal, :metric, :kurse,
-        label: "Day change",
+        label: gettext("Day change"),
         render_hint: :money_signed,
         sortable?: true,
         filterable?: false
       ),
       build(:day_change_pct, :decimal, :metric, :kurse,
         default_visible?: true,
-        label: "Day change %",
+        label: gettext("Day change %"),
         render_hint: :percent_signed,
         sortable?: true,
         filterable?: false
       ),
       build(:performance_1m, :decimal, :metric, :kurse,
-        label: "1M performance",
+        label: gettext("1M performance"),
         render_hint: :percent_signed,
         sortable?: true,
         filterable?: false
       ),
       build(:performance_1y, :decimal, :metric, :kurse,
-        label: "1Y performance",
+        label: gettext("1Y performance"),
         render_hint: :percent_signed,
         sortable?: true,
         filterable?: false
       ),
       build(:note, :string, :column, :sonstiges,
-        label: "Note",
+        label: gettext("Note"),
         sortable?: false,
         filterable?: false
       ),
       # Online-source columns: visible in picker but NOT filterable —
       # filters mirror what Portfolio Performance offers in its UI.
       build(:provider, :enum, :column, :online_quelle,
-        label: "Provider",
+        label: gettext("Provider"),
         render_hint: :badge,
         filterable?: false,
         enum_values: Security.providers()
       ),
       build(:online_id, :string, :column, :online_quelle,
-        label: "Online ID",
+        label: gettext("Online ID"),
         filterable?: false
       ),
       build(:feed, :string, :column, :online_quelle,
-        label: "Quote feed",
+        label: gettext("Quote feed"),
         render_hint: :code,
         filterable?: false
       ),
       build(:feed_url, :string, :column, :online_quelle,
-        label: "Quote feed URL",
+        label: gettext("Quote feed URL"),
         sortable?: false,
         filterable?: false
       ),
       build(:latest_feed, :string, :column, :online_quelle,
-        label: "Latest quote feed",
+        label: gettext("Latest quote feed"),
         render_hint: :code,
         filterable?: false
       ),
       build(:latest_feed_url, :string, :column, :online_quelle,
-        label: "Latest quote URL",
+        label: gettext("Latest quote URL"),
         sortable?: false,
         filterable?: false
       ),
@@ -155,16 +161,16 @@ defmodule Portfolixir.Catalog.SecurityFields do
       # surface new attributes — they automatically appear in the column
       # picker. Filtering on attributes is intentionally off in v1.
       build({:attributes, "exchange_name"}, :string, :attributes, :online_quelle,
-        label: "Exchange name",
+        label: gettext("Exchange name"),
         filterable?: false
       ),
       build({:attributes, "market_url"}, :string, :attributes, :online_quelle,
-        label: "Market URL",
+        label: gettext("Market URL"),
         sortable?: false,
         filterable?: false
       ),
       build({:attributes, "market_cap_rank"}, :integer, :attributes, :online_quelle,
-        label: "Market cap rank",
+        label: gettext("Market cap rank"),
         filterable?: false
       )
     ]
