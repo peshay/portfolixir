@@ -19,10 +19,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -63,7 +63,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
@@ -94,13 +94,13 @@ jobs:
 
       - name: Upload test output artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-output
           path: test-output.log
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cover/excoveralls.json
@@ -112,7 +112,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
@@ -130,13 +130,22 @@ jobs:
         run: mix compile --force --warnings-as-errors
 
       # Hex 2.5's `mix hex.audit` gained advisory gating (hex.pm EEF feed)
-      # with NO ignore mechanism, so unpatched-upstream advisories (currently
-      # cowlib EEF-CVE-2026-43966 MEDIUM / -43969 LOW — no fixed release
-      # exists) would hard-fail CI with no recourse. Advisory gating with a
-      # documented ignore list lives in the mix_audit step below; this step's
-      # unique job is the RETIREMENT check, so Hex is pinned to 2.4.1 (the
-      # last retirement-only hex.audit). Revisit when hex.audit learns
-      # ignores or a fixed cowlib ships.
+      # with NO ignore mechanism, so unpatched-upstream advisories would
+      # hard-fail CI with no recourse. Advisory gating with a documented ignore
+      # list lives in the mix_audit step below; this step's unique job is the
+      # RETIREMENT check, so Hex is pinned to 2.4.1 (the last retirement-only
+      # hex.audit). Revisit when hex.audit learns ignores or a fixed cowlib
+      # ships.
+      #
+      # Outstanding against cowlib 2.19.0, re-checked 2026-08-18 (Sprint 7
+      # Lane M) — THREE, not the two this comment used to name:
+      #   EEF-CVE-2026-43966 MEDIUM  HTTP response splitting
+      #   EEF-CVE-2026-43971 MEDIUM  Link header directive smuggling (NEW)
+      #   EEF-CVE-2026-43969 LOW     Cookie request-header injection
+      # 2.19.0 (2026-07-28) is still the newest release, so there is still no
+      # fixed version to move to. Only the LOW appears in mix_audit's database
+      # and therefore in the ignore list below; the two MEDIUMs are visible to
+      # `mix hex.audit` alone, which is precisely why this step stays pinned.
       - name: Pin Hex for the retirement-only audit
         run: mix local.hex 2.4.1 --force
 
@@ -194,7 +203,7 @@ jobs:
         run: mix sobelow --skip --exit --ignore Config.CSP,Config.HTTPS
 
       - name: Restore PLT cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: plt-cache
         with:
           path: priv/plts
@@ -218,7 +227,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # Full history so the diff against the base branch resolves.
           fetch-depth: 0
@@ -261,7 +270,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
