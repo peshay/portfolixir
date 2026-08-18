@@ -86,6 +86,35 @@ the diff; verify before reporting.
 - Plan drift: if the change materially completes/changes an FR, the reconciliation
   section of `_bmad-output/planning-artifacts/epics.md` may be stale — note it.
 
+### G. Walkthrough conditions (ADR-0038, issue #706)
+
+These bind the **design-critic pass and the UAT persona walkthrough** of the
+agentic review closing act (ADR-0026 step 3), for any batch with user-visible
+surface. They are conditions on how the review is *run*, not extra things to
+look for — Sprint 6 carried the mandatory design-critic pass and still shipped a
+tab row that clips on a phone, an untranslated table header row, an internal ADR
+identifier in user-facing copy and a cryptic badge. None is subtle. All four
+were invisible only because the review ran at desktop width, in EN, against seed
+data that triggers no finding surface.
+
+- **DE locale.** The app has exactly one translated locale and the operator runs
+  it. An EN-only pass cannot see an untranslated string, because in EN there is
+  nothing to see.
+- **At least one full pass at 390 px or narrower.** The operator's primary
+  casual-use device is a phone. Desktop-only passes are how a clipped, unscrollable
+  control row reaches a release.
+- **Seed data that triggers every finding surface on the touched screens.** Not
+  "some data" — data chosen so the warning states render. The three that must be
+  present: an unclassified security, a stale quote, and a plan that
+  does not sum to 100 %. A screen whose alarm never fires during the walkthrough
+  was not reviewed, it was visited.
+
+A **skipped condition is itself a finding**, at Should-fix, and it is recorded
+against the review rather than against the diff: the reviewer states in the
+briefing which conditions the walkthrough ran under. Naming them is what makes
+the claim checkable; a walkthrough that does not say is treated as one that did
+not.
+
 ## Severity guidance
 
 - **Blocker** — breaks a load-bearing invariant (unjournaled write in an armed
