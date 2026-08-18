@@ -85,6 +85,15 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     Map.merge(world, %{classification: classification, core: core, security: security})
   end
 
+  # ADR-0040 (#709): drift renormalises to the allocated portion only where a
+  # plan is deliberately short. Tests whose subject is the DRIFT REPORT opt into
+  # a full plan with this helper, so their figures are unchanged; tests whose
+  # subject is the Sigma HINT keep the short plan they were written against.
+  defp complete_plan!(portfolio, remainder) do
+    {:ok, _} = Portfolios.set_cash_target(Actor.owner_ui(), portfolio, Decimal.new(remainder))
+    :ok
+  end
+
   test "loads the holdings figures asynchronously and shows the totals", %{conn: conn} do
     seed_world()
 
@@ -136,7 +145,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   end
 
   test "the Allocation & targets tab shows the donut and drift (ADR-0022)", %{conn: conn} do
-    seed_world()
+    world = seed_world()
+    complete_plan!(world.portfolio, "0.4")
 
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
 
@@ -828,11 +838,15 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     world = seed_world()
 
     # Raise Core's target to 90% so the row is underweight under ADR-0023:
-    # drift = 880 − 0.9 × 1080 = −92.00 → negative.
+    # drift = 880 − 0.9 × 1080 = −92.00 → negative. The plan is completed to
+    # Sigma = 1.0 (ADR-0040, #709) so that figure is the real drift rather than
+    # one measured against a short plan.
     {:ok, _} =
       Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
         %{"category_id" => world.core.id, "target_weight" => "0.9"}
       ])
+
+    complete_plan!(world.portfolio, "0.1")
 
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
@@ -1624,7 +1638,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # - There is no order button, form, or persisted state behind the hint.
   test "expands a drift category into member securities with rebalancing hints",
        %{conn: conn} do
-    seed_world()
+    world = seed_world()
+    complete_plan!(world.portfolio, "0.4")
 
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
@@ -1706,6 +1721,12 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         },
         %{"category_id" => world.core.id, "security_id" => moon.id, "target_weight" => "0.2"}
       ])
+
+    # Completed to Sigma = 1.0 (ADR-0040, #709): the position sum is 0.7, and
+    # without the remaining 0.3 the drift below would be measured against a
+    # short plan. With a full plan the figures are the ones this test was
+    # written for.
+    complete_plan!(world.portfolio, "0.3")
 
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
@@ -2071,6 +2092,17 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
         world.portfolio.id,
         world.classification.id,
         [%{category_id: world.core.id, target_weight: "0.5"}],
+        view: world.scoped_view.id
+      )
+
+    # Completed to Sigma = 1.0 on the SAME plan (ADR-0040, #709): the cash target
+    # belongs to the view's plan, so it is set with the same `view:` scope. This
+    # test is about which plan steers, not about a short one.
+    :ok =
+      Targets.set_cash_target(
+        Actor.owner_ui(),
+        world.portfolio.id,
+        Decimal.new("0.5"),
         view: world.scoped_view.id
       )
 

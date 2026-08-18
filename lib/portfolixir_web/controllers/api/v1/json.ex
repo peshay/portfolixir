@@ -928,6 +928,13 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       categories: categories,
       cash: allocation_cash(allocation.cash),
       top_level_target_sum: decimal(allocation.top_level_target_sum),
+      # ADR-0040 §4: the remainder travels with the weights, so an agent never
+      # has to subtract to discover that a plan is short on purpose; and the
+      # drift base is named, so drift is never read without knowing what it is
+      # drift against. `allocated_portion` means each target was renormalised to
+      # the allocated share before the comparison.
+      unallocated_remainder: decimal(Map.get(allocation, :unallocated_remainder)),
+      drift_basis: Map.get(allocation, :drift_basis),
       # The per-subtree topmost targeted level, summed (#481 slice 2a fix
       # round): explains a 0% top-level Σ over a plan steered deeper down.
       deep_target_sum: decimal(Map.get(allocation, :deep_target_sum)),

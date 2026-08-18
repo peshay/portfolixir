@@ -803,7 +803,14 @@ church tax withheld at a zero church-tax rate.
   part of the 100% basis, the category percentages shrink accordingly once cash
   is present. The `top_level_target_sum` is the sum of the root categories'
   targets **plus the cash target** (except for the currency classification where
-  cash is distributed into categories), compared against `1`. To keep a holding
+  cash is distributed into categories), compared against `1`. A plan may
+  deliberately allocate **less** than 100%: `unallocated_remainder` states that
+  gap (`1 − top_level_target_sum`, `"0"` when the plan is full) and
+  `drift_basis` names what the drift figures were measured against —
+  `"allocated_portion"` when each target was renormalised to the allocated share
+  first, so the unsteered remainder is not reported as phantom overweight, and
+  `"full_plan"` when the plan sums to 100% and drift is the plain
+  `actual − target`. The remainder is computed on read, never stored (ADR-0040). To keep a holding
   out of the steering basis while it still counts toward total wealth, tag it
   with a bucket and exclude that bucket from the `view` the allocation is read
   under — it then falls outside the scoped positions. Since ADR-0020 the **target**

@@ -286,10 +286,20 @@ defmodule PortfolixirWeb.DashboardTest do
 
     # The buy spent undeposited cash, so counting cash is 0 and the basis is
     # the 1200 securities value: actual 100% vs target 60% -> +40 pp / 480 EUR.
+    #
+    # The plan is completed to 1.0 so it stays a FULL-ALLOCATION fixture:
+    # ADR-0040 (#709) measures drift against the allocated portion only where a
+    # plan is deliberately short, and the subject of this test is the drift
+    # THRESHOLD, not the remainder. With Sigma = 1.0 the +40 pp above is
+    # unchanged. The remaining 0.4 goes to the CASH target rather than to a
+    # second category: cash enters the top-level sum but is not a category, so
+    # it completes the plan without adding a second drift alert.
     {:ok, _} =
       Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
+
+    {:ok, _} = Portfolios.set_cash_target(Actor.owner_ui(), portfolio, Decimal.new("0.4"))
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
@@ -311,7 +321,16 @@ defmodule PortfolixirWeb.DashboardTest do
     assert basis =~ "Strategy"
 
     # … and each item reads as text: "40.0 pp above target", not a bare "+40.0 pp".
-    alert = view |> element(~s(#dashboard-attention [data-role="drift-alert"])) |> render()
+    #
+    # Scoped to the Core alert by text. Under a FULL plan (ADR-0040, #709) the
+    # drifts sum to zero, so whenever one bucket is over target another is under
+    # it -- here Core at +40 pp and the 0.4 cash target at -40 pp. Two alerts is
+    # the correct behaviour of a complete plan, and the previous single-element
+    # selector only worked because the short plan produced one-sided phantom
+    # drift.
+    alert =
+      view |> element(~s(#dashboard-attention [data-role="drift-alert"]), "Core") |> render()
+
     assert alert =~ ~s(href="/portfolio?tab=allocation")
     assert alert =~ "40.0"
     assert alert =~ "above target"
@@ -354,10 +373,15 @@ defmodule PortfolixirWeb.DashboardTest do
     {:ok, _} =
       Classifications.assign_security(Actor.owner_ui(), security.id, classification.id, core.id)
 
+    # Completed to 1.0 via the cash target, per ADR-0040 (#709): this test is
+    # about which TREE the alerts come from, not about a short plan, and cash
+    # completes the sum without adding a second alert.
     {:ok, _} =
       Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
         %{"category_id" => core.id, "target_weight" => "0.6"}
       ])
+
+    {:ok, _} = Portfolios.set_cash_target(Actor.owner_ui(), portfolio, Decimal.new("0.4"))
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
