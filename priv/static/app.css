@@ -1949,6 +1949,29 @@ li + li {
   color: var(--color-accent);
 }
 
+/* A derived asset class is shown but never shown as if stated (issue 700). Four
+   channels carry the distinction, because a state that rides on colour alone
+   ceases to exist under `forced-colors: active` (DESIGN.md → Value slot): a
+   real-text "Derived:" qualifier before the value in document order (in the
+   markup, visually hidden), the ≈ marker, a dashed border, and the muted
+   colour as the weakest reinforcement rather than the carrier. */
+.badge--derived {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
+  gap: var(--space-1);
+}
+.badge-derived-marker {
+  font-weight: 600;
+}
+/* The quick-assign control sits beside the derived badge rather than replacing
+   it: the row states what was derived AND offers the way to state it properly,
+   which is the remediation loop issue 561 was built for. */
+.quick-assign-form {
+  display: inline-flex;
+  margin-left: var(--space-2);
+}
+
 .data-table code {
   font-family: var(--font-mono);
   font-size: 12px;
