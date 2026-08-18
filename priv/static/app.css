@@ -4644,11 +4644,42 @@ button.income-bar-label.is-active {
 
 /* ===== Area tab bar (ADR-0022): sub-navigation inside a task area ===== */
 /* Plain links styled as underline tabs; the active tab carries the accent. */
+/* The tab row scrolls rather than clipping (issue 702, regression from 668).
+   Five Wealth tabs, each carrying an icon plus a German label, exceed 390px:
+   the fourth landed half-cut and the fifth was unreachable.
+
+   The baseline is an inset box-shadow, NOT border-bottom, and that is the
+   load-bearing detail. `overflow-x: auto` computes `overflow-y` to `auto`, so
+   the active tab's `margin-bottom: -1px` -- which exists to paint its 2px
+   underline over the 1px baseline -- would either raise a vertical scrollbar
+   or, under `overflow-y: hidden`, be clipped at the padding box and render the
+   underline 1px thin with grey showing beneath it. An inset shadow is painted
+   on the padding box below the children, so the overlap still works, nothing
+   overflows vertically, and the row looks exactly as it did before.
+
+   The fade is right-edge only. A symmetric fade would dim the first tab at
+   desktop width, where there is no overflow at all; on the right the faded
+   region is empty space until the row actually overflows. */
 .area-tabs {
   display: flex;
   gap: 0.25rem;
-  border-bottom: 1px solid var(--color-border);
+  box-shadow: inset 0 -1px 0 var(--color-border);
   margin-bottom: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - var(--space-5)),
+    transparent 100%
+  );
+  scrollbar-width: none;
+}
+/* No scrollbar under the tabs: the fade and the snap are the affordance, and
+   a phone renders no scrollbar anyway. Keyboard users reach the off-screen
+   tabs by tabbing, which scrolls them into view. */
+.area-tabs::-webkit-scrollbar {
+  display: none;
 }
 /* First-level tabs (issue 668, DESIGN.md → Tabs): icon + label with the
    accent underline; min-height instead of a padding-derived height, and the
@@ -4657,6 +4688,10 @@ button.income-bar-label.is-active {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  /* Overflow is real overflow: a tab keeps its intrinsic width instead of
+     compressing its label to fit (issue 702). */
+  flex: none;
+  scroll-snap-align: start;
   padding: 0.45rem 0.8rem;
   min-height: 34px;
   color: var(--color-text-muted);

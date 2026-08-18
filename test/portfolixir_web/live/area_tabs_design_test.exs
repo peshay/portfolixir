@@ -96,4 +96,78 @@ defmodule PortfolixirWeb.AreaTabsDesignTest do
       assert app_css =~ ~r/\.area-tab__label::after \{[^}]*font-weight: 600/s
     end
   end
+
+  # User story (#702, regression from #668; feedback triage 2026-08-15 F3):
+  # As a local portfolio maintainer checking my wealth on a phone,
+  # I want the Wealth tab row to scroll horizontally when its tabs do not fit,
+  # so that the fifth tab is reachable at 390 px instead of being clipped off
+  # the edge of the screen with no way to get to it.
+  #
+  # Acceptance criteria:
+  # - `.area-tabs` scrolls horizontally instead of clipping (`overflow-x: auto`).
+  # - Tabs do not compress to fit: each keeps its intrinsic width (`flex: none`),
+  #   otherwise "it fits" is achieved by squashing the labels rather than by
+  #   scrolling, which is the same defect wearing a different shape.
+  # - The scroller carries a scroll-snap affordance so a tab does not come to
+  #   rest half-cut -- being half-cut is what made the fourth tab read as the
+  #   last one.
+  # - An edge fade marks the row as continuing past the viewport, so the
+  #   scrollability is discoverable without horizontal scrollbars (which phones
+  #   do not render).
+  # - The row does not become a second vertical stack: no `flex-wrap: wrap`.
+  describe "the area tab row survives a 390px viewport (#702)" do
+    test "the stylesheet makes the tab row scroll instead of clipping" do
+      app_css = File.read!("priv/static/app.css")
+
+      [area_tabs_rule] = Regex.run(~r/\.area-tabs \{[^}]*\}/s, app_css)
+
+      # Scrolls rather than clips.
+      assert area_tabs_rule =~ "overflow-x: auto"
+
+      # ...and is not "fixed" by wrapping into a second row, which changes the
+      # navigation model rather than the overflow behaviour. That question
+      # belongs to the design engagement (#707), not to this defect fix.
+      refute area_tabs_rule =~ "flex-wrap: wrap"
+
+      # Tabs keep their intrinsic width, so overflow is real overflow.
+      assert app_css =~ ~r/\.area-tab \{[^}]*flex: none/s
+
+      # Comes to rest on a tab boundary rather than mid-label.
+      assert area_tabs_rule =~ "scroll-snap-type"
+      assert app_css =~ ~r/\.area-tab \{[^}]*scroll-snap-align/s
+
+      # The edge fade: the affordance that the row continues.
+      assert area_tabs_rule =~ "mask-image"
+    end
+
+    test "every wealth tab is present and reachable in the markup", %{conn: conn} do
+      alias Portfolixir.{Actor, Classifications, Portfolios}
+
+      Classifications.ensure_builtins()
+
+      {:ok, portfolio} =
+        Portfolios.create_portfolio(Actor.owner_ui(), %{name: "Main", base_currency_code: "EUR"})
+
+      {:ok, cash} =
+        Portfolios.create_cash_account(Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          name: "Giro",
+          currency_code: "EUR"
+        })
+
+      {:ok, _depot} =
+        Portfolios.create_securities_account(Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          name: "Depot"
+        })
+
+      {:ok, view, _html} = live(conn, "/portfolio")
+
+      # The fifth tab -- the one that was unreachable at 390 px -- is a real
+      # link, not merely rendered text.
+      assert has_element?(view, ~s([data-role="area-tabs"] a[href="/tax"]))
+      assert has_element?(view, ~s([data-role="area-tabs"] a[href="/snapshots"]))
+    end
+  end
 end
