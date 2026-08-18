@@ -3,8 +3,8 @@ defmodule Portfolixir.Derived.PerformanceFreshnessTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
-  alias Portfolixir.Derived
   alias Portfolixir.Derived.Memo
+  alias Portfolixir.DerivedConfig
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
@@ -27,12 +27,8 @@ defmodule Portfolixir.Derived.PerformanceFreshnessTest do
   setup do
     Memo.reset()
 
-    Application.put_env(:portfolixir, Derived,
-      enabled?: true,
-      lifetimes: [performance_analysis: :durable]
-    )
+    DerivedConfig.enable!(lifetimes: [performance_analysis: :durable])
 
-    on_exit(fn -> Application.put_env(:portfolixir, Derived, enabled?: false) end)
     :ok
   end
 

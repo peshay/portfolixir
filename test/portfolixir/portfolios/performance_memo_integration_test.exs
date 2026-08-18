@@ -7,6 +7,7 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
   alias Portfolixir.Derived
   alias Portfolixir.Derived.DataVersion
   alias Portfolixir.Derived.Memo
+  alias Portfolixir.DerivedConfig
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -26,8 +27,9 @@ defmodule Portfolixir.Portfolios.PerformanceMemoIntegrationTest do
 
   setup do
     Memo.reset()
-    Application.put_env(:portfolixir, Derived, enabled?: true)
-    on_exit(fn -> Application.put_env(:portfolixir, Derived, enabled?: false) end)
+    # `lifetimes: []` keeps the registry defaults this file was written
+    # against, independent of what config.exs activates.
+    DerivedConfig.enable!(lifetimes: [])
     :ok
   end
 

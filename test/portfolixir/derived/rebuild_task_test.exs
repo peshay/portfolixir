@@ -4,9 +4,9 @@ defmodule Portfolixir.Derived.RebuildTaskTest do
   alias Mix.Tasks.Portfolixir.Derived.Rebuild
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
-  alias Portfolixir.Derived
   alias Portfolixir.Derived.Memo
   alias Portfolixir.Derived.Value
+  alias Portfolixir.DerivedConfig
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
@@ -27,17 +27,11 @@ defmodule Portfolixir.Derived.RebuildTaskTest do
   setup do
     Memo.reset()
 
-    Application.put_env(:portfolixir, Derived,
-      enabled?: true,
-      lifetimes: [performance_analysis: :durable]
-    )
+    DerivedConfig.enable!(lifetimes: [performance_analysis: :durable])
 
     Mix.shell(Mix.Shell.Process)
 
-    on_exit(fn ->
-      Mix.shell(Mix.Shell.IO)
-      Application.put_env(:portfolixir, Derived, enabled?: false)
-    end)
+    on_exit(fn -> Mix.shell(Mix.Shell.IO) end)
 
     :ok
   end

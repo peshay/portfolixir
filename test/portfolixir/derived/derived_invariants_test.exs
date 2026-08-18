@@ -22,6 +22,7 @@ defmodule Portfolixir.Derived.DerivedInvariantsTest do
   alias Portfolixir.Derived
   alias Portfolixir.Derived.DataVersion
   alias Portfolixir.Derived.Memo
+  alias Portfolixir.DerivedConfig
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -33,12 +34,8 @@ defmodule Portfolixir.Derived.DerivedInvariantsTest do
   setup do
     Memo.reset()
 
-    Application.put_env(:portfolixir, Derived,
-      enabled?: true,
-      lifetimes: [performance_analysis: :durable]
-    )
+    DerivedConfig.enable!(lifetimes: [performance_analysis: :durable])
 
-    on_exit(fn -> Application.put_env(:portfolixir, Derived, enabled?: false) end)
     :ok
   end
 

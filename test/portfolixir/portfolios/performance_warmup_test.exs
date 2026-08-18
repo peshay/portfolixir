@@ -5,6 +5,7 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Derived
   alias Portfolixir.Derived.Memo
+  alias Portfolixir.DerivedConfig
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance.Warmup
@@ -22,8 +23,9 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
 
   setup do
     Memo.reset()
-    Application.put_env(:portfolixir, Derived, enabled?: true)
-    on_exit(fn -> Application.put_env(:portfolixir, Derived, enabled?: false) end)
+    # `lifetimes: []` keeps the registry defaults this file was written
+    # against, independent of what config.exs activates.
+    DerivedConfig.enable!(lifetimes: [])
     :ok
   end
 
