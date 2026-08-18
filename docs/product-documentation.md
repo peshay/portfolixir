@@ -138,7 +138,12 @@ be bookmarked or linked to:
 - `?dq=stale_quote|missing_quote|missing_logo` — the data-quality shortcut
   filters: no quote in the last 7 days (including none at all), no quote at
   all, and no stored logo. The active shortcut appears as a removable filter
-  chip.
+  chip, and the same three conditions can be picked directly in the filter
+  control under **Data quality** — the dashboard link is a shortcut to them,
+  not the only way in. The agent asks for the identical sets over
+  `GET /api/v1/securities?data_quality=…` and the `portfolixir.securities.list`
+  tool; all of them are one definition, so a count of N always addresses a list
+  of N.
 
 Searching, switching the holding status, or applying a filter updates the URL
 in place, and selecting a security keeps the active filters. The Overview

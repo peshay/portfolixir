@@ -50,6 +50,14 @@ decision (B3.7) and deliberately not part of this surface.
 
 ## Securities
 
+The `data_quality` predicates are the **same rule** the dashboard counts and
+the securities page links to (issue #705): they are defined once in
+`Portfolixir.Catalog.DataQuality`, so a count of N always addresses a list of
+N, and an agent asking "which securities have a stale quote" gets exactly the
+set a person sees. Combine them with `query`, `holding_status` and the other
+narrowings; an unknown value is a `422` naming `data_quality`, never a silent
+full list.
+
 - `GET /api/v1/securities` lists securities. Rows default to a slim
   projection — the fixed whitelist `id`, `name`, `ticker_symbol`, `isin`,
   `wkn`, `currency_code`, `asset_class` — so routine listings stay small;
@@ -57,7 +65,10 @@ decision (B3.7) and deliberately not part of this surface.
   timestamps). Optional query params: `query`, `sort`, `direction`,
   holding_status (`all`, `held`, or `not_held`), `logo_status` (`missing` or
   `present` — `missing` powers the "securities without a logo" overview and
-  excludes rows explicitly set to no logo), `projection` (`slim`/`full`), and
+  excludes rows explicitly set to no logo), `data_quality`
+  (`stale_quote` — no quote newer than 7 days, **including** securities never
+  priced at all; `missing_quote` — no quote at all, the narrower set inside it;
+  `missing_logo`), `projection` (`slim`/`full`), and
   `limit`/`offset` for pagination (both non-negative integers). Use these to
   page large catalogs instead of fetching the whole table at once.
 - `POST /api/v1/securities` creates a security with a `security` object.

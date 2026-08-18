@@ -5,10 +5,12 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.WorldFixtures
 
   defmodule RaisingAdapter do
     @moduledoc false
@@ -1788,7 +1790,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       view |> element("#toggle-filter-popover") |> render_click()
 
       view
-      |> element("#filter-popover form")
+      |> element("#securities-filter-form")
       |> render_submit(%{
         "field" => "asset_class",
         "operator" => "eq",
@@ -1811,7 +1813,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       html =
         view
-        |> element("#filter-popover form")
+        |> element("#securities-filter-form")
         |> render_change(%{"field" => "asset_class"})
 
       assert html =~ "is_nil"
@@ -1838,7 +1840,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       view |> element("#toggle-filter-popover") |> render_click()
 
       view
-      |> element("#filter-popover form")
+      |> element("#securities-filter-form")
       |> render_submit(%{
         "field" => "asset_class",
         "operator" => "is_nil"
@@ -2424,5 +2426,42 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # ...and the one with a stated class is not.
       refute html =~ "Stated Holdings"
     end
+  end
+
+  # User story (#705):
+  # As a maintainer looking at the securities list,
+  # I want to pick a data-quality condition in the filter control itself,
+  # so that the stale-quote and missing-quote sets are reachable without first
+  # going to the dashboard and clicking its link.
+  #
+  # Acceptance criteria:
+  # - The filter popover offers the same predicates the engine defines.
+  # - Picking one narrows the list and shows the removable chip.
+  # - The narrowed set is the shared predicate's set, so the page and the API
+  #   cannot disagree about what "stale" means.
+  test "the filter control offers the data-quality predicates directly (#705)", %{conn: conn} do
+    today = Date.utc_today()
+
+    fresh = WorldFixtures.create_security!(name: "Fresh AG", ticker: "FRS")
+    WorldFixtures.put_quote!(fresh, Date.add(today, -1), "100")
+
+    stale = WorldFixtures.create_security!(name: "Stale AG", ticker: "STL")
+    WorldFixtures.put_quote!(stale, Date.add(today, -30), "100")
+
+    {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#toggle-filter-popover") |> render_click()
+
+    # Every predicate the engine defines is offered -- not a hand-kept copy.
+    for id <- DataQuality.ids() do
+      assert has_element?(view, "#securities-dq-form option[value='#{id}']")
+    end
+
+    view
+    |> element("#securities-dq-form")
+    |> render_change(%{"dq" => "stale_quote"})
+
+    assert has_element?(view, "#filter-chips .chip")
+    assert has_element?(view, "td", "Stale AG")
+    refute has_element?(view, "td", "Fresh AG")
   end
 end

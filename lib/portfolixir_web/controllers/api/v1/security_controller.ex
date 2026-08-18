@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.SecurityFields
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -12,12 +13,13 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   def index(conn, params) do
     with {:ok, opts} <- list_opts(params),
+         {:ok, data_quality} <- data_quality_param(params),
          {:ok, serializer} <- listing_serializer(params),
          {:ok, since} <- SinceParam.parse(params) do
       securities =
         opts
         |> put_updated_since(since)
-        |> Catalog.list_securities()
+        |> list_by(data_quality)
         |> Enum.map(serializer)
 
       json(conn, SinceParam.put_envelope(%{data: securities}, since))
@@ -31,6 +33,27 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   defp put_updated_since(opts, nil), do: opts
   defp put_updated_since(opts, %{cut: cut}), do: Keyword.put(opts, :updated_since, cut)
+
+  # The data-quality predicates (#705). Routed through `Catalog.DataQuality` so
+  # the agent's set is the SAME set the dashboard counts and the securities page
+  # links to — the point of the story was that there were three copies of the
+  # rule and only two of them had a caller.
+  defp list_by(opts, nil), do: Catalog.list_securities(opts)
+
+  defp list_by(opts, id) do
+    id
+    |> DataQuality.list(opts)
+    |> Enum.map(& &1.security)
+  end
+
+  # String-keyed and whitelisted: a query param never mints an atom.
+  defp data_quality_param(%{"data_quality" => ""}), do: {:ok, nil}
+
+  defp data_quality_param(%{"data_quality" => id}) do
+    if DataQuality.valid?(id), do: {:ok, id}, else: {:error, "data_quality"}
+  end
+
+  defp data_quality_param(_params), do: {:ok, nil}
 
   # FR-33: listings default to the slim whitelist projection;
   # `projection=full` opts back into the complete serializer. Named
