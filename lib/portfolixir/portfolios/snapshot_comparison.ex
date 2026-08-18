@@ -385,21 +385,57 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
         case List.last(up_to_as_of) do
           # The walk starts after the as-of date: no baseline, no real side.
           nil ->
-            %{factors: %{}, ttwror: nil}
+            %{factors: %{}, ttwror: nil, ttwror_before_costs: nil, costs: @zero}
 
           %{value: baseline} ->
-            {factors, _prev, growth} =
-              Enum.reduce(since, {%{as_of => @one}, baseline, @one}, fn point,
-                                                                        {factors, prev, growth} ->
-                growth = Decimal.mult(growth, Performance.day_factor(point, prev))
-                {Map.put(factors, point.date, growth), point.value, growth}
-              end)
-
-            %{factors: factors, ttwror: Decimal.sub(growth, @one)}
+            chain_real(since, baseline, as_of)
         end
 
       _ ->
-        %{factors: %{}, ttwror: nil}
+        %{factors: %{}, ttwror: nil, ttwror_before_costs: nil, costs: @zero}
+    end
+  end
+
+  # Two chains over ONE walk (ADR-0027 amendment §2, issue #708). The net chain
+  # is unchanged. The pre-cost chain is the same series with the day's trade
+  # fees and taxes reclassified as an external OUTFLOW: subtracting them from
+  # the day's performance base is what "this money left for a non-performance
+  # reason" means in a time-weighted return, and it is why the pre-cost figure
+  # is the higher one whenever costs were paid.
+  #
+  # There is deliberately no second engine and no stored figure: both chains
+  # read the same `daily` points, so the two can never disagree about anything
+  # except the one classification under test.
+  defp chain_real(since, baseline, as_of) do
+    initial = {%{as_of => @one}, baseline, @one, @one, @zero}
+
+    {factors, _prev, growth, pre_growth, costs} =
+      Enum.reduce(since, initial, fn point, {factors, prev, growth, pre_growth, costs} ->
+        day_costs = Performance.trade_costs_of(point)
+        growth = Decimal.mult(growth, Performance.day_factor(point, prev))
+        pre_growth = Decimal.mult(pre_growth, pre_cost_day_factor(point, prev, day_costs))
+
+        {Map.put(factors, point.date, growth), point.value, growth, pre_growth,
+         Decimal.add(costs, day_costs)}
+      end)
+
+    %{
+      factors: factors,
+      ttwror: Decimal.sub(growth, @one),
+      ttwror_before_costs: Decimal.sub(pre_growth, @one),
+      costs: costs
+    }
+  end
+
+  # `Performance.day_factor/2` is `value / (prev + flow + basis)`. An external
+  # outflow of `cost` shrinks the base the day's return is measured against,
+  # exactly as a withdrawal does — the value already fell by the fee, and this
+  # says the fall was money leaving rather than a loss.
+  defp pre_cost_day_factor(point, prev, cost) do
+    if Decimal.equal?(cost, @zero) do
+      Performance.day_factor(point, prev)
+    else
+      Performance.day_factor(point, Decimal.sub(prev, cost))
     end
   end
 
@@ -433,15 +469,55 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
       current_value: current_value || @zero,
       snapshot_return: snapshot_return(as_of_value, current_value),
       real_ttwror: real.ttwror,
+      # ADR-0027 amendment §4, review-blocking: the pre-cost return is never
+      # served alone. It travels with the cost total and the recovery state in
+      # the payload as well as in the UI, because on its own it is a number
+      # that flatters.
+      real_ttwror_before_costs: real.ttwror_before_costs,
+      transaction_costs: real.costs,
+      cost_recovery: cost_recovery(snapshot_return(as_of_value, current_value), real, real.costs),
       series: series,
       gaps: %{unvalued_securities: gaps},
       basis: %{
         method: "buy_and_hold_vs_ttwror",
         gross: true,
-        price_return_only: true
+        price_return_only: true,
+        window: %{from: snapshot.as_of, to: today},
+        base_currency: base,
+        # Named rather than described, so a reader never has to infer which
+        # side of the line a cost fell on (§1's two boundaries).
+        costs_removed: ["trade_fees", "trade_taxes"],
+        costs_kept: ["standalone_fees", "standalone_taxes", "dividend_withholding"]
       }
     }
   end
+
+  # The three states of ADR-0027 amendment §3. The middle one is the reason the
+  # split is worth building: the changes are ahead of the frozen holdings on
+  # their own merits, and the trading costs are simply not earned back yet —
+  # which is a different answer from "the changes were wrong".
+  defp cost_recovery(frozen, %{ttwror: net, ttwror_before_costs: pre}, costs)
+       when not is_nil(frozen) and not is_nil(net) and not is_nil(pre) do
+    cond do
+      Decimal.compare(net, frozen) != :lt ->
+        %{state: :recovered, outstanding: @zero, transaction_costs: costs}
+
+      Decimal.compare(pre, frozen) == :gt ->
+        %{
+          state: :partly_recovered,
+          outstanding: Decimal.sub(frozen, net),
+          transaction_costs: costs
+        }
+
+      true ->
+        %{state: :not_recovered, outstanding: Decimal.sub(frozen, net), transaction_costs: costs}
+    end
+  end
+
+  # No comparable pair (a walk with no baseline, or nothing valuable to freeze)
+  # is not a recovery state — it is an absence, and it says so.
+  defp cost_recovery(_frozen, _real, costs),
+    do: %{state: :not_comparable, outstanding: nil, transaction_costs: costs}
 
   defp value_at([], _index), do: nil
   defp value_at(series, 0), do: List.first(series).value

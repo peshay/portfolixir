@@ -136,6 +136,24 @@ defmodule PortfolixirWeb.ApiV1PlansAndSnapshotsTest do
     assert is_list(data["series"])
     assert is_binary(hd(data["series"])["snapshot_value"])
 
+    # ADR-0027 amendment (#708): the cost decomposition travels with the
+    # comparison, and the pre-cost figure is never served without the other
+    # two. Decimal strings like everything else (AR-11).
+    assert is_binary(data["transaction_costs"])
+    assert Map.has_key?(data, "real_ttwror_before_costs")
+
+    assert data["cost_recovery"]["state"] in ~w(recovered partly_recovered not_recovered not_comparable)
+
+    # §5: the basis names the window and both sides of the cost boundary, so a
+    # reader never has to infer which charges left the return.
+    assert data["basis"]["window"] == %{
+             "from" => "2026-02-15",
+             "to" => Date.to_iso8601(Date.utc_today())
+           }
+
+    assert data["basis"]["costs_removed"] == ["trade_fees", "trade_taxes"]
+    assert "dividend_withholding" in data["basis"]["costs_kept"]
+
     assert conn |> delete_json("/api/v1/snapshots/#{id}") |> json_response(200)
     assert Snapshots.list_snapshots() == []
   end

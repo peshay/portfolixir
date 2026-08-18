@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Snapshots
   alias Portfolixir.WorldFixtures
 
@@ -346,6 +347,93 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
       assert table_disclosure =~ "disclosure-summary"
       assert table_disclosure =~ "Data as table"
       assert table_disclosure =~ ~s(data-role="disclosure-purpose")
+    end
+  end
+
+  # User story (#708, ADR-0027 amendment §4 — review-blocking):
+  # As a maintainer who restructured a depot,
+  # I want to see what the trades cost and whether they are earned back,
+  # never the flattering pre-cost figure on its own,
+  # so that "were the changes right?" and "have they paid for themselves?" are
+  # both answered instead of one number serving neither.
+  #
+  # Acceptance criteria:
+  # - When trades cost something, the surface shows the pre-cost return, the
+  #   cost total and the recovery state TOGETHER.
+  # - When nothing was paid, the group is absent — a second identical figure
+  #   beside the real return would be noise dressed as insight.
+  # - The basis line names which costs left the return and which stayed in it.
+  describe "transaction costs on the comparison (#708)" do
+    defp costly_world(fees) do
+      world = seeded_world()
+
+      {:ok, _} =
+        Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: world.cash.id,
+          securities_account_id: world.depot.id,
+          security_id: WorldFixtures.security_id_for(world.security),
+          type: "buy",
+          date: ~D[2026-02-20],
+          quantity: "1",
+          price: "110",
+          gross_amount: "110",
+          fees: fees,
+          currency_code: "EUR"
+        })
+
+      {:ok, _snapshot} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{
+          name: "Before restructuring",
+          as_of: ~D[2026-02-15]
+        })
+
+      world
+    end
+
+    defp open_comparison(conn) do
+      {:ok, view, _html} = live(conn, "/snapshots")
+
+      view
+      |> element("[data-role=snapshot-row] button[phx-click=select_snapshot]")
+      |> render_click()
+
+      view
+    end
+
+    test "the three figures appear together, never the pre-cost one alone", %{conn: conn} do
+      costly_world("40")
+
+      view = open_comparison(conn)
+
+      assert has_element?(view, "#comparison-costs [data-role='pre-cost-return']")
+      assert has_element?(view, "#comparison-costs [data-role='transaction-costs']")
+      assert has_element?(view, "#comparison-costs [data-role='cost-recovery']")
+
+      # The cost figure is the money, in the base currency.
+      costs = view |> element("#comparison-costs [data-role='transaction-costs']") |> render()
+      assert costs =~ "40"
+      assert costs =~ "EUR"
+    end
+
+    test "with nothing paid the group is absent rather than duplicating a figure", %{conn: conn} do
+      costly_world("0")
+
+      view = open_comparison(conn)
+
+      refute has_element?(view, "#comparison-costs")
+      # The comparison itself still renders.
+      assert has_element?(view, "[data-role='comparison-basis']")
+    end
+
+    test "the basis line names which costs left the return and which stayed", %{conn: conn} do
+      costly_world("40")
+
+      basis = open_comparison(conn) |> element("[data-role='comparison-basis']") |> render()
+
+      assert basis =~ "Transaction costs"
+      assert basis =~ "standalone"
+      assert basis =~ "dividend withholding"
     end
   end
 end

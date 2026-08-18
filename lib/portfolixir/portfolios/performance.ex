@@ -352,21 +352,36 @@ defmodule Portfolixir.Portfolios.Performance do
         end)
       end)
 
-    zero = %{value: @zero, flow: @zero, basis: @zero}
+    zero = %{value: @zero, flow: @zero, basis: @zero, trade_costs: @zero}
 
     Enum.map(Date.range(first, today), fn date ->
       slice = Map.get(sums, date, zero)
-      %{date: date, value: slice.value, flow: slice.flow, basis: slice.basis}
+
+      %{
+        date: date,
+        value: slice.value,
+        flow: slice.flow,
+        basis: slice.basis,
+        trade_costs: slice.trade_costs
+      }
     end)
   end
 
-  defp point_slice(point), do: %{value: point.value, flow: point.flow, basis: basis_of(point)}
+  defp point_slice(point) do
+    %{
+      value: point.value,
+      flow: point.flow,
+      basis: basis_of(point),
+      trade_costs: trade_costs_of(point)
+    }
+  end
 
   defp add_slices(slice, point) do
     %{
       value: Decimal.add(slice.value, point.value),
       flow: Decimal.add(slice.flow, point.flow),
-      basis: Decimal.add(slice.basis, basis_of(point))
+      basis: Decimal.add(slice.basis, basis_of(point)),
+      trade_costs: Decimal.add(slice.trade_costs, trade_costs_of(point))
     }
   end
 
@@ -628,8 +643,60 @@ defmodule Portfolixir.Portfolios.Performance do
     {state, flow, legs} = apply_transactions(day_txs, state, context)
     value = portfolio_value(state, context)
     basis = basis_adjustment(steps, opening, legs, context, carried_fx)
-    {[%{date: day, value: value, flow: flow, basis: basis} | acc], state, context}
+
+    {[
+       %{
+         date: day,
+         value: value,
+         flow: flow,
+         basis: basis,
+         trade_costs: trade_costs(day_txs, context)
+       }
+       | acc
+     ], state, context}
   end
+
+  # The fees and taxes carried BY A TRADE, per day, in the base currency
+  # (ADR-0027's 2026-08-15 amendment §1, issue #708). Nothing here changes the
+  # walk: `value` and `flow` are untouched, so the TTWROR this series produces
+  # is exactly what it was. The figure rides along so a consumer that wants the
+  # return BEFORE transaction costs can reclassify them without a second
+  # engine.
+  #
+  # Two exclusions are the definition, not an oversight:
+  #
+  #   - standalone `fee` and `tax` bookings are out. A custody fee or an
+  #     account charge is not caused by a trade, and the counterfactual's
+  #     frozen holder would have paid it too — removing it would flatter the
+  #     real side against a holder who pays it as well;
+  #   - dividend and interest withholding is out. It belongs to the dividend
+  #     asymmetry ADR-0027 §2 already records as its own follow-up, and taking
+  #     it out here would half-fix the wrong gap.
+  #
+  # Scope-aware for the same reason the flow is: in a scoped walk only a trade
+  # whose CASH leg is in view moved money the view can see.
+  defp trade_costs(day_txs, context) do
+    Enum.reduce(day_txs, @zero, fn tx, acc ->
+      if trade_cost_in_scope?(tx, context) do
+        cost = Decimal.add(tx.fees || @zero, tx.taxes || @zero)
+        Decimal.add(acc, to_base(cost, tx.currency_code, context))
+      else
+        acc
+      end
+    end)
+  end
+
+  defp trade_cost_in_scope?(%{type: type} = tx, context) when type in ["buy", "sell"] do
+    case context.scope do
+      :unscoped ->
+        true
+
+      scope ->
+        not is_nil(tx.cash_account_id) and Buckets.cash_in_scope?(scope, tx.cash_account_id)
+    end
+  end
+
+  defp trade_cost_in_scope?(_tx, _context), do: false
 
   defp account_currencies(portfolio_id) do
     portfolio_id
@@ -1371,6 +1438,12 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   defp basis_of(point), do: Map.get(point, :basis, @zero)
+
+  @doc """
+  The trade costs a walk point carries (#708), defaulting to zero so a point
+  from an older stored payload never reads as `nil` in arithmetic.
+  """
+  def trade_costs_of(point), do: Map.get(point, :trade_costs) || @zero
 
   # -- periods ----------------------------------------------------------------
 

@@ -165,6 +165,33 @@ defmodule PortfolixirWeb.SnapshotsLive do
     end
   end
 
+  # The cost group renders only when a trade actually cost something in the
+  # window: with nothing paid the pre-cost return IS the real return, and a
+  # second identical figure beside it would be noise dressed as insight.
+  defp transaction_costs?(%{transaction_costs: %Decimal{} = costs} = comparison) do
+    not Decimal.equal?(costs, Decimal.new(0)) and
+      not is_nil(comparison.real_ttwror_before_costs)
+  end
+
+  defp transaction_costs?(_comparison), do: false
+
+  # The three states of ADR-0027 amendment §3, in the operator's terms rather
+  # than the engine's. "Partly" is the one worth the words: the changes are
+  # ahead on their own merits and the costs are simply not back yet, which is a
+  # different answer from "the changes were wrong".
+  defp recovery_label(%{state: :recovered}), do: gettext("Yes")
+
+  defp recovery_label(%{state: :partly_recovered, outstanding: outstanding}) do
+    gettext("Not yet — %{gap} percentage points to go",
+      gap: PortfolixirWeb.Format.percent(outstanding)
+    )
+  end
+
+  defp recovery_label(%{state: :not_recovered}),
+    do: gettext("Behind even before costs")
+
+  defp recovery_label(_recovery), do: gettext("Not comparable")
+
   # -- comparison chart (server-rendered SVG, display boundary) ---------------
 
   # Both indexed series drawn into one 640×220 plot. Floats are fine here:
@@ -292,7 +319,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
                  so there is no period control. --%>
             <p class="muted" data-role="comparison-basis">
               <%= gettext(
-                "Buy-and-hold of the holdings frozen on %{date} versus the real performance (TTWROR) since, in %{currency}.",
+                "Buy-and-hold of the holdings frozen on %{date} versus the real performance (TTWROR) since, in %{currency}. Transaction costs are the fees and taxes booked on trades since then; standalone fees, taxes and dividend withholding stay inside the return on both sides.",
                 date: Date.to_iso8601(@comparison.as_of),
                 currency: @comparison.base_currency
               ) %>
@@ -332,6 +359,44 @@ defmodule PortfolixirWeb.SnapshotsLive do
                 <% else %>
                   <span class="stat-empty">—</span>
                 <% end %>
+              </article>
+            </div>
+
+            <%!-- ADR-0027 amendment §4 (#708), review-blocking: the pre-cost
+                 return is NEVER rendered alone. This group renders only when
+                 costs were actually paid, and when it renders it carries all
+                 three — the pre-cost figure, what the trades cost, and whether
+                 that is earned back. On its own the first is a number that
+                 flatters, and the value of this system rests on figures that
+                 can embarrass their author. --%>
+            <div
+              :if={transaction_costs?(@comparison)}
+              id="comparison-costs"
+              class="grid"
+              role="group"
+              aria-label={gettext("Transaction costs since the snapshot")}
+            >
+              <article class="stat">
+                <span><%= gettext("Real TTWROR before transaction costs") %></span>
+                <strong
+                  class={sign_class(@comparison.real_ttwror_before_costs)}
+                  data-role="pre-cost-return"
+                >
+                  <%= signed_percent(@comparison.real_ttwror_before_costs) %>%
+                </strong>
+              </article>
+              <article class="stat">
+                <span><%= gettext("Transaction costs") %></span>
+                <strong data-role="transaction-costs">
+                  <%= PortfolixirWeb.Format.money(@comparison.transaction_costs) %>
+                  <small><%= @comparison.base_currency %></small>
+                </strong>
+              </article>
+              <article class="stat">
+                <span><%= gettext("Earned back?") %></span>
+                <strong data-role="cost-recovery">
+                  <%= recovery_label(@comparison.cost_recovery) %>
+                </strong>
               </article>
             </div>
 
