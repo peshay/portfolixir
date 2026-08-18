@@ -114,5 +114,18 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
 
     assert get_json(conn, "/api/v1/portfolios/9999999/category-results?classification_id=1")
            |> json_response(404)
+
+    # A non-numeric id is a 404, not a 500.
+    assert get_json(conn, "/api/v1/portfolios/not-an-id/category-results?classification_id=1")
+           |> json_response(404)
+
+    # ...and so is a classification that does not exist: the engine's
+    # {:error, :not_found} must not surface as a crash.
+    assert get_json(
+             conn,
+             "/api/v1/portfolios/#{world.portfolio.id}/category-results" <>
+               "?classification_id=9999999"
+           )
+           |> json_response(404)
   end
 end

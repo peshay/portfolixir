@@ -38,6 +38,7 @@ defmodule Portfolixir.Portfolios.CategoryResult do
 
   alias Portfolixir.Classifications
   alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
 
   @zero Decimal.new("0")
 
@@ -75,6 +76,38 @@ defmodule Portfolixir.Portfolios.CategoryResult do
     end
   end
 
+  @doc """
+  The same roll-up across **every** portfolio.
+
+  This is what the human surface reads: the classification tree is global, since
+  [ADR-0024](../../../docs/decisions/0024-buckets-and-views-replace-portfolios-in-the-ui.md)
+  demoted portfolios as a user-facing grouping. Per-portfolio cost lots are
+  built from that portfolio's own transactions, so the sums add across
+  portfolios without double-counting; a security held in two of them appears as
+  one member row carrying the combined quantity.
+  """
+  def for_all_portfolios(classification_id, opts \\ []) when is_integer(classification_id) do
+    case Classifications.security_category_map(classification_id) do
+      {:error, reason} ->
+        {:error, reason}
+
+      {:ok, security_categories} ->
+        categories = Classifications.list_categories(classification_id)
+
+        holdings =
+          Portfolios.list_portfolios()
+          |> Enum.flat_map(&Ledger.holdings_for_portfolio(&1.id, opts))
+
+        {:ok,
+         %{
+           portfolio_id: nil,
+           classification_id: classification_id,
+           basis: @basis,
+           categories: roll_up(categories, security_categories, holdings)
+         }}
+    end
+  end
+
   defp roll_up(categories, security_categories, holdings) do
     # A position counts toward the category it is filed under AND every
     # ancestor, so a parent's result reconstructs from the level below it
@@ -85,6 +118,7 @@ defmodule Portfolixir.Portfolios.CategoryResult do
       holdings
       |> Enum.reject(&Decimal.equal?(&1.quantity, @zero))
       |> Enum.map(&member_entry/1)
+      |> merge_by_security()
 
     by_category =
       Enum.reduce(entries, %{}, fn entry, acc ->
@@ -135,14 +169,14 @@ defmodule Portfolixir.Portfolios.CategoryResult do
       is_nil(holding.market_value) ->
         Map.merge(base, %{covered: false, reason: :no_usable_price})
 
-      holding.decomposed != true ->
+      # One branch, not two: `decomposed: true` already implies a settlement leg,
+      # so a nil base_cost beside it is unreachable in practice. Keeping the
+      # guard costs nothing and keeping it SEPARATE cost an untestable line.
+      holding.decomposed != true or is_nil(holding.base_cost) ->
         Map.merge(base, %{
           covered: false,
-          reason: holding.undecomposed_reason || :not_decomposed
+          reason: holding.undecomposed_reason || :missing_base_cost
         })
-
-      is_nil(holding.base_cost) ->
-        Map.merge(base, %{covered: false, reason: :missing_base_cost})
 
       true ->
         invested = holding.base_cost
@@ -197,6 +231,34 @@ defmodule Portfolixir.Portfolios.CategoryResult do
           }
         end)
     }
+  end
+
+  # A security held in several depots or portfolios is ONE member row: that is
+  # what a reader recognises, and it keeps member_count a count of securities
+  # rather than of depot slots. An uncovered slice makes the whole row
+  # uncovered -- partially summing a security would understate it in exactly
+  # the way §4 forbids.
+  defp merge_by_security(entries) do
+    entries
+    |> Enum.group_by(& &1.security_id)
+    |> Enum.map(fn {_security_id, [first | _] = slices} ->
+      if Enum.all?(slices, & &1.covered) do
+        invested = sum(slices, :invested)
+        result_abs = sum(slices, :result_abs)
+
+        %{
+          first
+          | quantity: sum(slices, :quantity),
+            invested: invested,
+            result_abs: result_abs,
+            current_value: Decimal.add(invested, result_abs),
+            result_pct: percentage(result_abs, invested)
+        }
+      else
+        uncovered = Enum.find(slices, &(not &1.covered))
+        %{uncovered | quantity: sum(slices, :quantity)}
+      end
+    end)
   end
 
   defp sum(entries, key),
