@@ -192,6 +192,11 @@ documents:
 6. Sweep `docs/` for references into the deleted sections and repoint them:
    ADR-0027 (E16), ADR-0028 (E17), ADR-0029 (E18 + section H), ADR-0031 (E19),
    and `docs/development/pr-review-checklist.md`.
+7. **ADR-0043's one retroactive application:** give ADR-0039 the list of asks
+   gate B3.2 was opened on — durability (answered) and push-on-write (deferred,
+   now filed as #710/#711). Amend `AGENTS.md`'s Epic-Batch step 1 to require the
+   list on gate-closing ADRs. Both are consequences of a signed decision, so
+   they are execution.
 
 ### The UI closer
 

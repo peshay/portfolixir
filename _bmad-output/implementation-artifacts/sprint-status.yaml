@@ -134,11 +134,16 @@ story_location: _bmad-output/implementation-artifacts
 #   log is the project's memory of what was open when -- and because a finding
 #   carried five times without resolution is worth showing resolved.
 #
-#   F8 -- ONE OPEN OWNER QUESTION carried out of the triage, not yet answered:
-#   the Round 7 proposal of an ADR-0026 GATE-CLOSURE RULE (how a decision gate is
-#   recorded as closed). It was deliberately left unwritten because it changes
-#   how this project makes decisions, which is an owner call. It does not block a
-#   Sprint 7 batch; it blocks nothing but itself.
+#   F8 -- ONE OPEN OWNER QUESTION carried out of the triage: the Round 7 proposal
+#   of an ADR-0026 GATE-CLOSURE RULE (how a decision gate is recorded as closed).
+#   It was deliberately left unwritten because it changes how this project makes
+#   decisions, which is an owner call.
+#   **RESOLVED 2026-08-18 by ADR-0043** (Accepted, owner sign-off): a gate-closing
+#   ADR carries the gate's asks, each marked answered or deferred with a reason,
+#   checked at the signature. Written as a proposal rather than put back to the
+#   owner as a question, because the recommendation was strong and the owner had
+#   said so plainly: if you recommend one, do not ask. Its one retroactive
+#   application (ADR-0039's list) runs in Sprint 7 Lane Z step 7.
 #
 # NO story row and NO epic status changes this pass -- all 2026-08-15 work is
 # decision artifacts plus backlog filing, and none of it hangs off an epics.md

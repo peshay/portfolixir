@@ -6,8 +6,8 @@ description: A gate is opened on a set of asks and closed by an ADR, and nothing
 
 # ADR-0043: an ADR that closes a decision gate names the asks it answers — and the ones it does not
 
-- **Status:** Proposed — awaiting owner sign-off (this is itself a change to how
-  the project decides, so it is the owner's, per
+- **Status:** Accepted (owner sign-off 2026-08-18; this is itself a change to
+  how the project decides, so the signature is the owner's, per
   [ADR-0026](0026-epic-batch-workflow.html))
 - **Date:** 2026-08-17
 
@@ -60,7 +60,7 @@ later, and it cost the more visible half of the feature.
 Each is correct and none of them looks upstream of the ADR. The gap is
 structural, not a lapse.
 
-## Decision (proposed)
+## Decision
 
 **An ADR that closes a decision gate carries a short list of the asks the gate
 was opened on, each marked answered or deferred, with a one-line reason for

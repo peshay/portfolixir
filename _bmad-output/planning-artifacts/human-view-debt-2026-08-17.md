@@ -20,8 +20,13 @@ reading the shipped code.
 **The headline, corrected: two of the four mechanisms have no human view at
 all, one is in flight, and one is partly present.**
 
-Nothing here is a committed scope decision. Per ADR-0038 these become thin
-issues only after owner confirmation.
+**Status of the proposals below (updated 2026-08-18).** They were written as
+"await owner confirmation" per ADR-0038, and the owner then adopted the Sprint 7
+plan that schedules them — so items 1–4 are confirmed for scheduling, and the
+issues are filed inside the batch as bookkeeping rather than as a further ask.
+Recorded because the first version of this document left the contradiction
+standing: it declared itself non-committal while an adopted plan already built
+on it.
 
 ---
 
