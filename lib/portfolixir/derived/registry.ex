@@ -21,9 +21,18 @@ defmodule Portfolixir.Derived.Registry do
   # `:request` as the default is ADR-0032's memo carried forward: everything
   # registered gets the volatile memo for free; `:durable` is opted into per
   # analytic via configuration (the C3 activation).
+  # Computation versions. Bumped whenever the SHAPE or the arithmetic of a
+  # stored payload changes, because the data-version counter covers data
+  # changes and not code changes -- without the bump the durable tier keeps
+  # serving rows computed by the old formula.
+  #
+  # v2 (2026-08-18, #708): every walk point gained `trade_costs`. A row stored
+  # at v1 has points without it, and the snapshot comparison's pre-cost chain
+  # would read those as a silent zero -- a cost figure of zero is exactly the
+  # wrong answer, because it claims the changes were free.
   @analytics %{
-    performance_analysis: %{computation_version: 1, default_lifetime: :request},
-    performance_view_analysis: %{computation_version: 1, default_lifetime: :request}
+    performance_analysis: %{computation_version: 2, default_lifetime: :request},
+    performance_view_analysis: %{computation_version: 2, default_lifetime: :request}
   }
 
   @doc "All registered analytic ids."

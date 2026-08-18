@@ -861,6 +861,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       current_value: decimal(comparison.current_value),
       snapshot_return: decimal(comparison.snapshot_return),
       real_ttwror: decimal(comparison.real_ttwror),
+      # ADR-0027's 2026-08-15 amendment §4 (#708) is review-blocking and it
+      # binds this payload as much as the screen: the pre-cost return is never
+      # served alone. These three travel together, and `basis` below states
+      # which cost kinds left the return and which stayed in it.
+      real_ttwror_before_costs: decimal(comparison.real_ttwror_before_costs),
+      transaction_costs: decimal(comparison.transaction_costs),
+      cost_recovery: %{
+        state: to_string(comparison.cost_recovery.state),
+        outstanding: decimal(comparison.cost_recovery.outstanding),
+        transaction_costs: decimal(comparison.cost_recovery.transaction_costs)
+      },
       series:
         Enum.map(comparison.series, fn point ->
           %{
@@ -880,9 +891,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
             }
           end)
       },
-      basis: comparison.basis
+      basis: comparison_basis(comparison.basis)
     }
   end
+
+  # The window's dates serialize as ISO strings like every other date in this
+  # module; the rest of the basis is already JSON-shaped.
+  defp comparison_basis(%{window: %{from: from, to: to}} = basis) do
+    %{basis | window: %{from: Date.to_iso8601(from), to: Date.to_iso8601(to)}}
+  end
+
+  defp comparison_basis(basis), do: basis
 
   # FR-37 (#665) read ergonomics: `include_positions: false` omits the
   # per-category (and unassigned) position rows for a roll-up-only read, and

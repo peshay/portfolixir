@@ -916,6 +916,31 @@ lie in the future.
 - A chart with both series **indexed to 100%** on the as-of date (solid =
   snapshot, dashed = real), and the same data as a table.
 
+**The two sides are not measured on one basis, and the page says so.** The
+frozen side takes no trades and no flows: it pays nothing, ever. The real side
+is TTWROR, which treats fees and taxes as part of the return — so every trading
+cost since the as-of date depresses it, and the frozen side wins by default for
+as long as those costs are unrecovered. That is precisely the window in which
+this comparison is usually read.
+
+So when trades actually cost something, three more figures appear together:
+
+- **Real TTWROR before transaction costs** — the same daily walk with the
+  window's trade fees and taxes reclassified as money leaving rather than as a
+  loss;
+- **Transaction costs** — their total, in the base currency;
+- **Earned back?** — *yes* when the real return is already ahead of the frozen
+  one; *not yet*, with the remaining gap, when it is ahead before costs but not
+  after; and *behind even before costs* when the costs are not the reason and
+  the changes have not paid off on their own merits.
+
+They are always shown together and never the pre-cost figure alone — on its own
+it is a number that flatters. **Transaction costs** means the fees and taxes
+booked *on a trade*. Standalone fee and tax bookings stay inside the return on
+both sides, because a custody charge is not caused by a trade and the frozen
+holder would have paid it too; dividend withholding stays in as well, since it
+belongs to the dividend gap below rather than to this one.
+
 The **comparison is the surface**: once selected it renders first and large,
 with the snapshot list beneath it and the create form behind the **New
 snapshot** disclosure. The comparison is **gross and price-return only** in

@@ -990,6 +990,35 @@ Zukunft liegen.
   (durchgezogen = Snapshot, gestrichelt = echt), und dieselben Daten als
   Tabelle.
 
+**Die beiden Seiten werden nicht auf derselben Basis gemessen, und die Seite
+sagt das.** Die eingefrorene Seite handelt nicht und hat keine Flüsse: sie
+zahlt nie etwas. Die echte Seite ist TTWROR, und dort gehören Gebühren und
+Steuern zur Rendite — jede Handelskosten seit dem Stichtag drücken sie also,
+und die eingefrorene Seite gewinnt automatisch, solange diese Kosten nicht
+wieder eingespielt sind. Genau in diesem Zeitfenster wird der Vergleich
+üblicherweise gelesen.
+
+Wenn Handelsgeschäfte tatsächlich etwas gekostet haben, erscheinen daher drei
+weitere Kennzahlen gemeinsam:
+
+- **Echte TTWROR vor Transaktionskosten** — derselbe Tageslauf, bei dem die
+  Handelsgebühren und -steuern des Zeitfensters als abfließendes Geld statt
+  als Verlust gewertet werden;
+- **Transaktionskosten** — deren Summe in der Basiswährung;
+- **Wieder eingespielt?** — *Ja*, wenn die echte Rendite bereits vor der
+  eingefrorenen liegt; *Noch nicht*, mit dem verbleibenden Abstand, wenn sie
+  vor Kosten vorne liegt und nach Kosten nicht; und *Auch vor Kosten zurück*,
+  wenn die Kosten nicht der Grund sind und sich die Änderungen aus eigener
+  Kraft nicht ausgezahlt haben.
+
+Sie werden immer zusammen gezeigt und nie die Vor-Kosten-Zahl allein — für
+sich genommen ist sie eine Zahl, die schmeichelt. **Transaktionskosten** sind
+die *auf einem Handelsgeschäft* gebuchten Gebühren und Steuern. Eigenständige
+Gebühren- und Steuerbuchungen bleiben auf beiden Seiten in der Rendite, denn
+eine Depotgebühr wird nicht von einem Handel verursacht und der eingefrorene
+Halter hätte sie ebenso gezahlt; die Quellensteuer auf Dividenden bleibt
+ebenfalls drin, sie gehört zur Dividendenlücke unten und nicht hierher.
+
 Der **Vergleich ist die Oberfläche**: einmal gewählt, erscheint er zuerst und
 groß, die Snapshot-Liste darunter und das Anlegen-Formular hinter der
 Aufklappung **Neuer Snapshot**. Der Vergleich ist in v1 **brutto und nur
