@@ -166,4 +166,74 @@ defmodule Portfolixir.WorkflowDocsTest do
     assert rubric =~ "Walkthrough conditions"
     assert rubric =~ "skipped condition is itself a finding"
   end
+
+  # User story:
+  # As the maintainer of a project that carried two competing planning structures
+  # since June,
+  # I want the requirement registry and the work ledger to stop overlapping,
+  # so that a reconciliation is one act of reading rather than a translation
+  # between two documents that drift apart between sprints.
+  #
+  # Acceptance criteria (ADR-0042, Accepted 2026-08-17):
+  # - `epics.md` keeps the Requirements Inventory and the FR Coverage Map, which
+  #   are the sections every review actually reads.
+  # - `epics.md` loses the Epic Detail sections and every `##### Story` row, and
+  #   gains a tracker index carrying each epic's name, tracker and intent.
+  # - `sprint-status.yaml` loses only the story rows; the `epic-N` and
+  #   `epic-N-retrospective` keys stay, because `development_status` is required,
+  #   the status view fails without it, and it is the retrospective ledger
+  #   ADR-0026 step 5 depends on.
+  # - #321's working agreement survives in `AGENTS.md`, the destination this
+  #   decision leaves standing once the epic sections go.
+  test "the planning structure is the requirement registry, not a work breakdown" do
+    epics = File.read!("_bmad-output/planning-artifacts/epics.md")
+
+    # Kept -- the parts ADR-0042 found demonstrably useful.
+    assert epics =~ "## Requirements Inventory"
+    assert epics =~ "### FR Coverage Map"
+
+    # Removed -- the work breakdown that competed with the tracker set. Matched
+    # as headings rather than as substrings: the migration note in this same
+    # document has to be able to *name* what it removed.
+    epic_headings =
+      epics
+      |> String.split("\n")
+      |> Enum.filter(
+        &(String.starts_with?(&1, "## Epic Detail") or String.starts_with?(&1, "##### Story"))
+      )
+
+    assert epic_headings == [],
+           "epics.md still carries a work breakdown: #{inspect(epic_headings)}"
+
+    # Replaced by one line per epic: name, tracker where one exists, intent.
+    assert epics =~ "## Tracker Index"
+
+    for epic <- 1..19 do
+      assert epics =~ "**E#{epic} —", "tracker index is missing epic E#{epic}"
+    end
+
+    status = File.read!("_bmad-output/implementation-artifacts/sprint-status.yaml")
+
+    [_preamble, development_status] = String.split(status, "\ndevelopment_status:", parts: 2)
+
+    story_keys =
+      development_status
+      |> String.split("\n")
+      |> Enum.map(&Regex.run(~r/^  (\S+):/, &1, capture: :all_but_first))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&hd/1)
+      |> Enum.reject(&String.starts_with?(&1, "epic-"))
+
+    assert story_keys == [],
+           "development_status still carries story rows: #{inspect(story_keys)}"
+
+    # ...and the two key shapes ADR-0042 §4 keeps are still there.
+    assert development_status =~ "epic-19: "
+    assert development_status =~ "epic-19-retrospective: "
+
+    # #321's working agreement, preserved before the issue is closed by hand.
+    agents = File.read!("AGENTS.md")
+    assert agents =~ "One topic = one issue"
+    assert agents =~ "file a new issue immediately"
+  end
 end

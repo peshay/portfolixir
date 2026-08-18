@@ -403,4 +403,4 @@ slices, each requiring its own ADR amendment before implementation:
 - [ADR-0026](0026-epic-batch-workflow.html) — decision-gate workflow this ADR follows
 - [ADR-0027](0027-plan-versions-and-depot-snapshots.html) — the `SnapshotComparison` engine, a named §2 change site outside `effects/1` dispatch
 - FR-23 / #338 — corporate actions; FR-5/FR-29 — PP round-trip; FR-34 — E18 identity ADR (rename/ISIN slice)
-- Epic tracking: E17 in `_bmad-output/planning-artifacts/epics.md`
+- Epic tracking: E17 in the Tracker Index of `_bmad-output/planning-artifacts/epics.md` (the Epic Detail sections it formerly pointed at were removed by ADR-0042; this ADR is the spec)

@@ -12,6 +12,26 @@ description: Decision for gate B3.2. Derived values may be materialized and kept
   memo becomes the `:request` lifetime of this ADR's single axis.
 - **Date:** 2026-08-12
 
+## Gate B3.2 — the asks
+
+Added 2026-08-18 as the single retroactive application of
+[ADR-0043](0043-a-gate-closing-adr-names-its-asks.html), whose rule this ADR's
+own history is the worked example for.
+
+**Source of the asks:** feedback triage 2026-08-12, Q2 — the owner's words,
+recorded before this ADR was written.
+
+| Ask | Verdict |
+|---|---|
+| Derived values should be **durable** — kept, not recomputed per mount | **Answered**, §§1–6 below: one mechanism, three lifetimes, every registered analytic eligible, activation decided by measurement. |
+| Recomputation should be **triggered by the write that invalidated it, or by a schedule** — "so that a read is never the thing that pays" | **Deferred, and originally deferred silently — which is the defect.** It fell out between the gate and this ADR: nobody removed it and nobody argued against it. Recovered by the 2026-08-15 amendment below, and filed as **#710** (refresh on the invalidating write, coalesced — risk-tier) and **#711** (measure and activate the figures the operator waits on). |
+
+The second row is why [ADR-0043](0043-a-gate-closing-adr-names-its-asks.html)
+exists. The drop survived the batch, the agentic review closing act and the
+close-out, because every one of those holds the work against the ADR — and the
+ADR was internally coherent. A list of asks is the only artifact in the chain
+that could have caught it.
+
 ## Context
 
 The rule that made Portfolixir trustworthy is that every financial figure is

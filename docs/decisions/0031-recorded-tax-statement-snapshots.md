@@ -467,5 +467,5 @@ This feature records numbers and checks their internal arithmetic. It does not:
 - [ADR-0023](0023-drift-sign-and-display-only-rebalancing-hints.html) — display-only boundary the trim budget stays inside
 - [ADR-0026](0026-epic-batch-workflow.html) — decision gate and batch delivery
 - [ADR-0027](0027-plan-versions-and-depot-snapshots.html) — the as-of snapshot precedent
-- FR-36 and Epic 19 — `_bmad-output/planning-artifacts/epics.md`
+- FR-36 in the Requirements Inventory, and E19 in the Tracker Index, of `_bmad-output/planning-artifacts/epics.md` (E19's Epic Detail and story rows were removed by ADR-0042; this ADR is the spec)
 - § 32d Abs. 1 EStG — the closed withholding formula the consistency checks reconstruct

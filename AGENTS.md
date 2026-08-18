@@ -371,7 +371,12 @@ Feature trees are delivered as epic batches by default; the maintainer
 reviews decisions and behavior, agents review code:
 
 1. **Decision gate:** an ADR or spec with acceptance criteria, signed off by
-   the owner before the batch starts.
+   the owner before the batch starts. **A gate-closing ADR names its asks**
+   ([ADR-0043](docs/decisions/0043-a-gate-closing-adr-names-its-asks.md)): it
+   carries the list of questions the gate was opened on, each marked answered
+   or deferred **with a reason**, and the list is checked at the signature. A
+   deferred ask is filed as an issue in the same pass, so "closed" never
+   silently means "the parts nobody re-read".
 2. **Batch:** the feature tree is worked on ONE epic branch
    (`agent/<provider>/<epic-slug>`), one commit or small commit group per
    issue, every commit passing the local gates, the branch rebased onto
@@ -402,8 +407,11 @@ reviews decisions and behavior, agents review code:
    held against.
 5. **Bookkeeping close-out (mandatory, after the merge):** in the same pass
    as the post-merge cleanup, the batch's agent updates
-   `sprint-status.yaml` and the epics document (including the FR Coverage
-   Map), closes the story issues and the epic tracker, records a short
+   `sprint-status.yaml` and the epics document — since
+   [ADR-0042](docs/decisions/0042-one-planning-structure.md) that means the
+   **FR Coverage Map, the Tracker Index and a dated reconciliation**, never a
+   story row — closes the issues the merge's keywords did not and the epic
+   tracker, records a short
    retrospective section, confirms the merge's own CI runs — required
    checks included — are green, and **creates and pushes an annotated
    `X.Y.Z` tag on the merged head commit** (minor bump per sprint, patch
@@ -467,6 +475,57 @@ one-paragraph scope statement, links to the authoritative sections, and its
 dependencies. Do not duplicate acceptance-criteria text into an issue —
 copies drift, and the ADR/epics source is what reviewers hold the work
 against.
+
+**Which document is authoritative for what** was settled by
+[ADR-0042](docs/decisions/0042-one-planning-structure.md) (Accepted
+2026-08-17), after two structures had claimed the same job since June:
+
+- **`epics.md` is the requirement registry.** It owns the Requirements
+  Inventory (FR/NFR/UX-DR), the FR Coverage Map, the scope-ladder boundaries,
+  the dated Implementation Status reconciliations, and a **Tracker Index** —
+  one line per epic giving its name, its tracker issue where one exists, and
+  its intent. It is **not** a work breakdown: the Epic Detail sections and the
+  `##### Story` rows are gone.
+- **The GitHub tracker set is the work ledger** — an agent artifact, kept for
+  closing keywords, external intake and cross-references, not because the owner
+  reads it.
+- **`sprint-status.yaml`** keeps the close-out/reconciliation log and the
+  `epic-N` / `epic-N-retrospective` keys. It no longer carries story rows, and
+  `bmad-sprint-planning`'s `generate` path no longer applies to this project;
+  its readiness gate and status view still do.
+- **The sprint lane plan** (`sprint-plan-<date>-sprint<N>.md`) is the execution
+  artifact.
+
+**Filing an issue is bookkeeping, not communication.** Issue numbers are agent
+addresses. Where the owner needs to know something it goes in an ADR, the
+triage document, the lane plan or the reviewer briefing — never cited as an
+issue number and left there. A third party's report is triaged into the next
+triage document or lane plan, or the public intake channel terminates nowhere.
+
+### Working agreement (preserved from #321)
+
+`#321` was the roadmap index; it is closed, and this is the part of it worth
+keeping. Two of its clauses were overtaken by
+[ADR-0026](docs/decisions/0026-epic-batch-workflow.md) and are marked as such
+rather than preserved as if still binding.
+
+1. **One topic = one issue.** The issue plus the artifacts it points at are the
+   complete specification — a session should not need context from previous
+   sessions. *(ADR-0026 superseded the "= one chat = one PR" half: a feature
+   tree ships as an epic batch on one branch with one PR, not one PR per
+   issue.)*
+2. The PR closes the issue via `Closes #N`. *(The "and tick it off in the
+   roadmap index" half dies with #321; the FR Coverage Map's issue column is
+   the one place traceability now lives.)*
+3. Branch convention per "Branch Naming For Agent Work" below; TDD with a
+   failing test first; update docs and API/MCP coverage; all gates green.
+4. **New ideas discovered while working are filed immediately**, never
+   "remembered" in the session. Same duty as "Scope Lock" below:
+   file a new issue immediately rather than solving it opportunistically.
+5. All repository artifacts are written in English.
+6. Labels: `agentic` = implementable and mergeable autonomously · `needs-uat` =
+   requires human UAT before merge · `needs-decision` = blocked on a maintainer
+   decision · `tracking` = collection issue, no direct PR.
 
 **How an issue closes** is stated once, under "Branch Naming For Agent Work":
 the pull request that finishes it names it with a GitHub closing keyword, so

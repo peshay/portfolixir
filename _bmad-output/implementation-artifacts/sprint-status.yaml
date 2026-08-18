@@ -52,6 +52,41 @@ story_location: _bmad-output/implementation-artifacts
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
 #
+# MIGRATED (2026-08-18, Sprint 7 Lane Z) -- ADR-0042 executed:
+# The story rows are gone from `development_status` -- the five schema-invalid
+# `6-dx-*` / `6-c-1` keys plus the E17/E18/E19 story keys, 19 rows in total.
+# `epic-N` and `epic-N-retrospective` are KEPT, per ADR-0042 section 4 as
+# corrected by the 2026-08-17 agentic review: `development_status` is a required
+# key, `cmd_status` fails on an empty one, and the retrospective-completion
+# ledger has no other home -- Sprint 7's own close-out would have been the first
+# casualty of deleting it.
+#
+# `sprint_plan.py validate` now returns valid: true, problems: []. It returned
+# valid: false with those same five keys before this pass, which is the evidence
+# ADR-0042 was argued on; the file had been invalid since the E6 batch and no
+# gate caught it.
+#
+# `sprint_plan.py status` still works -- the capability ADR-0042 explicitly
+# keeps. Its recommendation changed from `19-7-forward-projection-and-tax-bucket`
+# (the one story deliberately deferred behind its own gate, which is the wrong
+# answer ADR-0042 cites) to `bmad-retrospective`. Epic counts and the
+# retrospective ledger read unchanged: 6 in-progress / 4 backlog / 9 done,
+# 3 retrospectives done.
+#
+# EXPECTED, NOT A REGRESSION: `status` now reports six risks of the form
+# "in-progress epic 'epic-N' has no stories". With no story rows in the file by
+# design, every in-progress epic reports one. Recorded here so a later
+# reconciliation does not read it as drift and re-add rows this decision removed.
+#
+# `epics.md` in the same pass: Epic List and Epic Detail replaced by a Tracker
+# Index (one line per epic -- name, tracker where one exists, intent); all
+# `##### Story` rows removed; Requirements Inventory, FR Coverage Map, scope
+# ladder boundaries and the dated reconciliations kept. #321's working agreement
+# preserved into AGENTS.md before the issue is closed by hand (invalidated, not
+# implemented, so no closing keyword). ADR-0027/0028/0029/0031 and
+# pr-review-checklist.md repointed off the deleted sections. ADR-0039 gained its
+# gate-B3.2 ask list, the one retroactive application ADR-0043 allows.
+#
 # RECONCILED (2026-08-17, `main` at 1a88ad5) -- pre-Sprint-7 planning readiness:
 # Verification basis: the commits on `main` (f0beb8c..1a88ad5), the remote tag
 # list, the GitHub release list, the open-issue list (40 open), the open-PR list
@@ -429,11 +464,6 @@ development_status:
   # See finding F2: FR-37 (#665) and FR-38 (#666) are the agent-native successor
   # work on this same surface and hang off no epic row.
   epic-6: done
-  6-dx-1-book-any-transaction-kind-over-mcp: done
-  6-dx-2-holdings-carry-stable-identifiers: done
-  6-dx-3-booking-semantics-documented-at-the-point-of-use: done
-  6-dx-4-slim-securities-listing: done
-  6-c-1-imported-deliveries-keep-their-price: done
   epic-6-retrospective: optional
 
   # E7 -- ADR-0023 display-only hints shipped; ranked both-direction cash
@@ -482,10 +512,6 @@ development_status:
   # E17 -- #588-#591 closed and merged; review debt (#609) cleared in Sprint 1;
   # tracker #338 closed 2026-07-31
   epic-17: done
-  17-1-corporate-actions-decision-adr: done
-  17-2-book-a-split-as-a-ledger-event: done
-  17-3-continuous-charts-across-a-split: done
-  17-4-guided-split-wizard: done
   # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
   epic-17-retrospective: done
 
@@ -494,9 +520,6 @@ development_status:
   # preserves classification/targets/notes/attributes) re-tests story 18.2's
   # guarantee and is open, risk-tier attention -- it verifies, it does not reopen.
   epic-18: done
-  18-1-stable-identity-decision-adr: done
-  18-2-strategy-configuration-survives-a-re-import: done
-  18-3-read-only-holdings-reconcile: done
   # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
   epic-18-retrospective: done
 
@@ -505,12 +528,5 @@ development_status:
   # 19.7 is deferred behind its own decision gate, by design. #667 (staleness
   # warning + allowance-order entry) is open follow-up on the shipped surface.
   epic-19: in-progress
-  19-1-tax-statement-snapshot-decision-adr: done
-  19-2-tax-parameters-taxpayer-profile-and-configured-allowance-orders: done
-  19-3-record-a-tax-statement-snapshot: done
-  19-4-a-recorded-snapshot-checks-its-own-arithmetic: done
-  19-5-trim-budget-over-api-and-mcp: done
-  19-6-entry-surface-and-documentation: done
-  19-7-forward-projection-and-tax-bucket: backlog
   # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
   epic-19-retrospective: done

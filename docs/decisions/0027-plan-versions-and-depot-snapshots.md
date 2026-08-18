@@ -115,7 +115,7 @@ stories.
 - [ADR-0020](0020-view-bound-soll-plans.html) — view-bound target plans (uniqueness refined here)
 - [ADR-0026](0026-epic-batch-workflow.html) — decision-gate workflow this ADR follows
 - FR-27 / #332 — what-if simulator (later phase, builds on these primitives)
-- Epic tracking: E16 in `_bmad-output/planning-artifacts/epics.md`
+- Epic tracking: E16 in the Tracker Index of `_bmad-output/planning-artifacts/epics.md` (the Epic Detail sections it formerly pointed at were removed by ADR-0042; this ADR is the spec)
 
 ## Amendment: the comparison states its transaction costs (2026-08-15, owner decision)
 

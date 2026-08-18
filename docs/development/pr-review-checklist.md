@@ -83,8 +83,11 @@ the diff; verify before reporting.
 - User-visible behavior change → user docs updated (or PR explains why not).
 - No production-readiness claims; no real financial data committed.
 - Repository artifacts in English.
-- Plan drift: if the change materially completes/changes an FR, the reconciliation
-  section of `_bmad-output/planning-artifacts/epics.md` may be stale — note it.
+- Plan drift: if the change materially completes/changes an FR, the **FR Coverage
+  Map** and the reconciliation sections of
+  `_bmad-output/planning-artifacts/epics.md` may be stale — note it. Since
+  ADR-0042 that document is the requirement registry only; the work breakdown is
+  the GitHub tracker set, so do not expect a story row to exist for the change.
 
 ### G. Walkthrough conditions (ADR-0038, issue #706)
 
