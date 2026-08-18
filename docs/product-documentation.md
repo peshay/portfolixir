@@ -333,6 +333,20 @@ is not spread across the categories that do carry a target as deviations you
 cannot act on. A warning is reserved for the two states that really are wrong:
 a plan summing to **more** than 100%, and a position-vs-category conflict.
 
+Each category on the **Classifications** page also states what it **cost**, what
+it is **worth** now and what it has **made** — in euro and as a percentage. The
+percentage is money-weighted: the sum of the results divided by the sum
+invested, never the average of the members' own percentages, which would let a
+tiny position at +300 % dominate a category that is flat in money.
+
+Read the basis, stated once above the tree: these figures cover **the positions
+filed in the category today**. They are a statement about the current
+composition, not a period return — moving a security between categories moves
+its whole result with it. A position whose result cannot be derived (no usable
+price, or no exchange rate to your base currency) is left out of **both** sides
+of the sum and counted in the "covered of total" marker, rather than counted as
+zero, which would quietly understate the category.
+
 > **Per-position targets (ADR-0030, #481).** Target weights can now be set down
 > to an **individual position** (a security under a category), not just per
 > category. Positions are the source of truth: a category's *effective* target

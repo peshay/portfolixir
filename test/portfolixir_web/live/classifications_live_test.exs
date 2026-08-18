@@ -1077,4 +1077,60 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert css =~ ~r/input\[type="checkbox"\]\s*\{[^}]*min-height:\s*0/s
     assert css =~ ~r/input\[type="checkbox"\]\s*\{[^}]*accent-color:\s*var\(--color-accent\)/s
   end
+
+  # User story (#712, ADR-0041 §§1-4):
+  # As a local portfolio maintainer looking at my strategy tree,
+  # I want each category to say what it cost me and what it has made, and to
+  # open into the positions that produced it,
+  # so that "how is my Core doing?" is answered where the positions already sit
+  # side by side.
+  #
+  # This is the HUMAN half of the two-way coverage rule for the API and MCP
+  # surface shipped with it; the tree is the surface ADR-0041 §5 names.
+  #
+  # Acceptance criteria:
+  # - The category row states invested, current value and the result.
+  # - The percentage is money-weighted (Σ result ÷ Σ invested), so it agrees
+  #   with the engine rather than being recomputed in the view.
+  # - The basis is stated on the surface, once: this is about the CURRENT
+  #   COMPOSITION, not a period return.
+  # - A category whose members are not all derivable says so, rather than
+  #   presenting a partial sum as complete.
+  test "a category states what it cost, what it is worth and what it made", %{conn: conn} do
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Ergebnis"})
+
+    {:ok, category} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
+
+    world = Portfolixir.WorldFixtures.base_world()
+    alpha = Portfolixir.WorldFixtures.create_security!(name: "Alpha AG", ticker: "ALP")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        alpha.id,
+        classification.id,
+        category.id
+      )
+
+    Portfolixir.WorldFixtures.deposit!(world, "10000", ~D[2026-01-01])
+    Portfolixir.WorldFixtures.buy!(world, alpha, quantity: "10", price: "100")
+    Portfolixir.WorldFixtures.put_quote!(alpha, Date.utc_today(), "150")
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+    html = render(view)
+
+    # Invested 1,000 -> worth 1,500: a result of +500, i.e. +50%.
+    assert html =~ ~r/data-role="category-invested"[^>]*>\s*1,000\.00/
+    assert html =~ ~r/data-role="category-result"[^>]*>/
+    assert html =~ "500.00"
+    assert html =~ "50.0"
+
+    # The basis is stated on the surface, not left for the reader to assume.
+    assert html =~ "current composition"
+  end
 end
