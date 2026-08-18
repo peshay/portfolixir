@@ -203,6 +203,65 @@ dataset's repeat-read timings after activation: 2,628.9 ms with the layer
 off, 2.4 ms from the in-memory tier, 24.5 ms in a cold process served from
 the stored row.
 
+**Amendment (2026-08-18, §4 of the 2026-08-15 amendment — issue #711).** The
+activation measurement, taken with the committed command this amendment adds
+(`mix portfolixir.derived.measure`, which seeds a deterministic synthetic ledger
+and times each candidate **with the layer off**, twice — the same first-call /
+second-call shape as the Context table). Two sizes, same container class as the
+Context row; wall-clock milliseconds:
+
+| Analytic (the surface that waits on it) | 50 sec / 1,000 bookings | 200 sec / 4,000 bookings |
+|---|---|---|
+| `Performance.analysis/2` — portfolio chart | 2,527 / 2,562 | 9,767 / 9,425 |
+| `Performance.view_analysis/2` — Wealth page, dashboard card | 2,598 / 2,531 | 9,464 / 9,223 |
+| `Ledger.holdings_for_portfolio/2` — holdings, and the base of the four below | 113 / 91 | 393 / 321 |
+| `CategoryResult.for_all_portfolios/2` — per-category result | 91 / 88 | 381 / 336 |
+| `Risk.for_portfolio/2` | 53 / 56 | 252 / 181 |
+| `Allocation.for_portfolio/3` — allocation and drift | 70 / 56 | 211 / 196 |
+| `Valuation.for_view/2` — header total | 82 / 63 | 191 / 179 |
+| `Valuation.for_portfolio/2` | 50 / 44 | 180 / 161 |
+| `Valuation.holdings_by_security/1` — classifications tree | 32 / 29 | 133 / 92 |
+| `Ledger.negative_holdings_report/0` | 15 / 13 | 56 / 59 |
+| `Income.for_portfolio/2` | 13 / 14 | 46 / 51 |
+| `Quotes.attach_metrics/1` — securities table | 11 / 6 | 19 / 17 |
+
+Four findings, and the third is the one that changes what this section is for.
+
+**1. The activation the measurement justifies is `performance_view_analysis`,
+and it is the only one.** It costs the same seconds as the walk activated in the
+first pass, its second call costs the same as its first, and it is what the
+Wealth page and the dashboard card open — yet it was registered from the start
+and left at the `:request` default, so it died with every restart. Activated at
+`:durable` in `config/config.exs`, with its storage, its restart read and its I3
+backdating case tested in
+`test/portfolixir/derived/view_analysis_activation_test.exs`.
+
+**2. Cost still grows about linearly with catalog size**, reproducing the
+Context row from an independent seed: 4× the securities cost 3.7–3.8× the time
+on both walks.
+
+**3. Nothing else is a derived-value problem — that is a finding, not an
+omission.** Two orders of magnitude separate the walks from everything else: at
+the larger size the most expensive non-walk candidate is 393 ms, 24× cheaper
+than the walk beside it. The operator's report of "computing cues across the
+app" therefore has **two different causes**, and only one of them is this ADR's:
+the walks, fixed by activation plus the write-triggered refresh of #710; and
+surfaces that load a 100–400 ms value asynchronously and show a cue while doing
+it, which is a rendering decision, not a lifetime decision. Filed as **#723**
+rather than answered with an activation that would not have helped.
+
+**4. The non-walk candidates' costs are not independent**, so activating them
+individually would materialize four overlapping copies of the same work:
+valuation, allocation, the per-category result and the holdings view all sit on
+`Ledger.holdings_for_portfolio/2`, which is itself the largest of them.
+ADR-0035's "remove the redundant computation rather than cache it" remains the
+first line of defence there, exactly as §2 says it should.
+
+*Same caveat as the Context table, restated so nobody quotes these as budgets:
+synthetic ledger, CI-grade container, weekly quote points. They establish an
+order of magnitude and a ranking, not a target. Re-run the command rather than
+citing these numbers on different hardware.*
+
 ## Consequences
 
 **Easier.** The repeat wait disappears for whatever is activated: the walk that
