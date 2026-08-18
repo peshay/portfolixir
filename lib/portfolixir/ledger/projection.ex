@@ -228,6 +228,49 @@ defmodule Portfolixir.Ledger.Projection do
     end)
   end
 
+  @doc """
+  Folds transactions into the running balance of **one** cash account:
+  `%{transaction_id => balance_after_that_transaction}`, in the account's own
+  currency.
+
+  This is `cash_balances/1` unrolled rather than a second arithmetic (#414): it
+  replays the same `effects/1` legs in the same `replay_sort/1` order, so the
+  last entry of the series equals the account's balance by construction, and a
+  `balance_adjustment` snapshot resets the running figure exactly as it resets
+  the balance.
+
+  Two consequences a caller must not paper over. The series is keyed by
+  transaction id, so a transaction that never touches the account is simply
+  **absent** rather than carrying the previous row's figure — a repeated
+  balance on an untouched row would read as "nothing happened here" when the
+  truth is "this row is not this account's". And because it is a *running*
+  figure, it must be computed over the account's whole history even when the
+  surface shows a filtered slice; the balance after a booking does not depend
+  on which rows are on screen.
+  """
+  @spec cash_balance_series([map()], term()) :: %{term() => Decimal.t()}
+  def cash_balance_series(transactions, cash_account_id) when is_list(transactions) do
+    transactions
+    |> replay_sort()
+    |> Enum.reduce({%{}, @zero}, fn transaction, {series, balance} ->
+      case account_legs(effects(transaction).cash, cash_account_id) do
+        [] ->
+          {series, balance}
+
+        legs ->
+          balance = Enum.reduce(legs, balance, &apply_balance_leg/2)
+          {Map.put(series, Map.get(transaction, :id), balance), balance}
+      end
+    end)
+    |> elem(0)
+  end
+
+  defp account_legs(legs, cash_account_id),
+    do: for({^cash_account_id, amount} <- legs, do: amount)
+
+  defp apply_balance_leg({:add, delta}, balance), do: Decimal.add(balance, delta)
+  defp apply_balance_leg({:set, absolute}, _balance), do: absolute
+
   defp apply_cash_leg({nil, _amount}, balances), do: balances
 
   defp apply_cash_leg({account_id, {:add, delta}}, balances),
