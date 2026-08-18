@@ -39,11 +39,14 @@ config :portfolixir, Portfolixir.Fx.RateSync,
 
 # Derived-value lifetimes (ADR-0039 §2): every registered analytic is
 # eligible; which ones run :durable is a configuration decision informed by
-# measurement, never an architectural one. Activated here: the daily
-# performance walk, on the ADR's Context evidence (seconds per walk, second
-# call as expensive as the first). Further activations are one line each,
-# added with their measurement.
-config :portfolixir, Portfolixir.Derived, lifetimes: [performance_analysis: :durable]
+# measurement, never an architectural one. Both activations rest on the
+# measurement recorded in ADR-0039 (`mix portfolixir.derived.measure`): the two
+# daily walks cost seconds and their second call costs the same as the first,
+# while every other figure a surface waits on lands in tens to a few hundred
+# milliseconds. Further activations are one line each, added with their
+# measurement.
+config :portfolixir, Portfolixir.Derived,
+  lifetimes: [performance_analysis: :durable, performance_view_analysis: :durable]
 
 # Derived-value refresh (ADR-0039 amendment §2): a write bumps the data version
 # and the refresher re-materializes the affected bases in the background. The
