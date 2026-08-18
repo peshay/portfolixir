@@ -168,12 +168,10 @@ defmodule PortfolixirWeb.SnapshotsLive do
   # The cost group renders only when a trade actually cost something in the
   # window: with nothing paid the pre-cost return IS the real return, and a
   # second identical figure beside it would be noise dressed as insight.
-  defp transaction_costs?(%{transaction_costs: %Decimal{} = costs} = comparison) do
-    not Decimal.equal?(costs, Decimal.new(0)) and
+  defp transaction_costs?(comparison) do
+    not Decimal.equal?(comparison.transaction_costs, Decimal.new(0)) and
       not is_nil(comparison.real_ttwror_before_costs)
   end
-
-  defp transaction_costs?(_comparison), do: false
 
   # The three states of ADR-0027 amendment §3, in the operator's terms rather
   # than the engine's. "Partly" is the one worth the words: the changes are
@@ -190,7 +188,12 @@ defmodule PortfolixirWeb.SnapshotsLive do
   defp recovery_label(%{state: :not_recovered}),
     do: gettext("Behind even before costs")
 
-  defp recovery_label(_recovery), do: gettext("Not comparable")
+  # No clause for :not_comparable, and that is deliberate rather than an
+  # omission: the guard above renders this group only when a cost was paid AND
+  # a pre-cost return exists, and both are absent exactly when the comparison
+  # has no comparable pair. A catch-all here would be code that cannot run.
+  # A fourth state added later raises in the first test that renders it, which
+  # is the loud failure this repo prefers over a silent fallback label.
 
   # -- comparison chart (server-rendered SVG, display boundary) ---------------
 
