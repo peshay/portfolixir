@@ -614,8 +614,8 @@ forensic detail.
 
 The **Wealth** entry in the navigation opens the wealth overview, organised
 into tabs (ADR-0022): **Holdings** (value, performance, data quality, cash),
-**Allocation & targets** (the sunburst and drift table), and **Income** (the
-received dividends and interest report). The Holdings tab shows the
+**Allocation & targets** (the sunburst and drift table), and **Cash flow**
+(the received dividends and interest report). The Holdings tab shows the
 total value including cash, the cash quote, the TTWROR and the
 money-weighted **IRR** for a selectable period (year-to-date, one/three/five
 years, or since the first transaction; one year is the default) with the
@@ -845,9 +845,27 @@ series happens in one update, and if the recomputation fails the label becomes
 an error instead of letting the old number stand. The overview page's wealth
 card serves its last known YTD figure the same way. (ADR-0032.)
 
-## Income (dividends and interest)
+## Cash flow
 
-The **Income** page is the retrospective income report: the dividends and
+The **Cash flow** area (`/cashflow`) is where money movements are read
+retrospectively. It exists as an area rather than a single "income" page
+because three of the analyses that belong here are not income at all —
+realized gains from sales, deposits and withdrawals, and costs — and putting
+them under one label reproduces exactly the ambiguity this app was built to
+avoid. Each analysis is its own named facet, and a facet appears only once its
+data exists; nothing renders as an empty shell. **Income** is the facet that
+exists today, and `/income` still resolves — it redirects here, so older links
+and bookmarks keep working.
+
+Every figure on the area says what it contains: the Income facet states that it
+covers *dividends and interest* and that it **excludes** realized gains,
+deposits and withdrawals, and costs. That is not decoration — those omissions
+are the reason the other facets exist, and a reader who does not know them
+reads the page as "all the money that came in".
+
+### Income (dividends and interest)
+
+The **Income** facet is the retrospective income report: the dividends and
 interest already booked in the ledger, with no external data or forecast. It
 shows an **annual overview** — a year × month matrix split into a *Dividends* and
 an *Interest* series, each year with a totals column — and a **per-position
@@ -857,6 +875,13 @@ net cash credited plus the withheld tax recorded on the transaction; interest
 (Portfolio Performance INTEREST: account interest or bond coupons) carries no
 withholding and is tracked as its own series next to dividends. Clicking a year
 opens the per-transaction detail for that year.
+
+The year bars above the matrix are **stacked**, not summed: dividends and
+interest are two segments, so the chart and the table can never disagree about
+what the number is. Drilling a year adds an **accumulated** series across its
+months — the running total, so a quiet month reads as a plateau rather than as
+a gap, and the shape answers "where did the year stand by April" instead of
+"what came in in April".
 
 Amounts are reported in the portfolio's base currency; the original currency
 stays visible on each row. The conversion methodology (EUR hub at each booking
@@ -1221,7 +1246,7 @@ naming the already-booked event) stays inline in the dialog.
   **Wealth**, **Securities**, and **Transactions** at the top level, plus an
   **Administration** group with **Accounts & depots**, **Views**, and
   **Classifications**. It lists only routes that exist — no disabled roadmap
-  placeholders. Income is a tab of the Wealth area and Import a tab of the
+  placeholders. Cash flow is a tab of the Wealth area and Import a tab of the
   Transactions area, not separate menu entries. Buckets have no sidebar entry
   of their own (ADR-0024): they are managed as chips on the Accounts & depots
   rows and on the Views page, which the view switcher's **Manage…** link

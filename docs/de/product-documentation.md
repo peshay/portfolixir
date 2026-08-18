@@ -662,8 +662,8 @@ Audit-Journal.
 
 Der Eintrag **Vermögen** in der Navigation öffnet die Vermögensübersicht,
 organisiert in Tabs (ADR-0022): **Bestände** (Wert, Performance, Datenqualität,
-Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Erträge** (der
-Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab zeigt den
+Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Cashflow**
+(der Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab zeigt den
 Gesamtwert inklusive Cash, die Cash-Quote sowie sowohl die TTWROR als auch den
 geldgewichteten **IRR** für einen wählbaren Zeitraum (laufendes Jahr, ein/drei/fünf
 Jahre oder seit der ersten Transaktion; ein Jahr ist die Voreinstellung) mit
@@ -912,9 +912,28 @@ Neuberechnung fehl, wird die Beschriftung zum Fehler statt die alte Zahl stehen
 zu lassen. Die Vermögens-Kachel der Übersicht zeigt ihre zuletzt bekannte
 YTD-Zahl auf dieselbe Weise. (ADR-0032.)
 
-## Income (Dividenden und Zinsen)
+## Cashflow
 
-Die **Income**-Seite ist der retrospektive Ertragsbericht: die bereits im
+Der Bereich **Cashflow** (`/cashflow`) ist der Ort, an dem Geldbewegungen
+rückblickend gelesen werden. Er ist ein Bereich und keine einzelne
+„Erträge"-Seite, weil drei der hier gehörenden Auswertungen gar keine Erträge
+sind — realisierte Gewinne aus Verkäufen, Ein- und Auszahlungen sowie Kosten —
+und sie unter ein Label zu stellen genau die Mehrdeutigkeit reproduziert, die
+diese Anwendung vermeiden soll. Jede Auswertung ist ein eigener benannter
+Bereich, und ein Bereich erscheint erst, wenn seine Daten existieren; nichts
+wird als leere Hülle gezeigt. **Income** ist der heute vorhandene Bereich, und
+`/income` funktioniert weiterhin — die Adresse leitet hierher weiter, sodass
+ältere Links und Lesezeichen erhalten bleiben.
+
+Jede Kennzahl des Bereichs nennt, was sie enthält: der Income-Bereich schreibt,
+dass er *Dividenden und Zinsen* abdeckt und realisierte Gewinne, Ein- und
+Auszahlungen sowie Kosten **ausschließt**. Das ist keine Dekoration — genau
+diese Auslassungen sind der Grund, warum es die anderen Bereiche gibt, und wer
+sie nicht kennt, liest die Seite als „alles Geld, das hereinkam".
+
+### Income (Dividenden und Zinsen)
+
+Der **Income**-Bereich ist der retrospektive Ertragsbericht: die bereits im
 Ledger gebuchten Dividenden und Zinsen, ohne externe Daten oder Prognose. Sie
 zeigt einen **Jahresüberblick** — eine Jahr-×-Monat-Matrix, aufgeteilt in eine
 *Dividends*- und eine *Interest*-Reihe, jedes Jahr mit einer Summenspalte — und
@@ -925,6 +944,14 @@ die auf der Transaktion erfasste einbehaltene Steuer; Zinsen
 (Portfolio-Performance INTEREST: Kontozinsen oder Anleihekupons) tragen keine
 Quellensteuer und werden als eigene Reihe neben Dividenden geführt. Ein Klick auf
 ein Jahr öffnet das Detail je Transaktion für dieses Jahr.
+
+Die Jahresbalken über der Matrix sind **gestapelt**, nicht summiert:
+Dividenden und Zinsen sind zwei Segmente, sodass Chart und Tabelle sich nie
+darüber uneinig sein können, was die Zahl ist. Beim Aufklappen eines Jahres
+kommt eine **kumulierte** Reihe über dessen Monate hinzu — der laufende
+Gesamtstand, sodass ein ruhiger Monat als Plateau statt als Lücke gelesen wird
+und die Kurve „wo stand das Jahr im April" beantwortet statt „was kam im April
+herein".
 
 Beträge werden in der Basiswährung des Portfolios ausgewiesen; die
 ursprüngliche Währung bleibt je Zeile sichtbar. Die Umrechnungsmethodik

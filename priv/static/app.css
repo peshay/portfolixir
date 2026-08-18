@@ -4530,6 +4530,35 @@ details[open] > .disclosure-summary .disclosure-chevron {
   font-variant-numeric: tabular-nums;
 }
 
+/* Cash flow (issue 672): the year bars are STACKED -- dividends and interest
+   as two segments -- so the chart cannot disagree with the matrix below it
+   about what the number is. The two share the bar's hue and differ in
+   lightness, and each segment carries its own <title>, so the split survives
+   for a reader who cannot tell the two tints apart (UX-DR7). */
+.income-bar--interest {
+  opacity: 0.55;
+}
+@media (forced-colors: active) {
+  /* The tint difference is discarded here; the outline is what keeps two
+     segments readable as two. */
+  .income-bar--interest {
+    opacity: 1;
+    stroke: CanvasText;
+    stroke-width: 0.05;
+  }
+}
+/* The accumulated-per-month series: a line, because it answers "where did the
+   year stand" rather than "what came in this month" -- a different question
+   from the bars beside it, and a different mark for it. */
+.income-accumulated-line {
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.income-accumulated .income-bar-label {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Income overview: per-year bar chart + top-contributors list (issue 415).
    No animation, so prefers-reduced-motion needs nothing extra (UX-DR5). */
 .income-chart {

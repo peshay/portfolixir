@@ -23,7 +23,7 @@ defmodule PortfolixirWeb.IncomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    socket = assign(socket, :current_path, "/income")
+    socket = assign(socket, :current_path, "/cashflow")
 
     # ADR-0024: the empty state keys on the bookkeeping entities, not on the
     # internal portfolio compatibility record. Accounts always carry a
@@ -47,6 +47,22 @@ defmodule PortfolixirWeb.IncomeLive do
     end
   end
 
+  # The Cash-flow facets are query state on one route (#672, decided
+  # 2026-08-05), mirroring `/portfolio?tab=allocation`. Only Income has a read
+  # today; the others appear as second-level tabs when theirs does, never as an
+  # empty shell — which is also why no tab ROW renders yet: a row of one tab
+  # answers no question.
+  @facets ["income"]
+  @default_facet "income"
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, assign(socket, :facet, facet(params["tab"]))}
+  end
+
+  defp facet(tab) when tab in @facets, do: tab
+  defp facet(_tab), do: @default_facet
+
   @impl true
   def handle_event("select_year", %{"year" => year}, socket) do
     {:noreply, assign(socket, :selected_year, String.to_integer(year))}
@@ -59,7 +75,7 @@ defmodule PortfolixirWeb.IncomeLive do
   @impl true
   def render(%{portfolio: nil} = assigns) do
     ~H"""
-    <AppShell.shell current_path={@current_path} page_title={gettext("Income")}>
+    <AppShell.shell current_path={@current_path} page_title={gettext("Cash flow")}>
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Income") %></h2>
@@ -81,13 +97,22 @@ defmodule PortfolixirWeb.IncomeLive do
     ~H"""
     <AppShell.shell
       current_path={@current_path}
-      page_title={gettext("Income")}
+      page_title={gettext("Cash flow")}
       page_subtitle={gettext("Received dividends and interest")}
     >
       <div class="workspace-page">
         <AppShell.area_tabs tabs={AppShell.wealth_tabs(:income)} />
 
         <section class="workspace-section">
+          <%!-- The facet states its composition ONCE, in the operator's terms,
+               and names what it leaves out (#672, EXPERIENCE.md "Every
+               aggregate names what it aggregates", rules 1 and 4). The
+               omissions are not trivia: they are the reason the sibling
+               Cash-flow facets exist, and a reader who does not know them
+               reads this page as "all the money that came in". --%>
+          <p class="muted" data-role="facet-composition">
+            <%= gettext("Dividends and interest booked in the ledger. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet.") %>
+          </p>
           <%!-- UX-DR11 (Sprint 5 Lane D): terse basis line in the sightline,
                conversion methodology behind the ⓘ tooltip. --%>
           <div class="muted" data-role="income-conversion">
@@ -118,26 +143,50 @@ defmodule PortfolixirWeb.IncomeLive do
                     scrolls on narrow viewports instead of clipping (#560,
                     UX-DR15). --%>
               <div class="income-chart-track">
+              <%!-- Stacked, not summed (#672, rule 3): the matrix below splits
+                    dividends from interest, and a chart that silently adds them
+                    would disagree with its own backing table about what the
+                    number is. Each segment is addressable, so the split
+                    survives for anything reading the DOM. --%>
               <svg
                 class="income-bars"
                 viewBox={"0 0 #{max(length(@income_bars), 1)} 100"}
                 preserveAspectRatio="none"
                 role="img"
-                aria-label={gettext("Total income per year")}
+                aria-label={gettext("Dividends and interest per year")}
               >
-                <rect
-                  :for={{bar, index} <- Enum.with_index(@income_bars)}
-                  class="income-bar"
-                  data-year={bar.year}
-                  x={index + 0.1}
-                  y={100 - bar.height}
-                  width="0.8"
-                  height={bar.height}
-                  phx-click="select_year"
-                  phx-value-year={bar.year}
-                >
-                  <title><%= bar.year %>: <%= money(bar.total) %></title>
-                </rect>
+                <g :for={{bar, index} <- Enum.with_index(@income_bars)}>
+                  <rect
+                    class="income-bar income-bar--dividends"
+                    data-series="dividends"
+                    data-year={bar.year}
+                    x={index + 0.1}
+                    y={100 - bar.height}
+                    width="0.8"
+                    height={bar.dividends_height}
+                    phx-click="select_year"
+                    phx-value-year={bar.year}
+                  >
+                    <title>
+                      <%= bar.year %> · <%= gettext("Dividends") %>: <%= money(bar.dividends) %>
+                    </title>
+                  </rect>
+                  <rect
+                    class="income-bar income-bar--interest"
+                    data-series="interest"
+                    data-year={bar.year}
+                    x={index + 0.1}
+                    y={100 - bar.height + bar.dividends_height}
+                    width="0.8"
+                    height={bar.interest_height}
+                    phx-click="select_year"
+                    phx-value-year={bar.year}
+                  >
+                    <title>
+                      <%= bar.year %> · <%= gettext("Interest") %>: <%= money(bar.interest) %>
+                    </title>
+                  </rect>
+                </g>
               </svg>
               <%!-- The year labels are drill buttons: clicking one opens that
                     year's detail + per-month breakdown below (#415 follow-up). --%>
@@ -242,6 +291,46 @@ defmodule PortfolixirWeb.IncomeLive do
               </div>
             </div>
 
+            <%!-- The running total across the year (#672, the owner's Portfolio
+                  Performance walkthrough of 2026-08-05). It answers a different
+                  question from the bars beside it: not "what came in in April"
+                  but "where did the year stand by April", which is what makes a
+                  quiet month legible as a plateau rather than as a gap. Plain
+                  server-rendered SVG, no animation (UX-DR5); the bars above
+                  stay the backing data (UX-DR10). --%>
+            <div id="income-accumulated-chart" class="income-chart">
+              <div class="income-chart-track">
+                <svg
+                  class="income-bars income-accumulated"
+                  viewBox="0 0 11 100"
+                  preserveAspectRatio="none"
+                  role="img"
+                  aria-label={
+                    gettext("Accumulated dividends and interest through %{year}",
+                      year: @selected_year
+                    )
+                  }
+                >
+                  <polyline
+                    class="income-accumulated-line"
+                    fill="none"
+                    points={accumulated_points(@income, @selected_year)}
+                  />
+                </svg>
+                <div class="income-bar-labels">
+                  <span
+                    :for={point <- accumulated_months(@income, @selected_year)}
+                    class="income-bar-label income-month-label"
+                    data-month={point.month}
+                    data-total={Decimal.to_string(Decimal.normalize(point.total), :normal)}
+                  >
+                    <strong><%= month_label(point.month) %></strong>
+                    <span><%= money(point.total) %></span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <table class="data-table">
               <thead>
                 <tr>
@@ -339,7 +428,18 @@ defmodule PortfolixirWeb.IncomeLive do
     annual
     |> Enum.sort_by(& &1.year)
     |> Enum.map(fn year ->
-      %{year: year.year, total: year.total, height: bar_height(year.total, max)}
+      # The segment heights are computed against the SAME max as the whole bar,
+      # so the two stack to exactly the bar's height and the visual sum is the
+      # table's total rather than a re-scaled approximation of it.
+      %{
+        year: year.year,
+        total: year.total,
+        dividends: year.dividends_total,
+        interest: year.interest_total,
+        height: bar_height(year.total, max),
+        dividends_height: bar_height(year.dividends_total, max),
+        interest_height: bar_height(year.interest_total, max)
+      }
     end)
   end
 
@@ -363,6 +463,40 @@ defmodule PortfolixirWeb.IncomeLive do
 
     Enum.map(totals, fn {month, total} ->
       %{month: month, total: total, height: bar_height(total, max)}
+    end)
+  end
+
+  # The running total, month by month, through the drilled year. A month with
+  # nothing booked repeats the previous month's figure rather than dropping to
+  # zero -- that is what "accumulated" means, and a dip would read as money
+  # leaving.
+  defp accumulated_months(income, year) do
+    months =
+      case Enum.find(income.annual, &(&1.year == year)) do
+        %{months: m} -> m
+        _ -> %{}
+      end
+
+    {points, _running} =
+      Enum.map_reduce(1..12, Decimal.new(0), fn month, running ->
+        cell = Map.get(months, month, %{dividends: Decimal.new(0), interest: Decimal.new(0)})
+        running = running |> Decimal.add(cell.dividends) |> Decimal.add(cell.interest)
+        {%{month: month, total: running}, running}
+      end)
+
+    points
+  end
+
+  # The polyline in the 0..11 x 0..100 viewBox. Scaled against the YEAR's total
+  # (the last accumulated point), so the line ends at the top of the plot and
+  # the shape reads as "how much of the year was in by month".
+  defp accumulated_points(income, year) do
+    points = accumulated_months(income, year)
+    max = points |> List.last() |> Map.fetch!(:total)
+
+    points
+    |> Enum.map_join(" ", fn point ->
+      "#{point.month - 1},#{100 - bar_height(point.total, max)}"
     end)
   end
 

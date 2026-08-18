@@ -678,19 +678,27 @@ defmodule Portfolixir.DocsTest do
     assert de =~ "/de/product-documentation.html"
   end
 
+  # Only the `/api/v1` scope, not every verb macro in the file. The browser
+  # scopes carry routes that are not API surface at all -- the `/income` ->
+  # `/cashflow` rename redirect (#672) is one -- and scanning the whole router
+  # asserted they were undocumented endpoints. `/health` lives outside the
+  # scope and is documented separately, so it keeps its own case.
   defp api_routes_from_router do
     router = File.read!("lib/portfolixir_web/router.ex")
 
     ~r/\b(get|post|put|patch|delete)\("([^"]+)"/
-    |> Regex.scan(router)
-    |> Enum.map(fn
-      [_, verb, "/health"] ->
-        "#{String.upcase(verb)} /health"
+    |> Regex.scan(api_v1_scope(router))
+    |> Enum.map(fn [_, verb, path] -> "#{String.upcase(verb)} /api/v1#{path}" end)
+  end
 
-      [_, verb, path] ->
-        "#{String.upcase(verb)} /api/v1#{path}"
-    end)
-    |> Enum.reject(&(&1 == "GET /health"))
+  # The body of `scope "/api/v1", ... do ... end`, to the end of the file --
+  # it is the last scope in the router, and a new scope after it would show up
+  # here as an obvious over-match rather than as a silent under-match.
+  defp api_v1_scope(router) do
+    case String.split(router, ~s|scope "/api/v1"|, parts: 2) do
+      [_before, scope] -> scope
+      [_only] -> ""
+    end
   end
 
   defp mcp_tools_from_source do

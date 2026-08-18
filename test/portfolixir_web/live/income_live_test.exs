@@ -56,7 +56,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     dividend!(world, security, date: ~D[2025-03-15], net: "1080", tax: "20")
     interest!(world, date: ~D[2025-06-30], amount: "15")
 
-    {:ok, view, html} = live(conn, "/income")
+    {:ok, view, html} = live(conn, "/cashflow")
 
     # Annual matrix with the dividends series and totals column.
     assert html =~ "income-annual"
@@ -110,7 +110,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
     dividend!(world, security, date: ~D[2025-03-15], net: "100", tax: "0")
 
-    {:ok, view, _html} = live(conn, "/income")
+    {:ok, view, _html} = live(conn, "/cashflow")
 
     note = view |> element(~s([data-role="income-conversion"])) |> render()
     assert note =~ "ⓘ"
@@ -123,7 +123,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
     dividend!(world, security, date: ~D[2025-03-15], net: "100", tax: "0")
 
-    {:ok, _view, html} = live(conn, "/income?locale=de")
+    {:ok, _view, html} = live(conn, "/cashflow?locale=de")
 
     assert html =~ "Originalwährung beibehalten"
     refute html =~ "original currency retained"
@@ -139,7 +139,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
     dividend!(world, security, date: ~D[2025-03-15], net: "100", tax: "0")
 
-    {:ok, _view, german} = live(conn, "/income?locale=de")
+    {:ok, _view, german} = live(conn, "/cashflow?locale=de")
 
     assert german =~ "Mär"
     assert german =~ "Okt"
@@ -147,7 +147,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     refute german =~ ">Oct<"
     refute german =~ ">Dec<"
 
-    {:ok, _view, english} = live(conn, "/income?locale=en")
+    {:ok, _view, english} = live(conn, "/cashflow?locale=en")
     assert english =~ "Oct"
     assert english =~ "Dec"
   end
@@ -155,14 +155,14 @@ defmodule PortfolixirWeb.IncomeLiveTest do
   test "shows an empty state when the portfolio has no income yet", %{conn: conn} do
     WorldFixtures.base_world(name: "Empty Depot", currency: "EUR")
 
-    {:ok, _view, html} = live(conn, "/income")
+    {:ok, _view, html} = live(conn, "/cashflow")
 
     assert html =~ "income-annual"
     assert html =~ "No dividends or interest booked yet."
   end
 
   test "points to creating a depot and cash account when no accounts exist", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/income")
+    {:ok, _view, html} = live(conn, "/cashflow")
 
     assert html =~ "/portfolios"
     assert html =~ "Create a depot and cash account"
@@ -189,7 +189,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     dividend!(world, big, date: ~D[2025-05-15], net: "1000", tax: "0")
     dividend!(world, small, date: ~D[2025-05-15], net: "100", tax: "0")
 
-    {:ok, view, _html} = live(conn, "/income")
+    {:ok, view, _html} = live(conn, "/cashflow")
 
     # Server-rendered, accessible SVG chart with one bar per year.
     assert has_element?(view, "#income-chart svg[role='img'][aria-label]")
@@ -223,7 +223,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     dividend!(world, sec, date: ~D[2024-05-15], net: "800", tax: "0")
     dividend!(world, sec, date: ~D[2025-03-15], net: "100", tax: "0")
 
-    {:ok, view, _html} = live(conn, "/income")
+    {:ok, view, _html} = live(conn, "/cashflow")
 
     # Annual chart: SVG and labels share one scrollable track.
     assert has_element?(view, "#income-chart .income-chart-track svg.income-bars")
@@ -263,7 +263,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     dividend!(world, sec, date: ~D[2025-03-15], net: "100", tax: "0")
     dividend!(world, sec, date: ~D[2025-09-20], net: "200", tax: "0")
 
-    {:ok, view, _html} = live(conn, "/income")
+    {:ok, view, _html} = live(conn, "/cashflow")
 
     # The year bar is a drill button.
     assert has_element?(view, "#income-chart button[data-year='2025']")
@@ -277,5 +277,161 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     # Twelve month slots, including the two paid months.
     assert has_element?(view, "#income-month-chart .income-month-bar[data-month='3']")
     assert has_element?(view, "#income-month-chart .income-month-bar[data-month='9']")
+  end
+
+  # User story (#672, UX-DR4 and the 2026-08-05 design session):
+  # As a local portfolio maintainer,
+  # I want the Income page to live under a Cash flow area,
+  # so that realized gains, external flows and costs have somewhere to land
+  # that is not called "income" — the Portfolio Performance ambiguity the whole
+  # rename exists to remove.
+  #
+  # Acceptance criteria:
+  # - `/cashflow` serves the surface; `/income` permanently redirects to it, so
+  #   existing links survive.
+  # - The Wealth tab reads "Cash flow" and is current on the new route.
+  # - The sidebar's Wealth entry claims `/cashflow` (UX-DR4 reachability).
+  # - An unknown facet falls back to the default rather than erroring.
+  describe "the /cashflow parent (#672)" do
+    defp cashflow_world do
+      world = WorldFixtures.base_world(name: "Cashflow", currency: "EUR")
+      security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+      dividend!(world, security, date: ~D[2026-02-10], net: "100", tax: "0")
+      dividend!(world, security, date: ~D[2026-03-10], net: "50", tax: "0")
+      interest!(world, date: ~D[2026-02-20], amount: "10")
+
+      world
+    end
+
+    test "/cashflow serves the surface and names the area", %{conn: conn} do
+      cashflow_world()
+
+      {:ok, view, html} = live(conn, "/cashflow")
+
+      assert html =~ "Cash flow"
+      assert has_element?(view, "#income-annual")
+
+      # The Wealth tab row points at the new route and marks it current.
+      assert has_element?(view, ".area-tab[href='/cashflow'][aria-current='page']")
+    end
+
+    test "/income redirects to /cashflow so old links survive", %{conn: conn} do
+      cashflow_world()
+
+      assert conn |> get("/income") |> redirected_to() == "/cashflow"
+    end
+
+    test "the sidebar's Wealth entry is current on /cashflow", %{conn: conn} do
+      cashflow_world()
+
+      {:ok, _view, html} = live(conn, "/cashflow")
+
+      assert html =~ ~r/nav-link[^>]*is-active[^>]*href="\/portfolio"/ or
+               html =~ ~r/href="\/portfolio"[^>]*aria-current="page"/
+    end
+
+    test "an unknown facet falls back to the default instead of erroring", %{conn: conn} do
+      cashflow_world()
+
+      {:ok, view, _html} = live(conn, "/cashflow?tab=__nope__")
+
+      assert has_element?(view, "#income-annual")
+    end
+  end
+
+  # User story (#672, EXPERIENCE.md "Every aggregate names what it aggregates"):
+  # As a maintainer reading a number on this page,
+  # I want each figure to say what it contains and what it leaves out,
+  # so that "income" stops being the ambiguous word the rename was supposed to
+  # fix.
+  #
+  # Acceptance criteria:
+  # - The surface states its composition once, in the operator's terms.
+  # - It states what it EXCLUDES, since those omissions are the reason the
+  #   other facets exist.
+  # - Aggregated figures read alone (chart aria-labels) name their content
+  #   rather than saying "income".
+  # - The chart and the matrix do not disagree: bars carry the same
+  #   dividends/interest split the table shows.
+  describe "naming what is aggregated (#672)" do
+    test "the surface states its composition and its exclusions once", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Naming", currency: "EUR")
+      security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+      dividend!(world, security, date: ~D[2026-02-10], net: "100", tax: "0")
+
+      {:ok, view, _html} = live(conn, "/cashflow")
+
+      composition = view |> element("[data-role='facet-composition']") |> render()
+      assert composition =~ "Dividends and interest"
+
+      # The omissions are named, because they are the reason the sibling facets
+      # exist at all.
+      assert composition =~ "realized gains"
+      assert composition =~ "deposits"
+    end
+
+    test "the charts name what they aggregate rather than saying 'income'", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Labels", currency: "EUR")
+      security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+      dividend!(world, security, date: ~D[2026-02-10], net: "100", tax: "0")
+
+      {:ok, view, _html} = live(conn, "/cashflow")
+
+      chart = view |> element("#income-chart svg") |> render()
+      assert chart =~ "Dividends and interest per year"
+      refute chart =~ "Total income per year"
+    end
+
+    test "the year bars carry the same split the matrix shows", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Split", currency: "EUR")
+      security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+      dividend!(world, security, date: ~D[2026-02-10], net: "100", tax: "0")
+      interest!(world, date: ~D[2026-02-20], amount: "25")
+
+      {:ok, view, _html} = live(conn, "/cashflow")
+
+      # Two segments per year, not one bar silently summing them.
+      assert has_element?(view, "#income-chart [data-series='dividends'][data-year='2026']")
+      assert has_element?(view, "#income-chart [data-series='interest'][data-year='2026']")
+    end
+  end
+
+  # User story (#672, the owner's Portfolio Performance walkthrough of
+  # 2026-08-05 — the chart they called "great as a chart"):
+  # As a maintainer looking at a year of payments,
+  # I want the running total across the months of that year,
+  # so that I can see how the year built up rather than reading twelve
+  # unrelated bars.
+  #
+  # Acceptance criteria:
+  # - Drilling a year shows an accumulated-per-month series alongside the
+  #   per-month bars.
+  # - It accumulates: each month carries the sum of that month and every month
+  #   before it in the year.
+  # - It states what it accumulates (UX-DR21), like every other figure here.
+  test "a drilled year shows the accumulated-per-month series (#672)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Accum", currency: "EUR")
+    security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+    dividend!(world, security, date: ~D[2026-02-10], net: "100", tax: "0")
+    dividend!(world, security, date: ~D[2026-04-10], net: "50", tax: "0")
+    interest!(world, date: ~D[2026-04-20], amount: "25")
+
+    {:ok, view, _html} = live(conn, "/cashflow")
+    view |> element("button.income-bar-label[phx-value-year='2026']") |> render_click()
+
+    assert has_element?(view, "#income-accumulated-chart")
+
+    # Feb: 100. Mar: still 100 (nothing booked). Apr: 100 + 75 = 175, and it
+    # stays there for the rest of the year.
+    assert has_element?(view, "#income-accumulated-chart [data-month='2'][data-total='100']")
+    assert has_element?(view, "#income-accumulated-chart [data-month='3'][data-total='100']")
+    assert has_element?(view, "#income-accumulated-chart [data-month='4'][data-total='175']")
+    assert has_element?(view, "#income-accumulated-chart [data-month='12'][data-total='175']")
+
+    label = view |> element("#income-accumulated-chart svg") |> render()
+    assert label =~ "Accumulated dividends and interest"
   end
 end
