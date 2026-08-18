@@ -557,522 +557,158 @@ Ground truth: `main` at `1903913` (PR #631, squash-merged 2026-08-04).
   reference the two, or dissolve one) is still the owner's and still open.
   `#321` (roadmap index) remains stale; closing it needs its "working
   agreement" section preserved somewhere first.
-
-## Epic List
-
-Epics are organized by the PRD's five phases plus cross-cutting concerns, ordered by the maintainer priority (#321): **data completeness & correctness first, LLM-first consumption second, UI/sync/modeling later.** Each epic's stories are the GitHub issues above.
-
-| Epic | Phase | Priority | Issues |
-|---|---|---|---|
-| **E1 — Correctness & invariant foundations** | 1 | now | #343, #344, #346, #347, #348, #350, #314 |
-| **E2 — Auditability & data safety** | 1 | now | #353 (FR-28), #354 (FR-29) |
-| **E3 — Account & portfolio lifecycle** | 1 | now | #327, #328, #326 |
-| **E4 — Import completeness** | 1 | now (XML gated) | #333 |
-| **E5 — Analytics engine** | 2 | next | #316, #331, #318, #329, #335, #334 |
-| **E6 — LLM/MCP surface** | 2 | next | #349, #355 (FR-14) |
-| **E7 — Rebalancing guidance** | 2 | gated | FR-12 (no issue — needs ADR first) |
-| **E8 — Read-only sync** | 3 | gated/later | #320 |
-| **E9 — Product-type modeling** | 4 | later (discovery-first) | #330, #338, #340 |
-| **E10 — Planning & simulation** | 5 | later | #332, FR-9, FR-26 |
-| **E11 — UX & accessibility** | — | priority 3 | #356, #336, #337, #339, #319 |
-| **E12 — Localization & docs** | — | cross-cutting | #313 |
-| **E13 — Buckets & views (ADR-0018)** | — | now | #448 (#443–#447) |
-| **E14 — CSS consistency & design-system** | — | priority 3 | #451 (#449, #450) |
-| **E15 — View-bound SOLL plans (ADR-0020)** | 2 | next | #463 (#464–#468) |
-| **E16 — Plan versions & depot snapshots (ADR-0027)** | 2/5 bridge | next | ADR-0027 (decision gate; issues after sign-off) |
-| **E17 — Corporate actions as ledger events** | 2/4 bridge | done (stories merged; tracker #338 closed 2026-07-31) | #338 (tracker), #588–#591 |
-| **E18 — Stable identities & reconciliation** | 2 | done (stories merged; tracker #603 closed 2026-07-31) | #603 (tracker), #600–#602 |
-| **E19 — Recorded tax-statement snapshots (FR-36)** | 2 | in progress (ADR-0031 accepted 2026-07-25, gate #612 signed off) | #621–#625 (19.2–19.6, merged); 19.7 deferred behind its own gate |
-
-## Epic Detail
-
-### Epic 1: Correctness & invariant foundations
-Harden the money/ledger core and the mechanical guards that protect everything else (the owner does not read code, so gates are load-bearing). Currency consistency (#343), the rounding-policy ADR (#344, **decision needed from you**), CI quick wins (#346), invariant meta-tests (#347), domain-correctness suites (#348), the invisible-Unicode gate (#350), and the coverage ratchet (#314). FR-1/2/3, NFR-1/3.
-
-### Epic 2: Auditability & data safety
-The two foundational gaps from PRD review. **#353 (FR-28)** intercepts every write path with an append-only journal in the same DB transaction (architecture D1). **#354 (FR-29)** makes retiring external copies safe via backup/restore + a lossless PP-compatible roundtrip export. FR-28/29, NFR-2. Sequence #353 before #355 (MCP writes must be journaled).
-
-### Epic 3: Account & portfolio lifecycle
-Multiple portfolios usable end to end: switcher + move depots/accounts (#327), merge/rename/delete with transaction reassignment (#328), import data quality / logos (#326). FR-4, FR-7.
-
-### Epic 4: Import completeness
-Lossless PP XML import (#333) — **scope-gated**: requires the AGENTS.md amendment + ADR before implementation. CSV/JSON v1 is shipped. FR-5.
-
-### Epic 5: Analytics engine
-The read models the LLM consumes: IRR alongside TTWROR (#316), income report (#331), allocation mechanics — target-consistency hints (#318), per-security exclusion (#329), cash in the 100% basis (#335), classification value view (#334). FR-8/10/11.
-
-### Epic 6: LLM/MCP surface
-Make Portfolixir fully agent-operable. Expose precomputed analytics over API/MCP (#349, FR-13), and **#355 (FR-14)** for data-maintenance tools at API parity so an LLM replaces manual entry — gated by the audit journal (#353). FR-13/14/15/16.
-
-**DX batch (added 2026-07-18, FR-30..33):** four small stories on the API/MCP
-surface, ordered by operator pain: FR-31 (create all 13 kinds, delivery price
-guard) → FR-30 (ISIN/WKN in holdings) → FR-32 (booking-semantics docs, incl.
-fix-it-hammer warnings on `set_balance` and delivery tools) → FR-33
-(scope-locked slim `securities_list`). **Entry criterion:** the
-phantom-holdings fix branch (`claude/portfolixir-holdings-calculation-zfcqeh`)
-is merged AND the operating LLM agent's live MCP re-verification (ledger
-quantity vs. holdings per affected ISIN) is complete — FR-31 must not hand out
-delivery-booking power against an instance still showing phantoms.
-**Companion (not IN the batch):** a standalone risk-tier small PR making the
-import applier persist the parsed `Kurs` on deliveries, so imported deliveries
-stop entering the cost fold at zero — scheduled alongside the batch, reviewed
-separately (projection semantics per AGENTS.md).
-
-#### E6 DX batch stories (2026-07-18; each becomes one GitHub issue)
-
-##### Story 6.DX-1: Book any transaction kind over MCP (FR-31)
-
-As the operating LLM agent,
-I want `transactions_create` to accept all 13 ledger kinds directly,
-So that I can book dividends, deliveries and transfers without the
-create-as-buy→update detour that transits through momentarily-wrong ledger
-states.
-
-**Acceptance Criteria:**
-
-**Given** the MCP companion with a valid bearer token
-**When** I call `transactions_create` with `type: "dividend"` (security, cash account, gross_amount)
-**Then** the transaction is created in one call and the journal records the MCP actor
-**And** the same holds for every one of the 13 kinds, explicitly including `inbound_delivery` and `outbound_delivery`
-**Given** a delivery kind on MCP create
-**When** I omit `price`
-**Then** the MCP schema rejects the call (deliberately stricter than the JSON API, which stays PP-import-compatible)
-**And** the tool description states: "a delivery without a price enters the cost basis at zero; supply the price for a correct cost basis"
-**And** MCP tests cover one create per kind with synthetic fixtures; `balance_adjustment` stays excluded from the enum (the `set_balance` tool owns it)
-
-##### Story 6.DX-2: Holdings carry stable identifiers (FR-30)
-
-As the operating LLM agent,
-I want ISIN and WKN on every holdings row (JSON API + MCP),
-So that I can reconcile against broker data without a token-expensive
-client-side join over `securities_list`.
-
-**Acceptance Criteria:**
-
-**Given** a portfolio with held positions
-**When** I call `GET /api/v1/portfolios/:id/holdings` or the MCP holdings tool
-**Then** each row includes `isin` and `wkn` (nullable, `null` when the security has none)
-**And** the response shape stays backward-compatible (additive fields only)
-**And** ConnCase + MCP tests assert the fields for a security with and one without ISIN
-
-##### Story 6.DX-3: Booking semantics documented at the point of use (FR-32)
-
-As the operating LLM agent,
-I want the semantic traps written into the tool/schema descriptions I actually read,
-So that I book correctly on the first attempt instead of learning by mis-booking.
-
-**Acceptance Criteria:**
-
-**Given** the MCP tool schemas
-**When** I read the `transactions_create`/`transactions_update` descriptions
-**Then** they state that a dividend's `gross_amount` is the NET cash credited (withheld taxes ride in `taxes`; the income report reconstructs gross)
-**And** the `set_balance` and delivery tool descriptions carry the fix-it-hammer warning ("resolve differences by booking the missing transaction of the correct kind; balance snapshots and unpriced deliveries are last resorts that distort cost basis")
-**And** no field is renamed (explicit non-goal)
-**And** the API docs mirror the same semantics
-
-##### Story 6.DX-4: Slim securities listing (FR-33)
-
-As the operating LLM agent,
-I want a slim default projection for `securities_list`,
-So that routine listings stop paying tokens for logos and timestamps.
-
-**Acceptance Criteria:**
-
-**Given** the securities list endpoint/tool
-**When** I request the default listing
-**Then** rows carry a fixed slim whitelist (id, name, ISIN, WKN, ticker, currency, asset class) and omit logo/timestamp payloads
-**And** the full projection stays reachable (parameter or dedicated detail call)
-**And** scope lock holds: no generic field-selection framework — `securities_list` only
-
-##### Story 6.C-1 (companion — standalone risk-tier PR, NOT in the batch): Imported deliveries keep their price
-
-As a local portfolio maintainer importing PP history,
-I want the applier to persist the parsed `Kurs` on delivery rows,
-So that imported deliveries enter the cost fold with their real cost instead of zero.
-
-**Acceptance Criteria:**
-
-**Given** a PP CSV with an `Einlieferung` row carrying `Kurs`
-**When** I apply the import
-**Then** the created `inbound_delivery` stores that price and the holdings cost basis reflects it
-**And** a `Kurs`-less delivery row still imports (price `nil`, zero cost — unchanged behavior)
-**And** import idempotency is unaffected (content-hash regression test) — dedicated small PR, real human review
-
-### Epic 7: Rebalancing guidance (gated)
-FR-12, both-direction guidance ranked by drift. **No issue yet** — needs the guidance-vs-action ADR/AGENTS.md clarification first (it must never place or prepare orders). Create the issue after the scope decision.
-
-### Epic 8: Read-only sync (Phase 3, gated)
-comdirect/bunq/bitcoin.de/watch-only (FR-17–21), tracked in #320. **Hard scope gate:** AGENTS.md currently forbids broker/bank sync; entering this epic requires an ADR + AGENTS.md amendment limited to read-only acquisition. OQ-4 (bitcoin.de) and OQ-6 (unattended-sync feasibility) are open.
-
-### Epic 9: Product-type modeling (Phase 4, discovery-first)
-Bonds (#330) and German pension modeling (#340 parking lot). Per the PRD, **each modeling FR is preceded by its own discovery story** that fixes acceptance criteria before implementation. FR-22/24/25. *(Corporate actions — FR-23/#338 — moved to E17 on 2026-07-18; no double-tracking, #338 re-labels to E17.)*
-
-### Epic 10: Planning & simulation (Phase 5)
-What-if simulator (#332, FR-27), benchmark comparison (FR-9 — the founding "worth it?" question, needs OQ-3 quote source), retirement projection (FR-26 — backs Success Metric 3, discovery story fixes AC). Benchmark + retirement have no issues yet (future).
-
-### Epic 11: UX & accessibility (priority 3)
-Tracked in **#356** against the living design-language spec (`design-language/DESIGN.md` + `EXPERIENCE.md`), which since ADR-0038 is the authority a design-critic review holds every user-visible batch against. #336 (chart €/% toggle), #337 (dashboard v2), #339 (nav cleanup) and #319 (sunburst) are closed; open children are #414 (transactions overview), #471 (visible portfolio selector) and #672 (the `/cashflow` parent), plus #701–#704 and #707 filed 2026-08-15; #412 (forms and inputs), #491 (master-data creation UX), #565 (classification columns) and #566 (inline busy/result states instead of toasts) shipped 2026-08-14 in the Sprint 6 batch (PR #688), and **#560 (income chart on mobile) shipped 2026-08-10 via PR #656** — it was listed here as open until 2026-08-17, which is the error F5 of that day's reconciliation records. The 2026-08-05 design session supplies the specification these are held against, and DR15–DR20 name the drift families whose alignment stories are cut from it. Accessibility items (colour independence, contrast, modal focus, chart-as-table) break out as `agentic` issues when prioritized. UX-DR1–20.
-
-### Epic 12: Localization & docs (cross-cutting)
-Multilingual docs site (#313, NFR-7); UI de/en via gettext is shipped and enforced by `localization_test.exs`.
-
-### Epic 13: Buckets & views (ADR-0018)
-Tag-based wealth scoping from the 2026-06-18 design session (full decision in
-ADR-0018). Separates **total wealth** (everything, counted once) from **per-view
-subsets** (strategy, rebalancing, per-person) with one primitive: **buckets**
-(overlapping tags on holdings; depot-default + per-position override) consumed by
-named **views** (include/exclude filters; exclude wins; totals are single-count,
-**never** the sum of buckets). Generalizes and will supersede ADR-0013 (the BTC
-exclude flag). Tracked in **#448**; stories sequence #443 (data model) → #444
-(engine scope) → #445 (API/MCP parity) → #446 (UI) → #447 (retire the old flag).
-Holding removal ("remove a non-owner entirely") is explicitly out of scope → #328.
-
-### Epic 14: CSS consistency & design-system hardening
-The UI feels inconsistent not because the design system is missing but because
-it **exists yet isn't enforced or complete**. Findings (2026-06-18): the
-`--color-*` tokens exist but **57 raw hex colours** are hard-coded outside token
-definitions; **no spacing scale** (`--space*`) or heading ramp (UX-DR14); a dead
-`.mono` class. **Enforcement landed**: `test/invariants/css_token_discipline_test.exs`
-ratchets raw hex down and fails the build on any new hard-coded colour. Tracked
-in **#451**; stories #449 (hex→tokens, ratchet to zero) and #450 (4px spacing
-scale + heading ramp, UX-DR14 break-out). Related: #412 (forms + dead `.mono`),
-#411 (chart accent), #356 (UX tracker). UI priority 3 per #321, but the guard is
-cross-cutting and already active.
-
-### Epic 15: View-bound SOLL plans (ADR-0020)
-From a design session 2026-06-20 (Andi), recorded in **ADR-0020**. Follow-on to
-E13 (buckets & views, ADR-0018) and the retirement of the per-security exclude
-flag (#447). Since #444 the **IST** side of the SOLL/IST allocation is
-view-scoped, but the **SOLL** (target weights + the global `cash_target_weight`)
-stayed global per classification — so two strategy views cannot each be a
-coherent 100% plan (their targets collide to ~200%), and a category with a target
-but no in-scope value renders as a ghost row under any view. ADR-0020 makes a
-target **plan belong to a view**: targets keyed by `(view, classification,
-category)` with `view_id NULL` = the portfolio-wide **Gesamt** plan; the cash
-target moves into the plan; a view may carry its own plan or none (→ IST-only).
-The active view loads only its own plan, fixing the 200%/ghost-row incoherence by
-construction. Editing lives on the classifications page (with a view selector),
-viewing on the portfolio page (driven by the #446 view switcher), with a deep-link
-between them. Migration is loss-free (existing targets + cash target → the Gesamt
-plan). Tracked in **#463**; stories sequence #464 (data model + migration) → #465
-(engine) → #466 (API/MCP) → #467 (editor UI) → #468 (viewer UI + docs). Extends
-FR-11; API/MCP parity per AR-11.
-
-### Epic 16: Plan versions & depot snapshots (ADR-0027)
-From the owner design conversation 2026-07-16, recorded in **ADR-0027**
-(decision gate per ADR-0026 — signed off by the owner 2026-07-16). The owner's
-workflow:
-duplicate a target plan to restructure it while the old plan stays visible,
-freeze the depot state at the strategy change, and later compare real
-performance against "what if I had kept my old holdings?".
-
-Three decisions: (1) a **snapshot is a ledger marker** — name + view scope +
-as-of date, no copied data; holdings/cost basis derive by projecting the ledger
-up to the date (ADR-0004 makes snapshots near-free); (2) the **v1
-counterfactual is buy-and-hold** of the snapshot positions over real quote
-history, compared against the view's real TTWROR since the as-of date (TTWROR
-neutralises flows, so no fresh-money detection is needed; gross, price-return
-only — distributions are a labeled follow-up); (3) **plans become named,
-versioned entities** (active/draft/archived, duplicate-to-edit, at most one
-active plan per ADR-0020 scope; loss-free migration). Journal-arming for the
-Targets/Plans context (open ADR-0017 slice) rides in the same epic.
-
-Story cut (issues created after sign-off): plan versioning (data model +
-migration + journal arming) → snapshot entity (create/list/delete) → snapshot
-valuation engine (pure engine, AR-2) → comparison view (chart + table,
-UX-DR10/11) → API/MCP parity (AR-11) + docs. Deliberately NOT in scope:
-old-plan rebalancing simulation and fictitious trades — that is FR-27 (#332),
-which later layers scenario trades on a snapshot base (AR-8;
-`audit_journal.scenario_id` forward-index). Extends FR-11 toward FR-27.
-
-### Epic 17: Corporate actions as ledger events (FR-23, ADR-gated)
-Extracted from E9 on 2026-07-18 (LLM field feedback + elicitation round;
-priority "later" → "next"). **Ledger events first, wizard second** — the daily
-operator is an MCP agent that cannot reach a UI wizard, and the event
-representation IS projection semantics. The decision-gate ADR must settle:
-(a) event representation — first-class kind vs. composed existing kinds — and
-its `Projection.effects/1` clause (AR-7 no-catch-all, migration immutability,
-PP round-trip FR-5/FR-29 impact); (b) quote-history continuity as APPEND-ONLY
-adjustment factors, never mutated history (NFR-2); (c) the ISIN-change case,
-cross-referenced with the FR-34 ADR. API/MCP booking + read parity (AR-11) is
-an acceptance criterion of the event layer, not an afterthought. Delivery
-split by risk tier: projection/ledger changes land as dedicated small PRs
-(risk-tier per AGENTS.md); the guided wizard UI (split → rename/ISIN change →
-merger/spin-off, in that slice order; splits ONLY in the first ADR slice) may
-ride the epic batch. The E17 ADR may be DRAFTED in parallel to the E6 DX
-batch, but at most one risk-tier review is in flight at any time.
-
-#### E17 stories
-
-> Status 2026-07-19: ADR-0028 drafted, hardened by a three-method adversarial
-> review (red team vs blue team, pre-mortem, edge-case walk) and **accepted by
-> the owner** — Story 17.1 is complete. Issues created as thin pointers (the
-> ADR and this document stay the single source of truth): #338 (tracker),
-> #588 (E17.0 sync-vs-manual-quotes precondition, added by the review),
-> #589 (17.2), #590 (17.3), #591 (17.4).
-
-##### Story 17.1: Corporate-actions decision ADR (gate)
-
-As the accountable owner,
-I want one ADR that settles how corporate actions live in the ledger,
-So that every later slice implements a reviewed model instead of improvising
-projection semantics.
-
-**Acceptance Criteria:**
-
-**Given** the pre-seeded question list
-**When** the ADR is drafted (parallel to the E6 batch is allowed)
-**Then** it decides: event representation (first-class kind vs. composed
-kinds) incl. the `Projection.effects/1` clause, AR-7/migration-immutability
-and PP round-trip (FR-5/FR-29) impact; quote-history continuity as
-APPEND-ONLY adjustment factors (never mutated history, NFR-2); the
-ISIN-change case cross-referenced with the FR-34 ADR; API/MCP booking + read
-parity (AR-11) as a binding acceptance criterion of the event layer
-**And** splits are the ONLY action modeled in this first slice (rename and
-merger/spin-off are named follow-on slices)
-**And** the owner signs off before any implementation story starts
-
-##### Story 17.2: Book a split as a ledger event (risk-tier)
-
-As a local portfolio maintainer (and the MCP agent acting for me),
-I want to record a stock split as a reproducible ledger event via API and MCP,
-So that quantities before and after the split are both true and derived, not
-hand-edited.
-
-**Acceptance Criteria:**
-
-**Given** a held position of 10 shares and a recorded 1:10 split event per the ADR's representation
-**When** holdings are derived
-**Then** the position shows 100 shares with an unchanged total cost basis (per-share cost divided accordingly), exact-Decimal
-**And** the event books identically through JSON API and MCP (AR-11), is journaled, and round-trips the PP export/import path or documents the mapping
-**And** projection changes land as dedicated small PRs (risk-tier)
-
-##### Story 17.3: Continuous charts across a split
-
-As a local portfolio maintainer,
-I want price history to display continuously across a split,
-So that charts stop showing a fictitious 90% crash on split day.
-
-**Acceptance Criteria:**
-
-**Given** stored raw quotes and a split event
-**When** the security detail chart renders
-**Then** displayed history applies the append-only adjustment factor (raw quotes stay immutable, NFR-2)
-**And** the chart-as-table view (UX-DR10) shows adjusted values with the basis stated (UX-DR11)
-
-##### Story 17.4: Guided split wizard (UI layer)
-
-As a local portfolio maintainer working in the UI,
-I want a guided flow that records a split with preview,
-So that I can book the event without knowing the ledger representation.
-
-**Acceptance Criteria:**
-
-**Given** a security detail page
-**When** I start the split wizard, enter ratio and date, and confirm the previewed effect (quantities before/after)
-**Then** the same ledger event as Story 17.2 is created — the wizard is a UI layer over the event, never a second write path
-**And** the flow meets modal-accessibility requirements (UX-DR9)
-
-### Epic 18: Stable identities & reconciliation (FR-34/35, ADR-gated)
-A fresh PP import re-rolls IDs and orphans the owner's strategy configuration
-(classifications, target plans, cash target — the accumulated E13/E15/E16
-investment). One decision-gate ADR (FR-34) settles: ISIN-keyed stable identity
-vs. strategy-config export/import, WITH the mandatory fallback question for
-ISIN-less securities (crypto/watch-only) and the ISIN-changed case (E17
-cross-reference). FR-35 (read-only reconcile, boundary pinned in its FR text:
-user-supplied paste/file only, no network acquisition, nothing persisted,
-resolution guidance embedded in the response) rides as a SECTION of that same
-ADR — one owner decision session, not a second gate — and may close as
-"documented procedure, no feature" if FR-30 plus the agent's established
-reconcile procedure already covers the need. Epic ACs: the golden-path
-re-import round-trip test (exact-Decimal survival of strategy config);
-dependency on E16's Targets/Plans journal arming before any E18 write path.
-Import idempotency → **risk-tier**; both E18 gates come strictly after the
-E17 ADR (reviewer WIP limit — the owner is one person).
-
-#### E18 stories (issues created after ADR sign-off)
-
-##### Story 18.1: Stable-identity decision ADR (gate, includes the FR-35 section)
-
-As the accountable owner,
-I want one decision session that settles re-import identity AND the reconcile
-question,
-So that my strategy configuration stops being disposable without queueing two
-separate gates on my desk.
-
-**Acceptance Criteria:**
-
-**Given** the FR-34 options (ISIN-keyed identity vs. strategy-config export/import)
-**When** the ADR is drafted (after the E17 ADR, per the WIP rule, with a recommended option)
-**Then** it decides the identity mechanism INCLUDING the fallback for ISIN-less securities (crypto/watch-only) and the ISIN-changed case (E17 cross-reference)
-**And** its FR-35 section delivers a verdict: build the read-only reconcile endpoint (boundary as pinned in FR-35) OR close it as a documented agent procedure — both outcomes are acceptable
-**And** the owner signs off in one session
-
-##### Story 18.2: Strategy configuration survives a re-import (risk-tier)
-
-As a local portfolio maintainer,
-I want classifications, target plans and the cash target to survive a fresh PP import,
-So that redoing my bookkeeping never destroys my strategy work.
-
-**Acceptance Criteria:**
-
-**Given** an imported fixture with attached classification, target plan and cash target
-**When** I re-import a mutated version of the same PP export (the golden-path mutated re-import)
-**Then** the surviving strategy configuration matches exactly (golden-path DataCase test, exact-Decimal equality)
-**And** ISIN-less securities follow the ADR's fallback and any unmatched leftovers are SURFACED, not silently dropped (FR-7)
-**And** all migration writes are journaled (depends on E16's Targets/Plans journal arming) and land as dedicated small PRs (risk-tier)
-
-##### Story 18.3 (conditional on the 18.1 verdict): Read-only holdings reconcile
-
-As the operating LLM agent,
-I want to submit a user-supplied external position list and get a holdings diff,
-So that discrepancies surface as bookable facts instead of guesses.
-
-**Acceptance Criteria:**
-
-**Given** pasted/file-supplied position data (ISIN + quantity)
-**When** I call the reconcile endpoint/tool
-**Then** I get per-ISIN deltas against ledger-derived holdings, read-only, with the external list never persisted and no network acquisition (NFR-4 boundary as pinned in FR-35)
-**And** the response embeds the resolution guidance ("book the missing transaction of the correct kind; balance snapshots and unpriced deliveries are last resorts")
-**And** API/MCP parity (AR-11) and synthetic-fixture tests hold
-
-### Epic 19: Recorded tax-statement snapshots (FR-36, ADR-0031)
-
-The number the owner actually hangs a trim decision on — how much realised
-equity gain is still free of Kapitalertragsteuer this year — lives on the
-broker's tax statement and is re-read out of PDFs by hand every time the
-question comes up. It cannot be derived: Portfolixir folds cost basis as a
-running average, German taxation mandates strict FIFO, and Teilfreistellung /
-Vorabpauschale / chronological allowance consumption / prior-year carry-forward
-are not in the transaction data at all. A derived pot would be wrong, and
-invisibly so.
-
-The epic therefore **records** the statement block as a dated snapshot per
-(institution, holder, tax year, as-of) and validates it against the closed
-§ 32d Abs. 1 EStG formula — a self-checking transcription at nearly zero extra
-cost. Around it sit three configuration tables that exist because none of this
-is constant: year-scoped statutory `tax_parameters` (the Sparer-Pauschbetrag
-alone changed in 2023, so constants cannot validate an older statement), an
-effective-dated `tax_profiles` row per taxpayer (church tax defaults to **not
-liable**; state, marital status and church membership change on a date and must
-not rewrite the past), and configured `allowance_orders` so the Freistellungs-
-auftrag is comparable against what the bank actually applied. Forward projection and the `tax_bucket` security attribute it needs are
-deliberately OUT of this epic and behind their own gate. Epic ACs: every write
-journaled (FR-28/AR-1), every money column Decimal (ADR-0003), API/MCP parity
-(AR-11), EN/DE documentation, and no number ever presented as a computed pot
-balance. Not risk-tier — no ledger, projection or import-idempotency change —
-but it is money-domain data and reviewed as such.
-
-#### E19 stories (issue numbers backfilled 2026-07-31; 19.2–19.6 merged in 02dde3b)
-
-##### Story 19.1 (#612): Tax-statement snapshot decision ADR (gate)
-
-As the accountable owner,
-I want the recorded-not-derived stance, the schema and the validation rules
-settled in one decision,
-So that the tax numbers enter the app as honest transcriptions instead of
-plausible-looking derivations.
-
-**Acceptance Criteria:**
-
-**Given** the FIFO-vs-average-cost disqualifier and the four inputs absent from transaction data
-**When** ADR-0031 is reviewed
-**Then** it fixes the `tax_statement_snapshots` schema (identity keys, the eleven money columns, the magnitude sign convention, the uniqueness rule) and the `Portfolixir.Tax` context boundary including the `AGENTS.md` Active-Architecture amendment
-**And** it fixes the configuration layer that has to survive time: year-scoped `tax_parameters`, effective-dated `tax_profiles` with church-tax liability defaulting to not-liable, and configured `allowance_orders`
-**And** it fixes the hard-vs-advisory split of the consistency rules and the tolerance band
-**And** it names forward projection and `tax_bucket` as deferred behind a separate gate
-**And** the owner signs off in one session
-
-##### Story 19.2 (#621): Tax parameters, taxpayer profile and configured Freistellungsaufträge
-
-As a local portfolio maintainer,
-I want the statutory numbers and my own tax situation to be data with a
-validity period rather than constants in the code,
-So that a statement from an earlier year still validates correctly and a change
-in my situation does not rewrite the past.
-
-**Acceptance Criteria:**
-
-**Given** the seeded `tax_parameters` rows per (jurisdiction, tax_year)
-**When** the consistency engine evaluates a snapshot
-**Then** it receives the year's rates and Sparer-Pauschbetrag ceilings as an argument and hardcodes nothing — a pre-2023 statement validates against 801/1.602 €, a 2023+ statement against 1.000/2.000 €
-**And** `tax_profiles` is effective-dated per (holder, valid_from): church-tax liability defaults to **not liable**, the rate is 0 in that case (DB CHECK), and single/joint assessment selects the ceiling
-**And** a snapshot resolves the profile in force at its `as_of` and freezes the resulting church-tax rate on its own row, so later profile edits change future prefills and never a recorded transcription (asserted by test)
-**And** `allowance_orders` records the instructed amount per (holder, institution, tax_year)
-**And** all four write paths are journaled, including `tax_parameters` — a rate edit changes every finding for that year and must be traceable
-
-##### Story 19.3 (#622): Record a tax-statement snapshot
-
-As a local portfolio maintainer,
-I want to record the tax block of a broker statement with its as-of date,
-So that the loss pots and the remaining allowance are auditable local data
-instead of a PDF I have to find again.
-
-**Acceptance Criteria:**
-
-**Given** the eleven statement figures for an institution, holder and tax year
-**When** I record them with the statement's position date
-**Then** the row is stored with Decimal values, non-negative magnitudes, and a unique (institution, holder, tax_year, as_of) key
-**And** the write is journaled with the acting actor, enforced by the journal trigger (an unjournaled write fails loudly)
-**And** a negative input and an `as_of` in the future are rejected with a message naming the convention — never silently normalised
-
-##### Story 19.4 (#623): A recorded snapshot checks its own arithmetic
-
-As a local portfolio maintainer,
-I want a transposed digit or a stale statement to surface when I record it,
-So that a wrong number does not sit in the app looking correct.
-
-**Acceptance Criteria:**
-
-**Given** a recorded snapshot
-**When** the consistency engine evaluates it
-**Then** `allowance_used > allowance_granted` and church tax withheld at a zero church-tax rate are hard changeset errors
-**And** the withheld Kapitalertragsteuer, Solidaritätszuschlag and Kirchensteuer are reconstructed via `(e − 4q)/(4 + k)`, `× 5.5 %` and `× k`, with disagreement outside `max(1.00, 0.05 %)` reported as an advisory that names both numbers and the gap
-**And** a later as-of reporting lower year-to-date withheld tax or allowance use raises the monotonicity advisory
-**And** a recorded `allowance_granted` that disagrees with the configured `allowance_orders` row raises the instruction-vs-reality advisory (C7)
-**And** configured allowance orders summing above the year's statutory ceiling for the profile's assessment type raise the budget advisory (C8)
-**And** no advisory blocks the save, and no advisory proposes a corrected value
-**And** the engine is pure — no Repo, no clock, no config (AR-2) — with exact-Decimal fixtures
-
-##### Story 19.5 (#624): Trim budget over API and MCP
-
-As the operating LLM agent,
-I want the recorded snapshots and the derived trim budget over the API and MCP,
-So that I can size a trim without scraping PDFs.
-
-**Acceptance Criteria:**
-
-**Given** recorded snapshots
-**When** I list or fetch them over `/api/v1/tax/statement-snapshots` or the matching `portfolixir.tax_snapshots.*` tools
-**Then** every financial decimal serialises as a string and the payload carries `allowance_remaining`, `tax_free_trim_budget`, the `as_of` basis and the consistency findings
-**And** the tool description states that the pots are recorded, not derived, and why (FIFO), so the agent does not attempt to compute them from holdings
-**And** create/update/delete reach full API/MCP parity (AR-11) with tests on synthetic fixtures only
-
-##### Story 19.6 (#625): Entry surface and documentation
-
-As a local portfolio maintainer,
-I want to enter and review the snapshots in the app,
-So that recording a new statement is a two-minute job once a year.
-
-**Acceptance Criteria:**
-
-**Given** the tax-snapshot surface
-**When** I record, edit or review a snapshot
-**Then** the pots render with the statement's printed sign so the row is visually comparable to the paper, while storage stays magnitudes
-**And** the trim budget is stated with its as-of date and marked stale once newer investment income can have landed
-**And** consistency advisories are shown as fact-plus-remedy, terse and impersonal, with domain terms behind ⓘ tooltips (UX-DR11)
-**And** `product-documentation.md` and its German mirror gain a section stating that these numbers are recorded, that they are not tax advice, and that the recorded statement remains the authority
-
-##### Story 19.7 (deferred, separate gate): Forward projection and `tax_bucket`
-
-As a local portfolio maintainer,
-I want an estimate of where the pots stand since the last statement,
-So that a mid-year trim decision is not anchored on a months-old number.
-
-**Acceptance Criteria:**
-
-**Given** a separate accepted ADR for the projection
-**When** the projection runs forward from the latest snapshot
-**Then** securities carry a `tax_bucket` (`equity`/`other`/`tax_free`) set explicitly, never inferred from `asset_class`
-**And** the result is labelled as an estimate with its drift basis and as-of ("estimated, drift since the snapshot of <date>"), never as a pot balance
-**And** the display-only boundary (ADR-0023) is unchanged
+## Implementation Status — structural migration (2026-08-18)
+
+**ADR-0042 executed (Sprint 7, Lane Z).** This document stops being a work
+breakdown and becomes the requirement registry.
+
+- **Removed:** the Epic List table, all Epic Detail sections, and every
+  `##### Story` row (E6's DX batch, E17, E18, E19 — 19 rows in total, which were
+  the whole of this document's story breakdown across four of nineteen epics).
+- **Added:** the Tracker Index below, condensing each epic's intent paragraph
+  into one line with its tracker issue.
+- **Kept unchanged:** the Requirements Inventory (FR/NFR/UX-DR), the FR Coverage
+  Map, the scope-ladder boundaries, and every dated Implementation Status
+  reconciliation above — the sections every review actually reads.
+- **Elsewhere in the same pass:** `sprint-status.yaml` lost its story rows and
+  now validates (`valid: true`, from `valid: false` on five schema-invalid keys);
+  #321's working agreement moved into `AGENTS.md`; ADR-0027/0028/0029/0031 and
+  `docs/development/pr-review-checklist.md` were repointed off the deleted
+  sections; ADR-0039 gained its gate-B3.2 ask list per ADR-0043.
+
+The standing two-parallel-structures finding — recorded at every reconciliation
+from 2026-07-25 (F2, later F7) onward — is closed by this pass. #321 is closed
+by hand with the reason: it was invalidated rather than implemented, so no
+closing keyword applies to it.
+
+## Tracker Index
+
+**This section replaces the former Epic List and Epic Detail sections**
+(ADR-0042, Accepted 2026-08-17). One line per epic: its name, its tracker issue
+where one exists, and its intent. It is deliberately **not** a work breakdown —
+that is the GitHub tracker set's job, and the two competing with each other is
+the drift this decision removed. Requirement-to-work traceability lives in one
+place, the FR Coverage Map's issue column above.
+
+Ordering follows the PRD's five phases plus cross-cutting concerns, by the
+maintainer priority: **data completeness & correctness first, LLM-first
+consumption second, UI/sync/modeling later.**
+
+Epic *status* is not carried here. It lives in `development_status` in
+`_bmad-output/implementation-artifacts/sprint-status.yaml`, verified against
+issue state and the merge commits on `main`.
+
+- **E1 — Correctness & invariant foundations** — *phase 1, now.* No single
+  tracker (issue list: #343, #344, #346, #347, #348, #350, #314). Harden the
+  money/ledger core and the mechanical guards that protect everything else: the
+  owner does not read code, so the gates are load-bearing. FR-1/2/3, NFR-1/3.
+- **E2 — Auditability & data safety** — *phase 1, now.* No single tracker (#353
+  FR-28, #354 FR-29). The two foundational gaps from the PRD review: an
+  append-only journal intercepting every write path in the same DB transaction
+  (architecture D1), and backup/restore plus a lossless PP-compatible roundtrip
+  export so external copies can be retired safely. FR-28/29, NFR-2. #353
+  sequences before #355 — MCP writes must be journaled.
+- **E3 — Account & portfolio lifecycle** — *phase 1, now.* Tracker **#417**
+  (portfolio structure). Multiple portfolios usable end to end: switcher and
+  moving depots/accounts (#327), merge/rename/delete with transaction
+  reassignment (#328), import data quality and logos (#326). FR-4, FR-7.
+- **E4 — Import completeness** — *phase 1, XML gated.* Tracker **#470**
+  (transactions/imports UX); the gated item is #333. Lossless PP XML import,
+  **scope-gated**: it requires the AGENTS.md amendment plus an ADR before any
+  implementation. CSV/JSON v1 is shipped. FR-5.
+- **E5 — Analytics engine** — *phase 2, next.* Tracker **#418** (analytics). The
+  read models the agent consumes: IRR alongside TTWROR (#316), income report
+  (#331), and the allocation mechanics — target-consistency hints (#318),
+  per-security exclusion (#329), cash in the 100 % basis (#335), classification
+  value view (#334). FR-8/10/11.
+- **E6 — LLM/MCP surface** — *phase 2, next.* Tracker **#419** (LLM/MCP). Make
+  Portfolixir fully agent-operable: precomputed analytics over API and MCP (#349,
+  FR-13) and data-maintenance tools at API parity (#355, FR-14) so an agent
+  replaces manual entry — gated by the audit journal (#353). The 2026-07-18 DX
+  batch (FR-30..33: all 13 kinds bookable, stable holding identifiers,
+  booking semantics documented at the point of use, slim securities listing)
+  shipped and closed. Its agent-native successors are FR-37/FR-38 in section J.
+  FR-13/14/15/16.
+- **E7 — Rebalancing guidance (gated)** — *phase 2, gated.* **No tracker and no
+  issue** — it needs the guidance-vs-action scope decision first. FR-12,
+  both-direction guidance ranked by drift. The binding constraint on any future
+  issue: **it must never place or prepare orders.** ADR-0023 permits
+  display-only corrective quantities beside the drift figure and nothing beyond.
+- **E8 — Read-only sync (gated)** — *phase 3, gated/later.* Tracker **#320**.
+  comdirect / bunq / bitcoin.de / watch-only acquisition (FR-17–21). **Hard
+  scope gate B3.3:** AGENTS.md forbids broker/bank sync, and entering this epic
+  requires an ADR plus an AGENTS.md amendment limited to *read-only* acquisition
+  — the permanent non-goal is a connection that can act. OQ-4 (bitcoin.de) and
+  OQ-6 (unattended-sync feasibility) are open.
+- **E9 — Product-type modeling** — *phase 4, later, discovery-first.* No single
+  tracker (#330 bonds, #340 pension parking lot). Per the PRD, **each modeling
+  FR is preceded by its own discovery story** that fixes acceptance criteria
+  before implementation. FR-22/24/25. Corporate actions (FR-23) moved to E17 on
+  2026-07-18 — no double-tracking.
+- **E10 — Planning & simulation** — *phase 5, later.* No single tracker (#332).
+  What-if simulator (FR-27, gated at ladder level (d) since 2026-08-12),
+  benchmark comparison (FR-9 — the founding "was it worth it?" question,
+  ungated 2026-08-12 as ladder level (b), filed as #572, needs a quote source
+  decision), retirement projection (FR-26, backs Success Metric 3,
+  discovery-first).
+- **E11 — UX & accessibility** — *cross-cutting, priority 3.* Tracker **#356**.
+  Held against the living design-language spec (`design-language/DESIGN.md` +
+  `EXPERIENCE.md`), which since ADR-0038 is the authority the design-critic
+  review holds every user-visible batch against. UX-DR1–20; DR15–DR20 name the
+  drift families the alignment stories are cut from.
+- **E12 — Localization & docs** — *cross-cutting.* No tracker (#313, closed).
+  Multilingual docs site (NFR-7); the UI's de/en gettext coverage is shipped and
+  enforced by `localization_test.exs`.
+- **E13 — Buckets & views** — *now.* Tracker **#448**; decision in **ADR-0018**.
+  Tag-based wealth scoping: separates **total wealth** (everything, counted
+  once) from **per-view subsets** (strategy, rebalancing, per-person) with one
+  primitive — overlapping **buckets** on holdings, consumed by named **views**
+  whose totals are single-count and **never** the sum of buckets. Supersedes
+  ADR-0013's per-security exclude flag.
+- **E14 — CSS consistency & design-system hardening** — *priority 3.* Tracker
+  **#451**. The UI read as inconsistent not because the design system was
+  missing but because it existed and was neither enforced nor complete: tokens
+  present alongside 57 hard-coded hex colours, no spacing scale, no heading
+  ramp (UX-DR14). Enforcement is live —
+  `test/invariants/css_token_discipline_test.exs` ratchets raw hex downward and
+  fails the build on any new hard-coded colour.
+- **E15 — View-bound SOLL plans** — *phase 2, next.* Tracker **#463**; decision
+  in **ADR-0020**. A target **plan belongs to a view**: targets keyed by
+  `(view, classification, category)` with `view_id NULL` as the portfolio-wide
+  Gesamt plan, and the cash target moved into the plan. This fixes by
+  construction the incoherence where two strategy views collided to ~200 % and a
+  category with a target but no in-scope value rendered as a ghost row. Extends
+  FR-11; API/MCP parity per AR-11.
+- **E16 — Plan versions & depot snapshots** — *phase 2/5 bridge, next.* No
+  tracker; decision in **ADR-0027** (signed off 2026-07-16, amended 2026-08-15
+  for transaction costs → #708). Three decisions: a **snapshot is a ledger
+  marker** (name, view scope, as-of date, no copied data — holdings derive by
+  projecting the ledger, which ADR-0004 makes near-free); the **v1
+  counterfactual is buy-and-hold** of the snapshot positions over real quote
+  history against the view's real TTWROR since the as-of date; and **plans are
+  named, versioned entities** (active/draft/archived, at most one active plan
+  per ADR-0020 scope). Explicitly not in scope: old-plan rebalancing simulation
+  and fictitious trades — that is FR-27.
+- **E17 — Corporate actions as ledger events** — *phase 2/4 bridge.* Tracker
+  **#338** (closed 2026-07-31); decision in **ADR-0028**. **Ledger events first,
+  wizard second** — the daily operator is an MCP agent that cannot reach a UI
+  wizard, and the event representation *is* projection semantics. Quote-history
+  continuity is append-only adjustment factors, never mutated history (NFR-2).
+  FR-23.
+- **E18 — Stable identities & reconciliation** — *phase 2.* Tracker **#603**
+  (closed 2026-07-31); decision in **ADR-0029**. A fresh PP import re-rolled IDs
+  and orphaned the accumulated E13/E15/E16 strategy configuration. The epic makes
+  that configuration survive a re-import, with the ISIN-less case (crypto,
+  watch-only) and the ISIN-changed case settled in the same ADR. FR-34/35;
+  import idempotency is risk-tier.
+- **E19 — Recorded tax-statement snapshots** — *phase 2.* No tracker; decision in
+  **ADR-0031** (gate #612 signed off 2026-07-25). The number a trim decision
+  hangs on — how much realised equity gain is still free of
+  Kapitalertragsteuer this year — **cannot be derived**: Portfolixir folds cost
+  basis as a running average, German taxation mandates strict FIFO, and
+  Teilfreistellung, Vorabpauschale, chronological allowance consumption and
+  prior-year carry-forward are not in the transaction data at all. A derived pot
+  would be wrong, and invisibly so. The epic therefore **records** the statement
+  block as a dated snapshot and validates it against the closed § 32d Abs. 1
+  EStG formula — a self-checking transcription. Forward projection and the
+  `tax_bucket` attribute it needs sit behind their own gate. FR-36.

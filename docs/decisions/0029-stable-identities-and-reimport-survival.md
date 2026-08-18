@@ -433,4 +433,4 @@ Shape (binding for Story 18.3, hardened 2026-07-22):
 - [ADR-0030](0030-position-level-soll-targets.html) — position-level SOLL targets keyed to securities; part of the §4 survival contract
 - FR-34/FR-35 — section H in `_bmad-output/planning-artifacts/epics.md`; FR-29 — rescoped 2026-07-22 to documented `pg_dump` backup/restore, PP export dropped (#354); FR-30 — shipped ISIN/WKN holdings payloads (#582); FR-7 — surfaced import gaps
 - `Portfolixir.Imports.Applier` — current matching and the two-layer idempotency (#533) this decision hardens
-- Epic tracking: E18 in `_bmad-output/planning-artifacts/epics.md`
+- Epic tracking: E18 in the Tracker Index of `_bmad-output/planning-artifacts/epics.md` (the Epic Detail sections it formerly pointed at were removed by ADR-0042; this ADR is the spec). Section H of the Requirements Inventory is unaffected and still carries FR-34/FR-35
