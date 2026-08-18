@@ -877,7 +877,10 @@ church tax withheld at a zero church-tax rate.
   ancestor under the threshold is absent). The response states its own
   basis: `positions_included`, the applied `min_drift` and
   `categories_total` (the pre-filter category count). Invalid values are a
-  `422`. `tax_context=true` (#667) additionally attaches the current-year
+  `422`. The allocation page carries the same filter as its
+  drift-threshold chips (one shared predicate, so the two surfaces cannot
+  select different categories); the chips speak percentage points, so
+  `≥ 5 pp` on screen is `min_drift=0.05` here. `tax_context=true` (#667) additionally attaches the current-year
   tax-free trim budgets — one entry per holder with recorded statements,
   each with its activity-aware `staleness` — so the tax headroom is
   readable where the trim decision is made; the block states that it rolls

@@ -708,7 +708,11 @@ Beispiel-Payloads für Konten:
   behaltene Zeilen kommen flach zurück (ein Vorfahre unter der Schwelle
   fehlt). Die Antwort benennt ihre eigene Basis: `positions_included`, das
   angewandte `min_drift` und `categories_total` (die Zeilenzahl vor dem
-  Filter). Ungültige Werte sind ein `422`. `tax_context=true` (#667) hängt
+  Filter). Ungültige Werte sind ein `422`. Die Allokationsseite trägt
+  denselben Filter als Abweichungs-Chips (ein gemeinsames Prädikat, die
+  beiden Oberflächen können also keine unterschiedlichen Kategorien
+  auswählen); die Chips sprechen Prozentpunkte, `≥ 5 pp` auf dem Bildschirm
+  ist hier also `min_drift=0.05`. `tax_context=true` (#667) hängt
   zusätzlich die steuerfreien Trim-Budgets des laufenden Jahres an — ein
   Eintrag je Inhaber mit erfassten Auszügen, jeweils mit seiner
   aktivitätsbewussten `staleness` — sodass der Steuer-Spielraum dort lesbar

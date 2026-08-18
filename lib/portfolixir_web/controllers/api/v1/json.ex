@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount, Target}
   alias Portfolixir.Portfolios.Snapshot
   alias Portfolixir.Portfolios.TargetPlan
@@ -922,7 +923,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
     categories =
       allocation.categories
-      |> Enum.filter(&drift_meets_threshold?(&1, min_drift))
+      |> Enum.filter(&Allocation.drift_at_least?(&1, min_drift))
       |> Enum.map(&allocation_category(&1, include_positions?))
 
     allocation
@@ -1020,15 +1021,6 @@ defmodule PortfolixirWeb.Api.V1.JSON do
           }
         end)
     }
-  end
-
-  defp drift_meets_threshold?(_category, nil), do: true
-
-  defp drift_meets_threshold?(category, %Decimal{} = min_drift) do
-    case category.drift_weight do
-      nil -> false
-      %Decimal{} = drift -> Decimal.compare(Decimal.abs(drift), min_drift) != :lt
-    end
   end
 
   defp allocation_cash(cash) do

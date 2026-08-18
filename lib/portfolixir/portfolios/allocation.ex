@@ -139,6 +139,26 @@ defmodule Portfolixir.Portfolios.Allocation do
   @one Decimal.new("1")
 
   @doc """
+  Whether a category row's drift meets an absolute threshold on `drift_weight`.
+
+  One predicate, two surfaces: the JSON API's `min_drift=` filter and the
+  allocation page's drift-threshold chips both call it, so "the categories
+  drifting more than 5 pp" selects one set of rows rather than two that
+  quietly disagree. `nil` means no threshold and keeps every row.
+
+  A category without a target carries `drift_weight: nil` — it has nothing to
+  deviate from, so a threshold never selects it. The comparison is on the
+  absolute drift (an underweight category is as interesting as an overweight
+  one) and inclusive at the boundary.
+  """
+  @spec drift_at_least?(map(), Decimal.t() | nil) :: boolean()
+  def drift_at_least?(_category, nil), do: true
+  def drift_at_least?(%{drift_weight: nil}, %Decimal{}), do: false
+
+  def drift_at_least?(%{drift_weight: %Decimal{} = drift}, %Decimal{} = threshold),
+    do: Decimal.compare(Decimal.abs(drift), threshold) != :lt
+
+  @doc """
   Builds the allocation breakdown for `portfolio_id` against `classification_id`.
 
   Options are passed through to `Valuation.for_portfolio/2` (e.g. `:prices`,
