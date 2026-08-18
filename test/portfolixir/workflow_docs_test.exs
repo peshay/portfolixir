@@ -130,4 +130,40 @@ defmodule Portfolixir.WorkflowDocsTest do
     assert pr_template =~ "Closes #"
     refute pr_template =~ "Closes PFX"
   end
+
+  # User story:
+  # As the maintainer of a repository whose design reviews are run by agents,
+  # I want the design-critic and UAT walkthroughs bound to the conditions the
+  # defects they exist to catch are actually visible under,
+  # so that a review cannot pass a phone-clipping tab row or an untranslated
+  # header simply because it ran at desktop width in English.
+  #
+  # Acceptance criteria:
+  # - The agent-runnable review rubric records the three binding walkthrough
+  #   conditions from issue #706: DE locale, a pass at 390 px or narrower, and
+  #   seed data that triggers the finding surfaces on the touched screens.
+  # - The rubric names the finding surfaces concretely (unclassified security,
+  #   stale quote, a plan that does not sum to 100 %), so "triggering data" is
+  #   checkable rather than aspirational.
+  # - The conditions are binding on the walkthroughs, not advisory: a
+  #   user-visible batch whose review skipped one of them is a finding.
+  test "the review rubric binds the design-critic and UAT walkthrough conditions" do
+    rubric = File.read!("docs/development/pr-review-checklist.md")
+
+    for condition <- [
+          "DE locale",
+          "390 px",
+          "unclassified security",
+          "stale quote",
+          "does not sum to 100"
+        ] do
+      assert rubric =~ condition
+    end
+
+    # Binding, not advisory. The triage that produced #706 diagnosed the Sprint 6
+    # misses as review *conditions* rather than a missing gate, so the rubric has
+    # to state the consequence of skipping one or it reads as a suggestion.
+    assert rubric =~ "Walkthrough conditions"
+    assert rubric =~ "skipped condition is itself a finding"
+  end
 end
