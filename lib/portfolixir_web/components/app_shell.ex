@@ -236,7 +236,12 @@ defmodule PortfolixirWeb.AppShell do
         current: current == :allocation,
         icon: :pie
       },
-      %{label: gettext("Income"), href: "/income", current: current == :income, icon: :chart_bar},
+      %{
+        label: gettext("Cash flow"),
+        href: "/cashflow",
+        current: current == :income,
+        icon: :chart_bar
+      },
       %{
         label: gettext("Snapshots"),
         href: "/snapshots",
@@ -333,14 +338,16 @@ defmodule PortfolixirWeb.AppShell do
 
   defp nav_current?("/", %{section: :dashboard}), do: true
 
-  # Wealth covers its Income, Snapshots and Tax tabs; Transactions covers its
-  # Import tab (ADR-0022). Issue 639: /snapshots was missing, so that surface
-  # rendered no current sidebar entry at all.
+  # Wealth covers its Cash-flow, Snapshots and Tax tabs; Transactions covers
+  # its Import tab (ADR-0022). Issue 639: /snapshots was missing, so that
+  # surface rendered no current sidebar entry at all. #672 added /cashflow;
+  # /income stays claimed because it is a live route that redirects, and a
+  # surface must never render without a current sidebar entry.
   defp nav_current?(path, %{section: :portfolio}),
     do:
       path == "/portfolio" or String.starts_with?(path, "/portfolio?") or
-        String.starts_with?(path, "/income") or String.starts_with?(path, "/tax") or
-        String.starts_with?(path, "/snapshots")
+        String.starts_with?(path, "/cashflow") or String.starts_with?(path, "/income") or
+        String.starts_with?(path, "/tax") or String.starts_with?(path, "/snapshots")
 
   defp nav_current?(path, %{section: :securities}), do: String.starts_with?(path, "/securities")
   defp nav_current?(path, %{section: :portfolios}), do: String.starts_with?(path, "/portfolios")

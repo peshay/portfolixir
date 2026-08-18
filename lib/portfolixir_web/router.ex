@@ -32,7 +32,7 @@ defmodule PortfolixirWeb.Router do
       live("/securities/:id", SecuritiesLive)
       live("/portfolios", PortfolioAccountsLive)
       live("/transactions", TransactionManagementLive)
-      live("/income", IncomeLive)
+      live("/cashflow", IncomeLive)
       live("/snapshots", SnapshotsLive)
       live("/tax", TaxLive)
       live("/imports", ImportsLive)
@@ -41,6 +41,14 @@ defmodule PortfolixirWeb.Router do
       live("/classifications/new", ClassificationsLive, :new)
       live("/classifications/:id", ClassificationsLive, :show)
     end
+  end
+
+  scope "/", PortfolixirWeb do
+    pipe_through(:browser)
+
+    # UX-DR4, #672: Income was promoted to the Cash-flow area. The old route
+    # keeps working so existing links and bookmarks survive the rename.
+    get("/income", RedirectController, :cashflow)
   end
 
   scope "/", PortfolixirWeb do
