@@ -324,6 +324,15 @@ reach the target. Securities held but not
 assigned in the chosen tree are summed into an unassigned bucket. Only the
 targets are stored; the actual side is derived from the live valuation on read.
 
+A plan does **not** have to add up to 100%. Leaving it short on purpose — say,
+because one satellite category is deliberately not fully used — is a legitimate
+plan, and the gap is shown as an **unallocated remainder**: a named part of the
+plan meaning "this share is deliberately not steered", not a mistake. Drift is
+then measured against the portion you actually steer, so the unallocated share
+is not spread across the categories that do carry a target as deviations you
+cannot act on. A warning is reserved for the two states that really are wrong:
+a plan summing to **more** than 100%, and a position-vs-category conflict.
+
 > **Per-position targets (ADR-0030, #481).** Target weights can now be set down
 > to an **individual position** (a security under a category), not just per
 > category. Positions are the source of truth: a category's *effective* target

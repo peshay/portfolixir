@@ -349,6 +349,17 @@ Wertpapiere werden in einem Topf für nicht Zugeordnetes summiert. Nur die Ziele
 werden gespeichert; die Ist-Seite wird beim Lesen aus der Live-Bewertung
 abgeleitet.
 
+Ein Plan muss **nicht** 100 % ergeben. Ihn bewusst kürzer zu lassen — etwa weil
+eine Satelliten-Kategorie absichtlich nicht voll genutzt wird — ist ein
+legitimer Plan, und die Lücke wird als **nicht zugeteilter Rest** ausgewiesen:
+ein benannter Teil des Plans mit der Bedeutung „dieser Anteil wird bewusst nicht
+gesteuert“, kein Fehler. Die Abweichung wird dann gegen den tatsächlich
+gesteuerten Anteil gemessen, damit der nicht zugeteilte Rest nicht als
+Abweichung auf die Kategorien mit Ziel verteilt wird, mit der man nichts
+anfangen kann. Eine Warnung bleibt den beiden Zuständen vorbehalten, die
+wirklich falsch sind: einer Summe **über** 100 % und einem Konflikt zwischen
+Positions- und Kategoriegewicht.
+
 > **Ziele je Position (ADR-0030, #481).** Zielgewichte lassen sich nun bis auf
 > eine **einzelne Position** setzen (ein Wertpapier unter einer Kategorie), nicht
 > mehr nur je Kategorie. Positionen sind die Quelle der Wahrheit: das *effektive*

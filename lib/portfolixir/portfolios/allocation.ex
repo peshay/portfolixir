@@ -136,6 +136,7 @@ defmodule Portfolixir.Portfolios.Allocation do
   alias Portfolixir.Portfolios.Valuation
 
   @zero Decimal.new("0")
+  @one Decimal.new("1")
 
   @doc """
   Builds the allocation breakdown for `portfolio_id` against `classification_id`.
@@ -361,6 +362,18 @@ defmodule Portfolixir.Portfolios.Allocation do
     kept = kept_categories(categories, rolled, targets)
     child_target_sums = child_target_sums(children_by_parent, targets)
 
+    # ADR-0040: a plan may deliberately allocate less than 100%. The gap is the
+    # unallocated remainder, and drift is measured against the portion actually
+    # steered so the gap is not distributed across the targeted categories as
+    # phantom overweight. `drift_base` is nil for a full plan, which is what
+    # keeps a Σ = 1 plan byte-identical to before.
+    distribute_cash? = classification.key == "currency"
+
+    top_level_sum =
+      top_level_target_sum_for(children_by_parent, targets, cash_target, distribute_cash?)
+
+    drift_base = drift_base(top_level_sum)
+
     rows =
       children_by_parent
       |> preorder()
@@ -380,15 +393,15 @@ defmodule Portfolixir.Portfolios.Allocation do
                 Map.get(positions_by_category, category.id, []),
                 category.id,
                 position_soll,
-                total
+                total,
+                drift_base
               )
           },
-          total
+          total,
+          drift_base
         )
         |> with_rebalance_hints(has_plan)
       end)
-
-    distribute_cash? = classification.key == "currency"
 
     %{
       portfolio_id: valuation.portfolio_id,
@@ -399,9 +412,14 @@ defmodule Portfolixir.Portfolios.Allocation do
       unvalued_count: valuation.unvalued_count,
       has_plan: has_plan,
       categories: rows,
-      cash: cash_row(counting_cash, cash_target, total, distribute_cash?),
-      top_level_target_sum:
-        top_level_target_sum_for(children_by_parent, targets, cash_target, distribute_cash?),
+      cash: cash_row(counting_cash, cash_target, total, distribute_cash?, drift_base),
+      top_level_target_sum: top_level_sum,
+      # ADR-0040 §1: computed, never stored -- a stored remainder is a second
+      # number that can disagree with the weights it derives from.
+      unallocated_remainder: unallocated_remainder(top_level_sum),
+      # AGENTS.md requires a metric to state its computation basis in the
+      # payload, and this is the one figure whose base moved.
+      drift_basis: if(drift_base, do: "allocated_portion", else: "full_plan"),
       deep_target_sum: deep_target_sum(children_by_parent, targets),
       unassigned: unassigned(unassigned_positions, total, position_soll)
     }
@@ -454,10 +472,14 @@ defmodule Portfolixir.Portfolios.Allocation do
   # For the built-in currency classification (issue #407), `distributed: true`
   # is added to signal to the UI that cash has been attributed to currency
   # buckets and no separate Cash row should be rendered.
-  defp cash_row(counting_cash, cash_target, total, distributed?) do
+  # When cash is distributed into currency buckets its target is NOT part of the
+  # top-level sum (issue #407), so it is not part of the allocated portion and
+  # must not be renormalised against it -- hence the nil base in that branch.
+  defp cash_row(counting_cash, cash_target, total, distributed?, drift_base) do
     actual = weight(counting_cash, total)
     target_weight = cash_target || @zero
-    drift_weight = Decimal.sub(actual, target_weight)
+    base = unless distributed?, do: drift_base
+    drift_weight = Decimal.sub(actual, drift_target(target_weight, base))
 
     %{
       market_value: counting_cash,
@@ -633,16 +655,16 @@ defmodule Portfolixir.Portfolios.Allocation do
   # shown when held in scope OR SOLL > 0; hidden only when SOLL is 0/absent
   # AND holdings are zero. Held entries come largest first as before; the
   # SOLL-only rows follow, largest target first.
-  defp category_position_entries(held_positions, category_id, position_soll, total) do
+  defp category_position_entries(held_positions, category_id, position_soll, total, drift_base) do
     held_entries =
       held_positions
       |> position_entries(total)
-      |> Enum.map(&attach_position_soll(&1, position_soll.by_security, total))
+      |> Enum.map(&attach_position_soll(&1, position_soll.by_security, total, drift_base))
 
     unheld_entries =
       position_soll.unheld_by_category
       |> Map.get(category_id, [])
-      |> Enum.map(&unheld_entry(&1, position_soll.unheld_prices, total))
+      |> Enum.map(&unheld_entry(&1, position_soll.unheld_prices, total, drift_base))
       |> Enum.sort_by(& &1.target_weight, {:desc, Decimal})
 
     Enum.reject(held_entries ++ unheld_entries, &hidden_position?/1)
@@ -661,13 +683,17 @@ defmodule Portfolixir.Portfolios.Allocation do
   # price. The SOLL row's stale flag rides along (fix round) so the affected
   # row itself can be marked. Entries without a SOLL row pass through untouched
   # and later receive the category-share hints exactly as before.
-  defp attach_position_soll(entry, by_security, total) do
+  defp attach_position_soll(entry, by_security, total, drift_base) do
     case Map.get(by_security, entry.security_id) do
       nil ->
         entry
 
       target ->
-        drift_weight = Decimal.sub(entry.weight, target.target_weight)
+        # Renormalised on the same base as the category above it (ADR-0040 §2):
+        # a category's effective target IS the sum of its position targets
+        # (ADR-0030), so scaling one without the other would make the Σ family
+        # disagree with its own rows.
+        drift_weight = Decimal.sub(entry.weight, drift_target(target.target_weight, drift_base))
         drift_value = Decimal.mult(drift_weight, total)
 
         %{
@@ -697,8 +723,8 @@ defmodule Portfolixir.Portfolios.Allocation do
   # indicative buy quantity, with the quote's date as its stated price basis
   # (fix round). Without a price the quantity stays nil; a price is never
   # invented.
-  defp unheld_entry(target, unheld_prices, total) do
-    drift_weight = Decimal.sub(@zero, target.target_weight)
+  defp unheld_entry(target, unheld_prices, total, drift_base) do
+    drift_weight = Decimal.sub(@zero, drift_target(target.target_weight, drift_base))
     drift_value = Decimal.mult(drift_weight, total)
 
     %{price: price, quote_date: quote_date} =
@@ -801,6 +827,35 @@ defmodule Portfolixir.Portfolios.Allocation do
     end
   end
 
+  # ADR-0040 §2. The TARGET is renormalised to the allocated portion; the ACTUAL
+  # is left alone. With targets 0.5/0.3 (Σ 0.8) the drift base becomes
+  # 0.625/0.375, so the deliberately unsteered 0.2 stops appearing as +0.1 of
+  # phantom overweight on each steered category.
+  #
+  # The alternative reading -- renormalise both sides to the steered set -- is
+  # excluded by the invariant #709 states rather than by preference: it rescales
+  # the actual, so a plan summing to 1.0 that holds untargeted value would change
+  # behaviour, and such a plan must be untouched by construction. `drift_base` is
+  # nil there, and every call below degrades to plain `actual - target`.
+  #
+  # A sum ABOVE 100% is an error (ADR-0040 §3), not a base: renormalising it
+  # would make an unsatisfiable plan look satisfiable, so it is left alone and
+  # the mismatch cue keeps reporting it.
+  defp drift_base(top_level_sum) do
+    if Decimal.gt?(top_level_sum, @zero) and Decimal.lt?(top_level_sum, @one),
+      do: top_level_sum
+  end
+
+  defp unallocated_remainder(top_level_sum) do
+    remainder = Decimal.sub(@one, top_level_sum)
+    if Decimal.gt?(remainder, @zero), do: remainder, else: @zero
+  end
+
+  # One division per target rather than a shared scale factor multiplied in:
+  # ADR-0016 keeps exact fixtures exact by avoiding a compounded intermediate.
+  defp drift_target(target_weight, nil), do: target_weight
+  defp drift_target(target_weight, base), do: Decimal.div(target_weight, base)
+
   # Depth-first preorder (parent before children), each level kept in the
   # categories' own position order, tagging every node with its depth.
   defp preorder(children_by_parent), do: preorder(children_by_parent, nil, 0)
@@ -813,10 +868,10 @@ defmodule Portfolixir.Portfolios.Allocation do
     end)
   end
 
-  defp row(category, depth, %{flags: flags} = values, total) do
+  defp row(category, depth, %{flags: flags} = values, total, drift_base) do
     actual = weight(values.rolled_value, total)
     target_weight = values.target || @zero
-    drift_weight = Decimal.sub(actual, target_weight)
+    drift_weight = Decimal.sub(actual, drift_target(target_weight, drift_base))
 
     %{
       category_id: category.id,
@@ -909,7 +964,11 @@ defmodule Portfolixir.Portfolios.Allocation do
         positions:
           positions
           |> position_entries(total)
-          |> Enum.map(&attach_position_soll(&1, position_soll.by_security, total))
+          # nil base on purpose (ADR-0040 §2): an unassigned position belongs to
+          # no category, so its target is not part of the allocated portion and
+          # must not be renormalised against it. Same rule as distributed cash --
+          # renormalise only what the base is made of.
+          |> Enum.map(&attach_position_soll(&1, position_soll.by_security, total, nil))
       }
     else
       nil

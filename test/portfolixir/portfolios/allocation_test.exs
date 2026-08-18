@@ -190,7 +190,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
   test "rolls subcategory values up into their parent and tags depth" do
     world = setup_world()
-    %{classification: classification, core: growth} = world
+    %{classification: classification, core: growth, satellite: sibling} = world
 
     # Growth (target 50%) is a parent with two children; nothing is assigned to
     # Growth directly, only to its children — its IST must be their sum, not 0%.
@@ -233,9 +233,15 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, tech_security, "10", "60")
     buy!(world, emerging_security, "10", "40")
 
+    # Completed to a full plan (Σ = 1.0) so this stays a FULL-ALLOCATION
+    # fixture: ADR-0040 renormalises drift only where a plan is short, and
+    # this test is about the subcategory roll-up and depth tagging, not about the remainder.
+    # The sibling category holds nothing, so every figure asserted below is
+    # unchanged -- which is the point: a full plan is untouched.
     {:ok, _} =
       Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
-        %{"category_id" => growth.id, "target_weight" => "0.5"}
+        %{"category_id" => growth.id, "target_weight" => "0.5"},
+        %{"category_id" => sibling.id, "target_weight" => "0.5"}
       ])
 
     prices = %{
@@ -299,7 +305,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   # - Values keep full precision (ADR-0016); rounding happens at display.
   test "positions carry their drift share and an indicative rebalance quantity" do
     world = setup_world()
-    %{classification: classification, core: core} = world
+    %{classification: classification, core: core, satellite: satellite} = world
 
     sec_a = equity!("Alpha ETF", "ALPH")
     sec_b = equity!("Beta ETF", "BETA")
@@ -321,9 +327,15 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, sec_b, "40", "10")
     buy!(world, loose, "5", "60")
 
+    # Completed to a full plan (Σ = 1.0) so this stays a FULL-ALLOCATION
+    # fixture: ADR-0040 renormalises drift only where a plan is short, and
+    # this test is about the per-position drift share and its indicative quantity, not about the remainder.
+    # The sibling category holds nothing, so every figure asserted below is
+    # unchanged -- which is the point: a full plan is untouched.
     {:ok, _} =
       Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
-        %{"category_id" => core.id, "target_weight" => "0.6"}
+        %{"category_id" => core.id, "target_weight" => "0.6"},
+        %{"category_id" => satellite.id, "target_weight" => "0.4"}
       ])
 
     prices = %{
@@ -364,7 +376,7 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
   test "a zero-valued position gets no rebalance quantity (undefined unit price)" do
     world = setup_world()
-    %{classification: classification, core: core} = world
+    %{classification: classification, core: core, satellite: satellite} = world
 
     held = equity!("Held ETF", "HELD")
     worthless = equity!("Worthless Co", "ZERO")
@@ -383,9 +395,15 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, held, "10", "100")
     buy!(world, worthless, "10", "10")
 
+    # Completed to a full plan (Σ = 1.0) so this stays a FULL-ALLOCATION
+    # fixture: ADR-0040 renormalises drift only where a plan is short, and
+    # this test is about an undefined implied unit price, not about the remainder.
+    # The sibling category holds nothing, so every figure asserted below is
+    # unchanged -- which is the point: a full plan is untouched.
     {:ok, _} =
       Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
-        %{"category_id" => core.id, "target_weight" => "0.5"}
+        %{"category_id" => core.id, "target_weight" => "0.5"},
+        %{"category_id" => satellite.id, "target_weight" => "0.5"}
       ])
 
     # The worthless position is valued at 0: its implied unit price is
@@ -1345,8 +1363,16 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
       # The drift and the Σ consume the effective value: actual 1 - 0.3 = 0.7
       # → +700 EUR; Σ top level = 0.3, not the explicit 0.5.
-      assert Decimal.equal?(core_row.drift_weight, Decimal.new("0.7"))
-      assert Decimal.equal?(Decimal.round(core_row.drift_value, 2), Decimal.new("700"))
+      # ADR-0040 (#709): this plan allocates 0.3 and leaves 0.7 deliberately
+      # unsteered, so drift is measured against the allocated portion -- core's
+      # target renormalises to 0.3/0.3 = 1.0 and its actual is 1.0, giving 0.
+      # The old expectation of +0.7 WAS the phantom the ADR removes: it is
+      # exactly the unallocated share, reported as overweight on the one
+      # category that carries a target. The subject of this test -- the
+      # effective target being the position sum rather than the explicit
+      # weight -- is asserted above and is unchanged.
+      assert Decimal.equal?(core_row.drift_weight, Decimal.new("0"))
+      assert Decimal.equal?(Decimal.round(core_row.drift_value, 2), Decimal.new("0"))
       assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0.3"))
 
       # Reassigning the security elsewhere leaves the row counting where it was
@@ -1413,11 +1439,25 @@ defmodule Portfolixir.Portfolios.AllocationTest do
       assert is_nil(alpha.target_weight)
       assert is_nil(alpha.drift_weight)
       assert alpha.held == true
-      assert Decimal.equal?(Decimal.round(alpha.drift_value, 2), Decimal.new("320"))
-      assert Decimal.equal?(Decimal.round(alpha.rebalance_quantity, 4), Decimal.new("4"))
+      # ADR-0040 (#709): this plan allocates 0.6 and core is the ONLY targeted
+      # category, holding the whole basis. Its target therefore renormalises to
+      # 0.6/0.6 = 1.0 against an actual of 1.0, so the category drift is zero and
+      # every proportional share derived from it is zero too. The old 320 was
+      # core's share of a +0.4 drift -- exactly the unallocated remainder,
+      # reported as overweight, which is the phantom this ADR removes.
+      #
+      # A short plan whose single targeted category holds everything is
+      # structurally driftless. That is a real consequence of the decision, not
+      # an artifact of this fixture, and it is why the proportional-share
+      # mechanic is exercised by "positions carry their drift share and an
+      # indicative rebalance quantity" instead -- a FULL plan, which this change
+      # leaves untouched. The subject of this test (a category with no position
+      # rows falls back to its explicit weight) is asserted above.
+      assert Decimal.equal?(Decimal.round(alpha.drift_value, 2), Decimal.new("0"))
+      assert Decimal.equal?(Decimal.round(alpha.rebalance_quantity, 4), Decimal.new("0"))
       assert is_nil(beta.target_weight)
-      assert Decimal.equal?(Decimal.round(beta.drift_value, 2), Decimal.new("160"))
-      assert Decimal.equal?(Decimal.round(beta.rebalance_quantity, 4), Decimal.new("16"))
+      assert Decimal.equal?(Decimal.round(beta.drift_value, 2), Decimal.new("0"))
+      assert Decimal.equal?(Decimal.round(beta.rebalance_quantity, 4), Decimal.new("0"))
     end
 
     test "position SOLL: a target in view A's plan does not appear under view B or Gesamt" do
@@ -1723,7 +1763,16 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
       # Priced at the 2026-07-18 close (50): drift -0.4 × 1000 = -400 → buy 8.
       assert wanted_entry.quote_date == ~D[2026-07-18]
-      assert Decimal.equal?(Decimal.round(wanted_entry.rebalance_quantity, 4), Decimal.new("-8"))
+      # ADR-0040 (#709): the two position targets sum to 0.9, so this plan is
+      # short and the unheld target renormalises to the allocated portion --
+      # 0.4/0.9 = 0.4444..., i.e. -444.44 EUR, an indicative buy of 8.8889 units
+      # at the quote of 50 rather than 8. The subject of this test -- that the
+      # hint states the DATE of the quote it was priced at -- is asserted below
+      # and is unchanged.
+      assert Decimal.equal?(
+               Decimal.round(wanted_entry.rebalance_quantity, 4),
+               Decimal.new("-8.8889")
+             )
 
       # A held entry prices at the valuation, not a quote-date lookup.
       assert is_nil(held_entry.quote_date)
@@ -1891,6 +1940,166 @@ defmodule Portfolixir.Portfolios.AllocationTest do
 
       assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0.9"))
       assert Decimal.equal?(allocation.deep_target_sum, Decimal.new("0.9"))
+    end
+  end
+
+  # User story (#709, ADR-0040):
+  # As a local portfolio maintainer whose plan is deliberately short of 100 %,
+  # I want the unallocated share stated as part of the plan and drift measured
+  # against the portion I actually steer,
+  # so that the Overview stops reporting deviations that are an artifact of the
+  # gap rather than of my portfolio.
+  #
+  # THE ARITHMETIC, stated because ADR-0040 §2 does not spell it out and this is
+  # a number the operator steers by: the TARGET is renormalised to the allocated
+  # portion, the ACTUAL is left alone. With targets 0.5 / 0.3 (Σ 0.8) the drift
+  # base becomes 0.625 / 0.375.
+  #
+  # The alternative reading -- renormalise BOTH sides to the steered set -- is
+  # excluded by #709's own invariant, not by taste: it rescales the actual, so a
+  # plan summing to 1.0 that has untargeted holdings would change behaviour, and
+  # the issue requires such a plan to be "untouched by construction". The last
+  # test in this block is what discriminates the two.
+  #
+  # Acceptance criteria:
+  # - The allocation states `unallocated_remainder` = 1 - Σ top-level targets,
+  #   computed and never stored (ADR-0040 §1).
+  # - Per-category drift is `actual - target / allocated`, so the unallocated
+  #   share is not distributed as phantom overweight.
+  # - The drifts of the steered categories sum to zero when all value sits in
+  #   them -- the property whose absence was the defect.
+  # - `target_weight` still reports the target as typed; only the drift base
+  #   moves (ADR-0023's sign convention is unchanged).
+  # - `drift_basis` names the base, so neither a reviewer nor an agent has to
+  #   infer it.
+  describe "unallocated remainder and drift base (#709, ADR-0040)" do
+    test "a short plan states its remainder and drifts against the allocated portion" do
+      world = setup_world()
+      %{classification: classification, core: core, satellite: satellite} = world
+
+      core_security = equity!("Core Equity", "CORE")
+      satellite_security = equity!("Satellite Equity", "SAT")
+
+      for {security, category} <- [{core_security, core}, {satellite_security, satellite}] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            category.id
+          )
+      end
+
+      # 600 + 400 = 1000, and the deposit is spent exactly, so cash is 0 and the
+      # whole basis sits in the two steered categories: actual 0.6 / 0.4.
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, core_security, "10", "60")
+      buy!(world, satellite_security, "10", "40")
+
+      # Σ = 0.8. The remaining 0.2 is deliberately not steered.
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "target_weight" => "0.5"},
+          %{"category_id" => satellite.id, "target_weight" => "0.3"}
+        ])
+
+      prices = %{
+        core_security.id => Decimal.new("60"),
+        satellite_security.id => Decimal.new("40")
+      }
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      assert Decimal.equal?(allocation.total_value, Decimal.new("1000"))
+      assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("0.8"))
+
+      # ADR-0040 §1: the remainder is a named, computed part of the plan.
+      assert Decimal.equal?(allocation.unallocated_remainder, Decimal.new("0.2"))
+      assert allocation.drift_basis == "allocated_portion"
+
+      core_row = fetch_category(allocation, core.id)
+      satellite_row = fetch_category(allocation, satellite.id)
+
+      # The target still reads as typed.
+      assert Decimal.equal?(core_row.target_weight, Decimal.new("0.5"))
+      assert Decimal.equal?(satellite_row.target_weight, Decimal.new("0.3"))
+
+      # Drift is against the allocated portion: 0.5/0.8 = 0.625, 0.3/0.8 = 0.375.
+      # Actual 0.6 and 0.4 -> -0.025 and +0.025.
+      assert Decimal.equal?(core_row.actual_weight, Decimal.new("0.6"))
+      assert Decimal.equal?(satellite_row.actual_weight, Decimal.new("0.4"))
+      assert Decimal.equal?(Decimal.round(core_row.drift_weight, 6), Decimal.new("-0.025000"))
+      assert Decimal.equal?(Decimal.round(satellite_row.drift_weight, 6), Decimal.new("0.025000"))
+
+      # The property whose absence was the defect: with every euro inside the
+      # steered categories, the steered drifts cancel. Before this change they
+      # summed to +0.2 -- exactly the remainder, reported as phantom overweight.
+      assert Decimal.equal?(
+               Decimal.round(Decimal.add(core_row.drift_weight, satellite_row.drift_weight), 6),
+               Decimal.new("0.000000")
+             )
+    end
+
+    test "a plan summing to 1.0 is untouched, even with untargeted holdings" do
+      world = setup_world()
+
+      %{classification: classification, core: core, satellite: satellite, defensive: defensive} =
+        world
+
+      core_security = equity!("Core Equity", "CORE")
+      satellite_security = equity!("Satellite Equity", "SAT")
+      untargeted_security = equity!("Untargeted Equity", "UNT")
+
+      for {security, category} <- [
+            {core_security, core},
+            {satellite_security, satellite},
+            {untargeted_security, defensive}
+          ] do
+        {:ok, _} =
+          Classifications.assign_security(
+            Portfolixir.Actor.owner_ui(),
+            security.id,
+            classification.id,
+            category.id
+          )
+      end
+
+      # 500 + 400 + 100 = 1000. Defensive carries NO target, so 0.1 of the
+      # basis sits outside the plan while the plan itself sums to 1.0.
+      deposit!(world, "1000", ~D[2026-01-01])
+      buy!(world, core_security, "10", "50")
+      buy!(world, satellite_security, "10", "40")
+      buy!(world, untargeted_security, "10", "10")
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), world.portfolio.id, classification.id, [
+          %{"category_id" => core.id, "target_weight" => "0.6"},
+          %{"category_id" => satellite.id, "target_weight" => "0.4"}
+        ])
+
+      prices = %{
+        core_security.id => Decimal.new("50"),
+        satellite_security.id => Decimal.new("40"),
+        untargeted_security.id => Decimal.new("10")
+      }
+
+      {:ok, allocation} =
+        Allocation.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      assert Decimal.equal?(allocation.top_level_target_sum, Decimal.new("1.0"))
+      assert Decimal.equal?(allocation.unallocated_remainder, Decimal.new("0"))
+      assert allocation.drift_basis == "full_plan"
+
+      core_row = fetch_category(allocation, core.id)
+      satellite_row = fetch_category(allocation, satellite.id)
+
+      # Untouched by construction: plain actual - target, exactly as before.
+      # 0.5 - 0.6 = -0.1 and 0.4 - 0.4 = 0. The untargeted 0.1 shows up as the
+      # core row being under, which is the pre-existing, correct behaviour --
+      # and is what a both-sides renormalisation would have silently changed.
+      assert Decimal.equal?(core_row.drift_weight, Decimal.new("-0.1"))
+      assert Decimal.equal?(satellite_row.drift_weight, Decimal.new("0.0"))
     end
   end
 end

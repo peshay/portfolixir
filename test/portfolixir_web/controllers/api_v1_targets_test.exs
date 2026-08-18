@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Classifications
+  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
 
   @auth {"authorization", "Bearer test-api-token"}
@@ -81,6 +82,23 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert target["category_id"] == core.id
     assert target["target_weight"] == "0.8"
 
+    # Completed to Sigma = 1.0 with an empty sibling so this stays a
+    # FULL-ALLOCATION fixture (ADR-0040, #709): drift renormalises only where a
+    # plan is deliberately short, and this test is about the drift REPORT, not
+    # about the remainder. Every Core figure below is unchanged; the sibling
+    # adds one SOLL-only row with no holdings.
+    {:ok, satellite} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Satellite"
+      })
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{"category_id" => core.id, "target_weight" => "0.8"},
+        %{"category_id" => satellite.id, "target_weight" => "0.2"}
+      ])
+
     allocation =
       get_json(
         conn,
@@ -90,7 +108,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert %{"data" => data} = json_response(allocation, 200)
     assert data["total_value"] == "1200"
 
-    assert [category] = data["categories"]
+    assert [category, _satellite_row] = data["categories"]
     assert category["category_id"] == core.id
     assert category["market_value"] == "1200"
     assert category["actual_weight"] == "1"
@@ -113,7 +131,13 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert data["cash"]["market_value"] == "0"
     assert data["cash"]["actual_weight"] == "0"
     assert data["cash"]["target_weight"] == "0"
-    assert data["top_level_target_sum"] == "0.8"
+    assert data["top_level_target_sum"] == "1"
+
+    # ADR-0040 §4: the remainder and the drift base are in the payload, so an
+    # agent never has to subtract to learn a plan is short on purpose, and never
+    # reads drift without knowing what it is drift against.
+    assert data["unallocated_remainder"] == "0"
+    assert data["drift_basis"] == "full_plan"
 
     # Core has no children carrying a target, so its advisory child_target_sum is
     # null (issue #378): the consumer can tell "no comparison offered" apart from
@@ -507,7 +531,13 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert category["target_weight"] == "0.9"
     assert category["actual_weight"] == "1"
     # actual - target (ADR-0023): 1 - 0.9 = 0.1 overweight.
-    assert category["drift_weight"] == "0.1"
+    # ADR-0040 (#709): the view's plan allocates 0.9 and leaves 0.1 deliberately
+    # unsteered, so Core's target renormalises to 0.9/0.9 = 1 against an actual
+    # of 1 -> zero drift. The old +0.1 was exactly the unallocated share,
+    # reported as overweight on the one category carrying a target. The subject
+    # of this test -- that the VIEW's plan (0.9) steers rather than Gesamt's
+    # (0.4) -- is asserted above and is unchanged.
+    assert category["drift_weight"] == "0"
     assert data["top_level_target_sum"] == "0.9"
   end
 
@@ -743,9 +773,20 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     held = positions["Core Equity"]
     assert held["held"] == true
     assert held["target_weight"] == "0.5"
-    assert held["drift_weight"] == "0.5"
-    assert held["drift_value"] == "600"
-    assert held["rebalance_quantity"] == "5"
+    # ADR-0040 (#709): this plan allocates 0.75 and leaves 0.25 deliberately
+    # unsteered, so the position target renormalises to the allocated portion --
+    # 0.5/0.75 = 0.6666..., against an actual of 1 -> +0.3333... The old +0.5
+    # was the phantom: it was exactly the unallocated 0.25 plus the real 0.25 of
+    # overweight, indistinguishable from each other.
+    #
+    # The repeating decimal is carried in full and NOT rounded here: ADR-0016
+    # computes and persists at full precision and rounds only at the human
+    # display boundary, which the JSON API is not. The UI formats it.
+    assert held["drift_weight"] == "0.3333333333333333333333333333333333"
+    # 0.3333... x 1200 lands exactly on 400 EUR to move.
+    assert held["drift_value"] == "400"
+    # 400 EUR at the implied unit price of 120 -> 3.3333... units to sell.
+    assert held["rebalance_quantity"] == "3.333333333333333333333333333333333"
     assert is_binary(held["target_weight"]) and is_binary(held["drift_weight"])
 
     # The not-yet-held position: IST 0, full underweight drift (-0.25 →
@@ -756,9 +797,10 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert wanted["market_value"] == "0"
     assert wanted["weight"] == "0"
     assert wanted["target_weight"] == "0.25"
-    assert wanted["drift_weight"] == "-0.25"
-    assert wanted["drift_value"] == "-300"
-    assert wanted["rebalance_quantity"] == "-5"
+    # 0.25/0.75 = 0.3333... renormalised, unheld, so the full underweight.
+    assert wanted["drift_weight"] == "-0.3333333333333333333333333333333333"
+    assert wanted["drift_value"] == "-400"
+    assert wanted["rebalance_quantity"] == "-6.666666666666666666666666666666667"
   end
 
   test "rejects a position target for a security not under the category with 422", %{conn: conn} do
