@@ -502,7 +502,15 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
       Decimal.compare(net, frozen) != :lt ->
         %{state: :recovered, outstanding: @zero, transaction_costs: costs}
 
-      Decimal.compare(pre, frozen) == :gt ->
+      # `!= :lt`, not `== :gt`, and the boundary is the common case rather than
+      # an exotic one: topping up a position you already hold gives the real
+      # side exactly the frozen side's price path, so before costs the two are
+      # EQUAL. Strict "ahead" would then report "behind even before costs" for
+      # a maintainer whose changes broke even on merit and whose only gap is
+      # the fee — which is false, and false in the direction that discourages a
+      # correct decision. Equal means the costs are the entire reason, which is
+      # precisely what partly-recovered says.
+      Decimal.compare(pre, frozen) != :lt ->
         %{
           state: :partly_recovered,
           outstanding: Decimal.sub(frozen, net),

@@ -364,23 +364,58 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
   #   beside the real return would be noise dressed as insight.
   # - The basis line names which costs left the return and which stayed in it.
   describe "transaction costs on the comparison (#708)" do
+    # A buy's gross_amount is INCLUSIVE of its fees (`Projection.buy_cost/1`),
+    # and the top-up is funded to the cent, so nothing but the fee separates
+    # the real side from the frozen one. A fixture that passes a bare
+    # quantity x price beside a fee describes a trade whose fee never leaves
+    # the cash account, and the pre-cost figure then removes a cost nobody
+    # paid.
+    # Its own world rather than `seeded_world/0`: that one leaves ~9,500 idle
+    # cash, and cash drags the real return far below an equity-only frozen
+    # side no matter what a fee does — so no fee could ever produce the middle
+    # recovery state there.
+    #
+    # Here the portfolio is fully invested and the top-up is funded to the
+    # cent, so nothing but the fee separates the two sides:
+    #
+    #   as-of 2026-02-15: 5 shares at 110 = 550, no cash -> 5 x 120 today.
+    #   in-window: deposit 110 + fee, buy 1 at 110 with that fee. A buy's
+    #   gross_amount is INCLUSIVE of its fee (`Projection.buy_cost/1`), so a
+    #   fixture passing a bare quantity x price beside a fee would describe a
+    #   trade whose fee never leaves the cash account.
     defp costly_world(fees) do
-      world = seeded_world()
+      world = WorldFixtures.base_world(name: "Snap", currency: "EUR")
+      sec = WorldFixtures.create_security!(name: "EUR Stock", ticker: "EURS", currency: "EUR")
 
-      {:ok, _} =
-        Ledger.create_transaction(Actor.owner_ui(), %{
-          portfolio_id: world.portfolio.id,
-          cash_account_id: world.cash.id,
-          securities_account_id: world.depot.id,
-          security_id: WorldFixtures.security_id_for(world.security),
-          type: "buy",
-          date: ~D[2026-02-20],
-          quantity: "1",
-          price: "110",
-          gross_amount: "110",
-          fees: fees,
-          currency_code: "EUR"
-        })
+      book = fn attrs ->
+        {:ok, _} =
+          Ledger.create_transaction(
+            Actor.owner_ui(),
+            Map.merge(%{portfolio_id: world.portfolio.id, currency_code: "EUR"}, attrs)
+          )
+      end
+
+      book.(%{
+        cash_account_id: world.cash.id,
+        type: "deposit",
+        date: ~D[2026-01-02],
+        gross_amount: "550"
+      })
+
+      book.(%{
+        cash_account_id: world.cash.id,
+        securities_account_id: world.depot.id,
+        security_id: WorldFixtures.security_id_for(sec),
+        type: "buy",
+        date: ~D[2026-01-05],
+        quantity: "5",
+        price: "110",
+        gross_amount: "550"
+      })
+
+      WorldFixtures.put_quote!(sec, ~D[2026-01-05], "110")
+      WorldFixtures.put_quote!(sec, ~D[2026-02-14], "110")
+      WorldFixtures.put_quote!(sec, ~D[2026-03-10], "120")
 
       {:ok, _snapshot} =
         Snapshots.create_snapshot(Actor.owner_ui(), %{
@@ -388,7 +423,28 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
           as_of: ~D[2026-02-15]
         })
 
-      world
+      funding = Decimal.add(Decimal.new("110"), Decimal.new(fees))
+
+      book.(%{
+        cash_account_id: world.cash.id,
+        type: "deposit",
+        date: ~D[2026-02-20],
+        gross_amount: Decimal.to_string(funding, :normal)
+      })
+
+      book.(%{
+        cash_account_id: world.cash.id,
+        securities_account_id: world.depot.id,
+        security_id: WorldFixtures.security_id_for(sec),
+        type: "buy",
+        date: ~D[2026-02-20],
+        quantity: "1",
+        price: "110",
+        gross_amount: Decimal.to_string(funding, :normal),
+        fees: fees
+      })
+
+      Map.merge(world, %{security: sec, book: book})
     end
 
     defp open_comparison(conn) do
@@ -424,6 +480,76 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
       refute has_element?(view, "#comparison-costs")
       # The comparison itself still renders.
       assert has_element?(view, "[data-role='comparison-basis']")
+    end
+
+    # The three states of ADR-0027 amendment §3 are the point of the feature, so
+    # each one is exercised on the surface rather than only in the engine. The
+    # fixtures differ in what the REAL portfolio did after the snapshot, which
+    # is what the states are actually about.
+    # The boundary case, and it is the COMMON restructuring rather than an
+    # exotic one: topping up a position already held gives the real side
+    # exactly the frozen side's price path, so before costs the two are equal
+    # and the fee is the entire gap. Reporting "behind even before costs" there
+    # would be false, and false in the direction that discourages a correct
+    # decision.
+    test "partly recovered: before costs the two match, so the fee is the whole gap", %{
+      conn: conn
+    } do
+      costly_world("40")
+
+      view = open_comparison(conn)
+      recovery = view |> element("[data-role='cost-recovery']") |> render()
+
+      assert recovery =~ "Not yet"
+      refute recovery =~ "Behind even before costs"
+    end
+
+    test "recovered: the real side is ahead even after its costs", %{conn: conn} do
+      world = costly_world("40")
+
+      # It sold out on 2026-02-20 at 110 and sat in cash; the frozen holdings
+      # then fell to 90. Being in cash beat holding, costs and all.
+      {:ok, _} =
+        Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: world.cash.id,
+          securities_account_id: world.depot.id,
+          security_id: WorldFixtures.security_id_for(world.security),
+          type: "sell",
+          date: ~D[2026-02-21],
+          quantity: "6",
+          price: "110",
+          gross_amount: "660",
+          currency_code: "EUR"
+        })
+
+      WorldFixtures.put_quote!(world.security, ~D[2026-03-11], "90")
+
+      recovery = open_comparison(conn) |> element("[data-role='cost-recovery']") |> render()
+      assert recovery =~ "Yes"
+    end
+
+    test "not recovered: behind the frozen holdings even before costs", %{conn: conn} do
+      world = costly_world("40")
+
+      # Sold out early and sat in cash while the frozen holdings kept rising to
+      # 120 — the costs are not why this is behind, and the label says so.
+      {:ok, _} =
+        Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: world.cash.id,
+          securities_account_id: world.depot.id,
+          security_id: WorldFixtures.security_id_for(world.security),
+          type: "sell",
+          date: ~D[2026-02-21],
+          quantity: "6",
+          price: "110",
+          gross_amount: "660",
+          currency_code: "EUR"
+        })
+
+      recovery = open_comparison(conn) |> element("[data-role='cost-recovery']") |> render()
+      assert recovery =~ "Behind even before costs"
     end
 
     test "the basis line names which costs left the return and which stayed", %{conn: conn} do

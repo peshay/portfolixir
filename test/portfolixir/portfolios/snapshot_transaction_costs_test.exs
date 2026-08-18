@@ -42,8 +42,21 @@ defmodule Portfolixir.Portfolios.SnapshotTransactionCostsTest do
     tx
   end
 
+  # A buy's gross_amount is INCLUSIVE of its fees and taxes
+  # (`Projection.buy_cost/1`). A fixture that passes a bare quantity x price
+  # beside a non-zero fee describes a trade whose fee never leaves the cash
+  # account — and then the pre-cost figure removes a cost nobody paid, which
+  # is how an earlier draft of this file produced a +103 % pre-cost return
+  # without failing.
   defp buy!(w, date, qty, price, opts \\ []) do
-    gross = Decimal.mult(Decimal.new(qty), Decimal.new(price))
+    fees = Keyword.get(opts, :fees, "0")
+    taxes = Keyword.get(opts, :taxes, "0")
+
+    gross =
+      Decimal.new(qty)
+      |> Decimal.mult(Decimal.new(price))
+      |> Decimal.add(Decimal.new(fees))
+      |> Decimal.add(Decimal.new(taxes))
 
     book!(w, %{
       cash_account_id: w.cash.id,
@@ -54,8 +67,8 @@ defmodule Portfolixir.Portfolios.SnapshotTransactionCostsTest do
       quantity: qty,
       price: price,
       gross_amount: Decimal.to_string(gross, :normal),
-      fees: Keyword.get(opts, :fees, "0"),
-      taxes: Keyword.get(opts, :taxes, "0")
+      fees: fees,
+      taxes: taxes
     })
   end
 
@@ -75,14 +88,27 @@ defmodule Portfolixir.Portfolios.SnapshotTransactionCostsTest do
     result
   end
 
-  defp seeded_world(trade_opts) do
+  # A hand-computable world, and every figure below is checked against the
+  # arithmetic rather than against "bigger than the other one".
+  #
+  #   as-of 2026-03-01: 10 shares at 100 = 1,000, no cash.
+  #   frozen side  -> 10 x 110 = 1,100 today, so +10 % exactly.
+  #   in-window    -> deposit `funding`, buy 2 at 100 with `fees`. Because
+  #                   gross_amount is INCLUSIVE of the fee (Projection.buy_cost),
+  #                   an exactly-funded top-up leaves no cash behind.
+  #
+  # On the trade day: net factor 1,200 / (1,000 + 210) and pre-cost factor
+  # 1,200 / (1,000 + 210 - 10) = exactly 1. Then 1,320 / 1,200 to today.
+  defp seeded_world(fees) do
     w = world()
+    fee = Decimal.new(fees)
+    funding = Decimal.add(Decimal.new("200"), fee)
 
     book!(w, %{
       cash_account_id: w.cash.id,
       type: "deposit",
       date: ~D[2026-01-01],
-      gross_amount: "10000"
+      gross_amount: "1000"
     })
 
     buy!(w, ~D[2026-01-02], "10", "100")
@@ -93,38 +119,76 @@ defmodule Portfolixir.Portfolios.SnapshotTransactionCostsTest do
 
     snapshot = snapshot!(w, ~D[2026-03-01])
 
-    # A trade INSIDE the window, carrying the costs under test.
-    buy!(w, ~D[2026-03-15], "5", "100", trade_opts)
+    book!(w, %{
+      cash_account_id: w.cash.id,
+      type: "deposit",
+      date: ~D[2026-03-15],
+      gross_amount: Decimal.to_string(funding, :normal)
+    })
+
+    buy!(w, ~D[2026-03-15], "2", "100", fees: fees)
 
     {w, snapshot}
   end
 
-  test "the comparison carries the cost total, the pre-cost return and a recovery state" do
-    {w, snapshot} = seeded_world(fees: "30", taxes: "20")
+  test "the comparison states the cost, the pre-cost return and the recovery" do
+    {w, snapshot} = seeded_world("10")
 
     result = compare(w, snapshot)
 
-    # §2: the total is the window's trade fees plus taxes, in base currency.
-    assert Decimal.equal?(result.transaction_costs, Decimal.new("50"))
+    # Exact, because every step of this fixture is hand-computable.
+    assert Decimal.equal?(result.transaction_costs, Decimal.new("10"))
 
-    # §2: the pre-cost return is the same walk without those costs, so it is
-    # strictly ahead of the net one whenever costs were paid.
-    assert Decimal.compare(result.real_ttwror_before_costs, result.real_ttwror) == :gt
+    # The frozen side: 10 shares from 100 to 110.
+    assert Decimal.equal?(result.snapshot_return, Decimal.new("0.1"))
 
-    # §3: one of exactly three states.
-    assert result.cost_recovery.state in [:recovered, :partly_recovered, :not_recovered]
+    # Before costs the real side matches it EXACTLY -- the top-up was funded
+    # to the cent, so the only thing separating the two sides is the fee. This
+    # is the arithmetic check that a "pre is bigger than net" assertion cannot
+    # make: it pins the value, not the direction.
+    assert Decimal.equal?(result.real_ttwror_before_costs, Decimal.new("0.1"))
+
+    # After costs: 1,320 / 1,210 - 1.
+    assert Decimal.equal?(
+             Decimal.round(result.real_ttwror, 10),
+             Decimal.round(Decimal.div(Decimal.new("110"), Decimal.new("1210")), 10)
+           )
   end
 
-  test "a window without trades costs nothing and is never 'partly recovered'" do
-    {w, snapshot} = seeded_world(fees: "0", taxes: "0")
+  # §3, and the reason the boundary is `>=` rather than `>`: with the two sides
+  # equal before costs, the fee is the ENTIRE gap. Reporting "behind even
+  # before costs" there would be false, and false in the direction that
+  # discourages a correct decision.
+  test "equal before costs is partly recovered, not 'behind even before costs'" do
+    {w, snapshot} = seeded_world("10")
+
+    recovery = compare(w, snapshot).cost_recovery
+
+    assert recovery.state == :partly_recovered
+
+    # The outstanding gap is frozen minus net, to the same precision.
+    assert Decimal.equal?(
+             Decimal.round(recovery.outstanding, 10),
+             Decimal.round(
+               Decimal.sub(
+                 Decimal.new("0.1"),
+                 Decimal.div(Decimal.new("110"), Decimal.new("1210"))
+               ),
+               10
+             )
+           )
+  end
+
+  test "a window without trade costs leaves the two returns identical" do
+    {w, snapshot} = seeded_world("0")
 
     result = compare(w, snapshot)
 
     assert Decimal.equal?(result.transaction_costs, Decimal.new("0"))
-
-    # With no costs the two returns are the same figure, so the middle state
-    # -- "ahead before costs, behind after" -- cannot arise.
     assert Decimal.equal?(result.real_ttwror_before_costs, result.real_ttwror)
+
+    # With nothing paid the middle state cannot arise: there is no cost to be
+    # the reason for a gap.
     refute result.cost_recovery.state == :partly_recovered
   end
 
@@ -151,23 +215,10 @@ defmodule Portfolixir.Portfolios.SnapshotTransactionCostsTest do
     assert Decimal.equal?(compare(w, snapshot).transaction_costs, Decimal.new("0"))
   end
 
-  # §3, the state that is the reason for building this: the changes are ahead
-  # of the frozen holdings on their own merits, but the trading costs have not
-  # been earned back yet.
-  test "partly recovered names the gap that is still outstanding" do
-    {w, snapshot} = seeded_world(fees: "5000", taxes: "0")
-
-    result = compare(w, snapshot)
-
-    assert result.cost_recovery.state == :partly_recovered
-    assert %Decimal{} = result.cost_recovery.outstanding
-    assert Decimal.compare(result.cost_recovery.outstanding, Decimal.new("0")) == :gt
-  end
-
   # §5: the payload states its basis, so a reader never has to infer which
   # costs left the return and which stayed in it.
   test "the payload states its computation basis" do
-    {w, snapshot} = seeded_world(fees: "30", taxes: "20")
+    {w, snapshot} = seeded_world("10")
 
     basis = compare(w, snapshot).basis
 
