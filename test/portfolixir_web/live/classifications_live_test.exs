@@ -1133,4 +1133,52 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # The basis is stated on the surface, not left for the reader to assume.
     assert html =~ "current composition"
   end
+
+  # ADR-0041 §4 on the human surface, plus the loss case: a category whose
+  # members are not all derivable must SAY so rather than present a partial sum
+  # as complete, and a negative result must read as negative without relying on
+  # colour alone (UX-DR7 -- the sign is in the text).
+  test "a partial, losing category names its coverage and its loss", %{conn: conn} do
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Teilweise"})
+
+    {:ok, category} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
+
+    world = Portfolixir.WorldFixtures.base_world()
+    losing = Portfolixir.WorldFixtures.create_security!(name: "Losing AG", ticker: "LOS")
+    dark = Portfolixir.WorldFixtures.create_security!(name: "Dark AG", ticker: "DRK")
+
+    for security <- [losing, dark] do
+      {:ok, _} =
+        Classifications.assign_security(
+          Portfolixir.Actor.owner_ui(),
+          security.id,
+          classification.id,
+          category.id
+        )
+    end
+
+    Portfolixir.WorldFixtures.deposit!(world, "10000", ~D[2026-01-01])
+    Portfolixir.WorldFixtures.buy!(world, losing, quantity: "10", price: "100")
+    Portfolixir.WorldFixtures.buy!(world, dark, quantity: "10", price: "50")
+
+    # Only the losing position has a quote: 1,000 invested, now worth 800.
+    Portfolixir.WorldFixtures.put_quote!(losing, Date.utc_today(), "80")
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+    html = render(view)
+
+    # The loss carries its sign in the text, not only in the colour.
+    assert html =~ "-200.00"
+    assert html =~ "is-negative"
+
+    # The unpriceable member is not folded in at zero: invested is the covered
+    # 1,000, and the row says it covers 1 of its 2 members.
+    assert html =~ ~r/data-role="category-invested"[^>]*>\s*1,000\.00/
+    assert html =~ ~r/data-role="category-result-partial"[^>]*>\s*1\s*\/\s*2/
+  end
 end
