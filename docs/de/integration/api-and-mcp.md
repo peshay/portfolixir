@@ -296,6 +296,18 @@ Beispiel-Payloads für Konten:
   Feldauswahl: Jede Zeile trägt dann genau die angefragten Felder. Die Namen
   werden gegen die Feldliste des Serializers validiert — ein unbekannter Name
   ist ein `422`, nie ein stiller Fallback.
+  Ein optionales `running_balance_for=<cash_account_id>` ergänzt jede Zeile um
+  einen `running_balance` — den Saldo dieses Verrechnungskontos nach der
+  Buchung, als Decimal-String in der Kontowährung — plus ein `running_balance_basis`
+  auf oberster Ebene, das Konto, Währung und Berechnungsgrundlage benennt. Zwei
+  Eigenschaften, von denen die Zahl abhängt: Der Lauf umfasst immer die
+  **gesamte** Historie des Kontos, eine eingeschränkte Abfrage (ein `from`, ein
+  Filter) zeigt also echte Salden statt einer Teilsumme; und eine Zeile, die
+  das Konto nicht bewegt, trägt `null` statt den vorherigen Wert zu
+  wiederholen, was sich wie "hier ist nichts passiert" läse. Ein unbekanntes
+  oder nicht-numerisches Konto ist ein `422` mit dem Feld
+  `running_balance_for`. Das ist das API- und MCP-Gegenstück zur Saldospalte
+  auf der Transaktionsseite.
 - `POST /api/v1/transactions` legt eine Transaktion beliebiger buchbarer Art mit
   einem `transaction`-Objekt an (die pro Buchungsart erforderlichen Felder werden
   serverseitig validiert). Die buchbaren `type`-Werte sind `buy`, `sell`,
