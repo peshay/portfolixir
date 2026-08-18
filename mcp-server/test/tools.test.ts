@@ -521,6 +521,31 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[1].path, "/api/v1/securities?since=2026-06-01T00%3A00%3A00Z");
   });
 
+  // User story (Sprint 7 closing act, #414 parity gap):
+  // As the operating LLM agent,
+  // I want the per-booking running balance of a cash account that the
+  // Transactions page shows,
+  // so that I can audit a statement over MCP without re-deriving the fold
+  // myself from the bookings.
+  //
+  // Acceptance criteria:
+  // - transactions.list accepts running_balance_for and forwards it.
+  // - The tool description states the two properties an agent gets wrong
+  //   otherwise: the whole-history fold, and null on untouched rows.
+  it("forwards running_balance_for on transactions.list", async () => {
+    const { client, requests } = createRecordingClient({ data: [] });
+
+    await callTool(client, "portfolixir.transactions.list", {
+      from: "2026-02-01",
+      running_balance_for: 7
+    });
+    assert.equal(requests[0].path, "/api/v1/transactions?from=2026-02-01&running_balance_for=7");
+
+    const listTool = listTools().find((tool) => tool.name === "portfolixir.transactions.list");
+    assert.match(String(listTool?.description), /whole history/i);
+    assert.match(String(listTool?.description), /null/i);
+  });
+
   it("issues a GET to /holdings/by_security for portfolixir.holdings.by_security", async () => {
     const { client, requests } = createRecordingClient({
       data: {

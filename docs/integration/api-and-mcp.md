@@ -312,6 +312,17 @@ Example account payloads:
   each row then carries exactly the requested fields. The names are validated
   against the serializer's own field list — an unknown name is a `422`, never
   a silent fallback.
+  An optional `running_balance_for=<cash_account_id>` adds a
+  `running_balance` to each row — the balance of that cash account after the
+  booking, as a Decimal string in the account's own currency — plus a
+  top-level `running_balance_basis` naming the account, its currency and the
+  fold. Two properties the number depends on: the fold always covers that
+  account's **whole** history, so a narrowed read (a `from`, a filter) still
+  reports true balances rather than a partial sum; and a row that does not
+  move the account carries `null` rather than repeating the previous figure,
+  which would read as "nothing happened here". An unknown or non-numeric
+  account id is a `422` naming `running_balance_for`. This is the API and MCP
+  counterpart of the balance column on the Transactions page.
 - `POST /api/v1/transactions` creates a transaction of any bookable kind with a
   `transaction` object (per-kind required fields are validated server-side).
   The bookable `type` values are `buy`, `sell`, `dividend`, `interest`,

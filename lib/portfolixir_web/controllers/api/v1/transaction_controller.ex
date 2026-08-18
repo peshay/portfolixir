@@ -2,7 +2,10 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -13,16 +16,27 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   def index(conn, params) do
     with {:ok, opts} <- list_opts(params),
          {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist),
+         {:ok, balance_account} <- running_balance_param(params),
          {:ok, since} <- SinceParam.parse(params) do
+      balances = running_balances(balance_account)
+
       rows =
         opts
         |> put_updated_since(since)
         |> Ledger.list_transactions()
         |> Enum.map(fn transaction ->
-          transaction |> JSON.transaction() |> FieldSelection.take(fields)
+          transaction
+          |> JSON.transaction()
+          |> FieldSelection.take(fields)
+          |> put_running_balance(balances, transaction)
         end)
 
-      json(conn, SinceParam.put_envelope(%{data: rows}, since))
+      payload =
+        %{data: rows}
+        |> put_running_balance_basis(balance_account)
+        |> SinceParam.put_envelope(since)
+
+      json(conn, payload)
     else
       {:error, field} ->
         conn
@@ -30,6 +44,53 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
         |> json(%{errors: %{field => ["is invalid"]}})
     end
   end
+
+  # The running balance of ONE cash account, attached per row (#414's parity
+  # gap, found by the Sprint 7 closing act: the Transactions page grew this
+  # column and the agent had no way to ask for it -- `cash_balances/1` gives
+  # only the CURRENT balance, so the series was reachable from the LiveView
+  # alone).
+  #
+  # Same call as the human surface, so the two cannot disagree, and with the
+  # same two properties: the fold covers the account's WHOLE history rather
+  # than the narrowed read, because the balance after a booking does not depend
+  # on which rows the caller asked for; and a row that does not move the
+  # account carries null rather than repeating the previous figure, which would
+  # read as "nothing happened here".
+  defp running_balances(nil), do: nil
+
+  defp running_balances(account),
+    do: Projection.cash_balance_series(Ledger.list_transactions(), account.id)
+
+  defp put_running_balance(row, nil, _transaction), do: row
+
+  defp put_running_balance(row, balances, transaction),
+    do: Map.put(row, :running_balance, JSON.decimal(Map.get(balances, transaction.id)))
+
+  defp put_running_balance_basis(payload, nil), do: payload
+
+  defp put_running_balance_basis(payload, account) do
+    Map.put(payload, :running_balance_basis, %{
+      cash_account_id: account.id,
+      currency_code: account.currency_code,
+      note:
+        "Balance of this cash account after each booking, in its own currency, " <>
+          "folded over the account's whole history. Null on a row that does not move it."
+    })
+  end
+
+  # Whitelisted and resolved: a query param never mints an atom, and an account
+  # that does not exist is a named 422 rather than a column of nulls.
+  defp running_balance_param(%{"running_balance_for" => value}) do
+    with {id, ""} <- Integer.parse(to_string(value)),
+         %CashAccount{} = account <- Portfolios.get_cash_account(id) do
+      {:ok, account}
+    else
+      _not_an_account -> {:error, "running_balance_for"}
+    end
+  end
+
+  defp running_balance_param(_params), do: {:ok, nil}
 
   defp put_updated_since(opts, nil), do: opts
   defp put_updated_since(opts, %{cut: cut}), do: Keyword.put(opts, :updated_since, cut)
