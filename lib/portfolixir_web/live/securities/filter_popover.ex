@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
 
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Currencies
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
 
@@ -14,6 +15,7 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
      socket
      |> assign(:field_key, default_field_key())
      |> assign(:operator, nil)
+     |> assign(:dq, nil)
      |> assign(:value, "")}
   end
 
@@ -38,6 +40,27 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
       <div class="popover-head">
         <h3><%= gettext("Filter") %></h3>
       </div>
+
+      <%!-- Data quality (#705): conditions that are NOT expressible as a
+            column filter — stale/missing quotes are derived from the quote
+            history and the logo lives in JSONB. They sit above the builder
+            rather than inside it because they are one named set each, not a
+            column/operator/value triple, and because the dashboard's counts
+            address exactly these sets. Predicates come from
+            `Catalog.DataQuality`, so this control cannot drift from the count
+            or from the API. --%>
+      <form id="securities-dq-form" phx-change="dq_change" phx-target={@myself}>
+        <label>
+          <span><%= gettext("Data quality") %></span>
+          <select name="dq">
+            <option value=""><%= gettext("Any") %></option>
+            <%= for id <- DataQuality.ids() do %>
+              <option value={id} selected={id == @dq}><%= dq_label(id) %></option>
+            <% end %>
+          </select>
+        </label>
+      </form>
+
       <form id="securities-filter-form" phx-change="filter_change" phx-submit="apply_filter" phx-target={@myself}>
         <label>
           <span><%= gettext("Column") %></span>
@@ -88,6 +111,11 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   end
 
   @impl true
+  def handle_event("dq_change", %{"dq" => dq}, socket) do
+    send(self(), {:dq_selected, if(DataQuality.valid?(dq), do: dq)})
+    {:noreply, socket}
+  end
+
   def handle_event("filter_change", params, socket) do
     field_key = atom_or_default(params["field"], socket.assigns.field_key)
     field = SecurityFields.get(field_key)
@@ -175,6 +203,14 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   end
 
   defp enum_options(_), do: []
+
+  # The same labels the securities page shows on the active-filter chip, so
+  # picking a condition and reading it back use one vocabulary.
+  defp dq_label("stale_quote"),
+    do: gettext("No quote in %{days} days", days: DataQuality.stale_days())
+
+  defp dq_label("missing_quote"), do: gettext("No quote at all")
+  defp dq_label("missing_logo"), do: gettext("No logo")
 
   defp operator_label(:eq), do: gettext("equals")
   defp operator_label(:neq), do: gettext("not equal")

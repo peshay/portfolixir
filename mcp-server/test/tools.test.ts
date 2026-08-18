@@ -271,6 +271,44 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // User story (#705):
+  // As the LLM agent maintaining this catalog,
+  // I want the data-quality sets as a named predicate on securities.list,
+  // so that I can work the sets the dashboard counts instead of only being
+  // told how many there are.
+  //
+  // Acceptance criteria:
+  // - The tool exposes exactly the three predicates the engine defines.
+  // - It forwards the choice to the API rather than filtering client-side.
+  // - Its description says what "stale" means, so an agent needs no second
+  //   call to find out.
+  it("exposes the data-quality predicates on securities.list and forwards them", async () => {
+    const tools = listTools();
+    const securitiesList = tools.find((tool) => tool.name === "portfolixir.securities.list");
+
+    assert.deepEqual(securitiesList?.inputSchema.properties.data_quality.enum, [
+      "stale_quote",
+      "missing_quote",
+      "missing_logo"
+    ]);
+
+    // The threshold and the stale/missing distinction travel with the tool.
+    assert.match(securitiesList?.description ?? "", /7 days/);
+    assert.match(securitiesList?.description ?? "", /INCLUDING never-priced/);
+
+    const { client, requests } = createRecordingClient({ data: [] });
+
+    await callTool(client, "portfolixir.securities.list", {
+      data_quality: "stale_quote",
+      holding_status: "held"
+    });
+
+    assert.equal(
+      requests[0].path,
+      "/api/v1/securities?holding_status=held&data_quality=stale_quote"
+    );
+  });
+
   it("calls the Phoenix API with bearer auth and returns structured content", async () => {
     const { client, requests } = createRecordingClient({
       data: [{ id: 7, name: "Synthetic" }]

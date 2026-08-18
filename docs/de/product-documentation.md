@@ -156,7 +156,13 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
 - `?dq=stale_quote|missing_quote|missing_logo` — die
   Datenqualitäts-Schnellfilter: kein Kurs in den letzten 7 Tagen (inklusive
   „gar kein Kurs"), gar kein Kurs, und kein hinterlegtes Logo. Der aktive
-  Schnellfilter erscheint als entfernbarer Filter-Chip.
+  Schnellfilter erscheint als entfernbarer Filter-Chip, und dieselben drei
+  Bedingungen sind im Filter-Bedienelement unter **Datenqualität** direkt
+  wählbar — der Link von der Übersicht ist eine Abkürzung dorthin, nicht der
+  einzige Weg. Der Agent fragt genau dieselben Mengen über
+  `GET /api/v1/securities?data_quality=…` und das Werkzeug
+  `portfolixir.securities.list` ab; alle beruhen auf einer Definition, sodass
+  eine Zahl N immer eine Liste von N adressiert.
 
 Suchen, Bestandsstatus wechseln oder Filter anwenden aktualisiert die URL;
 die Auswahl eines Wertpapiers behält die aktiven Filter bei. Die

@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Catalog.LogoDiscovery
   alias Portfolixir.Catalog.LogoLookup
@@ -46,8 +47,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # as a plain column filter — stale/missing quotes are metric-derived and the
   # logo lives in JSONB attributes. URL-addressable via `?dq=` so the Overview
   # data-quality line can deep-link to the offending set (#651, UX-DR2).
-  @dq_filters ~w(stale_quote missing_quote missing_logo)
-  @stale_quote_days 7
+  # The predicates themselves live in `Catalog.DataQuality` since #705, so this
+  # list, the dashboard's counts and the API/MCP predicate are one rule.
+  @dq_filters DataQuality.ids()
 
   # URL filter operator whitelist (#651): query params never mint atoms.
   @filter_ops %{
@@ -369,6 +371,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <.live_component
                   module={FilterPopover}
                   id="filter-popover"
+                  dq={@dq}
                 />
               <% end %>
               <%= if @open_popover == :columns do %>
@@ -3105,6 +3108,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> push_event("column-prefs-changed", %{columns: column_strs})}
   end
 
+  def handle_info({:dq_selected, dq}, socket) do
+    {:noreply,
+     socket
+     |> assign(:open_popover, nil)
+     |> push_patch(to: securities_path(socket.assigns, tab: :current, override: %{dq: dq}))}
+  end
+
   def handle_info({:filter_added, filter}, socket) do
     filters = socket.assigns.filters ++ [filter]
 
@@ -3541,7 +3551,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
     securities =
       opts
       |> Catalog.list_securities_with_metrics()
-      |> apply_dq_filter(dq)
+      # The metric-derived half runs post-enrichment; the query half is already
+      # in `opts` above (#705). `safe_dq/1` has already reduced anything
+      # unrecognised to nil, which `refine/3` passes straight through. One rule
+      # with the dashboard's count, so a count of N links to a list of N by
+      # construction rather than by agreement.
+      |> DataQuality.refine(dq)
 
     socket
     |> assign(:securities, securities)
@@ -3646,25 +3661,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  # Metric-derived data-quality filters run post-enrichment, mirroring the
-  # dashboard's counting rules exactly so a count of N links to a list of N.
-  defp apply_dq_filter(rows, "stale_quote") do
-    today = Date.utc_today()
+  defp dq_label("stale_quote"),
+    do: gettext("No quote in %{days} days", days: DataQuality.stale_days())
 
-    Enum.filter(rows, fn row ->
-      case row.metrics.latest_price_date do
-        %Date{} = date -> Date.diff(today, date) > @stale_quote_days
-        _ -> true
-      end
-    end)
-  end
-
-  defp apply_dq_filter(rows, "missing_quote"),
-    do: Enum.filter(rows, &is_nil(&1.metrics.latest_price_date))
-
-  defp apply_dq_filter(rows, _dq), do: rows
-
-  defp dq_label("stale_quote"), do: gettext("No quote in 7 days")
   defp dq_label("missing_quote"), do: gettext("No quote at all")
   defp dq_label("missing_logo"), do: gettext("No logo")
 end

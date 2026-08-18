@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Plug.Conn.Query
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -556,23 +557,17 @@ defmodule PortfolixirWeb.DashboardLive do
   # Securities needing attention (#337 data-quality card): no recent quote
   # (none at all, or older than 7 days), no persisted asset class, no logo.
   defp data_quality_report do
-    today = Date.utc_today()
-    rows = Catalog.list_securities_with_metrics()
-
+    # The counts come from the shared predicates (#705), so each finding's
+    # number is produced by the same rule as the list its link opens. The
+    # asset-class finding stays an ordinary column filter: `asset_class` is a
+    # stored column, so it needs no predicate of its own -- and it is keyed on
+    # the STORED value per #700, which is what makes the count addressable.
     %{
-      total: length(rows),
-      without_quote: Enum.count(rows, &stale_quote?(&1, today)),
-      without_class: Enum.count(rows, &is_nil(&1.security.asset_class)),
-      without_logo: length(Catalog.list_securities(logo_status: :missing))
+      total: length(Catalog.list_securities()),
+      without_quote: DataQuality.count("stale_quote"),
+      without_class: Enum.count(Catalog.list_securities(), &is_nil(&1.asset_class)),
+      without_logo: DataQuality.count("missing_logo")
     }
-  end
-
-  defp stale_quote?(row, today) do
-    case row.metrics.latest_price_date do
-      nil -> true
-      %Date{} = date -> Date.diff(today, date) > 7
-      _ -> true
-    end
   end
 
   defp count_cards(assigns) do
