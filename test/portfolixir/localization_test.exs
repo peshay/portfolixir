@@ -254,4 +254,48 @@ defmodule Portfolixir.LocalizationTest do
       assert german =~ ~s(msgid "#{header}"), "#{header} is not in the German catalog"
     end
   end
+
+  # User story (#704; feedback triage 2026-08-15 F5):
+  # As a local portfolio maintainer reading the snapshot comparison,
+  # I want its basis stated in product language,
+  # so that the screen tells me what the number covers without citing an
+  # internal decision record I have no way to read.
+  #
+  # Acceptance criteria:
+  # - No gettext msgid cites an ADR identifier.
+  # - The computation-basis *content* stays -- it is the disclosure the identity
+  #   gate made mandatory, and dropping it would trade one defect for a worse
+  #   one. Only the citation goes.
+  # - This holds for every catalog, so the next such string is caught in review
+  #   rather than by the owner.
+  test "no user-facing string cites an internal ADR (#704)" do
+    catalogs = [
+      "priv/gettext/default.pot",
+      "priv/gettext/de/LC_MESSAGES/default.po",
+      "priv/gettext/errors.pot",
+      "priv/gettext/de/LC_MESSAGES/errors.po"
+    ]
+
+    offenders =
+      Enum.flat_map(catalogs, fn path ->
+        path
+        |> File.read!()
+        |> String.split("\n")
+        |> Enum.filter(fn line ->
+          String.starts_with?(line, "msgid ") and Regex.match?(~r/ADR-\d{4}/, line)
+        end)
+        |> Enum.map(&"#{path}: #{&1}")
+      end)
+
+    assert offenders == [], """
+    User-facing strings must not cite ADR identifiers -- the reader has no way
+    to resolve them. Keep the computation-basis content, drop the citation.
+
+    #{Enum.join(offenders, "\n")}
+    """
+
+    # The content the citation was attached to is still on the surface.
+    template = File.read!("priv/gettext/default.pot")
+    assert template =~ "dividends are not yet included"
+  end
 end
