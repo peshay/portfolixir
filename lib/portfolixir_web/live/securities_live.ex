@@ -2208,7 +2208,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # constants) with every value passed through html_escape/1 — no user input.
   # sobelow_skip ["XSS.Raw"]
   defp render_cell(%Field{key: :asset_class} = field, row) do
-    case {stored_asset_class(row), SecurityFields.value(field, row)} do
+    case {security_from_row(row).asset_class, SecurityFields.value(field, row)} do
       # Stated by the operator: a plain badge, and no remediation prompt.
       {stored, _effective} when is_binary(stored) ->
         Phoenix.HTML.raw(
@@ -2325,13 +2325,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
       value -> display_value(field.key, value)
     end
   end
-
-  defp stored_asset_class(%Security{asset_class: asset_class}), do: asset_class
-
-  defp stored_asset_class(%SecurityWithMetrics{security: %Security{asset_class: asset_class}}),
-    do: asset_class
-
-  defp stored_asset_class(_), do: nil
 
   defp escaped(value), do: Phoenix.HTML.html_escape(value) |> safe_to_string()
 
