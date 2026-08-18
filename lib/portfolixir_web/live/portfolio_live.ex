@@ -1726,7 +1726,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       assigns
       |> assign(:no_price, unvalued_entries(assigns.valuation, :no_price))
       |> assign(:missing_fx, unvalued_entries(assigns.valuation, :missing_fx))
-      |> assign(:trade_priced, trade_priced_count(assigns.valuation))
+      |> assign(:trade_priced, trade_priced_entries(assigns.valuation))
       |> assign(:suspect_dates, suspect_dates(assigns.analysis))
       |> assign(:unvalued_cash, unvalued_cash(assigns.valuation))
       |> assign(:negative_entries, negative_entries(assigns.negative))
@@ -1734,7 +1734,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     ~H"""
     <section
       :if={
-        @no_price.count > 0 or @missing_fx.count > 0 or @trade_priced > 0 or
+        @no_price.count > 0 or @missing_fx.count > 0 or @trade_priced.count > 0 or
           @suspect_dates != [] or @unvalued_cash != [] or @negative_entries != []
       }
       id="portfolio-data-quality"
@@ -1742,16 +1742,25 @@ defmodule PortfolixirWeb.PortfolioLive do
     >
       <h2><%= gettext("Data quality") %></h2>
       <ul>
-        <li :if={@trade_priced > 0}>
+        <li :if={@trade_priced.count > 0} data-role="dq-trade-priced">
           <%!-- The finding links to where it is fixed (#561): the securities
-               list pre-filtered to stale quotes. --%>
+               list pre-filtered to stale quotes.
+
+               Overview and Wealth both surface this condition, and that is a
+               role split rather than a duplication (#703): the Overview is the
+               "does anything need me?" surface and keeps the bare count as the
+               ALARM, while this page is where the number is distorted and so
+               states the CONSEQUENCE for the total and names the positions.
+               Naming them also makes this row consistent with every one of its
+               siblings, all of which join their entries. --%>
           <a href="/securities?dq=stale_quote">
             <%= ngettext(
-              "One held position has no current quote and is valued at its last trade price.",
-              "%{count} held positions have no current quote and are valued at their last trade price.",
-              @trade_priced
+              "One held position is valued at its last trade price, so the total is not current:",
+              "%{count} held positions are valued at their last trade price, so the total is not current:",
+              @trade_priced.count
             ) %>
           </a>
+          <%= Enum.join(@trade_priced.names, ", ") %>
         </li>
         <li :if={@no_price.count > 0} data-role="dq-no-price">
           <a href="/securities?dq=missing_quote">
@@ -2540,8 +2549,19 @@ defmodule PortfolixirWeb.PortfolioLive do
     shown ++ ["+#{length(rest)}"]
   end
 
-  defp trade_priced_count(nil), do: 0
-  defp trade_priced_count(valuation), do: valuation.trade_priced_count
+  # Mirrors unvalued_entries/2: the row names what it found, shortened by the
+  # same rule so a long list does not swamp the section (#703).
+  defp trade_priced_entries(nil), do: %{count: 0, names: []}
+
+  defp trade_priced_entries(valuation) do
+    names =
+      valuation.positions
+      |> Enum.filter(&(&1.price_source == :trade))
+      |> Enum.map(&(&1.security_name || gettext("Unsorted")))
+      |> Enum.uniq()
+
+    %{count: length(names), names: shorten_list(names)}
+  end
 
   # Whether the active view's buckets share at least one account (ADR-0024
   # overlap badge). Tolerates valuations without overlap data.

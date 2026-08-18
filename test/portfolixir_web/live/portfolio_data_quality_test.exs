@@ -145,7 +145,13 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
 
-    assert html =~ "valued at their last trade price"
+    # Wording updated by #703: the row now states the consequence for the total,
+    # and its count is the number of distinct securities named beneath it (the
+    # rule its siblings already follow), so this one-security fixture reads in
+    # the singular. Asserted count-independently -- the claim under test is that
+    # the position is trade-priced rather than reported as unpriced.
+    assert html =~ "last trade price"
+    assert html =~ "the total is not current"
     refute html =~ "no price at all"
   end
 
@@ -245,5 +251,74 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     assert flat =~ "Doomed Co."
     assert flat =~ ~s(data-role="negative-holding")
     assert flat =~ "negative quantity"
+  end
+
+  # User story (#703; feedback triage 2026-08-15 F4):
+  # As a local portfolio maintainer looking at a distorted total,
+  # I want the "no current quote" finding to say what it does to the total and
+  # to name the positions doing it,
+  # so that the one row I have to act on stops being the one row that does not
+  # say what to act on.
+  #
+  # Two defects in one row, with different fixes:
+  #   * NAMING -- every other row in this list joins its entries (`no_price`,
+  #     `missing_fx`, `unvalued_cash` all name their securities). `trade_priced`
+  #     stated a count and stopped, which is a one-line inconsistency against
+  #     its own siblings.
+  #   * DUPLICATION -- the Overview and the Wealth page rendered the same
+  #     sentence linking to the same filtered list. That is not automatically
+  #     wrong: the Overview is the "does anything need me?" surface and Wealth
+  #     is where the number is distorted. So they are split by role rather than
+  #     de-duplicated by deletion -- the Overview keeps the count as the ALARM,
+  #     Wealth states the CONSEQUENCE and names the positions.
+  #
+  # Acceptance criteria:
+  # - The Wealth row names the trade-priced positions.
+  # - The Wealth row states the consequence for the total, not just the fact.
+  # - The Overview keeps its terse count and its link (unchanged).
+  test "the trade-priced finding names its positions and states the consequence",
+       %{conn: conn} do
+    world = seed_world()
+
+    other = WorldFixtures.base_world(name: "Zweitdepot", cash_name: "Z Cash", depot_name: "Z")
+    ghost = WorldFixtures.create_security!(name: "Ghost Co.", ticker: "GHST")
+    WorldFixtures.deposit!(other, "500", Date.add(Date.utc_today(), -10))
+    WorldFixtures.buy!(other, ghost, quantity: "2", price: "30")
+
+    deliver!(world, ghost, "7", "EUR")
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    # It names the position -- the whole point of the row.
+    assert has_element?(view, ~s([data-role="dq-trade-priced"]))
+    assert html =~ "Ghost Co."
+
+    # It states what this does to the total, rather than restating the alarm.
+    assert html =~ "not current"
+
+    # ...and still links to where it is fixed.
+    assert has_element?(
+             view,
+             ~s([data-role="dq-trade-priced"] a[href="/securities?dq=stale_quote"])
+           )
+  end
+
+  test "the Overview keeps the terse alarm and its link", %{conn: conn} do
+    world = seed_world()
+
+    other = WorldFixtures.base_world(name: "Drittdepot", cash_name: "D Cash", depot_name: "D")
+    ghost = WorldFixtures.create_security!(name: "Ghost Co.", ticker: "GHST")
+    WorldFixtures.deposit!(other, "500", Date.add(Date.utc_today(), -10))
+    WorldFixtures.buy!(other, ghost, quantity: "2", price: "30")
+
+    deliver!(world, ghost, "7", "EUR")
+
+    {:ok, view, _html} = live(conn, "/")
+    html = render_async(view)
+
+    assert has_element?(view, ~s(a[data-role="dq-quotes"][href="/securities?dq=stale_quote"]))
+    # The alarm stays a count: the Overview does not name positions.
+    refute html =~ "not current"
   end
 end

@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
@@ -2366,7 +2367,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # The fixture only means anything if it really is the stored-NULL,
       # effective-non-NULL state; assert it rather than assume it.
       assert is_nil(derived.asset_class)
-      assert Portfolixir.Catalog.Security.effective_asset_class(derived) == "equity"
+      assert Security.effective_asset_class(derived) == "equity"
       assert stated.asset_class == "equity"
 
       %{stated: stated, derived: derived}
@@ -2390,6 +2391,29 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       # The derived marking carries real text, not only a colour step.
       assert html =~ "Derived"
+    end
+
+    test "a security that is neither stated nor derivable offers only quick-assign",
+         %{conn: conn} do
+      # The third branch: no stored class, and nothing to infer from either --
+      # no corporate suffix in the name, no logo. This is the row the
+      # quick-assign control was originally written for, and it must keep
+      # working: the cell is the control, with no badge to mark.
+      {:ok, blank} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Rohdaten Posten",
+          ticker_symbol: "RHD",
+          currency_code: "EUR"
+        })
+
+      assert is_nil(blank.asset_class)
+      assert is_nil(Security.effective_asset_class(blank))
+
+      {:ok, _view, html} = live(conn, "/securities")
+
+      assert html =~ "quick-assign-#{blank.id}"
+      # No class is claimed for it, derived or otherwise.
+      refute html =~ ~s(data-asset-class="derived-#{blank.id}")
     end
 
     test "the unclassified filter keys on the stored value", %{conn: conn} do
