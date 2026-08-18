@@ -360,6 +360,22 @@ anfangen kann. Eine Warnung bleibt den beiden Zuständen vorbehalten, die
 wirklich falsch sind: einer Summe **über** 100 % und einem Konflikt zwischen
 Positions- und Kategoriegewicht.
 
+Jede Kategorie auf der Seite **Klassifikationen** weist außerdem aus, was sie
+**gekostet** hat, was sie heute **wert** ist und was sie **erwirtschaftet** hat —
+in Euro und in Prozent. Der Prozentwert ist geldgewichtet: die Summe der
+Ergebnisse geteilt durch die Summe des investierten Kapitals, nie der Mittelwert
+der Einzelprozente. Sonst würde eine winzige Position mit +300 % eine Kategorie
+dominieren, die in Euro unverändert ist.
+
+Die Basis steht einmal über dem Baum: Diese Zahlen umfassen **die heute in der
+Kategorie eingeordneten Positionen**. Es ist eine Aussage über die aktuelle
+Zusammensetzung, keine Periodenrendite — verschiebt man ein Wertpapier in eine
+andere Kategorie, wandert sein gesamtes Ergebnis mit. Eine Position, deren
+Ergebnis sich nicht ableiten lässt (kein brauchbarer Kurs oder kein Wechselkurs
+zur Basiswährung), bleibt auf **beiden** Seiten der Summe außen vor und wird in
+der Markierung „abgedeckt von gesamt" mitgezählt, statt als Null zu gelten, was
+die Kategorie still kleinrechnen würde.
+
 > **Ziele je Position (ADR-0030, #481).** Zielgewichte lassen sich nun bis auf
 > eine **einzelne Position** setzen (ein Wertpapier unter einer Kategorie), nicht
 > mehr nur je Kategorie. Positionen sind die Quelle der Wahrheit: das *effektive*

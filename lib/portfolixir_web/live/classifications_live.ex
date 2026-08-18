@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CategoryResult
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
@@ -27,6 +28,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:editing_id, nil)
      |> assign(:current_only, true)
      |> assign(:holdings, nil)
+     |> assign(:results, nil)
      |> assign(:current_path, "/classifications")
      |> assign(:portfolio, Portfolios.first_portfolio())
      |> assign(:views, Buckets.list_views())
@@ -56,6 +58,17 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_async(:holdings, {:exit, _reason}, socket) do
     {:noreply, assign(socket, :error, gettext("Couldn't load current holdings."))}
   end
+
+  # The per-category result (ADR-0041 slice one, #712) loads on its own, after
+  # the tree is known: it is keyed by the selected classification, where the
+  # holdings read above is global. A failure leaves the tree fully usable and
+  # simply omits the columns -- the result is an addition to this surface, not
+  # a precondition for it.
+  def handle_async(:results, {:ok, {:ok, result}}, socket) do
+    {:noreply, assign(socket, :results, index_results(result))}
+  end
+
+  def handle_async(:results, _other, socket), do: {:noreply, socket}
 
   @impl true
   def handle_params(params, uri, socket) do
@@ -93,6 +106,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
         |> assign(:soll_view_id, soll_view_from_params(params))
         |> load_show(classification_id)
         |> load_soll()
+        # Started here rather than in load_show/2: reload/1 also calls that, so
+        # putting it there recomputed the roll-up on every holdings arrival and
+        # every edit. It depends on the SELECTION, which changes here.
+        |> start_results(classification_id)
 
       _ ->
         push_navigate(socket, to: "/classifications")
@@ -254,6 +271,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
           </p>
         <% end %>
 
+        <%!-- ADR-0041 §1: the basis is one line, stated once for the surface
+              rather than repeated per row or left for the reader to assume. --%>
+        <p :if={@results} class="hint" data-role="category-result-basis">
+          <%= gettext(
+            "Cost and result cover the positions filed here today — a statement about the current composition, not a period return."
+          ) %>
+        </p>
         <section class="tree">
           <%= for node <- @tree.nodes do %>
             <.category_node
@@ -263,6 +287,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
               assignable={@tree.assignable}
               editing_id={@editing_id}
               filtering={@tree.filtering?}
+              results={@results}
             />
           <% end %>
           <%= if @tree.nodes == [] and not @tree.filtering? do %>
@@ -400,6 +425,44 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <span class="cat-value" data-role="category-value" title={gettext("EUR value of the visible positions")}>
           <%= Format.money(visible_value(@node)) %>
         </span>
+        <%!-- Per-category result (ADR-0041 slice one, #712). Absent until the
+              async load lands, and absent for a category with nothing invested:
+              a category with no cost has no result to state, and a zero would
+              claim it is flat. --%>
+        <%= if result = category_result(@results, @node.category.id) do %>
+          <%= if Decimal.gt?(result.invested, Decimal.new("0")) do %>
+            <span
+              class="cat-invested"
+              data-role="category-invested"
+              title={gettext("What the positions filed here cost, in EUR")}
+            >
+              <%= Format.money(result.invested) %>
+            </span>
+            <span
+              class={["cat-result", result_tone(result.result_abs)]}
+              data-role="category-result"
+              title={
+                gettext(
+                  "Current value minus cost, over the positions filed here today. Money-weighted: the sum of results divided by the sum invested."
+                )
+              }
+            >
+              <%= Format.signed_decimal(result.result_abs, 2) %>
+              <small><%= Format.percent(result.result_pct) %>%</small>
+            </span>
+            <%!-- ADR-0041 §4: a partial sum never presents itself as complete. --%>
+            <span
+              :if={result.covered_count < result.member_count}
+              class="cat-result-partial"
+              data-role="category-result-partial"
+              title={
+                gettext(
+                  "Some positions here have no derivable result and are left out of both sides of the sum, rather than counted as zero."
+                )
+              }
+            ><%= result.covered_count %>/<%= result.member_count %></span>
+          <% end %>
+        <% end %>
         <%= if hidden_count(@node) > 0 do %>
           <span
             class="cat-without-holdings"
@@ -483,6 +546,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             assignable={@assignable}
             editing_id={@editing_id}
             filtering={@filtering}
+            results={@results}
           />
         <% end %>
       </div>
@@ -1296,6 +1360,36 @@ defmodule PortfolixirWeb.ClassificationsLive do
       assign(socket, selected_id: nil, tree: nil)
     end
   end
+
+  defp start_results(socket, classification_id) do
+    if connected?(socket) do
+      start_async(socket, :results, fn ->
+        CategoryResult.for_all_portfolios(classification_id)
+      end)
+    else
+      socket
+    end
+  end
+
+  defp index_results(result) do
+    %{
+      basis: result.basis,
+      by_category: Map.new(result.categories, &{&1.category_id, &1})
+    }
+  end
+
+  defp result_tone(result_abs) do
+    cond do
+      Decimal.gt?(result_abs, Decimal.new("0")) -> "is-positive"
+      Decimal.lt?(result_abs, Decimal.new("0")) -> "is-negative"
+      true -> nil
+    end
+  end
+
+  defp category_result(nil, _category_id), do: nil
+
+  defp category_result(%{by_category: by_category}, category_id),
+    do: Map.get(by_category, category_id)
 
   defp build_view(tree, query, holdings, opts) do
     needle = query |> to_string() |> String.trim() |> String.downcase()
