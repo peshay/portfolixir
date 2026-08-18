@@ -97,6 +97,13 @@ defmodule PortfolixirWeb.Router do
     get("/portfolios/:portfolio_id/performance", PerformanceController, :index)
     get("/portfolios/:portfolio_id/income", IncomeController, :index)
     get("/portfolios/:portfolio_id/allocation", AllocationController, :index)
+
+    get(
+      "/portfolios/:portfolio_id/category-results",
+      CategoryResultController,
+      :index
+    )
+
     get("/portfolios/:portfolio_id/risk", RiskController, :index)
     get("/portfolios/:portfolio_id/targets", TargetController, :index)
     put("/portfolios/:portfolio_id/targets", TargetController, :set)

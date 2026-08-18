@@ -730,6 +730,29 @@ church tax withheld at a zero church-tax rate.
   `gaps` list of securities excluded for missing quotes or FX at the as-of
   date, and a self-describing `basis` (gross, price-return only in v1). All
   financial values are Decimal strings.
+- `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>` —
+  per-category **result** (ADR-0041 slice one, #712): `invested` (the sum of the
+  members' base-currency cost), `current_value`, `result_abs` and `result_pct`
+  per category, plus the member `positions` that produced it and the `excluded`
+  rows it could not cover.
+
+  **Read the basis before the numbers.** The payload states it in one line
+  (`basis: "current_composition"`, with a `basis_note` spelling it out): this is
+  a figure about the positions filed under each category **today**, so there is
+  no period, no membership variant and no as-of — and it is not a time-weighted
+  return series.
+
+  `result_pct` is `Σ result ÷ Σ invested`, **never** a mean of the members'
+  percentages: averaging lets a tiny position at +300 % dominate a category that
+  is flat in money. A member whose result is not derivable — no usable price, or
+  no base-currency decomposition (ADR-0033) — is excluded from **both** sides of
+  the sum and listed under `excluded` with its `reason`; it is never counted as
+  zero, which would quietly understate the category. `covered_count` and
+  `member_count` state how much of the category the figure covers. A category
+  with nothing invested reports `result_pct: null` rather than `"0"`, because
+  having nothing to measure is a different claim from being flat. MCP:
+  `portfolixir.portfolios.category_results`.
+
 - `GET /api/v1/portfolios/:portfolio_id/allocation` returns the target/actual
   breakdown for one classification (required `classification_id` query param; a
   missing one returns `422 Unprocessable Entity`). For each category it reports

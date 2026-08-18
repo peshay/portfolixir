@@ -942,6 +942,67 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  @doc """
+  Per-category result (ADR-0041 slice one, #712).
+
+  Financial values are Decimal strings (AR-11). The payload states its
+  computation basis in one line — this is a figure about the CURRENT
+  COMPOSITION, with no period, no membership variant and no as-of — and every
+  category names how many of its members it covers plus the rows it could not,
+  so an aggregate always resolves into the rows behind it.
+  """
+  def category_result(result) do
+    %{
+      portfolio_id: result.portfolio_id,
+      classification_id: result.classification_id,
+      # ADR-0041 §1: one line, and it travels with the numbers.
+      basis: result.basis,
+      basis_note:
+        "Invested, current value and result over the positions filed under " <>
+          "each category today. A statement about the current composition: " <>
+          "no period, no membership basis, no as-of. The percentage is the " <>
+          "sum of results divided by the sum of invested, never a mean of the " <>
+          "members' percentages.",
+      categories: Enum.map(result.categories, &category_result_row/1)
+    }
+  end
+
+  defp category_result_row(row) do
+    %{
+      category_id: row.category_id,
+      parent_id: row.parent_id,
+      name: row.name,
+      invested: decimal(row.invested),
+      current_value: decimal(row.current_value),
+      result_abs: decimal(row.result_abs),
+      # Null rather than "0" when nothing is invested: there is no percentage
+      # to state, and a zero would claim the category is flat.
+      result_pct: decimal(row.result_pct),
+      covered_count: row.covered_count,
+      member_count: row.member_count,
+      excluded:
+        Enum.map(row.excluded, fn entry ->
+          %{
+            security_id: entry.security_id,
+            security_name: entry.security_name,
+            reason: reason(entry.reason)
+          }
+        end),
+      positions:
+        Enum.map(row.positions, fn position ->
+          %{
+            security_id: position.security_id,
+            security_name: position.security_name,
+            quantity: decimal(position.quantity),
+            invested: decimal(position.invested),
+            current_value: decimal(position.current_value),
+            result_abs: decimal(position.result_abs),
+            result_pct: decimal(position.result_pct)
+          }
+        end)
+    }
+  end
+
   defp drift_meets_threshold?(_category, nil), do: true
 
   defp drift_meets_threshold?(category, %Decimal{} = min_drift) do

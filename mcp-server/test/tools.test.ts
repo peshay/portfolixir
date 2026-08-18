@@ -62,6 +62,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.targets.list_positions",
       "portfolixir.targets.delete_position",
       "portfolixir.portfolios.allocation",
+    "portfolixir.portfolios.category_results",
       "portfolixir.portfolios.risk",
       "portfolixir.portfolios.cash_target",
       "portfolixir.portfolios.set_cash_target",
