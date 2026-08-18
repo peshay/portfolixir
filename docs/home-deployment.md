@@ -63,6 +63,25 @@ normal operation invalidation is automatic. Freshness is always visible: the
 performance chart's basis line and every API/MCP performance payload carry
 `as_of` and a `stale` flag.
 
+### Background refresh
+
+A write does not only mark the affected figures stale — it schedules their
+recomputation. Shortly after a booking, an import or a quote update, the
+affected values are re-materialized in the background, so the next page you
+open shows a number instead of a "computing" cue. Bookings are collected and
+drained together: importing a large export costs one refresh, not one per row.
+
+Two settings tune it, both in `config/config.exs`:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `quiet_ms` | `500` | How long the refresher waits for the writing to stop before recomputing. |
+| `max_delay_ms` | `10_000` | The longest it will wait, so a continuous stream of writes still gets drained. |
+
+The refresh is an optimisation of *when* the work happens, never of whether
+the number is right: a stale value is still recomputed on read, so a refresher
+that is slow, failing or switched off costs latency and never freshness.
+
 ## Separate MCP Install
 
 The MCP server is developed in this repository but can be installed and run

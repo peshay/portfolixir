@@ -1206,6 +1206,12 @@ naming the already-booked event) stays inline in the dialog.
   "computing" cue instead of a loading message; headline values settle with
   a brief count-up. Under a reduced-motion system preference all decorative
   motion is off and final values render immediately.
+- Expensive figures are recomputed by the write that invalidated them, not by
+  the next page you open: after a booking, an import or a quote update they
+  are refreshed in the background, so the cue above is normally something you
+  see once rather than after every change. A burst of writes — an import of a
+  whole export — costs one refresh, not one per row. Until the refresh lands,
+  the previous value is shown, labelled with the time it was computed.
 - Signed key figures (TTWROR, IRR/MWR, net flows, the Overview change
   signal) carry an explicit sign and gain/loss colour at every level;
   unsigned magnitudes keep the accent colour.

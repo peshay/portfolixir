@@ -1290,6 +1290,14 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   Kopfzahlen zählen kurz sichtbar hoch. Bei reduzierter Bewegung als
   Systemeinstellung entfällt alle dekorative Bewegung und Endwerte erscheinen
   sofort.
+- Aufwändige Kennzahlen werden von der Buchung neu berechnet, die sie
+  ungültig gemacht hat, nicht von der nächsten Seite, die Sie öffnen: nach
+  einer Buchung, einem Import oder einer Kursaktualisierung werden sie im
+  Hintergrund aufgefrischt, sodass der obige Hinweis normalerweise einmal
+  erscheint statt nach jeder Änderung. Ein Schwung von Schreibvorgängen — der
+  Import eines ganzen Exports — kostet eine Auffrischung, nicht eine pro
+  Zeile. Bis sie eintrifft, wird der vorherige Wert gezeigt, beschriftet mit
+  dem Zeitpunkt seiner Berechnung.
 - Vorzeichenbehaftete Kennzahlen (TTWROR, IRR/MWR, Nettoflüsse, das
   Veränderungssignal der Übersicht) tragen ein explizites Vorzeichen und
   Gewinn-/Verlustfarbe auf jeder Ebene; vorzeichenlose Beträge behalten die
