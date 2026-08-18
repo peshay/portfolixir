@@ -2,7 +2,7 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
   use Portfolixir.DataCase, async: true
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, create_security!: 1, buy!: 3, deposit!: 3]
+    only: [base_world: 0, base_world: 1, create_security!: 1, buy!: 3, deposit!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
@@ -190,6 +190,178 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       assert [excluded] = core.excluded
       assert excluded.security_name == "Dark AG"
       assert excluded.reason == :no_usable_price
+    end
+
+    # ADR-0041 §2, last paragraph: "Parent categories roll up from their members
+    # the same way, so a level's result reconstructs from the level below it."
+    # That is a stated property with money behind it, so it gets its own test
+    # rather than riding on the flat case.
+    test "a parent reconstructs from the level below it" do
+      world = base_world()
+
+      {:ok, classification} =
+        Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+      {:ok, equities} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: "Equities"
+        })
+
+      {:ok, europe} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: "Europe",
+          parent_id: equities.id
+        })
+
+      {:ok, usa} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: "USA",
+          parent_id: equities.id
+        })
+
+      eu = create_security!(name: "Euro AG", ticker: "EUA")
+      us = create_security!(name: "States AG", ticker: "USA")
+
+      assign!(eu, classification, europe)
+      assign!(us, classification, usa)
+
+      deposit!(%{world | portfolio: world.portfolio}, "10000", ~D[2026-01-01])
+      buy!(%{world | portfolio: world.portfolio}, eu, quantity: "10", price: "100")
+      buy!(%{world | portfolio: world.portfolio}, us, quantity: "10", price: "50")
+
+      prices = %{eu.id => Decimal.new("120"), us.id => Decimal.new("40")}
+
+      {:ok, result} =
+        CategoryResult.for_portfolio(world.portfolio.id, classification.id, prices: prices)
+
+      europe_row = fetch(result, europe.id)
+      usa_row = fetch(result, usa.id)
+      parent = fetch(result, equities.id)
+
+      assert Decimal.equal?(europe_row.result_abs, Decimal.new("200"))
+      assert Decimal.equal?(usa_row.result_abs, Decimal.new("-100"))
+
+      # The parent is the sum of the level below it, on BOTH sides of the ratio.
+      assert Decimal.equal?(parent.invested, Decimal.new("1500"))
+      assert Decimal.equal?(parent.result_abs, Decimal.new("100"))
+
+      assert Decimal.equal?(
+               parent.invested,
+               Decimal.add(europe_row.invested, usa_row.invested)
+             )
+
+      assert Decimal.equal?(
+               parent.result_abs,
+               Decimal.add(europe_row.result_abs, usa_row.result_abs)
+             )
+
+      # ...and the parent percentage is money-weighted over the whole subtree
+      # (100 / 1500), NOT the mean of its children's +20% and -20%, which would
+      # read as 0% and hide a real gain.
+      assert Decimal.equal?(Decimal.round(parent.result_pct, 6), Decimal.new("0.066667"))
+      assert parent.member_count == 2
+    end
+
+    test "a security filed in no category is left out of every row" do
+      world = world_with_tree()
+
+      filed = create_security!(name: "Filed AG", ticker: "FIL")
+      loose = create_security!(name: "Loose AG", ticker: "LOO")
+
+      assign!(filed, world.classification, world.core)
+
+      deposit!(world, "10000", ~D[2026-01-01])
+      buy!(world, filed, quantity: "10", price: "100")
+      buy!(world, loose, quantity: "10", price: "100")
+
+      prices = %{filed.id => Decimal.new("150"), loose.id => Decimal.new("150")}
+
+      {:ok, result} =
+        CategoryResult.for_portfolio(world.portfolio.id, world.classification.id, prices: prices)
+
+      core = fetch(result, world.core.id)
+
+      # Only the filed position; the unassigned one is not silently folded in.
+      assert core.member_count == 1
+      assert Decimal.equal?(core.invested, Decimal.new("1000"))
+      assert [%{security_name: "Filed AG"}] = core.positions
+    end
+
+    # ADR-0033: a position whose base-currency decomposition is unavailable is
+    # the OTHER exclusion path (§4), distinct from having no price at all.
+    test "a member without a base-currency decomposition is excluded and named" do
+      world = world_with_tree()
+
+      foreign = create_security!(name: "Foreign AG", ticker: "FGN", currency: "USD")
+      assign!(foreign, world.classification, world.core)
+
+      deposit!(world, "10000", ~D[2026-01-01])
+      buy!(world, foreign, quantity: "10", price: "100")
+
+      # Priced, but with no rate to the base currency, so the base-currency
+      # return is not derivable -- honestly unavailable rather than guessed.
+      {:ok, result} =
+        CategoryResult.for_portfolio(world.portfolio.id, world.classification.id,
+          prices: %{foreign.id => Decimal.new("150")},
+          fx_rates: %{}
+        )
+
+      core = fetch(result, world.core.id)
+
+      assert core.covered_count == 0
+      assert core.member_count == 1
+      assert [excluded] = core.excluded
+      assert excluded.security_name == "Foreign AG"
+      assert excluded.reason != nil
+      # Excluded from the sums, not counted as zero.
+      assert Decimal.equal?(core.invested, Decimal.new("0"))
+      assert is_nil(core.result_pct)
+    end
+
+    # The human surface this feeds (the classification tree) is global, not
+    # portfolio-scoped: ADR-0024 demoted portfolios as a user-facing grouping,
+    # so the view a person reads spans them. Per-portfolio cost lots are built
+    # from that portfolio's own transactions, so the sums add up across
+    # portfolios without double-counting.
+    test "rolls up across every portfolio for the global view" do
+      first = world_with_tree()
+
+      second = base_world(name: "Second", cash_name: "Second Cash", depot_name: "Second Depot")
+
+      alpha = create_security!(name: "Alpha AG", ticker: "ALP")
+      assign!(alpha, first.classification, first.core)
+
+      deposit!(first, "10000", ~D[2026-01-01])
+      buy!(first, alpha, quantity: "10", price: "100")
+
+      deposit!(second, "10000", ~D[2026-01-01])
+      buy!(second, alpha, quantity: "5", price: "200")
+
+      prices = %{alpha.id => Decimal.new("150")}
+
+      {:ok, result} =
+        CategoryResult.for_all_portfolios(first.classification.id, prices: prices)
+
+      core = fetch(result, first.core.id)
+
+      # 1000 in the first portfolio + 1000 in the second.
+      assert Decimal.equal?(core.invested, Decimal.new("2000"))
+      # 15 units at 150 = 2250.
+      assert Decimal.equal?(core.current_value, Decimal.new("2250"))
+      assert Decimal.equal?(core.result_abs, Decimal.new("250"))
+
+      # One security, so one member row even though it is held twice.
+      assert core.member_count == 1
+      assert [row] = core.positions
+      assert Decimal.equal?(row.quantity, Decimal.new("15"))
+    end
+
+    test "an unknown classification is a not-found rather than a crash" do
+      world = base_world()
+      assert {:error, :not_found} = CategoryResult.for_portfolio(world.portfolio.id, 9_999_999)
     end
 
     test "a category with no members reports zeroes rather than nil" do
