@@ -71,3 +71,4 @@ already in force in the codebase.
 | [0040](0040-unallocated-remainder-in-target-plans.html) | A target plan states its unallocated remainder | Accepted |
 | [0041](0041-per-category-performance.html) | Category result — the positions in a category, rolled up and decomposable | Accepted |
 | [0042](0042-one-planning-structure.html) | One planning structure — the requirement registry and the work breakdown stop competing | Accepted |
+| [0043](0043-a-gate-closing-adr-names-its-asks.html) | A gate-closing ADR names the asks it answers — and the ones it does not | Proposed |

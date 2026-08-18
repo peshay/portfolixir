@@ -18,8 +18,8 @@ open-issue list (40), the Actions runs on `main`, and `scripts/version-report.sh
 **The UI closer, and the first sprint under one planning structure.**
 
 Sprint 6's OQ-2 committed Sprint 7 as the closer for "#672, #414 and whatever
-Lane A's UAT surfaces". That commitment is **partly kept and partly renegotiated
-in the open**, which is the honest position — see D-2 and "On OQ-2".
+Lane A's UAT surfaces". **That commitment is kept in full**, plus #471 — see
+"On OQ-2".
 
 ## Revision 1 (owner challenge)
 
@@ -59,14 +59,13 @@ mapping was inverted, so the obligation is **two unbuilt surfaces**, not one.
 Sprint 7's scope had been reduced on a false premise by the agent that would
 otherwise have had to schedule the work. Both items are now in.
 
-**A-2 — #672 was scheduled where the triage names #471, and #672 fails this
-plan's own test.** The triage says "**#414 / #471** gain the UI dimension, and
-should follow #707's output"; the plan wrote "#414 and #672", while the same
-PR's `epics.md` row wrote it correctly. And of #672 the triage says the concrete
-PP comparison "is a 20-minute question to the owner and **it changes the scope
-materially**" — i.e. it is exactly the unspecified work R-1 says poisons a
-batch. It was scheduled anyway and the exemption was never argued. **#471 is in,
-#672 is out pending the owner question.**
+**A-2 — #471 was missing from the plan.** The triage says "**#414 / #471** gain
+the UI dimension, and should follow #707's output"; the plan wrote "#414 and
+#672" and #471 appeared nowhere, while the same PR's `epics.md` row had the
+pairing right. **#471 is in**, and it is not blocked by #707: its acceptance
+criteria specify reusing `view_switcher.ex`'s existing chip/link and a11y
+pattern, so it is a contained addition to a design-language component that
+already exists.
 
 **A-3 — the migration would have broken the batch that performs it.** Deleting
 `development_status` makes `validate` fail on a *required* key, hard-fails the
@@ -103,25 +102,41 @@ checkpoint, not a smaller plan chosen by guesswork in advance.
 
 ## On OQ-2
 
-OQ-2 committed "#672, #414 and whatever Lane A's UAT surfaces". After the review:
+OQ-2 committed "#672, #414 and whatever Lane A's UAT surfaces". All of it is in,
+plus #471:
 
-- **#414** stays committed, sequenced after #707.
-- **#471** is added — the triage's actual pairing, and it is *not* blocked by
-  #707: its acceptance criteria specify reusing `view_switcher.ex`'s existing
-  chip/link and a11y pattern, so it is a contained addition to a
-  design-language component that already exists, not the redesign #707 governs.
-- **#672 is out**, and this is a renegotiation of OQ-2 made **at planning time,
-  in writing**, not absorbed in a briefing. It cannot be scheduled until the
-  owner answers which PP screens and columns it is measured against. Recorded as
-  an open item for the batch, not as a question blocking PR #714.
+- **#414** — sequenced after #707.
+- **#471** — the triage's actual pairing with #414, *not* blocked by #707: its
+  acceptance criteria specify reusing `view_switcher.ex`'s existing chip/link
+  and a11y pattern, so it is a contained addition to a design-language component
+  that already exists, not the redesign #707 governs.
+- **#672** — in, and **specified**. Revision 2 of this plan briefly excluded it
+  as "unspecified work needing a 20-minute owner question", which was a stale
+  reading of Part 4 of the 2026-08-15 triage. Round 3 of that same document
+  closes the question explicitly: *"fold that section into #672 as its scope, and
+  drop the discovery question. Asking again was a process failure of this triage,
+  not an open question: the answer had a home and it was not read before the
+  question was put."* Its scope is the PP walkthrough in
+  `feedback-triage-2026-08-05.md`: monthly/quarterly/yearly bars **kept**, an
+  accumulated-per-month chart **wanted**, deposits/withdrawals ("Ersparnis")
+  **wanted**, closed trades **kept**, taxes and fees at **overview level only**,
+  per-instrument tables **out** (unreadable even in PP), and a terminology
+  requirement that the view state what it aggregates rather than inherit PP's
+  unclear "Erträge" vs. "Dividenden" split.
+
+**The recurrence is the finding.** Re-asking a question a planning artifact had
+already answered is the third instance of the rot the 2026-08-12 triage named:
+a decision recorded where the backlog cannot see it. This plan re-ran it, and
+the fix is the one Round 3 already prescribed — the scope lives in the issue.
 
 ## Decisions
 
 **D-1 — ADR-0042 is signed off (owner).** The migration runs as Lane Z; it is
 execution, not decision-making.
 
-**D-2 (revised twice) — #414 and #471 are built this sprint; #672 is not.** Per
-A-2 and "On OQ-2".
+**D-2 (revised twice) — #414, #471 and #672 are all built this sprint.** OQ-2
+is kept in full. Per "On OQ-2"; #672's scope was settled on 2026-08-05 and the
+discovery question was formally closed on 2026-08-15.
 
 **D-3 (revised) — #708 and #709 are in.** Per R-1; both carry signed ADRs and
 bounded scope.
@@ -200,6 +215,11 @@ documents:
 7. **#471** — visible portfolio selector, mirroring `view_switcher.ex`.
    Independent of #707.
 8. **#414** — built against #707's spec.
+9. **#672** — the `/cashflow` parent and its facets, scoped by the 2026-08-05 PP
+   walkthrough (see "On OQ-2"). Facets are independent, so this degrades
+   gracefully under the shrink order; the accumulated-per-month chart is the one
+   the owner named "great as a chart" and ships first. The terminology
+   requirement rides with it: the view states what it aggregates.
 
 ### Agent and operator surface
 
@@ -258,7 +278,7 @@ updated is reported with the reason** — part of the lane, not optional.
 Lane Z: #706 review conditions ──▶ ADR-0042 migration (steps 1-6)
         │
         ├── UI: #707 ──▶ #414
-        │    └── #702, #700, #701, #703, #704, #471  (independent of #707)
+        │    └── #702, #700, #701, #703, #704, #471, #672  (independent of #707)
         │                │
         │                └──▶ Agent surface: #705 (after #700)
         ├── Agent surface: ?since= view, fields= picker (independent)
@@ -285,15 +305,19 @@ for the briefing. Saying it in the briefing is absorbing it.
 Cut order, one consistent criterion — least-constrained first, nothing whose
 absence leaves a defect live or a signed decision unshipped:
 
-1. **`?since=` human view** and **`fields=` picker** — newly recovered, no issue
+1. **#672 facets beyond the first** — the `/cashflow` parent plus its
+   accumulated-per-month chart ship; deposits/withdrawals and costs may follow in
+   Sprint 8. Largest new surface, and it degrades gracefully because the facets
+   are independent.
+2. **`?since=` human view** and **`fields=` picker** — newly recovered, no issue
    filed yet, and their deferral has a *defined* consequence: the close-out
    finding the two-way rule prescribes.
-2. **#708** — the least constrained signed decision; nothing degrades while it
+3. **#708** — the least constrained signed decision; nothing degrades while it
    waits.
-3. **#711** — #710 alone still fixes the defect.
-4. **#414** — the last resort, because cutting it renegotiates OQ-2 a second
-   time. If taken, it goes to the owner as a comment the day it is taken.
-5. **Lane M's review-and-report rows** may compress to a report with no
+4. **#711** — #710 alone still fixes the defect.
+5. **#414** — the last resort, because cutting it renegotiates OQ-2. If taken, it
+   goes to the owner as a comment the day it is taken.
+6. **Lane M's review-and-report rows** may compress to a report with no
    application; the apply-candidates and the advisory re-check stay.
 
 **Not cuttable:** Lane Z (signed decision, and it protects this batch's own
@@ -302,7 +326,6 @@ signed ADRs), and the UI defect set (#702 leaves a phone tab unreachable).
 
 ## Explicitly out of scope
 
-- **#672** — needs the owner's PP-comparison answer first. Recorded open item.
 - **#572** — D-4.
 - **The ADR-0038 amendment** named in ADR-0042's consequences — owner's.
 - **The Round 7 gate-closure rule** (F8) — owner's, still unanswered.
@@ -329,8 +352,8 @@ daily. Batch-level per ADR-0026 step 3, with three additions:
    unrecognized keys", which the migration could satisfy while leaving the file
    invalid on a missing required key.
 2. `bmad-retrospective` detects Sprint 7's epic and its close-out runs.
-3. The UI closer is closed to the extent D-2 commits, with the #672
-   renegotiation stated in the briefing.
+3. The UI closer is closed — #414, #471 and #672 — or the remainder is named in
+   the briefing with the OQ-2 consequence stated, not absorbed.
 4. `?since=` and the `fields=` picker have human views, **or** their absence is
    recorded as the close-out finding the two-way rule prescribes.
 5. #710's invariant is pinned by a test that fails without the coalescing.
