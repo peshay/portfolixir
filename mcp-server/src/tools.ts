@@ -971,6 +971,21 @@ const allocationZ = z.object({
   tax_context: z.boolean().optional()
 });
 
+const categoryResultSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id", "classification_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    classification_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const categoryResultZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  classification_id: z.number().int().positive()
+});
+
 // The cash target is the SOLL cash share of the allocation's 100% basis
 // (securities + counting cash, issue #335): a string fraction in [0, 1], or
 // null to stop steering a cash quote. Since ADR-0020 it belongs to a plan, so
@@ -2011,6 +2026,13 @@ const toolDefinitions: ToolDefinition[] = [
     allocationZ
   ),
   tool(
+    "portfolixir.portfolios.category_results",
+    "Per-category result (invested, value, made)",
+    "What each category of a classification tree COST, what it is WORTH now, and what it has MADE (ADR-0041 slice one): invested (sum of the members' base-currency cost), current_value, result_abs and result_pct per category, with the member positions that produced it and the ones it could not cover. Read the basis before the numbers: this is a statement about the CURRENT COMPOSITION — the positions filed under each category today — so there is no period, no membership variant and no as-of to choose, and it is NOT a time-weighted return series (that is a separate decision, ADR-0041 §6). result_pct is the sum of results divided by the sum of invested, NEVER a mean of the members' percentages: averaging lets a tiny position at +300% dominate a category that is flat in money. A member whose result is not derivable — no usable price, or no base-currency decomposition (ADR-0033) — is excluded from BOTH sides of the sum and listed under excluded with its reason; it is never counted as zero, which would quietly understate the category. covered_count and member_count state how much of the category the figure covers, so an aggregate always resolves into the rows behind it. A category with nothing invested reports result_pct null rather than \"0\", because having nothing to measure is a different claim from being flat. Parent categories roll up from their members the same way, so a level reconstructs from the level below it. Realized results and income are deliberately NOT included in this slice (ADR-0041 §5). All financial values are Decimal strings.",
+    categoryResultSchema,
+    categoryResultZ
+  ),
+  tool(
     "portfolixir.portfolios.risk",
     "Portfolio risk/concentration lens",
     "Risk/concentration lens for a portfolio over the steerable basis (the valued positions, scoped by the active view): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call. Pass an optional view (a view id) to scope the lens to the holdings matching that bucket view; the response then echoes the active view.",
@@ -2612,6 +2634,13 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "include_positions",
           "min_drift",
           "tax_context"
+        ])
+      );
+    case "portfolixir.portfolios.category_results":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/category-results`, args, [
+          "classification_id"
         ])
       );
     case "portfolixir.portfolios.risk":
