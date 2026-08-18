@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-17 (pre-Sprint-7 reconciliation; ADR-0042 accepted)
+# last_updated: 2026-08-18 (PR #714 merged; ADR-0042 + ADR-0043 accepted)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-08-17
+last_updated: 2026-08-18
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,64 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PRE-SPRINT-7 PLANNING LAYER MERGED (2026-08-18, `main` at bb3d728):
+# PR #714, squash-merged (single-concern planning PR; the rebase-merge rule of
+# the ADR-0026 amendment applies to epic-batch PRs, not to this).
+#
+# WHAT LANDED:
+#   - The 2026-08-17 reconciliation below, findings F4-F8.
+#   - ADR-0042 Accepted -- one planning structure. Written once on the premise
+#     that the tracker set was authoritative because the work sits there, then
+#     REWRITTEN after the owner disposed of that in one sentence ("I don't look
+#     in there"). Where data sits is not who reads it.
+#   - ADR-0043 Accepted -- a gate-closing ADR names the asks it answers and the
+#     ones it does not. Closes F8.
+#   - `human-view-debt-2026-08-17.md` -- the FR-37/38 obligation decomposed
+#     against the shipped code, and CORRECTED: it is two unbuilt surfaces, not
+#     the "mostly discharged" its first version claimed.
+#   - `sprint-plan-2026-08-17-sprint7.md` -- Sprint 7 adopted.
+#
+# AGENTIC REVIEW CLOSING ACT (ADR-0026 step 3): four roles -- evidence,
+# consistency, scope/privacy, adversarial. Scope and privacy clean. Thirteen
+# confirmed findings, all fixed before promotion.
+#
+# CLOSES NO ISSUE, by design. #321 closes by hand during the Lane Z migration.
+#
+# NO TAG, DELIBERATELY. ADR-0026 step 5's annotated `X.Y.Z` is a MINOR BUMP PER
+# SPRINT, on the merged head of the epic BATCH. This is the planning layer that
+# precedes the batch, exactly as #685 preceded #688 in Sprint 6 and carried no
+# tag. `0.7.0` belongs on the Sprint 7 batch merge and is a done-criterion of
+# that plan -- ANNOTATED, since F4 found both existing tags lightweight. A
+# self-scheduled check-in note asserted a tag was due here; it was wrong and is
+# recorded so rather than quietly skipped.
+#
+# RETROSPECTIVE -- three lessons, all from failures inside this round:
+#
+#   1. A DOCUMENT THAT ASSERTS BACKLOG STATE FROM ANOTHER DOCUMENT IS WRONG
+#   TWICE A DAY. F5 (#560 named as open when it had closed four days earlier)
+#   and the #672 re-ask are the same defect: the Sprint 6 close-out copied the
+#   previous close-out, and the Sprint 7 plan copied Part 4 of a triage without
+#   reading the Round 3 that closed it. The 2026-08-15 triage had already named
+#   this pattern -- "the answer had a home and it was not read before the
+#   question was put" -- and this round ran it again anyway.
+#
+#   2. A SELF-AUDIT THAT SHRINKS THE AUDITOR'S OWN WORK NEEDS AN ADVERSARIAL
+#   CHECK BEFORE IT IS ACTED ON. The human-view analysis concluded the FR-37/38
+#   obligation was mostly discharged, cut Sprint 7's scope on that basis, and was
+#   inverted: `fields=` lives on transactions and holdings, the only column
+#   picker is on securities. It was written by the agent that would otherwise
+#   have had to schedule the work. The adversarial role caught it; nothing else
+#   would have.
+#
+#   3. A REVIEWER'S FINDING IS EVIDENCE, NOT A VERDICT. The #672 exclusion came
+#   from a reviewer quoting Part 4 of a document whose later round closed the
+#   question -- and the consistency reviewer said exactly that, and it was
+#   missed. Findings need the same source-checking the work does.
+#
+# NEXT: the Sprint 7 batch opens on `agent/claude/sprint7-ui-closer`, Lane Z
+# first (review conditions #706, then the ADR-0042 migration and ADR-0043's one
+# retroactive application).
 #
 # RECONCILED (2026-08-17, `main` at 1a88ad5) -- pre-Sprint-7 planning readiness:
 # Verification basis: the commits on `main` (f0beb8c..1a88ad5), the remote tag
