@@ -205,4 +205,53 @@ defmodule Portfolixir.LocalizationTest do
     |> Enum.map(fn [_full, msgid] -> msgid end)
     |> Enum.uniq()
   end
+
+  # User story (#701; feedback triage 2026-08-15 F2):
+  # As a local portfolio maintainer running the German instance,
+  # I want the securities table's column headers translated like everything else,
+  # so that I stop reading German cells under English headers.
+  #
+  # Why a meta-test and not just a fix: `localization_test` could never have
+  # caught this. The labels were hard-coded `label:` strings in a field registry,
+  # so they never entered a gettext catalog at all -- there was nothing for a
+  # "missing translation" check to find. The registry is the drift source, so the
+  # assertion is on the registry.
+  #
+  # Acceptance criteria:
+  # - No field-definition label is a bare string literal: every `label:` in a
+  #   `*_fields.ex` registry goes through gettext.
+  # - The headers the owner actually sees carry German translations.
+  # - This holds for any future field table, not only the securities one.
+  test "no field-definition label bypasses the gettext catalog (#701)" do
+    registries = Path.wildcard("lib/**/*_fields.ex")
+
+    assert registries != [], "expected at least one field registry to guard"
+
+    offenders =
+      Enum.flat_map(registries, fn path ->
+        path
+        |> File.read!()
+        |> String.split("\n")
+        |> Enum.with_index(1)
+        # A label given as a bare string literal, e.g. `label: "Asset class"`.
+        |> Enum.filter(fn {line, _} -> Regex.match?(~r/label:\s*"/, line) end)
+        |> Enum.map(fn {line, lineno} -> "#{path}:#{lineno}: #{String.trim(line)}" end)
+      end)
+
+    assert offenders == [], """
+    Field-definition labels must go through gettext, or they never enter a
+    catalog and no localization check can see them missing.
+    Use `label: gettext("...")`.
+
+    #{Enum.join(offenders, "\n")}
+    """
+
+    template = File.read!("priv/gettext/default.pot")
+    german = File.read!("priv/gettext/de/LC_MESSAGES/default.po")
+
+    for header <- ["Asset class", "Latest price", "Day change", "Note", "Exchange"] do
+      assert template =~ ~s(msgid "#{header}"), "#{header} is not in the template"
+      assert german =~ ~s(msgid "#{header}"), "#{header} is not in the German catalog"
+    end
+  end
 end

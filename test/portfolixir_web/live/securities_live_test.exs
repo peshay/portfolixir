@@ -2274,4 +2274,36 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert Buckets.position_override(depot.id, security.id) == :inherit
     end
   end
+
+  describe "column headers on a German instance (#701)" do
+    # User story:
+    # As a local portfolio maintainer running the German instance,
+    # I want the securities table's column headers in German like its cells,
+    # so that I stop reading German values under English headers.
+    #
+    # Acceptance criteria:
+    # - With ?locale=de the table header row renders German labels.
+    # - The column picker, which lists the same field registry, renders them too
+    #   -- the labels come from one registry, so one fix has to serve both.
+    # - The English instance is unchanged.
+    test "table headers and the column picker render in German", %{conn: conn} do
+      {:ok, _security} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Localised Co.",
+          ticker_symbol: "LOC",
+          currency_code: "EUR",
+          asset_class: "equity"
+        })
+
+      {:ok, _view, german} = live(conn, "/securities?locale=de")
+
+      # "Asset class" is a default-visible column, so it is in the header row.
+      assert german =~ "Anlageklasse"
+      refute german =~ ">Asset class<"
+
+      {:ok, _view, english} = live(conn, "/securities")
+
+      assert english =~ "Asset class"
+    end
+  end
 end
