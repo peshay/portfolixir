@@ -112,6 +112,200 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "IRR"
   end
 
+  # User story (Sprint 7 closing act, two-way coverage for FR-37 #665):
+  # As a local portfolio maintainer with a many-category plan,
+  # I want the drift threshold my agent already has as `min_drift=` available
+  # on the allocation table itself,
+  # so that "what actually needs attention" is one click on the page rather
+  # than a read I have to ask the agent for.
+  #
+  # Acceptance criteria:
+  # - The drift table carries threshold chips; without one every category
+  #   shows, exactly as before.
+  # - Picking a threshold keeps only the categories whose ABSOLUTE drift meets
+  #   it, and hides the rest along with their position rows.
+  # - The active chip is marked by more than colour (UX-DR7) and by
+  #   aria-pressed, and the table says how many of how many categories it is
+  #   showing (UX-DR21) so a filtered read is never mistaken for the whole
+  #   tree.
+  # - The threshold rides the URL, so a reconnect (or a shared link) restores
+  #   the filtered table instead of snapping back to everything.
+  # - A garbled threshold degrades to "all" rather than crashing.
+  describe "the allocation drift threshold" do
+    # Core 50% vs 49% target (+1 pp), Satellite 40% vs 30% (+10 pp), cash 10%
+    # vs the 21% remainder (-11 pp). Two targeted categories, one clearly over
+    # any sane threshold and one clearly under it.
+    defp drift_world do
+      %{portfolio: portfolio} =
+        world = WorldFixtures.base_world(name: "Drift", cash_name: "Giro", depot_name: "Depot")
+
+      core_security = WorldFixtures.create_security!(name: "Core ETF", ticker: "COR")
+      satellite_security = WorldFixtures.create_security!(name: "Satellite ETF", ticker: "SAT")
+
+      today = Date.utc_today()
+
+      WorldFixtures.deposit!(world, "1000", Date.add(today, -10))
+
+      WorldFixtures.buy!(world, core_security,
+        quantity: "5",
+        price: "100",
+        date: Date.add(today, -9)
+      )
+
+      WorldFixtures.buy!(world, satellite_security,
+        quantity: "4",
+        price: "100",
+        date: Date.add(today, -9)
+      )
+
+      WorldFixtures.put_quote!(core_security, today, "100")
+      WorldFixtures.put_quote!(satellite_security, today, "100")
+
+      {:ok, classification} =
+        Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+      {:ok, core} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: "Core",
+          color: "#2563eb"
+        })
+
+      {:ok, satellite} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: "Satellite",
+          color: "#f97316"
+        })
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Actor.owner_ui(),
+          core_security.id,
+          classification.id,
+          core.id
+        )
+
+      {:ok, _} =
+        Classifications.assign_security(
+          Actor.owner_ui(),
+          satellite_security.id,
+          classification.id,
+          satellite.id
+        )
+
+      {:ok, _} =
+        Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+          %{"category_id" => core.id, "target_weight" => "0.49"},
+          %{"category_id" => satellite.id, "target_weight" => "0.30"}
+        ])
+
+      complete_plan!(portfolio, "0.21")
+
+      Map.merge(world, %{classification: classification, core: core, satellite: satellite})
+    end
+
+    test "a threshold keeps only the categories that deviate by at least that much",
+         %{conn: conn} do
+      world = drift_world()
+
+      {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+      render_async(view)
+
+      # Rows are identified by their category id, not by their name: the name
+      # also appears in the donut legend and in the position rows, so a name
+      # match cannot tell "the row is gone" from "the row is collapsed".
+      row? = fn category ->
+        has_element?(
+          view,
+          ~s(.drift-table tr [phx-value-category-id="#{category.id}"])
+        )
+      end
+
+      # Unfiltered: both categories, and the surface says so.
+      assert row?.(world.core)
+      assert row?.(world.satellite)
+      assert view |> element(~s([data-role="drift-filter-summary"])) |> render() =~ "2"
+
+      # 5 pp keeps Satellite (+10 pp) and drops Core (+1 pp).
+      view |> element(~s([data-role="drift-chip"][phx-value-pp="5"])) |> render_click()
+
+      assert row?.(world.satellite)
+      refute row?.(world.core)
+
+      summary = view |> element(~s([data-role="drift-filter-summary"])) |> render()
+      assert summary =~ "1"
+      assert summary =~ "2"
+
+      # A hidden category takes its position rows with it: expanding Core
+      # before filtering must not leave "Core ETF" behind under a threshold
+      # its category does not meet.
+      view |> element(~s([data-role="drift-chip"][phx-value-pp="5"])) |> render_click()
+      view |> element(~s([data-role="toggle-all-categories"])) |> render_click()
+      assert view |> element(".drift-table") |> render() =~ "Core ETF"
+
+      view |> element(~s([data-role="drift-chip"][phx-value-pp="5"])) |> render_click()
+      refute view |> element(".drift-table") |> render() =~ "Core ETF"
+      assert view |> element(".drift-table") |> render() =~ "Satellite ETF"
+
+      # 1 pp keeps both again: Core's +1 pp meets the threshold exactly.
+      view |> element(~s([data-role="drift-chip"][phx-value-pp="1"])) |> render_click()
+
+      assert row?.(world.core)
+      assert row?.(world.satellite)
+    end
+
+    test "the active threshold is marked beyond colour and rides the URL", %{conn: conn} do
+      world = drift_world()
+
+      {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+      render_async(view)
+
+      view |> element(~s([data-role="drift-chip"][phx-value-pp="5"])) |> render_click()
+      patched = assert_patch(view)
+
+      active = view |> element(~s([data-role="drift-chip"][phx-value-pp="5"])) |> render()
+      assert active =~ ~s(aria-pressed="true")
+      assert active =~ "is-active"
+
+      idle = view |> element(~s([data-role="drift-chip"][phx-value-pp="1"])) |> render()
+      assert idle =~ ~s(aria-pressed="false")
+
+      assert patched =~ "tab=allocation"
+      assert patched =~ "drift=5"
+
+      # A reconnect remounts at that URL and finds the table still filtered.
+      {:ok, remounted, _html} = live(conn, patched)
+      render_async(remounted)
+
+      assert has_element?(
+               remounted,
+               ~s(.drift-table tr [phx-value-category-id="#{world.satellite.id}"])
+             )
+
+      refute has_element?(
+               remounted,
+               ~s(.drift-table tr [phx-value-category-id="#{world.core.id}"])
+             )
+    end
+
+    test "a garbled threshold degrades to showing everything", %{conn: conn} do
+      world = drift_world()
+
+      {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&drift=lots")
+      render_async(view)
+
+      assert has_element?(view, ~s(.drift-table tr [phx-value-category-id="#{world.core.id}"]))
+
+      assert has_element?(
+               view,
+               ~s(.drift-table tr [phx-value-category-id="#{world.satellite.id}"])
+             )
+
+      assert view |> element(~s([data-role="drift-filter-summary"])) |> render() =~ "2"
+    end
+  end
+
   # User story (#577):
   # As a local portfolio maintainer with more than one internal portfolio,
   # I want the TTWROR/IRR to cover exactly the accounts the header total

@@ -703,7 +703,21 @@ trägt einen **Aufklapp-Pfeil (▸)** — die ganze Namenszelle ist klickbar —
 ihre direkten Kinder zeigt — Unterkategorien wie Positionen (auch der graue
 Eimer *Nicht zugeordnet* klappt so in seine Wertpapiere auf) —, und ein
 einzelner Umschalter **Alles aus-/einklappen** über der Tabelle öffnet oder
-faltet den ganzen Baum bis zur Einzelposition. Ein Umschalter **Baum |
+faltet den ganzen Baum bis zur Einzelposition. Daneben stehen die
+**Abweichungs-Chips** — *Abweichung ab ≥ 1 pp / ≥ 2 pp / ≥ 5 pp*: Ein Klick
+verengt die Tabelle auf die Kategorien, die tatsächlich um mindestens so viel
+abweichen — in beide Richtungen —, ein erneuter Klick auf den aktiven Chip hebt
+die Auswahl wieder auf. Drei Dinge sind wissenswert. Die Stufe 5 pp ist
+dieselbe Schwelle, die die Aufmerksamkeitsliste des Dashboards verwendet;
+Warnungen und Tabelle sind sich also einig, was Aufmerksamkeit braucht. Eine
+gefilterte Tabelle ist **flach** — eine erhaltene Kategorie erscheint auch
+dann, wenn ihr Elternteil unter der Schwelle liegt und damit fehlt — und sie
+behält immer die Zeilen *Cash* und *Nicht zugeordnet*; die Zeile über der
+Tabelle sagt das zusammen mit „wie viele von wie vielen Kategorien" an.
+Schließlich steht die Schwelle in der URL (`?drift=5`), ein gemerkter oder
+geteilter Link öffnet also wieder dieselbe gefilterte Ansicht; es ist derselbe
+Filter, den API und MCP als `min_drift=` anbieten (dort ein Gewichtsanteil:
+5 pp sind `min_drift=0.05`). Ein Umschalter **Baum |
 Positionen** tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
 eine Zeile je Wertpapier (inkl. Cash) mit der Kategorie als Kontext,
 standardmäßig nach vorzeichenbehafteter Drift sortiert (stärkstes Übergewicht

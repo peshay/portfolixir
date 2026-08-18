@@ -51,6 +51,12 @@ defmodule PortfolixirWeb.PortfolioLive do
   # unassigned/excluded shades, for the cash segment in the basis (issue #335).
   @cash_color "#0ea5e9"
   @chart_max_points 400
+  # The drift-threshold steps the allocation table offers, in percentage
+  # points. 5 pp is the dashboard's own attention threshold, so the alert list
+  # and the filtered table agree on what "needs attention" means; 1 and 2 pp
+  # are for a plan steered more tightly than that. A fixed set, because the
+  # value round-trips through the URL and a whitelist beats parsing.
+  @drift_steps ["1", "2", "5"]
   @unpriced_names_shown 6
 
   @impl true
@@ -111,6 +117,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:selected_segment, nil)
           |> assign(:expanded_categories, MapSet.new())
           |> assign(:allocation_mode, param_allocation_mode(params))
+          |> assign(:min_drift_pp, param_min_drift_pp(params))
           |> assign(:flat_sort, {:drift, :desc})
           |> assign(:fx_syncing, false)
           |> assign(:fx_sync_result, nil)
@@ -166,11 +173,17 @@ defmodule PortfolixirWeb.PortfolioLive do
   def handle_params(params, _uri, socket) do
     classification_id = param_classification_id(params, socket.assigns.classifications)
     allocation_mode = param_allocation_mode(params)
+    min_drift_pp = param_min_drift_pp(params)
 
     current_path =
       case socket.assigns.wealth_tab do
         :allocation ->
-          allocation_current_path(params["view"], classification_id, allocation_mode)
+          allocation_current_path(
+            params["view"],
+            classification_id,
+            allocation_mode,
+            min_drift_pp
+          )
 
         # Other tabs have no allocation controls; keep mount's tab+view path.
         _other ->
@@ -180,6 +193,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     socket =
       socket
       |> assign(:allocation_mode, allocation_mode)
+      |> assign(:min_drift_pp, min_drift_pp)
       |> assign(:current_path, current_path)
 
     socket =
@@ -210,7 +224,8 @@ defmodule PortfolixirWeb.PortfolioLive do
         params["classification"],
         Integer.to_string(socket.assigns.classification_id)
       ) or
-        present_but_stale?(params["alloc"], allocation_mode_param(socket.assigns.allocation_mode))
+        present_but_stale?(params["alloc"], allocation_mode_param(socket.assigns.allocation_mode)) or
+        present_but_stale?(params["drift"], socket.assigns.min_drift_pp)
 
     if connected?(socket) and stale? do
       # current_path IS the canonical allocation path (assigned above).
@@ -244,6 +259,40 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp param_allocation_mode(%{"alloc" => "tree"}), do: :tree
   defp param_allocation_mode(_params), do: :tree
 
+  # Reads the drift threshold from the URL. The chips offer a fixed set of
+  # steps and the URL carries the chosen one verbatim, so parsing is a
+  # whitelist match rather than a Decimal parse of arbitrary input — a garbled
+  # or removed value degrades to "no threshold" (show everything), never a
+  # crash and never a silently different filter.
+  defp param_min_drift_pp(%{"drift" => pp}) when pp in @drift_steps, do: pp
+  defp param_min_drift_pp(_params), do: nil
+
+  defp drift_steps, do: @drift_steps
+
+  # The rows a threshold keeps, for the summary line's count. Same predicate
+  # as the table itself, so the number can never disagree with the rows.
+  defp threshold_rows(categories, pp),
+    do: Enum.filter(categories, &Allocation.drift_at_least?(&1, min_drift_decimal(pp)))
+
+  # The chips speak percentage points because that is how a plan is read
+  # ("5 pp off target"); the predicate — and the API's `min_drift=` — speak the
+  # weight fraction the drift itself is in. One conversion, here.
+  defp min_drift_decimal(nil), do: nil
+
+  defp min_drift_decimal(pp) when is_binary(pp),
+    do: Decimal.div(Decimal.new(pp), 100)
+
+  # The category rows the drift table renders. Without a threshold that is the
+  # tree as expanded; with one it is the flat set of rows meeting it, using the
+  # SAME predicate as the API's `min_drift=` filter so the two surfaces cannot
+  # select different categories. A filtered row is shown regardless of its
+  # ancestors' expansion — its parent may well be under the threshold and gone.
+  defp visible_category_rows(categories, nil, expanded, parent_map),
+    do: Enum.filter(categories, &branch_expanded?(&1.parent_id, expanded, parent_map))
+
+  defp visible_category_rows(categories, %Decimal{} = min_drift, _expanded, _parent_map),
+    do: Enum.filter(categories, &Allocation.drift_at_least?(&1, min_drift))
+
   # The internal mode atom as the short URL value (`:flat` reads as "positions",
   # matching the button label and the flat worklist).
   defp allocation_mode_param(:flat), do: "positions"
@@ -257,17 +306,22 @@ defmodule PortfolixirWeb.PortfolioLive do
   # The allocation tab's canonical path: tab, the active view (only when
   # explicitly chosen), the classification and the mode, in a deterministic
   # order so the switchers merge cleanly and a reconnect reconstructs the state.
-  defp allocation_current_path(view, classification_id, allocation_mode) do
+  defp allocation_current_path(view, classification_id, allocation_mode, min_drift_pp) do
     pairs =
       [{"tab", "allocation"}] ++
         view_pairs(view) ++
         [
           {"classification", Integer.to_string(classification_id)},
           {"alloc", allocation_mode_param(allocation_mode)}
-        ]
+        ] ++ drift_pairs(min_drift_pp)
 
     "/portfolio?" <> URI.encode_query(pairs)
   end
+
+  # Only a chosen threshold rides the URL: the unfiltered table is the default,
+  # and a default in the address bar is noise a shared link carries forever.
+  defp drift_pairs(pp) when is_binary(pp), do: [{"drift", pp}]
+  defp drift_pairs(_pp), do: []
 
   defp view_pairs(view) when is_binary(view) and view != "", do: [{"view", view}]
   defp view_pairs(_view), do: []
@@ -1201,7 +1255,9 @@ defmodule PortfolixirWeb.PortfolioLive do
             </div>
 
             <%!-- One expand/collapse toggle directly above the table (UAT fix
-                 round): the label states the action it will perform next. --%>
+                 round): the label states the action it will perform next.
+                 Beside it the drift threshold — the human half of the API's
+                 `min_drift=`, same predicate, same rows. --%>
             <div class="drift-table-actions">
               <button
                 type="button"
@@ -1215,7 +1271,45 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <%= gettext("Expand all") %>
                 <% end %>
               </button>
+              <%!-- The same chip component the transaction history filters
+                   with: one interaction, one visual. Pressed state is border
+                   plus aria-pressed, not hue alone (UX-DR7). --%>
+              <div
+                :if={@allocation.has_plan}
+                class="filter-chips"
+                role="group"
+                aria-label={gettext("Drift threshold")}
+              >
+                <span class="filter-chips__family"><%= gettext("Deviating by") %></span>
+                <button
+                  :for={pp <- drift_steps()}
+                  type="button"
+                  data-role="drift-chip"
+                  phx-click="set_drift_threshold"
+                  phx-value-pp={pp}
+                  class={["filter-chip", @min_drift_pp == pp && "is-active"]}
+                  aria-pressed={to_string(@min_drift_pp == pp)}
+                >
+                  <%= gettext("≥ %{pp} pp", pp: pp) %>
+                </button>
+              </div>
             </div>
+            <%!-- A filtered table says what it is showing (UX-DR21), so a
+                 short list is never mistaken for a short plan. --%>
+            <p class="drift-filter-summary" data-role="drift-filter-summary">
+              <%= if @min_drift_pp do %>
+                <%= gettext(
+                  "Showing %{shown} of %{total} categories, those deviating by at least %{pp} pp. Cash and unassigned always show.",
+                  shown: length(threshold_rows(@allocation.categories, @min_drift_pp)),
+                  total: length(@allocation.categories),
+                  pp: @min_drift_pp
+                ) %>
+              <% else %>
+                <%= gettext("Showing all %{total} categories.",
+                  total: length(@allocation.categories)
+                ) %>
+              <% end %>
+            </p>
 
             <table class="drift-table" aria-describedby="tip-soll-ist">
               <thead>
@@ -1238,8 +1332,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                 </tr>
               </thead>
               <tbody>
-                <%= for row <- @allocation.categories do %>
-                  <%= if branch_expanded?(row.parent_id, @expanded_categories, @category_parent_map) do %>
+                <%= for row <- visible_category_rows(
+                      @allocation.categories,
+                      min_drift_decimal(@min_drift_pp),
+                      @expanded_categories,
+                      @category_parent_map
+                    ) do %>
                   <tr class={row.depth > 0 && "is-child"}>
                     <%!-- The whole name cell toggles the subtree (UAT fix
                          round): the chevron alone is too small a target. --%>
@@ -1385,7 +1483,6 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <% end %>
                       </tr>
                     <% end %>
-                  <% end %>
                   <% end %>
                 <% end %>
                 <%!-- In the currency classification cash is distributed into
@@ -2080,7 +2177,8 @@ defmodule PortfolixirWeb.PortfolioLive do
            allocation_current_path(
              current_view_param(socket.assigns.current_path),
              classification_id,
-             socket.assigns.allocation_mode
+             socket.assigns.allocation_mode,
+             socket.assigns.min_drift_pp
            )
        )}
     else
@@ -2196,7 +2294,8 @@ defmodule PortfolixirWeb.PortfolioLive do
            allocation_current_path(
              current_view_param(socket.assigns.current_path),
              socket.assigns.classification_id,
-             requested
+             requested,
+             socket.assigns.min_drift_pp
            )
        )}
     end
@@ -2205,6 +2304,27 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Forged-event parity with the set_chart_mode fallback (async-hardening
   # round): a malformed payload degrades instead of crashing the LiveView.
   def handle_event("set_allocation_mode", _params, socket), do: {:noreply, socket}
+
+  # The drift threshold rides the URL like the tree and the mode do, so a
+  # reconnect or a shared link reopens the same filtered table. Clicking the
+  # active step clears it (the chip is a toggle), and an unknown step is a
+  # no-op rather than a crash.
+  def handle_event("set_drift_threshold", %{"pp" => pp}, socket) when pp in @drift_steps do
+    requested = if pp == socket.assigns.min_drift_pp, do: nil, else: pp
+
+    {:noreply,
+     push_patch(socket,
+       to:
+         allocation_current_path(
+           current_view_param(socket.assigns.current_path),
+           socket.assigns.classification_id,
+           socket.assigns.allocation_mode,
+           requested
+         )
+     )}
+  end
+
+  def handle_event("set_drift_threshold", _params, socket), do: {:noreply, socket}
 
   # Clicking the active sort key flips its direction; a new numeric key starts
   # desc (worklist semantics: biggest lever first), the category label starts

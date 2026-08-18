@@ -653,7 +653,19 @@ category-name cell is clickable — that reveals its direct children —
 subcategories and positions alike (the grey *Unassigned* bucket expands the
 same way into its member securities) — and a single **Expand all / Collapse
 all** toggle above the table opens or folds the whole tree down to the single
-position. A **Tree | Positions** switch swaps the hierarchy for a flat
+position. Beside it sit the **drift-threshold chips** — *Deviating by ≥ 1 pp
+/ ≥ 2 pp / ≥ 5 pp*: picking one narrows the table to the categories that
+actually deviate by at least that much, in either direction, and clicking the
+active chip clears it again. Three things are worth knowing. The 5 pp step is
+the same threshold the dashboard's attention list uses, so the alerts and this
+table agree on what needs attention. A filtered table is **flat** — a kept
+category shows even when its parent is under the threshold and therefore gone
+— and it always keeps the *Cash* and *Unassigned* rows, which the line above
+the table states along with how many of how many categories are showing.
+Finally, the threshold rides the URL (`?drift=5`), so a bookmarked or shared
+link reopens the same filtered view; it is the same filter the API and MCP
+offer as `min_drift=` (a weight fraction there: 5 pp is `min_drift=0.05`).
+A **Tree | Positions** switch swaps the hierarchy for a flat
 rebalancing worklist: one row per security (cash included) with its category
 as context, sorted by signed drift by default (most overweight first, most
 underweight last) and re-sortable via the column heads (value, drift, or
